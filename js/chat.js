@@ -21,20 +21,76 @@ let _chatAbortController = null;
 // TYPEWRITER — smooth character trickle for streaming
 // ═══════════════════════════════════════════════
 function createTypewriter(el, typingEl, container) {
-  let target = '';     // full text received so far
-  let displayed = 0;   // chars already rendered
+  let target = '';
+  let displayed = 0;
   let timer = null;
+  let autoScrollLocked = false;
+
+  function scrollToBottom() {
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function isNearBottom() {
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    return distanceFromBottom < 80;
+  }
+
+  function onWheel(e) {
+    // If user scrolls upward while AI is typing, stop auto-scroll immediately
+    if (e.deltaY < 0) {
+      autoScrollLocked = true;
+    }
+  }
+
+  function onTouchMove() {
+    // Mobile/manual scroll should also lock auto-scroll
+    autoScrollLocked = true;
+  }
+
+  function onMouseDown() {
+    // If user grabs scrollbar, assume manual control
+    autoScrollLocked = true;
+  }
+
+  function onScroll() {
+    // If user comes back near bottom, allow auto-scroll again
+    if (isNearBottom()) {
+      autoScrollLocked = false;
+    }
+  }
+
+  container.addEventListener('wheel', onWheel, { passive: true });
+  container.addEventListener('touchmove', onTouchMove, { passive: true });
+  container.addEventListener('mousedown', onMouseDown);
+  container.addEventListener('scroll', onScroll, { passive: true });
+
+  function cleanup() {
+    container.removeEventListener('wheel', onWheel);
+    container.removeEventListener('touchmove', onTouchMove);
+    container.removeEventListener('mousedown', onMouseDown);
+    container.removeEventListener('scroll', onScroll);
+  }
 
   function tick() {
-    if (displayed >= target.length) { timer = null; return; }
-    // Trickle: render a batch proportional to how far behind we are
+    if (displayed >= target.length) {
+      timer = null;
+      return;
+    }
+
     const behind = target.length - displayed;
     const batch = Math.max(1, Math.ceil(behind * 0.3));
     displayed = Math.min(displayed + batch, target.length);
+
     if (typingEl.parentNode) typingEl.remove();
     if (!el.parentNode) container.appendChild(el);
+
     el.textContent = target.slice(0, displayed);
-    container.scrollTop = container.scrollHeight;
+
+    if (!autoScrollLocked) {
+      scrollToBottom();
+    }
+
     timer = setTimeout(tick, 16);
   }
 
@@ -44,8 +100,12 @@ function createTypewriter(el, typingEl, container) {
       if (!timer) tick();
     },
     stop() {
-      if (timer) { clearTimeout(timer); timer = null; }
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
       displayed = target.length;
+      cleanup();
     }
   };
 }
