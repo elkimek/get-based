@@ -673,10 +673,6 @@ export function closeSettingsModal() {
   const hadProvider = window._settingsHadProvider;
   document.getElementById('settings-modal-overlay').classList.remove('show');
   if (window.updateChatNudge) window.updateChatNudge();
-  // If user just connected an AI provider, open chat for the next onboarding step
-  if (!hadProvider && window.hasAIProvider?.()) {
-    setTimeout(() => window.openChatPanel?.(), 300);
-  }
 }
 
 /** After a successful key save, auto-close settings and return to chat if we came from onboarding. */
@@ -684,6 +680,7 @@ function _returnToChatIfOnboarding() {
   if (window._settingsHadProvider) return; // already had a provider — user is just reconfiguring
   if (!window.hasAIProvider?.()) return;
   closeSettingsModal();
+  setTimeout(() => window.openChatPanel?.(), 300);
 }
 
 function isHttpsToNonLocalhost(url) {
