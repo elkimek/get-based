@@ -9,6 +9,7 @@ import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, 
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots, updateKeyCache } from './crypto.js';
 import { isSyncEnabled, enableSync, disableSync, getMnemonic, restoreFromMnemonic, getSyncRelay, setSyncRelay, checkRelayConnection, isMessengerEnabled, getMessengerToken, generateMessengerToken, revokeMessengerToken, pushContextToGateway } from './sync.js';
+import { getWithingsConfig, saveWithingsConfig, getWithingsAuthUrl, syncWithingsWeight, getWithingsLastSync, removeWithingsWeightData } from './withings-weight.js';
 
 
 // ═══════════════════════════════════════════════
@@ -167,6 +168,12 @@ export function openSettingsModal(tab) {
 
       <div class="settings-section" id="backup-section">
         ${renderBackupSection()}
+      </div>
+
+      <div class="settings-group-title">Withings Integration</div>
+
+      <div class="settings-section" id="withings-section">
+        ${renderWithingsSection()}
       </div>
 
       <div class="settings-group-title">Imported Data</div>
@@ -1628,6 +1635,10 @@ Object.assign(window, {
   refreshModelAdvisor,
   applyHardwareOverride: applyHardwareOverrideFn,
   clearHardwareOverride: clearHardwareOverrideFn,
+  saveWithingsCredentials,
+  authorizeWithings,
+  triggerWithingsWeightSync,
+  deleteWithingsWeightData,
 });
 
 function refreshModelAdvisor() {
@@ -1651,4 +1662,104 @@ function clearHardwareOverrideFn() {
   saveHardwareOverride(null);
   const details = window._lastOllamaModelDetails || [];
   if (details.length) renderModelAdvisor(details, document.getElementById('local-ai-model-select'), !!window._lastIsOllamaServer);
+}
+
+// ═══════════════════════════════════════════════
+// WITHINGS (weight-only)
+// ═══════════════════════════════════════════════
+
+function formatLastSync(ts) {
+  if (!ts) return 'Never';
+  try { return new Date(ts).toLocaleString(); } catch { return ts; }
+}
+
+function renderWithingsSection() {
+  const cfg = getWithingsConfig() || {};
+  const connected = !!cfg.accessToken;
+  const lastSync = getWithingsLastSync();
+
+  return `<div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:13px;color:var(--text-secondary)">Status</div>
+      <div style="font-size:13px">${connected ? '<span style="color:var(--green)">● Connected</span>' : '<span style="color:var(--text-muted)">● Not connected</span>'}</div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Last sync: ${formatLastSync(lastSync)}</div>
+
+    <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px">Withings Client ID</label>
+    <input type="text" class="api-key-input" id="withings-client-id" value="${escapeAttr(cfg.clientId || '')}" placeholder="your client id">
+
+    <label style="display:block;font-size:12px;color:var(--text-secondary);margin:10px 0 4px">Withings Client Secret</label>
+    <input type="password" class="api-key-input" id="withings-client-secret" value="${escapeAttr(cfg.clientSecret || '')}" placeholder="your client secret">
+
+    <label style="display:block;font-size:12px;color:var(--text-secondary);margin:10px 0 4px">Redirect URI</label>
+    <input type="text" class="api-key-input" id="withings-redirect-uri" value="${escapeAttr(cfg.redirectUri || (window.location.origin + window.location.pathname))}">
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="import-btn import-btn-primary" onclick="saveWithingsCredentials()">Save credentials</button>
+      <button class="import-btn import-btn-secondary" onclick="authorizeWithings()">Authorize</button>
+      <button class="import-btn import-btn-secondary" onclick="triggerWithingsWeightSync()">Sync weight</button>
+      <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="deleteWithingsWeightData()">Delete Withings data</button>
+    </div>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.4">
+      Imports only weight into existing biometrics structure (kg/lbs converted to current unit system). No other Withings measurements are imported.
+    </div>
+  </div>`;
+}
+
+function refreshWithingsSection() {
+  const el = document.getElementById('withings-section');
+  if (el) el.innerHTML = renderWithingsSection();
+}
+
+function saveWithingsCredentials() {
+  const clientId = document.getElementById('withings-client-id')?.value?.trim();
+  const clientSecret = document.getElementById('withings-client-secret')?.value?.trim();
+  const redirectUri = document.getElementById('withings-redirect-uri')?.value?.trim();
+
+  if (!clientId || !clientSecret || !redirectUri) {
+    showNotification('Please fill all Withings credential fields', 'error');
+    return;
+  }
+
+  const prev = getWithingsConfig() || {};
+  saveWithingsConfig({ ...prev, clientId, clientSecret, redirectUri });
+  showNotification('Withings credentials saved', 'success');
+  refreshWithingsSection();
+}
+
+function authorizeWithings() {
+  const cfg = getWithingsConfig();
+  if (!cfg?.clientId || !cfg?.clientSecret || !cfg?.redirectUri) {
+    showNotification('Save Withings credentials first', 'error');
+    return;
+  }
+  const url = getWithingsAuthUrl(cfg);
+  window.location.href = url;
+}
+
+async function triggerWithingsWeightSync() {
+  try {
+    const r = await syncWithingsWeight();
+    showNotification(`Withings sync complete (${r.count} day${r.count === 1 ? '' : 's'} updated)`, 'success');
+    if (window.showDashboard) window.showDashboard();
+    refreshDataEntriesSection();
+    refreshWithingsSection();
+  } catch (e) {
+    showNotification(`Withings sync failed: ${e.message}`, 'error');
+  }
+}
+
+async function deleteWithingsWeightData() {
+  const ok = confirm('Delete all Withings-imported weight rows and disconnect Withings?');
+  if (!ok) return;
+  try {
+    const r = await removeWithingsWeightData();
+    showNotification(`Removed ${r.removed} Withings weight entr${r.removed === 1 ? 'y' : 'ies'}`, 'success');
+    if (window.showDashboard) window.showDashboard();
+    refreshDataEntriesSection();
+    refreshWithingsSection();
+  } catch (e) {
+    showNotification(`Delete failed: ${e.message}`, 'error');
+  }
 }

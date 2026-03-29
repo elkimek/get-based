@@ -5,6 +5,51 @@ import { escapeHTML, escapeAttr, hashString } from './utils.js';
 import { getActiveData, countFlagged, filterDatesByRange } from './data.js';
 import { getProfiles } from './profile.js';
 
+function _scrollElementIntoView(el) {
+  if (!el) return;
+  // Prefer native behavior first
+  try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
+
+  // Fallback for container-scrolling layouts
+  let parent = el.parentElement;
+  while (parent) {
+    const style = getComputedStyle(parent);
+    const canScroll = /(auto|scroll)/.test(style.overflowY || '');
+    if (canScroll && parent.scrollHeight > parent.clientHeight) {
+      const top = Math.max(0, el.offsetTop - 60);
+      parent.scrollTo({ top, behavior: 'smooth' });
+      return;
+    }
+    parent = parent.parentElement;
+  }
+
+  // Window fallback
+  const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 60);
+  window.scrollTo({ top: y, behavior: 'smooth' });
+}
+
+function scrollDashboardSection(sectionId, afterScroll) {
+  const tryScroll = () => {
+    const el = document.getElementById(sectionId);
+    if (!el) return false;
+    _scrollElementIntoView(el);
+    if (typeof afterScroll === 'function') afterScroll(el);
+    return true;
+  };
+
+  if (tryScroll()) return;
+  requestAnimationFrame(() => {
+    if (tryScroll()) return;
+    setTimeout(() => { if (tryScroll()) return; }, 120);
+    setTimeout(() => { tryScroll(); }, 320);
+  });
+}
+
+function openDashboardSection(sectionId, afterScroll) {
+  window.navigate('dashboard');
+  scrollDashboardSection(sectionId, afterScroll);
+}
+
 function _buildNavItem(key, cat) {
   const markers = Object.values(cat.markers).filter(m => !m.hidden);
   const withData = markers.filter(m => m.values && m.values.some(v => v !== null)).length;
@@ -42,7 +87,7 @@ export function buildSidebar(data) {
     const gParts = [];
     if (genetics.snps && Object.keys(genetics.snps).length > 0) gParts.push(Object.keys(genetics.snps).length);
     if (genetics.mtdna) gParts.push(genetics.mtdna.haplogroup);
-    html += `<div class="nav-item" data-category="genetics" tabindex="0" role="button" onclick="window.navigate('dashboard');setTimeout(()=>{const el=document.getElementById('genetics-section');if(el){const y=el.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:y,behavior:'smooth'});const b=el.querySelector('.genetics-body');if(b&&b.classList.contains('hidden'))window.toggleGeneticsCollapse();}},100)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+    html += `<div class="nav-item" data-category="genetics" tabindex="0" role="button" onclick="openDashboardSection('genetics-section',(el)=>{const b=el.querySelector('.genetics-body');if(b&&b.classList.contains('hidden'))window.toggleGeneticsCollapse();})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
       <span class="icon">\uD83E\uDDEC</span> Genetics <span class="nav-count">${gParts.join(' ')}</span></div>`;
   }
 
@@ -63,6 +108,22 @@ export function buildSidebar(data) {
 
   // Render blood work categories
   html += `<div class="sidebar-title">Categories <button class="sidebar-add-marker" onclick="event.stopPropagation();openCreateMarkerModal()" title="Create custom biomarker">+</button></div>`;
+
+  // Biometrics appears as its own category item (only when data exists)
+  const biometrics = state.importedData?.biometrics;
+  const hasBiometricsData = !!(biometrics && (
+    (Array.isArray(biometrics.weight) && biometrics.weight.length > 0) ||
+    (Array.isArray(biometrics.bp) && biometrics.bp.length > 0) ||
+    (Array.isArray(biometrics.pulse) && biometrics.pulse.length > 0)
+  ));
+  if (hasBiometricsData) {
+    const bioCount = (Array.isArray(biometrics.weight) ? biometrics.weight.length : 0)
+      + (Array.isArray(biometrics.bp) ? biometrics.bp.length : 0)
+      + (Array.isArray(biometrics.pulse) ? biometrics.pulse.length : 0);
+    html += `<div class="nav-item" data-category="biometrics" tabindex="0" role="button" onclick="window.navigate('biometrics')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('biometrics')}">
+      <span class="icon">\uD83E\uDE7A</span> Biometrics <span class="count">${bioCount}</span></div>`;
+  }
+
   for (const item of bloodWork) html += item.html;
 
   // Render specialty groups
@@ -202,4 +263,4 @@ export function closeMobileSidebar() {
   document.getElementById('sidebar-backdrop').classList.remove('show');
 }
 
-Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, toggleMobileSidebar, closeMobileSidebar });
+Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, toggleMobileSidebar, closeMobileSidebar, scrollDashboardSection, openDashboardSection });

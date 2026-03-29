@@ -7,6 +7,7 @@ import { getChartColors } from './theme.js';
 import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, getFocusCardFingerprint, saveImportedData, recalculateHOMAIR, updateHeaderDates, renderDateRangeFilter, renderChartLayersDropdown, convertDisplayToSI } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { createLineChart, getMarkerDescription, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin } from './charts.js';
+import { renderBiometricsCategoryView } from './biometrics-view.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderGeneticsSection } from './dna.js';
 import { renderMenstrualCycleSection } from './cycle.js';
@@ -32,6 +33,7 @@ export function navigate(category, data) {
   if (category === "dashboard") showDashboard(data);
   else if (category === "correlations") showCorrelations(data);
   else if (category === "compare") showCompare(data);
+  else if (category === "biometrics") showBiometrics(data);
   else showCategory(category, data);
 }
 
@@ -42,7 +44,12 @@ export function navigate(category, data) {
 export function showDashboard(data) {
   if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
-  const hasData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
+  const hasBiometricsData = !!(state.importedData?.biometrics && (
+    (Array.isArray(state.importedData.biometrics.weight) && state.importedData.biometrics.weight.length > 0) ||
+    (Array.isArray(state.importedData.biometrics.bp) && state.importedData.biometrics.bp.length > 0) ||
+    (Array.isArray(state.importedData.biometrics.pulse) && state.importedData.biometrics.pulse.length > 0)
+  ));
+  const hasData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singlePoint && c.singleDate) || hasBiometricsData;
 
   // Show/hide import FAB based on whether dashboard has data
   const importFab = document.getElementById('import-fab');
@@ -506,6 +513,24 @@ export function dismissOnboarding() {
 // ═══════════════════════════════════════════════
 // CATEGORY VIEWS
 // ═══════════════════════════════════════════════
+
+export function showBiometrics(preData) {
+  const rawData = preData || getActiveData();
+  const data = filterDatesByRange(rawData);
+  const main = document.getElementById("main-content");
+  const b = state.importedData?.biometrics || {};
+  const weightCount = Array.isArray(b.weight) ? b.weight.length : 0;
+  const bpCount = Array.isArray(b.bp) ? b.bp.length : 0;
+  const pulseCount = Array.isArray(b.pulse) ? b.pulse.length : 0;
+  const total = weightCount + bpCount + pulseCount;
+
+  let html = `<div class="category-header"><h2>🩺 Biometrics</h2>
+    <p>${total} measurement${total === 1 ? '' : 's'} tracked (weight ${weightCount}, blood pressure ${bpCount}, pulse ${pulseCount})</p></div>`;
+
+  html += renderBiometricsCategoryView();
+
+  main.innerHTML = html;
+}
 
 export function showCategory(categoryKey, preData) {
   const rawData = preData || getActiveData();

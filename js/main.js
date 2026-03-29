@@ -26,6 +26,7 @@ import './export.js';
 import './chat.js';
 import './image-utils.js';
 import './settings.js';
+import { maybeHandleWithingsOAuthCallback } from './withings-weight.js';
 import './glossary.js';
 import './feedback.js';
 import './tour.js';
@@ -47,10 +48,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize folder backup (restore persisted handle, check permission)
   await initFolderBackup();
 
-  // Handle OpenRouter OAuth callback (?code=...)
+  // Handle OAuth callbacks
   const urlParams = new URLSearchParams(window.location.search);
   const oauthCode = urlParams.get('code');
-  if (oauthCode) {
+  const oauthState = urlParams.get('state');
+
+  // Withings callback takes precedence when state key matches saved withings OAuth state
+  const handledWithings = await maybeHandleWithingsOAuthCallback();
+
+  // OpenRouter callback
+  if (!handledWithings && oauthCode && !oauthState) {
     history.replaceState(null, '', window.location.pathname);
     try {
       const key = await exchangeOpenRouterCode(oauthCode);
