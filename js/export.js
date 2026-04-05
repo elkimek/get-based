@@ -458,6 +458,13 @@ export async function buildAllDataBundle() {
     if (chat) entry.chat = chat;
     bundle.profiles.push(entry);
   }
+  // Include Cashu wallet data (global, not per-profile)
+  const walletMnemonic = typeof window.cashuGetWalletMnemonic === 'function' ? await window.cashuGetWalletMnemonic() : null;
+  const walletMintUrl = typeof window.cashuGetMintUrl === 'function' ? await window.cashuGetMintUrl() : null;
+  const walletNodeUrl = typeof window.nostrGetSelectedNode === 'function' ? window.nostrGetSelectedNode() : null;
+  if (walletMnemonic) {
+    bundle.wallet = { mnemonic: walletMnemonic, mintUrl: walletMintUrl, nodeUrl: walletNodeUrl };
+  }
   return JSON.stringify(bundle, null, 2);
 }
 
@@ -880,6 +887,16 @@ async function _importDatabaseBundle(json) {
   // Switch to the first imported profile (so user lands on real data, not empty default)
   const targetId = firstImportedId || state.currentProfile;
   await loadProfile(targetId);
+  // Restore Cashu wallet if present in bundle
+  if (json.wallet?.mnemonic && typeof window.cashuRestoreWalletFromSeed === 'function') {
+    try {
+      await window.cashuRestoreWalletFromSeed(json.wallet.mnemonic);
+      if (json.wallet.mintUrl && typeof window.cashuSetMintUrl === 'function') await window.cashuSetMintUrl(json.wallet.mintUrl);
+      if (json.wallet.nodeUrl && typeof window.nostrSetSelectedNode === 'function') window.nostrSetSelectedNode(json.wallet.nodeUrl);
+    } catch (e) {
+      if (isDebugMode()) console.log('[import] Wallet restore failed:', e.message);
+    }
+  }
   const total = created + merged;
   showNotification(`Imported ${total} profile${total !== 1 ? 's' : ''} (${created} new, ${merged} merged)`, 'success');
 }
