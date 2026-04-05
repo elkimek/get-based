@@ -180,6 +180,8 @@ export async function setMintUrl(url) {
   _wallet = null; // reset wallet instance
   _mintUrl = null;
   await _setMeta('mintUrl', url);
+  // Mirror to localStorage for sync/backup
+  localStorage.setItem('labcharts-cashu-wallet-mint', url);
 }
 
 // ═══════════════════════════════════════════════
@@ -372,7 +374,7 @@ export async function createWithdrawQuote(bolt11Invoice) {
 
 /** Execute withdrawal — pays the Lightning invoice from wallet proofs.
  *  Returns { paid, change } */
-export async function executeWithdraw(quoteId, bolt11Invoice) {
+export async function executeWithdraw(quoteId) {
   const wallet = await _getWallet();
   const quote = await wallet.checkMeltQuoteBolt11(quoteId);
   const amountNeeded = (quote.amount || 0) + (quote.fee_reserve || 0);
@@ -385,7 +387,7 @@ export async function executeWithdraw(quoteId, bolt11Invoice) {
 
   // Save recovery metadata before spending
   const mintUrl = await getMintUrl();
-  await _setMeta('pendingWithdraw', JSON.stringify({ quoteId, bolt11: bolt11Invoice, token: cashuts.getEncodedToken({ mint: mintUrl, proofs: send }) }));
+  await _setMeta('pendingWithdraw', JSON.stringify({ quoteId, token: cashuts.getEncodedToken({ mint: mintUrl, proofs: send }) }));
 
   // Update wallet: old proofs spent (swapped at mint), save change
   await _deleteProofs(proofs);
