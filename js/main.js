@@ -27,6 +27,8 @@ import './export.js';
 import './chat.js';
 import './image-utils.js';
 import './settings.js';
+import './cashu-wallet.js';
+import './nostr-discovery.js';
 import './glossary.js';
 import './feedback.js';
 import './tour.js';
