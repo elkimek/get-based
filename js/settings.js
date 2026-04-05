@@ -286,7 +286,7 @@ export function renderAIProviderPanel(provider) {
         </div>
       </div>
       <div id="routstr-wallet-fund-area" style="display:none"></div>
-      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">5% supports getbased development</div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">5% on Cashu deposits supports getbased development</div>
     </div>`;
     // Node section
     const nodeLabel = nodeUrl ? escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')) : 'none selected';
@@ -1308,7 +1308,7 @@ export function showRoutstrWalletFund() {
     <div style="display:flex;flex-wrap:wrap;gap:4px">
       ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrWalletFund(${s})">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsWalletFundCustomInput()">\u26a1\u2026</button></div>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">5,000 sats is enough for onboarding \u00b7 min 1,000 \u00b7 5% fee</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">5,000 sats is enough for onboarding \u00b7 min 1,000</div>
     <div style="margin-top:6px"><div class="or-oauth-divider"><span>or paste Cashu token</span></div>
     <div style="display:flex;gap:6px;margin-top:4px">
       <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashu..." style="font-size:11px;flex:1;font-family:monospace">
