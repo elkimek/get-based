@@ -300,7 +300,7 @@ export function renderAIProviderPanel(provider) {
         <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="showRoutstrNodePicker()">Browse</button>
       </div>
       ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Session: <span id="routstr-node-balance">loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
-      <div id="routstr-node-picker" style="display:none;max-height:250px;overflow-y:auto"></div>
+      <div id="routstr-node-picker" style="display:none"></div>
     </div>`;
     if (routstrMode === 'wallet') {
       return `<div class="ai-provider-panel">
@@ -1433,9 +1433,10 @@ export async function doRoutstrWalletReceiveCashu() {
 }
 
 export async function showRoutstrWalletBackup() {
+  _setActiveWalletAction('backup');
   try {
     const token = await window.cashuExportWallet();
-    if (!token) { showNotification('Wallet is empty', 'info'); return; }
+    if (!token) { showNotification('Wallet is empty', 'info'); _setActiveWalletAction(null); return; }
     navigator.clipboard.writeText(token);
     showNotification('Wallet backup copied to clipboard (clears in 60s)', 'success');
     clearTimeout(window._rsCashuBackupTimer);
@@ -1443,6 +1444,7 @@ export async function showRoutstrWalletBackup() {
   } catch (e) {
     showNotification('Backup failed: ' + e.message, 'error');
   }
+  setTimeout(() => _setActiveWalletAction(null), 500);
 }
 
 export async function showRoutstrNodePicker() {
@@ -1555,6 +1557,8 @@ function _walletActionButtons(active) {
 
 function _setActiveWalletAction(actionId) {
   _activeWalletAction = actionId;
+  // Clear fund poll timer when switching away from deposit
+  if (actionId !== 'deposit' && _rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
   const el = document.getElementById('routstr-wallet-actions');
   if (el) el.innerHTML = _walletActionButtons(actionId);
 }
