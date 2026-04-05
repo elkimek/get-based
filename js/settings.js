@@ -1442,19 +1442,35 @@ export async function connectRoutstrNode(nodeUrl) {
     showRoutstrWalletFund();
     return;
   }
-  // Deposit half the wallet balance to the node (keep some in reserve)
-  const deposit = Math.min(Math.floor(walletBalance / 2), 50000);
+  // Show deposit amount picker
   const picker = document.getElementById('routstr-node-picker');
-  if (picker) picker.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Depositing ' + deposit.toLocaleString() + ' sats to node\u2026</div>';
+  const nodeLabel = escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+  const presets = [1000, 2500, 5000].filter(v => v <= walletBalance);
+  if (walletBalance > 5000 && walletBalance <= 50000) presets.push(walletBalance);
+  else if (walletBalance > 50000) presets.push(50000);
+  if (picker) picker.innerHTML = `<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--accent)">
+    <div style="font-size:12px;margin-bottom:6px">Deposit to <strong>${nodeLabel}</strong></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${walletBalance.toLocaleString()} sats. How much to deposit?</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">
+      ${presets.map(v => `<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+    </div>
+    <div id="routstr-deposit-status" style="margin-top:6px"></div>
+  </div>`;
+}
+
+let _rsConnecting = false;
+export async function doRoutstrNodeDeposit(nodeUrl, amount) {
+  if (_rsConnecting) return;
+  _rsConnecting = true;
+  const statusEl = document.getElementById('routstr-deposit-status');
+  if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Depositing ' + amount.toLocaleString() + ' sats\u2026</div>';
   try {
-    const result = await window.cashuDepositToNode(nodeUrl, deposit);
+    const result = await window.cashuDepositToNode(nodeUrl, amount);
     if (!result.api_key) throw new Error('No session key returned');
     await saveRoutstrKey(result.api_key);
     window.nostrSetSelectedNode(nodeUrl);
-    // Fetch models from the new node
     const models = await fetchRoutstrModels();
-    showNotification('Connected to ' + nodeUrl.replace(/^https?:\/\//, ''), 'success');
-    // Re-render panel
+    showNotification('Connected to ' + nodeUrl.replace(/^https?:\/\//, '') + ' \u26a1 ' + amount.toLocaleString() + ' sats', 'success');
     const panel = document.getElementById('ai-provider-panel');
     if (panel) panel.innerHTML = renderAIProviderPanel('routstr');
     if (models.length) renderRoutstrModelDropdown(models);
@@ -1462,8 +1478,9 @@ export async function connectRoutstrNode(nodeUrl) {
     refreshRoutstrBalance();
     _returnToChatIfOnboarding();
   } catch (e) {
-    if (picker) picker.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
   }
+  _rsConnecting = false;
 }
 
 async function _refreshRoutstrWalletBalance() {
@@ -2492,6 +2509,7 @@ Object.assign(window, {
   showRoutstrWalletBackup,
   showRoutstrNodePicker,
   connectRoutstrNode,
+  doRoutstrNodeDeposit,
   dismissRoutstrKeyReveal,
   showRoutstrTopup,
   rsShowCustomSatsInput,
