@@ -149,25 +149,54 @@ async function _migrateFeeProofs() {
 let _wallet = null;
 let _mintUrl = null;
 
-// Persist deterministic wallet counters in IndexedDB to avoid "outputs already signed" errors
+// Persist deterministic wallet counters in IndexedDB to avoid "outputs already signed" errors.
+// Interface: reserve(keysetId, count) → { start, count }, advanceToAtLeast(keysetId, value)
 function _createCounterSource() {
-  const counters = {};
+  const next = {};
+  const locks = new Map();
+
+  async function _load(keysetId) {
+    if (next[keysetId] != null) return;
+    const stored = await _getMeta('counter:' + keysetId);
+    next[keysetId] = stored || 0;
+  }
+
+  async function _save(keysetId) {
+    await _setMeta('counter:' + keysetId, next[keysetId]);
+  }
+
+  // Simple async lock per keyset to prevent concurrent reserve conflicts
+  function withLock(keysetId, fn) {
+    const prev = locks.get(keysetId) || Promise.resolve();
+    let release;
+    const gate = new Promise(r => release = r);
+    const chained = prev.then(() => gate);
+    locks.set(keysetId, chained);
+    return prev.then(async () => {
+      try { return await fn(); } finally { release(); if (locks.get(keysetId) === chained) locks.delete(keysetId); }
+    });
+  }
+
   return {
-    async get(keysetId) {
-      if (counters[keysetId] != null) return counters[keysetId];
-      const stored = await _getMeta('counter:' + keysetId);
-      counters[keysetId] = stored || 0;
-      return counters[keysetId];
+    async reserve(keysetId, count) {
+      if (count < 0) throw new Error('reserve called with negative count');
+      return withLock(keysetId, async () => {
+        await _load(keysetId);
+        const start = next[keysetId];
+        if (count === 0) return { start, count: 0 };
+        next[keysetId] = start + count;
+        await _save(keysetId);
+        return { start, count };
+      });
     },
-    async set(keysetId, value) {
-      counters[keysetId] = value;
-      await _setMeta('counter:' + keysetId, value);
-    },
-    async increment(keysetId, count) {
-      const current = await this.get(keysetId);
-      const next = current + (count || 1);
-      await this.set(keysetId, next);
-      return current; // return the start counter (before increment)
+    async advanceToAtLeast(keysetId, value) {
+      return withLock(keysetId, async () => {
+        await _load(keysetId);
+        if (value > next[keysetId]) {
+          next[keysetId] = value;
+          await _save(keysetId);
+        }
+      });
     }
   };
 }
