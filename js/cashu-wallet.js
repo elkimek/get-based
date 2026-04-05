@@ -149,6 +149,29 @@ async function _migrateFeeProofs() {
 let _wallet = null;
 let _mintUrl = null;
 
+// Persist deterministic wallet counters in IndexedDB to avoid "outputs already signed" errors
+function _createCounterSource() {
+  const counters = {};
+  return {
+    async get(keysetId) {
+      if (counters[keysetId] != null) return counters[keysetId];
+      const stored = await _getMeta('counter:' + keysetId);
+      counters[keysetId] = stored || 0;
+      return counters[keysetId];
+    },
+    async set(keysetId, value) {
+      counters[keysetId] = value;
+      await _setMeta('counter:' + keysetId, value);
+    },
+    async increment(keysetId, count) {
+      const current = await this.get(keysetId);
+      const next = current + (count || 1);
+      await this.set(keysetId, next);
+      return current; // return the start counter (before increment)
+    }
+  };
+}
+
 async function _getWallet(mintUrl) {
   const url = mintUrl || await getMintUrl();
   if (_wallet && _mintUrl === url) return _wallet;
@@ -158,6 +181,7 @@ async function _getWallet(mintUrl) {
   const opts = {};
   if (mnemonic && window.bip39) {
     opts.bip39seed = await window.bip39.mnemonicToSeed(mnemonic);
+    opts.counterSource = _createCounterSource();
   }
   _wallet = new Wallet(url, opts);
   await _wallet.loadMint();
@@ -408,6 +432,22 @@ export async function executeWithdraw(quoteId) {
   return { paid: true, change: balance };
 }
 
+/** Send sats from wallet as a Cashu token string (for pasting elsewhere).
+ *  Returns { token, amount, remaining } */
+export async function sendAsToken(amountSats) {
+  const proofs = await _getAllProofs();
+  const total = cashuts.sumProofs(proofs);
+  if (total < amountSats) throw new Error('Insufficient balance: ' + total + ' sats, need ' + amountSats);
+  const wallet = await _getWallet();
+  const { keep, send } = await wallet.send(amountSats, proofs, { includeFees: true });
+  await _deleteProofs(proofs);
+  await _saveProofs(keep);
+  const mintUrl = await getMintUrl();
+  const token = cashuts.getEncodedToken({ mint: mintUrl, proofs: send });
+  const remaining = await getWalletBalance();
+  return { token, amount: cashuts.sumProofs(send), remaining };
+}
+
 // ═══════════════════════════════════════════════
 // FEE MANAGEMENT
 // ═══════════════════════════════════════════════
@@ -482,6 +522,7 @@ Object.assign(window, {
   cashuImportWallet: importWallet,
   cashuClearWallet: clearWallet,
   cashuRecoverPendingDeposit: recoverPendingDeposit,
+  cashuSendAsToken: sendAsToken,
   cashuCreateWithdrawQuote: createWithdrawQuote,
   cashuExecuteWithdraw: executeWithdraw,
   cashuGetFeeBalance: getFeeBalance,

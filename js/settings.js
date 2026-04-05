@@ -1595,12 +1595,55 @@ export async function showRoutstrWithdraw() {
   area.style.display = 'block';
   const balance = await window.cashuGetBalance();
   area.innerHTML = `<div style="margin-top:8px">
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Withdraw to Lightning</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Withdraw</div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${balance.toLocaleString()} sats</div>
-    <input type="text" class="api-key-input" id="routstr-withdraw-input" placeholder="Paste Lightning invoice (lnbc...)" style="font-size:11px;font-family:monospace">
-    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" onclick="doRoutstrWithdrawQuote()">Check Fee</button>
+    <div style="display:flex;gap:4px;margin-bottom:6px">
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="showRoutstrWithdrawLightning()">\u26a1 Lightning</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="showRoutstrWithdrawToken()">Cashu Token</button>
+    </div>
     <div id="routstr-withdraw-status"></div>
   </div>`;
+}
+
+export function showRoutstrWithdrawLightning() {
+  const statusEl = document.getElementById('routstr-withdraw-status');
+  if (!statusEl) return;
+  statusEl.innerHTML = `<div style="margin-top:4px">
+    <input type="text" class="api-key-input" id="routstr-withdraw-input" placeholder="Paste Lightning invoice (lnbc...)" style="font-size:11px;font-family:monospace">
+    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" onclick="doRoutstrWithdrawQuote()">Check Fee</button>
+  </div>`;
+}
+
+export async function showRoutstrWithdrawToken() {
+  const statusEl = document.getElementById('routstr-withdraw-status');
+  if (!statusEl) return;
+  const balance = await window.cashuGetBalance();
+  const presets = [1000, 2500, 5000].filter(v => v <= balance);
+  if (balance > 0 && !presets.includes(balance)) presets.push(balance);
+  statusEl.innerHTML = `<div style="margin-top:4px">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Send as Cashu token</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">
+      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrSendToken(${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+    </div>
+    <div id="routstr-token-result"></div>
+  </div>`;
+}
+
+export async function doRoutstrSendToken(amount) {
+  const resultEl = document.getElementById('routstr-token-result');
+  if (!resultEl) return;
+  resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Creating token\u2026</div>';
+  try {
+    const result = await window.cashuSendAsToken(amount);
+    resultEl.innerHTML = `<div style="margin-top:6px">
+      <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 ${result.amount} sats \u2014 copy the token below</div>
+      <textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:60px;resize:none;user-select:all" readonly onclick="this.select()">${escapeHTML(result.token)}</textarea>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" onclick="navigator.clipboard.writeText('${escapeAttr(result.token)}');this.textContent='\u2713 Copied (60s)';clearTimeout(window._tokenClipTimer);window._tokenClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Token</button>
+    </div>`;
+    _refreshRoutstrWalletBalance();
+  } catch (e) {
+    resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+  }
 }
 
 export async function doRoutstrWithdrawQuote() {
@@ -2694,6 +2737,9 @@ Object.assign(window, {
   walletSeedAcknowledged,
   showWalletSeedPhrase,
   showRoutstrWithdraw,
+  showRoutstrWithdrawLightning,
+  showRoutstrWithdrawToken,
+  doRoutstrSendToken,
   doRoutstrWithdrawQuote,
   doRoutstrWithdrawExecute,
   showRoutstrWalletRestore,
