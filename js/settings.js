@@ -1452,22 +1452,21 @@ export async function showRoutstrNodePicker() {
   area.style.display = 'block';
   area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Searching Nostr relays\u2026</div>';
   try {
-    const nodes = await window.nostrDiscoverNodes(true);
+    const allNodes = await window.nostrDiscoverNodes(true);
+    const nodes = allNodes.filter(n => n.online);
     if (!nodes.length) {
-      area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No nodes found. Try again later.</div>';
+      area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found (' + allNodes.length + ' discovered). Try again later.</div>';
       return;
     }
     area.innerHTML = '<div style="margin-top:8px">' + nodes.map(function(n) {
       const url = n.urls[0] || '';
       const domain = escapeHTML(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
       const label = escapeHTML(n.name || domain);
-      const models = n.online ? n.modelCount + ' model' + (n.modelCount !== 1 ? 's' : '') : 'offline';
+      const models = n.modelCount + ' model' + (n.modelCount !== 1 ? 's' : '');
       const onion = n.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
-      const statusDot = n.online ? '<span style="color:var(--green)">\u25cf</span>' : '<span style="color:var(--text-muted)">\u25cb</span>';
-      const opacity = n.online ? '' : 'opacity:0.5;';
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);${opacity}">
-        <div>${statusDot} <span style="font-size:12px;font-weight:500">${label}</span>${onion}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}</span></div>
-        ${n.online ? `<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" onclick="connectRoutstrNode('${escapeAttr(url)}')">Connect</button>` : ''}
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}</span></div>
+        <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" onclick="connectRoutstrNode('${escapeAttr(url)}')">Connect</button>
       </div>`;
     }).join('') + '</div>';
   } catch (e) {
