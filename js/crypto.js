@@ -19,6 +19,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-routstr-key$/,
   /^labcharts-ppq-key$/,
   /^labcharts-ollama$/,
+  /^labcharts-cashu-wallet-mnemonic$/,
 ];
 
 function isSensitiveKey(key) {
@@ -33,7 +34,7 @@ let _sessionKey = null;
 // ═══════════════════════════════════════════════
 // API KEY CACHE — sync access to decrypted API keys
 // ═══════════════════════════════════════════════
-const API_KEY_LS_KEYS = ['labcharts-api-key', 'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama'];
+const API_KEY_LS_KEYS = ['labcharts-api-key', 'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic'];
 const _keyCache = new Map();
 
 export async function decryptKeyCache() {
@@ -656,6 +657,7 @@ const GLOBAL_SETTINGS_KEYS = [
   'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
   'labcharts-ollama', 'labcharts-ollama-model',
   'labcharts-ollama-pii-url', 'labcharts-ollama-pii-model',
+  'labcharts-cashu-wallet-mnemonic', 'labcharts-cashu-wallet-mint', 'labcharts-routstr-node',
   'labcharts-time-format', 'labcharts-theme', 'labcharts-debug',
   'labcharts-pii-review', 'labcharts-ollama-pii-enabled', 'labcharts-chat-sources',
   'labcharts-active-profile'

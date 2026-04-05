@@ -373,6 +373,9 @@ const AI_SETTINGS_KEYS = [
   'labcharts-ollama-model',
   'labcharts-ollama-pii-url',
   'labcharts-ollama-pii-model',
+  'labcharts-cashu-wallet-mnemonic',  // Wallet seed (encrypted)
+  'labcharts-cashu-wallet-mint',       // Wallet mint URL
+  'labcharts-routstr-node',           // Selected Routstr node
 ];
 
 async function collectAISettings() {
@@ -384,7 +387,7 @@ async function collectAISettings() {
   return settings;
 }
 
-const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama'];
+const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic'];
 
 async function applyAISettings(settings) {
   if (!settings) return;
