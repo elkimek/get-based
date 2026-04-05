@@ -764,7 +764,8 @@ export async function validateVeniceKey(key) {
 const ROUTSTR_EXCLUDE = ['codex', 'audio', 'image', 'oss', 'safeguard', 'coder', 'embed', 'tts', 'whisper', 'beta', 'preview', 'free', 'gratis'];
 export async function fetchRoutstrModels() {
   try {
-    const res = await fetch('https://api.routstr.com/v1/models');
+    const nodeUrl = getRoutstrNodeUrl();
+    const res = await fetch(nodeUrl.replace(/\/$/, '') + '/v1/models');
     if (!res.ok) return [];
     const json = await res.json();
     const all = (json.data || []).filter(function(m) {
@@ -814,11 +815,15 @@ export async function validateRoutstrKey(key) {
   }
   return { valid: true };
 }
+export function getRoutstrNodeUrl() {
+  return localStorage.getItem('labcharts-routstr-node') || 'https://api.routstr.com';
+}
 export async function callRoutstrAPI(opts) {
   const key = getRoutstrKey();
-  if (!key) throw new Error('No Routstr key configured. Add your Cashu token or session key in Settings.');
+  if (!key) throw new Error('No Routstr key configured. Fund your wallet and connect to a node in Settings.');
+  const nodeUrl = getRoutstrNodeUrl();
   return callOpenAICompatibleAPI(
-    'https://api.routstr.com/v1/chat/completions',
+    nodeUrl.replace(/\/$/, '') + '/v1/chat/completions',
     key, getRoutstrModel(), 'Routstr', opts
   );
 }
@@ -826,7 +831,7 @@ export async function callRoutstrAPI(opts) {
 // ─── Routstr wallet ───
 export async function createRoutstrAccount(cashuToken) {
   if (!cashuToken) throw new Error('A Cashu token is required to create a wallet');
-  const res = await fetch('https://api.routstr.com/v1/balance/create?initial_balance_token=' + encodeURIComponent(cashuToken));
+  const res = await fetch(getRoutstrNodeUrl().replace(/\/$/, '') + '/v1/balance/create?initial_balance_token=' + encodeURIComponent(cashuToken));
   if (!res.ok) {
     const err = await res.json().catch(() => null);
     const detail = err?.detail;
@@ -842,7 +847,7 @@ export async function getRoutstrBalance() {
   const key = getRoutstrKey();
   if (!key) return null;
   try {
-    const res = await fetch('https://api.routstr.com/v1/balance/info', {
+    const res = await fetch(getRoutstrNodeUrl().replace(/\/$/, '') + '/v1/balance/info', {
       headers: { 'Authorization': 'Bearer ' + key }
     });
     if (!res.ok) return null;
@@ -855,7 +860,7 @@ export async function getRoutstrBalance() {
 export async function createRoutstrLightningInvoice(amountSats) {
   const key = getRoutstrKey();
   if (!key) throw new Error('No Routstr key');
-  const res = await fetch('https://api.routstr.com/v1/balance/lightning/invoice', {
+  const res = await fetch(getRoutstrNodeUrl().replace(/\/$/, '') + '/v1/balance/lightning/invoice', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount_sats: amountSats, purpose: 'topup', api_key: key })
@@ -870,7 +875,7 @@ export async function createRoutstrLightningInvoice(amountSats) {
 }
 export async function checkRoutstrInvoiceStatus(invoiceId) {
   const key = getRoutstrKey();
-  const res = await fetch('https://api.routstr.com/v1/balance/lightning/invoice/' + encodeURIComponent(invoiceId) + '/status', {
+  const res = await fetch(getRoutstrNodeUrl().replace(/\/$/, '') + '/v1/balance/lightning/invoice/' + encodeURIComponent(invoiceId) + '/status', {
     headers: key ? { 'Authorization': 'Bearer ' + key } : {}
   });
   if (!res.ok) return null;
@@ -879,7 +884,7 @@ export async function checkRoutstrInvoiceStatus(invoiceId) {
 export async function topupRoutstrCashu(cashuToken) {
   const key = getRoutstrKey();
   if (!key) throw new Error('No Routstr key');
-  const res = await fetch('https://api.routstr.com/v1/balance/topup', {
+  const res = await fetch(getRoutstrNodeUrl().replace(/\/$/, '') + '/v1/balance/topup', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({ cashu_token: cashuToken })
@@ -1034,7 +1039,7 @@ Object.assign(window, {
   getOpenRouterKey, saveOpenRouterKey, hasOpenRouterKey,
   getOpenRouterModel, setOpenRouterModel, getOpenRouterModelDisplay,
   getRoutstrKey, saveRoutstrKey, hasRoutstrKey,
-  getRoutstrModel, setRoutstrModel, getRoutstrModelDisplay,
+  getRoutstrModel, setRoutstrModel, getRoutstrModelDisplay, getRoutstrNodeUrl,
   getPpqKey, savePpqKey, hasPpqKey,
   getPpqModel, setPpqModel, getPpqModelDisplay,
   getPpqCreditId, savePpqCreditId,
