@@ -1353,7 +1353,7 @@ export async function doRoutstrWalletFund(amountSats) {
     }
     const payUri = 'lightning:' + result.invoice;
     statusEl.innerHTML = `<div style="margin-top:8px;text-align:center">
-      <div style="font-size:12px;font-weight:600;margin-bottom:4px">\u26a1 ${amountSats.toLocaleString()} sats <span style="font-size:10px;color:var(--text-muted)">(${result.fee} fee, ${result.netAmount} to wallet)</span></div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">\u26a1 ${amountSats.toLocaleString()} sats</div>
       ${qrSvg ? `<a href="${payUri}" style="display:inline-block;background:#fff;padding:8px;border-radius:8px;width:180px;height:180px">${qrSvg}</a>` : ''}
       <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="navigator.clipboard.writeText('${escapeAttr(result.invoice)}');this.textContent='\u2713 Copied'">${result.invoice.slice(0, 20)}\u2026 copy</button></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-wfund-poll">Waiting for payment\u2026</div>
@@ -1364,8 +1364,8 @@ export async function doRoutstrWalletFund(amountSats) {
         const s = await window.cashuCheckFundingStatus(result.quote);
         if (s && s.paid) {
           clearInterval(_rsFundPollTimer); _rsFundPollTimer = null;
-          statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + result.netAmount + ' sats added to wallet!</div>';
-          showNotification('Wallet funded \u26a1 ' + result.netAmount + ' sats', 'success');
+          statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + amountSats.toLocaleString() + ' sats added to wallet!</div>';
+          showNotification('Wallet funded \u26a1 ' + amountSats.toLocaleString() + ' sats', 'success');
           _refreshRoutstrWalletBalance();
           setTimeout(function() { const a = document.getElementById('routstr-wallet-fund-area'); if (a) a.style.display = 'none'; }, 3000);
         }

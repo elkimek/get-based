@@ -142,18 +142,18 @@ export async function getWalletBalance() {
 }
 
 /** Create a Lightning invoice to fund the wallet.
- *  Returns { quote, invoice, amount, fee } where fee is the getbased cut. */
+ *  Fee is informational — displayed to user but not deducted from the invoice.
+ *  The full amount goes to the wallet; fee is taken on spend (deposit to node).
+ *  Returns { quote, invoice, amount } */
 export async function createFundingInvoice(amountSats) {
-  const fee = Math.ceil(amountSats * WALLET_FEE_PCT);
-  const netAmount = amountSats - fee;
   const wallet = await _getWallet();
-  const quote = await wallet.createMintQuoteBolt11(netAmount);
+  const quote = await wallet.createMintQuoteBolt11(amountSats);
+  // Store the amount alongside the quote so checkFundingStatus can use it
+  await _setMeta('pendingQuote:' + quote.quote, amountSats);
   return {
     quote: quote.quote,
     invoice: quote.request,
     amount: amountSats,
-    netAmount,
-    fee,
     state: quote.state
   };
 }
@@ -164,11 +164,14 @@ export async function checkFundingStatus(quoteId) {
   const wallet = await _getWallet();
   const checked = await wallet.checkMintQuoteBolt11(quoteId);
   if (checked.state === cashuts.MintQuoteState.PAID) {
-    // Mint the proofs
-    const proofs = await wallet.mintProofsBolt11(checked.amount || 0, quoteId);
+    // Retrieve stored amount (don't rely on checked.amount which may be missing)
+    const storedAmount = await _getMeta('pendingQuote:' + quoteId);
+    const amount = storedAmount || checked.amount || 0;
+    if (!amount) throw new Error('Cannot determine invoice amount — please contact support');
+    const proofs = await wallet.mintProofsBolt11(amount, quoteId);
     await _saveProofs(proofs);
     const balance = await getWalletBalance();
-    return { paid: true, balance };
+    return { paid: true, balance, minted: amount };
   }
   return { paid: false, state: checked.state };
 }
@@ -183,15 +186,13 @@ export async function receiveToken(tokenString) {
   const fee = Math.ceil(total * WALLET_FEE_PCT);
 
   if (fee > 0 && total > fee) {
-    // Split: keep fee portion separate, store only the user's portion
+    // wallet.send(fee, proofs) → send = proofs worth `fee` (revenue), keep = change (user's)
     const { keep, send } = await wallet.send(fee, proofs, { includeFees: true });
-    // keep = fee proofs (getbased revenue — store separately or aggregate later)
-    // send = proofs worth `fee` sats — this is actually reversed, let me fix:
-    // wallet.send(amount, proofs) returns: send = proofs worth `amount`, keep = change
-    // We want to keep (total - fee) for the user, send `fee` as revenue
-    // So: send the fee amount, keep the rest
     await _saveProofs(keep); // user's proofs (total - fee)
-    // TODO: fee proofs (send) could be forwarded to a getbased Lightning address
+    // Save fee proofs for later redemption (melt to Lightning address)
+    const existingFees = JSON.parse(localStorage.getItem('cashu-fee-proofs') || '[]');
+    existingFees.push(...send);
+    localStorage.setItem('cashu-fee-proofs', JSON.stringify(existingFees));
     if (isDebugMode()) console.log('[cashu-wallet] Fee collected:', fee, 'sats');
   } else {
     await _saveProofs(proofs);
@@ -201,9 +202,11 @@ export async function receiveToken(tokenString) {
   return { received: total - fee, fee, balance };
 }
 
-/** Send proofs worth `amount` sats to a Routstr node.
- *  Returns encoded cashu token string for the node. */
-export async function sendToNode(amountSats) {
+/** Deposit sats to a Routstr node and get a session key for streaming.
+ *  Atomically: swap proofs at mint → deposit token to node → update wallet.
+ *  If node rejects, the send proofs are saved to recovery storage.
+ *  Returns { api_key, balance } from the node. */
+export async function depositToNode(nodeUrl, amountSats) {
   const proofs = await _getAllProofs();
   const total = cashuts.sumProofs(proofs);
   if (total < amountSats) throw new Error('Insufficient wallet balance: ' + total + ' sats, need ' + amountSats);
@@ -211,20 +214,19 @@ export async function sendToNode(amountSats) {
   const wallet = await _getWallet();
   const { keep, send } = await wallet.send(amountSats, proofs, { includeFees: true });
 
-  // Update storage: remove old proofs, save change
+  // Encode the send proofs as a token
+  const mintUrl = await getMintUrl();
+  const token = cashuts.getEncodedToken({ mint: mintUrl, proofs: send });
+
+  // Save the outbound token to recovery storage BEFORE calling the node.
+  // If deposit fails, user can recover these proofs via wallet import.
+  await _setMeta('pendingDeposit', token);
+
+  // Now safe to update wallet: old proofs are spent (mint swapped), save change
   await _deleteProofs(proofs);
   await _saveProofs(keep);
 
-  // Encode the send proofs as a token
-  const mintUrl = await getMintUrl();
-  return cashuts.getEncodedToken({ mint: mintUrl, proofs: send });
-}
-
-/** Deposit sats to a Routstr node and get a session key for streaming.
- *  Returns { apiKey, balance } from the node. */
-export async function depositToNode(nodeUrl, amountSats) {
-  const token = await sendToNode(amountSats);
-  // Use the node's balance/create endpoint with the cashu token
+  // Deposit to node
   const res = await fetch(nodeUrl + '/v1/balance/create?initial_balance_token=' + encodeURIComponent(token));
   if (!res.ok) {
     const err = await res.json().catch(() => null);
@@ -233,9 +235,18 @@ export async function depositToNode(nodeUrl, amountSats) {
       : (detail && detail.error) ? detail.error.message
       : Array.isArray(detail) ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
       : err?.message;
-    throw new Error(msg || 'Node deposit failed: ' + res.status);
+    // Don't clear pendingDeposit — user can recover via cashuRecoverPendingDeposit()
+    throw new Error(msg || 'Node deposit failed: ' + res.status + '. Your sats are safe — use Backup to recover.');
   }
+
+  // Success — clear recovery token
+  await _setMeta('pendingDeposit', null);
   return res.json(); // { api_key, balance, ... }
+}
+
+/** Recover a failed deposit. Returns the pending token string or null. */
+export async function recoverPendingDeposit() {
+  return _getMeta('pendingDeposit');
 }
 
 /** Export all proofs as a cashu token string (for backup) */
@@ -275,11 +286,11 @@ Object.assign(window, {
   cashuCreateFundingInvoice: createFundingInvoice,
   cashuCheckFundingStatus: checkFundingStatus,
   cashuReceiveToken: receiveToken,
-  cashuSendToNode: sendToNode,
   cashuDepositToNode: depositToNode,
   cashuExportWallet: exportWallet,
   cashuImportWallet: importWallet,
   cashuClearWallet: clearWallet,
+  cashuRecoverPendingDeposit: recoverPendingDeposit,
   cashuGetMintUrl: getMintUrl,
   cashuSetMintUrl: setMintUrl,
   cashuGetFeePct: getFeePct,
