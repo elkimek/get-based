@@ -287,7 +287,7 @@ export function renderAIProviderPanel(provider) {
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
         <div style="font-size:12px;color:var(--text-muted)">Wallet: <span id="routstr-wallet-balance" style="color:var(--text-primary);font-weight:600">\u26a1 loading...</span></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="import-btn import-btn-primary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWalletFund()">\u26a1 Fund</button>
+          <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWalletFund()">\u26a1 Deposit</button>
           <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWithdraw()">Withdraw</button>
           <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showWalletSeedPhrase()">Seed</button>
           <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWalletBackup()">Backup</button>
@@ -308,7 +308,7 @@ export function renderAIProviderPanel(provider) {
     </div>`;
     if (routstrMode === 'wallet') {
       return `<div class="ai-provider-panel">
-        <div class="ai-provider-desc">Decentralized AI with Bitcoin. Fund your wallet, pick a node from the network.</div>
+        <div class="ai-provider-desc">Decentralized AI with Bitcoin. Deposit to your wallet, pick a node from the network.</div>
         ${modeToggle}
         ${walletHtml}
         ${nodeHtml}
@@ -1345,7 +1345,7 @@ function _renderWalletFundUI() {
   area.style.display = 'block';
   const presets = [5000, 10000, 25000, 50000];
   area.innerHTML = `<div style="margin-top:8px">
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Fund with Lightning</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Deposit with Lightning</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">
       ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrWalletFund(${s})">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsWalletFundCustomInput()">\u26a1\u2026</button></div>
     </div>
