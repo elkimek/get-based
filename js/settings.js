@@ -296,7 +296,7 @@ export function renderAIProviderPanel(provider) {
         <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="showRoutstrNodePicker()">Browse</button>
       </div>
       ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Session: <span id="routstr-node-balance">loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
-      <div id="routstr-node-picker" style="display:none"></div>
+      <div id="routstr-node-picker" style="display:none;max-height:250px;overflow-y:auto"></div>
     </div>`;
     return `<div class="ai-provider-panel">
       <div class="ai-provider-desc">Decentralized AI with Bitcoin. Fund your wallet, pick a node from the network.</div>
@@ -1415,19 +1415,21 @@ export async function showRoutstrNodePicker() {
   area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Searching Nostr relays\u2026</div>';
   try {
     const nodes = await window.nostrDiscoverNodes(true);
-    const online = nodes.filter(n => n.online);
-    if (!online.length) {
-      area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found. Try again later.</div>';
+    if (!nodes.length) {
+      area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No nodes found. Try again later.</div>';
       return;
     }
-    area.innerHTML = '<div style="margin-top:8px">' + online.map(function(n) {
-      const url = n.urls[0];
-      const label = escapeHTML(n.name || url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
-      const models = n.modelCount + ' model' + (n.modelCount !== 1 ? 's' : '');
+    area.innerHTML = '<div style="margin-top:8px">' + nodes.map(function(n) {
+      const url = n.urls[0] || '';
+      const domain = escapeHTML(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+      const label = escapeHTML(n.name || domain);
+      const models = n.online ? n.modelCount + ' model' + (n.modelCount !== 1 ? 's' : '') : 'offline';
       const onion = n.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-        <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}<br><span style="font-size:10px;color:var(--text-muted)">${models}</span></div>
-        <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" onclick="connectRoutstrNode('${escapeAttr(url)}')">Connect</button>
+      const statusDot = n.online ? '<span style="color:var(--green)">\u25cf</span>' : '<span style="color:var(--text-muted)">\u25cb</span>';
+      const opacity = n.online ? '' : 'opacity:0.5;';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);${opacity}">
+        <div>${statusDot} <span style="font-size:12px;font-weight:500">${label}</span>${onion}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}</span></div>
+        ${n.online ? `<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" onclick="connectRoutstrNode('${escapeAttr(url)}')">Connect</button>` : ''}
       </div>`;
     }).join('') + '</div>';
   } catch (e) {
@@ -1469,6 +1471,9 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
     if (!result.api_key) throw new Error('No session key returned');
     await saveRoutstrKey(result.api_key);
     window.nostrSetSelectedNode(nodeUrl);
+    // Clear cached model — new node may have different model IDs
+    localStorage.removeItem('labcharts-routstr-model');
+    localStorage.removeItem('labcharts-routstr-models');
     const models = await fetchRoutstrModels();
     showNotification('Connected to ' + nodeUrl.replace(/^https?:\/\//, '') + ' \u26a1 ' + amount.toLocaleString() + ' sats', 'success');
     const panel = document.getElementById('ai-provider-panel');
