@@ -263,6 +263,7 @@ export function renderAIProviderPanel(provider) {
   if (provider === 'routstr') {
     const currentKey = getRoutstrKey();
     const rsModel = getRoutstrModel();
+    const nodeUrl = window.nostrGetSelectedNode ? window.nostrGetSelectedNode() : null;
     let cachedRSModels = []; try { cachedRSModels = JSON.parse(localStorage.getItem('labcharts-routstr-models') || '[]'); } catch(e) {}
     let rsModelHtml;
     if (cachedRSModels.length > 0) {
@@ -273,26 +274,42 @@ export function renderAIProviderPanel(provider) {
         <div id="routstr-model-pricing" style="margin-top:4px">${renderModelPricingHint('routstr', rsModel)}</div>
       </div>`;
     } else {
-      rsModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="routstr-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getRoutstrModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
+      rsModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="routstr-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getRoutstrModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(connect to a node to load models)</span>' : ''}</div>`;
     }
-    const rsBalanceHtml = currentKey ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-        <div style="font-size:12px;color:var(--text-muted)"><span id="routstr-balance">Balance: loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>
-        <button class="import-btn import-btn-secondary" id="routstr-topup-toggle" style="font-size:11px;padding:2px 10px" onclick="showRoutstrTopup()">Top Up</button>
+    // Wallet section
+    const walletHtml = `<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:12px;color:var(--text-muted)">Wallet: <span id="routstr-wallet-balance" style="color:var(--text-primary);font-weight:600">\u26a1 loading...</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" onclick="showRoutstrWalletFund()">\u26a1 Fund</button>
+          <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="showRoutstrWalletBackup()">Backup</button>
+        </div>
       </div>
-      <div id="routstr-topup-area" style="display:none"></div>` : '';
+      <div id="routstr-wallet-fund-area" style="display:none"></div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">5% supports getbased development</div>
+    </div>`;
+    // Node section
+    const nodeLabel = nodeUrl ? escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')) : 'none selected';
+    const nodeHtml = `<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:12px;color:var(--text-muted)">Node: <span id="routstr-node-label" style="color:var(--text-primary)">${currentKey ? '<span style="color:var(--green)">\u2713 ' + nodeLabel + '</span>' : nodeLabel}</span></div>
+        <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="showRoutstrNodePicker()">Browse</button>
+      </div>
+      ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Session: <span id="routstr-node-balance">loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
+      <div id="routstr-node-picker" style="display:none"></div>
+    </div>`;
     return `<div class="ai-provider-panel">
-      <div class="ai-provider-desc">Pay-as-you-go AI with Bitcoin micropayments. No account needed \u2014 fund with Lightning or Cashu eCash.</div>
-      <div class="api-key-status" id="routstr-key-status">
-        ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
-      </div>
-      <input type="password" class="api-key-input" id="routstr-key-input" placeholder="cashu... or sk-..." value="${escapeAttr(currentKey)}">
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="import-btn import-btn-primary" id="save-routstr-key-btn" onclick="handleSaveRoutstrKey()">Save & Validate</button>
-        ${currentKey ? '<button class="import-btn import-btn-secondary" onclick="handleRemoveRoutstrKey()">Remove Key</button>' : ''}
-      </div>
-      ${rsBalanceHtml}
+      <div class="ai-provider-desc">Decentralized AI with Bitcoin. Fund your wallet, pick a node from the network.</div>
+      ${walletHtml}
+      ${nodeHtml}
       ${rsModelHtml}
-      <div class="api-key-notice">Paste a <a href="https://cashu.me" target="_blank" rel="noopener" style="color:var(--accent)">Cashu token</a> to start \u2014 it gets converted to a session key with your balance. Top up with Lightning anytime. <a href="https://routstr.com" target="_blank" rel="noopener" style="color:var(--accent)">Learn more</a></div>
+      <div class="or-oauth-divider"><span>or enter existing session key</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="password" class="api-key-input" id="routstr-key-input" placeholder="sk-..." value="${escapeAttr(currentKey)}" style="flex:1">
+        <button class="import-btn import-btn-primary" id="save-routstr-key-btn" style="white-space:nowrap" onclick="handleSaveRoutstrKey()">Save</button>
+        ${currentKey ? '<button class="import-btn import-btn-secondary" onclick="handleRemoveRoutstrKey()">Remove</button>' : ''}
+      </div>
+      <div class="api-key-notice">Fund your wallet with Lightning, then connect to any <a href="https://routstr.com" target="_blank" rel="noopener" style="color:var(--accent)">Routstr</a> node on the network. Or paste a Cashu token or session key directly.</div>
     </div>`;
   }
   if (provider === 'venice') {
@@ -528,6 +545,7 @@ export function switchAIProvider(provider) {
   if (_ppqCountdownTimer) { clearInterval(_ppqCountdownTimer); _ppqCountdownTimer = null; }
   if (_rsTopupPollTimer) { clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null; }
   if (_rsCountdownTimer) { clearInterval(_rsCountdownTimer); _rsCountdownTimer = null; }
+  if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = renderAIProviderPanel(provider);
   const modal = document.getElementById('settings-modal');
@@ -566,9 +584,16 @@ export function initSettingsModelFetch() {
   if (rsKey && document.getElementById('routstr-model-area')) {
     fetchRoutstrModels(rsKey).then(function(models) { if (models.length) renderRoutstrModelDropdown(models); });
     getRoutstrBalance().then(function(b) {
-      const el = document.getElementById('routstr-balance');
+      const el = document.getElementById('routstr-node-balance');
       if (el && b) el.innerHTML = _rsBalanceHtml(b.sats);
-      else if (el) el.textContent = 'Balance: unavailable';
+      else if (el) el.textContent = 'unavailable';
+    });
+  }
+  // Cashu wallet balance (always, even without node connection)
+  if (document.getElementById('routstr-wallet-balance') && window.cashuGetBalance) {
+    window.cashuGetBalance().then(function(bal) {
+      const el = document.getElementById('routstr-wallet-balance');
+      if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     });
   }
   const ppqKey = getPpqKey();
@@ -787,6 +812,7 @@ export function closeSettingsModal() {
   if (_ppqCountdownTimer) { clearInterval(_ppqCountdownTimer); _ppqCountdownTimer = null; }
   if (_rsTopupPollTimer) { clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null; }
   if (_rsCountdownTimer) { clearInterval(_rsCountdownTimer); _rsCountdownTimer = null; }
+  if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
 }
 
 /** After a successful key save, auto-close settings and return to chat if we came from onboarding. */
@@ -1268,6 +1294,189 @@ export function dismissRoutstrKeyReveal() {
     }
   });
 }
+// ─── Routstr decentralized wallet UI ───
+let _rsFundPollTimer = null;
+
+export function showRoutstrWalletFund() {
+  const area = document.getElementById('routstr-wallet-fund-area');
+  if (!area) return;
+  if (area.style.display !== 'none') { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+  const presets = [5000, 10000, 25000, 50000];
+  area.innerHTML = `<div style="margin-top:8px">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Fund with Lightning</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">
+      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrWalletFund(${s})">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsWalletFundCustomInput()">\u26a1\u2026</button></div>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">5,000 sats is enough for onboarding \u00b7 min 1,000 \u00b7 5% fee</div>
+    <div style="margin-top:6px"><div class="or-oauth-divider"><span>or paste Cashu token</span></div>
+    <div style="display:flex;gap:6px;margin-top:4px">
+      <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashu..." style="font-size:11px;flex:1;font-family:monospace">
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrWalletReceiveCashu()">Deposit</button>
+    </div></div>
+    <div id="routstr-wfund-status"></div>
+  </div>`;
+}
+
+export function rsWalletFundCustomInput() {
+  const slot = document.getElementById('routstr-wfund-custom-slot');
+  if (!slot) return;
+  slot.innerHTML = '<input type="text" inputmode="numeric" id="routstr-wfund-custom" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;width:80px;text-align:center;cursor:text;border:1px solid var(--accent)" placeholder="sats" onkeydown="if(event.key===\'Enter\')doRoutstrWalletFundCustom();if(event.key===\'Escape\')showRoutstrWalletFund()" onblur="if(this.value.trim())doRoutstrWalletFundCustom()">';
+  document.getElementById('routstr-wfund-custom')?.focus();
+}
+
+export function doRoutstrWalletFundCustom() {
+  const input = document.getElementById('routstr-wfund-custom');
+  if (!input) return;
+  const amount = parseInt(input.value.replace(/[^0-9]/g, ''), 10);
+  if (!amount || amount < 1000) {
+    const s = document.getElementById('routstr-wfund-status');
+    if (s) s.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Minimum 1,000 sats</div>';
+    return;
+  }
+  doRoutstrWalletFund(amount);
+}
+
+export async function doRoutstrWalletFund(amountSats) {
+  const statusEl = document.getElementById('routstr-wfund-status');
+  if (!statusEl) return;
+  statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Creating invoice\u2026</div>';
+  try {
+    const result = await window.cashuCreateFundingInvoice(amountSats);
+    // QR code
+    let qrSvg = '';
+    if (typeof qrcode === 'function') {
+      const qr = qrcode(0, 'L');
+      qr.addData(result.invoice.toUpperCase());
+      qr.make();
+      qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+    }
+    const payUri = 'lightning:' + result.invoice;
+    statusEl.innerHTML = `<div style="margin-top:8px;text-align:center">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">\u26a1 ${amountSats.toLocaleString()} sats <span style="font-size:10px;color:var(--text-muted)">(${result.fee} fee, ${result.netAmount} to wallet)</span></div>
+      ${qrSvg ? `<a href="${payUri}" style="display:inline-block;background:#fff;padding:8px;border-radius:8px;width:180px;height:180px">${qrSvg}</a>` : ''}
+      <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="navigator.clipboard.writeText('${escapeAttr(result.invoice)}');this.textContent='\u2713 Copied'">${result.invoice.slice(0, 20)}\u2026 copy</button></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-wfund-poll">Waiting for payment\u2026</div>
+    </div>`;
+    // Poll for payment
+    _rsFundPollTimer = setInterval(async function() {
+      try {
+        const s = await window.cashuCheckFundingStatus(result.quote);
+        if (s && s.paid) {
+          clearInterval(_rsFundPollTimer); _rsFundPollTimer = null;
+          statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + result.netAmount + ' sats added to wallet!</div>';
+          showNotification('Wallet funded \u26a1 ' + result.netAmount + ' sats', 'success');
+          _refreshRoutstrWalletBalance();
+          setTimeout(function() { const a = document.getElementById('routstr-wallet-fund-area'); if (a) a.style.display = 'none'; }, 3000);
+        }
+      } catch {}
+    }, 3000);
+  } catch (e) {
+    statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+export async function doRoutstrWalletReceiveCashu() {
+  const input = document.getElementById('routstr-wcashu-input');
+  const statusEl = document.getElementById('routstr-wfund-status');
+  if (!input || !statusEl) return;
+  const token = input.value.trim();
+  if (!token || !token.startsWith('cashu')) { statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Cashu token (starts with cashu...)</div>'; return; }
+  statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing to wallet\u2026</div>';
+  try {
+    const result = await window.cashuReceiveToken(token);
+    input.value = '';
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 +' + result.received + ' sats (' + result.fee + ' fee)</div>';
+    showNotification('Wallet funded \u26a1 ' + result.received + ' sats', 'success');
+    _refreshRoutstrWalletBalance();
+  } catch (e) {
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+export async function showRoutstrWalletBackup() {
+  try {
+    const token = await window.cashuExportWallet();
+    if (!token) { showNotification('Wallet is empty', 'info'); return; }
+    navigator.clipboard.writeText(token);
+    showNotification('Wallet backup copied to clipboard (clears in 60s)', 'success');
+    clearTimeout(window._rsCashuBackupTimer);
+    window._rsCashuBackupTimer = setTimeout(() => navigator.clipboard.writeText(''), 60000);
+  } catch (e) {
+    showNotification('Backup failed: ' + e.message, 'error');
+  }
+}
+
+export async function showRoutstrNodePicker() {
+  const area = document.getElementById('routstr-node-picker');
+  if (!area) return;
+  if (area.style.display !== 'none') { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+  area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Searching Nostr relays\u2026</div>';
+  try {
+    const nodes = await window.nostrDiscoverNodes(true);
+    const online = nodes.filter(n => n.online);
+    if (!online.length) {
+      area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found. Try again later.</div>';
+      return;
+    }
+    area.innerHTML = '<div style="margin-top:8px">' + online.map(function(n) {
+      const url = n.urls[0];
+      const label = escapeHTML(n.name || url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+      const models = n.modelCount + ' model' + (n.modelCount !== 1 ? 's' : '');
+      const onion = n.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}<br><span style="font-size:10px;color:var(--text-muted)">${models}</span></div>
+        <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" onclick="connectRoutstrNode('${escapeAttr(url)}')">Connect</button>
+      </div>`;
+    }).join('') + '</div>';
+  } catch (e) {
+    area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+export async function connectRoutstrNode(nodeUrl) {
+  const walletBalance = await window.cashuGetBalance();
+  if (walletBalance < 1000) {
+    showNotification('Fund your wallet first (\u26a1 1,000+ sats needed)', 'error');
+    showRoutstrWalletFund();
+    return;
+  }
+  // Deposit half the wallet balance to the node (keep some in reserve)
+  const deposit = Math.min(Math.floor(walletBalance / 2), 50000);
+  const picker = document.getElementById('routstr-node-picker');
+  if (picker) picker.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Depositing ' + deposit.toLocaleString() + ' sats to node\u2026</div>';
+  try {
+    const result = await window.cashuDepositToNode(nodeUrl, deposit);
+    if (!result.api_key) throw new Error('No session key returned');
+    await saveRoutstrKey(result.api_key);
+    window.nostrSetSelectedNode(nodeUrl);
+    // Fetch models from the new node
+    const models = await fetchRoutstrModels();
+    showNotification('Connected to ' + nodeUrl.replace(/^https?:\/\//, ''), 'success');
+    // Re-render panel
+    const panel = document.getElementById('ai-provider-panel');
+    if (panel) panel.innerHTML = renderAIProviderPanel('routstr');
+    if (models.length) renderRoutstrModelDropdown(models);
+    _refreshRoutstrWalletBalance();
+    refreshRoutstrBalance();
+    _returnToChatIfOnboarding();
+  } catch (e) {
+    if (picker) picker.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+async function _refreshRoutstrWalletBalance() {
+  const el = document.getElementById('routstr-wallet-balance');
+  if (!el) return;
+  try {
+    const balance = await window.cashuGetBalance();
+    el.textContent = '\u26a1 ' + balance.toLocaleString() + ' sats';
+  } catch {
+    el.textContent = '\u26a1 0 sats';
+  }
+}
+
 let _rsTopupPollTimer = null;
 let _rsCountdownTimer = null;
 export function showRoutstrTopup() {
@@ -1389,6 +1598,7 @@ export async function doRoutstrCashuTopup() {
 export function cancelRoutstrTopup() {
   if (_rsTopupPollTimer) { clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null; }
   if (_rsCountdownTimer) { clearInterval(_rsCountdownTimer); _rsCountdownTimer = null; }
+  if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
   const area = document.getElementById('routstr-topup-area');
   if (area) area.style.display = 'none';
 }
@@ -2274,6 +2484,14 @@ Object.assign(window, {
   handleRemoveRoutstrKey,
   renderRoutstrModelDropdown,
   refreshRoutstrBalance,
+  showRoutstrWalletFund,
+  rsWalletFundCustomInput,
+  doRoutstrWalletFundCustom,
+  doRoutstrWalletFund,
+  doRoutstrWalletReceiveCashu,
+  showRoutstrWalletBackup,
+  showRoutstrNodePicker,
+  connectRoutstrNode,
   dismissRoutstrKeyReveal,
   showRoutstrTopup,
   rsShowCustomSatsInput,
