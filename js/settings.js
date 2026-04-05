@@ -1424,7 +1424,7 @@ export async function doRoutstrWalletReceiveCashu() {
   try {
     const result = await window.cashuReceiveToken(token);
     input.value = '';
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 +' + result.received + ' sats deposited</div>';
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 +' + result.received + ' sats' + (result.fee > 0 ? ' (' + result.fee + ' fee)' : '') + '</div>';
     showNotification('Wallet funded \u26a1 ' + result.received + ' sats', 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {

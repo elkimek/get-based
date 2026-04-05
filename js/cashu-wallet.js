@@ -9,7 +9,8 @@ import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 // CONSTANTS
 // ═══════════════════════════════════════════════
 const DEFAULT_MINT = 'https://mint.minibits.cash/Bitcoin';
-const WALLET_FEE_PCT = 0; // Fee disabled until melt-to-Lightning redemption is built
+const WALLET_FEE_PCT = 0.03; // 3% supports getbased development
+const FEE_LN_ADDRESS = 'denimgecko11@primal.net';
 const DB_NAME = 'getbased-cashu';
 const DB_VERSION = 2;
 const STORE_PROOFS = 'proofs';
@@ -350,8 +351,8 @@ export async function receiveToken(tokenString) {
     // wallet.send(fee, proofs) → send = proofs worth `fee` (revenue), keep = change (user's)
     const { keep, send } = await wallet.send(fee, proofs, { includeFees: true });
     await _saveProofs(keep); // user's proofs (total - fee)
-    // Save fee proofs for later redemption (melt to Lightning address)
-    await _saveFeeProofs(send);
+    // Auto-melt fee proofs to getbased Lightning address (async, non-blocking)
+    _autoMeltFees(send);
     if (isDebugMode()) console.log('[cashu-wallet] Fee collected:', fee, 'sats');
   } else {
     await _saveProofs(proofs);
@@ -480,6 +481,46 @@ export async function sendAsToken(amountSats) {
 // ═══════════════════════════════════════════════
 // FEE MANAGEMENT
 // ═══════════════════════════════════════════════
+
+/** Resolve a Lightning address to a BOLT11 invoice via LNURL-pay.
+ *  address: "user@domain" → GET /.well-known/lnurlp/user → callback?amount=msats → invoice */
+async function _lnAddressToInvoice(address, amountSats) {
+  const [user, domain] = address.split('@');
+  if (!user || !domain) throw new Error('Invalid Lightning address');
+  const res = await fetch('https://' + domain + '/.well-known/lnurlp/' + user);
+  if (!res.ok) throw new Error('Lightning address lookup failed');
+  const lnurl = await res.json();
+  if (!lnurl.callback) throw new Error('No callback in LNURL response');
+  const amountMsats = amountSats * 1000;
+  if (lnurl.minSendable && amountMsats < lnurl.minSendable) return null; // below minimum
+  if (lnurl.maxSendable && amountMsats > lnurl.maxSendable) return null; // above maximum
+  const sep = lnurl.callback.includes('?') ? '&' : '?';
+  const cbRes = await fetch(lnurl.callback + sep + 'amount=' + amountMsats);
+  if (!cbRes.ok) throw new Error('Invoice request failed');
+  const cbData = await cbRes.json();
+  return cbData.pr || null; // BOLT11 invoice
+}
+
+/** Auto-melt fee proofs to getbased Lightning address. Silent — errors are swallowed. */
+async function _autoMeltFees(feeProofs) {
+  if (!feeProofs.length || !FEE_LN_ADDRESS) return;
+  const feeSats = cashuts.sumProofs(feeProofs);
+  if (feeSats < 1) return;
+  try {
+    const invoice = await _lnAddressToInvoice(FEE_LN_ADDRESS, feeSats);
+    if (!invoice) { await _saveFeeProofs(feeProofs); return; } // below min, save for later
+    const wallet = await _getWallet();
+    const quote = await wallet.createMeltQuoteBolt11(invoice);
+    const result = await wallet.meltProofsBolt11(quote, feeProofs);
+    if (isDebugMode()) console.log('[cashu-wallet] Fee melted:', feeSats, 'sats to', FEE_LN_ADDRESS);
+    // Any change goes back to fee pool
+    if (result.change && result.change.length) await _saveFeeProofs(result.change);
+  } catch (e) {
+    // Melt failed — save fee proofs for next attempt
+    await _saveFeeProofs(feeProofs);
+    if (isDebugMode()) console.log('[cashu-wallet] Fee melt failed, saved for later:', e.message);
+  }
+}
 
 /** Get accumulated fee balance in sats */
 export async function getFeeBalance() {
