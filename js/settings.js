@@ -286,12 +286,8 @@ export function renderAIProviderPanel(provider) {
     const walletHtml = `<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
         <div style="font-size:12px;color:var(--text-muted)">Wallet: <span id="routstr-wallet-balance" style="color:var(--text-primary);font-weight:600">\u26a1 loading...</span></div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWalletFund()">\u26a1 Deposit</button>
-          <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWithdraw()">Withdraw</button>
-          <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showWalletSeedPhrase()">Seed</button>
-          <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWalletBackup()">Backup</button>
-          <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="showRoutstrWalletRestore()">Restore</button>
+        <div id="routstr-wallet-actions" style="display:flex;gap:4px;flex-wrap:wrap">
+          ${_walletActionButtons(null)}
         </div>
       </div>
       <div id="routstr-wallet-fund-area" style="display:none"></div>
@@ -1335,7 +1331,8 @@ let _rsFundPollTimer = null;
 export function showRoutstrWalletFund() {
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
-  if (area.style.display !== 'none') { area.style.display = 'none'; return; }
+  if (area.style.display !== 'none' && _activeWalletAction === 'deposit') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
+  _setActiveWalletAction('deposit');
   _ensureWalletSeed(() => _renderWalletFundUI());
 }
 
@@ -1540,6 +1537,29 @@ async function _refreshRoutstrWalletBalance() {
   }
 }
 
+// ─── Wallet action buttons with active state ───
+let _activeWalletAction = null;
+
+function _walletActionButtons(active) {
+  const btns = [
+    { id: 'deposit', label: 'Deposit', fn: 'showRoutstrWalletFund' },
+    { id: 'withdraw', label: 'Withdraw', fn: 'showRoutstrWithdraw' },
+    { id: 'seed', label: 'Seed', fn: 'showWalletSeedPhrase' },
+    { id: 'backup', label: 'Backup', fn: 'showRoutstrWalletBackup' },
+    { id: 'restore', label: 'Restore', fn: 'showRoutstrWalletRestore' },
+  ];
+  return btns.map(b => {
+    const cls = b.id === active ? 'import-btn-primary' : 'import-btn-secondary';
+    return `<button class="import-btn ${cls}" style="font-size:10px;padding:2px 8px" onclick="${b.fn}()">${b.label}</button>`;
+  }).join('');
+}
+
+function _setActiveWalletAction(actionId) {
+  _activeWalletAction = actionId;
+  const el = document.getElementById('routstr-wallet-actions');
+  if (el) el.innerHTML = _walletActionButtons(actionId);
+}
+
 // ─── Wallet seed onboarding gate ───
 async function _ensureWalletSeed(thenAction) {
   const hasSeed = await window.cashuHasWalletSeed?.();
@@ -1575,10 +1595,11 @@ export function walletSeedAcknowledged() {
 // ─── Wallet seed display ───
 export async function showWalletSeedPhrase() {
   const mnemonic = await window.cashuGetWalletMnemonic?.();
-  if (!mnemonic) { showNotification('No wallet seed \u2014 fund your wallet first', 'info'); return; }
+  if (!mnemonic) { showNotification('No wallet seed \u2014 deposit to your wallet first', 'info'); return; }
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
-  if (area.style.display !== 'none' && area.querySelector('#wallet-seed-display')) { area.style.display = 'none'; return; }
+  if (area.style.display !== 'none' && _activeWalletAction === 'seed') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
+  _setActiveWalletAction('seed');
   area.style.display = 'block';
   area.innerHTML = `<div style="margin-top:8px">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>
@@ -1591,7 +1612,8 @@ export async function showWalletSeedPhrase() {
 export async function showRoutstrWithdraw() {
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
-  if (area.style.display !== 'none' && area.querySelector('#routstr-withdraw-input')) { area.style.display = 'none'; return; }
+  if (area.style.display !== 'none' && _activeWalletAction === 'withdraw') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
+  _setActiveWalletAction('withdraw');
   area.style.display = 'block';
   const balance = await window.cashuGetBalance();
   area.innerHTML = `<div style="margin-top:8px">
@@ -1687,7 +1709,8 @@ export async function doRoutstrWithdrawExecute(quoteId) {
 export async function showRoutstrWalletRestore() {
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
-  if (area.style.display !== 'none' && area.querySelector('#routstr-restore-seed')) { area.style.display = 'none'; return; }
+  if (area.style.display !== 'none' && _activeWalletAction === 'restore') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
+  _setActiveWalletAction('restore');
   area.style.display = 'block';
   area.innerHTML = `<div style="margin-top:8px">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Restore Wallet from Seed</div>
