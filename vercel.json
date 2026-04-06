@@ -5,7 +5,7 @@
     {
       "src": "/(.*)",
       "headers": {
-        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://umami-iota-olive.vercel.app; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://openrouter.ai https://api.venice.ai https://api.routstr.com https://api.ppq.ai https://api.github.com https://umami-iota-olive.vercel.app https://sync.getbased.health wss://sync.getbased.health wss://free.evoluhq.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://*.onion http://*.onion; img-src 'self' data: blob:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://umami-iota-olive.vercel.app; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://*.onion http://*.onion; img-src 'self' data: blob:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'",
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "Referrer-Policy": "strict-origin-when-cross-origin",
