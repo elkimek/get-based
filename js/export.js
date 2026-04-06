@@ -458,12 +458,11 @@ export async function buildAllDataBundle() {
     if (chat) entry.chat = chat;
     bundle.profiles.push(entry);
   }
-  // Include Cashu wallet data (global, not per-profile)
-  const walletMnemonic = typeof window.cashuGetWalletMnemonic === 'function' ? await window.cashuGetWalletMnemonic() : null;
+  // Include Cashu wallet settings (mnemonic excluded for security — restore via seed phrase)
   const walletMintUrl = typeof window.cashuGetMintUrl === 'function' ? await window.cashuGetMintUrl() : null;
   const walletNodeUrl = typeof window.nostrGetSelectedNode === 'function' ? window.nostrGetSelectedNode() : null;
-  if (walletMnemonic) {
-    bundle.wallet = { mnemonic: walletMnemonic, mintUrl: walletMintUrl, nodeUrl: walletNodeUrl };
+  if (walletMintUrl || walletNodeUrl) {
+    bundle.wallet = { mintUrl: walletMintUrl, nodeUrl: walletNodeUrl };
   }
   return JSON.stringify(bundle, null, 2);
 }
@@ -887,10 +886,12 @@ async function _importDatabaseBundle(json) {
   // Switch to the first imported profile (so user lands on real data, not empty default)
   const targetId = firstImportedId || state.currentProfile;
   await loadProfile(targetId);
-  // Restore Cashu wallet if present in bundle
-  if (json.wallet?.mnemonic && typeof window.cashuRestoreWalletFromSeed === 'function') {
+  // Restore Cashu wallet settings if present (mnemonic not included — user restores via seed phrase)
+  if (json.wallet) {
     try {
-      await window.cashuRestoreWalletFromSeed(json.wallet.mnemonic);
+      if (json.wallet.mnemonic && typeof window.cashuRestoreWalletFromSeed === 'function') {
+        await window.cashuRestoreWalletFromSeed(json.wallet.mnemonic); // legacy bundles that included mnemonic
+      }
       if (json.wallet.mintUrl && typeof window.cashuSetMintUrl === 'function') await window.cashuSetMintUrl(json.wallet.mintUrl);
       if (json.wallet.nodeUrl && typeof window.nostrSetSelectedNode === 'function') window.nostrSetSelectedNode(json.wallet.nodeUrl);
     } catch (e) {
@@ -944,6 +945,16 @@ export function clearAllData() {
     state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null };
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
+    // Clear Cashu wallet database
+    if (typeof window.cashuDestroyWalletDB === 'function') {
+      try { await window.cashuDestroyWalletDB(); } catch {}
+    }
+    localStorage.removeItem('labcharts-cashu-wallet-mint');
+    localStorage.removeItem('labcharts-cashu-wallet-mnemonic');
+    localStorage.removeItem('labcharts-routstr-node');
+    localStorage.removeItem('labcharts-routstr-key');
+    localStorage.removeItem('labcharts-routstr-model');
+    localStorage.removeItem('labcharts-routstr-models');
     window.buildSidebar();
     window.updateHeaderDates();
     window.renderProfileButton();

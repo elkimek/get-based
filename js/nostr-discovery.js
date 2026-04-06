@@ -128,10 +128,14 @@ function _deduplicateNodes(events) {
 async function _healthCheck(node) {
   const url = node.urls[0];
   if (!url) { node.online = false; return node; }
+  // Skip URLs that can't be reached from a browser (reduces console noise)
+  if (url.includes('.onion') || url.startsWith('http://localhost') || url.includes('//v1')) {
+    node.online = false; return node;
+  }
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT);
-    const res = await fetch(url + '/v1/models', { signal: controller.signal });
+    const res = await fetch(url.replace(/\/+$/, '') + '/v1/models', { signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) { node.online = false; return node; }
     const json = await res.json();

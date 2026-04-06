@@ -135,7 +135,7 @@ export function openSettingsModal(tab) {
         <div class="ai-model-tip">Use a state-of-the-art model (Claude, GPT, Gemini) for medical data.<br>Stick with the same model across imports to keep marker keys consistent.</div>
         <div class="ai-provider-toggle">
           <button class="ai-provider-btn${provider === 'ppq' ? ' active' : ''}" data-provider="ppq" onclick="switchAIProvider('ppq')"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-3.2 0-7-2.4-7-7 0-3.1 2.1-5.7 4-7.6.3-.3.8-.1.8.4v2.5c0 .2.2.3.3.2C12 9.6 13.5 5.3 13.6 2.2c0-.3.4-.5.6-.2C17.3 5.7 21 10.3 21 14.5 21 19.6 17 23 12 23z"/></svg> PPQ</button>
-          <button class="ai-provider-btn${provider === 'routstr' ? ' active' : ''}" data-provider="routstr" onclick="switchAIProvider('routstr')"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10h-2V8H9V6h2V4h2v2h2v2h-2v2zm-2 4h2v6h3l-4 4-4-4h3v-6z"/></svg> Routstr</button>
+          <button class="ai-provider-btn${provider === 'routstr' ? ' active' : ''}" data-provider="routstr" onclick="switchAIProvider('routstr')"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"/><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/></svg> Routstr</button>
           <button class="ai-provider-btn${provider === 'openrouter' ? ' active' : ''}" data-provider="openrouter" onclick="switchAIProvider('openrouter')"><svg class="ai-provider-logo" viewBox="0 0 512 512" fill="currentColor" stroke="currentColor"><path d="M3 248.945C18 248.945 76 236 106 219C136 202 136 202 198 158C276.497 102.293 332 120.945 423 120.945" stroke-width="90" fill="none"/><path d="M511 121.5L357.25 210.268L357.25 32.7324L511 121.5Z" stroke="none"/><path d="M0 249C15 249 73 261.945 103 278.945C133 295.945 133 295.945 195 339.945C273.497 395.652 329 377 420 377" stroke-width="90" fill="none"/><path d="M508 376.445L354.25 287.678L354.25 465.213L508 376.445Z" stroke="none"/></svg> OpenRouter</button>
           <button class="ai-provider-btn${provider === 'venice' ? ' active' : ''}" data-provider="venice" onclick="switchAIProvider('venice')"><svg class="ai-provider-logo" viewBox="0 0 326 366" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M105.481 245.984C99.4744 241.518 92.2244 237.777 84.2074 235.504C76.1903 233.231 67.406 232.427 58.8167 233.38C50.2272 234.332 41.8327 237.042 34.5086 241.017C27.1847 244.991 20.931 250.231 16.0487 255.905C11.1531 261.567 6.88803 268.522 4.0314 276.35C1.17477 284.178-0.273403 292.879 0.0448796 301.515C0.36299 310.152 2.44756 318.723 5.87231 326.319C9.29724 333.916 14.0625 340.538 19.3617 345.825C24.6482 351.124 31.2704 355.889 38.867 359.314C46.4637 362.739 55.0349 364.823 63.671 365.142C72.3073 365.46 81.0085 364.012 88.8366 361.155C96.6647 358.298 103.62 354.033 109.282 349.138C114.956 344.256 120.195 338.002 124.17 330.678C128.144 323.354 130.854 314.959 131.807 306.37C132.76 297.781 131.956 288.996 129.683 280.979C127.41 272.962 123.668 265.712 119.203 259.705L133.953 244.954L144.69 255.691H150.789L158.149 248.331V242.233L147.412 231.496L163 215.908L178.588 231.496L167.851 242.233V248.331L175.211 255.691H181.31L192.047 244.954L206.797 259.705C202.332 265.712 198.59 272.962 196.317 280.979C194.044 288.996 193.24 297.781 194.193 306.37C195.146 314.959 197.856 323.354 201.83 330.678C205.805 338.002 211.044 344.256 216.718 349.138C222.38 354.033 229.335 358.298 237.163 361.155C244.991 364.012 253.693 365.46 262.329 365.142C270.965 364.823 279.536 362.739 287.133 359.314C294.73 355.889 301.352 351.124 306.638 345.825C311.937 340.538 316.703 333.916 320.128 326.319C323.552 318.723 325.637 310.152 325.955 301.515C326.273 292.879 324.825 284.178 321.969 276.35C319.112 268.522 314.847 261.567 309.951 255.905C305.069 250.231 298.815 244.991 291.491 241.017C284.167 237.042 275.773 234.332 267.183 233.38C258.594 232.427 249.81 233.231 241.793 235.504C233.776 237.777 226.526 241.518 220.519 245.984L206.042 231.484L216.773 220.753V214.655L209.151 207.032H203.052L192.315 217.769L176.721 202.186L258.473 120.434L291.567 153.528V119.095H326L292.907 86.0012L326 52.9077V46.8095L318.377 39.1865H312.279L163 188.465L13.7212 39.1865H7.62295L0 46.8095V52.9077L33.0934 86.0012L0 119.095H34.4331V153.528L67.5263 120.434L149.279 202.186L133.685 217.769L122.948 207.032H116.849L109.226 214.655V220.753L119.958 231.484L105.481 245.984ZM238.144 321.715C234.778 328.62 235.477 338.188 239.811 344.531C243.793 351.1 252.216 355.693 259.895 355.484C267.574 355.693 275.997 351.1 279.979 344.531C284.313 338.188 285.012 328.62 281.646 321.715L282.484 320.812C289.389 324.196 298.971 323.511 305.324 319.178C311.904 315.2 316.508 306.768 316.297 299.081C316.508 291.395 311.904 282.963 305.324 278.984C298.971 274.652 289.389 273.966 282.484 277.351L281.646 276.448C285.012 269.543 284.313 259.974 279.979 253.632C275.997 247.063 267.574 242.469 259.895 242.679C252.216 242.469 243.793 247.063 239.811 253.632C235.477 259.974 234.778 269.543 238.144 276.448L237.306 277.351C230.401 273.966 220.818 274.652 214.466 278.984C207.886 282.963 203.282 291.395 203.492 299.081C203.282 306.768 207.886 315.2 214.466 319.178C220.818 323.511 230.401 324.196 237.306 320.812L238.144 321.715ZM86.1857 344.531C90.52 338.188 91.2191 328.62 87.8528 321.715L88.6913 320.812C95.5956 324.196 105.178 323.511 111.531 319.178C118.11 315.2 122.715 306.768 122.504 299.081C122.715 291.395 118.11 282.963 111.531 278.984C105.178 274.652 95.5956 273.966 88.6913 277.351L87.8528 276.448C91.2191 269.543 90.52 259.974 86.1857 253.632C82.2037 247.063 73.7808 242.469 66.1018 242.679C58.423 242.469 50.0001 247.063 46.0181 253.632C41.6839 259.974 40.9847 269.543 44.351 276.448L43.5126 277.351C36.6082 273.966 27.0255 274.652 20.6731 278.984C14.0932 282.963 9.48904 291.395 9.69934 299.081C9.48904 306.768 14.0932 315.2 20.6731 319.178C27.0255 323.511 36.6082 324.196 43.5126 320.812L44.351 321.715C40.9847 328.62 41.6839 338.188 46.0181 344.531C50.0001 351.1 58.423 355.693 66.1018 355.484C73.7808 355.693 82.2037 351.1 86.1857 344.531Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M162.891 39.1864L202.078 0L221.482 19.4047V84.8147L167.742 138.555H158.04L104.3 84.8147V19.4047L123.705 0L162.891 39.1864ZM123.705 13.7213L158.04 48.0567V111.112L123.705 76.7773V13.7213ZM167.744 48.0567L202.079 13.7213V76.7773L167.744 111.112V48.0567Z"/></svg> Venice</button>
           <button class="ai-provider-btn${provider === 'ollama' ? ' active' : ''}" data-provider="ollama" onclick="switchAIProvider('ollama')"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-3-8c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1s1 .45 1 1v2c0 .55-.45 1-1 1z"/></svg> Local</button>
@@ -261,7 +261,7 @@ export function renderAIProviderPanel(provider) {
     </div>`;
   }
   if (provider === 'routstr') {
-    const routstrMode = _getRoutstrMode();
+    // Wallet-only mode (Direct mode removed)
     const currentKey = getRoutstrKey();
     const rsModel = getRoutstrModel();
     const nodeUrl = window.nostrGetSelectedNode ? window.nostrGetSelectedNode() : null;
@@ -277,62 +277,66 @@ export function renderAIProviderPanel(provider) {
     } else {
       rsModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="routstr-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getRoutstrModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(connect to a node to load models)</span>' : ''}</div>`;
     }
-    // Mode toggle
-    const modeToggle = `<div style="display:flex;gap:4px;margin-bottom:10px">
-      <button class="import-btn ${routstrMode === 'wallet' ? 'import-btn-primary' : 'import-btn-secondary'}" style="flex:1;font-size:11px;padding:4px 0" onclick="switchRoutstrMode('wallet')">Wallet</button>
-      <button class="import-btn ${routstrMode === 'direct' ? 'import-btn-primary' : 'import-btn-secondary'}" style="flex:1;font-size:11px;padding:4px 0" onclick="switchRoutstrMode('direct')">Direct</button>
-    </div>`;
+    // Mode toggle removed — wallet-only
+    const _pillStyle = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
+    const _sectionLabel = 'font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:6px;opacity:0.7';
     // Wallet section
     const walletHtml = `<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
+      <div style="${_sectionLabel}">\u26a1 Wallet</div>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-        <div style="font-size:12px;color:var(--text-muted)">Wallet: <span id="routstr-wallet-balance" style="color:var(--text-primary);font-weight:600">\u26a1 loading...</span></div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary)"><span id="routstr-wallet-balance">\u26a1 loading...</span></div>
         <div id="routstr-wallet-actions" style="display:flex;gap:4px;flex-wrap:wrap">
           ${_walletActionButtons(null)}
         </div>
       </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--text-muted)">Mint: <span id="routstr-mint-label" style="font-family:var(--font-mono,monospace);opacity:0.8">loading...</span></div>
+        <button class="import-btn import-btn-secondary" style="${_pillStyle};font-size:9px;padding:1px 6px" onclick="showRoutstrMintEdit()">Change</button>
+      </div>
+      <div id="routstr-mint-edit" style="display:none"></div>
       <div id="routstr-wallet-fund-area" style="display:none"></div>
     </div>`;
-    // Node section
-    const nodeLabel = nodeUrl ? escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')) : 'none selected';
+    // Node section — auto-discover if none selected
+    if (!nodeUrl && window.nostrDiscoverNodes) {
+      window.nostrDiscoverNodes().then(nodes => {
+        const online = nodes.filter(n => n.online);
+        if (online.length) {
+          const best = online[0];
+          const bestUrl = (best.urls && best.urls[0]) || '';
+          if (!bestUrl) return;
+          window.nostrSetSelectedNode(bestUrl);
+          const label = document.getElementById('routstr-node-label');
+          if (label) label.innerHTML = escapeHTML(best.name || bestUrl.replace(/^https?:\/\//, ''));
+          const acts = document.getElementById('routstr-node-actions');
+          if (acts) acts.innerHTML = _buildNodeActions(bestUrl, false, null);
+        } else {
+          const label = document.getElementById('routstr-node-label');
+          if (label) label.innerHTML = '<span style="color:var(--text-muted)">no nodes online</span>';
+        }
+      }).catch(() => {
+        const label = document.getElementById('routstr-node-label');
+        if (label) label.innerHTML = '<span style="color:var(--text-muted)">discovery failed</span>';
+      });
+    }
+    const nodeLabel = nodeUrl ? escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')) : 'discovering\u2026';
+    const _nodeActionsHtml = _buildNodeActions(nodeUrl, !!currentKey, null);
     const nodeHtml = `<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:12px;color:var(--text-muted)">Node: <span id="routstr-node-label" style="color:var(--text-primary)">${currentKey ? '<span style="color:var(--green)">\u2713 ' + nodeLabel + '</span>' : nodeLabel}</span></div>
-        <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="showRoutstrNodePicker()">Browse</button>
+      <div style="${_sectionLabel}">\ud83d\udd17 Node</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
+        <div style="font-size:12px;color:var(--text-primary)"><span id="routstr-node-label">${currentKey ? '<span style="color:var(--green)">\u2713 ' + nodeLabel + '</span>' : nodeLabel}</span></div>
+        <div id="routstr-node-actions" style="display:flex;gap:4px;flex-wrap:wrap">
+          ${_nodeActionsHtml}
+        </div>
       </div>
-      ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Session: <span id="routstr-node-balance">loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
+      ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">Session: <span id="routstr-node-balance">\u26a1 loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
       <div id="routstr-node-picker" style="display:none"></div>
     </div>`;
-    if (routstrMode === 'wallet') {
-      return `<div class="ai-provider-panel">
-        <div class="ai-provider-desc">Decentralized AI with Bitcoin. Deposit to your wallet, pick a node from the network.</div>
-        ${modeToggle}
-        ${walletHtml}
-        ${nodeHtml}
-        ${rsModelHtml}
-      </div>`;
-    } else {
-      // Direct mode — centralized flow (paste key, topup to specific node)
-      const rsBalanceHtml = currentKey ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-          <div style="font-size:12px;color:var(--text-muted)"><span id="routstr-balance">Balance: loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>
-          <button class="import-btn import-btn-secondary" id="routstr-topup-toggle" style="font-size:11px;padding:2px 10px" onclick="showRoutstrTopup()">Top Up</button>
-        </div>
-        <div id="routstr-topup-area" style="display:none"></div>` : '';
-      return `<div class="ai-provider-panel">
-        <div class="ai-provider-desc">Connect directly to a Routstr node with a session key or Cashu token.</div>
-        ${modeToggle}
-        <div class="api-key-status" id="routstr-key-status">
-          ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
-        </div>
-        <input type="password" class="api-key-input" id="routstr-key-input" placeholder="cashu... or sk-..." value="${escapeAttr(currentKey)}">
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="import-btn import-btn-primary" id="save-routstr-key-btn" onclick="handleSaveRoutstrKey()">Save & Validate</button>
-          ${currentKey ? '<button class="import-btn import-btn-secondary" onclick="handleRemoveRoutstrKey()">Remove Key</button>' : ''}
-        </div>
-        ${rsBalanceHtml}
-        ${rsModelHtml}
-        <div class="api-key-notice">Paste a <a href="https://cashu.me" target="_blank" rel="noopener" style="color:var(--accent)">Cashu token</a> or session key. <a href="https://routstr.com" target="_blank" rel="noopener" style="color:var(--accent)">Learn more</a></div>
-      </div>`;
-    }
+    return `<div class="ai-provider-panel">
+      <div class="ai-provider-desc">Decentralized AI with Bitcoin. Fund your wallet, pick a node, start chatting.</div>
+      ${walletHtml}
+      ${nodeHtml}
+      ${rsModelHtml}
+    </div>`;
   }
   if (provider === 'venice') {
     const currentKey = getVeniceKey();
@@ -565,8 +569,6 @@ export function switchAIProvider(provider) {
   // Clean up any running topup poll/countdown timers
   if (_ppqTopupPollTimer) { clearInterval(_ppqTopupPollTimer); _ppqTopupPollTimer = null; }
   if (_ppqCountdownTimer) { clearInterval(_ppqCountdownTimer); _ppqCountdownTimer = null; }
-  if (_rsTopupPollTimer) { clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null; }
-  if (_rsCountdownTimer) { clearInterval(_rsCountdownTimer); _rsCountdownTimer = null; }
   if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = renderAIProviderPanel(provider);
@@ -611,11 +613,46 @@ export function initSettingsModelFetch() {
       else if (el) el.textContent = 'unavailable';
     });
   }
-  // Cashu wallet balance (always, even without node connection)
+  // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
   if (document.getElementById('routstr-wallet-balance') && window.cashuGetBalance) {
     window.cashuGetBalance().then(function(bal) {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
+    });
+    if (window.cashuGetMintUrl) window.cashuGetMintUrl().then(function(url) {
+      const el = document.getElementById('routstr-mint-label');
+      if (el) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    });
+    // H6: Check for pending deposit recovery
+    if (window.cashuRecoverPendingDeposit) window.cashuRecoverPendingDeposit().then(function(token) {
+      if (!token) return;
+      const area = document.getElementById('routstr-wallet-fund-area');
+      if (area) {
+        area.style.display = 'block';
+        area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
+          '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending deposit recovery</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous node deposit failed. Your sats are safe in this token:</div>' +
+          '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly onclick="this.select()">' + escapeHTML(token) + '</textarea>' +
+          '<div style="display:flex;gap:4px;margin-top:4px">' +
+          '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="cashuImportWallet(document.querySelector(\'#routstr-wallet-fund-area textarea\').value).then(()=>{cashuClearPendingDeposit();showNotification(\'Recovered!\',\'success\');location.reload()}).catch(e=>showNotification(e.message,\'error\'))">Recover to Wallet</button>' +
+          '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="navigator.clipboard.writeText(\'' + token.replace(/'/g, "\\'") + '\');this.textContent=\'\u2713 Copied\'">Copy Token</button>' +
+          '</div></div>';
+      }
+    });
+    // Check for pending withdraw recovery
+    if (window.cashuRecoverPendingWithdraw) window.cashuRecoverPendingWithdraw().then(function(token) {
+      if (!token) return;
+      const area = document.getElementById('routstr-wallet-fund-area');
+      if (!area || area.style.display === 'block') return; // don't overwrite deposit recovery
+      area.style.display = 'block';
+      area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
+        '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending withdraw recovery</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous Lightning withdrawal failed mid-operation. Your sats are safe in this token:</div>' +
+        '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly onclick="this.select()">' + escapeHTML(token) + '</textarea>' +
+        '<div style="display:flex;gap:4px;margin-top:4px">' +
+        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="cashuImportWallet(document.querySelector(\'#routstr-wallet-fund-area textarea\').value).then(()=>{cashuClearPendingWithdraw();showNotification(\'Recovered!\',\'success\');location.reload()}).catch(e=>showNotification(e.message,\'error\'))">Recover to Wallet</button>' +
+        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="navigator.clipboard.writeText(document.querySelector(\'#routstr-wallet-fund-area textarea\').value);this.textContent=\'\u2713 Copied\'">Copy Token</button>' +
+        '</div></div>';
     });
   }
   const ppqKey = getPpqKey();
@@ -832,8 +869,6 @@ export function closeSettingsModal() {
   // Clean up any running topup poll/countdown timers
   if (_ppqTopupPollTimer) { clearInterval(_ppqTopupPollTimer); _ppqTopupPollTimer = null; }
   if (_ppqCountdownTimer) { clearInterval(_ppqCountdownTimer); _ppqCountdownTimer = null; }
-  if (_rsTopupPollTimer) { clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null; }
-  if (_rsCountdownTimer) { clearInterval(_rsCountdownTimer); _rsCountdownTimer = null; }
   if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
 }
 
@@ -1200,13 +1235,7 @@ export function onOpenRouterDropdownChange(value) {
 }
 
 // ─── Routstr mode toggle ───
-function _getRoutstrMode() { return localStorage.getItem('labcharts-routstr-mode') || 'wallet'; }
-export function switchRoutstrMode(mode) {
-  localStorage.setItem('labcharts-routstr-mode', mode);
-  const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = renderAIProviderPanel('routstr');
-  initSettingsModelFetch();
-}
+// Direct mode removed — wallet-only
 
 // ─── Routstr handlers ───
 export function updateRoutstrModelPricing(modelId) {
@@ -1248,7 +1277,7 @@ export async function handleSaveRoutstrKey() {
             <div style="font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-primary);padding:8px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);user-select:all;cursor:text">${escapeHTML(finalKey)}</div>
             <div style="display:flex;gap:8px;margin-top:8px">
               <button class="import-btn import-btn-primary" style="font-size:12px" onclick="navigator.clipboard.writeText('${escapeAttr(finalKey)}');this.textContent='\u2713 Copied (clears in 60s)';clearTimeout(window._rsClipTimer);window._rsClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Key</button>
-              <button class="import-btn import-btn-secondary" style="font-size:12px" onclick="dismissRoutstrKeyReveal()">I\u2019ve saved it</button>
+              <button class="import-btn import-btn-secondary" style="font-size:12px" onclick="var p=document.getElementById('ai-provider-panel');if(p)p.innerHTML=renderAIProviderPanel('routstr');initSettingsModelFetch()">I\u2019ve saved it</button>
             </div>
           </div>
         </div>`;
@@ -1288,7 +1317,13 @@ export function handleRemoveRoutstrKey() {
 export function renderRoutstrModelDropdown(models) {
   const area = document.getElementById('routstr-model-area');
   if (!area || !models.length) return;
-  const currentModel = getRoutstrModel();
+  let currentModel = getRoutstrModel();
+  // Auto-select first model if stored model isn't available on this node
+  const modelIds = models.map(m => m.id);
+  if (currentModel && !modelIds.includes(currentModel)) {
+    currentModel = modelIds[0];
+    setRoutstrModel(currentModel);
+  }
   const opts = buildModelOptions('routstr', models, currentModel, function(m) { return m.name || m.id; });
   area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
     '<select class="api-key-input" id="routstr-model-select" style="margin-top:4px" onchange="setRoutstrModel(this.value);updateRoutstrModelPricing(this.value)">' + opts + '</select>' +
@@ -1301,28 +1336,11 @@ function _rsBalanceHtml(sats) {
   return 'Balance: <span style="color:' + color + '">\u26a1 ' + sats.toLocaleString() + ' sats</span>';
 }
 export function refreshRoutstrBalance() {
-  const el = document.getElementById('routstr-balance');
+  const el = document.getElementById('routstr-node-balance') || document.getElementById('routstr-balance');
   if (el) el.textContent = 'Balance: refreshing...';
   getRoutstrBalance().then(function(b) {
     if (el && b) el.innerHTML = _rsBalanceHtml(b.sats);
     else if (el) el.textContent = 'Balance: unavailable';
-  });
-}
-export function dismissRoutstrKeyReveal() {
-  const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = renderAIProviderPanel('routstr');
-  let cachedModels = []; try { cachedModels = JSON.parse(localStorage.getItem('labcharts-routstr-models') || '[]'); } catch(e) {}
-  if (cachedModels.length) renderRoutstrModelDropdown(cachedModels);
-  getRoutstrBalance().then(function(b) {
-    const el = document.getElementById('routstr-balance');
-    if (el && b) el.innerHTML = _rsBalanceHtml(b.sats);
-    if (b && b.sats > 0) {
-      showNotification('Routstr wallet ready', 'success');
-      _returnToChatIfOnboarding();
-    } else {
-      showRoutstrTopup();
-      showNotification('Top up to start using AI', 'info');
-    }
   });
 }
 // ─── Routstr decentralized wallet UI ───
@@ -1340,16 +1358,17 @@ function _renderWalletFundUI() {
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
   area.style.display = 'block';
-  const presets = [5000, 10000, 25000, 50000];
+  const presets = [1000, 5000, 10000, 25000];
   area.innerHTML = `<div style="margin-top:8px">
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Deposit with Lightning</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">Deposit with Lightning</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">3% development fee applies</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrWalletFund(${s})">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsWalletFundCustomInput()">\u26a1\u2026</button></div>
+      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="doRoutstrWalletFund(${s})">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsWalletFundCustomInput()">\u26a1\u2026</button></div>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">5,000 sats is enough for onboarding \u00b7 min 1,000</div>
-    <div style="margin-top:6px"><div class="or-oauth-divider"><span>or paste Cashu token</span></div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">1,000 sats is enough for a few chats</div>
+    <div style="margin-top:6px"><div class="or-oauth-divider"><span>or paste Cashu token (3% fee)</span></div>
     <div style="display:flex;gap:6px;margin-top:4px">
-      <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashu..." style="font-size:11px;flex:1;font-family:monospace">
+      <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashuA... or cashuB..." style="font-size:11px;flex:1;font-family:monospace">
       <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrWalletReceiveCashu()">Deposit</button>
     </div></div>
     <div id="routstr-wfund-status"></div>
@@ -1367,9 +1386,9 @@ export function doRoutstrWalletFundCustom() {
   const input = document.getElementById('routstr-wfund-custom');
   if (!input) return;
   const amount = parseInt(input.value.replace(/[^0-9]/g, ''), 10);
-  if (!amount || amount < 1000) {
+  if (!amount || amount < 100) {
     const s = document.getElementById('routstr-wfund-status');
-    if (s) s.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Minimum 1,000 sats</div>';
+    if (s) s.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Minimum 100 sats</div>';
     return;
   }
   doRoutstrWalletFund(amount);
@@ -1392,7 +1411,7 @@ export async function doRoutstrWalletFund(amountSats) {
     const payUri = 'lightning:' + result.invoice;
     statusEl.innerHTML = `<div style="margin-top:8px;text-align:center">
       <div style="font-size:12px;font-weight:600;margin-bottom:4px">\u26a1 ${amountSats.toLocaleString()} sats</div>
-      ${qrSvg ? `<a href="${payUri}" style="display:inline-block;background:#fff;padding:8px;border-radius:8px;width:180px;height:180px">${qrSvg}</a>` : ''}
+      ${qrSvg ? `<a href="${payUri}" style="display:inline-block;background:#fff;padding:10px;border-radius:8px;width:220px;height:220px">${qrSvg}</a>` : ''}
       <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="navigator.clipboard.writeText('${escapeAttr(result.invoice)}');this.textContent='\u2713 Copied'">${result.invoice.slice(0, 20)}\u2026 copy</button></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-wfund-poll">Waiting for payment\u2026</div>
     </div>`;
@@ -1402,8 +1421,10 @@ export async function doRoutstrWalletFund(amountSats) {
         const s = await window.cashuCheckFundingStatus(result.quote);
         if (s && s.paid) {
           clearInterval(_rsFundPollTimer); _rsFundPollTimer = null;
-          statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + amountSats.toLocaleString() + ' sats added to wallet!</div>';
-          showNotification('Wallet funded \u26a1 ' + amountSats.toLocaleString() + ' sats', 'success');
+          const feeText = s.fee ? ' (' + s.fee + ' fee)' : '';
+          const credited = s.fee ? (amountSats - s.fee) : amountSats;
+          statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + credited.toLocaleString() + ' sats added to wallet!' + feeText + '</div>';
+          showNotification('Wallet funded \u26a1 ' + credited.toLocaleString() + ' sats', 'success');
           _refreshRoutstrWalletBalance();
           setTimeout(function() { const a = document.getElementById('routstr-wallet-fund-area'); if (a) a.style.display = 'none'; }, 3000);
         }
@@ -1419,14 +1440,79 @@ export async function doRoutstrWalletReceiveCashu() {
   const statusEl = document.getElementById('routstr-wfund-status');
   if (!input || !statusEl) return;
   const token = input.value.trim();
-  if (!token || !token.startsWith('cashu')) { statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Cashu token (starts with cashu...)</div>'; return; }
+  if (!token || !token.startsWith('cashuA') && !token.startsWith('cashuB')) { statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Cashu token (starts with cashuA or cashuB)</div>'; return; }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing to wallet\u2026</div>';
   try {
     const result = await window.cashuReceiveToken(token);
     input.value = '';
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 +' + result.received + ' sats' + (result.fee > 0 ? ' (' + result.fee + ' fee)' : '') + '</div>';
-    showNotification('Wallet funded \u26a1 ' + result.received + ' sats', 'success');
+    // Close the deposit area and show success inline
+    const fundArea = document.getElementById('routstr-wallet-fund-area');
+    if (fundArea) { fundArea.style.display = 'none'; _setActiveWalletAction(null); }
+    showNotification('Wallet funded \u26a1 +' + result.received + ' sats' + (result.fee > 0 ? ' (' + result.fee + ' fee)' : ''), 'success');
     _refreshRoutstrWalletBalance();
+  } catch (e) {
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+// ─── Mint selection ───
+export async function showRoutstrMintEdit() {
+  const area = document.getElementById('routstr-mint-edit');
+  if (!area) return;
+  if (area.style.display !== 'none') { area.style.display = 'none'; return; }
+  const currentMint = await window.cashuGetMintUrl();
+  // Query connected node's accepted mints
+  const nodeUrl = window.nostrGetSelectedNode?.() || '';
+  let nodeMints = [];
+  if (nodeUrl) {
+    try {
+      const res = await fetch(nodeUrl.replace(/\/+$/, '') + '/v1/info');
+      if (res.ok) { const info = await res.json(); nodeMints = info.mints || []; }
+    } catch {}
+  }
+  const nodeMintsHtml = nodeMints.length
+    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px">Node accepts: ${nodeMints.map(m => {
+        const label = escapeHTML(m.replace(/^https?:\/\//, ''));
+        const isCurrent = m === currentMint;
+        return isCurrent ? '<strong style="color:var(--green)">' + label + '</strong>'
+          : '<a href="#" onclick="document.getElementById(\'routstr-mint-input\').value=\'' + escapeAttr(m) + '\';return false" style="color:var(--accent);text-decoration:none">' + label + '</a>';
+      }).join(', ')}</div>`
+    : '';
+  area.style.display = 'block';
+  area.innerHTML = `<div style="margin-top:6px">
+    <input type="text" class="api-key-input" id="routstr-mint-input" value="${escapeAttr(currentMint)}" placeholder="https://mint.example.com" style="font-size:11px;font-family:monospace">
+    <div style="display:flex;gap:4px;margin-top:4px">
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrMintChange()">Save</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="document.getElementById('routstr-mint-edit').style.display='none'">Cancel</button>
+    </div>
+    ${nodeMintsHtml}
+    <div style="font-size:10px;color:var(--text-muted);margin-top:4px">\u26a0 Changing mint resets wallet connection. Existing proofs stay tied to their mint.</div>
+    <div id="routstr-mint-status"></div>
+  </div>`;
+}
+
+export async function doRoutstrMintChange() {
+  const input = document.getElementById('routstr-mint-input');
+  const statusEl = document.getElementById('routstr-mint-status');
+  if (!input || !statusEl) return;
+  const url = input.value.trim().replace(/\/+$/, '');
+  if (!url || !url.startsWith('https://')) {
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a valid mint URL (https://...)</div>';
+    return;
+  }
+  statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking mint\u2026</div>';
+  try {
+    const res = await fetch(url + '/v1/info');
+    if (!res.ok) throw new Error('Mint not reachable');
+    const info = await res.json();
+    if (!info.nuts) throw new Error('Not a valid Cashu mint');
+    await window.cashuSetMintUrl(url);
+    // Update label + balance
+    const label = document.getElementById('routstr-mint-label');
+    if (label) label.textContent = url.replace(/^https?:\/\//, '');
+    document.getElementById('routstr-mint-edit').style.display = 'none';
+    _refreshRoutstrWalletBalance();
+    showNotification('Mint changed to ' + url.replace(/^https?:\/\//, ''), 'success');
   } catch (e) {
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
   }
@@ -1477,23 +1563,56 @@ export async function showRoutstrNodePicker() {
 }
 
 export async function connectRoutstrNode(nodeUrl) {
+  const picker = document.getElementById('routstr-node-picker');
+  if (picker) picker.style.display = 'block';
+  const nodeLabel = escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+  if (picker) picker.innerHTML = `<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--accent)">
+    <div style="font-size:11px;color:var(--text-muted)">Checking ${nodeLabel}\u2026</div>
+  </div>`;
+
+  // Query node's accepted mints
+  let nodeMints = [];
+  try {
+    const infoRes = await fetch(nodeUrl.replace(/\/+$/, '') + '/v1/info');
+    if (infoRes.ok) {
+      const info = await infoRes.json();
+      nodeMints = info.mints || [];
+    }
+  } catch {}
+
+  // Auto-set mint if node requires a specific one
+  const currentMint = await window.cashuGetMintUrl();
+  let mintSwitched = false;
+  if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
+    // Current mint not accepted — switch to node's first mint
+    await window.cashuSetMintUrl(nodeMints[0]);
+    mintSwitched = true;
+    const mintLabel = document.getElementById('routstr-mint-label');
+    if (mintLabel) mintLabel.textContent = nodeMints[0].replace(/^https?:\/\//, '');
+    showNotification('Mint switched to ' + nodeMints[0].replace(/^https?:\/\//, '') + ' (required by node)', 'info');
+  }
+
   const walletBalance = await window.cashuGetBalance();
-  if (walletBalance < 1000) {
-    showNotification('Fund your wallet first (\u26a1 1,000+ sats needed)', 'error');
+  if (walletBalance < 1) {
+    showNotification('Fund your wallet first' + (mintSwitched ? ' — mint was updated' : ''), 'error');
     showRoutstrWalletFund();
     return;
   }
+
   // Show deposit amount picker
-  const picker = document.getElementById('routstr-node-picker');
-  const nodeLabel = escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''));
-  const presets = [1000, 2500, 5000].filter(v => v <= walletBalance);
-  if (walletBalance > 5000 && walletBalance <= 50000) presets.push(walletBalance);
-  else if (walletBalance > 50000) presets.push(50000);
+  const mintNote = mintSwitched ? `<div style="font-size:10px;color:var(--accent);margin-bottom:4px">\u26a0 Mint switched to ${escapeHTML(nodeMints[0].replace(/^https?:\/\//, ''))}</div>` : '';
+  const presets = [500, 1000, 2500, 5000].filter(v => v <= walletBalance);
   if (picker) picker.innerHTML = `<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--accent)">
     <div style="font-size:12px;margin-bottom:6px">Deposit to <strong>${nodeLabel}</strong></div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${walletBalance.toLocaleString()} sats. How much to deposit?</div>
+    ${mintNote}
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${walletBalance.toLocaleString()} sats</div>
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+      <input type="number" class="api-key-input" id="routstr-deposit-amount" placeholder="sats" style="font-size:11px;flex:1" min="1" max="${walletBalance}">
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',parseInt(document.getElementById('routstr-deposit-amount')?.value))">Deposit</button>
+    </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(v => `<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-deposit-amount').value=${v};doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+      ${walletBalance > 0 ? `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-deposit-amount').value=${walletBalance};doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',${walletBalance})">All (${walletBalance.toLocaleString()})</button>` : ''}
     </div>
     <div id="routstr-deposit-status" style="margin-top:6px"></div>
   </div>`;
@@ -1504,15 +1623,37 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
   if (_rsConnecting) return;
   _rsConnecting = true;
   const statusEl = document.getElementById('routstr-deposit-status');
+  if (!amount || amount < 1 || isNaN(amount)) {
+    _rsConnecting = false;
+    if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">Enter a valid amount</div>';
+    return;
+  }
   if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Depositing ' + amount.toLocaleString() + ' sats\u2026</div>';
+  // Safety check: verify mint is accepted by node
   try {
-    const result = await window.cashuDepositToNode(nodeUrl, amount);
-    if (!result.api_key) throw new Error('No session key returned');
-    await saveRoutstrKey(result.api_key);
+    const infoRes = await fetch(nodeUrl.replace(/\/+$/, '') + '/v1/info');
+    if (infoRes.ok) {
+      const info = await infoRes.json();
+      const nodeMints = info.mints || [];
+      const currentMint = await window.cashuGetMintUrl();
+      if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
+        _rsConnecting = false;
+        if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">Node doesn\u2019t accept mint ' + escapeHTML(currentMint.replace(/^https?:\/\//, '')) + '. Accepted: ' + escapeHTML(nodeMints.map(m => m.replace(/^https?:\/\//, '')).join(', ')) + '</div>';
+        return;
+      }
+    }
+  } catch {}
+  try {
+    const existingKey = getRoutstrKey();
+    const result = await window.cashuDepositToNode(nodeUrl, amount, existingKey);
+    // Topup returns no api_key — keep existing. Create returns new api_key.
+    if (result.api_key) await saveRoutstrKey(result.api_key);
     window.nostrSetSelectedNode(nodeUrl);
-    // Clear cached model — new node may have different model IDs
-    localStorage.removeItem('labcharts-routstr-model');
-    localStorage.removeItem('labcharts-routstr-models');
+    // Only clear models if this is a new node connection (new key)
+    if (result.api_key) {
+      localStorage.removeItem('labcharts-routstr-model');
+      localStorage.removeItem('labcharts-routstr-models');
+    }
     const models = await fetchRoutstrModels();
     showNotification('Connected to ' + nodeUrl.replace(/^https?:\/\//, '') + ' \u26a1 ' + amount.toLocaleString() + ' sats', 'success');
     const panel = document.getElementById('ai-provider-panel');
@@ -1523,8 +1664,59 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
     _returnToChatIfOnboarding();
   } catch (e) {
     if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    _refreshRoutstrWalletBalance();
+    // Show recovery banner if there's a pending deposit
+    if (window.cashuRecoverPendingDeposit) window.cashuRecoverPendingDeposit().then(function(token) {
+      if (!token) return;
+      const area = document.getElementById('routstr-wallet-fund-area');
+      if (!area) return;
+      area.style.display = 'block';
+      area.innerHTML = '<div style="padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px;margin-top:8px">' +
+        '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Deposit failed \u2014 your sats are safe</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">The node rejected the deposit. Recover the token back to your wallet:</div>' +
+        '<div style="display:flex;gap:4px">' +
+        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="cashuImportWallet(\'' + token.replace(/'/g, "\\'") + '\').then(()=>{cashuClearPendingDeposit();showNotification(\'Recovered!\',\'success\');location.reload()}).catch(e=>showNotification(e.message,\'error\'))">Recover to Wallet</button>' +
+        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="navigator.clipboard.writeText(\'' + token.replace(/'/g, "\\'") + '\');this.textContent=\'\u2713 Copied\'">Copy Token</button>' +
+        '</div></div>';
+    });
   }
   _rsConnecting = false;
+}
+
+export async function doRoutstrNodeWithdraw() {
+  const nodeUrl = (window.nostrGetSelectedNode?.() || '').replace(/\/+$/, '');
+  const key = getRoutstrKey();
+  if (!nodeUrl || !key) { showNotification('No active node session', 'error'); return; }
+  const picker = document.getElementById('routstr-node-picker');
+  if (picker) {
+    picker.style.display = 'block';
+    picker.innerHTML = '<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--accent)"><div style="font-size:11px;color:var(--text-muted)">Withdrawing from node\u2026</div></div>';
+  }
+  try {
+    const res = await fetch(nodeUrl + '/v1/wallet/refund', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      throw new Error(err?.detail?.error?.message || err?.detail || 'Refund failed: ' + res.status);
+    }
+    const data = await res.json();
+    const token = data.token || data.cashu_token || (typeof data === 'string' && data.startsWith('cashu') ? data : null);
+    if (!token) throw new Error('No token returned from node');
+    // Import the refunded token into wallet
+    const imported = await window.cashuImportWallet(token);
+    // Clear the session key — balance is now 0 on the node
+    await saveRoutstrKey('');
+    showNotification('Withdrawn \u26a1 ' + imported.toLocaleString() + ' sats to wallet', 'success');
+    // Re-render panel
+    const panel = document.getElementById('ai-provider-panel');
+    if (panel) panel.innerHTML = renderAIProviderPanel('routstr');
+    initSettingsModelFetch();
+    _refreshRoutstrWalletBalance();
+  } catch (e) {
+    if (picker) picker.innerHTML = '<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)"><div style="font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div></div>';
+  }
 }
 
 async function _refreshRoutstrWalletBalance() {
@@ -1536,23 +1728,63 @@ async function _refreshRoutstrWalletBalance() {
   } catch {
     el.textContent = '\u26a1 0 sats';
   }
+  // Keep mint label fresh
+  if (window.cashuGetMintUrl) window.cashuGetMintUrl().then(function(url) {
+    const mintEl = document.getElementById('routstr-mint-label');
+    if (mintEl) mintEl.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  });
+}
+
+// ─── Node action buttons with active state ───
+let _activeNodeAction = null;
+
+function _buildNodeActions(nodeUrl, hasKey, active) {
+  const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
+  const _activePill = 'font-size:11px;padding:3px 10px';
+  const btns = [];
+  if (nodeUrl) btns.push({ id: 'deposit', label: 'Deposit', fn: "connectRoutstrNode('" + nodeUrl.replace(/'/g, "\\'") + "')" });
+  if (hasKey && nodeUrl) btns.push({ id: 'withdraw', label: 'Withdraw', fn: 'doRoutstrNodeWithdraw()' });
+  btns.push({ id: 'browse', label: 'Browse', fn: 'showRoutstrNodePicker()' });
+  return btns.map(b => {
+    const isActive = b.id === active;
+    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _activePill : _pill}" onclick="_setActiveNodeAction('${b.id}');${b.fn}">${b.label}</button>`;
+  }).join('');
+}
+
+function _setActiveNodeAction(actionId) {
+  _activeNodeAction = actionId;
+  const el = document.getElementById('routstr-node-actions');
+  const nodeUrl = window.nostrGetSelectedNode?.() || '';
+  const hasKey = !!window.getRoutstrKey?.();
+  if (el) el.innerHTML = _buildNodeActions(nodeUrl, hasKey, actionId);
 }
 
 // ─── Wallet action buttons with active state ───
 let _activeWalletAction = null;
 
 function _walletActionButtons(active) {
-  const btns = [
+  const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
+  const _active = 'font-size:11px;padding:3px 10px';
+  const mainBtns = [
     { id: 'deposit', label: 'Deposit', fn: 'showRoutstrWalletFund' },
     { id: 'withdraw', label: 'Withdraw', fn: 'showRoutstrWithdraw' },
-    { id: 'seed', label: 'Seed', fn: 'showWalletSeedPhrase' },
-    { id: 'backup', label: 'Backup', fn: 'showRoutstrWalletBackup' },
-    { id: 'restore', label: 'Restore', fn: 'showRoutstrWalletRestore' },
   ];
-  return btns.map(b => {
-    const cls = b.id === active ? 'import-btn-primary' : 'import-btn-secondary';
-    return `<button class="import-btn ${cls}" style="font-size:10px;padding:2px 8px" onclick="${b.fn}()">${b.label}</button>`;
+  const menuItems = [
+    { id: 'seed', label: '\ud83c\udf31 Seed & Restore', fn: 'showWalletSeedPhrase' },
+    { id: 'backup', label: '\ud83d\udce4 Export Token', fn: 'showRoutstrWalletBackup' },
+  ];
+  const main = mainBtns.map(b => {
+    const isActive = b.id === active;
+    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _active : _pill}" onclick="${b.fn}()">${b.label}</button>`;
   }).join('');
+  const menuActive = menuItems.some(b => b.id === active);
+  const menu = `<div style="position:relative;display:inline-block">
+    <button class="import-btn ${menuActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${menuActive ? _active : _pill}" onclick="var m=document.getElementById('routstr-wallet-menu');var show=m.style.display!=='block';m.style.display=show?'block':'none';if(show){var h=function(e){if(!m.contains(e.target)&&e.target!==this){m.style.display='none';document.removeEventListener('click',h,true)}}.bind(this);setTimeout(function(){document.addEventListener('click',h,true)},0)}">\u22ef</button>
+    <div id="routstr-wallet-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px;z-index:10;min-width:120px;box-shadow:var(--shadow-lg)">
+      ${menuItems.map(b => `<button class="import-btn ${b.id === active ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:4px 10px;width:100%;text-align:left;margin-bottom:2px;${b.id === active ? '' : 'background:transparent;border-color:transparent;color:var(--text-primary)'}" onclick="document.getElementById('routstr-wallet-menu').style.display='none';${b.fn}()">${b.label}</button>`).join('')}
+    </div>
+  </div>`;
+  return main + menu;
 }
 
 function _setActiveWalletAction(actionId) {
@@ -1597,18 +1829,34 @@ export function walletSeedAcknowledged() {
 
 // ─── Wallet seed display ───
 export async function showWalletSeedPhrase() {
-  const mnemonic = await window.cashuGetWalletMnemonic?.();
-  if (!mnemonic) { showNotification('No wallet seed \u2014 deposit to your wallet first', 'info'); return; }
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
   if (area.style.display !== 'none' && _activeWalletAction === 'seed') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
   _setActiveWalletAction('seed');
   area.style.display = 'block';
-  area.innerHTML = `<div style="margin-top:8px">
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>
-    <div id="wallet-seed-display" style="font-family:monospace;font-size:13px;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" onclick="this.style.filter=this.style.filter?'':'blur(4px)'">${escapeHTML(mnemonic)}</div>
-    <button class="import-btn import-btn-secondary" style="font-size:11px;margin-top:6px" onclick="navigator.clipboard.writeText('${escapeAttr(mnemonic)}');this.textContent='\u2713 Copied (60s)';clearTimeout(window._seedClipTimer);window._seedClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy</button>
-  </div>`;
+  const mnemonic = await window.cashuGetWalletMnemonic?.();
+  if (mnemonic) {
+    area.innerHTML = `<div style="margin-top:8px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>
+      <div id="wallet-seed-display" style="font-family:monospace;font-size:13px;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" onclick="this.style.filter=this.style.filter?'':'blur(4px)'">${escapeHTML(mnemonic)}</div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="navigator.clipboard.writeText('${escapeAttr(mnemonic)}');this.textContent='\u2713 Copied (60s)';clearTimeout(window._seedClipTimer);window._seedClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Seed</button>
+      </div>
+      <div style="margin-top:10px"><div class="or-oauth-divider"><span>restore from seed</span></div>
+      <textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:12px;font-family:monospace;resize:none;margin-top:4px"></textarea>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" onclick="doRoutstrWalletRestore()">Restore</button>
+      <div id="routstr-restore-status"></div>
+      </div>
+    </div>`;
+  } else {
+    area.innerHTML = `<div style="margin-top:8px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Restore Wallet from Seed</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">No seed yet \u2014 a seed is generated when you first deposit.</div>
+      <textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:12px;font-family:monospace;resize:none"></textarea>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" onclick="doRoutstrWalletRestore()">Restore</button>
+      <div id="routstr-restore-status"></div>
+    </div>`;
+  }
 }
 
 // ─── Wallet withdraw ───
@@ -1623,8 +1871,8 @@ export async function showRoutstrWithdraw() {
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Withdraw</div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${balance.toLocaleString()} sats</div>
     <div style="display:flex;gap:4px;margin-bottom:6px">
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="showRoutstrWithdrawLightning()">\u26a1 Lightning</button>
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="showRoutstrWithdrawToken()">Cashu Token</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="showRoutstrWithdrawLightning()">\u26a1 Lightning</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="showRoutstrWithdrawToken()">Cashu Token</button>
     </div>
     <div id="routstr-withdraw-status"></div>
   </div>`;
@@ -1634,22 +1882,38 @@ export function showRoutstrWithdrawLightning() {
   const statusEl = document.getElementById('routstr-withdraw-status');
   if (!statusEl) return;
   statusEl.innerHTML = `<div style="margin-top:4px">
-    <input type="text" class="api-key-input" id="routstr-withdraw-input" placeholder="Paste Lightning invoice (lnbc...)" style="font-size:11px;font-family:monospace">
-    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" onclick="doRoutstrWithdrawQuote()">Check Fee</button>
+    <input type="text" class="api-key-input" id="routstr-withdraw-input" placeholder="Lightning address (user@domain) or invoice (lnbc...)" style="font-size:11px;font-family:monospace">
+    <div id="routstr-withdraw-ln-amount" style="display:none;margin-top:4px">
+      <div style="display:flex;gap:4px;align-items:center">
+        <input type="number" class="api-key-input" id="routstr-withdraw-amount" placeholder="sats" style="font-size:11px;flex:1" min="1">
+        <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="cashuGetMaxWithdrawable().then(m=>{document.getElementById('routstr-withdraw-amount').value=m})">Max</button>
+      </div>
+    </div>
+    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" onclick="doRoutstrWithdrawQuote()">Withdraw</button>
   </div>`;
+  const input = document.getElementById('routstr-withdraw-input');
+  input?.addEventListener('input', () => {
+    const val = input.value.trim();
+    const needsAmount = val.includes('@') && !val.match(/^ln(bc|tb|bcrt)/);
+    document.getElementById('routstr-withdraw-ln-amount').style.display = needsAmount ? 'block' : 'none';
+  });
 }
 
 export async function showRoutstrWithdrawToken() {
   const statusEl = document.getElementById('routstr-withdraw-status');
   if (!statusEl) return;
   const balance = await window.cashuGetBalance();
-  const presets = [1000, 2500, 5000].filter(v => v <= balance);
-  if (balance > 0 && !presets.includes(balance)) presets.push(balance);
+  const presets = [100, 500, 1000, 2500].filter(v => v <= balance);
   statusEl.innerHTML = `<div style="margin-top:4px">
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Send as Cashu token</div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrSendToken(${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+      <input type="number" class="api-key-input" id="routstr-token-amount" placeholder="sats" style="font-size:11px;flex:1" min="1" max="${balance}">
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrSendToken(parseInt(document.getElementById('routstr-token-amount')?.value))">Send</button>
     </div>
+    ${balance > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:4px">
+      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-token-amount').value=${v};doRoutstrSendToken(${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-token-amount').value=${balance};doRoutstrSendToken(${balance})">All (${balance.toLocaleString()})</button>
+    </div>` : '<div style="font-size:11px;color:var(--text-muted)">No balance to withdraw</div>'}
     <div id="routstr-token-result"></div>
   </div>`;
 }
@@ -1657,14 +1921,20 @@ export async function showRoutstrWithdrawToken() {
 export async function doRoutstrSendToken(amount) {
   const resultEl = document.getElementById('routstr-token-result');
   if (!resultEl) return;
+  if (!amount || amount < 1 || isNaN(amount)) {
+    resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a valid amount</div>';
+    return;
+  }
   resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Creating token\u2026</div>';
   try {
     const result = await window.cashuSendAsToken(amount);
     resultEl.innerHTML = `<div style="margin-top:6px">
-      <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 ${result.amount} sats \u2014 copy the token below</div>
+      <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 Token created \u2014 \u26a1 ${result.amount.toLocaleString()} sats</div>
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Copy and share. Sats are deducted from your wallet now.</div>
       <textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:60px;resize:none;user-select:all" readonly onclick="this.select()">${escapeHTML(result.token)}</textarea>
       <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" onclick="navigator.clipboard.writeText('${escapeAttr(result.token)}');this.textContent='\u2713 Copied (60s)';clearTimeout(window._tokenClipTimer);window._tokenClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Token</button>
     </div>`;
+    showNotification('\u26a1 ' + result.amount.toLocaleString() + ' sats token ready', 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
     resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
@@ -1675,14 +1945,37 @@ export async function doRoutstrWithdrawQuote() {
   const input = document.getElementById('routstr-withdraw-input');
   const statusEl = document.getElementById('routstr-withdraw-status');
   if (!input || !statusEl) return;
-  const invoice = input.value.trim();
-  if (!invoice || !invoice.startsWith('lnbc')) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Lightning invoice (starts with lnbc...)</div>';
+  const val = input.value.trim();
+  if (!val) {
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a Lightning invoice or address</div>';
+    return;
+  }
+  const isAddress = val.includes('@') && !val.match(/^ln(bc|tb|bcrt)/);
+  if (isAddress) {
+    const amountInput = document.getElementById('routstr-withdraw-amount');
+    const amount = parseInt(amountInput?.value) || 0;
+    if (!amount || amount < 1) {
+      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter an amount in sats</div>';
+      return;
+    }
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Withdrawing to ' + escapeHTML(val) + '\u2026</div>';
+    try {
+      await window.cashuWithdrawToAddress(val, amount);
+      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Sent ' + amount.toLocaleString() + ' sats to ' + escapeHTML(val) + '</div>';
+      showNotification('Withdrawal complete', 'success');
+      _refreshRoutstrWalletBalance();
+    } catch (e) {
+      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    }
+    return;
+  }
+  if (!val.match(/^ln(bc|tb|bcrt)/)) {
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a Lightning invoice (lnbc\u2026) or address (user@domain)</div>';
     return;
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking fee\u2026</div>';
   try {
-    const quote = await window.cashuCreateWithdrawQuote(invoice);
+    const quote = await window.cashuCreateWithdrawQuote(val);
     statusEl.innerHTML = `<div style="margin-top:6px;padding:8px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text-muted)">Amount: <strong>${quote.amount.toLocaleString()} sats</strong></div>
       <div style="font-size:11px;color:var(--text-muted)">Fee reserve: <strong>${quote.fee_reserve.toLocaleString()} sats</strong></div>
@@ -1709,19 +2002,7 @@ export async function doRoutstrWithdrawExecute(quoteId) {
 }
 
 // ─── Wallet restore ───
-export async function showRoutstrWalletRestore() {
-  const area = document.getElementById('routstr-wallet-fund-area');
-  if (!area) return;
-  if (area.style.display !== 'none' && _activeWalletAction === 'restore') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
-  _setActiveWalletAction('restore');
-  area.style.display = 'block';
-  area.innerHTML = `<div style="margin-top:8px">
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Restore Wallet from Seed</div>
-    <textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:12px;font-family:monospace;resize:none"></textarea>
-    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" onclick="doRoutstrWalletRestore()">Restore</button>
-    <div id="routstr-restore-status"></div>
-  </div>`;
-}
+// showRoutstrWalletRestore merged into showWalletSeedPhrase
 
 export async function doRoutstrWalletRestore() {
   const input = document.getElementById('routstr-restore-seed');
@@ -1742,132 +2023,6 @@ export async function doRoutstrWalletRestore() {
   } catch (e) {
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
   }
-}
-
-let _rsTopupPollTimer = null;
-let _rsCountdownTimer = null;
-export function showRoutstrTopup() {
-  const area = document.getElementById('routstr-topup-area');
-  if (!area) return;
-  if (area.style.display !== 'none') { cancelRoutstrTopup(); return; }
-  area.style.display = 'block';
-  const presets = [5000, 10000, 25000, 50000];
-  area.innerHTML = `<div style="margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border)">
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Top up with Lightning</div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px" id="routstr-topup-presets">
-      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrLightningTopup(${s})">\u26a1 ${s.toLocaleString()} sats</button>`).join('')}<div id="routstr-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsShowCustomSatsInput()">\u26a1\u2026</button></div>
-    </div>
-    <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">5,000 sats is enough for onboarding, a few imports, and chats \u00b7 min 1,000</div>
-    <div style="margin-top:8px"><div class="or-oauth-divider"><span>or paste Cashu token</span></div>
-    <div style="display:flex;gap:6px;margin-top:4px">
-      <input type="text" class="api-key-input" id="routstr-cashu-input" placeholder="cashu..." style="font-size:11px;flex:1;font-family:monospace">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrCashuTopup()">Deposit</button>
-    </div></div>
-    <div id="routstr-topup-status"></div>
-  </div>`;
-}
-export function rsShowCustomSatsInput() {
-  const slot = document.getElementById('routstr-custom-slot');
-  if (!slot) return;
-  slot.innerHTML = '<input type="text" inputmode="numeric" id="routstr-custom-sats" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;width:80px;text-align:center;cursor:text;border:1px solid var(--accent)" placeholder="sats" onkeydown="if(event.key===\'Enter\')doRoutstrCustomTopup();if(event.key===\'Escape\')showRoutstrTopup()" onblur="if(this.value.trim())doRoutstrCustomTopup()">';
-  document.getElementById('routstr-custom-sats')?.focus();
-}
-export function doRoutstrCustomTopup() {
-  const input = document.getElementById('routstr-custom-sats');
-  if (!input) return;
-  const amount = parseInt(input.value.replace(/[^0-9]/g, ''), 10);
-  if (!amount || amount < 1000) {
-    const statusEl = document.getElementById('routstr-topup-status');
-    if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Minimum 1,000 sats</div>';
-    return;
-  }
-  doRoutstrLightningTopup(amount);
-}
-export async function doRoutstrLightningTopup(amountSats) {
-  const statusEl = document.getElementById('routstr-topup-status');
-  if (!statusEl) return;
-  statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Creating invoice\u2026</div>';
-  try {
-    const result = await createRoutstrLightningInvoice(amountSats);
-    const bolt11 = result.bolt11 || result.payment_request || result.invoice;
-    const invoiceId = result.invoice_id || result.id;
-    if (!bolt11) throw new Error('No invoice returned');
-    // QR code
-    let qrSvg = '';
-    if (typeof qrcode === 'function') {
-      const qr = qrcode(0, 'L');
-      qr.addData(bolt11.toUpperCase());
-      qr.make();
-      qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
-    }
-    const payUri = 'lightning:' + bolt11;
-    statusEl.innerHTML = `<div style="margin-top:8px;text-align:center">
-      <div style="font-size:12px;font-weight:600;margin-bottom:4px">\u26a1 ${amountSats.toLocaleString()} sats</div>
-      ${qrSvg ? `<a href="${payUri}" style="display:inline-block;background:#fff;padding:8px;border-radius:8px;width:180px;height:180px">${qrSvg}</a>` : ''}
-      <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="navigator.clipboard.writeText('${escapeAttr(bolt11)}');this.textContent='\u2713 Copied'">${bolt11.slice(0, 20)}\u2026 copy</button></div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-topup-countdown">Waiting for payment\u2026</div>
-    </div>`;
-    // Countdown
-    if (result.expires_at) {
-      const expiresMs = (typeof result.expires_at === 'number' && result.expires_at < 1e12) ? result.expires_at * 1000 : result.expires_at;
-      _rsCountdownTimer = setInterval(function() {
-        const remaining = Math.max(0, Math.floor((expiresMs - Date.now()) / 1000));
-        const cdEl = document.getElementById('routstr-topup-countdown');
-        if (cdEl) cdEl.textContent = remaining > 0 ? 'Expires in ' + Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0') : 'Invoice expired';
-        if (remaining <= 0) clearInterval(_rsCountdownTimer);
-      }, 1000);
-    }
-    // Poll for payment
-    if (invoiceId) {
-      _rsTopupPollTimer = setInterval(async function() {
-        try {
-          const s = await checkRoutstrInvoiceStatus(invoiceId);
-          if (s && (s.status === 'paid' || s.status === 'complete' || s.status === 'settled')) {
-            clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null;
-            clearInterval(_rsCountdownTimer); _rsCountdownTimer = null;
-            statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + amountSats.toLocaleString() + ' sats added!</div>';
-            showNotification('Routstr topped up \u26a1 ' + amountSats.toLocaleString() + ' sats', 'success');
-            refreshRoutstrBalance();
-            setTimeout(function() { const a = document.getElementById('routstr-topup-area'); if (a) a.style.display = 'none'; }, 3000);
-          } else if (s && (s.status === 'expired' || s.status === 'invalid')) {
-            clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null;
-            clearInterval(_rsCountdownTimer); _rsCountdownTimer = null;
-            statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">Invoice expired. Try again.</div>';
-          }
-        } catch {}
-      }, 3000);
-    }
-  } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
-  }
-}
-export async function doRoutstrCashuTopup() {
-  const input = document.getElementById('routstr-cashu-input');
-  const statusEl = document.getElementById('routstr-topup-status');
-  if (!input || !statusEl) return;
-  const token = input.value.trim();
-  if (!token || !token.startsWith('cashu')) { statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Cashu token (starts with cashu...)</div>'; return; }
-  statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing\u2026</div>';
-  try {
-    const result = await topupRoutstrCashu(token);
-    // API response fields vary — check balance before/after instead
-    input.value = '';
-    const balAfter = await getRoutstrBalance();
-    const balEl = document.getElementById('routstr-balance');
-    if (balEl && balAfter) balEl.innerHTML = _rsBalanceHtml(balAfter.sats);
-    const addedSats = balAfter ? balAfter.sats : 0;
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Deposited \u2014 balance: \u26a1 ' + addedSats.toLocaleString() + ' sats</div>';
-    showNotification('Cashu deposited', 'success');
-  } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
-  }
-}
-export function cancelRoutstrTopup() {
-  if (_rsTopupPollTimer) { clearInterval(_rsTopupPollTimer); _rsTopupPollTimer = null; }
-  if (_rsCountdownTimer) { clearInterval(_rsCountdownTimer); _rsCountdownTimer = null; }
-  if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
-  const area = document.getElementById('routstr-topup-area');
-  if (area) area.style.display = 'none';
 }
 
 // ─── PPQ handlers ───
@@ -2756,10 +2911,14 @@ Object.assign(window, {
   doRoutstrWalletFundCustom,
   doRoutstrWalletFund,
   doRoutstrWalletReceiveCashu,
+  showRoutstrMintEdit,
+  doRoutstrMintChange,
   showRoutstrWalletBackup,
   showRoutstrNodePicker,
   connectRoutstrNode,
   doRoutstrNodeDeposit,
+  doRoutstrNodeWithdraw,
+  _setActiveNodeAction,
   walletSeedAcknowledged,
   showWalletSeedPhrase,
   showRoutstrWithdraw,
@@ -2768,16 +2927,7 @@ Object.assign(window, {
   doRoutstrSendToken,
   doRoutstrWithdrawQuote,
   doRoutstrWithdrawExecute,
-  showRoutstrWalletRestore,
   doRoutstrWalletRestore,
-  switchRoutstrMode,
-  dismissRoutstrKeyReveal,
-  showRoutstrTopup,
-  rsShowCustomSatsInput,
-  doRoutstrCustomTopup,
-  doRoutstrLightningTopup,
-  doRoutstrCashuTopup,
-  cancelRoutstrTopup,
   handleCreatePpqAccount,
   dismissPpqKeyReveal,
   handleSavePpqKey,

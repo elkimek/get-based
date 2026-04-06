@@ -816,7 +816,7 @@ export async function validateRoutstrKey(key) {
   return { valid: true };
 }
 export function getRoutstrNodeUrl() {
-  return localStorage.getItem('labcharts-routstr-node') || 'https://api.routstr.com';
+  return localStorage.getItem('labcharts-routstr-node') || '';
 }
 export async function callRoutstrAPI(opts) {
   const key = getRoutstrKey();
