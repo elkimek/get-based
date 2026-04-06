@@ -9,7 +9,7 @@ import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 // CONSTANTS
 // ═══════════════════════════════════════════════
 const DEFAULT_MINT = 'https://mint.minibits.cash/Bitcoin';
-const WALLET_FEE_PCT = 0.03; // 3% supports getbased development
+const WALLET_FEE_PCT = 0; // disabled for beta testing (normally 0.03 = 3%)
 const FEE_LN_ADDRESS = 'denimgecko11@primal.net';
 const FEE_MELT_MIN_SATS = 100; // don't attempt melt below this — mint fees eat it
 const MAX_WALLET_BALANCE = 25000; // safety cap until battle-tested
