@@ -1,6 +1,6 @@
 # Module Reference
 
-All 30 modules live under `js/`. Grouped by layer — lower layers have no dependencies on higher ones.
+All 38 modules live under `js/`. Grouped by layer — lower layers have no dependencies on higher ones.
 
 ---
 

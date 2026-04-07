@@ -23,7 +23,7 @@ data/
   demo-male.json    — Male demo profile (Alex)
 
 tests/
-  test-*.js         — 17 browser-based test files
+  test-*.js         — 30 browser-based test files
   verify-modules.js — Module integrity assertions
 
 js/
@@ -47,6 +47,8 @@ js/
   chat.js           — Chat panel, buildLabContext, markdown, personalities, per-marker AI
   client-list.js    — Client List modal: search/sort/filter profiles, inline CRUD, archive/flag/pin
   recommendations.js — Supplement & lifestyle recommendations, lazy catalog, 3 touchpoints
+  cashu-wallet.js   — In-app Cashu eCash wallet: BIP-39 seed, IndexedDB proofs, Lightning fund/withdraw
+  nostr-discovery.js — Nostr relay queries for Routstr nodes (Kind 38421), health checks, caching
   settings.js       — Settings modal: profile, display, AI providers, privacy, security, backup
   glossary.js       — Marker glossary modal
   feedback.js       — Feedback modal (bug reports, feature requests)
