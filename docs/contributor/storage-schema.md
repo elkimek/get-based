@@ -13,7 +13,10 @@ Keys are namespaced by profile ID where data is per-profile. `{profileId}` defau
 | `labcharts-profiles` | JSON array | Profile index: `[{ id, name, createdAt }]` |
 | `labcharts-ai-provider` | string | Active AI provider: `'openrouter'` \| `'routstr'` \| `'ppq'` \| `'venice'` \| `'ollama'` |
 | `labcharts-openrouter-key` | string | OpenRouter API key |
-| `labcharts-routstr-key` | string | Routstr session key or Cashu token |
+| `labcharts-routstr-key` | string | Routstr node session key |
+| `labcharts-routstr-node` | string | Selected Routstr node URL (from Nostr discovery) |
+| `labcharts-cashu-wallet-mint` | string | Cashu wallet mint URL (mirror of IDB meta for sync) |
+| `labcharts-cashu-wallet-mnemonic` | string | BIP-39 wallet seed phrase (encrypted via `encryptedSetItem`) |
 | `labcharts-ppq-key` | string | PPQ API key |
 | `labcharts-venice-key` | string | Venice AI API key |
 | `labcharts-ollama` | JSON | Local AI config: `{ url, model, mode, apiKey }`. Key kept as `ollama` for backwards compat |

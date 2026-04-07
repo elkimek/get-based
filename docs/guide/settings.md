@@ -63,14 +63,15 @@ Choose and configure one of five AI backends:
 | Provider | Best for |
 |---|---|
 | **OpenRouter** | 200+ models, pay with card or crypto |
-| **Routstr** | Bitcoin micropayments, no account needed |
+| **Routstr** | Decentralized Bitcoin AI, built-in Cashu wallet, no account needed |
 | **PPQ** | Pay-per-query, 300+ models, crypto or gift card topup |
 | **Venice** | Privacy-first, nothing logged on their end |
 | **Local** | Fully local, completely offline, free — Ollama, LM Studio, Jan, etc. |
 
 Each provider has its own panel:
 
-- **OpenRouter, Routstr, PPQ, Venice**: Paste your API key (or Cashu token for Routstr), select a model from the dropdown. OpenRouter also has a custom model input for any model ID not in the curated list — a health check indicator (✓/✗) confirms connectivity. The app fetches available models from the provider automatically when you open Settings.
+- **OpenRouter, PPQ, Venice**: Paste your API key, select a model from the dropdown. OpenRouter also has a custom model input for any model ID not in the curated list — a health check indicator (✓/✗) confirms connectivity. The app fetches available models from the provider automatically when you open Settings.
+- **Routstr**: Fund the built-in Cashu wallet (Lightning or Cashu token), browse online nodes discovered via Nostr, deposit sats to connect. A 12-word seed phrase is generated on first deposit for wallet recovery.
 - **Local**: Enter your server URL (default `http://localhost:11434`), optionally add an API key, and choose from your locally available models. Works with any OpenAI-compatible server. When connected to Ollama, a **Model Advisor** panel appears showing your GPU, each model's fitness for lab analysis (★ Recommended / Capable / Underpowered / Inadequate), and VRAM fit. If you don't have a recommended model, it suggests the best one to pull.
 
 See [AI Providers](./ai-providers.md) for full setup instructions.

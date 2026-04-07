@@ -183,7 +183,43 @@ AI provider routing and model management. All AI calls flow through `callClaudeA
 - `OPENROUTER_CURATED` — whitelist of latest-gen medically capable models (prefix-matched)
 - `OPENROUTER_EXCLUDE` — blocklist filtering codex/audio/image/oss variants
 
-**Window exports:** none (called via normal imports from feature modules)
+**Window exports:** `getRoutstrNodeUrl` (used by settings UI for node URL access)
+
+---
+
+### `cashu-wallet.js`
+
+In-app Cashu eCash wallet for decentralized AI payments. Proofs stored in IndexedDB, BIP-39 seed encrypted in localStorage.
+
+**Key exports:**
+- `getMintUrl()` / `setMintUrl(url)` — configured Cashu mint
+- `generateWalletSeed()` — creates 12-word BIP-39 mnemonic
+- `restoreWalletFromSeed(mnemonic)` — restores proofs from mint via `batchRestore`
+- `getWalletBalance()` — sum of unspent proofs for current mint
+- `createFundingInvoice(amountSats)` / `checkFundingStatus(quoteId)` — Lightning deposit flow
+- `receiveToken(tokenString)` — deposit a Cashu token
+- `depositToNode(nodeUrl, amountSats, existingKey)` — swap proofs for a node session key
+- `sendAsToken(amountSats)` — withdraw as shareable Cashu token
+- `createWithdrawQuote(bolt11)` / `executeWithdraw(quoteId)` — Lightning withdrawal
+- `withdrawToAddress(address, amountSats)` — LNURL-pay withdrawal
+- `recoverPendingDeposit()` / `recoverPendingWithdraw()` — failed operation recovery
+- `exportWallet()` / `importWallet(tokenString)` — backup/restore
+- `getFeePct()` — current fee percentage (0 during beta)
+
+**Window exports:** all functions prefixed with `cashu` (e.g., `cashuGetBalance`, `cashuDepositToNode`)
+
+---
+
+### `nostr-discovery.js`
+
+Discovers Routstr AI nodes via Nostr relays (Kind 38421 events).
+
+**Key exports:**
+- `discoverNodes(forceRefresh)` — queries relays in parallel, deduplicates, health-checks, returns sorted node array
+- `getSelectedNodeUrl()` / `setSelectedNodeUrl(url)` — persisted node selection
+- `clearNodeCache()` — force re-discovery on next call
+
+**Window exports:** `nostrDiscoverNodes`, `nostrGetSelectedNode`, `nostrSetSelectedNode`, `nostrClearNodeCache`
 
 ---
 

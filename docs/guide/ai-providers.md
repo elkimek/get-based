@@ -39,21 +39,31 @@ A pay-per-query AI aggregator with 300+ models. No subscription, no KYC. Top up 
 After creating an account, click Top Up to fund it with crypto. Your balance is shown with color coding — the app walks you through the payment flow with QR codes and payment polling.
 :::
 
-### Routstr (Bitcoin Lightning + Cashu)
+### Routstr (Decentralized Bitcoin AI)
 
-Pay-as-you-go AI using Bitcoin micropayments. No account, no sign-up, no subscription. Paste a Cashu eCash token to get started — it's automatically converted to a session key with your balance. Top up with Lightning QR codes directly in the app. Balance displayed in sats.
+Decentralized AI using Bitcoin micropayments. No account, no sign-up, no subscription. getbased has a built-in Cashu eCash wallet — fund it with Lightning, then connect to any Routstr node discovered via Nostr relays. Your prompts go directly from your browser to the node you choose.
 
 **Setup:**
-1. Get a [Cashu token](https://cashu.me) (pay a Lightning invoice → get a token)
-2. In Settings, select **Routstr**
-3. Paste the Cashu token (`cashuA...` or `cashuB...`)
-4. **Save your session key** — the token is redeemed and a session key is generated. There is no recovery
-5. Top up anytime via the **Top Up** button (Lightning QR codes)
+1. In Settings, select **Routstr**
+2. **Fund your wallet** — click Deposit and pay the Lightning QR code (or paste a Cashu token)
+3. **Pick a node** — the app discovers online nodes via Nostr. Click Connect on any node
+4. **Deposit sats** — choose how much to deposit to the node. You get a session key
+5. Start chatting — your wallet balance and node session balance are shown separately
 
-**Or** paste an existing session key (`sk-...`) from [routstr.com](https://routstr.com).
+**Wallet features:**
+- **Seed phrase** — 12-word BIP-39 mnemonic generated on first deposit. Write it down — it's the only way to recover your wallet
+- **Lightning withdraw** — send sats to a Lightning address or pay a BOLT11 invoice
+- **Cashu token send/receive** — withdraw as a shareable Cashu token, or deposit one from an external wallet
+- **Node withdraw** — pull remaining sats back from a node into your wallet
+- **Mint selection** — change the Cashu mint (the app auto-switches when a node requires a specific mint)
+- **Recovery** — if a deposit or withdrawal fails mid-operation, a recovery banner appears with your token
 
-::: tip Cashu tokens are one-time
-When you paste a Cashu token, it's redeemed immediately and converted to a session key. The app shows the session key so you can save it. After that, top up with Lightning directly — no need to go back to a Cashu wallet.
+::: tip Wallet vs Node balance
+Your **wallet balance** is sats you hold locally (Cashu proofs in your browser). Your **node session balance** is sats deposited to a specific Routstr node for API calls. You can move sats between them freely.
+:::
+
+::: warning Back up your seed phrase
+The seed phrase is shown once when you first deposit. You can view it again in the wallet menu (Seed & Restore). Without it, your wallet cannot be recovered on another device.
 :::
 
 ### OpenRouter (Most models, card/USDC)
