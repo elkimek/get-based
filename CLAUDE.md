@@ -15,7 +15,7 @@ No build system, no bundler, no package manager. Native ES modules (`<script typ
 - **`BRAND.md`** — brand manual (name rules, colors, typography, voice). Brand name is always `getbased` — lowercase, no space
 - **`index.html`** — HTML structure only (header, sidebar, modals with `role="dialog"`, chat panel, script/CSS includes)
 - **`styles.css`** — all CSS (dark/light themes, responsive layout with 10 breakpoints, touch/hover media queries)
-- **`js/`** — 36 ES modules loaded via `js/main.js`:
+- **`js/`** — 38 ES modules loaded via `js/main.js`:
   - `schema.js` — `MARKER_SCHEMA`, `SPECIALTY_MARKER_DEFS` (re-exported from adapters.js), `UNIT_CONVERSIONS`, `OPTIMAL_RANGES`, `PHASE_RANGES`, `CHIP_COLORS`, `MODEL_PRICING`, `SBM_2015_THRESHOLDS`, `getEMFSeverity`, `trackUsage`, `getProfileUsage`, `getGlobalUsage`
   - `adapters.js` — parser adapter registry for specialty labs. `ADAPTER_MARKERS` (194 entries), `detectProduct`, `normalizeWithAdapter`, `getAdapterByTestType`. Adapters: fattyAcids (29 markers, product detection), metabolomix (FA routing), oat (165 markers)
   - `constants.js` — option arrays, `CHAT_PERSONALITIES`, `CHAT_SYSTEM_PROMPT`, fake data, `COUNTRY_LATITUDES`, `EMF_ROOM_PRESETS`, `EMF_SOURCES`, `EMF_MITIGATIONS`
@@ -41,8 +41,10 @@ No build system, no bundler, no package manager. Native ES modules (`<script typ
   - `pdf-import.js` — PDF pipeline, batch import, import preview (with per-row exclude), import FAB, auto image mode for scanned PDFs, direct image import (JPG/PNG/WebP). AI detects test type and uses prefixed categories for specialty labs
   - `export.js` — JSON export/import (single-profile, per-client, full database bundle), PDF report, `clearAllData`, `buildAllDataBundle`
   - `chat.js` — chat panel, `buildLabContext`, markdown rendering, personalities, per-marker AI, image attachments
+  - `cashu-wallet.js` — in-app Cashu eCash wallet (BIP-39 seed, IndexedDB proofs, mint namespacing, Lightning fund/withdraw, Cashu token send/receive, fee splitting, pending deposit/withdraw recovery)
+  - `nostr-discovery.js` — Nostr relay queries for Kind 38421 Routstr node events, health checks, caching, node selection
   - `sync.js` — Evolu CRDT sync layer, push/pull, mnemonic identity, AI settings sync, debounced `onDataSaved` hook, sync status indicator (header badge + popover)
-  - `settings.js` — settings modal, provider panels, privacy section, sync setup modal
+  - `settings.js` — settings modal, provider panels, privacy section, sync setup modal, Routstr wallet/node UI
   - `glossary.js` — marker glossary modal
   - `feedback.js` — feedback modal (bug reports, feature requests)
   - `tour.js` — guided tour (spotlight walkthrough, auto-triggers after first data import) + cycle tour
@@ -51,9 +53,9 @@ No build system, no bundler, no package manager. Native ES modules (`<script typ
   - `nav.js` — sidebar (with collapsible test-type groups), compact profile button, avatar colors
   - `views.js` — `navigate`, dashboard, category, compare, correlations, detail modal, manual entry, create custom marker, focus card, onboarding, emoji picker, category rename/icon editing, marker rename/revert, calculated marker input diagnostics
   - `main.js` — `DOMContentLoaded` init, OAuth callback, event listeners, refresh callback
-- **`vendor/`** — locally bundled Chart.js, chartjs-adapter-native (custom date adapter, zero deps), pdf.js (+worker), Google Fonts (woff2), noble-secp256k1 v1.7.1 (Venice E2EE), Evolu (CRDT sync engine + SQLite WASM + OPFS worker). Run `./update-vendor.sh` to update
+- **`vendor/`** — locally bundled Chart.js, chartjs-adapter-native (custom date adapter, zero deps), pdf.js (+worker), Google Fonts (woff2), noble-secp256k1 v1.7.1 (Venice E2EE), Evolu (CRDT sync engine + SQLite WASM + OPFS worker), cashu-ts v3.6.2 (Cashu eCash protocol), bip39-minimal (BIP-39 mnemonic generation). Run `./update-vendor.sh` to update
 - **`data/`** — `demo-female.json`, `demo-male.json`, `emf-assessment-template.html`, `snp-health.json` (42 autosomal SNPs), `haplogroups.json` (28 mtDNA haplogroups with Wallace coupling classification), `mito-compounds.json` (108 mitochondrial compound effects)
-- **`tests/`** — 29 browser-based test files (`test-*.js`) + `verify-modules.js`
+- **`tests/`** — 30 browser-based test files (`test-*.js`) + `verify-modules.js`
 
 Functions called from inline HTML `onclick` handlers are exposed via `Object.assign(window, {...})` at the bottom of each module. Cross-module calls use `window.fn()` to avoid circular dependencies.
 
@@ -101,7 +103,7 @@ Slide-out panel with streaming. 2+custom personalities, stop/discuss buttons, co
 
 ### AI Provider System
 
-Five active backends. Provider stored in `labcharts-ai-provider`. `callClaudeAPI(opts)` routes to the active provider. `hasAIProvider()` gates all AI features. PPQ (pay-per-query, 300+ models, crypto topup, OpenAI-compatible), Routstr (Bitcoin eCash micropayments via Cashu/Lightning, in-app topup with QR, OpenAI-compatible), OpenRouter (recommended for non-crypto, OAuth PKCE), Venice (with optional E2EE — prompts encrypted client-side, decrypted in TEE), Local (Ollama/LM Studio/Jan — internal key `'ollama'`). See `api.js` for details.
+Five active backends. Provider stored in `labcharts-ai-provider`. `callClaudeAPI(opts)` routes to the active provider. `hasAIProvider()` gates all AI features. PPQ (pay-per-query, 300+ models, crypto topup, OpenAI-compatible), Routstr (decentralized — Nostr node discovery via Kind 38421, in-app Cashu wallet with BIP-39 seed, deposit to any node, OpenAI-compatible), OpenRouter (recommended for non-crypto, OAuth PKCE), Venice (with optional E2EE — prompts encrypted client-side, decrypted in TEE), Local (Ollama/LM Studio/Jan — internal key `'ollama'`). See `api.js`, `cashu-wallet.js`, `nostr-discovery.js` for details.
 
 Venice E2EE: toggle in settings swaps model dropdown to `e2ee-*` models. `callVeniceAPI` auto-branches: encrypts all messages, adds `X-Venice-TEE-*` headers, decrypts streamed response chunks per-chunk via ECDH. Web search + vision disabled when E2EE active. Lock emoji in chat header, `🔒 e2ee` in message footer. Session has 30-min TTL.
 
@@ -128,7 +130,7 @@ Dev server mirrors production routing. Landing page repo (`../get-based-site`) s
 
 ### Tests
 
-29 browser-based test files run headlessly:
+30 browser-based test files run headlessly:
 ```
 ./run-tests.sh
 ```

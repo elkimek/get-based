@@ -173,10 +173,7 @@
   const vercelSrc = await fetchWithRetry('/vercel.json');
   assert('CSP header in vercel.json', vercelSrc.includes('Content-Security-Policy'));
   assert('CSP has no external CDN (vendor bundled)', !vercelSrc.includes('cdn.jsdelivr.net') && !vercelSrc.includes('fonts.googleapis.com'));
-  assert('CSP allows OpenRouter API', vercelSrc.includes('openrouter.ai'));
-  assert('CSP allows Routstr API', vercelSrc.includes('api.routstr.com'));
-  assert('CSP allows PPQ API', vercelSrc.includes('api.ppq.ai'));
-  assert('CSP allows Venice API', vercelSrc.includes('api.venice.ai'));
+  assert('CSP connect-src allows https: (decentralized nodes)', vercelSrc.includes("connect-src 'self' https:"));
   assert('CSP allows localhost for Local AI', vercelSrc.includes('localhost:*'));
   assert('X-Frame-Options DENY', vercelSrc.includes('DENY'));
   assert('X-Content-Type-Options nosniff', vercelSrc.includes('nosniff'));

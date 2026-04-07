@@ -1359,14 +1359,17 @@ function _renderWalletFundUI() {
   if (!area) return;
   area.style.display = 'block';
   const presets = [1000, 5000, 10000, 25000];
+  const feePct = typeof window.cashuGetFeePct === 'function' ? window.cashuGetFeePct() : 0;
+  const feeNote = feePct > 0 ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">${Math.round(feePct * 100)}% development fee applies</div>` : '';
+  const cashuFeeLabel = feePct > 0 ? `or paste Cashu token (${Math.round(feePct * 100)}% fee)` : 'or paste Cashu token';
   area.innerHTML = `<div style="margin-top:8px">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">Deposit with Lightning</div>
-    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">3% development fee applies</div>
+    ${feeNote}
     <div style="display:flex;flex-wrap:wrap;gap:4px">
       ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="doRoutstrWalletFund(${s})">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsWalletFundCustomInput()">\u26a1\u2026</button></div>
     </div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">1,000 sats is enough for a few chats</div>
-    <div style="margin-top:6px"><div class="or-oauth-divider"><span>or paste Cashu token (3% fee)</span></div>
+    <div style="margin-top:6px"><div class="or-oauth-divider"><span>${cashuFeeLabel}</span></div>
     <div style="display:flex;gap:6px;margin-top:4px">
       <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashuA... or cashuB..." style="font-size:11px;flex:1;font-family:monospace">
       <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrWalletReceiveCashu()">Deposit</button>

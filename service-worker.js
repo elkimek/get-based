@@ -42,6 +42,8 @@ const APP_SHELL = [
   '/js/adapters.js',
   '/js/supplement-warnings.js',
   '/js/food-contaminants.js',
+  '/js/cashu-wallet.js',
+  '/js/nostr-discovery.js',
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
@@ -50,6 +52,8 @@ const APP_SHELL = [
   '/vendor/chartjs-adapter-native.js',
   '/vendor/pdf.min.js',
   '/vendor/pdf.worker.min.js',
+  '/vendor/bip39-minimal.js',
+  '/vendor/cashu-ts.js',
   '/vendor/fonts/fonts.css',
   '/data/recommendations-czsk.json',
 ];

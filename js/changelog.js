@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.16.0', date: '2026-04-07', title: 'Decentralized Routstr',
+    items: [
+      'Decentralized AI \u2014 discover Routstr nodes via Nostr relays, connect to any node directly from your browser',
+      'In-app Cashu wallet \u2014 BIP-39 seed, Lightning deposit/withdraw, Cashu token send/receive, mint selection',
+      'Node picker \u2014 browse online nodes, deposit sats, withdraw back to wallet, auto-mint compatibility',
+      'Wallet recovery \u2014 seed phrase restore, pending deposit/withdraw recovery, encrypted backup via sync',
+    ]
+  },
+  {
     version: '1.15.0', date: '2026-04-05', title: 'PPQ + Wallet Topups',
     items: [
       'New AI provider: PPQ \u2014 300+ models, no KYC. Bitcoin, crypto + Bitrefill topup',
