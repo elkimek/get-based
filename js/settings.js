@@ -1702,7 +1702,7 @@ function renderWithingsSection() {
     </div>
 
     <div style="font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.4">
-      Imports only weight into existing biometrics structure (kg/lbs converted to current unit system). No other Withings measurements are imported.
+      Imports only weight into existing biometrics structure. Weight is stored as raw kg and converted at display time. No other Withings measurements are imported.
     </div>
   </div>`;
 }
@@ -1712,7 +1712,7 @@ function refreshWithingsSection() {
   if (el) el.innerHTML = renderWithingsSection();
 }
 
-function saveWithingsCredentials() {
+async function saveWithingsCredentials() {
   const clientId = document.getElementById('withings-client-id')?.value?.trim();
   const clientSecret = document.getElementById('withings-client-secret')?.value?.trim();
   const redirectUri = document.getElementById('withings-redirect-uri')?.value?.trim();
@@ -1723,7 +1723,7 @@ function saveWithingsCredentials() {
   }
 
   const prev = getWithingsConfig() || {};
-  saveWithingsConfig({ ...prev, clientId, clientSecret, redirectUri });
+  await saveWithingsConfig({ ...prev, clientId, clientSecret, redirectUri });
   showNotification('Withings credentials saved', 'success');
   refreshWithingsSection();
 }

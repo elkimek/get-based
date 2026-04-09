@@ -223,7 +223,7 @@ export function saveBiometricEntry(type) {
     const v = parseFloat(document.getElementById('bio-val')?.value);
     const unit = document.getElementById('bio-unit')?.value || 'kg';
     if (!v || v <= 0) { showNotification('Enter valid weight', 'error'); return; }
-    b.weight = b.weight.filter(e => e.date !== date || e.source === 'withings');
+    b.weight = b.weight.filter(e => e.date !== date || e.source !== 'withings');
     b.weight.push({ date, value: v, unit, source: 'manual' });
     b.weight.sort((a, c) => a.date.localeCompare(c.date));
   } else if (type === 'bp') {
@@ -249,7 +249,7 @@ export function saveBiometricEntry(type) {
 
 export function deleteBiometricEntry(type, date) {
   const b = ensureBio();
-  if (type === 'weight') b.weight = b.weight.filter(e => e.date !== date || e.source === 'withings');
+  if (type === 'weight') b.weight = b.weight.filter(e => e.date !== date || e.source !== 'withings');
   else if (type === 'bp') b.bp = b.bp.filter(e => e.date !== date);
   else b.pulse = b.pulse.filter(e => e.date !== date);
   if (window.recordChange) window.recordChange('biometrics');

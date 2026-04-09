@@ -17,6 +17,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-venice-key$/,
   /^labcharts-openrouter-key$/,
   /^labcharts-ollama$/,
+  /^withings_.+$/,
 ];
 
 function isSensitiveKey(key) {

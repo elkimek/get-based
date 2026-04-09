@@ -26,7 +26,7 @@ import './export.js';
 import './chat.js';
 import './image-utils.js';
 import './settings.js';
-import { maybeHandleWithingsOAuthCallback } from './withings-weight.js';
+import { maybeHandleWithingsOAuthCallback, initWithings } from './withings-weight.js';
 import './glossary.js';
 import './feedback.js';
 import './tour.js';
@@ -47,6 +47,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   initBroadcastChannel();
   // Initialize folder backup (restore persisted handle, check permission)
   await initFolderBackup();
+
+  // Initialize Withings config cache (includes encrypted credentials/tokens)
+  await initWithings();
 
   // Handle OAuth callbacks
   const urlParams = new URLSearchParams(window.location.search);
