@@ -1,0 +1,1 @@
+<h1>Svelte 5 scaffold ready</h1>

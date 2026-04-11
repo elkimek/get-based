@@ -9,6 +9,8 @@ labcharts-*.json
 test-*.json
 node_modules/
 dist-docs/
+.svelte-kit/
+build/
 docs/.vitepress/cache/
 BingSiteAuth.xml
 docs/plans/
