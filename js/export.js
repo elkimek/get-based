@@ -65,17 +65,24 @@ export function exportPDFReport() {
   if (pBio || pHeight?.height) {
     let bioText = '';
     if (pHeight?.height) bioText += `Height: ${pHeight.height} cm\n`;
-    if (pBio?.weight?.length) {
-      const latest = [...pBio.weight].sort((a, b) => b.date.localeCompare(a.date))[0];
-      bioText += `Latest weight: ${latest.value} ${latest.unit} (${latest.date})\n`;
-    }
-    if (pBio?.bp?.length) {
-      const latest = [...pBio.bp].sort((a, b) => b.date.localeCompare(a.date))[0];
-      bioText += `Latest BP: ${latest.sys}/${latest.dia} mmHg (${latest.date})\n`;
-    }
-    if (pBio?.pulse?.length) {
-      const latest = [...pBio.pulse].sort((a, b) => b.date.localeCompare(a.date))[0];
-      bioText += `Latest pulse: ${latest.value} bpm (${latest.date})\n`;
+    const bioLabels = { weight: 'Weight', bp: 'BP', pulse: 'Pulse', hrv: 'HRV', sleep: 'Sleep', readiness: 'Readiness', steps: 'Steps', activeCalories: 'Active Calories', distance: 'Distance', activeMinutes: 'Active Minutes', spo2: 'SpO₂' };
+    const bioUnits = { weight: 'kg', bp: 'mmHg', pulse: 'bpm', hrv: 'ms', sleep: 'h', readiness: 'score', steps: 'steps', activeCalories: 'kcal', distance: 'km', activeMinutes: 'min', spo2: '%' };
+    for (const [key, label] of Object.entries(bioLabels)) {
+      if (!pBio?.[key]?.length) continue;
+      const latest = [...pBio[key]].sort((a, b) => b.date.localeCompare(a.date))[0];
+      if (key === 'bp') {
+        bioText += `Latest ${label}: ${latest.sys}/${latest.dia} mmHg (${latest.date})\n`;
+      } else if (key === 'sleep' && latest.total_s != null) {
+        bioText += `Latest ${label}: ${(latest.total_s / 3600).toFixed(1)} h (${latest.date})\n`;
+      } else if (key === 'distance' && latest.value_m != null) {
+        bioText += `Latest ${label}: ${(latest.value_m / 1000).toFixed(1)} km (${latest.date})\n`;
+      } else if (key === 'weight' && latest.value != null) {
+        const v = state.unitSystem === 'US' ? +(latest.value * 2.20462).toFixed(1) : latest.value;
+        const u = state.unitSystem === 'US' ? 'lbs' : latest.unit || 'kg';
+        bioText += `Latest ${label}: ${v} ${u} (${latest.date})\n`;
+      } else if (latest.value != null) {
+        bioText += `Latest ${label}: ${latest.value} ${bioUnits[key]} (${latest.date})\n`;
+      }
     }
     if (bioText) contextSections.push({ title: 'Biometrics', text: bioText.trim() });
   }
@@ -654,27 +661,18 @@ export function importDataJSON(file) {
         if (!state.importedData.biometrics) {
           state.importedData.biometrics = json.biometrics;
         } else {
-          for (const metric of ['weight', 'pulse']) {
+          const bioMetrics = ['weight', 'bp', 'pulse', 'hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2'];
+          for (const metric of bioMetrics) {
             if (Array.isArray(json.biometrics[metric])) {
               if (!state.importedData.biometrics[metric]) state.importedData.biometrics[metric] = [];
               for (const e of json.biometrics[metric]) {
                 if (!e.date) continue;
-                if (!state.importedData.biometrics[metric].some(x => x.date === e.date)) {
+                if (!state.importedData.biometrics[metric].some(x => x.date === e.date && x.source === e.source)) {
                   state.importedData.biometrics[metric].push(e);
                 }
               }
               state.importedData.biometrics[metric].sort((a, b) => a.date.localeCompare(b.date));
             }
-          }
-          if (Array.isArray(json.biometrics.bp)) {
-            if (!state.importedData.biometrics.bp) state.importedData.biometrics.bp = [];
-            for (const e of json.biometrics.bp) {
-              if (!e.date) continue;
-              if (!state.importedData.biometrics.bp.some(x => x.date === e.date)) {
-                state.importedData.biometrics.bp.push(e);
-              }
-            }
-            state.importedData.biometrics.bp.sort((a, b) => a.date.localeCompare(b.date));
           }
         }
       }

@@ -35,6 +35,16 @@ export function buildSidebar(data) {
   html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" onclick="window.navigate('compare')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('compare')}">
     <span class="icon">\u2194</span> Compare Dates</div>`;
 
+  // Biometrics sidebar link (shows if any wearable connected or biometrics data exists)
+  const pBio = state.importedData?.biometrics;
+  const bioKeys = ['weight','bp','pulse','hrv','sleep','readiness','steps','activeCalories','distance','activeMinutes','spo2'];
+  const bioCount = pBio ? bioKeys.reduce((n, k) => n + (Array.isArray(pBio[k]) && pBio[k].length ? 1 : 0), 0) : 0;
+  const hasBioData = bioCount > 0;
+  if (hasBioData) {
+    html += `<div class="nav-item" data-category="biometrics" tabindex="0" role="button" onclick="window.navigate('biometrics')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('biometrics')}">
+      <span class="icon">\uD83D\uDCCB</span> Biometrics <span class="count">${bioCount}</span></div>`;
+  }
+
   // Genetics sidebar link (only when data exists)
   const genetics = state.importedData?.genetics;
   const hasGeneticsData = genetics && ((genetics.snps && Object.keys(genetics.snps).length > 0) || genetics.mtdna);

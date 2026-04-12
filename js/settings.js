@@ -9,6 +9,7 @@ import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICo
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots, updateKeyCache } from './crypto.js';
 import { isSyncEnabled, enableSync, disableSync, getMnemonic, restoreFromMnemonic, getSyncRelay, setSyncRelay, checkRelayConnection, isMessengerEnabled, getMessengerToken, generateMessengerToken, revokeMessengerToken, pushContextToGateway } from './sync.js';
 import './provider-panels.js';
+import { getProvider } from './wearables/core.js';
 
 
 // ═══════════════════════════════════════════════
@@ -167,6 +168,11 @@ export function openSettingsModal(tab) {
 
       <div class="settings-section" id="data-entries-section">
         ${renderDataEntriesSection()}
+      </div>
+
+      <div class="settings-group-title">Wearables</div>
+      <div class="settings-section" id="wearables-section">
+        ${renderWearablesSection()}
       </div>
     </div>`;
   overlay.classList.add('show');
@@ -868,6 +874,234 @@ function resetCurrentProfileUsage() {
   if (el) el.innerHTML = renderAIUsageSection();
 }
 
+// ═══════════════════════════════════════════════
+// WEARABLES SECTION
+// ═══════════════════════════════════════════════
+
+export function renderWearablesSection() {
+  const withingsProvider = getProvider('withings');
+  const ouraProvider = getProvider('oura');
+  const withingsConnected = withingsProvider ? withingsProvider.isConnected() : false;
+  const ouraConnected = ouraProvider ? ouraProvider.isConnected() : false;
+  const withingsLastSync = withingsProvider ? withingsProvider.getLastSync() : null;
+  const ouraLastSync = ouraProvider ? ouraProvider.getLastSync() : null;
+  const currentOrigin = window.location.origin + window.location.pathname;
+
+  // Withings config (read from provider if available)
+  const withingsConfig = withingsProvider ? withingsProvider.getConfig() : null;
+  const withingsClientId = withingsConfig?.clientId || '';
+  const withingsClientSecret = withingsConfig?.clientSecret || '';
+  const withingsRedirectUri = withingsConfig?.redirectUri || currentOrigin;
+
+  // Oura config
+  const ouraConfig = ouraProvider ? ouraProvider.getConfig() : null;
+  const ouraClientId = ouraConfig?.clientId || '';
+  const ouraClientSecret = ouraConfig?.clientSecret || '';
+  const ouraRedirectUri = ouraConfig?.redirectUri || currentOrigin;
+  const ouraPATMode = ouraConfig?.patMode || false;
+
+  let html = '';
+
+  // ── Withings ──
+  html += `<div style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Withings</div>
+      <span style="font-size:11px;color:${withingsConnected ? 'var(--green)' : 'var(--text-muted)'}">${withingsConnected ? '● Connected' : '○ Not connected'}</span>
+    </div>`;
+
+  if (!withingsConnected) {
+    html += `<div style="margin-bottom:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Client ID</label>
+      <input type="text" id="withings-client-id" value="${escapeAttr(withingsClientId)}" placeholder="Your Withings Client ID" style="display:block;width:100%;font-size:12px;border-radius:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;margin-top:2px">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Client Secret</label>
+      <input type="password" id="withings-client-secret" value="${escapeAttr(withingsClientSecret)}" placeholder="Your Withings Client Secret" style="display:block;width:100%;font-size:12px;border-radius:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;margin-top:2px">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Redirect URI</label>
+      <input type="text" id="withings-redirect-uri" value="${escapeAttr(withingsRedirectUri)}" style="display:block;width:100%;font-size:12px;border-radius:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;margin-top:2px">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="import-btn import-btn-primary" style="font-size:12px;padding:6px 14px" onclick="triggerWithingsAuth()">Authorize</button>
+    </div>`;
+  } else {
+    html += `<div style="display:flex;gap:8px;margin-bottom:4px">
+      <button class="import-btn import-btn-primary" style="font-size:12px;padding:6px 14px" onclick="triggerWithingsSync()">Sync Now</button>
+      <button class="import-btn import-btn-secondary" style="font-size:12px;padding:6px 14px;border-color:var(--red);color:var(--red)" onclick="triggerWithingsDisconnect()">Disconnect</button>
+    </div>`;
+  }
+  if (withingsLastSync) {
+    html += `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Last sync: ${escapeHTML(new Date(withingsLastSync).toLocaleString())}</div>`;
+  }
+  html += `</div>`;
+
+  // ── Oura ──
+  html += `<div style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Oura</div>
+      <span style="font-size:11px;color:${ouraConnected ? 'var(--green)' : 'var(--text-muted)'}">${ouraConnected ? '● Connected' : '○ Not connected'}</span>
+    </div>`;
+
+  // Mode toggle: OAuth / PAT
+  html += `<div style="margin-bottom:8px;display:flex;gap:8px">
+    <button class="import-btn ${!ouraPATMode ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:4px 12px" onclick="document.getElementById('oura-mode-oauth').style.display='block';document.getElementById('oura-mode-pat').style.display='none';document.getElementById('oura-pat-active').value='false';refreshOuraMode()">OAuth</button>
+    <button class="import-btn ${ouraPATMode ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:4px 12px" onclick="document.getElementById('oura-mode-oauth').style.display='none';document.getElementById('oura-mode-pat').style.display='block';document.getElementById('oura-pat-active').value='true';refreshOuraMode()">Personal Access Token</button>
+    <input type="hidden" id="oura-pat-active" value="${ouraPATMode ? 'true' : 'false'}">
+  </div>`;
+
+  // OAuth mode
+  html += `<div id="oura-mode-oauth" style="display:${ouraPATMode ? 'none' : 'block'}">`;
+  if (!ouraConnected || !ouraPATMode) {
+    html += `<div style="margin-bottom:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Client ID</label>
+      <input type="text" id="oura-client-id" value="${escapeAttr(ouraClientId)}" placeholder="Your Oura Client ID" style="display:block;width:100%;font-size:12px;border-radius:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;margin-top:2px">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Client Secret</label>
+      <input type="password" id="oura-client-secret" value="${escapeAttr(ouraClientSecret)}" placeholder="Your Oura Client Secret" style="display:block;width:100%;font-size:12px;border-radius:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;margin-top:2px">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Redirect URI</label>
+      <input type="text" id="oura-redirect-uri" value="${escapeAttr(ouraRedirectUri)}" style="display:block;width:100%;font-size:12px;border-radius:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;margin-top:2px">
+    </div>`;
+    if (!ouraConnected) {
+      html += `<button class="import-btn import-btn-primary" style="font-size:12px;padding:6px 14px" onclick="triggerOuraAuth()">Authorize</button>`;
+    }
+  }
+  html += `</div>`;
+
+  // PAT mode
+  html += `<div id="oura-mode-pat" style="display:${ouraPATMode ? 'block' : 'none'}">`;
+  if (!ouraConnected || ouraPATMode) {
+    html += `<div style="margin-bottom:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Personal Access Token</label>
+      <input type="password" id="oura-pat-token" placeholder="Enter your Oura PAT" style="display:block;width:100%;font-size:12px;border-radius:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;margin-top:2px">
+    </div>
+    <button class="import-btn import-btn-primary" style="font-size:12px;padding:6px 14px" onclick="saveOuraPAT()">Save Token</button>`;
+  }
+  html += `</div>`;
+
+  if (ouraConnected) {
+    html += `<div style="display:flex;gap:8px;margin-top:8px">
+      <button class="import-btn import-btn-primary" style="font-size:12px;padding:6px 14px" onclick="triggerOuraSync()">Sync Now</button>
+      <button class="import-btn import-btn-secondary" style="font-size:12px;padding:6px 14px;border-color:var(--red);color:var(--red)" onclick="triggerOuraDisconnect()">Disconnect</button>
+    </div>`;
+  }
+  if (ouraLastSync) {
+    html += `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Last sync: ${escapeHTML(new Date(ouraLastSync).toLocaleString())}</div>`;
+  }
+  html += `</div>`;
+
+  // ── Sync All ──
+  html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+    <button class="import-btn import-btn-secondary" style="font-size:12px;padding:8px 16px;width:100%" onclick="triggerSyncAll()">Sync All Wearables</button>
+  </div>`;
+
+  return html;
+}
+
+export function refreshWearablesSection() {
+  const el = document.getElementById('wearables-section');
+  if (el) el.innerHTML = renderWearablesSection();
+}
+
+function refreshOuraMode() {
+  // Just refresh the wearables section to reflect mode change
+  // The hidden input oura-pat-active tracks the selected mode
+}
+
+export function saveWithingsCredentials() {
+  const clientId = document.getElementById('withings-client-id')?.value?.trim() || '';
+  const clientSecret = document.getElementById('withings-client-secret')?.value?.trim() || '';
+  const redirectUri = document.getElementById('withings-redirect-uri')?.value?.trim() || window.location.origin + window.location.pathname;
+  const provider = getProvider('withings');
+  if (!provider) { showNotification('Withings provider not registered', 'error'); return; }
+  provider._saveConfig({ clientId, clientSecret, redirectUri }).then(() => {
+    showNotification('Withings credentials saved', 'success');
+  });
+}
+
+export function triggerWithingsAuth() {
+  const clientId = document.getElementById('withings-client-id')?.value?.trim() || '';
+  const clientSecret = document.getElementById('withings-client-secret')?.value?.trim() || '';
+  const redirectUri = document.getElementById('withings-redirect-uri')?.value?.trim() || window.location.origin + window.location.pathname;
+  if (!clientId || !clientSecret) { showNotification('Enter Withings Client ID and Secret', 'error'); return; }
+  window.authorizeWithings({ clientId, clientSecret, redirectUri });
+}
+
+export function triggerWithingsSync() {
+  window.syncWithings().then(result => {
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  }).catch(e => {
+    showNotification('Withings sync failed: ' + e.message, 'error');
+  });
+}
+
+export function triggerWithingsDisconnect() {
+  showConfirmDialog('Disconnect Withings? This will remove all Withings data from this profile.', async () => {
+    await window.disconnectWithings();
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  });
+}
+
+export function saveOuraCredentials() {
+  const clientId = document.getElementById('oura-client-id')?.value?.trim() || '';
+  const clientSecret = document.getElementById('oura-client-secret')?.value?.trim() || '';
+  const redirectUri = document.getElementById('oura-redirect-uri')?.value?.trim() || window.location.origin + window.location.pathname;
+  const provider = getProvider('oura');
+  if (!provider) { showNotification('Oura provider not registered', 'error'); return; }
+  provider._saveConfig({ clientId, clientSecret, redirectUri }).then(() => {
+    showNotification('Oura credentials saved', 'success');
+  });
+}
+
+export function triggerOuraAuth() {
+  const clientId = document.getElementById('oura-client-id')?.value?.trim() || '';
+  const clientSecret = document.getElementById('oura-client-secret')?.value?.trim() || '';
+  const redirectUri = document.getElementById('oura-redirect-uri')?.value?.trim() || window.location.origin + window.location.pathname;
+  if (!clientId || !clientSecret) { showNotification('Enter Oura Client ID and Secret', 'error'); return; }
+  window.authorizeOura({ clientId, clientSecret, redirectUri });
+}
+
+export function saveOuraPAT() {
+  const pat = document.getElementById('oura-pat-token')?.value?.trim() || '';
+  if (!pat) { showNotification('Enter an Oura Personal Access Token', 'error'); return; }
+  window.setOuraPAT(pat).then(() => {
+    showNotification('Oura PAT saved', 'success');
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  });
+}
+
+export function triggerOuraSync() {
+  window.syncOura().then(result => {
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  }).catch(e => {
+    showNotification('Oura sync failed: ' + e.message, 'error');
+  });
+}
+
+export function triggerOuraDisconnect() {
+  showConfirmDialog('Disconnect Oura? This will remove all Oura data from this profile.', async () => {
+    await window.disconnectOura();
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  });
+}
+
+export function triggerSyncAll() {
+  window.syncAllWearables().then(result => {
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  }).catch(e => {
+    showNotification('Sync failed: ' + e.message, 'error');
+  });
+}
+
 Object.assign(window, {
   openSettingsModal,
   closeSettingsModal,
@@ -880,4 +1114,16 @@ Object.assign(window, {
   renderDataEntriesSection,
   refreshDataEntriesSection,
   resetCurrentProfileUsage,
+  renderWearablesSection,
+  refreshWearablesSection,
+  saveWithingsCredentials,
+  triggerWithingsAuth,
+  triggerWithingsSync,
+  triggerWithingsDisconnect,
+  saveOuraCredentials,
+  triggerOuraAuth,
+  saveOuraPAT,
+  triggerOuraSync,
+  triggerOuraDisconnect,
+  triggerSyncAll,
 });

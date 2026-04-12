@@ -27,6 +27,7 @@ import './export.js';
 import './chat.js';
 import './image-utils.js';
 import './settings.js';
+import './biometrics-view.js';
 import './cashu-wallet.js';
 import './nostr-discovery.js';
 import './glossary.js';
@@ -38,6 +39,9 @@ import './client-list.js';
 import './views.js';
 import { initEncryption, initBroadcastChannel, initFolderBackup, encryptedGetItem, maybeShowBackupNudge } from './crypto.js';
 import { initSync, renderSyncIndicator } from './sync.js';
+import { initWearables, handleOAuthCallback, registerProvider } from './wearables/core.js';
+import withings from './wearables/providers/withings.js';
+import oura from './wearables/providers/oura.js';
 
 // ═══════════════════════════════════════════════
 // INIT
@@ -49,6 +53,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   initBroadcastChannel();
   // Initialize folder backup (restore persisted handle, check permission)
   await initFolderBackup();
+
+  // Register wearable providers and initialize
+  registerProvider(withings);
+  registerProvider(oura);
+  await initWearables();
+
+  // Handle wearable OAuth callbacks
+  const handled = await handleOAuthCallback();
 
   // Handle OpenRouter OAuth callback (?code=...)
   const urlParams = new URLSearchParams(window.location.search);

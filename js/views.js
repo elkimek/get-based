@@ -33,6 +33,7 @@ export function navigate(category, data) {
   if (category === "dashboard") showDashboard(data);
   else if (category === "correlations") showCorrelations(data);
   else if (category === "compare") showCompare(data);
+  else if (category === "biometrics") window.renderBiometricsCategoryView();
   else showCategory(category, data);
 }
 
