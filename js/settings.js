@@ -928,6 +928,7 @@ export function renderWearablesSection() {
   } else {
     html += `<div style="display:flex;gap:8px;margin-bottom:4px">
       <button class="import-btn import-btn-primary" style="font-size:12px;padding:6px 14px" onclick="triggerWithingsSync()">Sync Now</button>
+      <button class="import-btn import-btn-secondary" style="font-size:12px;padding:6px 14px" onclick="triggerDeleteWithingsData()">Delete Data</button>
       <button class="import-btn import-btn-secondary" style="font-size:12px;padding:6px 14px;border-color:var(--red);color:var(--red)" onclick="triggerWithingsDisconnect()">Disconnect</button>
     </div>`;
   }
@@ -985,6 +986,7 @@ export function renderWearablesSection() {
   if (ouraConnected) {
     html += `<div style="display:flex;gap:8px;margin-top:8px">
       <button class="import-btn import-btn-primary" style="font-size:12px;padding:6px 14px" onclick="triggerOuraSync()">Sync Now</button>
+      <button class="import-btn import-btn-secondary" style="font-size:12px;padding:6px 14px" onclick="triggerDeleteOuraData()">Delete Data</button>
       <button class="import-btn import-btn-secondary" style="font-size:12px;padding:6px 14px;border-color:var(--red);color:var(--red)" onclick="triggerOuraDisconnect()">Disconnect</button>
     </div>`;
   }
@@ -1093,6 +1095,44 @@ export function triggerOuraDisconnect() {
   });
 }
 
+export function triggerDeleteWithingsData() {
+  showConfirmDialog('Delete all Withings data from this profile? The connection will remain active.', async () => {
+    const bio = state.importedData?.biometrics;
+    if (bio) {
+      for (const key of ['weight', 'bp', 'pulse']) {
+        if (Array.isArray(bio[key])) {
+          bio[key] = bio[key].filter(e => e.source !== 'withings');
+        }
+      }
+      if (window.recordChange) window.recordChange('biometrics');
+      const { saveImportedData } = await import('./data.js');
+      await saveImportedData();
+    }
+    showNotification('Withings data deleted', 'success');
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  });
+}
+
+export function triggerDeleteOuraData() {
+  showConfirmDialog('Delete all Oura data from this profile? The connection will remain active.', async () => {
+    const bio = state.importedData?.biometrics;
+    if (bio) {
+      for (const key of ['pulse', 'hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2']) {
+        if (Array.isArray(bio[key])) {
+          bio[key] = bio[key].filter(e => e.source !== 'oura');
+        }
+      }
+      if (window.recordChange) window.recordChange('biometrics');
+      const { saveImportedData } = await import('./data.js');
+      await saveImportedData();
+    }
+    showNotification('Oura data deleted', 'success');
+    refreshWearablesSection();
+    if (window.buildSidebar) window.buildSidebar();
+  });
+}
+
 export function triggerSyncAll() {
   window.syncAllWearables().then(result => {
     refreshWearablesSection();
@@ -1125,5 +1165,7 @@ Object.assign(window, {
   saveOuraPAT,
   triggerOuraSync,
   triggerOuraDisconnect,
+  triggerDeleteWithingsData,
+  triggerDeleteOuraData,
   triggerSyncAll,
 });

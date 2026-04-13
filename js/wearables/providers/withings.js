@@ -78,10 +78,15 @@ class WithingsProvider extends WearableProvider {
       redirect_uri: redirectUri,
     });
 
-    const resp = await fetch(WITHINGS_ENDPOINTS.TOKEN, {
+    const resp = await fetch('/api/proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: WITHINGS_ENDPOINTS.TOKEN,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      }),
     });
     const data = await resp.json();
     if (data.status !== 0) throw new Error(`Withings token exchange failed (${data.status})`);
@@ -113,10 +118,15 @@ class WithingsProvider extends WearableProvider {
       refresh_token: cfg.refreshToken,
     });
 
-    const resp = await fetch(WITHINGS_ENDPOINTS.TOKEN, {
+    const resp = await fetch('/api/proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: WITHINGS_ENDPOINTS.TOKEN,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      }),
     });
     const data = await resp.json();
     if (data.status !== 0) throw new Error(`Withings token refresh failed (${data.status})`);
@@ -168,8 +178,15 @@ class WithingsProvider extends WearableProvider {
       lastupdate: String(startDate),
     });
 
-    const resp = await fetch(`${WITHINGS_ENDPOINTS.MEASURE}?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const measureUrl = `${WITHINGS_ENDPOINTS.MEASURE}?${params.toString()}`;
+    const resp = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: measureUrl,
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      }),
     });
     const data = await resp.json();
     if (data.status !== 0) throw new Error(`Withings fetch failed (${data.status})`);

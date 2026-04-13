@@ -71,10 +71,15 @@ class OuraProvider extends WearableProvider {
       redirect_uri: redirectUri,
     });
 
-    const resp = await fetch(OURA_ENDPOINTS.TOKEN, {
+    const resp = await fetch('/api/proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: OURA_ENDPOINTS.TOKEN,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      }),
     });
     const data = await resp.json();
     if (data.error) throw new Error(`Oura token exchange failed: ${data.error_description || data.error}`);
@@ -105,10 +110,15 @@ class OuraProvider extends WearableProvider {
       refresh_token: cfg.refreshToken,
     });
 
-    const resp = await fetch(OURA_ENDPOINTS.TOKEN, {
+    const resp = await fetch('/api/proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: OURA_ENDPOINTS.TOKEN,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      }),
     });
     const data = await resp.json();
     if (data.error) throw new Error(`Oura token refresh failed: ${data.error_description || data.error}`);
@@ -139,15 +149,21 @@ class OuraProvider extends WearableProvider {
     return cfg.accessToken;
   }
 
-  // ── API fetch helper ──
+  // ── API fetch helper (routes through /api/proxy to avoid CORS) ──
   async _apiGet(path, params = {}) {
     const token = await this.getValidToken();
     const url = new URL(`${OURA_ENDPOINTS.API_BASE}${path}`);
     for (const [k, v] of Object.entries(params)) {
       if (v != null) url.searchParams.set(k, v);
     }
-    const resp = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${token}` },
+    const resp = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: url.toString(),
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      }),
     });
     if (!resp.ok) {
       const errText = await resp.text().catch(() => '');
@@ -187,9 +203,10 @@ class OuraProvider extends WearableProvider {
     // Process sleep data
     if (sleepData.status === 'fulfilled' && sleepData.value?.data) {
       for (const day of sleepData.value.data) {
-        if (!day.summary_date) continue;
+        const dayDate = day.day || day.summary_date;
+        if (!dayDate) continue;
         const record = {
-          date: day.summary_date,
+          date: dayDate,
           total_s: day.total_sleep_duration ?? day.duration ?? null,
           deep_s: day.deep_sleep_duration ?? null,
           rem_s: day.rem_sleep_duration ?? null,
@@ -211,13 +228,14 @@ class OuraProvider extends WearableProvider {
     // Process readiness data
     if (readinessData.status === 'fulfilled' && readinessData.value?.data) {
       for (const day of readinessData.value.data) {
-        if (!day.summary_date) continue;
+        const dayDate = day.day || day.summary_date;
+        if (!dayDate) continue;
         const hrvBalance = day.contributors?.hrv_balance ?? null;
         const restingHR = day.contributors?.resting_heart_rate ?? null;
         const tempDeviation = day.contributors?.temperature_deviation ?? null;
         // Readiness score
         const readRecord = {
-          date: day.summary_date,
+          date: dayDate,
           score: day.score ?? null,
           source: 'oura',
         };
@@ -229,7 +247,7 @@ class OuraProvider extends WearableProvider {
         }
         // HRV from readiness contributors
         if (hrvBalance != null) {
-          const hrvRecord = { date: day.summary_date, value: hrvBalance, source: 'oura' };
+          const hrvRecord = { date: dayDate, value: hrvBalance, source: 'oura' };
           const idx = bio.hrv.findIndex(e => e.date === hrvRecord.date && e.source === 'oura');
           if (idx >= 0) bio.hrv[idx] = hrvRecord;
           else bio.hrv.push(hrvRecord);
@@ -237,7 +255,7 @@ class OuraProvider extends WearableProvider {
         }
         // Resting heart rate from readiness if available
         if (restingHR != null) {
-          const pulseRecord = { date: day.summary_date, value: restingHR, source: 'oura' };
+          const pulseRecord = { date: dayDate, value: restingHR, source: 'oura' };
           const idx = bio.pulse.findIndex(e => e.date === pulseRecord.date && e.source === 'oura');
           if (idx >= 0) bio.pulse[idx] = pulseRecord;
           else bio.pulse.push(pulseRecord);
@@ -249,11 +267,12 @@ class OuraProvider extends WearableProvider {
     // Process activity data
     if (activityData.status === 'fulfilled' && activityData.value?.data) {
       for (const day of activityData.value.data) {
-        if (!day.summary_date) continue;
+        const dayDate = day.day || day.summary_date;
+        if (!dayDate) continue;
 
         // Steps
         if (day.steps != null) {
-          const record = { date: day.summary_date, value: day.steps, source: 'oura' };
+          const record = { date: dayDate, value: day.steps, source: 'oura' };
           const idx = bio.steps.findIndex(e => e.date === record.date && e.source === 'oura');
           if (idx >= 0) bio.steps[idx] = record;
           else bio.steps.push(record);
@@ -262,7 +281,7 @@ class OuraProvider extends WearableProvider {
 
         // Active calories
         if (day.active_calories != null) {
-          const record = { date: day.summary_date, value: day.active_calories, source: 'oura' };
+          const record = { date: dayDate, value: day.active_calories, source: 'oura' };
           const idx = bio.activeCalories.findIndex(e => e.date === record.date && e.source === 'oura');
           if (idx >= 0) bio.activeCalories[idx] = record;
           else bio.activeCalories.push(record);
@@ -271,7 +290,7 @@ class OuraProvider extends WearableProvider {
 
         // Distance
         if (day.equivalent_walking_distance != null) {
-          const record = { date: day.summary_date, value_m: day.equivalent_walking_distance, source: 'oura' };
+          const record = { date: dayDate, value_m: day.equivalent_walking_distance, source: 'oura' };
           const idx = bio.distance.findIndex(e => e.date === record.date && e.source === 'oura');
           if (idx >= 0) bio.distance[idx] = record;
           else bio.distance.push(record);
@@ -281,7 +300,7 @@ class OuraProvider extends WearableProvider {
         // Active minutes
         const activeMinutes = ((day.high_activity_time ?? 0) + (day.medium_activity_time ?? 0)) / 60;
         if (activeMinutes > 0) {
-          const record = { date: day.summary_date, value: Math.round(activeMinutes), source: 'oura' };
+          const record = { date: dayDate, value: Math.round(activeMinutes), source: 'oura' };
           const idx = bio.activeMinutes.findIndex(e => e.date === record.date && e.source === 'oura');
           if (idx >= 0) bio.activeMinutes[idx] = record;
           else bio.activeMinutes.push(record);

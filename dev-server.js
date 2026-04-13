@@ -170,8 +170,9 @@ const server = http.createServer((req, res) => {
         const parsedUrl = new URL(targetUrl);
         const mod = parsedUrl.protocol === 'https:' ? https : http;
         const fetchMethod = (upMethod || 'POST').toUpperCase();
-        const reqHeaders = { ...fwdHeaders };
+        const reqHeaders = {};
         if (fetchMethod !== 'GET') reqHeaders['Content-Type'] = 'application/json';
+        Object.assign(reqHeaders, fwdHeaders);
         const proxyReq = mod.request(targetUrl, { method: fetchMethod, headers: reqHeaders }, (proxyRes) => {
           const ct = proxyRes.headers['content-type'] || 'application/json';
           res.writeHead(proxyRes.statusCode, { 'Content-Type': ct, 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
