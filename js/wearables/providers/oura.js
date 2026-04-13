@@ -192,73 +192,103 @@ class OuraProvider extends WearableProvider {
     let totalCount = 0;
 
     // Fetch all endpoints in parallel
-    const [sleepData, readinessData, activityData, spo2Data, hrData] = await Promise.allSettled([
+    // Note: /daily_sleep has only score+contributors (not durations)
+    //       /sleep has actual session data with durations + average_hrv
+    const [dailySleepData, sleepSessionData, readinessData, activityData, spo2Data, hrData] = await Promise.allSettled([
       this._apiGet('/daily_sleep', { start_date: startDate, end_date: endDate }),
+      this._apiGet('/sleep', { start_date: startDate, end_date: endDate }),
       this._apiGet('/daily_readiness', { start_date: startDate, end_date: endDate }),
       this._apiGet('/daily_activity', { start_date: startDate, end_date: endDate }),
       this._apiGet('/daily_spo2', { start_date: startDate, end_date: endDate }),
       this._fetchHeartRate(startDate, endDate),
     ]);
 
-    // Process sleep data
-    if (sleepData.status === 'fulfilled' && sleepData.value?.data) {
-      for (const day of sleepData.value.data) {
-        const dayDate = day.day || day.summary_date;
+    // ── Sleep scores from daily_sleep ──
+    const sleepScoreByDay = new Map();
+    if (dailySleepData.status === 'fulfilled' && dailySleepData.value?.data) {
+      for (const day of dailySleepData.value.data) {
+        const dayDate = day.day;
+        if (dayDate && day.score != null) sleepScoreByDay.set(dayDate, day.score);
+      }
+    }
+
+    // ── Sleep sessions from /sleep — aggregate per day ──
+    // Pick the longest "sleep" type session per day for duration/HRV data
+    const sleepByDay = new Map(); // date → { total_s, deep_s, rem_s, light_s, awake_s, hrv }
+    if (sleepSessionData.status === 'fulfilled' && sleepSessionData.value?.data) {
+      for (const session of sleepSessionData.value.data) {
+        const dayDate = session.day;
         if (!dayDate) continue;
-        const record = {
-          date: dayDate,
-          total_s: day.total_sleep_duration ?? day.duration ?? null,
-          deep_s: day.deep_sleep_duration ?? null,
-          rem_s: day.rem_sleep_duration ?? null,
-          light_s: day.light_sleep_duration ?? null,
-          awake_s: day.awake_time ?? null,
-          score: day.score ?? null,
-          source: 'oura',
-        };
-        // Only add if there's some sleep data
-        if (record.total_s != null || record.deep_s != null || record.score != null) {
-          const idx = bio.sleep.findIndex(e => e.date === record.date && e.source === 'oura');
-          if (idx >= 0) bio.sleep[idx] = record;
-          else bio.sleep.push(record);
-          totalCount++;
+        // Skip deleted or very short sessions
+        if (session.type === 'deleted') continue;
+        const totalS = session.total_sleep_duration ?? 0;
+        const existing = sleepByDay.get(dayDate);
+        // Keep the session with the longest total sleep (main sleep)
+        if (!existing || totalS > (existing.total_s || 0)) {
+          sleepByDay.set(dayDate, {
+            total_s: session.total_sleep_duration ?? null,
+            deep_s: session.deep_sleep_duration ?? null,
+            rem_s: session.rem_sleep_duration ?? null,
+            light_s: session.light_sleep_duration ?? null,
+            awake_s: session.awake_time ?? null,
+            hrv: session.average_hrv ?? null,
+            hr_lowest: session.lowest_heart_rate ?? null,
+            average_hr: session.average_heart_rate ?? null,
+          });
         }
       }
     }
 
-    // Process readiness data
+    // ── Merge sleep data: sessions + daily scores ──
+    const allSleepDays = new Set([...sleepByDay.keys(), ...sleepScoreByDay.keys()]);
+    for (const dayDate of allSleepDays) {
+      const session = sleepByDay.get(dayDate) || {};
+      const score = sleepScoreByDay.get(dayDate) ?? null;
+      const record = {
+        date: dayDate,
+        total_s: session.total_s ?? null,
+        deep_s: session.deep_s ?? null,
+        rem_s: session.rem_s ?? null,
+        light_s: session.light_s ?? null,
+        awake_s: session.awake_s ?? null,
+        score,
+        source: 'oura',
+      };
+      if (record.total_s != null || record.score != null) {
+        const idx = bio.sleep.findIndex(e => e.date === record.date && e.source === 'oura');
+        if (idx >= 0) bio.sleep[idx] = record;
+        else bio.sleep.push(record);
+        totalCount++;
+      }
+      // HRV from sleep session (actual ms, not a score)
+      if (session.hrv != null) {
+        const hrvRecord = { date: dayDate, value: Math.round(session.hrv), source: 'oura' };
+        const idx = bio.hrv.findIndex(e => e.date === hrvRecord.date && e.source === 'oura');
+        if (idx >= 0) bio.hrv[idx] = hrvRecord;
+        else bio.hrv.push(hrvRecord);
+        totalCount++;
+      }
+      // Resting HR from sleep session (lowest HR during sleep)
+      const restingHR = session.hr_lowest ?? session.average_hr;
+      if (restingHR != null) {
+        const pulseRecord = { date: dayDate, value: Math.round(restingHR), source: 'oura' };
+        const idx = bio.pulse.findIndex(e => e.date === pulseRecord.date && e.source === 'oura');
+        if (idx >= 0) bio.pulse[idx] = pulseRecord;
+        else bio.pulse.push(pulseRecord);
+        totalCount++;
+      }
+    }
+
+    // ── Readiness (score only) ──
     if (readinessData.status === 'fulfilled' && readinessData.value?.data) {
       for (const day of readinessData.value.data) {
-        const dayDate = day.day || day.summary_date;
+        const dayDate = day.day;
         if (!dayDate) continue;
-        const hrvBalance = day.contributors?.hrv_balance ?? null;
-        const restingHR = day.contributors?.resting_heart_rate ?? null;
-        const tempDeviation = day.contributors?.temperature_deviation ?? null;
-        // Readiness score
-        const readRecord = {
-          date: dayDate,
-          score: day.score ?? null,
-          source: 'oura',
-        };
-        if (readRecord.score != null) {
+        if (day.score != null) {
+          const readRecord = { date: dayDate, score: day.score, source: 'oura' };
           const idx = bio.readiness.findIndex(e => e.date === readRecord.date && e.source === 'oura');
           if (idx >= 0) bio.readiness[idx] = readRecord;
           else bio.readiness.push(readRecord);
-          totalCount++;
-        }
-        // HRV from readiness contributors
-        if (hrvBalance != null) {
-          const hrvRecord = { date: dayDate, value: hrvBalance, source: 'oura' };
-          const idx = bio.hrv.findIndex(e => e.date === hrvRecord.date && e.source === 'oura');
-          if (idx >= 0) bio.hrv[idx] = hrvRecord;
-          else bio.hrv.push(hrvRecord);
-          totalCount++;
-        }
-        // Resting heart rate from readiness if available
-        if (restingHR != null) {
-          const pulseRecord = { date: dayDate, value: restingHR, source: 'oura' };
-          const idx = bio.pulse.findIndex(e => e.date === pulseRecord.date && e.source === 'oura');
-          if (idx >= 0) bio.pulse[idx] = pulseRecord;
-          else bio.pulse.push(pulseRecord);
           totalCount++;
         }
       }
