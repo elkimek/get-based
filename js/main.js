@@ -62,9 +62,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Handle wearable OAuth callbacks
   const handled = await handleOAuthCallback();
 
-  // Handle OpenRouter OAuth callback (?code=...)
+  // Handle OpenRouter OAuth callback (?code=...) — skip if wearable handler consumed it
   const urlParams = new URLSearchParams(window.location.search);
-  const oauthCode = urlParams.get('code');
+  const oauthCode = handled ? null : urlParams.get('code');
   if (oauthCode) {
     history.replaceState(null, '', window.location.pathname);
     try {
