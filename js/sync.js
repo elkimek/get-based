@@ -788,7 +788,7 @@ export function pushContextToGateway() {
   _contextPushTimer = setTimeout(async () => {
     try {
       const { buildLabContext } = await import('./chat.js');
-      const context = buildLabContext();
+      const context = buildLabContext({ skipGroupFilter: true });
       const profileId = state.currentProfile || 'default';
       const profiles = getProfiles().map(p => ({ id: p.id, name: p.name }));
       const relay = getSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');

@@ -96,19 +96,21 @@ function summarizeChange(field, prev, curr) {
 // ═══════════════════════════════════════════════
 // LAB CONTEXT
 // ═══════════════════════════════════════════════
-export function buildLabContext() {
-  const fp = _getLabContextFingerprint();
+export function buildLabContext({ skipGroupFilter } = {}) {
+  // skipGroupFilter: true → include all specialty groups regardless of AI toggle
+  // Used by sync/push so the relay always receives complete data
+  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '');
   if (_labContextCache.fingerprint === fp && _labContextCache.context) {
     if (isDebugMode()) console.log('[AI] Lab context cache hit');
     return _labContextCache.context;
   }
   if (isDebugMode()) console.log('[AI] Lab context cache miss — rebuilding');
-  const ctx = _buildLabContextInner();
+  const ctx = _buildLabContextInner({ skipGroupFilter });
   _labContextCache = { fingerprint: fp, context: ctx };
   return ctx;
 }
 
-function _buildLabContextInner() {
+function _buildLabContextInner({ skipGroupFilter } = {}) {
   const data = getActiveData();
   const hasLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -166,7 +168,7 @@ function _buildLabContextInner() {
     // Build index of active lab categories
     const _activeCatKeys = [];
     for (const [_ck, _ct] of Object.entries(data.categories)) {
-      if (_ct.group && !isGroupInAIContext(_ct.group)) continue;
+      if (!skipGroupFilter && _ct.group && !isGroupInAIContext(_ct.group)) continue;
       if (Object.entries(_ct.markers).some(([_, m]) => m.values.some(v => v !== null))) _activeCatKeys.push(_ck);
     }
     if (_activeCatKeys.length > 0) {
@@ -176,7 +178,7 @@ function _buildLabContextInner() {
     const rangeLabel = state.rangeMode === 'optimal' ? 'optimal' : 'reference';
     ctx += `Note: status labels below use ${rangeLabel} ranges.\n\n`;
     for (const [catKey, cat] of Object.entries(data.categories)) {
-      if (cat.group && !isGroupInAIContext(cat.group)) continue;
+      if (!skipGroupFilter && cat.group && !isGroupInAIContext(cat.group)) continue;
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null));
       if (markersWithData.length === 0) continue;
       const _catDate = cat.singleDate || (() => { for (let i = data.dates.length - 1; i >= 0; i--) { if (markersWithData.some(([_, m]) => m.values[i] !== null)) return data.dates[i]; } return null; })();
@@ -261,7 +263,7 @@ function _buildLabContextInner() {
     const allFlags = getAllFlaggedMarkers(data);
     const flags = allFlags.filter(f => {
       const cat = data.categories[f.categoryKey];
-      return !cat?.group || isGroupInAIContext(cat.group);
+      return !cat?.group || skipGroupFilter || isGroupInAIContext(cat.group);
     });
     if (flags.length > 0) {
       ctx += `[critical]\nFlagged markers (details in sections above): ${flags.map(f => `${f.categoryKey}.${f.markerKey}`).join(', ')}\n`;
