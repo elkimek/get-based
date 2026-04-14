@@ -21,6 +21,7 @@ export const SOURCE_PRIORITY = {
   distance:        ['oura', 'withings', 'manual'],
   activeMinutes:   ['oura', 'withings', 'manual'],
   spo2:            ['oura', 'withings', 'manual'],
+  pwv:             ['withings', 'manual'],
 };
 
 // ═══════════════════════════════════════════════

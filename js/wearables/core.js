@@ -242,9 +242,9 @@ export async function syncAllWearables() {
 // ═══════════════════════════════════════════════
 // BIOMETRICS STRUCTURE HELPERS
 // ═══════════════════════════════════════════════
-export const BIOMETRIC_KEYS = ['weight', 'bp', 'pulse', 'hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2'];
+export const BIOMETRIC_KEYS = ['weight', 'bp', 'pulse', 'hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2', 'pwv'];
 
-export const NEW_BIOMETRIC_KEYS = ['hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2'];
+export const NEW_BIOMETRIC_KEYS = ['hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2', 'pwv'];
 
 export function ensureBiometricsStructure(bio) {
   if (!bio) bio = state.importedData?.biometrics;

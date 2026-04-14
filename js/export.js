@@ -661,7 +661,7 @@ export function importDataJSON(file) {
         if (!state.importedData.biometrics) {
           state.importedData.biometrics = json.biometrics;
         } else {
-          const bioMetrics = ['weight', 'bp', 'pulse', 'hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2'];
+          const bioMetrics = ['weight', 'bp', 'pulse', 'hrv', 'sleep', 'readiness', 'steps', 'activeCalories', 'distance', 'activeMinutes', 'spo2', 'pwv'];
           for (const metric of bioMetrics) {
             if (Array.isArray(json.biometrics[metric])) {
               if (!state.importedData.biometrics[metric]) state.importedData.biometrics[metric] = [];

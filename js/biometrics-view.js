@@ -23,6 +23,7 @@ const METRIC_CONFIG = {
   distance:       { name: 'Distance',         unit: () => 'km', refMin: null, refMax: null, displayValue: e => e.value_m != null ? +(e.value_m / 1000).toFixed(1) : null, icon: '📏' },
   activeMinutes:  { name: 'Active Minutes',  unit: () => 'min', refMin: 30, refMax: 90, icon: '🏃' },
   spo2:           { name: 'SpO₂',            unit: () => '%', refMin: 95, refMax: 100, icon: '🫁' },
+  pwv:            { name: 'Pulse Wave Velocity', unit: () => 'm/s', refMin: null, refMax: 10, icon: '🌊' },
 };
 
 // Biometrics date range filter (separate from main app range)

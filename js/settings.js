@@ -1099,7 +1099,7 @@ export function triggerDeleteWithingsData() {
   showConfirmDialog('Delete all Withings data from this profile? The connection will remain active.', async () => {
     const bio = state.importedData?.biometrics;
     if (bio) {
-      for (const key of ['weight', 'bp', 'pulse']) {
+      for (const key of ['weight', 'bp', 'pulse', 'pwv']) {
         if (Array.isArray(bio[key])) {
           bio[key] = bio[key].filter(e => e.source !== 'withings');
         }

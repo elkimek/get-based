@@ -22,6 +22,12 @@ const MEAS_TYPE = {
   DIASTOLIC_BP: 9,
   SYSTOLIC_BP: 10,
   HEART_PULSE: 11,
+  SPO2: 54,
+  MUSCLE_MASS: 76,
+  BONE_MASS: 88,
+  PWV: 91,           // Pulse Wave Velocity (m/s)
+  VASCULAR_AGE: 155, // Vascular age (speculative — Withings may use this)
+  VISCERAL_FAT: 170, // Visceral fat index (speculative — discover via unfiltered fetch)
 };
 
 class WithingsProvider extends WearableProvider {
@@ -171,10 +177,10 @@ class WithingsProvider extends WearableProvider {
       startDate = Math.floor(yearAgo.getTime() / 1000);
     }
 
-    // Fetch weight, BP, and pulse measurements
+    // Fetch all measurements (no meastype filter — captures weight, BP, HR, PWV, body comp, etc.)
     const params = new URLSearchParams({
       action: 'getmeas',
-      meastype: [MEAS_TYPE.WEIGHT, MEAS_TYPE.SYSTOLIC_BP, MEAS_TYPE.DIASTOLIC_BP, MEAS_TYPE.HEART_PULSE].join(','),
+      category: '1',  // 1 = real measurements (not user goals)
       lastupdate: String(startDate),
     });
 
@@ -197,6 +203,9 @@ class WithingsProvider extends WearableProvider {
     const weightsByDate = new Map();  // date → { ts, kg }
     const bpByDate = new Map();       // date → { ts, sys, dia }
     const pulseByDate = new Map();    // date → { ts, bpm }
+    const pwvByDate = new Map();      // date → { ts, value }
+    const visceralFatByDate = new Map(); // date → { ts, value }
+    const unknownTypes = new Set();
 
     for (const grp of groups) {
       if (!Array.isArray(grp?.measures) || typeof grp?.date !== 'number') continue;
@@ -234,8 +243,35 @@ class WithingsProvider extends WearableProvider {
             if (!prev || ts >= prev.ts) pulseByDate.set(date, { ts, bpm: Math.round(value) });
             break;
           }
+          case MEAS_TYPE.PWV: {
+            const prev = pwvByDate.get(date);
+            if (!prev || ts >= prev.ts) pwvByDate.set(date, { ts, value: +(value.toFixed(2)) });
+            break;
+          }
+          // Known body comp types we don't store yet but shouldn't warn about
+          case MEAS_TYPE.HEIGHT:
+          case MEAS_TYPE.FAT_FREE_MASS:
+          case MEAS_TYPE.FAT_RATIO:
+          case MEAS_TYPE.FAT_MASS_WEIGHT:
+          case MEAS_TYPE.SPO2:
+          case MEAS_TYPE.MUSCLE_MASS:
+          case MEAS_TYPE.BONE_MASS:
+            break;
+          default: {
+            // Log unknown types to discover visceral fat etc.
+            unknownTypes.add(meas.type);
+            // Speculatively capture anything that might be visceral fat
+            // (we'll identify the correct type from logs)
+            if (!visceralFatByDate.has(date + ':' + meas.type)) {
+              visceralFatByDate.set(date + ':' + meas.type, { date, ts, type: meas.type, value });
+            }
+          }
         }
       }
+    }
+    if (unknownTypes.size > 0) {
+      console.log('[withings] Unknown meastypes found:', [...unknownTypes].join(', '),
+        '\nSample values:', [...visceralFatByDate.values()].slice(0, 5));
     }
 
     // Upsert into biometrics
@@ -270,8 +306,17 @@ class WithingsProvider extends WearableProvider {
       count++;
     }
 
+    // PWV (Pulse Wave Velocity)
+    for (const [date, { value }] of pwvByDate.entries()) {
+      const idx = bio.pwv.findIndex(e => e.date === date && e.source === 'withings');
+      const record = { date, value, unit: 'm/s', source: 'withings' };
+      if (idx >= 0) bio.pwv[idx] = record;
+      else bio.pwv.push(record);
+      count++;
+    }
+
     // Sort all arrays
-    for (const key of ['weight', 'bp', 'pulse']) {
+    for (const key of ['weight', 'bp', 'pulse', 'pwv']) {
       if (Array.isArray(bio[key])) bio[key].sort((a, b) => a.date.localeCompare(b.date));
     }
 
@@ -287,7 +332,7 @@ class WithingsProvider extends WearableProvider {
     // Remove Withings-sourced data from biometrics
     const bio = state.importedData?.biometrics;
     if (bio) {
-      for (const key of ['weight', 'bp', 'pulse']) {
+      for (const key of ['weight', 'bp', 'pulse', 'pwv']) {
         if (Array.isArray(bio[key])) {
           bio[key] = bio[key].filter(e => e.source !== 'withings');
         }
