@@ -204,7 +204,6 @@ class WithingsProvider extends WearableProvider {
     const bpByDate = new Map();       // date → { ts, sys, dia }
     const pulseByDate = new Map();    // date → { ts, bpm }
     const pwvByDate = new Map();      // date → { ts, value }
-    const visceralFatByDate = new Map(); // date → { ts, value }
     const unknownTypes = new Set();
 
     for (const grp of groups) {
@@ -257,21 +256,14 @@ class WithingsProvider extends WearableProvider {
           case MEAS_TYPE.MUSCLE_MASS:
           case MEAS_TYPE.BONE_MASS:
             break;
-          default: {
-            // Log unknown types to discover visceral fat etc.
+          default:
             unknownTypes.add(meas.type);
-            // Speculatively capture anything that might be visceral fat
-            // (we'll identify the correct type from logs)
-            if (!visceralFatByDate.has(date + ':' + meas.type)) {
-              visceralFatByDate.set(date + ':' + meas.type, { date, ts, type: meas.type, value });
-            }
-          }
+            break;
         }
       }
     }
     if (unknownTypes.size > 0) {
-      console.log('[withings] Unknown meastypes found:', [...unknownTypes].join(', '),
-        '\nSample values:', [...visceralFatByDate.values()].slice(0, 5));
+      console.debug('[withings] Unhandled meastypes:', [...unknownTypes].join(', '));
     }
 
     // Upsert into biometrics
