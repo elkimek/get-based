@@ -43,7 +43,7 @@ class OuraProvider extends WearableProvider {
       response_type: 'code',
       client_id: config.clientId,
       redirect_uri: redirectUri,
-      scope: 'daily heartrate personal spo2Daily',
+      scope: 'daily heartrate personal',
       state: st,
     });
 
