@@ -343,10 +343,11 @@ class OuraProvider extends WearableProvider {
     if (spo2Data.status === 'fulfilled' && spo2Data.value?.data) {
       for (const day of spo2Data.value.data) {
         if (!day.day) continue;
-        // Oura V2 spo2: average spo2_percentage
-        const spo2Pct = day.spo2_percentage ?? day.average ?? null;
+        // Oura V2 spo2: spo2_percentage is an object { average: N } or a direct number
+        const raw = day.spo2_percentage;
+        const spo2Pct = typeof raw === 'object' && raw !== null ? raw.average : (typeof raw === 'number' ? raw : null);
         if (spo2Pct != null) {
-          const record = { date: day.day, value_pct: spo2Pct, source: 'oura' };
+          const record = { date: day.day, value: Math.round(spo2Pct * 10) / 10, source: 'oura' };
           const idx = bio.spo2.findIndex(e => e.date === record.date && e.source === 'oura');
           if (idx >= 0) bio.spo2[idx] = record;
           else bio.spo2.push(record);
