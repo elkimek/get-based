@@ -26,7 +26,7 @@ const METRIC_CONFIG = {
 };
 
 // Biometrics date range filter (separate from main app range)
-let _bioRange = '1y'; // 3m, 6m, 1y, all
+let _bioRange = '1y'; // 1m, 3m, 6m, 1y, all
 
 // ═══════════════════════════════════════════════
 // HELPERS
@@ -35,7 +35,8 @@ function _filterByRange(entries) {
   if (_bioRange === 'all') return entries;
   const now = new Date();
   const cutoff = new Date(now);
-  if (_bioRange === '3m') cutoff.setMonth(cutoff.getMonth() - 3);
+  if (_bioRange === '1m') cutoff.setMonth(cutoff.getMonth() - 1);
+  else if (_bioRange === '3m') cutoff.setMonth(cutoff.getMonth() - 3);
   else if (_bioRange === '6m') cutoff.setMonth(cutoff.getMonth() - 6);
   else if (_bioRange === '1y') cutoff.setFullYear(cutoff.getFullYear() - 1);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -146,6 +147,7 @@ export function renderBiometricsCategoryView() {
   html += `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px">`;
   html += `<div class="date-range-filter" style="margin-bottom:0">`;
   const ranges = [
+    { key: '1m', label: '1M' },
     { key: '3m', label: '3M' },
     { key: '6m', label: '6M' },
     { key: '1y', label: '1Y' },
