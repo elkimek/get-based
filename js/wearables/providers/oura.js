@@ -181,7 +181,10 @@ class OuraProvider extends WearableProvider {
     const lastSync = this.getLastSync();
     let startDate;
     if (lastSync) {
-      startDate = lastSync.slice(0, 10);
+      // Go back 2 days from last sync to catch late-arriving data (sleep sessions, etc.)
+      const d = new Date(lastSync);
+      d.setDate(d.getDate() - 2);
+      startDate = d.toISOString().slice(0, 10);
     } else {
       const d = new Date();
       d.setFullYear(d.getFullYear() - 1);
