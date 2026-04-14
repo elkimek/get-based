@@ -55,7 +55,7 @@ function _getDisplayValue(entry, metricKey) {
     if (entry.sys != null && entry.dia != null) return `${entry.sys}/${entry.dia}`;
     return null;
   }
-  return entry.value ?? null;
+  return entry.value ?? entry.score ?? null;
 }
 
 function _getDisplayUnit(metricKey) {
