@@ -386,27 +386,32 @@ impl SetupManager {
     ) -> Result<(), String> {
         let pip = venv_pip();
 
-        // GPU-specific packages
-        let gpu_pkg = match provider {
+        // Pick the right pip package per provider. CoreML support ships in base
+        // `onnxruntime` on macOS — no separate package. Other providers need
+        // their own package (mutually exclusive with the CPU `onnxruntime`).
+        // Source: https://onnxruntime.ai/docs/install/
+        let packages: Vec<&str> = match provider {
             OnnxProvider::Cuda => vec!["onnxruntime-gpu"],
-            OnnxProvider::Rocm => vec!["onnxruntime-rocm"], // AMD via PyPI when available
-            OnnxProvider::OpenVino => vec!["openvino"],
-            OnnxProvider::CoreML => vec!["onnxruntime-coreml"],
-            OnnxProvider::Cpu => vec![],
+            OnnxProvider::DirectML => vec!["onnxruntime-directml"],
+            OnnxProvider::OpenVino => vec!["onnxruntime-openvino"],
+            OnnxProvider::CoreML => vec!["onnxruntime"], // CoreML EP bundled on macOS
+            OnnxProvider::Rocm => {
+                // ROCm wheels for ONNX Runtime are not on PyPI as `onnxruntime-rocm`.
+                // AMD ships them at https://repo.radeon.com/rocm/manylinux/ — out of scope
+                // for first-run auto-install. Fall back to CPU + log a hint.
+                log::warn!(
+                    "ROCm provider requested but no PyPI package available. \
+                    Falling back to onnxruntime (CPU). To enable ROCm acceleration, \
+                    install AMD's ONNX Runtime wheels manually."
+                );
+                vec!["onnxruntime"]
+            }
+            OnnxProvider::Cpu => vec!["onnxruntime"],
         };
 
-        // Install base onnxruntime
-        self.run_and_log(
-            &pip,
-            &["install", "onnxruntime"],
-            "Installing onnxruntime",
-        )?;
-
-        // Install GPU provider package(s)
-        for pkg in &gpu_pkg {
-            self.run_and_log(&pip, &["install", pkg], &format!("Installing {}", pkg))?;
+        for pkg in packages {
+            self.run_and_log(&pip, &["install", "--upgrade", pkg], &format!("Installing {}", pkg))?;
         }
-
         Ok(())
     }
 

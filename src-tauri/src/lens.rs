@@ -46,11 +46,21 @@ impl LensManager {
         // Detect GPU provider for ONNX Runtime
         let gpu_provider = crate::gpu::detect_gpu().recommended_provider;
 
+        // Point lens at the platform-correct data dir Tauri set up
+        let data_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("getbased")
+            .join("lens");
+
         let child = StdCommand::new(&binary_path)
             .env("LENS_HOST", &host)
             .env("LENS_PORT", port.to_string())
             .env("LENS_RERANKER", "0")
             .env("LENS_ONNX_PROVIDER", gpu_provider.to_string())
+            // Match the model setup downloads (BAAI/bge-m3) instead of lens's
+            // default `all-MiniLM-L6-v2` which would trigger a redundant download.
+            .env("LENS_EMBEDDING_MODEL", "BAAI/bge-m3")
+            .env("LENS_DATA_DIR", data_dir.to_string_lossy().as_ref())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()?;
