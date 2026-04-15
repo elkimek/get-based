@@ -29,6 +29,7 @@ import './image-utils.js';
 import './settings.js';
 import './lens.js';
 import './setup.js';
+import './updater.js';
 import './cashu-wallet.js';
 import './nostr-discovery.js';
 import './glossary.js';
