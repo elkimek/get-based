@@ -79,17 +79,45 @@ impl LensManager {
         // Wait briefly for Lens to become healthy
         tokio::time::sleep(Duration::from_secs(3)).await;
 
-        // Health check loop (up to 15 seconds)
+        // Health check loop. BGE-M3 cold-start can take ~30s, so wait up to 60s.
+        // If the child process exited during that window, surface that error
+        // immediately instead of waiting out the full timeout.
         let health_url = format!("http://{}:{}/health", host, port);
-        for _ in 0..15 {
+        for _ in 0..60 {
+            // Did the sidecar crash during startup?
+            if let Some(exit_status) = self.try_wait_child() {
+                return Err(format!(
+                    "Lens sidecar exited during startup (status: {:?}). Check logs.",
+                    exit_status
+                )
+                .into());
+            }
             match reqwest::get(&health_url).await {
                 Ok(resp) if resp.status().is_success() => return Ok(()),
                 _ => tokio::time::sleep(Duration::from_secs(1)).await,
             }
         }
 
-        // Even if health check didn't pass, the process is running
-        Ok(())
+        // Hit the timeout — process may be alive but unresponsive.
+        Err(format!(
+            "Lens sidecar did not become healthy within 60s at {}",
+            health_url
+        )
+        .into())
+    }
+
+    /// Non-blocking check: did the child process exit? Returns the exit code if so.
+    /// Drops the child handle from the manager state if exited.
+    fn try_wait_child(&self) -> Option<std::process::ExitStatus> {
+        let mut guard = self.process.lock().unwrap();
+        let child = guard.as_mut()?;
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                *guard = None;
+                Some(status)
+            }
+            _ => None,
+        }
     }
 
     /// Stop the Lens sidecar process.
@@ -117,7 +145,9 @@ impl LensManager {
             (host, port)
         };
 
-        let running = self.process.lock().unwrap().is_some();
+        // Reap a crashed child so `running` reflects reality, not just "we spawned it"
+        let crashed = self.try_wait_child();
+        let running = crashed.is_none() && self.process.lock().unwrap().is_some();
         let uptime = self.started_at.lock().unwrap().map(|t| t.elapsed().as_secs());
 
         let health_url = format!("http://{}:{}/health", host, port);

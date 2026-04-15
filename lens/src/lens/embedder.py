@@ -9,12 +9,38 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 from .config import LensConfig
 
 log = logging.getLogger("lens.embedder")
+
+
+def _platform_getbased_data_dirs() -> list[Path]:
+    """Default getbased data directories per platform — matches what Tauri uses.
+    Returns multiple candidates to handle dev (XDG) and bundled (platform-default) layouts.
+    """
+    home = Path.home()
+    paths = []
+    if sys.platform == "darwin":
+        # Tauri's dirs::data_dir() on macOS = ~/Library/Application Support
+        paths.append(home / "Library" / "Application Support" / "getbased" / "lens" / "models")
+    elif sys.platform.startswith("win"):
+        # Tauri's dirs::data_dir() on Windows = %APPDATA% (Roaming)
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            paths.append(Path(appdata) / "getbased" / "lens" / "models")
+    else:
+        # Linux: dirs::data_dir() = $XDG_DATA_HOME or ~/.local/share
+        xdg = os.environ.get("XDG_DATA_HOME")
+        if xdg:
+            paths.append(Path(xdg) / "getbased" / "lens" / "models")
+        paths.append(home / ".local" / "share" / "getbased" / "lens" / "models")
+    # Always include the legacy ~/.getbased/lens/models for back-compat
+    paths.append(home / ".getbased" / "lens" / "models")
+    return paths
 
 # ── ABC ────────────────────────────────────────────────────────────
 
@@ -153,28 +179,33 @@ class OnnxEmbedder(Embedder):
     def _resolve_model_dir(self) -> Path:
         """Find the ONNX model directory.
 
-        Checks:
-        1. Tauri setup-managed cache (data_dir/models/BAAI--bge-m3/)
-        2. HuggingFace hub cache
-        3. Current directory
+        Checks (in order):
+        1. LENS_DATA_DIR env var (set by Tauri wrapper) — most reliable
+        2. Platform-correct getbased data dir (Linux/Mac/Windows)
+        3. HuggingFace hub cache (~/.cache/huggingface)
+        4. Optimum auto-download as last resort
         """
-        # Check Tauri-managed models dir
-        tauri_models = (
-            Path.home() / ".local" / "share" / "getbased" / "lens" / "models"
-        )
-        if tauri_models.exists():
-            # huggingface_hub snapshot_download creates model-specific dirs
-            candidates = list(tauri_models.glob("models--*"))
-            if candidates:
-                # Look for snapshots inside
-                for c in candidates:
-                    snapshots = c / "snapshots"
-                    if snapshots.exists():
-                        snap_dirs = sorted(snapshots.iterdir(), reverse=True)
-                        if snap_dirs:
-                            model_dir = snap_dirs[0]
-                            if (model_dir / "model.onnx").exists() or list(model_dir.glob("*.onnx")):
-                                return model_dir
+        # 1. Tauri wrapper sets LENS_DATA_DIR explicitly — trust it
+        env_dir = os.environ.get("LENS_DATA_DIR")
+        candidates_to_search = []
+        if env_dir:
+            candidates_to_search.append(Path(env_dir) / "models")
+
+        # 2. Fallback to platform-correct default getbased data dir
+        candidates_to_search.extend(_platform_getbased_data_dirs())
+
+        for tauri_models in candidates_to_search:
+            if not tauri_models.exists():
+                continue
+            # huggingface_hub snapshot_download creates models--{slug}/snapshots/{rev}/
+            for cached_model in tauri_models.glob("models--*"):
+                snapshots = cached_model / "snapshots"
+                if not snapshots.exists():
+                    continue
+                snap_dirs = sorted(snapshots.iterdir(), reverse=True)
+                for snap in snap_dirs:
+                    if (snap / "model.onnx").exists() or list(snap.glob("*.onnx")):
+                        return snap
 
         # Check HuggingFace cache
         hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
@@ -244,11 +275,15 @@ class OnnxEmbedder(Embedder):
         self._load()
         import numpy as np
 
+        # Per-model max_length: BGE-M3 supports 8192; most others top at 512.
+        # Truncating BGE-M3 at 512 throws away its main long-context advantage.
+        max_len = 8192 if "bge-m3" in self._model_name.lower() else 512
+
         encoded = self._tokenizer(
             texts,
             padding=True,
             truncation=True,
-            max_length=512,
+            max_length=max_len,
             return_tensors="np",
         )
 
@@ -256,11 +291,20 @@ class OnnxEmbedder(Embedder):
         # outputs[0] = last_hidden_state: [batch, seq_len, dim]
         embeddings = outputs[0]
 
-        # CLS pooling (take first token)
+        # Pooling: BGE-M3 + most modern embedding models use mean pooling.
+        # CLS pooling is correct for original BERT but produces wrong vectors here.
         if len(embeddings.shape) == 3:
-            embeddings = embeddings[:, 0, :]
+            mask = encoded.get("attention_mask")
+            if mask is not None:
+                # Masked mean: only average non-padding tokens
+                mask_expanded = np.expand_dims(mask, -1).astype(embeddings.dtype)
+                summed = (embeddings * mask_expanded).sum(axis=1)
+                counts = np.clip(mask_expanded.sum(axis=1), a_min=1e-9, a_max=None)
+                embeddings = summed / counts
+            else:
+                embeddings = embeddings.mean(axis=1)
 
-        # Normalize
+        # L2 normalize for cosine similarity
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
         norms = np.where(norms == 0, 1, norms)
         embeddings = embeddings / norms

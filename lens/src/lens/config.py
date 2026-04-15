@@ -14,8 +14,10 @@ def _default_data_dir() -> Path:
 class LensConfig:
     """All Lens configuration, loaded from environment variables."""
 
-    # Server
-    host: str = "0.0.0.0"
+    # Server. Default to loopback only — exposing RAG to LAN by default would
+    # leak knowledge-base queries to anyone on the local network. Override via
+    # LENS_HOST=0.0.0.0 if you explicitly want LAN access.
+    host: str = "127.0.0.1"
     port: int = 8321
 
     # Data
@@ -61,7 +63,7 @@ class LensConfig:
         data_dir = Path(os.environ.get("LENS_DATA_DIR", str(_default_data_dir())))
 
         return cls(
-            host=os.environ.get("LENS_HOST", "0.0.0.0"),
+            host=os.environ.get("LENS_HOST", "127.0.0.1"),
             port=int(os.environ.get("LENS_PORT", "8321")),
             data_dir=data_dir,
             api_key_file=Path(os.environ.get("LENS_API_KEY_FILE", str(data_dir / "api_key"))),
