@@ -3,6 +3,7 @@
 
 mod gpu;
 mod lens;
+mod lens_source;
 mod setup;
 
 use gpu::GpuInfo;

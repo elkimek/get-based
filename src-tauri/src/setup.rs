@@ -210,9 +210,14 @@ impl SetupManager {
         log::info!("Downloading Python from {}", url);
 
         let archive_bytes = self.download_with_progress(&url, "Python").await?;
+        let format = ArchiveFormat::from_url(&url)?;
 
         let temp_dir = python_dir().with_extension("tmp");
-        extract_tar_zstd(&archive_bytes, &temp_dir)?;
+        // Cleanup any previous failed extraction
+        if temp_dir.exists() {
+            fs::remove_dir_all(&temp_dir).map_err(|e| format!("Failed to clean tmp dir: {}", e))?;
+        }
+        extract_archive(&archive_bytes, &temp_dir, format)?;
 
         // python-build-standalone extracts to a subdirectory like
         // cpython-3.11.15+20250415-x86_64-unknown-linux-gnu-pgo+lto-full/
@@ -237,20 +242,25 @@ impl SetupManager {
 }
 
 /// Build the python-build-standalone download URL for the current platform.
+/// python-build-standalone uses different naming per platform:
+///   linux:   cpython-{ver}+{rel}-{triple}-pgo+lto-full.tar.zst
+///   macos:   cpython-{ver}+{rel}-{triple}-pgo+lto-full.tar.gz
+///   windows: cpython-{ver}+{rel}-{triple}-shared-pgo-full.tar.zst
 fn python_standalone_url() -> Result<String, String> {
     let version = "3.11.15";
     let release = "20250415";
 
-    let (platform_triple, ext) = if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
-        ("x86_64-unknown-linux-gnu", "tar.zst")
+    let (platform_triple, suffix, ext) = if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
+        ("x86_64-unknown-linux-gnu", "pgo+lto-full", "tar.zst")
     } else if cfg!(target_os = "linux") && cfg!(target_arch = "aarch64") {
-        ("aarch64-unknown-linux-gnu", "tar.zst")
+        ("aarch64-unknown-linux-gnu", "pgo+lto-full", "tar.zst")
     } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
-        ("aarch64-apple-darwin", "tar.gz")
+        ("aarch64-apple-darwin", "pgo+lto-full", "tar.gz")
     } else if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
-        ("x86_64-apple-darwin", "tar.gz")
+        ("x86_64-apple-darwin", "pgo+lto-full", "tar.gz")
     } else if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") {
-        ("x86_64-pc-windows-msvc-shared-pgo", "zip")
+        // Windows builds use shared linkage and ship as tar.zst (not zip)
+        ("x86_64-pc-windows-msvc", "shared-pgo-full", "tar.zst")
     } else {
         return Err(format!(
             "Unsupported platform: {} {}",
@@ -260,8 +270,8 @@ fn python_standalone_url() -> Result<String, String> {
     };
 
     let filename = format!(
-        "cpython-{}+{}-{}-pgo+lto-full.{}",
-        version, release, platform_triple, ext
+        "cpython-{}+{}-{}-{}.{}",
+        version, release, platform_triple, suffix, ext
     );
 
     Ok(format!(
@@ -272,28 +282,46 @@ fn python_standalone_url() -> Result<String, String> {
 
 // ── Lens Installation ──────────────────────────────────────────────
 
+fn lens_source_dir() -> PathBuf {
+    lens_dir().join("lens-source")
+}
+
 impl SetupManager {
     async fn install_lens(&self, python_bin: &Path) -> Result<(), String> {
         let venv = venv_dir();
-        if venv.join("bin").exists() || venv.join("Scripts").exists() {
-            log::info!("Venv already exists at {:?}", venv);
-            return Ok(());
-        }
 
-        // Create venv
-        self.run_and_log(
-            python_bin,
-            &["-m", "venv", venv.to_str().unwrap_or(".")],
-            "Creating virtual environment",
-        )?;
+        // Always re-extract the bundled lens/ source — ensures upgrades pick up code changes
+        let source_dir = lens_source_dir();
+        crate::lens_source::extract_to(&source_dir)?;
+        log::info!(
+            "Bundled lens version: {} (source at {:?})",
+            crate::lens_source::embedded_version(),
+            source_dir
+        );
+
+        // Create venv if missing (idempotent — pip install below handles upgrades)
+        if !venv.join("bin").exists() && !venv.join("Scripts").exists() {
+            self.run_and_log(
+                python_bin,
+                &["-m", "venv", venv.to_str().unwrap_or(".")],
+                "Creating virtual environment",
+            )?;
+        } else {
+            log::info!("Venv exists at {:?}, skipping create", venv);
+        }
 
         let pip = venv_pip();
 
         self.run_and_log(&pip, &["install", "--upgrade", "pip"], "Upgrading pip")?;
+        // Install the bundled lens source (with the [full] extras for ONNX + PDF + DOCX)
+        let source_arg = format!(
+            "{}[full]",
+            source_dir.to_str().ok_or("Lens source path is not valid UTF-8")?
+        );
         self.run_and_log(
             &pip,
-            &["install", "getbased-lens[full]"],
-            "Installing getbased-lens",
+            &["install", "--upgrade", &source_arg],
+            "Installing getbased-lens (bundled)",
         )?;
 
         Ok(())
@@ -429,44 +457,74 @@ fn venv_pip() -> PathBuf {
     }
 }
 
-/// Extract a .tar.zst archive using system tar.
-fn extract_tar_zstd(data: &[u8], target: &Path) -> Result<(), String> {
-    let tmp_archive = target.with_extension("tar.zst.tmp");
-
-    fs::write(&tmp_archive, data).map_err(|e| format!("Failed to write archive: {}", e))?;
+/// Extract an archive using pure-Rust crates — no system `tar` or external binaries.
+/// Format inferred from the URL/extension at the call site.
+fn extract_archive(data: &[u8], target: &Path, format: ArchiveFormat) -> Result<(), String> {
     fs::create_dir_all(target).map_err(|e| format!("Failed to create target dir: {}", e))?;
-
-    let output = std::process::Command::new("tar")
-        .args([
-            "--zstd",
-            "-xf",
-            tmp_archive.to_str().unwrap_or(""),
-            "-C",
-            target.to_str().unwrap_or(""),
-        ])
-        .output()
-        .map_err(|e| format!("tar extraction failed (is zstd installed?): {}", e))?;
-
-    let _ = fs::remove_file(&tmp_archive);
-
-    if !output.status.success() {
-        return Err(format!(
-            "tar failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+    match format {
+        ArchiveFormat::TarZst => extract_tar_zst_native(data, target),
+        ArchiveFormat::TarGz => extract_tar_gz_native(data, target),
+        ArchiveFormat::Zip => extract_zip_native(data, target),
     }
-
-    Ok(())
 }
 
-/// Simple timestamp without heavy deps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArchiveFormat {
+    TarZst,
+    TarGz,
+    Zip,
+}
+
+impl ArchiveFormat {
+    fn from_url(url: &str) -> Result<Self, String> {
+        if url.ends_with(".tar.zst") || url.ends_with(".tzst") {
+            Ok(Self::TarZst)
+        } else if url.ends_with(".tar.gz") || url.ends_with(".tgz") {
+            Ok(Self::TarGz)
+        } else if url.ends_with(".zip") {
+            Ok(Self::Zip)
+        } else {
+            Err(format!("Unsupported archive format for URL: {}", url))
+        }
+    }
+}
+
+fn extract_tar_zst_native(data: &[u8], target: &Path) -> Result<(), String> {
+    let cursor = std::io::Cursor::new(data);
+    let decoder = zstd::stream::read::Decoder::new(cursor)
+        .map_err(|e| format!("zstd decoder init failed: {}", e))?;
+    let mut archive = tar::Archive::new(decoder);
+    archive
+        .unpack(target)
+        .map_err(|e| format!("tar.zst unpack failed: {}", e))
+}
+
+fn extract_tar_gz_native(data: &[u8], target: &Path) -> Result<(), String> {
+    let cursor = std::io::Cursor::new(data);
+    let decoder = flate2::read::GzDecoder::new(cursor);
+    let mut archive = tar::Archive::new(decoder);
+    archive
+        .unpack(target)
+        .map_err(|e| format!("tar.gz unpack failed: {}", e))
+}
+
+fn extract_zip_native(data: &[u8], target: &Path) -> Result<(), String> {
+    let cursor = std::io::Cursor::new(data);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| format!("zip open failed: {}", e))?;
+    archive
+        .extract(target)
+        .map_err(|e| format!("zip extract failed: {}", e))
+}
+
+/// ISO-8601-ish timestamp without external deps. Returns unix seconds as a string.
 fn timestamp() -> String {
-    std::process::Command::new("date")
-        .args(["+%Y-%m-%dT%H:%M:%S"])
-        .output()
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|| "unknown".into())
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!("{}", secs)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────
