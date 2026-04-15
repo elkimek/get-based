@@ -100,6 +100,39 @@ No build tools, no bundler, no package manager. Pure ES modules — 42 modules u
 - All dependencies vendored locally (`vendor/`) — no CDN calls
 - Installable as a PWA (works offline for non-AI features)
 
+## Repo structure
+
+Three components in one repo, each with its own build and release cycle:
+
+```
+get-based/
+├── js/ css/ index.html        # Web dashboard — static files, runs in any browser
+├── src-tauri/                  # Tauri desktop wrapper (Rust)
+│   ├── src/
+│   │   ├── main.rs             #   Entry point, 9 Tauri commands
+│   │   ├── gpu.rs              #   GPU detection (NVIDIA/AMD/Intel/Apple)
+│   │   ├── setup.rs            #   First-run: downloads Python + Lens + ONNX Runtime + model
+│   │   └── lens.rs             #   Lens sidecar lifecycle management
+│   ├── Cargo.toml
+│   └── tauri.conf.json         #   frontendDist: "../" → serves the web dashboard
+├── lens/                       # Lens — Python RAG knowledge server
+│   ├── src/lens/
+│   │   ├── embedder.py         #   ONNX Runtime + sentence-transformers backends
+│   │   ├── storage.py          #   Qdrant vector store
+│   │   ├── server.py           #   FastAPI REST API
+│   │   ├── ingest.py           #   Document chunking pipeline
+│   │   └── cli.py              #   CLI (lens serve / lens ingest / lens status)
+│   └── pyproject.toml          #   pip install getbased-lens[full]
+├── tests/                      # 41 browser-based test files (Puppeteer)
+└── docs/                       # User-facing documentation
+```
+
+**For the web app**, nothing changes — `index.html` + `js/` + `css/` is the product. Open it in a browser, it works. The `src-tauri/` and `lens/` folders are invisible to web users.
+
+**For the desktop app**, Tauri wraps the web dashboard (`frontendDist: "../"`) and adds native capabilities: GPU detection, first-run setup that downloads everything locally, sidecar process management. One-click install, no terminal needed.
+
+**For Lens**, it's a standalone Python package (`pip install getbased-lens`). The Tauri app automates the install, but you can also run it independently on any server. [getbased-mcp](https://github.com/elkimek/getbased-mcp) exposes the same Lens API to AI agents via the Model Context Protocol.
+
 ## Testing
 
 41 browser-based test files run headlessly:
