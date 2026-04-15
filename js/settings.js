@@ -1,7 +1,7 @@
 // settings.js — Settings modal (profile, display, AI provider, privacy)
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled } from './utils.js';
 import { getTheme, setTheme, getTimeFormat, setTimeFormat } from './theme.js';
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
 import { getAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
@@ -251,6 +251,13 @@ export function renderPrivacySection() {
       <span style="font-size:13px">Show privacy details in import preview</span>
       <label class="toggle-switch">
         <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} onchange="setDebugMode(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:8px">
+      <span style="font-size:13px">Send anonymous usage stats<br><span style="font-size:11px;color:var(--text-muted)">Cookieless Umami pageviews — no personal data, no tracking, no IP. Toggle takes effect on next launch.</span></span>
+      <label class="toggle-switch" style="margin-top:2px">
+        <input type="checkbox" id="analytics-toggle" ${isAnalyticsEnabled() ? 'checked' : ''} onchange="setAnalyticsEnabled(this.checked)">
         <span class="toggle-slider"></span>
       </label>
     </div>

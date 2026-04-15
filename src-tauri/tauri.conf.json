@@ -4,10 +4,10 @@
   "version": "1.20.0",
   "identifier": "health.getbased.app",
   "build": {
-    "frontendDist": "../",
-    "devUrl": "http://localhost:9999",
+    "frontendDist": "../src-tauri/dist",
+    "devUrl": "http://localhost:8000/app",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "bash src-tauri/build-frontend.sh"
   },
   "app": {
     "windows": [
@@ -21,7 +21,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:8321 https:; font-src 'self' data: blob:"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami-iota-olive.vercel.app; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' ipc: http://ipc.localhost http://localhost:8321 http://127.0.0.1:8321 https:; font-src 'self' data: blob:",
+      "dangerousDisableAssetCspModification": ["script-src", "style-src"]
     }
   },
   "bundle": {

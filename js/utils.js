@@ -75,6 +75,10 @@ export function isDebugMode() { return localStorage.getItem('labcharts-debug') =
 export function setDebugMode(on) { localStorage.setItem('labcharts-debug', on ? 'true' : 'false'); }
 export function isPIIReviewEnabled() { return localStorage.getItem('labcharts-pii-review') !== 'false'; }
 export function setPIIReviewEnabled(on) { localStorage.setItem('labcharts-pii-review', on ? 'true' : 'false'); }
+// Analytics: opt-out, default ON. Setting `analytics-disabled=true` suppresses
+// the Umami snippet on next page load. Cookieless, no personal data, no IP.
+export function isAnalyticsEnabled() { return localStorage.getItem('labcharts-analytics-disabled') !== 'true'; }
+export function setAnalyticsEnabled(on) { localStorage.setItem('labcharts-analytics-disabled', on ? 'false' : 'true'); }
 
 export function showNotification(message, type, duration) {
   type = type || "info";
@@ -128,4 +132,4 @@ export function hasCardContent(obj) {
 
 export function escapeAttr(s) { return escapeHTML(s).replace(/'/g, '&#39;'); }
 
-Object.assign(window, { showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, hasCardContent, escapeAttr });
+Object.assign(window, { showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled, hasCardContent, escapeAttr });

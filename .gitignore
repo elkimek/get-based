@@ -8,6 +8,7 @@ test-data.json
 !src-tauri/icons/*.png
 src-tauri/target/
 src-tauri/gen/
+src-tauri/dist/
 labcharts-*.json
 test-*.json
 node_modules/
