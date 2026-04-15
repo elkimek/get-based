@@ -81,4 +81,26 @@ mod tests {
         let parts: Vec<&str> = v.split('.').collect();
         assert!(parts.len() >= 2, "Version {} doesn't look like semver", v);
     }
+
+    /// Confirms extract_to actually writes the expected files to disk + is idempotent.
+    #[test]
+    fn extract_to_writes_real_files() {
+        let temp = std::env::temp_dir()
+            .join(format!("lens-source-test-{}", std::process::id()));
+        let path = extract_to(&temp).expect("extract works");
+        assert!(path.exists());
+        assert!(path.join("pyproject.toml").exists(), "pyproject.toml extracted");
+        assert!(
+            path.join("src").join("lens").join("embedder.py").exists(),
+            "embedder.py extracted"
+        );
+        assert!(
+            path.join("src").join("lens").join("config.py").exists(),
+            "config.py extracted"
+        );
+        // Idempotent: re-running wipes + re-extracts cleanly
+        extract_to(&temp).expect("re-extract works");
+        // Cleanup
+        std::fs::remove_dir_all(&temp).ok();
+    }
 }

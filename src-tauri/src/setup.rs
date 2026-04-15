@@ -737,6 +737,77 @@ mod tests {
         assert!(verify_sha256(data, wrong).is_err());
     }
 
+    /// End-to-end network test — actually downloads the Python archive,
+    /// verifies SHA256 from the aggregate SHA256SUMS, extracts it, and confirms
+    /// the expected python_bin path exists.
+    /// Marked #[ignore] so it doesn't run on every `cargo test` (slow, network-dependent).
+    /// Run explicitly: cargo test --release -- --ignored test_real_python_download
+    #[tokio::test]
+    #[ignore]
+    async fn test_real_python_download() {
+        use std::time::Instant;
+
+        let mgr = SetupManager::new();
+        let url = python_standalone_url().expect("URL builds");
+        eprintln!("Downloading: {}", url);
+        let start = Instant::now();
+
+        // 1. Download
+        let bytes = mgr
+            .download_with_progress(&url, "Python")
+            .await
+            .expect("download succeeds");
+        eprintln!(
+            "Downloaded {} bytes in {:?}",
+            bytes.len(),
+            start.elapsed()
+        );
+        assert!(bytes.len() > 1_000_000, "archive should be > 1 MB");
+
+        // 2. SHA256 verify
+        let archive_filename = python_archive_filename().unwrap();
+        let expected_hash = mgr
+            .fetch_expected_sha256(&archive_filename)
+            .await
+            .expect("SHA256SUMS fetch + match works");
+        assert_eq!(expected_hash.len(), 64, "hash should be 64 hex chars");
+        verify_sha256(&bytes, &expected_hash).expect("hash verification passes");
+        eprintln!("SHA256 verified: {}", expected_hash);
+
+        // 3. Extract to a temp dir
+        let temp = std::env::temp_dir().join(format!("getbased-test-{}", std::process::id()));
+        if temp.exists() {
+            fs::remove_dir_all(&temp).ok();
+        }
+        extract_archive(&bytes, &temp, ArchiveFormat::TarGz).expect("extracts cleanly");
+
+        // 4. Confirm install_only layout: temp/python/bin/python3 exists
+        let python_bin = if cfg!(target_os = "windows") {
+            temp.join("python").join("python.exe")
+        } else {
+            temp.join("python").join("bin").join("python3")
+        };
+        assert!(
+            python_bin.exists(),
+            "expected python_bin at {:?} but it doesn't exist. Layout was wrong.",
+            python_bin
+        );
+        eprintln!("python_bin confirmed at: {:?}", python_bin);
+
+        // 5. Run python --version to verify it works
+        let out = std::process::Command::new(&python_bin)
+            .arg("--version")
+            .output()
+            .expect("python_bin runs");
+        let ver = String::from_utf8_lossy(&out.stdout).to_string()
+            + &String::from_utf8_lossy(&out.stderr);
+        assert!(ver.contains("Python 3"), "got: {}", ver);
+        eprintln!("python reports: {}", ver.trim());
+
+        // Cleanup
+        fs::remove_dir_all(&temp).ok();
+    }
+
     #[test]
     fn reset_clears_phase() {
         let mgr = SetupManager::new();
