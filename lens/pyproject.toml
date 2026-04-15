@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "getbased-lens"
+version = "0.1.0"
+description = "Lens — RAG knowledge server for the Get-Based ecosystem"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "qdrant-client>=1.9",
+    "sentence-transformers>=2.6",
+    "typer>=0.12",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+pdf = ["PyPDF2>=3.0"]
+docx = ["python-docx>=1.0"]
+onnx = [
+    "onnxruntime>=1.17",
+    "optimum[onnxruntime]>=1.17",
+    "transformers>=4.38",
+]
+full = ["PyPDF2>=3.0", "python-docx>=1.0", "onnxruntime>=1.17", "optimum[onnxruntime]>=1.17", "transformers>=4.38"]
+
+[project.scripts]
+lens = "lens.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]

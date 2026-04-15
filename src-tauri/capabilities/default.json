@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for getbased",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "dialog:default",
+    "process:default"
+  ]
+}

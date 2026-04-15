@@ -1,0 +1,27 @@
+[package]
+name = "getbased"
+version = "1.20.0"
+description = "getbased — Open-Source Health Dashboard with AI"
+authors = ["Elkim"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+futures-util = "0.3"
+log = "0.4"
+dirs = "6"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
