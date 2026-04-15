@@ -737,6 +737,102 @@ mod tests {
         assert!(verify_sha256(data, wrong).is_err());
     }
 
+    /// FULL pipeline integration test — exercises the whole download → extract →
+    /// venv create → pip install bundled lens → run `lens --help` flow on a real
+    /// network. Validates the entire critical path users will hit on first run.
+    ///
+    /// Marked #[ignore]; takes ~2-3 min (mostly pip install + dep resolution).
+    /// Run: cargo test --release -- --ignored test_real_full_pipeline --nocapture
+    #[tokio::test]
+    #[ignore]
+    async fn test_real_full_pipeline() {
+        use std::time::Instant;
+
+        let mgr = SetupManager::new();
+        let temp_root = std::env::temp_dir().join(format!("getbased-pipeline-{}", std::process::id()));
+        if temp_root.exists() {
+            fs::remove_dir_all(&temp_root).ok();
+        }
+        fs::create_dir_all(&temp_root).unwrap();
+        eprintln!("Working in: {:?}", temp_root);
+
+        // === 1. Download + verify + extract Python ===
+        let t = Instant::now();
+        let url = python_standalone_url().unwrap();
+        let bytes = mgr.download_with_progress(&url, "Python").await.expect("python download");
+        let archive_filename = python_archive_filename().unwrap();
+        let expected_hash = mgr.fetch_expected_sha256(&archive_filename).await.expect("sha fetch");
+        verify_sha256(&bytes, &expected_hash).expect("sha verify");
+        let py_extract = temp_root.join("python_extract");
+        extract_archive(&bytes, &py_extract, ArchiveFormat::TarGz).expect("extract");
+        let python_bin = if cfg!(target_os = "windows") {
+            py_extract.join("python").join("python.exe")
+        } else {
+            py_extract.join("python").join("bin").join("python3")
+        };
+        assert!(python_bin.exists(), "python_bin missing");
+        eprintln!("✓ Phase 1: Python ready in {:?}", t.elapsed());
+
+        // === 2. Extract bundled lens source ===
+        let t = Instant::now();
+        let lens_src = temp_root.join("lens-source");
+        crate::lens_source::extract_to(&lens_src).expect("lens source extract");
+        assert!(lens_src.join("pyproject.toml").exists());
+        eprintln!("✓ Phase 2: lens source extracted in {:?}", t.elapsed());
+
+        // === 3. Create venv ===
+        let t = Instant::now();
+        let venv = temp_root.join("venv");
+        let out = std::process::Command::new(&python_bin)
+            .args(["-m", "venv", venv.to_str().unwrap()])
+            .output()
+            .expect("venv create");
+        assert!(out.status.success(), "venv create failed: {}", String::from_utf8_lossy(&out.stderr));
+        let pip = if cfg!(target_os = "windows") {
+            venv.join("Scripts").join("pip.exe")
+        } else {
+            venv.join("bin").join("pip")
+        };
+        assert!(pip.exists(), "pip missing in venv");
+        eprintln!("✓ Phase 3: venv created in {:?}", t.elapsed());
+
+        // === 4. pip install bundled lens (no extras to keep it fast) ===
+        let t = Instant::now();
+        let out = std::process::Command::new(&pip)
+            .args(["install", "--quiet", lens_src.to_str().unwrap()])
+            .output()
+            .expect("pip install");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(out.status.success(), "pip install failed: {}", stderr);
+        eprintln!("✓ Phase 4: pip install lens in {:?}", t.elapsed());
+
+        // === 5. Verify lens entry point exists + runs ===
+        let lens = if cfg!(target_os = "windows") {
+            venv.join("Scripts").join("lens.exe")
+        } else {
+            venv.join("bin").join("lens")
+        };
+        assert!(lens.exists(), "lens entry point missing at {:?}", lens);
+        let out = std::process::Command::new(&lens)
+            .arg("--help")
+            .output()
+            .expect("lens --help runs");
+        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        let combined = format!("{}{}", stdout, stderr);
+        assert!(
+            combined.to_lowercase().contains("usage") || combined.to_lowercase().contains("lens"),
+            "lens --help output unexpected: stdout={} stderr={}",
+            stdout, stderr
+        );
+        eprintln!("✓ Phase 5: lens runs (preview: {})",
+                  combined.lines().next().unwrap_or(""));
+
+        eprintln!("\n=== ALL 5 PHASES PASSED ===");
+        // Cleanup
+        fs::remove_dir_all(&temp_root).ok();
+    }
+
     /// End-to-end network test — actually downloads the Python archive,
     /// verifies SHA256 from the aggregate SHA256SUMS, extracts it, and confirms
     /// the expected python_bin path exists.

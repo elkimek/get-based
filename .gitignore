@@ -19,3 +19,9 @@ tools/
 dev-chrome.sh
 test-screenshots/
 .mcp.json
+
+# Python build artifacts (created by pip install)
+lens/build/
+lens/src/*.egg-info/
+__pycache__/
+*.pyc
