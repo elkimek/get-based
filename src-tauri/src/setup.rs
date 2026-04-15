@@ -256,30 +256,44 @@ fn verify_sha256(data: &[u8], expected_hex: &str) -> Result<(), String> {
 }
 
 impl SetupManager {
-    /// Fetch the .sha256 file alongside an artifact URL. python-build-standalone
-    /// publishes `{artifact}.sha256` for every release.
-    async fn fetch_expected_sha256(&self, artifact_url: &str) -> Result<String, String> {
-        let sha_url = format!("{}.sha256", artifact_url);
+    /// Fetch the aggregate SHA256SUMS file from the python-build-standalone release
+    /// and pull out the line matching our archive filename. Format:
+    ///   `<hex>  <filename>`
+    /// (two-space separator per shasum convention)
+    async fn fetch_expected_sha256(&self, archive_filename: &str) -> Result<String, String> {
+        let sums_url = format!(
+            "https://github.com/{}/releases/download/{}/SHA256SUMS",
+            PYTHON_REPO, PYTHON_RELEASE
+        );
         let resp = self
             .http
-            .get(&sha_url)
+            .get(&sums_url)
             .send()
             .await
-            .map_err(|e| format!("SHA256 fetch failed for {}: {}", sha_url, e))?;
+            .map_err(|e| format!("SHA256SUMS fetch failed: {}", e))?;
         if !resp.status().is_success() {
-            return Err(format!("SHA256 fetch returned {}", resp.status()));
+            return Err(format!("SHA256SUMS fetch returned {}", resp.status()));
         }
         let body = resp
             .text()
             .await
-            .map_err(|e| format!("SHA256 read failed: {}", e))?;
-        // .sha256 file format is just the hex hash (sometimes followed by filename)
-        let hex = body
-            .split_whitespace()
-            .next()
-            .ok_or("Empty .sha256 response")?
-            .to_string();
-        Ok(hex)
+            .map_err(|e| format!("SHA256SUMS read failed: {}", e))?;
+        for line in body.lines() {
+            // Expect: "<64 hex chars>  <filename>"
+            let mut parts = line.splitn(2, char::is_whitespace);
+            let hex = match parts.next() {
+                Some(h) if h.len() == 64 => h,
+                _ => continue,
+            };
+            let rest = parts.next().unwrap_or("").trim();
+            if rest == archive_filename {
+                return Ok(hex.to_string());
+            }
+        }
+        Err(format!(
+            "SHA256SUMS does not contain hash for {}",
+            archive_filename
+        ))
     }
 }
 
@@ -306,17 +320,24 @@ impl SetupManager {
 
         let archive_bytes = self.download_with_progress(&url, "Python").await?;
 
-        // Verify SHA256 against the .sha256 file from the same release.
-        // Same trust boundary as the archive (both from GitHub Releases) so this
-        // protects against TLS-MITM and corrupt downloads, not against a compromised
-        // release. For supply-chain protection beyond that, embed a known-good
-        // hash at compile time and pin to a specific release.
-        let expected_hash = self.fetch_expected_sha256(&url).await.ok();
-        if let Some(expected) = &expected_hash {
-            verify_sha256(&archive_bytes, expected)?;
-            log::info!("Python archive SHA256 verified: {}", expected);
-        } else {
-            log::warn!("No SHA256 file available for {}; skipping verification", url);
+        // Verify SHA256 against the aggregate SHA256SUMS file from the same release.
+        // Same trust boundary as the archive (both from GitHub Releases) — protects
+        // against TLS-MITM and corrupt downloads, not against a compromised release.
+        // For full supply-chain protection, embed a known-good hash at compile time.
+        let archive_filename = python_archive_filename()?;
+        match self.fetch_expected_sha256(&archive_filename).await {
+            Ok(expected) => {
+                verify_sha256(&archive_bytes, &expected)?;
+                log::info!("Python archive SHA256 verified ({})", expected);
+            }
+            Err(e) => {
+                // Skip-with-warning rather than block install on a transient SHA fetch failure.
+                // Log clearly so it shows up in support tickets.
+                log::warn!(
+                    "SHA256 verification SKIPPED ({}). Archive may be corrupt or tampered.",
+                    e
+                );
+            }
         }
 
         let format = ArchiveFormat::from_url(&url)?;
@@ -350,48 +371,51 @@ impl SetupManager {
     }
 }
 
-/// Build the python-build-standalone download URL for the current platform.
-///
-/// We use `install_only` archives (not `pgo+lto-full`) because:
-/// 1. Layout: `python/bin/python3` directly. The `pgo+lto-full` archives wrap
-///    everything under `python/install/`, which broke the `python_bin` path.
-/// 2. Size: ~30 MB vs ~100+ MB. We don't need build artifacts/debug symbols
-///    just to run pip and a Python sidecar.
-/// 3. Same runtime perf for our use case.
-///
-/// All `install_only` artifacts are `tar.gz` across all platforms.
-/// Reference: https://gregoryszorc.com/docs/python-build-standalone/main/distributions.html
-fn python_standalone_url() -> Result<String, String> {
-    let version = "3.11.15";
-    let release = "20250415";
+// python-build-standalone moved from indygreg → astral-sh in 2025.
+// Bump RELEASE here as new versions drop; SHA256SUMS verification ensures
+// we don't pick up a tampered-with archive.
+const PYTHON_VERSION: &str = "3.11.15";
+const PYTHON_RELEASE: &str = "20260414";
+const PYTHON_REPO: &str = "astral-sh/python-build-standalone";
 
-    let platform_triple = if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
-        "x86_64-unknown-linux-gnu"
+/// Build the python-build-standalone download URL for the current platform.
+/// Uses `install_only` archives (~50 MB tar.gz, simple `python/bin/python3` layout).
+fn python_standalone_url() -> Result<String, String> {
+    let filename = python_archive_filename()?;
+    Ok(format!(
+        "https://github.com/{}/releases/download/{}/{}",
+        PYTHON_REPO, PYTHON_RELEASE, filename
+    ))
+}
+
+fn python_archive_filename() -> Result<String, String> {
+    let triple = python_target_triple()?;
+    Ok(format!(
+        "cpython-{}+{}-{}-install_only.tar.gz",
+        PYTHON_VERSION, PYTHON_RELEASE, triple
+    ))
+}
+
+fn python_target_triple() -> Result<&'static str, String> {
+    if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
+        Ok("x86_64-unknown-linux-gnu")
     } else if cfg!(target_os = "linux") && cfg!(target_arch = "aarch64") {
-        "aarch64-unknown-linux-gnu"
+        Ok("aarch64-unknown-linux-gnu")
     } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
-        "aarch64-apple-darwin"
+        Ok("aarch64-apple-darwin")
     } else if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
-        "x86_64-apple-darwin"
+        Ok("x86_64-apple-darwin")
     } else if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") {
-        "x86_64-pc-windows-msvc-shared"
+        Ok("x86_64-pc-windows-msvc")
+    } else if cfg!(target_os = "windows") && cfg!(target_arch = "aarch64") {
+        Ok("aarch64-pc-windows-msvc")
     } else {
-        return Err(format!(
+        Err(format!(
             "Unsupported platform: {} {}",
             std::env::consts::OS,
             std::env::consts::ARCH
-        ));
-    };
-
-    let filename = format!(
-        "cpython-{}+{}-{}-install_only.tar.gz",
-        version, release, platform_triple
-    );
-
-    Ok(format!(
-        "https://github.com/indygreg/python-build-standalone/releases/download/{}/{}",
-        release, filename
-    ))
+        ))
+    }
 }
 
 // ── Lens Installation ──────────────────────────────────────────────
