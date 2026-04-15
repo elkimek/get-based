@@ -240,6 +240,49 @@ fn available_disk_space(path: &Path) -> Option<u64> {
         .map(|d| d.available_space())
 }
 
+/// Compute SHA256 of bytes and compare against expected hex string (case-insensitive).
+fn verify_sha256(data: &[u8], expected_hex: &str) -> Result<(), String> {
+    use sha2::{Digest, Sha256};
+    let actual = hex::encode(Sha256::digest(data));
+    if actual.eq_ignore_ascii_case(expected_hex.trim()) {
+        Ok(())
+    } else {
+        Err(format!(
+            "SHA256 mismatch: expected {}, got {}",
+            expected_hex.trim(),
+            actual
+        ))
+    }
+}
+
+impl SetupManager {
+    /// Fetch the .sha256 file alongside an artifact URL. python-build-standalone
+    /// publishes `{artifact}.sha256` for every release.
+    async fn fetch_expected_sha256(&self, artifact_url: &str) -> Result<String, String> {
+        let sha_url = format!("{}.sha256", artifact_url);
+        let resp = self
+            .http
+            .get(&sha_url)
+            .send()
+            .await
+            .map_err(|e| format!("SHA256 fetch failed for {}: {}", sha_url, e))?;
+        if !resp.status().is_success() {
+            return Err(format!("SHA256 fetch returned {}", resp.status()));
+        }
+        let body = resp
+            .text()
+            .await
+            .map_err(|e| format!("SHA256 read failed: {}", e))?;
+        // .sha256 file format is just the hex hash (sometimes followed by filename)
+        let hex = body
+            .split_whitespace()
+            .next()
+            .ok_or("Empty .sha256 response")?
+            .to_string();
+        Ok(hex)
+    }
+}
+
 // ── Python Download ────────────────────────────────────────────────
 
 impl SetupManager {
@@ -262,6 +305,20 @@ impl SetupManager {
         log::info!("Downloading Python from {}", url);
 
         let archive_bytes = self.download_with_progress(&url, "Python").await?;
+
+        // Verify SHA256 against the .sha256 file from the same release.
+        // Same trust boundary as the archive (both from GitHub Releases) so this
+        // protects against TLS-MITM and corrupt downloads, not against a compromised
+        // release. For supply-chain protection beyond that, embed a known-good
+        // hash at compile time and pin to a specific release.
+        let expected_hash = self.fetch_expected_sha256(&url).await.ok();
+        if let Some(expected) = &expected_hash {
+            verify_sha256(&archive_bytes, expected)?;
+            log::info!("Python archive SHA256 verified: {}", expected);
+        } else {
+            log::warn!("No SHA256 file available for {}; skipping verification", url);
+        }
+
         let format = ArchiveFormat::from_url(&url)?;
 
         let temp_dir = python_dir().with_extension("tmp");
@@ -627,6 +684,28 @@ mod tests {
         let json = serde_json::to_string(&phase).unwrap();
         assert!(json.contains("downloading_python"));
         assert!(json.contains("0.5"));
+    }
+
+    #[test]
+    fn verify_sha256_matches() {
+        // SHA256 of "hello\n" = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+        let data = b"hello\n";
+        let expected = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03";
+        assert!(verify_sha256(data, expected).is_ok());
+    }
+
+    #[test]
+    fn verify_sha256_case_insensitive() {
+        let data = b"hello\n";
+        let expected_upper = "5891B5B522D5DF086D0FF0B110FBD9D21BB4FC7163AF34D08286A2E846F6BE03";
+        assert!(verify_sha256(data, expected_upper).is_ok());
+    }
+
+    #[test]
+    fn verify_sha256_rejects_mismatch() {
+        let data = b"hello\n";
+        let wrong = "0000000000000000000000000000000000000000000000000000000000000000";
+        assert!(verify_sha256(data, wrong).is_err());
     }
 
     #[test]
