@@ -1,9 +1,11 @@
 //! Embeds the lens/ Python package source into the binary at compile time.
 //!
 //! At first-run setup, the embedded source is extracted to data_dir/lens-source/
-//! and pip-installed via `pip install --editable {path}` into the managed venv.
+//! and pip-installed via `pip install --upgrade {path}[full]` into the managed venv.
 //!
 //! This means lens/ fixes ship with each desktop release — no PyPI re-publish needed.
+//! Each time the desktop app starts setup, the source is re-extracted (overwriting
+//! the previous version) and pip --upgrade reinstalls the package with any changes.
 
 use include_dir::{include_dir, Dir};
 use std::fs;

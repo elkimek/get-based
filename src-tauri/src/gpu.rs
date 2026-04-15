@@ -4,7 +4,7 @@
 //!   - Linux: nvidia-smi (NVIDIA), rocm-smi (AMD), lspci (AMD/Intel fallback)
 //!   - macOS: sysctl (Apple Silicon), system_profiler -json (Intel Mac discrete GPUs/eGPU)
 //!   - Windows: nvidia-smi (NVIDIA), WMI Win32_VideoController (AMD/Intel),
-//!              DirectML provider (works for any DirectX 12 capable GPU)
+//!     DirectML provider (works for any DirectX 12 capable GPU)
 //!
 //! Returns the best available ONNX Runtime provider for the detected hardware.
 
@@ -237,7 +237,7 @@ fn detect_amd_rocm() -> Option<GpuInfo> {
     let name = stdout
         .lines()
         .find(|l| l.contains("Card series:") || l.contains("GPU id:"))
-        .map(|l| l.split(':').last().unwrap_or("AMD GPU").trim().to_string())
+        .map(|l| l.split(':').next_back().unwrap_or("AMD GPU").trim().to_string())
         .unwrap_or_else(|| "AMD GPU".into());
 
     let vram_mb = stdout

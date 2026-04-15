@@ -351,25 +351,30 @@ impl SetupManager {
 }
 
 /// Build the python-build-standalone download URL for the current platform.
-/// python-build-standalone uses different naming per platform:
-///   linux:   cpython-{ver}+{rel}-{triple}-pgo+lto-full.tar.zst
-///   macos:   cpython-{ver}+{rel}-{triple}-pgo+lto-full.tar.gz
-///   windows: cpython-{ver}+{rel}-{triple}-shared-pgo-full.tar.zst
+///
+/// We use `install_only` archives (not `pgo+lto-full`) because:
+/// 1. Layout: `python/bin/python3` directly. The `pgo+lto-full` archives wrap
+///    everything under `python/install/`, which broke the `python_bin` path.
+/// 2. Size: ~30 MB vs ~100+ MB. We don't need build artifacts/debug symbols
+///    just to run pip and a Python sidecar.
+/// 3. Same runtime perf for our use case.
+///
+/// All `install_only` artifacts are `tar.gz` across all platforms.
+/// Reference: https://gregoryszorc.com/docs/python-build-standalone/main/distributions.html
 fn python_standalone_url() -> Result<String, String> {
     let version = "3.11.15";
     let release = "20250415";
 
-    let (platform_triple, suffix, ext) = if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
-        ("x86_64-unknown-linux-gnu", "pgo+lto-full", "tar.zst")
+    let platform_triple = if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
+        "x86_64-unknown-linux-gnu"
     } else if cfg!(target_os = "linux") && cfg!(target_arch = "aarch64") {
-        ("aarch64-unknown-linux-gnu", "pgo+lto-full", "tar.zst")
+        "aarch64-unknown-linux-gnu"
     } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
-        ("aarch64-apple-darwin", "pgo+lto-full", "tar.gz")
+        "aarch64-apple-darwin"
     } else if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
-        ("x86_64-apple-darwin", "pgo+lto-full", "tar.gz")
+        "x86_64-apple-darwin"
     } else if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") {
-        // Windows builds use shared linkage and ship as tar.zst (not zip)
-        ("x86_64-pc-windows-msvc", "shared-pgo-full", "tar.zst")
+        "x86_64-pc-windows-msvc-shared"
     } else {
         return Err(format!(
             "Unsupported platform: {} {}",
@@ -379,8 +384,8 @@ fn python_standalone_url() -> Result<String, String> {
     };
 
     let filename = format!(
-        "cpython-{}+{}-{}-{}.{}",
-        version, release, platform_triple, suffix, ext
+        "cpython-{}+{}-{}-install_only.tar.gz",
+        version, release, platform_triple
     );
 
     Ok(format!(

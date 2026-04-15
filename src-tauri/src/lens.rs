@@ -240,10 +240,9 @@ impl LensManager {
         let candidates = [
             std::path::PathBuf::from("../lens/.venv/bin/lens"),
             std::path::PathBuf::from("/usr/local/bin/lens"),
-            std::path::PathBuf::from(
-                dirs::executable_dir().unwrap_or_else(|| std::path::PathBuf::from("/usr/local/bin"))
-                .join("lens")
-            ),
+            dirs::executable_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("/usr/local/bin"))
+                .join("lens"),
         ];
 
         for candidate in &candidates {
