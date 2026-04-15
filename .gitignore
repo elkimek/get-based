@@ -5,6 +5,9 @@ test-data.json
 !icon-192.png
 !icon-512.png
 !dashboard.png
+!src-tauri/icons/*.png
+src-tauri/target/
+src-tauri/gen/
 labcharts-*.json
 test-*.json
 node_modules/
