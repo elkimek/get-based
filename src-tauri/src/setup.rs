@@ -130,7 +130,9 @@ impl SetupManager {
         Ok(())
     }
 
-    /// Run the full setup pipeline.
+    /// Run the full setup pipeline. Idempotent — safe to re-run after partial failure.
+    /// On any failure, sets phase to Failed with an actionable message and returns Err
+    /// (caller can inspect via get_setup_status).
     pub async fn run_setup(&self) -> Result<(), String> {
         // Prevent double-run
         if self.is_setup_complete() {
@@ -138,10 +140,34 @@ impl SetupManager {
             return Ok(());
         }
 
+        match self.run_setup_inner().await {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                log::error!("Setup failed: {}", e);
+                self.set_phase(SetupPhase::Failed { error: e.clone() });
+                // Don't wipe partial files — let the user retry, run_setup_inner cleans tmp on entry.
+                Err(e)
+            }
+        }
+    }
+
+    async fn run_setup_inner(&self) -> Result<(), String> {
         // Ensure data directories exist
         fs::create_dir_all(lens_dir()).map_err(|e| format!("Failed to create lens dir: {}", e))?;
         fs::create_dir_all(models_dir())
             .map_err(|e| format!("Failed to create models dir: {}", e))?;
+
+        // Disk space precheck — fail loudly with actionable message
+        let free_bytes = available_disk_space(&lens_dir()).unwrap_or(u64::MAX);
+        const REQUIRED_BYTES: u64 = 4 * 1024 * 1024 * 1024; // 4GB headroom for Python+venv+ONNX+BGE-M3
+        if free_bytes < REQUIRED_BYTES {
+            let need_gb = REQUIRED_BYTES / 1024 / 1024 / 1024;
+            let have_gb = free_bytes / 1024 / 1024 / 1024;
+            return Err(format!(
+                "Not enough disk space. Need {} GB free, you have {} GB. Free up space and try again.",
+                need_gb, have_gb
+            ));
+        }
 
         // Phase 1: GPU detection
         self.set_phase(SetupPhase::DetectingGpu);
@@ -156,7 +182,7 @@ impl SetupManager {
         });
         let python_bin = self.download_python().await?;
 
-        // Phase 3: Install Lens in venv
+        // Phase 3: Install Lens in venv (always re-extracts bundled source for upgrades)
         self.set_phase(SetupPhase::InstallingLens { progress: 0.0 });
         self.install_lens(&python_bin).await?;
 
@@ -186,6 +212,32 @@ impl SetupManager {
     fn set_phase(&self, phase: SetupPhase) {
         *self.phase.lock().unwrap() = phase;
     }
+
+    /// Update progress within the current phase (called from chunked download loop).
+    fn set_progress(&self, progress: f32) {
+        let mut phase = self.phase.lock().unwrap();
+        match &mut *phase {
+            SetupPhase::DownloadingPython { progress: p, .. }
+            | SetupPhase::InstallingLens { progress: p, .. }
+            | SetupPhase::DownloadingOnnxRuntime { progress: p, .. }
+            | SetupPhase::DownloadingModel { progress: p, .. } => {
+                *p = progress.clamp(0.0, 1.0);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Cross-platform free disk space query for a path. Returns None if unavailable.
+fn available_disk_space(path: &Path) -> Option<u64> {
+    use sysinfo::Disks;
+    let disks = Disks::new_with_refreshed_list();
+    // Find the disk whose mount_point is a prefix of the target path (longest match wins)
+    disks
+        .iter()
+        .filter(|d| path.starts_with(d.mount_point()))
+        .max_by_key(|d| d.mount_point().as_os_str().len())
+        .map(|d| d.available_space())
 }
 
 // ── Python Download ────────────────────────────────────────────────
@@ -418,7 +470,13 @@ impl SetupManager {
 
             if total > 0 {
                 let progress = downloaded as f32 / total as f32;
-                log::info!("{}: {:.1}% ({}/{})", label, progress * 100.0, downloaded, total);
+                self.set_progress(progress);
+                // Throttle log output — every ~5%
+                if (downloaded as f32 / total as f32 * 20.0) as u64
+                    != ((downloaded - chunk.len() as u64) as f32 / total as f32 * 20.0) as u64
+                {
+                    log::info!("{}: {:.0}% ({}/{})", label, progress * 100.0, downloaded, total);
+                }
             }
         }
 
