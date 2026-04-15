@@ -222,74 +222,41 @@ export function handleResetSetup() {
   resetSetup();
 }
 
-// ─── Auto-prompt on first Tauri launch ──────────────────────────
-// Shows a one-time modal so users don't have to dig into Settings.
-async function maybeAutoPromptOnFirstLaunch() {
+// Note: no auto-prompt on first launch. Local Knowledge Base is opt-in via
+// Settings → AI → Local Knowledge Base. New users see the dashboard immediately
+// without any "download 3 GB to use this" friction.
+
+// Auto-start lens server if setup is complete and user has Custom Knowledge Source enabled.
+// Keeps the lens server warm when the user returns to the app, without ever
+// pulling them through setup against their will.
+async function maybeAutoStartLens() {
   if (!isTauri()) return;
   try {
     const status = await fetchSetupStatus();
-    if (!status || !status.is_first_run) return;
-    // Already shown this launch? (handle dev hot-reload)
-    if (window._lensSetupPromptShown) return;
-    window._lensSetupPromptShown = true;
-
-    showFirstRunModal(status);
+    if (!status || status.is_first_run) return; // not set up yet
+    // Check if user has Custom Knowledge Source enabled (might point at local lens)
+    const cfg = (window.getLensConfig && window.getLensConfig()) || {};
+    if (!cfg.enabled) return;
+    // Try to start; ignore "already running"
+    try {
+      await invoke('start_lens');
+      console.info('[Setup] Lens server auto-started');
+    } catch (e) {
+      const msg = String(e || '');
+      if (!msg.includes('already running')) {
+        console.warn('[Setup] Lens auto-start failed:', e);
+      }
+    }
   } catch (e) {
-    console.warn('[Setup] Auto-prompt skipped:', e);
+    console.warn('[Setup] auto-start check failed:', e);
   }
 }
 
-function showFirstRunModal(status) {
-  if (document.getElementById('lens-firstrun-modal')) return;
-  const gpuLine = status.gpu
-    ? `<div style="font-size:13px;color:var(--text-muted);margin-top:8px">${_gpuBadge(status.gpu)}</div>`
-    : '';
-  const html = `
-    <div id="lens-firstrun-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center" role="dialog" aria-modal="true" aria-label="First-run setup">
-      <div style="background:var(--bg-secondary);border-radius:12px;max-width:520px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
-        <h2 style="margin-top:0;font-size:20px">Welcome to getbased</h2>
-        <p style="color:var(--text-muted);font-size:14px;line-height:1.5">
-          To run AI-powered knowledge retrieval locally on your hardware, getbased needs to download some components on first launch:
-        </p>
-        <ul style="font-size:13px;color:var(--text-muted);line-height:1.7">
-          <li>Python runtime (~50 MB)</li>
-          <li>Lens RAG engine + ONNX Runtime (~400 MB)</li>
-          <li>BGE-M3 embedding model (~2 GB)</li>
-        </ul>
-        <p style="font-size:13px;color:var(--text-muted)">
-          Total ~3 GB · 5–15 min depending on connection. Runs fully offline after.
-        </p>
-        ${gpuLine}
-        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end">
-          <button class="import-btn import-btn-secondary" onclick="dismissFirstRunModal()">Skip — set up later</button>
-          <button class="import-btn import-btn-primary" onclick="confirmFirstRunSetup()">Set up now</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-export function dismissFirstRunModal() {
-  const m = document.getElementById('lens-firstrun-modal');
-  if (m) m.remove();
-}
-
-export async function confirmFirstRunSetup() {
-  dismissFirstRunModal();
-  // Open Settings → AI tab so user can watch progress live
-  if (window.openSettingsModal) {
-    window.openSettingsModal('ai');
-  }
-  // Defer slightly so the section renders before we kick off
-  setTimeout(() => handleStartSetup(), 200);
-}
-
-// Schedule auto-prompt after DOM ready (don't block initial render)
 if (typeof window !== 'undefined') {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(maybeAutoPromptOnFirstLaunch, 500));
+    document.addEventListener('DOMContentLoaded', () => setTimeout(maybeAutoStartLens, 1000));
   } else {
-    setTimeout(maybeAutoPromptOnFirstLaunch, 500);
+    setTimeout(maybeAutoStartLens, 1000);
   }
 }
 
@@ -300,7 +267,4 @@ Object.assign(window, {
   fetchSetupStatus,
   // FIX (was missing — settings.js calls this on render):
   renderSetupSection,
-  // First-run modal handlers
-  dismissFirstRunModal,
-  confirmFirstRunSetup,
 });

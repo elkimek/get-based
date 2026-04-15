@@ -118,6 +118,66 @@ class Store:
         except Exception:
             return 0
 
+    def list_sources(self) -> list[dict]:
+        """Aggregate by source: returns [{source, chunks}, ...] sorted by source.
+
+        Scrolls all points and groups client-side. For typical personal-knowledge-base
+        size (<10k chunks) this is plenty fast. For larger deployments add a payload
+        index + use Qdrant's facet API.
+        """
+        self._ensure_client()
+        from collections import Counter
+        counts: Counter = Counter()
+        offset = None
+        try:
+            while True:
+                points, offset = self._client.scroll(
+                    collection_name=self._config.collection,
+                    with_payload=["source"],
+                    with_vectors=False,
+                    limit=512,
+                    offset=offset,
+                )
+                for p in points:
+                    src = (p.payload or {}).get("source", "")
+                    if src:
+                        counts[src] += 1
+                if offset is None:
+                    break
+        except Exception as e:
+            log.warning("scroll failed: %s", e)
+            return []
+        return sorted(
+            [{"source": s, "chunks": n} for s, n in counts.items()],
+            key=lambda d: d["source"],
+        )
+
+    def delete_by_source(self, source: str) -> int:
+        """Delete all chunks where payload.source == source. Returns count deleted."""
+        self._ensure_client()
+        from qdrant_client.models import (
+            Filter,
+            FieldCondition,
+            MatchValue,
+            FilterSelector,
+        )
+
+        before = self.count()
+        try:
+            self._client.delete(
+                collection_name=self._config.collection,
+                points_selector=FilterSelector(
+                    filter=Filter(
+                        must=[FieldCondition(key="source", match=MatchValue(value=source))]
+                    )
+                ),
+            )
+        except Exception as e:
+            log.warning("delete failed: %s", e)
+            return 0
+        after = self.count()
+        return max(0, before - after)
+
 
 def chunk_text(text: str, max_size: int = 800, overlap: int = 50, min_size: int = 50) -> list[str]:
     """Split text into chunks of roughly max_size chars with overlap.

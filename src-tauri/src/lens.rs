@@ -2,6 +2,51 @@ use std::process::Command as StdCommand;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+/// Cross-platform venv-managed lens binary path.
+pub fn lens_bin_path() -> std::path::PathBuf {
+    let venv = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("getbased")
+        .join("lens")
+        .join("venv");
+    if cfg!(target_os = "windows") {
+        venv.join("Scripts").join("lens.exe")
+    } else {
+        venv.join("bin").join("lens")
+    }
+}
+
+/// Path to lens data dir (where API key + qdrant store live).
+pub fn lens_data_dir() -> std::path::PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("getbased")
+        .join("lens")
+}
+
+/// Run `lens` with the right env vars + capture stdout/stderr.
+pub fn run_lens_command(args: &[&str]) -> Result<(String, String, bool), String> {
+    let lens = lens_bin_path();
+    if !lens.exists() {
+        return Err(format!(
+            "Lens binary not found at {:?}. Run setup first.",
+            lens
+        ));
+    }
+    let data_dir = lens_data_dir();
+    let output = StdCommand::new(&lens)
+        .args(args)
+        .env("LENS_DATA_DIR", data_dir.to_string_lossy().as_ref())
+        .env("LENS_EMBEDDING_MODEL", "BAAI/bge-m3")
+        .output()
+        .map_err(|e| format!("Failed to run lens: {}", e))?;
+    Ok((
+        String::from_utf8_lossy(&output.stdout).to_string(),
+        String::from_utf8_lossy(&output.stderr).to_string(),
+        output.status.success(),
+    ))
+}
+
 /// Manages the Lens Python sidecar process lifecycle.
 pub struct LensManager {
     process: Mutex<Option<std::process::Child>>,

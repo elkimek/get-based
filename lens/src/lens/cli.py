@@ -72,17 +72,27 @@ def serve():
 @app.command()
 def ingest(
     path: Path = typer.Argument(..., help="File or directory to ingest"),
+    json_out: bool = typer.Option(False, "--json", help="Emit machine-parseable JSON"),
 ):
     """Index documents from a path into the local store."""
     from .ingest import ingest_path  # lazy import (heavy deps)
+    import json as _json
 
     config = LensConfig.from_env()
-    console.print(f"[bold cyan]Ingesting[/] {path}…")
+    if not json_out:
+        console.print(f"[bold cyan]Ingesting[/] {path}…")
     try:
         result = ingest_path(config, path)
     except FileNotFoundError as e:
-        console.print(f"[red]Error:[/] {e}")
+        if json_out:
+            print(_json.dumps({"error": str(e)}))
+        else:
+            console.print(f"[red]Error:[/] {e}")
         raise typer.Exit(1)
+
+    if json_out:
+        print(_json.dumps(result))
+        return
 
     table = Table(title="Ingest result", show_header=False, box=None)
     table.add_row("Files scanned", str(result["files_seen"]))
@@ -90,6 +100,56 @@ def ingest(
     if result["skipped"]:
         table.add_row("Skipped", str(len(result["skipped"])))
     console.print(table)
+
+
+@app.command()
+def stats(json_out: bool = typer.Option(False, "--json", help="Emit JSON")):
+    """List knowledge base contents: per-source chunk counts."""
+    import json as _json
+    from .store import Store
+
+    config = LensConfig.from_env()
+    store = Store(config)
+    try:
+        docs = store.list_sources()
+    except Exception as e:
+        if json_out:
+            print(_json.dumps({"error": str(e), "total_chunks": 0, "documents": []}))
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+    total_chunks = sum(d["chunks"] for d in docs)
+    if json_out:
+        print(_json.dumps({"total_chunks": total_chunks, "documents": docs}))
+        return
+    if not docs:
+        console.print("No documents indexed yet. Use [bold]lens ingest <path>[/] to add some.")
+        return
+    table = Table(title=f"Indexed: {len(docs)} sources, {total_chunks} chunks")
+    table.add_column("Source")
+    table.add_column("Chunks", justify="right")
+    for d in docs:
+        table.add_row(d["source"], str(d["chunks"]))
+    console.print(table)
+
+
+@app.command()
+def delete(
+    source: str = typer.Argument(..., help="Source filename to delete (exact match)"),
+    json_out: bool = typer.Option(False, "--json", help="Emit JSON"),
+):
+    """Delete all chunks belonging to a source from the knowledge base."""
+    import json as _json
+    from .store import Store
+
+    config = LensConfig.from_env()
+    store = Store(config)
+    deleted = store.delete_by_source(source)
+    if json_out:
+        print(_json.dumps({"source": source, "deleted_chunks": deleted}))
+        return
+    console.print(f"Deleted {deleted} chunks matching source '{source}'")
 
 
 @app.command()

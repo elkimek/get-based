@@ -130,11 +130,11 @@ export function openSettingsModal(tab) {
         ${renderPrivacySection()}
       </div>
 
-      ${window.isSetupAvailable && window.isSetupAvailable() ? `
-      <div class="settings-group-title">Knowledge Source Setup</div>
+      ${window.isKnowledgeBaseAvailable && window.isKnowledgeBaseAvailable() ? `
+      <div class="settings-group-title">Local Knowledge Base</div>
 
-      <div class="settings-section" id="setup-lens-section">
-        ${window.renderSetupSection ? window.renderSetupSection() : ''}
+      <div class="settings-section" id="knowledge-base-section">
+        ${window.renderKnowledgeBaseSection ? window.renderKnowledgeBaseSection() : ''}
       </div>
       ` : ''}
 

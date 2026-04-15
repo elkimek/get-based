@@ -2069,6 +2069,89 @@ details[open] > .cl-archived-header::before { content: '\25BE '; }
 .chat-lens-indicator.active .chat-lens-dot { background: #22c55e; }
 .chat-lens-indicator.error .chat-lens-dot { background: #fbbf24; }
 
+/* Local Knowledge Base — drop zone + doc list */
+.kb-drop-zone {
+  margin-top: 10px;
+  padding: 24px 16px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg-primary);
+}
+.kb-drop-zone:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.kb-drop-zone-active {
+  border-color: var(--accent) !important;
+  background: var(--bg-hover) !important;
+}
+.kb-drop-zone-busy {
+  cursor: wait;
+  opacity: 0.7;
+  border-style: solid;
+}
+.kb-spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: kb-spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes kb-spin { to { transform: rotate(360deg); } }
+.kb-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.kb-doc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.kb-doc-icon { flex-shrink: 0; }
+.kb-doc-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+.kb-doc-chunks {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.kb-doc-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.kb-doc-delete:hover {
+  color: #ef4444;
+  background: var(--bg-hover);
+}
+
 /* Personality selector bar */
 .chat-personality-bar {
   flex-shrink: 0; border-bottom: 1px solid var(--border);
