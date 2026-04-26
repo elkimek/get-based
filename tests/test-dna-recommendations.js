@@ -15,7 +15,7 @@ return (async function() {
   const ctxSrc = await fetchWithRetry('js/context-cards.js');
   const cssSrc = await fetchWithRetry('styles.css');
   const snpData = await fetch('data/snp-health.json').then(r => r.json());
-  const catalogData = await fetch('data/recommendations-czsk.json').then(r => r.json());
+  const catalogData = await fetch('data/recommendations.json').then(r => r.json());
 
   // ═══════════════════════════════════════
   // 1. snp-health.json — snpHints structure

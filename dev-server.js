@@ -280,13 +280,57 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         JSON.parse(body); // validate
-        fs.writeFileSync(path.join(ROOT, 'data', 'recommendations-czsk.json'), body);
+        fs.writeFileSync(path.join(ROOT, 'data', 'recommendations.json'), body);
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('OK');
       } catch(e) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Invalid JSON: ' + e.message);
       }
+    });
+    return;
+  }
+
+  // API: git status of the catalog file. Editor surfaces this in the diff
+  // preview so users see whether they're about to overwrite uncommitted work.
+  if (pathname === '/api/git-status' && req.method === 'GET') {
+    const filePath = url.searchParams.get('path') || 'data/recommendations.json';
+    // Path-traversal guard: only allow paths inside the repo. Resolve against
+    // ROOT and verify the result still starts with ROOT.
+    const resolved = path.resolve(ROOT, String(filePath));
+    if (!resolved.startsWith(ROOT + path.sep) && resolved !== ROOT) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'invalid path' }));
+      return;
+    }
+    const rel = path.relative(ROOT, resolved);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    // Run two cheap git commands in parallel: status (for dirty/clean) and
+    // log (for last commit metadata). Both -c safe.directory bypass reduces
+    // friction on shared dev machines.
+    let statusOut = '', logOut = '', errored = false;
+    let pending = 2;
+    function done() {
+      if (--pending !== 0) return;
+      if (errored) { res.end(JSON.stringify({ error: 'git unavailable', dirty: false })); return; }
+      const dirty = statusOut.trim().length > 0;
+      const lastCommit = (() => {
+        const line = (logOut || '').trim();
+        if (!line) return null;
+        const [sha, date, ...rest] = line.split('\x1f');
+        return { sha, date, message: rest.join('\x1f') };
+      })();
+      res.end(JSON.stringify({ path: rel, dirty, lastCommit }));
+    }
+    execFile('git', ['-C', ROOT, 'status', '--porcelain', '--', rel], { timeout: 3000 }, (err, out) => {
+      if (err) errored = true;
+      else statusOut = out;
+      done();
+    });
+    execFile('git', ['-C', ROOT, 'log', '-1', '--pretty=format:%h\x1f%cI\x1f%s', '--', rel], { timeout: 3000 }, (err, out) => {
+      if (err) errored = true;
+      else logOut = out;
+      done();
     });
     return;
   }

@@ -104,9 +104,9 @@ return (async () => {
   assert('49. renderEMFMeterRecs exported', typeof recsMod.renderEMFMeterRecs === 'function');
   assert('50. renderEMFMitigationRecs exported', typeof recsMod.renderEMFMitigationRecs === 'function');
 
-  // Post-consolidation: data lives in unified recommendations-czsk.json catalog
+  // Post-consolidation: data lives in unified recommendations.json catalog
   const emfCat = await recsMod.loadEMFCatalog();
-  assert('51. Unified catalog loads', !!emfCat, 'expected recommendations-czsk.json to fetch');
+  assert('51. Unified catalog loads', !!emfCat, 'expected recommendations.json to fetch');
   assert('52. Catalog has SLT vendor', !!emfCat?.vendors?.slt?.name);
   assert('53. SLT coupon code is "getbased"', emfCat?.vendors?.slt?.coupon?.code === 'getbased');
   const meters = emfCat?.products?.['_internal.emfMeters'] || [];

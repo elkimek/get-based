@@ -100,7 +100,7 @@ const APP_SHELL = [
   '/vendor/bip39-minimal.js',
   '/vendor/cashu-ts.js',
   '/vendor/fonts/fonts.css',
-  '/data/recommendations-czsk.json',
+  '/data/recommendations.json',
 ];
 
 // Install: pre-cache app shell

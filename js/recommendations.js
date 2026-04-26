@@ -15,7 +15,7 @@ export async function loadCatalog() {
   if (_catalogPromise) return _catalogPromise;
   _catalogPromise = (async () => {
     try {
-      const res = await fetch('data/recommendations-czsk.json');
+      const res = await fetch('data/recommendations.json');
       if (!res.ok) { _catalog = null; return null; }
       _catalog = await res.json();
       return _catalog;
@@ -75,7 +75,7 @@ export function getProductsForSlot(catalog, slotKey, region) {
 
 // ═══════════════════════════════════════════════
 // EMF PRODUCT RESOLVERS — read from the unified recommendations catalog
-// (data/recommendations-czsk.json). The EMF panel and nudges still render
+// (data/recommendations.json). The EMF panel and nudges still render
 // through their own specialized helpers below — but the source of truth is
 // the same catalog used for every other affiliate. emf-products.json is gone.
 // ═══════════════════════════════════════════════

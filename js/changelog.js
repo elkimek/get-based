@@ -5,11 +5,9 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
-    version: '1.3.15', date: '2026-04-26', title: 'Affiliate consolidation — single catalog',
+    version: '1.3.15–17', date: '2026-04-26', title: 'Internal cleanup',
     items: [
-      '<b>EMF affiliate data merged into the unified recommendations catalog.</b> Until now the EMF integration lived in its own <code>emf-products.json</code>; the existing recommendation tool was the canonical home for tips + affiliates and having a parallel system was inconsistent. Now everything affiliate-related lives in <code>data/recommendations-czsk.json</code>.',
-      '<b>Single source of truth.</b> Future affiliates plug into the same catalog with the same disclosure, region filtering, and toggle infrastructure. SLT is the first of what could be many.',
-      '<b>No user-visible change.</b> All six EMF surfaces still render identically — same meter cards, same mitigation products, same coupon, same affiliate URLs, same Umami event labels. Pure architectural cleanup.',
+      'Recommendations data layer reorganised into a single source of truth, file renamed for consistency. No user-visible changes.',
     ]
   },
   {
