@@ -853,6 +853,11 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [])
 function _buildEMFSleepHint(metricId, m) {
   const SLEEP_METRICS = new Set(['sleep_score', 'sleep_efficiency', 'hrv_rmssd']);
   if (!SLEEP_METRICS.has(metricId)) return '';
+  // Don't fire on mock/demo data — wearableSummary.sources is populated only
+  // when a real wearable is connected. Mock data shows on the welcome screen
+  // so a curious click would falsely surface "your sleep is regressing".
+  const sources = state.importedData?.wearableSummary?.sources;
+  if (!sources || Object.keys(sources).length === 0) return '';
   // Only fire when actually regressing — both 7d AND latest must look worse
   // than baseline. Don't nag people whose sleep is fine.
   const d7 = m?.rolling?.d7;
@@ -867,7 +872,7 @@ function _buildEMFSleepHint(metricId, m) {
   if (assessments.length) {
     const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
     const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
-    if (ageDays < 180) return '';
+    if (ageDays < 120) return '';
   }
   const openHandler = `event.preventDefault();window.closeModal&&window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
   return `<div class="wearable-detail-emf-hint">💡 Sleep regressing? Sometimes it's the room. <a href="#" onclick="${openHandler}">Check your EMF environment →</a></div>`;

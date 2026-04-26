@@ -125,7 +125,11 @@ export function getEMFProductsForMitigations(catalog, tags) {
 function _buildCouponLine(catalog) {
   const c = catalog?.vendor?.coupon;
   if (!c?.code) return '';
-  return `<div class="rec-coupon">Use code <code>${escapeHTML(c.code)}</code> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
+  const code = escapeHTML(c.code);
+  // Click-to-copy: navigator.clipboard with a tiny inline visual confirmation.
+  // Falls back gracefully if the API is unavailable (older browsers / non-https).
+  const onclick = `(function(b){const v=${JSON.stringify(c.code)};if(navigator.clipboard?.writeText){navigator.clipboard.writeText(v).then(()=>{const o=b.textContent;b.textContent='✓ Copied';setTimeout(()=>{b.textContent=o;},1400);}).catch(()=>{});}else{const r=document.createRange();r.selectNodeContents(b);const s=getSelection();s.removeAllRanges();s.addRange(r);}})(this)`;
+  return `<div class="rec-coupon">Use code <button type="button" class="rec-coupon-code" onclick="${onclick}" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
 }
 
 function _buildEMFProductRow(product) {
@@ -282,7 +286,10 @@ function _buildEMFNudge() {
   }
   const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
   const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
-  if (ageDays > 180) {
+  // 120 days ≈ 4 months — long enough that a re-check is genuinely useful (sources
+  // shift: new neighbor, new appliance, new cell tower), short enough that demo
+  // profiles with semi-fresh assessments still surface the "stale" path.
+  if (ageDays > 120) {
     const months = Math.round(ageDays / 30);
     return `<div class="ctx-tip-emf-nudge">💡 Your last EMF check was ${months} months ago. <a href="#" onclick="${openHandler}">Re-check the room →</a></div>`;
   }
@@ -602,6 +609,28 @@ export function detectSupplementSlots(text) {
   return found.slice(0, hasDNA ? 2 : 1);
 }
 
+// Detects mitigation tags inside an AI interpretation body. Solves the case
+// where the AI's prose says "consider Yshield paint and a Stetzer filter" but
+// the user never tagged those mitigations on the room — we still want to surface
+// the matching products. Returns an array of canonical mitigation tag strings
+// that the EMF catalog can resolve.
+const _MITIGATION_TEXT_PATTERNS = [
+  { tag: 'shielding paint (Yshield)', re: /\b(?:shielding paint|yshield|y-?shield|conductive paint)\b/i },
+  { tag: 'shielding fabric / canopy', re: /\b(?:bed canopy|shielding (?:fabric|canopy)|naturell|swiss shield|daylite)\b/i },
+  { tag: 'Stetzerizer filters',       re: /\b(?:stetzer(?:izer)?|greenwave|dirty[- ]electricity filter)\b/i },
+  { tag: 'grounding rod',              re: /\b(?:grounding (?:rod|kit)|earth(?:ing)? (?:rod|kit))\b/i },
+  { tag: 'shielded cables',            re: /\bshielded (?:power |ethernet )?cable/i },
+  { tag: 'demand switch (Netzfreischalter)', re: /\b(?:demand switch|netzfreischalter|kill[- ]switch.*bedroom|bedroom circuit (?:cut|disconnect))\b/i },
+];
+export function detectMitigationsInText(text) {
+  if (!text || typeof text !== 'string') return [];
+  const found = [];
+  for (const { tag, re } of _MITIGATION_TEXT_PATTERNS) {
+    if (re.test(text) && !found.includes(tag)) found.push(tag);
+  }
+  return found;
+}
+
 // Detects EMF-relevant context in chat text. Used by the chat panel to decide
 // whether to surface a one-time EMF assessment hint. Pure function: returns
 // true if the text discusses EMF, RF, dirty electricity, or specific sources
@@ -700,4 +729,5 @@ Object.assign(window, {
   renderEMFMeterRecs,
   renderEMFMitigationRecs,
   detectEMFRelevance,
+  detectMitigationsInText,
 });

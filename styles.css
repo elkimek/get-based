@@ -3897,11 +3897,23 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .rec-emf-section { margin-top: 12px; }
 .rec-emf-product { display: block; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(99, 102, 241, 0.03); }
 .rec-emf-product-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.rec-emf-product-meta { font-size: 11px; color: var(--text-muted); }
-.rec-emf-product-blurb { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.45; }
+.rec-emf-product-head strong { word-break: break-word; }
+.rec-emf-product-meta { font-size: 11px; color: var(--text-muted); word-break: break-word; }
+.rec-emf-product-blurb { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.45; word-break: break-word; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .rec-emf-product { padding: 8px 10px; }
+  .rec-emf-product-head { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .rec-emf-product-meta { font-size: 10px; }
+  .rec-emf-product-blurb { font-size: 12px; }
+  .rec-coupon { font-size: 11px; padding: 6px 8px; }
+  .rec-emf-product .rec-product-link { padding: 6px 0; }
+}
 .rec-emf-product .rec-product-link { display: inline-block; margin-top: 6px; padding: 4px 0; font-size: 12px; }
 .rec-coupon { font-size: 12px; color: var(--text-secondary); margin-top: 8px; padding: 6px 10px; background: rgba(34, 197, 94, 0.06); border-left: 3px solid var(--green); border-radius: 0 var(--radius) var(--radius) 0; }
 .rec-coupon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; padding: 1px 6px; background: rgba(34, 197, 94, 0.12); border-radius: 4px; }
+.rec-coupon-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; padding: 2px 8px; background: rgba(34, 197, 94, 0.12); border: 1px dashed rgba(34, 197, 94, 0.35); border-radius: 4px; color: var(--text-primary); cursor: pointer; font-size: inherit; transition: background 0.15s, border-color 0.15s; }
+.rec-coupon-code:hover { background: rgba(34, 197, 94, 0.20); border-color: rgba(34, 197, 94, 0.55); }
+.rec-coupon-code:active { transform: translateY(1px); }
 .ctx-tip-emf-nudge { font-size: 12px; color: var(--text-secondary); margin-top: 12px; padding: 8px 10px; background: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; line-height: 1.5; }
 .ctx-tip-emf-nudge a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .ctx-tip-emf-nudge a:hover { text-decoration: underline; }

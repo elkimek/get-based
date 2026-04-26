@@ -5,6 +5,17 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.10', date: '2026-04-26', title: 'EMF surfaces — UX polish',
+    items: [
+      '<b>Mitigations the AI mentions in its interpretation</b> now also surface matching products, even if you didn\'t tag them on the room. Previously you had to manually click chips like "shielding paint" before the rec section would appear; now the AI saying "consider Yshield" is enough.',
+      '<b>Coupon code is now click-to-copy</b> — tap <code>getbased</code> in the EMF rec section, it copies and flashes "✓ Copied". No more long-press select.',
+      '<b>Sleep regression nudge no longer fires on demo data.</b> The wearable detail modal\'s "Sometimes it\'s the room" hint now requires a real connected wearable — fresh users browsing the demo strip won\'t see false-positive suggestions.',
+      '<b>Stale-assessment threshold tightened from 6 months to 4 months.</b> Quarterly Baubiologie checks are common practice — the nudge now fires at 4 months instead of 6, so meaningful re-checks aren\'t suppressed.',
+      '<b>AI-chat EMF hint moved to a profile-level 30-day cooldown</b> instead of permanent per-thread. Users who switch threads no longer get the same nudge re-injected every conversation.',
+      '<b>Mobile responsive product cards</b> — meter and mitigation cards stack their metadata gracefully at <600px. Long product names and blurbs no longer overflow.',
+    ]
+  },
+  {
     version: '1.3.9', date: '2026-04-27', title: 'App footer — trademark attribution + Privacy/Terms links',
     items: [
       'New <b>fineprint block</b> below the dashboard footer: trademark attribution for every wearable vendor whose logo we display (nominative fair use), <b>Privacy</b> and <b>Terms</b> links to the public site, and a Linktree anchor for the maintainer.',

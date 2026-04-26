@@ -2155,10 +2155,11 @@ export async function sendChatMessage() {
     const _recSlots = (window.isProductRecsEnabled && window.isProductRecsEnabled() && window.detectSupplementSlots) ? window.detectSupplementSlots(fullText) : [];
     if (_recSlots.length) assistantMsg.recSlots = _recSlots;
 
-    // One-time EMF hint per thread. Fires only when (a) EMF is explicitly on
-    // the user's mind in this turn AND (b) they haven't already explored EMF
-    // (no fresh assessment) AND (c) we haven't surfaced this hint in this
-    // thread yet. Never auto-injects products — just nudges to the assessment.
+    // EMF hint with profile-level 30-day cooldown. Fires only when (a) EMF is
+    // explicitly on the user's mind in this turn AND (b) they haven't already
+    // explored EMF (no fresh assessment) AND (c) we haven't surfaced this hint
+    // for this profile in the last 30 days. Never auto-injects products — just
+    // nudges to the assessment.
     (function maybeInjectEMFHint() {
       try {
         if (!window.isProductRecsEnabled?.() || !window.detectEMFRelevance) return;
@@ -2169,12 +2170,15 @@ export async function sendChatMessage() {
         if (assessments.length) {
           const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
           const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
-          if (ageDays < 180) return;
+          if (ageDays < 120) return;
         }
-        const flagKey = `labcharts-emf-hint-shown-${state.currentThreadId || 'default'}`;
-        if (localStorage.getItem(flagKey) === '1') return;
+        const profileId = state.activeProfileId || 'default';
+        const flagKey = `labcharts-emf-hint-last-${profileId}`;
+        const lastShown = parseInt(localStorage.getItem(flagKey) || '0', 10);
+        const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+        if (lastShown && (Date.now() - lastShown) < COOLDOWN_MS) return;
         assistantMsg.emfHint = true;
-        localStorage.setItem(flagKey, '1');
+        localStorage.setItem(flagKey, String(Date.now()));
         // Inject inline so the hint appears alongside the streamed response
         // without requiring a full thread re-render.
         if (aiMsgEl?.isConnected) {

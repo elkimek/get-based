@@ -2074,9 +2074,11 @@
             ],
             "mitigations": [
               "WiFi off at night",
-              "phone airplane mode at night"
+              "phone airplane mode at night",
+              "shielding fabric / canopy",
+              "Stetzerizer filters"
             ],
-            "note": "Courtyard-facing — shielded from cell towers by building mass. Low RF. AC electric slightly elevated from unshielded wiring in renovated walls."
+            "note": "Courtyard-facing — shielded from cell towers by building mass. Low RF. AC electric slightly elevated from unshielded wiring in renovated walls. Bed canopy added for backup since neighbor's WiFi is detectable."
           },
           {
             "name": "Living Room",

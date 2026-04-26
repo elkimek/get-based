@@ -163,6 +163,34 @@ return (async () => {
   assert('81. Skips generic fatigue', !recsMod.detectEMFRelevance('I am chronically tired and fatigued'));
   assert('82. Skips empty/null', !recsMod.detectEMFRelevance('') && !recsMod.detectEMFRelevance(null));
 
+  // ── Mitigation detection in AI interpretation text ──
+  assert('83. detectMitigationsInText exported', typeof recsMod.detectMitigationsInText === 'function');
+  const m1 = recsMod.detectMitigationsInText('Consider applying Yshield paint to the bedroom walls.');
+  assert('84. Detects Yshield → shielding paint', m1.includes('shielding paint (Yshield)'));
+  const m2 = recsMod.detectMitigationsInText('A bed canopy would help with cell-tower RF.');
+  assert('85. Detects bed canopy → shielding fabric', m2.includes('shielding fabric / canopy'));
+  const m3 = recsMod.detectMitigationsInText('Stetzerizer filters on bedroom outlets.');
+  assert('86. Detects Stetzerizer → filters tag', m3.includes('Stetzerizer filters'));
+  const m4 = recsMod.detectMitigationsInText('Install a demand switch (Netzfreischalter).');
+  assert('87. Detects demand switch tag', m4.includes('demand switch (Netzfreischalter)'));
+  const m5 = recsMod.detectMitigationsInText('Use shielded ethernet cables to the router.');
+  assert('88. Detects shielded cables', m5.includes('shielded cables'));
+  const m6 = recsMod.detectMitigationsInText('A grounding rod connected to the panel.');
+  assert('89. Detects grounding rod', m6.includes('grounding rod'));
+  // Multi-tag interpretation: combined output should be deduped and contain all matched tags
+  const m7 = recsMod.detectMitigationsInText('Install Yshield paint, a bed canopy, and Stetzer filters.');
+  assert('90. Combined detection finds 3 distinct tags', m7.length === 3);
+  // Generic prose without mitigation keywords returns []
+  const m8 = recsMod.detectMitigationsInText('Your bedroom RF is severe. Reduce sources at night.');
+  assert('91. Empty when no specific mitigation mentioned', m8.length === 0);
+  // Empty / null inputs
+  assert('92. Empty for null/empty text', recsMod.detectMitigationsInText('').length === 0 && recsMod.detectMitigationsInText(null).length === 0);
+
+  // ── Coupon click-to-copy renders as button, not <code> ──
+  localStorage.setItem('labcharts-show-product-recs', 'true');
+  const couponHtml = recsMod.renderEMFMeterRecs(emfCat);
+  assert('93. Coupon renders as clickable button', couponHtml.includes('rec-coupon-code') && couponHtml.includes('navigator.clipboard'));
+
   console.log('=== Results ===');
-  console.log(`${document.querySelectorAll('.test-pass').length || 82} passed, 0 failed`);
+  console.log(`${document.querySelectorAll('.test-pass').length || 93} passed, 0 failed`);
 })();

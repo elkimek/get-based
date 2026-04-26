@@ -14,7 +14,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, getActiv
 import { renderMarkdown } from './markdown.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
-import { loadEMFCatalog, renderEMFMeterRecs, renderEMFMitigationRecs, isProductRecsEnabled } from './recommendations.js';
+import { loadEMFCatalog, renderEMFMeterRecs, renderEMFMitigationRecs, isProductRecsEnabled, detectMitigationsInText } from './recommendations.js';
 
 // ═══════════════════════════════════════════════
 // MEASUREMENT TYPES (display order)
@@ -963,8 +963,18 @@ function _collectMitigationTags(assessment) {
   if (!assessment?.rooms) return [];
   const seen = new Set();
   const out = [];
+  // 1) User-tagged mitigation chips on each room (explicit signal)
   for (const room of assessment.rooms) {
     for (const t of (room.mitigations || [])) {
+      if (!seen.has(t)) { seen.add(t); out.push(t); }
+    }
+  }
+  // 2) Mitigations the AI interpretation text mentions, even if no chip was set —
+  // catches the common case where a freshly-imported consultant PDF surfaces
+  // recommended mitigations in the AI's prose but the room's chip array is empty.
+  const interpText = assessment.interpretation?.text;
+  if (interpText) {
+    for (const t of detectMitigationsInText(interpText)) {
       if (!seen.has(t)) { seen.add(t); out.push(t); }
     }
   }
