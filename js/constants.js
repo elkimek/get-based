@@ -70,6 +70,7 @@ export const EMF_METER_PRESETS = [
   { name: 'Safe Living Technologies Safe and Sound Pro II', types: ['rfMicrowave'] },
   { name: 'Safe Living Technologies Body Voltage Kit', types: ['acElectric'] },
   { name: 'Safe Living Technologies EM3', types: ['acElectric', 'acMagnetic'] },
+  { name: 'Safe Living Technologies Line EMI Meter', types: ['dirtyElectricity'] },
   { name: 'Graham-Stetzer Microsurge Meter', types: ['dirtyElectricity'] },
   { name: 'Alpha Lab GM2', types: ['dcMagnetic'] },
   { name: 'TriField TF2', types: ['acElectric', 'acMagnetic', 'rfMicrowave'] },
