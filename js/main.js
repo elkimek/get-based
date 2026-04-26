@@ -158,6 +158,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   buildSidebar();
   window.showDashboard();
   maybeShowChangelog();
+  // First-launch transparency banner about anonymous analytics — appears once,
+  // never again after the user clicks either "Got it" or "Turn off".
+  setTimeout(() => window.maybeShowAnalyticsConsent?.(), 800);
   setTimeout(() => {
     const overlay = document.getElementById('passphrase-overlay');
     if (overlay && overlay.style.display === 'flex') return;

@@ -87,6 +87,50 @@ export function setPIIReviewEnabled(on) { localStorage.setItem('labcharts-pii-re
 // the Umami snippet on next page load. Cookieless, no personal data, no IP.
 export function isAnalyticsEnabled() { return localStorage.getItem('labcharts-analytics-disabled') !== 'true'; }
 export function setAnalyticsEnabled(on) { localStorage.setItem('labcharts-analytics-disabled', on ? 'false' : 'true'); }
+function hasSeenAnalyticsConsent() { return localStorage.getItem('labcharts-analytics-consent-seen') === '1'; }
+function markAnalyticsConsentSeen() { localStorage.setItem('labcharts-analytics-consent-seen', '1'); }
+
+// One-time transparency banner shown to first-time users. Default state is
+// analytics-on (preserves the maintainer's product signal) but the user is
+// explicitly told upfront with a one-click disable. Better than silent
+// opt-out (transparency), more pragmatic than buried opt-in (data signal).
+export function maybeShowAnalyticsConsent() {
+  if (hasSeenAnalyticsConsent()) return;
+  // Skip on offline/Tor where Umami doesn't load anyway
+  if (location.protocol === 'file:' || location.hostname.endsWith('.onion')) {
+    markAnalyticsConsentSeen();
+    return;
+  }
+  // Don't double-render if already in the DOM
+  if (document.getElementById('analytics-consent-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'analytics-consent-banner';
+  banner.className = 'analytics-consent-banner';
+  banner.setAttribute('role', 'region');
+  banner.setAttribute('aria-label', 'Analytics consent');
+  banner.innerHTML = `
+    <div class="analytics-consent-body">
+      <span aria-hidden="true">📊</span>
+      <span>Anonymous usage stats are <strong>on</strong> to help us improve getbased — counts only, no IP, no health data, cookieless.</span>
+    </div>
+    <div class="analytics-consent-actions">
+      <button type="button" class="analytics-consent-btn analytics-consent-btn-primary" onclick="dismissAnalyticsConsent()">Got it</button>
+      <button type="button" class="analytics-consent-btn" onclick="dismissAnalyticsConsentAndDisable()">Turn off</button>
+    </div>`;
+  document.body.appendChild(banner);
+}
+
+export function dismissAnalyticsConsent() {
+  markAnalyticsConsentSeen();
+  document.getElementById('analytics-consent-banner')?.remove();
+}
+
+export function dismissAnalyticsConsentAndDisable() {
+  setAnalyticsEnabled(false);
+  markAnalyticsConsentSeen();
+  document.getElementById('analytics-consent-banner')?.remove();
+  showNotification('Anonymous usage stats turned off. You can change this anytime in Settings → Privacy.', 'info', 4000);
+}
 
 export function showNotification(message, type, duration) {
   type = type || "info";
@@ -196,4 +240,4 @@ export function hasCardContent(obj) {
 /// escapeAttr for attribute contexts continue to work and read clearly.
 export const escapeAttr = escapeHTML;
 
-Object.assign(window, { showNotification, showConfirmDialog, showPromptDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled, hasCardContent, escapeAttr });
+Object.assign(window, { showNotification, showConfirmDialog, showPromptDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled, maybeShowAnalyticsConsent, dismissAnalyticsConsent, dismissAnalyticsConsentAndDisable, hasCardContent, escapeAttr });

@@ -3923,6 +3923,31 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .chat-emf-hint { font-size: 12px; color: var(--text-secondary); margin-top: 10px; padding: 6px 10px; background: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; line-height: 1.5; }
 .chat-emf-hint a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .chat-emf-hint a:hover { text-decoration: underline; }
+/* First-launch analytics transparency banner — fixed bottom-center, dismisses forever */
+.analytics-consent-banner {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  z-index: 1000; max-width: min(640px, calc(100vw - 24px));
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  background: var(--bg-secondary, #1a1d24); border: 1px solid var(--border, #2d3138);
+  border-radius: 10px; padding: 10px 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  animation: analytics-consent-in 0.25s ease-out;
+}
+@keyframes analytics-consent-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.analytics-consent-body { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-secondary); line-height: 1.45; flex: 1 1 280px; min-width: 0; }
+.analytics-consent-body strong { color: var(--text-primary); }
+.analytics-consent-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.analytics-consent-btn { font-size: 12px; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+.analytics-consent-btn:hover { background: var(--bg-elevated, rgba(255,255,255,0.04)); color: var(--text-primary); border-color: var(--text-muted); }
+.analytics-consent-btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+.analytics-consent-btn-primary:hover { filter: brightness(1.08); background: var(--accent); color: white; }
+@media (max-width: 600px) {
+  .analytics-consent-banner { left: 12px; right: 12px; transform: none; max-width: none; bottom: 12px; }
+  @keyframes analytics-consent-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+}
 /* DNA-aware recommendation hints */
 .rec-dna-hints { border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 10px; background: rgba(99, 102, 241, 0.04); border-radius: 0 var(--radius) var(--radius) 0; }
 .rec-dna-row { font-size: 13px; padding: 4px 0; color: var(--text-secondary); line-height: 1.5; }

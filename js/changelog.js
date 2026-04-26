@@ -5,6 +5,13 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.14', date: '2026-04-26', title: 'Analytics transparency banner',
+    items: [
+      '<b>First-launch banner about analytics</b> — getbased now tells you upfront that anonymous usage stats are on (counts only, no IP, no health data, cookieless), with a one-click "Turn off" button right there in the banner. Shown once, then never again. Better than silent default-on, more pragmatic than opt-in buried in Settings nobody finds.',
+      '<b>Settings → Privacy still works the same</b> — the toggle is always available there if you change your mind later.',
+    ]
+  },
+  {
     version: '1.3.13', date: '2026-04-26', title: 'Privacy tab — clearer structure',
     items: [
       '<b>Privacy is now its own top-level tab</b> (Display · AI · <b>Privacy</b> · Data · Wearables · Agent Access). Previously the privacy controls lived inside the AI tab, which made the analytics opt-out hard to find for users who weren\'t looking specifically for AI settings.',
