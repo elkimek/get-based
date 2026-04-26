@@ -832,6 +832,8 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [])
     ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" onclick="chooseWearableSource('${escapeHTML(metricId)}',event)" title="Switch source for this metric">via ${escapeHTML(adapter.displayName)} · swap</button>`
     : '';
 
+  const emfSleepHint = _buildEMFSleepHint(metricId, m);
+
   return `<button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${escapeHTML(canon.label)}${subLabel}</h3>
     <div class="modal-unit">
@@ -841,7 +843,34 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [])
     <div class="modal-chart" style="height:260px"><canvas id="chart-modal"></canvas></div>
     ${emptyHint}
     <div class="wearable-detail-stats">${statsCells}</div>
-    ${buildManualEntriesSection(metricId, manualEntries, m.primarySource)}`;
+    ${buildManualEntriesSection(metricId, manualEntries, m.primarySource)}
+    ${emfSleepHint}`;
+}
+
+// Quiet, contextual EMF hint for sleep-related wearable metrics. Surfaces only
+// when (a) the metric IS sleep-relevant AND (b) it's regressing AND (c) there's
+// no fresh EMF assessment. Intent: prompt curiosity, not push products.
+function _buildEMFSleepHint(metricId, m) {
+  const SLEEP_METRICS = new Set(['sleep_score', 'sleep_efficiency', 'hrv_rmssd']);
+  if (!SLEEP_METRICS.has(metricId)) return '';
+  // Only fire when actually regressing — both 7d AND latest must look worse
+  // than baseline. Don't nag people whose sleep is fine.
+  const d7 = m?.rolling?.d7;
+  const baseline = m?.baseline;
+  const p25 = m?.baselineP25;
+  if (typeof d7 !== 'number' || typeof baseline !== 'number') return '';
+  // Higher = better for these three; "regressing" = below baseline AND below P25
+  const regressing = d7 < baseline && (typeof p25 !== 'number' || d7 < p25);
+  if (!regressing) return '';
+  // Suppress for users with a recent assessment — they've already explored this
+  const assessments = state.importedData?.emfAssessment?.assessments || [];
+  if (assessments.length) {
+    const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
+    const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
+    if (ageDays < 180) return '';
+  }
+  const openHandler = `event.preventDefault();window.closeModal&&window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
+  return `<div class="wearable-detail-emf-hint">💡 Sleep regressing? Sometimes it's the room. <a href="#" onclick="${openHandler}">Check your EMF environment →</a></div>`;
 }
 
 function renderWearableChart(canvas, canon, m, series) {

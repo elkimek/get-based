@@ -1455,6 +1455,11 @@ export function renderChatMessages() {
       if (msg.lensSources?.length) {
         html += _renderLensSources(msg.lensSources, msg.lensSourceName);
       }
+      // EMF hint (persisted, single-line link to assessment editor)
+      if (msg.emfHint && window.isProductRecsEnabled?.()) {
+        const openHandler = `event.preventDefault();window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor();`;
+        html += `<div class="chat-emf-hint">💡 Curious about your EMF environment? <a href="#" onclick="${openHandler}">Open the assessment →</a></div>`;
+      }
       // Rec slots (persisted on message, rendered from catalog)
       if (msg.recSlots?.length && window.isProductRecsEnabled?.() && window.renderRecommendationSectionSync && window._cachedCatalog?.slots) {
         const recSections = msg.recSlots.map(slot => {
@@ -2149,6 +2154,39 @@ export async function sendChatMessage() {
     // Detect supplement slots from AI text — persist on message for re-rendering
     const _recSlots = (window.isProductRecsEnabled && window.isProductRecsEnabled() && window.detectSupplementSlots) ? window.detectSupplementSlots(fullText) : [];
     if (_recSlots.length) assistantMsg.recSlots = _recSlots;
+
+    // One-time EMF hint per thread. Fires only when (a) EMF is explicitly on
+    // the user's mind in this turn AND (b) they haven't already explored EMF
+    // (no fresh assessment) AND (c) we haven't surfaced this hint in this
+    // thread yet. Never auto-injects products — just nudges to the assessment.
+    (function maybeInjectEMFHint() {
+      try {
+        if (!window.isProductRecsEnabled?.() || !window.detectEMFRelevance) return;
+        const userText = state.chatHistory[state.chatHistory.length - 2]?.content || '';
+        const turnText = `${userText}\n${fullText}`;
+        if (!window.detectEMFRelevance(turnText)) return;
+        const assessments = state.importedData?.emfAssessment?.assessments || [];
+        if (assessments.length) {
+          const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
+          const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
+          if (ageDays < 180) return;
+        }
+        const flagKey = `labcharts-emf-hint-shown-${state.currentThreadId || 'default'}`;
+        if (localStorage.getItem(flagKey) === '1') return;
+        assistantMsg.emfHint = true;
+        localStorage.setItem(flagKey, '1');
+        // Inject inline so the hint appears alongside the streamed response
+        // without requiring a full thread re-render.
+        if (aiMsgEl?.isConnected) {
+          const hintEl = document.createElement('div');
+          hintEl.className = 'chat-emf-hint';
+          hintEl.innerHTML = `💡 Curious about your EMF environment? <a href="#" onclick="event.preventDefault();window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor();">Open the assessment →</a>`;
+          const actionBar = aiMsgEl.querySelector('.chat-action-bar');
+          if (actionBar) aiMsgEl.insertBefore(hintEl, actionBar);
+          else aiMsgEl.appendChild(hintEl);
+        }
+      } catch {}
+    })();
 
     // Append action bar
     const msgIndex = state.chatHistory.length - 1;

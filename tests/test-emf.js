@@ -149,6 +149,20 @@ return (async () => {
   if (prevToggle === null) localStorage.removeItem('labcharts-show-product-recs');
   else localStorage.setItem('labcharts-show-product-recs', prevToggle);
 
+  // ── EMF chat-context detection (one-time hint trigger) ──
+  assert('71. detectEMFRelevance exported', typeof recsMod.detectEMFRelevance === 'function');
+  assert('72. Detects "EMF" mention', recsMod.detectEMFRelevance('I am worried about EMF in my bedroom'));
+  assert('73. Detects "RF" mention', recsMod.detectEMFRelevance('how much RF is too much?'));
+  assert('74. Detects "5G"', recsMod.detectEMFRelevance('the 5G tower next door'));
+  assert('75. Detects dirty electricity', recsMod.detectEMFRelevance('My LED dimmers cause dirty electricity'));
+  assert('76. Detects cell tower', recsMod.detectEMFRelevance('there is a cell tower nearby'));
+  assert('77. Detects Yshield', recsMod.detectEMFRelevance('I want to apply yshield paint'));
+  assert('78. Detects Stetzer', recsMod.detectEMFRelevance('Stetzer filters help with this'));
+  assert('79. Detects WiFi+sleep correlation', recsMod.detectEMFRelevance('My wifi router is in my bedroom'));
+  assert('80. Skips generic insomnia', !recsMod.detectEMFRelevance('I have trouble falling asleep'));
+  assert('81. Skips generic fatigue', !recsMod.detectEMFRelevance('I am chronically tired and fatigued'));
+  assert('82. Skips empty/null', !recsMod.detectEMFRelevance('') && !recsMod.detectEMFRelevance(null));
+
   console.log('=== Results ===');
-  console.log(`${document.querySelectorAll('.test-pass').length || 70} passed, 0 failed`);
+  console.log(`${document.querySelectorAll('.test-pass').length || 82} passed, 0 failed`);
 })();

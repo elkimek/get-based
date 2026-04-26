@@ -263,11 +263,30 @@ export function renderCardTipsModal(cardKey) {
     }
     if (tips) items += `<div class="ctx-tip-slot"><div class="ctx-tip-slot-label">${label}</div>${tips}</div>`;
   }
+  if (cardKey === 'environment') items += _buildEMFNudge();
   if (!items) return '';
   return `<button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('show')">\u00D7</button>
     <div class="ctx-tips-modal-header">${cardInfo.emoji} ${escapeHTML(cardInfo.label)} \u2014 Tips</div>
     <div class="ctx-tips-modal-body">${items}</div>
     <div class="rec-mini-disclaimer" style="margin-top:12px">For informational purposes only. Not medical advice. Consult your healthcare provider before starting any supplement.</div>`;
+}
+
+// Quiet, contextual EMF assessment nudge for the Environment card.
+// Single one-line link when no EMF assessment yet, or latest is older
+// than 180d. Empty otherwise so we don't nag users keeping up.
+function _buildEMFNudge() {
+  const assessments = state.importedData?.emfAssessment?.assessments || [];
+  const openHandler = `event.preventDefault();document.getElementById('modal-overlay').classList.remove('show');setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
+  if (!assessments.length) {
+    return `<div class="ctx-tip-emf-nudge">💡 Want to actually measure what your home is putting out? <a href="#" onclick="${openHandler}">Open the EMF assessment →</a></div>`;
+  }
+  const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
+  const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
+  if (ageDays > 180) {
+    const months = Math.round(ageDays / 30);
+    return `<div class="ctx-tip-emf-nudge">💡 Your last EMF check was ${months} months ago. <a href="#" onclick="${openHandler}">Re-check the room →</a></div>`;
+  }
+  return '';
 }
 
 // ═══════════════════════════════════════════════
@@ -583,6 +602,27 @@ export function detectSupplementSlots(text) {
   return found.slice(0, hasDNA ? 2 : 1);
 }
 
+// Detects EMF-relevant context in chat text. Used by the chat panel to decide
+// whether to surface a one-time EMF assessment hint. Pure function: returns
+// true if the text discusses EMF, RF, dirty electricity, or specific sources
+// like cell towers / smart meters / WiFi-as-symptom-cause. Doesn't fire on
+// generic "insomnia" or "fatigue" — those are handled by the supplements
+// pipeline. Fires only when EMF specifically is on the user's mind.
+const _EMF_TERMS = [
+  /\bemf\b/i, /\brf\b/i, /\b5g\b/i,
+  /electromagnetic/i, /baubiologie/i, /building biology/i,
+  /dirty electric/i, /cell tower/i, /smart meter/i,
+  /\bwifi\b.*(?:bedroom|sleep|night)/i,
+  /(?:bedroom|sleep|night).*\bwifi\b/i,
+  /microwave radiation/i, /\brf radiation\b/i,
+  /shielding (?:paint|fabric|canopy)/i,
+  /yshield/i, /stetzer/i,
+];
+export function detectEMFRelevance(text) {
+  if (!text || typeof text !== 'string') return false;
+  return _EMF_TERMS.some(re => re.test(text));
+}
+
 // Wearable-trend-driven suggestion hooks. Pure detector — returns the slot
 // keys the catalog should consider, plus a reason string. Callers decide
 // whether to surface them. Conservative thresholds: only fire when the
@@ -659,4 +699,5 @@ Object.assign(window, {
   getEMFProductsForMitigations,
   renderEMFMeterRecs,
   renderEMFMitigationRecs,
+  detectEMFRelevance,
 });
