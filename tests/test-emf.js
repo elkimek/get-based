@@ -152,8 +152,8 @@ return (async () => {
   // ── EMF chat-context detection (one-time hint trigger) ──
   assert('71. detectEMFRelevance exported', typeof recsMod.detectEMFRelevance === 'function');
   assert('72. Detects "EMF" mention', recsMod.detectEMFRelevance('I am worried about EMF in my bedroom'));
-  assert('73. Detects "RF" mention', recsMod.detectEMFRelevance('how much RF is too much?'));
-  assert('74. Detects "5G"', recsMod.detectEMFRelevance('the 5G tower next door'));
+  assert('73. Detects RF radiation (compound)', recsMod.detectEMFRelevance('how much RF radiation is too much?'));
+  assert('74. Detects "5G tower"', recsMod.detectEMFRelevance('the 5G tower next door'));
   assert('75. Detects dirty electricity', recsMod.detectEMFRelevance('My LED dimmers cause dirty electricity'));
   assert('76. Detects cell tower', recsMod.detectEMFRelevance('there is a cell tower nearby'));
   assert('77. Detects Yshield', recsMod.detectEMFRelevance('I want to apply yshield paint'));
@@ -162,6 +162,11 @@ return (async () => {
   assert('80. Skips generic insomnia', !recsMod.detectEMFRelevance('I have trouble falling asleep'));
   assert('81. Skips generic fatigue', !recsMod.detectEMFRelevance('I am chronically tired and fatigued'));
   assert('82. Skips empty/null', !recsMod.detectEMFRelevance('') && !recsMod.detectEMFRelevance(null));
+  // Tightened — no longer false-positives on medical RF or supplement dosages
+  assert('82a. Skips RF ablation (medical, not EMF)', !recsMod.detectEMFRelevance('I had RF ablation for my heart arrhythmia'));
+  assert('82b. Skips RF coil (MRI, not EMF)', !recsMod.detectEMFRelevance('the RF coil in the MRI machine'));
+  assert('82c. Skips creatine 5g dose', !recsMod.detectEMFRelevance('I take 5g of creatine daily'));
+  assert('82d. Skips 5G policy talk', !recsMod.detectEMFRelevance('legislation about 5G is contentious'));
 
   // ── Mitigation detection in AI interpretation text ──
   assert('83. detectMitigationsInText exported', typeof recsMod.detectMitigationsInText === 'function');
@@ -191,6 +196,19 @@ return (async () => {
   const couponHtml = recsMod.renderEMFMeterRecs(emfCat);
   assert('93. Coupon renders as clickable button', couponHtml.includes('rec-coupon-code') && couponHtml.includes('copyCouponCode'));
   assert('94. copyCouponCode exposed on window', typeof window.copyCouponCode === 'function');
+  // a11y: aria-label on coupon button + aria-live on wrapper
+  assert('94a. Coupon button has aria-label', /aria-label="Copy coupon code/.test(couponHtml));
+  assert('94b. Coupon wrapper announces flash via aria-live', /aria-live="polite"/.test(couponHtml));
+  // a11y: external links labelled with new-tab indicator
+  assert('94c. Affiliate links carry aria-label "opens in new tab"', /opens in new tab/.test(couponHtml));
+  // Domain whitelist — affiliate URL goes through hostname allowlist
+  const hostlistedHtml = recsMod.renderEMFMeterRecs(emfCat);
+  assert('94d. Trusted SLT URL renders as link', hostlistedHtml.includes('safelivingtechnologies.com'));
+  // Inject a malicious URL and confirm it does NOT render the link
+  const malCat = JSON.parse(JSON.stringify(emfCat));
+  malCat.meters[0].url = 'https://attacker.com/?safelivingtechnologies.com=fake';
+  const malHtml = recsMod.renderEMFMeterRecs(malCat);
+  assert('94e. Allowlist blocks attacker.com URL', !malHtml.includes('attacker.com'));
 
   console.log('=== Results ===');
   console.log(`${document.querySelectorAll('.test-pass').length || 94} passed, 0 failed`);

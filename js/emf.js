@@ -846,7 +846,7 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
     if (recSlot) {
       loadEMFCatalog().then(cat => {
         if (cat && document.getElementById('emf-interp-recs') === recSlot) {
-          recSlot.innerHTML = renderEMFMitigationRecs(cat, mitigationTags);
+          recSlot.innerHTML = renderEMFMitigationRecs(cat, mitigationTags, { heading: 'Products to consider' });
         }
       });
     }

@@ -5,6 +5,19 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.11', date: '2026-04-26', title: 'EMF surfaces — audit fixes (a11y, security, correctness)',
+    items: [
+      '<b>Accessibility:</b> coupon button now reads as "Copy coupon code getbased to clipboard" for screen readers, "✓ Copied" flash is announced via aria-live, external links explicitly say "opens in new tab", and the 💡 nudge emoji is hidden from screen readers (text alone is sufficient context).',
+      '<b>Chat hint precision:</b> bare "RF" and "5G" no longer trigger the EMF nudge, so RF ablation procedures and "5g of creatine" don\'t surface a false suggestion. Now requires compound terms like "RF radiation" or "5G tower / network / signal".',
+      '<b>Chat hint cooldown integrity:</b> the 30-day cooldown is now only set after the hint actually renders to the DOM. A stop-mid-stream or error before the hint paints no longer burns the cooldown silently.',
+      '<b>Affiliate URL allowlist:</b> product URLs now go through a hostname allowlist (currently <code>safelivingtechnologies.com</code>), so even a corrupted catalog can\'t render attacker-controlled URLs masquerading as SLT.',
+      '<b>Stale-assessment grammar:</b> "1 month ago" instead of "1 months ago", and "over a year ago" once the gap exceeds 12 months.',
+      '<b>Coupon click-to-copy honesty:</b> when the clipboard API isn\'t available (insecure HTTP, old browsers), the button now selects the text and shows "Press Ctrl+C" instead of a misleading "✓ Copied". Rapid double-click no longer stomps the flash timer.',
+      '<b>Heading copy:</b> "Recommended products for your mitigations" → "Products to consider".',
+      '<b>ReDoS hardening:</b> the WiFi-near-bedroom regex is now bounded to 80 characters of context window so a 100KB AI response can\'t cause catastrophic backtracking.',
+    ]
+  },
+  {
     version: '1.3.10', date: '2026-04-26', title: 'EMF surfaces — UX polish',
     items: [
       '<b>Mitigations the AI mentions in its interpretation</b> now also surface matching products, even if you didn\'t tag them on the room. Previously you had to manually click chips like "shielding paint" before the rec section would appear; now the AI saying "consider Yshield" is enough.',

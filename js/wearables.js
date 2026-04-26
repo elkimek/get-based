@@ -875,7 +875,7 @@ function _buildEMFSleepHint(metricId, m) {
     if (ageDays < 120) return '';
   }
   const openHandler = `event.preventDefault();window.closeModal&&window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
-  return `<div class="wearable-detail-emf-hint">💡 Sleep regressing? Sometimes it's the room. <a href="#" onclick="${openHandler}">Check your EMF environment →</a></div>`;
+  return `<div class="wearable-detail-emf-hint"><span aria-hidden="true">💡</span> Sleep regressing? Sometimes it's the room. <a href="#" onclick="${openHandler}">Check your EMF environment →</a></div>`;
 }
 
 function renderWearableChart(canvas, canon, m, series) {

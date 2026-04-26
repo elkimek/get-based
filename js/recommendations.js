@@ -128,41 +128,72 @@ function _buildCouponLine(catalog) {
   const code = escapeHTML(c.code);
   // Click-to-copy: a global helper handles the work. Inline onclick stays
   // tiny and safe to embed in an attribute (no quotes, no arrow funcs).
-  return `<div class="rec-coupon">Use code <button type="button" class="rec-coupon-code" onclick="copyCouponCode(this)" data-code="${code}" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
+  // aria-live on the wrapper so the "✓ Copied" flash is announced to SR users.
+  return `<div class="rec-coupon" aria-live="polite" aria-atomic="true">Use code <button type="button" class="rec-coupon-code" onclick="copyCouponCode(this)" data-code="${code}" aria-label="Copy coupon code ${code} to clipboard" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
 }
 
 function copyCouponCode(btn) {
   const code = btn?.dataset?.code;
   if (!code) return;
-  const flashCopied = () => {
+  // Guard against rapid double-clicks: if the button is still in the
+  // "✓ Copied" flash state, skip — the new flash would otherwise stomp the
+  // running timer and the button could get stuck on the temporary text.
+  if (btn.dataset.flashing === '1') return;
+  const flashCopied = (label) => {
     const orig = btn.textContent;
-    btn.textContent = '✓ Copied';
-    setTimeout(() => { btn.textContent = orig; }, 1400);
+    btn.dataset.flashing = '1';
+    btn.textContent = label;
+    setTimeout(() => {
+      btn.textContent = orig;
+      delete btn.dataset.flashing;
+    }, 1400);
   };
   if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(code).then(flashCopied).catch(() => {});
+    navigator.clipboard.writeText(code).then(() => flashCopied('✓ Copied')).catch(() => {
+      // Permissions issue — surface honest fallback rather than fake success
+      flashCopied('Press Ctrl+C');
+    });
   } else {
+    // Insecure context (HTTP) or ancient browser — select the text so the
+    // user can press Ctrl+C themselves; never fake "Copied".
     const r = document.createRange();
     r.selectNodeContents(btn);
     const s = getSelection();
     s.removeAllRanges();
     s.addRange(r);
+    flashCopied('Press Ctrl+C');
   }
+}
+
+// Affiliate links are tightly scoped to known vendor domains. Even if the
+// catalog were corrupted (sync, SW poisoning, profile import), only URLs
+// belonging to a vetted partner can render — prefix-only matching would let
+// an attacker construct https://attacker.com?safelivingtechnologies.com=...
+const _AFFILIATE_DOMAIN_ALLOWLIST = [
+  'safelivingtechnologies.com',
+];
+function _isTrustedAffiliateUrl(url) {
+  if (!url || !/^https?:\/\//i.test(url)) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return _AFFILIATE_DOMAIN_ALLOWLIST.some(d => host === d || host.endsWith('.' + d));
+  } catch { return false; }
 }
 
 function _buildEMFProductRow(product) {
   const url = product.url;
-  const isValid = url && /^https?:\/\//.test(url);
+  const isValid = _isTrustedAffiliateUrl(url);
   const meta = [];
   if (product.vendor) meta.push(escapeHTML(product.vendor));
   if (product.kind) meta.push(escapeHTML(product.kind));
+  const productName = escapeHTML(product.name);
   return `<div class="rec-product rec-emf-product">
     <div class="rec-emf-product-head">
-      <strong>${escapeHTML(product.name)}</strong>
+      <strong>${productName}</strong>
       ${meta.length ? `<span class="rec-emf-product-meta">${meta.join(' · ')}</span>` : ''}
     </div>
     ${product.blurb ? `<div class="rec-emf-product-blurb">${escapeHTML(product.blurb)}</div>` : ''}
-    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored">View on Safe Living Technologies →</a>` : ''}
+    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" aria-label="View ${productName} on Safe Living Technologies, opens in new tab">View on Safe Living Technologies →</a>` : ''}
   </div>`;
 }
 
@@ -300,7 +331,7 @@ function _buildEMFNudge() {
   const assessments = state.importedData?.emfAssessment?.assessments || [];
   const openHandler = `event.preventDefault();document.getElementById('modal-overlay').classList.remove('show');setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
   if (!assessments.length) {
-    return `<div class="ctx-tip-emf-nudge">💡 Want to actually measure what your home is putting out? <a href="#" onclick="${openHandler}">Open the EMF assessment →</a></div>`;
+    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" onclick="${openHandler}">Open the EMF assessment →</a></div>`;
   }
   const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
   const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
@@ -309,7 +340,8 @@ function _buildEMFNudge() {
   // profiles with semi-fresh assessments still surface the "stale" path.
   if (ageDays > 120) {
     const months = Math.round(ageDays / 30);
-    return `<div class="ctx-tip-emf-nudge">💡 Your last EMF check was ${months} months ago. <a href="#" onclick="${openHandler}">Re-check the room →</a></div>`;
+    const span = months >= 12 ? 'over a year' : `${months} ${months === 1 ? 'month' : 'months'}`;
+    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Your last EMF check was ${span} ago. <a href="#" onclick="${openHandler}">Re-check the room →</a></div>`;
   }
   return '';
 }
@@ -655,13 +687,19 @@ export function detectMitigationsInText(text) {
 // like cell towers / smart meters / WiFi-as-symptom-cause. Doesn't fire on
 // generic "insomnia" or "fatigue" — those are handled by the supplements
 // pipeline. Fires only when EMF specifically is on the user's mind.
+// Patterns are bounded — no unbounded `.*` to prevent catastrophic backtracking
+// on long AI responses. Bare \brf\b and \b5g\b are dropped (matched RF
+// ablation, "5g of creatine"); use compound patterns instead.
 const _EMF_TERMS = [
-  /\bemf\b/i, /\brf\b/i, /\b5g\b/i,
+  /\bemf\b/i,
   /electromagnetic/i, /baubiologie/i, /building biology/i,
   /dirty electric/i, /cell tower/i, /smart meter/i,
-  /\bwifi\b.*(?:bedroom|sleep|night)/i,
-  /(?:bedroom|sleep|night).*\bwifi\b/i,
-  /microwave radiation/i, /\brf radiation\b/i,
+  /\b5g\s+(?:network|tower|band|frequency|signal|radiation|deployment)/i,
+  /\brf\s+(?:radiation|exposure|interference|shielding|emission)/i,
+  /\bwifi\b\s+\w*\s*(?:radiation|exposure|emission)/i,
+  /\bwifi\b[^.!?\n]{0,80}(?:bedroom|sleep|night)/i,
+  /(?:bedroom|sleep|night)[^.!?\n]{0,80}\bwifi\b/i,
+  /microwave radiation/i,
   /shielding (?:paint|fabric|canopy)/i,
   /yshield/i, /stetzer/i,
 ];
