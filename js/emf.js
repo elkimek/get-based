@@ -142,8 +142,7 @@ function renderEMFEditor(modal) {
 
   if (sorted.length === 0) {
     _compareMode = false;
-    html += `<div class="emf-empty">No assessments yet. Add one manually or import a consultant's PDF report.</div>
-      <div id="emf-meter-recs-slot"></div>`;
+    html += `<div class="emf-empty">No assessments yet. Add one manually or import a consultant's PDF report.</div>`;
   } else if (_compareMode && sorted.length >= 2) {
     html += renderComparisonView(sorted);
   } else {
@@ -166,6 +165,9 @@ function renderEMFEditor(modal) {
       html += `</div>`;
     }
   }
+
+  // Meter recommendations always visible — empty state, list view, and compare view alike
+  html += `<div id="emf-meter-recs-slot"></div>`;
 
   modal.innerHTML = html;
 
