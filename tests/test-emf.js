@@ -96,6 +96,57 @@ return (async () => {
   const missingExports = emfWindowFns.filter(fn => typeof emfMod[fn] !== 'function');
   assert('45. All lazy-stub fns exist in emf.js exports', missingExports.length === 0, missingExports.join(', '));
 
+  // ── EMF affiliate catalog (Safe Living Technologies) ──
+  const recsMod = await import('/js/recommendations.js');
+  assert('46. loadEMFCatalog exported', typeof recsMod.loadEMFCatalog === 'function');
+  assert('47. getEMFMeters exported', typeof recsMod.getEMFMeters === 'function');
+  assert('48. getEMFProductsForMitigations exported', typeof recsMod.getEMFProductsForMitigations === 'function');
+  assert('49. renderEMFMeterRecs exported', typeof recsMod.renderEMFMeterRecs === 'function');
+  assert('50. renderEMFMitigationRecs exported', typeof recsMod.renderEMFMitigationRecs === 'function');
+
+  const emfCat = await recsMod.loadEMFCatalog();
+  assert('51. EMF catalog loads', !!emfCat, 'expected emf-products.json to fetch');
+  assert('52. Catalog has vendor object', !!emfCat?.vendor?.name);
+  assert('53. Coupon code is "getbased"', emfCat?.vendor?.coupon?.code === 'getbased');
+  assert('54. Catalog has at least 2 meters', Array.isArray(emfCat?.meters) && emfCat.meters.length >= 2);
+  assert('55. Pro II meter present', emfCat.meters.some(m => /Pro II/i.test(m.name)));
+  assert('56. EM3 meter present', emfCat.meters.some(m => /EM3/i.test(m.name)));
+  assert('57. Pro II URL has affiliate ID', emfCat.meters.find(m => /Pro II/i.test(m.name))?.url?.includes('aff=466'));
+  assert('58. EM3 URL has affiliate ID', emfCat.meters.find(m => /EM3/i.test(m.name))?.url?.includes('aff=466'));
+
+  // Filter meters by measurement type
+  const rfMeters = recsMod.getEMFMeters(emfCat, ['rfMicrowave']);
+  assert('59. getEMFMeters filters to RF', rfMeters.length >= 1 && rfMeters.every(m => m.matchTypes.includes('rfMicrowave')));
+  const allMeters = recsMod.getEMFMeters(emfCat, []);
+  assert('60. getEMFMeters returns all when no type filter', allMeters.length === emfCat.meters.length);
+
+  // Mitigation tag → product lookup
+  const paintProds = recsMod.getEMFProductsForMitigations(emfCat, ['shielding paint (Yshield)']);
+  assert('61. Paint mitigation finds at least one product', paintProds.length >= 1);
+  assert('62. Paint product URL has affiliate ID', paintProds[0]?.url?.includes('aff=466'));
+
+  const multiProds = recsMod.getEMFProductsForMitigations(emfCat, ['shielding paint (Yshield)', 'Stetzerizer filters', 'shielding paint (Yshield)']);
+  assert('63. getEMFProductsForMitigations dedupes', multiProds.length >= 2 && new Set(multiProds.map(p => p.url + '|' + p.name)).size === multiProds.length);
+
+  const noMatch = recsMod.getEMFProductsForMitigations(emfCat, ['nonexistent mitigation tag']);
+  assert('64. Unknown mitigation returns empty', noMatch.length === 0);
+
+  // Render gating: when toggle is OFF, returns empty string
+  const prevToggle = localStorage.getItem('labcharts-show-product-recs');
+  localStorage.setItem('labcharts-show-product-recs', 'false');
+  assert('65. renderEMFMeterRecs respects toggle (off)', recsMod.renderEMFMeterRecs(emfCat) === '');
+  assert('66. renderEMFMitigationRecs respects toggle (off)', recsMod.renderEMFMitigationRecs(emfCat, ['shielding paint (Yshield)']) === '');
+  localStorage.setItem('labcharts-show-product-recs', 'true');
+  const meterHtml = recsMod.renderEMFMeterRecs(emfCat);
+  assert('67. renderEMFMeterRecs returns HTML when on', meterHtml.includes('rec-emf-section') && meterHtml.includes('aff=466'));
+  assert('68. Meter rec HTML carries coupon line', meterHtml.includes('rec-coupon') && meterHtml.includes('getbased'));
+  const mitHtml = recsMod.renderEMFMitigationRecs(emfCat, ['Stetzerizer filters']);
+  assert('69. Mitigation rec HTML mentions Stetzer/Greenwave/dirty', /Stetzerizer|Greenwave|Dirty electricity/i.test(mitHtml));
+  assert('70. Empty tag list returns empty string', recsMod.renderEMFMitigationRecs(emfCat, []) === '');
+  // Restore prior toggle state
+  if (prevToggle === null) localStorage.removeItem('labcharts-show-product-recs');
+  else localStorage.setItem('labcharts-show-product-recs', prevToggle);
+
   console.log('=== Results ===');
-  console.log(`${document.querySelectorAll('.test-pass').length || 48} passed, 0 failed`);
+  console.log(`${document.querySelectorAll('.test-pass').length || 70} passed, 0 failed`);
 })();

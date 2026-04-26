@@ -1,0 +1,82 @@
+{
+  "_comment": "EMF mitigation product catalog — Safe Living Technologies affiliate program. Coupon 'getbased' gives the user 10% off and 10% commission to the maintainer. Only meter URLs point to specific product pages; mitigation categories link to the SLT homepage with the affiliate ID, since SLT carries multiple competing products in each category.",
+  "vendor": {
+    "name": "Safe Living Technologies",
+    "homepage": "https://safelivingtechnologies.com?aff=466",
+    "coupon": {
+      "code": "getbased",
+      "userDiscount": "10%"
+    },
+    "regions": ["US", "INTL"]
+  },
+  "meters": [
+    {
+      "key": "slt-pro-ii",
+      "name": "Safe and Sound Pro II",
+      "vendor": "Safe Living Technologies",
+      "kind": "RF / microwave meter",
+      "blurb": "State-of-the-art consumer/semi-pro RF meter. Covers 200 MHz to 8 GHz — the band where WiFi, cellular, and Bluetooth live.",
+      "url": "https://safelivingtechnologies.com/products/safe-and-sound-pro-ii-rf-meter.html?aff=466",
+      "matchTypes": ["rfMicrowave"]
+    },
+    {
+      "key": "slt-em3",
+      "name": "Safe and Sound EM3 Gauss Meter",
+      "vendor": "Safe Living Technologies",
+      "kind": "Electric / magnetic / body-voltage meter",
+      "blurb": "Reads AC electric fields, AC magnetic fields, and body voltage. Covers the rest of the SBM-2015 sleeping-area protocol.",
+      "url": "https://safelivingtechnologies.com/products/safe-and-sound-em3-gauss-meter.html?aff=466",
+      "matchTypes": ["acElectric", "acMagnetic"]
+    }
+  ],
+  "mitigationProducts": {
+    "shielding paint (Yshield)": [
+      {
+        "name": "RF shielding paint",
+        "vendor": "Safe Living Technologies",
+        "blurb": "Yshield Y-line conductive paint. Apply to walls, then ground to your electrical panel. Reduces RF transmission by 30+ dB.",
+        "url": "https://safelivingtechnologies.com?aff=466"
+      }
+    ],
+    "shielding fabric / canopy": [
+      {
+        "name": "Bed canopies & shielding fabric",
+        "vendor": "Safe Living Technologies",
+        "blurb": "Naturell, Swiss Shield, Daylite. The single most effective intervention if outside RF (cell tower, neighbor's WiFi) is the dominant source.",
+        "url": "https://safelivingtechnologies.com?aff=466"
+      }
+    ],
+    "Stetzerizer filters": [
+      {
+        "name": "Dirty electricity filters",
+        "vendor": "Safe Living Technologies",
+        "blurb": "Stetzerizer / Greenwave plug-in filters that absorb high-frequency noise on house wiring. Plug into outlets nearest to dimmers, LED drivers, and switching power supplies.",
+        "url": "https://safelivingtechnologies.com?aff=466"
+      }
+    ],
+    "grounding rod": [
+      {
+        "name": "Grounding kits",
+        "vendor": "Safe Living Technologies",
+        "blurb": "Rod + wire + adapters to properly ground shielding paint or fabric to earth. Required for paint and canopies to actually work.",
+        "url": "https://safelivingtechnologies.com?aff=466"
+      }
+    ],
+    "shielded cables": [
+      {
+        "name": "Shielded power & ethernet cables",
+        "vendor": "Safe Living Technologies",
+        "blurb": "Reduces near-field AC electric exposure from bedroom lamps, charging bricks, and desk equipment without needing to rewire the room.",
+        "url": "https://safelivingtechnologies.com?aff=466"
+      }
+    ],
+    "demand switch (Netzfreischalter)": [
+      {
+        "name": "Demand switches",
+        "vendor": "Safe Living Technologies",
+        "blurb": "Disconnects a bedroom circuit at night when no current is drawn, then reconnects when you flip a light. Eliminates 50/60 Hz electric fields without thinking about it.",
+        "url": "https://safelivingtechnologies.com?aff=466"
+      }
+    ]
+  }
+}

@@ -14,6 +14,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, getActiv
 import { renderMarkdown } from './markdown.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
+import { loadEMFCatalog, renderEMFMeterRecs, renderEMFMitigationRecs, isProductRecsEnabled } from './recommendations.js';
 
 // ═══════════════════════════════════════════════
 // MEASUREMENT TYPES (display order)
@@ -141,7 +142,8 @@ function renderEMFEditor(modal) {
 
   if (sorted.length === 0) {
     _compareMode = false;
-    html += `<div class="emf-empty">No assessments yet. Add one manually or import a consultant's PDF report.</div>`;
+    html += `<div class="emf-empty">No assessments yet. Add one manually or import a consultant's PDF report.</div>
+      <div id="emf-meter-recs-slot"></div>`;
   } else if (_compareMode && sorted.length >= 2) {
     html += renderComparisonView(sorted);
   } else {
@@ -166,6 +168,16 @@ function renderEMFEditor(modal) {
   }
 
   modal.innerHTML = html;
+
+  // Populate meter recommendations on the empty state — async, never blocks render
+  const meterSlot = document.getElementById('emf-meter-recs-slot');
+  if (meterSlot && isProductRecsEnabled()) {
+    loadEMFCatalog().then(cat => {
+      if (cat && document.getElementById('emf-meter-recs-slot') === meterSlot) {
+        meterSlot.innerHTML = renderEMFMeterRecs(cat);
+      }
+    });
+  }
 }
 
 function renderAssessmentDetail(a) {
@@ -771,7 +783,7 @@ function stripThinking(text) {
 
 const EMF_SYSTEM = `You are a Baubiologie (Building Biology) consultant interpreting EMF assessment data rated against SBM-2015 standards. Be specific about health implications, prioritize concerns by severity (sleeping areas are most critical), and suggest actionable mitigations in priority order. Keep the response concise and practical. Use markdown formatting with headers and bullet points.`;
 
-function openInterpretationModal(title, existingInterp, onGenerate, onSave) {
+function openInterpretationModal(title, existingInterp, onGenerate, onSave, mitigationTags = []) {
   // Create overlay that sits on top of the EMF editor (z-index above modal-overlay)
   let overlay = document.getElementById('emf-interp-overlay');
   if (!overlay) {
@@ -791,6 +803,7 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave) {
     <div class="emf-interp-body" id="emf-interp-body">
       ${hasExisting ? renderMarkdown(existingInterp.text) : '<div class="emf-interp-placeholder">Click Interpret to get an AI interpretation of this assessment.</div>'}
     </div>
+    <div id="emf-interp-recs"></div>
     <div class="emf-interp-footer">
       <div id="emf-interp-meta" class="emf-interp-meta">
         ${hasExisting ? buildMetaLine(existingInterp) : ''}
@@ -824,6 +837,18 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave) {
     btn.textContent = 'Interpreting…';
     onGenerate(onSave);
   });
+
+  // Populate mitigation product recs alongside the AI interpretation
+  if (mitigationTags && mitigationTags.length && isProductRecsEnabled()) {
+    const recSlot = document.getElementById('emf-interp-recs');
+    if (recSlot) {
+      loadEMFCatalog().then(cat => {
+        if (cat && document.getElementById('emf-interp-recs') === recSlot) {
+          recSlot.innerHTML = renderEMFMitigationRecs(cat, mitigationTags);
+        }
+      });
+    }
+  }
 }
 
 function buildMetaLine(interp) {
@@ -932,6 +957,18 @@ export function discussEMFInterpretation() {
   window.openChatPanel(`I'd like to discuss this EMF assessment interpretation further. Here's the interpretation:\n\n${text}\n\nWhat questions should I prioritize, and what are the most important next steps?`);
 }
 
+function _collectMitigationTags(assessment) {
+  if (!assessment?.rooms) return [];
+  const seen = new Set();
+  const out = [];
+  for (const room of assessment.rooms) {
+    for (const t of (room.mitigations || [])) {
+      if (!seen.has(t)) { seen.add(t); out.push(t); }
+    }
+  }
+  return out;
+}
+
 export function interpretEMFAssessment(assessmentId) {
   const assessments = ensureAssessments();
   const a = assessments.find(x => x.id === assessmentId);
@@ -940,6 +977,7 @@ export function interpretEMFAssessment(assessmentId) {
   const fmtDate = new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const title = `EMF Interpretation — ${fmtDate}${a.label ? ' (' + a.label + ')' : ''}`;
   const data = serializeAssessment(a);
+  const tags = _collectMitigationTags(a);
 
   openInterpretationModal(title, a.interpretation, (onSave) => {
     const prompt = `Interpret this Baubiologie EMF assessment. Identify the most concerning readings, explain health implications (especially for sleeping areas), and recommend specific mitigations in priority order.\n\n${data}`;
@@ -947,7 +985,7 @@ export function interpretEMFAssessment(assessmentId) {
       a.interpretation = interp;
       saveImportedData();
     });
-  });
+  }, null, tags);
 }
 
 export function interpretEMFComparison() {
@@ -959,6 +997,10 @@ export function interpretEMFComparison() {
   const title = 'EMF Comparison — Before vs After';
   const before = serializeAssessment(sorted[1]);
   const after = serializeAssessment(sorted[0]);
+  const tags = [..._collectMitigationTags(sorted[0]), ..._collectMitigationTags(sorted[1])];
+  const dedup = [];
+  const seen = new Set();
+  for (const t of tags) { if (!seen.has(t)) { seen.add(t); dedup.push(t); } }
 
   openInterpretationModal(title, emf.comparisonInterpretation, (onSave) => {
     const prompt = `Compare these two Baubiologie EMF assessments (before and after). Evaluate what improved, what worsened, and what still needs attention. Prioritize remaining concerns and suggest next steps.\n\nBEFORE:\n${before}\nAFTER:\n${after}`;
@@ -966,7 +1008,7 @@ export function interpretEMFComparison() {
       emf.comparisonInterpretation = interp;
       saveImportedData();
     });
-  });
+  }, null, dedup);
 }
 
 // ═══════════════════════════════════════════════

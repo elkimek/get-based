@@ -3893,6 +3893,15 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   padding: 6px 10px; margin-top: 6px; border-radius: 0 var(--radius) var(--radius) 0;
   font-size: 11px; line-height: 1.4; color: var(--text-secondary);
 }
+/* EMF mitigation product recs (Safe Living Technologies affiliate) */
+.rec-emf-section { margin-top: 12px; }
+.rec-emf-product { display: block; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(99, 102, 241, 0.03); }
+.rec-emf-product-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rec-emf-product-meta { font-size: 11px; color: var(--text-muted); }
+.rec-emf-product-blurb { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.45; }
+.rec-emf-product .rec-product-link { display: inline-block; margin-top: 6px; padding: 4px 0; font-size: 12px; }
+.rec-coupon { font-size: 12px; color: var(--text-secondary); margin-top: 8px; padding: 6px 10px; background: rgba(34, 197, 94, 0.06); border-left: 3px solid var(--green); border-radius: 0 var(--radius) var(--radius) 0; }
+.rec-coupon code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; padding: 1px 6px; background: rgba(34, 197, 94, 0.12); border-radius: 4px; }
 /* DNA-aware recommendation hints */
 .rec-dna-hints { border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 10px; background: rgba(99, 102, 241, 0.04); border-radius: 0 var(--radius) var(--radius) 0; }
 .rec-dna-row { font-size: 13px; padding: 4px 0; color: var(--text-secondary); line-height: 1.5; }

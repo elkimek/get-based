@@ -101,6 +101,7 @@ const APP_SHELL = [
   '/vendor/cashu-ts.js',
   '/vendor/fonts/fonts.css',
   '/data/recommendations-czsk.json',
+  '/data/emf-products.json',
 ];
 
 // Install: pre-cache app shell

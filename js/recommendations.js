@@ -74,6 +74,119 @@ export function getProductsForSlot(catalog, slotKey, region) {
 }
 
 // ═══════════════════════════════════════════════
+// EMF PRODUCT CATALOG — Safe Living Technologies affiliate
+// ═══════════════════════════════════════════════
+let _emfCatalog = undefined;
+let _emfCatalogPromise = null;
+
+export async function loadEMFCatalog() {
+  if (_emfCatalog !== undefined) return _emfCatalog;
+  if (_emfCatalogPromise) return _emfCatalogPromise;
+  _emfCatalogPromise = (async () => {
+    try {
+      const res = await fetch('data/emf-products.json');
+      if (!res.ok) { _emfCatalog = null; return null; }
+      _emfCatalog = await res.json();
+      return _emfCatalog;
+    } catch {
+      _emfCatalog = null;
+      return null;
+    } finally {
+      _emfCatalogPromise = null;
+    }
+  })();
+  return _emfCatalogPromise;
+}
+
+export function getEMFMeters(catalog, types) {
+  if (!catalog?.meters) return [];
+  if (!types || !types.length) return catalog.meters;
+  const wanted = new Set(types);
+  return catalog.meters.filter(m => (m.matchTypes || []).some(t => wanted.has(t)));
+}
+
+export function getEMFProductsForMitigations(catalog, tags) {
+  if (!catalog?.mitigationProducts) return [];
+  const out = [];
+  const seen = new Set();
+  for (const tag of tags || []) {
+    const products = catalog.mitigationProducts[tag];
+    if (!products) continue;
+    for (const p of products) {
+      const key = (p.url || '') + '|' + p.name;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...p, _tag: tag });
+    }
+  }
+  return out;
+}
+
+function _buildCouponLine(catalog) {
+  const c = catalog?.vendor?.coupon;
+  if (!c?.code) return '';
+  return `<div class="rec-coupon">Use code <code>${escapeHTML(c.code)}</code> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
+}
+
+function _buildEMFProductRow(product) {
+  const url = product.url;
+  const isValid = url && /^https?:\/\//.test(url);
+  const meta = [];
+  if (product.vendor) meta.push(escapeHTML(product.vendor));
+  if (product.kind) meta.push(escapeHTML(product.kind));
+  return `<div class="rec-product rec-emf-product">
+    <div class="rec-emf-product-head">
+      <strong>${escapeHTML(product.name)}</strong>
+      ${meta.length ? `<span class="rec-emf-product-meta">${meta.join(' · ')}</span>` : ''}
+    </div>
+    ${product.blurb ? `<div class="rec-emf-product-blurb">${escapeHTML(product.blurb)}</div>` : ''}
+    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored">View on Safe Living Technologies →</a>` : ''}
+  </div>`;
+}
+
+/**
+ * Render the EMF meter recommendation card (empty-state CTA).
+ * Returns '' when the toggle is off or the catalog couldn't load.
+ */
+export function renderEMFMeterRecs(catalog, opts = {}) {
+  if (!isProductRecsEnabled() || !catalog) return '';
+  const meters = getEMFMeters(catalog, opts.types);
+  if (!meters.length) return '';
+  const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
+  const heading = escapeHTML(opts.heading || 'Need a meter? Recommended by getbased');
+  const body = meters.map(_buildEMFProductRow).join('');
+  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
+    <div class="rec-section-header">${heading}</div>
+    <div class="rec-content">
+      ${body}
+      ${_buildCouponLine(catalog)}
+      ${buildDisclosureFooter()}
+    </div>
+  </div>`;
+}
+
+/**
+ * Render the EMF mitigation-product recommendation block (post-interpretation CTA).
+ * tags = flat array of mitigation strings collected across all rooms.
+ */
+export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
+  if (!isProductRecsEnabled() || !catalog) return '';
+  const products = getEMFProductsForMitigations(catalog, tags);
+  if (!products.length) return '';
+  const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
+  const heading = escapeHTML(opts.heading || 'Recommended products for your mitigations');
+  const body = products.map(_buildEMFProductRow).join('');
+  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
+    <div class="rec-section-header">${heading}</div>
+    <div class="rec-content">
+      ${body}
+      ${_buildCouponLine(catalog)}
+      ${buildDisclosureFooter()}
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
 // CARD TIPS — lifestyle slots for context cards
 // ═══════════════════════════════════════════════
 const CARD_NAMES = {
@@ -541,4 +654,9 @@ Object.assign(window, {
   buildDNAHints,
   getCardSlotKeys,
   renderCardTipsModal,
+  loadEMFCatalog,
+  getEMFMeters,
+  getEMFProductsForMitigations,
+  renderEMFMeterRecs,
+  renderEMFMitigationRecs,
 });
