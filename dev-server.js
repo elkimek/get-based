@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
+import crypto from 'node:crypto';
 
 const PORT = parseInt(process.argv[2], 10) || 8000;
 const __filename = fileURLToPath(import.meta.url);
@@ -280,9 +281,27 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         JSON.parse(body); // validate
-        fs.writeFileSync(path.join(ROOT, 'data', 'recommendations.json'), body);
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('OK');
+        // Conflict detection: if the editor sends an If-Match header with the
+        // SHA-256 hash of the catalog as it last saw it, we reject when the
+        // file has been modified since (multi-tab / two-editor race).
+        const ifMatch = req.headers['if-match'];
+        const filePath = path.join(ROOT, 'data', 'recommendations.json');
+        if (ifMatch) {
+          let currentHash = '';
+          try {
+            const buf = fs.readFileSync(filePath);
+            currentHash = crypto.createHash('sha256').update(buf).digest('hex');
+          } catch {}
+          if (currentHash && currentHash !== ifMatch.replace(/"/g, '')) {
+            res.writeHead(409, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'conflict', currentHash }));
+            return;
+          }
+        }
+        fs.writeFileSync(filePath, body);
+        const newHash = crypto.createHash('sha256').update(body).digest('hex');
+        res.writeHead(200, { 'Content-Type': 'application/json', 'ETag': '"' + newHash + '"' });
+        res.end(JSON.stringify({ ok: true, hash: newHash }));
       } catch(e) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Invalid JSON: ' + e.message);
@@ -295,16 +314,23 @@ const server = http.createServer((req, res) => {
   // preview so users see whether they're about to overwrite uncommitted work.
   if (pathname === '/api/git-status' && req.method === 'GET') {
     const filePath = url.searchParams.get('path') || 'data/recommendations.json';
-    // Path-traversal guard: only allow paths inside the repo. Resolve against
-    // ROOT and verify the result still starts with ROOT.
+    // Path-traversal guard: only allow paths inside the repo. Resolve, then
+    // realpath() to follow symlinks — rejects targets that escape ROOT via
+    // a symlink chain.
     const resolved = path.resolve(ROOT, String(filePath));
-    if (!resolved.startsWith(ROOT + path.sep) && resolved !== ROOT) {
+    let real;
+    try { real = fs.realpathSync(resolved); } catch { real = resolved; }
+    if (!real.startsWith(ROOT + path.sep) && real !== ROOT) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'invalid path' }));
       return;
     }
-    const rel = path.relative(ROOT, resolved);
+    const rel = path.relative(ROOT, real);
     res.writeHead(200, { 'Content-Type': 'application/json' });
+    // Hash the raw on-disk bytes — used by the editor as If-Match on POST
+    // to detect concurrent writes between diff-fetch and confirm-deploy.
+    let contentHash = null;
+    try { contentHash = crypto.createHash('sha256').update(fs.readFileSync(real)).digest('hex'); } catch {}
     // Run two cheap git commands in parallel: status (for dirty/clean) and
     // log (for last commit metadata). Both -c safe.directory bypass reduces
     // friction on shared dev machines.
@@ -312,7 +338,7 @@ const server = http.createServer((req, res) => {
     let pending = 2;
     function done() {
       if (--pending !== 0) return;
-      if (errored) { res.end(JSON.stringify({ error: 'git unavailable', dirty: false })); return; }
+      if (errored) { res.end(JSON.stringify({ error: 'git unavailable', dirty: false, contentHash })); return; }
       const dirty = statusOut.trim().length > 0;
       const lastCommit = (() => {
         const line = (logOut || '').trim();
@@ -320,7 +346,7 @@ const server = http.createServer((req, res) => {
         const [sha, date, ...rest] = line.split('\x1f');
         return { sha, date, message: rest.join('\x1f') };
       })();
-      res.end(JSON.stringify({ path: rel, dirty, lastCommit }));
+      res.end(JSON.stringify({ path: rel, dirty, lastCommit, contentHash }));
     }
     execFile('git', ['-C', ROOT, 'status', '--porcelain', '--', rel], { timeout: 3000 }, (err, out) => {
       if (err) errored = true;
