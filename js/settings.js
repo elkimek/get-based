@@ -41,6 +41,10 @@ export function openSettingsModal(tab) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
         AI
       </button>
+      <button class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" onclick="switchSettingsTab('privacy')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Privacy
+      </button>
       <button class="settings-tab-btn${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab="data" onclick="switchSettingsTab('data')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Data
@@ -151,12 +155,6 @@ export function openSettingsModal(tab) {
         </div>
       </div>
 
-      <div class="settings-group-title">PDF Import Privacy</div>
-
-      <div class="settings-section" id="privacy-section">
-        ${renderPrivacySection()}
-      </div>
-
       <div class="settings-group-title">Knowledge Base</div>
 
       <div class="settings-section" id="custom-lens-section">
@@ -167,6 +165,15 @@ export function openSettingsModal(tab) {
 
       <div class="settings-section" id="ai-usage-section">
         ${renderAIUsageSection()}
+      </div>
+    </div>
+
+    <!-- Privacy Tab -->
+    <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy">
+      <div class="settings-group-title">PDF Import Privacy</div>
+
+      <div class="settings-section" id="privacy-section">
+        ${renderPrivacySection()}
       </div>
     </div>
 
