@@ -5,6 +5,16 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.13', date: '2026-04-26', title: 'Privacy tab — clearer structure',
+    items: [
+      '<b>Privacy is now its own top-level tab</b> (Display · AI · <b>Privacy</b> · Data · Wearables · Agent Access). Previously the privacy controls lived inside the AI tab, which made the analytics opt-out hard to find for users who weren\'t looking specifically for AI settings.',
+      '<b>Heading reframed as "AI Privacy Protection"</b> instead of "PDF Import Privacy" — the obfuscation pipeline also runs on EMF assessment reports, image-based imports, and chat context, not just lab PDFs.',
+      '<b>"Configure Local AI" expander moved above the toggles</b>, since the toggles depend on the configuration. New users now see "set this up first, then turn it on" rather than the reverse.',
+      '<b>"Show privacy details in import preview"</b> renamed to <b>"Verbose console logging"</b> — the toggle was already wired to the global debug-mode flag, so the old label was misleading. New description is honest about what it does ("No data leaves your device").',
+      '<b>One-time confirmation when turning off "Review obfuscated text"</b> — disabling this means PII obfuscation still runs but you won\'t see the result before it\'s sent. Now requires a deliberate click instead of a silent toggle.',
+    ]
+  },
+  {
     version: '1.3.12', date: '2026-04-26', title: 'EMF affiliate — per-surface click tagging',
     items: [
       '<b>Outbound clicks on affiliate links are tagged for analytics</b> so we can tell which integrations help users vs. just take screen real estate. Tags identify the placement (chat hint, sleep card hint, Environment Tips nudge, empty-state meter rec, post-interpretation product rec) and the product clicked — never which user, what data they were viewing, or any health context.',
