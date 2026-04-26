@@ -126,10 +126,28 @@ function _buildCouponLine(catalog) {
   const c = catalog?.vendor?.coupon;
   if (!c?.code) return '';
   const code = escapeHTML(c.code);
-  // Click-to-copy: navigator.clipboard with a tiny inline visual confirmation.
-  // Falls back gracefully if the API is unavailable (older browsers / non-https).
-  const onclick = `(function(b){const v=${JSON.stringify(c.code)};if(navigator.clipboard?.writeText){navigator.clipboard.writeText(v).then(()=>{const o=b.textContent;b.textContent='✓ Copied';setTimeout(()=>{b.textContent=o;},1400);}).catch(()=>{});}else{const r=document.createRange();r.selectNodeContents(b);const s=getSelection();s.removeAllRanges();s.addRange(r);}})(this)`;
-  return `<div class="rec-coupon">Use code <button type="button" class="rec-coupon-code" onclick="${onclick}" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
+  // Click-to-copy: a global helper handles the work. Inline onclick stays
+  // tiny and safe to embed in an attribute (no quotes, no arrow funcs).
+  return `<div class="rec-coupon">Use code <button type="button" class="rec-coupon-code" onclick="copyCouponCode(this)" data-code="${code}" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
+}
+
+function copyCouponCode(btn) {
+  const code = btn?.dataset?.code;
+  if (!code) return;
+  const flashCopied = () => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    setTimeout(() => { btn.textContent = orig; }, 1400);
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(code).then(flashCopied).catch(() => {});
+  } else {
+    const r = document.createRange();
+    r.selectNodeContents(btn);
+    const s = getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  }
 }
 
 function _buildEMFProductRow(product) {
@@ -730,4 +748,5 @@ Object.assign(window, {
   renderEMFMitigationRecs,
   detectEMFRelevance,
   detectMitigationsInText,
+  copyCouponCode,
 });

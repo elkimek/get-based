@@ -189,8 +189,9 @@ return (async () => {
   // ── Coupon click-to-copy renders as button, not <code> ──
   localStorage.setItem('labcharts-show-product-recs', 'true');
   const couponHtml = recsMod.renderEMFMeterRecs(emfCat);
-  assert('93. Coupon renders as clickable button', couponHtml.includes('rec-coupon-code') && couponHtml.includes('navigator.clipboard'));
+  assert('93. Coupon renders as clickable button', couponHtml.includes('rec-coupon-code') && couponHtml.includes('copyCouponCode'));
+  assert('94. copyCouponCode exposed on window', typeof window.copyCouponCode === 'function');
 
   console.log('=== Results ===');
-  console.log(`${document.querySelectorAll('.test-pass').length || 93} passed, 0 failed`);
+  console.log(`${document.querySelectorAll('.test-pass').length || 94} passed, 0 failed`);
 })();
