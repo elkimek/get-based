@@ -108,11 +108,13 @@ return (async () => {
   assert('51. EMF catalog loads', !!emfCat, 'expected emf-products.json to fetch');
   assert('52. Catalog has vendor object', !!emfCat?.vendor?.name);
   assert('53. Coupon code is "getbased"', emfCat?.vendor?.coupon?.code === 'getbased');
-  assert('54. Catalog has at least 2 meters', Array.isArray(emfCat?.meters) && emfCat.meters.length >= 2);
+  assert('54. Catalog has at least 3 meters', Array.isArray(emfCat?.meters) && emfCat.meters.length >= 3);
   assert('55. Pro II meter present', emfCat.meters.some(m => /Pro II/i.test(m.name)));
   assert('56. EM3 meter present', emfCat.meters.some(m => /EM3/i.test(m.name)));
   assert('57. Pro II URL has affiliate ID', emfCat.meters.find(m => /Pro II/i.test(m.name))?.url?.includes('aff=466'));
   assert('58. EM3 URL has affiliate ID', emfCat.meters.find(m => /EM3/i.test(m.name))?.url?.includes('aff=466'));
+  assert('58a. Line EMI meter present (dirty electricity)', emfCat.meters.some(m => (m.matchTypes || []).includes('dirtyElectricity') && /Line EMI/i.test(m.name)));
+  assert('58b. Line EMI URL has affiliate ID', emfCat.meters.find(m => /Line EMI/i.test(m.name))?.url?.includes('aff=466'));
 
   // Filter meters by measurement type
   const rfMeters = recsMod.getEMFMeters(emfCat, ['rfMicrowave']);

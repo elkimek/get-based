@@ -27,6 +27,15 @@
       "blurb": "Reads AC electric fields, AC magnetic fields, and body voltage. Covers the rest of the SBM-2015 sleeping-area protocol.",
       "url": "https://safelivingtechnologies.com/products/safe-and-sound-em3-gauss-meter.html?aff=466",
       "matchTypes": ["acElectric", "acMagnetic"]
+    },
+    {
+      "key": "slt-line-emi",
+      "name": "Line EMI Meter",
+      "vendor": "Safe Living Technologies",
+      "kind": "Dirty electricity meter",
+      "blurb": "Measures high-frequency voltage transients (\"dirty electricity\") on house wiring — the noise from dimmers, LED drivers, switching power supplies, and solar inverters that filters can't fix until you know where it lives.",
+      "url": "https://safelivingtechnologies.com/products/line-emi-meter.html?aff=466",
+      "matchTypes": ["dirtyElectricity"]
     }
   ],
   "mitigationProducts": {
