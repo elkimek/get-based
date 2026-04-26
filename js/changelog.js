@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.15', date: '2026-04-26', title: 'Affiliate consolidation — single catalog',
+    items: [
+      '<b>EMF affiliate data merged into the unified recommendations catalog.</b> Until now the EMF integration lived in its own <code>emf-products.json</code>; the existing recommendation tool was the canonical home for tips + affiliates and having a parallel system was inconsistent. Now everything affiliate-related lives in <code>data/recommendations-czsk.json</code>.',
+      '<b>Single source of truth.</b> Future affiliates plug into the same catalog with the same disclosure, region filtering, and toggle infrastructure. SLT is the first of what could be many.',
+      '<b>No user-visible change.</b> All six EMF surfaces still render identically — same meter cards, same mitigation products, same coupon, same affiliate URLs, same Umami event labels. Pure architectural cleanup.',
+    ]
+  },
+  {
     version: '1.3.14', date: '2026-04-26', title: 'Analytics transparency banner',
     items: [
       '<b>First-launch banner about analytics</b> — getbased now tells you upfront that anonymous usage stats are on (counts only, no IP, no health data, cookieless), with a one-click "Turn off" button right there in the banner. Shown once, then never again. Better than silent default-on, more pragmatic than opt-in buried in Settings nobody finds.',

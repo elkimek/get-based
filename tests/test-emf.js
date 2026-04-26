@@ -104,23 +104,25 @@ return (async () => {
   assert('49. renderEMFMeterRecs exported', typeof recsMod.renderEMFMeterRecs === 'function');
   assert('50. renderEMFMitigationRecs exported', typeof recsMod.renderEMFMitigationRecs === 'function');
 
+  // Post-consolidation: data lives in unified recommendations-czsk.json catalog
   const emfCat = await recsMod.loadEMFCatalog();
-  assert('51. EMF catalog loads', !!emfCat, 'expected emf-products.json to fetch');
-  assert('52. Catalog has vendor object', !!emfCat?.vendor?.name);
-  assert('53. Coupon code is "getbased"', emfCat?.vendor?.coupon?.code === 'getbased');
-  assert('54. Catalog has at least 3 meters', Array.isArray(emfCat?.meters) && emfCat.meters.length >= 3);
-  assert('55. Pro II meter present', emfCat.meters.some(m => /Pro II/i.test(m.name)));
-  assert('56. EM3 meter present', emfCat.meters.some(m => /EM3/i.test(m.name)));
-  assert('57. Pro II URL has affiliate ID', emfCat.meters.find(m => /Pro II/i.test(m.name))?.url?.includes('aff=466'));
-  assert('58. EM3 URL has affiliate ID', emfCat.meters.find(m => /EM3/i.test(m.name))?.url?.includes('aff=466'));
-  assert('58a. Line EMI meter present (dirty electricity)', emfCat.meters.some(m => (m.matchTypes || []).includes('dirtyElectricity') && /Line EMI/i.test(m.name)));
-  assert('58b. Line EMI URL has affiliate ID', emfCat.meters.find(m => /Line EMI/i.test(m.name))?.url?.includes('aff=466'));
+  assert('51. Unified catalog loads', !!emfCat, 'expected recommendations-czsk.json to fetch');
+  assert('52. Catalog has SLT vendor', !!emfCat?.vendors?.slt?.name);
+  assert('53. SLT coupon code is "getbased"', emfCat?.vendors?.slt?.coupon?.code === 'getbased');
+  const meters = emfCat?.products?.['_internal.emfMeters'] || [];
+  assert('54. Catalog has at least 3 meters', Array.isArray(meters) && meters.length >= 3);
+  assert('55. Pro II meter present', meters.some(m => /Pro II/i.test(m.name)));
+  assert('56. EM3 meter present', meters.some(m => /EM3/i.test(m.name)));
+  assert('57. Pro II URL has affiliate ID', meters.find(m => /Pro II/i.test(m.name))?.url?.includes('aff=466'));
+  assert('58. EM3 URL has affiliate ID', meters.find(m => /EM3/i.test(m.name))?.url?.includes('aff=466'));
+  assert('58a. Line EMI meter present (dirty electricity)', meters.some(m => (m.matchTypes || []).includes('dirtyElectricity') && /Line EMI/i.test(m.name)));
+  assert('58b. Line EMI URL has affiliate ID', meters.find(m => /Line EMI/i.test(m.name))?.url?.includes('aff=466'));
 
   // Filter meters by measurement type
   const rfMeters = recsMod.getEMFMeters(emfCat, ['rfMicrowave']);
   assert('59. getEMFMeters filters to RF', rfMeters.length >= 1 && rfMeters.every(m => m.matchTypes.includes('rfMicrowave')));
   const allMeters = recsMod.getEMFMeters(emfCat, []);
-  assert('60. getEMFMeters returns all when no type filter', allMeters.length === emfCat.meters.length);
+  assert('60. getEMFMeters returns all when no type filter', allMeters.length === meters.length);
 
   // Mitigation tag → product lookup
   const paintProds = recsMod.getEMFProductsForMitigations(emfCat, ['shielding paint (Yshield)']);
@@ -206,7 +208,7 @@ return (async () => {
   assert('94d. Trusted SLT URL renders as link', hostlistedHtml.includes('safelivingtechnologies.com'));
   // Inject a malicious URL and confirm it does NOT render the link
   const malCat = JSON.parse(JSON.stringify(emfCat));
-  malCat.meters[0].url = 'https://attacker.com/?safelivingtechnologies.com=fake';
+  malCat.products['_internal.emfMeters'][0].url = 'https://attacker.com/?safelivingtechnologies.com=fake';
   const malHtml = recsMod.renderEMFMeterRecs(malCat);
   assert('94e. Allowlist blocks attacker.com URL', !malHtml.includes('attacker.com'));
 

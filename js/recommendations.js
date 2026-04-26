@@ -74,46 +74,49 @@ export function getProductsForSlot(catalog, slotKey, region) {
 }
 
 // ═══════════════════════════════════════════════
-// EMF PRODUCT CATALOG — Safe Living Technologies affiliate
+// EMF PRODUCT RESOLVERS — read from the unified recommendations catalog
+// (data/recommendations-czsk.json). The EMF panel and nudges still render
+// through their own specialized helpers below — but the source of truth is
+// the same catalog used for every other affiliate. emf-products.json is gone.
 // ═══════════════════════════════════════════════
-let _emfCatalog = undefined;
-let _emfCatalogPromise = null;
 
+// Backward-compat alias: callers historically called loadEMFCatalog before
+// the consolidation. Now it just hands back the unified catalog so existing
+// call sites keep working without churn.
 export async function loadEMFCatalog() {
-  if (_emfCatalog !== undefined) return _emfCatalog;
-  if (_emfCatalogPromise) return _emfCatalogPromise;
-  _emfCatalogPromise = (async () => {
-    try {
-      const res = await fetch('data/emf-products.json');
-      if (!res.ok) { _emfCatalog = null; return null; }
-      _emfCatalog = await res.json();
-      return _emfCatalog;
-    } catch {
-      _emfCatalog = null;
-      return null;
-    } finally {
-      _emfCatalogPromise = null;
-    }
-  })();
-  return _emfCatalogPromise;
+  return loadCatalog();
 }
 
 export function getEMFMeters(catalog, types) {
-  if (!catalog?.meters) return [];
-  if (!types || !types.length) return catalog.meters;
+  const products = catalog?.products?.['_internal.emfMeters'] || [];
+  if (!types || !types.length) return products;
   const wanted = new Set(types);
-  return catalog.meters.filter(m => (m.matchTypes || []).some(t => wanted.has(t)));
+  return products.filter(m => (m.matchTypes || []).some(t => wanted.has(t)));
 }
 
+// Mitigation tag (stored on a room) → catalog slot key. Single map keeps the
+// per-room chip strings (which match the constants.js EMF_MITIGATIONS list)
+// glued to the slot keys we created in the unified catalog.
+const _MITIGATION_TAG_TO_SLOT = {
+  'shielding paint (Yshield)': 'env.shieldingPaint',
+  'shielding fabric / canopy': 'env.shieldingFabric',
+  'Stetzerizer filters': 'env.dirtyElectricity',
+  'demand switch (Netzfreischalter)': 'env.demandSwitch',
+  'shielded cables': 'env.shieldedCables',
+  'grounding rod': 'env.grounding',
+};
+
 export function getEMFProductsForMitigations(catalog, tags) {
-  if (!catalog?.mitigationProducts) return [];
+  if (!catalog?.products) return [];
   const out = [];
   const seen = new Set();
   for (const tag of tags || []) {
-    const products = catalog.mitigationProducts[tag];
+    const slotKey = _MITIGATION_TAG_TO_SLOT[tag];
+    if (!slotKey) continue;
+    const products = catalog.products[slotKey];
     if (!products) continue;
     for (const p of products) {
-      const key = (p.url || '') + '|' + p.name;
+      const key = (p.url || p.affiliateUrl || '') + '|' + p.name;
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({ ...p, _tag: tag });
@@ -122,8 +125,29 @@ export function getEMFProductsForMitigations(catalog, tags) {
   return out;
 }
 
-function _buildCouponLine(catalog) {
-  const c = catalog?.vendor?.coupon;
+// First vendor mentioned in the resolved products determines the coupon
+// shown alongside the section. Today every SLT entry shares the same coupon,
+// so this is a simple lookup; future affiliates with their own coupons just
+// register a vendor block.
+function _resolveVendorForCoupon(catalog, products) {
+  if (!products?.length || !catalog?.vendors) return null;
+  for (const p of products) {
+    const key = p.vendorKey || p.vendor;
+    if (!key) continue;
+    // Try by vendorKey first (canonical), fall back to scanning by name
+    const direct = catalog.vendors[key];
+    if (direct) return direct;
+    for (const v of Object.values(catalog.vendors)) {
+      if (v.name === key) return v;
+    }
+  }
+  return null;
+}
+
+function _buildCouponLine(catalogOrVendor) {
+  // Accept either a vendor object directly, or a catalog with legacy .vendor
+  // top-level (back-compat with the old emf-products.json shape).
+  const c = catalogOrVendor?.coupon || catalogOrVendor?.vendor?.coupon;
   if (!c?.code) return '';
   const code = escapeHTML(c.code);
   // Click-to-copy: a global helper handles the work. Inline onclick stays
@@ -221,11 +245,12 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
   const heading = escapeHTML(opts.heading || 'Need a meter? Recommended by getbased');
   const eventPrefix = opts.eventPrefix || 'meter-rec';
   const body = meters.map(m => _buildEMFProductRow(m, eventPrefix)).join('');
+  const vendor = _resolveVendorForCoupon(catalog, meters);
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
-      ${_buildCouponLine(catalog)}
+      ${_buildCouponLine(vendor)}
       ${buildDisclosureFooter()}
     </div>
   </div>`;
@@ -243,11 +268,12 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   const heading = escapeHTML(opts.heading || 'Recommended products for your mitigations');
   const eventPrefix = opts.eventPrefix || 'mitigation-rec';
   const body = products.map(p => _buildEMFProductRow(p, eventPrefix)).join('');
+  const vendor = _resolveVendorForCoupon(catalog, products);
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
-      ${_buildCouponLine(catalog)}
+      ${_buildCouponLine(vendor)}
       ${buildDisclosureFooter()}
     </div>
   </div>`;
