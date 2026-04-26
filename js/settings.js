@@ -307,7 +307,7 @@ export function renderPrivacySection() {
       </label>
     </div>
     <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:8px">
-      <span style="font-size:13px">Send anonymous usage stats<br><span style="font-size:11px;color:var(--text-muted)">Cookieless Umami pageviews — no personal data, no tracking, no IP. Toggle takes effect on next launch.</span></span>
+      <span style="font-size:13px">Send anonymous usage stats<br><span style="font-size:11px;color:var(--text-muted)">Cookieless Umami pageviews + outbound clicks on affiliate links (so we can tell which integrations actually help). Click counts only — never which user, what they were viewing, or any health data. Toggle takes effect on next launch.</span></span>
       <label class="toggle-switch" style="margin-top:2px">
         <input type="checkbox" id="analytics-toggle" ${isAnalyticsEnabled() ? 'checked' : ''} onchange="setAnalyticsEnabled(this.checked)">
         <span class="toggle-slider"></span>

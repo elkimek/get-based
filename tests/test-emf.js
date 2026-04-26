@@ -210,6 +210,15 @@ return (async () => {
   const malHtml = recsMod.renderEMFMeterRecs(malCat);
   assert('94e. Allowlist blocks attacker.com URL', !malHtml.includes('attacker.com'));
 
+  // Umami event tagging — six surfaces, opt-out gate inherited from Settings → Privacy
+  const meterEvents = recsMod.renderEMFMeterRecs(emfCat);
+  assert('94f. Meter rec links carry Umami events', /data-umami-event="emf-meter-rec-/.test(meterEvents));
+  const mitEvents = recsMod.renderEMFMitigationRecs(emfCat, ['shielding paint (Yshield)']);
+  assert('94g. Mitigation rec links carry Umami events', /data-umami-event="emf-mitigation-rec-/.test(mitEvents));
+  // Custom event prefix (verify the opts.eventPrefix path)
+  const customEvent = recsMod.renderEMFMeterRecs(emfCat, { eventPrefix: 'meter-test' });
+  assert('94h. Custom eventPrefix works', /data-umami-event="emf-meter-test-/.test(customEvent));
+
   console.log('=== Results ===');
   console.log(`${document.querySelectorAll('.test-pass').length || 94} passed, 0 failed`);
 })();

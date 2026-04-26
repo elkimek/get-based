@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.12', date: '2026-04-26', title: 'EMF affiliate — per-surface click tagging',
+    items: [
+      '<b>Outbound clicks on affiliate links are tagged for analytics</b> so we can tell which integrations help users vs. just take screen real estate. Tags identify the placement (chat hint, sleep card hint, Environment Tips nudge, empty-state meter rec, post-interpretation product rec) and the product clicked — never which user, what data they were viewing, or any health context.',
+      '<b>Inherits the existing analytics opt-out</b> in Settings → Privacy → "Send anonymous usage stats". With the toggle off, Umami doesn\'t even load and these tags become inert.',
+      '<b>Privacy copy refined</b> to mention outbound-click tracking explicitly so the disclosure matches what\'s being sent.',
+    ]
+  },
+  {
     version: '1.3.11', date: '2026-04-26', title: 'EMF surfaces — audit fixes (a11y, security, correctness)',
     items: [
       '<b>Accessibility:</b> coupon button now reads as "Copy coupon code getbased to clipboard" for screen readers, "✓ Copied" flash is announced via aria-live, external links explicitly say "opens in new tab", and the 💡 nudge emoji is hidden from screen readers (text alone is sufficient context).',

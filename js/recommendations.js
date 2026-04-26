@@ -180,20 +180,32 @@ function _isTrustedAffiliateUrl(url) {
   } catch { return false; }
 }
 
-function _buildEMFProductRow(product) {
+// Sluggify a product key/name into a stable analytics event suffix.
+// Strict character filter prevents broken HTML attrs and keeps Umami event
+// names tidy. ASCII-only, lowercase, dash-separated.
+function _eventSlug(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+}
+
+function _buildEMFProductRow(product, eventPrefix) {
   const url = product.url;
   const isValid = _isTrustedAffiliateUrl(url);
   const meta = [];
   if (product.vendor) meta.push(escapeHTML(product.vendor));
   if (product.kind) meta.push(escapeHTML(product.kind));
   const productName = escapeHTML(product.name);
+  // Analytics: a per-click event lets the maintainer see which surface and
+  // which product converted. Opt-out via Settings → Privacy gate already
+  // suppresses Umami load; this attribute becomes a no-op there.
+  const slug = _eventSlug(product.key || product._tag || product.name);
+  const evtName = eventPrefix ? `emf-${eventPrefix}-${slug}` : `emf-rec-${slug}`;
   return `<div class="rec-product rec-emf-product">
     <div class="rec-emf-product-head">
       <strong>${productName}</strong>
       ${meta.length ? `<span class="rec-emf-product-meta">${meta.join(' · ')}</span>` : ''}
     </div>
     ${product.blurb ? `<div class="rec-emf-product-blurb">${escapeHTML(product.blurb)}</div>` : ''}
-    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" aria-label="View ${productName} on Safe Living Technologies, opens in new tab">View on Safe Living Technologies →</a>` : ''}
+    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on Safe Living Technologies, opens in new tab">View on Safe Living Technologies →</a>` : ''}
   </div>`;
 }
 
@@ -207,7 +219,8 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
   if (!meters.length) return '';
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
   const heading = escapeHTML(opts.heading || 'Need a meter? Recommended by getbased');
-  const body = meters.map(_buildEMFProductRow).join('');
+  const eventPrefix = opts.eventPrefix || 'meter-rec';
+  const body = meters.map(m => _buildEMFProductRow(m, eventPrefix)).join('');
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
@@ -228,7 +241,8 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   if (!products.length) return '';
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
   const heading = escapeHTML(opts.heading || 'Recommended products for your mitigations');
-  const body = products.map(_buildEMFProductRow).join('');
+  const eventPrefix = opts.eventPrefix || 'mitigation-rec';
+  const body = products.map(p => _buildEMFProductRow(p, eventPrefix)).join('');
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
@@ -331,7 +345,7 @@ function _buildEMFNudge() {
   const assessments = state.importedData?.emfAssessment?.assessments || [];
   const openHandler = `event.preventDefault();document.getElementById('modal-overlay').classList.remove('show');setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
   if (!assessments.length) {
-    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" onclick="${openHandler}">Open the EMF assessment →</a></div>`;
+    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-env-tips-noassessment">Open the EMF assessment →</a></div>`;
   }
   const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
   const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
@@ -341,7 +355,7 @@ function _buildEMFNudge() {
   if (ageDays > 120) {
     const months = Math.round(ageDays / 30);
     const span = months >= 12 ? 'over a year' : `${months} ${months === 1 ? 'month' : 'months'}`;
-    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Your last EMF check was ${span} ago. <a href="#" onclick="${openHandler}">Re-check the room →</a></div>`;
+    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Your last EMF check was ${span} ago. <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-env-tips-stale">Re-check the room →</a></div>`;
   }
   return '';
 }

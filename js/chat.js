@@ -1458,7 +1458,7 @@ export function renderChatMessages() {
       // EMF hint (persisted, single-line link to assessment editor)
       if (msg.emfHint && window.isProductRecsEnabled?.()) {
         const openHandler = `event.preventDefault();window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor();`;
-        html += `<div class="chat-emf-hint"><span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" onclick="${openHandler}">Open the assessment →</a></div>`;
+        html += `<div class="chat-emf-hint"><span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-chat">Open the assessment →</a></div>`;
       }
       // Rec slots (persisted on message, rendered from catalog)
       if (msg.recSlots?.length && window.isProductRecsEnabled?.() && window.renderRecommendationSectionSync && window._cachedCatalog?.slots) {
@@ -2183,7 +2183,7 @@ export async function sendChatMessage() {
         if (!aiMsgEl?.isConnected) return;
         const hintEl = document.createElement('div');
         hintEl.className = 'chat-emf-hint';
-        hintEl.innerHTML = `<span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" onclick="event.preventDefault();window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor();">Open the assessment →</a>`;
+        hintEl.innerHTML = `<span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" onclick="event.preventDefault();window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor();" data-umami-event="emf-nudge-chat">Open the assessment →</a>`;
         const actionBar = aiMsgEl.querySelector('.chat-action-bar');
         if (actionBar) aiMsgEl.insertBefore(hintEl, actionBar);
         else aiMsgEl.appendChild(hintEl);
