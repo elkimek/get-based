@@ -322,6 +322,21 @@ return (async () => {
   assert('94y10. US user with no US key falls through to INTL',
     recsMod._pickRegional({ EU: 'eu', INTL: 'intl' }, 'US') === 'intl');
 
+  // getUserRegion — country → region wiring (uses module-level state, so we
+  // mock the profile via setProfileLocation if the API is exposed)
+  // Using direct chain test instead since profile state may not be writable
+  // in this test context: just confirm the chain itself produces the right
+  // products for known regions, which is the load-bearing behavior.
+  const usChain = recsMod.regionLookupChain('US');
+  assert('94y14. US chain is [US, INTL] (not [EU, INTL])',
+    JSON.stringify(usChain) === JSON.stringify(['US', 'INTL']));
+  const skChain = recsMod.regionLookupChain('SK');
+  assert('94y15. SK chain is [SK, EU, INTL] (not lumped under CZSK)',
+    JSON.stringify(skChain) === JSON.stringify(['SK', 'EU', 'INTL']));
+  // Slovak user looking up a vendor map with both CZ + SK keys gets SK
+  assert('94y16. Slovak user gets SK URL, not CZ',
+    recsMod._pickRegional({ CZ: 'https://x.cz', SK: 'https://x.sk', INTL: 'https://x.com' }, 'SK') === 'https://x.sk');
+
   // _addUTMParams — campaign override
   const tagged = recsMod._addUTMParams('https://x.com/p?aff=1', 'vitamins-vitaminD-mit', 'vitamins');
   assert('94y11. _addUTMParams accepts campaign override',

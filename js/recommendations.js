@@ -85,14 +85,50 @@ export function regionLookupChain(region) {
   return REGION_HIERARCHY[region] || [region, 'INTL'];
 }
 
-const CZSK_COUNTRIES = ['czechia', 'czech republic', 'česko', 'cesko', 'cz', 'slovakia', 'slovensko', 'sk'];
+// Country name / ISO code → granular region. Names are lowercased before
+// lookup. Anything not in the table falls through to the heuristic below.
+// Granular regions matter because the new region hierarchy chain treats
+// CZ and SK as siblings under EU — a Slovak user who falls into "CZSK"
+// always gets the CZ URL via the chain walk, never the SK one.
+const COUNTRY_TO_REGION = {
+  // Czech Republic
+  'cz': 'CZ', 'cze': 'CZ', 'czechia': 'CZ', 'czech republic': 'CZ',
+  'česko': 'CZ', 'cesko': 'CZ', 'česká republika': 'CZ', 'ceska republika': 'CZ',
+  // Slovakia
+  'sk': 'SK', 'svk': 'SK', 'slovakia': 'SK',
+  'slovensko': 'SK', 'slovenská republika': 'SK', 'slovenska republika': 'SK',
+  // German-speaking
+  'de': 'DE', 'deu': 'DE', 'germany': 'DE', 'deutschland': 'DE',
+  'at': 'AT', 'aut': 'AT', 'austria': 'AT',
+  'österreich': 'AT', 'oesterreich': 'AT', 'osterreich': 'AT',
+  // United States
+  'us': 'US', 'usa': 'US', 'u.s.': 'US',
+  'united states': 'US', 'united states of america': 'US',
+  // Other EU member states route to EU (no country-specific affiliate yet)
+  'fr': 'EU', 'france': 'EU',
+  'it': 'EU', 'italy': 'EU', 'italia': 'EU',
+  'es': 'EU', 'spain': 'EU', 'españa': 'EU', 'espana': 'EU',
+  'nl': 'EU', 'netherlands': 'EU', 'nederland': 'EU',
+  'be': 'EU', 'belgium': 'EU',
+  'pl': 'EU', 'poland': 'EU', 'polska': 'EU',
+  'hu': 'EU', 'hungary': 'EU', 'magyarország': 'EU',
+  'pt': 'EU', 'portugal': 'EU',
+  'ie': 'EU', 'ireland': 'EU',
+  'dk': 'EU', 'denmark': 'EU', 'danmark': 'EU',
+  'se': 'EU', 'sweden': 'EU', 'sverige': 'EU',
+  'fi': 'EU', 'finland': 'EU', 'suomi': 'EU',
+};
 
 export function getUserRegion() {
   const loc = getProfileLocation();
-  if (!loc.country) return 'EU';
+  if (!loc.country) return 'INTL';
   const c = loc.country.toLowerCase().trim();
-  if (CZSK_COUNTRIES.includes(c)) return 'CZSK';
-  return 'EU';
+  if (COUNTRY_TO_REGION[c]) return COUNTRY_TO_REGION[c];
+  // Unknown country: graceful default. Anyone outside our explicit list
+  // (UK, AU, CA, JP, …) gets INTL — they see worldwide-tagged products
+  // and the renderer falls through to the INTL homepage / coupon for any
+  // vendor with multi-region keys.
+  return 'INTL';
 }
 
 // ═══════════════════════════════════════════════
