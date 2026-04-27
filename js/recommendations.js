@@ -315,15 +315,20 @@ function _eventSlug(s) {
 
 // Append UTM params so the affiliate dashboard can attribute traffic by
 // surface (which CTA the user clicked) without colliding with the existing
-// `?aff=466` partner-code param. Idempotent: re-tagging an already-tagged
-// URL overwrites our keys instead of duplicating them.
-export function _addUTMParams(url, content) {
+// partner-code params. Idempotent: re-tagging an already-tagged URL
+// overwrites our keys instead of duplicating them.
+//
+// `campaign` defaults to "emf" for back-compat with the original EMF-only
+// caller; non-EMF surfaces (supplements, lifestyle, marker recs) pass their
+// own bucket so SLT-side and Mitochondriak-side dashboards can attribute
+// per-surface traffic without bucketing everything under "emf".
+export function _addUTMParams(url, content, campaign = 'emf') {
   if (!url) return url;
   let u;
   try { u = new URL(url); } catch { return url; }
   u.searchParams.set('utm_source', 'getbased');
   u.searchParams.set('utm_medium', 'affiliate');
-  u.searchParams.set('utm_campaign', 'emf');
+  u.searchParams.set('utm_campaign', campaign);
   if (content) u.searchParams.set('utm_content', content);
   return u.toString();
 }
@@ -566,7 +571,7 @@ export function buildDNAHints(slotKey) {
 // ═══════════════════════════════════════════════
 // HTML RENDERING
 // ═══════════════════════════════════════════════
-function buildProductRow(product, region) {
+function buildProductRow(product, region, slotKey) {
   const parts = [];
   if (product.brand) parts.push(`<strong>${escapeHTML(product.brand)}</strong>`);
   if (product.name) parts.push(escapeHTML(product.name));
@@ -577,8 +582,16 @@ function buildProductRow(product, region) {
   // Resolve region-aware URL: handles per-region maps for vendors with
   // different storefronts per market (easylight.sk for CZ/SK +
   // mitochondriak.com for INTL). Falls back to flat string.
-  const url = _resolveProductUrlForRegion(product, region);
-  const isValid = url && typeof url === 'string' && /^https?:\/\//.test(url);
+  const rawUrl = _resolveProductUrlForRegion(product, region);
+  const isValid = rawUrl && typeof rawUrl === 'string' && /^https?:\/\//.test(rawUrl);
+  // Stamp UTM params for partner-dashboard attribution. Campaign = the slot
+  // category prefix (vitamins, env, sleep…) so each surface buckets cleanly
+  // even across vendors. utm_content = "<slot>-<product>" for per-row
+  // attribution. Idempotent: re-renders don't accumulate duplicate keys.
+  const campaign = slotKey ? slotKey.split('.')[0] : 'rec';
+  const productSlug = _eventSlug(product.key || `${product.brand || ''}-${product.name || ''}`);
+  const utmContent = slotKey ? `${slotKey.replace('.', '-')}-${productSlug}` : productSlug;
+  const url = isValid ? _addUTMParams(rawUrl, utmContent, campaign) : rawUrl;
   return `<div class="rec-product">
     <span class="rec-product-info">${parts.join(' \u00b7 ')}${meta.length ? ' \u00b7 ' + meta.join(' \u00b7 ') : ''}</span>
     ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener">View \u2192</a>` : ''}
@@ -658,7 +671,7 @@ function _renderRecSection(slotKey, opts = {}) {
   // Tier 2: Whole food — inline
   if (foodProducts.length) {
     inner += `<div class="rec-section-label">WHOLE FOOD <span class="rec-tier-hint">from nature</span></div>`;
-    for (const fp of foodProducts) inner += buildProductRow(fp, region);
+    for (const fp of foodProducts) inner += buildProductRow(fp, region, slotKey);
   } else if (slot?.foodForms?.length) {
     inner += `<div class="rec-section-label">WHOLE FOOD <span class="rec-tier-hint">from nature</span></div>`;
     inner += `<div class="rec-item-food">${slot.foodForms.map(f => escapeHTML(f)).join(' · ')}</div>`;
@@ -667,7 +680,7 @@ function _renderRecSection(slotKey, opts = {}) {
   // Tier 3: Tools
   if (toolProducts.length) {
     inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">supports nature</span></div>`;
-    for (const tp of toolProducts) inner += buildProductRow(tp, region);
+    for (const tp of toolProducts) inner += buildProductRow(tp, region, slotKey);
   } else if (slot?.productForms?.length) {
     inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">supports nature</span></div>`;
     inner += `<div class="rec-item-form">${slot.productForms.map(t => escapeHTML(t)).join(' · ')}</div>`;
@@ -676,7 +689,7 @@ function _renderRecSection(slotKey, opts = {}) {
   // Tier 4: Supplements — inline
   if (suppProducts.length) {
     inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">last resort</span></div>`;
-    for (const sp of suppProducts) inner += buildProductRow(sp, region);
+    for (const sp of suppProducts) inner += buildProductRow(sp, region, slotKey);
   } else if (slot?.forms?.length) {
     inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">last resort</span></div>`;
     const formRefs = slot.formRefs || {};
@@ -689,13 +702,13 @@ function _renderRecSection(slotKey, opts = {}) {
 
   if (drugProducts.length) {
     inner += `<div class="rec-section-label">PHARMACEUTICALS</div>`;
-    for (const dp of drugProducts) inner += buildProductRow(dp, region);
+    for (const dp of drugProducts) inner += buildProductRow(dp, region, slotKey);
     inner += `<div class="rec-drug-warning">Pharmaceutical-grade compounds may require medical supervision and can interact with medications. Consult your physician before use.</div>`;
   }
 
   if (otherProducts.length) {
     inner += `<div class="rec-section-label">OTHER</div>`;
-    for (const op of otherProducts) inner += buildProductRow(op, region);
+    for (const op of otherProducts) inner += buildProductRow(op, region, slotKey);
   }
 
   if (!inner) return '';

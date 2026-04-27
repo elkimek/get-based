@@ -322,6 +322,15 @@ return (async () => {
   assert('94y10. US user with no US key falls through to INTL',
     recsMod._pickRegional({ EU: 'eu', INTL: 'intl' }, 'US') === 'intl');
 
+  // _addUTMParams — campaign override
+  const tagged = recsMod._addUTMParams('https://x.com/p?aff=1', 'vitamins-vitaminD-mit', 'vitamins');
+  assert('94y11. _addUTMParams accepts campaign override',
+    tagged.includes('utm_campaign=vitamins'));
+  assert('94y12. _addUTMParams default campaign is emf (back-compat)',
+    recsMod._addUTMParams('https://x.com/p', 'foo').includes('utm_campaign=emf'));
+  assert('94y13. _addUTMParams preserves existing aff param',
+    tagged.includes('aff=1') && tagged.includes('utm_source=getbased'));
+
   // _resolveProductUrlForRegion — products with per-region url/affiliateUrl maps
   assert('94z. Flat product url passes through',
     recsMod._resolveProductUrlForRegion({ url: 'https://x.com' }, 'CZ') === 'https://x.com');
