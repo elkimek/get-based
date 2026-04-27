@@ -634,8 +634,26 @@ function buildProductRow(product, region, slotKey) {
   </div>`;
 }
 
+// Human-readable label for the active region. Shown in the rec-disclosure
+// footer so users know which market's products + URLs they're seeing,
+// since the recs are silently filtered by their profile country.
+const REGION_LABELS = {
+  CZ: 'Czech Republic', SK: 'Slovakia', DE: 'Germany', AT: 'Austria',
+  US: 'United States', EU: 'European Union', INTL: 'worldwide',
+  CZSK: 'Czech Republic + Slovakia',
+};
+export function regionLabel(region) {
+  return REGION_LABELS[region] || region || 'worldwide';
+}
+
 function buildDisclosureFooter() {
-  return `<div class="rec-disclosure">Affiliate links are marked. Brands cannot pay for placement.</div>`;
+  const r = getUserRegion();
+  const label = regionLabel(r);
+  // Link points to wherever the user can change their country. Click handler
+  // delegates to the host app via a global (window.openProfileLocationEditor)
+  // so this module stays decoupled. Falls back to '#' if no host is wired.
+  const editLink = `<a href="#" class="rec-region-edit" onclick="event.preventDefault();(window.openProfileLocationEditor||(()=>{}))()">change</a>`;
+  return `<div class="rec-disclosure">Affiliate links are marked. Brands cannot pay for placement. <span class="rec-region-tag">Showing for ${escapeHTML(label)} · ${editLink}</span></div>`;
 }
 
 function _buildMiniDisclaimer() {

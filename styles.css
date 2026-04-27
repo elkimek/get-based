@@ -3857,7 +3857,10 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .rec-product-info { color: var(--text-secondary); flex: 1; min-width: 0; }
 .rec-product-link { color: var(--accent); text-decoration: none; font-size: 12px; white-space: nowrap; padding: 6px 12px; }
 .rec-product-link:hover { text-decoration: underline; }
-.rec-disclosure { font-size: 10px; color: var(--text-muted); margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--border); }
+.rec-disclosure { font-size: 10px; color: var(--text-muted); margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.rec-region-tag { color: var(--text-muted); opacity: 0.75; font-size: 10px; margin-left: auto; }
+.rec-region-edit { color: var(--accent); text-decoration: none; font-size: 10px; }
+.rec-region-edit:hover { text-decoration: underline; }
 .rec-suggest { font-size: 10px; margin-top: 8px; }
 .rec-suggest a { color: var(--text-muted); text-decoration: none; }
 .rec-suggest a:hover { color: var(--accent); }

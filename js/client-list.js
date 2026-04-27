@@ -307,10 +307,32 @@ export function openClientForm(profileId) {
       <input type="date" class="cl-form-input cl-form-date" id="cl-dob" value="${escapeHTML(dob)}">
     </div>
     <div class="cl-form-row">
-      <label class="cl-form-label">Location <span style="font-weight:400;color:var(--text-muted);font-size:11px">(for latitude / circadian context)</span></label>
+      <label class="cl-form-label">Location <span style="font-weight:400;color:var(--text-muted);font-size:11px">(country drives which region's recommendations + affiliate URLs you see)</span></label>
       <div class="cl-form-row-split">
         <div class="cl-form-col">
-          <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country" oninput="window._clUpdateLat()">
+          <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country (e.g. Slovakia)" oninput="window._clUpdateLat()" list="cl-country-list" autocomplete="country-name">
+          <datalist id="cl-country-list">
+            <option value="Czech Republic"></option>
+            <option value="Slovakia"></option>
+            <option value="Germany"></option>
+            <option value="Austria"></option>
+            <option value="United States"></option>
+            <option value="France"></option>
+            <option value="Italy"></option>
+            <option value="Spain"></option>
+            <option value="Netherlands"></option>
+            <option value="Belgium"></option>
+            <option value="Poland"></option>
+            <option value="Hungary"></option>
+            <option value="Portugal"></option>
+            <option value="Ireland"></option>
+            <option value="Denmark"></option>
+            <option value="Sweden"></option>
+            <option value="Finland"></option>
+            <option value="United Kingdom"></option>
+            <option value="Canada"></option>
+            <option value="Australia"></option>
+          </datalist>
         </div>
         <div class="cl-form-col">
           <input type="text" class="cl-form-input" id="cl-zip" value="${escapeHTML(zip)}" placeholder="ZIP / postal code" oninput="window._clUpdateLat()">
@@ -735,8 +757,23 @@ function _clHeightUnitChanged() {
   _clUpdateBMI();
 }
 
+// Open the current profile's edit form, focused on the country field.
+// Used by the rec disclosure footer's "change region" link so users can
+// jump straight to fixing their region from any rec section.
+function openProfileLocationEditor() {
+  const id = state?.currentProfile;
+  if (!id) { openClientList(); return; }
+  openClientForm(id);
+  // Focus the country input after the form mounts. setTimeout(0) waits a
+  // tick so the form's HTML is in the DOM.
+  setTimeout(() => {
+    const el = document.getElementById('cl-country');
+    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  }, 50);
+}
+
 Object.assign(window, {
-  openClientList, closeClientList, openClientForm,
+  openClientList, closeClientList, openClientForm, openProfileLocationEditor,
   _clSearch, _clSort, _clStatusFilter, _clTagFilter, _clSelect,
   _clSaveForm, _clSetSex, _clUpdateLat, _clTagKeydown, _clRemoveTag, _clBackToList,
   _clAvatarChanged, _clRemoveAvatar, _clHaplogroupChanged,
