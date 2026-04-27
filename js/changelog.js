@@ -5,6 +5,21 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.19', date: '2026-04-27', title: 'Affiliate vendors — multi-region support',
+    items: [
+      '<b>Vendor coupons + homepages can now be per-region</b>. A vendor whose CZ store, SK store, and worldwide site each carry different affiliate codes can express that as a <code>{ CZ, SK, EN }</code> map; the renderer picks the right one based on the active catalog region.',
+      '<b>Fully backward-compatible</b> — existing single-URL / single-coupon vendors (like Safe Living Technologies) keep working without any data change.',
+      '<b>Multi-region catalog markers like "CZSK" decompose</b> into component codes (CZ first, then SK), then fall back to a worldwide key (EN/INTL) before giving up.',
+    ]
+  },
+  {
+    version: '1.3.18', date: '2026-04-27', title: 'EMF affiliate — UTM tagging',
+    items: [
+      '<b>Affiliate product links now carry UTM parameters</b> so traffic shows up correctly attributed in the partner\'s own dashboard (<code>utm_source=getbased</code>, <code>utm_medium=affiliate</code>, <code>utm_campaign=emf</code>, <code>utm_content=&lt;surface&gt;-&lt;product&gt;</code>). The existing <code>?aff=466</code> partner code is preserved alongside.',
+      '<b>Inherits the same privacy gate</b> as before — UTM params are visible in the URL on click, not sent to us. The internal Umami event is still gated by Settings → Privacy.',
+    ]
+  },
+  {
     version: '1.3.15–17', date: '2026-04-26', title: 'Internal cleanup',
     items: [
       'Recommendations data layer reorganised into a single source of truth, file renamed for consistency. No user-visible changes.',

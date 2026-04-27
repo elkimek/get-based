@@ -221,6 +221,64 @@ return (async () => {
   const customEvent = recsMod.renderEMFMeterRecs(emfCat, { eventPrefix: 'meter-test' });
   assert('94h. Custom eventPrefix works', /data-umami-event="emf-meter-test-/.test(customEvent));
 
+  // UTM tagging — affiliate dashboard attribution by surface
+  assert('94i. Meter rec links carry utm_source=getbased',
+    /utm_source=getbased/.test(meterEvents));
+  assert('94j. Meter rec links carry utm_medium=affiliate',
+    /utm_medium=affiliate/.test(meterEvents));
+  assert('94k. Meter rec links carry utm_campaign=emf',
+    /utm_campaign=emf(&|")/.test(meterEvents));
+  assert('94l. Meter rec links carry utm_content matching surface',
+    /utm_content=meter-rec-/.test(meterEvents));
+  assert('94m. Mitigation rec links carry utm_content matching surface',
+    /utm_content=mitigation-rec-/.test(mitEvents));
+  assert('94n. UTM-tagged URL preserves existing aff=466',
+    /aff=466/.test(meterEvents) && /utm_source=getbased/.test(meterEvents));
+  // Idempotency — re-tagging an already-tagged URL must not duplicate keys
+  const tagged = recsMod._addUTMParams('https://safelivingtechnologies.com/x?aff=466', 'meter-rec-x');
+  const retagged = recsMod._addUTMParams(tagged, 'meter-rec-x');
+  assert('94o. _addUTMParams is idempotent',
+    (retagged.match(/utm_source=/g) || []).length === 1);
+  // Malformed URL passthrough — never throw
+  assert('94p. _addUTMParams returns input unchanged on invalid URL',
+    recsMod._addUTMParams('not a url', 'x') === 'not a url');
+
+  // Multi-region vendor resolution — coupon + homepage as Record<RegionCode, …>
+  const flatCoupon = { code: 'getbased', userDiscount: '10%' };
+  assert('94q. Flat coupon passes through unchanged',
+    recsMod._resolveCouponForRegion(flatCoupon, 'CZSK') === flatCoupon);
+  const regionalCoupon = {
+    CZ: { code: 'GBCZ10', userDiscount: '10%' },
+    SK: { code: 'GBSK10', userDiscount: '10%' },
+    EN: { code: 'getbased', userDiscount: '10%' },
+  };
+  assert('94r. Regional coupon — direct CZ hit',
+    recsMod._resolveCouponForRegion(regionalCoupon, 'CZ').code === 'GBCZ10');
+  assert('94s. Regional coupon — multi-region marker decomposes (CZSK → CZ first)',
+    recsMod._resolveCouponForRegion(regionalCoupon, 'CZSK').code === 'GBCZ10');
+  assert('94t. Regional coupon — falls back to EN/worldwide',
+    recsMod._resolveCouponForRegion(regionalCoupon, 'DE').code === 'getbased');
+  assert('94u. Regional coupon — null/missing returns null',
+    recsMod._resolveCouponForRegion(null, 'CZ') === null);
+  assert('94v. Flat homepage string passes through',
+    recsMod._resolveHomepageForRegion('https://x.com?aff=1', 'CZ') === 'https://x.com?aff=1');
+  const regionalHomepage = {
+    CZ: 'https://x.cz?aff=A',
+    SK: 'https://x.sk?aff=B',
+    EN: 'https://x.com?aff=C',
+  };
+  assert('94w. Regional homepage — SK direct hit',
+    recsMod._resolveHomepageForRegion(regionalHomepage, 'SK') === 'https://x.sk?aff=B');
+  assert('94x. Regional homepage — INTL falls back to EN',
+    recsMod._resolveHomepageForRegion(regionalHomepage, 'INTL') === 'https://x.com?aff=C');
+  // Coupon line picks regional coupon when catalog.region is set
+  const multiRegionCat = JSON.parse(JSON.stringify(emfCat));
+  multiRegionCat.region = 'CZ';
+  multiRegionCat.vendors.slt.coupon = regionalCoupon;
+  const czCouponHtml = recsMod.renderEMFMeterRecs(multiRegionCat);
+  assert('94y. Coupon line uses regional coupon (CZ → GBCZ10)',
+    czCouponHtml.includes('GBCZ10') && !czCouponHtml.includes('GBSK10'));
+
   console.log('=== Results ===');
-  console.log(`${document.querySelectorAll('.test-pass').length || 94} passed, 0 failed`);
+  console.log(`${document.querySelectorAll('.test-pass').length || 111} passed, 0 failed`);
 })();

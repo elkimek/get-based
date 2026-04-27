@@ -144,10 +144,41 @@ function _resolveVendorForCoupon(catalog, products) {
   return null;
 }
 
-function _buildCouponLine(catalogOrVendor) {
+// Vendors with multi-region affiliate programs store coupon/homepage as
+// { CZ: …, SK: …, EN: … } maps instead of a flat value. Resolve to a single
+// entry using the catalog's region, decomposing multi-region markers like
+// "CZSK" into component codes (CZ, SK), and falling back to a worldwide
+// key (EN/INTL/WORLDWIDE) before giving up.
+export function _pickRegional(map, catalogRegion) {
+  if (!map || typeof map !== 'object') return null;
+  if (catalogRegion && map[catalogRegion]) return map[catalogRegion];
+  if (catalogRegion) {
+    for (const part of catalogRegion.match(/[A-Z]{2}/g) || []) {
+      if (map[part]) return map[part];
+    }
+  }
+  return map.EN || map.INTL || map.WORLDWIDE || Object.values(map)[0] || null;
+}
+
+// Discriminator: a Coupon has a `code` field; a per-region map does not.
+export function _resolveCouponForRegion(coupon, region) {
+  if (!coupon || typeof coupon !== 'object') return null;
+  if ('code' in coupon) return coupon;
+  return _pickRegional(coupon, region);
+}
+
+// Discriminator: a flat homepage is a string; a per-region map is an object.
+export function _resolveHomepageForRegion(homepage, region) {
+  if (!homepage) return null;
+  if (typeof homepage === 'string') return homepage;
+  return _pickRegional(homepage, region);
+}
+
+function _buildCouponLine(catalogOrVendor, region) {
   // Accept either a vendor object directly, or a catalog with legacy .vendor
   // top-level (back-compat with the old emf-products.json shape).
-  const c = catalogOrVendor?.coupon || catalogOrVendor?.vendor?.coupon;
+  const rawCoupon = catalogOrVendor?.coupon || catalogOrVendor?.vendor?.coupon;
+  const c = _resolveCouponForRegion(rawCoupon, region);
   if (!c?.code) return '';
   const code = escapeHTML(c.code);
   // Click-to-copy: a global helper handles the work. Inline onclick stays
@@ -211,9 +242,24 @@ function _eventSlug(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 }
 
+// Append UTM params so the affiliate dashboard can attribute traffic by
+// surface (which CTA the user clicked) without colliding with the existing
+// `?aff=466` partner-code param. Idempotent: re-tagging an already-tagged
+// URL overwrites our keys instead of duplicating them.
+export function _addUTMParams(url, content) {
+  if (!url) return url;
+  let u;
+  try { u = new URL(url); } catch { return url; }
+  u.searchParams.set('utm_source', 'getbased');
+  u.searchParams.set('utm_medium', 'affiliate');
+  u.searchParams.set('utm_campaign', 'emf');
+  if (content) u.searchParams.set('utm_content', content);
+  return u.toString();
+}
+
 function _buildEMFProductRow(product, eventPrefix) {
-  const url = product.url;
-  const isValid = _isTrustedAffiliateUrl(url);
+  const rawUrl = product.url;
+  const isValid = _isTrustedAffiliateUrl(rawUrl);
   const meta = [];
   if (product.vendor) meta.push(escapeHTML(product.vendor));
   if (product.kind) meta.push(escapeHTML(product.kind));
@@ -223,6 +269,10 @@ function _buildEMFProductRow(product, eventPrefix) {
   // suppresses Umami load; this attribute becomes a no-op there.
   const slug = _eventSlug(product.key || product._tag || product.name);
   const evtName = eventPrefix ? `emf-${eventPrefix}-${slug}` : `emf-rec-${slug}`;
+  // Mirror the Umami event in utm_content so the SLT-side report can be
+  // joined with our internal click counts on the same surface label.
+  const utmContent = eventPrefix ? `${eventPrefix}-${slug}` : `emf-rec-${slug}`;
+  const url = isValid ? _addUTMParams(rawUrl, utmContent) : rawUrl;
   return `<div class="rec-product rec-emf-product">
     <div class="rec-emf-product-head">
       <strong>${productName}</strong>
@@ -250,7 +300,7 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
-      ${_buildCouponLine(vendor)}
+      ${_buildCouponLine(vendor, catalog?.region)}
       ${buildDisclosureFooter()}
     </div>
   </div>`;
@@ -273,7 +323,7 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
-      ${_buildCouponLine(vendor)}
+      ${_buildCouponLine(vendor, catalog?.region)}
       ${buildDisclosureFooter()}
     </div>
   </div>`;
