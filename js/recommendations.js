@@ -382,7 +382,8 @@ function _buildEMFProductRow(product, eventPrefix, region) {
   // which product converted. Opt-out via Settings → Privacy gate already
   // suppresses Umami load; this attribute becomes a no-op there.
   const slug = _eventSlug(product.key || product._tag || product.name);
-  const evtName = eventPrefix ? `emf-${eventPrefix}-${slug}` : `emf-rec-${slug}`;
+  // Cap at 50 chars — Umami's API rejects longer names with HTTP 400.
+  const evtName = (eventPrefix ? `emf-${eventPrefix}-${slug}` : `emf-rec-${slug}`).slice(0, 50).replace(/-+$/, '');
   // Mirror the Umami event in utm_content so the SLT-side report can be
   // joined with our internal click counts on the same surface label.
   const utmContent = eventPrefix ? `${eventPrefix}-${slug}` : `emf-rec-${slug}`;
@@ -631,7 +632,8 @@ function buildProductRow(product, region, slotKey) {
   // Umami event mirrors utm_content so the partner-side report (UTM) and
   // our internal click count (Umami) share the same surface label.
   // Prefix `rec-` separates these from the existing `emf-*` events.
-  const evtName = `rec-${campaign}-${productSlug}`;
+  // Cap at 50 chars — Umami's API rejects longer names with HTTP 400.
+  const evtName = `rec-${campaign}-${productSlug}`.slice(0, 50).replace(/-+$/, '');
   return `<div class="rec-product">
     <span class="rec-product-info">${parts.join(' \u00b7 ')}${meta.length ? ' \u00b7 ' + meta.join(' \u00b7 ') : ''}</span>
     ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}">View \u2192</a>` : ''}
