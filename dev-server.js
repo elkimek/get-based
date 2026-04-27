@@ -17,6 +17,55 @@ import crypto from 'node:crypto';
 const PORT = parseInt(process.argv[2], 10) || 8000;
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
+
+// Mutex for /api/deploy-catalog so two concurrent POSTs can't race on
+// the read-hash → writeFileSync critical section. Promise-chained queue:
+// each request's _deployCatalog body waits for the prior one to finish.
+let _deployLock = Promise.resolve();
+function _deployCatalog(body, req, res) {
+  _deployLock = _deployLock.then(() => new Promise(resolve => {
+    try {
+      JSON.parse(body); // validate JSON shape
+      // Surface-level shape check — protect the app against a successful
+      // deploy of `[1,2,3]` (valid JSON, broken catalog).
+      const parsed = JSON.parse(body);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+          || !parsed.slots || !parsed.shops) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Invalid catalog shape: missing required slots/shops keys');
+        resolve();
+        return;
+      }
+      const filePath = path.join(ROOT, 'data', 'recommendations.json');
+      // Conflict detection: editor sends If-Match with the SHA-256 hash of
+      // the catalog as it last saw it; reject when the file changed since
+      // (multi-tab / two-editor race).
+      const ifMatch = req.headers['if-match'];
+      if (ifMatch) {
+        let currentHash = '';
+        try {
+          const buf = fs.readFileSync(filePath);
+          currentHash = crypto.createHash('sha256').update(buf).digest('hex');
+        } catch {}
+        if (currentHash && currentHash !== ifMatch.replace(/"/g, '')) {
+          res.writeHead(409, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'conflict', currentHash }));
+          resolve();
+          return;
+        }
+      }
+      fs.writeFileSync(filePath, body);
+      const newHash = crypto.createHash('sha256').update(body).digest('hex');
+      res.writeHead(200, { 'Content-Type': 'application/json', 'ETag': '"' + newHash + '"' });
+      res.end(JSON.stringify({ ok: true, hash: newHash }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Invalid JSON: ' + e.message);
+    }
+    resolve();
+  })).catch(() => {});
+  return _deployLock;
+}
 const SITE_DIR = process.env.SITE_DIR || path.join(ROOT, '..', 'get-based-site');
 const SITE_INDEX = path.join(SITE_DIR, 'index.html');
 const hasSite = fs.existsSync(SITE_INDEX);
@@ -276,36 +325,31 @@ const server = http.createServer((req, res) => {
 
   // API: deploy catalog JSON from editor to data/
   if (pathname === '/api/deploy-catalog' && req.method === 'POST') {
+    // Body-size cap. The catalog is ~100 KB today; 5 MB gives plenty of
+    // headroom while preventing a runaway POST from OOM'ing the dev server.
+    const MAX_BODY_BYTES = 5 * 1024 * 1024;
     let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        JSON.parse(body); // validate
-        // Conflict detection: if the editor sends an If-Match header with the
-        // SHA-256 hash of the catalog as it last saw it, we reject when the
-        // file has been modified since (multi-tab / two-editor race).
-        const ifMatch = req.headers['if-match'];
-        const filePath = path.join(ROOT, 'data', 'recommendations.json');
-        if (ifMatch) {
-          let currentHash = '';
-          try {
-            const buf = fs.readFileSync(filePath);
-            currentHash = crypto.createHash('sha256').update(buf).digest('hex');
-          } catch {}
-          if (currentHash && currentHash !== ifMatch.replace(/"/g, '')) {
-            res.writeHead(409, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'conflict', currentHash }));
-            return;
-          }
-        }
-        fs.writeFileSync(filePath, body);
-        const newHash = crypto.createHash('sha256').update(body).digest('hex');
-        res.writeHead(200, { 'Content-Type': 'application/json', 'ETag': '"' + newHash + '"' });
-        res.end(JSON.stringify({ ok: true, hash: newHash }));
-      } catch(e) {
-        res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('Invalid JSON: ' + e.message);
+    let bytes = 0;
+    let aborted = false;
+    req.on('data', chunk => {
+      if (aborted) return;
+      bytes += chunk.length;
+      if (bytes > MAX_BODY_BYTES) {
+        aborted = true;
+        res.writeHead(413, { 'Content-Type': 'text/plain' });
+        res.end('Catalog body exceeds 5 MB limit');
+        req.destroy();
+        return;
       }
+      body += chunk;
+    });
+    req.on('end', () => {
+      if (aborted) return;
+      // Serialize concurrent deploys with an in-process mutex. Without this,
+      // two concurrent POSTs both pass the If-Match check against the same
+      // pre-write hash, then race on writeFileSync — the second clobbers
+      // the first. Lock spans the read-hash → write critical section.
+      _deployCatalog(body, req, res);
     });
     return;
   }

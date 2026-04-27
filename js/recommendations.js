@@ -150,7 +150,10 @@ function _resolveVendorForCoupon(catalog, products) {
 // "CZSK" into component codes (CZ, SK), and falling back to a worldwide
 // key (EN/INTL/WORLDWIDE) before giving up.
 export function _pickRegional(map, catalogRegion) {
-  if (!map || typeof map !== 'object') return null;
+  // Arrays trip `typeof === 'object'`. Reject them up front — without this
+  // a malformed `coupon: [{code:'X'}]` would silently render via the
+  // Object.values fallback, producing wrong attribution.
+  if (!map || typeof map !== 'object' || Array.isArray(map)) return null;
   if (catalogRegion && map[catalogRegion]) return map[catalogRegion];
   if (catalogRegion) {
     for (const part of catalogRegion.match(/[A-Z]{2}/g) || []) {
@@ -161,8 +164,10 @@ export function _pickRegional(map, catalogRegion) {
 }
 
 // Discriminator: a Coupon has a `code` field; a per-region map does not.
+// Arrays are rejected (an array could contain `code` as an inherited property
+// path in some JS hosts; defense-in-depth).
 export function _resolveCouponForRegion(coupon, region) {
-  if (!coupon || typeof coupon !== 'object') return null;
+  if (!coupon || typeof coupon !== 'object' || Array.isArray(coupon)) return null;
   if ('code' in coupon) return coupon;
   return _pickRegional(coupon, region);
 }
