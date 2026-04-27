@@ -201,10 +201,22 @@ function serveFile(res, filePath) {
   });
 }
 
+// Origins allowed to hit /api/* and /proxy. Includes:
+//   - Our own dev server on PORT (browser tab loaded directly)
+//   - The catalog editor's Vite dev server (default :5173, fallback :5174)
+//     proxying /api/* and /data/* through to here. Editor is loopback-only
+//     too, so widening to its port is safe within the same security model.
+// EDITOR_PORTS env var lets a user override if Vite picked a different port.
+const _editorPorts = (process.env.EDITOR_PORTS || '5173,5174').split(',').map(s => s.trim()).filter(Boolean);
 const ALLOWED_ORIGINS = new Set([
   `http://127.0.0.1:${PORT}`,
   `http://localhost:${PORT}`,
   `http://[::1]:${PORT}`,
+  ..._editorPorts.flatMap(p => [
+    `http://127.0.0.1:${p}`,
+    `http://localhost:${p}`,
+    `http://[::1]:${p}`,
+  ]),
 ]);
 function isSameOrigin(req) {
   if (req.headers.origin) return ALLOWED_ORIGINS.has(req.headers.origin);
