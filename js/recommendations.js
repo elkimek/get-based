@@ -410,7 +410,7 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
   const eventPrefix = opts.eventPrefix || 'meter-rec';
   const body = meters.map(m => _buildEMFProductRow(m, eventPrefix, catalog?.region)).join('');
   const vendor = _resolveVendorForCoupon(catalog, meters);
-  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
+  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
@@ -433,7 +433,7 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   const eventPrefix = opts.eventPrefix || 'mitigation-rec';
   const body = products.map(p => _buildEMFProductRow(p, eventPrefix, catalog?.region)).join('');
   const vendor = _resolveVendorForCoupon(catalog, products);
-  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
+  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
@@ -776,7 +776,7 @@ function _renderRecSection(slotKey, opts = {}) {
   const issueBody = encodeURIComponent(`**Slot:** \`${slotKey}\`\n**Current forms:** ${(slot?.forms || []).join(', ')}\n\n**What's wrong or what's better:**\n\n`);
   const suggestLink = `<div class="rec-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=recommendations" target="_blank" rel="noopener">Suggest a better study</a></div>`;
   const statusNote = isNormal ? `<div class="rec-in-range-note">Your value is in range. These tips are for general reference.</div>` : '';
-  return `${_buildDisclosureBanner()}<div class="rec-section${gated}" onclick="event.stopPropagation()">
+  return `${_buildDisclosureBanner()}<div class="rec-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
     <div class="rec-section-header">${escapeHTML(label)}</div>
     <div class="rec-content">${statusNote}${inner}${suggestLink}${hasProducts ? buildDisclosureFooter() : ''}${_buildMiniDisclaimer()}</div>
   </div>`;
