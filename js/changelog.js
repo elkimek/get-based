@@ -5,12 +5,11 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
-    version: '1.3.20', date: '2026-04-27', title: 'EMF affiliate + region-aware recommendations',
+    version: '1.3.20', date: '2026-04-27', title: 'Region-aware recommendations + clearer privacy',
     items: [
-      '<b>EMF assessment now ends with shopping suggestions.</b> Recommended meters appear in the empty state if you haven\'t run an assessment yet. After interpretation, mitigation products are surfaced based on the issues flagged. Coupon code <code>getbased</code> for 10% off, ride-along Privacy + Terms attribution, brand trademark fineprint.',
-      '<b>Set your country in the profile editor</b> — recommendations now show products available in your market with the right storefront URL and the right vendor coupon. Each rec section\'s footer reads "Showing for {country} · change". Outbound clicks on affiliate links carry surface-attribution params (gated by the same Settings → Privacy toggle as everything else).',
-      '<b>Privacy reorganised into its own Settings tab.</b> Analytics opt-out is now a first-class control with a transparency banner on first launch (no health data is ever sent — counts only, cookieless). PDF / image / chat obfuscation rebadged as "AI Privacy Protection" since the same pipeline runs on every AI surface, not just PDFs.',
-      '<b>Internal:</b> EMF rec section a11y polish, coupon click-to-copy, AI-mentioned mitigations auto-surface products, false-positive guards on the chat / sleep nudges, recommendations data layer rationalised, dev-host analytics skip.',
+      '<b>Set your country in the profile editor</b> and recommendations now show products and URLs available in your market — Czech users land on Czech storefronts, US users on .com sites, etc. Each rec section\'s footer reads "Showing for {country} · change" so you always know what\'s being filtered.',
+      '<b>Privacy is now its own Settings tab.</b> The analytics opt-out is right there, with a transparency banner on first launch — counts only, no IP, no health data, cookieless. The PDF/image/chat obfuscation pipeline (now labeled "AI Privacy Protection") is in the same place.',
+      '<b>EMF assessment</b> now also surfaces recommended meters (empty state) and mitigation products (after interpretation), tied to the issues actually flagged. Toggle Settings → Display → "Show product recommendations" off if you don\'t want them. Affiliate disclosure is built in; brands cannot pay for placement.',
     ]
   },
   {
