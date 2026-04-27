@@ -36,6 +36,12 @@ jobs:
           path: ~/.cache/puppeteer
           key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      - name: Resolve catalog file (fetch from private source if creds set, else use stub)
+        env:
+          CATALOG_FETCH_URL: ${{ secrets.CATALOG_FETCH_URL }}
+          CATALOG_FETCH_TOKEN: ${{ secrets.CATALOG_FETCH_TOKEN }}
+        run: node scripts/fetch-catalog.mjs
+
       - name: Run test suite
         run: ./run-tests.sh
 

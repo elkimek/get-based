@@ -6,8 +6,11 @@
 // resolves to a real file (the existing local content is already correct).
 //
 // Production (Vercel): set two env vars:
-//   CATALOG_FETCH_URL    — full https URL to the raw JSON file
-//                          (e.g. GitHub raw API URL with ?ref=main)
+//   CATALOG_FETCH_URL    — full https URL to the JSON file. For private
+//                          GitHub repos use the API URL, NOT raw.githubusercontent.com:
+//                            https://api.github.com/repos/OWNER/REPO/contents/PATH?ref=BRANCH
+//                          (raw.githubusercontent.com returns HTTP 404 for
+//                          private content even with a valid Bearer token.)
 //   CATALOG_FETCH_TOKEN  — token with read access to that URL
 //                          (e.g. GitHub fine-grained PAT, contents:read scope)
 //
@@ -60,17 +63,28 @@ if (!token) {
 const headerName = process.env.CATALOG_FETCH_HEADER_NAME || 'Authorization';
 const headerValue = process.env.CATALOG_FETCH_HEADER_VALUE || `Bearer ${token}`;
 
+// Helpful warning: raw.githubusercontent.com URLs return 404 for private
+// repos even with a valid Bearer token. Convert to the equivalent API URL
+// silently so the user doesn't have to debug this themselves.
+let effectiveUrl = url;
+const rawMatch = url.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/);
+if (rawMatch) {
+  const [, owner, repo, ref, p] = rawMatch;
+  effectiveUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${p}?ref=${ref}`;
+  console.log(`[fetch-catalog] Rewrote raw.githubusercontent.com URL to GitHub Contents API (works with private-repo PATs).`);
+}
+
 try {
-  const res = await fetch(url, {
+  const res = await fetch(effectiveUrl, {
     headers: {
       [headerName]: headerValue,
-      // GitHub raw content API expects this Accept header for raw bytes.
-      'Accept': 'application/vnd.github.v3.raw, application/octet-stream',
+      // GitHub Contents API returns the file body when this Accept header is sent.
+      'Accept': 'application/vnd.github.v3.raw, application/vnd.github.raw, application/octet-stream',
     },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    console.error(`[fetch-catalog] HTTP ${res.status} from ${url} — ${body.slice(0, 200)}`);
+    console.error(`[fetch-catalog] HTTP ${res.status} from ${effectiveUrl} — ${body.slice(0, 200)}`);
     process.exit(1);
   }
   const text = await res.text();
