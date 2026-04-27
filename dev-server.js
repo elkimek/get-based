@@ -369,19 +369,27 @@ const server = http.createServer((req, res) => {
   // API: git status of the catalog file. Editor surfaces this in the diff
   // preview so users see whether they're about to overwrite uncommitted work.
   if (pathname === '/api/git-status' && req.method === 'GET') {
-    const filePath = url.searchParams.get('path') || 'data/recommendations.json';
-    // Path-traversal guard: only allow paths inside the repo. Resolve, then
-    // realpath() to follow symlinks — rejects targets that escape ROOT via
-    // a symlink chain.
-    const resolved = path.resolve(ROOT, String(filePath));
-    let real;
-    try { real = fs.realpathSync(resolved); } catch { real = resolved; }
-    if (!real.startsWith(ROOT + path.sep) && real !== ROOT) {
+    const filePath = String(url.searchParams.get('path') || 'data/recommendations.json');
+    // Path-traversal guard runs on the QUERY ARG ITSELF — that's the
+    // attacker-controllable input. Reject `..` and absolute paths so the
+    // resolved path is guaranteed inside ROOT. Symlink targets that the
+    // *maintainer* placed (e.g. data/recommendations.json → editor repo
+    // for proprietary catalog hosting) are explicitly allowed; the realpath
+    // check that previously rejected them was over-restrictive.
+    if (filePath.split(/[/\\]/).some(seg => seg === '..') || path.isAbsolute(filePath)) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'invalid path' }));
       return;
     }
-    const rel = path.relative(ROOT, real);
+    const resolved = path.resolve(ROOT, filePath);
+    let real;
+    try { real = fs.realpathSync(resolved); } catch { real = resolved; }
+    // `rel` is relative to ROOT for git commands. If the symlink resolves
+    // outside ROOT (intentional — proprietary catalog in a sibling repo),
+    // `rel` will start with `..` — fall back to the request-side path so
+    // git commands still target the repo-local symlink (git follows it).
+    let rel = path.relative(ROOT, real);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) rel = filePath;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     // Hash the raw on-disk bytes — used by the editor as If-Match on POST
     // to detect concurrent writes between diff-fetch and confirm-deploy.
