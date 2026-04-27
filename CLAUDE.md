@@ -98,6 +98,10 @@ node dev-server.js
 ```
 Dev server mirrors production routing. Landing page repo (`../get-based-site`) served at `/` when present, app at `/app`. Docs at `/docs/*` route to `dist-docs/`.
 
+### Recommendation catalog
+
+`data/recommendations.json` holds the supplement / lifestyle / EMF affiliate catalog. For local development the maintainer typically symlinks it to a separate working directory; for forks, copy `data/recommendations.example.json` to `data/recommendations.json` to start from a minimal stub. For Vercel deploy, `scripts/fetch-catalog.mjs` (wired into `vercel.json`'s `buildCommand`) fetches the file at build time when `CATALOG_FETCH_URL` and `CATALOG_FETCH_TOKEN` env vars are set; without them, it preserves whatever `data/recommendations.json` contains (or copies the example stub if the file is missing).
+
 ### Tests
 
 All tests (node-side + Puppeteer) run headlessly:

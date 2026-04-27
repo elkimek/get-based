@@ -1,0 +1,74 @@
+{
+  "region": "INTL",
+  "countries": ["worldwide"],
+  "slots": {
+    "vitamins.vitaminD": {
+      "label": "Vitamin D",
+      "forms": ["vitamin D3 (cholecalciferol)"],
+      "freeActions": [
+        "10–20 minutes of midday sun, skin exposure on arms/legs"
+      ],
+      "foodForms": ["fatty fish (salmon, mackerel)", "egg yolks", "cod liver oil"],
+      "card": "Light & Circadian"
+    },
+    "_internal.emfMeters": {
+      "label": "EMF meters",
+      "_internal": true
+    },
+    "env.shieldingPaint": {
+      "label": "RF shielding paint",
+      "card": "Environment",
+      "_emfMitigationTag": "shielding paint (Yshield)"
+    }
+  },
+  "shops": [],
+  "vendors": {
+    "example": {
+      "name": "Example Vendor",
+      "homepage": "https://example.com?ref=getbased",
+      "coupon": { "code": "EXAMPLE10", "userDiscount": "10%" },
+      "regions": ["INTL"]
+    }
+  },
+  "products": {
+    "vitamins.vitaminD": [
+      {
+        "type": "supplement",
+        "form": "D3 softgel",
+        "brand": "Example Brand",
+        "name": "Vitamin D3 5000 IU",
+        "url": "https://example.com/vitamin-d3?ref=getbased",
+        "affiliateUrl": "https://example.com/vitamin-d3?ref=getbased",
+        "regions": ["INTL"],
+        "vendorKey": "example"
+      }
+    ],
+    "_internal.emfMeters": [
+      {
+        "type": "product",
+        "key": "example-meter",
+        "name": "Example RF Meter",
+        "vendor": "Example Vendor",
+        "vendorKey": "example",
+        "kind": "RF / microwave meter",
+        "blurb": "An example product entry. Replace with your own catalog.",
+        "url": "https://example.com/rf-meter?ref=getbased",
+        "affiliateUrl": "https://example.com/rf-meter?ref=getbased",
+        "matchTypes": ["rfMicrowave"],
+        "regions": ["INTL"]
+      }
+    ],
+    "env.shieldingPaint": [
+      {
+        "type": "product",
+        "name": "Example Shielding Paint",
+        "vendor": "Example Vendor",
+        "vendorKey": "example",
+        "blurb": "Example mitigation product entry.",
+        "url": "https://example.com/shielding-paint?ref=getbased",
+        "affiliateUrl": "https://example.com/shielding-paint?ref=getbased",
+        "regions": ["INTL"]
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run docs:build",
+  "buildCommand": "node scripts/fetch-catalog.mjs && npm run docs:build",
   "outputDirectory": ".",
   "routes": [
     {
