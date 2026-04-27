@@ -34,9 +34,22 @@ const TARGET = path.join(ROOT, 'data', 'recommendations.json');
 const url = process.env.CATALOG_FETCH_URL;
 const token = process.env.CATALOG_FETCH_TOKEN;
 
+// Replace TARGET safely whether it's missing, a regular file, or a
+// (possibly dangling) symlink. fs.writeFileSync follows symlinks, which
+// fails when the symlink target doesn't exist on this machine — so we
+// detect symlinks via lstat (non-dereferencing) and unlink them first.
+function _replaceTarget(content) {
+  fs.mkdirSync(path.dirname(TARGET), { recursive: true });
+  try {
+    const lst = fs.lstatSync(TARGET);
+    if (lst.isSymbolicLink()) fs.unlinkSync(TARGET);
+  } catch { /* ENOENT is fine — nothing to remove */ }
+  fs.writeFileSync(TARGET, content);
+}
+
 // No env vars set: assume local dev. Verify the existing file/symlink is
-// readable. If broken (e.g. fork without the upstream symlink target),
-// fall back to the example stub.
+// readable. If broken (e.g. fork without the upstream symlink target,
+// or CI without secrets), fall back to the example stub.
 if (!url) {
   try {
     const buf = fs.readFileSync(TARGET);
@@ -46,7 +59,8 @@ if (!url) {
   } catch (e) {
     const stub = path.join(ROOT, 'data', 'recommendations.example.json');
     if (fs.existsSync(stub)) {
-      fs.copyFileSync(stub, TARGET);
+      const stubContent = fs.readFileSync(stub);
+      _replaceTarget(stubContent);
       console.log(`[fetch-catalog] Local file unreadable; copied example stub → ${TARGET}.`);
       process.exit(0);
     }
@@ -98,13 +112,7 @@ try {
     console.error('[fetch-catalog] Response missing required catalog shape (slots / products keys).');
     process.exit(1);
   }
-  // If the target is a symlink, replace it with a regular file write.
-  // (writeFileSync follows symlinks, but production target is a fresh dir.)
-  fs.mkdirSync(path.dirname(TARGET), { recursive: true });
-  if (fs.existsSync(TARGET) && fs.lstatSync(TARGET).isSymbolicLink()) {
-    fs.unlinkSync(TARGET);
-  }
-  fs.writeFileSync(TARGET, text);
+  _replaceTarget(text);
   const counts = {
     slots: Object.keys(parsed.slots || {}).length,
     products: Object.values(parsed.products || {}).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0),
