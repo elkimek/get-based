@@ -46,7 +46,7 @@ return (async function() {
   assert('markRecDisclosureSeen on window', typeof window.markRecDisclosureSeen === 'function');
   assert('renderRecommendationSection on window', typeof window.renderRecommendationSection === 'function');
   assert('renderRecommendationSectionSync on window', typeof window.renderRecommendationSectionSync === 'function');
-  assert('getUserRegion uses exact match', recSrc.includes("CZSK_COUNTRIES.includes(c)"));
+  assert('getUserRegion routes via COUNTRY_TO_REGION table', recSrc.includes('COUNTRY_TO_REGION[c]'));
   assert('detectSupplementSlots on window', typeof window.detectSupplementSlots === 'function');
   assert('loadCatalog on window', typeof window.loadCatalog === 'function');
 
@@ -133,7 +133,7 @@ return (async function() {
   };
 
   // getProductsForSlot is exported but not on window — test via recSrc
-  assert('getProductsForSlot filters by region (CZSK pattern)', recSrc.includes("region === 'CZSK'"));
+  assert('getProductsForSlot filters by region via hierarchy chain', recSrc.includes('regionLookupChain(region)'));
   assert('getProductsForSlot returns empty for null catalog', recSrc.includes('if (!catalog || !catalog.products) return []'));
 
   // ═══════════════════════════════════════
