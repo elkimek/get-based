@@ -279,6 +279,24 @@ return (async () => {
   assert('94y. Coupon line uses regional coupon (CZ → GBCZ10)',
     czCouponHtml.includes('GBCZ10') && !czCouponHtml.includes('GBSK10'));
 
+  // _resolveProductUrlForRegion — products with per-region url/affiliateUrl maps
+  assert('94z. Flat product url passes through',
+    recsMod._resolveProductUrlForRegion({ url: 'https://x.com' }, 'CZ') === 'https://x.com');
+  assert('94aa. Per-region product url picks by region',
+    recsMod._resolveProductUrlForRegion({ url: { CZ: 'https://x.cz', INTL: 'https://x.com' } }, 'CZ') === 'https://x.cz');
+  assert('94ab. Per-region product url falls back to INTL on unknown region',
+    recsMod._resolveProductUrlForRegion({ url: { CZ: 'https://x.cz', INTL: 'https://x.com' } }, 'DE') === 'https://x.com');
+  assert('94ac. affiliateUrl wins over url when both set',
+    recsMod._resolveProductUrlForRegion({ url: 'https://x.com', affiliateUrl: 'https://x.com?aff=1' }, 'CZ') === 'https://x.com?aff=1');
+  assert('94ad. Per-region affiliateUrl picks correctly',
+    recsMod._resolveProductUrlForRegion({ affiliateUrl: { CZ: 'https://x.cz?aff=A', INTL: 'https://x.com?aff=C' } }, 'CZ') === 'https://x.cz?aff=A');
+  assert('94ae. Multi-region marker decomposes for product URL (CZSK → CZ)',
+    recsMod._resolveProductUrlForRegion({ url: { CZ: 'https://x.cz', SK: 'https://x.sk' } }, 'CZSK') === 'https://x.cz');
+  assert('94af. Null/undefined product returns null',
+    recsMod._resolveProductUrlForRegion(null, 'CZ') === null);
+  assert('94ag. Array-shaped product URL rejected',
+    recsMod._resolveProductUrlForRegion({ url: ['https://x'] }, 'CZ') === null);
+
   console.log('=== Results ===');
-  console.log(`${document.querySelectorAll('.test-pass').length || 111} passed, 0 failed`);
+  console.log(`${document.querySelectorAll('.test-pass').length || 119} passed, 0 failed`);
 })();

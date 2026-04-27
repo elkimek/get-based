@@ -116,7 +116,9 @@ export function getEMFProductsForMitigations(catalog, tags) {
     const products = catalog.products[slotKey];
     if (!products) continue;
     for (const p of products) {
-      const key = (p.url || p.affiliateUrl || '') + '|' + p.name;
+      // Dedup key — name + vendorKey is more stable than the URL since URL
+      // can be a per-region map (no canonical string for the key).
+      const key = (p.vendorKey || '') + '|' + (p.name || '');
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({ ...p, _tag: tag });
@@ -177,6 +179,23 @@ export function _resolveHomepageForRegion(homepage, region) {
   if (!homepage) return null;
   if (typeof homepage === 'string') return homepage;
   return _pickRegional(homepage, region);
+}
+
+// Resolve a product's outbound URL for the active catalog region. Both
+// `url` and `affiliateUrl` may be a flat string OR a Record<RegionCode, string>
+// when the brand has different storefronts per market (e.g. easylight.sk for
+// CZ/SK + mitochondriak.com for INTL). Prefer affiliateUrl over url.
+export function _resolveProductUrlForRegion(product, region) {
+  if (!product) return null;
+  const aff = _resolveOneUrlField(product.affiliateUrl, region);
+  if (aff) return aff;
+  return _resolveOneUrlField(product.url, region);
+}
+function _resolveOneUrlField(field, region) {
+  if (!field) return null;
+  if (typeof field === 'string') return field;
+  if (typeof field === 'object' && !Array.isArray(field)) return _pickRegional(field, region);
+  return null;
 }
 
 function _buildCouponLine(catalogOrVendor, region) {
@@ -262,8 +281,10 @@ export function _addUTMParams(url, content) {
   return u.toString();
 }
 
-function _buildEMFProductRow(product, eventPrefix) {
-  const rawUrl = product.url;
+function _buildEMFProductRow(product, eventPrefix, region) {
+  // Resolve region-aware URL: prefer affiliateUrl, fall back to url. Either
+  // may be a Record<RegionCode, string> for products with per-market shops.
+  const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
   const isValid = _isTrustedAffiliateUrl(rawUrl);
   const meta = [];
   if (product.vendor) meta.push(escapeHTML(product.vendor));
@@ -299,7 +320,7 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
   const heading = escapeHTML(opts.heading || 'Need a meter? Recommended by getbased');
   const eventPrefix = opts.eventPrefix || 'meter-rec';
-  const body = meters.map(m => _buildEMFProductRow(m, eventPrefix)).join('');
+  const body = meters.map(m => _buildEMFProductRow(m, eventPrefix, catalog?.region)).join('');
   const vendor = _resolveVendorForCoupon(catalog, meters);
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
@@ -322,7 +343,7 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
   const heading = escapeHTML(opts.heading || 'Recommended products for your mitigations');
   const eventPrefix = opts.eventPrefix || 'mitigation-rec';
-  const body = products.map(p => _buildEMFProductRow(p, eventPrefix)).join('');
+  const body = products.map(p => _buildEMFProductRow(p, eventPrefix, catalog?.region)).join('');
   const vendor = _resolveVendorForCoupon(catalog, products);
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
@@ -498,7 +519,7 @@ export function buildDNAHints(slotKey) {
 // ═══════════════════════════════════════════════
 // HTML RENDERING
 // ═══════════════════════════════════════════════
-function buildProductRow(product) {
+function buildProductRow(product, region) {
   const parts = [];
   if (product.brand) parts.push(`<strong>${escapeHTML(product.brand)}</strong>`);
   if (product.name) parts.push(escapeHTML(product.name));
@@ -506,8 +527,11 @@ function buildProductRow(product) {
   if (product.dosage) meta.push(escapeHTML(product.dosage));
   if (product.priceCZK) meta.push(`~${escapeHTML(String(product.priceCZK))} CZK`);
   else if (product.priceEUR) meta.push(`~\u20AC${escapeHTML(String(product.priceEUR))}`);
-  const url = product.affiliateUrl || product.url;
-  const isValid = url && /^https?:\/\//.test(url);
+  // Resolve region-aware URL: handles per-region maps for vendors with
+  // different storefronts per market (easylight.sk for CZ/SK +
+  // mitochondriak.com for INTL). Falls back to flat string.
+  const url = _resolveProductUrlForRegion(product, region);
+  const isValid = url && typeof url === 'string' && /^https?:\/\//.test(url);
   return `<div class="rec-product">
     <span class="rec-product-info">${parts.join(' \u00b7 ')}${meta.length ? ' \u00b7 ' + meta.join(' \u00b7 ') : ''}</span>
     ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener">View \u2192</a>` : ''}
@@ -587,7 +611,7 @@ function _renderRecSection(slotKey, opts = {}) {
   // Tier 2: Whole food — inline
   if (foodProducts.length) {
     inner += `<div class="rec-section-label">WHOLE FOOD <span class="rec-tier-hint">from nature</span></div>`;
-    for (const fp of foodProducts) inner += buildProductRow(fp);
+    for (const fp of foodProducts) inner += buildProductRow(fp, region);
   } else if (slot?.foodForms?.length) {
     inner += `<div class="rec-section-label">WHOLE FOOD <span class="rec-tier-hint">from nature</span></div>`;
     inner += `<div class="rec-item-food">${slot.foodForms.map(f => escapeHTML(f)).join(' · ')}</div>`;
@@ -596,7 +620,7 @@ function _renderRecSection(slotKey, opts = {}) {
   // Tier 3: Tools
   if (toolProducts.length) {
     inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">supports nature</span></div>`;
-    for (const tp of toolProducts) inner += buildProductRow(tp);
+    for (const tp of toolProducts) inner += buildProductRow(tp, region);
   } else if (slot?.productForms?.length) {
     inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">supports nature</span></div>`;
     inner += `<div class="rec-item-form">${slot.productForms.map(t => escapeHTML(t)).join(' · ')}</div>`;
@@ -605,7 +629,7 @@ function _renderRecSection(slotKey, opts = {}) {
   // Tier 4: Supplements — inline
   if (suppProducts.length) {
     inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">last resort</span></div>`;
-    for (const sp of suppProducts) inner += buildProductRow(sp);
+    for (const sp of suppProducts) inner += buildProductRow(sp, region);
   } else if (slot?.forms?.length) {
     inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">last resort</span></div>`;
     const formRefs = slot.formRefs || {};
@@ -618,13 +642,13 @@ function _renderRecSection(slotKey, opts = {}) {
 
   if (drugProducts.length) {
     inner += `<div class="rec-section-label">PHARMACEUTICALS</div>`;
-    for (const dp of drugProducts) inner += buildProductRow(dp);
+    for (const dp of drugProducts) inner += buildProductRow(dp, region);
     inner += `<div class="rec-drug-warning">Pharmaceutical-grade compounds may require medical supervision and can interact with medications. Consult your physician before use.</div>`;
   }
 
   if (otherProducts.length) {
     inner += `<div class="rec-section-label">OTHER</div>`;
-    for (const op of otherProducts) inner += buildProductRow(op);
+    for (const op of otherProducts) inner += buildProductRow(op, region);
   }
 
   if (!inner) return '';
