@@ -628,9 +628,13 @@ function buildProductRow(product, region, slotKey) {
   const productSlug = _eventSlug(product.key || `${product.brand || ''}-${product.name || ''}`);
   const utmContent = slotKey ? `${slotKey.replace('.', '-')}-${productSlug}` : productSlug;
   const url = isValid ? _addUTMParams(rawUrl, utmContent, campaign) : rawUrl;
+  // Umami event mirrors utm_content so the partner-side report (UTM) and
+  // our internal click count (Umami) share the same surface label.
+  // Prefix `rec-` separates these from the existing `emf-*` events.
+  const evtName = `rec-${campaign}-${productSlug}`;
   return `<div class="rec-product">
     <span class="rec-product-info">${parts.join(' \u00b7 ')}${meta.length ? ' \u00b7 ' + meta.join(' \u00b7 ') : ''}</span>
-    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener">View \u2192</a>` : ''}
+    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}">View \u2192</a>` : ''}
   </div>`;
 }
 
