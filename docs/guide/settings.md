@@ -1,6 +1,6 @@
 # Settings
 
-Open Settings by clicking the gear icon in the header. Settings are organized into six sections: Profile, Display, AI Provider, PDF Import Privacy, Security, and Data.
+Open Settings by clicking the gear icon in the header. Settings are organized into tabs: **Display**, **AI**, **Privacy**, **Data**, **Wearables**, and **Agent Access**. Profile fields (name, country, sex, DOB, biometrics) live in the client editor — open it from the sidebar profile selector.
 
 ## Profile
 
@@ -78,19 +78,29 @@ Each provider has its own panel:
 
 See [AI Providers](./ai-providers.md) for full setup instructions.
 
-## PDF Import Privacy
+## Privacy
 
-Shows the current status of PII obfuscation — whether a local AI server is connected and being used, or whether the regex fallback is active.
+The Privacy tab covers two independent concerns: AI privacy (PII obfuscation when sending lab data to AI providers) and analytics (anonymous usage stats).
+
+### AI Privacy Protection
+
+Shows the current status of PII obfuscation — whether a local AI server is connected and being used, or whether the regex fallback is active. The same pipeline runs on lab PDFs, EMF assessment reports, image-based imports, and chat context.
 
 Expand the **Configure Local AI** panel to:
 
 - Set the server URL for PII stripping (can be different from the main AI server)
 - Select a dedicated model for PII stripping
-- Enable debug mode to view a before/after diff of what was replaced in your PDF text
+- Enable debug mode to view a before/after diff of what was replaced
 
-All options in the Privacy section use toggle sliders for quick on/off switching.
+See [PII Obfuscation](./pii-obfuscation.md) for a full explanation.
 
-See [PII Obfuscation](./pii-obfuscation.md) for a full explanation of how this works.
+### Analytics
+
+Cookieless usage stats — counts only, no IP, no health data, no user identity. Tracks pageviews and outbound clicks on affiliate links so the maintainer can see which surfaces help users vs. which take screen real estate.
+
+Toggle off to disable entirely. With the toggle off, the analytics script doesn't load. Affiliate links still carry partner attribution params (those are how the partner gets credited for purchases).
+
+A first-launch banner exposes this toggle so it's never silently default-on.
 
 ## Security
 

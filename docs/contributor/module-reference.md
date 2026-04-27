@@ -1,6 +1,6 @@
 # Module Reference
 
-All 42 modules live under `js/`. Grouped by layer — lower layers have no dependencies on higher ones.
+Modules live under `js/` (current count: `ls js/*.js | wc -l`). Grouped by layer — lower layers have no dependencies on higher ones.
 
 ---
 
@@ -604,13 +604,17 @@ Client List modal for managing multiple profiles.
 
 ### `recommendations.js`
 
-Supplement and lifestyle recommendations driven by a lazy-loaded catalog.
+Supplement, lifestyle, and EMF affiliate recommendations driven by a lazy-loaded catalog. Region-aware: products + URLs + coupons are filtered by user country via a single hierarchy chain (CZ → EU → INTL etc.).
 
 **Key exports:**
-- `loadRecommendations()` — lazy-loads `data/recommendations-czsk.json` on first call
-- `getMarkerRecommendations(markerKey, status)` — returns food sources, supplements, and lifestyle tips for a flagged marker
-- `scanChatForRecommendations(text)` — keyword scanner that maps AI chat text to recommendation slots
-- `renderRecommendationCards(markerKey, status)` — renders the "What can help" section in the detail modal
+- `loadCatalog()` — lazy-loads `data/recommendations.json` on first call
+- `getUserRegion()` — derives region code (CZ/SK/DE/AT/EU/US/INTL) from profile country
+- `regionLookupChain(region)` — returns the lookup chain (most-specific → INTL); used by both product visibility filter and per-region map resolution
+- `getProductsForSlot(catalog, slotKey, region)` — region-filtered products
+- `_resolveCouponForRegion`, `_resolveHomepageForRegion`, `_resolveProductUrlForRegion` — pick from per-region maps using the chain
+- `_addUTMParams(url, content, campaign)` — partner-dashboard attribution
+- `renderRecommendationSection(slotKey, opts)` — renders the "What can help" section in the detail modal
+- `renderEMFMeterRecs(catalog, opts)` / `renderEMFMitigationRecs(catalog, tags, opts)` — EMF panel surfaces
 
 **Window exports:** none (called via imports from `views.js`, `chat.js`, `context-cards.js`)
 

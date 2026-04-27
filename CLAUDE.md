@@ -55,7 +55,7 @@ Female profiles only. Phase-aware reference ranges (`PHASE_RANGES`), cycle phase
 
 ### EMF Assessment
 
-Baubiologie sub-module under Environment card. Room-by-room measurements with SBM-2015 severity, source/mitigation tags, AI interpretation. See `emf.js`. Mitigation tags drive product recommendations from `data/emf-products.json` (Safe Living Technologies affiliate, `?aff=466`, coupon `getbased` = 10% off / 10% commission). Surfaces: empty-state meter CTA + post-interpretation mitigation product list. Gated by `isProductRecsEnabled()` (same toggle as supplements).
+Baubiologie sub-module under Environment card. Room-by-room measurements with SBM-2015 severity, source/mitigation tags, AI interpretation. See `emf.js`. EMF affiliate products live in the unified catalog at `data/recommendations.json` (`_internal.emfMeters` for meters, `env.*` for mitigation products). Region routing + UTM stamping handled by `recommendations.js`. Surfaces: empty-state meter CTA + post-interpretation mitigation product list. Gated by `isProductRecsEnabled()` (same toggle as supplements).
 
 ### Cross-Device Sync
 

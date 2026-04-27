@@ -3858,9 +3858,10 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .rec-product-link { color: var(--accent); text-decoration: none; font-size: 12px; white-space: nowrap; padding: 6px 12px; }
 .rec-product-link:hover { text-decoration: underline; }
 .rec-disclosure { font-size: 10px; color: var(--text-muted); margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--border); }
-.rec-region-tag { color: var(--text-muted); opacity: 0.75; font-size: 10px; display: inline-block; margin-left: 8px; }
-.rec-region-edit { color: var(--accent); text-decoration: none; font-size: 10px; cursor: pointer; }
+.rec-region-tag { color: var(--text-muted); opacity: 0.75; font-size: 11px; display: inline-block; margin-left: 8px; }
+.rec-region-edit { color: var(--accent); text-decoration: none; font-size: 11px; cursor: pointer; padding: 4px 6px; border-radius: 4px; min-height: 24px; display: inline-block; }
 .rec-region-edit:hover { text-decoration: underline; }
+.rec-region-edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rec-suggest { font-size: 10px; margin-top: 8px; }
 .rec-suggest a { color: var(--text-muted); text-decoration: none; }
 .rec-suggest a:hover { color: var(--accent); }

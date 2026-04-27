@@ -327,18 +327,60 @@ function copyCouponCode(btn) {
   }
 }
 
-// Affiliate links are tightly scoped to known vendor domains. Even if the
-// catalog were corrupted (sync, SW poisoning, profile import), only URLs
-// belonging to a vetted partner can render — prefix-only matching would let
-// an attacker construct https://attacker.com?safelivingtechnologies.com=...
-const _AFFILIATE_DOMAIN_ALLOWLIST = [
+// Affiliate links are scoped to known vendor domains so a corrupted
+// catalog (sync, SW poisoning, profile import) can't render attacker-
+// controlled URLs. The allowlist combines a small static fallback with
+// the hostnames of every vendor.homepage in the loaded catalog (so
+// adding a new vendor in the catalog automatically extends the list).
+// Prefix-only matching would let an attacker construct
+//   https://attacker.com?safelivingtechnologies.com=...
+// so the check is hostname equality + trailing-dot-segment match.
+const _STATIC_AFFILIATE_ALLOWLIST = [
   'safelivingtechnologies.com',
 ];
-function _isTrustedAffiliateUrl(url) {
+function _vendorHomepageHosts(catalog) {
+  const hosts = new Set();
+  const vendors = catalog?.vendors || {};
+  for (const v of Object.values(vendors)) {
+    const hp = v?.homepage;
+    if (!hp) continue;
+    const urls = typeof hp === 'string' ? [hp] : (typeof hp === 'object' ? Object.values(hp) : []);
+    for (const u of urls) {
+      try { hosts.add(new URL(u).hostname.toLowerCase()); } catch {}
+    }
+  }
+  return hosts;
+}
+function _isTrustedAffiliateUrl(url, catalog = _catalog) {
   if (!url || !/^https?:\/\//i.test(url)) return false;
   try {
     const host = new URL(url).hostname.toLowerCase();
-    return _AFFILIATE_DOMAIN_ALLOWLIST.some(d => host === d || host.endsWith('.' + d));
+    if (_STATIC_AFFILIATE_ALLOWLIST.some(d => host === d || host.endsWith('.' + d))) return true;
+    // Catalog-derived: the maintainer's vendor entries authorize their own
+    // domains. New vendors don't need a code change.
+    for (const allowed of _vendorHomepageHosts(catalog)) {
+      if (host === allowed || host.endsWith('.' + allowed)) return true;
+    }
+    // Allow hostnames that appear in any product.url within the catalog
+    // (brand-vs-reseller case: vendor=mit but products link to easylight.sk).
+    const products = catalog?.products || {};
+    for (const slot of Object.values(products)) {
+      for (const p of slot) {
+        const candidates = [];
+        const u = p?.url;
+        const a = p?.affiliateUrl;
+        if (typeof u === 'string') candidates.push(u);
+        else if (u && typeof u === 'object') candidates.push(...Object.values(u));
+        if (typeof a === 'string') candidates.push(a);
+        else if (a && typeof a === 'object') candidates.push(...Object.values(a));
+        for (const c of candidates) {
+          try {
+            if (new URL(c).hostname.toLowerCase() === host) return true;
+          } catch {}
+        }
+      }
+    }
+    return false;
   } catch { return false; }
 }
 
@@ -369,23 +411,26 @@ export function _addUTMParams(url, content, campaign = 'emf') {
   return u.toString();
 }
 
-function _buildEMFProductRow(product, eventPrefix, region) {
+function _buildEMFProductRow(product, eventPrefix, region, catalog) {
   // Resolve region-aware URL: prefer affiliateUrl, fall back to url. Either
   // may be a Record<RegionCode, string> for products with per-market shops.
   const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
-  const isValid = _isTrustedAffiliateUrl(rawUrl);
+  const isValid = _isTrustedAffiliateUrl(rawUrl, catalog);
   const meta = [];
   if (product.vendor) meta.push(escapeHTML(product.vendor));
   if (product.kind) meta.push(escapeHTML(product.kind));
   const productName = escapeHTML(product.name);
+  // Vendor name for link copy + aria-label. Falls back to brand or "vendor"
+  // so we never hardcode a single vendor's name into a generic builder.
+  const vendorName = escapeHTML(product.vendor || product.brand || 'vendor');
   // Analytics: a per-click event lets the maintainer see which surface and
   // which product converted. Opt-out via Settings → Privacy gate already
   // suppresses Umami load; this attribute becomes a no-op there.
   const slug = _eventSlug(product.key || product._tag || product.name);
   // Cap at 50 chars — Umami's API rejects longer names with HTTP 400.
   const evtName = (eventPrefix ? `emf-${eventPrefix}-${slug}` : `emf-rec-${slug}`).slice(0, 50).replace(/-+$/, '');
-  // Mirror the Umami event in utm_content so the SLT-side report can be
-  // joined with our internal click counts on the same surface label.
+  // Mirror the Umami event in utm_content so the partner-side report
+  // (UTM) and our internal click count (Umami) share the same surface label.
   const utmContent = eventPrefix ? `${eventPrefix}-${slug}` : `emf-rec-${slug}`;
   const url = isValid ? _addUTMParams(rawUrl, utmContent) : rawUrl;
   return `<div class="rec-product rec-emf-product">
@@ -394,7 +439,7 @@ function _buildEMFProductRow(product, eventPrefix, region) {
       ${meta.length ? `<span class="rec-emf-product-meta">${meta.join(' · ')}</span>` : ''}
     </div>
     ${product.blurb ? `<div class="rec-emf-product-blurb">${escapeHTML(product.blurb)}</div>` : ''}
-    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on Safe Living Technologies, opens in new tab">View on Safe Living Technologies →</a>` : ''}
+    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on ${vendorName}, opens in new tab">View on ${vendorName} →</a>` : ''}
   </div>`;
 }
 
@@ -409,13 +454,13 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
   const heading = escapeHTML(opts.heading || 'Need a meter? Recommended by getbased');
   const eventPrefix = opts.eventPrefix || 'meter-rec';
-  const body = meters.map(m => _buildEMFProductRow(m, eventPrefix, catalog?.region)).join('');
+  const body = meters.map(m => _buildEMFProductRow(m, eventPrefix, getUserRegion(), catalog)).join('');
   const vendor = _resolveVendorForCoupon(catalog, meters);
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
-      ${_buildCouponLine(vendor, catalog?.region)}
+      ${_buildCouponLine(vendor, getUserRegion())}
       ${buildDisclosureFooter()}
     </div>
   </div>`;
@@ -432,13 +477,13 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
   const heading = escapeHTML(opts.heading || 'Recommended products for your mitigations');
   const eventPrefix = opts.eventPrefix || 'mitigation-rec';
-  const body = products.map(p => _buildEMFProductRow(p, eventPrefix, catalog?.region)).join('');
+  const body = products.map(p => _buildEMFProductRow(p, eventPrefix, getUserRegion(), catalog)).join('');
   const vendor = _resolveVendorForCoupon(catalog, products);
   return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
-      ${_buildCouponLine(vendor, catalog?.region)}
+      ${_buildCouponLine(vendor, getUserRegion())}
       ${buildDisclosureFooter()}
     </div>
   </div>`;
@@ -634,9 +679,12 @@ function buildProductRow(product, region, slotKey) {
   // Prefix `rec-` separates these from the existing `emf-*` events.
   // Cap at 50 chars — Umami's API rejects longer names with HTTP 400.
   const evtName = `rec-${campaign}-${productSlug}`.slice(0, 50).replace(/-+$/, '');
+  // aria-label gives screen-reader users the brand + name + new-tab hint
+  // (matches the EMF row's a11y treatment).
+  const ariaTarget = escapeHTML([product.brand, product.name].filter(Boolean).join(' '));
   return `<div class="rec-product">
     <span class="rec-product-info">${parts.join(' \u00b7 ')}${meta.length ? ' \u00b7 ' + meta.join(' \u00b7 ') : ''}</span>
-    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}">View \u2192</a>` : ''}
+    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${ariaTarget}, opens in new tab">View \u2192</a>` : ''}
   </div>`;
 }
 
@@ -649,7 +697,9 @@ const REGION_LABELS = {
   CZSK: 'Czech Republic + Slovakia',
 };
 export function regionLabel(region) {
-  return REGION_LABELS[region] || region || 'worldwide';
+  // Unknown ISO codes (UK, AU, BG…) fall back to "worldwide" — better than
+  // showing a raw 2-letter code that looks like a bug to users.
+  return REGION_LABELS[region] || 'worldwide';
 }
 
 function buildDisclosureFooter() {
@@ -658,7 +708,7 @@ function buildDisclosureFooter() {
   // Link points to wherever the user can change their country. Click handler
   // delegates to the host app via a global (window.openProfileLocationEditor)
   // so this module stays decoupled. Falls back to '#' if no host is wired.
-  const editLink = `<a href="#" class="rec-region-edit" onclick="event.preventDefault();(window.openProfileLocationEditor||(()=>{}))()">change</a>`;
+  const editLink = `<a href="#" class="rec-region-edit" onclick="event.preventDefault();(window.openProfileLocationEditor||(()=>{}))()" aria-label="Change country for product recommendations">change</a>`;
   return `<div class="rec-disclosure">Affiliate links are marked. Brands cannot pay for placement. <span class="rec-region-tag">Showing for ${escapeHTML(label)} · ${editLink}</span></div>`;
 }
 
@@ -778,9 +828,15 @@ function _renderRecSection(slotKey, opts = {}) {
   const issueBody = encodeURIComponent(`**Slot:** \`${slotKey}\`\n**Current forms:** ${(slot?.forms || []).join(', ')}\n\n**What's wrong or what's better:**\n\n`);
   const suggestLink = `<div class="rec-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=recommendations" target="_blank" rel="noopener">Suggest a better study</a></div>`;
   const statusNote = isNormal ? `<div class="rec-in-range-note">Your value is in range. These tips are for general reference.</div>` : '';
+  // Coupon line: render when any rendered product references a vendor with a
+  // resolvable coupon for the current region. Visible to supplement/lifestyle
+  // recs the same way EMF gets it — every vendor that ships a coupon should
+  // surface it where their products surface.
+  const vendor = _resolveVendorForCoupon(_catalog, products);
+  const couponLine = vendor && hasProducts ? _buildCouponLine(vendor, region) : '';
   return `${_buildDisclosureBanner()}<div class="rec-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
     <div class="rec-section-header">${escapeHTML(label)}</div>
-    <div class="rec-content">${statusNote}${inner}${suggestLink}${hasProducts ? buildDisclosureFooter() : ''}${_buildMiniDisclaimer()}</div>
+    <div class="rec-content">${statusNote}${inner}${couponLine}${suggestLink}${buildDisclosureFooter()}${_buildMiniDisclaimer()}</div>
   </div>`;
 }
 

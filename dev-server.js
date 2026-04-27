@@ -37,9 +37,9 @@ function _deployCatalog(body, req, res) {
         return;
       }
       const filePath = path.join(ROOT, 'data', 'recommendations.json');
-      // Conflict detection: editor sends If-Match with the SHA-256 hash of
+      // Conflict detection: client sends If-Match with the SHA-256 hash of
       // the catalog as it last saw it; reject when the file changed since
-      // (multi-tab / two-editor race).
+      // (multi-tab / concurrent-write race).
       const ifMatch = req.headers['if-match'];
       if (ifMatch) {
         let currentHash = '';
@@ -203,16 +203,16 @@ function serveFile(res, filePath) {
 
 // Origins allowed to hit /api/* and /proxy. Includes:
 //   - Our own dev server on PORT (browser tab loaded directly)
-//   - The catalog editor's Vite dev server (default :5173, fallback :5174)
-//     proxying /api/* and /data/* through to here. Editor is loopback-only
-//     too, so widening to its port is safe within the same security model.
-// EDITOR_PORTS env var lets a user override if Vite picked a different port.
-const _editorPorts = (process.env.EDITOR_PORTS || '5173,5174').split(',').map(s => s.trim()).filter(Boolean);
+//   - Sibling local dev tools (default :5173, fallback :5174). All allowed
+//     hosts here must be loopback-only — widening this set assumes the
+//     same trust boundary (no cross-network requests).
+// LOCAL_TOOL_PORTS env var lets a user override if a tool picked a different port.
+const _localToolPorts = (process.env.LOCAL_TOOL_PORTS || process.env.EDITOR_PORTS || '5173,5174').split(',').map(s => s.trim()).filter(Boolean);
 const ALLOWED_ORIGINS = new Set([
   `http://127.0.0.1:${PORT}`,
   `http://localhost:${PORT}`,
   `http://[::1]:${PORT}`,
-  ..._editorPorts.flatMap(p => [
+  ..._localToolPorts.flatMap(p => [
     `http://127.0.0.1:${p}`,
     `http://localhost:${p}`,
     `http://[::1]:${p}`,
@@ -335,7 +335,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // API: deploy catalog JSON from editor to data/
+  // API: deploy catalog JSON to data/recommendations.json
   if (pathname === '/api/deploy-catalog' && req.method === 'POST') {
     // Body-size cap. The catalog is ~100 KB today; 5 MB gives plenty of
     // headroom while preventing a runaway POST from OOM'ing the dev server.
@@ -366,16 +366,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // API: git status of the catalog file. Editor surfaces this in the diff
+  // API: git status of a tracked file. A client surfaces this in a diff
   // preview so users see whether they're about to overwrite uncommitted work.
   if (pathname === '/api/git-status' && req.method === 'GET') {
     const filePath = String(url.searchParams.get('path') || 'data/recommendations.json');
     // Path-traversal guard runs on the QUERY ARG ITSELF — that's the
     // attacker-controllable input. Reject `..` and absolute paths so the
-    // resolved path is guaranteed inside ROOT. Symlink targets that the
-    // *maintainer* placed (e.g. data/recommendations.json → editor repo
-    // for proprietary catalog hosting) are explicitly allowed; the realpath
-    // check that previously rejected them was over-restrictive.
+    // resolved path is guaranteed inside ROOT. Maintainer-placed symlinks
+    // whose targets resolve outside ROOT are explicitly allowed; the
+    // realpath check that previously rejected them was over-restrictive.
     if (filePath.split(/[/\\]/).some(seg => seg === '..') || path.isAbsolute(filePath)) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'invalid path' }));
@@ -384,20 +383,26 @@ const server = http.createServer((req, res) => {
     const resolved = path.resolve(ROOT, filePath);
     let real;
     try { real = fs.realpathSync(resolved); } catch { real = resolved; }
-    // `rel` is relative to ROOT for git commands. If the symlink resolves
-    // outside ROOT (intentional — proprietary catalog in a sibling repo),
-    // `rel` will start with `..` — fall back to the request-side path so
-    // git commands still target the repo-local symlink (git follows it).
+    // Detect when the symlink resolves outside ROOT — when it does, we
+    // suppress git metadata (last-commit SHA / message / dirty flag) to
+    // avoid fingerprinting whatever the maintainer linked to. The
+    // contentHash is still computed (it's just a hash of bytes the user
+    // already controls) so If-Match conflict detection keeps working.
     let rel = path.relative(ROOT, real);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) rel = filePath;
+    const symlinksOutsideRoot = rel.startsWith('..') || path.isAbsolute(rel);
+    if (symlinksOutsideRoot) rel = filePath;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    // Hash the raw on-disk bytes — used by the editor as If-Match on POST
-    // to detect concurrent writes between diff-fetch and confirm-deploy.
     let contentHash = null;
     try { contentHash = crypto.createHash('sha256').update(fs.readFileSync(real)).digest('hex'); } catch {}
+    // Skip git lookups entirely for symlinks resolving outside the repo —
+    // we don't want to expose another repo's HEAD SHA / commit message via
+    // an endpoint anyone in the same browser can hit.
+    if (symlinksOutsideRoot) {
+      res.end(JSON.stringify({ path: rel, dirty: false, lastCommit: null, contentHash }));
+      return;
+    }
     // Run two cheap git commands in parallel: status (for dirty/clean) and
-    // log (for last commit metadata). Both -c safe.directory bypass reduces
-    // friction on shared dev machines.
+    // log (for last commit metadata).
     let statusOut = '', logOut = '', errored = false;
     let pending = 2;
     function done() {

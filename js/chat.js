@@ -2172,7 +2172,7 @@ export async function sendChatMessage() {
           const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
           if (ageDays < 120) return;
         }
-        const profileId = state.activeProfileId || 'default';
+        const profileId = state.currentProfile || 'default';
         const flagKey = `labcharts-emf-hint-last-${profileId}`;
         const lastShown = parseInt(localStorage.getItem(flagKey) || '0', 10);
         const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;

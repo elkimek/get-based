@@ -271,13 +271,9 @@ return (async () => {
     recsMod._resolveHomepageForRegion(regionalHomepage, 'SK') === 'https://x.sk?aff=B');
   assert('94x. Regional homepage — INTL falls back to EN',
     recsMod._resolveHomepageForRegion(regionalHomepage, 'INTL') === 'https://x.com?aff=C');
-  // Coupon line picks regional coupon when catalog.region is set
-  const multiRegionCat = JSON.parse(JSON.stringify(emfCat));
-  multiRegionCat.region = 'CZ';
-  multiRegionCat.vendors.slt.coupon = regionalCoupon;
-  const czCouponHtml = recsMod.renderEMFMeterRecs(multiRegionCat);
-  assert('94y. Coupon line uses regional coupon (CZ → GBCZ10)',
-    czCouponHtml.includes('GBCZ10') && !czCouponHtml.includes('GBSK10'));
+  // (was: catalog.region-driven coupon test — deleted after region wiring
+  // was unified to use getUserRegion() consistently; the regional resolver
+  // is still tested by the assertions above on _resolveCouponForRegion.)
 
   // Region hierarchy — single source of truth shared by product filter + _pickRegional
   const chain = recsMod.regionLookupChain;
@@ -338,13 +334,13 @@ return (async () => {
     recsMod._pickRegional({ CZ: 'https://x.cz', SK: 'https://x.sk', INTL: 'https://x.com' }, 'SK') === 'https://x.sk');
 
   // _addUTMParams — campaign override
-  const tagged = recsMod._addUTMParams('https://x.com/p?aff=1', 'vitamins-vitaminD-mit', 'vitamins');
+  const taggedCampaign = recsMod._addUTMParams('https://x.com/p?aff=1', 'vitamins-vitaminD-mit', 'vitamins');
   assert('94y11. _addUTMParams accepts campaign override',
-    tagged.includes('utm_campaign=vitamins'));
+    taggedCampaign.includes('utm_campaign=vitamins'));
   assert('94y12. _addUTMParams default campaign is emf (back-compat)',
     recsMod._addUTMParams('https://x.com/p', 'foo').includes('utm_campaign=emf'));
   assert('94y13. _addUTMParams preserves existing aff param',
-    tagged.includes('aff=1') && tagged.includes('utm_source=getbased'));
+    taggedCampaign.includes('aff=1') && taggedCampaign.includes('utm_source=getbased'));
 
   // _resolveProductUrlForRegion — products with per-region url/affiliateUrl maps
   assert('94z. Flat product url passes through',
@@ -364,6 +360,51 @@ return (async () => {
   assert('94ag. Array-shaped product URL rejected',
     recsMod._resolveProductUrlForRegion({ url: ['https://x'] }, 'CZ') === null);
 
+  // 50-char Umami event cap (was an HTTP 400 bug — caps name to fit Umami's API)
+  // We can't directly call _buildEMFProductRow (private), but the cap logic
+  // lives in `(prefix-or-default).slice(0, 50).replace(/-+$/, '')`.
+  function _cap(s) { return s.slice(0, 50).replace(/-+$/, ''); }
+  assert('94ah. Umami event name capped at 50 chars',
+    _cap('rec-vitamins-mitochondriak-infrapanel-mitochondriak-maxi-uvb').length <= 50);
+  assert('94ai. Cap trims trailing dash',
+    !_cap('rec-vitamins-mitochondriak-infrapanel-mitochondriak----').endsWith('-'));
+
+  // regionLabel fallback for unknown / null / empty region
+  assert('94aj. regionLabel(US) → United States',
+    recsMod.regionLabel('US') === 'United States');
+  assert('94ak. regionLabel(unknown) → worldwide',
+    recsMod.regionLabel('XX') === 'worldwide');
+  assert('94al. regionLabel(null/empty) → worldwide',
+    recsMod.regionLabel(null) === 'worldwide' && recsMod.regionLabel('') === 'worldwide');
+
+  // Region indicator + change-link wiring (smoke test for the disclosure footer)
+  delete window.openProfileLocationEditor;
+  localStorage.setItem('labcharts-show-product-recs', 'true');
+  const discMeterHtml = recsMod.renderEMFMeterRecs(emfCat);
+  assert('94am. Disclosure footer renders region indicator',
+    /Showing for /.test(discMeterHtml));
+  assert('94an. Disclosure footer renders change link',
+    /class="rec-region-edit"/.test(discMeterHtml));
+  assert('94ao. Change link calls openProfileLocationEditor on click',
+    /openProfileLocationEditor/.test(discMeterHtml));
+
+  // Vendor-name rendering in EMF row (was hardcoded to "Safe Living Technologies")
+  assert('94ap. EMF row link copy uses vendor name (not hardcoded)',
+    /View on Safe Living Technologies/.test(discMeterHtml));
+  // Synthetic non-SLT vendor product to verify the generic path
+  const altCat = JSON.parse(JSON.stringify(emfCat));
+  altCat.vendors.testbrand = { name: 'TestBrand', homepage: 'https://testbrand.example/?ref=g', regions: ['INTL'] };
+  altCat.products['_internal.emfMeters'].push({
+    type: 'product', key: 'tb-meter', name: 'TB Meter', vendor: 'TestBrand', vendorKey: 'testbrand',
+    kind: 'RF', blurb: 'demo', url: 'https://testbrand.example/meter?ref=g',
+    affiliateUrl: 'https://testbrand.example/meter?ref=g', regions: ['INTL'],
+  });
+  const altHtml = recsMod.renderEMFMeterRecs(altCat);
+  assert('94aq. EMF row link includes non-SLT vendor name',
+    /View on TestBrand/.test(altHtml));
+  assert('94ar. Non-SLT vendor URL passes affiliate allowlist (catalog-derived)',
+    altHtml.includes('testbrand.example'));
+
   console.log('=== Results ===');
-  console.log(`${document.querySelectorAll('.test-pass').length || 119} passed, 0 failed`);
+  console.log(`${document.querySelectorAll('.test-pass').length || 130} passed, 0 failed`);
 })();

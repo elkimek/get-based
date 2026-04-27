@@ -5,6 +5,19 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.3.20', date: '2026-04-27', title: 'Recommendation routing — country-aware + per-region URLs + analytics',
+    items: [
+      '<b>Recommendations now route by your country.</b> Each rec section\'s footer shows "Showing for {region} · change" — click "change" to jump straight to the country field. Hierarchy: CZ/SK get CZ/SK + EU + INTL products; EU users get EU + INTL; everyone else gets INTL.',
+      '<b>Country picker</b> in the profile editor — autocomplete from a list of 20 common countries, but you can still type any value.',
+      '<b>Multi-region product URLs</b> — a single product entry can now carry per-region URLs (e.g. CZ/SK shop + INTL shop), so the right storefront opens for your country without duplicate entries.',
+      '<b>Outbound clicks tagged with UTM params</b> on every affiliate link so the partner\'s own dashboard buckets traffic by getbased surface (vitamins, env, sleep, etc.) — no user identity, no health data.',
+      '<b>Coupon codes now show on supplement / lifestyle products too</b>, not just EMF. Vendors that ship a coupon get it surfaced wherever their products surface.',
+      '<b>Local dev no longer pollutes production analytics</b> — the analytics script is skipped on localhost / 127.0.0.1 / .local hosts.',
+      '<b>A11y:</b> rec product links now carry a screen-reader label ("View {brand} {name}, opens in new tab"); the change-region link is now keyboard-focusable with a 24px tap target.',
+      '<b>Internal:</b> region semantics unified into one hierarchy chain shared by product visibility filtering and per-region URL/coupon resolution. Eliminates a class of subtle bugs where a CZ user could see EU coupons or wrong-market URLs.',
+    ]
+  },
+  {
     version: '1.3.19', date: '2026-04-27', title: 'Affiliate vendors — multi-region support',
     items: [
       '<b>Vendor coupons + homepages can now be per-region</b>. A vendor whose CZ store, SK store, and worldwide site each carry different affiliate codes can express that as a <code>{ CZ, SK, EN }</code> map; the renderer picks the right one based on the active catalog region.',

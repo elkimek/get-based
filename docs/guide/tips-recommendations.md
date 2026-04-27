@@ -43,10 +43,30 @@ If you have [DNA data](/guide/dna-import) loaded, recommendations become genetic
 
 - No dosing recommendations — consult your healthcare provider
 - No product images or marketing language
-- No tracking of which links you click
 - Iron supplements are always marked "only if deficient"
 - Compounds the body produces naturally (DHEA, glutathione, melatonin) are flagged or replaced with precursor support
 
+## Privacy on Affiliate Links
+
+When you click a recommended product, the link carries:
+
+- A **partner code** (e.g. `?aff=466`) so the partner attributes the visit to getbased
+- **UTM parameters** (`utm_source=getbased`, `utm_medium=affiliate`, `utm_campaign=<surface>`, `utm_content=<slot>-<product>`) so the partner's own dashboard buckets traffic by which getbased surface drove it
+- An **anonymous click event** to the cookieless analytics (counts only — no IP, no health data, no user identity)
+
+All three are **disabled in one click** at Settings → Privacy → "Send anonymous usage stats". With the toggle off, the partner code and UTM params still ride on the URL (they're how the partner gets credited for purchases) but no event is sent to getbased's analytics.
+
+## Region Routing
+
+Recommendations and product URLs are filtered by your country (set in your profile). The system uses a hierarchy:
+
+- A **CZ** user sees products tagged CZ, EU, or INTL
+- An **EU** user sees products tagged EU or INTL
+- A **US** or other user sees products tagged INTL (and any explicit US-tagged ones)
+- An unset country defaults to **INTL** (worldwide)
+
+Vendors with multi-market storefronts (e.g. a brand with separate `.cz`/`.sk` and `.com` shops) automatically route you to the right URL for your region. Each rec section's footer shows "Showing for {region} · change" — click `change` to update your country.
+
 ## Data Source
 
-The recommendation catalog is a curated JSON file (`data/recommendations-czsk.json`) with 80 slots covering biomarkers and lifestyle areas. Each slot includes free actions, food sources, supplement forms, and PubMed references. The catalog is open source and community contributions are welcome.
+The recommendation catalog is a curated JSON file at `data/recommendations.json` covering biomarkers and lifestyle areas. Each slot includes free actions, food sources, supplement forms, and PubMed references. Open a GitHub issue to suggest additions, corrections, or new product entries.
