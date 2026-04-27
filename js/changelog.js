@@ -5,86 +5,12 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
-    version: '1.3.20', date: '2026-04-27', title: 'Recommendation routing — country-aware + per-region URLs + analytics',
+    version: '1.3.20', date: '2026-04-27', title: 'EMF affiliate + region-aware recommendations',
     items: [
-      '<b>Recommendations now route by your country.</b> Each rec section\'s footer shows "Showing for {region} · change" — click "change" to jump straight to the country field. Hierarchy: CZ/SK get CZ/SK + EU + INTL products; EU users get EU + INTL; everyone else gets INTL.',
-      '<b>Country picker</b> in the profile editor — autocomplete from a list of 20 common countries, but you can still type any value.',
-      '<b>Multi-region product URLs</b> — a single product entry can now carry per-region URLs (e.g. CZ/SK shop + INTL shop), so the right storefront opens for your country without duplicate entries.',
-      '<b>Outbound clicks tagged with UTM params</b> on every affiliate link so the partner\'s own dashboard buckets traffic by getbased surface (vitamins, env, sleep, etc.) — no user identity, no health data.',
-      '<b>Coupon codes now show on supplement / lifestyle products too</b>, not just EMF. Vendors that ship a coupon get it surfaced wherever their products surface.',
-      '<b>Local dev no longer pollutes production analytics</b> — the analytics script is skipped on localhost / 127.0.0.1 / .local hosts.',
-      '<b>A11y:</b> rec product links now carry a screen-reader label ("View {brand} {name}, opens in new tab"); the change-region link is now keyboard-focusable with a 24px tap target.',
-      '<b>Internal:</b> region semantics unified into one hierarchy chain shared by product visibility filtering and per-region URL/coupon resolution. Eliminates a class of subtle bugs where a CZ user could see EU coupons or wrong-market URLs.',
-    ]
-  },
-  {
-    version: '1.3.19', date: '2026-04-27', title: 'Affiliate vendors — multi-region support',
-    items: [
-      '<b>Vendor coupons + homepages can now be per-region</b>. A vendor whose CZ store, SK store, and worldwide site each carry different affiliate codes can express that as a <code>{ CZ, SK, EN }</code> map; the renderer picks the right one based on the active catalog region.',
-      '<b>Fully backward-compatible</b> — existing single-URL / single-coupon vendors (like Safe Living Technologies) keep working without any data change.',
-      '<b>Multi-region catalog markers like "CZSK" decompose</b> into component codes (CZ first, then SK), then fall back to a worldwide key (EN/INTL) before giving up.',
-    ]
-  },
-  {
-    version: '1.3.18', date: '2026-04-27', title: 'EMF affiliate — UTM tagging',
-    items: [
-      '<b>Affiliate product links now carry UTM parameters</b> so traffic shows up correctly attributed in the partner\'s own dashboard (<code>utm_source=getbased</code>, <code>utm_medium=affiliate</code>, <code>utm_campaign=emf</code>, <code>utm_content=&lt;surface&gt;-&lt;product&gt;</code>). The existing <code>?aff=466</code> partner code is preserved alongside.',
-      '<b>Inherits the same privacy gate</b> as before — UTM params are visible in the URL on click, not sent to us. The internal Umami event is still gated by Settings → Privacy.',
-    ]
-  },
-  {
-    version: '1.3.15–17', date: '2026-04-26', title: 'Internal cleanup',
-    items: [
-      'Recommendations data layer reorganised into a single source of truth, file renamed for consistency. No user-visible changes.',
-    ]
-  },
-  {
-    version: '1.3.14', date: '2026-04-26', title: 'Analytics transparency banner',
-    items: [
-      '<b>First-launch banner about analytics</b> — getbased now tells you upfront that anonymous usage stats are on (counts only, no IP, no health data, cookieless), with a one-click "Turn off" button right there in the banner. Shown once, then never again. Better than silent default-on, more pragmatic than opt-in buried in Settings nobody finds.',
-      '<b>Settings → Privacy still works the same</b> — the toggle is always available there if you change your mind later.',
-    ]
-  },
-  {
-    version: '1.3.13', date: '2026-04-26', title: 'Privacy tab — clearer structure',
-    items: [
-      '<b>Privacy is now its own top-level tab</b> (Display · AI · <b>Privacy</b> · Data · Wearables · Agent Access). Previously the privacy controls lived inside the AI tab, which made the analytics opt-out hard to find for users who weren\'t looking specifically for AI settings.',
-      '<b>Heading reframed as "AI Privacy Protection"</b> instead of "PDF Import Privacy" — the obfuscation pipeline also runs on EMF assessment reports, image-based imports, and chat context, not just lab PDFs.',
-      '<b>"Configure Local AI" expander moved above the toggles</b>, since the toggles depend on the configuration. New users now see "set this up first, then turn it on" rather than the reverse.',
-      '<b>"Show privacy details in import preview"</b> renamed to <b>"Verbose console logging"</b> — the toggle was already wired to the global debug-mode flag, so the old label was misleading. New description is honest about what it does ("No data leaves your device").',
-      '<b>One-time confirmation when turning off "Review obfuscated text"</b> — disabling this means PII obfuscation still runs but you won\'t see the result before it\'s sent. Now requires a deliberate click instead of a silent toggle.',
-    ]
-  },
-  {
-    version: '1.3.12', date: '2026-04-26', title: 'EMF affiliate — per-surface click tagging',
-    items: [
-      '<b>Outbound clicks on affiliate links are tagged for analytics</b> so we can tell which integrations help users vs. just take screen real estate. Tags identify the placement (chat hint, sleep card hint, Environment Tips nudge, empty-state meter rec, post-interpretation product rec) and the product clicked — never which user, what data they were viewing, or any health context.',
-      '<b>Inherits the existing analytics opt-out</b> in Settings → Privacy → "Send anonymous usage stats". With the toggle off, Umami doesn\'t even load and these tags become inert.',
-      '<b>Privacy copy refined</b> to mention outbound-click tracking explicitly so the disclosure matches what\'s being sent.',
-    ]
-  },
-  {
-    version: '1.3.11', date: '2026-04-26', title: 'EMF surfaces — audit fixes (a11y, security, correctness)',
-    items: [
-      '<b>Accessibility:</b> coupon button now reads as "Copy coupon code getbased to clipboard" for screen readers, "✓ Copied" flash is announced via aria-live, external links explicitly say "opens in new tab", and the 💡 nudge emoji is hidden from screen readers (text alone is sufficient context).',
-      '<b>Chat hint precision:</b> bare "RF" and "5G" no longer trigger the EMF nudge, so RF ablation procedures and "5g of creatine" don\'t surface a false suggestion. Now requires compound terms like "RF radiation" or "5G tower / network / signal".',
-      '<b>Chat hint cooldown integrity:</b> the 30-day cooldown is now only set after the hint actually renders to the DOM. A stop-mid-stream or error before the hint paints no longer burns the cooldown silently.',
-      '<b>Affiliate URL allowlist:</b> product URLs now go through a hostname allowlist (currently <code>safelivingtechnologies.com</code>), so even a corrupted catalog can\'t render attacker-controlled URLs masquerading as SLT.',
-      '<b>Stale-assessment grammar:</b> "1 month ago" instead of "1 months ago", and "over a year ago" once the gap exceeds 12 months.',
-      '<b>Coupon click-to-copy honesty:</b> when the clipboard API isn\'t available (insecure HTTP, old browsers), the button now selects the text and shows "Press Ctrl+C" instead of a misleading "✓ Copied". Rapid double-click no longer stomps the flash timer.',
-      '<b>Heading copy:</b> "Recommended products for your mitigations" → "Products to consider".',
-      '<b>ReDoS hardening:</b> the WiFi-near-bedroom regex is now bounded to 80 characters of context window so a 100KB AI response can\'t cause catastrophic backtracking.',
-    ]
-  },
-  {
-    version: '1.3.10', date: '2026-04-26', title: 'EMF surfaces — UX polish',
-    items: [
-      '<b>Mitigations the AI mentions in its interpretation</b> now also surface matching products, even if you didn\'t tag them on the room. Previously you had to manually click chips like "shielding paint" before the rec section would appear; now the AI saying "consider Yshield" is enough.',
-      '<b>Coupon code is now click-to-copy</b> — tap <code>getbased</code> in the EMF rec section, it copies and flashes "✓ Copied". No more long-press select.',
-      '<b>Sleep regression nudge no longer fires on demo data.</b> The wearable detail modal\'s "Sometimes it\'s the room" hint now requires a real connected wearable — fresh users browsing the demo strip won\'t see false-positive suggestions.',
-      '<b>Stale-assessment threshold tightened from 6 months to 4 months.</b> Quarterly Baubiologie checks are common practice — the nudge now fires at 4 months instead of 6, so meaningful re-checks aren\'t suppressed.',
-      '<b>AI-chat EMF hint moved to a profile-level 30-day cooldown</b> instead of permanent per-thread. Users who switch threads no longer get the same nudge re-injected every conversation.',
-      '<b>Mobile responsive product cards</b> — meter and mitigation cards stack their metadata gracefully at <600px. Long product names and blurbs no longer overflow.',
+      '<b>EMF assessment now ends with shopping suggestions.</b> Recommended meters appear in the empty state if you haven\'t run an assessment yet. After interpretation, mitigation products are surfaced based on the issues flagged. Coupon code <code>getbased</code> for 10% off, ride-along Privacy + Terms attribution, brand trademark fineprint.',
+      '<b>Set your country in the profile editor</b> — recommendations now show products available in your market with the right storefront URL and the right vendor coupon. Each rec section\'s footer reads "Showing for {country} · change". Outbound clicks on affiliate links carry surface-attribution params (gated by the same Settings → Privacy toggle as everything else).',
+      '<b>Privacy reorganised into its own Settings tab.</b> Analytics opt-out is now a first-class control with a transparency banner on first launch (no health data is ever sent — counts only, cookieless). PDF / image / chat obfuscation rebadged as "AI Privacy Protection" since the same pipeline runs on every AI surface, not just PDFs.',
+      '<b>Internal:</b> EMF rec section a11y polish, coupon click-to-copy, AI-mentioned mitigations auto-surface products, false-positive guards on the chat / sleep nudges, recommendations data layer rationalised, dev-host analytics skip.',
     ]
   },
   {
