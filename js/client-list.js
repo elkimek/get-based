@@ -760,16 +760,24 @@ function _clHeightUnitChanged() {
 // Open the current profile's edit form, focused on the country field.
 // Used by the rec disclosure footer's "change region" link so users can
 // jump straight to fixing their region from any rec section.
+//
+// Two-step: openClientList() makes the modal overlay visible (sets the
+// .show class); openClientForm(id) replaces the list view with the form.
+// Calling openClientForm alone leaves the overlay hidden — the form
+// renders in the DOM but isn't visible to the user.
 function openProfileLocationEditor() {
+  // Close any other modal that might be on top first (marker modal, etc.)
+  // so the client-list overlay isn't sitting behind it.
+  const otherOverlay = document.getElementById('modal-overlay');
+  if (otherOverlay) otherOverlay.classList.remove('show');
+  openClientList();
   const id = state?.currentProfile;
-  if (!id) { openClientList(); return; }
-  openClientForm(id);
-  // Focus the country input after the form mounts. setTimeout(0) waits a
-  // tick so the form's HTML is in the DOM.
+  if (id) openClientForm(id);
+  // Focus the country input after the form mounts.
   setTimeout(() => {
     const el = document.getElementById('cl-country');
     if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-  }, 50);
+  }, 80);
 }
 
 Object.assign(window, {
