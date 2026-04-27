@@ -51,6 +51,40 @@ export function markDisclosureSeen() {
 // ═══════════════════════════════════════════════
 // REGION
 // ═══════════════════════════════════════════════
+//
+// SINGLE SOURCE OF TRUTH for region semantics. Used by both the product
+// visibility filter (getProductsForSlot) AND the per-region map resolver
+// (_pickRegional, used by vendor.homepage / vendor.coupon / product.url
+// when those are Record<RegionCode, …> shape).
+//
+// The chain represents the lookup order from most-specific (the user's
+// market) to most-generic (worldwide). Both consumers walk the same chain:
+//   - getProductsForSlot: a product matches if any of its regions[] tags
+//     appear anywhere in the chain (visibility = "covers this user")
+//   - _pickRegional: pick the FIRST chain entry that has a key in the map
+//     (specificity = "show me the most-targeted variant available")
+//
+// Hierarchy: country → continent/region → INTL.
+//   CZSK is the multi-country marker for catalogs that serve both CZ + SK
+//   together; it expands to the union of the CZ and SK chains.
+const REGION_HIERARCHY = {
+  CZ:   ['CZ', 'EU', 'INTL'],
+  SK:   ['SK', 'EU', 'INTL'],
+  DE:   ['DE', 'EU', 'INTL'],
+  AT:   ['AT', 'EU', 'INTL'],
+  CZSK: ['CZ', 'SK', 'EU', 'INTL'],
+  EU:   ['EU', 'INTL'],
+  US:   ['US', 'INTL'],
+  INTL: ['INTL'],
+};
+
+// Returns the lookup chain for a given region — most-specific first.
+// Unknown regions get [region, INTL] as a graceful fallback.
+export function regionLookupChain(region) {
+  if (!region) return ['INTL'];
+  return REGION_HIERARCHY[region] || [region, 'INTL'];
+}
+
 const CZSK_COUNTRIES = ['czechia', 'czech republic', 'česko', 'cesko', 'cz', 'slovakia', 'slovensko', 'sk'];
 
 export function getUserRegion() {
@@ -64,13 +98,17 @@ export function getUserRegion() {
 // ═══════════════════════════════════════════════
 // PRODUCT FILTERING
 // ═══════════════════════════════════════════════
+// A product is visible to a user if any of its regions[] tags appear in
+// the user's region lookup chain. So a product tagged ["INTL"] is visible
+// to everyone (INTL is in every chain), a product tagged ["EU"] is visible
+// to CZ/SK/EU/DE/AT users, and a product tagged ["CZ"] is only visible to
+// CZ + CZSK users. Single hierarchy shared with _pickRegional.
 export function getProductsForSlot(catalog, slotKey, region) {
   if (!catalog || !catalog.products) return [];
   const products = catalog.products[slotKey];
   if (!products || !products.length) return [];
-  // CZSK users see CZ + SK + EU + INTL products; EU users see EU + INTL
-  const regionCodes = region === 'CZSK' ? ['CZ', 'SK', 'EU', 'INTL'] : ['EU', 'INTL'];
-  return products.filter(p => p.regions && p.regions.some(r => regionCodes.includes(r)));
+  const chain = new Set(regionLookupChain(region));
+  return products.filter(p => p.regions && p.regions.some(r => chain.has(r)));
 }
 
 // ═══════════════════════════════════════════════
@@ -156,13 +194,22 @@ export function _pickRegional(map, catalogRegion) {
   // a malformed `coupon: [{code:'X'}]` would silently render via the
   // Object.values fallback, producing wrong attribution.
   if (!map || typeof map !== 'object' || Array.isArray(map)) return null;
-  if (catalogRegion && map[catalogRegion]) return map[catalogRegion];
+  // Walk the region hierarchy chain (most specific → INTL). Same chain as
+  // getProductsForSlot, so vendor-key resolution and product visibility
+  // share the same notion of "what region covers this user."
+  for (const r of regionLookupChain(catalogRegion)) {
+    if (map[r]) return map[r];
+  }
+  // Decompose multi-region markers not in the chain (e.g. "USCA" → US, CA).
+  // Kept for back-compat with arbitrary catalog markers; the standard
+  // markers (CZSK etc.) already expand via the hierarchy above.
   if (catalogRegion) {
     for (const part of catalogRegion.match(/[A-Z]{2}/g) || []) {
       if (map[part]) return map[part];
     }
   }
-  return map.EN || map.INTL || map.WORLDWIDE || Object.values(map)[0] || null;
+  // Final fallbacks for legacy keys.
+  return map.EN || map.WORLDWIDE || Object.values(map)[0] || null;
 }
 
 // Discriminator: a Coupon has a `code` field; a per-region map does not.

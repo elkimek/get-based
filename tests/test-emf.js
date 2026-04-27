@@ -279,6 +279,49 @@ return (async () => {
   assert('94y. Coupon line uses regional coupon (CZ → GBCZ10)',
     czCouponHtml.includes('GBCZ10') && !czCouponHtml.includes('GBSK10'));
 
+  // Region hierarchy — single source of truth shared by product filter + _pickRegional
+  const chain = recsMod.regionLookupChain;
+  assert('94y1. CZ chain expands to [CZ, EU, INTL]',
+    JSON.stringify(chain('CZ')) === JSON.stringify(['CZ', 'EU', 'INTL']));
+  assert('94y2. EU chain expands to [EU, INTL]',
+    JSON.stringify(chain('EU')) === JSON.stringify(['EU', 'INTL']));
+  assert('94y3. CZSK chain expands to [CZ, SK, EU, INTL]',
+    JSON.stringify(chain('CZSK')) === JSON.stringify(['CZ', 'SK', 'EU', 'INTL']));
+  assert('94y4. Unknown region falls through with INTL fallback',
+    JSON.stringify(chain('XYZ')) === JSON.stringify(['XYZ', 'INTL']));
+  assert('94y5. INTL chain is just [INTL]',
+    JSON.stringify(chain('INTL')) === JSON.stringify(['INTL']));
+
+  // getProductsForSlot now uses the hierarchy — INTL is visible to everyone,
+  // EU is visible to CZ/SK/EU/DE, CZ-only is invisible to EU users.
+  const filterCat = {
+    products: {
+      'a.b': [
+        { name: 'INTL-only', regions: ['INTL'] },
+        { name: 'EU-only', regions: ['EU'] },
+        { name: 'CZ-only', regions: ['CZ'] },
+        { name: 'SK-only', regions: ['SK'] },
+      ],
+    },
+  };
+  const cz = recsMod.getProductsForSlot(filterCat, 'a.b', 'CZ').map(p => p.name);
+  assert('94y6. CZ user sees INTL + EU + CZ products',
+    cz.includes('INTL-only') && cz.includes('EU-only') && cz.includes('CZ-only') && !cz.includes('SK-only'));
+  const eu = recsMod.getProductsForSlot(filterCat, 'a.b', 'EU').map(p => p.name);
+  assert('94y7. EU user sees only INTL + EU products',
+    eu.includes('INTL-only') && eu.includes('EU-only') && !eu.includes('CZ-only'));
+  const czsk = recsMod.getProductsForSlot(filterCat, 'a.b', 'CZSK').map(p => p.name);
+  assert('94y8. CZSK user sees both CZ and SK + EU + INTL',
+    czsk.includes('CZ-only') && czsk.includes('SK-only') && czsk.includes('EU-only') && czsk.includes('INTL-only'));
+
+  // _pickRegional now walks the hierarchy too — CZ user looking up a vendor
+  // map with only EU + INTL keys gets EU (the parent), not INTL.
+  const vendorMap = { EU: 'https://x.eu', INTL: 'https://x.com' };
+  assert('94y9. CZ user falls through to EU before INTL via hierarchy',
+    recsMod._pickRegional(vendorMap, 'CZ') === 'https://x.eu');
+  assert('94y10. US user with no US key falls through to INTL',
+    recsMod._pickRegional({ EU: 'eu', INTL: 'intl' }, 'US') === 'intl');
+
   // _resolveProductUrlForRegion — products with per-region url/affiliateUrl maps
   assert('94z. Flat product url passes through',
     recsMod._resolveProductUrlForRegion({ url: 'https://x.com' }, 'CZ') === 'https://x.com');
