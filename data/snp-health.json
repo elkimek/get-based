@@ -1,11 +1,11 @@
 {
   "_meta": {
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "Curated health-relevant SNP lookup table for DNA raw data import. Forward (+) strand alleles. snpHints connect genetics to supplement recommendation slots. UPDATE when new research warrants adding/revising SNPs — each entry needs gene, genotypes, effect notes, and at least one citation.",
-    "snpCount": 55,
+    "snpCount": 50,
     "categories": ["methylation", "iron", "lipids", "vitaminD", "vitaminB12", "bilirubin", "thyroid", "fattyAcids", "bloodSugar", "sexHormones", "alcohol", "caffeine", "bodyComposition", "oxidativeStress"],
     "sources": ["SNPedia", "ClinVar", "GWAS Catalog", "PharmGKB", "De Luca 2014 (PMID 24812443)", "Yakymenko 2016 meta-analysis (PMID 26151230)"],
-    "oxidativeStressNote": "There is no validated genetic test for electromagnetic hypersensitivity (EHS / IEI-EMF). The variants in the oxidativeStress category affect glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — pathways that EMF research suggests are biologically engaged (Yakymenko 2016 meta-analysis: 93/100 studies show oxidative stress from low-intensity RF). One small Italian case-control study (De Luca 2014, PMID 24812443, n=153 EHS vs 132 controls) reported a 9.7× elevated EHS risk (95% CI 1.3–74.5 — wide) for the combined GSTM1-null + GSTT1-null haplotype, while finding NO significant GSTP1 (Ile105Val) association. GSTM1/GSTT1 nulls are CNV deletions that consumer DNA arrays (23andMe / Ancestry / MyHeritage) do not reliably report, so this app does not currently surface them. The rs1695 GSTP1 entry is included for general glutathione-conjugation context, NOT as an EHS predictor. Treat all entries here as oxidative-stress hints, not EMF-specific predictions."
+    "oxidativeStressNote": "There is no validated genetic test for electromagnetic hypersensitivity (EHS / IEI-EMF). This category is curated to a strict bar: only variants with strongly replicated functional effects (in vitro / biochem) are surfaced — clinical disease associations for oxidative-stress SNPs are notoriously mixed in meta-analyses, so we frame them as 'antioxidant defense capacity, context not prediction'. The entries here are NQO1 (proteasomal degradation of variant — Siegel 2001), PON1 (Q/R activity polymorphism — Humbert 1993), and SOD3 (R213G localization shift — Bowler 2014). The only direct EHS genetic study (De Luca 2014, PMID 24812443) found its 9.7× signal on GSTM1+GSTT1 gene deletions — CNVs that consumer DNA arrays don't reliably report — not on any SNP we surface. EMF research suggests these pathways are biologically engaged (Yakymenko 2016 meta-analysis: 93/100 studies show oxidative stress from low-intensity RF), but no SNP here predicts EMF tolerance specifically."
   },
 
   "rs1801133": {
@@ -924,45 +924,6 @@
     }
   },
 
-  "rs1695": {
-    "gene": "GSTP1", "variant": "Ile105Val", "category": "oxidativeStress",
-    "markers": [],
-    "contextCards": ["environment"],
-    "strandNote": "dbSNP forward: A(ref Ile105) / G(alt Val105). 23andMe / Ancestry / Illumina report A/G.",
-    "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/9525277/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
-    "genotypes": {
-      "AA": { "effect": "none", "note": "Standard GSTP1 (Ile/Ile); efficient glutathione conjugation of electrophilic byproducts" },
-      "AG": { "effect": "moderate", "note": "Reduced GSTP1 stability; substrate-dependent shift in catalytic efficiency (Hu et al. 1998). Modestly impaired clearance of lipid peroxidation byproducts (4-HNE, MDA)." },
-      "GG": { "effect": "moderate", "note": "Val/Val: ~2–3× less stable enzyme; lower activity toward small electrophilic substrates including products of oxidative damage (Hu 1998, PMID 9525277). Often included on commercial 'detox' panels. Note: the only direct EHS genetic study (De Luca 2014, PMID 24812443) tested this SNP and found NO significant association — the EHS signal in that paper came from GSTM1+GSTT1 gene DELETIONS, not from this SNP." }
-    }
-  },
-  "rs4880": {
-    "gene": "SOD2", "variant": "Ala16Val", "category": "oxidativeStress",
-    "markers": [],
-    "contextCards": ["environment"],
-    "strandNote": "dbSNP forward: T(ref Val16) / C(alt Ala16). Note: literature is split on which allele is deleterious — Ala has higher mitochondrial import efficiency but downstream H2O2 burden depends on coupled CAT/GPx capacity.",
-    "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/12618592/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
-    "genotypes": {
-      "TT": { "effect": "moderate", "note": "Val/Val: Sutton 2003 (PMID 12618592) showed Val-MnSOD precursors are partly arrested in the inner mitochondrial membrane; Ala-MnSOD generates 30–40% more processed homotetramer. Lower matrix superoxide quenching; theoretically vulnerable to mitochondrial ROS load." },
-      "TC": { "effect": "mild", "note": "Heterozygous; intermediate mitochondrial SOD2 activity" },
-      "CC": { "effect": "mild", "note": "Ala/Ala: efficient SOD2 import → more superoxide → H2O2 conversion; downstream burden depends on catalase/GPx capacity. Either extreme is theoretically suboptimal under high oxidative load." }
-    }
-  },
-  "rs1001179": {
-    "gene": "CAT", "variant": "-262C/T (promoter)", "category": "oxidativeStress",
-    "markers": [],
-    "contextCards": ["environment"],
-    "strandNote": "dbSNP forward: C(ref) / T(alt). Promoter variant; T-allele associated with lower catalase expression in erythrocytes.",
-    "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/11182520/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
-    "genotypes": {
-      "CC": { "effect": "none", "note": "Standard catalase expression; efficient H2O2 → H2O + O2 detoxification" },
-      "CT": { "effect": "mild", "note": "Forsberg 2001 (PMID 11182520): T allele actually associated with HIGHER blood catalase levels in Swedish donors — direction in the literature is mixed; later studies have reported opposite directions in different tissues. Functional impact is genuinely uncertain." },
-      "TT": { "effect": "mild", "note": "T/T: original Forsberg 2001 paper reported elevated blood catalase, but subsequent disease-association studies have been inconsistent. Treat as suggestive of altered catalase regulation rather than a clear loss-of-function." }
-    }
-  },
   "rs1800566": {
     "gene": "NQO1", "variant": "Pro187Ser (C609T)", "category": "oxidativeStress",
     "markers": [],
@@ -974,19 +935,13 @@
       "CC": { "effect": "none", "note": "Standard NQO1; efficient two-electron quinone reduction; prevents semiquinone radical formation" },
       "CT": { "effect": "moderate", "note": "Heterozygous; intermediate NQO1 activity. The variant protein has a much shorter half-life than wild-type (Siegel et al. 2001, PMID 11160862)." },
       "TT": { "effect": "significant", "note": "Siegel et al. 2001 (PMID 11160862): mutant NQO1 protein is rapidly polyubiquitinated and proteasomally degraded — half-life ~1.2h vs >18h for wild-type. Effective NQO1 activity is near-null. Documented vulnerability in benzene-exposed workers." }
-    }
-  },
-  "rs1050450": {
-    "gene": "GPX1", "variant": "Pro198Leu", "category": "oxidativeStress",
-    "markers": [],
-    "contextCards": ["environment"],
-    "strandNote": "dbSNP forward: C(ref Pro198) / T(alt Leu198). 23andMe / Ancestry / Illumina report C/T.",
-    "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/15331559/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
-    "genotypes": {
-      "CC": { "effect": "none", "note": "Pro/Pro: standard glutathione peroxidase activity; efficient hydrogen peroxide and lipid peroxide reduction using glutathione" },
-      "CT": { "effect": "moderate", "note": "Pro/Leu: modestly reduced GPx1 activity; selenium-dependent — adequate selenium status partially compensates. Hamanishi 2004 (PMID 15331559) linked the Leu allele to higher carotid intima-media thickness in T2D patients." },
-      "TT": { "effect": "moderate", "note": "Leu/Leu: ~40% reduction in erythrocyte GPx1 activity (Hamanishi 2004 reported this for the combined Ala6/198Leu variant). Slower clearance of H2O2 and lipid peroxides; selenium adequacy matters more for this genotype." }
+    },
+    "envHints": {
+      "TT": {
+        "direction": "avoid",
+        "text": "Your NQO1 Ser/Ser is functionally near-null due to rapid degradation of the variant protein — minimizing exposure to benzene (gasoline fumes, secondhand smoke, vehicle exhaust) is more important for you than for most people. Documented occupational vulnerability in benzene-exposed workers.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/11160862/"
+      }
     }
   },
   "rs662": {
@@ -1000,19 +955,13 @@
       "AA": { "effect": "moderate", "note": "Q/Q: low paraoxonase activity but in many assays HIGHER anti-oxidative capacity against LDL oxidation. Slower clearance of organophosphate pesticides — relevant for environmental exposure." },
       "AG": { "effect": "mild", "note": "Q/R: intermediate paraoxonase activity" },
       "GG": { "effect": "moderate", "note": "R/R: high paraoxonase activity (faster organophosphate hydrolysis) but in some studies a less efficient antioxidant against LDL oxidation. Substrate-dependent direction — clinical literature is mixed and population-stratified." }
-    }
-  },
-  "rs6721961": {
-    "gene": "NFE2L2", "variant": "-617C/A (Nrf2 promoter)", "category": "oxidativeStress",
-    "markers": [],
-    "contextCards": ["environment"],
-    "strandNote": "dbSNP forward: C(ref) / A(alt, low-activity). NFE2L2 (Nrf2) is the master regulator of antioxidant gene transcription — controls basal expression of GSTs, NQO1, HMOX1, SOD enzymes via the ARE.",
-    "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/22668754/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
-    "genotypes": {
-      "CC": { "effect": "none", "note": "Standard Nrf2 promoter activity; baseline antioxidant-response-element gene transcription" },
-      "CA": { "effect": "moderate", "note": "Reduced NFE2L2 promoter activity (luciferase assays in human endothelial cells, Marczak et al. 2012, PMID 22668754); modestly lower basal expression of downstream antioxidant genes" },
-      "AA": { "effect": "moderate", "note": "Lowest NFE2L2 promoter activity; significantly reduced basal antioxidant capacity. Sulforaphane (broccoli sprouts), curcumin, resveratrol, and physical exercise are well-documented Nrf2 activators that compensate by inducing the pathway." }
+    },
+    "envHints": {
+      "AA": {
+        "direction": "avoid",
+        "text": "Your PON1 Q/Q hydrolyzes organophosphate pesticides slowly — minimizing exposure (washing produce, choosing organic when affordable for the EWG 'Dirty Dozen', avoiding direct contact with garden/lawn pesticides) reduces your residence-time burden. The Q allele is generally PROTECTIVE against LDL oxidation in many assays — the slow-clearance issue is specific to organophosphates.",
+        "ref": "https://pubmed.ncbi.nlm.nih.gov/8098250/"
+      }
     }
   },
   "rs1799895": {

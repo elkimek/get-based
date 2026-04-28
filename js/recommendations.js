@@ -524,15 +524,22 @@ function _buildCardDNASection(cardKey) {
   for (const [rsid, stored] of Object.entries(genetics.snps)) {
     if (genetics.apoe && apoeRsids.has(rsid)) continue;
     const entry = snpTable[rsid];
-    if (!entry || !entry.snpHints || !entry.contextCards || !entry.contextCards.includes(cardKey)) continue;
+    if (!entry || !entry.contextCards || !entry.contextCards.includes(cardKey)) continue;
     const g = stored.genotype;
     if (!g) continue;
     const rev = g.length === 2 ? g[1] + g[0] : g;
     const sorted = _sortAlleles(g);
-    const hint = entry.snpHints[g] || entry.snpHints[rev] || entry.snpHints[sorted];
-    if (!hint) continue;
     const info = entry.genotypes?.[g] || entry.genotypes?.[rev] || entry.genotypes?.[sorted];
     if (info && info.effect === 'none') continue;
+    // Two render paths:
+    // 1) snpHint exists + targets a real catalog slot \u2192 standard supplement-aware hint
+    // 2) envHint exists (genotype-keyed avoidance/awareness, no supplement push) \u2192 environment-style guidance
+    // envHint exists for variants where the right move is "avoid X exposure" or "know your context",
+    // not "take supplement Y". Used for honest framing where evidence supports awareness, not action.
+    const snpHint = entry.snpHints ? (entry.snpHints[g] || entry.snpHints[rev] || entry.snpHints[sorted]) : null;
+    const envHint = entry.envHints ? (entry.envHints[g] || entry.envHints[rev] || entry.envHints[sorted]) : null;
+    const hint = snpHint || envHint;
+    if (!hint) continue;
     const isAvoid = hint.direction === 'avoid';
     const icon = isAvoid ? '\u26A0' : '\u2192';
     const cls = isAvoid ? ' ctx-tip-avoid' : ' ctx-tip-free';

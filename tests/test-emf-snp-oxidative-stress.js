@@ -22,9 +22,9 @@ return (async function() {
   assert('De Luca cited in _meta sources', snpTable._meta.sources.some(s => /De Luca/i.test(s)));
   assert('oxidativeStressNote present', typeof snpTable._meta.oxidativeStressNote === 'string' && snpTable._meta.oxidativeStressNote.length > 100);
 
-  // The eight oxidativeStress SNPs (4 original + 4 added in v1.5.1)
-  const newRsids = ['rs1695', 'rs4880', 'rs1001179', 'rs1800566', 'rs1050450', 'rs662', 'rs6721961', 'rs1799895'];
-  for (const rsid of newRsids) {
+  // The 3 strong-evidence oxidativeStress SNPs (curated bar: replicated functional effect)
+  const oxidativeRsids = ['rs1800566', 'rs662', 'rs1799895'];
+  for (const rsid of oxidativeRsids) {
     assert(`${rsid} present`, !!snpTable[rsid], snpTable[rsid] ? snpTable[rsid].gene : 'missing');
     assert(`${rsid} category=oxidativeStress`, snpTable[rsid]?.category === 'oxidativeStress');
     assert(`${rsid} contextCards includes environment`, (snpTable[rsid]?.contextCards || []).includes('environment'));
@@ -33,27 +33,30 @@ return (async function() {
     assert(`${rsid} has all three genotypes`, Object.keys(snpTable[rsid]?.genotypes || {}).length >= 3);
   }
 
+  // The 5 weaker SNPs we previously had must be GONE (we curated to strong evidence only)
+  const weakDropped = ['rs1695', 'rs4880', 'rs1001179', 'rs1050450', 'rs6721961'];
+  for (const rsid of weakDropped) {
+    assert(`${rsid} removed (weak evidence — GSTP1/SOD2/CAT/GPX1/NFE2L2 dropped)`, !snpTable[rsid]);
+  }
+
   // PMID sanity — these are the canonical functional papers we cite. If any of these
   // change, re-verify against PubMed (we previously shipped four hallucinated PMIDs).
-  // GSTP1 → Hu 1998 (PMID 9525277) functional, not De Luca, because De Luca 2014 found NO GSTP1 association.
-  assert('GSTP1 cites Hu 1998 (PMID 9525277)', (snpTable.rs1695?.references || []).some(r => r.includes('9525277')));
-  // GSTP1 GG note must explicitly say De Luca found NO association at this SNP — this
-  // is the correction that prevents the previous false "Tier 1 direct evidence" claim.
-  assert('GSTP1 GG note states De Luca found NO association at this SNP', /found NO significant association|not from this SNP/i.test(snpTable.rs1695?.genotypes?.GG?.note || ''));
-  // SOD2 → Sutton 2003 PMID 12618592
-  assert('SOD2 cites Sutton 2003 (PMID 12618592)', (snpTable.rs4880?.references || []).some(r => r.includes('12618592')));
-  // CAT → Forsberg 2001 PMID 11182520
-  assert('CAT cites Forsberg 2001 (PMID 11182520)', (snpTable.rs1001179?.references || []).some(r => r.includes('11182520')));
   // NQO1 → Siegel 2001 PMID 11160862
   assert('NQO1 cites Siegel 2001 (PMID 11160862)', (snpTable.rs1800566?.references || []).some(r => r.includes('11160862')));
-  // GPX1 → Hamanishi 2004 PMID 15331559
-  assert('GPX1 cites Hamanishi 2004 (PMID 15331559)', (snpTable.rs1050450?.references || []).some(r => r.includes('15331559')));
   // PON1 → Humbert 1993 PMID 8098250
   assert('PON1 cites Humbert 1993 (PMID 8098250)', (snpTable.rs662?.references || []).some(r => r.includes('8098250')));
-  // NFE2L2 → Marczak 2012 PMID 22668754
-  assert('NFE2L2 cites Marczak 2012 (PMID 22668754)', (snpTable.rs6721961?.references || []).some(r => r.includes('22668754')));
   // SOD3 → Bowler 2014 PMID 25085920
   assert('SOD3 cites Bowler 2014 (PMID 25085920)', (snpTable.rs1799895?.references || []).some(r => r.includes('25085920')));
+
+  // envHints — at-risk genotypes for PON1 (Q/Q) and NQO1 (T/T) surface in Environment
+  // Tips modal with environment-specific advice (no supplement push, just exposure context)
+  assert('PON1 has envHint for AA (Q/Q)', !!snpTable.rs662?.envHints?.AA);
+  assert('PON1 envHint AA mentions organophosphate / pesticide', /organophosphate|pesticid/i.test(snpTable.rs662?.envHints?.AA?.text || ''));
+  assert('NQO1 has envHint for TT', !!snpTable.rs1800566?.envHints?.TT);
+  assert('NQO1 envHint TT mentions benzene / smoke / exhaust', /benzene|smoke|exhaust/i.test(snpTable.rs1800566?.envHints?.TT?.text || ''));
+  // recommendations.js must have been extended to consume envHints
+  const recsSrc = await fetch('js/recommendations.js').then(r => r.text());
+  assert('recommendations.js consumes envHints alongside snpHints', /entry\.envHints/.test(recsSrc));
 
   // Negative assertions — make sure the previous hallucinated PMIDs are gone everywhere
   const allRefs = JSON.stringify(snpTable);
@@ -96,6 +99,14 @@ return (async function() {
   assert('emf.js cites Yakymenko PubMed link', emfSrc.includes('26151230'));
   assert('emf.js disclaimer rejects "EMF susceptibility" framing', /not EMF-specific predictions/i.test(emfSrc));
   assert('emf.js disclaimer clarifies De Luca finding was GSTM1+GSTT1 deletions, not surfaced SNPs', /GSTM1\+GSTT1|not for any SNP shown above/i.test(emfSrc));
+
+  // Sanity: the 3 strong-evidence SNPs we kept have at least one genotype with
+  // effect: 'significant' or 'moderate' so they actually surface in the panel
+  // (the panel filters out 'effect: none').
+  for (const rsid of oxidativeRsids) {
+    const hasNonNoneEffect = Object.values(snpTable[rsid]?.genotypes || {}).some(g => g.effect && g.effect !== 'none');
+    assert(`${rsid} has at least one non-'none' effect genotype`, hasNonNoneEffect);
+  }
 
   // ═══════════════════════════════════════
   // 5. CSS styles registered
