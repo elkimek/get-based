@@ -94,6 +94,71 @@ function getWorstSeverity(assessment) {
 }
 
 // ═══════════════════════════════════════════════
+// OXIDATIVE-STRESS GENETICS SURFACE
+// Surfaces SNPs in the oxidativeStress category when DNA is imported.
+// Honest framing: pathway-relevant variants, NOT an "EMF susceptibility score".
+// See data/snp-health.json _meta.oxidativeStressNote for the user-facing copy basis.
+// ═══════════════════════════════════════════════
+function _sortAlleles(g) { return g && g.length === 2 ? [g[0], g[1]].sort().join('') : g; }
+
+function getOxidativeStressFindings() {
+  const genetics = state.importedData?.genetics;
+  const snpTable = window._snpTableCache;
+  if (!genetics || !genetics.snps || !snpTable) return [];
+  const findings = [];
+  for (const [rsid, stored] of Object.entries(genetics.snps)) {
+    const entry = snpTable[rsid];
+    if (!entry || entry.category !== 'oxidativeStress') continue;
+    const reversed = stored.genotype.length === 2 ? stored.genotype[1] + stored.genotype[0] : stored.genotype;
+    const info = entry.genotypes[stored.genotype] || entry.genotypes[reversed] || entry.genotypes[_sortAlleles(stored.genotype)];
+    if (!info || info.effect === 'none') continue;
+    findings.push({ rsid, gene: stored.gene, variant: stored.variant, genotype: stored.genotype, effect: info.effect, note: info.note, tier: entry.evidenceTier || 'tier2-mechanistic' });
+  }
+  // Direct-evidence (Tier 1 / De Luca 2014) findings first, then by severity
+  const order = { 'significant': 0, 'moderate': 1, 'mild': 2 };
+  findings.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier === 'tier1-direct' ? -1 : 1;
+    return (order[a.effect] ?? 9) - (order[b.effect] ?? 9);
+  });
+  return findings;
+}
+
+function renderOxidativeStressPanel(assessment) {
+  const findings = getOxidativeStressFindings();
+  if (findings.length === 0) return '';
+  const worst = getWorstSeverity(assessment);
+  // Only surface when measurements show meaningful exposure (yellow/orange/red), not green-only.
+  if (!worst || worst.color === 'green') return '';
+
+  const items = findings.slice(0, 4).map(f => {
+    const tierBadge = f.tier === 'tier1-direct'
+      ? '<span class="emf-gen-tier emf-gen-tier-direct" title="De Luca 2014 — only direct EHS genetic association in the literature">direct</span>'
+      : '<span class="emf-gen-tier emf-gen-tier-mech" title="Mechanistic inference: pathway is engaged by EMF-induced oxidative stress (Yakymenko 2016 meta-analysis), but the variant has not been tested in EHS cohorts">pathway</span>';
+    return `<li class="emf-gen-item">
+      <div class="emf-gen-head">
+        <strong>${escapeHTML(f.gene)} ${escapeHTML(f.variant)}</strong>
+        <span class="emf-gen-genotype">${escapeHTML(f.genotype)}</span>
+        ${tierBadge}
+      </div>
+      <div class="emf-gen-note">${escapeHTML(f.note)}</div>
+    </li>`;
+  }).join('');
+
+  const more = findings.length > 4 ? `<div class="emf-gen-more">+${findings.length - 4} more in the genetics section</div>` : '';
+
+  return `<div class="emf-genetics-panel">
+    <div class="emf-genetics-header">
+      <span class="emf-genetics-title">Oxidative-stress &amp; detox variants</span>
+      <span class="emf-genetics-sub">From your DNA · context for environmental load</span>
+    </div>
+    <ul class="emf-gen-list">${items}</ul>${more}
+    <div class="emf-genetics-disclaimer">
+      No validated genetic test for EHS / electromagnetic hypersensitivity exists. These variants affect glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — pathways EMF research suggests are biologically engaged (<a href="https://pubmed.ncbi.nlm.nih.gov/26151230/" target="_blank" rel="noopener">Yakymenko 2016</a>). One small Italian case-control study (<a href="https://pubmed.ncbi.nlm.nih.gov/24812624/" target="_blank" rel="noopener">De Luca 2014</a>) found combined GST variants enriched in self-identified EHS subjects — never replicated. Treat as general oxidative-stress hints, not EMF-specific predictions.
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
 // SEVERITY DOT
 // ═══════════════════════════════════════════════
 function severityDot(type, value, sleeping = true) {
@@ -210,6 +275,7 @@ function renderAssessmentDetail(a) {
   html += `<div class="emf-meta-row" style="margin-top:12px">
       <label style="flex:1">Notes <input type="text" class="emf-input" value="${escapeHTML(a.note)}" placeholder="General assessment notes" onchange="updateEMFField('${a.id}','note',this.value)"></label>
     </div>
+    ${renderOxidativeStressPanel(a)}
     <div class="emf-assessment-footer">
       <button class="import-btn import-btn-primary" onclick="saveEMFExplicit()">Save</button>
       ${hasAIProvider() ? `<button class="import-btn import-btn-secondary" onclick="interpretEMFAssessment('${a.id}')">Interpret</button>` : ''}

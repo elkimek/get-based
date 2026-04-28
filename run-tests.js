@@ -26,6 +26,7 @@ const TEST_FILES = [
   'tests/test-pii.js',
   'tests/test-image-utils.js',
   'tests/test-emf.js',
+  'tests/test-emf-snp-oxidative-stress.js',
   'tests/test-integration-batch2.js',
   'tests/test-hardware.js',
   'tests/test-dna.js',

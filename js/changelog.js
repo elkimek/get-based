@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.5.0', date: '2026-04-28', title: 'Genetics meets your environment — oxidative-stress variants in the EMF assessment',
+    items: [
+      '<b>Four new SNPs and a new "Oxidative Stress" category in the genetics section:</b> <code>GSTP1 Ile105Val</code> (rs1695), <code>SOD2 Ala16Val</code> (rs4880), <code>CAT -262C/T</code> (rs1001179), <code>NQO1 Pro187Ser</code> (rs1800566). These cover glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — the pathways most engaged when the body recovers from environmental oxidative load.',
+      '<b>EMF assessments now surface your relevant variants.</b> When an assessment shows yellow / orange / red severity and you have DNA imported, a new "Oxidative-stress &amp; detox variants" panel appears alongside the room data, listing the SNPs that affect how your body handles oxidative stress.',
+      '<b>Honest framing:</b> there is no validated genetic test for electromagnetic hypersensitivity (EHS). The <code>GSTP1</code> entry cites the one direct case-control study (De Luca 2014, n=153 EHS subjects); the SOD2 / CAT / NQO1 entries are flagged as mechanistic-only and rest on the Yakymenko 2016 oxidative-stress meta-analysis. Treat them as general detox-capacity hints, not EMF-specific predictions — that is what the literature actually supports.',
+      '<b>Existing methylation and iron variants now also surface in the Environment context.</b> <code>MTHFR C677T</code>, <code>HFE C282Y</code>, and <code>HFE H63D</code> all engage the same recovery pathways and now appear when you open the Environment card.',
+    ]
+  },
+  {
     version: '1.4.0', date: '2026-04-28', title: 'Smarter chat search, easier setup, more flexibility',
     items: [
       '<b>Chat now stays out of your way.</b> When you open chat, the dashboard automatically shifts left to fit alongside the panel — every chart and section stays visible, scroll and clicks work as normal. New <b>⛶ fullscreen toggle</b> in the chat header for when you want an immersive conversation; your preference is remembered between sessions.',

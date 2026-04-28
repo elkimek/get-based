@@ -1123,6 +1123,25 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   display: flex; gap: 8px; align-items: center; margin-top: 12px;
   padding-top: 12px; border-top: 1px solid var(--border);
 }
+/* Oxidative-stress genetics panel — surfaced inside an EMF assessment when DNA is imported */
+.emf-genetics-panel {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.emf-genetics-header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.emf-genetics-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.emf-genetics-sub { font-size: 11px; color: var(--text-muted); }
+.emf-gen-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.emf-gen-item { padding: 8px 10px; background: var(--bg-hover); border-radius: 6px; }
+.emf-gen-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; font-size: 12px; }
+.emf-gen-genotype { font-family: monospace; font-size: 11px; color: var(--text-muted); padding: 1px 6px; background: var(--bg-card); border-radius: 4px; }
+.emf-gen-tier { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+.emf-gen-tier-direct { background: var(--accent); color: #fff; }
+.emf-gen-tier-mech { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
+.emf-gen-note { font-size: 12px; color: var(--text-secondary); line-height: 1.45; }
+.emf-gen-more { margin-top: 6px; font-size: 11px; color: var(--text-muted); font-style: italic; }
+.emf-genetics-disclaimer { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.emf-genetics-disclaimer a { color: var(--accent); }
 /* EMF Compare View */
 .emf-compare-header {
   display: flex; align-items: center; gap: 10px; margin-bottom: 12px;

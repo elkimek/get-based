@@ -1,16 +1,17 @@
 {
   "_meta": {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Curated health-relevant SNP lookup table for DNA raw data import. Forward (+) strand alleles. snpHints connect genetics to supplement recommendation slots. UPDATE when new research warrants adding/revising SNPs — each entry needs gene, genotypes, effect notes, and at least one citation.",
-    "snpCount": 47,
-    "categories": ["methylation", "iron", "lipids", "vitaminD", "vitaminB12", "bilirubin", "thyroid", "fattyAcids", "bloodSugar", "sexHormones", "alcohol", "caffeine", "bodyComposition"],
-    "sources": ["SNPedia", "ClinVar", "GWAS Catalog", "PharmGKB"]
+    "snpCount": 51,
+    "categories": ["methylation", "iron", "lipids", "vitaminD", "vitaminB12", "bilirubin", "thyroid", "fattyAcids", "bloodSugar", "sexHormones", "alcohol", "caffeine", "bodyComposition", "oxidativeStress"],
+    "sources": ["SNPedia", "ClinVar", "GWAS Catalog", "PharmGKB", "De Luca 2014 (PMID 24812624)", "Yakymenko 2016 meta-analysis (PMID 26151230)"],
+    "oxidativeStressNote": "There is no validated genetic test for electromagnetic hypersensitivity (EHS / IEI-EMF). The variants in the oxidativeStress category affect glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — pathways that EMF research suggests are biologically engaged (Yakymenko 2016 meta-analysis: 93/100 studies show oxidative stress from low-intensity RF). One small Italian case-control study (De Luca 2014, n=153 EHS vs 132 controls) found combined GSTM1/GSTT1/GSTP1 variants enriched in self-identified EHS subjects — the only direct EHS genetic association in the literature, never replicated. Treat these as general oxidative-stress hints, not EMF-specific predictions."
   },
 
   "rs1801133": {
     "gene": "MTHFR", "variant": "C677T", "category": "methylation",
     "markers": ["coagulation.homocysteine", "vitamins.folate", "vitamins.vitaminB12"],
-    "contextCards": ["diet"],
+    "contextCards": ["diet", "environment"],
     "strandNote": "Minus strand gene. Forward: G(ref)/A(alt). G=C complement, A=T complement.",
     "references": ["https://pubmed.ncbi.nlm.nih.gov/7647779/"],
     "genotypes": {
@@ -151,7 +152,7 @@
   "rs1800562": {
     "gene": "HFE", "variant": "C282Y", "category": "iron",
     "markers": ["iron.ferritin", "iron.transferrin", "iron.iron"],
-    "contextCards": ["diet"],
+    "contextCards": ["diet", "environment"],
     "references": ["https://pubmed.ncbi.nlm.nih.gov/8696333/"],
     "genotypes": {
       "GG": { "effect": "none", "note": "No hemochromatosis risk from C282Y" },
@@ -176,7 +177,7 @@
   "rs1799945": {
     "gene": "HFE", "variant": "H63D", "category": "iron",
     "markers": ["iron.ferritin", "iron.transferrin", "iron.iron"],
-    "contextCards": ["diet"],
+    "contextCards": ["diet", "environment"],
     "compoundNote": "Compound heterozygous with rs1800562 (CG + GA) causes moderate iron overload risk",
     "references": ["https://pubmed.ncbi.nlm.nih.gov/8696333/"],
     "genotypes": {
@@ -920,6 +921,59 @@
       "AA": { "effect": "none", "note": "Standard CETP activity; baseline HDL" },
       "AG": { "effect": "mild", "valence": "protective", "note": "Slightly higher HDL; modestly improved cognitive aging in some cohorts" },
       "GG": { "effect": "moderate", "valence": "protective", "note": "Lowest CETP activity; highest HDL; in the Ashkenazi centenarian study associated with larger HDL/LDL particles, lower cardiovascular and dementia incidence, exceptional longevity. Replication in non-Ashkenazi cohorts is mixed — effect smaller but directionally consistent." }
+    }
+  },
+
+  "rs1695": {
+    "gene": "GSTP1", "variant": "Ile105Val", "category": "oxidativeStress",
+    "markers": [],
+    "contextCards": ["environment"],
+    "strandNote": "dbSNP forward: A(ref Ile105) / G(alt Val105). 23andMe / Ancestry / Illumina report A/G.",
+    "evidenceTier": "tier1-direct",
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/24812624/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "genotypes": {
+      "AA": { "effect": "none", "note": "Standard GSTP1 (Ile/Ile); efficient glutathione conjugation of electrophilic byproducts" },
+      "AG": { "effect": "moderate", "note": "Reduced GSTP1 activity; modestly impaired clearance of lipid peroxidation byproducts (4-HNE, MDA)" },
+      "GG": { "effect": "significant", "note": "Lowest GSTP1 activity (~30–50% of wild-type). De Luca 2014 (n=153 EHS vs 132 controls): combined GSTP1 105Val/Val + GSTM1-null + GSTT1-null genotype was strongly enriched in self-identified EHS subjects (OR ≈ 9.7). Single Italian cohort, never replicated; treat as suggestive, not predictive." }
+    }
+  },
+  "rs4880": {
+    "gene": "SOD2", "variant": "Ala16Val", "category": "oxidativeStress",
+    "markers": [],
+    "contextCards": ["environment"],
+    "strandNote": "dbSNP forward: T(ref Val16) / C(alt Ala16). Note: literature is split on which allele is deleterious — Ala has higher mitochondrial import efficiency but downstream H2O2 burden depends on coupled CAT/GPx capacity.",
+    "evidenceTier": "tier2-mechanistic",
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/12618601/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "genotypes": {
+      "TT": { "effect": "moderate", "note": "Val/Val: ~30–40% reduced SOD2 mitochondrial import; lower matrix superoxide quenching; theoretically vulnerable to mitochondrial ROS load" },
+      "TC": { "effect": "mild", "note": "Heterozygous; intermediate mitochondrial SOD2 activity" },
+      "CC": { "effect": "mild", "note": "Ala/Ala: efficient SOD2 import → more superoxide → H2O2 conversion; downstream burden depends on catalase/GPx capacity. Either extreme is theoretically suboptimal under high oxidative load." }
+    }
+  },
+  "rs1001179": {
+    "gene": "CAT", "variant": "-262C/T (promoter)", "category": "oxidativeStress",
+    "markers": [],
+    "contextCards": ["environment"],
+    "strandNote": "dbSNP forward: C(ref) / T(alt). Promoter variant; T-allele associated with lower catalase expression in erythrocytes.",
+    "evidenceTier": "tier2-mechanistic",
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/11139325/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "genotypes": {
+      "CC": { "effect": "none", "note": "Standard catalase expression; efficient H2O2 → H2O + O2 detoxification" },
+      "CT": { "effect": "moderate", "note": "Modestly reduced catalase activity; slower H2O2 clearance" },
+      "TT": { "effect": "moderate", "note": "Lowest catalase activity (~30% reduction); slower recovery from any H2O2 burden including RF-induced peroxide production" }
+    }
+  },
+  "rs1800566": {
+    "gene": "NQO1", "variant": "Pro187Ser (C609T)", "category": "oxidativeStress",
+    "markers": [],
+    "contextCards": ["environment"],
+    "strandNote": "dbSNP forward: C(ref Pro187) / T(alt Ser187). T/T = NQO1*2/*2 = essentially null enzyme (proteasomal degradation of variant protein).",
+    "evidenceTier": "tier2-mechanistic",
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/9425228/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "genotypes": {
+      "CC": { "effect": "none", "note": "Standard NQO1; efficient two-electron quinone reduction; prevents semiquinone radical formation" },
+      "CT": { "effect": "moderate", "note": "~50% NQO1 activity; reduced quinone detoxification capacity" },
+      "TT": { "effect": "significant", "note": "Near-null NQO1 (variant protein rapidly degraded); markedly impaired phase II quinone reduction; documented vulnerability in benzene and ionizing-radiation occupational studies" }
     }
   }
 }
