@@ -4,8 +4,8 @@
     "description": "Curated health-relevant SNP lookup table for DNA raw data import. Forward (+) strand alleles. snpHints connect genetics to supplement recommendation slots. UPDATE when new research warrants adding/revising SNPs — each entry needs gene, genotypes, effect notes, and at least one citation.",
     "snpCount": 51,
     "categories": ["methylation", "iron", "lipids", "vitaminD", "vitaminB12", "bilirubin", "thyroid", "fattyAcids", "bloodSugar", "sexHormones", "alcohol", "caffeine", "bodyComposition", "oxidativeStress"],
-    "sources": ["SNPedia", "ClinVar", "GWAS Catalog", "PharmGKB", "De Luca 2014 (PMID 24812624)", "Yakymenko 2016 meta-analysis (PMID 26151230)"],
-    "oxidativeStressNote": "There is no validated genetic test for electromagnetic hypersensitivity (EHS / IEI-EMF). The variants in the oxidativeStress category affect glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — pathways that EMF research suggests are biologically engaged (Yakymenko 2016 meta-analysis: 93/100 studies show oxidative stress from low-intensity RF). One small Italian case-control study (De Luca 2014, n=153 EHS vs 132 controls) found combined GSTM1/GSTT1/GSTP1 variants enriched in self-identified EHS subjects — the only direct EHS genetic association in the literature, never replicated. Treat these as general oxidative-stress hints, not EMF-specific predictions."
+    "sources": ["SNPedia", "ClinVar", "GWAS Catalog", "PharmGKB", "De Luca 2014 (PMID 24812443)", "Yakymenko 2016 meta-analysis (PMID 26151230)"],
+    "oxidativeStressNote": "There is no validated genetic test for electromagnetic hypersensitivity (EHS / IEI-EMF). The variants in the oxidativeStress category affect glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — pathways that EMF research suggests are biologically engaged (Yakymenko 2016 meta-analysis: 93/100 studies show oxidative stress from low-intensity RF). One small Italian case-control study (De Luca 2014, PMID 24812443, n=153 EHS vs 132 controls) reported a 9.7× elevated EHS risk (95% CI 1.3–74.5 — wide) for the combined GSTM1-null + GSTT1-null haplotype, while finding NO significant GSTP1 (Ile105Val) association. GSTM1/GSTT1 nulls are CNV deletions that consumer DNA arrays (23andMe / Ancestry / MyHeritage) do not reliably report, so this app does not currently surface them. The rs1695 GSTP1 entry is included for general glutathione-conjugation context, NOT as an EHS predictor. Treat all entries here as oxidative-stress hints, not EMF-specific predictions."
   },
 
   "rs1801133": {
@@ -929,12 +929,12 @@
     "markers": [],
     "contextCards": ["environment"],
     "strandNote": "dbSNP forward: A(ref Ile105) / G(alt Val105). 23andMe / Ancestry / Illumina report A/G.",
-    "evidenceTier": "tier1-direct",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/24812624/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "evidenceTier": "tier2-mechanistic",
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/9525277/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
     "genotypes": {
       "AA": { "effect": "none", "note": "Standard GSTP1 (Ile/Ile); efficient glutathione conjugation of electrophilic byproducts" },
-      "AG": { "effect": "moderate", "note": "Reduced GSTP1 activity; modestly impaired clearance of lipid peroxidation byproducts (4-HNE, MDA)" },
-      "GG": { "effect": "significant", "note": "Lowest GSTP1 activity (~30–50% of wild-type). De Luca 2014 (n=153 EHS vs 132 controls): combined GSTP1 105Val/Val + GSTM1-null + GSTT1-null genotype was strongly enriched in self-identified EHS subjects (OR ≈ 9.7). Single Italian cohort, never replicated; treat as suggestive, not predictive." }
+      "AG": { "effect": "moderate", "note": "Reduced GSTP1 stability; substrate-dependent shift in catalytic efficiency (Hu et al. 1998). Modestly impaired clearance of lipid peroxidation byproducts (4-HNE, MDA)." },
+      "GG": { "effect": "moderate", "note": "Val/Val: ~2–3× less stable enzyme; lower activity toward small electrophilic substrates including products of oxidative damage (Hu 1998, PMID 9525277). Often included on commercial 'detox' panels. Note: the only direct EHS genetic study (De Luca 2014, PMID 24812443) tested this SNP and found NO significant association — the EHS signal in that paper came from GSTM1+GSTT1 gene DELETIONS, not from this SNP." }
     }
   },
   "rs4880": {
@@ -943,9 +943,9 @@
     "contextCards": ["environment"],
     "strandNote": "dbSNP forward: T(ref Val16) / C(alt Ala16). Note: literature is split on which allele is deleterious — Ala has higher mitochondrial import efficiency but downstream H2O2 burden depends on coupled CAT/GPx capacity.",
     "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/12618601/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/12618592/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
     "genotypes": {
-      "TT": { "effect": "moderate", "note": "Val/Val: ~30–40% reduced SOD2 mitochondrial import; lower matrix superoxide quenching; theoretically vulnerable to mitochondrial ROS load" },
+      "TT": { "effect": "moderate", "note": "Val/Val: Sutton 2003 (PMID 12618592) showed Val-MnSOD precursors are partly arrested in the inner mitochondrial membrane; Ala-MnSOD generates 30–40% more processed homotetramer. Lower matrix superoxide quenching; theoretically vulnerable to mitochondrial ROS load." },
       "TC": { "effect": "mild", "note": "Heterozygous; intermediate mitochondrial SOD2 activity" },
       "CC": { "effect": "mild", "note": "Ala/Ala: efficient SOD2 import → more superoxide → H2O2 conversion; downstream burden depends on catalase/GPx capacity. Either extreme is theoretically suboptimal under high oxidative load." }
     }
@@ -956,11 +956,11 @@
     "contextCards": ["environment"],
     "strandNote": "dbSNP forward: C(ref) / T(alt). Promoter variant; T-allele associated with lower catalase expression in erythrocytes.",
     "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/11139325/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/11182520/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
     "genotypes": {
       "CC": { "effect": "none", "note": "Standard catalase expression; efficient H2O2 → H2O + O2 detoxification" },
-      "CT": { "effect": "moderate", "note": "Modestly reduced catalase activity; slower H2O2 clearance" },
-      "TT": { "effect": "moderate", "note": "Lowest catalase activity (~30% reduction); slower recovery from any H2O2 burden including RF-induced peroxide production" }
+      "CT": { "effect": "mild", "note": "Forsberg 2001 (PMID 11182520): T allele actually associated with HIGHER blood catalase levels in Swedish donors — direction in the literature is mixed; later studies have reported opposite directions in different tissues. Functional impact is genuinely uncertain." },
+      "TT": { "effect": "mild", "note": "T/T: original Forsberg 2001 paper reported elevated blood catalase, but subsequent disease-association studies have been inconsistent. Treat as suggestive of altered catalase regulation rather than a clear loss-of-function." }
     }
   },
   "rs1800566": {
@@ -969,11 +969,11 @@
     "contextCards": ["environment"],
     "strandNote": "dbSNP forward: C(ref Pro187) / T(alt Ser187). T/T = NQO1*2/*2 = essentially null enzyme (proteasomal degradation of variant protein).",
     "evidenceTier": "tier2-mechanistic",
-    "references": ["https://pubmed.ncbi.nlm.nih.gov/9425228/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
+    "references": ["https://pubmed.ncbi.nlm.nih.gov/11160862/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
     "genotypes": {
       "CC": { "effect": "none", "note": "Standard NQO1; efficient two-electron quinone reduction; prevents semiquinone radical formation" },
-      "CT": { "effect": "moderate", "note": "~50% NQO1 activity; reduced quinone detoxification capacity" },
-      "TT": { "effect": "significant", "note": "Near-null NQO1 (variant protein rapidly degraded); markedly impaired phase II quinone reduction; documented vulnerability in benzene and ionizing-radiation occupational studies" }
+      "CT": { "effect": "moderate", "note": "Heterozygous; intermediate NQO1 activity. The variant protein has a much shorter half-life than wild-type (Siegel et al. 2001, PMID 11160862)." },
+      "TT": { "effect": "significant", "note": "Siegel et al. 2001 (PMID 11160862): mutant NQO1 protein is rapidly polyubiquitinated and proteasomally degraded — half-life ~1.2h vs >18h for wild-type. Effective NQO1 activity is near-null. Documented vulnerability in benzene-exposed workers." }
     }
   }
 }

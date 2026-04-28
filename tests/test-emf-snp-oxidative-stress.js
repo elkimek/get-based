@@ -29,19 +29,31 @@ return (async function() {
     assert(`${rsid} category=oxidativeStress`, snpTable[rsid]?.category === 'oxidativeStress');
     assert(`${rsid} contextCards includes environment`, (snpTable[rsid]?.contextCards || []).includes('environment'));
     assert(`${rsid} has at least one PubMed reference`, (snpTable[rsid]?.references || []).some(r => /pubmed\.ncbi\.nlm\.nih\.gov/.test(r)));
-    assert(`${rsid} has evidenceTier`, snpTable[rsid]?.evidenceTier === 'tier1-direct' || snpTable[rsid]?.evidenceTier === 'tier2-mechanistic');
+    assert(`${rsid} is tier2-mechanistic (no Tier-1 SNPs in our table)`, snpTable[rsid]?.evidenceTier === 'tier2-mechanistic');
     assert(`${rsid} has all three genotypes`, Object.keys(snpTable[rsid]?.genotypes || {}).length >= 3);
   }
 
-  // GSTP1 specifically must cite De Luca 2014 (it is the only direct EHS study)
-  assert('GSTP1 (rs1695) is tier1-direct', snpTable.rs1695?.evidenceTier === 'tier1-direct');
-  assert('GSTP1 cites De Luca 2014', (snpTable.rs1695?.references || []).some(r => r.includes('24812624')));
-  assert('GSTP1 GG (homozygous) note mentions De Luca', /De Luca/i.test(snpTable.rs1695?.genotypes?.GG?.note || ''));
+  // PMID sanity — these are the canonical functional papers we cite. If any of these
+  // change, re-verify against PubMed (we previously shipped four hallucinated PMIDs).
+  // GSTP1 → Hu 1998 (PMID 9525277) functional, not De Luca, because De Luca 2014 found NO GSTP1 association.
+  assert('GSTP1 cites Hu 1998 (PMID 9525277)', (snpTable.rs1695?.references || []).some(r => r.includes('9525277')));
+  // GSTP1 GG note must explicitly say De Luca found NO association at this SNP — this
+  // is the correction that prevents the previous false "Tier 1 direct evidence" claim.
+  assert('GSTP1 GG note states De Luca found NO association at this SNP', /found NO significant association|not from this SNP/i.test(snpTable.rs1695?.genotypes?.GG?.note || ''));
+  // SOD2 → Sutton 2003 PMID 12618592
+  assert('SOD2 cites Sutton 2003 (PMID 12618592)', (snpTable.rs4880?.references || []).some(r => r.includes('12618592')));
+  // CAT → Forsberg 2001 PMID 11182520
+  assert('CAT cites Forsberg 2001 (PMID 11182520)', (snpTable.rs1001179?.references || []).some(r => r.includes('11182520')));
+  // NQO1 → Siegel 2001 PMID 11160862
+  assert('NQO1 cites Siegel 2001 (PMID 11160862)', (snpTable.rs1800566?.references || []).some(r => r.includes('11160862')));
 
-  // SOD2 / CAT / NQO1 must be flagged as mechanistic
-  assert('SOD2 (rs4880) is tier2-mechanistic', snpTable.rs4880?.evidenceTier === 'tier2-mechanistic');
-  assert('CAT (rs1001179) is tier2-mechanistic', snpTable.rs1001179?.evidenceTier === 'tier2-mechanistic');
-  assert('NQO1 (rs1800566) is tier2-mechanistic', snpTable.rs1800566?.evidenceTier === 'tier2-mechanistic');
+  // Negative assertions — make sure the previous hallucinated PMIDs are gone everywhere
+  const allRefs = JSON.stringify(snpTable);
+  assert('No hallucinated PMID 11139325 (hot beverages)', !allRefs.includes('11139325'));
+  assert('No hallucinated PMID 12618601 (burn-trauma biomarkers)', !allRefs.includes('12618601'));
+  assert('No hallucinated PMID 9425228 (p16/CDK4 melanoma)', !allRefs.includes('9425228'));
+  assert('No hallucinated PMID 24812624 (resveratrol/PTEN)', !allRefs.includes('24812624'));
+  assert('De Luca 2014 _meta cite uses correct PMID 24812443', /24812443/.test(snpTable._meta?.oxidativeStressNote || '') || (snpTable._meta?.sources || []).some(s => s.includes('24812443')));
 
   // ═══════════════════════════════════════
   // 2. Existing SNPs cross-linked to environment
@@ -71,9 +83,11 @@ return (async function() {
   assert('emf.js defines renderOxidativeStressPanel', /function\s+renderOxidativeStressPanel\s*\(/.test(emfSrc));
   assert('emf.js wires panel into renderAssessmentDetail', emfSrc.includes('renderOxidativeStressPanel(a)'));
   assert('emf.js gates panel on yellow+ severity', /worst\.color\s*===\s*['"]green['"]/.test(emfSrc));
-  assert('emf.js cites De Luca PubMed link', emfSrc.includes('24812624'));
+  assert('emf.js cites correct De Luca PMID 24812443', emfSrc.includes('24812443'));
+  assert('emf.js does NOT cite hallucinated De Luca PMID', !emfSrc.includes('24812624'));
   assert('emf.js cites Yakymenko PubMed link', emfSrc.includes('26151230'));
   assert('emf.js disclaimer rejects "EMF susceptibility" framing', /not EMF-specific predictions/i.test(emfSrc));
+  assert('emf.js disclaimer clarifies De Luca finding was GSTM1+GSTT1 deletions, not surfaced SNPs', /GSTM1\+GSTT1|not for any SNP shown above/i.test(emfSrc));
 
   // ═══════════════════════════════════════
   // 5. CSS styles registered
@@ -82,7 +96,7 @@ return (async function() {
 
   const cssSrc = await fetch('styles.css').then(r => r.text());
   assert('emf-genetics-panel style present', cssSrc.includes('.emf-genetics-panel'));
-  assert('emf-gen-tier-direct style present', cssSrc.includes('.emf-gen-tier-direct'));
+  assert('emf-gen-tier-mech style present', cssSrc.includes('.emf-gen-tier-mech'));
   assert('emf-genetics-disclaimer style present', cssSrc.includes('.emf-genetics-disclaimer'));
 
   // ═══════════════════════════════════════

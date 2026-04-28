@@ -114,12 +114,9 @@ function getOxidativeStressFindings() {
     if (!info || info.effect === 'none') continue;
     findings.push({ rsid, gene: stored.gene, variant: stored.variant, genotype: stored.genotype, effect: info.effect, note: info.note, tier: entry.evidenceTier || 'tier2-mechanistic' });
   }
-  // Direct-evidence (Tier 1 / De Luca 2014) findings first, then by severity
+  // Sort by effect severity (no Tier 1 SNPs in our table — all surfaced variants are mechanistic)
   const order = { 'significant': 0, 'moderate': 1, 'mild': 2 };
-  findings.sort((a, b) => {
-    if (a.tier !== b.tier) return a.tier === 'tier1-direct' ? -1 : 1;
-    return (order[a.effect] ?? 9) - (order[b.effect] ?? 9);
-  });
+  findings.sort((a, b) => (order[a.effect] ?? 9) - (order[b.effect] ?? 9));
   return findings;
 }
 
@@ -131,9 +128,7 @@ function renderOxidativeStressPanel(assessment) {
   if (!worst || worst.color === 'green') return '';
 
   const items = findings.slice(0, 4).map(f => {
-    const tierBadge = f.tier === 'tier1-direct'
-      ? '<span class="emf-gen-tier emf-gen-tier-direct" title="De Luca 2014 — only direct EHS genetic association in the literature">direct</span>'
-      : '<span class="emf-gen-tier emf-gen-tier-mech" title="Mechanistic inference: pathway is engaged by EMF-induced oxidative stress (Yakymenko 2016 meta-analysis), but the variant has not been tested in EHS cohorts">pathway</span>';
+    const tierBadge = '<span class="emf-gen-tier emf-gen-tier-mech" title="Mechanistic inference: pathway is engaged by EMF-induced oxidative stress (Yakymenko 2016 meta-analysis), but the variant has not been tested in EHS cohorts">pathway</span>';
     return `<li class="emf-gen-item">
       <div class="emf-gen-head">
         <strong>${escapeHTML(f.gene)} ${escapeHTML(f.variant)}</strong>
@@ -153,7 +148,7 @@ function renderOxidativeStressPanel(assessment) {
     </div>
     <ul class="emf-gen-list">${items}</ul>${more}
     <div class="emf-genetics-disclaimer">
-      No validated genetic test for EHS / electromagnetic hypersensitivity exists. These variants affect glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — pathways EMF research suggests are biologically engaged (<a href="https://pubmed.ncbi.nlm.nih.gov/26151230/" target="_blank" rel="noopener">Yakymenko 2016</a>). One small Italian case-control study (<a href="https://pubmed.ncbi.nlm.nih.gov/24812624/" target="_blank" rel="noopener">De Luca 2014</a>) found combined GST variants enriched in self-identified EHS subjects — never replicated. Treat as general oxidative-stress hints, not EMF-specific predictions.
+      No validated genetic test for EHS / electromagnetic hypersensitivity exists. These variants affect glutathione conjugation, mitochondrial superoxide dismutation, catalase, and quinone reduction — pathways EMF research suggests are biologically engaged (<a href="https://pubmed.ncbi.nlm.nih.gov/26151230/" target="_blank" rel="noopener">Yakymenko 2016</a>). The only direct EHS genetic study (<a href="https://pubmed.ncbi.nlm.nih.gov/24812443/" target="_blank" rel="noopener">De Luca 2014</a>, n=153) found a 9.7× elevated EHS risk for the combined GSTM1+GSTT1 gene-deletion haplotype — not for any SNP shown above. Those deletions are CNVs that consumer DNA arrays don't reliably report, so this app does not surface them. Treat the variants here as general oxidative-stress hints, not EMF-specific predictions.
     </div>
   </div>`;
 }
