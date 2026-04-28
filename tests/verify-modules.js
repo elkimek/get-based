@@ -136,11 +136,6 @@
     'exportPDFReport','exportDataJSON','exportClientJSON','exportAllDataJSON','importDataJSON','clearAllData'
   ];
 
-  // glossary.js (3)
-  const glossaryExports = [
-    'openGlossary','closeGlossary','filterGlossary'
-  ];
-
   // nav.js (5)
   const navExports = [
     'buildSidebar','filterSidebar','toggleNavGroup',
@@ -274,7 +269,6 @@
     'cycle.js': cycleExports,
     'data.js': dataExports,
     'export.js': exportExports,
-    'glossary.js': glossaryExports,
     'nav.js': navExports,
     'notes.js': notesExports,
     'pdf-import.js': pdfImportExports,
@@ -310,14 +304,13 @@
   assert('Header dates', !!document.getElementById('header-dates'));
   assert('Range toggle', !!document.getElementById('header-range-toggle'));
   assert('Settings button', !!document.querySelector('.settings-btn'));
-  assert('Glossary button', !!document.querySelector('.glossary-btn'));
+  assert('Header icon button base', !!document.querySelector('.header-icon-btn'));
   assert('Chat FAB button', !!document.getElementById('chat-fab'));
   assert('Sidebar nav', !!document.getElementById('sidebar-nav'));
   assert('Main content', !!document.getElementById('main-content'));
   assert('Detail modal overlay', !!document.getElementById('modal-overlay'));
   assert('Import modal overlay', !!document.getElementById('import-modal-overlay'));
   assert('Settings modal overlay', !!document.getElementById('settings-modal-overlay'));
-  assert('Glossary modal overlay', !!document.getElementById('glossary-modal-overlay'));
   assert('Chat panel', !!document.getElementById('chat-panel'));
   assert('Chat messages container', !!document.getElementById('chat-messages'));
   assert('Chat input', !!document.getElementById('chat-input'));
@@ -434,20 +427,9 @@
   window.closeSettingsModal();
   assert('Settings modal closes', !settingsOverlay?.classList.contains('show'));
 
-  // ═══════════════════════════════════════════════
-  // 11. GLOSSARY — opens, searches, closes
-  // ═══════════════════════════════════════════════
-  window.openGlossary();
-  const glossaryOverlay = document.getElementById('glossary-modal-overlay');
-  assert('Glossary modal opens', glossaryOverlay?.classList.contains('show'));
-  const glossaryContent = document.getElementById('glossary-modal');
-  assert('Glossary has content', glossaryContent && glossaryContent.innerHTML.length > 200);
-  // Check it has marker entries
-  const glossaryItems = glossaryContent?.querySelectorAll('.glossary-item, .glossary-marker');
-  assert('Glossary has marker items', glossaryItems && glossaryItems.length > 5,
-    `Found ${glossaryItems?.length || 0} items`);
-  window.closeGlossary();
-  assert('Glossary closes', !glossaryOverlay?.classList.contains('show'));
+  // 11. GLOSSARY removed in v1.3.25 — feature retired. Section
+  // intentionally empty so subsequent section numbers remain stable
+  // for anyone diffing this file against older versions.
 
   // ═══════════════════════════════════════════════
   // 12. CHAT PANEL — opens and closes

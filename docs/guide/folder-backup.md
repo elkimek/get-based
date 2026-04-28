@@ -4,6 +4,8 @@ Folder backup automatically saves your getbased data to a local folder on your c
 
 ## Setup
 
+The fastest path is the dashboard's **🛡 Protect your data** pill, which opens a small picker that includes Auto-backup. Or:
+
 1. Go to **Settings → Data → Folder Backup**
 2. Click **Pick Folder** and choose a destination
 3. Done — backups happen automatically from now on

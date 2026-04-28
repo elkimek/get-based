@@ -14,6 +14,28 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
 
+// Self-host OAuth client_id overrides — extracted as an exported helper so
+// tests can exercise the env→override mapping without spinning up the HTTP
+// server. See issue #145. The same six VAR→adapter pairs are mirrored in
+// api/proxy.js (Vercel Edge); keep both in sync.
+export const WEARABLE_CLIENT_ID_VARS = [
+  ['OURA_CLIENT_ID', 'oura'],
+  ['WITHINGS_CLIENT_ID', 'withings'],
+  ['ULTRAHUMAN_CLIENT_ID', 'ultrahuman'],
+  ['POLAR_CLIENT_ID', 'polar'],
+  ['WHOOP_CLIENT_ID', 'whoop'],
+  ['FITBIT_CLIENT_ID', 'fitbit'],
+];
+export function collectWearableOverrides(env) {
+  const out = {};
+  if (!env || typeof env !== 'object') return out;
+  for (const [key, id] of WEARABLE_CLIENT_ID_VARS) {
+    const v = env[key];
+    if (typeof v === 'string' && v.trim()) out[id] = v.trim();
+  }
+  return out;
+}
+
 const PORT = parseInt(process.argv[2], 10) || 8000;
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -593,6 +615,17 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const payload = JSON.parse(body);
+
+        // Self-host OAuth client_id overrides — surfaces *_CLIENT_ID env values
+        // to the browser so self-hosters can run their own OAuth apps without
+        // patching js/wearable-adapters.js. Hosted users get an empty map and
+        // keep the hardcoded maintainer values. See issue #145.
+        if (payload.wearable_runtime_config) {
+          const overrides = collectWearableOverrides(process.env);
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ overrides }));
+          return;
+        }
 
         // Oura OAuth2 token exchange/refresh — proxies secret-bearing request
         // to api.ouraring.com/oauth/token with OURA_CLIENT_SECRET from env.

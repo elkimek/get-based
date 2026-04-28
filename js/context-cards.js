@@ -7,6 +7,14 @@ import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { getLatitudeFromLocation, profileStorageKey } from './profile.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
+import { getLensSummary } from './lens.js';
+import { getEncryptionEnabled } from './crypto.js';
+import { isSyncEnabled } from './sync.js';
+import { getFolderBackupState } from './backup.js';
+// showEnableEncryptionModal + pickFolderForBackup are intentionally NOT
+// imported — they're invoked via window.* from inline onclick strings
+// and the picker click handler (both registered globally by their owning
+// modules). Static imports here would be dead.
 import { getEMFSeverity, trackUsage } from './schema.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 
@@ -74,7 +82,7 @@ function _renderDietContaminants() {
   if (warnings.length === 0) return '';
   const flagged = warnings.filter(w => w.type !== 'clean').length;
   if (flagged === 0) return '';
-  return `<div class="diet-contaminants" onclick="event.stopPropagation(); showDietContaminantsModal()">\u26A0\uFE0F ${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</div>`;
+  return `<div class="diet-contaminants" role="button" tabindex="0" onclick="event.stopPropagation(); showDietContaminantsModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">\u26A0\uFE0F ${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</div>`;
 }
 
 export function getExerciseSummary(d) {
@@ -207,7 +215,7 @@ export function renderProfileContextCards() {
   for (const c of cardDefs) {
     const filled = isContextFilled(c.key);
     const summary = c.summaryFn();
-    html += `<div class="context-card" onclick="${c.editor}()">
+    html += `<div class="context-card" role="button" tabindex="0" aria-label="${escapeHTML(c.label)}" onclick="${c.editor}()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
       <div class="context-card-header">
         <span class="ctx-health-dot ctx-health-dot-gray" id="ctx-dot-${c.key}"></span>
         <span class="context-card-label">${c.emoji} ${c.label}</span>
@@ -1183,10 +1191,282 @@ export function clearInterpretiveLens() {
   showNotification('Interpretive lens cleared', 'info');
 }
 
+// Dashboard "AI personalization" zone:
+//   - Full-width row for the Interpretive Lens, ONLY if it's set
+//   - Full-width row for the Knowledge Base, ONLY if a library is set
+//   - Inline pill CTA when {Lens, KB} is unset
+//
+// DNA was briefly bundled here in v1.3.27 because all three influence AI
+// interpretations, but that's a *secondary* effect — DNA is biological
+// *data* about the user, not a personalization preference. It belongs
+// alongside lab data and weight, not alongside style/voice/sources.
+// Empty-state DNA discovery is handled in renderGeneticsSection().
 export function renderInterpretiveLensSection() {
   const lens = (state.importedData.interpretiveLens || '').trim();
-  if (!lens) return `<div class="lens-section lens-section-empty" onclick="openInterpretiveLensEditor()" title="Set your interpretive lens"><span class="lens-section-icon">&#129694;</span><span class="lens-section-text">Set your interpretive lens — name researchers, paradigms, or frameworks the AI should use…</span></div>`;
-  return `<div class="lens-section" onclick="openInterpretiveLensEditor()" title="Interpretive Lens — click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
+  let summary; try { summary = getLensSummary(); } catch { summary = null; }
+  const kbConfigured = !!(summary && summary.configured);
+
+  const lensRow = lens
+    ? `<div class="lens-section" role="button" tabindex="0" aria-label="Edit Interpretive Lens" onclick="openInterpretiveLensEditor()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" title="Interpretive Lens — click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`
+    : '';
+  const kbRow = kbConfigured ? renderKnowledgeBaseRow(summary) : '';
+  const aiCta = renderPersonalizeAICta(!!lens, kbConfigured);
+  const dataCta = renderDataProtectionCta();
+  return lensRow + kbRow + aiCta + dataCta;
+}
+
+// Programmatic DNA file picker — mirrors the chat onboarding's hidden
+// file input pattern so the same handleDNAFile parser runs. Used by the
+// genetics-section empty-state CTA; intentionally only offers autosomal
+// raw data (Ancestry/23andMe/etc) since mtDNA-only adds are best managed
+// from the genetics section once any DNA lands.
+export function triggerDNAFilePicker() {
+  let input = document.getElementById('dna-dashboard-input');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file';
+    input.id = 'dna-dashboard-input';
+    input.accept = '.txt,.csv';
+    input.style.display = 'none';
+    input.addEventListener('change', () => {
+      const f = input.files && input.files[0];
+      if (f && typeof window.handleDNAFile === 'function') {
+        window.handleDNAFile(f);
+      }
+      input.value = '';
+    });
+    document.body.appendChild(input);
+  }
+  input.click();
+}
+
+// The full-width Knowledge Base status row. Only emitted when a library
+// is configured. Shows library name, document count when cached, and
+// query-rewriting status — surfaces the v1.3.23 default behavior on
+// every dashboard load without a toast.
+export function renderKnowledgeBaseSection() {
+  let s; try { s = getLensSummary(); } catch { return ''; }
+  if (!s || !s.configured) return '';
+  return renderKnowledgeBaseRow(s);
+}
+
+function renderKnowledgeBaseRow(s) {
+  const docFragment = (s.docCount != null && s.docCount > 0)
+    ? ` &middot; ${s.docCount} document${s.docCount !== 1 ? 's' : ''}`
+    : '';
+  const rewriteFragment = s.aiAvailable
+    ? ` &middot; query rewriting ${s.multiQueryOn ? 'on' : 'off'}`
+    : '';
+  const detail = `${escapeHTML(s.displayName)}${docFragment}${rewriteFragment}`;
+  return `<div class="lens-section" role="button" tabindex="0" aria-label="Manage Knowledge Base" onclick="openKnowledgeBaseModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" title="Knowledge Base — click to manage"><span class="lens-section-icon">&#128218;</span><span class="lens-section-body"><span class="lens-section-label">Knowledge Base</span><span class="lens-section-text">${detail}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
+}
+
+// Inline CTA pill that adapts to which feature is missing. Both missing
+// → generic pill opens the picker. Exactly one missing → direct CTA
+// opens that feature's setup. Hidden once both are configured.
+function renderPersonalizeAICta(lensSet, kbSet) {
+  if (lensSet && kbSet) return '';
+  let icon, label, action;
+  if (!lensSet && !kbSet) {
+    icon = '&#10024;'; // ✨ — both options
+    label = 'Personalize how AI answers';
+    action = 'openPersonalizeAIPicker()';
+  } else if (!kbSet) {
+    icon = '&#128218;'; // 📚 — books
+    label = 'Connect a knowledge base';
+    action = 'openKnowledgeBaseModal()';
+  } else {
+    icon = '&#129694;'; // 🪞 — mirror
+    label = 'Set an interpretive lens';
+    action = 'openInterpretiveLensEditor()';
+  }
+  return `<button type="button" class="dashboard-cta" onclick="${action}" aria-label="${escapeHTML(label)}">
+    <span class="dashboard-cta-icon" aria-hidden="true">${icon}</span>
+    <span class="dashboard-cta-plus" aria-hidden="true">+</span>
+    <span>${escapeHTML(label)}</span>
+  </button>`;
+}
+
+// ── Data protection (Encryption / Sync / Backup) ────────────
+//
+// These three live in Settings → Data and were each invisible from
+// the dashboard until now. Pattern mirrors the AI personalize CTA:
+// inline pill that adapts to which of the three is missing, picker
+// modal when more than one is missing, direct setup when only one.
+//
+// We intentionally use Settings → Data for ongoing management; the
+// dashboard surfaces are first-time-discovery hooks only. When all
+// three are configured, the pill disappears.
+
+function getDataProtectionStatus() {
+  let backupConfigured = false;
+  let backupSupported = true;
+  try {
+    const s = getFolderBackupState();
+    backupSupported = !!s?.supported;
+    backupConfigured = !!s?.folderName;
+  } catch { /* backup not initialised yet */ }
+  return {
+    encryption: !!getEncryptionEnabled(),
+    sync: !!isSyncEnabled(),
+    backup: backupConfigured,
+    backupSupported,
+  };
+}
+
+// Pure render — accepts an explicit state object so it's directly
+// testable without stubbing module-level state-checkers (ES module
+// exports can't be reassigned). Production caller passes
+// getDataProtectionStatus(); tests pass synthetic state.
+export function renderDataProtectionCta(stateOverride) {
+  const s = stateOverride || getDataProtectionStatus();
+  // Treat unsupported backup (Safari, old browsers) as configured so we
+  // don't nag users on platforms where the feature is impossible.
+  const backupOk = s.backup || !s.backupSupported;
+  const missing = [
+    !s.encryption ? 'encryption' : null,
+    !s.sync ? 'sync' : null,
+    !backupOk ? 'backup' : null,
+  ].filter(Boolean);
+  if (missing.length === 0) return '';
+  // Single-feature missing → direct CTA. Multiple missing → picker.
+  if (missing.length === 1) {
+    const only = missing[0];
+    if (only === 'encryption') {
+      return `<button type="button" class="dashboard-cta" onclick="showEnableEncryptionModal()" aria-label="Enable encryption">
+        <span class="dashboard-cta-icon" aria-hidden="true">&#128274;</span>
+        <span class="dashboard-cta-plus" aria-hidden="true">+</span>
+        <span>Enable encryption</span>
+      </button>`;
+    }
+    if (only === 'sync') {
+      return `<button type="button" class="dashboard-cta" onclick="showSyncSetupModal()" aria-label="Set up cross-device sync">
+        <span class="dashboard-cta-icon" aria-hidden="true">&#128225;</span>
+        <span class="dashboard-cta-plus" aria-hidden="true">+</span>
+        <span>Sync to other devices</span>
+      </button>`;
+    }
+    // backup
+    return `<button type="button" class="dashboard-cta" onclick="pickFolderForBackup()" aria-label="Set up auto-backup">
+      <span class="dashboard-cta-icon" aria-hidden="true">&#128190;</span>
+      <span class="dashboard-cta-plus" aria-hidden="true">+</span>
+      <span>Set up auto-backup</span>
+    </button>`;
+  }
+  // 2 or 3 missing → picker
+  return `<button type="button" class="dashboard-cta" onclick="openDataProtectionPicker()" aria-label="Protect your data">
+    <span class="dashboard-cta-icon" aria-hidden="true">&#128737;</span>
+    <span class="dashboard-cta-plus" aria-hidden="true">+</span>
+    <span>Protect your data</span>
+  </button>`;
+}
+
+export function openDataProtectionPicker() {
+  let overlay = document.getElementById('data-protection-picker-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'data-protection-picker-overlay';
+    overlay.className = 'confirm-overlay';
+    document.body.appendChild(overlay);
+  }
+  const close = () => {
+    overlay.classList.remove('show');
+    document.removeEventListener('keydown', onKey);
+  };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const s = getDataProtectionStatus();
+  // Each card shows its current status: green check when configured,
+  // muted "Set up" affordance when not. Configured cards stay
+  // clickable and just close — clicking already-configured items
+  // doesn't open Settings to avoid surprising the user.
+  const card = (key, icon, title, sub, configured, onSetup) => `
+    <button type="button" class="dashboard-picker-card" data-pick="${key}" ${configured ? 'data-configured="true"' : ''}>
+      <span class="dashboard-picker-icon" aria-hidden="true">${icon}</span>
+      <span class="dashboard-picker-title">${title} ${configured ? '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>' : ''}</span>
+      <span class="dashboard-picker-sub">${sub}</span>
+      <span class="dashboard-picker-action">${configured ? 'Configured' : 'Set up &rarr;'}</span>
+    </button>`;
+  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Protect your data" style="max-width:560px">
+    <p class="confirm-message" style="margin-bottom:14px">Protect your data</p>
+    <div class="dashboard-picker-grid">
+      ${card('encryption', '&#128274;', 'Encryption', 'Encrypt your data at rest with a passphrase. Browser extensions and anyone with disk access can’t read it without the passphrase.', s.encryption)}
+      ${card('sync', '&#128225;', 'Cross-device Sync', 'End-to-end encrypted sync to your other devices. A 24-word mnemonic is your only key — the relay sees ciphertext.', s.sync)}
+      ${s.backupSupported
+        ? card('backup', '&#128190;', 'Auto-backup', 'Save daily snapshots to a local folder (Proton Drive, Dropbox, NAS, USB drive). Survives browser crashes and reinstalls.', s.backup)
+        : ''}
+    </div>
+    <div class="confirm-actions" style="margin-top:6px">
+      <button class="confirm-btn confirm-btn-cancel" id="data-protection-picker-cancel">Close</button>
+    </div>
+  </div>`;
+  overlay.classList.add('show');
+  document.addEventListener('keydown', onKey);
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  overlay.querySelector('#data-protection-picker-cancel').onclick = close;
+  // Move focus into the picker so keyboard users start on the first card.
+  setTimeout(() => overlay.querySelector('.dashboard-picker-card:not([data-configured="true"]),.dashboard-picker-card,#data-protection-picker-cancel')?.focus(), 50);
+  overlay.querySelectorAll('.dashboard-picker-card').forEach(btn => {
+    btn.onclick = () => {
+      const pick = btn.getAttribute('data-pick');
+      const isConfigured = btn.getAttribute('data-configured') === 'true';
+      if (isConfigured) { close(); return; }
+      close();
+      if (pick === 'encryption' && typeof window.showEnableEncryptionModal === 'function') window.showEnableEncryptionModal();
+      else if (pick === 'sync' && typeof window.showSyncSetupModal === 'function') window.showSyncSetupModal();
+      else if (pick === 'backup' && typeof window.pickFolderForBackup === 'function') window.pickFolderForBackup();
+    };
+  });
+}
+
+// Two-card picker shown when neither feature is configured. Lets the user
+// pick which one they want to set up; clicking either card forwards to
+// the right editor and dismisses the picker.
+export function openPersonalizeAIPicker() {
+  let overlay = document.getElementById('ai-personalize-picker-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'ai-personalize-picker-overlay';
+    overlay.className = 'confirm-overlay';
+    document.body.appendChild(overlay);
+  }
+  const close = () => {
+    overlay.classList.remove('show');
+    document.removeEventListener('keydown', onKey);
+  };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Personalize how AI answers" style="max-width:520px">
+    <p class="confirm-message" style="margin-bottom:14px">Personalize how AI answers</p>
+    <div class="ai-picker-grid">
+      <button type="button" class="ai-picker-card" data-pick="lens">
+        <span class="ai-picker-icon" aria-hidden="true">&#129694;</span>
+        <span class="ai-picker-title">Interpretive Lens</span>
+        <span class="ai-picker-sub">Frame answers around researchers, paradigms, or schools of thought.</span>
+      </button>
+      <button type="button" class="ai-picker-card" data-pick="kb">
+        <span class="ai-picker-icon" aria-hidden="true">&#128218;</span>
+        <span class="ai-picker-title">Knowledge Base</span>
+        <span class="ai-picker-sub">Ground answers in your own documents — research papers, notes, references.</span>
+      </button>
+    </div>
+    <div class="confirm-actions" style="margin-top:6px">
+      <button class="confirm-btn confirm-btn-cancel" id="ai-personalize-picker-cancel">Cancel</button>
+    </div>
+  </div>`;
+  overlay.classList.add('show');
+  document.addEventListener('keydown', onKey);
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  overlay.querySelector('#ai-personalize-picker-cancel').onclick = close;
+  setTimeout(() => overlay.querySelector('.ai-picker-card,#ai-personalize-picker-cancel')?.focus(), 50);
+  overlay.querySelectorAll('.ai-picker-card').forEach(btn => {
+    btn.onclick = () => {
+      const pick = btn.getAttribute('data-pick');
+      close();
+      if (pick === 'lens') openInterpretiveLensEditor();
+      else if (pick === 'kb' && typeof window.openKnowledgeBaseModal === 'function') {
+        window.openKnowledgeBaseModal();
+      }
+    };
+  });
 }
 
 // ── Diet contaminant detail modal ──
@@ -1333,6 +1613,10 @@ Object.assign(window, {
   saveInterpretiveLens,
   clearInterpretiveLens,
   renderInterpretiveLensSection,
+  renderKnowledgeBaseSection,
+  openPersonalizeAIPicker,
+  openDataProtectionPicker,
+  triggerDNAFilePicker,
   recordChange,
   showDietContaminantsModal,
   openCardTipsModal,

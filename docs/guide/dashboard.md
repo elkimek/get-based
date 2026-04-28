@@ -21,6 +21,17 @@ Sections appear in this order:
 The dashboard only shows markers that have actual data from your lab results. Markers in the schema that you have never imported are hidden from the sidebar count and charts.
 :::
 
+## Setup Nudges
+
+Two small accent-colored pills appear right under the Interpretive Lens row when something needs setup. Each one disappears once everything in its group is configured, and clicking a pill opens either a direct setup or a tiny picker (depending on whether one or several things are missing):
+
+- **🪞/📚/✨ Personalize how AI answers** — Interpretive Lens (research framing) + Knowledge Base (your own documents AI cites). The pill turns into a direct *"Set an interpretive lens"* or *"Connect a knowledge base"* CTA when only one of the two is missing.
+- **🛡 Protect your data** — Encryption (passphrase-protected local data), [Cross-device Sync](./cross-device-sync.md), and [Auto-backup](./folder-backup.md). Same adaptive copy: when only one is missing, the pill takes you straight to that setup. When all three are configured, the pill disappears.
+
+These nudges are the dashboard's discoverability hooks for features that previously lived buried in Settings → Data. They are quiet, unobtrusive, and only present when there's something to set up — so a fully-configured dashboard shows none.
+
+If you don't have DNA imported yet, an in-context **🧬 Add your DNA data** card also shows up where the Genetics section would render. Click it to drop in raw data from Ancestry, 23andMe, MyHeritage, FTDNA, or Living DNA. Files are processed locally and never leave your device.
+
 ## Sidebar Navigation
 
 The sidebar on the left lists all biomarker categories (Biochemistry, Hormones, Lipids, Hematology, etc.). Each category shows a count of how many markers have actual data. Click any category to jump to its charts.

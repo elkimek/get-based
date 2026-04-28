@@ -17,7 +17,7 @@
 
 import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
-import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, visibleAdapters } from './wearable-adapters.js';
+import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, visibleAdapters, getOAuthClientId } from './wearable-adapters.js';
 import { brandMarkMono } from './brand-assets.js';
 
 // Vendor logo / mark beside the adapter name. Backed by brands/<vendor>/
@@ -1117,7 +1117,7 @@ export function renderWearablesSettingsSection() {
 function renderAdapterRow(adapter, isConnected) {
   const conn = isConnected ? getConnection(adapter.id) : null;
   const isOAuth = adapter.authType === 'oauth2';
-  const isPendingClient = isOAuth && adapter.oauth?.clientId?.startsWith('REPLACE_WITH_');
+  const isPendingClient = isOAuth && (getOAuthClientId(adapter) || '').startsWith('REPLACE_WITH_');
   const isFileImport = adapter.authType === 'file-import' && adapter.id === 'apple_health';
 
   // Status text — only when there's something meaningful to say.

@@ -514,7 +514,7 @@ export function renderMenstrualCycleSection(data) {
     <div class="supp-timeline-header">
       <span class="context-section-title">Menstrual Cycle</span>
       <div style="display:flex;gap:6px;align-items:center">
-        ${mc ? `<button class="cycle-tour-btn" onclick="startCycleTour(false)" title="Cycle feature tour">?</button>` : ''}
+        ${mc ? `<button class="cycle-tour-btn" onclick="startCycleTour(false)" title="Cycle feature tour" aria-label="Take the cycle feature tour">?</button>` : ''}
         <button class="supp-add-btn" onclick="openMenstrualCycleEditor()">${mc ? 'Edit' : '+ Set Up'}</button>
       </div>
     </div>`;

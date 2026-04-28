@@ -109,8 +109,9 @@ export function showDashboard(data) {
   // ── 2. Onboarding Banner (Step 2) ──
   html += renderOnboardingBanner();
 
-  // (KB dashboard banner removed — Knowledge Base is now discoverable via
-  // the unified Settings → AI → Knowledge Base section.)
+  // Knowledge Base is now discoverable via the dashboard CTA pill
+  // ("Connect a knowledge base") and lives in its own dedicated modal —
+  // see openKnowledgeBaseModal() in lens.js. No banner needed here.
 
   // ── 3. Interpretive Lens ──
   html += renderInterpretiveLensSection();

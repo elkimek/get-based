@@ -1,6 +1,6 @@
 # Data Pipeline
 
-`getActiveData()` in `js/data.js` is the central data pipeline. Every view — dashboard, category charts, compare, correlations, glossary, AI context — calls it to get processed data. It is a pure function with no side effects; it reads from `state` and returns a fresh `data` object each time.
+`getActiveData()` in `js/data.js` is the central data pipeline. Every view — dashboard, category charts, compare, correlations, AI context — calls it to get processed data. It is a pure function with no side effects; it reads from `state` and returns a fresh `data` object each time.
 
 ## Pipeline flowchart
 

@@ -31,7 +31,7 @@ These suggestions appear in the import preview with a **blue "New"** badge. You 
 Once created, custom markers are treated the same as built-in markers throughout the app:
 
 - They appear in **charts** with reference range bands and trend detection
-- They show up in **data tables** and the marker **glossary**
+- They show up in **data tables** alongside every other marker
 - They're included in **AI chat context**, so the assistant knows about them when you ask questions
 - They're exported in your **JSON backup** and restored on import
 - They're included when you import future PDFs — the AI uses them to avoid creating duplicates

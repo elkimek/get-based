@@ -177,6 +177,19 @@ body {
 }
 .sidebar-group-header:not(.collapsed) .sidebar-group-arrow { transform: rotate(90deg); }
 .main { flex: 1; padding: 24px 32px; margin-left: 260px; max-width: calc(100vw - 260px); }
+
+/* When chat is open, push the dashboard left by the chat panel's
+   responsive width so content stays visible alongside the chat
+   instead of hiding behind it. The padding-right values match the
+   .chat-panel width breakpoints (defined further down) plus the
+   default 32px gutter. Fullscreen chat suppresses the shift since
+   the panel covers everything. Mobile (<768px) is also no-op since
+   chat is a 100%-width takeover. We deliberately don't transition the
+   padding — Chromium aborts the transition partway through when the
+   chat panel's own transform animation runs simultaneously. The snap
+   is barely perceptible alongside the panel's slide-in. */
+body.chat-open .main { padding-right: calc(32px + 560px); }
+body.chat-open.chat-fullscreen .main { padding-right: 32px; }
 .app-footer { border-top: 1px solid var(--border); padding: 32px; }
 .app-footer-row { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
 .app-footer-logo { font-family: var(--font-display); font-weight: 800; font-size: 18px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -359,6 +372,10 @@ body {
   transition: transform 0.25s ease, opacity 0.25s ease;
 }
 .modal-overlay.show .modal { transform: scale(1) translateY(0); opacity: 1; }
+/* Knowledge Base modal — wider than the default 700px to fit the
+   per-backend controls (model picker, library list, document list,
+   ingest UI) without horizontal cramping. */
+.kb-modal { max-width: 760px; }
 .modal-nudge { animation: modal-nudge 0.3s ease; }
 @keyframes modal-nudge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.015); box-shadow: 0 0 0 2px var(--accent); } }
 .modal-close {
@@ -1684,7 +1701,7 @@ details[open] > .cl-archived-header::before { content: '\25BE '; }
   .cl-row-edit, .cl-row-menu-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .cl-menu-item { padding: 10px 16px; min-height: 44px; display: flex; align-items: center; }
 }
-/* Settings Button — uses .glossary-btn base; .settings-btn kept for specificity */
+/* Settings Button — uses .header-icon-btn base; .settings-btn kept for specificity */
 .settings-btn:hover { background: var(--bg-hover); }
 /* API Key Settings */
 .api-key-input {
@@ -1867,16 +1884,32 @@ details[open] > .cl-archived-header::before { content: '\25BE '; }
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.4); z-index: 250; display: none;
   overflow: hidden;
+  /* Visual dimming only — pointer-events disabled so the dashboard
+     stays interactive while chat is open. Closing the chat is via
+     X button, Escape, or the fullscreen-mode toggle. */
+  pointer-events: none;
 }
 .chat-backdrop.open { display: block; }
 .chat-panel {
   position: fixed; top: 0; right: 0; bottom: 0; width: 560px;
   background: var(--bg-secondary); border-left: 1px solid var(--border);
   z-index: 260; display: flex; flex-direction: row;
-  transform: translateX(100%); transition: transform 0.3s ease;
+  transform: translateX(100%); transition: transform 0.3s ease, width 0.25s ease;
   box-shadow: -4px 0 24px rgba(0,0,0,0.4); will-change: transform;
 }
 .chat-panel.open { transform: translateX(0); }
+/* Fullscreen mode — chat takes the whole viewport. Toggle via the
+   ⛶ button in the chat header. State persists in localStorage. */
+.chat-panel.chat-panel-fullscreen { width: 100vw; }
+/* Style + size the new fullscreen toggle button. Mirrors the close
+   button visually so the header pair feels symmetric. */
+.chat-fullscreen-btn {
+  background: transparent; border: 0; color: var(--text-muted);
+  font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer;
+  border-radius: var(--radius-sm); transition: color 0.15s, background 0.15s;
+}
+.chat-fullscreen-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.chat-fullscreen-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
 .chat-panel-conversation {
   flex: 1; display: flex; flex-direction: column; min-width: 0;
 }
@@ -2672,6 +2705,9 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 @media (max-width: 768px) {
   .chat-panel { width: 100%; }
+  /* Mobile chat is full-screen takeover — no need to shift the
+     dashboard since the user can't see it anyway. */
+  body.chat-open .main { padding-right: 20px; }
   .chat-thread-rail.open {
     position: absolute; top: 0; left: 0; bottom: 0; width: 100%;
     z-index: 5; border-right: none;
@@ -2687,6 +2723,8 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 /* Responsive chat panel scaling for larger screens */
 @media (min-width: 1400px) {
   .chat-panel { width: 640px; }
+  body.chat-open .main { padding-right: calc(32px + 640px); }
+  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-backdrop { background: rgba(0,0,0,0.15); }
   .chat-messages { padding: 22px 28px; gap: 16px; }
   .chat-header { padding: 18px 24px; }
@@ -2696,6 +2734,8 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 @media (min-width: 1600px) {
   .chat-panel { width: 740px; }
+  body.chat-open .main { padding-right: calc(32px + 740px); }
+  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 24px 32px; gap: 16px; }
   .chat-msg { font-size: 14.5px; }
   .chat-header { padding: 18px 28px; }
@@ -2706,6 +2746,8 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 @media (min-width: 2000px) {
   .chat-panel { width: 880px; }
+  body.chat-open .main { padding-right: calc(32px + 880px); }
+  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-backdrop { background: rgba(0,0,0,0.08); }
   .chat-messages { padding: 28px 36px; gap: 18px; }
   .chat-msg { font-size: 15px; padding: 14px 20px; }
@@ -2718,6 +2760,8 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 @media (min-width: 3000px) {
   .chat-panel { width: 1060px; }
+  body.chat-open .main { padding-right: calc(32px + 1060px); }
+  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 32px 42px; gap: 20px; }
   .chat-msg { font-size: 16px; padding: 16px 24px; }
   .chat-header { padding: 22px 36px; }
@@ -2944,56 +2988,18 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   padding: 14px 16px; min-width: 220px; box-shadow: var(--shadow-lg);
   margin-top: 6px;
 }
-/* Glossary */
-.glossary-btn {
+/* Header icon buttons (Settings, Feedback, Donate). Was historically named
+   .glossary-btn — the marker glossary feature was retired in v1.3.25, but
+   the styling primitive was the standard for top-bar icon buttons. */
+.header-icon-btn {
   background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
   padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 16px;
   transition: all 0.15s; line-height: 1;
 }
-.glossary-btn:hover { color: var(--accent); border-color: var(--accent); }
-.glossary-btn svg { vertical-align: middle; }
+.header-icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+.header-icon-btn svg { vertical-align: middle; }
 .donate-btn { display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-family: inherit; font-weight: 500; color: #f7931a; border-color: #f7931a; }
 .donate-btn:hover { background: #f7931a; color: #fff; }
-.glossary-modal {
-  max-width: 800px; width: 95%; max-height: 85vh; overflow-y: auto; overscroll-behavior: contain;
-}
-.glossary-search {
-  width: 100%; padding: 10px 14px; background: var(--bg-primary); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); color: var(--text-primary); font-size: 14px;
-  font-family: inherit; margin-bottom: 16px;
-}
-.glossary-search:focus { border-color: var(--accent); }
-.glossary-category { margin-bottom: 8px; }
-.glossary-cat-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm);
-  cursor: pointer; font-weight: 600; font-size: 13px; user-select: none;
-}
-.glossary-cat-header:hover { background: var(--bg-hover); }
-.glossary-cat-count {
-  background: var(--bg-card); color: var(--text-muted); padding: 2px 8px;
-  border-radius: 10px; font-size: 11px; font-weight: 500;
-}
-.glossary-category.collapsed .glossary-cat-body { display: none; }
-.glossary-cat-body { padding: 4px 0; }
-.glossary-marker {
-  padding: 10px 14px; border-radius: var(--radius-sm); cursor: pointer;
-  border: 1px solid transparent; transition: all 0.15s; margin: 2px 0;
-}
-.glossary-marker:hover { background: var(--bg-hover); border-color: var(--border); }
-.glossary-marker-top {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-}
-.glossary-marker-name { font-weight: 600; font-size: 13px; }
-.glossary-marker-value { font-family: var(--font-mono); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.glossary-marker-unit { font-size: 11px; color: var(--text-muted); font-weight: 400; }
-.glossary-marker-meta {
-  display: flex; gap: 12px; margin-top: 4px; font-size: 11px; color: var(--text-muted);
-}
-.glossary-marker-desc {
-  font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;
-  min-height: 16px;
-}
 /* Batch Import */
 .batch-progress-counter {
   text-align: center; color: var(--accent); font-weight: 600; font-size: 14px;
@@ -3148,6 +3154,73 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .lens-section-empty { border-style: dashed; border-left-style: dashed; border-color: var(--border); opacity: 0.7; }
 .lens-section-empty:hover { border-color: var(--purple); opacity: 1; }
 .lens-section-empty .lens-section-text { font-style: italic; color: var(--text-muted); }
+
+/* Genetics empty-state CTA — lives in the dashboard genetics slot when
+   no DNA data exists. Same compact in-context pattern as the Wearables
+   "Connect a wearable" stub: subtle dashed border, no full-card weight. */
+.genetics-empty-stub {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 18px; margin-top: 16px; cursor: pointer;
+  background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius);
+  border-left: 3px solid var(--purple);
+  transition: border-color 0.15s, background 0.15s;
+}
+.genetics-empty-stub:hover { border-color: var(--purple); background: var(--bg-hover); }
+.genetics-empty-stub:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+.genetics-empty-stub-icon { font-size: 20px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+.genetics-empty-stub-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.genetics-empty-stub-title { font-weight: 600; color: var(--text-primary); font-size: 14px; }
+.genetics-empty-stub-sub { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+.genetics-empty-stub-arrow { font-size: 16px; color: var(--text-muted); align-self: center; flex-shrink: 0; }
+.genetics-empty-stub:hover .genetics-empty-stub-arrow { color: var(--purple); }
+
+/* AI personalization CTA — inline pill that adapts to which feature is
+   missing. Visual weight tuned to read as an actionable suggestion (accent
+   border + accent text + icon) rather than an empty placeholder. Smaller
+   than the configured full-width rows, larger than a footnote. */
+.dashboard-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding: 9px 16px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid var(--purple); border-radius: 999px;
+  font-size: 13px; font-weight: 500; color: var(--purple);
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.dashboard-cta:hover { background: rgba(124, 58, 237, 0.18); box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12); }
+.dashboard-cta:active { transform: translateY(1px); }
+.dashboard-cta:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+.dashboard-cta-icon { font-size: 15px; line-height: 1; }
+.dashboard-cta-plus { font-weight: 600; opacity: 0.8; }
+
+/* Picker dialogs (AI personalize + Data protection) — small chooser
+   modals where each card opens a setup flow. Same visual language as
+   the dashboard CTA pills they're triggered from. */
+.ai-picker-grid, .dashboard-picker-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+}
+.dashboard-picker-grid { grid-template-columns: 1fr; }
+.ai-picker-card, .dashboard-picker-card {
+  display: flex; flex-direction: column; align-items: flex-start; text-align: left;
+  gap: 6px; padding: 14px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; font-family: inherit; color: var(--text-primary);
+  transition: border-color 0.15s, background 0.15s;
+  width: 100%;
+}
+.ai-picker-card:hover, .dashboard-picker-card:hover { border-color: var(--purple); background: var(--bg-hover); }
+.ai-picker-card:focus-visible, .dashboard-picker-card:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+.ai-picker-icon, .dashboard-picker-icon { font-size: 22px; line-height: 1; }
+.ai-picker-title, .dashboard-picker-title { font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.ai-picker-sub, .dashboard-picker-sub { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+.dashboard-picker-action { font-size: 12px; color: var(--purple); font-weight: 500; margin-top: 4px; }
+.dashboard-picker-card[data-configured="true"] { opacity: 0.7; cursor: default; }
+.dashboard-picker-card[data-configured="true"]:hover { border-color: var(--border); background: var(--bg-card); }
+.dashboard-picker-card[data-configured="true"] .dashboard-picker-action { color: var(--green); }
+.dashboard-picker-check { color: var(--green); font-weight: 700; }
+@media (max-width: 480px) {
+  .ai-picker-grid { grid-template-columns: 1fr; }
+}
 /* Welcome Hero (empty state) */
 .welcome-hero {
   text-align: center; padding: 40px 28px 32px;
@@ -3773,7 +3846,7 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 /* ═══ Touch-friendly: minimum tap targets ═══ */
 @media (pointer: coarse) {
-  .glossary-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .header-icon-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .range-toggle-btn { min-height: 44px; padding: 8px 12px; }
   .chat-thread-new-btn { width: 44px; height: 44px; }
   .chat-thread-item-action { width: 44px; height: 44px; font-size: 14px; }

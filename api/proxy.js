@@ -132,6 +132,31 @@ export default async function handler(req) {
     });
   }
 
+  // ─── Self-host OAuth client_id overrides ───────────────────────
+  // Surfaces *_CLIENT_ID env vars to the browser so self-hosters can run
+  // their own OAuth apps without patching js/wearable-adapters.js. Hosted
+  // production deploys leave these unset → empty map → hardcoded values
+  // win. See issue #145.
+  if (payload.wearable_runtime_config) {
+    const env = (typeof process !== 'undefined' && process.env) ? process.env : {};
+    const overrides = {};
+    for (const [key, id] of [
+      ['OURA_CLIENT_ID', 'oura'],
+      ['WITHINGS_CLIENT_ID', 'withings'],
+      ['ULTRAHUMAN_CLIENT_ID', 'ultrahuman'],
+      ['POLAR_CLIENT_ID', 'polar'],
+      ['WHOOP_CLIENT_ID', 'whoop'],
+      ['FITBIT_CLIENT_ID', 'fitbit'],
+    ]) {
+      const v = env[key];
+      if (typeof v === 'string' && v.trim()) overrides[id] = v.trim();
+    }
+    return new Response(JSON.stringify({ overrides }), {
+      status: 200,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+
   // ─── Oura OAuth2 server-side flow ───────────────────────────────
   // Client-secret-bearing requests — secret never reaches the browser.
   // Single place in the codebase that reads OURA_CLIENT_SECRET.

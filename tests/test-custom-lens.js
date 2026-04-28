@@ -98,8 +98,11 @@ return (async function() {
   // Tier thresholds — regressing these (e.g. a refactor dropping a
   // zero from 150 → 15) would silently shift every user's
   // recommended model. Pin the two numeric boundaries.
-  assert('Tier 3 threshold at < 30 ms/embed',
-    /msPerEmbed\s*<\s*30\b/.test(workerSrcForPicker));
+  // Tier 3 threshold raised 30 → 50 ms in v1.3.23 to recommend BGE-base on
+  // modern laptops (M-series / Ryzen 7000+ / current Intel) that previously
+  // sat just above the cutoff.
+  assert('Tier 3 threshold at < 50 ms/embed',
+    /msPerEmbed\s*<\s*50\b/.test(workerSrcForPicker));
   assert('Tier 2 threshold at < 150 ms/embed',
     /msPerEmbed\s*<\s*150\b/.test(workerSrcForPicker));
 
@@ -147,7 +150,7 @@ return (async function() {
   assert('Setup block documents the SHA256 verification path',
     lensSrc.includes('install.sh.sha256') && lensSrc.includes('sha256sum -c'),
     'security-conscious users should have a pre-run verification option');
-  assert('handleSaveLensConfig persists testProbe', lensSrc.includes('saveLensConfig({ name, url, enabled, topK, testProbe, backend })'));
+  assert('handleSaveLensConfig persists testProbe', lensSrc.includes('saveLensConfig({ name, url, enabled, topK, testProbe, backend, multiQuery })'));
   assert('Connected toast distinguishes zero-result case',
     lensSrc.includes("the test query didn't find any close matches") && lensSrc.includes('your endpoint works'),
     'user with non-matching probe should see the endpoint worked, not "connection failed"');
@@ -291,8 +294,11 @@ return (async function() {
   assert('imports injectLensChunks', chatSrc.includes('injectLensChunks'));
   assert('imports updateLensIndicator', chatSrc.includes('updateLensIndicator'));
   assert('main send calls hasLens()', chatSrc.includes('if (hasLens())'));
-  assert('main send calls queryLens with user text', /await queryLens\(text,/.test(chatSrc));
-  assert('multi-persona calls queryLens with msgText', /await queryLens\(msgText,/.test(chatSrc));
+  // v1.3.23+: chat goes through the multi-query orchestrator, which
+  // internally falls back to queryLens() when the user has no AI provider
+  // or has the multi-query toggle off.
+  assert('main send calls queryLensMulti with user text', /await queryLensMulti\(text,/.test(chatSrc));
+  assert('multi-persona calls queryLensMulti with msgText', /await queryLensMulti\(msgText,/.test(chatSrc));
   assert('openChatPanel calls updateLensIndicator', chatSrc.includes('updateLensIndicator()'));
 
   // ─── 10. Wiring: views.js focus card ───
@@ -342,12 +348,16 @@ return (async function() {
   if (_savedCfg) localStorage.setItem('labcharts-lens-config', _savedCfg);
   if (_savedKey) localStorage.setItem('labcharts-lens-key', _savedKey);
 
-  // ─── 16. Settings DOM renders lens section ───
-  console.log('\n16. Settings DOM');
-  window.openSettingsModal('ai');
+  // ─── 16. KB modal DOM renders lens section ───
+  // v1.3.24: Knowledge Base lives in its own dedicated modal, no longer
+  // bundled inside Settings → AI. The same DOM IDs must still exist
+  // because handleSaveLensConfig and _loadLocalLensStats look them up
+  // by ID — the markup just lives in a different host now.
+  console.log('\n16. Knowledge Base modal DOM');
+  window.openKnowledgeBaseModal();
   await new Promise(r => setTimeout(r, 100));
   const lensSection = document.getElementById('custom-lens-section');
-  assert('custom-lens-section exists in DOM', !!lensSection);
+  assert('custom-lens-section exists in DOM (inside KB modal)', !!lensSection);
   if (lensSection) {
     assert('lens section has url input', !!document.getElementById('lens-url-input'));
     assert('lens section has key input', !!document.getElementById('lens-key-input'));
@@ -355,6 +365,14 @@ return (async function() {
     assert('lens section has enabled toggle', !!document.getElementById('lens-enabled-toggle'));
     assert('lens section has Save + connect button', lensSection.innerHTML.includes('handleSaveLensConfig'));
   }
+  window.closeKnowledgeBaseModal();
+  // Settings → AI must NOT contain the KB section anymore.
+  window.openSettingsModal('ai');
+  await new Promise(r => setTimeout(r, 100));
+  const insideSettings = document.querySelector('.settings-tab-panel[data-tab-panel="ai"] #custom-lens-section');
+  assert('Settings → AI no longer renders Knowledge Base section',
+    !insideSettings,
+    'KB moved to its own modal — Settings → AI should be free of it');
   window.closeSettingsModal();
 
   // ─── 17. saveLensConfig clears cache ───

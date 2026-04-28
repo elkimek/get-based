@@ -10,6 +10,12 @@ Click the **chat bubble** in the bottom-right corner of the screen to slide the 
 The floating chat bubble (FAB) is always visible in the bottom-right corner, giving you one-tap access to the AI from any screen.
 :::
 
+## Layout: side-by-side or fullscreen
+
+When the chat panel is open, the dashboard automatically shifts left to fit alongside it — every chart and section stays visible, scroll and clicks work as normal. You can keep the conversation open while you cross-reference markers, edit context cards, or browse the sidebar.
+
+Click the **⛶ button** in the chat header to expand the panel to the full viewport when you want an immersive conversation. Click it again to return to the side-by-side layout. Your preference is remembered between sessions.
+
 ## Setup Guide
 
 If no AI provider is configured, the chat panel shows a setup guide instead of the conversation view. The guide explains your provider options and includes a **Connect with OpenRouter** button for one-click OAuth setup — no API key needed. Once connected, the chat is ready immediately.
@@ -167,7 +173,7 @@ Every AI response includes a footnote showing the model name, estimated cost, an
 
 ## Knowledge Base grounding
 
-If you've set up a **Knowledge Base** (Settings → AI → Knowledge Base) — either the in-browser backend or an external server running `lens serve` — the chat automatically grounds its answers in the most relevant passages from your documents. A small badge appears in the chat header when this is active, showing the library name that's feeding answers.
+If you've set up a **Knowledge Base** (via the *Connect a knowledge base* CTA on the dashboard, or by clicking the 📚 row once configured) — either the in-browser backend or an external server running `lens serve` — the chat automatically grounds its answers in the most relevant passages from your documents. A small badge appears in the chat header when this is active, showing the library name that's feeding answers.
 
 The chat fetches the top-K passages per question (default 5, configurable 1–10) and folds them into the AI's context before the response streams. The AI cites them inline when relevant. See [Interpretive Lens](/guide/interpretive-lens) for setup.
 

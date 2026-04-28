@@ -14,9 +14,11 @@ The relay server stores only encrypted blobs. Without your mnemonic, the data is
 
 ## Setting Up Sync
 
+The fastest path is the dashboard's **🛡 Protect your data** pill, which opens a small picker that includes Cross-device Sync. Or open **Settings → Data** directly.
+
 ### First Device (New Setup)
 
-1. Open **Settings → Data**
+1. Open **Settings → Data** (or click the dashboard *Protect your data* pill → *Cross-device Sync* card)
 2. Toggle **Cross-device sync** on
 3. In the setup modal, click **New setup**
 4. Your 24-word mnemonic is displayed in cleartext — **write it down and store it offline**

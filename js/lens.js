@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 import { hashString, showNotification, showConfirmDialog, showPromptDialog, isDebugMode, escapeHTML, escapeAttr } from './utils.js';
+import { hasAIProvider, callClaudeAPI } from './api.js';
 
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
@@ -32,6 +33,12 @@ const DEFAULT_CONFIG = {
   topK: 5,
   testProbe: DEFAULT_TEST_PROBE,
   backend: 'in-browser',
+  // Multi-query rewrite: ask the chat LLM to paraphrase the question into
+  // 2-3 vocabulary-diverse variants (Latin/common-name pairs, conceptually
+  // related terms), embed each, then fuse results with reciprocal-rank
+  // scoring. Closes the "Black Seed Oil → Nigella Sativa" recall gap that
+  // raw embedding similarity misses. Off → single-query (original behavior).
+  multiQuery: true,
 };
 const TIMEOUT_MS = 30000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -216,6 +223,151 @@ export async function queryLens(queryHint, opts = {}) {
   return queryWithCache(url, sourceName, hint, topK,
     () => _fetchRemoteChunks(url, key, hint, topK, opts));
 }
+
+// ─── Multi-query rewrite ──────────────────────────────────────
+//
+// Wraps queryLens() with LLM-driven paraphrase expansion to close the
+// vocabulary gap between user phrasing and note phrasing. Falls back to
+// single-query when no AI provider is configured, when the rewrite fails,
+// or when multiQuery is toggled off in settings.
+//
+// Pipeline:
+//   1. Ask the active chat LLM to rewrite the question as N variants.
+//   2. Run queryLens() once per variant + once for the original. Each
+//      ranked result list contributes via reciprocal-rank fusion (RRF).
+//   3. Dedupe by (source + text) and sort by fused score; cap at topK.
+//
+// Latency: +500ms-2s for the rewrite on cold queries. Hot queries (same
+// question asked again in the same session) are fully cached.
+
+const MULTI_QUERY_VARIANTS = 3;
+const MULTI_QUERY_MAX_TOKENS = 200;
+const RRF_K = 60; // standard reciprocal-rank-fusion constant
+const _rewriteCache = new Map(); // hash(query) → string[] of variants
+const REWRITE_CACHE_MAX = 100;
+
+const REWRITE_SYSTEM_PROMPT =
+  'Rewrite the user\'s question as 3 distinct search queries that target the same intent ' +
+  'using vocabulary the user\'s notes might actually contain. ' +
+  'Cover at least: (a) scientific/Latin names where applicable (e.g. "Nigella Sativa" for ' +
+  '"Black Seed Oil"), (b) common synonyms and alternate phrasings, (c) conceptually related ' +
+  'terms a researcher would use. Output exactly 3 lines, each a complete search query, ' +
+  'no numbering, no quotes, no explanation. Keep each query under 12 words.';
+
+export async function queryLensMulti(queryHint, opts = {}) {
+  if (!hasLens()) return null;
+  const cfg = getLensConfig();
+  const hint = String(queryHint || '').trim();
+  if (!hint) return null;
+
+  const enabled = opts.multiQuery !== undefined ? !!opts.multiQuery : cfg.multiQuery !== false;
+  // Single-query path: no AI provider, or feature disabled, or short query
+  // (1-2 word queries are usually proper nouns / lab names where rewriting
+  // adds noise without helping).
+  if (!enabled || !hasAIProvider() || hint.split(/\s+/).length < 3) {
+    return queryLens(hint, opts);
+  }
+
+  let variants = [];
+  try {
+    variants = await _rewriteQuery(hint, opts.signal);
+  } catch (e) {
+    if (isDebugMode?.()) console.warn('[lens] multi-query rewrite failed:', e?.message || e);
+  }
+
+  // Always include the original — protects against rewrites drifting too
+  // far from intent. Dedupe (case-insensitive) so an LLM that just echoes
+  // the question doesn't waste a search.
+  const queries = _dedupeQueries([hint, ...variants]);
+  if (queries.length === 1) return queryLens(hint, opts);
+
+  const topK = typeof opts.topK === 'number' ? opts.topK : cfg.topK;
+  // Each sub-query asks for the per-query topK; RRF reranks across the
+  // union. We don't oversample here — the underlying queryLens() already
+  // does a per-backend oversample (the in-browser worker does 3× for MMR;
+  // external servers handle it server-side).
+  const subResults = await Promise.all(queries.map(q =>
+    queryLens(q, { ...opts, topK }).catch(() => null)
+  ));
+
+  // Find a non-null envelope to inherit cache/source metadata from. If
+  // every sub-query failed (network down, server 500), fall back to the
+  // existing single-query behavior so the caller still sees something.
+  const first = subResults.find(r => r != null);
+  if (!first) return queryLens(hint, opts);
+
+  const fusedChunks = _fuseChunksRRF(subResults.map(r => r?.chunks || []), topK);
+  return { ...first, chunks: fusedChunks };
+}
+
+// Calls the active chat LLM with a tight system prompt asking for N
+// paraphrases. Returns an array of strings (may be empty on parse
+// failure). Cached for the session by query hash so repeating the same
+// question doesn't re-bill the provider.
+async function _rewriteQuery(hint, signal) {
+  const key = hashString(hint);
+  if (_rewriteCache.has(key)) return _rewriteCache.get(key);
+
+  const { text } = await callClaudeAPI({
+    system: REWRITE_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: hint }],
+    maxTokens: MULTI_QUERY_MAX_TOKENS,
+    signal,
+  });
+  const variants = String(text || '')
+    .split(/\r?\n/)
+    .map(s => s.replace(/^[\s\-*\d.)]+/, '').trim()) // strip "1." / "- " etc. if model adds them
+    .filter(s => s && s.length >= 3 && s.length <= 200)
+    .slice(0, MULTI_QUERY_VARIANTS);
+
+  // LRU eviction — small cache, simple delete-oldest.
+  if (_rewriteCache.size >= REWRITE_CACHE_MAX) {
+    const oldestKey = _rewriteCache.keys().next().value;
+    if (oldestKey !== undefined) _rewriteCache.delete(oldestKey);
+  }
+  _rewriteCache.set(key, variants);
+  return variants;
+}
+
+function _dedupeQueries(queries) {
+  const seen = new Set();
+  const out = [];
+  for (const q of queries) {
+    const norm = String(q || '').trim().toLowerCase();
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    out.push(String(q).trim());
+  }
+  return out;
+}
+
+// Reciprocal-rank fusion: each ranked list contributes 1/(k + rank) per
+// chunk. Stable, parameter-light, no calibration needed. Identical chunks
+// across lists accumulate score, which is exactly what we want — a chunk
+// that surfaces under multiple paraphrases is more likely to be relevant.
+function _fuseChunksRRF(chunkLists, topK) {
+  const scores = new Map(); // dedup-key → { score, chunk }
+  for (const list of chunkLists) {
+    if (!Array.isArray(list)) continue;
+    list.forEach((chunk, idx) => {
+      if (!chunk || typeof chunk.text !== 'string') return;
+      const dedupKey = `${chunk.source || ''}|${chunk.text}`;
+      const contribution = 1 / (RRF_K + idx + 1);
+      const prev = scores.get(dedupKey);
+      if (prev) prev.score += contribution;
+      else scores.set(dedupKey, { score: contribution, chunk });
+    });
+  }
+  return Array.from(scores.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(1, topK))
+    .map(({ chunk }) => chunk);
+}
+
+// Test surface — never used by production code.
+export function _resetRewriteCache() { _rewriteCache.clear(); }
+export function _fuseChunksRRFForTest(chunkLists, topK) { return _fuseChunksRRF(chunkLists, topK); }
+export function _dedupeQueriesForTest(queries) { return _dedupeQueries(queries); }
 
 /// Shared cache + status envelope for every backend. `fetchFn(abortCtl)`
 /// returns a Promise<chunks[]>; caller shapes its own errors via throw.
@@ -534,6 +686,18 @@ export function renderCustomLensSection() {
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px">How many of the most relevant excerpts the AI sees with each chat question.</div>
     </div>
 
+    <div style="margin-top:14px">
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+        <input type="checkbox" id="lens-multi-query-checkbox" ${cfg.multiQuery !== false ? 'checked' : ''} style="margin-top:3px">
+        <span style="font-size:12px;color:var(--text-primary)">
+          Improve recall with query rewriting
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4">
+            Before searching, your AI provider rephrases the question to cover Latin names, synonyms, and related terms — so a search for "Black Seed Oil" still finds notes titled "Nigella Sativa". Adds ~1s on the first matching question.
+          </div>
+        </span>
+      </label>
+    </div>
+
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="import-btn import-btn-primary" onclick="handleSaveLensConfig()">${isExternal ? 'Save + connect' : 'Save'}</button>
       ${connected ? '<button class="import-btn import-btn-secondary" onclick="handleClearLensCache()">Clear cache</button>' : ''}
@@ -551,6 +715,65 @@ export function renderCustomLensSection() {
 function _rerenderLensSection() {
   const section = document.getElementById('custom-lens-section');
   if (section) section.innerHTML = renderCustomLensSection();
+}
+
+// ─── Dedicated Knowledge Base modal ────────────────────────────
+//
+// KB lives in its own modal as of v1.3.24 — pulled out of Settings →
+// AI because it's conceptually distinct (your documents, your local
+// embeddings) from "which API answers chat questions". The dashboard
+// "Connect a knowledge base" CTA opens this directly. Same DOM IDs as
+// the previous in-Settings render path, so handleSaveLensConfig and
+// _loadLocalLensStats keep working without changes.
+export function openKnowledgeBaseModal() {
+  let overlay = document.getElementById('kb-modal-overlay');
+  let modal = document.getElementById('kb-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'kb-modal-overlay';
+    overlay.className = 'modal-overlay';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeKnowledgeBaseModal(); });
+  }
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'kb-modal';
+    modal.className = 'modal kb-modal';
+    overlay.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <button class="modal-close" onclick="closeKnowledgeBaseModal()" aria-label="Close">&times;</button>
+    <h3 style="display:flex;align-items:center;gap:8px;margin-top:0">
+      <span aria-hidden="true">&#128218;</span>
+      <span>Knowledge Base</span>
+    </h3>
+    <div class="settings-section" id="custom-lens-section">
+      ${renderCustomLensSection()}
+    </div>
+  `;
+  overlay.classList.add('show');
+  document.addEventListener('keydown', _kbModalKeydown);
+  // Hydrate stats async without blocking the open.
+  if (getLensConfig().backend === 'in-browser') {
+    _loadLocalLensStats().catch(() => {});
+  }
+  // Move focus into the modal so keyboard users land inside, not on
+  // the trigger button. Defer one tick so the .show class transition
+  // doesn't fight the focus call.
+  setTimeout(() => {
+    const firstFocusable = modal.querySelector('input:not([disabled]),button:not([disabled]),[tabindex="0"]');
+    firstFocusable?.focus();
+  }, 50);
+}
+
+export function closeKnowledgeBaseModal() {
+  const overlay = document.getElementById('kb-modal-overlay');
+  if (overlay) overlay.classList.remove('show');
+  document.removeEventListener('keydown', _kbModalKeydown);
+}
+
+function _kbModalKeydown(e) {
+  if (e.key === 'Escape') closeKnowledgeBaseModal();
 }
 
 // Update only the status chip without blowing away input fields
@@ -580,6 +803,7 @@ function _updateLensStatusChip() {
 export async function handleSaveLensConfig() {
   const topK = Math.max(1, Math.min(10, parseInt(document.getElementById('lens-topk-input')?.value, 10) || 5));
   const enabled = !!document.getElementById('lens-enabled-toggle')?.checked;
+  const multiQuery = !!document.getElementById('lens-multi-query-checkbox')?.checked;
   // Backend is set by the pill buttons via handleLensBackendChange and
   // persisted immediately — read it from config rather than DOM.
   const backend = getLensConfig().backend || 'in-browser';
@@ -588,7 +812,7 @@ export async function handleSaveLensConfig() {
     // On-device: display name is auto-derived from active library, not
     // a user-facing field anymore. Preserve whatever _loadLibraryPicker
     // last synced.
-    saveLensConfig({ enabled, topK, backend });
+    saveLensConfig({ enabled, topK, backend, multiQuery });
     _rerenderLensSection();
     _loadLocalLensStats();
     showNotification('Saved. Your documents stay on this device.', 'success');
@@ -608,7 +832,7 @@ export async function handleSaveLensConfig() {
   const key = (keyRaw === '••••••••') ? getLensKey() : keyRaw.trim();
   if (!key) { showNotification('Please enter an API key', 'error'); return; }
 
-  saveLensConfig({ name, url, enabled, topK, testProbe, backend });
+  saveLensConfig({ name, url, enabled, topK, testProbe, backend, multiQuery });
   if (keyRaw !== '••••••••') await saveLensKey(key);
 
   const result = await testLensConnection();
@@ -647,13 +871,24 @@ async function _getLocalLens() {
   return mod.openLocalLens();
 }
 
+// Module-level cache of the most recent in-browser lens stats. Used by
+// getLensSummary() so the dashboard's Knowledge Base row can render
+// synchronously without re-awaiting the worker on every paint. Refreshed
+// every time _loadLocalLensStats() runs successfully.
+let _lastLocalStats = null;
+
 async function _loadLocalLensStats() {
   const stats = document.getElementById('lens-local-stats');
   const list = document.getElementById('lens-local-doc-list');
-  if (!stats) return;
+  // Even when no Settings panel is open we still want the cache hot for
+  // the dashboard summary — keep going if the DOM nodes aren't present.
   try {
     const lens = await _getLocalLens();
     const s = await lens.getStats();
+    _lastLocalStats = s;
+    // Notify dashboard listeners that summary numbers may have changed.
+    updateLensStatus({});
+    if (!stats) return;
     if (s.total_chunks === 0) {
       stats.innerHTML = '<span style="color:var(--text-muted)">No documents indexed yet.</span>';
     } else {
@@ -670,8 +905,47 @@ async function _loadLocalLensStats() {
     if (list) list.innerHTML = _renderLocalDocList(s.documents);
     _attachLocalLensDropHandlers();
   } catch (e) {
-    stats.innerHTML = `<span style="color:#fbbf24">Failed to load stats: ${escapeHTML(e?.message || String(e))}</span>`;
+    if (stats) stats.innerHTML = `<span style="color:#fbbf24">Failed to load stats: ${escapeHTML(e?.message || String(e))}</span>`;
   }
+}
+
+// Synchronous summary used by the dashboard Knowledge Base row.
+// Returns enough to render a one-line status without awaiting the
+// worker. Numbers are best-effort — if no successful stats fetch has
+// happened yet, docCount/chunkCount come back as null and the caller
+// can render a softer "loading…" affordance.
+export function getLensSummary() {
+  const cfg = getLensConfig();
+  const configured = hasLens();
+  const aiAvailable = hasAIProvider();
+  const summary = {
+    configured,
+    backend: cfg.backend,
+    enabled: !!cfg.enabled,
+    multiQueryOn: configured && aiAvailable && cfg.multiQuery !== false,
+    aiAvailable,
+    displayName: '',
+    docCount: null,
+    chunkCount: null,
+  };
+  if (cfg.backend === 'in-browser') {
+    summary.displayName = (cfg.name || '').trim() || 'My Library';
+    // Only surface doc/chunk counts when there's actually a configured
+    // library — otherwise stale cache from a prior session would leak
+    // numbers into the dashboard's empty-state stub.
+    if (configured && _lastLocalStats) {
+      summary.docCount = Array.isArray(_lastLocalStats.documents) ? _lastLocalStats.documents.length : null;
+      summary.chunkCount = typeof _lastLocalStats.total_chunks === 'number' ? _lastLocalStats.total_chunks : null;
+    }
+  } else {
+    // external-server: take the user-named label, or fall back to the URL host
+    let label = (cfg.name || '').trim();
+    if (!label && cfg.url) {
+      try { label = new URL(cfg.url).host; } catch { label = cfg.url; }
+    }
+    summary.displayName = label || 'Knowledge Base';
+  }
+  return summary;
 }
 
 function _renderLocalDocList(docs) {
@@ -1210,7 +1484,8 @@ export function handleRemoveLens() {
 
 Object.assign(window, {
   getLensConfig, saveLensConfig, getLensKey, saveLensKey, removeLens,
-  hasLens, queryLens, buildLensSnippet, testLensConnection, clearLensCache,
+  hasLens, queryLens, queryLensMulti, buildLensSnippet, testLensConnection, clearLensCache,
+  openKnowledgeBaseModal, closeKnowledgeBaseModal,
   subscribeLensStatus, getLensStatus, isValidLensUrl,
   renderCustomLensSection, handleSaveLensConfig, handleToggleLens,
   handleClearLensCache, handleRemoveLens, updateLensIndicator,

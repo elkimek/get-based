@@ -16,7 +16,6 @@ getbased supports six AI backends for PDF import, chat, and dashboard AI feature
 | Manual entry | No |
 | JSON export / import | No |
 | Correlations, compare dates | No |
-| Marker glossary | No |
 
 All non-AI features work fully without any provider configured.
 

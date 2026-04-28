@@ -24,7 +24,7 @@ for (const fn of _emfFns) {
 import './pdf-import.js';
 import { ensureSNPTable, ensureHaplogroupTable } from './dna.js';
 import './wearables.js';
-import { initWearableScheduler, handleOAuthCallbackOnLoad } from './wearables-connect.js';
+import { initWearableScheduler, handleOAuthCallbackOnLoad, loadWearableRuntimeConfig } from './wearables-connect.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
 import './export.js';
 import './chat.js';
@@ -33,7 +33,6 @@ import './settings.js';
 import './lens.js';
 import './cashu-wallet.js';
 import './nostr-discovery.js';
-import './glossary.js';
 import './feedback.js';
 import './tour.js';
 import { maybeShowChangelog } from './changelog.js';
@@ -53,6 +52,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   initBroadcastChannel();
   // Initialize folder backup (restore persisted handle, check permission)
   await initFolderBackup();
+
+  // Self-host OAuth client_id overrides — fire-and-forget. Resolves before
+  // any user can click Connect (UI renders well after this microtask), so
+  // beginConnectOAuth() picks up the overridden client_id when present.
+  loadWearableRuntimeConfig();
 
   // Scheduled wearable sync (only fires when a source is connected)
   initWearableScheduler();
@@ -228,7 +232,7 @@ document.addEventListener("wheel", e => {
   const overlay = e.target.closest(".modal-overlay.show, .chat-backdrop.open");
   if (!overlay) return;
   // Allow scroll inside scrollable children (modal content, chat messages)
-  const scrollable = e.target.closest(".modal, .glossary-modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body");
+  const scrollable = e.target.closest(".modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body");
   if (scrollable) {
     const atTop = scrollable.scrollTop <= 0 && e.deltaY < 0;
     const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight && e.deltaY > 0;
@@ -253,7 +257,6 @@ document.addEventListener("click", e => {
   if (_mouseDownInsideModal) { _mouseDownInsideModal = false; return; }
   // Read-only modals — close on backdrop click
   if (e.target.id === "modal-overlay") { window.closeModal(); return; }
-  if (e.target.id === "glossary-modal-overlay") { window.closeGlossary(); return; }
   if (e.target.id === "changelog-modal-overlay") { window.closeChangelog(); return; }
   // Auto-save modals — close on backdrop click
   if (e.target.id === "settings-modal-overlay") { window.closeSettingsModal(); return; }
@@ -266,8 +269,9 @@ document.addEventListener("click", e => {
     else window.closeClientList();
     return;
   }
-  // Chat panel — nudge (mid-conversation)
-  if (e.target.id === "chat-backdrop") { const cp = document.getElementById("chat-panel"); if (cp) { cp.classList.add("modal-nudge"); cp.addEventListener("animationend", () => cp.classList.remove("modal-nudge"), { once: true }); } return; }
+  // Chat backdrop is now pointer-events: none (the dashboard stays
+  // interactive while chat is open) — clicks never reach it, so the
+  // legacy nudge handler is removed.
   const dd = document.getElementById("corr-options");
   const si = document.getElementById("corr-search");
   if (dd && si && !dd.contains(e.target) && e.target !== si) dd.classList.remove("show");
@@ -312,8 +316,6 @@ document.addEventListener("keydown", e => {
     if (clientListOverlay && clientListOverlay.classList.contains("show")) { window.closeClientList(); return; }
     const feedbackOverlay = document.getElementById("feedback-modal-overlay");
     if (feedbackOverlay && feedbackOverlay.classList.contains("show")) { window.closeFeedbackModal(); return; }
-    const glossaryOverlay = document.getElementById("glossary-modal-overlay");
-    if (glossaryOverlay && glossaryOverlay.classList.contains("show")) { window.closeGlossary(); return; }
     const settingsOverlay = document.getElementById("settings-modal-overlay");
     if (settingsOverlay && settingsOverlay.classList.contains("show")) { window.closeSettingsModal(); return; }
     const modalOverlay = document.getElementById("modal-overlay");
@@ -324,7 +326,7 @@ document.addEventListener("keydown", e => {
   // `.modal-overlay` — include them so Tab doesn't escape back to the page
   // while the modal is visible.
   if (e.key === "Tab") {
-    const overlayIds = ["client-list-overlay","changelog-modal-overlay","settings-modal-overlay","import-modal-overlay","glossary-modal-overlay","feedback-modal-overlay","sync-restore-overlay","sync-setup-overlay","modal-overlay"];
+    const overlayIds = ["client-list-overlay","changelog-modal-overlay","settings-modal-overlay","import-modal-overlay","feedback-modal-overlay","sync-restore-overlay","sync-setup-overlay","modal-overlay","kb-modal-overlay","ai-personalize-picker-overlay","data-protection-picker-overlay"];
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {

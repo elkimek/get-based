@@ -8,7 +8,7 @@ All your lab data, context cards, notes, supplements, and settings live in your 
 
 ## Encryption at Rest
 
-When you set a passphrase in **Settings → Security**, your data is encrypted before being written to localStorage using:
+You can enable encryption from **Settings → Data → Security**, or via the dashboard's **🛡 Protect your data** pill (which also offers Cross-device Sync and Auto-backup in the same picker). When you set a passphrase, your data is encrypted before being written to localStorage using:
 
 - **AES-256-GCM** — authenticated encryption that protects both confidentiality and integrity
 - **PBKDF2** key derivation — your passphrase is never stored directly; it is stretched into a cryptographic key

@@ -18,7 +18,7 @@ import {
 } from './chat-threads.js';
 import { onChatSaved } from './sync.js';
 import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
-import { hasLens, queryLens, updateLensIndicator } from './lens.js';
+import { hasLens, queryLens, queryLensMulti, updateLensIndicator } from './lens.js';
 import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 
 // ═══════════════════════════════════════════════
@@ -1511,12 +1511,39 @@ export function toggleChatPanel() {
   }
 }
 
+// Toggle the chat panel between its default side-rail width (560-1060px
+// depending on viewport) and full-viewport width. Mirrors the class on
+// <body> so the dashboard-auto-shift CSS can suppress the side-rail
+// padding when fullscreen takes over. Persists across sessions.
+export function toggleChatFullscreen() {
+  const panel = document.getElementById('chat-panel');
+  if (!panel) return;
+  const next = !panel.classList.contains('chat-panel-fullscreen');
+  panel.classList.toggle('chat-panel-fullscreen', next);
+  document.body.classList.toggle('chat-fullscreen', next);
+  localStorage.setItem('labcharts-chat-fullscreen', next ? 'true' : 'false');
+}
+
 export async function openChatPanel(prefillMessage) {
   const panel = document.getElementById('chat-panel');
   const backdrop = document.getElementById('chat-backdrop');
   panel.classList.add('open');
+  // Restore the user's last fullscreen preference. Persisted in
+  // localStorage so reopening chat keeps the mode they chose last.
+  // Use toggle(force) so previous-session state is fully overwritten —
+  // not just additive — when localStorage flips to false.
+  const fullscreen = localStorage.getItem('labcharts-chat-fullscreen') === 'true';
+  panel.classList.toggle('chat-panel-fullscreen', fullscreen);
+  // Body classes drive the dashboard auto-shift — `.chat-open` adds
+  // padding-right matching the chat panel's responsive width so the
+  // dashboard reflows instead of hiding behind the panel; `.chat-
+  // fullscreen` cancels the shift since fullscreen covers everything.
+  document.body.classList.add('chat-open');
+  document.body.classList.toggle('chat-fullscreen', fullscreen);
   backdrop.classList.add('open');
-  document.body.style.overflow = 'hidden';
+  // Backdrop is now pointer-events: none — opening chat no longer
+  // locks scrolling on the dashboard. Removed `body.style.overflow=hidden`
+  // (which would also break the dashboard's scroll affordance).
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.add('hidden');
   // Dismiss current nudge stage (but not 'profile' — user must complete the form)
@@ -1570,7 +1597,9 @@ function _updateChatInputState() {
 export function closeChatPanel() {
   document.getElementById('chat-panel').classList.remove('open');
   document.getElementById('chat-backdrop').classList.remove('open');
-  document.body.style.overflow = '';
+  // body.style.overflow no longer set on open (so nothing to restore)
+  // Drop the dashboard-shift body classes so the layout reflows back.
+  document.body.classList.remove('chat-open', 'chat-fullscreen');
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
 }
@@ -2019,7 +2048,7 @@ export async function sendChatMessage() {
     let labContext = buildLabContext();
     let _lensResultForMsg = null;
     if (hasLens()) {
-      const lensResult = await queryLens(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
+      const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
       if (lensResult) {
         labContext = injectLensChunks(labContext, lensResult);
         _lensResultForMsg = lensResult;
@@ -2418,7 +2447,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       let labContext = buildLabContext();
       let _lensResultForMsg = null;
       if (hasLens()) {
-        const lensResult = await queryLens(msgText, { signal: _chatAbortController.signal });
+        const lensResult = await queryLensMulti(msgText, { signal: _chatAbortController.signal });
         if (lensResult) {
           labContext = injectLensChunks(labContext, lensResult);
           _lensResultForMsg = lensResult;
@@ -2751,6 +2780,7 @@ function _resumeAI() {
 
 Object.assign(window, {
   _resumeAI,
+  toggleChatFullscreen,
   getChatStorageKey,
   getChatThreadsKey,
   getChatThreadKey,

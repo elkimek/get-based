@@ -74,7 +74,7 @@ return (async function() {
   console.log('%c[8] Touch Tap Targets', 'font-weight:bold');
   assert('pointer:coarse media query exists', css.includes('pointer: coarse'));
   assert('settings-btn min-width 44px for touch', css.includes('settings-btn') && css.includes('min-width: 44px'));
-  assert('glossary-btn min-width 44px for touch', css.includes('glossary-btn') && css.includes('min-width: 44px'));
+  assert('header-icon-btn min-width 44px for touch', css.includes('header-icon-btn') && css.includes('min-width: 44px'));
   assert('chat-fab 56px (above 44px touch target)', css.includes('.chat-fab') && css.includes('width: 56px; height: 56px'));
   assert('modal-close min-width 44px for touch', css.includes('modal-close') && css.includes('min-width: 44px'));
 

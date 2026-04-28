@@ -316,15 +316,6 @@ return (async function() {
   assert('askAIAboutMarker phase context', chatSource.includes('phaseLabels') && chatSource.includes('phase-specific'));
 
   // ═══════════════════════════════════════
-  // 16. glossary.js source inspection
-  // ═══════════════════════════════════════
-  console.log('Section 16: glossary.js source inspection');
-  const glossarySource = await fetchWithRetry('js/glossary.js');
-  assert('glossary.js imports getEffectiveRangeForDate', glossarySource.includes('getEffectiveRangeForDate'));
-  assert('glossary uses getEffectiveRangeForDate for latest status', glossarySource.includes('getEffectiveRangeForDate(marker, latestIdx)'));
-  assert('glossary still uses getEffectiveRange for ref display', glossarySource.includes('getEffectiveRange(marker)'));
-
-  // ═══════════════════════════════════════
   // 17. data.js countFlagged and getAllFlaggedMarkers
   // ═══════════════════════════════════════
   console.log('Section 17: countFlagged and getAllFlaggedMarkers');

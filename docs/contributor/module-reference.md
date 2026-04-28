@@ -376,10 +376,16 @@ Menstrual cycle tracking, helpers, and dashboard rendering.
 
 ### `context-cards.js`
 
-All 9 lifestyle context card editors plus AI health dots.
+All 9 lifestyle context card editors plus AI health dots, the Interpretive Lens / Knowledge Base dashboard rows, and the dashboard CTA pills.
 
 **Key exports:**
 - `renderProfileContextCards(data)` — renders the 3-column context card grid on the dashboard
+- `renderInterpretiveLensSection()` — renders the lens row (when set) + KB status row (when configured) + AI personalize CTA pill + Data protection CTA pill
+- `renderKnowledgeBaseSection()` — pure-render helper for the KB status row (returns `''` when no library configured)
+- `renderDataProtectionCta(stateOverride?)` — pure render of the data-protection pill; accepts an explicit state override for testability
+- `openPersonalizeAIPicker()` — 2-card picker (Lens / Knowledge Base) shown when both are unset
+- `openDataProtectionPicker()` — 3-card picker (Encryption / Sync / Auto-backup) with configured cards grayed out
+- `triggerDNAFilePicker()` — programmatic file input trigger that routes through `window.handleDNAFile`; used by the genetics empty-state stub
 - `loadContextHealthDots()` — async; fetches AI health ratings for stale cards (per-card fingerprint caching)
 - `getCardFingerprint(key)` — djb2 hash of lab data + card data + sex + DOB for cache invalidation
 - Per-card editor functions: `openDiagnosesEditor`, `openDietEditor`, `openExerciseEditor`, `openSleepEditor`, `openLightEditor`, `openStressEditor`, `openLoveLifeEditor`, `openEnvironmentEditor`, `openHealthGoalsEditor`
@@ -390,7 +396,7 @@ All 9 lifestyle context card editors plus AI health dots.
 - `debounceContextNotes()` — auto-saves the free-form context notes textarea
 - `recordChange(field)` — snapshots a context field and appends a timestamped entry to `importedData.changeHistory` (dedup: same-day overwrite, identical skip, 200 cap)
 
-**Window exports:** all open/save functions, `selectCtxOption`, `addCondition`, `deleteCondition`, `addGoal`, `deleteGoal`, `syncDiagnosesNote`, `openInterpretiveLensEditor`, `saveInterpretiveLens`
+**Window exports:** all open/save functions, `selectCtxOption`, `addCondition`, `deleteCondition`, `addGoal`, `deleteGoal`, `syncDiagnosesNote`, `openInterpretiveLensEditor`, `saveInterpretiveLens`, `renderKnowledgeBaseSection`, `openPersonalizeAIPicker`, `openDataProtectionPicker`, `triggerDNAFilePicker`
 
 ---
 
@@ -408,7 +414,7 @@ DNA raw data import: client-side parser, storage, dashboard section, AI context 
 - `saveGeneticsData(profileData, result)` — stores matched SNPs + APOE in `importedData.genetics`
 - `deleteGeneticsData(profileData)` — removes genetics data
 - `buildGeneticsContext(genetics, activeMarkerKeys)` — serializes genetics for AI context, filtered to SNPs relevant to active markers
-- `renderGeneticsSection()` — dashboard card with APOE + significant/moderate findings
+- `renderGeneticsSection()` — dashboard card with APOE + significant/moderate findings; returns an in-context "Add your DNA data" empty-state stub (wired to `triggerDNAFilePicker`) when no SNPs/mtDNA exist
 - `handleDNAFile(file)` — full import flow: parse → preview modal → confirm → save
 
 Supports: AncestryDNA (2-column alleles), 23andMe, MyHeritage, FTDNA, Living DNA. Genotype reversal handles strand ambiguity (CT ↔ TC).
@@ -481,20 +487,9 @@ Settings modal with 6 sections.
 - `initSettingsModelFetch()` — fetches model lists for all providers on modal open
 - `saveProfileSettings()` — saves sex, DOB, location from the Profile section
 - `setUnitSystem(system)` — `'EU'` | `'US'`
+- `showSyncSetupModal()` — opens the cross-device sync setup wizard directly (also reachable via `toggleSync` toggle); used by the dashboard data-protection picker
 
-**Window exports:** `openSettingsModal`, `closeSettingsModal`, `saveProfileSettings`, `setUnitSystem`, `setAIProvider`, `startTour`
-
----
-
-### `glossary.js`
-
-Searchable marker glossary modal.
-
-**Key exports:**
-- `openGlossaryModal()` / `closeGlossaryModal()`
-- `renderGlossary(data, query)` — renders all markers grouped by category, filtered by search query, with latest values and ref ranges
-
-**Window exports:** `openGlossaryModal`, `closeGlossaryModal`
+**Window exports:** `openSettingsModal`, `closeSettingsModal`, `saveProfileSettings`, `setUnitSystem`, `setAIProvider`, `startTour`, `showSyncSetupModal`
 
 ---
 
@@ -680,3 +675,59 @@ AI provider panel rendering for the settings modal. Extracted from `settings.js`
 - `renderProviderPanels()` — renders the AI provider configuration panels in the settings modal
 
 **Window exports:** none (imported by `settings.js`)
+
+---
+
+### `lens.js`
+
+Knowledge Base / Interpretive Lens — RAG endpoint config + multi-query rewrite + dedicated modal. Two backends under one UI: `'in-browser'` (transformers.js + OPFS via `lens-local.js`) and `'external-server'` (user-configured URL + Bearer key).
+
+**Key exports:**
+- `hasLens()` — true when a lens is configured AND has indexed content
+- `queryLens(hint, opts?)` — single-query retrieval; routes to in-browser worker or remote server based on backend
+- `queryLensMulti(hint, opts?)` — multi-query orchestrator: rewrites the query into N=3 paraphrases via the active LLM, fans out to `queryLens` for each, fuses results with reciprocal-rank scoring (k=60). Falls back to single-query when no AI provider, when rewrite fails, when query is <3 words, or when the toggle is off
+- `getLensConfig()` / `saveLensConfig(partial)` / `getLensKey()` / `saveLensKey(key)`
+- `getLensSummary()` — synchronous status object `{configured, backend, displayName, docCount, chunkCount, multiQueryOn, aiAvailable}` used by the dashboard KB row
+- `openKnowledgeBaseModal()` / `closeKnowledgeBaseModal()` — dedicated modal that wraps `renderCustomLensSection()`. Replaces the previous Settings → AI inline section
+- `buildLensSnippet(chunks, sourceName)` — formats retrieved chunks for AI prompt injection
+- `testLensConnection()` / `clearLensCache()`
+- `renderCustomLensSection()` — full settings markup (URL/key inputs, backend toggle, library picker, ingest UI, multi-query toggle); rendered inside the KB modal
+- `_resetRewriteCache()` / `_fuseChunksRRFForTest()` / `_dedupeQueriesForTest()` — test surface
+
+**Window exports:** `hasLens`, `queryLens`, `queryLensMulti`, `buildLensSnippet`, `testLensConnection`, `clearLensCache`, `openKnowledgeBaseModal`, `closeKnowledgeBaseModal`, plus all the in-modal save/toggle/library handlers
+
+---
+
+### `wearable-adapters.js`
+
+Canonical wearable-metric registry + per-vendor adapter registry. Source of truth for OAuth client IDs, redirect URIs, scopes, and metric → endpoint mappings.
+
+**Key exports:**
+- `ADAPTERS` — array of `{id, displayName, authType, oauth?, apiHost?, metrics, accountInfo?}` for the 8 supported sources (Oura / Withings / Ultrahuman / WHOOP / Fitbit / Polar / Apple Health / manual)
+- `CANONICAL_METRICS` — `{id: {label, sub, unit, worseWhen}}` for every metric the strip can render
+- `DEFAULT_METRIC_ORDER` — preferred order when multiple sources contribute
+- `adapterById(id)` / `visibleAdapters(connectedIds)` / `adapterSupportsMetric(adapterId, metricId)` / `metricsForSources(sourceIds)` / `canonicalMetric(id)`
+- `applyOAuthOverrides(map)` — merges a `{adapterId: clientId}` map into the runtime override store; called from `loadWearableRuntimeConfig()`
+- `getOAuthClientId(adapterOrId)` — returns the runtime override if set, falling back to the adapter's hardcoded `oauth.clientId`. Every consumer reads through this helper so self-host overrides apply uniformly
+- `_resetOAuthOverrides()` — test surface
+
+**Window exports:** none
+
+---
+
+### `wearables-connect.js`
+
+Connect/disconnect/backfill orchestration. OAuth dispatch table, scheduled stale-source sync, runtime config bootstrap.
+
+**Key exports:**
+- `OAUTH_DISPATCH` — `{adapterId: {begin, isCallback, complete, withFreshToken, fetchAccountInfo, fetchRange, displayName, postConnect?, commitAfterWrite?}}` — generic OAuth orchestration table
+- `beginConnectOAuth(adapterId)` — kicks off the auth flow; reads `clientId` via `getOAuthClientId(adapter)`
+- `handleOAuthCallbackOnLoad()` — runs in `main.js` init; reads `pending.clientId` from sessionStorage (set at begin time, NOT from runtime config)
+- `getConnection(adapterId)` / `listConnectedSources()` / `disconnectAdapter(adapterId)`
+- `syncNow(adapterId, opts?)` / `forceBackfill(adapterId, days)`
+- `initWearableScheduler()` — visibility-change + 6h interval poll; awaits `runtimeConfigReady()` before first sync to prevent race against override fetch
+- `loadWearableRuntimeConfig()` — POSTs `{wearable_runtime_config: true}` to `/api/proxy`, applies the returned `*_CLIENT_ID` overrides via `applyOAuthOverrides`. Memoized as a promise raced against a 1.5s soft timeout
+
+**Window exports:** none
+
+---

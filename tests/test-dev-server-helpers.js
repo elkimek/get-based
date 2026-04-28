@@ -16,7 +16,7 @@
 // These were extracted as exports so tests can import them without spinning
 // up the HTTP server (the server-side SSRF guard would be end-to-end work).
 
-import { parseEnvLocal, _proxyHostBlocked, _isAllowedProxyUrl, _resolveCatalogRepo, _runPostDeployHooks } from '../dev-server.js';
+import { parseEnvLocal, _proxyHostBlocked, _isAllowedProxyUrl, _resolveCatalogRepo, _runPostDeployHooks, collectWearableOverrides, WEARABLE_CLIENT_ID_VARS } from '../dev-server.js';
 
 let passed = 0, failed = 0;
 function assert(name, cond, detail) {
@@ -454,6 +454,59 @@ function gitTable(opts = {}) {
   assert('non-Vercel URL rejected before fetch',
     out.vercel?.skipped === true && /does not look like a Vercel/.test(out.vercel?.reason || ''),
     JSON.stringify(out.vercel));
+}
+
+console.log('\n── collectWearableOverrides (issue #145) ──');
+
+// Empty / missing env → empty overrides map
+{
+  assert('empty env yields empty overrides', JSON.stringify(collectWearableOverrides({})) === '{}');
+  assert('null env yields empty overrides', JSON.stringify(collectWearableOverrides(null)) === '{}');
+  assert('non-object env yields empty overrides', JSON.stringify(collectWearableOverrides('nope')) === '{}');
+}
+
+// Single override picked up, others skipped
+{
+  const out = collectWearableOverrides({ OURA_CLIENT_ID: 'oura-self-123' });
+  assert('single override surfaces under adapter id', out.oura === 'oura-self-123');
+  assert('absent vars do not appear in overrides', !('withings' in out) && !('whoop' in out));
+}
+
+// Whitespace handling — empty/whitespace dropped, real values trimmed
+{
+  const out = collectWearableOverrides({
+    OURA_CLIENT_ID: '   ',
+    WITHINGS_CLIENT_ID: '',
+    POLAR_CLIENT_ID: '  polar-self-xyz  ',
+  });
+  assert('whitespace-only override is dropped', !('oura' in out));
+  assert('empty-string override is dropped', !('withings' in out));
+  assert('override values are trimmed', out.polar === 'polar-self-xyz');
+}
+
+// Non-string values rejected
+{
+  const out = collectWearableOverrides({ FITBIT_CLIENT_ID: 12345, WHOOP_CLIENT_ID: { foo: 'bar' } });
+  assert('non-string env value is dropped', !('fitbit' in out) && !('whoop' in out));
+}
+
+// All six adapters covered — guards against typo regressions
+{
+  const env = {
+    OURA_CLIENT_ID: 'a', WITHINGS_CLIENT_ID: 'b', ULTRAHUMAN_CLIENT_ID: 'c',
+    POLAR_CLIENT_ID: 'd', WHOOP_CLIENT_ID: 'e', FITBIT_CLIENT_ID: 'f',
+  };
+  const out = collectWearableOverrides(env);
+  const ids = Object.keys(out).sort();
+  assert('all six adapters mapped', ids.join(',') === 'fitbit,oura,polar,ultrahuman,whoop,withings');
+}
+
+// Var/adapter pairing matches what api/proxy.js mirrors
+{
+  const expected = ['OURA_CLIENT_ID', 'WITHINGS_CLIENT_ID', 'ULTRAHUMAN_CLIENT_ID',
+    'POLAR_CLIENT_ID', 'WHOOP_CLIENT_ID', 'FITBIT_CLIENT_ID'].sort();
+  const got = WEARABLE_CLIENT_ID_VARS.map(([k]) => k).sort();
+  assert('WEARABLE_CLIENT_ID_VARS exposes the same six env vars', JSON.stringify(got) === JSON.stringify(expected));
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);

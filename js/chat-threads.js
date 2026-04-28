@@ -264,8 +264,8 @@ export function renderThreadList(filter) {
         <span>${t.messageCount} msg${t.messageCount !== 1 ? 's' : ''}</span>
       </div>
       <div class="chat-thread-item-actions">
-        <button class="chat-thread-item-action" onclick="event.stopPropagation();renameThreadPrompt('${escapeHTML(t.id)}')" title="Rename">&#9998;</button>
-        <button class="chat-thread-item-action delete" onclick="event.stopPropagation();deleteThread('${escapeHTML(t.id)}')" title="Delete">&#10005;</button>
+        <button class="chat-thread-item-action" onclick="event.stopPropagation();renameThreadPrompt('${escapeHTML(t.id)}')" title="Rename" aria-label="Rename thread">&#9998;</button>
+        <button class="chat-thread-item-action delete" onclick="event.stopPropagation();deleteThread('${escapeHTML(t.id)}')" title="Delete" aria-label="Delete thread">&#10005;</button>
       </div>
     </div>`;
   }).join('');

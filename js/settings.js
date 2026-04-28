@@ -107,7 +107,6 @@ export function openSettingsModal(tab) {
 
       <div class="settings-group-title">Resources</div>
       <div class="settings-links-row">
-        <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>openGlossary(),300)">Marker Glossary</button>
         <a href="/docs" class="settings-link-btn">Documentation</a>
         <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>startTour(false),300)">Guided Tour</button>
         <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>openChangelog(true),300)">What's New</button>
@@ -153,12 +152,6 @@ export function openSettingsModal(tab) {
             <span class="toggle-slider"></span>
           </label>
         </div>
-      </div>
-
-      <div class="settings-group-title">Knowledge Base</div>
-
-      <div class="settings-section" id="custom-lens-section">
-        ${window.renderCustomLensSection ? window.renderCustomLensSection() : ''}
       </div>
 
       <div class="settings-group-title">AI Usage</div>
@@ -560,7 +553,7 @@ async function toggleSync(enabled) {
   }
 }
 
-function showSyncSetupModal() {
+export function showSyncSetupModal() {
   let overlay = document.getElementById('sync-setup-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -1031,7 +1024,7 @@ function regenerateMessengerToken() {
   if (el) el.innerHTML = renderMessengerSection();
 }
 
-Object.assign(window, { toggleSync, toggleMnemonicVisibility, copyMnemonic, showMnemonicRestore, doMnemonicRestore, openRestoreMnemonicDialog, closeRestoreMnemonicDialog, confirmRestoreMnemonic, saveSyncRelay, closeSyncSetup, syncSetupNew, syncSetupRestore, syncSetupBack, syncSetupDoRestore, syncSetupDone, toggleMessenger, toggleMessengerToken, copyMessengerToken, regenerateMessengerToken });
+Object.assign(window, { toggleSync, toggleMnemonicVisibility, copyMnemonic, showMnemonicRestore, doMnemonicRestore, openRestoreMnemonicDialog, closeRestoreMnemonicDialog, confirmRestoreMnemonic, saveSyncRelay, closeSyncSetup, syncSetupNew, syncSetupRestore, syncSetupBack, syncSetupDoRestore, syncSetupDone, showSyncSetupModal, toggleMessenger, toggleMessengerToken, copyMessengerToken, regenerateMessengerToken });
 
 
 export function renderDataEntriesSection() {

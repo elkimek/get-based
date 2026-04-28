@@ -402,7 +402,20 @@ export function renderGeneticsSection() {
   const genetics = state.importedData.genetics;
   const hasSnps = genetics && genetics.snps && Object.keys(genetics.snps).length > 0;
   const hasMtdna = genetics && genetics.mtdna;
-  if (!hasSnps && !hasMtdna) return '';
+  // Empty-state CTA: lives in the natural conceptual slot (where genetics
+  // *would* render) so users who skipped or never saw the chat onboarding
+  // DNA step have an in-context path back. Below the fold on first paint
+  // but appears for any user scrolling past supplements/charts.
+  if (!hasSnps && !hasMtdna) {
+    return `<div class="genetics-empty-stub" onclick="triggerDNAFilePicker()" role="button" tabindex="0" aria-label="Add DNA data" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+      <span class="genetics-empty-stub-icon" aria-hidden="true">&#129516;</span>
+      <span class="genetics-empty-stub-body">
+        <span class="genetics-empty-stub-title">Add your DNA data</span>
+        <span class="genetics-empty-stub-sub">Upload raw data from Ancestry, 23andMe, MyHeritage, FTDNA, or Living DNA — AI factors your variants into every lab interpretation. Files stay on this device.</span>
+      </span>
+      <span class="genetics-empty-stub-arrow" aria-hidden="true">&rarr;</span>
+    </div>`;
+  }
   if (hasSnps && !_snpTable) {
     loadSNPTable().then(() => { if (window.navigate) window.navigate('dashboard'); });
     return '';
@@ -458,7 +471,7 @@ export function renderGeneticsSection() {
   if (latestDate) metaParts.push(latestDate);
 
   let html = `<div class="dashboard-section genetics-section" id="genetics-section">
-    <div class="section-header" onclick="toggleGeneticsCollapse()" style="cursor:pointer">
+    <div class="section-header" role="button" tabindex="0" aria-label="Expand or collapse genetics section" onclick="toggleGeneticsCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" style="cursor:pointer">
       <span>\uD83E\uDDEC Genetics</span>
       <span class="section-meta">${metaParts.join(' \u00B7 ')}
         <span class="genetics-collapse-arrow${collapsed ? ' collapsed' : ''}">\u25BE</span></span>
@@ -627,7 +640,7 @@ function showDNAImportPreview(result, fileName) {
   function renderCollapsedGroup(items, label) {
     if (items.length === 0) return '';
     return `<div class="dna-preview-group">
-      <div class="dna-preview-group-title dna-preview-collapsible" onclick="this.parentElement.classList.toggle('expanded')">
+      <div class="dna-preview-group-title dna-preview-collapsible" role="button" tabindex="0" onclick="this.parentElement.classList.toggle('expanded')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.parentElement.classList.toggle('expanded')}">
         ${label} (${items.length}) <span class="dna-preview-expand-hint">show</span>
       </div>
       <div class="dna-preview-collapsed-items">

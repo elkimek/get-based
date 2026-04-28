@@ -215,7 +215,7 @@ function _renderClientRow(p, activeId) {
     </div>
     <div class="cl-row-actions" onclick="event.stopPropagation()">
       <button class="cl-row-edit" onclick="openClientForm('${escapeAttr(p.id)}')" title="Edit">Edit</button>
-      <button class="cl-row-menu-btn" onclick="window._clToggleMenu(event, '${escapeAttr(p.id)}')" title="More">&ctdot;</button>
+      <button class="cl-row-menu-btn" onclick="window._clToggleMenu(event, '${escapeAttr(p.id)}')" title="More" aria-label="More actions">&ctdot;</button>
     </div>
   </div>`;
 }

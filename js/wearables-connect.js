@@ -6,7 +6,7 @@
 
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
-import { adapterById } from './wearable-adapters.js';
+import { adapterById, applyOAuthOverrides, getOAuthClientId } from './wearable-adapters.js';
 import { upsertDailyBatch, clearSource, setMeta, getMeta, deleteMeta, countSource } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { fetchOuraDailyRange, fetchOuraPersonalInfo, daysAgoIso, isoDay } from './wearables-oura.js';
@@ -93,7 +93,7 @@ export function beginConnectOAuth(adapterId) {
   const kick = OAUTH_DISPATCH[adapter.id]?.begin;
   if (!kick) throw new Error(`Unsupported OAuth adapter: ${adapter.id}`);
   kick({
-    clientId: adapter.oauth.clientId,
+    clientId: getOAuthClientId(adapter),
     registeredUris: adapter.oauth.redirectUris,
     scopes: adapter.oauth.scopes,
   });
@@ -272,7 +272,7 @@ async function callWithRefresh(adapter, fetcher) {
   if (!disp) throw new Error(`No auth dispatch for ${adapter.id}`);
   const wft = disp.withFreshToken;
 
-  conn = await wft(conn, adapter.oauth.clientId, async (updated) => {
+  conn = await wft(conn, getOAuthClientId(adapter), async (updated) => {
     saveConnection(adapter.id, updated);
   }, () => getConnection(adapter.id)).catch(async e => {
     if (e?.code === 'needs-reauth' || e?.status === 400 || e?.status === 401) {
@@ -287,7 +287,7 @@ async function callWithRefresh(adapter, fetcher) {
   } catch (e) {
     if (e?.status !== 401) throw e;
     const forced = { ...conn, expiresAt: 0 };
-    const refreshed = await wft(forced, adapter.oauth.clientId, async (u) => saveConnection(adapter.id, u), () => getConnection(adapter.id));
+    const refreshed = await wft(forced, getOAuthClientId(adapter), async (u) => saveConnection(adapter.id, u), () => getConnection(adapter.id));
     return fetcher(refreshed.accessToken);
   }
 }
@@ -507,6 +507,11 @@ let _pollTimer = null;
 let _schedulerInstalled = false;
 
 async function maybeSyncStaleSources() {
+  // Wait for the runtime-config fetch (or its 1.5s timeout) so a self-hoster's
+  // first scheduled refresh doesn't race the override and call the token
+  // endpoint with a stale (hardcoded maintainer) clientId. Hosted users see
+  // a no-op since the promise resolves immediately to {} overrides.
+  await runtimeConfigReady();
   const sources = getConnections();
   const now = Date.now();
   for (const [sid, conn] of Object.entries(sources)) {
@@ -530,4 +535,51 @@ export function initWearableScheduler() {
   });
   _pollTimer = setInterval(maybeSyncStaleSources, POLL_INTERVAL_MS);
   window.addEventListener('beforeunload', () => { if (_pollTimer) clearInterval(_pollTimer); });
+}
+
+// ─────────────────────────────────────────────────────────
+// Runtime config (self-host OAuth client_id overrides)
+// ─────────────────────────────────────────────────────────
+//
+// Fired once from main.js, then awaited by the scheduler so its first
+// refresh attempt sees the override map (rather than racing against an
+// unresolved fetch and hitting `invalid_client` with the maintainer's
+// clientId paired with the self-hoster's secret).
+//
+// Bounded by RUNTIME_CONFIG_TIMEOUT_MS so a slow / down /api/proxy can't
+// stall the scheduler indefinitely — on timeout we fall back to whatever
+// the adapter registry has hardcoded (i.e. the hosted-user behavior).
+
+const RUNTIME_CONFIG_TIMEOUT_MS = 1500;
+let _runtimeConfigPromise = null;
+
+export function loadWearableRuntimeConfig() {
+  if (_runtimeConfigPromise) return _runtimeConfigPromise;
+  const fetchPromise = (async () => {
+    try {
+      const res = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wearable_runtime_config: true }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.overrides) applyOAuthOverrides(data.overrides);
+    } catch { /* offline / proxy missing — silently fall back to hardcoded */ }
+  })();
+  // Race the fetch against a soft timeout so the scheduler never blocks
+  // longer than RUNTIME_CONFIG_TIMEOUT_MS, even if the network never
+  // resolves. The fetch itself continues in the background — if it lands
+  // after the timeout, applyOAuthOverrides still runs and the *next*
+  // visibilitychange / poll-interval sync picks up the override.
+  const timeoutPromise = new Promise(resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS));
+  _runtimeConfigPromise = Promise.race([fetchPromise, timeoutPromise]);
+  return _runtimeConfigPromise;
+}
+
+// Used by the scheduler to gate its first sync. If main.js skipped the
+// bootstrap call (test contexts, embedded usage), this resolves promptly
+// so the scheduler isn't blocked forever.
+function runtimeConfigReady() {
+  return _runtimeConfigPromise || Promise.resolve();
 }

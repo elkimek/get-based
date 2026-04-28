@@ -50,7 +50,7 @@ Under the hood this uses **RAG** (Retrieval-Augmented Generation) — a techniqu
 Think of it like a research assistant: you ask a question, they pull the most relevant pages from your library, and the AI reads those pages before answering.
 :::
 
-There are two backends to choose from in **Settings → AI → Knowledge Base**:
+There are two backends to choose from in **the dashboard's "Connect a knowledge base" CTA (or click the 📚 row once configured)**:
 
 ### On this device (in-browser)
 
@@ -60,7 +60,13 @@ Good for: typical use — a few dozen to a few hundred documents. No install, no
 
 **Model choice per library.** When you create a new library, a small dialog shows four embedding models side by side — MiniLM (22 MB, fast), BGE-small-en (33 MB, better English retrieval), Multilingual-E5 (40 MB, 100+ languages), and BGE-base-en (110 MB, highest English quality). getbased benchmarks your device on first load and pre-selects the strongest model that runs smoothly on your hardware. The model is **locked at library creation** — switching later would mean re-indexing every document, so the decision is made upfront. Existing libraries from before v1.21.4 continue to use MiniLM; no forced migration.
 
-**While indexing:** a small progress pill appears bottom-right. You can close Settings and keep using the app — indexing runs in the background and the pill tracks it from anywhere. Click **Cancel** on the pill to stop at the next excerpt; anything already indexed stays in the library, so a 3-minute run that you cancel early isn't wasted. Large batches (several hundred files) can take 10+ minutes on the in-browser engine; if that's your workflow, consider the external-server backend below.
+**While indexing:** a small progress pill appears bottom-right. You can close the panel and keep using the app — indexing runs in the background and the pill tracks it from anywhere. Click **Cancel** on the pill to stop at the next excerpt; anything already indexed stays in the library, so a 3-minute run that you cancel early isn't wasted. Large batches (several hundred files) can take 10+ minutes on the in-browser engine; if that's your workflow, consider the external-server backend below.
+
+### Query rewriting (recall booster)
+
+When you have an AI provider configured, the Knowledge Base optionally rephrases each chat question into 3 variants before searching, then merges the results. This closes the vocabulary gap between how you write your notes and how you ask questions later — a search for *"Black Seed Oil"* will also find notes titled *"Nigella Sativa"*; *"insulin sensitivity"* pulls in *"metabolic flexibility"*.
+
+The toggle lives in the Knowledge Base panel as **"Improve recall with query rewriting"** (default ON). It uses your configured AI provider for the rewrite step, so the cost is whatever your provider charges for ~100 tokens per question. Repeat questions in the same session use cached rewrites. Turn it off if you want pure local search or want to skip the small first-question latency cost.
 
 ### External server
 
@@ -135,7 +141,7 @@ After the installer (or manual install) finishes, open the dashboard — the ins
 
 1. Dashboard → **Knowledge** tab — create a library, drop your files in, wait for indexing.
 2. Dashboard → **MCP** → **Environment** → copy the `LENS_API_KEY`.
-3. In the app: **Settings → AI → Knowledge Base → External server**.
+3. In the app: **the dashboard's "Connect a knowledge base" CTA (or click the 📚 row once configured) → External server**.
 4. Toggle **Enable Knowledge Source**, enter a display name (e.g., *Functional Medicine Library*), paste the API key.
 5. Endpoint URL defaults to `http://127.0.0.1:8322/query` — leave it alone for a local install, or point at an HTTPS endpoint if you're hosting the server elsewhere.
 6. Set how many passages to retrieve per query (1–10, default 5).

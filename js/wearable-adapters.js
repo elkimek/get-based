@@ -432,6 +432,42 @@ export function adapterById(id) {
   return ADAPTERS.find(a => a.id === id) || null;
 }
 
+// ─────────────────────────────────────────────────────────
+// OAuth client_id runtime overrides (self-host support)
+// ─────────────────────────────────────────────────────────
+//
+// The clientId baked into each adapter above is the maintainer's OAuth app
+// (registered for *.getbased.health). Self-hosters who run their own Oura /
+// Withings / Polar / etc. apps need their own client_id to match their own
+// client_secret — otherwise the provider returns invalid_client.
+//
+// The browser asks /api/proxy for a `wearable_runtime_config` map at startup;
+// dev-server.js + api/proxy.js read OURA_CLIENT_ID / WITHINGS_CLIENT_ID / …
+// from env and surface them here. Missing entries fall back to the hardcoded
+// maintainer values, so hosted users see no change.
+
+const _oauthOverrides = Object.create(null);
+
+export function applyOAuthOverrides(overrides) {
+  if (!overrides || typeof overrides !== 'object') return;
+  for (const [id, clientId] of Object.entries(overrides)) {
+    if (typeof clientId === 'string' && clientId.trim()) {
+      _oauthOverrides[id] = clientId.trim();
+    }
+  }
+}
+
+export function getOAuthClientId(adapterOrId) {
+  const adapter = typeof adapterOrId === 'string' ? adapterById(adapterOrId) : adapterOrId;
+  if (!adapter) return null;
+  return _oauthOverrides[adapter.id] || adapter.oauth?.clientId || null;
+}
+
+// Test/debug surface — never relied on by production code paths.
+export function _resetOAuthOverrides() {
+  for (const k of Object.keys(_oauthOverrides)) delete _oauthOverrides[k];
+}
+
 // Filter the registry for the Settings → Wearables list. Hides any adapter
 // flagged `betaHidden` unless either: (a) the maintainer escape hatch is set,
 // or (b) the adapter is already in `connectedIds` (so existing connections

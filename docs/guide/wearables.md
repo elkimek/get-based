@@ -89,6 +89,30 @@ For the "as of {date}" hint that sometimes appears on a card: it means that metr
 - **Apple Health import is slow** — the XML can be 100 MB+ for multi-year history. Parsing happens in-browser; expect 30–60 seconds for large exports.
 - **WHOOP / Ultrahuman not in the list** — both are hidden until production OAuth credentials are validated. Watch the changelog. Maintainers can un-hide locally with `localStorage.setItem('labcharts-show-beta-wearables', 'true')` and reload.
 
+## Self-hosting
+
+If you self-host getbased (running `node dev-server.js` on your own host, or deploying your own fork to Vercel), the OAuth `client_id` values bundled with `js/wearable-adapters.js` belong to the maintainer's apps — they are registered for `*.getbased.health` redirect URIs only and will return `invalid_client` from the provider when paired with your own `*_CLIENT_SECRET`.
+
+To run any OAuth-based wearable on a self-hosted install, register your own OAuth app with each provider and add the matching `*_CLIENT_ID` to `.env.local` (or to your Vercel project's environment variables for hosted forks):
+
+```bash
+# Required when self-hosting any of these
+OURA_CLIENT_ID=
+WITHINGS_CLIENT_ID=
+ULTRAHUMAN_CLIENT_ID=
+POLAR_CLIENT_ID=
+FITBIT_CLIENT_ID=     # PKCE — no secret needed, but client_id still required
+WHOOP_CLIENT_ID=      # PKCE — no secret needed, but client_id still required
+```
+
+The matching `*_CLIENT_SECRET` values for the four confidential clients (Oura, Withings, Ultrahuman, Polar) go in the same `.env.local`. WHOOP and Fitbit use PKCE, so no secret is needed — only the `client_id`.
+
+Each provider's developer portal expects you to register the redirect URI you'll actually use, character-for-character — typically `http://localhost:8000/app` for local dev plus your production hostname (e.g. `https://your-host.example/app`). The hardcoded defaults inside `js/wearable-adapters.js` (`https://app.getbased.health/`, etc.) are for the maintainer's deployment; your own redirect URIs need to be registered in each portal separately.
+
+When the env values are set, the browser fetches them from `/api/proxy` at startup and uses your `client_id` for both the authorize URL and the token exchange. When unset (the default), the hardcoded maintainer values are used and hosted users see no change.
+
+Apple Health is file-import only — no credentials, no portal registration. It works the same way on every self-hosted install.
+
 ## Beta status
 
 The five live integrations are in beta. Please report issues on [GitHub](https://github.com/elkimek/get-based/issues) or in the [Discord](https://discord.gg/zJdVB9zgQB). WHOOP and Ultrahuman code paths exist and are tested but hidden from the connect list until partner credentials are validated.

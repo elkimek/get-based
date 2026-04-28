@@ -50,7 +50,6 @@ js/
   cashu-wallet.js   — In-app Cashu eCash wallet: BIP-39 seed, IndexedDB proofs, Lightning fund/withdraw
   nostr-discovery.js — Nostr relay queries for Routstr nodes (Kind 38421), health checks, caching
   settings.js       — Settings modal: profile, display, AI providers, privacy, security
-  glossary.js       — Marker glossary modal
   feedback.js       — Feedback modal (bug reports, feature requests)
   tour.js           — Guided tour spotlight engine (app tour + cycle tour)
   nav.js            — Sidebar, date range filter, chart layers dropdown
@@ -103,7 +102,7 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  L5 — Feature Modules                                               │
-│  pdf-import.js  export.js  chat.js  settings.js  glossary.js       │
+│  pdf-import.js  export.js  chat.js  settings.js                     │
 │  feedback.js    nav.js                                              │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │

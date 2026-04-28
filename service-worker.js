@@ -47,7 +47,6 @@ const APP_SHELL = [
   '/js/export.js',
   '/js/chat.js',
   '/js/settings.js',
-  '/js/glossary.js',
   '/js/feedback.js',
   '/js/tour.js',
   '/js/changelog.js',

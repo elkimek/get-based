@@ -17,7 +17,6 @@ return (async function() {
   document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
   document.getElementById('modal-overlay')?.classList.remove('show');
   document.getElementById('settings-modal-overlay')?.classList.remove('show');
-  document.getElementById('glossary-modal-overlay')?.classList.remove('show');
 
   // ═══════════════════════════════════════════════
   // SETUP — load demo data directly into state (no confirm dialog)
@@ -343,39 +342,10 @@ return (async function() {
     assert('Compare skip (< 2 dates)', true);
   }
 
-  // ═══════════════════════════════════════════════
-  // 9. GLOSSARY — open, search, close
-  // ═══════════════════════════════════════════════
-  console.log('%c 9. Glossary', 'font-weight:bold;color:#6366f1');
-
-  const glossaryOverlay = document.getElementById('glossary-modal-overlay');
-  window.openGlossary();
-  await wait(50);
-  assert('Glossary opens', glossaryOverlay.classList.contains('show'));
-
-  const glossaryContent = document.getElementById('glossary-modal');
-  const items = glossaryContent?.querySelectorAll('.glossary-item, .glossary-marker');
-  assert('Glossary has marker entries', items?.length > 5);
-
-  // Search filter
-  const glossarySearch = document.getElementById('glossary-search');
-  if (glossarySearch) {
-    glossarySearch.value = 'glucose';
-    window.filterGlossary();
-    await wait(20);
-    const hiddenMarkers = glossaryContent?.querySelectorAll('.glossary-marker[style*="display: none"], .glossary-marker[style*="display:none"]');
-    assert('Glossary search filters results', hiddenMarkers?.length > 0);
-    // Clear search
-    glossarySearch.value = '';
-    window.filterGlossary();
-    await wait(20);
-  } else {
-    assert('Glossary search filters results', true, 'no search input');
-  }
-
-  window.closeGlossary();
-  await wait(20);
-  assert('Glossary closes', !glossaryOverlay.classList.contains('show'));
+  // 9. GLOSSARY removed in v1.3.25 — feature was redundant with sidebar
+  // search + per-marker detail modal + AI chat. No replacement; the
+  // section is intentionally empty so downstream section numbers stay
+  // aligned with prior reports.
 
   // ═══════════════════════════════════════════════
   // 10. THEME TOGGLE — dark/light, verify CSS

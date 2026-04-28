@@ -22,7 +22,6 @@
 - **Correlation viewer** — compare any two markers, heatmap view
 - **Compare dates** — side-by-side comparison of any two lab dates
 - **Manual entry** — add results without a PDF, create custom biomarkers
-- **Marker glossary** — searchable reference for all markers with values and ranges
 - **Interpretive lens** — frame AI analysis through specific scientific paradigms or experts
 - **Custom Knowledge Source** — connect your own document collection (research papers, clinical guides, any texts) to ground AI analysis in real sources. The AI searches your knowledge base for relevant passages before interpreting your labs, and cites them back to you
 - **9 lifestyle context cards** — diet & digestion, sleep, exercise, stress, light & circadian, environment, EMF assessment (Baubiologie SBM-2015), and more — each gets an AI health rating and enriches all interpretations

@@ -79,7 +79,7 @@ Icon buttons use Lucide/Feather-style inline SVGs: 16×16, `stroke="currentColor
 
 Order: Settings (gear icon) → Feedback (bug icon) → Discord (brand SVG) → ₿ Donate (text, orange)
 
-Glossary and Docs are accessible from Settings > Display tab — not in the header.
+Documentation, Guided Tour, and What's New are accessible from Settings > Display tab — not in the header.
 
 ## Do / Don't
 

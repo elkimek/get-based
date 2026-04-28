@@ -19,10 +19,16 @@ No AI provider is needed for DNA import — the file is parsed locally.
 
 ## How to Import
 
-1. Open the getbased dashboard
-2. Drop your DNA file onto the page (or use the import button and select the file)
-3. Review the **import preview** — SNPs are grouped by impact level
-4. Click **Import** to save
+There are three entry points:
+
+- **Dashboard CTA** — when no DNA is imported yet, the Genetics section on the dashboard shows an *"🧬 Add your DNA data"* card. Click it to open a file picker.
+- **Drop the file anywhere** on the dashboard
+- **Chat onboarding** — first-time users see a DNA prompt during the chat-driven onboarding wizard
+
+Then:
+
+1. Review the **import preview** — SNPs are grouped by impact level
+2. Click **Import** to save
 
 The file is processed entirely in your browser using a Web Worker. Your DNA data is never transmitted anywhere.
 

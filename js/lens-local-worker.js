@@ -366,7 +366,12 @@ async function _benchmarkEmbedder() {
   const sorted = timings.slice().sort((a, b) => a - b);
   const msPerEmbed = sorted[Math.floor(sorted.length / 2)];
   let tier, tierLabel;
-  if (msPerEmbed < 30) {
+  // Tier-3 cutoff lifted from 30ms → 50ms (v1.3.23): the original band only
+  // recommended BGE-base on the fastest 10-15% of devices, but modern
+  // laptops (M-series, Ryzen 7000+, recent Intel) sit comfortably in the
+  // 30-50ms range and run BGE-base without trouble. Recall lift on jargon
+  // / synonym queries is significant; ingest stays sub-second per chunk.
+  if (msPerEmbed < 50) {
     tier = 3;
     tierLabel = 'recent HW — larger model viable';
   } else if (msPerEmbed < 150) {

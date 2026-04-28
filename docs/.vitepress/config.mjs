@@ -54,7 +54,6 @@ export default defineConfig({
             { text: 'Compare Dates', link: '/guide/compare-dates' },
             { text: 'Heatmap', link: '/guide/heatmap' },
             { text: 'Correlations', link: '/guide/correlations' },
-            { text: 'Glossary', link: '/guide/glossary' },
             { text: 'Guided Tour', link: '/guide/tour' }
           ]
         },
