@@ -120,6 +120,13 @@ function getOxidativeStressFindings() {
   return findings;
 }
 
+function buildOxidativeStressPromptBlock() {
+  const findings = getOxidativeStressFindings();
+  if (findings.length === 0) return '';
+  const lines = findings.map(f => `- ${f.gene} ${f.variant} (${f.genotype}, ${f.effect}): ${f.note}`);
+  return `\n\nUSER'S OXIDATIVE-STRESS GENETICS (informational context, not a clinical predictor):\n${lines.join('\n')}\n\nThese variants affect glutathione conjugation, mitochondrial superoxide dismutation, peroxide clearance, quinone reduction, and extracellular antioxidant localization. EMF research suggests these pathways are biologically engaged (Yakymenko 2016 meta-analysis on RF-induced oxidative stress), but no SNP here is a validated EMF-tolerance predictor. Use this as one factor among many when prioritizing mitigations — for example, NQO1 Ser/Ser raises the importance of avoiding smoke/exhaust co-exposures, and PON1 Q/Q does the same for organophosphate pesticides — but DO NOT frame any genotype as causing or predicting EHS.`;
+}
+
 function renderOxidativeStressPanel(assessment) {
   const findings = getOxidativeStressFindings();
   if (findings.length === 0) return '';
@@ -844,7 +851,9 @@ function stripThinking(text) {
   return text.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<think>[\s\S]*$/, '').trim();
 }
 
-const EMF_SYSTEM = `You are a Baubiologie (Building Biology) consultant interpreting EMF assessment data rated against SBM-2015 standards. Be specific about health implications, prioritize concerns by severity (sleeping areas are most critical), and suggest actionable mitigations in priority order. Keep the response concise and practical. Use markdown formatting with headers and bullet points.`;
+const EMF_SYSTEM = `You are a Baubiologie (Building Biology) consultant interpreting EMF assessment data rated against SBM-2015 standards. Be specific about health implications, prioritize concerns by severity (sleeping areas are most critical), and suggest actionable mitigations in priority order. Keep the response concise and practical. Use markdown formatting with headers and bullet points.
+
+If the user's prompt includes a "USER'S OXIDATIVE-STRESS GENETICS" block, treat it strictly as informational context that may influence which mitigations to prioritize first (e.g. NQO1 Ser/Ser raises the importance of separating sleeping areas from gas appliances and traffic exhaust; PON1 Q/Q raises the importance of pesticide-free indoor environments). Do NOT claim any genotype causes or predicts electromagnetic hypersensitivity (EHS) — there is no validated genetic test for EHS. Do NOT make supplement recommendations from genotype alone.`;
 
 function openInterpretationModal(title, existingInterp, onGenerate, onSave, mitigationTags = []) {
   // Create overlay that sits on top of the EMF editor (z-index above modal-overlay)
@@ -1053,7 +1062,7 @@ export function interpretEMFAssessment(assessmentId) {
   const tags = _collectMitigationTags(a);
 
   openInterpretationModal(title, a.interpretation, (onSave) => {
-    const prompt = `Interpret this Baubiologie EMF assessment. Identify the most concerning readings, explain health implications (especially for sleeping areas), and recommend specific mitigations in priority order.\n\n${data}`;
+    const prompt = `Interpret this Baubiologie EMF assessment. Identify the most concerning readings, explain health implications (especially for sleeping areas), and recommend specific mitigations in priority order.\n\n${data}${buildOxidativeStressPromptBlock()}`;
     streamInterpretation(prompt, (interp) => {
       a.interpretation = interp;
       saveImportedData();
@@ -1076,7 +1085,7 @@ export function interpretEMFComparison() {
   for (const t of tags) { if (!seen.has(t)) { seen.add(t); dedup.push(t); } }
 
   openInterpretationModal(title, emf.comparisonInterpretation, (onSave) => {
-    const prompt = `Compare these two Baubiologie EMF assessments (before and after). Evaluate what improved, what worsened, and what still needs attention. Prioritize remaining concerns and suggest next steps.\n\nBEFORE:\n${before}\nAFTER:\n${after}`;
+    const prompt = `Compare these two Baubiologie EMF assessments (before and after). Evaluate what improved, what worsened, and what still needs attention. Prioritize remaining concerns and suggest next steps.\n\nBEFORE:\n${before}\nAFTER:\n${after}${buildOxidativeStressPromptBlock()}`;
     streamInterpretation(prompt, (interp) => {
       emf.comparisonInterpretation = interp;
       saveImportedData();

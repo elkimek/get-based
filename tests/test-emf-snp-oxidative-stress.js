@@ -100,6 +100,13 @@ return (async function() {
   assert('emf.js disclaimer rejects "EMF susceptibility" framing', /not EMF-specific predictions/i.test(emfSrc));
   assert('emf.js disclaimer clarifies De Luca finding was GSTM1+GSTT1 deletions, not surfaced SNPs', /GSTM1\+GSTT1|not for any SNP shown above/i.test(emfSrc));
 
+  // emf.js wires genetics into the EMF AI interpretation prompt
+  assert('emf.js defines buildOxidativeStressPromptBlock', /function\s+buildOxidativeStressPromptBlock\s*\(/.test(emfSrc));
+  assert('emf.js appends genetics block to single-assessment interpretation prompt', /\$\{data\}\$\{buildOxidativeStressPromptBlock\(\)\}/.test(emfSrc));
+  assert('emf.js appends genetics block to comparison interpretation prompt', /\$\{after\}\$\{buildOxidativeStressPromptBlock\(\)\}/.test(emfSrc));
+  assert('EMF_SYSTEM tells the AI not to claim genotype causes EHS', /no validated genetic test for EHS|do NOT claim any genotype causes/i.test(emfSrc));
+  assert('EMF_SYSTEM tells the AI not to push supplements from genotype', /Do NOT make supplement recommendations from genotype/i.test(emfSrc));
+
   // Sanity: the 3 strong-evidence SNPs we kept have at least one genotype with
   // effect: 'significant' or 'moderate' so they actually surface in the panel
   // (the panel filters out 'effect: none').
