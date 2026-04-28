@@ -116,6 +116,102 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
+  // 6. Behavioral tests — invoke the helpers with realistic state and
+  //    verify the rendered output (not just that the source compiles).
+  // ═══════════════════════════════════════
+  console.log('%c 6. Behavioral — render output ', 'font-weight:bold;color:#f59e0b');
+
+  // Module under test exposes its internals via the _internal object for tests
+  const emfMod = await import('../js/emf.js');
+  const stateMod = await import('../js/state.js');
+  assert('emf.js exposes _internal test surface', !!emfMod._internal && typeof emfMod._internal.renderOxidativeStressPanel === 'function');
+
+  // Snapshot any pre-existing state so we can restore it after each scenario
+  const savedGenetics = stateMod.state.importedData?.genetics;
+  const savedSnpCache = window._snpTableCache;
+  if (!stateMod.state.importedData) stateMod.state.importedData = {};
+  window._snpTableCache = snpTable;
+
+  // Helper: mock a single-room assessment with a measurement at the given severity.
+  // rfMicrowave thresholds (sleeping room, SBM-2015): 0.1 µW/m² green, 10 µW/m² yellow,
+  // 1000 µW/m² orange, 10000 µW/m² red.
+  function makeAssessment(rfValue) {
+    return { id: 'test_emf', date: '2026-04-28', label: 'test', rooms: [{ name: 'Bedroom', sleeping: true, measurements: { rfMicrowave: { value: rfValue, unit: 'uW/m2' } } }] };
+  }
+
+  // ── Scenario 1: PON1 Q/Q + NQO1 Ser/Ser + yellow assessment → both surface in panel
+  stateMod.state.importedData.genetics = {
+    snps: {
+      rs662: { genotype: 'AA', gene: 'PON1', variant: 'Q192R' },
+      rs1800566: { genotype: 'TT', gene: 'NQO1', variant: 'Pro187Ser (C609T)' }
+    }
+  };
+  const html_yellow = emfMod._internal.renderOxidativeStressPanel(makeAssessment(50));
+  assert('Yellow assessment + PON1 AA renders panel containing PON1', /PON1/.test(html_yellow));
+  assert('Yellow assessment + NQO1 TT renders panel containing NQO1', /NQO1/.test(html_yellow));
+  assert('Panel contains the disclaimer link to De Luca PMID 24812443', /24812443/.test(html_yellow));
+  assert('Panel cites Yakymenko PMID 26151230', /26151230/.test(html_yellow));
+  assert('Panel uses honest "pathway" tier badge (not "direct")', /pathway/.test(html_yellow) && !/emf-gen-tier-direct/.test(html_yellow));
+
+  // ── Scenario 2: green-only assessment → panel hidden
+  const html_green = emfMod._internal.renderOxidativeStressPanel(makeAssessment(0.05));
+  assert('Green-only assessment hides the panel', html_green === '');
+
+  // ── Scenario 3: no DNA imported → panel hidden + prompt block empty
+  stateMod.state.importedData.genetics = null;
+  const html_noDna = emfMod._internal.renderOxidativeStressPanel(makeAssessment(50));
+  assert('No DNA imported → panel hidden', html_noDna === '');
+  const prompt_noDna = emfMod._internal.buildOxidativeStressPromptBlock();
+  assert('No DNA imported → prompt block is empty string', prompt_noDna === '');
+
+  // ── Scenario 4: DNA imported but no oxidativeStress findings (e.g. only methylation SNPs) → hidden
+  stateMod.state.importedData.genetics = {
+    snps: { rs1801133: { genotype: 'AA', gene: 'MTHFR', variant: 'C677T' } }
+  };
+  const html_noOxStress = emfMod._internal.renderOxidativeStressPanel(makeAssessment(50));
+  assert('DNA imported but no oxidativeStress findings → panel hidden', html_noOxStress === '');
+
+  // ── Scenario 5: DNA + findings → AI prompt block includes the genetics
+  stateMod.state.importedData.genetics = {
+    snps: { rs662: { genotype: 'AA', gene: 'PON1', variant: 'Q192R' } }
+  };
+  const prompt_withGenetics = emfMod._internal.buildOxidativeStressPromptBlock();
+  assert('Prompt block includes PON1 gene name', prompt_withGenetics.includes('PON1'));
+  assert('Prompt block includes the genotype', prompt_withGenetics.includes('AA'));
+  assert('Prompt block includes the EHS guardrail', /DO NOT frame any genotype as causing or predicting EHS/i.test(prompt_withGenetics));
+  assert('Prompt block includes Yakymenko reference', /Yakymenko/i.test(prompt_withGenetics));
+
+  // ── Scenario 6: getOxidativeStressFindings sorts by effect severity
+  stateMod.state.importedData.genetics = {
+    snps: {
+      rs662: { genotype: 'AG', gene: 'PON1', variant: 'Q192R' },        // mild
+      rs1800566: { genotype: 'TT', gene: 'NQO1', variant: 'Pro187Ser' } // significant
+    }
+  };
+  const findings = emfMod._internal.getOxidativeStressFindings();
+  assert('Findings sorted by severity (significant before mild)', findings.length === 2 && findings[0].effect === 'significant' && findings[1].effect === 'mild');
+
+  // ── Scenario 7: 'none' effect genotypes filtered out of findings + panel
+  stateMod.state.importedData.genetics = {
+    snps: { rs1799895: { genotype: 'CC', gene: 'SOD3', variant: 'R213G' } } // CC is "none" for SOD3
+  };
+  const findings_none = emfMod._internal.getOxidativeStressFindings();
+  assert("Effect='none' genotypes are filtered out of findings", findings_none.length === 0);
+  const html_none = emfMod._internal.renderOxidativeStressPanel(makeAssessment(50));
+  assert("Effect='none'-only DNA → panel hidden", html_none === '');
+
+  // ── Scenario 8: Strand-flip — user's stored genotype is "GA" but table is keyed "AG"
+  stateMod.state.importedData.genetics = {
+    snps: { rs662: { genotype: 'GA', gene: 'PON1', variant: 'Q192R' } }
+  };
+  const findings_flip = emfMod._internal.getOxidativeStressFindings();
+  assert('Strand-flipped genotype (GA→AG) still resolves to a finding', findings_flip.length === 1);
+
+  // Restore state we mutated
+  stateMod.state.importedData.genetics = savedGenetics;
+  window._snpTableCache = savedSnpCache;
+
+  // ═══════════════════════════════════════
   // 5. CSS styles registered
   // ═══════════════════════════════════════
   console.log('%c 5. CSS styles ', 'font-weight:bold;color:#f59e0b');

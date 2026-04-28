@@ -120,6 +120,14 @@ function getOxidativeStressFindings() {
   return findings;
 }
 
+// Test surface — these helpers are exported for behavioral tests in
+// tests/test-emf-snp-oxidative-stress.js. Not part of the public API.
+export const _internal = {
+  getOxidativeStressFindings: () => getOxidativeStressFindings(),
+  renderOxidativeStressPanel: (a) => renderOxidativeStressPanel(a),
+  buildOxidativeStressPromptBlock: () => buildOxidativeStressPromptBlock()
+};
+
 function buildOxidativeStressPromptBlock() {
   const findings = getOxidativeStressFindings();
   if (findings.length === 0) return '';
