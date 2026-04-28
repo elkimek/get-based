@@ -22,8 +22,8 @@ return (async function() {
   assert('De Luca cited in _meta sources', snpTable._meta.sources.some(s => /De Luca/i.test(s)));
   assert('oxidativeStressNote present', typeof snpTable._meta.oxidativeStressNote === 'string' && snpTable._meta.oxidativeStressNote.length > 100);
 
-  // The four new SNPs
-  const newRsids = ['rs1695', 'rs4880', 'rs1001179', 'rs1800566'];
+  // The eight oxidativeStress SNPs (4 original + 4 added in v1.5.1)
+  const newRsids = ['rs1695', 'rs4880', 'rs1001179', 'rs1800566', 'rs1050450', 'rs662', 'rs6721961', 'rs1799895'];
   for (const rsid of newRsids) {
     assert(`${rsid} present`, !!snpTable[rsid], snpTable[rsid] ? snpTable[rsid].gene : 'missing');
     assert(`${rsid} category=oxidativeStress`, snpTable[rsid]?.category === 'oxidativeStress');
@@ -46,6 +46,14 @@ return (async function() {
   assert('CAT cites Forsberg 2001 (PMID 11182520)', (snpTable.rs1001179?.references || []).some(r => r.includes('11182520')));
   // NQO1 → Siegel 2001 PMID 11160862
   assert('NQO1 cites Siegel 2001 (PMID 11160862)', (snpTable.rs1800566?.references || []).some(r => r.includes('11160862')));
+  // GPX1 → Hamanishi 2004 PMID 15331559
+  assert('GPX1 cites Hamanishi 2004 (PMID 15331559)', (snpTable.rs1050450?.references || []).some(r => r.includes('15331559')));
+  // PON1 → Humbert 1993 PMID 8098250
+  assert('PON1 cites Humbert 1993 (PMID 8098250)', (snpTable.rs662?.references || []).some(r => r.includes('8098250')));
+  // NFE2L2 → Marczak 2012 PMID 22668754
+  assert('NFE2L2 cites Marczak 2012 (PMID 22668754)', (snpTable.rs6721961?.references || []).some(r => r.includes('22668754')));
+  // SOD3 → Bowler 2014 PMID 25085920
+  assert('SOD3 cites Bowler 2014 (PMID 25085920)', (snpTable.rs1799895?.references || []).some(r => r.includes('25085920')));
 
   // Negative assertions — make sure the previous hallucinated PMIDs are gone everywhere
   const allRefs = JSON.stringify(snpTable);
