@@ -1,0 +1,21 @@
+#AncestryDNA raw data download
+#This file contains synthetic DNA data for testing the oxidative-stress
+#SNP feature in getbased. NOT real human DNA. The genotypes below are
+#deliberately set to the "interesting" allele combinations so reviewers
+#can verify the feature surfaces correctly without needing real DNA.
+#
+#Synthetic test set:
+#  - rs662     PON1   AA  (Q/Q homozygous)  → Env Tips: organophosphate avoidance
+#  - rs1800566 NQO1   TT  (Ser/Ser)         → Env Tips: benzene/smoke avoidance
+#  - rs1799895 SOD3   CG  (R213G het)       → Genetics + EMF panel only
+#  - rs1801133 MTHFR  AA  (677TT homozyg.)  → Env Tips: methylfolate hint
+#  - rs1800562 HFE    GA  (C282Y het)       → Env Tips: avoid iron supps
+#
+#Tab-separated: rsid	chromosome	position	allele1	allele2
+#
+rsid	chromosome	position	allele1	allele2
+rs662	7	95308134	A	A
+rs1800566	16	69745145	T	T
+rs1799895	4	24796156	C	G
+rs1801133	1	11856378	A	A
+rs1800562	6	26093141	G	A

@@ -207,6 +207,95 @@ return (async function() {
   const findings_flip = emfMod._internal.getOxidativeStressFindings();
   assert('Strand-flipped genotype (GA→AG) still resolves to a finding', findings_flip.length === 1);
 
+  // ═══════════════════════════════════════
+  // 7. End-to-end — Environment card Tips modal renders envHints
+  //    Exercises the actual renderCardTipsModal path that the user hits
+  //    when clicking the 💡 lightbulb badge on the Environment card.
+  // ═══════════════════════════════════════
+  console.log('%c 7. End-to-end — Environment Tips modal ', 'font-weight:bold;color:#f59e0b');
+
+  const recsMod = await import('../js/recommendations.js');
+  await recsMod.loadCatalog();
+  // Product recs default-on (isProductRecsEnabled() returns true unless explicitly 'false').
+  // No need to flip the toggle.
+
+  // Scenario A: PON1 Q/Q + NQO1 Ser/Ser → both envHints surface in Environment Tips
+  stateMod.state.importedData.genetics = {
+    snps: {
+      rs662: { genotype: 'AA', gene: 'PON1', variant: 'Q192R' },
+      rs1800566: { genotype: 'TT', gene: 'NQO1', variant: 'Pro187Ser (C609T)' }
+    }
+  };
+  const envTips = recsMod.renderCardTipsModal('environment');
+  assert('Env Tips: PON1 surfaces', /PON1/.test(envTips));
+  assert('Env Tips: NQO1 surfaces', /NQO1/.test(envTips));
+  assert('Env Tips: PON1 envHint mentions organophosphate / pesticide', /organophosphate|pesticid/i.test(envTips));
+  assert('Env Tips: NQO1 envHint mentions benzene / smoke / exhaust', /benzene|smoke|exhaust/i.test(envTips));
+  // Avoidance hints render with the warning icon class
+  assert('Env Tips: avoidance hints use ctx-tip-avoid class', /ctx-tip-avoid/.test(envTips));
+
+  // Scenario B: PON1 Q/R (heterozygous, no envHint) → does NOT surface in Env Tips
+  stateMod.state.importedData.genetics = {
+    snps: { rs662: { genotype: 'AG', gene: 'PON1', variant: 'Q192R' } }
+  };
+  const envTips_het = recsMod.renderCardTipsModal('environment');
+  assert('Env Tips: PON1 Q/R (no envHint) does NOT surface PON1 in Your Genetics section', !/PON1.*Q\/R|PON1.*AG/.test(envTips_het));
+
+  // Scenario C: SOD3 R/G — no envHint defined → does NOT surface in Env Tips
+  // (intentional: tissue-localization, no clean environment-specific advice)
+  stateMod.state.importedData.genetics = {
+    snps: { rs1799895: { genotype: 'CG', gene: 'SOD3', variant: 'R213G' } }
+  };
+  const envTips_sod3 = recsMod.renderCardTipsModal('environment');
+  assert('Env Tips: SOD3 (no envHint, deliberately) does NOT surface', !/SOD3/.test(envTips_sod3));
+
+  // Scenario D: existing MTHFR C677T (TT) cross-link to environment surfaces in Env Tips
+  stateMod.state.importedData.genetics = {
+    snps: { rs1801133: { genotype: 'AA', gene: 'MTHFR', variant: 'C677T' } }
+  };
+  const envTips_mthfr = recsMod.renderCardTipsModal('environment');
+  assert('Env Tips: MTHFR cross-link surfaces (existing snpHint + new contextCards entry)', /MTHFR/.test(envTips_mthfr));
+
+  // ═══════════════════════════════════════
+  // 8. End-to-end parser — synthetic DNA file feeds the whole pipeline
+  //    Verifies the test fixture data/test-dna-oxidative-stress.txt
+  //    parses through the real Ancestry parser → produces the genotypes
+  //    we expect → render functions then surface the right hints.
+  //    This is the closest we get to "drop the file in the app and click around"
+  //    without needing Puppeteer DOM interactions.
+  // ═══════════════════════════════════════
+  console.log('%c 8. End-to-end — synthetic DNA fixture pipeline ', 'font-weight:bold;color:#f59e0b');
+
+  const dnaMod = await import('../js/dna.js');
+  const fixtureText = await fetch('data/test-dna-oxidative-stress.txt').then(r => r.text());
+  // The parser expects a File-like object, so wrap the fixture text in a Blob
+  const fixtureBlob = new File([fixtureText], 'test-dna-oxidative-stress.txt', { type: 'text/plain' });
+  const parseResult = await dnaMod.parseDNAFile(fixtureBlob);
+  assert('Synthetic DNA file detected as ancestry format', parseResult.source === 'AncestryDNA');
+  assert('Parser found rs662 (PON1)', !!parseResult.matches?.rs662, parseResult.matches?.rs662?.genotype);
+  assert('Parser found rs1800566 (NQO1)', !!parseResult.matches?.rs1800566);
+  assert('Parser found rs1799895 (SOD3)', !!parseResult.matches?.rs1799895);
+  assert('Parser found rs1801133 (MTHFR)', !!parseResult.matches?.rs1801133);
+  assert('Parser found rs1800562 (HFE C282Y)', !!parseResult.matches?.rs1800562);
+  assert('PON1 genotype is AA (Q/Q)', parseResult.matches?.rs662?.genotype === 'AA');
+  assert('NQO1 genotype is TT (Ser/Ser)', parseResult.matches?.rs1800566?.genotype === 'TT');
+
+  // Wire the parsed result into state and verify the full render pipeline produces
+  // the right HTML — same path as if a user dropped the fixture into the app.
+  stateMod.state.importedData.genetics = { snps: parseResult.matches, source: 'AncestryDNA (test fixture)' };
+  const e2e_emfPanel = emfMod._internal.renderOxidativeStressPanel(makeAssessment(50));
+  assert('E2E: EMF panel surfaces PON1 from fixture', /PON1/.test(e2e_emfPanel));
+  assert('E2E: EMF panel surfaces NQO1 from fixture', /NQO1/.test(e2e_emfPanel));
+  assert('E2E: EMF panel surfaces SOD3 from fixture', /SOD3/.test(e2e_emfPanel));
+  const e2e_envTips = recsMod.renderCardTipsModal('environment');
+  assert('E2E: Env Tips surface PON1 envHint from fixture', /PON1/.test(e2e_envTips) && /pesticid|organophosphate/i.test(e2e_envTips));
+  assert('E2E: Env Tips surface NQO1 envHint from fixture', /NQO1/.test(e2e_envTips) && /benzene|smoke/i.test(e2e_envTips));
+  assert('E2E: Env Tips surface MTHFR cross-link from fixture', /MTHFR/.test(e2e_envTips));
+  assert('E2E: Env Tips surface HFE C282Y cross-link from fixture', /HFE/.test(e2e_envTips));
+  assert('E2E: Env Tips do NOT surface SOD3 (no envHint, deliberately)', !/SOD3/.test(e2e_envTips));
+  const e2e_aiPrompt = emfMod._internal.buildOxidativeStressPromptBlock();
+  assert('E2E: EMF AI prompt includes all 3 oxidativeStress findings from fixture', /PON1/.test(e2e_aiPrompt) && /NQO1/.test(e2e_aiPrompt) && /SOD3/.test(e2e_aiPrompt));
+
   // Restore state we mutated
   stateMod.state.importedData.genetics = savedGenetics;
   window._snpTableCache = savedSnpCache;
