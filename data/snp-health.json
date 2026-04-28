@@ -973,8 +973,8 @@
     "references": ["https://pubmed.ncbi.nlm.nih.gov/25085920/", "https://pubmed.ncbi.nlm.nih.gov/26151230/"],
     "genotypes": {
       "CC": { "effect": "none", "note": "Standard EC-SOD; properly anchored to vascular and lung extracellular matrix via heparin-binding domain" },
-      "CG": { "effect": "moderate", "note": "R/G: disrupted heparin-binding domain redistributes EC-SOD from tissue matrix into plasma (10–30× higher plasma levels). Enzyme activity unchanged; localization shifted. Paradoxical risk profile — protective in some lung-injury contexts, increases cardiovascular risk in others (PMID 25085920)." },
-      "GG": { "effect": "moderate", "note": "Rare homozygous G/G: pronounced EC-SOD redistribution. Vascular and lung matrix are depleted of antioxidant protection while plasma levels are very high. Generally associated with elevated cardiovascular risk." }
+      "CG": { "effect": "moderate", "note": "R/G: variant disrupts the heparin-binding domain that normally anchors EC-SOD to the lung and vascular extracellular matrix. Bowler 2014 (PMID 25085920) showed in knockin mice that the redistribution shifts EC-SOD from lung and vascular tissue into extracellular fluid (plasma, BAL). Catalytic activity per molecule is unchanged — only localization shifts. Paradoxical risk profile: reduced susceptibility to LPS-induced lung injury, but increased susceptibility to chronic hypoxic pulmonary hypertension." },
+      "GG": { "effect": "moderate", "note": "Rare homozygous G/G: pronounced EC-SOD redistribution from tissue matrix to plasma. Vascular and lung matrix depleted of antioxidant protection. Generally associated with elevated cardiovascular risk in human cohorts." }
     }
   }
 }
