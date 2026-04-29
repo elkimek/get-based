@@ -676,6 +676,15 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
     ctx += `[section:contextNotes]\n## Additional Context Notes\n${ctxNotes.trim()}\n[/section:contextNotes]\n\n`;
   }
 
+  // ── 19. Light & Sun lens (always tier — ~520 tokens when sessions exist) ──
+  // Present in every chat once the user has logged any sun sessions. Standard
+  // and deep tiers are surfaced via tool calls or explicit chat-side flags.
+  if (typeof window !== 'undefined' && typeof window.buildSunContext === 'function') {
+    try {
+      ctx += window.buildSunContext({ tier: 'always' });
+    } catch (e) { /* sun context is best-effort */ }
+  }
+
   return ctx;
 }
 

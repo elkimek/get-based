@@ -29,6 +29,7 @@ import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js'
 import './sun-uvdata.js';
 import './sun-spectrum.js';
 import './sun.js';
+import './sun-context.js';
 import './export.js';
 import './chat.js';
 import './image-utils.js';
