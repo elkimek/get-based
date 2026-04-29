@@ -5499,6 +5499,19 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .glass-result strong { color: var(--text-primary); }
 
+/* Eye-level audit room list */
+.audit-status {
+  margin-top: 8px; padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary);
+}
+.audit-room-list {
+  padding-left: 24px;
+  font-size: 13px;
+}
+
 /* Detailed session modal — body silhouette + extra fields */
 .sun-detailed-modal { max-width: 640px; }
 .sun-detailed-grid {

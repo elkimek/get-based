@@ -742,6 +742,109 @@ export function openSunriseLogger() {
   });
 }
 
+// ─── Tool 8: Eye-Level Audit (10-min walkthrough) ─────────────────────
+
+let _auditState = { running: false, stream: null, samples: [] };
+
+export async function openEyeLevelAudit() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Eye-level audit">
+    <div class="modal-header">
+      <h3>Eye-Level Audit</h3>
+      <button class="modal-close" onclick="window._closeAudit()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Walk through your home holding the phone at eye level. Pause briefly in each room (~5–10 seconds). Press Done when finished — we'll surface a per-room mini-report.</p>
+      <div class="audit-status" id="audit-status">Press Start when ready.</div>
+      <ol class="audit-room-list" id="audit-room-list" style="margin-top:12px;list-style:decimal inside;color:var(--text-secondary)"></ol>
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="import-btn import-btn-secondary" onclick="window._closeAudit()">Cancel</button>
+        <button class="import-btn import-btn-primary" id="audit-toggle">Start audit</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const statusEl = overlay.querySelector('#audit-status');
+  const listEl = overlay.querySelector('#audit-room-list');
+  const toggleBtn = overlay.querySelector('#audit-toggle');
+  let pauseDetections = [];
+
+  toggleBtn.addEventListener('click', async () => {
+    if (!_auditState.running) {
+      // Start
+      _auditState.running = true;
+      _auditState.samples = [];
+      pauseDetections = [];
+      toggleBtn.textContent = 'Done';
+      statusEl.textContent = 'Recording… walk through each room you spend time in. Pause for ~5 seconds in each.';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 160, height: 120 } });
+        _auditState.stream = stream;
+        const video = document.createElement('video');
+        video.srcObject = stream; video.muted = true; video.playsInline = true;
+        await video.play();
+        const canvas = document.createElement('canvas');
+        canvas.width = 32; canvas.height = 24;
+        const ctx = canvas.getContext('2d');
+        let lastSampleLuma = null;
+        let pauseStart = null;
+        const tick = async () => {
+          if (!_auditState.running) return;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          let sum = 0;
+          for (let i = 0; i < data.length; i += 4) sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+          const luma = sum / (data.length / 4);
+          const t = performance.now();
+          _auditState.samples.push({ t, luma });
+          // Pause detection: low variance over 5s
+          if (lastSampleLuma != null && Math.abs(luma - lastSampleLuma) < 5) {
+            if (!pauseStart) pauseStart = t;
+            else if (t - pauseStart > 5000) {
+              // Mark a pause snapshot
+              const lux = Math.max(0, luma * 40 * loadLuxCalibration());
+              pauseDetections.push({ at: t, luma, lux });
+              listEl.innerHTML = pauseDetections.map((p, i) => `<li>Room ${i + 1}: ~${Math.round(p.lux)} lux</li>`).join('');
+              pauseStart = null; // reset until movement
+            }
+          } else {
+            pauseStart = null;
+          }
+          lastSampleLuma = luma;
+          if (_auditState.running) setTimeout(tick, 250);
+        };
+        tick();
+      } catch (e) {
+        statusEl.textContent = 'Camera access denied — audit unavailable.';
+        _auditState.running = false;
+      }
+    } else {
+      // Stop
+      _auditState.running = false;
+      if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
+      // Save detections as one bulk measurement
+      if (pauseDetections.length > 0) {
+        await saveMeasurement('audit', pauseDetections.length, {
+          confidence: 0.5,
+          extra: { rooms: pauseDetections.map((p, i) => ({ index: i + 1, lux: p.lux })) },
+        });
+        showNotification(`Audit saved · ${pauseDetections.length} room snapshots.`);
+      } else {
+        showNotification('No room pauses detected — try holding still longer next time.');
+      }
+      window._closeAudit();
+    }
+  });
+
+  window._closeAudit = () => {
+    _auditState.running = false;
+    if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
+    overlay.remove();
+  };
+}
+
 // ─── Tools page render ────────────────────────────────────────────────
 
 export function renderLightTools() {
@@ -784,6 +887,11 @@ export function renderLightTools() {
         <div class="light-tool-name">Golden hour log</div>
         <div class="light-tool-desc">Quick log for sunrise / sunset sessions.</div>
       </button>
+      <button class="light-tool-card" onclick="window.openEyeLevelAudit()">
+        <div class="light-tool-icon">🚶</div>
+        <div class="light-tool-name">Home audit (10 min)</div>
+        <div class="light-tool-desc">Walk through, pause in each room. Get a per-room snapshot.</div>
+      </button>
     </div>
   </div>`;
 }
@@ -797,6 +905,7 @@ if (typeof window !== 'undefined') {
     openSpectrumClassifier,
     openGlassTransmission,
     openSunriseLogger,
+    openEyeLevelAudit,
     getMeasurements,
     saveMeasurement,
     deleteMeasurement,
