@@ -1835,6 +1835,7 @@ details[open] > .cl-archived-header::before { content: '\25BE '; }
   transition: transform 0.15s, box-shadow 0.15s, color 0.15s, border-color 0.15s;
 }
 .import-fab:hover { transform: scale(1.08); color: var(--accent); border-color: var(--accent); box-shadow: 0 4px 20px rgba(79,140,255,0.2); }
+.import-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .import-fab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .import-fab.hidden { display: none; }
 .import-status-fab {

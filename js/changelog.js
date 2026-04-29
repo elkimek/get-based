@@ -5,6 +5,23 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.5.0', date: '2026-04-29', title: 'Audit, bugfixes & improvements',
+    items: [
+      '<b>Security hardening.</b> The PDF importer was bumped to a current release that closes a known font-handling vulnerability — a malicious lab report could otherwise have run code in the page. AI-supplied marker keys from PDF import are now validated against a strict format before they touch your data. The OpenRouter login carries a CSRF state parameter, and every wearable OAuth callback (Oura / Withings / Ultrahuman / Polar / WHOOP / Fitbit) rejects any pending request older than 10 minutes.',
+      '<b>Cross-device sync is more reliable when you switch profiles.</b> A race that could drop a pending push when you saved on profile A then jumped to profile B has been fixed — both profiles now sync independently.',
+      '<b>Wearable data shows up in chat right after you sync.</b> The AI context cache now invalidates when wearable summaries change, so a fresh sync no longer replays stale numbers in the next question. Knowledge Base recall improved too — the query cache now genuinely behaves LRU instead of evicting hot questions.',
+      '<b>Offline first-launch is fixed.</b> Installing the PWA and going offline no longer breaks chat or the Knowledge Base — the modules they need are now precached.',
+      '<b>Wearable connect: cleaner failure mode</b> if the auth response is missing the user id (Polar). The half-connected entry is now removed instead of stranding sync in a "needs reauth" loop. Profile-swap during the OAuth callback is also caught — the connection no longer lands in the wrong profile.',
+      '<b>Long perimenopause cycles</b> (60–90 days) are no longer truncated to 45. The auto-derived cycle length adapts to your real average instead of clamping it short.',
+      '<b>Streaming responses are more robust.</b> The final chunk of a streamed AI reply is no longer dropped if the server closes without a trailing newline; genuine parse errors mid-stream now surface instead of getting swallowed.',
+      '<b>Biological age now requires hs-CRP, not standard CRP.</b> The two assays have very different detection ranges — silent substitution was corrupting age estimates for users whose panel only included standard CRP.',
+      '<b>Corrupt profile recovery.</b> If your profile data ever gets corrupted (browser crash mid-write, etc.), the app now preserves the original bytes for recovery instead of silently substituting an empty profile.',
+      '<b>Accessibility everywhere.</b> Every clickable card on the dashboard — chart cards, trend alerts, critical alerts, heatmap cells, fatty-acid cards, supplement rows, note cards, cycle prompts, the rename / edit-range chips inside the detail modal — is now reachable by Tab and triggered by Enter or Space. Settings tabs and the Charts/Table/Heatmap toggle are proper tablists. The Layers dropdown gained Escape-to-close. Modal Close buttons, the app tour, the chat typing indicator, and import progress all announce themselves to screen readers.',
+      '<b>Weight log fields</b> respect your chosen unit system — US users see "lb" instead of "kg" everywhere they manually enter weight. Light-mode mobile address bar picks up your theme on first paint instead of flashing dark.',
+      '<b>Internal cleanup.</b> Dead helpers and stale imports retired, magic numbers named, contributor docs caught up to the current module roster.',
+    ]
+  },
+  {
     version: '1.4.0', date: '2026-04-28', title: 'Smarter chat search, easier setup, more flexibility',
     items: [
       '<b>Chat now stays out of your way.</b> When you open chat, the dashboard automatically shifts left to fit alongside the panel — every chart and section stays visible, scroll and clicks work as normal. New <b>⛶ fullscreen toggle</b> in the chat header for when you want an immersive conversation; your preference is remembered between sessions.',
@@ -881,7 +898,7 @@ export function openChangelog(showAll) {
 
   const entries = showAll ? CHANGELOG : CHANGELOG.slice(0, 3);
 
-  let html = `<button class="modal-close" onclick="closeChangelog()">&times;</button>`;
+  let html = `<button class="modal-close" aria-label="Close" onclick="closeChangelog()">&times;</button>`;
   html += `<h3>What's New</h3>`;
 
   for (const entry of entries) {

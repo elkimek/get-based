@@ -170,6 +170,11 @@ function cacheGet(k) {
   const row = _cache.get(k);
   if (!row) return null;
   if (Date.now() - row.at > CACHE_TTL_MS) { _cache.delete(k); return null; }
+  // Bump to end of insertion order so true LRU eviction works — Map iterates
+  // in insertion order, so without re-inserting, hot entries get evicted by
+  // CACHE_MAX before cold ones.
+  _cache.delete(k);
+  _cache.set(k, row);
   return row.value;
 }
 function cacheSet(k, v) {
@@ -1483,7 +1488,7 @@ export function handleRemoveLens() {
 }
 
 Object.assign(window, {
-  getLensConfig, saveLensConfig, getLensKey, saveLensKey, removeLens,
+  getLensConfig, saveLensConfig, getLensKey, saveLensKey,
   hasLens, queryLens, queryLensMulti, buildLensSnippet, testLensConnection, clearLensCache,
   openKnowledgeBaseModal, closeKnowledgeBaseModal,
   subscribeLensStatus, getLensStatus, isValidLensUrl,

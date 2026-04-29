@@ -227,7 +227,6 @@ return (async function() {
   assert('syncSetupBack returns to choices', settingsSrc.includes('function syncSetupBack'));
   assert('closeSyncSetup disables sync if started', settingsSrc.includes('async function closeSyncSetup') && settingsSrc.includes('disableSync'));
   assert('closeSyncSetup releases _syncToggling', settingsSrc.includes('_syncToggling = false'));
-  assert('doMnemonicRestore validates 24 words', settingsSrc.includes("words.length !== 24"));
   assert('Clipboard auto-clear after 60s', settingsSrc.includes('60000') && settingsSrc.includes("writeText('')"));
   assert('loadMnemonic retry timer is cancellable', settingsSrc.includes('_mnemonicRetryTimer') && settingsSrc.includes('clearTimeout(_mnemonicRetryTimer)'));
   assert('Dynamic relay status indicator', settingsSrc.includes('updateRelayStatus') && settingsSrc.includes('sync-status-dot'));
@@ -245,7 +244,7 @@ return (async function() {
   assert('Display prefs synced', syncSrc.includes('DISPLAY_PREF_SUFFIXES') && syncSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', syncSrc.includes('export function onChatSaved'));
   assert('onChatSaved has debounce', syncSrc.includes('_chatSyncTimer') && syncSrc.includes('10000'));
-  assert('chat.js imports onChatSaved', await fetchWithRetry('js/chat.js').then(s => s.includes("import { onChatSaved } from './sync.js'")));
+  assert('chat-threads.js imports onChatSaved', await fetchWithRetry('js/chat-threads.js').then(s => s.includes("import { onChatSaved } from './sync.js'")));
 
   // ═══════════════════════════════════════
   // 12. MESSENGER ACCESS
@@ -268,8 +267,8 @@ return (async function() {
   }
 
   const settingsWindowFns = [
-    'toggleSync', 'toggleMnemonicVisibility', 'copyMnemonic', 'showMnemonicRestore',
-    'doMnemonicRestore', 'saveSyncRelay', 'closeSyncSetup', 'syncSetupNew',
+    'toggleSync', 'toggleMnemonicVisibility', 'copyMnemonic',
+    'saveSyncRelay', 'closeSyncSetup', 'syncSetupNew',
     'syncSetupRestore', 'syncSetupBack', 'syncSetupDoRestore', 'syncSetupDone',
     'toggleMessenger', 'toggleMessengerToken', 'copyMessengerToken', 'regenerateMessengerToken'
   ];

@@ -209,6 +209,12 @@ export async function handleOAuthCallbackOnLoad() {
   // (with refreshToken) to a per-vendor function — defensive against a
   // future contributor logging the second arg for debugging.
   const info = await disp.fetchAccountInfo(result.tokens.accessToken, { userId: conn0?.userId });
+  // Guard: if the user swapped profiles during the network call, undo the
+  // initial saveConnection (which landed on profile A's blob) and abort.
+  if (getActiveProfileId() !== activeProfile) {
+    showNotification?.(`${disp.displayName} connect aborted — profile changed`, 'error', 5000);
+    return true;
+  }
   saveConnection(adapterId, { ...getConnection(adapterId), account: info.ok ? info.account : null });
   // Polar-only one-time user registration (409 if already registered — fine).
   if (typeof disp.postConnect === 'function') {
@@ -217,13 +223,22 @@ export async function handleOAuthCallbackOnLoad() {
     // and the second profile's data fetches would alias to the first one's
     // member registration. Refuse rather than silently pollute.
     if (!result.tokens.userId) {
-      saveConnection(adapterId, { ...getConnection(adapterId), needsReauth: true });
+      // Drop the half-connected record entirely — keeping it with needsReauth
+      // strands the user (sync would 'missing userId'-throw on every retry).
+      // A clean disconnect lets the UI show "not connected" so the user can
+      // reconnect cleanly from the same place.
+      removeConnection(adapterId);
       showNotification?.(`${disp.displayName}: connect response missing user id — please reconnect`, 'error', 5000);
-      return;
+      return true;
     }
     const memberId = `getbased-${activeProfile}-${result.tokens.userId}`;
     try {
       const reg = await disp.postConnect(result.tokens.accessToken, memberId);
+      // Same profile-swap guard around the awaited postConnect.
+      if (getActiveProfileId() !== activeProfile) {
+        showNotification?.(`${disp.displayName} connect aborted — profile changed`, 'error', 5000);
+        return true;
+      }
       if (reg?.ok) {
         saveConnection(adapterId, { ...getConnection(adapterId), polarRegistered: true });
       } else if (isDebugMode?.()) {
@@ -470,16 +485,6 @@ export async function syncNow(adapterId, { force = false } = {}) {
     }
     throw e;
   }
-}
-
-export async function syncAllConnected() {
-  const sources = listConnectedSources();
-  const results = {};
-  for (const sid of Object.keys(sources)) {
-    try { results[sid] = await syncNow(sid); }
-    catch (e) { results[sid] = { error: e.message }; }
-  }
-  return results;
 }
 
 export async function recoverIfL1Empty(adapterId) {

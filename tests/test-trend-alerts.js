@@ -580,12 +580,22 @@ return (async function() {
   assert('detectTrendAlerts exported', dataSrc.includes('export function detectTrendAlerts'));
   assert('getKeyTrendMarkers exported', dataSrc.includes('export function getKeyTrendMarkers'));
   assert('Uses linearRegression', dataSrc.includes('linearRegression('));
-  assert('25% threshold for sudden change', dataSrc.includes('range * 0.25'));
-  assert('normSlope threshold 0.02', dataSrc.includes('0.02'));
-  assert('R\u00B2 filter 0.5 for 4+ points', dataSrc.includes('reg.r2 < 0.5'));
-  assert('Approaching zone 15%', dataSrc.includes('range * 0.15'));
+  assert('25% threshold for sudden change',
+    dataSrc.includes('TREND_SUDDEN_JUMP_FRAC = 0.25') &&
+    dataSrc.includes('range * TREND_SUDDEN_JUMP_FRAC'));
+  assert('normSlope threshold 0.02',
+    dataSrc.includes('TREND_MIN_NORM_SLOPE = 0.02') &&
+    dataSrc.includes('Math.abs(normSlope) < TREND_MIN_NORM_SLOPE'));
+  assert('R\u00B2 filter 0.5 for 4+ points',
+    dataSrc.includes('TREND_MIN_R2 = 0.5') &&
+    dataSrc.includes('reg.r2 < TREND_MIN_R2'));
+  assert('Approaching zone 15%',
+    dataSrc.includes('TREND_APPROACH_BAND = 0.15') &&
+    dataSrc.includes('range * TREND_APPROACH_BAND'));
   assert('Sort by priority (sudden > past > approaching)', dataSrc.includes("c.startsWith('sudden_')"));
-  assert('MAX 8 in getKeyTrendMarkers', dataSrc.includes('MAX = 8'));
+  assert('KEY_TRENDS_MAX = 8 in getKeyTrendMarkers',
+    dataSrc.includes('KEY_TRENDS_MAX = 8') &&
+    dataSrc.includes('MAX = KEY_TRENDS_MAX'));
   assert('detectTrendAlerts on window', dataSrc.includes('detectTrendAlerts'));
   assert('getKeyTrendMarkers on window', dataSrc.includes('getKeyTrendMarkers'));
 

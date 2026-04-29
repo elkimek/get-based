@@ -109,12 +109,14 @@ return (async function() {
   phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   assert('PhenoAge is null when CRP is zero (ln undefined)', phenoVal == null, `got ${phenoVal}`);
 
-  // ── PhenoAge: CRP fallback to standard CRP ──
+  // ── PhenoAge: hs-CRP only, no fallback to standard CRP ──
+  // (Behavior tightened in v1.5.1 — the two assays differ in detection range
+  // and substituting silently corrupts age estimates.)
   state.importedData.entries = [{
     date: '2025-06-15',
     markers: {
       'proteins.albumin': 45, 'biochemistry.creatinine': 80, 'biochemistry.glucose': 5.5,
-      'proteins.crp': 1.5,  // standard CRP, not hs-CRP
+      'proteins.crp': 1.5,  // standard CRP, not hs-CRP — should NOT be used
       'differential.lymphocytesPct': 0.30, 'hematology.mcv': 90,
       'hematology.rdwcv': 13.0, 'biochemistry.alp': 1.2, 'hematology.wbc': 6.5
     }
@@ -122,7 +124,7 @@ return (async function() {
 
   data = window.getActiveData();
   phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
-  assert('PhenoAge falls back to standard CRP', phenoVal === 44.2, `expected 44.2, got ${phenoVal}`);
+  assert('PhenoAge is null when only standard CRP is provided (no fallback)', phenoVal == null, `got ${phenoVal}`);
 
   // ── PhenoAge: coefficients are SI-calibrated ──
   // Verify the formula structure by checking source code contains the Levine 2018 coefficients

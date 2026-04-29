@@ -40,7 +40,7 @@ When both can be calculated, getbased averages them for a more robust estimate. 
 | Neutrophils, Monocytes, Lymphocytes % | Immune |
 | SHBG, Vitamin D | Hormones |
 
-Bortz Age uses more inputs but is more forgiving — a standard CBC + metabolic panel covers most of them. PhenoAge requires all 9 on the same date. Both accept either hs-CRP or standard CRP.
+Bortz Age uses more inputs but is more forgiving — a standard CBC + metabolic panel covers most of them. PhenoAge requires all 9 on the same date. Both require **hs-CRP specifically** — standard CRP has a different detection range and substituting it would corrupt the age estimate.
 
 ::: warning
 Both models require **all their inputs on the same blood draw date**. If any marker is missing for a given date, no value is calculated. The detail view shows exactly which inputs are missing. Both also require your **date of birth** in Settings → Profile.

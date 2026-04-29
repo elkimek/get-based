@@ -7,18 +7,17 @@ import { escapeHTML, showNotification, showConfirmDialog, formatValue, getStatus
 import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, saveImportedData } from './data.js';
 import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { getProfileLocation, setProfileLocation, getLatitudeFromLocation, getLocationCache, latitudeToBand, detectLatitudeWithAI, getProfiles, renameProfile, setProfileSex, setProfileDob } from './profile.js';
-import { callClaudeAPI, hasAIProvider, isAIPaused, setAIPaused, getAIProvider, getActiveModelId, getActiveModelDisplay, supportsVision, supportsWebSearch, isVeniceE2EEActive } from './api.js';
+import { callClaudeAPI, hasAIProvider, isAIPaused, setAIPaused, getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch, isVeniceE2EEActive } from './api.js';
 import { formatImageBlock, buildVisionContent } from './image-utils.js';
-import { getPendingAttachments, hasPendingAttachments, clearAttachments, initChatImageHandlers, updateAttachButtonVisibility, renderAttachmentPreview } from './chat-images.js';
+import { getPendingAttachments, hasPendingAttachments, clearAttachments } from './chat-images.js';
 import {
   loadChatThreads, saveChatThreadIndex, ensureActiveThread, createNewThread,
-  switchToThread, deleteThread, renameThread, autoNameThread, pruneOldThreads,
-  renderThreadList, invalidateThreadContentCache, filterThreadList,
+  autoNameThread,
+  renderThreadList, invalidateThreadContentCache,
   restoreRailState, getChatThreadKey, getChatThreadsKey,
 } from './chat-threads.js';
-import { onChatSaved } from './sync.js';
 import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
-import { hasLens, queryLens, queryLensMulti, updateLensIndicator } from './lens.js';
+import { hasLens, queryLensMulti, updateLensIndicator } from './lens.js';
 import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 
 // ═══════════════════════════════════════════════
@@ -2032,6 +2031,9 @@ export async function sendChatMessage() {
   // Show typing indicator
   const typingEl = document.createElement('div');
   typingEl.className = 'typing-indicator';
+  typingEl.setAttribute('role', 'status');
+  typingEl.setAttribute('aria-live', 'polite');
+  typingEl.setAttribute('aria-label', 'AI is responding');
   typingEl.innerHTML = '<span></span><span></span><span></span>';
   container.appendChild(typingEl);
   container.scrollTop = container.scrollHeight;
@@ -2440,6 +2442,9 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
       const typingEl = document.createElement('div');
       typingEl.className = 'typing-indicator';
+      typingEl.setAttribute('role', 'status');
+      typingEl.setAttribute('aria-live', 'polite');
+      typingEl.setAttribute('aria-label', 'AI is responding');
       typingEl.innerHTML = '<span></span><span></span><span></span>';
       container.appendChild(typingEl);
       container.scrollTop = container.scrollHeight;

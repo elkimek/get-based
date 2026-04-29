@@ -114,9 +114,11 @@ export function calculateCycleStats(periods) {
       cycleLengths.push(Math.round((curr - prev) / 86400000));
     }
     const avgCycle = Math.round(cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length);
-    result.cycleLength = Math.max(20, Math.min(45, avgCycle));
-
-    // Regularity (3+ periods = 2+ intervals)
+    // 90-day ceiling covers normal cycles, oligomenorrhea, and perimenopause.
+    // The old 45-day clamp silently truncated 60–90 day cycles, throwing off
+    // getNextBestDrawDate prediction by weeks for both irregular runs and
+    // regular-but-long perimenopause cycles.
+    result.cycleLength = Math.max(20, Math.min(90, avgCycle));
     if (cycleLengths.length >= 2) {
       const mean = cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length;
       const variance = cycleLengths.reduce((sum, v) => sum + (v - mean) ** 2, 0) / cycleLengths.length;
@@ -519,7 +521,7 @@ export function renderMenstrualCycleSection(data) {
       </div>
     </div>`;
   if (!mc) {
-    html += `<div class="cycle-prompt" onclick="openMenstrualCycleEditor()">
+    html += `<div class="cycle-prompt" role="button" tabindex="0" aria-label="Set up cycle tracking" onclick="openMenstrualCycleEditor()">
       <span class="cycle-prompt-icon">\uD83D\uDD34</span>
       <div><strong>Track your cycle for better lab interpretation</strong><br>
       <span style="color:var(--text-muted);font-size:12px">Hormone, iron, and inflammation markers vary significantly by cycle phase. Set up cycle tracking so AI can factor this in.</span></div>
@@ -536,7 +538,7 @@ export function renderMenstrualCycleSection(data) {
       if (mc.contraceptive) summary += ` \u2022 ${escapeHTML(mc.contraceptive)}`;
       if (mc.conditions) summary += ` \u2022 ${escapeHTML(mc.conditions)}`;
     }
-    html += `<div class="cycle-summary" onclick="openMenstrualCycleEditor()" style="cursor:pointer">${summary}</div>`;
+    html += `<div class="cycle-summary" role="button" tabindex="0" aria-label="Edit cycle: ${escapeHTML(summary)}" onclick="openMenstrualCycleEditor()" style="cursor:pointer">${summary}</div>`;
     const isActiveCycle = !mc.cycleStatus || mc.cycleStatus === 'regular' || mc.cycleStatus === 'perimenopause';
     const drawRec = isActiveCycle ? getNextBestDrawDate(mc) : null;
     if (drawRec) {
@@ -596,4 +598,4 @@ export function renderMenstrualCycleSection(data) {
   return html;
 }
 
-Object.assign(window, { getCyclePhase, getNextBestDrawDate, getBloodDrawPhases, calculateCycleStats, detectPerimenopausePattern, detectCycleIronAlerts, renderMenstrualCycleSection, openMenstrualCycleEditor, saveMenstrualCycle, clearMenstrualCycle, syncMenstrualCycleProfileFromForm, addPeriodEntry, deletePeriodEntry, _toggleCycleEditorFields });
+Object.assign(window, { getCyclePhase, getNextBestDrawDate, getBloodDrawPhases, detectPerimenopausePattern, detectCycleIronAlerts, renderMenstrualCycleSection, openMenstrualCycleEditor, saveMenstrualCycle, clearMenstrualCycle, syncMenstrualCycleProfileFromForm, addPeriodEntry, deletePeriodEntry, _toggleCycleEditorFields });

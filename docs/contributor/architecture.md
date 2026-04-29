@@ -139,7 +139,7 @@ Bundled locally under `vendor/`:
 | Library | Version | Purpose |
 |---|---|---|
 | Chart.js | 4.4.7 | Line charts, bar charts |
-| pdf.js | 3.11.174 | PDF text extraction |
+| pdf.js | 4.10.38 (legacy ESM) | PDF text extraction; loaded lazily via `js/pdfjs-loader.js` with `isEvalSupported: false` pinned for defense-in-depth |
 | Inter, Outfit, JetBrains Mono | latest | Google Fonts (body, headings, data) |
 
 AI providers (OpenRouter, Routstr, PPQ, Venice, Local AI) are called directly from the browser — no backend proxy.

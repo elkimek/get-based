@@ -16,7 +16,7 @@ export function openFeedbackModal() {
   const overlay = document.getElementById('feedback-modal-overlay');
   const typeOptions = FEEDBACK_TYPES.map(t => `<option value="${t.value}">${escapeHTML(t.label)}</option>`).join('');
   modal.innerHTML = `
-    <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+    <button class="modal-close" aria-label="Close" onclick="closeFeedbackModal()">&times;</button>
     <h3 style="margin-bottom:12px">Send Feedback</h3>
     <div style="display:flex;flex-direction:column;gap:12px">
       <div>

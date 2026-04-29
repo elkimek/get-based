@@ -134,7 +134,7 @@ return (async function() {
   // (buildVisionContent / formatImageBlock) and consumes the pending
   // queue via chat-images.js.
   const chatImagesSrc = await fetchWithRetry('js/chat-images.js');
-  assert('Chat imports supportsVision', chatSrc.includes('supportsVision'));
+  assert('chat-images imports supportsVision', chatImagesSrc.includes('supportsVision'));
   assert('chat.js imports image-utils for send-time helpers', chatSrc.includes("from './image-utils.js'"));
   assert('chat.js imports from chat-images for pending-queue access',
     chatSrc.includes("from './chat-images.js'") && chatSrc.includes('getPendingAttachments'));

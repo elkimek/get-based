@@ -368,12 +368,12 @@ export function getActiveData() {
       return age > 0 ? age : null;
     };
 
-    // Helper: get CRP value — prefer hs-CRP, fall back to standard CRP
-    const _getCRP = (i) => {
-      const hsCrp = getVals('proteins', 'hsCRP')?.[i];
-      if (hsCrp != null) return hsCrp;
-      return getVals('proteins', 'crp')?.[i] ?? null;
-    };
+    // hs-CRP only — standard CRP is a different assay (different sample,
+    // different detection range, ~10× higher quantification floor) and
+    // substituting silently would corrupt biological-age estimates the user
+    // can't see is contaminated. The detail modal already explains the
+    // hs-CRP requirement. Returns null when hs-CRP is missing → row drops.
+    const _getCRP = (i) => getVals('proteins', 'hsCRP')?.[i] ?? null;
 
     // PhenoAge (Levine 2018) — biological age from 9 biomarkers + chronological age
     ratios.markers.phenoAge.values = sortedDates.map((dateStr, i) => {
@@ -594,8 +594,8 @@ export function renderChartLayersDropdown() {
   const hasCycle = state.profileSex === 'female' && state.importedData.menstrualCycle?.periods?.length > 0;
   if (!hasNotes && !hasSupps && !hasCycle) return '';
   return `<div class="chart-layers-wrapper">
-    <button class="view-btn chart-layers-trigger" onclick="toggleChartLayersDropdown(event)">Layers \u25BE</button>
-    <div class="chart-layers-dropdown" id="chart-layers-dropdown">
+    <button class="view-btn chart-layers-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="chart-layers-dropdown" onclick="toggleChartLayersDropdown(event)">Layers \u25BE</button>
+    <div class="chart-layers-dropdown" id="chart-layers-dropdown" role="menu">
       ${hasNotes ? `<label class="chart-layers-row" onclick="event.stopPropagation()">
         <input type="checkbox" ${state.noteOverlayMode === 'on' ? 'checked' : ''} onchange="setNoteOverlay(this.checked?'on':'off')">
         <span>\uD83D\uDCDD Notes</span>
@@ -616,16 +616,33 @@ export function toggleChartLayersDropdown(e) {
   e.stopPropagation();
   const dd = document.getElementById('chart-layers-dropdown');
   if (!dd) return;
+  const trigger = dd.parentElement?.querySelector('.chart-layers-trigger');
   const isOpen = dd.classList.contains('open');
   dd.classList.toggle('open', !isOpen);
+  if (trigger) trigger.setAttribute('aria-expanded', String(!isOpen));
   if (!isOpen) {
     const close = (ev) => {
-      if (!ev.target.closest('.chart-layers-wrapper')) {
+      // Allow keyboard close (Escape) without requiring an event target
+      if (!ev || !ev.target || !ev.target.closest || !ev.target.closest('.chart-layers-wrapper')) {
         dd.classList.remove('open');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
         document.removeEventListener('click', close);
+        document.removeEventListener('keydown', closeOnEsc);
       }
     };
-    setTimeout(() => document.addEventListener('click', close), 0);
+    const closeOnEsc = (ev) => {
+      if (ev.key === 'Escape') {
+        dd.classList.remove('open');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        if (trigger) trigger.focus();
+        document.removeEventListener('click', close);
+        document.removeEventListener('keydown', closeOnEsc);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', close);
+      document.addEventListener('keydown', closeOnEsc);
+    }, 0);
   }
 }
 
@@ -707,6 +724,15 @@ export function statusIcon(s) {
 // ═══════════════════════════════════════════════
 // TREND DETECTION
 // ═══════════════════════════════════════════════
+// Tunables — kept inside data.js because they're tightly coupled to the
+// trend-alert algorithm. Bump with care: the dashboard's "needs attention"
+// callouts are calibrated against these.
+const TREND_SUDDEN_JUMP_FRAC = 0.25;   // jump > 25% of ref range → sudden change
+const TREND_MIN_NORM_SLOPE = 0.02;     // |normalized slope| floor — below = noise
+const TREND_MIN_R2 = 0.5;              // 4+-point regressions must clear this fit
+const TREND_APPROACH_BAND = 0.15;      // within 15% of an edge → "approaching"
+const KEY_TRENDS_MAX = 8;              // dashboard "Key Trends" cap
+
 export function detectTrendAlerts(data) {
   const alerts = [];
   for (const [catKey, cat] of Object.entries(data.categories)) {
@@ -728,7 +754,7 @@ export function detectTrendAlerts(data) {
 
       // Sudden change detection (2+ values)
       const jump = Math.abs(latestVal - prevVal);
-      if (jump > range * 0.25) {
+      if (jump > range * TREND_SUDDEN_JUMP_FRAC) {
         if (latestVal > lr.max) {
           alerts.push({ id, name: marker.name, category: cat.label, concern: 'sudden_high',
             spark: sparkVals.map(x => formatValue(x.v)), direction: 'rising' });
@@ -746,15 +772,15 @@ export function detectTrendAlerts(data) {
       const vals = nonNull.map(x => x.v);
       const reg = linearRegression(vals);
       const normSlope = reg.slope / range;
-      if (Math.abs(normSlope) < 0.02) continue;
+      if (Math.abs(normSlope) < TREND_MIN_NORM_SLOPE) continue;
       // R-squared filter only for 4+ points (2-3 points inherently have high R²)
-      if (nonNull.length >= 4 && reg.r2 < 0.5) continue;
+      if (nonNull.length >= 4 && reg.r2 < TREND_MIN_R2) continue;
       const rising = normSlope > 0;
       let concern = null;
       if (rising && latestVal > lr.max) concern = 'past_high';
       else if (!rising && latestVal < lr.min) concern = 'past_low';
-      else if (rising && latestVal >= lr.max - range * 0.15) concern = 'approaching_high';
-      else if (!rising && latestVal <= lr.min + range * 0.15) concern = 'approaching_low';
+      else if (rising && latestVal >= lr.max - range * TREND_APPROACH_BAND) concern = 'approaching_high';
+      else if (!rising && latestVal <= lr.min + range * TREND_APPROACH_BAND) concern = 'approaching_low';
       if (!concern) continue;
       alerts.push({ id, name: marker.name, category: cat.label, concern,
         spark: sparkVals.map(x => formatValue(x.v)), direction: rising ? 'rising' : 'falling' });
@@ -771,7 +797,7 @@ export function detectTrendAlerts(data) {
 export function getKeyTrendMarkers(filteredData) {
   const selected = [];
   const seen = new Set();
-  const MAX = 8;
+  const MAX = KEY_TRENDS_MAX;
 
   function hasData(cat, key) {
     const c = filteredData.categories[cat];

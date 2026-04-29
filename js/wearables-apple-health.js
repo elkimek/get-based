@@ -18,7 +18,7 @@ import { CANONICAL_METRICS, adapterById } from './wearable-adapters.js';
 import { upsertDailyBatch, setMeta } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
-import { showNotification, isDebugMode } from './utils.js';
+import { isDebugMode } from './utils.js';
 
 // ─────────────────────────────────────────────────────────
 // File ingestion entry point

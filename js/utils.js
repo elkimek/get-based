@@ -34,6 +34,10 @@ export function getRangePosition(value, refMin, refMax) {
   return ((value - refMin) / (refMax - refMin)) * 100;
 }
 
+// Trend arrow: a single percent threshold separates "stable" from a real
+// rise / fall. Tight enough that natural lab variability still trips the
+// arrow; loose enough that a single decimal-place rounding doesn't.
+const STABLE_TREND_PCT = 2;
 export function getTrend(values, refMin, refMax) {
   const nn = values.filter(v=>v!==null);
   if (nn.length<2) return {arrow:"\u2014",cls:"trend-stable"};
@@ -41,7 +45,7 @@ export function getTrend(values, refMin, refMax) {
   if (prev === 0) return {arrow:"→",cls:"trend-stable"};
   const curr = nn[nn.length-1];
   const pct = ((curr-prev)/prev)*100;
-  if (Math.abs(pct)<2) return {arrow:"\u2192",cls:"trend-stable"};
+  if (Math.abs(pct)<STABLE_TREND_PCT) return {arrow:"\u2192",cls:"trend-stable"};
   const dir = pct > 0 ? 'up' : 'down';
   const arrow = pct > 0 ? `\u2191 +${pct.toFixed(1)}%` : `\u2193 ${pct.toFixed(1)}%`;
   // Color based on whether change is good or bad relative to ref range
@@ -60,6 +64,28 @@ export function formatValue(v) {
   if (Math.abs(v)>=10) return v.toFixed(1);
   if (Math.abs(v)>=1) return v.toFixed(2);
   return v.toFixed(3);
+}
+
+// Canonical date formatter \u2014 replaces a half-dozen scattered helpers and
+// inline `toLocaleDateString` calls. Style choices map to the three
+// formats actually used in the UI.
+//   short    \u2014 "Apr 29" (default for chart axis labels, supplement bars)
+//   long     \u2014 "April 29, 2026" (modal headers, change history)
+//   monthYear \u2014 "Apr 2026" (focus card, group separators)
+//   spoken   \u2014 "April 29" (wearables strip, accessibility-first)
+// Accepts ISO 'YYYY-MM-DD' or any Date-parseable string.
+export function formatDate(iso, style = 'short') {
+  if (!iso) return '';
+  // Append time so the date doesn't shift to the prior day in negative-UTC
+  // timezones \u2014 the bug all the inline call sites were quietly working
+  // around individually.
+  const d = iso.length === 10 ? new Date(iso + 'T00:00:00') : new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const opts = style === 'long'      ? { month: 'long',  day: 'numeric', year: 'numeric' }
+             : style === 'monthYear' ? { month: 'short', year: 'numeric' }
+             : style === 'spoken'    ? { month: 'long',  day: 'numeric' }
+             : /* short */             { month: 'short', day: 'numeric' };
+  return d.toLocaleDateString('en-US', opts);
 }
 
 export function linearRegression(points) {
@@ -111,7 +137,7 @@ export function maybeShowAnalyticsConsent() {
   banner.innerHTML = `
     <div class="analytics-consent-body">
       <span aria-hidden="true">📊</span>
-      <span>Anonymous usage stats are <strong>on</strong> to help us improve getbased — counts only, no IP, no health data, cookieless.</span>
+      <span>Anonymous usage stats are <strong>on</strong> to help me improve getbased — counts only, no IP, no health data, cookieless.</span>
     </div>
     <div class="analytics-consent-actions">
       <button type="button" class="analytics-consent-btn analytics-consent-btn-primary" onclick="dismissAnalyticsConsent()">Got it</button>

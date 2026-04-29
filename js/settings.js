@@ -29,31 +29,31 @@ export function openSettingsModal(tab) {
   if (tab) _activeSettingsTab = tab;
 
   modal.innerHTML = `
-    <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
+    <button class="modal-close" aria-label="Close" onclick="closeSettingsModal()">&times;</button>
     <h3>Settings</h3>
 
-    <div class="settings-tabs-bar">
-      <button class="settings-tab-btn${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab="display" onclick="switchSettingsTab('display')">
+    <div class="settings-tabs-bar" role="tablist" aria-label="Settings sections">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'display'}" aria-controls="settings-tab-display" tabindex="${_activeSettingsTab === 'display' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab="display" onclick="switchSettingsTab('display')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         Display
       </button>
-      <button class="settings-tab-btn${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab="ai" onclick="switchSettingsTab('ai')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'ai'}" aria-controls="settings-tab-ai" tabindex="${_activeSettingsTab === 'ai' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab="ai" onclick="switchSettingsTab('ai')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
         AI
       </button>
-      <button class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" onclick="switchSettingsTab('privacy')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'privacy'}" aria-controls="settings-tab-privacy" tabindex="${_activeSettingsTab === 'privacy' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" onclick="switchSettingsTab('privacy')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Privacy
       </button>
-      <button class="settings-tab-btn${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab="data" onclick="switchSettingsTab('data')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'data'}" aria-controls="settings-tab-data" tabindex="${_activeSettingsTab === 'data' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab="data" onclick="switchSettingsTab('data')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Data
       </button>
-      <button class="settings-tab-btn${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab="wearables" onclick="switchSettingsTab('wearables')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'wearables'}" aria-controls="settings-tab-wearables" tabindex="${_activeSettingsTab === 'wearables' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab="wearables" onclick="switchSettingsTab('wearables')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><path d="M12 9v3l2 2"/><path d="M9 2h6M9 22h6"/></svg>
         Wearables
       </button>
-      <button class="settings-tab-btn${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab="agent" onclick="switchSettingsTab('agent')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'agent'}" aria-controls="settings-tab-agent" tabindex="${_activeSettingsTab === 'agent' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab="agent" onclick="switchSettingsTab('agent')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="14" r="4"/><path d="m10.5 11 7.5-7.5M17 6l3 3M14 9l3 3"/></svg>
         Agent Access
       </button>
@@ -252,7 +252,10 @@ export function switchSettingsTab(tabId) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
   modal.querySelectorAll('.settings-tab-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tabId);
+    const isActive = btn.dataset.tab === tabId;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', String(isActive));
+    btn.setAttribute('tabindex', isActive ? '0' : '-1');
   });
   modal.querySelectorAll('.settings-tab-panel').forEach(panel => {
     panel.classList.toggle('active', panel.dataset.tabPanel === tabId);
@@ -332,7 +335,7 @@ export function renderPrivacySection() {
   </div>
   <div class="local-ai-settings" style="margin-top:16px">
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">Anonymous Usage Stats</h4>
-    <div class="ai-provider-desc" style="margin-bottom:10px">No health data is ever sent. We track cookieless pageviews and outbound clicks on affiliate links so we can tell which integrations actually help users — never which user, what data they were viewing, or any health context.</div>
+    <div class="ai-provider-desc" style="margin-bottom:10px">No health data is ever sent. I track cookieless pageviews and outbound clicks on affiliate links so I can tell which integrations actually help users — never which user, what data they were viewing, or any health context.</div>
     <div style="display:flex;align-items:start;justify-content:space-between;gap:12px">
       <span style="font-size:13px">Send anonymous usage stats<br><span style="font-size:11px;color:var(--text-muted)">Toggle takes effect on next launch.</span></span>
       <label class="toggle-switch" style="margin-top:2px">
@@ -803,11 +806,6 @@ function copyMnemonic() {
   });
 }
 
-// Legacy two-step restore is gone — kept as no-op shims so any cached
-// onclick still resolves to a function instead of "is not defined".
-function showMnemonicRestore() { openRestoreMnemonicDialog(); }
-function doMnemonicRestore() { openRestoreMnemonicDialog(); }
-
 /**
  * Single-step restore modal — replaces the old two-button flow that confused
  * users into clicking the outer "Restore from mnemonic" button (which only
@@ -1024,7 +1022,7 @@ function regenerateMessengerToken() {
   if (el) el.innerHTML = renderMessengerSection();
 }
 
-Object.assign(window, { toggleSync, toggleMnemonicVisibility, copyMnemonic, showMnemonicRestore, doMnemonicRestore, openRestoreMnemonicDialog, closeRestoreMnemonicDialog, confirmRestoreMnemonic, saveSyncRelay, closeSyncSetup, syncSetupNew, syncSetupRestore, syncSetupBack, syncSetupDoRestore, syncSetupDone, showSyncSetupModal, toggleMessenger, toggleMessengerToken, copyMessengerToken, regenerateMessengerToken });
+Object.assign(window, { toggleSync, toggleMnemonicVisibility, copyMnemonic, openRestoreMnemonicDialog, closeRestoreMnemonicDialog, confirmRestoreMnemonic, saveSyncRelay, closeSyncSetup, syncSetupNew, syncSetupRestore, syncSetupBack, syncSetupDoRestore, syncSetupDone, showSyncSetupModal, toggleMessenger, toggleMessengerToken, copyMessengerToken, regenerateMessengerToken });
 
 
 export function renderDataEntriesSection() {

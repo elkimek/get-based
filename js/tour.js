@@ -61,6 +61,9 @@ function runTour(steps, storageKey, auto) {
 
     const tooltip = document.createElement('div');
     tooltip.id = 'tour-tooltip';
+    tooltip.setAttribute('role', 'dialog');
+    tooltip.setAttribute('aria-modal', 'true');
+    tooltip.setAttribute('aria-labelledby', 'tour-tooltip-heading');
     document.body.appendChild(tooltip);
   }
 
@@ -97,7 +100,7 @@ function goToStep(index) {
     ? `<button class="tour-btn tour-btn-primary" onclick="endTour()">Done</button>`
     : `<button class="tour-btn tour-btn-primary" onclick="window._tourGoToStep(${index + 1})">Next</button>`;
 
-  tooltip.innerHTML = `<h4>${step.title}</h4><p>${step.text}</p>
+  tooltip.innerHTML = `<h4 id="tour-tooltip-heading">${step.title}</h4><p>${step.text}</p>
     <div class="tour-nav">${dotsHtml}<div class="tour-btns">${backBtn}${nextBtn}</div></div>`;
 
   if (step.target === null) {

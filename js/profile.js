@@ -281,7 +281,30 @@ export async function loadProfile(profileId) {
   setActiveProfileId(profileId);
   const savedImported = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   const defaultData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, customMarkers: {}, changeHistory: [], genetics: null, biometrics: null, manualValues: {} };
-  state.importedData = savedImported ? (function() { try { const d = JSON.parse(savedImported); if (!d.notes) d.notes = []; if (!d.supplements) d.supplements = []; return migrateProfileData(d); } catch(e) { return defaultData; } })() : defaultData;
+  state.importedData = savedImported ? (function() {
+    try {
+      const d = JSON.parse(savedImported);
+      if (!d.notes) d.notes = [];
+      if (!d.supplements) d.supplements = [];
+      return migrateProfileData(d);
+    } catch (e) {
+      // Don't silently substitute defaults — preserve the corrupted bytes so
+      // the user can recover (or we can debug). Same key suffix every time
+      // so a second corruption doesn't shadow the first recoverable copy.
+      try {
+        const corruptKey = profileStorageKey(profileId, 'imported-corrupt');
+        if (!localStorage.getItem(corruptKey)) localStorage.setItem(corruptKey, savedImported);
+      } catch {}
+      // Surface to the user via the global notification system if available;
+      // fall back to console so headless paths still log it.
+      if (typeof window !== 'undefined' && window.showNotification) {
+        window.showNotification('Profile data was corrupted and could not be loaded. The original bytes were saved as a backup — open Settings → Data to export them or contact support.', 'error', 12000);
+      } else {
+        console.error('[loadProfile] corrupted JSON for', profileId, '— saved to imported-corrupt');
+      }
+      return defaultData;
+    }
+  })() : defaultData;
   const savedUnits = localStorage.getItem(profileStorageKey(profileId, 'units'));
   state.unitSystem = savedUnits === 'US' ? 'US' : 'EU';
   const savedRange = localStorage.getItem(profileStorageKey(profileId, 'rangeMode'));
@@ -633,7 +656,6 @@ Object.assign(window, {
   getProfileHeight,
   setProfileHeight,
   getLocationCache,
-  setLocationCache,
   latitudeToBand,
   getLatitudeFromLocation,
   updateProfileMeta,

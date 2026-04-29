@@ -23,7 +23,7 @@ function _getLabContextFingerprint() {
   const entryPart = (d.entries || []).map(e => e.date + ':' + Object.keys(e.markers || {}).length).join(',');
   const cardPart = ['healthGoals', 'diagnoses', 'supplements', 'biometrics', 'genetics',
     'menstrualCycle', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress',
-    'loveLife', 'environment', 'emfAssessment', 'changeHistory'
+    'loveLife', 'environment', 'emfAssessment', 'changeHistory', 'wearableSummary'
   ].map(k => hashString(JSON.stringify(d[k] || ''))).join(',');
   return hashString([
     entryPart, cardPart,

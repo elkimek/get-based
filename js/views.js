@@ -179,7 +179,7 @@ export function showDashboard(data) {
         : alert.concern === 'past_low' ? 'Below range & falling'
         : alert.concern === 'approaching_high' ? 'Approaching upper limit'
         : 'Approaching lower limit';
-      html += `<div class="trend-alert-card ${cls}" onclick="showDetailModal('${alert.id}')">
+      html += `<div class="trend-alert-card ${cls}" role="button" tabindex="0" aria-label="${escapeHTML(alert.name)} \u2014 ${label}" onclick="showDetailModal('${alert.id}')">
         <span class="trend-alert-arrow">${arrow}</span>
         <div class="trend-alert-info">
           <div class="trend-alert-name">${escapeHTML(alert.name)} <span class="trend-alert-cat">${escapeHTML(alert.category)}</span></div>
@@ -191,7 +191,7 @@ export function showDashboard(data) {
     for (const f of criticalFlags) {
       const cls = f.status === "high" ? "alert-high" : "alert-low";
       const label = f.status === "high" ? "\u25B2 CRITICAL HIGH" : "\u25BC CRITICAL LOW";
-      html += `<div class="alert-card ${cls}" onclick="navigate('${f.categoryKey}')">
+      html += `<div class="alert-card ${cls}" role="button" tabindex="0" aria-label="${label}: ${escapeHTML(f.name)} ${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}" onclick="navigate('${f.categoryKey}')">
         <span class="alert-indicator">${label}</span>
         <span class="alert-name">${escapeHTML(f.name)}</span>
         <span class="alert-value">${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}</span>
@@ -215,7 +215,7 @@ export function showDashboard(data) {
       for (const { note, idx } of notes) {
         const d = new Date(note.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const preview = escapeHTML(note.text.length > 200 ? note.text.slice(0, 200) + '...' : note.text);
-        html += `<div class="note-card" onclick="openNoteEditor(null, ${idx})">
+        html += `<div class="note-card" role="button" tabindex="0" aria-label="Note from ${d}" onclick="openNoteEditor(null, ${idx})">
           <div class="note-card-date">${d}</div>
           <div class="note-card-text">${preview}</div>
           <div class="note-card-actions">
@@ -300,7 +300,7 @@ export function renderFocusCard() {
     <div class="focus-card-body" id="focus-card-body">${text
       ? `<span class="focus-card-text">${applyInlineMarkdown(text)}</span>`
       : `<span class="focus-card-shimmer"></span>`}</div>
-    <button class="focus-card-refresh" onclick="refreshFocusCard()" title="Regenerate insight">\u21BB</button>
+    <button class="focus-card-refresh" onclick="refreshFocusCard()" aria-label="Regenerate insight" title="Regenerate insight">\u21BB</button>
   </div>`;
 }
 
@@ -569,7 +569,7 @@ export function renderOnboardingBanner() {
       <span class="onboarding-step-label">Ready</span>
     </div>
     <h3 class="onboarding-title">Set up your profile</h3>
-    <p class="onboarding-subtitle">Sex and date of birth help us show the right reference ranges for your results.</p>
+    <p class="onboarding-subtitle">Sex and date of birth pick the right reference ranges for your results.</p>
     <div class="onboarding-form">
       <div class="onboarding-field">
         <label class="onboarding-label">Sex</label>
@@ -638,16 +638,16 @@ export function showCategory(categoryKey, preData) {
   const allEntries = Object.entries(cat.markers).filter(([, m]) => !m.hidden);
   const withData = allEntries.filter(([, m]) => markerHasData(m));
   const countLabel = withData.length < allEntries.length ? `${withData.length} of ${allEntries.length} biomarkers with data` : `${allEntries.length} biomarkers tracked`;
-  const renameBtn = ` <span class="ref-edited-badge" title="Rename category" onclick="event.stopPropagation();renameCategory('${categoryKey}')" style="cursor:pointer;font-size:12px">rename</span>`;
+  const renameBtn = ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename category" title="Rename category" onclick="event.stopPropagation();renameCategory('${categoryKey}')" style="cursor:pointer;font-size:12px">rename</span>`;
   const iconDisplay = cat.icon || '\uD83D\uDD16';
   let html = `<div class="category-header"><h2><span title="Click to change icon" style="cursor:pointer;min-width:24px;display:inline-block" onclick="event.stopPropagation();changeCategoryIcon('${categoryKey}')">${iconDisplay}</span> ${escapeHTML(cat.label)}${renameBtn}</h2>
     <p>${countLabel}</p></div>`;
 
   html += `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px">`;
-  html += `<div class="view-toggle" style="margin-bottom:0">
-    <button class="view-btn active" onclick="switchView('charts','${categoryKey}',this)">Charts</button>
-    <button class="view-btn" onclick="switchView('table','${categoryKey}',this)">Table</button>
-    <button class="view-btn" onclick="switchView('heatmap','${categoryKey}',this)">Heatmap</button></div>`;
+  html += `<div class="view-toggle" role="tablist" aria-label="View mode" style="margin-bottom:0">
+    <button class="view-btn active" role="tab" aria-selected="true" tabindex="0" onclick="switchView('charts','${categoryKey}',this)">Charts</button>
+    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" onclick="switchView('table','${categoryKey}',this)">Table</button>
+    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" onclick="switchView('heatmap','${categoryKey}',this)">Heatmap</button></div>`;
   html += renderDateRangeFilter();
   html += renderChartLayersDropdown();
   html += `</div>`;
@@ -684,7 +684,7 @@ export function showCategory(categoryKey, preData) {
       html += `<div style="margin-top:16px"><p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">No data yet</p><div style="display:flex;flex-wrap:wrap;gap:8px">`;
       for (const [key, marker] of noData) {
         const id = categoryKey + '_' + key;
-        html += `<div class="chart-card" onclick="showDetailModal('${id}')" style="cursor:pointer;padding:12px 16px;min-height:auto;flex:0 0 auto">
+        html += `<div class="chart-card" role="button" tabindex="0" aria-label="Add value for ${escapeHTML(marker.name)}" onclick="showDetailModal('${id}')" style="cursor:pointer;padding:12px 16px;min-height:auto;flex:0 0 auto">
           <span style="color:var(--text-secondary)">${escapeHTML(marker.name)}</span>
           <span style="color:var(--text-muted);font-size:11px;margin-left:6px">+ add value</span></div>`;
       }
@@ -860,8 +860,14 @@ export function changeCategoryIcon(categoryKey) {
 }
 
 export function switchView(view, categoryKey, btn) {
-  document.querySelectorAll(".view-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".view-btn").forEach(b => {
+    b.classList.remove("active");
+    b.setAttribute('aria-selected', 'false');
+    b.setAttribute('tabindex', '-1');
+  });
   btn.classList.add("active");
+  btn.setAttribute('aria-selected', 'true');
+  btn.setAttribute('tabindex', '0');
   destroyAllCharts();
   const rawData = getActiveData();
   const data = filterDatesByRange(rawData);
@@ -902,7 +908,7 @@ export function renderChartCard(id, marker, dateLabels) {
   const trend = getTrend(marker.values, lr.min, lr.max);
   const trendBadge = trend.cls !== 'trend-stable' || trend.arrow !== '\u2014' ? `<span class="chart-card-trend ${trend.cls}">${trend.arrow}</span>` : '';
 
-  let html = `<div class="chart-card" onclick="showDetailModal('${id}')">
+  let html = `<div class="chart-card" role="button" tabindex="0" aria-label="${escapeHTML(marker.name)} — ${statusLabel}" onclick="showDetailModal('${id}')">
     <div class="chart-card-header"><div>
       <div class="chart-card-title">${escapeHTML(marker.name)} <span id="chart-rec-${id}"></span></div>
       <div class="chart-card-unit">${escapeHTML(marker.unit)}</div></div>
@@ -985,12 +991,13 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
   for (const [key, marker] of Object.entries(cat.markers)) {
     const id = categoryKey + "_" + key;
     state.markerRegistry[id] = marker;
-    html += `<tr><td style="cursor:pointer" onclick="showDetailModal('${id}')">${escapeHTML(marker.name)}</td>`;
+    html += `<tr><td role="button" tabindex="0" aria-label="${escapeHTML(marker.name)}" style="cursor:pointer" onclick="showDetailModal('${id}')">${escapeHTML(marker.name)}</td>`;
     for (let i = 0; i < marker.values.length; i++) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
       const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
-      html += `<td class="heatmap-${s}" onclick="showDetailModal('${id}')">${v !== null ? formatValue(v) : "\u2014"}</td>`;
+      const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${v !== null ? formatValue(v) : 'no value'}`;
+      html += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" onclick="showDetailModal('${id}')">${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
     html += `</tr>`;
   }
@@ -1014,7 +1021,7 @@ export function renderFattyAcidsView(cat, categoryKey) {
       const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Ref';
       faRangeText = `${rangeLabel}: ${formatValue(r.min)} \u2013 ${formatValue(r.max)}`;
     }
-    html += `<div class="fa-card" onclick="showDetailModal('${categoryKey}_${key}')" style="cursor:pointer"><div class="fa-card-name">${escapeHTML(marker.name)}</div>
+    html += `<div class="fa-card" role="button" tabindex="0" aria-label="${escapeHTML(marker.name)} ${formatValue(v)}${marker.unit ? ' ' + escapeHTML(marker.unit) : ''}" onclick="showDetailModal('${categoryKey}_${key}')" style="cursor:pointer"><div class="fa-card-name">${escapeHTML(marker.name)}</div>
       <div class="fa-card-value val-${s}">${formatValue(v)}${marker.unit ? " " + escapeHTML(marker.unit) : ""}</div>
       <div class="fa-card-ref">${faRangeText}</div>
       <div class="range-bar" style="margin-top:8px;width:100%"><div class="range-bar-fill" style="left:0;width:100%"></div>
@@ -1100,10 +1107,10 @@ export function showDetailModal(id, opts = {}) {
     const badgeLabel = source === 'manual' ? 'edited' : 'lab';
     const hasLabStash = type === 'optimal' ? 'labOptimalMin' in overrides : 'labRefMin' in overrides;
     const badgeTitle = source === 'manual' ? (hasLabStash ? 'Manually edited — click to revert to lab range' : 'Manually edited — click to revert to default') : 'Custom range from your lab — click to revert to default';
-    const editedBadge = isEdited ? ` <span class="ref-edited-badge" title="${badgeTitle}" onclick="event.stopPropagation();revertRefRange('${id}','${type}')">${badgeLabel} \u00d7</span>` : '';
+    const editedBadge = isEdited ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="${badgeTitle}" title="${badgeTitle}" onclick="event.stopPropagation();revertRefRange('${id}','${type}')">${badgeLabel} \u00d7</span>` : '';
     const displayMin = min != null ? min : '–';
     const displayMax = max != null ? max : '–';
-    return ` &middot; ${type === 'optimal' ? '<span style="color:var(--green)">' : ''}${label}: <span class="ref-editable" onclick="editRefRange('${id}','${type}',event)" title="Click to edit">${displayMin} \u2013 ${displayMax}</span>${editedBadge}${type === 'optimal' ? '</span>' : ''}`;
+    return ` &middot; ${type === 'optimal' ? '<span style="color:var(--green)">' : ''}${label}: <span class="ref-editable" role="button" tabindex="0" aria-label="Edit ${label} range" onclick="editRefRange('${id}','${type}',event)" title="Click to edit">${displayMin} \u2013 ${displayMax}</span>${editedBadge}${type === 'optimal' ? '</span>' : ''}`;
   };
   const isCustom = !!state.importedData?.customMarkers?.[dotKey];
   const hasRef = marker.refMin != null || marker.refMax != null;
@@ -1123,9 +1130,9 @@ export function showDetailModal(id, opts = {}) {
   }
   const isRenamed = !!state.importedData?.markerLabels?.[dotKey];
   const renameLink = isRenamed
-    ? ` <span class="ref-edited-badge" title="Renamed — click to revert to original" onclick="event.stopPropagation();revertMarkerName('${id}')" style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`
-    : ` <span class="ref-edited-badge" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`;
-  let html = `<button class="modal-close" onclick="closeModal()">&times;</button>
+    ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" onclick="event.stopPropagation();revertMarkerName('${id}')" style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`
+    : ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`;
+  let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     <h3>${escapeHTML(marker.name)}${renameLink}</h3>
     <div class="modal-unit">${escapeHTML(marker.unit)}${rangeInfo}</div>
     <div class="marker-description" id="marker-desc"></div>
@@ -1147,7 +1154,7 @@ export function showDetailModal(id, opts = {}) {
     const isManual = manualVal !== undefined && manualVal !== null;
     const canRevert = isManual && manualVal !== true;
     const manualBadge = canRevert
-      ? ` <span class="ref-edited-badge" title="Edited — click to revert" onclick="event.stopPropagation();revertMarkerValue('${id}','${rawDate}')">edited \u00d7</span>`
+      ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert edited value" title="Edited — click to revert" onclick="event.stopPropagation();revertMarkerValue('${id}','${rawDate}')">edited \u00d7</span>`
       : isManual ? ' <span class="ref-edited-badge" title="Manually entered">manual</span>' : '';
     const deleteBtn = `<button class="mv-delete" onclick="event.stopPropagation();deleteMarkerValue('${id}','${rawDate}')" title="Remove this value">&times;</button>`;
     const editClick = rawDate ? ` onclick="event.stopPropagation();editMarkerValue('${id}','${rawDate}',${v},event)" title="Click to edit" style="cursor:pointer"` : '';
@@ -1391,7 +1398,7 @@ export function openManualEntryForm(id) {
   const refText = marker.refMin != null || marker.refMax != null
     ? `Reference: ${marker.refMin != null ? marker.refMin : '–'} \u2013 ${marker.refMax != null ? marker.refMax : '–'} ${escapeHTML(marker.unit)}`
     : '';
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
+  modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     <h3>Add Value \u2014 ${escapeHTML(marker.name)}</h3>
     <div class="modal-unit">${escapeHTML(marker.unit)}${refText ? ' \u00b7 ' + refText : ''}</div>
     <div class="manual-entry-form">
@@ -1458,7 +1465,7 @@ export function openCreateMarkerModal() {
   const catOptions = Object.entries(data.categories)
     .map(([key, c]) => `<option value="${key}">${escapeHTML(c.label)}</option>`)
     .join('');
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
+  modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     <h3>Create New Biomarker</h3>
     <div class="manual-entry-form">
       <div class="me-field">

@@ -1,15 +1,15 @@
 // js/lens-local-parsers.js — main-thread document parsers for lens-local.
 //
 // Why main-thread: the worker is a module worker (type: 'module'), and the
-// UMD parser bundles (mammoth, JSZip, pdf.js) can't cleanly round-trip
-// through a module worker's import() without window/global shims. Main-
-// thread parsing also lets us reuse the pdf.js instance already loaded by
-// the main app. Extraction is much cheaper than embedding — the UI stays
-// responsive as long as ingest wraps calls in requestIdleCallback or the
-// caller awaits between files.
+// UMD parser bundles (mammoth, JSZip) can't cleanly round-trip through a
+// module worker's import() without window/global shims. Main-thread
+// parsing lets pdf.js share the loader the rest of the app uses, and
+// extraction stays cheap relative to embedding.
 //
-// Each vendored lib is loaded lazily via a <script> tag on first use so
-// users who never ingest a PDF don't pay the 600 KB mammoth cost.
+// Each vendored lib is loaded lazily on first use so users who never
+// ingest a PDF or DOCX don't pay the parser cost.
+
+import { getPdfDocument } from './pdfjs-loader.js';
 
 const SUPPORTED_TEXT_EXTS = new Set(['txt', 'md', 'markdown', 'rst', 'json', 'csv', 'log']);
 
@@ -39,17 +39,8 @@ function extOf(name) {
 // ── PDF ──────────────────────────────────────────────────────────
 
 async function extractPdf(file) {
-  await loadScript('/vendor/pdf.min.js');
-  // pdf.js needs a worker URL configured once globally. Idempotent — the
-  // check protects against a second ingest after user clears cache.
-  if (window.pdfjsLib && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
-  }
-  const pdfjs = window.pdfjsLib;
-  if (!pdfjs) throw new Error('pdf.js failed to load');
-
   const buffer = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+  const pdf = await getPdfDocument({ data: buffer });
   const pages = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);

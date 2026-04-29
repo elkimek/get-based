@@ -94,10 +94,6 @@ const MOCK_SUMMARY = {
 // Priority: real L2 in importedData → mock (if demo profile + mock not disabled).
 // Real data takes over as soon as the user connects any adapter.
 
-export function hasWearableSummary() {
-  return getWearableSummary() != null;
-}
-
 function isMockAllowed() {
   if (localStorage.getItem('wearables-mock-off') === '1') return false;
   // Show mock only when no real connection exists — keeps the dashboard lively
@@ -1376,8 +1372,9 @@ function openManualAddFromDetail(metricId, event) {
   const kind = isBP ? 'bp' : metricId === 'weight' ? 'weight' : isRhr ? 'rhr' : null;
   if (!kind) return;
   if (kind === 'weight') {
+    const weightUnit = state.unitSystem === 'US' ? 'lb' : 'kg';
     slot.innerHTML = `<form class="wearable-manual-add-form" onsubmit="event.preventDefault();saveManualEntryFromDetail('${escapeHTML(metricId)}','weight')">
-      <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wlad-val" placeholder="kg" autofocus>
+      <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wlad-val" placeholder="${weightUnit}" aria-label="Weight in ${weightUnit === 'lb' ? 'pounds' : 'kilograms'}" autofocus>
       <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
       <button type="submit" class="wearable-log-save">Save</button>
       <button type="button" class="wearable-log-cancel" onclick="closeManualAddFromDetail()">✕</button>
@@ -1712,7 +1709,7 @@ function openManualLogForm(metricId, event) {
     card.innerHTML = `
       <div class="wearable-card-top"><span class="wearable-metric-name">Weight</span></div>
       <div class="wearable-log-form">
-        <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wl-weight-val" placeholder="kg" aria-label="Weight in kilograms" autofocus>
+        <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wl-weight-val" placeholder="${state.unitSystem === 'US' ? 'lb' : 'kg'}" aria-label="${state.unitSystem === 'US' ? 'Weight in pounds' : 'Weight in kilograms'}" autofocus>
         <div class="wearable-log-row">
           <input type="date" class="wearable-log-date" id="wl-weight-date" value="${today}" max="${today}" aria-label="Date">
           <button type="button" class="wearable-log-save" onclick="saveManualLog('weight',event)">Save</button>
@@ -1827,7 +1824,6 @@ Object.assign(window, {
   deleteManualEntryFromDetail,
   toggleWearableReorder,
   moveWearableCard,
-  hasWearableSummary,
   renderWearablesSettingsSection,
   handleWearableConnect,
   handleWearableSyncNow,

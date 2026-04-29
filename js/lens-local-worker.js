@@ -110,6 +110,10 @@ function _applyModelSpec(modelKey) {
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 50;
 const CHUNK_MIN = 50;
+// Retrieval tunables
+const MMR_LAMBDA = 0.5;            // 0 = max diversity, 1 = pure relevance
+const MMR_OVERSAMPLE_FACTOR = 3;   // multiplier on topK before MMR re-rank
+const MMR_OVERSAMPLE_FLOOR = 30;   // never oversample below this many chunks
 
 let _embedder = null;
 let _embedderBackend = 'wasm';  // 'webgpu' | 'wasm' — whichever transformers.js actually booted
@@ -698,7 +702,7 @@ async function handleQuery(text, topK) {
   // candidate first, then each subsequent pick penalizes similarity to
   // already-picked chunks — spreads results across topics at a small
   // relevance cost.
-  const OVERSAMPLE = Math.max(topK * 3, 30);
+  const OVERSAMPLE = Math.max(topK * MMR_OVERSAMPLE_FACTOR, MMR_OVERSAMPLE_FLOOR);
   const cap = Math.min(OVERSAMPLE, _manifest.numChunks);
   const candHeap = []; // sorted ascending so head is min
   for (let i = 0; i < _manifest.numChunks; i++) {
@@ -716,7 +720,7 @@ async function handleQuery(text, topK) {
   const candidates = candHeap.reverse(); // descending by score
   // getVec returns a live subarray view into the packed store — no copy
   // per MMR iteration, hot path stays cheap.
-  const chosen = mmrSelect(candidates, topK, 0.5,
+  const chosen = mmrSelect(candidates, topK, MMR_LAMBDA,
     (i) => _vectors.subarray(i * DIM, (i + 1) * DIM));
   const result = chosen.map((r) => ({
     text: _chunks[r.i].text,

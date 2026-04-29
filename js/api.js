@@ -157,17 +157,37 @@ export async function generatePKCE() {
   return { codeVerifier, codeChallenge };
 }
 
-export async function startOpenRouterOAuth() {
-  const { codeVerifier, codeChallenge } = await generatePKCE();
-  sessionStorage.setItem('or_pkce_verifier', codeVerifier);
-  setAIProvider('openrouter');
-  const callbackUrl = window.location.origin + window.location.pathname;
-  window.location.href = 'https://openrouter.ai/auth?callback_url=' + encodeURIComponent(callbackUrl) + '&code_challenge=' + encodeURIComponent(codeChallenge) + '&code_challenge_method=S256';
+function _generateOAuthState() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export async function exchangeOpenRouterCode(code) {
+export async function startOpenRouterOAuth() {
+  const { codeVerifier, codeChallenge } = await generatePKCE();
+  const state = _generateOAuthState();
+  sessionStorage.setItem('or_pkce_verifier', codeVerifier);
+  sessionStorage.setItem('or_oauth_state', state);
+  setAIProvider('openrouter');
+  const callbackUrl = window.location.origin + window.location.pathname;
+  // PKCE verifier-mismatch alone catches code-injection but not login-CSRF;
+  // `state` binds the redirect to the tab that initiated it.
+  window.location.href = 'https://openrouter.ai/auth?callback_url=' + encodeURIComponent(callbackUrl) + '&code_challenge=' + encodeURIComponent(codeChallenge) + '&code_challenge_method=S256&state=' + encodeURIComponent(state);
+}
+
+export async function exchangeOpenRouterCode(code, returnedState) {
   const codeVerifier = sessionStorage.getItem('or_pkce_verifier');
+  const expectedState = sessionStorage.getItem('or_oauth_state');
   if (!codeVerifier) throw new Error('Missing PKCE verifier. Please try connecting again.');
+  // Some OAuth flows omit `state` on the way back; reject the exchange in
+  // that case rather than fail-open. If the user started before this state
+  // check existed, expectedState will also be null — that branch is safe to
+  // accept (the verifier still binds the request).
+  if (expectedState && returnedState !== expectedState) {
+    sessionStorage.removeItem('or_pkce_verifier');
+    sessionStorage.removeItem('or_oauth_state');
+    throw new Error('OAuth state mismatch — please try connecting again.');
+  }
   const res = await fetch('https://openrouter.ai/api/v1/auth/keys', {
     method: 'POST',
     headers: {
@@ -183,6 +203,7 @@ export async function exchangeOpenRouterCode(code) {
   }
   const data = await res.json();
   sessionStorage.removeItem('or_pkce_verifier');
+  sessionStorage.removeItem('or_oauth_state');
   return data.key;
 }
 // Curated: latest-gen medically capable models only (prefixes matched against IDs)
@@ -562,28 +583,33 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
     let buffer = '';
     let fullText = '';
     let inputTokens = 0, outputTokens = 0;
+    const handleNdjsonLine = (line, boundary) => {
+      if (!line.trim()) return;
+      try {
+        const event = JSON.parse(line);
+        if (event.error) throw new Error(event.error);
+        if (event.message?.content) {
+          fullText += event.message.content;
+          onStream(fullText);
+        }
+        if (event.done === true) {
+          inputTokens = event.prompt_eval_count || 0;
+          outputTokens = event.eval_count || 0;
+        }
+      } catch (parseErr) {
+        if (boundary && parseErr instanceof SyntaxError) return;
+        throw parseErr;
+      }
+    };
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const event = JSON.parse(line);
-          if (event.error) throw new Error(event.error);
-          if (event.message?.content) {
-            fullText += event.message.content;
-            onStream(fullText);
-          }
-          if (event.done === true) {
-            inputTokens = event.prompt_eval_count || 0;
-            outputTokens = event.eval_count || 0;
-          }
-        } catch (parseErr) { if (parseErr.message && !parseErr.message.startsWith('Unexpected')) throw parseErr; }
-      }
+      for (const line of lines) handleNdjsonLine(line, true);
     }
+    if (buffer.trim()) handleNdjsonLine(buffer, false);
     return { text: fullText, usage: { inputTokens, outputTokens } };
   } else {
     const data = await res.json();
@@ -663,35 +689,49 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
     let _hasContent = false;
     let _reasoningBuf = '';
     let inputTokens = 0, outputTokens = 0;
+    // Local helper so the trailing-buffer pass after the loop and the in-loop
+    // line iteration share identical handling. `boundary` is true while the
+    // event came from a chunk split (incomplete trailing line should be
+    // re-buffered); false on the post-loop flush where we've seen `done`.
+    const handleSSELine = (line, boundary) => {
+      if (!line.startsWith('data: ')) return;
+      const data = line.slice(6);
+      if (data === '[DONE]') return;
+      try {
+        const event = JSON.parse(data);
+        if (event.error) throw new Error(event.error.message || JSON.stringify(event.error));
+        const delta = event.choices?.[0]?.delta;
+        if (delta?.content) {
+          if (!_hasContent) _hasContent = true;
+          fullText += delta.content;
+          onStream(fullText);
+        } else if (delta?.reasoning_content) {
+          if (!_hasContent) _reasoningBuf += delta.reasoning_content;
+        }
+        if (event.usage) {
+          inputTokens = event.usage.prompt_tokens || inputTokens;
+          outputTokens = event.usage.completion_tokens || outputTokens;
+        }
+      } catch (parseErr) {
+        // SyntaxError on a chunk-boundary line is expected (the JSON
+        // continues in the next chunk). Anything else — including
+        // SyntaxError after the stream is done, when the chunk really did
+        // arrive truncated — is a real error worth surfacing.
+        if (boundary && parseErr instanceof SyntaxError) return;
+        throw parseErr;
+      }
+    };
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6);
-        if (data === '[DONE]') continue;
-        try {
-          const event = JSON.parse(data);
-          if (event.error) throw new Error(event.error.message || JSON.stringify(event.error));
-          const delta = event.choices?.[0]?.delta;
-          // Accumulate reasoning silently; only stream content to the UI
-          if (delta?.content) {
-            if (!_hasContent) _hasContent = true;
-            fullText += delta.content;
-            onStream(fullText);
-          } else if (delta?.reasoning_content) {
-            if (!_hasContent) _reasoningBuf += delta.reasoning_content;
-          }
-          if (event.usage) {
-            inputTokens = event.usage.prompt_tokens || inputTokens;
-            outputTokens = event.usage.completion_tokens || outputTokens;
-          }
-        } catch (parseErr) { if (parseErr.message && !parseErr.message.startsWith('Unexpected')) throw parseErr; }
-      }
+      for (const line of lines) handleSSELine(line, true);
     }
+    // Flush trailing buffer: a final `data: ...` event without a closing
+    // newline (e.g. server truncation) would otherwise be silently dropped.
+    if (buffer.startsWith('data: ')) handleSSELine(buffer, false);
     if (!fullText && _reasoningBuf) fullText = _reasoningBuf;
     return { text: fullText, usage: { inputTokens, outputTokens } };
   } else {
@@ -771,29 +811,34 @@ export async function callVeniceAPI(opts) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '', fullText = '', inputTokens = 0, outputTokens = 0;
+  const handleVeniceLine = async (line, boundary) => {
+    if (!line.startsWith('data: ')) return;
+    const data = line.slice(6);
+    if (data === '[DONE]') return;
+    try {
+      const event = JSON.parse(data);
+      if (event.choices?.[0]?.delta?.content) {
+        const chunk = await decryptChunk(session.privateKey, event.choices[0].delta.content);
+        fullText += chunk;
+        if (onStream) onStream(fullText);
+      }
+      if (event.usage) { inputTokens = event.usage.prompt_tokens || inputTokens; outputTokens = event.usage.completion_tokens || outputTokens; }
+    } catch (e) {
+      if (e.name === 'OperationError') throw new Error('E2EE decryption failed — session may be stale. Try sending again.');
+      // Chunk-boundary SyntaxError is normal; let everything else surface.
+      if (boundary && e instanceof SyntaxError) return;
+      throw e;
+    }
+  };
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6);
-      if (data === '[DONE]') continue;
-      try {
-        const event = JSON.parse(data);
-        if (event.choices?.[0]?.delta?.content) {
-          const chunk = await decryptChunk(session.privateKey, event.choices[0].delta.content);
-          fullText += chunk;
-          if (onStream) onStream(fullText);
-        }
-        if (event.usage) { inputTokens = event.usage.prompt_tokens || inputTokens; outputTokens = event.usage.completion_tokens || outputTokens; }
-      } catch (e) {
-        if (e.name === 'OperationError') throw new Error('E2EE decryption failed — session may be stale. Try sending again.');
-      }
-    }
+    for (const line of lines) await handleVeniceLine(line, true);
   }
+  if (buffer.startsWith('data: ')) await handleVeniceLine(buffer, false);
   return { text: fullText, usage: { inputTokens, outputTokens } };
 }
 

@@ -405,6 +405,17 @@ function isSameOrigin(req) {
   return false;
 }
 
+// Reflect the request's allowlisted origin instead of emitting `*`. Mismatch
+// between `isSameOrigin` (allowlist) and the response header (wildcard) is
+// only safe today because the guard runs first; reflecting keeps the two
+// halves in sync if the guard's pathname check is ever loosened.
+function corsHeaders(req) {
+  const origin = req.headers.origin && ALLOWED_ORIGINS.has(req.headers.origin)
+    ? req.headers.origin
+    : (req.headers.referer ? (() => { try { return ALLOWED_ORIGINS.has(new URL(req.headers.referer).origin) ? new URL(req.headers.referer).origin : null; } catch { return null; } })() : null);
+  return origin ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let pathname = decodeURIComponent(url.pathname);
@@ -431,27 +442,38 @@ const server = http.createServer((req, res) => {
   // API: HEAD-check a URL and return the real status code (bypasses browser CORS)
   if (pathname === '/api/check-url') {
     const target = url.searchParams.get('url');
-    if (!target) { res.writeHead(400, { 'Access-Control-Allow-Origin': '*' }); res.end('{"error":"missing url param"}'); return; }
+    if (!target) { res.writeHead(400, { ...corsHeaders(req) }); res.end('{"error":"missing url param"}'); return; }
+    if (!_isAllowedProxyUrl(target)) {
+      res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+      res.end(JSON.stringify({ status: 0, error: 'URL blocked by SSRF guard' }));
+      return;
+    }
     const mod = target.startsWith('https') ? https : http;
     const headReq = mod.request(target, { method: 'HEAD', timeout: 6000 }, (headRes) => {
-      // Follow one redirect
+      // Follow one redirect — but re-check the destination through the SSRF
+      // guard. An allowlisted host could otherwise 30x to a private IP.
       if ([301, 302, 307, 308].includes(headRes.statusCode) && headRes.headers.location) {
         const loc = new URL(headRes.headers.location, target).href;
+        if (!_isAllowedProxyUrl(loc)) {
+          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+          res.end(JSON.stringify({ status: 0, error: 'Redirect destination blocked by SSRF guard' }));
+          return;
+        }
         const mod2 = loc.startsWith('https') ? https : http;
         mod2.request(loc, { method: 'HEAD', timeout: 6000 }, (r2) => {
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
           res.end(JSON.stringify({ status: r2.statusCode, redirected: loc }));
         }).on('error', (e) => {
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
           res.end(JSON.stringify({ status: 0, error: e.message }));
         }).end();
         return;
       }
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
       res.end(JSON.stringify({ status: headRes.statusCode }));
     });
     headReq.on('error', (e) => {
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
       res.end(JSON.stringify({ status: 0, error: e.message }));
     });
     headReq.on('timeout', () => { headReq.destroy(); });
@@ -462,7 +484,12 @@ const server = http.createServer((req, res) => {
   // API: GET-fetch a URL and return the HTML body (for Shop Fill search scraping)
   if (pathname === '/api/fetch-page') {
     const target = url.searchParams.get('url');
-    if (!target) { res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end('{"error":"missing url param"}'); return; }
+    if (!target) { res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) }); res.end('{"error":"missing url param"}'); return; }
+    if (!_isAllowedProxyUrl(target)) {
+      res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+      res.end(JSON.stringify({ status: 0, error: 'URL blocked by SSRF guard' }));
+      return;
+    }
     const mod = target.startsWith('https') ? https : http;
     const fetchPage = (fetchUrl, depth) => {
       const fetchMod = fetchUrl.startsWith('https') ? https : http;
@@ -474,9 +501,15 @@ const server = http.createServer((req, res) => {
           'Accept-Language': 'cs,sk,en;q=0.5',
         },
       }, (pageRes) => {
-        // Follow one redirect
+        // Follow one redirect — re-check destination through SSRF guard so an
+        // allowlisted host can't 30x into a private IP.
         if (depth === 0 && [301, 302, 307, 308].includes(pageRes.statusCode) && pageRes.headers.location) {
           const loc = new URL(pageRes.headers.location, fetchUrl).href;
+          if (!_isAllowedProxyUrl(loc)) {
+            res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+            res.end(JSON.stringify({ status: 0, error: 'Redirect destination blocked by SSRF guard' }));
+            return;
+          }
           return fetchPage(loc, 1);
         }
         let body = '';
@@ -488,11 +521,11 @@ const server = http.createServer((req, res) => {
         });
         pageRes.on('end', () => {
           if (bytes > MAX) body = body.slice(0, MAX);
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
           res.end(JSON.stringify({ status: pageRes.statusCode, html: body }));
         });
       }).on('error', (e) => {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
         res.end(JSON.stringify({ status: 0, error: e.message }));
       }).on('timeout', function() { this.destroy(); });
     };
@@ -503,10 +536,15 @@ const server = http.createServer((req, res) => {
   // API: fetch page with headless Chrome (for SPA shops)
   if (pathname === '/api/fetch-page-rendered') {
     const target = url.searchParams.get('url');
-    if (!target) { res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end('{"error":"missing url param"}'); return; }
+    if (!target) { res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) }); res.end('{"error":"missing url param"}'); return; }
+    if (!_isAllowedProxyUrl(target)) {
+      res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+      res.end(JSON.stringify({ status: 0, error: 'URL blocked by SSRF guard' }));
+      return;
+    }
     const scriptPath = path.join(ROOT, 'tools', 'fetch-rendered.mjs');
     execFile('node', [scriptPath, target], { timeout: 30000, maxBuffer: 1024 * 1024 }, (err, stdout) => {
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
       if (err) { res.end(JSON.stringify({ status: 0, error: err.message })); return; }
       try { JSON.parse(stdout); res.end(stdout); } catch { res.end(JSON.stringify({ status: 0, error: 'Invalid response from renderer' })); }
     });
@@ -622,7 +660,7 @@ const server = http.createServer((req, res) => {
         // keep the hardcoded maintainer values. See issue #145.
         if (payload.wearable_runtime_config) {
           const overrides = collectWearableOverrides(process.env);
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
           res.end(JSON.stringify({ overrides }));
           return;
         }
@@ -632,7 +670,7 @@ const server = http.createServer((req, res) => {
         if (payload.oura_token_exchange || payload.oura_token_refresh) {
           const secret = process.env.OURA_CLIENT_SECRET;
           if (!secret) {
-            res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'OURA_CLIENT_SECRET not set — export it before `node dev-server.js`' }));
             return;
           }
@@ -640,14 +678,14 @@ const server = http.createServer((req, res) => {
           if (payload.oura_token_exchange) {
             const { code, redirect_uri, client_id } = payload.oura_token_exchange;
             if (!code || !redirect_uri || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"oura_token_exchange requires code, redirect_uri, client_id"}'); return;
             }
             form = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id, client_secret: secret });
           } else {
             const { refresh_token, client_id } = payload.oura_token_refresh;
             if (!refresh_token || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"oura_token_refresh requires refresh_token, client_id"}'); return;
             }
             form = new URLSearchParams({ grant_type: 'refresh_token', refresh_token, client_id, client_secret: secret });
@@ -657,11 +695,11 @@ const server = http.createServer((req, res) => {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           }, (tokenRes) => {
             const ct = tokenRes.headers['content-type'] || 'application/json';
-            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
             tokenRes.pipe(res);
           });
           tokenReq.on('error', (e) => {
-            res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'Token endpoint unreachable: ' + e.message }));
           });
           tokenReq.write(form.toString());
@@ -674,7 +712,7 @@ const server = http.createServer((req, res) => {
         if (payload.ultrahuman_token_exchange || payload.ultrahuman_token_refresh) {
           const secret = process.env.ULTRAHUMAN_CLIENT_SECRET;
           if (!secret) {
-            res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'ULTRAHUMAN_CLIENT_SECRET not set — add it to .env.local' }));
             return;
           }
@@ -682,14 +720,14 @@ const server = http.createServer((req, res) => {
           if (payload.ultrahuman_token_exchange) {
             const { code, redirect_uri, client_id } = payload.ultrahuman_token_exchange;
             if (!code || !redirect_uri || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"ultrahuman_token_exchange requires code, redirect_uri, client_id"}'); return;
             }
             form = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id, client_secret: secret });
           } else {
             const { refresh_token, client_id } = payload.ultrahuman_token_refresh;
             if (!refresh_token || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"ultrahuman_token_refresh requires refresh_token, client_id"}'); return;
             }
             form = new URLSearchParams({ grant_type: 'refresh_token', refresh_token, client_id, client_secret: secret });
@@ -699,11 +737,11 @@ const server = http.createServer((req, res) => {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           }, (tokenRes) => {
             const ct = tokenRes.headers['content-type'] || 'application/json';
-            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
             tokenRes.pipe(res);
           });
           tokenReq.on('error', (e) => {
-            res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'Ultrahuman token endpoint unreachable: ' + e.message }));
           });
           tokenReq.write(form.toString());
@@ -716,7 +754,7 @@ const server = http.createServer((req, res) => {
         if (payload.withings_token_exchange || payload.withings_token_refresh) {
           const secret = process.env.WITHINGS_CLIENT_SECRET;
           if (!secret) {
-            res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'WITHINGS_CLIENT_SECRET not set — export it before `node dev-server.js`' }));
             return;
           }
@@ -724,7 +762,7 @@ const server = http.createServer((req, res) => {
           if (payload.withings_token_exchange) {
             const { code, redirect_uri, client_id } = payload.withings_token_exchange;
             if (!code || !redirect_uri || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"withings_token_exchange requires code, redirect_uri, client_id"}'); return;
             }
             form = new URLSearchParams({
@@ -734,7 +772,7 @@ const server = http.createServer((req, res) => {
           } else {
             const { refresh_token, client_id } = payload.withings_token_refresh;
             if (!refresh_token || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"withings_token_refresh requires refresh_token, client_id"}'); return;
             }
             form = new URLSearchParams({
@@ -747,11 +785,11 @@ const server = http.createServer((req, res) => {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           }, (tokenRes) => {
             const ct = tokenRes.headers['content-type'] || 'application/json';
-            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
             tokenRes.pipe(res);
           });
           tokenReq.on('error', (e) => {
-            res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'Withings token endpoint unreachable: ' + e.message }));
           });
           tokenReq.write(form.toString());
@@ -763,7 +801,7 @@ const server = http.createServer((req, res) => {
         if (payload.polar_token_exchange || payload.polar_token_refresh) {
           const secret = process.env.POLAR_CLIENT_SECRET;
           if (!secret) {
-            res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'POLAR_CLIENT_SECRET not set — add it to .env.local before `node dev-server.js`' }));
             return;
           }
@@ -771,7 +809,7 @@ const server = http.createServer((req, res) => {
           if (payload.polar_token_exchange) {
             const { code, redirect_uri, client_id } = payload.polar_token_exchange;
             if (!code || !redirect_uri || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"polar_token_exchange requires code, redirect_uri, client_id"}'); return;
             }
             clientId = client_id;
@@ -779,7 +817,7 @@ const server = http.createServer((req, res) => {
           } else {
             const { refresh_token, client_id } = payload.polar_token_refresh;
             if (!refresh_token || !client_id) {
-              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
               res.end('{"error":"polar_token_refresh requires refresh_token, client_id"}'); return;
             }
             clientId = client_id;
@@ -795,11 +833,11 @@ const server = http.createServer((req, res) => {
             },
           }, (tokenRes) => {
             const ct = tokenRes.headers['content-type'] || 'application/json';
-            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+            res.writeHead(tokenRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
             tokenRes.pipe(res);
           });
           tokenReq.on('error', (e) => {
-            res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({ error: 'Polar token endpoint unreachable: ' + e.message }));
           });
           tokenReq.write(form.toString());
@@ -808,9 +846,9 @@ const server = http.createServer((req, res) => {
         }
 
         const { url: targetUrl, headers: fwdHeaders, body: fwdBody, method: upMethod } = payload;
-        if (!targetUrl) { res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end('{"error":"missing url"}'); return; }
+        if (!targetUrl) { res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) }); res.end('{"error":"missing url"}'); return; }
         if (!_isAllowedProxyUrl(targetUrl)) {
-          res.writeHead(403, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(403, { 'Content-Type': 'application/json', ...corsHeaders(req) });
           res.end('{"error":"URL not allowed"}'); return;
         }
         const parsedUrl = new URL(targetUrl);
@@ -826,11 +864,11 @@ const server = http.createServer((req, res) => {
         if (fetchMethod !== 'GET' && !hasCT) reqHeaders['Content-Type'] = 'application/json';
         const proxyReq = mod.request(targetUrl, { method: fetchMethod, headers: reqHeaders }, (proxyRes) => {
           const ct = proxyRes.headers['content-type'] || 'application/json';
-          res.writeHead(proxyRes.statusCode, { 'Content-Type': ct, 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+          res.writeHead(proxyRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
           proxyRes.pipe(res);
         });
         proxyReq.on('error', (e) => {
-          res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
           res.end(JSON.stringify({ error: 'Upstream error: ' + e.message }));
         });
         if (fetchMethod !== 'GET' && fwdBody) {
@@ -838,14 +876,14 @@ const server = http.createServer((req, res) => {
         }
         proxyReq.end();
       } catch(e) {
-        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
         res.end(JSON.stringify({ error: 'Invalid JSON: ' + e.message }));
       }
     });
     return;
   }
   if (pathname === '/api/proxy' && req.method === 'OPTIONS') {
-    res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+    res.writeHead(204, { ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
     res.end();
     return;
   }
@@ -913,19 +951,21 @@ const server = http.createServer((req, res) => {
   if (pathname === '/proxy') {
     const targetUrl = url.searchParams.get('url');
     if (!targetUrl) { res.writeHead(400); res.end('Missing url param'); return; }
+    if (!_isAllowedProxyUrl(targetUrl)) { res.writeHead(400); res.end('URL blocked by SSRF guard'); return; }
     const fetcher = targetUrl.startsWith('https') ? https : http;
     fetcher.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (proxyRes) => {
-      // Follow redirects
+      // Follow redirects — re-check destination through SSRF guard.
       if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
         const redirect = new URL(proxyRes.headers.location, targetUrl).href;
+        if (!_isAllowedProxyUrl(redirect)) { res.writeHead(400); res.end('Redirect destination blocked by SSRF guard'); return; }
         const rFetcher = redirect.startsWith('https') ? https : http;
         rFetcher.get(redirect, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (rRes) => {
-          res.writeHead(rRes.statusCode, { 'Content-Type': rRes.headers['content-type'] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' });
+          res.writeHead(rRes.statusCode, { 'Content-Type': rRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
           rRes.pipe(res);
         }).on('error', e => { res.writeHead(502); res.end(e.message); });
         return;
       }
-      res.writeHead(proxyRes.statusCode, { 'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(proxyRes.statusCode, { 'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
       proxyRes.pipe(res);
     }).on('error', e => { res.writeHead(502); res.end(e.message); });
     return;

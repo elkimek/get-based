@@ -508,3 +508,24 @@ export function metricsForSources(sourceIds) {
 export function canonicalMetric(id) {
   return CANONICAL_METRICS[id] || null;
 }
+
+// ─────────────────────────────────────────────────────────
+// Vendor-agnostic date helpers — used to live in wearables-oura.js but
+// every wearable module was importing them across vendor lines, so the
+// vendor adapter file was the wrong home.
+// Returns local-zone YYYY-MM-DD. Local zone is correct for all vendor
+// `day` fields we've seen (Oura, Withings, Fitbit, Polar all attribute
+// to user-local), and avoids the UTC-cuts-today-in-half bug that an
+// earlier UTC implementation hit for non-UTC users.
+export function isoDay(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function daysAgoIso(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return isoDay(d);
+}

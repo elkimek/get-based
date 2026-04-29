@@ -171,7 +171,7 @@
     'migrateProfileData',
     'getProfileSex','setProfileSex','getProfileDob','setProfileDob',
     'getProfileLocation','setProfileLocation',
-    'getLocationCache','setLocationCache',
+    'getLocationCache',
     'latitudeToBand','getLatitudeFromLocation',
     'updateProfileMeta','getAllTags','touchProfileTimestamp',
     'loadProfile','getActiveProfileId','setActiveProfileId',

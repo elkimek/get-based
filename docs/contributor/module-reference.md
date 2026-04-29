@@ -731,3 +731,44 @@ Connect/disconnect/backfill orchestration. OAuth dispatch table, scheduled stale
 **Window exports:** none
 
 ---
+
+### Wearables vendor adapters
+
+Each connected source ships as a pair: `wearables-<vendor>.js` (read API) + `wearables-<vendor>-auth.js` (OAuth dance). Apple Health and Manual skip the auth half — Apple is file-import only, Manual is fully local. Tokens never leave the device; `sync.js` strips `wearableConnections` from the synced payload (and again on pull as defense-in-depth).
+
+**OAuth2 (server-side secret):** `wearables-oura.js` + `…-oura-auth.js`, `…-withings.js` + `…-withings-auth.js`, `…-ultrahuman.js` + `…-ultrahuman-auth.js`, `…-polar.js` + `…-polar-auth.js`. Secrets live in `.env.local` + `/api/proxy`.
+
+**OAuth2 PKCE (no secret):** `wearables-whoop.js` + `…-whoop-auth.js`, `wearables-fitbit.js` + `…-fitbit-auth.js`. Code verifier + S256 challenge per the IETF spec.
+
+**No OAuth:** `wearables-apple-health.js` (file-import — `parseAppleHealthXml` reads the `export.xml` from a Health zip), `wearables-manual.js` (`logManualMetric` / `logManualBP` + `MANUAL_TAGS` whitelist for what users can log by hand).
+
+**L1 storage + summary derivation:** `wearables-store.js` (per-profile IndexedDB at `labcharts-wearables-{profileId}`; two-phase upsertDailyBatch), `wearables-summary.js` (L2 derivation, write gate — 5% d7 shift / trend flip / 14d force-refresh / source flip / metric removal triggers).
+
+**UI surface:** `wearables.js` (dashboard strip + detail modal + reorder mode + Settings → Wearables list + manual-log forms), `brand-assets.js` (per-vendor logo registry — `iconLight/Dark` for in-app rows, `signInLight/Dark` for landing-site Connect buttons, `mono` SVG fallback while a vendor logo is gated).
+
+---
+
+### Knowledge Base in-browser stack
+
+`lens.js` is the dispatcher; the 4 sibling `lens-local-*` modules are the in-browser implementation. The dispatcher routes between in-browser and external-server backends per the user's selection.
+
+- `lens-local.js` — main-thread shell: spawns a module worker, posts ingest/query/list/activate/delete messages, exposes a Promise-based API to `lens.js`.
+- `lens-local-worker.js` — module worker. Loads transformers.js (currently from jsdelivr — see `update-vendor.sh` notes), runs WebGPU embedding when available with WASM fallback, owns OPFS persistence (`FileSystemSyncAccessHandle`), library CRUD, MMR re-rank (λ named `MMR_LAMBDA`), per-library model selection from a 4-model catalog.
+- `lens-local-utils.js` — pure helpers: `chunkText`, `mmrSelect`, hashing, vector-pack helpers. Importable from both threads.
+- `lens-local-parsers.js` — main-thread document parsers (PDF via `pdfjs-loader.js`, DOCX via mammoth, ZIP via JSZip, plus plain text/markdown/CSV).
+
+---
+
+### Other recently-extracted modules
+
+Not separately documented because their exports are best read from source — kept thin on purpose.
+
+- `chat-images.js` — image attachment lifecycle (`getPendingAttachments`, `clearAttachments`, etc.). Owns the `_pendingAttachments` queue. Extracted from `chat.js` in v1.21.9.
+- `chat-threads.js` — conversation thread CRUD, list rendering, autoname, `onChatSaved` debounce trigger. Also extracted in v1.21.9.
+- `markdown.js` — XSS-safe markdown rendering (`applyInlineMarkdown` for spans, `renderMarkdown` for full blocks). 34 dedicated XSS test assertions.
+- `lab-context.js` — lab-data → AI-prompt context assembly; memoized via fingerprint that includes wearable summary, change history, and all 9 context cards.
+- `provider-panels.js` — Settings → AI per-provider panels (Venice / OpenRouter / Routstr / PPQ / Local AI / Custom) plus shared model-advisor.
+- `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
+- `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
+- `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
+- `sync.js` — Evolu CRDT sync orchestration; per-profile push debouncer, chat sync debouncer, relay status tracking, profile delete propagation, messenger token + push-context-to-gateway plumbing.

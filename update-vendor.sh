@@ -3,7 +3,11 @@ set -euo pipefail
 
 # ── Pinned versions (bump these, then re-run) ─────────────────────────────
 CHARTJS_VERSION="4.4.7"
-PDFJS_VERSION="3.11.174"
+# pdf.js 4.x is ESM-only — UMD `pdf.min.js` no longer exists. We pin to the
+# `legacy/` ESM build (broader browser-target transforms) and load it via a
+# dynamic `import()` that exposes the module as `window.pdfjsLib` for the
+# existing call sites. ≥4.2.67 closes CVE-2024-4367 (FontMatrix injection).
+PDFJS_VERSION="4.10.38"
 MAMMOTH_VERSION="1.8.0"
 JSZIP_VERSION="3.10.1"
 # @huggingface/transformers is intentionally NOT vendored — its npm-dist
@@ -25,12 +29,15 @@ echo "=== Downloading Chart.js $CHARTJS_VERSION ==="
 curl -fsSL "https://cdn.jsdelivr.net/npm/chart.js@${CHARTJS_VERSION}/dist/chart.umd.min.js" \
   -o "$VENDOR_DIR/chart.min.js"
 
-echo "=== Downloading pdf.js $PDFJS_VERSION ==="
-curl -fsSL "https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.js" \
-  -o "$VENDOR_DIR/pdf.min.js"
+echo "=== Downloading pdf.js $PDFJS_VERSION (legacy ESM) ==="
+curl -fsSL "https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/legacy/build/pdf.min.mjs" \
+  -o "$VENDOR_DIR/pdf.min.mjs"
 
-curl -fsSL "https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js" \
-  -o "$VENDOR_DIR/pdf.worker.min.js"
+curl -fsSL "https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/legacy/build/pdf.worker.min.mjs" \
+  -o "$VENDOR_DIR/pdf.worker.min.mjs"
+
+# Drop the old UMD artifacts so a stale cache doesn't shadow the new ESM build
+rm -f "$VENDOR_DIR/pdf.min.js" "$VENDOR_DIR/pdf.worker.min.js"
 
 echo "=== Downloading mammoth $MAMMOTH_VERSION ==="
 curl -fsSL "https://cdn.jsdelivr.net/npm/mammoth@${MAMMOTH_VERSION}/mammoth.browser.min.js" \

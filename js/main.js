@@ -116,10 +116,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Handle OpenRouter OAuth callback (?code=...)
   const urlParams = new URLSearchParams(window.location.search);
   const oauthCode = urlParams.get('code');
+  const oauthState = urlParams.get('state');
   if (!ouraHandled && oauthCode) {
     history.replaceState(null, '', window.location.pathname);
     try {
-      const key = await exchangeOpenRouterCode(oauthCode);
+      const key = await exchangeOpenRouterCode(oauthCode, oauthState);
       await saveOpenRouterKey(key);
       setAIProvider('openrouter');
       fetchOpenRouterModels(key);
@@ -141,9 +142,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';
   state.profileSex = getProfileSex(state.currentProfile);
   state.profileDob = getProfileDob(state.currentProfile);
-  if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
-  }
   document.querySelectorAll('.unit-toggle-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.unit === state.unitSystem);
   });
@@ -275,6 +273,26 @@ document.addEventListener("click", e => {
   const dd = document.getElementById("corr-options");
   const si = document.getElementById("corr-search");
   if (dd && si && !dd.contains(e.target) && e.target !== si) dd.classList.remove("show");
+});
+// Global keyboard activation for `role="button" tabindex="0"` elements.
+// Avoids the boilerplate of `onkeydown="if(event.key==='Enter'||...)..."` on
+// every dynamic markup template — adding the two attributes is enough to
+// make a clickable div Enter/Space activatable. Native button/a/input keep
+// their own keyboard semantics; we only intercept when the role is button
+// and we wouldn't be hijacking a form field.
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const t = e.target;
+  if (!(t instanceof HTMLElement)) return;
+  if (t.getAttribute('role') !== 'button') return;
+  if (t.tabIndex < 0) return;
+  // Skip native interactives — they handle Space/Enter themselves
+  const tag = t.tagName;
+  if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  // Don't fire twice if the element already has its own onkeydown shim
+  if (t.hasAttribute('onkeydown')) return;
+  e.preventDefault();
+  t.click();
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {

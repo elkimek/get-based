@@ -129,7 +129,7 @@ function renderEMFEditor(modal) {
   const assessments = ensureAssessments();
   const sorted = [...assessments].sort((a, b) => b.date.localeCompare(a.date));
 
-  let html = `<button class="modal-close" onclick="closeModal()">&times;</button>
+  let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     <h3>Baubiologie EMF Assessment</h3>
     <div class="modal-unit">Room-by-room electromagnetic field measurements rated against SBM-2015 sleeping area standards.</div>
     <div class="emf-editor-actions">
@@ -593,7 +593,7 @@ function showEMFImportPreview(parsed) {
   const overlay = document.getElementById('modal-overlay');
   const fmtDate = parsed.date ? new Date(parsed.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date';
 
-  let html = `<button class="modal-close" onclick="closeModal()">&times;</button>
+  let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     <h3>EMF Report Preview</h3>
     <div class="modal-unit">${fmtDate}${parsed.consultant ? ' — by ' + escapeHTML(parsed.consultant) : ''}</div>`;
 
@@ -800,7 +800,7 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
   let html = `<div class="emf-interp-modal">
     <div class="emf-interp-header">
       <h3>${escapeHTML(title)}</h3>
-      <button class="modal-close" onclick="closeEMFInterpretation()">&times;</button>
+      <button class="modal-close" aria-label="Close" onclick="closeEMFInterpretation()">&times;</button>
     </div>
     <div class="emf-interp-body" id="emf-interp-body">
       ${hasExisting ? renderMarkdown(existingInterp.text) : '<div class="emf-interp-placeholder">Click Interpret to get an AI interpretation of this assessment.</div>'}

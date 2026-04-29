@@ -70,7 +70,7 @@ export function renderSupplementsSection() {
       }
       const fullLabel = s.name + (s.dosage ? ' · ' + s.dosage : '');
       const shortName = s.name.replace(/,?\s*\d+\s*x?\s*(?:ml|g|kg|oz|fl\.?\s*oz|caps(?:ules?)?|tabs?|tablets?|softgels?|ct)\b.*$/i, '').trim() || s.name;
-      html += `<div class="supp-bar-row" onclick="openSupplementsEditor(${i})">
+      html += `<div class="supp-bar-row" role="button" tabindex="0" aria-label="Edit ${escapeHTML(fullLabel)}" onclick="openSupplementsEditor(${i})">
         <span class="supp-bar-label" title="${escapeHTML(fullLabel)}">${escapeHTML(shortName)}</span>
         <div class="supp-bar-track">${barsHtml}</div>
       </div>`;

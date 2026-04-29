@@ -19,7 +19,11 @@ let _appOwner = null;
 let _appOwnerError = null;
 let _readyPromise = null;
 let _queryLoaded = null;
-let _debounceTimer = null;
+// Per-profile debounce timers. Switching profiles mid-debounce previously
+// dropped the pending push for the prior profile because the single shared
+// timer was overwritten. Keyed by profileId so each profile's pending push
+// survives until it fires.
+const _debounceTimers = new Map();
 let _pollInterval = null;
 let _lastPollRowCount = -1;
 let _subscriptionFireCount = 0;
@@ -314,7 +318,8 @@ export async function disableSync() {
 
   // Stop background timers + reset status (UI feedback before the reload)
   if (_relayProbeInterval) { clearInterval(_relayProbeInterval); _relayProbeInterval = null; }
-  if (_debounceTimer) { clearTimeout(_debounceTimer); _debounceTimer = null; }
+  for (const t of _debounceTimers.values()) clearTimeout(t);
+  _debounceTimers.clear();
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
   Object.assign(_syncStatus, { relay: 'unknown', relayCheckedAt: null, push: 'idle', pushStartedAt: null, pushConfirmedAt: null, pull: 'idle', pullReceivedAt: null, lastError: null });
   for (const fn of _syncStatusListeners) fn(_syncStatus);
@@ -1104,15 +1109,18 @@ export function onDataSaved() {
     // pre-write relay snapshot. pushProfile bumps sync-ts again on success.
     if (profileId) {
       localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(Date.now()));
+      const prev = _debounceTimers.get(profileId);
+      if (prev) clearTimeout(prev);
+      const timer = setTimeout(() => {
+        _debounceTimers.delete(profileId);
+        if (_syncing) {
+          setTimeout(() => pushProfile(profileId, data), 1000);
+        } else {
+          pushProfile(profileId, data);
+        }
+      }, 2000);
+      _debounceTimers.set(profileId, timer);
     }
-    clearTimeout(_debounceTimer);
-    _debounceTimer = setTimeout(() => {
-      if (_syncing) {
-        setTimeout(() => pushProfile(profileId, data), 1000);
-      } else {
-        pushProfile(profileId, data);
-      }
-    }, 2000);
   }
   // Messenger context push
   pushContextToGateway();

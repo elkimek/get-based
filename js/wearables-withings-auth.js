@@ -72,6 +72,12 @@ export async function completeOAuthCallback(urlParams) {
   let pending;
   try { pending = JSON.parse(pendingRaw); } catch { return { ok: false, error: 'Corrupt pending state' }; }
   if (pending.state !== returnedState) return { ok: false, error: 'State mismatch — possible CSRF, aborting' };
+  // Reject stale pending states. 10 minutes covers a slow second-factor on
+  // the provider's auth page; longer than that and the user almost certainly
+  // closed and reopened.
+  if (typeof pending.startedAt === 'number' && Date.now() - pending.startedAt > 10 * 60 * 1000) {
+    return { ok: false, error: 'OAuth flow expired — please try connecting again' };
+  }
 
   const res = await fetch(PROXY_URL, {
     method: 'POST',

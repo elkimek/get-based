@@ -295,24 +295,10 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
 // ─────────────────────────────────────────────────────────
 
 // Local-tz YYYY-MM-DD. Critical: vendor APIs (Oura, Withings, Fitbit) use
-// the user's local-day boundary for their `day`/date fields — a sleep
-// session bedtime-end of 06:00 local is attributed to "today" in their
-// local zone, not in UTC. Earlier we used UTC ISO here, which cut "today"
-// in half for non-UTC users (Americas saw end_date = tomorrow_UTC; Asia
-// saw it shift past their actual today), shifting the 90-day L2 window
-// by one day for everyone outside UTC.
-export function isoDay(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-export function daysAgoIso(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return isoDay(d);
-}
+// Re-export the canonical date helpers so existing call sites that import
+// from this module keep working. New code should import from
+// wearable-adapters.js directly.
+export { isoDay, daysAgoIso } from './wearable-adapters.js';
 
 // ─────────────────────────────────────────────────────────
 // Debug

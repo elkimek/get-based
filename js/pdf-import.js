@@ -8,6 +8,7 @@ import { saveImportedData, recalculateHOMAIR } from './data.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, setAIProvider, setVeniceModel, setOpenRouterModel, getOllamaMainModel, setOllamaMainModel, getVeniceModelDisplay, getOpenRouterModelDisplay, getActiveModelId, getActiveModelDisplay, getOllamaPIIModel, setCustomApiModel, setPpqModel, setRoutstrModel } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { detectProduct, normalizeWithAdapter, getAdapterByTestType } from './adapters.js';
+import { getPdfDocument } from './pdfjs-loader.js';
 
 
 // ═══════════════════════════════════════════════
@@ -15,6 +16,18 @@ import { detectProduct, normalizeWithAdapter, getAdapterByTestType } from './ada
 // ═══════════════════════════════════════════════
 function normalizeUnitStr(s) {
   return s.toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
+}
+
+// Marker keys flow into onclick handlers and dynamic property names. Reject
+// anything that isn't strictly `category.markerKey` (alphanumeric, optional
+// trailing underscore in the marker half) so a poisoned/prompt-injected AI
+// response can't escape an attribute context. Downstream code already
+// handles `null` mappedKey/suggestedKey by deriving a safe key from rawName.
+const _SAFE_MARKER_KEY = /^[a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9_]*$/;
+function _sanitizeAIMarker(m) {
+  if (typeof m.mappedKey === 'string' && !_SAFE_MARKER_KEY.test(m.mappedKey)) m.mappedKey = null;
+  if (typeof m.suggestedKey === 'string' && !_SAFE_MARKER_KEY.test(m.suggestedKey)) m.suggestedKey = null;
+  return m;
 }
 
 function normalizeToSI(key, value, unit) {
@@ -240,11 +253,11 @@ function _showUnsupportedLabDialog(testType) {
     const displayType = escapeHTML(testType);
     overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" style="max-width:480px">
       <p class="confirm-message" style="margin-bottom:12px">
-        We don't fully support <strong>${displayType}</strong> reports like this one yet. Importing will likely miss markers or map them incorrectly, and the AI costs may not be worth it.
+        <strong>${displayType}</strong> reports like this one aren't fully supported yet. Importing will likely miss markers or map them incorrectly, and the AI costs may not be worth it.
       </p>
       <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
         In the meantime, you can add your markers manually using the <strong>+</strong> button in the sidebar.
-        <p style="margin:10px 0 0 0">We'd love to support this lab properly — <a href="https://github.com/elkimek/get-based/issues" target="_blank" rel="noopener" style="color:var(--accent)">let us know on GitHub</a>, or ask your lab to reach out!</p>
+        <p style="margin:10px 0 0 0">If you'd like this lab properly supported — <a href="https://github.com/elkimek/get-based/issues" target="_blank" rel="noopener" style="color:var(--accent)">file an issue on GitHub</a>, or ask your lab to reach out.</p>
       </div>
       <div class="confirm-actions">
         <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
@@ -305,7 +318,7 @@ export function buildMarkerReference() {
 
 export async function extractPDFText(file) {
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await getPdfDocument({ data: arrayBuffer });
   let allItems = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
@@ -482,6 +495,10 @@ Return ONLY valid JSON in this exact format, no other text:
   const jsonStart = jsonStr.indexOf('{');
   if (jsonStart > 0) jsonStr = jsonStr.slice(jsonStart);
   const parsed = tryParseJSON(jsonStr);
+
+  // Sanitize AI-supplied keys at the boundary, before any adapter or guard
+  // logic runs. Downstream code constructs new keys from the cleaned halves.
+  if (Array.isArray(parsed.markers)) parsed.markers.forEach(_sanitizeAIMarker);
 
   let testType = parsed.testType || 'blood';
   // ── Adapter-based normalization (fatty acids, Metabolomix+, future specialty labs) ──
@@ -987,8 +1004,10 @@ export function setupDropZone() {
 const STEP_START_PCT = [5, 8, 12, 15, 95];
 
 function _updateProgressPct(pct) {
+  const bar = document.querySelector('.import-progress-bar');
   const fill = document.querySelector('.import-progress-bar-fill');
   const label = document.querySelector('.import-progress-pct');
+  if (bar) bar.setAttribute('aria-valuenow', String(pct));
   if (fill) fill.style.width = pct + '%';
   if (label) label.textContent = pct + '%';
   if (_importStatus.running) _setImportStatus({ pct });
@@ -996,7 +1015,7 @@ function _updateProgressPct(pct) {
 
 function _buildProgressHTML(step, fileName) {
   const pct = STEP_START_PCT[step] || 0;
-  let html = `<div class="import-progress-bar"><div class="import-progress-bar-fill" style="width:${pct}%"></div></div>`;
+  let html = `<div class="import-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Import progress"><div class="import-progress-bar-fill" style="width:${pct}%"></div></div>`;
   html += `<div class="import-progress-pct">${pct}%</div>`;
   html += '<div class="import-progress">';
   for (let i = 0; i < IMPORT_STEPS.length; i++) {
@@ -1093,7 +1112,7 @@ export function assessTextQuality(text) {
 
 export async function extractPDFImages(file, maxPages = 8) {
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await getPdfDocument({ data: arrayBuffer });
   const pages = Math.min(pdf.numPages, maxPages);
   const images = [];
   for (let i = 1; i <= pages; i++) {
@@ -1179,6 +1198,10 @@ Return ONLY valid JSON in this exact format:
   const jsonStart = jsonStr.indexOf('{');
   if (jsonStart > 0) jsonStr = jsonStr.slice(jsonStart);
   const parsed = tryParseJSON(jsonStr);
+
+  // Sanitize AI-supplied keys at the boundary, before any adapter or guard
+  // logic runs.
+  if (Array.isArray(parsed.markers)) parsed.markers.forEach(_sanitizeAIMarker);
 
   let testType = parsed.testType || 'blood';
   // ── Adapter-based normalization (image pipeline) — same logic as text pipeline ──
