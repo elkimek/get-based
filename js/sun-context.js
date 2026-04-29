@@ -129,10 +129,13 @@ function standardTierBlock(sessions) {
   }
   block += '\n';
 
-  // Correlation table (precomputed, expected from sun-profile.js nightly run)
-  const corr = state.importedData?.sunCorrelations;
+  // Correlation table — computed on demand by sun-correlations.js
+  let corr = state.importedData?.sunCorrelations;
+  if ((!corr || !corr.pairs) && typeof window.getSunCorrelations === 'function') {
+    try { corr = window.getSunCorrelations(); } catch (e) {}
+  }
   if (corr && corr.pairs) {
-    block += `### Sun-channel × biomarker correlations (precomputed)
+    block += `### Sun-channel × biomarker correlations (computed from your data)
 ${formatCorrelations(corr.pairs)}
 
 `;

@@ -34,6 +34,7 @@ import './light-devices.js';
 import './light-tools.js';
 import './light-env.js';
 import './sun-defaults.js';
+import './sun-correlations.js';
 import './export.js';
 import './chat.js';
 import './image-utils.js';
