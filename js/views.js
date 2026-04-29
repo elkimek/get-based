@@ -211,7 +211,11 @@ export function showLight(_data) {
   if (typeof window.renderDevicesSection === 'function') {
     Promise.resolve(window.renderDevicesSection()).then((devHtml) => {
       const slot = document.getElementById(placeholderId);
-      if (slot) slot.outerHTML = devHtml || '';
+      if (slot) {
+        const envHtml = (window.renderEnvironmentSection && window.renderEnvironmentSection()) || '';
+        const toolsHtml = (window.renderLightTools && window.renderLightTools()) || '';
+        slot.outerHTML = (devHtml || '') + envHtml + toolsHtml;
+      }
     }).catch(() => {});
   }
 }

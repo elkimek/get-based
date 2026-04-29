@@ -5291,6 +5291,128 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-device-session-delete:hover { color: var(--red); }
 
+/* Light Environment — rooms + screens survey */
+.light-env-section { margin-top: 24px; }
+.light-env-block { margin-top: 16px; }
+.light-env-block-head {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 10px;
+}
+.light-env-block-head strong {
+  color: var(--text-primary); font-size: 14px;
+  flex: 1;
+}
+.light-env-empty {
+  font-size: 13px; color: var(--text-muted);
+  padding: 12px 0;
+}
+.light-env-rows {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-env-row {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.light-env-input { font-size: 13px; padding: 6px 10px; }
+.light-env-row > .light-env-input:first-child { flex: 1; min-width: 100px; }
+.light-env-hours { width: 80px; }
+.light-env-evening {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.light-env-tool {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px; padding: 4px 8px;
+  cursor: pointer; color: var(--text-primary);
+}
+.light-env-tool:hover { background: var(--bg-hover); }
+.light-env-delete {
+  background: transparent; border: none;
+  color: var(--text-muted); font-size: 18px; line-height: 1;
+  cursor: pointer; padding: 4px 8px;
+}
+.light-env-delete:hover { color: var(--red); }
+
+.light-env-summary {
+  margin-top: 14px; padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.light-env-summary strong { color: var(--text-primary); }
+.light-env-summary-sep { opacity: 0.4; }
+
+/* Light tools — measurement utility cards */
+.light-tools-section { margin-top: 24px; }
+.light-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 12px;
+}
+.light-tool-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  cursor: pointer;
+  text-align: left;
+  display: flex; flex-direction: column; gap: 6px;
+  font-family: inherit;
+  color: var(--text-primary);
+  transition: border-color 0.15s, background 0.15s;
+}
+.light-tool-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.light-tool-icon { font-size: 22px; }
+.light-tool-name { font-weight: 600; }
+.light-tool-desc { font-size: 12px; color: var(--text-secondary); }
+
+/* Lux meter dial */
+.lux-dial {
+  text-align: center; padding: 24px 0;
+}
+.lux-dial-value { font-size: 48px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+.lux-dial-unit { font-size: 13px; color: var(--text-muted); }
+.lux-dial-zone { font-size: 14px; font-weight: 600; margin-top: 8px; color: var(--text-secondary); }
+.lux-zones {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center;
+  font-size: 11px; color: var(--text-muted);
+  margin-top: 8px;
+}
+.lux-zone-marker span { color: var(--text-secondary); margin-left: 2px; }
+
+/* Flicker detector + dark meter result lines */
+.flicker-result, .dark-status {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.flicker-score-0 { color: var(--green); }
+.flicker-score-1 { color: var(--text-primary); }
+.flicker-score-2 { color: var(--orange); }
+.flicker-score-3 { color: var(--red); }
+.dark-status-ok { color: var(--green); }
+.dark-status-warn { color: var(--orange); }
+.dark-status-over { color: var(--red); }
+
+.light-tool-modal {
+  max-width: 480px;
+}
+
 /* Burn-risk banner on the Light & Sun page */
 .light-med-banner {
   margin: 16px 0;
