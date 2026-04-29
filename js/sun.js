@@ -54,6 +54,41 @@ export const LENS_TINTS = [
   { key: 'amber',         label: 'Amber / red' },
 ];
 
+// ─── Channel display metadata ─────────────────────────────────────────
+// Daily targets are deliberately rough — they represent "a meaningful
+// healthy dose for one day" derived from typical noon-zenith integrals.
+// We use them only to map raw doses → qualitative tiers for display.
+// AI context still ships raw numbers; users never see them.
+export const CHANNEL_DISPLAY = {
+  vitamin_d:  { icon: '☀',  label: 'Vit D',     dailyTarget:    300, what: 'UVB drives skin vitamin D synthesis. Saturates around 1 MED, then reverses.' },
+  pomc:       { icon: '⚡',  label: 'POMC',      dailyTarget:    800, what: 'UV → melanocortin axis (α-MSH, β-endorphin, ACTH). Mood, libido, tan progression.' },
+  no_cv:      { icon: '❤',  label: 'NO/CV',     dailyTarget:    100, what: 'UVA releases nitric oxide from skin → vasodilation, lower BP. Liu/Oplander 2014.' },
+  violet_eye: { icon: '👁',  label: 'Violet eye', dailyTarget:  6000, what: 'Outdoor 360–400 nm via OPN5 in skin and eye. Tsubota / Torii — myopia + dopamine retinal.' },
+  circadian:  { icon: '🌅', label: 'Circadian', dailyTarget:  20000, what: 'Bright outdoor light at the eye → SCN entrainment. Hattar / Huberman.' },
+  nir_solar:  { icon: '🔥', label: 'NIR/IR-A',  dailyTarget: 100000, what: 'Solar 600–1400 nm, optical tissue window. Wunsch / Jeffery / Reiter — mitochondria.' },
+  pbm_red:    { icon: '🔴', label: 'PBM red',   dailyTarget:   8000, what: 'Narrowband red therapy panel input (660 nm).' },
+  pbm_nir:    { icon: '🟣', label: 'PBM NIR',   dailyTarget:  10000, what: 'Narrowband NIR therapy panel input (810/850 nm).' },
+};
+
+// Map a raw dose value → qualitative tier 0-4.
+// 0 = none (≈0), 1 = trace, 2 = light, 3 = good, 4 = strong, 5 = saturated.
+export function channelTier(value, channelKey) {
+  const target = CHANNEL_DISPLAY[channelKey]?.dailyTarget ?? 1000;
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const ratio = value / target;
+  if (ratio < 0.05) return 1;
+  if (ratio < 0.30) return 2;
+  if (ratio < 0.80) return 3;
+  if (ratio < 1.50) return 4;
+  return 5;
+}
+
+const TIER_LABELS = ['none', 'trace', 'light', 'good', 'strong', 'saturated'];
+const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○', '●●●●', '●●●●'];
+
+export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
+export function tierDots(tier) { return TIER_DOTS[tier] || TIER_DOTS[0]; }
+
 // ─── Public API ────────────────────────────────────────────────────────
 
 export function getSessions() {
@@ -316,8 +351,15 @@ function renderChannelChips(doses) {
   let html = `<div class="sun-channel-chips">`;
   for (const key of order) {
     const v = doses[key] || 0;
-    const intensity = Math.min(1, v / 100); // arbitrary normalization for chip color
-    html += `<span class="sun-chip" data-channel="${key}" style="opacity:${0.3 + intensity * 0.7}" title="${key}: ${v.toFixed(2)}">${key.replace('_', ' ')}</span>`;
+    const tier = channelTier(v, key);
+    const meta = CHANNEL_DISPLAY[key];
+    const label = meta?.label || key.replace('_', ' ');
+    const tip = `${meta?.what || ''} (level: ${tierLabel(tier)})`;
+    html += `<span class="sun-chip sun-chip-tier-${tier}" data-channel="${key}" title="${escapeAttr(tip)}">
+      <span class="sun-chip-icon">${meta?.icon || '·'}</span>
+      <span class="sun-chip-label">${escapeHTML(label)}</span>
+      <span class="sun-chip-dots">${tierDots(tier)}</span>
+    </span>`;
   }
   html += `</div>`;
   return html;
@@ -350,5 +392,9 @@ if (typeof window !== 'undefined') {
     EXPOSURE_PRESETS,
     EYE_MODES,
     LENS_TINTS,
+    CHANNEL_DISPLAY,
+    channelTier,
+    tierLabel,
+    tierDots,
   });
 }

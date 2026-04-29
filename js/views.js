@@ -67,29 +67,45 @@ export function renderLightTodayStrip() {
     cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>`;
   }
 
+  // Qualitative pill summary of the 6 user-facing channels for the past 7 days.
+  // Numbers are kept off the dashboard — only "none / trace / light / good /
+  // strong / saturated" tiers + dots. Hover for science.
+  const ch = window.CHANNEL_DISPLAY || {};
+  const tier = window.channelTier || (() => 0);
+  const dots = window.tierDots || (() => '○○○○');
+  const tlabel = window.tierLabel || (() => 'none');
+  const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  const pills = order.map(k => {
+    const meta = ch[k] || {};
+    const t = tier(totals7d[k] || 0, k);
+    const tip = `${meta.what || ''} — last 7 days: ${tlabel(t)}.`;
+    return `<span class="light-pill light-pill-tier-${t}" title="${escapeHTML(tip)}">
+      <span class="light-pill-icon">${meta.icon || '·'}</span>
+      <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
+      <span class="light-pill-dots">${dots(t)}</span>
+    </span>`;
+  }).join('');
+
+  // MED gauge — explain in plain English, color-coded
+  const medPct = Math.round(medToday * 100);
+  let medCls = 'ok', medMsg = 'safe';
+  if (medToday >= 1) { medCls = 'over'; medMsg = 'over personal threshold — pause outdoor exposure'; }
+  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'approaching personal threshold'; }
+
   return `<section class="light-today-strip">
     <div class="light-today-head">
       <span class="light-today-icon">☀</span>
       <span class="light-today-title">Light Today</span>
+      <span class="light-today-sub">${sessions.length} session${sessions.length !== 1 ? 's' : ''} this week</span>
       <a href="#" class="light-today-link" onclick="event.preventDefault();window.navigate('light')">Open Light &amp; Sun →</a>
     </div>
-    <div class="light-today-row">
-      <div class="light-today-stat">
-        <span class="light-today-stat-value">${sessions.length}</span>
-        <span class="light-today-stat-label">sessions</span>
-      </div>
-      <div class="light-today-stat">
-        <span class="light-today-stat-value">${(totals7d.vitamin_d || 0).toFixed(0)}</span>
-        <span class="light-today-stat-label">7d vit-D</span>
-      </div>
-      <div class="light-today-stat">
-        <span class="light-today-stat-value">${(totals7d.circadian || 0).toFixed(0)}</span>
-        <span class="light-today-stat-label">7d circadian</span>
-      </div>
-      <div class="light-today-stat ${medToday > 1 ? 'over' : ''}">
-        <span class="light-today-stat-value">${(medToday * 100).toFixed(0)}%</span>
-        <span class="light-today-stat-label">today's MED</span>
-      </div>
+    <div class="light-pills-row">
+      ${pills}
+    </div>
+    <div class="light-today-foot">
+      <span class="light-today-med light-today-med-${medCls}" title="Cumulative skin reddening dose vs your Fitzpatrick threshold. ≥100% = sunburn risk.">
+        Today's burn risk: <strong>${medPct}%</strong> — ${medMsg}
+      </span>
       ${cta}
     </div>
   </section>`;
@@ -120,42 +136,40 @@ export function showLight(_data) {
   const main = document.getElementById("main-content");
   const sessions = (window.getSessions && window.getSessions()) || [];
   const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
+  const totals30d = (window.rollingChannelTotals && window.rollingChannelTotals(30)) || {};
   const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
-  const medClass = medToday > 1 ? 'over' : medToday > 0.7 ? 'warn' : 'ok';
 
   let html = `<div class="category-header">
     <h2>☀ Light &amp; Sun</h2>
     <p>Photobiology — your light exposure across the spectrum, correlated with your labs and wearables.</p>
   </div>`;
 
-  // Top-line summary panel
-  html += `<div class="light-summary-grid">
-    <div class="light-summary-card">
-      <div class="light-summary-label">Sessions logged</div>
-      <div class="light-summary-value">${sessions.length}</div>
-    </div>
-    <div class="light-summary-card">
-      <div class="light-summary-label">7-day vit-D dose</div>
-      <div class="light-summary-value">${(totals7d.vitamin_d || 0).toFixed(0)}</div>
-      <div class="light-summary-sub">channel-au</div>
-    </div>
-    <div class="light-summary-card">
-      <div class="light-summary-label">7-day circadian dose</div>
-      <div class="light-summary-value">${(totals7d.circadian || 0).toFixed(0)}</div>
-      <div class="light-summary-sub">channel-au</div>
-    </div>
-    <div class="light-summary-card light-med-${medClass}">
-      <div class="light-summary-label">Today's MED</div>
-      <div class="light-summary-value">${(medToday * 100).toFixed(0)}%</div>
-      <div class="light-summary-sub">${medToday >= 1 ? '⚠ over personal MED — pause outdoor exposure' : medToday >= 0.7 ? 'approaching MED' : 'safe'}</div>
-    </div>
-  </div>`;
-
-  // Quick-log CTA
+  // Quick-log CTA at top — primary action
   html += `<div class="light-quicklog-row">
     <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">
       ${(window.getActiveSession && window.getActiveSession()) ? '⏹ Stop & save current session' : '☀ Start a sun session'}
     </button>
+    <span class="light-summary-tally">${sessions.length} total session${sessions.length !== 1 ? 's' : ''}</span>
+  </div>`;
+
+  // Channel breakdown — visual bars instead of opaque numbers
+  html += `<div class="light-channels-section">
+    <h3 class="light-section-title">Your light exposure — last 7 days</h3>
+    <p class="light-section-hint">Each channel reflects a different biological effect of light. Hover for what each does.</p>
+    ${renderChannelBars(totals7d, totals30d)}
+  </div>`;
+
+  // Today's burn-risk gauge
+  const medPct = Math.round(medToday * 100);
+  let medCls = 'ok', medMsg = 'safe — well under your skin threshold';
+  if (medToday >= 1) { medCls = 'over'; medMsg = 'over your skin threshold — sunburn risk, avoid more sun today'; }
+  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'approaching your threshold — limit further direct exposure'; }
+  html += `<div class="light-med-banner light-med-${medCls}">
+    <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
+    <div class="light-med-body">
+      <div class="light-med-title">Today's burn risk: <strong>${medPct}%</strong></div>
+      <div class="light-med-sub">${medMsg}</div>
+    </div>
   </div>`;
 
   // Sessions list
@@ -163,6 +177,41 @@ export function showLight(_data) {
   html += (window.renderSessionsList && window.renderSessionsList()) || '';
 
   main.innerHTML = html;
+}
+
+// Visual bar grid for the channel summary on the Light & Sun page
+function renderChannelBars(totals7d, totals30d) {
+  const ch = window.CHANNEL_DISPLAY || {};
+  const tier = window.channelTier || (() => 0);
+  const tlabel = window.tierLabel || (() => 'none');
+  const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  let html = `<div class="light-channels-grid">`;
+  for (const k of order) {
+    const meta = ch[k] || {};
+    const v7 = totals7d[k] || 0;
+    const v30 = totals30d[k] || 0;
+    const t7 = tier(v7, k);
+    const t30 = tier(v30, k);
+    // Fill % vs daily-target × 7
+    const pct7 = Math.min(100, Math.round((v7 / ((meta.dailyTarget || 1000) * 7)) * 100));
+    html += `<div class="light-channel-row light-channel-tier-${t7}" title="${escapeHTML(meta.what || '')}">
+      <div class="light-channel-head">
+        <span class="light-channel-icon">${meta.icon || '·'}</span>
+        <span class="light-channel-name">${escapeHTML(meta.label || k)}</span>
+        <span class="light-channel-status">${tlabel(t7)}</span>
+      </div>
+      <div class="light-channel-bar"><div class="light-channel-fill" style="width:${pct7}%"></div></div>
+      <div class="light-channel-foot">
+        <span class="light-channel-foot-label">7d</span>
+        <span class="light-channel-foot-tier">${tlabel(t7)}</span>
+        <span class="light-channel-foot-sep">·</span>
+        <span class="light-channel-foot-label">30d</span>
+        <span class="light-channel-foot-tier">${tlabel(t30)}</span>
+      </div>
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
 }
 
 // ═══════════════════════════════════════════════
