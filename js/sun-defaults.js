@@ -113,9 +113,9 @@ export function renderSetupCard() {
     <div class="light-setup-step">
       <label class="ctx-label">Skin type</label>
       <div class="ctx-skin-slider-wrap">
-        <div class="ctx-skin-emojis">${['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'].map((e, i) => `<span class="ctx-skin-face${(getInitialFitzpatrick() === ROMAN[i]) ? ' active' : ''}" data-idx="${i}">${e}</span>`).join('')}</div>
-        <input type="range" min="-1" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : -1)}" class="ctx-skin-range" id="setup-skin-range" oninput="window._updateSetupSkinSlider && window._updateSetupSkinSlider(this.value)">
-        <div class="ctx-skin-label" id="setup-skin-label">${getInitialFitzpatrick() ? escapeHTML(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'Not set'}</div>
+        <div class="ctx-skin-emojis">${['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'].map((e, i) => `<span class="ctx-skin-face${(getInitialFitzpatrick() === ROMAN[i]) ? ' active' : ''}" data-idx="${i}" onclick="document.getElementById('setup-skin-range').value=${i};window._updateSetupSkinSlider && window._updateSetupSkinSlider(${i})">${e}</span>`).join('')}</div>
+        <input type="range" min="0" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : 2)}" class="ctx-skin-range" id="setup-skin-range" oninput="window._updateSetupSkinSlider && window._updateSetupSkinSlider(this.value)" data-set="${getInitialFitzpatrick() ? '1' : '0'}">
+        <div class="ctx-skin-label" id="setup-skin-label">${getInitialFitzpatrick() ? escapeHTML(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'Tap a face or drag the slider'}</div>
       </div>
     </div>
 
@@ -171,8 +171,12 @@ function getSunCoordsLine() {
 async function saveSunSetup() {
   const root = document.querySelector('.light-setup-card');
   if (!root) return;
-  // Skin type comes from the emoji-slider range (-1 = not set, 0-5 = SKIN_TYPE index)
-  const skinIdx = parseInt(root.querySelector('#setup-skin-range')?.value, 10);
+  // Skin type comes from the emoji-slider range. The slider defaults to
+  // position 2 (median III) but data-set="0" means the user hasn't
+  // actively confirmed; they must tap a face or drag.
+  const sliderEl = root.querySelector('#setup-skin-range');
+  const isSet = sliderEl?.dataset?.set === '1';
+  const skinIdx = isSet ? parseInt(sliderEl?.value, 10) : -1;
   const fitzpatrick = (skinIdx >= 0 && skinIdx < 6) ? ROMAN[skinIdx] : null;
   const homeLight = root.querySelector('#setup-homelight')?.value || null;
   const eyewear = root.querySelector('#setup-eyewear')?.value || null;
@@ -210,14 +214,17 @@ async function saveSunSetup() {
 
 // Live update of the setup-card emoji slider (mirrors updateSkinSlider in
 // context-cards.js but bound to setup-* DOM ids so the two widgets don't
-// collide if both are visible at once).
+// collide if both are visible at once). Marks data-set so save knows the
+// user has actively confirmed a value (vs the visual default of position 2).
 function _updateSetupSkinSlider(val) {
   const idx = parseInt(val, 10);
   document.querySelectorAll('.light-setup-card .ctx-skin-face').forEach((el, i) => {
     el.classList.toggle('active', i === idx);
   });
   const label = document.getElementById('setup-skin-label');
-  if (label) label.textContent = idx >= 0 && idx < SKIN_TYPE.length ? SKIN_TYPE[idx] : 'Not set';
+  if (label) label.textContent = idx >= 0 && idx < SKIN_TYPE.length ? SKIN_TYPE[idx] : 'Tap a face or drag the slider';
+  const range = document.getElementById('setup-skin-range');
+  if (range) range.dataset.set = '1';
 }
 
 // Skip-for-now — marks the setup as completed without filled answers.
