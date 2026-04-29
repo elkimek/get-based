@@ -5158,9 +5158,36 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-channel-foot {
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; color: var(--text-muted);
+  flex-wrap: wrap;
 }
 .light-channel-foot-tier { color: var(--text-secondary); text-transform: capitalize; }
+.light-channel-foot-trend { color: var(--text-secondary); font-weight: 600; }
 .light-channel-foot-sep { opacity: 0.4; }
+
+/* Light & Sun — first-time intro card */
+.light-intro-card {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.06) 0%, rgba(56, 189, 248, 0.04) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 32px;
+  margin: 18px 0;
+}
+.light-intro-title { font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+.light-intro-body { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 18px; }
+.light-intro-hint { font-size: 12px; color: var(--text-muted); margin-top: 14px; }
+.light-intro-hint a { color: var(--accent); text-decoration: none; }
+.light-intro-hint a:hover { text-decoration: underline; }
+
+/* Light & Sun — one-line action suggestion */
+.light-suggestion {
+  margin-top: 14px; padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-left: 3px solid #fb923c;
+  border-radius: 6px;
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 10px;
+}
+.light-suggestion-icon { font-size: 14px; }
 
 .light-med-banner {
   margin: 18px 0;

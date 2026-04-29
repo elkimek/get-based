@@ -10,8 +10,10 @@
 // in profile.js migrateProfileData().
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
+import { escapeHTML, escapeAttr, formatDate, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
+import { getProfileLocation } from './profile.js';
+import { COUNTRY_LATITUDES } from './constants.js';
 
 // ─── Anatomical regions (for body silhouette picker) ───────────────────
 // 11 regions per the design — each carries optional research notes for AI.
@@ -60,14 +62,14 @@ export const LENS_TINTS = [
 // We use them only to map raw doses → qualitative tiers for display.
 // AI context still ships raw numbers; users never see them.
 export const CHANNEL_DISPLAY = {
-  vitamin_d:  { icon: '☀',  label: 'Vit D',     dailyTarget:    300, what: 'UVB on bare skin makes vitamin D. Stops increasing around the point your skin starts to redden — longer is not better.' },
-  pomc:       { icon: '⚡',  label: 'POMC',      dailyTarget:    800, what: 'UV → melanocortin axis (α-MSH, β-endorphin, ACTH). Mood, libido, tan progression.' },
-  no_cv:      { icon: '❤',  label: 'NO/CV',     dailyTarget:    100, what: 'UVA releases nitric oxide from skin → vasodilation, lower BP. Liu/Oplander 2014.' },
-  violet_eye: { icon: '👁',  label: 'Violet eye', dailyTarget:  6000, what: 'Outdoor 360–400 nm via OPN5 in skin and eye. Tsubota / Torii — myopia + dopamine retinal.' },
-  circadian:  { icon: '🌅', label: 'Circadian', dailyTarget:  20000, what: 'Bright outdoor light at the eye → SCN entrainment. Hattar / Huberman.' },
-  nir_solar:  { icon: '🔥', label: 'NIR/IR-A',  dailyTarget: 100000, what: 'Solar 600–1400 nm, optical tissue window. Wunsch / Jeffery / Reiter — mitochondria.' },
-  pbm_red:    { icon: '🔴', label: 'PBM red',   dailyTarget:   8000, what: 'Narrowband red therapy panel input (660 nm).' },
-  pbm_nir:    { icon: '🟣', label: 'PBM NIR',   dailyTarget:  10000, what: 'Narrowband NIR therapy panel input (810/850 nm).' },
+  vitamin_d:  { icon: '☀',  label: 'Vitamin D',          dailyTarget:    300, what: 'UVB on bare skin makes vitamin D. Stops increasing around the point your skin starts to redden — longer is not better.' },
+  pomc:       { icon: '⚡',  label: 'Mood & hormones',    dailyTarget:    800, what: 'Sun on skin triggers a hormone cascade — α-MSH (the tan signal), β-endorphin (mood), ACTH (stress response). Part of why sun feels good.' },
+  no_cv:      { icon: '❤',  label: 'Cardiovascular',     dailyTarget:    100, what: 'UVA from skin releases nitric oxide — supports blood-vessel function, lowers blood pressure, improves circulation, dampens inflammation.' },
+  violet_eye: { icon: '👁',  label: 'Outdoor eye light',  dailyTarget:   6000, what: 'Outdoor 360–400 nm hits sensors in eye and skin. Linked to eye health and dopamine release — the difference between "outside" and "window light" even when both feel bright.' },
+  circadian:  { icon: '🌅', label: 'Body clock',         dailyTarget:  20000, what: 'Bright light at the eye sets your circadian rhythm — earlier bedtime, faster wake-up, deeper sleep. Strongest effect in the first 2 hours after sunrise.' },
+  nir_solar:  { icon: '🔥', label: 'Cellular repair',    dailyTarget: 100000, what: 'Solar 600–1400 nm penetrates deep into tissue and reaches mitochondria. Supports recovery, raises local melatonin in cells, reduces inflammation. The half of sunlight that windows block.' },
+  pbm_red:    { icon: '🔴', label: 'Red light therapy',  dailyTarget:   8000, what: 'Narrowband red light (660 nm) from a therapy panel. Same target as solar red but more concentrated and indoor.' },
+  pbm_nir:    { icon: '🟣', label: 'Near-IR therapy',    dailyTarget:  10000, what: 'Narrowband near-infrared (810/850 nm) from a therapy panel. Reaches deeper tissue than visible red.' },
 };
 
 // Map a raw dose value → qualitative tier 0-4 with plain-English labels.
@@ -255,16 +257,20 @@ export function cumulativeMEDToday() {
 // ─── UI: Quick log ─────────────────────────────────────────────────────
 
 // Single-tap "I'm outside now" — starts a session with last-used defaults.
+// On stop: skips confirm dialog (user explicitly tapped stop). Notification
+// includes duration + the channel that benefited most for instant feedback.
 export async function quickLogSunSession() {
   const active = getActiveSession();
   if (active) {
-    showConfirmDialog('Session in progress. Save it now?', async () => {
-      await stopSession(active.id);
-      await maybeHydrateActiveLocation(active.id);
-      const sess = getSessions().find(s => s.id === active.id);
-      showNotification(`Session saved — ${Math.round(sess?.durationMin || 0)} min`);
-      _refreshSurfaces();
-    });
+    await stopSession(active.id);
+    await _hydrateFromProfileCoords(active.id);
+    const sess = getSessions().find(s => s.id === active.id);
+    const dur = Math.round(sess?.durationMin || 0);
+    const top = _topChannel(sess);
+    showNotification(top
+      ? `Session saved — ${dur} min · best contribution: ${top.label} (${top.tier})`
+      : `Session saved — ${dur} min`);
+    _refreshSurfaces();
     return;
   }
   const last = getSessions().filter(s => s.endedAt).slice(-1)[0];
@@ -275,9 +281,23 @@ export async function quickLogSunSession() {
     glassBetween: last.bodyExposure?.glassBetween || false,
   } : {};
   const id = await startSession(defaults);
-  showNotification('Sun session started — tap again to stop');
+  showNotification('Outdoor session started · tap the dashboard tile to stop');
   _refreshSurfaces();
   return id;
+}
+
+// Identify the strongest channel a session contributed to (for notification copy)
+function _topChannel(sess) {
+  if (!sess?.doses) return null;
+  let bestKey = null, bestVal = 0;
+  for (const [k, v] of Object.entries(sess.doses)) {
+    if (Number.isFinite(v) && v > bestVal) { bestVal = v; bestKey = k; }
+  }
+  if (!bestKey) return null;
+  const meta = CHANNEL_DISPLAY[bestKey];
+  const t = channelTier(bestVal, bestKey);
+  if (t === 0) return null;
+  return { label: meta?.label || bestKey, tier: tierLabel(t) };
 }
 
 // Re-render dashboard sidebar + current view after a session change so the
@@ -288,24 +308,70 @@ function _refreshSurfaces() {
   if (window.navigate) try { window.navigate(view); } catch (e) {}
 }
 
-async function maybeHydrateActiveLocation(id) {
-  // Try to grab the user's coarse location once per session start.
-  if (!('geolocation' in navigator)) return;
+// Resolve session coordinates from the user's profile, country fallback, or a
+// previously cached precise location upgrade. Browser geolocation is no longer
+// asked at session-stop time — that ask lives in Settings → Light & Sun as an
+// explicit "Use precise location" upgrade.
+async function _hydrateFromProfileCoords(id) {
+  const coords = getSunCoords();
+  if (!coords) return;
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess) return;
+  sess.location = { lat: coords.lat, lon: coords.lon, altitudeM: 0, source: coords.source };
+  await saveImportedData();
+  await hydrateSession(id);
+}
+
+// Country band → centroid lat (0=tropical, 4=subarctic). Longitude defaults
+// to the user's UTC offset converted to degrees (15° per hour) so sun-zenith
+// estimates roughly track the user's local solar time. This is coarse — but
+// it works without a geolocation prompt and matches the existing privacy
+// posture (we already store country, never lat/lon, in the profile).
+const BAND_CENTROID_LAT = [15, 32, 45, 55, 65];
+
+export function getSunCoords() {
+  // 1. Profile-cached precise coords (set via "Use precise location" upgrade)
+  const profileLoc = state.importedData?.sunDefaults?.coords;
+  if (profileLoc && Number.isFinite(profileLoc.lat) && Number.isFinite(profileLoc.lon)) {
+    return { lat: profileLoc.lat, lon: profileLoc.lon, source: 'profile-precise' };
+  }
+  // 2. Profile country → band centroid lat (Greenwich-shifted lon from tz)
+  const country = (getProfileLocation()?.country || '').toLowerCase().trim();
+  if (country && COUNTRY_LATITUDES[country] !== undefined) {
+    const bandIdx = COUNTRY_LATITUDES[country];
+    const lat = BAND_CENTROID_LAT[bandIdx] ?? 45;
+    // Browser timezone offset (minutes west of UTC) → degrees east of Greenwich
+    const lon = -((new Date().getTimezoneOffset() / 60) * 15);
+    return { lat, lon, source: 'country-band' };
+  }
+  // 3. Nothing available → can't hydrate without a location
+  return null;
+}
+
+// Explicit one-time geolocation upgrade. Surfaces in Settings → Light & Sun
+// or via a "use precise location" button on the Light & Sun page.
+export async function requestPreciseLocation() {
+  if (!('geolocation' in navigator)) {
+    showNotification('Browser geolocation not available — country-level estimate will be used.');
+    return null;
+  }
   try {
     const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, maximumAge: 60_000 * 30, enableHighAccuracy: false });
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, maximumAge: 60_000 * 30, enableHighAccuracy: true });
     });
-    const sess = getSessions().find(s => s.id === id);
-    if (!sess) return;
-    sess.location = {
+    if (!state.importedData.sunDefaults) state.importedData.sunDefaults = {};
+    state.importedData.sunDefaults.coords = {
       lat: pos.coords.latitude,
       lon: pos.coords.longitude,
       altitudeM: pos.coords.altitude || 0,
+      capturedAt: Date.now(),
     };
     await saveImportedData();
-    await hydrateSession(id);
+    showNotification('Precise location saved — sun calculations will be more accurate.');
+    return state.importedData.sunDefaults.coords;
   } catch (e) {
-    // User denied geolocation — session is still valid, just lacks dose data.
+    showNotification('Location not shared — your country still gives a reasonable estimate.');
+    return null;
   }
 }
 
@@ -319,6 +385,8 @@ export function renderSessionsList() {
       <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">Log your first session</button>
     </div>`;
   }
+  const presetLabels = Object.fromEntries(EXPOSURE_PRESETS.map(p => [p.key, p.label]));
+  const eyeLabels = Object.fromEntries(EYE_MODES.map(e => [e.key, e.label]));
   let html = `<div class="sun-sessions-list">`;
   for (const sess of sessions) {
     const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
@@ -342,7 +410,7 @@ export function renderSessionsList() {
         <button class="sun-session-delete" onclick="window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
       </div>
       <div class="sun-session-meta">
-        Body: ${escapeHTML(sess.bodyExposure?.preset || 'unset')} · Eyes: ${escapeHTML(sess.eyeExposure?.mode || 'unset')}
+        ${escapeHTML(presetLabels[sess.bodyExposure?.preset] || 'Body unset')} · ${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
       </div>
       ${channelChips}
     </div>`;
@@ -394,6 +462,8 @@ if (typeof window !== 'undefined') {
     rollingChannelTotals,
     cumulativeMEDToday,
     renderSessionsList,
+    getSunCoords,
+    requestPreciseLocation,
     BODY_REGIONS,
     EXPOSURE_PRESETS,
     EYE_MODES,

@@ -142,8 +142,21 @@ export function showLight(_data) {
 
   let html = `<div class="category-header">
     <h2>☀ Light &amp; Sun</h2>
-    <p>Photobiology — your light exposure across the spectrum, correlated with your labs and wearables.</p>
+    <p>Track your light exposure. See how it shapes your sleep, hormones, and lab results.</p>
   </div>`;
+
+  // First-time explainer (zero sessions) — replaces the channel grid until
+  // the user has data of their own to see in context.
+  if (sessions.length === 0) {
+    html += `<div class="light-intro-card">
+      <div class="light-intro-title">Sun isn't just vitamin D</div>
+      <p class="light-intro-body">Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. Track your sun exposure here and watch it correlate with your labs and wearable data over time.</p>
+      <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">☀ Log your first session</button>
+      ${getSunCoordsHint()}
+    </div>`;
+    main.innerHTML = html;
+    return;
+  }
 
   // Quick-log CTA at top — primary action
   html += `<div class="light-quicklog-row">
@@ -155,9 +168,10 @@ export function showLight(_data) {
 
   // Channel breakdown — visual bars instead of opaque numbers
   html += `<div class="light-channels-section">
-    <h3 class="light-section-title">Your light exposure — last 7 days</h3>
-    <p class="light-section-hint">Each channel reflects a different biological effect of light. Hover for what each does.</p>
+    <h3 class="light-section-title">This week's light, by what it does</h3>
+    <p class="light-section-hint">Each tile is a different biological effect of light. Hover for the science.</p>
     ${renderChannelBars(totals7d, totals30d)}
+    ${renderSuggestion(totals7d)}
   </div>`;
 
   // Today's sun-exposure gauge — qualitative, plain English
@@ -194,8 +208,10 @@ function renderChannelBars(totals7d, totals30d) {
     const v30 = totals30d[k] || 0;
     const t7 = tier(v7, k);
     const t30 = tier(v30, k);
-    // Fill % vs daily-target × 7
     const pct7 = Math.min(100, Math.round((v7 / ((meta.dailyTarget || 1000) * 7)) * 100));
+    let trendIcon = '·';
+    if (t7 > t30) trendIcon = '↑';
+    else if (t7 < t30) trendIcon = '↓';
     html += `<div class="light-channel-row light-channel-tier-${t7}" title="${escapeHTML(meta.what || '')}">
       <div class="light-channel-head">
         <span class="light-channel-icon">${meta.icon || '·'}</span>
@@ -204,16 +220,49 @@ function renderChannelBars(totals7d, totals30d) {
       </div>
       <div class="light-channel-bar"><div class="light-channel-fill" style="width:${pct7}%"></div></div>
       <div class="light-channel-foot">
-        <span class="light-channel-foot-label">7d</span>
+        <span class="light-channel-foot-label">this week:</span>
         <span class="light-channel-foot-tier">${tlabel(t7)}</span>
-        <span class="light-channel-foot-sep">·</span>
-        <span class="light-channel-foot-label">30d</span>
+        <span class="light-channel-foot-trend">${trendIcon}</span>
+        <span class="light-channel-foot-label">last 30d:</span>
         <span class="light-channel-foot-tier">${tlabel(t30)}</span>
       </div>
     </div>`;
   }
   html += `</div>`;
   return html;
+}
+
+// One-line action suggestion based on the lowest-tier channel.
+function renderSuggestion(totals7d) {
+  const tier = window.channelTier || (() => 0);
+  const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  const SUGGESTIONS = {
+    vitamin_d:  'Get 10–15 minutes of midday sun on bare skin if your latitude allows — UVB drops sharply after 2 pm.',
+    circadian:  '10 minutes of outdoor light before 9 am tends to be the highest-leverage move for your sleep.',
+    nir_solar:  'Solar near-infrared is highest mid-morning to late afternoon. A walk outside catches the half of sunlight that windows block.',
+    no_cv:      'Afternoon UVA-rich daylight on uncovered skin supports blood-vessel health and circulation.',
+    pomc:       'A few minutes more uncovered daylight on skin engages the mood-hormone cascade.',
+    violet_eye: 'Outdoor 360–400 nm light reaches your eyes only outside — even a few extra minutes helps.',
+  };
+  let worstKey = null, worstTier = 5;
+  for (const k of order) {
+    const t = tier(totals7d[k] || 0, k);
+    if (t < worstTier) { worstTier = t; worstKey = k; }
+  }
+  if (!worstKey || worstTier >= 3) return '';  // hide once everything is at least 'good'
+  return `<div class="light-suggestion"><span class="light-suggestion-icon">💡</span> ${escapeHTML(SUGGESTIONS[worstKey] || '')}</div>`;
+}
+
+function getSunCoordsHint() {
+  if (typeof window === 'undefined' || !window.getSunCoords) return '';
+  const c = window.getSunCoords();
+  if (!c) {
+    return `<p class="light-intro-hint">Tip: set your country in the profile editor for accurate sun calculations, or <a href="#" onclick="event.preventDefault();window.requestPreciseLocation && window.requestPreciseLocation()">share your precise location</a> once.</p>`;
+  }
+  if (c.source === 'country-band') {
+    return `<p class="light-intro-hint">Calculations use your country (~${c.lat}° lat). <a href="#" onclick="event.preventDefault();window.requestPreciseLocation && window.requestPreciseLocation()">Use precise location</a> for sharper results.</p>`;
+  }
+  return '';
 }
 
 // ═══════════════════════════════════════════════
