@@ -9,6 +9,28 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
+import { SKIN_TYPE } from './constants.js';
+
+// Map between Fitzpatrick Roman numeral and the SKIN_TYPE label used by the
+// Light & Circadian context card so both surfaces stay in sync.
+//   sunDefaults.fitzpatrick : 'I' | 'II' | ... | 'VI'      (used by sun-spectrum)
+//   lightCircadian.skinType : 'I — very fair' | ...         (used by context card)
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+
+function fitzpatrickToSkinTypeIndex(fp) {
+  return Math.max(0, ROMAN.indexOf(fp));
+}
+function skinTypeToFitzpatrick(skinTypeStr) {
+  if (!skinTypeStr) return null;
+  const m = skinTypeStr.match(/^(I{1,3}|IV|VI?)\b/);
+  return m ? m[1] : null;
+}
+function getInitialFitzpatrick() {
+  const sd = state.importedData?.sunDefaults?.fitzpatrick;
+  if (sd) return sd;
+  const lc = state.importedData?.lightCircadian?.skinType;
+  return skinTypeToFitzpatrick(lc);
+}
 
 // ─── Fitzpatrick skin types ───────────────────────────────────────────
 
@@ -89,12 +111,12 @@ export function renderSetupCard() {
     <p class="light-setup-body">Four questions plus an optional 10-question baseline. Answers stay on this device and feed your AI's reasoning.</p>
 
     <div class="light-setup-step">
-      <label class="ctx-label">Skin type
-        <select id="setup-fitzpatrick" class="ctx-select">
-          <option value="">Pick one</option>
-          ${FITZPATRICK_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.fitzpatrick === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-        </select>
-      </label>
+      <label class="ctx-label">Skin type</label>
+      <div class="ctx-skin-slider-wrap">
+        <div class="ctx-skin-emojis">${['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'].map((e, i) => `<span class="ctx-skin-face${(getInitialFitzpatrick() === ROMAN[i]) ? ' active' : ''}" data-idx="${i}">${e}</span>`).join('')}</div>
+        <input type="range" min="-1" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : -1)}" class="ctx-skin-range" id="setup-skin-range" oninput="window._updateSetupSkinSlider && window._updateSetupSkinSlider(this.value)">
+        <div class="ctx-skin-label" id="setup-skin-label">${getInitialFitzpatrick() ? escapeHTML(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'Not set'}</div>
+      </div>
     </div>
 
     <div class="light-setup-step">
@@ -149,7 +171,9 @@ function getSunCoordsLine() {
 async function saveSunSetup() {
   const root = document.querySelector('.light-setup-card');
   if (!root) return;
-  const fitzpatrick = root.querySelector('#setup-fitzpatrick')?.value || null;
+  // Skin type comes from the emoji-slider range (-1 = not set, 0-5 = SKIN_TYPE index)
+  const skinIdx = parseInt(root.querySelector('#setup-skin-range')?.value, 10);
+  const fitzpatrick = (skinIdx >= 0 && skinIdx < 6) ? ROMAN[skinIdx] : null;
   const homeLight = root.querySelector('#setup-homelight')?.value || null;
   const eyewear = root.querySelector('#setup-eyewear')?.value || null;
   if (!fitzpatrick) {
@@ -173,8 +197,27 @@ async function saveSunSetup() {
     ottScore,
     completedAt: Date.now(),
   });
+  // Mirror to lightCircadian.skinType so the context card reflects this answer
+  // (and vice-versa — getInitialFitzpatrick reads from lightCircadian as a fallback).
+  if (!state.importedData.lightCircadian) {
+    state.importedData.lightCircadian = { amLight: null, daytime: null, uvExposure: null, skinType: null, evening: [], screenTime: null, techEnv: [], cold: null, grounding: null, mealTiming: [], note: '' };
+  }
+  state.importedData.lightCircadian.skinType = SKIN_TYPE[skinIdx];
+  await saveImportedData();
   showNotification(`Setup saved · Ott score ${ottScore}/10`);
   if (window.navigate) window.navigate('light');
+}
+
+// Live update of the setup-card emoji slider (mirrors updateSkinSlider in
+// context-cards.js but bound to setup-* DOM ids so the two widgets don't
+// collide if both are visible at once).
+function _updateSetupSkinSlider(val) {
+  const idx = parseInt(val, 10);
+  document.querySelectorAll('.light-setup-card .ctx-skin-face').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+  const label = document.getElementById('setup-skin-label');
+  if (label) label.textContent = idx >= 0 && idx < SKIN_TYPE.length ? SKIN_TYPE[idx] : 'Not set';
 }
 
 // Skip-for-now — marks the setup as completed without filled answers.
@@ -192,5 +235,7 @@ if (typeof window !== 'undefined') {
     renderSunSetupCard: renderSetupCard,
     saveSunSetup,
     dismissSunSetup,
+    _updateSetupSkinSlider,
+    _skinTypeToFitzpatrick: skinTypeToFitzpatrick,
   });
 }

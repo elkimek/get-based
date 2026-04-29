@@ -209,7 +209,14 @@ export async function hydrateSession(id, { lat, lon } = {}) {
       durationMin: sess.durationMin,
       bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
     });
-    const fitzpatrick = state.profile?.fitzpatrick || state.importedData?.sunDefaults?.fitzpatrick || 'III';
+    // Read from any of the three places this might be set, in priority order:
+    //   1. profile.fitzpatrick (legacy, rare)
+    //   2. sunDefaults.fitzpatrick (Light setup card)
+    //   3. lightCircadian.skinType (Light & Circadian context card)
+    // Falls back to 'III' (median) if none.
+    const lcSkin = state.importedData?.lightCircadian?.skinType;
+    const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
+    const fitzpatrick = state.profile?.fitzpatrick || state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
     sess.safety = {
       sed,
       medFraction: fractionOfMED({ sed, fitzpatrick }),
