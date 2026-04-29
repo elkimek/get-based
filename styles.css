@@ -5563,6 +5563,61 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   font-size: 13px;
 }
 
+/* Generic .ctx-* form controls — used by the Light feature (sun setup,
+   past-session modal, device dialogs, light-environment survey, light
+   tools). Mirrors the supp-form-field pattern so dropdowns + inputs
+   match the rest of the app's dark/light themes instead of the browser
+   defaults. */
+.ctx-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.ctx-input,
+.ctx-select {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.ctx-input:focus,
+.ctx-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.ctx-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%238b8fa3'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.ctx-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+[data-theme="light"] .ctx-select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%235a5e6e'/></svg>");
+}
+/* Inline checkboxes inside .ctx-label rows (e.g. "Glass between..." */
+.ctx-label > input[type="checkbox"] {
+  width: auto;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+/* Textarea variant */
+textarea.ctx-input { resize: vertical; min-height: 56px; }
+
 /* Detailed (past) session modal — region chip checklist + form fields */
 .sun-detailed-modal { max-width: 560px; }
 .sun-region-chips {
