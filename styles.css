@@ -79,7 +79,12 @@
 [data-theme="light"] .lens-section,
 [data-theme="light"] .trend-alert-card,
 [data-theme="light"] .supp-timeline,
-[data-theme="light"] .alert-card { box-shadow: var(--shadow); border-color: transparent; }
+[data-theme="light"] .alert-card,
+[data-theme="light"] .light-today-strip,
+[data-theme="light"] .light-channel-row,
+[data-theme="light"] .light-intro-card,
+[data-theme="light"] .light-med-banner,
+[data-theme="light"] .sun-session { box-shadow: var(--shadow); border-color: transparent; }
 [data-theme="light"] .header { box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-bottom-color: transparent; }
 [data-theme="light"] .sidebar { box-shadow: 1px 0 4px rgba(0,0,0,0.04); border-right-color: transparent; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -5054,86 +5059,92 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 
 /* ═══════════════════════════════════════════════
    LIGHT & SUN — Light Today strip + dedicated page
+   Mirrors the .wearable-strip token + structural conventions so the
+   two adjacent dashboard panels read as siblings.
+   Tokens used: --accent-gradient (CTA) · --orange/--orange-bg (warn) ·
+   --red/--red-bg (over) · --green (ok) · --shadow / --radius / --radius-sm.
    ═══════════════════════════════════════════════ */
 
+/* Strip — matches .wearable-strip surface treatment */
 .light-today-strip {
-  background: var(--bg-secondary);
+  margin: 16px 0 8px;
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 18px;
-  margin: 16px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  border-radius: var(--radius);
+  padding: 14px 16px 12px;
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 10px;
 }
 .light-today-head {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
 }
-.light-today-icon { font-size: 18px; }
-.light-today-title { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.light-today-icon { font-size: 16px; color: var(--accent); }
+.light-today-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.light-today-sub { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
 .light-today-link { margin-left: auto; font-size: 12px; color: var(--accent); text-decoration: none; }
 .light-today-link:hover { text-decoration: underline; }
 
-.light-today-row {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
-}
-.light-today-stat {
-  display: flex; flex-direction: column; align-items: flex-start; min-width: 56px;
-}
-.light-today-stat-value { font-size: 20px; font-weight: 700; color: var(--text-primary); line-height: 1; }
-.light-today-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.light-today-stat.over .light-today-stat-value { color: #ef4444; }
-
-.light-today-cta {
-  margin-left: auto;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #fb923c 0%, #f59e0b 100%);
-  color: #1a1d27;
-  border: none; border-radius: 8px;
-  font-weight: 600; font-size: 13px;
-  cursor: pointer;
-}
-.light-today-cta:hover { filter: brightness(1.1); }
-.light-today-cta-active {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #fff;
-}
-
-/* Light Today — qualitative pill row replaces opaque numbers */
-.light-today-sub { font-size: 12px; color: var(--text-secondary); margin-left: 8px; }
+/* Channel pill row — qualitative tier indicator */
 .light-pills-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .light-pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 10px; border-radius: 18px;
-  background: var(--bg-card); border: 1px solid var(--border);
+  padding: 6px 12px; border-radius: 16px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
   font-size: 12px; color: var(--text-secondary);
   transition: opacity 0.15s, color 0.15s, border-color 0.15s;
 }
 .light-pill-icon { font-size: 13px; }
 .light-pill-label { font-weight: 500; }
-.light-pill-dots { letter-spacing: 1px; opacity: 0.85; font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 11px; }
-.light-pill-tier-0 { opacity: 0.45; }
-.light-pill-tier-1 { color: #94a3b8; }
-.light-pill-tier-2 { color: #cbd5e1; border-color: #475569; }
-.light-pill-tier-3 { color: #38bdf8; border-color: #38bdf8; }
-.light-pill-tier-4 { color: #4ade80; border-color: #4ade80; }
-
-.light-today-foot {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  font-size: 12px;
+.light-pill-dots {
+  letter-spacing: 1px; opacity: 0.85; font-size: 11px;
+  font-family: var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
 }
-.light-today-med { color: var(--text-secondary); }
-.light-today-med strong { color: var(--text-primary); }
-.light-today-med-warn { color: #fb923c; }
-.light-today-med-warn strong { color: #fb923c; }
-.light-today-med-over { color: #ef4444; }
-.light-today-med-over strong { color: #ef4444; }
+.light-pill-tier-0 { opacity: 0.45; }
+.light-pill-tier-1 { color: var(--text-secondary); }
+.light-pill-tier-2 { color: var(--text-primary); border-color: var(--text-muted); }
+.light-pill-tier-3 { color: var(--accent); border-color: var(--accent); }
+.light-pill-tier-4 { color: var(--green); border-color: var(--green); }
 
-/* Light & Sun page — channel bars + MED banner */
-.light-summary-tally { color: var(--text-secondary); font-size: 13px; margin-left: 14px; }
-.light-channels-section { margin-top: 18px; }
+/* Strip footer — burn-risk gauge + CTA */
+.light-today-foot {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-secondary);
+  margin-top: 4px;
+}
+.light-today-med strong { color: var(--text-primary); }
+.light-today-med-warn { color: var(--orange); }
+.light-today-med-warn strong { color: var(--orange); }
+.light-today-med-over { color: var(--red); }
+.light-today-med-over strong { color: var(--red); }
+
+/* CTA — brand gradient. Active (mid-session) flips to red as a "stop" cue. */
+.light-today-cta {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: var(--accent-gradient);
+  color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-weight: 600; font-size: 13px;
+  cursor: pointer;
+}
+.light-today-cta:hover { filter: brightness(1.1); box-shadow: 0 2px 12px rgba(79, 140, 255, 0.2); }
+.light-today-cta-active {
+  background: var(--red);
+}
+.light-today-cta-active:hover { box-shadow: 0 2px 12px var(--red-bg); }
+
+/* Light & Sun page — quick-log row + section headings */
+.light-quicklog-row {
+  margin: 12px 0 8px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.light-summary-tally { color: var(--text-secondary); font-size: 13px; }
+.light-channels-section { margin-top: 16px; }
 .light-section-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0 0 4px; }
-.light-section-hint { font-size: 13px; color: var(--text-secondary); margin: 0 0 14px; }
+.light-section-hint { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
+
+/* Channel cards grid */
 .light-channels-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
@@ -5141,20 +5152,30 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-channel-row {
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
   display: flex; flex-direction: column; gap: 8px;
 }
 .light-channel-head { display: flex; align-items: center; gap: 8px; }
 .light-channel-icon { font-size: 16px; }
 .light-channel-name { font-weight: 600; color: var(--text-primary); }
-.light-channel-status { margin-left: auto; font-size: 11px; color: var(--text-secondary); text-transform: capitalize; }
-.light-channel-bar { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
-.light-channel-fill { height: 100%; background: var(--text-secondary); border-radius: 3px; transition: width 0.3s; }
-.light-channel-tier-0 .light-channel-fill { background: #475569; opacity: 0.4; }
-.light-channel-tier-1 .light-channel-fill { background: #94a3b8; }
-.light-channel-tier-2 .light-channel-fill { background: #cbd5e1; }
-.light-channel-tier-3 .light-channel-fill { background: #38bdf8; }
-.light-channel-tier-4 .light-channel-fill { background: #4ade80; }
+.light-channel-status {
+  margin-left: auto; font-size: 11px;
+  color: var(--text-secondary); text-transform: capitalize;
+}
+.light-channel-bar {
+  height: 6px; background: var(--bg-secondary);
+  border-radius: 3px; overflow: hidden;
+}
+.light-channel-fill {
+  height: 100%; background: var(--text-muted);
+  border-radius: 3px; transition: width 0.3s;
+}
+.light-channel-tier-0 .light-channel-fill { background: var(--text-muted); opacity: 0.4; }
+.light-channel-tier-1 .light-channel-fill { background: var(--text-secondary); }
+.light-channel-tier-2 .light-channel-fill { background: var(--text-primary); opacity: 0.7; }
+.light-channel-tier-3 .light-channel-fill { background: var(--accent); }
+.light-channel-tier-4 .light-channel-fill { background: var(--green); }
 .light-channel-foot {
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; color: var(--text-muted);
@@ -5162,46 +5183,55 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-channel-foot-tier { color: var(--text-secondary); text-transform: capitalize; }
 .light-channel-foot-trend { color: var(--text-secondary); font-weight: 600; }
-.light-channel-foot-sep { opacity: 0.4; }
 
-/* Light & Sun — first-time intro card */
+/* First-time intro card on the Light & Sun page (zero sessions) */
 .light-intro-card {
-  background: linear-gradient(135deg, rgba(251, 146, 60, 0.06) 0%, rgba(56, 189, 248, 0.04) 100%);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px 32px;
-  margin: 18px 0;
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
 }
-.light-intro-title { font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-.light-intro-body { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 18px; }
-.light-intro-hint { font-size: 12px; color: var(--text-muted); margin-top: 14px; }
+.light-intro-title {
+  font-size: 18px; font-weight: 700;
+  color: var(--text-primary); margin-bottom: 8px;
+}
+.light-intro-body {
+  font-size: 14px; color: var(--text-secondary);
+  line-height: 1.6; margin-bottom: 16px;
+}
+.light-intro-hint {
+  font-size: 12px; color: var(--text-muted);
+  margin-top: 12px;
+}
 .light-intro-hint a { color: var(--accent); text-decoration: none; }
 .light-intro-hint a:hover { text-decoration: underline; }
 
-/* Light & Sun — one-line action suggestion */
+/* One-line action suggestion under channel grid */
 .light-suggestion {
-  margin-top: 14px; padding: 10px 14px;
-  background: var(--bg-secondary);
-  border-left: 3px solid #fb923c;
-  border-radius: 6px;
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--orange-bg);
+  border-left: 3px solid var(--orange);
+  border-radius: var(--radius-sm);
   font-size: 13px; color: var(--text-secondary);
-  display: flex; align-items: center; gap: 10px;
 }
-.light-suggestion-icon { font-size: 14px; }
 
+/* Burn-risk banner on the Light & Sun page */
 .light-med-banner {
-  margin: 18px 0;
-  display: flex; align-items: center; gap: 14px;
-  padding: 14px 18px; border-radius: 10px;
+  margin: 16px 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius-sm);
   background: var(--bg-card); border: 1px solid var(--border);
 }
-.light-med-banner.light-med-warn { border-color: #fb923c; background: rgba(251, 146, 60, 0.08); }
-.light-med-banner.light-med-over { border-color: #ef4444; background: rgba(239, 68, 68, 0.10); }
-.light-med-icon { font-size: 22px; }
-.light-med-banner.light-med-ok .light-med-icon { color: #4ade80; }
-.light-med-banner.light-med-warn .light-med-icon { color: #fb923c; }
-.light-med-banner.light-med-over .light-med-icon { color: #ef4444; }
+.light-med-banner.light-med-warn { border-color: var(--orange); background: var(--orange-bg); }
+.light-med-banner.light-med-over { border-color: var(--red); background: var(--red-bg); }
+.light-med-icon { font-size: 20px; }
+.light-med-banner.light-med-ok .light-med-icon { color: var(--green); }
+.light-med-banner.light-med-warn .light-med-icon { color: var(--orange); }
+.light-med-banner.light-med-over .light-med-icon { color: var(--red); }
 .light-med-title { font-size: 14px; color: var(--text-primary); }
+.light-med-pct { color: var(--text-muted); font-weight: normal; font-size: 12px; }
 .light-med-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 
 /* Light & Sun page */
@@ -5221,11 +5251,11 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .sun-session-med {
   margin-left: auto;
   padding: 2px 8px; border-radius: 12px;
-  background: rgba(34, 197, 94, 0.15); color: #4ade80;
+  background: var(--green-bg); color: var(--green);
   font-size: 11px; font-weight: 600;
 }
-.sun-session-med.warn { background: rgba(251, 146, 60, 0.15); color: #fb923c; }
-.sun-session-med.over { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.sun-session-med.warn { background: var(--orange-bg); color: var(--orange); }
+.sun-session-med.over { background: var(--red-bg); color: var(--red); }
 .sun-session-delete {
   background: transparent; border: none; color: var(--text-muted);
   font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px;
@@ -5236,19 +5266,22 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 
 .sun-channel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .sun-chip {
-  font-size: 11px; padding: 3px 9px; border-radius: 14px;
+  font-size: 11px; padding: 4px 10px; border-radius: 12px;
   background: var(--bg-secondary); color: var(--text-secondary);
   border: 1px solid var(--border);
   display: inline-flex; align-items: center; gap: 5px;
 }
 .sun-chip-icon { font-size: 12px; }
 .sun-chip-label { font-weight: 500; }
-.sun-chip-dots { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 10px; opacity: 0.8; letter-spacing: 1px; }
+.sun-chip-dots {
+  font-family: var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
+  font-size: 10px; opacity: 0.8; letter-spacing: 1px;
+}
 .sun-chip-tier-0 { opacity: 0.4; }
-.sun-chip-tier-1 { color: #94a3b8; }
-.sun-chip-tier-2 { color: #cbd5e1; border-color: #475569; }
-.sun-chip-tier-3 { color: #38bdf8; border-color: #38bdf8; }
-.sun-chip-tier-4 { color: #4ade80; border-color: #4ade80; }
+.sun-chip-tier-1 { color: var(--text-secondary); }
+.sun-chip-tier-2 { color: var(--text-primary); border-color: var(--text-muted); }
+.sun-chip-tier-3 { color: var(--accent); border-color: var(--accent); }
+.sun-chip-tier-4 { color: var(--green); border-color: var(--green); }
 
 .sun-empty {
   background: var(--bg-secondary); border: 1px dashed var(--border);

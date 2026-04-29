@@ -141,7 +141,7 @@ export function showLight(_data) {
   const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
 
   let html = `<div class="category-header">
-    <h2>☀ Light &amp; Sun</h2>
+    <h2>Light &amp; Sun</h2>
     <p>Track your light exposure. See how it shapes your sleep, hormones, and lab results.</p>
   </div>`;
 
@@ -250,7 +250,7 @@ function renderSuggestion(totals7d) {
     if (t < worstTier) { worstTier = t; worstKey = k; }
   }
   if (!worstKey || worstTier >= 3) return '';  // hide once everything is at least 'good'
-  return `<div class="light-suggestion"><span class="light-suggestion-icon">💡</span> ${escapeHTML(SUGGESTIONS[worstKey] || '')}</div>`;
+  return `<div class="light-suggestion">${escapeHTML(SUGGESTIONS[worstKey] || '')}</div>`;
 }
 
 function getSunCoordsHint() {
