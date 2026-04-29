@@ -35,7 +35,134 @@ export function navigate(category, data) {
   if (category === "dashboard") showDashboard(data);
   else if (category === "correlations") showCorrelations(data);
   else if (category === "compare") showCompare(data);
+  else if (category === "light") showLight(data);
   else showCategory(category, data);
+  state.currentView = category;
+}
+
+// ═══════════════════════════════════════════════
+// LIGHT TODAY STRIP — dashboard panel between Lens and Wearables
+// ═══════════════════════════════════════════════
+
+// Render only when the user has logged sessions OR we're in a solar window
+// (sunrise/midday/sunset ±2h) and the user has labs — encourages discovery.
+export function renderLightTodayStrip() {
+  const sessions = (window.getSessions && window.getSessions()) || [];
+  const hasData = sessions.length > 0;
+  const inSolarWindow = isSolarWindow();
+  if (!hasData && !inSolarWindow) return '';
+
+  const active = (window.getActiveSession && window.getActiveSession()) || null;
+  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
+  const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
+
+  let cta;
+  if (active) {
+    const elapsedMin = Math.round((Date.now() - active.startedAt) / 60000);
+    cta = `<button class="light-today-cta light-today-cta-active" onclick="window.quickLogSunSession()">⏹ Stop session — ${elapsedMin} min</button>`;
+  } else if (inSolarWindow) {
+    const wlabel = solarWindowLabel();
+    cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ ${wlabel} — log a session</button>`;
+  } else {
+    cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>`;
+  }
+
+  return `<section class="light-today-strip">
+    <div class="light-today-head">
+      <span class="light-today-icon">☀</span>
+      <span class="light-today-title">Light Today</span>
+      <a href="#" class="light-today-link" onclick="event.preventDefault();window.navigate('light')">Open Light &amp; Sun →</a>
+    </div>
+    <div class="light-today-row">
+      <div class="light-today-stat">
+        <span class="light-today-stat-value">${sessions.length}</span>
+        <span class="light-today-stat-label">sessions</span>
+      </div>
+      <div class="light-today-stat">
+        <span class="light-today-stat-value">${(totals7d.vitamin_d || 0).toFixed(0)}</span>
+        <span class="light-today-stat-label">7d vit-D</span>
+      </div>
+      <div class="light-today-stat">
+        <span class="light-today-stat-value">${(totals7d.circadian || 0).toFixed(0)}</span>
+        <span class="light-today-stat-label">7d circadian</span>
+      </div>
+      <div class="light-today-stat ${medToday > 1 ? 'over' : ''}">
+        <span class="light-today-stat-value">${(medToday * 100).toFixed(0)}%</span>
+        <span class="light-today-stat-label">today's MED</span>
+      </div>
+      ${cta}
+    </div>
+  </section>`;
+}
+
+// True if current time is within ±2h of sunrise / midday / sunset.
+// Uses a simple geographic estimate from the active profile's country (or
+// 50°N if unset). Browser locale doesn't carry lat/lon, so we fall back to
+// time-of-day heuristics: 5–9am, 11am–2pm, 4–8pm.
+function isSolarWindow() {
+  const h = new Date().getHours();
+  return (h >= 5 && h < 9) || (h >= 11 && h < 14) || (h >= 16 && h < 20);
+}
+
+function solarWindowLabel() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 9) return 'Morning sun window';
+  if (h >= 11 && h < 14) return 'Midday window';
+  if (h >= 16 && h < 20) return 'Evening sun window';
+  return 'Sun window';
+}
+
+// ═══════════════════════════════════════════════
+// LIGHT & SUN — dedicated view
+// ═══════════════════════════════════════════════
+
+export function showLight(_data) {
+  const main = document.getElementById("main-content");
+  const sessions = (window.getSessions && window.getSessions()) || [];
+  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
+  const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
+  const medClass = medToday > 1 ? 'over' : medToday > 0.7 ? 'warn' : 'ok';
+
+  let html = `<div class="category-header">
+    <h2>☀ Light &amp; Sun</h2>
+    <p>Photobiology — your light exposure across the spectrum, correlated with your labs and wearables.</p>
+  </div>`;
+
+  // Top-line summary panel
+  html += `<div class="light-summary-grid">
+    <div class="light-summary-card">
+      <div class="light-summary-label">Sessions logged</div>
+      <div class="light-summary-value">${sessions.length}</div>
+    </div>
+    <div class="light-summary-card">
+      <div class="light-summary-label">7-day vit-D dose</div>
+      <div class="light-summary-value">${(totals7d.vitamin_d || 0).toFixed(0)}</div>
+      <div class="light-summary-sub">channel-au</div>
+    </div>
+    <div class="light-summary-card">
+      <div class="light-summary-label">7-day circadian dose</div>
+      <div class="light-summary-value">${(totals7d.circadian || 0).toFixed(0)}</div>
+      <div class="light-summary-sub">channel-au</div>
+    </div>
+    <div class="light-summary-card light-med-${medClass}">
+      <div class="light-summary-label">Today's MED</div>
+      <div class="light-summary-value">${(medToday * 100).toFixed(0)}%</div>
+      <div class="light-summary-sub">${medToday >= 1 ? '⚠ over personal MED — pause outdoor exposure' : medToday >= 0.7 ? 'approaching MED' : 'safe'}</div>
+    </div>
+  </div>`;
+
+  // Quick-log CTA
+  html += `<div class="light-quicklog-row">
+    <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">
+      ${(window.getActiveSession && window.getActiveSession()) ? '⏹ Stop & save current session' : '☀ Start a sun session'}
+    </button>
+  </div>`;
+
+  // Sessions list
+  html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
+  html += (window.renderSessionsList && window.renderSessionsList()) || '';
+
+  main.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════
@@ -118,6 +245,9 @@ export function showDashboard(data) {
 
   // ── 3b. Focus Card (always render if data exists — shows cached insight even when AI is paused) ──
   html += renderFocusCard();
+
+  // ── 3b1. Light Today strip (Light & Sun lens — appears once sessions exist or in solar windows) ──
+  html += renderLightTodayStrip();
 
   // ── 3c. Wearable strip (Oura · Withings · Ultrahuman · WHOOP · Fitbit · Apple Health) ──
   html += renderWearableStrip();
@@ -2180,6 +2310,8 @@ function deleteMarkerNote(dotKey, id) {
 Object.assign(window, {
   navigate,
   showDashboard,
+  showLight,
+  renderLightTodayStrip,
   renderFocusCard,
   buildFocusContext,
   loadFocusCard,

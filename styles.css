@@ -1,4 +1,4 @@
-/* getbased — Blood Work Dashboard */
+/* getbased — Health intelligence that's actually yours */
 :root {
   --bg-primary: #0f1117;
   --bg-secondary: #1a1d27;
@@ -5051,6 +5051,117 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .sync-tombstone-apply { background: #ef4444; color: #fff; border-color: #ef4444; }
 .sync-tombstone-reject { background: #22c55e; color: #fff; border-color: #22c55e; }
+
+/* ═══════════════════════════════════════════════
+   LIGHT & SUN — Light Today strip + dedicated page
+   ═══════════════════════════════════════════════ */
+
+.light-today-strip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.light-today-head {
+  display: flex; align-items: center; gap: 10px;
+}
+.light-today-icon { font-size: 18px; }
+.light-today-title { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.light-today-link { margin-left: auto; font-size: 12px; color: var(--accent); text-decoration: none; }
+.light-today-link:hover { text-decoration: underline; }
+
+.light-today-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
+}
+.light-today-stat {
+  display: flex; flex-direction: column; align-items: flex-start; min-width: 56px;
+}
+.light-today-stat-value { font-size: 20px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+.light-today-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.light-today-stat.over .light-today-stat-value { color: #ef4444; }
+
+.light-today-cta {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #fb923c 0%, #f59e0b 100%);
+  color: #1a1d27;
+  border: none; border-radius: 8px;
+  font-weight: 600; font-size: 13px;
+  cursor: pointer;
+}
+.light-today-cta:hover { filter: brightness(1.1); }
+.light-today-cta-active {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+}
+
+/* Light & Sun page */
+.light-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.light-summary-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-width: 0; overflow: hidden;
+}
+.light-summary-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.light-summary-value { font-size: 26px; font-weight: 700; color: var(--text-primary); line-height: 1.1; margin-top: 4px; }
+.light-summary-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.light-summary-card.light-med-warn { border-color: #fb923c; }
+.light-summary-card.light-med-warn .light-summary-value { color: #fb923c; }
+.light-summary-card.light-med-over { border-color: #ef4444; background: rgba(239, 68, 68, 0.06); }
+.light-summary-card.light-med-over .light-summary-value { color: #ef4444; }
+
+.light-quicklog-row { margin: 12px 0 8px; }
+
+/* Sessions list */
+.sun-sessions-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.sun-session {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.sun-session-head { display: flex; align-items: center; gap: 12px; }
+.sun-session-date { font-weight: 600; color: var(--text-primary); }
+.sun-session-duration { color: var(--text-secondary); font-size: 13px; }
+.sun-session-med {
+  margin-left: auto;
+  padding: 2px 8px; border-radius: 12px;
+  background: rgba(34, 197, 94, 0.15); color: #4ade80;
+  font-size: 11px; font-weight: 600;
+}
+.sun-session-med.over { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.sun-session-delete {
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px;
+  margin-left: 8px;
+}
+.sun-session-delete:hover { color: #ef4444; }
+.sun-session-meta { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+
+.sun-channel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sun-chip {
+  font-size: 10px; padding: 3px 8px; border-radius: 10px;
+  background: var(--bg-secondary); color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-transform: capitalize;
+}
+
+.sun-empty {
+  background: var(--bg-secondary); border: 1px dashed var(--border);
+  border-radius: 12px; padding: 24px; text-align: center; color: var(--text-secondary);
+}
+.sun-empty p { margin-bottom: 12px; }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
