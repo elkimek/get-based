@@ -100,8 +100,53 @@ export function isOnboardingComplete() {
 
 // ─── UI: setup card (4 questions + Ott pre-test) ──────────────────────
 
+// Session-level flag — when set, the editor renders even if onboarding
+// was already completed. Cleared after a save / dismiss / cancel so the
+// summary card returns to view.
+let _setupForceOpen = false;
+
+function reopenSunSetup() {
+  _setupForceOpen = true;
+  if (window.navigate) window.navigate('light');
+}
+
+function cancelReopenSunSetup() {
+  _setupForceOpen = false;
+  if (window.navigate) window.navigate('light');
+}
+
+// Compact summary of saved answers, with an Edit button. Renders in place
+// of the editor once the user has completed onboarding.
+function renderSavedSummary() {
+  const d = getSunDefaults() || {};
+  const lcSkin = state.importedData?.lightCircadian?.skinType;
+  const fp = d.fitzpatrick || skinTypeToFitzpatrick(lcSkin);
+  const fpLabel = fp ? SKIN_TYPE[fitzpatrickToSkinTypeIndex(fp)] : '—';
+  const homeMeta = HOME_LIGHT_OPTIONS.find(o => o.key === d.homeLight);
+  const eyewearMeta = EYEWEAR_OPTIONS.find(o => o.key === d.eyewear);
+  const ott = (typeof d.ottScore === 'number') ? `${d.ottScore}/10` : (d.skipped ? 'skipped' : '—');
+
+  return `<div class="light-setup-summary">
+    <div class="light-setup-summary-head">
+      <strong>Light setup saved</strong>
+      <button class="import-btn import-btn-secondary light-setup-summary-edit" onclick="window.reopenSunSetup && window.reopenSunSetup()">Edit setup</button>
+    </div>
+    <div class="light-setup-summary-grid">
+      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Skin type</span><span>${escapeHTML(fpLabel)}</span></div>
+      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Home lighting</span><span>${escapeHTML(homeMeta?.label || (d.homeLight ? d.homeLight : '—'))}</span></div>
+      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Eyewear outside</span><span>${escapeHTML(eyewearMeta?.label || (d.eyewear ? d.eyewear : '—'))}</span></div>
+      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Ott baseline</span><span>${escapeHTML(ott)}</span></div>
+    </div>
+  </div>`;
+}
+
 export function renderSetupCard() {
-  if (isOnboardingComplete()) return '';
+  // Three render modes:
+  //   - editor (onboarding incomplete OR user reopened via "Edit setup")
+  //   - summary (onboarding complete and not reopened)
+  if (isOnboardingComplete() && !_setupForceOpen) {
+    return renderSavedSummary();
+  }
   const d = getSunDefaults() || {};
 
   let html = `<div class="light-setup-card">
@@ -153,7 +198,8 @@ export function renderSetupCard() {
     </details>
 
     <div class="modal-actions" style="margin-top:14px">
-      <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save and start tracking</button>
+      <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">${isOnboardingComplete() ? 'Save changes' : 'Save and start tracking'}</button>
+      ${isOnboardingComplete() ? '<button class="import-btn import-btn-secondary" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">Cancel</button>' : ''}
     </div>
   </div>`;
   return html;
@@ -208,6 +254,7 @@ async function saveSunSetup() {
   }
   state.importedData.lightCircadian.skinType = SKIN_TYPE[skinIdx];
   await saveImportedData();
+  _setupForceOpen = false;
   showNotification(`Setup saved · Ott score ${ottScore}/10`);
   if (window.navigate) window.navigate('light');
 }
@@ -231,6 +278,7 @@ function _updateSetupSkinSlider(val) {
 // Card disappears; a session log will start with default Fitzpatrick III.
 async function dismissSunSetup() {
   await saveSunDefaults({ fitzpatrick: 'III', skipped: true, completedAt: Date.now() });
+  _setupForceOpen = false;
   if (window.navigate) window.navigate('light');
 }
 
@@ -242,6 +290,8 @@ if (typeof window !== 'undefined') {
     renderSunSetupCard: renderSetupCard,
     saveSunSetup,
     dismissSunSetup,
+    reopenSunSetup,
+    cancelReopenSunSetup,
     _updateSetupSkinSlider,
     _skinTypeToFitzpatrick: skinTypeToFitzpatrick,
   });
