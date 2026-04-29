@@ -333,6 +333,29 @@ export function renderPrivacySection() {
       </label>
     </div>
   </div>
+  <div class="local-ai-settings" style="margin-top:16px" id="sun-data-source-section">
+    <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">☀ Sun Data Source</h4>
+    <div class="ai-provider-desc" style="margin-bottom:10px">Where the Light & Sun lens fetches UV / ozone / atmosphere data. Lat/lon defaults to your country (no automatic geolocation). Manual entry always works.</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${_renderMeteoModeOption('auto', 'getbased default (Open-Meteo)', 'Public CC-BY 4.0 dataset. lat/lon goes to api.open-meteo.com. Standard CDN telemetry only — no logged user data.')}
+      ${_renderMeteoModeOption('selfhost', 'Self-hosted server', 'Use your own getbased-uvdata server. Lat/lon never leaves your infrastructure. Set URL + bearer below.')}
+      ${_renderMeteoModeOption('manual', 'Manual entry only', 'Type the UV index per session. No network calls at all.')}
+    </div>
+    <div id="meteo-selfhost-fields" style="margin-top:10px;${(window.getMeteoConfig && window.getMeteoConfig().mode === 'selfhost') ? '' : 'display:none'}">
+      <label style="font-size:12px;color:var(--text-muted)">Server URL</label>
+      <input type="text" class="api-key-input" id="meteo-selfhost-url" value="${(window.getMeteoConfig && window.getMeteoConfig().selfhostUrl) || ''}" placeholder="https://meteo.example.com" style="width:100%;margin-top:4px" onchange="window._saveMeteoSelfhost()">
+      <label style="font-size:12px;color:var(--text-muted);margin-top:8px;display:block">Bearer token (optional)</label>
+      <input type="password" class="api-key-input" id="meteo-selfhost-bearer" value="${(window.getMeteoConfig && window.getMeteoConfig().selfhostBearer) || ''}" placeholder="••••••••" style="width:100%;margin-top:4px" onchange="window._saveMeteoSelfhost()">
+    </div>
+    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:14px">
+      <span style="font-size:13px">Round location to ~11 km grid before sending<br><span style="font-size:11px;color:var(--text-muted)">Default ON. Stops the data source from seeing your exact address. Disable for slightly sharper UV math.</span></span>
+      <label class="toggle-switch" style="margin-top:2px">
+        <input type="checkbox" id="meteo-privacy-rounding" ${(window.getMeteoConfig && (window.getMeteoConfig().privacyRounding ?? 0.1) > 0) ? 'checked' : ''} onchange="window._toggleMeteoRounding(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
   <div class="local-ai-settings" style="margin-top:16px">
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">Anonymous Usage Stats</h4>
     <div class="ai-provider-desc" style="margin-bottom:10px">No health data is ever sent. I track cookieless pageviews and outbound clicks on affiliate links so I can tell which integrations actually help users — never which user, what data they were viewing, or any health context.</div>
@@ -344,6 +367,44 @@ export function renderPrivacySection() {
       </label>
     </div>
   </div>`;
+}
+
+function _renderMeteoModeOption(mode, label, desc) {
+  const cur = (typeof window !== 'undefined' && window.getMeteoConfig) ? window.getMeteoConfig().mode : 'auto';
+  const checked = cur === mode;
+  return `<label style="display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;${checked ? 'background:var(--bg-card);border-color:var(--accent);' : ''}">
+    <input type="radio" name="meteo-mode" value="${mode}" ${checked ? 'checked' : ''} onchange="window._setMeteoMode('${mode}')" style="margin-top:3px">
+    <span>
+      <span style="font-size:13px;font-weight:500;color:var(--text-primary)">${label}</span>
+      <br><span style="font-size:11px;color:var(--text-muted);line-height:1.4">${desc}</span>
+    </span>
+  </label>`;
+}
+
+if (typeof window !== 'undefined') {
+  window._setMeteoMode = (mode) => {
+    if (!window.getMeteoConfig || !window.saveMeteoConfig) return;
+    const cfg = window.getMeteoConfig();
+    cfg.mode = mode;
+    window.saveMeteoConfig(cfg);
+    const fields = document.getElementById('meteo-selfhost-fields');
+    if (fields) fields.style.display = mode === 'selfhost' ? '' : 'none';
+  };
+  window._saveMeteoSelfhost = () => {
+    if (!window.getMeteoConfig || !window.saveMeteoConfig) return;
+    const cfg = window.getMeteoConfig();
+    const url = document.getElementById('meteo-selfhost-url')?.value?.trim() || '';
+    const bearer = document.getElementById('meteo-selfhost-bearer')?.value?.trim() || '';
+    cfg.selfhostUrl = url;
+    cfg.selfhostBearer = bearer;
+    window.saveMeteoConfig(cfg);
+  };
+  window._toggleMeteoRounding = (enabled) => {
+    if (!window.getMeteoConfig || !window.saveMeteoConfig) return;
+    const cfg = window.getMeteoConfig();
+    cfg.privacyRounding = enabled ? 0.1 : 0;
+    window.saveMeteoConfig(cfg);
+  };
 }
 
 export function togglePrivacyConfigure() {
