@@ -161,16 +161,19 @@ const PROVIDERS = {
 };
 
 function providerOrder(cfg) {
+  // Until the CAMS-via-proxy endpoint and the getbased-uvdata companion repo
+  // ship, CAMS is a configured-only path (selfhost or explicit 'cams' mode).
+  // NOAA NWS doesn't allow browser CORS, so it's also explicit-only and only
+  // useful for non-browser callers.
   if (cfg.mode === 'manual') return [];
-  if (cfg.mode === 'selfhost') return [PROVIDERS.selfhost, PROVIDERS.cams, PROVIDERS.openMeteo];
+  if (cfg.mode === 'selfhost') return cfg.selfhostUrl ? [PROVIDERS.selfhost, PROVIDERS.openMeteo] : [PROVIDERS.openMeteo];
   if (cfg.mode === 'cams') return [PROVIDERS.cams, PROVIDERS.openMeteo];
   if (cfg.mode === 'noaa') return [PROVIDERS.noaa, PROVIDERS.openMeteo];
   if (cfg.mode === 'open-meteo') return [PROVIDERS.openMeteo];
-  // 'auto' — full ladder
+  // 'auto' — selfhost (if configured) → Open-Meteo. CAMS + NOAA are
+  // explicitly opt-in until their ingestion paths are real.
   const order = [];
   if (cfg.selfhostUrl) order.push(PROVIDERS.selfhost);
-  order.push(PROVIDERS.cams);
-  order.push(PROVIDERS.noaa);
   order.push(PROVIDERS.openMeteo);
   return order;
 }
@@ -328,6 +331,9 @@ async function fetchJson(url, opts = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), NETWORK_TIMEOUT_MS);
   try {
+    // Suppressing network errors as logging — providerOrder treats failures as
+    // fallthrough signals, not bugs. The console error from a 404/CORS is
+    // useful only when debugging a specific provider.
     const res = await fetch(url, { ...opts, signal: ctrl.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();

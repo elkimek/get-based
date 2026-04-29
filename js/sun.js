@@ -228,6 +228,7 @@ export async function quickLogSunSession() {
       await maybeHydrateActiveLocation(active.id);
       const sess = getSessions().find(s => s.id === active.id);
       showNotification(`Session saved — ${Math.round(sess?.durationMin || 0)} min`);
+      _refreshSurfaces();
     });
     return;
   }
@@ -240,7 +241,16 @@ export async function quickLogSunSession() {
   } : {};
   const id = await startSession(defaults);
   showNotification('Sun session started — tap again to stop');
+  _refreshSurfaces();
   return id;
+}
+
+// Re-render dashboard sidebar + current view after a session change so the
+// Light Today strip + sidebar entry appear / update without a manual reload.
+function _refreshSurfaces() {
+  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
+  const view = state.currentView || 'dashboard';
+  if (window.navigate) try { window.navigate(view); } catch (e) {}
 }
 
 async function maybeHydrateActiveLocation(id) {
@@ -317,7 +327,7 @@ function renderChannelChips(doses) {
 async function deleteSunSession(id) {
   showConfirmDialog('Delete this sun session?', async () => {
     await deleteSession(id);
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
+    _refreshSurfaces();
   });
 }
 
