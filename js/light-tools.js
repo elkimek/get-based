@@ -390,6 +390,358 @@ export async function openDarknessMeter() {
   };
 }
 
+// ─── Tool 3: CCT Meter ────────────────────────────────────────────────
+
+let _cctState = { running: false, stream: null };
+
+export async function openCCTMeter() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Color temperature meter">
+    <div class="modal-header">
+      <h3>Color Temperature</h3>
+      <button class="modal-close" onclick="window._closeCCT()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Aim your camera at a white wall, paper, or grey card. Reading updates live.</p>
+      <video id="cct-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
+      <div class="cct-result">
+        <div class="cct-value" id="cct-value">— K</div>
+        <div class="cct-tone" id="cct-tone">—</div>
+        <div class="cct-coherence" id="cct-coherence"></div>
+      </div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="import-btn import-btn-secondary" onclick="window._closeCCT()">Done</button>
+        <button class="import-btn import-btn-primary" id="cct-save">Save reading</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  let currentCCT = null;
+  const valueEl = overlay.querySelector('#cct-value');
+  const toneEl = overlay.querySelector('#cct-tone');
+  const cohEl = overlay.querySelector('#cct-coherence');
+  const video = overlay.querySelector('#cct-video');
+  _cctState.running = true;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: 320, height: 240 },
+    });
+    _cctState.stream = stream;
+    video.srcObject = stream;
+    await video.play();
+    const canvas = document.createElement('canvas');
+    canvas.width = 32; canvas.height = 24;
+    const ctx = canvas.getContext('2d');
+    const tick = () => {
+      if (!_cctState.running) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let r = 0, g = 0, b = 0;
+      for (let i = 0; i < data.length; i += 4) { r += data[i]; g += data[i + 1]; b += data[i + 2]; }
+      const px = data.length / 4;
+      r /= px; g /= px; b /= px;
+      // Crude CCT estimate from R/B ratio (McCamy approximation, very rough)
+      const sum = r + g + b || 1;
+      const rN = r / sum, bN = b / sum;
+      // Higher b/r ratio → cooler. Map to 1800–7000K.
+      const ratio = bN / Math.max(rN, 0.01);
+      const cct = Math.round(1800 + Math.min(5200, ratio * 4500));
+      currentCCT = cct;
+      valueEl.textContent = `${cct} K`;
+      toneEl.textContent = cctTone(cct);
+      cohEl.innerHTML = solarCoherence(cct);
+      if (_cctState.running) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  } catch (e) {
+    valueEl.textContent = 'Camera denied';
+  }
+
+  overlay.querySelector('#cct-save').addEventListener('click', async () => {
+    if (currentCCT == null) return;
+    await saveMeasurement('cct', currentCCT, { confidence: 0.5 });
+    showNotification(`Color temp saved: ${currentCCT} K`);
+    window._closeCCT();
+  });
+
+  window._closeCCT = () => {
+    _cctState.running = false;
+    if (_cctState.stream) { try { _cctState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _cctState.stream = null; }
+    overlay.remove();
+  };
+}
+
+function cctTone(k) {
+  if (k < 2200) return 'Candle';
+  if (k < 3000) return 'Warm white (incandescent / warm LED)';
+  if (k < 4000) return 'Soft white';
+  if (k < 5000) return 'Cool white / fluorescent';
+  if (k < 6000) return 'Daylight';
+  return 'Overcast / blue-shifted';
+}
+
+function solarCoherence(k) {
+  // Compare to solar CCT for current local hour (rough)
+  const hr = new Date().getHours();
+  let solarK;
+  if (hr < 6 || hr >= 20) solarK = 2000;
+  else if (hr < 8 || hr >= 18) solarK = 3500;
+  else if (hr < 10 || hr >= 16) solarK = 5000;
+  else solarK = 5500;
+  const diff = Math.abs(k - solarK);
+  if (diff < 800) return `<span style="color:var(--green)">✓ matches solar time (~${solarK} K)</span>`;
+  if (diff < 1500) return `<span style="color:var(--text-secondary)">slight mismatch (solar now ~${solarK} K)</span>`;
+  return `<span style="color:var(--orange)">⚠ mismatch — solar is ~${solarK} K right now</span>`;
+}
+
+// ─── Tool 4: Spectrum Classifier (simplified) ────────────────────────
+
+let _specState = { running: false, stream: null };
+
+export async function openSpectrumClassifier() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Spectrum classifier">
+    <div class="modal-header">
+      <h3>What kind of light is this?</h3>
+      <button class="modal-close" onclick="window._closeSpec()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Aim at the light source. We classify by RGB pattern and flicker.</p>
+      <video id="spec-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
+      <div class="spec-result" id="spec-result">Reading…</div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="import-btn import-btn-secondary" onclick="window._closeSpec()">Done</button>
+        <button class="import-btn import-btn-primary" id="spec-save">Save reading</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  let result = null;
+  const resultEl = overlay.querySelector('#spec-result');
+  const video = overlay.querySelector('#spec-video');
+  _specState.running = true;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', frameRate: { ideal: 240, min: 60 }, width: 320, height: 240 },
+    });
+    _specState.stream = stream;
+    video.srcObject = stream;
+    await video.play();
+    const canvas = document.createElement('canvas');
+    canvas.width = 32; canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    const lumaSamples = [];
+    const tick = () => {
+      if (!_specState.running) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let r = 0, g = 0, b = 0, luma = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i]; g += data[i + 1]; b += data[i + 2];
+        luma += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      }
+      const px = data.length / 4;
+      r /= px; g /= px; b /= px; luma /= px;
+      lumaSamples.push(luma);
+      if (lumaSamples.length > 120) lumaSamples.shift();
+      result = classifyLight({ r, g, b, lumaSamples });
+      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small>`;
+      if (_specState.running) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  } catch (e) {
+    resultEl.textContent = 'Camera denied.';
+  }
+
+  overlay.querySelector('#spec-save').addEventListener('click', async () => {
+    if (!result) return;
+    await saveMeasurement('spectrum', result.label, { confidence: result.confidence, extra: result });
+    showNotification(`Light type saved: ${result.label}`);
+    window._closeSpec();
+  });
+
+  window._closeSpec = () => {
+    _specState.running = false;
+    if (_specState.stream) { try { _specState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _specState.stream = null; }
+    overlay.remove();
+  };
+}
+
+// 5-category v1 classifier — RGB ratio + flicker variance signature
+function classifyLight({ r, g, b, lumaSamples }) {
+  const sum = r + g + b || 1;
+  const rN = r / sum, gN = g / sum, bN = b / sum;
+  // Flicker variance over recent samples
+  const mean = lumaSamples.reduce((a, b) => a + b, 0) / Math.max(1, lumaSamples.length);
+  const variance = lumaSamples.length > 10
+    ? Math.max(...lumaSamples) - Math.min(...lumaSamples)
+    : 0;
+  const flickerRatio = mean ? variance / mean : 0;
+
+  // Decision tree (very simple — the published Phase 1d note)
+  if (flickerRatio > 0.20 && gN > 0.36) {
+    return { label: 'Fluorescent / CFL', confidence: 0.7, reason: 'High flicker variance + green spike — typical 60 Hz fluorescent signature.' };
+  }
+  if (rN > 0.40 && bN < 0.20) {
+    return { label: 'Incandescent / halogen', confidence: 0.75, reason: 'Red-rich, low blue — filament-style emitter.' };
+  }
+  if (bN > 0.36 && flickerRatio < 0.10) {
+    return { label: 'Cool LED (4000K+)', confidence: 0.7, reason: 'Blue-rich, near-flicker-free — cool LED.' };
+  }
+  if (rN > 0.32 && bN < 0.30 && flickerRatio < 0.10) {
+    return { label: 'Warm LED (2700–3000K)', confidence: 0.7, reason: 'Slight red lift, near-flicker-free — warm LED.' };
+  }
+  if (Math.abs(rN - 0.33) < 0.05 && Math.abs(bN - 0.33) < 0.05) {
+    return { label: 'Daylight or full-spectrum', confidence: 0.6, reason: 'Balanced RGB — natural or full-spectrum source.' };
+  }
+  return { label: 'Mixed / unclassified', confidence: 0.4, reason: 'Pattern doesn\'t match a known signature.' };
+}
+
+// ─── Tool 5: Glass Transmission Test ──────────────────────────────────
+
+let _glassReadings = { inside: null, outside: null };
+
+export async function openGlassTransmission() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Glass transmission test">
+    <div class="modal-header">
+      <h3>Window / Glass Transmission</h3>
+      <button class="modal-close" onclick="window._closeGlass()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Two readings: one through the glass, one outside (or in front of the same window without it). We compute the ratio.</p>
+      <div class="glass-step" id="glass-step-inside">
+        <span>Step 1: <strong>through the glass</strong></span>
+        <button class="import-btn import-btn-secondary" id="glass-measure-inside">Measure inside</button>
+        <span class="glass-reading" id="glass-reading-inside">—</span>
+      </div>
+      <div class="glass-step" id="glass-step-outside">
+        <span>Step 2: <strong>direct (no glass)</strong></span>
+        <button class="import-btn import-btn-secondary" id="glass-measure-outside">Measure outside</button>
+        <span class="glass-reading" id="glass-reading-outside">—</span>
+      </div>
+      <div class="glass-result" id="glass-result"></div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="import-btn import-btn-secondary" onclick="window._closeGlass()">Done</button>
+        <button class="import-btn import-btn-primary" id="glass-save" disabled>Save reading</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  _glassReadings = { inside: null, outside: null };
+
+  const measure = async (which) => {
+    // Reuse the lux-camera path inline. Simpler than spinning up the modal.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 160, height: 120 } });
+      const video = document.createElement('video');
+      video.srcObject = stream; video.muted = true; video.playsInline = true;
+      await video.play();
+      const canvas = document.createElement('canvas');
+      canvas.width = 32; canvas.height = 24;
+      const ctx = canvas.getContext('2d');
+      // Sample over 1s
+      const samples = [];
+      for (let i = 0; i < 8; i++) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let sum = 0;
+        for (let j = 0; j < data.length; j += 4) sum += 0.2126 * data[j] + 0.7152 * data[j + 1] + 0.0722 * data[j + 2];
+        samples.push(sum / (data.length / 4));
+        await new Promise(r => setTimeout(r, 125));
+      }
+      stream.getTracks().forEach(t => t.stop());
+      const meanLuma = samples.reduce((a, b) => a + b, 0) / samples.length;
+      const luxEst = Math.max(0, meanLuma * 40 * loadLuxCalibration());
+      _glassReadings[which] = luxEst;
+      overlay.querySelector(`#glass-reading-${which}`).textContent = `${Math.round(luxEst)} lux`;
+      computeGlass();
+    } catch (e) {
+      overlay.querySelector(`#glass-reading-${which}`).textContent = 'denied';
+    }
+  };
+  overlay.querySelector('#glass-measure-inside').addEventListener('click', () => measure('inside'));
+  overlay.querySelector('#glass-measure-outside').addEventListener('click', () => measure('outside'));
+
+  function computeGlass() {
+    if (_glassReadings.inside == null || _glassReadings.outside == null) return;
+    const transmission = Math.min(1, _glassReadings.inside / Math.max(_glassReadings.outside, 1));
+    const blocked = (1 - transmission) * 100;
+    // UV transmission for typical low-E coatings is ~12–18% of clear glass UV transmission
+    const uvTrans = Math.round(transmission * 15);
+    overlay.querySelector('#glass-result').innerHTML =
+      `<strong>Glass transmits ${(transmission * 100).toFixed(0)}% of total light</strong>` +
+      `<br><small>Blocks ~${blocked.toFixed(0)}% of broadband · estimated UV transmission ${uvTrans}% (typical Low-E coating)</small>`;
+    overlay.querySelector('#glass-save').disabled = false;
+    overlay.querySelector('#glass-save').onclick = async () => {
+      await saveMeasurement('glass-transmission', transmission, {
+        confidence: 0.6,
+        extra: { inside: _glassReadings.inside, outside: _glassReadings.outside, uvTrans },
+      });
+      showNotification(`Glass transmission saved: ${(transmission * 100).toFixed(0)}%`);
+      window._closeGlass();
+    };
+  }
+
+  window._closeGlass = () => overlay.remove();
+}
+
+// ─── Tool 7: Sunrise / Sunset Logger ──────────────────────────────────
+
+export function openSunriseLogger() {
+  // Pure timer + solar geometry — opens a simple confirmation flow.
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show light-tool-overlay';
+  const hr = new Date().getHours();
+  let label = 'Golden hour';
+  if (hr >= 5 && hr < 9) label = 'Sunrise window';
+  else if (hr >= 16 && hr < 21) label = 'Sunset window';
+  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Sunrise / sunset logger">
+    <div class="modal-header">
+      <h3>${escapeHTML(label)} session</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Quick log for golden-hour outdoor light. Eye exposure is automatic — circadian channel maxed for the duration.</p>
+      <label class="ctx-label">Duration outside (minutes)
+        <input type="number" id="sunrise-duration" class="ctx-input" min="1" max="120" value="15" />
+      </label>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-primary" id="sunrise-save">Log session</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#sunrise-save').addEventListener('click', async () => {
+    const minutes = parseInt(overlay.querySelector('#sunrise-duration').value, 10) || 15;
+    if (window.logCompletedSession) {
+      const start = Date.now() - minutes * 60 * 1000;
+      await window.logCompletedSession({
+        startedAt: start,
+        endedAt: Date.now(),
+        bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [], glassBetween: false },
+        eyeExposure: { mode: 'direct', lensTint: 'clear', durationSec: minutes * 60 },
+        notes: label,
+      });
+      const id = window.getSessions().slice(-1)[0]?.id;
+      if (id && window.hydrateSession) await window.hydrateSession(id);
+    }
+    showNotification(`${label} logged: ${minutes} min`);
+    overlay.remove();
+    if (window.navigate && state.currentView === 'light') window.navigate('light');
+  });
+}
+
 // ─── Tools page render ────────────────────────────────────────────────
 
 export function renderLightTools() {
@@ -407,10 +759,30 @@ export function renderLightTools() {
         <div class="light-tool-name">Flicker Detector</div>
         <div class="light-tool-desc">Is this light flickering?</div>
       </button>
+      <button class="light-tool-card" onclick="window.openCCTMeter()">
+        <div class="light-tool-icon">🎨</div>
+        <div class="light-tool-name">Color Temp</div>
+        <div class="light-tool-desc">Warm or cool? Matches solar time?</div>
+      </button>
+      <button class="light-tool-card" onclick="window.openSpectrumClassifier()">
+        <div class="light-tool-icon">🔬</div>
+        <div class="light-tool-name">What is this light?</div>
+        <div class="light-tool-desc">LED, fluorescent, daylight, or incandescent?</div>
+      </button>
+      <button class="light-tool-card" onclick="window.openGlassTransmission()">
+        <div class="light-tool-icon">🪟</div>
+        <div class="light-tool-name">Glass Transmission</div>
+        <div class="light-tool-desc">How much does this window cut?</div>
+      </button>
       <button class="light-tool-card" onclick="window.openDarknessMeter()">
         <div class="light-tool-icon">🌙</div>
         <div class="light-tool-name">Sleep Darkness</div>
         <div class="light-tool-desc">Is your bedroom dark enough?</div>
+      </button>
+      <button class="light-tool-card" onclick="window.openSunriseLogger()">
+        <div class="light-tool-icon">🌅</div>
+        <div class="light-tool-name">Golden hour log</div>
+        <div class="light-tool-desc">Quick log for sunrise / sunset sessions.</div>
       </button>
     </div>
   </div>`;
@@ -421,6 +793,10 @@ if (typeof window !== 'undefined') {
     openLuxMeter,
     openFlickerDetector,
     openDarknessMeter,
+    openCCTMeter,
+    openSpectrumClassifier,
+    openGlassTransmission,
+    openSunriseLogger,
     getMeasurements,
     saveMeasurement,
     deleteMeasurement,

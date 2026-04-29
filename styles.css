@@ -5413,6 +5413,47 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   max-width: 480px;
 }
 
+/* CCT meter */
+.cct-result {
+  text-align: center; padding: 16px 0;
+  margin-top: 12px;
+}
+.cct-value { font-size: 36px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+.cct-tone { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+.cct-coherence { font-size: 12px; margin-top: 8px; }
+
+/* Spectrum classifier result */
+.spec-result {
+  margin-top: 12px; padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  min-height: 56px;
+}
+
+/* Glass transmission flow */
+.glass-step {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  font-size: 13px; color: var(--text-secondary);
+}
+.glass-step strong { color: var(--text-primary); }
+.glass-step .import-btn { padding: 6px 14px; font-size: 12px; }
+.glass-reading { margin-left: auto; color: var(--text-muted); font-family: var(--font-mono, monospace); }
+.glass-result {
+  margin-top: 12px; padding: 12px 14px;
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary);
+  min-height: 24px;
+}
+.glass-result strong { color: var(--text-primary); }
+
 /* Burn-risk banner on the Light & Sun page */
 .light-med-banner {
   margin: 16px 0;
