@@ -5,6 +5,19 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.0', date: '2026-04-29', title: 'Light — track your photobiology, not just your sun',
+    items: [
+      '<b>Sun isn\'t just vitamin D.</b> Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. The new <b>☀ Light & Sun</b> lens tracks your light exposure across six biological channels (Vitamin D, Mood & hormones, Cardiovascular, Outdoor eye light, Body clock, Cellular repair) and lets you correlate them with your labs and wearable data over time.',
+      '<b>One-tap sun session logging.</b> Tap "log a sun session" when you go outside, tap again when you come back. We pull the actual UV and ozone for your location, reconstruct the solar spectrum at your zenith, and compute per-channel doses on the spot. No researcher will ask you for irradiance integrals.',
+      '<b>Light therapy devices, first-class.</b> Joovv panels, Mito Red, Sperti UVB lamps, Verilux SAD boxes, dawn simulators, full-spectrum bulbs — pick from a 24-device preset library or add a custom device. Therapy sessions feed the same channels as outdoor sun, so a Joovv user with no outdoor time still gets credit for the cellular-repair channel.',
+      '<b>Indoor light environment matters too.</b> Map the rooms you spend time in (LED type, hours/day, after-sunset use) and the screens you stare at. The AI now sees the half of your day when you\'re indoors — not just the outdoor half — and the deficit signals (LED-only contamination, blue-after-sunset hours) flow into the same channels.',
+      '<b>Seven on-device measurement tools.</b> Lux Meter (with phone\'s ambient-light sensor when available, camera fallback otherwise) · Flicker Detector (240 fps camera + FFT to find PWM banding, IEEE PAR1789 risk scoring) · Color Temperature meter (with solar-coherence check) · Light classifier (LED / fluorescent / incandescent / daylight) · Glass transmission test · Sleep darkness meter (long-exposure check at the pillow) · Sunrise/sunset session logger. Camera frames never leave your device.',
+      '<b>Sidebar got a quiet upgrade.</b> Conditional entries for ☀ Light & Sun · ⌚ Wearables · 💊 Supplements · 🌸 Cycle · 📡 EMF · 🧬 Genetics now appear when their module has data, mirroring the Genetics-conditional pattern. Zero impact for users who don\'t use them; better discoverability for power users.',
+      '<b>AI sees the full picture.</b> Every chat now carries a Lifelight summary — your active deficits, your therapy device library, your week\'s per-channel exposure (sun + devices combined), and your skin\'s daily sunburn budget. The AI can reason about your light environment with the same depth it has for your labs.',
+      '<b>Privacy posture.</b> Location resolves from your country (set in profile) — no automatic geolocation prompt at session start. You can opt-in to precise location once for sharper estimates. UV/ozone data fetches via Open-Meteo by default; CAMS-via-proxy + self-host paths land in v1.7.x. Camera frames and sensor readings stay on-device.',
+    ]
+  },
+  {
     version: '1.6.0', date: '2026-04-29', title: 'Five Lenses — health intelligence that\'s actually yours',
     items: [
       '<b>getbased is not a blood-work dashboard.</b> It hasn\'t been for a while. Today it organizes around <b>five lenses on your biology</b> — 🩸 <b>Labs</b> (biomarkers, ranges, trends, biological age), 🧬 <b>Genome</b> (47 SNPs, APOE, mtDNA haplogroups, DNA-aware insights), ⌚ <b>Body</b> (wearables, biometrics, recovery, cycle), ☀ <b>Light</b> (sun, devices, environment — coming next release), and 🧠 <b>Insight</b> (AI chat, knowledge base, correlations, recommendations). Every lens informs every other.',
