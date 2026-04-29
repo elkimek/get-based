@@ -5217,6 +5217,80 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   font-size: 13px; color: var(--text-secondary);
 }
 
+/* Light devices section — peer of channel grid on Light & Sun page */
+.light-devices-section { margin-top: 24px; }
+.light-devices-head {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.light-devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 12px;
+}
+.light-device-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-device-head {
+  display: flex; align-items: center; gap: 8px;
+}
+.light-device-name {
+  font-weight: 600; color: var(--text-primary);
+  flex: 1; min-width: 0;
+}
+.light-device-delete {
+  background: transparent; border: none;
+  color: var(--text-muted); font-size: 18px; line-height: 1;
+  cursor: pointer; padding: 2px 6px; border-radius: 4px;
+}
+.light-device-delete:hover { color: var(--red); background: var(--bg-secondary); }
+.light-device-meta {
+  font-size: 12px; color: var(--text-secondary);
+}
+.light-device-log {
+  align-self: flex-start;
+  padding: 6px 14px; font-size: 12px;
+}
+
+.light-devices-history {
+  margin-top: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+.light-devices-history summary {
+  cursor: pointer; font-size: 13px; color: var(--text-secondary);
+  padding: 4px 0;
+}
+.light-device-sessions-list {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 8px;
+}
+.light-device-session {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.light-device-session-date {
+  color: var(--text-muted); width: 80px; flex-shrink: 0;
+}
+.light-device-session-name {
+  font-weight: 500; color: var(--text-primary); flex: 1;
+}
+.light-device-session-meta {
+  color: var(--text-secondary);
+}
+.light-device-session-delete {
+  background: transparent; border: none;
+  color: var(--text-muted); font-size: 14px;
+  cursor: pointer; padding: 2px 6px;
+}
+.light-device-session-delete:hover { color: var(--red); }
+
 /* Burn-risk banner on the Light & Sun page */
 .light-med-banner {
   margin: 16px 0;

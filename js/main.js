@@ -30,6 +30,7 @@ import './sun-uvdata.js';
 import './sun-spectrum.js';
 import './sun.js';
 import './sun-context.js';
+import './light-devices.js';
 import './export.js';
 import './chat.js';
 import './image-utils.js';

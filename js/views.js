@@ -75,9 +75,13 @@ export function renderLightTodayStrip() {
   const dots = window.tierDots || (() => '○○○○');
   const tlabel = window.tierLabel || (() => 'none');
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  // Combine sun + device contributions so a user with a Joovv panel and no
+  // outdoor sessions still sees PBM channels light up.
+  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
+  const combinedTotals7d = mergeTotalsLocal(totals7d, devTotals7d);
   const pills = order.map(k => {
     const meta = ch[k] || {};
-    const t = tier(totals7d[k] || 0, k);
+    const t = tier(combinedTotals7d[k] || 0, k);
     const tip = `${meta.what || ''} — last 7 days: ${tlabel(t)}.`;
     return `<span class="light-pill light-pill-tier-${t}" title="${escapeHTML(tip)}">
       <span class="light-pill-icon">${meta.icon || '·'}</span>
@@ -166,12 +170,18 @@ export function showLight(_data) {
     <span class="light-summary-tally">${sessions.length} total session${sessions.length !== 1 ? 's' : ''}</span>
   </div>`;
 
+  // Combine sun + device totals so channels reflect every light source
+  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
+  const devTotals30d = (window.rollingDeviceTotals && window.rollingDeviceTotals(30)) || {};
+  const combined7d = mergeTotals(totals7d, devTotals7d);
+  const combined30d = mergeTotals(totals30d, devTotals30d);
+
   // Channel breakdown — visual bars instead of opaque numbers
   html += `<div class="light-channels-section">
     <h3 class="light-section-title">This week's light, by what it does</h3>
     <p class="light-section-hint">Each tile is a different biological effect of light. Hover for the science.</p>
-    ${renderChannelBars(totals7d, totals30d)}
-    ${renderSuggestion(totals7d)}
+    ${renderChannelBars(combined7d, combined30d)}
+    ${renderSuggestion(combined7d)}
   </div>`;
 
   // Today's sun-exposure gauge — qualitative, plain English
@@ -192,8 +202,26 @@ export function showLight(_data) {
   html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
   html += (window.renderSessionsList && window.renderSessionsList()) || '';
 
+  // Light devices — render synchronously into placeholder, then await replace
+  const placeholderId = `light-devices-slot-${Date.now()}`;
+  html += `<div id="${placeholderId}"></div>`;
+
   main.innerHTML = html;
+
+  if (typeof window.renderDevicesSection === 'function') {
+    Promise.resolve(window.renderDevicesSection()).then((devHtml) => {
+      const slot = document.getElementById(placeholderId);
+      if (slot) slot.outerHTML = devHtml || '';
+    }).catch(() => {});
+  }
 }
+
+function mergeTotals(a, b) {
+  const out = { ...a };
+  for (const [k, v] of Object.entries(b || {})) out[k] = (out[k] || 0) + v;
+  return out;
+}
+function mergeTotalsLocal(a, b) { return mergeTotals(a, b); }
 
 // Visual bar grid for the channel summary on the Light & Sun page
 function renderChannelBars(totals7d, totals30d) {

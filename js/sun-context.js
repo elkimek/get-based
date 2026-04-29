@@ -36,19 +36,30 @@ export function buildSunContext({ tier = 'always' } = {}) {
 // ─── Tier: always (~520 tok) ───────────────────────────────────────────
 
 function alwaysTierBlock(sessions) {
-  const totals7d = window.rollingChannelTotals ? window.rollingChannelTotals(7) : {};
-  const totals30d = window.rollingChannelTotals ? window.rollingChannelTotals(30) : {};
+  // Combine outdoor sun + indoor device contributions — channels reflect the
+  // full biological state, not just one source class.
+  const sunTot7 = window.rollingChannelTotals ? window.rollingChannelTotals(7) : {};
+  const sunTot30 = window.rollingChannelTotals ? window.rollingChannelTotals(30) : {};
+  const devTot7 = window.rollingDeviceTotals ? window.rollingDeviceTotals(7) : {};
+  const devTot30 = window.rollingDeviceTotals ? window.rollingDeviceTotals(30) : {};
+  const totals7d = mergeTotalsCtx(sunTot7, devTot7);
+  const totals30d = mergeTotalsCtx(sunTot30, devTot30);
   const medToday = window.cumulativeMEDToday ? window.cumulativeMEDToday() : 0;
   const lastSession = sessions.filter(s => s.endedAt).slice(-1)[0];
   const activeSession = sessions.find(s => !s.endedAt);
 
+  const devices = state.importedData?.lightDevices || [];
+  const devSessions = state.importedData?.deviceSessions || [];
+
   let block = `### Lifelight summary
-- Total sessions logged: ${sessions.length}
+- Total outdoor sessions logged: ${sessions.length}
+- Total device sessions logged: ${devSessions.length}
+- Light devices in library: ${devices.length}${devices.length ? ` (${devices.map(d => d.brand + ' ' + d.model).join(', ')})` : ''}
 - Today's cumulative MED fraction: ${(medToday * 100).toFixed(0)}%${medToday > 1 ? ' (over personal MED — exposure risk)' : ''}
 ${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})` : ''}
-${lastSession ? `- Most recent session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)` : ''}
+${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)` : ''}
 
-### 7-day per-channel dose totals (channel-au)
+### 7-day per-channel dose totals (channel-au, sun + devices combined)
 ${formatChannelTotals(totals7d)}
 
 ### 30-day per-channel dose totals
@@ -196,6 +207,12 @@ function formatCorrelations(pairs) {
     lines.push(`| ${CHANNEL_LABELS[p.channel] || p.channel} | ${p.biomarker} | ${p.r.toFixed(2)} | ${p.n} | ${p.lag || 0}d |`);
   }
   return lines.join('\n');
+}
+
+function mergeTotalsCtx(a, b) {
+  const out = { ...a };
+  for (const [k, v] of Object.entries(b || {})) out[k] = (out[k] || 0) + v;
+  return out;
 }
 
 function formatRelative(ts) {
