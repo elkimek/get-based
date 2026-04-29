@@ -5499,6 +5499,26 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .glass-result strong { color: var(--text-primary); }
 
+/* Detailed session modal — body silhouette + extra fields */
+.sun-detailed-modal { max-width: 640px; }
+.sun-detailed-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 2fr;
+  gap: 20px;
+  margin-top: 12px;
+}
+@media (max-width: 600px) {
+  .sun-detailed-grid { grid-template-columns: 1fr; }
+}
+.sun-silhouette {
+  width: 100%; max-width: 180px;
+  display: block;
+}
+.sun-silhouette circle:hover {
+  fill: var(--accent);
+  fill-opacity: 0.2;
+}
+
 /* Burn-risk banner on the Light & Sun page */
 .light-med-banner {
   margin: 16px 0;

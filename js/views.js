@@ -174,6 +174,7 @@ export function showLight(_data) {
     <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">
       ${(window.getActiveSession && window.getActiveSession()) ? '⏹ Stop & save current session' : '☀ Start a sun session'}
     </button>
+    <button class="import-btn import-btn-secondary" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">+ Detailed log</button>
     <span class="light-summary-tally">${sessions.length} total session${sessions.length !== 1 ? 's' : ''}</span>
   </div>`;
 

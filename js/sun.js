@@ -439,6 +439,139 @@ function renderChannelChips(doses) {
   return html;
 }
 
+// ─── UI: detailed session log (anatomical regions + sunscreen + glass) ─
+
+export function openDetailedSessionDialog() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  const lastUsed = getSessions().filter(s => s.endedAt).slice(-1)[0];
+  const eyeMode = lastUsed?.eyeExposure?.mode || 'direct';
+  const lensTint = lastUsed?.eyeExposure?.lensTint || 'clear';
+
+  // Body silhouette as an SVG with tappable regions. Keeps the picker simple
+  // (no third-party dep) and accessible (each region is a button).
+  const regionPositions = {
+    'face':            { cx: 50,  cy: 14, r: 6 },
+    'thyroid-throat':  { cx: 50,  cy: 22, r: 3 },
+    'breast-chest':    { cx: 50,  cy: 32, r: 7 },
+    'arms':            { cx: 28,  cy: 38, r: 6 },
+    'torso-front':     { cx: 50,  cy: 44, r: 8 },
+    'abdomen':         { cx: 50,  cy: 54, r: 6 },
+    'genitals':        { cx: 50,  cy: 64, r: 4 },
+    'glutes':          { cx: 72,  cy: 64, r: 5 },
+    'torso-back':      { cx: 72,  cy: 44, r: 7 },
+    'legs':            { cx: 50,  cy: 80, r: 9 },
+    'soles-of-feet':   { cx: 50,  cy: 95, r: 4 },
+  };
+
+  const renderSilhouette = (selected) => {
+    let html = `<svg viewBox="0 0 100 110" class="sun-silhouette" aria-label="Body region picker">`;
+    // Ghost outline
+    html += `<ellipse cx="50" cy="14" rx="9" ry="10" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<rect x="35" y="22" width="30" height="40" rx="4" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<rect x="35" y="62" width="30" height="32" rx="4" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<rect x="22" y="24" width="10" height="28" rx="3" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<rect x="68" y="24" width="10" height="28" rx="3" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
+    // Region tap-targets (circles)
+    for (const r of BODY_REGIONS) {
+      const pos = regionPositions[r.key];
+      if (!pos) continue;
+      const isSelected = selected.includes(r.key);
+      html += `<circle cx="${pos.cx}" cy="${pos.cy}" r="${pos.r}" fill="${isSelected ? 'var(--accent)' : 'transparent'}" fill-opacity="${isSelected ? 0.4 : 0}" stroke="${isSelected ? 'var(--accent)' : 'var(--text-muted)'}" stroke-width="${isSelected ? 1.5 : 0.5}" data-region="${r.key}" style="cursor:pointer"><title>${r.label}</title></circle>`;
+    }
+    html += `</svg>`;
+    return html;
+  };
+
+  overlay.innerHTML = `<div class="modal sun-detailed-modal" role="dialog" aria-label="Detailed session log">
+    <div class="modal-header">
+      <h3>Detailed sun session</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Tap regions of your body that were exposed. Add details for sunscreen, glass, eyewear.</p>
+
+      <div class="sun-detailed-grid">
+        <div>
+          <label class="ctx-label">Body regions exposed</label>
+          <div id="sun-silhouette-slot">${renderSilhouette([])}</div>
+        </div>
+
+        <div>
+          <label class="ctx-label">Duration (minutes)
+            <input type="number" id="det-duration" class="ctx-input" min="1" max="240" value="15" />
+          </label>
+          <label class="ctx-label">Eyes
+            <select id="det-eye-mode" class="ctx-select">
+              ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === eyeMode ? ' selected' : ''}>${escapeHTML(e.label)}</option>`).join('')}
+            </select>
+          </label>
+          <label class="ctx-label">Lens tint
+            <select id="det-lens-tint" class="ctx-select">
+              ${LENS_TINTS.map(l => `<option value="${escapeAttr(l.key)}"${l.key === lensTint ? ' selected' : ''}>${escapeHTML(l.label)}</option>`).join('')}
+            </select>
+          </label>
+          <label class="ctx-label">Sunscreen SPF
+            <input type="number" id="det-spf" class="ctx-input" min="0" max="100" placeholder="none" />
+          </label>
+          <label class="ctx-label">
+            <input type="checkbox" id="det-glass" />
+            Glass between me and the sun (window, windshield, sunroom)
+          </label>
+          <label class="ctx-label">Notes
+            <textarea id="det-notes" class="ctx-input" rows="2" placeholder="Optional"></textarea>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-primary" id="det-save">Save session</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const selected = new Set();
+  const slot = overlay.querySelector('#sun-silhouette-slot');
+  slot.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-region]');
+    if (!t) return;
+    const k = t.dataset.region;
+    if (selected.has(k)) selected.delete(k); else selected.add(k);
+    slot.innerHTML = renderSilhouette(Array.from(selected));
+  });
+
+  overlay.querySelector('#det-save').addEventListener('click', async () => {
+    const durationMin = parseInt(overlay.querySelector('#det-duration').value, 10) || 15;
+    const eyeModeVal = overlay.querySelector('#det-eye-mode').value || 'direct';
+    const lensTintVal = overlay.querySelector('#det-lens-tint').value || 'clear';
+    const spf = parseInt(overlay.querySelector('#det-spf').value, 10) || null;
+    const glass = overlay.querySelector('#det-glass').checked;
+    const notes = overlay.querySelector('#det-notes').value || '';
+
+    // Compute exposure fraction from selected regions
+    const regions = Array.from(selected);
+    const fraction = regions.reduce((sum, key) => {
+      const r = BODY_REGIONS.find(b => b.key === key);
+      return sum + (r?.fraction || 0);
+    }, 0);
+
+    const start = Date.now() - durationMin * 60 * 1000;
+    const sessId = await logCompletedSession({
+      startedAt: start,
+      endedAt: Date.now(),
+      bodyExposure: { preset: regions.length === 0 ? 'face_hands' : 'detailed', fraction: Math.max(0.05, fraction), regions, sunscreenSPF: spf, glassBetween: glass },
+      eyeExposure: { mode: eyeModeVal, lensTint: lensTintVal, durationSec: durationMin * 60 },
+      notes,
+    });
+    if (sessId && window.hydrateSession) await window.hydrateSession(sessId);
+    overlay.remove();
+    showNotification(`Detailed session saved: ${durationMin} min, ${regions.length} regions.`);
+    if (window.navigate && state.currentView === 'light') window.navigate('light');
+  });
+}
+
 // Delete from window for inline onclick
 async function deleteSunSession(id) {
   showConfirmDialog('Delete this sun session?', async () => {
@@ -464,6 +597,7 @@ if (typeof window !== 'undefined') {
     renderSessionsList,
     getSunCoords,
     requestPreciseLocation,
+    openDetailedSessionDialog,
     BODY_REGIONS,
     EXPOSURE_PRESETS,
     EYE_MODES,
