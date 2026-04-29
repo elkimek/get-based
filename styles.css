@@ -5275,6 +5275,33 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   min-width: 92px;
 }
 
+/* Ott score badge — color-coded by malillumination tier */
+.light-ott-badge {
+  display: inline-block;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 9px; border-radius: 12px;
+  background: var(--bg-secondary); color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.light-ott-tier-0 { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.light-ott-tier-1 { background: var(--bg-secondary); color: var(--text-primary); border-color: var(--text-muted); }
+.light-ott-tier-2 { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+.light-ott-tier-3 { background: var(--orange-bg); color: var(--orange); border-color: var(--orange); }
+.light-ott-tier-4 { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+/* Running Ott score indicator inside the editor */
+.light-setup-ott-summary-score {
+  font-weight: normal; color: var(--text-secondary);
+  font-size: 12px; margin-left: 4px;
+}
+.light-setup-ott-running {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.light-setup-ott-running strong { color: var(--text-primary); }
+
 /* Setup card — skip-for-now link in header */
 .light-setup-title {
   display: flex; align-items: center; justify-content: space-between;

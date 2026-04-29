@@ -115,6 +115,18 @@ function cancelReopenSunSetup() {
   if (window.navigate) window.navigate('light');
 }
 
+// Map an Ott malillumination score (0-10, higher = more indoor) to a
+// qualitative label + tier index for color coding. 0 = ideal outdoor life,
+// 10 = no natural light at all.
+export function ottScoreToLabel(score) {
+  if (typeof score !== 'number') return { label: '—', tier: 0 };
+  if (score <= 2) return { label: 'mostly outdoor lifestyle', tier: 0 };
+  if (score <= 4) return { label: 'balanced indoor + outdoor', tier: 1 };
+  if (score <= 6) return { label: 'indoor-leaning', tier: 2 };
+  if (score <= 8) return { label: 'mostly indoor', tier: 3 };
+  return { label: 'high malillumination', tier: 4 };
+}
+
 // Compact summary of saved answers, with an Edit button. Renders in place
 // of the editor once the user has completed onboarding.
 function renderSavedSummary() {
@@ -124,7 +136,16 @@ function renderSavedSummary() {
   const fpLabel = fp ? SKIN_TYPE[fitzpatrickToSkinTypeIndex(fp)] : '—';
   const homeMeta = HOME_LIGHT_OPTIONS.find(o => o.key === d.homeLight);
   const eyewearMeta = EYEWEAR_OPTIONS.find(o => o.key === d.eyewear);
-  const ott = (typeof d.ottScore === 'number') ? `${d.ottScore}/10` : (d.skipped ? 'skipped' : '—');
+
+  let ottHtml;
+  if (typeof d.ottScore === 'number') {
+    const { label, tier } = ottScoreToLabel(d.ottScore);
+    ottHtml = `<span class="light-ott-badge light-ott-tier-${tier}" title="Ott malillumination: 0 = mostly outdoor, 10 = no natural light. Higher = more indoor.">${d.ottScore}/10 · ${escapeHTML(label)}</span>`;
+  } else if (d.skipped) {
+    ottHtml = `<span class="light-ott-badge">skipped</span>`;
+  } else {
+    ottHtml = '—';
+  }
 
   return `<div class="light-setup-summary">
     <div class="light-setup-summary-head">
@@ -135,7 +156,7 @@ function renderSavedSummary() {
       <div class="light-setup-summary-row"><span class="light-setup-summary-label">Skin type</span><span>${escapeHTML(fpLabel)}</span></div>
       <div class="light-setup-summary-row"><span class="light-setup-summary-label">Home lighting</span><span>${escapeHTML(homeMeta?.label || (d.homeLight ? d.homeLight : '—'))}</span></div>
       <div class="light-setup-summary-row"><span class="light-setup-summary-label">Eyewear outside</span><span>${escapeHTML(eyewearMeta?.label || (d.eyewear ? d.eyewear : '—'))}</span></div>
-      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Ott baseline</span><span>${escapeHTML(ott)}</span></div>
+      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Light lifestyle</span>${ottHtml}</div>
     </div>
   </div>`;
 }
@@ -189,11 +210,15 @@ export function renderSetupCard() {
       <button class="import-btn import-btn-secondary" onclick="window.requestPreciseLocation && window.requestPreciseLocation().then(()=>window.navigate('light'))">Use precise location (one-time)</button>
     </div>
 
-    <details class="light-setup-ott">
-      <summary>Optional: 10-question baseline check (Ott malillumination)</summary>
-      <p class="light-setup-body" style="margin:8px 0">Coined by John Ott in 1973 — it asks how indoor / glass-mediated / artificial-light-dominated your modern life is. Used as a starting reference, not a diagnosis.</p>
+    <details class="light-setup-ott"${(d.ott && Object.values(d.ott).some(v => v)) ? ' open' : ''}>
+      <summary>Optional: how indoor is your lifestyle? <span class="light-setup-ott-summary-score" id="ott-summary-score">${(typeof d.ottScore === 'number') ? `· ${d.ottScore}/10 · ${ottScoreToLabel(d.ottScore).label}` : ''}</span></summary>
+      <p class="light-setup-body" style="margin:8px 0">Tick every box that's true. <strong>Each "yes" means more indoor / glass-mediated / artificial light</strong>. Coined by John Ott in 1973 as the "malillumination" baseline. Lower score = more outdoor life.</p>
       <div class="light-setup-ott-questions">
-        ${OTT_QUESTIONS.map(q => `<label class="light-setup-ott-q"><input type="checkbox" data-ott="${escapeAttr(q.key)}"${(d.ott && d.ott[q.key]) ? ' checked' : ''}> ${escapeHTML(q.text)}</label>`).join('')}
+        ${OTT_QUESTIONS.map(q => `<label class="light-setup-ott-q"><input type="checkbox" data-ott="${escapeAttr(q.key)}"${(d.ott && d.ott[q.key]) ? ' checked' : ''} oninput="window._updateOttRunningScore && window._updateOttRunningScore()"> ${escapeHTML(q.text)}</label>`).join('')}
+      </div>
+      <div class="light-setup-ott-running" id="ott-running-score">
+        Running score: <strong id="ott-running-value">${(d.ott ? Object.values(d.ott).filter(v => v).length : 0)}/10</strong>
+        <span class="light-ott-badge light-ott-tier-${ottScoreToLabel(d.ott ? Object.values(d.ott).filter(v => v).length : 0).tier}" id="ott-running-label">${ottScoreToLabel(d.ott ? Object.values(d.ott).filter(v => v).length : 0).label}</span>
       </div>
     </details>
 
@@ -259,6 +284,27 @@ async function saveSunSetup() {
   if (window.navigate) window.navigate('light');
 }
 
+// Recompute the running Ott score whenever a checkbox toggles, and update
+// the friendly "Running score: 4/10 · indoor-leaning" indicator beneath
+// the question list so users see the score interpretation in real time.
+function _updateOttRunningScore() {
+  const root = document.querySelector('.light-setup-card');
+  if (!root) return;
+  const cbs = root.querySelectorAll('input[data-ott]');
+  let score = 0;
+  cbs.forEach(cb => { if (cb.checked) score++; });
+  const valueEl = root.querySelector('#ott-running-value');
+  const labelEl = root.querySelector('#ott-running-label');
+  const summary = root.querySelector('#ott-summary-score');
+  const meta = ottScoreToLabel(score);
+  if (valueEl) valueEl.textContent = `${score}/10`;
+  if (labelEl) {
+    labelEl.textContent = meta.label;
+    labelEl.className = `light-ott-badge light-ott-tier-${meta.tier}`;
+  }
+  if (summary) summary.textContent = `· ${score}/10 · ${meta.label}`;
+}
+
 // Live update of the setup-card emoji slider (mirrors updateSkinSlider in
 // context-cards.js but bound to setup-* DOM ids so the two widgets don't
 // collide if both are visible at once). Marks data-set so save knows the
@@ -292,7 +338,9 @@ if (typeof window !== 'undefined') {
     dismissSunSetup,
     reopenSunSetup,
     cancelReopenSunSetup,
+    ottScoreToLabel,
     _updateSetupSkinSlider,
+    _updateOttRunningScore,
     _skinTypeToFitzpatrick: skinTypeToFitzpatrick,
   });
 }
