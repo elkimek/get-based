@@ -156,26 +156,14 @@ export function showLight(_data) {
     html += window.renderSunSetupCard();
   }
 
-  // First-time explainer (zero sessions) — replaces the channel grid until
-  // the user has data of their own to see in context.
-  if (sessions.length === 0) {
-    html += `<div class="light-intro-card">
-      <div class="light-intro-title">Sun isn't just vitamin D</div>
-      <p class="light-intro-body">Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. Track your sun exposure here and watch it correlate with your labs and wearable data over time.</p>
-      <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">☀ Log your first session</button>
-      ${getSunCoordsHint()}
-    </div>`;
-    main.innerHTML = html;
-    return;
-  }
-
-  // Quick-log CTA at top — primary action
+  // Quick-log CTA at top — primary action. Always visible, even at zero
+  // sessions, so the user has a clear way to start.
   html += `<div class="light-quicklog-row">
     <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">
       ${(window.getActiveSession && window.getActiveSession()) ? '⏹ Stop & save current session' : '☀ Start a sun session'}
     </button>
     <button class="import-btn import-btn-secondary" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">Log a past session</button>
-    <span class="light-summary-tally">${sessions.length} total session${sessions.length !== 1 ? 's' : ''}</span>
+    <span class="light-summary-tally">${sessions.length === 0 ? 'No sessions yet' : `${sessions.length} total session${sessions.length !== 1 ? 's' : ''}`}</span>
   </div>`;
 
   // Combine sun + device totals so channels reflect every light source
@@ -184,34 +172,44 @@ export function showLight(_data) {
   const combined7d = mergeTotals(totals7d, devTotals7d);
   const combined30d = mergeTotals(totals30d, devTotals30d);
 
-  // Channel breakdown — visual bars instead of opaque numbers
-  html += `<div class="light-channels-section">
-    <h3 class="light-section-title">This week's light, by what it does</h3>
-    <p class="light-section-hint">Each tile is a different biological effect of light. Hover for the science.</p>
-    ${renderChannelBars(combined7d, combined30d)}
-  </div>`;
+  if (sessions.length === 0) {
+    // First-time explainer in place of the channel grid + burn-risk + sessions
+    // list — but devices/environment/tools render below regardless because
+    // those features are useful even without sun-session data.
+    html += `<div class="light-intro-card">
+      <div class="light-intro-title">Sun isn't just vitamin D</div>
+      <p class="light-intro-body">Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. Tap "Start a sun session" when you go outside and we'll compute your dose across six biological channels. ${getSunCoordsHint().replace(/<[^>]+>/g, '').trim() ? '' : ''}</p>
+      ${getSunCoordsHint()}
+    </div>`;
+  } else {
+    // Channel breakdown — visual bars
+    html += `<div class="light-channels-section">
+      <h3 class="light-section-title">This week's light, by what it does</h3>
+      <p class="light-section-hint">Each tile is a different biological effect of light. Hover for the science.</p>
+      ${renderChannelBars(combined7d, combined30d)}
+    </div>`;
 
-  // Today's burn-risk card — promoted to match channel-card visual weight,
-  // ordered ABOVE the suggestion line per the v1.7.0a UX review.
-  const medPct = Math.round(medToday * 100);
-  let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
-  if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
-  else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching sunburn threshold'; medMsg = 'You\'re getting close to your skin\'s daily limit. Move to shade or cover up if you go back out.'; }
-  else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
-  html += `<div class="light-med-banner light-med-${medCls}">
-    <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
-    <div class="light-med-body">
-      <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your personal threshold)</span>` : ''}</div>
-      <div class="light-med-sub">${medMsg}</div>
-    </div>
-  </div>`;
+    // Today's burn-risk card
+    const medPct = Math.round(medToday * 100);
+    let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
+    if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
+    else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching sunburn threshold'; medMsg = 'You\'re getting close to your skin\'s daily limit. Move to shade or cover up if you go back out.'; }
+    else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
+    html += `<div class="light-med-banner light-med-${medCls}">
+      <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
+      <div class="light-med-body">
+        <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your personal threshold)</span>` : ''}</div>
+        <div class="light-med-sub">${medMsg}</div>
+      </div>
+    </div>`;
 
-  // Suggestion AFTER the burn-risk card (was before)
-  html += renderSuggestion(combined7d);
+    // Suggestion AFTER the burn-risk card
+    html += renderSuggestion(combined7d);
 
-  // Sessions list
-  html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
-  html += (window.renderSessionsList && window.renderSessionsList()) || '';
+    // Sessions list
+    html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
+    html += (window.renderSessionsList && window.renderSessionsList()) || '';
+  }
 
   // Devices, environment, tools — auto-collapsed when empty per v1.7.0a UX review
   const placeholderId = `light-aux-slot-${Date.now()}`;
