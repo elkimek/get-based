@@ -28,6 +28,7 @@ import { initWearableScheduler, handleOAuthCallbackOnLoad, loadWearableRuntimeCo
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
 import './sun-uvdata.js';
 import './sun-spectrum.js';
+import './sun.js';
 import './export.js';
 import './chat.js';
 import './image-utils.js';
