@@ -83,8 +83,10 @@ export function renderSetupCard() {
   const d = getSunDefaults() || {};
 
   let html = `<div class="light-setup-card">
-    <div class="light-setup-title">Set up the Light lens — about 60 seconds</div>
-    <p class="light-setup-body">Four quick questions plus a 10-question baseline check. Answers stay on this device and feed your AI's reasoning.</p>
+    <div class="light-setup-title">Set up the Light lens
+      <a href="#" class="light-setup-skip" onclick="event.preventDefault();window.dismissSunSetup && window.dismissSunSetup()">skip for now</a>
+    </div>
+    <p class="light-setup-body">Four questions plus an optional 10-question baseline. Answers stay on this device and feed your AI's reasoning.</p>
 
     <div class="light-setup-step">
       <label class="ctx-label">Skin type
@@ -175,6 +177,13 @@ async function saveSunSetup() {
   if (window.navigate) window.navigate('light');
 }
 
+// Skip-for-now — marks the setup as completed without filled answers.
+// Card disappears; a session log will start with default Fitzpatrick III.
+async function dismissSunSetup() {
+  await saveSunDefaults({ fitzpatrick: 'III', skipped: true, completedAt: Date.now() });
+  if (window.navigate) window.navigate('light');
+}
+
 if (typeof window !== 'undefined') {
   Object.assign(window, {
     getSunDefaults,
@@ -182,5 +191,6 @@ if (typeof window !== 'undefined') {
     isLightOnboardingComplete: isOnboardingComplete,
     renderSunSetupCard: renderSetupCard,
     saveSunSetup,
+    dismissSunSetup,
   });
 }

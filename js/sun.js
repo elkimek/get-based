@@ -422,18 +422,36 @@ export function renderSessionsList() {
 function renderChannelChips(doses) {
   if (!doses) return '';
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar'];
+  // Top-3 contributing channels for at-a-glance reading. Full grid lives on
+  // the Light & Sun page; per-row noise is what the v1.7.0a UX review flagged.
+  const ranked = order
+    .map(key => ({ key, v: doses[key] || 0, tier: channelTier(doses[key] || 0, key) }))
+    .sort((a, b) => b.tier - a.tier || b.v - a.v);
+  const showAll = ranked.filter(r => r.tier > 0).length > 3;
+  const visible = showAll ? ranked.slice(0, 3) : ranked;
   let html = `<div class="sun-channel-chips">`;
-  for (const key of order) {
-    const v = doses[key] || 0;
-    const tier = channelTier(v, key);
-    const meta = CHANNEL_DISPLAY[key];
-    const label = meta?.label || key.replace('_', ' ');
-    const tip = `${meta?.what || ''} (level: ${tierLabel(tier)})`;
-    html += `<span class="sun-chip sun-chip-tier-${tier}" data-channel="${key}" title="${escapeAttr(tip)}">
+  for (const r of visible) {
+    const meta = CHANNEL_DISPLAY[r.key];
+    const label = meta?.label || r.key.replace('_', ' ');
+    const tip = `${meta?.what || ''} (level: ${tierLabel(r.tier)})`;
+    html += `<span class="sun-chip sun-chip-tier-${r.tier}" data-channel="${r.key}" title="${escapeAttr(tip)}">
       <span class="sun-chip-icon">${meta?.icon || '·'}</span>
       <span class="sun-chip-label">${escapeHTML(label)}</span>
-      <span class="sun-chip-dots">${tierDots(tier)}</span>
+      <span class="sun-chip-dots">${tierDots(r.tier)}</span>
     </span>`;
+  }
+  if (showAll) {
+    html += `<button class="sun-chip-more" onclick="this.parentElement.classList.toggle('sun-chips-expanded')">+ ${ranked.length - 3} more</button>`;
+    for (const r of ranked.slice(3)) {
+      const meta = CHANNEL_DISPLAY[r.key];
+      const label = meta?.label || r.key.replace('_', ' ');
+      const tip = `${meta?.what || ''} (level: ${tierLabel(r.tier)})`;
+      html += `<span class="sun-chip sun-chip-tier-${r.tier} sun-chip-extra" data-channel="${r.key}" title="${escapeAttr(tip)}">
+        <span class="sun-chip-icon">${meta?.icon || '·'}</span>
+        <span class="sun-chip-label">${escapeHTML(label)}</span>
+        <span class="sun-chip-dots">${tierDots(r.tier)}</span>
+      </span>`;
+    }
   }
   html += `</div>`;
   return html;
@@ -448,81 +466,53 @@ export function openDetailedSessionDialog() {
   const eyeMode = lastUsed?.eyeExposure?.mode || 'direct';
   const lensTint = lastUsed?.eyeExposure?.lensTint || 'clear';
 
-  // Body silhouette as an SVG with tappable regions. Keeps the picker simple
-  // (no third-party dep) and accessible (each region is a button).
-  const regionPositions = {
-    'face':            { cx: 50,  cy: 14, r: 6 },
-    'thyroid-throat':  { cx: 50,  cy: 22, r: 3 },
-    'breast-chest':    { cx: 50,  cy: 32, r: 7 },
-    'arms':            { cx: 28,  cy: 38, r: 6 },
-    'torso-front':     { cx: 50,  cy: 44, r: 8 },
-    'abdomen':         { cx: 50,  cy: 54, r: 6 },
-    'genitals':        { cx: 50,  cy: 64, r: 4 },
-    'glutes':          { cx: 72,  cy: 64, r: 5 },
-    'torso-back':      { cx: 72,  cy: 44, r: 7 },
-    'legs':            { cx: 50,  cy: 80, r: 9 },
-    'soles-of-feet':   { cx: 50,  cy: 95, r: 4 },
-  };
+  // Region picker as a checkable chip grid — clearer than a tap-target SVG
+  // silhouette per the v1.7.0a UX review. Each chip shows the region label
+  // and toggles on click. Free-form, accessible, mobile-friendly.
 
-  const renderSilhouette = (selected) => {
-    let html = `<svg viewBox="0 0 100 110" class="sun-silhouette" aria-label="Body region picker">`;
-    // Ghost outline
-    html += `<ellipse cx="50" cy="14" rx="9" ry="10" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
-    html += `<rect x="35" y="22" width="30" height="40" rx="4" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
-    html += `<rect x="35" y="62" width="30" height="32" rx="4" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
-    html += `<rect x="22" y="24" width="10" height="28" rx="3" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
-    html += `<rect x="68" y="24" width="10" height="28" rx="3" fill="var(--bg-secondary)" stroke="var(--border)" stroke-width="0.5"/>`;
-    // Region tap-targets (circles)
-    for (const r of BODY_REGIONS) {
-      const pos = regionPositions[r.key];
-      if (!pos) continue;
-      const isSelected = selected.includes(r.key);
-      html += `<circle cx="${pos.cx}" cy="${pos.cy}" r="${pos.r}" fill="${isSelected ? 'var(--accent)' : 'transparent'}" fill-opacity="${isSelected ? 0.4 : 0}" stroke="${isSelected ? 'var(--accent)' : 'var(--text-muted)'}" stroke-width="${isSelected ? 1.5 : 0.5}" data-region="${r.key}" style="cursor:pointer"><title>${r.label}</title></circle>`;
-    }
-    html += `</svg>`;
-    return html;
-  };
-
-  overlay.innerHTML = `<div class="modal sun-detailed-modal" role="dialog" aria-label="Detailed session log">
+  overlay.innerHTML = `<div class="modal sun-detailed-modal" role="dialog" aria-label="Past session log">
     <div class="modal-header">
-      <h3>Detailed sun session</h3>
+      <h3>Log a past session</h3>
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Tap regions of your body that were exposed. Add details for sunscreen, glass, eyewear.</p>
+      <p class="modal-body-hint">For sessions that already happened. Tap each body region that was uncovered. Defaults match your last session.</p>
 
-      <div class="sun-detailed-grid">
-        <div>
-          <label class="ctx-label">Body regions exposed</label>
-          <div id="sun-silhouette-slot">${renderSilhouette([])}</div>
-        </div>
-
-        <div>
-          <label class="ctx-label">Duration (minutes)
-            <input type="number" id="det-duration" class="ctx-input" min="1" max="240" value="15" />
-          </label>
-          <label class="ctx-label">Eyes
-            <select id="det-eye-mode" class="ctx-select">
-              ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === eyeMode ? ' selected' : ''}>${escapeHTML(e.label)}</option>`).join('')}
-            </select>
-          </label>
-          <label class="ctx-label">Lens tint
-            <select id="det-lens-tint" class="ctx-select">
-              ${LENS_TINTS.map(l => `<option value="${escapeAttr(l.key)}"${l.key === lensTint ? ' selected' : ''}>${escapeHTML(l.label)}</option>`).join('')}
-            </select>
-          </label>
-          <label class="ctx-label">Sunscreen SPF
-            <input type="number" id="det-spf" class="ctx-input" min="0" max="100" placeholder="none" />
-          </label>
-          <label class="ctx-label">
-            <input type="checkbox" id="det-glass" />
-            Glass between me and the sun (window, windshield, sunroom)
-          </label>
-          <label class="ctx-label">Notes
-            <textarea id="det-notes" class="ctx-input" rows="2" placeholder="Optional"></textarea>
-          </label>
-        </div>
+      <label class="ctx-label">Body regions exposed</label>
+      <div class="sun-region-chips" id="sun-region-chips">
+        ${BODY_REGIONS.map(r => `<button type="button" class="sun-region-chip" data-region="${escapeAttr(r.key)}">${escapeHTML(r.label)}</button>`).join('')}
       </div>
+
+      <div class="sun-detailed-row">
+        <label class="ctx-label">Duration (min)
+          <input type="number" id="det-duration" class="ctx-input" min="1" max="240" value="15" />
+        </label>
+        <label class="ctx-label">Sunscreen SPF
+          <input type="number" id="det-spf" class="ctx-input" min="0" max="100" placeholder="none" />
+        </label>
+      </div>
+
+      <div class="sun-detailed-row">
+        <label class="ctx-label">Eyes
+          <select id="det-eye-mode" class="ctx-select">
+            ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === eyeMode ? ' selected' : ''}>${escapeHTML(e.label)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="ctx-label">Lens tint
+          <select id="det-lens-tint" class="ctx-select">
+            ${LENS_TINTS.map(l => `<option value="${escapeAttr(l.key)}"${l.key === lensTint ? ' selected' : ''}>${escapeHTML(l.label)}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+
+      <label class="ctx-label sun-detailed-glass">
+        <input type="checkbox" id="det-glass" />
+        Glass between me and the sun (window, windshield, sunroom)
+      </label>
+
+      <label class="ctx-label">Notes
+        <textarea id="det-notes" class="ctx-input" rows="2" placeholder="Optional"></textarea>
+      </label>
 
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
@@ -533,13 +523,13 @@ export function openDetailedSessionDialog() {
   document.body.appendChild(overlay);
 
   const selected = new Set();
-  const slot = overlay.querySelector('#sun-silhouette-slot');
-  slot.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-region]');
-    if (!t) return;
-    const k = t.dataset.region;
-    if (selected.has(k)) selected.delete(k); else selected.add(k);
-    slot.innerHTML = renderSilhouette(Array.from(selected));
+  const chipsRoot = overlay.querySelector('#sun-region-chips');
+  chipsRoot.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-region]');
+    if (!btn) return;
+    const k = btn.dataset.region;
+    if (selected.has(k)) { selected.delete(k); btn.classList.remove('selected'); }
+    else { selected.add(k); btn.classList.add('selected'); }
   });
 
   overlay.querySelector('#det-save').addEventListener('click', async () => {

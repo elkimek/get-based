@@ -62,12 +62,16 @@ export function buildSidebar(data) {
   // \u2600 Light & Sun \u2014 hard-promote (dedicated view)
   const sunSessions = state.importedData?.sunSessions;
   if (Array.isArray(sunSessions) && sunSessions.length > 0) {
+    // Show this week's session count (capped at 9+) \u2014 more meaningful than
+    // raw lifetime total, which gets noisy fast.
+    const weekStart = Date.now() - 7 * 86400 * 1000;
+    const weekCount = sunSessions.filter(s => (s.endedAt || s.startedAt || 0) >= weekStart).length;
     html += _renderConditionalNavItem({
       key: 'light',
       icon: '\u2600\uFE0F',
       label: 'Light & Sun',
       navigate: 'light',
-      badge: sunSessions.length,
+      badge: weekCount > 0 ? (weekCount > 9 ? '9+' : weekCount) : null,
     });
   }
 

@@ -174,7 +174,7 @@ export function showLight(_data) {
     <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">
       ${(window.getActiveSession && window.getActiveSession()) ? '⏹ Stop & save current session' : '☀ Start a sun session'}
     </button>
-    <button class="import-btn import-btn-secondary" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">+ Detailed log</button>
+    <button class="import-btn import-btn-secondary" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">Log a past session</button>
     <span class="light-summary-tally">${sessions.length} total session${sessions.length !== 1 ? 's' : ''}</span>
   </div>`;
 
@@ -189,10 +189,10 @@ export function showLight(_data) {
     <h3 class="light-section-title">This week's light, by what it does</h3>
     <p class="light-section-hint">Each tile is a different biological effect of light. Hover for the science.</p>
     ${renderChannelBars(combined7d, combined30d)}
-    ${renderSuggestion(combined7d)}
   </div>`;
 
-  // Today's sun-exposure gauge — qualitative, plain English
+  // Today's burn-risk card — promoted to match channel-card visual weight,
+  // ordered ABOVE the suggestion line per the v1.7.0a UX review.
   const medPct = Math.round(medToday * 100);
   let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
   if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
@@ -206,12 +206,15 @@ export function showLight(_data) {
     </div>
   </div>`;
 
+  // Suggestion AFTER the burn-risk card (was before)
+  html += renderSuggestion(combined7d);
+
   // Sessions list
   html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
   html += (window.renderSessionsList && window.renderSessionsList()) || '';
 
-  // Light devices — render synchronously into placeholder, then await replace
-  const placeholderId = `light-devices-slot-${Date.now()}`;
+  // Devices, environment, tools — auto-collapsed when empty per v1.7.0a UX review
+  const placeholderId = `light-aux-slot-${Date.now()}`;
   html += `<div id="${placeholderId}"></div>`;
 
   main.innerHTML = html;
@@ -220,12 +223,32 @@ export function showLight(_data) {
     Promise.resolve(window.renderDevicesSection()).then((devHtml) => {
       const slot = document.getElementById(placeholderId);
       if (slot) {
-        const envHtml = (window.renderEnvironmentSection && window.renderEnvironmentSection()) || '';
-        const toolsHtml = (window.renderLightTools && window.renderLightTools()) || '';
-        slot.outerHTML = (devHtml || '') + envHtml + toolsHtml;
+        const devices = (window.getDevices && window.getDevices()) || [];
+        const env = (window.getLightEnvironment && window.getLightEnvironment()) || null;
+        const hasRooms = !!(env?.rooms?.length || env?.screens?.length);
+        const measurements = (window.getMeasurements && window.getMeasurements()) || [];
+        let aux = devices.length > 0 ? devHtml : renderCollapsedSubsection('My light devices', '+ Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, dawn simulators — log them here and your sessions feed the same channels as outdoor sun.');
+        aux += hasRooms ? ((window.renderEnvironmentSection && window.renderEnvironmentSection()) || '') : renderCollapsedSubsection('Light environment', '+ Map a room', "window.addLightEnvRoom && window.addLightEnvRoom()", 'Indoor light is the dominant exposure most days. Map your spaces to give the AI the full picture.');
+        aux += measurements.length > 0
+          ? ((window.renderLightTools && window.renderLightTools()) || '')
+          : renderCollapsedSubsection('Light tools', '🛠 Open light tools', 'document.querySelector(".light-tools-section-collapsed")?.replaceWith(Object.assign(document.createElement("div"), { innerHTML: window.renderLightTools && window.renderLightTools() }).firstElementChild)', 'Eight on-device measurement tools — lux, flicker, color temp, glass transmission, sleep darkness, more. Camera frames stay on your phone.', 'light-tools-section-collapsed');
+        slot.outerHTML = aux;
       }
     }).catch(() => {});
   }
+}
+
+// Render a "soft empty" sub-section header on the Light & Sun page when the
+// user hasn't engaged with that section yet. Avoids the "wall of empty
+// sections" the v1.7.0a UX review flagged.
+function renderCollapsedSubsection(title, ctaLabel, ctaJs, hint, extraClass = '') {
+  return `<div class="light-collapsed-section ${extraClass}">
+    <div class="light-collapsed-row">
+      <strong class="light-collapsed-title">${escapeHTML(title)}</strong>
+      <button class="import-btn import-btn-secondary light-collapsed-cta" onclick="${ctaJs}">${escapeHTML(ctaLabel)}</button>
+    </div>
+    <p class="light-collapsed-hint">${escapeHTML(hint)}</p>
+  </div>`;
 }
 
 function mergeTotals(a, b) {
@@ -252,7 +275,8 @@ function renderChannelBars(totals7d, totals30d) {
     let trendIcon = '·';
     if (t7 > t30) trendIcon = '↑';
     else if (t7 < t30) trendIcon = '↓';
-    html += `<div class="light-channel-row light-channel-tier-${t7}" title="${escapeHTML(meta.what || '')}">
+    const trendDir = t7 > t30 ? 'up' : t7 < t30 ? 'down' : 'flat';
+    html += `<div class="light-channel-row light-channel-tier-${t7}" data-trend="${trendDir}" title="${escapeHTML(meta.what || '')}">
       <div class="light-channel-head">
         <span class="light-channel-icon">${meta.icon || '·'}</span>
         <span class="light-channel-name">${escapeHTML(meta.label || k)}</span>
@@ -322,14 +346,14 @@ export function showDashboard(data) {
   if (!hasData) {
     let html = `<div class="welcome-hero">
       <h2>Welcome to getbased</h2>
-      <p class="welcome-hero-subtitle">Lab work + wearables, in one dashboard</p>
+      <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
       <div class="drop-zone" id="drop-zone">
         <div class="drop-zone-icon">\uD83D\uDCC4</div>
         <div class="drop-zone-text">Drop PDF, image, JSON, or DNA raw data file here, or click to browse</div>
         <div class="drop-zone-hint">AI-powered — works with any lab report (PDF, photo, screenshot) or getbased JSON export</div>
         ${!hasAIProvider() ? `<div class="drop-zone-api-hint">${isAIPaused() ? 'AI features are paused — <a href="#" onclick="event.preventDefault();event.stopPropagation();window.openSettingsModal(\'ai\')">re-enable in Settings</a>' : 'Requires an AI connection — <a href="#" onclick="event.preventDefault();event.stopPropagation();closeChatPanel();window.openSettingsModal(\'ai\')">set up in 30 seconds</a>'}</div>` : ''}</div>
       <div class="welcome-wearable-hint">
-        ⧬ Got an Oura, Withings, Fitbit, Polar, or Apple Health export? <a href="#" onclick="event.preventDefault();window.openSettingsModal('wearables')">Connect it</a> to see HRV, sleep, recovery, and body composition trends alongside your blood work.
+        ⧬ Got an Oura, Withings, Fitbit, Polar, or Apple Health export? <a href="#" onclick="event.preventDefault();window.openSettingsModal('wearables')">Connect it</a> to see HRV, sleep, recovery, and body composition trends alongside your other lenses.
       </div>
       <div class="onboarding-divider">
         <span class="onboarding-divider-line"></span>
@@ -349,6 +373,11 @@ export function showDashboard(data) {
         </button>
       </div>
     </div>`;
+    // Light Today strip renders here too \u2014 users who log sun sessions
+    // before importing labs should still see their channel pills on the
+    // dashboard. renderLightTodayStrip() returns '' when no sessions and
+    // not in a solar window, so it's safe to always call.
+    html += renderLightTodayStrip();
     // Wearable strip renders even without lab data \u2014 users who connect Oura
     // etc. before importing any PDFs should still see their HRV / sleep /
     // RHR trends. renderWearableStrip() returns '' when no wearables are
@@ -369,7 +398,7 @@ export function showDashboard(data) {
 
   // ── Has data: full dashboard ──
   let html = `<div class="category-header"><h2>Dashboard Overview</h2>
-    <p>Summary of all blood work results across ${data.dates.length} collection date${data.dates.length !== 1 ? 's' : ''}</p></div>`;
+    <p>Summary of all results across ${data.dates.length} collection date${data.dates.length !== 1 ? 's' : ''}</p></div>`;
   // Drop zone hidden element for drag-drop + file input (no visible space on dashboard)
   html += `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
 
