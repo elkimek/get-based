@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "description": "Action spectra for biological response channels. Pinned to specific published references. Each entry maps wavelength (nm) → relative weighting (0-1).",
+  "references": {
+    "cie_erythemal": "CIE 174:2006 / McKinlay-Diffey 1987 — erythemal action spectrum (skin reddening / DNA damage proxy)",
+    "cie_vitamin_d": "CIE 174:2006 — vitamin D3 production action spectrum (7-DHC photoisomerization, MacLaughlin 1982)",
+    "cie_melanopic": "CIE S 026:2018 — melanopic photopic / ipRGC sensitivity, peaks 480nm",
+    "opn3_uva": "Regazzetti et al. 2018 (J Invest Dermatol) — OPN3 UVA response in dermal fibroblasts",
+    "opn5_violet": "Buhr et al. 2019 — OPN5 short-wavelength sensitivity, dual peak ~380nm + ~471nm",
+    "cco_pbm": "Karu 1999 / Hamblin 2018 — cytochrome-c oxidase action spectrum, peaks at 620, 670, 760, 830nm",
+    "no_release": "Liu et al. 2014 (J Invest Dermatol) / Oplander 2009 — UVA-induced cutaneous NO release (photolabile RSNO + nitrite decomposition)"
+  },
+  "channels": {
+    "vitamin_d": {
+      "id": 1,
+      "label": "Vitamin D synthesis",
+      "spectrum": "UVB 290-315nm",
+      "ref": "cie_vitamin_d",
+      "notes": "Photochemical (not receptor-mediated). 7-DHC → previtD3. Saturates ~1 MED, reverses to inert tachysterol/lumisterol with continued exposure."
+    },
+    "pomc": {
+      "id": 2,
+      "label": "POMC / melanocortin",
+      "spectrum": "UVB+UVA 280-400nm",
+      "ref": "cie_erythemal",
+      "notes": "OPN5 → POMC → α-MSH/ACTH/β-endorphin pathway. Erythemal action spectrum used as proxy."
+    },
+    "no_cv": {
+      "id": 3,
+      "label": "NO / cardiovascular",
+      "spectrum": "UVA 315-400nm",
+      "ref": "no_release",
+      "notes": "Photolabile cutaneous nitrite + S-nitrosothiol decomposition releases NO. NOS-independent. Peak ~330-360nm."
+    },
+    "violet_eye": {
+      "id": 4,
+      "label": "Violet / outdoor-eye signal",
+      "spectrum": "360-400nm",
+      "ref": "opn5_violet",
+      "notes": "OPN5 in skin (melanogenesis kickoff) + retinal OPN5 (axial-length regulation, Tsubota/Torii). Broader than myopia framing."
+    },
+    "circadian": {
+      "id": 5,
+      "label": "Circadian (melanopic)",
+      "spectrum": "460-490nm + broadband CCT",
+      "ref": "cie_melanopic",
+      "notes": "Melanopsin ipRGC → SCN. CIE S 026:2018 standard. Effective even at moderate intensities (40 lux + 80min → measurable CAR boost)."
+    },
+    "nir_solar": {
+      "id": 6,
+      "label": "Mitochondrial (NIR-solar broadband)",
+      "spectrum": "600-1400nm",
+      "ref": "cco_pbm",
+      "notes": "Wunsch optical tissue window. Solar IR-A penetrates head-to-knee (Jeffery+Fosbury 2025). Indoor windows with Low-E glass kill this channel."
+    },
+    "pbm_red": {
+      "id": 7,
+      "label": "PBM red (narrowband)",
+      "spectrum": "600-700nm",
+      "ref": "cco_pbm",
+      "notes": "Narrowband artificial only — therapy panel input. Separate from NIR-solar because tissue depth + receptor coverage differ."
+    },
+    "pbm_nir": {
+      "id": 8,
+      "label": "PBM near-IR (narrowband)",
+      "spectrum": "700-1100nm",
+      "ref": "cco_pbm",
+      "notes": "Narrowband artificial only. 810/850nm typical panels. Deeper penetration than red."
+    }
+  },
+  "deficit_axes": {
+    "d1_sleep_darkness": {
+      "label": "Sleep-time darkness",
+      "target": "<0.3 lux at eye during sleep window",
+      "rationale": "Reiter 2020 — melatonin amplitude attenuated even at sub-lux ALAN exposure. Wunsch — full darkness prerequisites for full nocturnal endocrine cascade."
+    },
+    "d2_daylight_deficit": {
+      "label": "Daytime indoor-light deficit",
+      "target": ">10000 lux for ≥1h within solar day",
+      "rationale": "Ott 1973 — malillumination; Hattar/Huberman — minimum effective AM dose for SCN entrainment."
+    },
+    "d3_junk_light_contamination": {
+      "label": "Junk-light contamination",
+      "target": "minimize LED-only/flicker/blue-after-sunset hours",
+      "rationale": "Wunsch — spectrum-truncation stress; IEEE PAR1789 — flicker risk thresholds; Reiter — blue-suppression of pre-sleep melatonin."
+    }
+  },
+  "_action_spectra_full": "Full per-nm action spectra arrays embedded into js/sun-spectrum.js to keep this JSON small. The references above are the source-of-truth citations; the numeric tables are versioned alongside the model."
+}

@@ -66,7 +66,8 @@ const TEST_FILES = [
   'tests/test-markdown.js',
   'tests/test-security-phase1.js',
   'tests/test-correctness-phase2.js',
-  'tests/test-a11y-phase3.js'
+  'tests/test-a11y-phase3.js',
+  'tests/test-sun-spectrum.js'
 ];
 
 const PORT = process.env.PORT || 8000;

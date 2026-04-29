@@ -26,6 +26,8 @@ import { ensureSNPTable, ensureHaplogroupTable } from './dna.js';
 import './wearables.js';
 import { initWearableScheduler, handleOAuthCallbackOnLoad, loadWearableRuntimeConfig } from './wearables-connect.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
+import './sun-uvdata.js';
+import './sun-spectrum.js';
 import './export.js';
 import './chat.js';
 import './image-utils.js';

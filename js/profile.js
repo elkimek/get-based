@@ -273,6 +273,15 @@ export function migrateProfileData(data) {
   if (data.markerNotes === undefined) data.markerNotes = {};
   if (data.changeHistory === undefined) data.changeHistory = [];
   if (data.biometrics === undefined) data.biometrics = null;
+  // Light lens (v1.7+): sun sessions, light devices, light environment, on-device measurements
+  if (data.sunSessions === undefined) data.sunSessions = [];
+  if (data.deviceSessions === undefined) data.deviceSessions = [];
+  if (data.lightDevices === undefined) data.lightDevices = [];
+  if (data.lightEnvironment === undefined) data.lightEnvironment = null;
+  if (data.lightMeasurements === undefined) data.lightMeasurements = [];
+  if (data.sunCorrelations === undefined) data.sunCorrelations = null;
+  if (data.lifelightProfile === undefined) data.lifelightProfile = null;
+  if (data.sunDefaults === undefined) data.sunDefaults = null;
   return data;
 }
 
@@ -280,7 +289,7 @@ export async function loadProfile(profileId) {
   state.currentProfile = profileId;
   setActiveProfileId(profileId);
   const savedImported = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
-  const defaultData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, customMarkers: {}, changeHistory: [], genetics: null, biometrics: null, manualValues: {} };
+  const defaultData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, customMarkers: {}, changeHistory: [], genetics: null, biometrics: null, manualValues: {}, sunSessions: [], deviceSessions: [], lightDevices: [], lightEnvironment: null, lightMeasurements: [], sunCorrelations: null, lifelightProfile: null, sunDefaults: null };
   state.importedData = savedImported ? (function() {
     try {
       const d = JSON.parse(savedImported);
