@@ -149,6 +149,13 @@ export function showLight(_data) {
     <p>Track your light exposure. See how it shapes your sleep, hormones, and lab results.</p>
   </div>`;
 
+  // Onboarding card — shown until 4 setup questions + Ott pre-test are saved.
+  if (typeof window.isLightOnboardingComplete === 'function' && !window.isLightOnboardingComplete()) {
+    if (typeof window.renderSunSetupCard === 'function') {
+      html += window.renderSunSetupCard();
+    }
+  }
+
   // First-time explainer (zero sessions) — replaces the channel grid until
   // the user has data of their own to see in context.
   if (sessions.length === 0) {

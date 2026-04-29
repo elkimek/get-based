@@ -5184,6 +5184,51 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-channel-foot-tier { color: var(--text-secondary); text-transform: capitalize; }
 .light-channel-foot-trend { color: var(--text-secondary); font-weight: 600; }
 
+/* Onboarding setup card — 4 questions + Ott pre-test */
+.light-setup-card {
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+.light-setup-title {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-primary); margin-bottom: 4px;
+}
+.light-setup-body {
+  font-size: 13px; color: var(--text-secondary);
+  line-height: 1.5; margin-bottom: 14px;
+}
+.light-setup-step { margin: 10px 0; }
+.light-setup-step .ctx-label { display: block; }
+.setup-hint-inline {
+  font-size: 11px; color: var(--text-muted);
+  display: inline-block; margin-left: 8px;
+}
+.light-setup-ott {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.light-setup-ott summary {
+  cursor: pointer; font-size: 13px;
+  color: var(--text-secondary); font-weight: 500;
+}
+.light-setup-ott-questions {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 10px;
+}
+.light-setup-ott-q {
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; gap: 8px; align-items: flex-start;
+  cursor: pointer;
+}
+.light-setup-ott-q input { margin-top: 3px; }
+
 /* First-time intro card on the Light & Sun page (zero sessions) */
 .light-intro-card {
   background: var(--bg-card);

@@ -51,10 +51,19 @@ function alwaysTierBlock(sessions) {
   const devices = state.importedData?.lightDevices || [];
   const devSessions = state.importedData?.deviceSessions || [];
 
+  const sunDefaults = state.importedData?.sunDefaults || {};
+  let baselineLine = '';
+  if (sunDefaults.fitzpatrick) {
+    baselineLine = `\n- Skin type Fitzpatrick ${sunDefaults.fitzpatrick}; home lighting: ${sunDefaults.homeLight || 'unknown'}; eyewear: ${sunDefaults.eyewear || 'unknown'}.`;
+    if (typeof sunDefaults.ottScore === 'number') {
+      baselineLine += ` Ott malillumination baseline: ${sunDefaults.ottScore}/10 (higher = more indoor / glass-mediated / artificial-light-dominated lifestyle).`;
+    }
+  }
+
   let block = `### Lifelight summary
 - Total outdoor sessions logged: ${sessions.length}
 - Total device sessions logged: ${devSessions.length}
-- Light devices in library: ${devices.length}${devices.length ? ` (${devices.map(d => d.brand + ' ' + d.model).join(', ')})` : ''}
+- Light devices in library: ${devices.length}${devices.length ? ` (${devices.map(d => d.brand + ' ' + d.model).join(', ')})` : ''}${baselineLine}
 - Today's cumulative MED fraction: ${(medToday * 100).toFixed(0)}%${medToday > 1 ? ' (over personal MED — exposure risk)' : ''}
 ${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})` : ''}
 ${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)` : ''}
