@@ -642,7 +642,7 @@ export function buildDNAHints(slotKey) {
     if (info && info.effect === 'none') continue;
 
     hints.push({
-      gene: stored.gene, variant: stored.variant, genotype: g,
+      rsid, gene: stored.gene, variant: stored.variant, genotype: g,
       direction: hint.direction, text: hint.text, ref: hint.ref
     });
   }
@@ -746,9 +746,17 @@ function _renderRecSection(slotKey, opts = {}) {
   let inner = '';
 
   // DNA hints — prepend before tiers
-  const dnaHints = buildDNAHints(slotKey);
+  let dnaHints = buildDNAHints(slotKey);
   // Inline SNPs (from detail modal) — raw genotype info alongside actionable hints
   const inlineSNPs = opts.inlineSNPs || [];
+  // Deduplicate: when the same rsid produces both a raw finding (inlineSNPs)
+  // and an actionable hint (dnaHints), the modal previously rendered two
+  // rows for the same SNP citing the same study. Keep the inline finding
+  // (richer — note + SNPedia link) and drop the redundant hint.
+  if (inlineSNPs.length > 0 && dnaHints.length > 0) {
+    const inlineRsids = new Set(inlineSNPs.map(s => s.rsid).filter(Boolean));
+    dnaHints = dnaHints.filter(h => !h.rsid || !inlineRsids.has(h.rsid));
+  }
   if (dnaHints.length > 0 || inlineSNPs.length > 0) {
     inner += `<div class="rec-dna-hints">`;
     inner += `<div class="rec-section-label">\uD83E\uDDEC YOUR GENETICS</div>`;
