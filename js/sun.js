@@ -60,7 +60,7 @@ export const LENS_TINTS = [
 // We use them only to map raw doses → qualitative tiers for display.
 // AI context still ships raw numbers; users never see them.
 export const CHANNEL_DISPLAY = {
-  vitamin_d:  { icon: '☀',  label: 'Vit D',     dailyTarget:    300, what: 'UVB drives skin vitamin D synthesis. Saturates around 1 MED, then reverses.' },
+  vitamin_d:  { icon: '☀',  label: 'Vit D',     dailyTarget:    300, what: 'UVB on bare skin makes vitamin D. Stops increasing around the point your skin starts to redden — longer is not better.' },
   pomc:       { icon: '⚡',  label: 'POMC',      dailyTarget:    800, what: 'UV → melanocortin axis (α-MSH, β-endorphin, ACTH). Mood, libido, tan progression.' },
   no_cv:      { icon: '❤',  label: 'NO/CV',     dailyTarget:    100, what: 'UVA releases nitric oxide from skin → vasodilation, lower BP. Liu/Oplander 2014.' },
   violet_eye: { icon: '👁',  label: 'Violet eye', dailyTarget:  6000, what: 'Outdoor 360–400 nm via OPN5 in skin and eye. Tsubota / Torii — myopia + dopamine retinal.' },
@@ -70,21 +70,21 @@ export const CHANNEL_DISPLAY = {
   pbm_nir:    { icon: '🟣', label: 'PBM NIR',   dailyTarget:  10000, what: 'Narrowband NIR therapy panel input (810/850 nm).' },
 };
 
-// Map a raw dose value → qualitative tier 0-4.
-// 0 = none (≈0), 1 = trace, 2 = light, 3 = good, 4 = strong, 5 = saturated.
+// Map a raw dose value → qualitative tier 0-4 with plain-English labels.
+// 0 = none, 1 = low, 2 = moderate, 3 = good, 4 = strong.
+// (Saturation flagged separately in AI context — most users don't need it.)
 export function channelTier(value, channelKey) {
   const target = CHANNEL_DISPLAY[channelKey]?.dailyTarget ?? 1000;
   if (!Number.isFinite(value) || value <= 0) return 0;
   const ratio = value / target;
-  if (ratio < 0.05) return 1;
-  if (ratio < 0.30) return 2;
-  if (ratio < 0.80) return 3;
-  if (ratio < 1.50) return 4;
-  return 5;
+  if (ratio < 0.20) return 1;   // low
+  if (ratio < 0.55) return 2;   // moderate
+  if (ratio < 1.00) return 3;   // good
+  return 4;                     // strong
 }
 
-const TIER_LABELS = ['none', 'trace', 'light', 'good', 'strong', 'saturated'];
-const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○', '●●●●', '●●●●'];
+const TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
+const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○', '●●●●'];
 
 export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
 export function tierDots(tier) { return TIER_DOTS[tier] || TIER_DOTS[0]; }
@@ -324,9 +324,15 @@ export function renderSessionsList() {
     const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
     const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress';
     const med = sess.safety?.medFraction;
-    const medStr = med != null
-      ? `<span class="sun-session-med ${med > 1 ? 'over' : ''}">${(med * 100).toFixed(0)}% MED</span>`
-      : '';
+    let medStr = '';
+    if (med != null) {
+      const pct = Math.round(med * 100);
+      let label = 'safe', cls = '';
+      if (med >= 1) { label = 'over threshold'; cls = 'over'; }
+      else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
+      else if (med >= 0.3) { label = 'moderate'; cls = ''; }
+      medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose: ${pct}% of your personal threshold (Fitzpatrick ${sess.safety.fitzpatrick || 'III'})">Burn risk: ${label}</span>`;
+    }
     const channelChips = renderChannelChips(sess.doses);
     html += `<div class="sun-session" data-id="${escapeAttr(sess.id)}">
       <div class="sun-session-head">

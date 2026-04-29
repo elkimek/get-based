@@ -68,8 +68,8 @@ export function renderLightTodayStrip() {
   }
 
   // Qualitative pill summary of the 6 user-facing channels for the past 7 days.
-  // Numbers are kept off the dashboard — only "none / trace / light / good /
-  // strong / saturated" tiers + dots. Hover for science.
+  // Numbers are kept off the dashboard — only "none / low / moderate / good /
+  // strong" tiers + dots. Hover for science.
   const ch = window.CHANNEL_DISPLAY || {};
   const tier = window.channelTier || (() => 0);
   const dots = window.tierDots || (() => '○○○○');
@@ -86,11 +86,12 @@ export function renderLightTodayStrip() {
     </span>`;
   }).join('');
 
-  // MED gauge — explain in plain English, color-coded
+  // Burn-risk gauge — qualitative, plain English, no acronyms
   const medPct = Math.round(medToday * 100);
-  let medCls = 'ok', medMsg = 'safe';
-  if (medToday >= 1) { medCls = 'over'; medMsg = 'over personal threshold — pause outdoor exposure'; }
-  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'approaching personal threshold'; }
+  let medCls = 'ok', medMsg = 'safe — well under your skin threshold';
+  if (medToday >= 1) { medCls = 'over'; medMsg = 'over your skin threshold — sunburn risk, no more sun today'; }
+  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'getting close to your skin threshold'; }
+  else if (medToday >= 0.3) { medCls = 'ok'; medMsg = 'moderate sun exposure today'; }
 
   return `<section class="light-today-strip">
     <div class="light-today-head">
@@ -103,8 +104,8 @@ export function renderLightTodayStrip() {
       ${pills}
     </div>
     <div class="light-today-foot">
-      <span class="light-today-med light-today-med-${medCls}" title="Cumulative skin reddening dose vs your Fitzpatrick threshold. ≥100% = sunburn risk.">
-        Today's burn risk: <strong>${medPct}%</strong> — ${medMsg}
+      <span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your skin's sunburn threshold (Fitzpatrick-based). 100% = sunburn risk.">
+        ☀ Sun exposure today: <strong>${medMsg}</strong>${medPct > 0 ? ` (${medPct}%)` : ''}
       </span>
       ${cta}
     </div>
@@ -159,15 +160,16 @@ export function showLight(_data) {
     ${renderChannelBars(totals7d, totals30d)}
   </div>`;
 
-  // Today's burn-risk gauge
+  // Today's sun-exposure gauge — qualitative, plain English
   const medPct = Math.round(medToday * 100);
-  let medCls = 'ok', medMsg = 'safe — well under your skin threshold';
-  if (medToday >= 1) { medCls = 'over'; medMsg = 'over your skin threshold — sunburn risk, avoid more sun today'; }
-  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'approaching your threshold — limit further direct exposure'; }
+  let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
+  if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
+  else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching sunburn threshold'; medMsg = 'You\'re getting close to your skin\'s daily limit. Move to shade or cover up if you go back out.'; }
+  else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
   html += `<div class="light-med-banner light-med-${medCls}">
     <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
     <div class="light-med-body">
-      <div class="light-med-title">Today's burn risk: <strong>${medPct}%</strong></div>
+      <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your personal threshold)</span>` : ''}</div>
       <div class="light-med-sub">${medMsg}</div>
     </div>
   </div>`;
