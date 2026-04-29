@@ -66,12 +66,27 @@ Monospace:       JetBrains Mono (weight 500–700)
 
 All loaded from Google Fonts. No system font fallbacks in the brand — fallbacks are only CSS safety nets.
 
+## Positioning
+
+getbased is a personal health intelligence platform organized around five lenses on your biology:
+
+- **🩸 Labs** — biomarkers, ranges, trends, biological age
+- **🧬 Genome** — SNPs, haplogroups, DNA-aware insights
+- **⌚ Body** — wearables, biometrics, recovery, cycle
+- **☀ Light** — sun, devices, environment, photobiology
+- **🧠 Insight** — AI chat, knowledge base, correlations, recommendations
+
+It is not a blood-work dashboard, not a wellness app, not a fitness tracker. It is the platform where every lens informs every other — your DNA shapes how labs are interpreted, your wearable physiology shapes which biomarkers matter most, your light environment shapes your sleep and your hormones, and the AI synthesizes across all of them with full context.
+
+Anti-reductionist by design: no single number, no single signal, no single discipline owns the truth.
+
 ## Voice & Tone
 
 - **Direct**: No marketing fluff. Say what the thing does.
 - **Lowercase energy**: The brand name being lowercase sets the tone — approachable, not corporate.
 - **Technical but accessible**: Users are health-conscious people tracking their own data, not necessarily doctors.
-- **Tagline**: "Your lab results deserve better than a PDF"
+- **Anti-reductionist**: We don't collapse health to one data class, one number, or one expert. We integrate.
+- **Tagline**: "Health intelligence that's actually yours"
 
 ## Header Buttons
 

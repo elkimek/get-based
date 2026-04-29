@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { profileStorageKey } from './profile.js';
 
 const TOUR_STEPS = [
-  { target: null, title: 'Welcome to getbased', text: 'Your personal blood work dashboard. Let\'s take a quick look around.', position: 'center' },
+  { target: null, title: 'Welcome to getbased', text: 'Health intelligence that\'s actually yours — five lenses on your biology, all in one place. Let\'s take a quick look around.', position: 'center' },
   { target: '#import-fab', title: 'Import More Labs', text: 'Click here to import another PDF lab report or JSON file. You can also drag and drop files anywhere on the page.', position: 'left' },
   { target: '.profile-compact-btn', title: 'Your Profile', text: 'Switch between profiles, manage clients, or load demo data. Click your name to open the client list.', position: 'bottom' },
   { target: '#sidebar-nav', title: 'Category Navigation', text: 'Browse marker categories \u2014 biochemistry, hormones, lipids, and more. On mobile use the hamburger menu.', position: 'right' },

@@ -1,6 +1,14 @@
-# getbased — Open-Source Health Dashboard with AI
+# getbased — Health intelligence that's actually yours
 
-**getbased** is a free, open-source health dashboard that turns lab PDFs into interactive charts and AI-powered health insights. Track 287+ biomarkers over time, detect trends, and get personalized interpretations — all stored locally in your browser with no account required.
+**getbased** is a personal health intelligence platform organized around five lenses on your biology — Labs, Genome, Body, Light, Insight. Every lens informs every other: your DNA shapes how labs are interpreted, your wearable physiology shapes which biomarkers matter most, your light environment shapes your sleep and your hormones, and the AI synthesizes across all of them with full context. Free, open-source, private by default — all data stored locally in your browser with no account required.
+
+## Five lenses
+
+- **🩸 Labs** — biomarkers, ranges, trends, biological age across 287+ markers
+- **🧬 Genome** — 47 curated SNPs, APOE haplotype, 39 mtDNA haplogroups, DNA-aware insights
+- **⌚ Body** — wearables (Oura, Fitbit, Withings, Polar, Apple Health), biometrics, recovery, cycle
+- **☀ Light** — sun exposure, photobiology devices, indoor light environment *(coming in v1.7)*
+- **🧠 Insight** — AI chat, custom knowledge base, correlations, recommendations
 
 **[Live app](https://app.getbased.health)** · **[Documentation](https://getbased.health/docs)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
 
@@ -66,8 +74,9 @@ Switch providers anytime. All non-AI features work without a provider configured
 
 ## How it compares
 
-| | getbased | Typical blood test apps |
+| | getbased | Typical health apps |
 |---|---|---|
+| Scope | Five integrated lenses (Labs / Genome / Body / Light / Insight) | One data class only |
 | Open source | GPL-3.0 | Closed source |
 | Cost | Free | Free tier + paid upsell |
 | Data storage | Local browser, encrypted | Cloud (their servers) |

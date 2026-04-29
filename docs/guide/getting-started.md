@@ -1,6 +1,6 @@
 # Getting Started
 
-getbased is a blood work dashboard that turns your lab reports into interactive charts, trend analysis, and AI-powered interpretation. The app starts empty — your data is loaded by you, stored locally in your browser, and never uploaded anywhere by default.
+getbased is a personal health intelligence platform organized around five lenses on your biology — Labs, Genome, Body, Light, Insight. Every lens informs every other: your DNA shapes how labs are interpreted, your wearable physiology shapes which biomarkers matter most, and the AI synthesizes across all of them with full context. The app starts empty — your data is loaded by you, stored locally in your browser, and never uploaded anywhere by default.
 
 ## Open the App
 

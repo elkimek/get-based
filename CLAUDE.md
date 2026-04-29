@@ -4,9 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-getbased is a blood work dashboard for tracking biomarker trends over time. It visualizes lab results across 17 standard categories (biochemistry, hormones, lipids, hematology, body composition, bone density, etc.) with Chart.js line charts, data tables, and a correlation viewer. The app starts empty and is fully data-driven — users load their data via AI-powered PDF import (any lab report) or JSON files. Specialty labs (OAT, fatty acids, etc.) flow through the custom marker pipeline — each user gets their own lab's stated reference ranges from their PDF. Fatty acid tests are grouped by product/lab (Spadia, ZinZino, OmegaQuant) under a "Fatty Acids" sidebar group.
+getbased is a personal health intelligence platform organized around five lenses on the user's biology — **Labs**, **Genome**, **Body**, **Light**, **Insight**. Every lens informs every other: DNA shapes how labs are interpreted, wearable physiology shapes which biomarkers matter most, light environment shapes sleep and hormones, and the AI synthesizes across all of them with full context. Anti-reductionist by design.
 
-Uses AI APIs (PPQ, Routstr, OpenRouter, Venice, or Local AI) for AI-powered PDF import and an AI chat panel for interpreting results.
+- **🩸 Labs**: biomarkers across 17 categories + 217 specialty markers (custom marker pipeline), AI-powered PDF import, biological age (PhenoAge + Bortz), trend detection, correlation viewer
+- **🧬 Genome**: 47 curated SNPs, APOE haplotype, 39 mtDNA haplogroups, DNA-aware recommendations
+- **⌚ Body**: 7 wearable vendors (Oura/Withings/Ultrahuman/WHOOP/Fitbit/Polar/Apple Health), manual biometrics, cycle tracking with phase-aware ranges, EMF assessment (Baubiologie SBM-2015)
+- **☀ Light** *(coming in v1.7)*: sun sessions with spectral reconstruction, photobiology devices, indoor light environment, on-device measurement tools
+- **🧠 Insight**: AI chat (6 providers), interpretive lens, custom knowledge base (RAG), 9 lifestyle context cards, supplement & lifestyle recommendations, cross-device sync (Evolu CRDT)
+
+App is fully data-driven — starts empty, users load their data via PDF import or JSON files. All data stored locally in the browser, AES-256-GCM encrypted at rest, optional opt-in CRDT sync. Specialty labs flow through the custom marker pipeline.
 
 ## Architecture
 

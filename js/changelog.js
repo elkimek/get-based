@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.0', date: '2026-04-29', title: 'Five Lenses — health intelligence that\'s actually yours',
+    items: [
+      '<b>getbased is not a blood-work dashboard.</b> It hasn\'t been for a while. Today it organizes around <b>five lenses on your biology</b> — 🩸 <b>Labs</b> (biomarkers, ranges, trends, biological age), 🧬 <b>Genome</b> (47 SNPs, APOE, mtDNA haplogroups, DNA-aware insights), ⌚ <b>Body</b> (wearables, biometrics, recovery, cycle), ☀ <b>Light</b> (sun, devices, environment — coming next release), and 🧠 <b>Insight</b> (AI chat, knowledge base, correlations, recommendations). Every lens informs every other.',
+      '<b>Anti-reductionist by design.</b> Your DNA shapes how labs are interpreted. Your wearable physiology shapes which biomarkers matter most. Your light environment shapes your sleep and your hormones. The AI synthesizes across all of them with full context — no single number, no single signal, no single discipline owns the truth.',
+      '<b>What changed: framing only.</b> Same app, same data, same privacy posture, same self-host story. The label "blood work dashboard" was years out of date — this release just stops pretending it ever was that. Existing users open the app and see exactly what they saw yesterday, with new framing in a few places they may or may not look at.',
+      '<b>What\'s next: ☀ Light lens.</b> Sun sessions with spectral reconstruction, photobiology device tracking, indoor light environment with on-device measurement tools (lux meter, flicker detector, sleep darkness check). Shipping as v1.7.0 in the coming weeks.',
+    ]
+  },
+  {
     version: '1.5.1', date: '2026-04-29', title: 'Bugfixes & improvements',
     items: [
       '<b>Genetics rows in the marker detail modal no longer duplicate.</b> When a SNP carried both a raw finding and an actionable hint pointing at the same marker, the same gene rendered twice with the same study link. Now collapses to a single row.',

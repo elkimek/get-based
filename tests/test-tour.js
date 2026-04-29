@@ -105,7 +105,7 @@ return (async function() {
   assert('Tooltip has title h4', !!tooltip.querySelector('h4'));
   assert('Title is "Welcome to getbased"', tooltip.querySelector('h4')?.textContent === 'Welcome to getbased');
   assert('Tooltip has description p', !!tooltip.querySelector('p'));
-  assert('Description mentions blood work dashboard', tooltip.querySelector('p')?.textContent.includes('personal blood work dashboard'));
+  assert('Description mentions five lenses framing', tooltip.querySelector('p')?.textContent.includes('five lenses on your biology'));
 
   // Progress dots
   const dots = tooltip.querySelectorAll('.tour-dot');
