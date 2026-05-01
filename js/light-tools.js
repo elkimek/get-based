@@ -929,21 +929,91 @@ export async function openGlassTransmission(opts = {}) {
 
 // ─── Tool 7: Sunrise / Sunset Logger ──────────────────────────────────
 
+// Compute today's sunrise / sunset (sun at 90.83° zenith — the standard
+// definition accounting for atmospheric refraction at the horizon) for
+// the user's coords. Walks the day in 5-minute steps from the previous
+// midnight; returns null when the sun never rises or never sets at the
+// given latitude on the given date (high-latitude polar day/night).
+function _computeSunriseSunset(coords, date) {
+  if (!coords || !window.solarZenithAngle) return { sunrise: null, sunset: null };
+  const baseDate = date ? new Date(date) : new Date();
+  const day = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  const STEP_MIN = 5;
+  let sunrise = null, sunset = null;
+  let prevAbove = null;
+  for (let m = 0; m < 24 * 60; m += STEP_MIN) {
+    const t = new Date(day.getTime() + m * 60_000);
+    const zenith = window.solarZenithAngle(t, coords.lat, coords.lon);
+    const above = zenith < 90.83; // sun above horizon (refraction-corrected)
+    if (prevAbove != null && above !== prevAbove) {
+      if (above && !sunrise) sunrise = t;
+      else if (!above && !sunset) sunset = t;
+    }
+    prevAbove = above;
+  }
+  return { sunrise, sunset };
+}
+
+// Window classification from now-vs-sunrise/sunset. Returns:
+//   { kind: 'sunrise'|'sunset'|'midday'|'night'|'pre-sunrise',
+//     label: <human-readable>, sunrise: Date|null, sunset: Date|null }
+// "Golden hour" definitions: sunrise window = 30 min before to 90 min
+// after sunrise; sunset window = 90 min before to 30 min after sunset.
+function _classifyDayWindow(coords, now) {
+  const t = now || new Date();
+  const { sunrise, sunset } = _computeSunriseSunset(coords, t);
+  if (!sunrise || !sunset) {
+    // Polar day/night or no coords — fall back to hour heuristic.
+    const hr = t.getHours();
+    let label = 'Outside golden hour';
+    if (hr >= 5 && hr < 9) label = 'Sunrise window';
+    else if (hr >= 16 && hr < 21) label = 'Sunset window';
+    return { kind: 'unknown', label, sunrise: null, sunset: null };
+  }
+  const ms = t.getTime();
+  const srMs = sunrise.getTime(), ssMs = sunset.getTime();
+  // Sunrise window: 30 min before sunrise → 90 min after sunrise
+  if (ms >= srMs - 30 * 60_000 && ms <= srMs + 90 * 60_000) {
+    return { kind: 'sunrise', label: 'Sunrise window', sunrise, sunset };
+  }
+  // Sunset window: 90 min before sunset → 30 min after sunset
+  if (ms >= ssMs - 90 * 60_000 && ms <= ssMs + 30 * 60_000) {
+    return { kind: 'sunset', label: 'Sunset window', sunrise, sunset };
+  }
+  // Midday vs night
+  if (ms > srMs && ms < ssMs) return { kind: 'midday', label: 'Midday — past sunrise, before sunset', sunrise, sunset };
+  return { kind: 'night', label: 'Night — sun is below horizon', sunrise, sunset };
+}
+
+function _fmtClock(d) {
+  if (!d) return '—';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export function openSunriseLogger() {
-  // Pure timer + solar geometry — opens a simple confirmation flow.
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
-  const hr = new Date().getHours();
-  let label = 'Golden hour';
-  if (hr >= 5 && hr < 9) label = 'Sunrise window';
-  else if (hr >= 16 && hr < 21) label = 'Sunset window';
+  const coords = (window.getSunCoords && window.getSunCoords()) || null;
+  const cls = _classifyDayWindow(coords, new Date());
+  const subtitleHtml = cls.kind === 'unknown'
+    ? `<span style="color:var(--orange);font-size:11px">No location coords — set country in profile for accurate sunrise/sunset windows.</span>`
+    : (cls.sunrise && cls.sunset)
+      ? `<span style="color:var(--text-muted);font-size:11px">today: sunrise ${_fmtClock(cls.sunrise)} · sunset ${_fmtClock(cls.sunset)}</span>`
+      : '';
+  // CTA copy adapts to the actual window we're in. Outside golden hour
+  // we can still log a session but flag it so the user knows.
+  const inGolden = cls.kind === 'sunrise' || cls.kind === 'sunset';
+  const headerHint = inGolden
+    ? `Quick log for golden-hour outdoor light. Eye exposure is automatic — circadian channel maxed for the duration.`
+    : `It's <strong>${escapeHTML(cls.label.toLowerCase())}</strong> right now — golden-hour benefits don't apply, but you can still log this as a regular outdoor session.`;
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Golden hour log">
     <div class="modal-header">
-      <h3>Golden hour log <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ${escapeHTML(label)}</span></h3>
+      <h3>Golden hour log <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ${escapeHTML(cls.label)}</span></h3>
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Quick log for golden-hour outdoor light. Eye exposure is automatic — circadian channel maxed for the duration.</p>
+      <p class="modal-body-hint">${headerHint}</p>
+      ${subtitleHtml ? `<p style="margin:0 0 12px 0">${subtitleHtml}</p>` : ''}
       <label class="ctx-label">Duration outside (minutes)
         <input type="number" id="sunrise-duration" class="ctx-input" min="1" max="120" value="15" />
       </label>
@@ -964,12 +1034,12 @@ export function openSunriseLogger() {
         endedAt: Date.now(),
         bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [], glassBetween: false },
         eyeExposure: { mode: 'direct', lensTint: 'clear', durationSec: minutes * 60 },
-        notes: label,
+        notes: cls.label,
       });
       const id = window.getSessions().slice(-1)[0]?.id;
       if (id && window.hydrateSession) await window.hydrateSession(id);
     }
-    showNotification(`${label} logged: ${minutes} min`);
+    showNotification(`${cls.label} logged: ${minutes} min`);
     overlay.remove();
     if (window.navigate && state.currentView === 'light') window.navigate('light');
   });
