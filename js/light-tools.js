@@ -220,6 +220,22 @@ export async function openLuxMeter(opts = {}) {
       <div class="lux-zones">
         ${LUX_ZONES.slice(0, 6).map(z => `<div class="lux-zone-marker">≤ ${z.max} <span>${z.label}</span></div>`).join('')}
       </div>
+      <details id="lux-calibration-panel" style="margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0">
+        <summary style="padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text-secondary);user-select:none">⚙ Calibrate against a known reference</summary>
+        <div style="padding:0 12px 12px 12px;font-size:12px;color:var(--text-muted)">
+          <p style="margin:4px 0 8px 0">Aim the camera at a light source whose lux you know — from a real meter, a second phone with an ambient-light sensor, or an indoor reading you trust. Enter the reference value below; we'll compute the factor that maps the camera's raw luma to that lux value and save it for future readings.</p>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+            <label style="font-size:12px;color:var(--text-muted)">Known reading (lux)</label>
+            <input type="number" id="lux-cal-reference" class="ctx-input" min="0" step="any" placeholder="e.g. 400" style="flex:1;max-width:140px">
+            <button class="import-btn import-btn-secondary" id="lux-cal-apply" style="font-size:12px;padding:6px 10px">Apply</button>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;font-size:11px">
+            <span>Current factor:</span>
+            <strong id="lux-cal-current" style="font-family:monospace">—</strong>
+            <button class="import-btn import-btn-secondary" id="lux-cal-reset" style="font-size:11px;padding:4px 8px;margin-left:auto">Reset to 1.00×</button>
+          </div>
+        </div>
+      </details>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="window._closeLuxMeter()">Done</button>
         <button class="import-btn import-btn-primary" id="lux-save">Save reading</button>
@@ -229,14 +245,24 @@ export async function openLuxMeter(opts = {}) {
   document.body.appendChild(overlay);
 
   let currentLux = null;
+  // Snapshot of the LATEST raw camera luma (before calibration multiply).
+  // The calibration UI needs this to compute a factor against a reference;
+  // can't divide by currentLux because that already includes the active
+  // factor.
+  let currentRawLuma = null;
   const valueEl = overlay.querySelector('#lux-value');
   const zoneEl = overlay.querySelector('#lux-zone');
   const sourceLine = overlay.querySelector('#lux-source-line');
+  const calCurrentEl = overlay.querySelector('#lux-cal-current');
   _luxState.running = true;
   _luxState.calibration = loadLuxCalibration();
+  if (calCurrentEl) calCurrentEl.textContent = `${_luxState.calibration.toFixed(2)}×`;
 
-  // Try AmbientLightSensor first (modern Chrome on Android with permission)
+  // Try AmbientLightSensor first (modern Chrome on Android with permission).
+  // When ALS is available the calibration panel hides — there's nothing to
+  // calibrate, the sensor reading is authoritative.
   let usingALS = false;
+  const calibrationPanel = overlay.querySelector('#lux-calibration-panel');
   if ('AmbientLightSensor' in window) {
     try {
       const sensor = new window.AmbientLightSensor({ frequency: 4 });
@@ -248,6 +274,8 @@ export async function openLuxMeter(opts = {}) {
       _luxState.sensor = sensor;
       usingALS = true;
       sourceLine.textContent = 'Reading from your phone\'s ambient light sensor.';
+      // ALS is the authoritative source — no calibration needed.
+      if (calibrationPanel) calibrationPanel.style.display = 'none';
     } catch (e) {
       // Fall through to camera path
     }
@@ -280,8 +308,9 @@ export async function openLuxMeter(opts = {}) {
             sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
           }
           const meanLuma = sum / (data.length / 4);
+          currentRawLuma = meanLuma;
           // Crude mapping: 0–255 luma → 0–10000 lux at default calibration.
-          // Real-world calibration via the "Calibrate" button under settings.
+          // Per-device calibration via the "Calibrate" panel below.
           currentLux = Math.max(0, meanLuma * 40 * _luxState.calibration);
           renderLux(currentLux);
         } catch (e) {
@@ -303,11 +332,49 @@ export async function openLuxMeter(opts = {}) {
     zoneEl.style.color = z.color;
   }
 
+  // Calibration panel handlers (camera path only — ALS panel was hidden above).
+  const calApplyBtn = overlay.querySelector('#lux-cal-apply');
+  const calResetBtn = overlay.querySelector('#lux-cal-reset');
+  const calRefInput = overlay.querySelector('#lux-cal-reference');
+  if (calApplyBtn) {
+    calApplyBtn.addEventListener('click', () => {
+      if (currentRawLuma == null || currentRawLuma < 0.5) {
+        showNotification('Camera not reading yet — wait a moment, then try again.', 'error');
+        return;
+      }
+      const refLux = parseFloat(calRefInput?.value);
+      if (!Number.isFinite(refLux) || refLux <= 0) {
+        showNotification('Enter a positive lux value from your reference.', 'error');
+        return;
+      }
+      // factor: target lux = rawLuma × 40 × factor → factor = ref / (rawLuma × 40)
+      const newFactor = refLux / Math.max(currentRawLuma * 40, 0.001);
+      // Sanity-clamp to a 0.1× – 10× range so a typo doesn't permanently
+      // break readings; that's already 100× of dynamic range covering
+      // basically any reasonable phone-camera offset from the default.
+      const clamped = Math.min(10, Math.max(0.1, newFactor));
+      _luxState.calibration = clamped;
+      saveLuxCalibration(clamped);
+      if (calCurrentEl) calCurrentEl.textContent = `${clamped.toFixed(2)}×`;
+      sourceLine.innerHTML = `Camera estimate (calibration ${clamped.toFixed(2)}×, ±30%). Calibrated against ${refLux} lux reference.`;
+      showNotification(`Lux meter calibrated · factor ${clamped.toFixed(2)}×`);
+    });
+  }
+  if (calResetBtn) {
+    calResetBtn.addEventListener('click', () => {
+      _luxState.calibration = 1.0;
+      saveLuxCalibration(1.0);
+      if (calCurrentEl) calCurrentEl.textContent = `1.00×`;
+      sourceLine.innerHTML = `Camera estimate (calibration 1.00×, ±30%). Reset to default.`;
+      showNotification('Lux calibration reset to 1.00×');
+    });
+  }
+
   overlay.querySelector('#lux-save').addEventListener('click', async () => {
     if (currentLux == null) return;
     await saveMeasurement('lux', currentLux, {
       confidence: usingALS ? 0.85 : 0.55,
-      extra: { source: usingALS ? 'AmbientLightSensor' : 'camera-estimate' },
+      extra: { source: usingALS ? 'AmbientLightSensor' : 'camera-estimate', calibrationFactor: _luxState.calibration },
       roomId,
     });
     showNotification(`Lux reading saved: ${Math.round(currentLux)}`);
