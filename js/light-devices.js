@@ -227,8 +227,12 @@ export async function renderDevicesSection() {
 
 export async function openAddDeviceDialog() {
   const { presets, types } = await loadPresets();
+  // Pull "custom" / "other" presets aside so they always render at the end
+  // of the dropdown rather than mid-list (P4 from the 2026-04-30 review).
+  const customPresets = presets.filter(p => p.id === 'custom' || p.type === 'custom');
+  const branded = presets.filter(p => !customPresets.includes(p));
   const groups = {};
-  for (const p of presets) {
+  for (const p of branded) {
     if (!groups[p.type]) groups[p.type] = [];
     groups[p.type].push(p);
   }
@@ -241,6 +245,13 @@ export async function openAddDeviceDialog() {
     opts += `<optgroup label="${escapeAttr((meta.icon || '') + ' ' + (meta.label || t))}">`;
     for (const p of groups[t]) {
       opts += `<option value="${escapeAttr(p.id)}">${escapeHTML(p.brand)} ${escapeHTML(p.model)}</option>`;
+    }
+    opts += `</optgroup>`;
+  }
+  if (customPresets.length) {
+    opts += `<optgroup label="Other">`;
+    for (const p of customPresets) {
+      opts += `<option value="${escapeAttr(p.id)}">${escapeHTML(p.brand || 'Custom')} — ${escapeHTML(p.model || 'enter your own specs')}</option>`;
     }
     opts += `</optgroup>`;
   }

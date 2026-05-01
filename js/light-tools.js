@@ -40,10 +40,30 @@ export async function saveMeasurement(tool, value, opts = {}) {
     label: opts.label || null,
     notes: opts.notes || '',
     extra: opts.extra || null,
+    roomId: opts.roomId || null,
   };
   getMeasurements().push(entry);
   await saveImportedData();
+  // Re-render the Light & Sun page if the user is on it so per-room
+  // detail panels pick up the new reading + recompute severity dots.
+  // Skip when any modal is still open — the tool may not have torn down
+  // its camera/RAF loop yet, and a navigate would yank DOM out from under
+  // it (orphan video element, detached interval handlers). The next user
+  // navigation picks up the new measurement on its own.
+  if (typeof window !== 'undefined' && window.navigate && state.currentView === 'light') {
+    setTimeout(() => {
+      if (document.querySelector('.modal-overlay.show')) return;
+      window.navigate('light');
+    }, 50);
+  }
   return entry;
+}
+
+// Filter the global measurement list down to a single room. Used by the
+// room detail panel + room severity derivation.
+export function getMeasurementsForRoom(roomId) {
+  if (!roomId) return [];
+  return getMeasurements().filter(m => m.roomId === roomId);
 }
 
 export async function deleteMeasurement(id) {
@@ -84,7 +104,8 @@ function saveLuxCalibration(factor) {
   catch (e) {}
 }
 
-export async function openLuxMeter() {
+export async function openLuxMeter(opts = {}) {
+  const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Lux meter">
@@ -189,6 +210,7 @@ export async function openLuxMeter() {
     await saveMeasurement('lux', currentLux, {
       confidence: usingALS ? 0.85 : 0.55,
       extra: { source: usingALS ? 'AmbientLightSensor' : 'camera-estimate' },
+      roomId,
     });
     showNotification(`Lux reading saved: ${Math.round(currentLux)}`);
     window._closeLuxMeter();
@@ -207,7 +229,8 @@ export async function openLuxMeter() {
 
 let _flickerState = { running: false, stream: null };
 
-export async function openFlickerDetector() {
+export async function openFlickerDetector(opts = {}) {
+  const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Flicker detector">
@@ -294,6 +317,7 @@ export async function openFlickerDetector() {
     await saveMeasurement('flicker', lastResult.score, {
       confidence: 0.7,
       extra: lastResult,
+      roomId,
     });
     showNotification(`Flicker score saved: ${lastResult.label}`);
     window._closeFlicker();
@@ -310,7 +334,8 @@ export async function openFlickerDetector() {
 
 let _darkState = { running: false, stream: null };
 
-export async function openDarknessMeter() {
+export async function openDarknessMeter(opts = {}) {
+  const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Sleep darkness meter">
@@ -373,7 +398,7 @@ export async function openDarknessMeter() {
       startBtn.textContent = 'Save reading';
       startBtn.disabled = false;
       startBtn.onclick = async () => {
-        await saveMeasurement('darkness', lux, { confidence: 0.6, extra: result });
+        await saveMeasurement('darkness', lux, { confidence: 0.6, extra: result, roomId });
         showNotification('Sleep darkness reading saved.');
         window._closeDark();
       };
@@ -394,7 +419,8 @@ export async function openDarknessMeter() {
 
 let _cctState = { running: false, stream: null };
 
-export async function openCCTMeter() {
+export async function openCCTMeter(opts = {}) {
+  const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Color temperature meter">
@@ -462,7 +488,7 @@ export async function openCCTMeter() {
 
   overlay.querySelector('#cct-save').addEventListener('click', async () => {
     if (currentCCT == null) return;
-    await saveMeasurement('cct', currentCCT, { confidence: 0.5 });
+    await saveMeasurement('cct', currentCCT, { confidence: 0.5, roomId });
     showNotification(`Color temp saved: ${currentCCT} K`);
     window._closeCCT();
   });
@@ -501,7 +527,8 @@ function solarCoherence(k) {
 
 let _specState = { running: false, stream: null };
 
-export async function openSpectrumClassifier() {
+export async function openSpectrumClassifier(opts = {}) {
+  const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Spectrum classifier">
@@ -561,7 +588,7 @@ export async function openSpectrumClassifier() {
 
   overlay.querySelector('#spec-save').addEventListener('click', async () => {
     if (!result) return;
-    await saveMeasurement('spectrum', result.label, { confidence: result.confidence, extra: result });
+    await saveMeasurement('spectrum', result.label, { confidence: result.confidence, extra: result, roomId });
     showNotification(`Light type saved: ${result.label}`);
     window._closeSpec();
   });
@@ -607,7 +634,8 @@ function classifyLight({ r, g, b, lumaSamples }) {
 
 let _glassReadings = { inside: null, outside: null };
 
-export async function openGlassTransmission() {
+export async function openGlassTransmission(opts = {}) {
+  const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Glass transmission test">
@@ -685,6 +713,7 @@ export async function openGlassTransmission() {
       await saveMeasurement('glass-transmission', transmission, {
         confidence: 0.6,
         extra: { inside: _glassReadings.inside, outside: _glassReadings.outside, uvTrans },
+        roomId,
       });
       showNotification(`Glass transmission saved: ${(transmission * 100).toFixed(0)}%`);
       window._closeGlass();
@@ -704,9 +733,9 @@ export function openSunriseLogger() {
   let label = 'Golden hour';
   if (hr >= 5 && hr < 9) label = 'Sunrise window';
   else if (hr >= 16 && hr < 21) label = 'Sunset window';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Sunrise / sunset logger">
+  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Golden hour log">
     <div class="modal-header">
-      <h3>${escapeHTML(label)} session</h3>
+      <h3>Golden hour log <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ${escapeHTML(label)}</span></h3>
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
@@ -749,9 +778,9 @@ let _auditState = { running: false, stream: null, samples: [] };
 export async function openEyeLevelAudit() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Eye-level audit">
+  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Home audit">
     <div class="modal-header">
-      <h3>Eye-Level Audit</h3>
+      <h3>Home audit <span style="font-weight:400;color:var(--text-muted);font-size:13px">— 10 min walkthrough</span></h3>
       <button class="modal-close" onclick="window._closeAudit()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
@@ -907,6 +936,7 @@ if (typeof window !== 'undefined') {
     openSunriseLogger,
     openEyeLevelAudit,
     getMeasurements,
+    getMeasurementsForRoom,
     saveMeasurement,
     deleteMeasurement,
     renderLightTools,

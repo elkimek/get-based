@@ -59,21 +59,19 @@ export function buildSidebar(data) {
   // All except Light & Sun soft-promote (scroll + expand on dashboard); Light & Sun
   // hard-promotes to its dedicated view.
 
-  // \u2600 Light & Sun \u2014 hard-promote (dedicated view)
-  const sunSessions = state.importedData?.sunSessions;
-  if (Array.isArray(sunSessions) && sunSessions.length > 0) {
-    // Show this week's session count (capped at 9+) \u2014 more meaningful than
-    // raw lifetime total, which gets noisy fast.
-    const weekStart = Date.now() - 7 * 86400 * 1000;
-    const weekCount = sunSessions.filter(s => (s.endedAt || s.startedAt || 0) >= weekStart).length;
-    html += _renderConditionalNavItem({
-      key: 'light',
-      icon: '\u2600\uFE0F',
-      label: 'Light & Sun',
-      navigate: 'light',
-      badge: weekCount > 0 ? (weekCount > 9 ? '9+' : weekCount) : null,
-    });
-  }
+  // \u2600 Light & Sun \u2014 always visible (flagship module). New users
+  // need a discoverable entry point even before logging anything; once
+  // sessions exist, the badge shows this week's count.
+  const sunSessions = state.importedData?.sunSessions || [];
+  const weekStart = Date.now() - 7 * 86400 * 1000;
+  const weekCount = sunSessions.filter(s => (s.endedAt || s.startedAt || 0) >= weekStart).length;
+  html += _renderConditionalNavItem({
+    key: 'light',
+    icon: '\u2600\uFE0F',
+    label: 'Light & Sun',
+    navigate: 'light',
+    badge: weekCount > 0 ? (weekCount > 9 ? '9+' : weekCount) : null,
+  });
 
   // \u231A Wearables \u2014 soft-promote (scroll to wearable strip)
   const wearableConn = state.importedData?.wearableConnections || {};

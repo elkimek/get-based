@@ -374,6 +374,11 @@ function serveFile(res, filePath) {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless',
+      // Dev-only — phones over Tailscale otherwise hit the PWA service
+      // worker cache and never see code changes until the SW updates on
+      // its own schedule. Forcing no-store makes every reload pick up
+      // the freshest JS/CSS/HTML.
+      'Cache-Control': 'no-store, must-revalidate',
     });
     res.end(data);
   });
@@ -405,6 +410,15 @@ function isSameOrigin(req) {
   return false;
 }
 
+// Loopback check on the actual TCP socket — the only authentication that
+// can't be forged by a LAN peer setting `Origin: http://localhost:PORT`.
+// Used as a hard gate in front of /api/* when HOST=0.0.0.0 (phone testing).
+function _isLoopbackSocket(req) {
+  const ra = req.socket?.remoteAddress || '';
+  // Node reports IPv4 via "::ffff:127.0.0.1" on dual-stack listeners.
+  return ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1';
+}
+
 // Reflect the request's allowlisted origin instead of emitting `*`. Mismatch
 // between `isSameOrigin` (allowlist) and the response header (wildcard) is
 // only safe today because the guard runs first; reflecting keeps the two
@@ -424,6 +438,17 @@ const server = http.createServer((req, res) => {
   // Origin/Referer from browser tabs on malicious sites. See #119.
   if ((pathname.startsWith('/api/') || pathname === '/proxy') && !isSameOrigin(req)) {
     res.writeHead(403); res.end('Forbidden'); return;
+  }
+  // Hard loopback gate when bound to 0.0.0.0 (LAN-exposed for phone
+  // testing). Origin/Referer headers are forgeable by any LAN peer; the
+  // TCP socket address is not. The /api/* endpoints (deploy-catalog,
+  // git-status, proxy, fetch-page, check-url) write to disk / fetch
+  // arbitrary URLs — none are needed for phone-testing the app's UX,
+  // so refusing them outright on LAN is the safe default.
+  if (HOST === '0.0.0.0'
+      && (pathname.startsWith('/api/') || pathname === '/proxy')
+      && !_isLoopbackSocket(req)) {
+    res.writeHead(403); res.end('Forbidden — /api/* disabled for non-loopback peers when HOST=0.0.0.0'); return;
   }
 
   // API: return current git HEAD + branch so Settings → Display shows the
@@ -985,8 +1010,15 @@ const server = http.createServer((req, res) => {
 // `node dev-server.js`, different means `import ... from './dev-server.js'`.
 const _entryUrl = process.argv[1] ? new URL(`file://${path.resolve(process.argv[1])}`).href : '';
 const _isDirectRun = import.meta.url === _entryUrl;
-if (_isDirectRun) server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Dev server running at http://127.0.0.1:${PORT}`);
+// Bind address. Defaults to 127.0.0.1 (loopback only) so the dev server
+// stays off the LAN unless explicitly opted in. Set HOST=0.0.0.0 to expose
+// it to the local network — useful for testing on a phone over Wi-Fi.
+const HOST = process.env.HOST || '127.0.0.1';
+if (_isDirectRun) server.listen(PORT, HOST, () => {
+  console.log(`Dev server running at http://${HOST === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1'}:${PORT}`);
+  if (HOST === '0.0.0.0') {
+    console.log(`  → reachable on your LAN at http://<your-lan-ip>:${PORT}`);
+  }
   if (hasSite) {
     console.log(`  /        → landing page (${SITE_DIR})`);
     console.log(`  /app     → index.html`);

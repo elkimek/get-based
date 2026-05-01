@@ -17,17 +17,23 @@ import { COUNTRY_LATITUDES } from './constants.js';
 
 // ─── Anatomical regions (for body silhouette picker) ───────────────────
 // 11 regions per the design — each carries optional research notes for AI.
+// Anatomical regions for the silhouette picker. Limbs split into front/back
+// so front-of-legs and back-of-legs are independent — matters for
+// realistic photobiology (e.g. sunbathing face-up exposes only front).
+// Fractions sum to ~1.0 across the whole body when fully selected.
 export const BODY_REGIONS = [
   { key: 'face',           label: 'Face',              fraction: 0.04 },
-  { key: 'arms',           label: 'Arms',              fraction: 0.10 },
+  { key: 'thyroid-throat', label: 'Thyroid / throat',  fraction: 0.01 },
+  { key: 'breast-chest',   label: 'Breast / chest',    fraction: 0.06 },
+  { key: 'arms-front',     label: 'Arms (front)',      fraction: 0.05 },
+  { key: 'arms-back',      label: 'Arms (back)',       fraction: 0.05 },
   { key: 'torso-front',    label: 'Torso (front)',     fraction: 0.13 },
   { key: 'torso-back',     label: 'Torso (back)',      fraction: 0.13 },
-  { key: 'legs',           label: 'Legs',              fraction: 0.30 },
+  { key: 'abdomen',        label: 'Abdomen',           fraction: 0.07 },
   { key: 'genitals',       label: 'Genitals',          fraction: 0.01 },
   { key: 'glutes',         label: 'Glutes',            fraction: 0.05 },
-  { key: 'breast-chest',   label: 'Breast / chest',    fraction: 0.06 },
-  { key: 'thyroid-throat', label: 'Thyroid / throat',  fraction: 0.01 },
-  { key: 'abdomen',        label: 'Abdomen',           fraction: 0.07 },
+  { key: 'legs-front',     label: 'Legs (front)',      fraction: 0.15 },
+  { key: 'legs-back',      label: 'Legs (back)',       fraction: 0.15 },
   { key: 'soles-of-feet',  label: 'Soles of feet',     fraction: 0.02 },
 ];
 
@@ -96,6 +102,16 @@ export function tierDots(tier) { return TIER_DOTS[tier] || TIER_DOTS[0]; }
 export function getSessions() {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.sunSessions)) state.importedData.sunSessions = [];
+  // Strip runtime-only ticker fields that earlier dev builds may have
+  // accidentally persisted onto session objects. One-time cleanup on
+  // first read; no-op on records written after the fix.
+  for (const sess of state.importedData.sunSessions) {
+    if (sess && (sess._activeRate || sess._activeRatePending || sess._fractionOfMED)) {
+      delete sess._activeRate;
+      delete sess._activeRatePending;
+      delete sess._fractionOfMED;
+    }
+  }
   return state.importedData.sunSessions;
 }
 
@@ -104,15 +120,37 @@ export function getActiveSession() {
 }
 
 // Start a session — minimal entry with sensible defaults. Returns id.
-export async function startSession({ exposurePreset = 'face_hands', eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location } = {}) {
-  const preset = EXPOSURE_PRESETS.find(p => p.key === exposurePreset) || EXPOSURE_PRESETS[0];
+// Accepts either an `exposurePreset` (legacy 4-preset coarse buckets) or a
+// `regions` array (anatomical-region picker output). Regions take priority
+// when both are supplied — fraction is computed by summing region fractions.
+export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location } = {}) {
   const id = `sun_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+
+  let preset, fraction, regionsArr;
+  // If the caller explicitly supplied a regions array, honor it strictly.
+  // An empty array means "the user picked nothing" — silently substituting
+  // a face_hands preset would record a phantom exposure.
+  if (Array.isArray(regions)) {
+    if (regions.length === 0) throw new Error('startSession: regions array was empty — pick at least one region or pass exposurePreset instead');
+    regionsArr = regions;
+    fraction = regions.reduce((sum, key) => {
+      const r = BODY_REGIONS.find(b => b.key === key);
+      return sum + (r?.fraction || 0);
+    }, 0);
+    fraction = Math.max(0.05, fraction);
+    preset = { key: 'detailed' };
+  } else {
+    preset = EXPOSURE_PRESETS.find(p => p.key === exposurePreset) || EXPOSURE_PRESETS[0];
+    fraction = preset.fraction;
+    regionsArr = [];
+  }
+
   const session = {
     id,
     startedAt: Date.now(),
     endedAt: null,
     location: location || null,
-    bodyExposure: { preset: preset.key, fraction: preset.fraction, regions: [], sunscreenSPF: null, glassBetween },
+    bodyExposure: { preset: preset.key, fraction, regions: regionsArr, sunscreenSPF: null, glassBetween },
     eyeExposure: { mode: eyeMode, lensTint, durationSec: null }, // durationSec assigned at stop
     atmosphere: null, // populated at stop or fetched async
     doses: null,
@@ -133,6 +171,7 @@ export async function stopSession(id) {
   if (sess.eyeExposure && sess.eyeExposure.durationSec == null) {
     sess.eyeExposure.durationSec = Math.round(durationMin * 60);
   }
+  _clearLiveState(id);
   await saveImportedData();
   return sess;
 }
@@ -163,6 +202,7 @@ export async function deleteSession(id) {
   const idx = sessions.findIndex(s => s.id === id);
   if (idx < 0) return false;
   sessions.splice(idx, 1);
+  _clearLiveState(id);
   await saveImportedData();
   return true;
 }
@@ -209,14 +249,13 @@ export async function hydrateSession(id, { lat, lon } = {}) {
       durationMin: sess.durationMin,
       bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
     });
-    // Read from any of the three places this might be set, in priority order:
-    //   1. profile.fitzpatrick (legacy, rare)
-    //   2. sunDefaults.fitzpatrick (Light setup card)
-    //   3. lightCircadian.skinType (Light & Circadian context card)
+    // Read from one of two places, in priority order:
+    //   1. sunDefaults.fitzpatrick (Light setup card)
+    //   2. lightCircadian.skinType (Light & Circadian context card)
     // Falls back to 'III' (median) if none.
     const lcSkin = state.importedData?.lightCircadian?.skinType;
     const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
-    const fitzpatrick = state.profile?.fitzpatrick || state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
+    const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
     sess.safety = {
       sed,
       medFraction: fractionOfMED({ sed, fitzpatrick }),
@@ -239,8 +278,22 @@ export function rollingChannelTotals(days = 7) {
   const cutoff = now - days * 86400 * 1000;
   const totals = {};
   for (const sess of getSessions()) {
+    // Include in-progress sessions via live partial doses, but only when
+    // the session's startedAt is within the rolling window. A session
+    // forgotten-running for 25 hours should not perpetually inflate
+    // the 7d total.
+    if (!sess.endedAt) {
+      if ((sess.startedAt || 0) < cutoff) continue;
+      const live = _liveDosesFor(sess);
+      if (live?.doses) {
+        for (const [k, v] of Object.entries(live.doses)) {
+          totals[k] = (totals[k] || 0) + (Number.isFinite(v) ? v : 0);
+        }
+      }
+      continue;
+    }
     if (!sess.doses) continue;
-    if (sess.endedAt && sess.endedAt < cutoff) continue;
+    if (sess.endedAt < cutoff) continue;
     for (const [k, v] of Object.entries(sess.doses)) {
       totals[k] = (totals[k] || 0) + (Number.isFinite(v) ? v : 0);
     }
@@ -248,13 +301,20 @@ export function rollingChannelTotals(days = 7) {
   return totals;
 }
 
-// Cumulative MED today (for the safety gauge and pre-session warnings)
+// Cumulative MED today (for the safety gauge and pre-session warnings).
+// Includes the in-progress session's live partial burn-dose so the gauge
+// fills as you sit in the sun.
 export function cumulativeMEDToday() {
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   let total = 0;
   for (const sess of getSessions()) {
-    if (!sess.safety || !sess.endedAt) continue;
+    if (!sess.endedAt) {
+      const live = _liveDosesFor(sess);
+      if (live && Number.isFinite(live.medFraction)) total += live.medFraction;
+      continue;
+    }
+    if (!sess.safety) continue;
     if (sess.endedAt < dayStart) continue;
     total += sess.safety.medFraction || 0;
   }
@@ -280,17 +340,132 @@ export async function quickLogSunSession() {
     _refreshSurfaces();
     return;
   }
+  // No active session — open the silhouette picker so the user can pick
+  // exposed regions before the session begins. Inherits from last session.
+  return openStartSunSessionDialog();
+}
+
+// Show the "What's uncovered?" dialog with the body silhouette + a Start
+// button. The picker pre-selects regions from the user's last completed
+// session so habitual users hit Start without changes; first-time users
+// pick everything fresh.
+export async function openStartSunSessionDialog() {
   const last = getSessions().filter(s => s.endedAt).slice(-1)[0];
-  const defaults = last ? {
-    exposurePreset: last.bodyExposure?.preset || 'face_hands',
-    eyeMode: last.eyeExposure?.mode || 'direct',
-    lensTint: last.eyeExposure?.lensTint || 'clear',
-    glassBetween: last.bodyExposure?.glassBetween || false,
-  } : {};
-  const id = await startSession(defaults);
-  showNotification('Outdoor session started · tap the dashboard tile to stop');
-  _refreshSurfaces();
-  return id;
+  const lastRegions = new Set(last?.bodyExposure?.regions || []);
+  const defaultEye = last?.eyeExposure?.mode || 'direct';
+  const defaultLens = last?.eyeExposure?.lensTint || 'clear';
+  const defaultGlass = !!last?.bodyExposure?.glassBetween;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.innerHTML = `<div class="modal sun-start-modal" role="dialog" aria-label="Start sun session">
+    <div class="modal-header">
+      <h3>Start a sun session</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Tap each body region that's uncovered right now. The session begins as soon as you hit Start.</p>
+      <div class="sun-silhouette-wrap" id="sun-start-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
+      <div class="sun-silhouette-hint" id="sun-start-hint">Tap any body region to toggle whether it's uncovered.</div>
+
+      <details class="sun-start-details">
+        <summary>Eyewear, sunscreen, glass — change defaults</summary>
+        <div class="sun-detailed-row" style="margin-top:10px">
+          <label class="ctx-label">Eyes
+            <select id="start-eye-mode" class="ctx-select">
+              ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === defaultEye ? ' selected' : ''}>${escapeHTML(e.label)}</option>`).join('')}
+            </select>
+          </label>
+          <label class="ctx-label">Lens tint
+            <select id="start-lens-tint" class="ctx-select">
+              ${LENS_TINTS.map(l => `<option value="${escapeAttr(l.key)}"${l.key === defaultLens ? ' selected' : ''}>${escapeHTML(l.label)}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <label class="ctx-label sun-detailed-glass" style="margin-top:8px">
+          <input type="checkbox" id="start-glass"${defaultGlass ? ' checked' : ''} />
+          Behind glass (window / car / sunroom)
+        </label>
+      </details>
+
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-primary" id="start-confirm">☀ Start session</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  trapModalFocus(overlay);
+
+  const selected = new Set(lastRegions);
+  const slot = overlay.querySelector('#sun-start-silhouette-slot');
+  const hint = overlay.querySelector('#sun-start-hint');
+  const updateHint = () => {
+    const fraction = Array.from(selected).reduce((sum, key) => {
+      const r = BODY_REGIONS.find(b => b.key === key);
+      return sum + (r?.fraction || 0);
+    }, 0);
+    if (selected.size === 0) {
+      hint.textContent = 'Tap any body region to toggle whether it\'s uncovered.';
+    } else {
+      const labels = Array.from(selected).map(k => BODY_REGIONS.find(b => b.key === k)?.label || k).join(', ');
+      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
+    }
+  };
+  bindBodySilhouette(slot, selected, updateHint);
+  updateHint();
+
+  overlay.querySelector('#start-confirm').addEventListener('click', async () => {
+    const eyeMode = overlay.querySelector('#start-eye-mode').value || 'direct';
+    const lensTint = overlay.querySelector('#start-lens-tint').value || 'clear';
+    const glassBetween = overlay.querySelector('#start-glass').checked;
+    const regions = Array.from(selected);
+    if (regions.length === 0) {
+      hint.textContent = 'Tap at least one region before starting — what part of you is uncovered?';
+      hint.classList.add('sun-silhouette-hint-error');
+      setTimeout(() => hint.classList.remove('sun-silhouette-hint-error'), 2500);
+      return;
+    }
+    // Stash coords on the new session so the ticker can compute doses
+    // immediately without re-resolving location every tick.
+    const coords = getSunCoords();
+    const id = await startSession({ regions, eyeMode, lensTint, glassBetween, location: coords });
+    overlay.remove();
+    showNotification(`Outdoor session started · ${regions.length} region${regions.length === 1 ? '' : 's'} exposed`);
+    _refreshSurfaces();
+    _ensureActiveTicker();
+    return id;
+  });
+}
+
+// Focus management for dynamically-injected modals. Captures the current
+// focused element, lands focus on the first focusable inside the new
+// overlay, and restores focus to the trigger when the overlay is removed.
+// Single export so sun.js / views.js / light-tools.js share one helper.
+export function trapModalFocus(overlay) {
+  const previouslyFocused = document.activeElement;
+  // Defer until after the browser paints — innerHTML may be set right
+  // after appendChild, and querySelector before paint can race.
+  setTimeout(() => {
+    const focusables = overlay.querySelectorAll(
+      'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
+    );
+    if (focusables.length > 0) try { focusables[0].focus(); } catch (e) {}
+  }, 30);
+  // Restore focus on overlay removal. MutationObserver lets us catch any
+  // teardown path (overlay.remove(), parent rebuild, escape handler).
+  const restore = () => {
+    if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+      try { previouslyFocused.focus(); } catch (e) {}
+    }
+  };
+  const obs = new MutationObserver(() => {
+    if (!document.body.contains(overlay)) {
+      obs.disconnect();
+      restore();
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
 }
 
 // Identify the strongest channel a session contributed to (for notification copy)
@@ -313,6 +488,278 @@ function _refreshSurfaces() {
   if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   const view = state.currentView || 'dashboard';
   if (window.navigate) try { window.navigate(view); } catch (e) {}
+  // After re-render the active-session card is a fresh DOM node — make sure
+  // the ticker is alive so it patches the new card on the next interval.
+  setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
+}
+
+// ─── Live in-progress session ticker ───────────────────────────────────
+//
+// While a session is active we want the on-screen card to feel alive:
+//   • elapsed time ticks every second (mm:ss, h:mm:ss past 1hr)
+//   • channel doses accumulate visibly — each minute outside, the user sees
+//     vit-D / circadian / NIR fill in
+//   • a single shared setInterval drives every active-session card on the
+//     page (dashboard strip + Light & Sun list both update)
+//
+// Strategy: compute a per-minute dose rate ONCE at session start (via the
+// usual reconstructSpectrum + computeChannelDoses path on the session's
+// midpoint) and cache it in the module-scoped _liveState map (NOT on the
+// session object — that would persist runtime-only fields to localStorage
+// and CRDT). The ticker then just multiplies by elapsed minutes — no
+// per-tick spectral math.
+
+let _activeTicker = null;
+
+// Live-ticker per-session state (rate snapshot, atm, zenith, fitzpatrick,
+// MED helper). Held in-memory only — NOT persisted on the session object,
+// so saveImportedData() never serializes the heavy `atm` blob or function
+// refs into localStorage / Evolu CRDT. Cleared on session end / delete.
+const _liveState = new Map(); // session.id → { ratePerMin, sedPerMin, fitzpatrick, atm, zenith, snapshotAt, fractionOfMEDFn, pending }
+
+function _getLiveState(id) { return _liveState.get(id) || null; }
+function _setLiveState(id, patch) {
+  const cur = _liveState.get(id) || {};
+  _liveState.set(id, Object.assign(cur, patch));
+}
+function _clearLiveState(id) { _liveState.delete(id); }
+
+function _formatElapsed(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${m}:${pad(s)}`;
+}
+
+// Snapshot the per-minute channel rate for the active session. Lazy — runs
+// once per session and caches in the module-scoped _liveState map. Returns
+// null on first call (the ticker retries next interval); subsequent calls
+// return the cached rate. NEVER mutates the session object — keeps the
+// atm payload + function refs out of localStorage / CRDT.
+async function _snapshotActiveRate(sess) {
+  const cur = _getLiveState(sess.id);
+  if (cur && cur.ratePerMin) return cur;
+  if (cur && cur.pending) return null;
+  _setLiveState(sess.id, { pending: true });
+  try {
+    const reconstructSpectrum = window.reconstructSpectrum;
+    const computeChannelDoses = window.computeChannelDoses;
+    const erythemalSED = window.erythemalSED;
+    const fractionOfMED = window.fractionOfMED;
+    const solarZenithAngle = window.solarZenithAngle;
+    const fetchAtmosphere = window.fetchAtmosphere;
+    if (!reconstructSpectrum || !computeChannelDoses || !solarZenithAngle || !fetchAtmosphere) return null;
+    const coords = sess.location || getSunCoords();
+    if (!coords) return null;
+    const now = new Date();
+    const atm = await fetchAtmosphere({ lat: coords.lat, lon: coords.lon, isoTime: now.toISOString() });
+    const zenith = solarZenithAngle(now, coords.lat, coords.lon);
+    const spectrum = reconstructSpectrum({
+      zenithDeg: zenith,
+      ozoneDU: atm.ozoneDU ?? 300,
+      altitudeM: coords.altitudeM ?? 0,
+      cloudCover: (atm.cloudCover ?? 0) / 100,
+    });
+    const ratePerMin = computeChannelDoses({
+      spectrum,
+      durationMin: 1,
+      bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+      eyeExposure: sess.eyeExposure,
+    });
+    const sedPerMin = erythemalSED({
+      spectrum,
+      durationMin: 1,
+      bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+    });
+    const lcSkin = state.importedData?.lightCircadian?.skinType;
+    const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
+    const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
+    // baselineZenith is sampled once per session and never overwritten on
+    // 10-min spectrum refresh — keeps the zenithScale denominator stable
+    // so cumulative doses don't jump every refresh cycle.
+    const existing = _getLiveState(sess.id) || {};
+    _setLiveState(sess.id, {
+      ratePerMin, sedPerMin, fitzpatrick, atm, zenith,
+      baselineZenith: existing.baselineZenith ?? zenith,
+      snapshotAt: Date.now(),
+      fractionOfMEDFn: fractionOfMED,
+      pending: false,
+    });
+    return _getLiveState(sess.id);
+  } catch (e) {
+    if (window.console && console.warn) console.warn('snapshotActiveRate failed', e);
+    _setLiveState(sess.id, { pending: false });
+    return null;
+  }
+}
+
+// Compute live doses from the cached spectrum, but apply a real-time
+// zenith correction so a session started at 11am with rising sun isn't
+// underestimating dose rates by the time it's noon.
+//
+// Zenith math is purely local (date + lat/lon → angle), so we can do it
+// every tick at zero cost. UVI and cloud cover are locked to whatever the
+// last fetch returned — those drift much slower than zenith and refetch
+// on a separate 10-min cadence. The cumulative dose is the integral of
+// rate(t) over the session, which is approximately:
+//   ∫₀ᵉ rate_at_time(t) dt ≈ rate_at_midpoint × elapsedMin
+// since the rate-vs-time curve is roughly symmetric across midpoint.
+function _liveDosesFor(sess) {
+  const live = _getLiveState(sess?.id);
+  if (!live || !live.ratePerMin) return null;
+  const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
+  const rate = live.ratePerMin || {};
+
+  // Zenith correction: scale the cached rate by the ratio of average
+  // zenith-cosine over the elapsed window vs the BASELINE zenith (sampled
+  // once at session start, never overwritten on spectrum refresh). Without
+  // a stable baseline the integral jumps every 10-min refresh cycle.
+  let zenithScale = 1;
+  try {
+    const coords = sess.location;
+    const fnZenith = window.solarZenithAngle;
+    if (coords && fnZenith && elapsedMin > 1) {
+      // Sample 5 points evenly across [start, now] for a midpoint integral.
+      const samples = 5;
+      let sumCos = 0, count = 0;
+      for (let i = 0; i < samples; i++) {
+        const t = sess.startedAt + (i + 0.5) * (Date.now() - sess.startedAt) / samples;
+        const z = fnZenith(new Date(t), coords.lat, coords.lon);
+        const cosZ = Math.max(0, Math.cos(z * Math.PI / 180));
+        sumCos += cosZ; count++;
+      }
+      const avgCos = count ? sumCos / count : 0;
+      const baselineZ = live.baselineZenith ?? live.zenith ?? 0;
+      const startCos = Math.max(0.001, Math.cos(baselineZ * Math.PI / 180));
+      zenithScale = avgCos / startCos;
+    }
+  } catch (e) {}
+
+  const doses = {};
+  for (const [k, v] of Object.entries(rate)) doses[k] = v * elapsedMin * zenithScale;
+  const sed = (live.sedPerMin || 0) * elapsedMin * zenithScale;
+  const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick }) : 0;
+  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, _zenithScale: zenithScale };
+}
+
+// Render a compact live card body — elapsed time, burn-risk %, channel chips.
+function _renderActiveCardBody(sess) {
+  const elapsed = _formatElapsed(Date.now() - sess.startedAt);
+  const live = _liveDosesFor(sess);
+  let medStr = '';
+  if (live && Number.isFinite(live.medFraction)) {
+    const pct = Math.round(live.medFraction * 100);
+    let label = 'safe', cls = '';
+    if (live.medFraction >= 1) { label = 'over threshold'; cls = 'over'; }
+    else if (live.medFraction >= 0.7) { label = 'high'; cls = 'warn'; }
+    else if (live.medFraction >= 0.3) { label = 'moderate'; cls = ''; }
+    medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose so far — ${pct}% of your personal threshold (Fitzpatrick ${escapeAttr(live.fitzpatrick)})">${pct}% burn dose · ${escapeHTML(label)}</span>`;
+  }
+  const channelChips = live?.doses ? renderChannelChips(live.doses) : '';
+  return { elapsed, medStr, channelChips };
+}
+
+// Update every active-session card on the page. Cheap — only DOM patches
+// for the elements that exist; no full re-render. Every 5 seconds also
+// refreshes the page-level channel grid + dashboard strip so the live
+// accumulated doses propagate beyond the session card itself.
+let _tickCount = 0;
+function _tickActiveCards() {
+  const sessions = getSessions().filter(s => !s.endedAt);
+  if (sessions.length === 0) {
+    if (_activeTicker) { clearInterval(_activeTicker); _activeTicker = null; }
+    return;
+  }
+  _tickCount++;
+  for (const sess of sessions) {
+    const live = _getLiveState(sess.id);
+    // Lazy snapshot of the rate (async — fires once per session, cached
+    // in module-scoped _liveState map, never written to the session record)
+    if ((!live || !live.ratePerMin) && (!live || !live.pending)) _snapshotActiveRate(sess);
+
+    // Refresh the cached atmosphere snapshot every ~10 min so cloud cover
+    // and UVI drift get reflected in the live rate. Re-runs the same
+    // spectrum/dose math; baselineZenith is preserved across refreshes
+    // so the zenith-correction integral stays continuous.
+    if (live && live.ratePerMin && !live.pending) {
+      const last = live.snapshotAt || 0;
+      if (Date.now() - last > 10 * 60 * 1000) {
+        // Preserve baselineZenith; clear ratePerMin to force re-snapshot
+        _setLiveState(sess.id, { ratePerMin: null });
+      }
+    }
+
+    // Update any "live elapsed" text node on the page — dashboard Light
+    // Today CTA uses [data-live-elapsed-for] so the timer ticks every
+    // second from anywhere in the app.
+    const elapsedFmt = _formatElapsed(Date.now() - sess.startedAt);
+    document.querySelectorAll(`[data-live-elapsed-for="${CSS.escape(sess.id)}"]`).forEach(el => {
+      el.textContent = elapsedFmt;
+    });
+
+    const cards = document.querySelectorAll(`[data-id="${CSS.escape(sess.id)}"]`);
+    if (!cards.length) continue;
+
+    const body = _renderActiveCardBody(sess);
+    cards.forEach(card => {
+      const durEl = card.querySelector('.sun-session-duration');
+      if (durEl) durEl.textContent = body.elapsed;
+      const medEl = card.querySelector('.sun-session-med');
+      if (medEl) medEl.outerHTML = body.medStr || '';
+      else if (body.medStr) {
+        // Insert med chip into the head row if it doesn't exist yet
+        const head = card.querySelector('.sun-session-head .sun-session-duration');
+        if (head) head.insertAdjacentHTML('afterend', body.medStr);
+      }
+      const oldChips = card.querySelector('.sun-channel-chips');
+      if (oldChips) oldChips.outerHTML = body.channelChips || '';
+      else if (body.channelChips) card.insertAdjacentHTML('beforeend', body.channelChips);
+    });
+  }
+  // Every 5s, refresh the surrounding "Channels this week" grid + Light
+  // Today dashboard strip. They read rollingChannelTotals which now mixes
+  // in the live partial doses, so re-rendering them shows accumulated UV-D
+  // / circadian / NIR rising in real time.
+  if (_tickCount % 5 === 0) _refreshLiveChannelSurfaces();
+}
+
+// Re-render the channel grid + dashboard strip without forcing a full
+// `navigate()` (that would tear down the active modal / setup card / etc).
+function _refreshLiveChannelSurfaces() {
+  // Light & Sun page: replace the channels-section innerHTML in place
+  if (state.currentView === 'light' && window.renderLightChannelsLive) {
+    try { window.renderLightChannelsLive(); } catch (e) {}
+  }
+  // Dashboard: redraw the Light Today strip element only
+  if (state.currentView === 'dashboard' && window.renderLightTodayStrip) {
+    const strip = document.querySelector('.light-today-strip');
+    if (strip) {
+      const html = window.renderLightTodayStrip();
+      if (html) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        if (wrap.firstElementChild) strip.replaceWith(wrap.firstElementChild);
+      }
+    }
+  }
+}
+
+// Start the global ticker. Idempotent — safe to call from multiple places
+// (session start, session resume after page reload, etc.).
+function _ensureActiveTicker() {
+  if (_activeTicker) return;
+  // Tick once immediately to populate on first paint, then every second.
+  _tickActiveCards();
+  _activeTicker = setInterval(_tickActiveCards, 1000);
+}
+
+// Re-establish the ticker on page load if a session is already active. Wired
+// into _refreshSurfaces + module init so navigation never leaves us silent.
+function _resumeActiveTickerIfNeeded() {
+  if (getActiveSession()) _ensureActiveTicker();
 }
 
 // Resolve session coordinates from the user's profile, country fallback, or a
@@ -351,7 +798,12 @@ export function getSunCoords() {
     const lon = -((new Date().getTimezoneOffset() / 60) * 15);
     return { lat, lon, source: 'country-band' };
   }
-  // 3. Nothing available → can't hydrate without a location
+  // No country, no precise coords — return null. The previous tz-only
+  // fallback hardcoded lat=45 (NH temperate), which produces physically
+  // wrong UV math for southern-hemisphere users (Sydney/Tokyo via UTC+9-10
+  // mapped to lat 45° N → winter↔summer flipped). Callers (the strip,
+  // session start, etc.) already render "set country" CTAs when this
+  // returns null, so dropping the lying fallback is the honest move.
   return null;
 }
 
@@ -382,6 +834,21 @@ export async function requestPreciseLocation() {
   }
 }
 
+// Compact body-exposure summary for the session-list row. Detailed
+// (region-driven) sessions report region count, not the misleading
+// "Body unset" fallback that the bare preset-label lookup gives.
+function _summarizeBodyExposure(sess) {
+  const presetKey = sess?.bodyExposure?.preset;
+  const presetLabel = EXPOSURE_PRESETS.find(p => p.key === presetKey)?.label;
+  if (presetLabel) return presetLabel;
+  const regionCount = (sess?.bodyExposure?.regions || []).length;
+  if (regionCount > 0) {
+    const fractionPct = Math.round((sess.bodyExposure?.fraction || 0) * 100);
+    return `${regionCount} region${regionCount === 1 ? '' : 's'} (${fractionPct}%)`;
+  }
+  return 'Body unset';
+}
+
 // ─── UI: Sessions list (used by the dedicated Light & Sun page) ────────
 
 export function renderSessionsList() {
@@ -397,7 +864,10 @@ export function renderSessionsList() {
   let html = `<div class="sun-sessions-list">`;
   for (const sess of sessions) {
     const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
-    const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress';
+    const isActive = !sess.endedAt;
+    const dur = isActive
+      ? _formatElapsed(Date.now() - sess.startedAt)
+      : (sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress');
     const med = sess.safety?.medFraction;
     let medStr = '';
     if (med != null) {
@@ -406,24 +876,166 @@ export function renderSessionsList() {
       if (med >= 1) { label = 'over threshold'; cls = 'over'; }
       else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
       else if (med >= 0.3) { label = 'moderate'; cls = ''; }
-      medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose: ${pct}% of your personal threshold (Fitzpatrick ${sess.safety.fitzpatrick || 'III'})">Burn risk: ${label}</span>`;
+      medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose: ${pct}% of your personal threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn risk: ${escapeHTML(label)}</span>`;
     }
     const channelChips = renderChannelChips(sess.doses);
-    html += `<div class="sun-session" data-id="${escapeAttr(sess.id)}">
+    // Click anywhere on the card (except the × delete) to open the detail
+    // modal. Each delete button stops propagation so it only deletes.
+    html += `<div class="sun-session" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
       <div class="sun-session-head">
         <span class="sun-session-date">${start}</span>
-        <span class="sun-session-duration">${dur}</span>
+        <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
         ${medStr}
-        <button class="sun-session-delete" onclick="window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
+        <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
       </div>
       <div class="sun-session-meta">
-        ${escapeHTML(presetLabels[sess.bodyExposure?.preset] || 'Body unset')} · ${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
+        ${escapeHTML(_summarizeBodyExposure(sess))} · ${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
       </div>
       ${channelChips}
     </div>`;
   }
   html += `</div>`;
   return html;
+}
+
+// ─── UI: per-session detail modal ──────────────────────────────────────
+//
+// Click any saved session row to inspect: full duration, regions exposed,
+// eyewear + sunscreen + glass, atmosphere snapshot at session midpoint
+// (UVI / ozone / cloud), and per-channel dose breakdown with tier labels.
+export function openSunSessionDetail(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess) return;
+  const start = new Date(sess.startedAt);
+  const end = sess.endedAt ? new Date(sess.endedAt) : null;
+  const fmtTime = (d) => d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmtDate = (d) => d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '—';
+  const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress';
+
+  const presetLabels = Object.fromEntries(EXPOSURE_PRESETS.map(p => [p.key, p.label]));
+  const eyeLabels = Object.fromEntries(EYE_MODES.map(e => [e.key, e.label]));
+  const lensLabels = Object.fromEntries(LENS_TINTS.map(l => [l.key, l.label]));
+
+  // Body exposure summary
+  const regions = sess.bodyExposure?.regions || [];
+  const regionLabels = regions.length
+    ? regions.map(k => BODY_REGIONS.find(r => r.key === k)?.label || k).join(', ')
+    : (presetLabels[sess.bodyExposure?.preset] || 'Body unset');
+  const fractionPct = Math.round((sess.bodyExposure?.fraction || 0) * 100);
+
+  // Burn-risk
+  const med = sess.safety?.medFraction;
+  let medStr = '—';
+  if (med != null) {
+    const pct = Math.round(med * 100);
+    let label = 'safe';
+    if (med >= 1) label = 'over threshold';
+    else if (med >= 0.7) label = 'high';
+    else if (med >= 0.3) label = 'moderate';
+    medStr = `${pct}% — ${label}`;
+  }
+
+  // Per-channel breakdown
+  const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  const channelRows = sess.doses ? channelOrder.map(k => {
+    const meta = CHANNEL_DISPLAY[k] || {};
+    const v = sess.doses[k] || 0;
+    const t = channelTier(v, k);
+    const tlabel = tierLabel(t);
+    return `<div class="sun-detail-channel-row sun-chip-tier-${t}">
+      <span class="sun-detail-channel-icon">${meta.icon || '·'}</span>
+      <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
+      <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
+    </div>`;
+  }).join('') : '<p class="sun-detail-empty">No channel doses computed for this session yet.</p>';
+
+  // Atmosphere snapshot
+  const atm = sess.atmosphere;
+  let atmHtml = '';
+  if (atm) {
+    const uvi = atm.uvIndex != null ? Math.round(atm.uvIndex * 10) / 10 : '—';
+    const ozone = atm.ozoneDU != null ? Math.round(atm.ozoneDU) : '—';
+    const cloud = atm.cloudCover != null ? `${Math.round(atm.cloudCover)}%` : '—';
+    const aqPm25 = atm.airQuality?.pm25 != null ? Math.round(atm.airQuality.pm25) : '—';
+    atmHtml = `<div class="sun-detail-atm">
+      <div><span>UVI</span><strong>${uvi}</strong></div>
+      <div><span>Ozone</span><strong>${ozone} DU</strong></div>
+      <div><span>Cloud</span><strong>${cloud}</strong></div>
+      <div><span>PM2.5</span><strong>${aqPm25}</strong></div>
+      <div class="sun-detail-atm-source"><span>Source</span><strong>${escapeHTML(atm.source || 'unknown')}</strong></div>
+    </div>`;
+  }
+
+  // Location summary
+  const loc = sess.location;
+  const locStr = loc
+    ? `${loc.lat.toFixed(2)}°, ${loc.lon.toFixed(2)}° · ${escapeHTML(loc.source || 'unknown')}`
+    : 'Location not recorded';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.innerHTML = `<div class="modal sun-detail-modal" role="dialog" aria-label="Sun session details">
+    <div class="modal-header">
+      <h3>Sun session — ${escapeHTML(fmtDate(start))}</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="sun-detail-grid">
+        <div><span>Started</span><strong>${escapeHTML(fmtTime(start))}</strong></div>
+        <div><span>Ended</span><strong>${escapeHTML(end ? fmtTime(end) : '—')}</strong></div>
+        <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
+        <div><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
+      </div>
+
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Body exposed (${fractionPct}% of skin)</div>
+        <div class="sun-detail-section-value">${escapeHTML(regionLabels)}</div>
+      </div>
+
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Eyes</div>
+        <div class="sun-detail-section-value">${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Unset')}${sess.eyeExposure?.lensTint && sess.eyeExposure.lensTint !== 'clear' ? ` · ${escapeHTML(lensLabels[sess.eyeExposure.lensTint] || '')}` : ''}</div>
+      </div>
+
+      ${sess.bodyExposure?.glassBetween || sess.bodyExposure?.sunscreenSPF ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Modifiers</div>
+          <div class="sun-detail-section-value">${sess.bodyExposure?.glassBetween ? 'Behind glass' : ''}${sess.bodyExposure?.glassBetween && sess.bodyExposure?.sunscreenSPF ? ' · ' : ''}${sess.bodyExposure?.sunscreenSPF ? `SPF ${sess.bodyExposure.sunscreenSPF}` : ''}</div>
+        </div>
+      ` : ''}
+
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Channels</div>
+        <div class="sun-detail-channels">${channelRows}</div>
+      </div>
+
+      ${atmHtml ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Atmosphere at session midpoint</div>
+          ${atmHtml}
+        </div>
+      ` : ''}
+
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Location</div>
+        <div class="sun-detail-section-value">${locStr}</div>
+      </div>
+
+      ${sess.notes ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Notes</div>
+          <div class="sun-detail-section-value">${escapeHTML(sess.notes)}</div>
+        </div>
+      ` : ''}
+
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        <button class="import-btn" style="color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteSunSession('${escapeAttr(sess.id)}')">Delete</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  trapModalFocus(overlay);
 }
 
 function renderChannelChips(doses) {
@@ -464,6 +1076,257 @@ function renderChannelChips(doses) {
   return html;
 }
 
+// ─── Body silhouette picker ────────────────────────────────────────────
+//
+// Two-view (front + back) anatomical silhouette with tappable regions.
+// Selects between male and female outlines based on profile.sex (nominal —
+// users can pick whichever they identify with via Settings → Profile).
+//
+// The viewBox is 200×200 split into two 100×200 columns: front view on
+// the left, back view on the right. Each anatomical region is rendered
+// as a transparent <path> with a `data-region` attribute matching a key
+// in BODY_REGIONS. The path receives a fill when selected.
+
+// Resolve the active profile's sex; defaults to 'male' if unset so we
+// don't render an empty picker for first-time users.
+function _activeProfileSex() {
+  try {
+    const id = (typeof window !== 'undefined' && window.getActiveProfileId) ? window.getActiveProfileId() : null;
+    if (!id) return 'male';
+    const profiles = (typeof window !== 'undefined' && window.getProfiles) ? window.getProfiles() : [];
+    const p = profiles.find(p => p.id === id);
+    const s = (p?.sex || '').toString().toLowerCase();
+    if (s.startsWith('f')) return 'female';
+    return 'male';
+  } catch (e) {
+    return 'male';
+  }
+}
+
+// Path geometry — anatomically grouped tap targets. Each entry returns the
+// SVG `d=` for that region. Coordinates are within a 100×200 viewBox.
+// Region paths are NOT filled by default; the silhouette body provides the
+// visual outline, regions only color when selected.
+//
+// Front and back arms / legs use the same SVG geometry but are mapped to
+// distinct keys (arms-front vs arms-back, legs-front vs legs-back) so the
+// two silhouette views can be toggled independently — clicking front-legs
+// no longer also selects the back of the legs.
+function _silhouetteRegionPaths(sex) {
+  const female = sex === 'female';
+  const armsPath = 'M 14 32 q 5 -2 8 0 q 3 1 3 5 v 30 q 0 5 -4 6 q -4 1 -7 -2 q -3 -3 -3 -8 v -25 q 0 -4 3 -6 z M 86 32 q -5 -2 -8 0 q -3 1 -3 5 v 30 q 0 5 4 6 q 4 1 7 -2 q 3 -3 3 -8 v -25 q 0 -4 -3 -6 z';
+  const legsPath = 'M 34 100 q 6 -2 12 0 q 2 1 2 4 v 50 q 0 5 -3 7 q -8 2 -10 0 q -3 -2 -3 -7 v -50 q 0 -3 2 -4 z M 52 100 q 6 -2 12 0 q 2 1 2 4 v 50 q 0 5 -3 7 q -8 2 -10 0 q -3 -2 -3 -7 v -50 q 0 -3 2 -4 z';
+
+  const front = {
+    'face':           'M 42 10 q 8 -8 16 0 q 4 5 0 12 q -8 8 -16 0 q -4 -7 0 -12 z',
+    'thyroid-throat': 'M 45 24 q 5 -2 10 0 v 4 q -5 2 -10 0 z',
+    'breast-chest':   female
+      ? 'M 33 32 q 7 -2 17 4 q 10 -6 17 -4 q 5 1 5 5 q -1 8 -10 12 q -7 1 -12 -5 q -5 6 -12 5 q -9 -4 -10 -12 q 0 -4 5 -5 z'
+      : 'M 33 32 q 7 -2 17 0 q 10 -2 17 0 q 5 1 5 5 v 8 q 0 4 -5 5 q -7 1 -17 0 q -10 1 -17 0 q -5 -1 -5 -5 v -8 q 0 -4 5 -5 z',
+    'arms-front':     armsPath,
+    'torso-front':    female
+      ? 'M 36 48 q 14 -2 28 0 q 4 1 4 5 v 14 q 0 5 -3 7 q -11 4 -15 4 q -4 0 -15 -4 q -3 -2 -3 -7 v -14 q 0 -4 4 -5 z'
+      : 'M 36 48 q 14 -2 28 0 q 4 1 4 5 v 18 q 0 4 -4 5 q -14 2 -28 0 q -4 -1 -4 -5 v -18 q 0 -4 4 -5 z',
+    'abdomen':        female
+      ? 'M 38 72 q 12 -2 24 0 q 4 1 4 4 v 8 q 0 3 -3 5 q -9 3 -13 3 q -4 0 -13 -3 q -3 -2 -3 -5 v -8 q 0 -3 4 -4 z'
+      : 'M 38 72 q 12 -2 24 0 q 4 1 4 4 v 10 q 0 3 -4 4 q -12 2 -24 0 q -4 -1 -4 -4 v -10 q 0 -3 4 -4 z',
+    'genitals':       female
+      ? 'M 45 90 q 5 -2 10 0 q 2 1 2 3 v 4 q 0 2 -2 3 q -5 2 -10 0 q -2 -1 -2 -3 v -4 q 0 -2 2 -3 z'
+      : 'M 45 90 q 5 -2 10 0 q 2 1 2 3 v 5 q 0 2 -2 3 q -5 2 -10 0 q -2 -1 -2 -3 v -5 q 0 -2 2 -3 z',
+    'legs-front':     legsPath,
+  };
+  const back = {
+    'arms-back':     armsPath,
+    'torso-back':    female
+      ? 'M 36 32 q 14 -2 28 0 q 4 1 4 5 v 32 q 0 5 -4 7 q -14 4 -28 0 q -4 -2 -4 -7 v -32 q 0 -4 4 -5 z'
+      : 'M 36 32 q 14 -2 28 0 q 4 1 4 5 v 36 q 0 4 -4 5 q -14 2 -28 0 q -4 -1 -4 -5 v -36 q 0 -4 4 -5 z',
+    'glutes':        female
+      ? 'M 32 76 q 18 -3 36 0 q 4 1 4 5 v 12 q 0 4 -4 6 q -18 4 -36 0 q -4 -2 -4 -6 v -12 q 0 -4 4 -5 z'
+      : 'M 34 76 q 16 -2 32 0 q 4 1 4 5 v 10 q 0 4 -4 5 q -16 2 -32 0 q -4 -1 -4 -5 v -10 q 0 -4 4 -5 z',
+    'legs-back':     legsPath,
+    'soles-of-feet': 'M 34 162 q 6 -2 12 0 q 2 1 2 4 v 5 q 0 2 -2 3 q -6 2 -12 0 q -2 -1 -2 -3 v -5 q 0 -3 2 -4 z M 52 162 q 6 -2 12 0 q 2 1 2 4 v 5 q 0 2 -2 3 q -6 2 -12 0 q -2 -1 -2 -3 v -5 q 0 -3 2 -4 z',
+  };
+  return { front, back };
+}
+
+// Outline path for the silhouette body itself (drawn beneath the region
+// overlays for visual reference). Hand-tuned anatomical proportions —
+// male: V-shaped torso, narrow hips, broader shoulders; female: hourglass
+// torso, narrow waist, wider hips, visible bust.
+function _silhouetteBody(sex) {
+  if (sex === 'female') {
+    // Female: shoulders 32px, bust 36 with curve, waist 26, hips 36, legs taper to 14
+    const front = [
+      'M 50 4',                              // top of head
+      'c -5 0 -8 4 -8 9',                    // left top of head
+      'c 0 4 2 7 4 9',                       // chin curve
+      'c -1 1 -2 2 -2 4',                    // neck
+      'v 2',                                 // neck height
+      'c -2 1 -7 2 -10 5',                   // shoulder slope down-out
+      'c -3 2 -4 4 -4 7',                    // upper arm taper
+      'v 4',
+      'c 1 4 5 6 8 7',                       // bust curve in
+      'c -1 4 -2 8 -2 12',                   // ribcage to waist
+      'v 6',
+      'c 0 3 1 5 1 7',                       // waist
+      'c 1 4 4 6 8 7',                       // waist-to-hip flare
+      'v 8',
+      'c 0 4 -1 7 -3 10',                    // hip outer curve
+      'v 4',
+      'c 1 4 3 8 3 12',                      // thigh start
+      'v 60',
+      'c 0 3 2 5 4 5',                       // knee/calf
+      'h 7',
+      'c 2 0 3 -2 3 -5',
+      'v -55',
+      'c 0 -3 1 -5 2 -7',
+      'v -3',
+      'c 1 2 2 4 2 7',
+      'v 55',
+      'c 0 3 1 5 3 5',
+      'h 7',
+      'c 2 0 4 -2 4 -5',
+      'v -60',
+      'c 0 -4 2 -8 3 -12',
+      'v -4',
+      'c -2 -3 -3 -6 -3 -10',
+      'v -8',
+      'c 4 -1 7 -3 8 -7',
+      'c 0 -2 1 -4 1 -7',
+      'v -6',
+      'c 0 -4 -1 -8 -2 -12',
+      'c 3 -1 7 -3 8 -7',
+      'v -4',
+      'c 0 -3 -1 -5 -4 -7',
+      'c -3 -3 -8 -4 -10 -5',
+      'v -2',
+      'c 0 -2 -1 -3 -2 -4',
+      'c 2 -2 4 -5 4 -9',
+      'c 0 -5 -3 -9 -8 -9',
+      'z',
+    ].join(' ');
+    return { front };
+  }
+  // Male: square shoulders, narrow waist+hips, more rectangular torso
+  const front = [
+    'M 50 4',
+    'c -5 0 -9 4 -9 9',                      // top head
+    'c 0 4 2 8 4 10',                        // chin
+    'c -1 1 -1 2 -1 3',                      // neck
+    'v 2',
+    'c -3 1 -10 3 -14 7',                    // wide shoulders
+    'c -2 2 -3 4 -3 7',
+    'v 8',                                   // upper torso
+    'c 0 3 1 5 4 6',
+    'v 4',
+    'c -1 2 -1 4 -1 6',                      // ribcage
+    'v 8',
+    'c 0 3 1 5 2 7',                         // waist (narrower than shoulders)
+    'v 4',                                   // hips (slim)
+    'c -1 3 -2 6 -2 9',
+    'v 60',
+    'c 0 3 2 5 4 5',
+    'h 9',
+    'c 2 0 4 -2 4 -5',
+    'v -55',
+    'c 0 -3 1 -5 2 -7',
+    'v -3',
+    'c 1 2 2 4 2 7',
+    'v 55',
+    'c 0 3 1 5 3 5',
+    'h 9',
+    'c 2 0 4 -2 4 -5',
+    'v -60',
+    'c 0 -3 -1 -6 -2 -9',
+    'v -4',
+    'c 1 -2 2 -4 2 -7',
+    'v -8',
+    'c 0 -2 0 -4 -1 -6',
+    'v -4',
+    'c 3 -1 4 -3 4 -6',
+    'v -8',
+    'c 0 -3 -1 -5 -3 -7',
+    'c -4 -4 -11 -6 -14 -7',
+    'v -2',
+    'c 0 -1 0 -2 -1 -3',
+    'c 2 -2 4 -6 4 -10',
+    'c 0 -5 -4 -9 -9 -9',
+    'z',
+  ].join(' ');
+  return { front };
+}
+
+// Render the two-view silhouette picker as an SVG. `selected` is a Set
+// of region keys; each region's path fills with the accent color when
+// selected. Visual style: clean stroke-only line drawing, no fills, modern
+// minimalist line-art rather than the filled-blob look.
+export function renderBodySilhouette(selected, opts = {}) {
+  const sex = opts.sex || _activeProfileSex();
+  const { front, back } = _silhouetteRegionPaths(sex);
+  const outline = _silhouetteBody(sex).front;
+
+  const renderRegion = (regions, viewKey) =>
+    Object.entries(regions).map(([region, d]) => {
+      const isSel = selected.has(region);
+      const label = (BODY_REGIONS.find(r => r.key === region)?.label) || region;
+      const cls = `sun-silhouette-region${isSel ? ' selected' : ''}`;
+      // role="button" + tabindex make each region focusable; aria-pressed
+      // lets SR users hear toggled state. Enter/Space wired in bindBodySilhouette.
+      return `<path d="${d}" data-region="${region}" data-view="${viewKey}" class="${cls}" role="button" tabindex="0" aria-pressed="${isSel}" aria-label="${escapeAttr(label + ' (' + viewKey + ')')}"><title>${label}${isSel ? ' (selected)' : ''}</title></path>`;
+    }).join('');
+
+  // Two columns: front 0–100, back 100–200 (translated). Outline rendered
+  // first as a stroke-only line drawing; region tap-targets layered on top
+  // — they're invisible until selected, when they fill with accent.
+  // Front/Back text labels marked aria-hidden — SR users get the same info
+  // via each region's aria-label ("Face (front)") so the visual labels
+  // would just add noise.
+  return `<svg viewBox="0 0 200 210" class="sun-silhouette" role="group" aria-label="Body region picker — tap or press Enter on each region you want to toggle">
+    <g class="sun-silhouette-view sun-silhouette-front">
+      <path d="${outline}" class="sun-silhouette-outline"/>
+      ${renderRegion(front, 'front')}
+      <text x="50" y="205" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Front</text>
+    </g>
+    <g class="sun-silhouette-view sun-silhouette-back" transform="translate(100 0)">
+      <path d="${outline}" class="sun-silhouette-outline"/>
+      ${renderRegion(back, 'back')}
+      <text x="50" y="205" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Back</text>
+    </g>
+  </svg>`;
+}
+
+// Bind silhouette tap + keyboard handlers — call once after inserting the
+// SVG into the DOM. `onChange(selected)` fires after each toggle so the
+// caller can re-render or update derived UI (e.g. exposure-fraction readout).
+//
+// Keyboard: each region has tabindex=0; Enter / Space toggle selection.
+// Re-render preserves focus on the toggled region so SR users hear the
+// new aria-pressed state without losing their place.
+export function bindBodySilhouette(rootEl, selected, onChange) {
+  const toggle = (regionKey, focusAfter) => {
+    if (!regionKey) return;
+    if (selected.has(regionKey)) selected.delete(regionKey); else selected.add(regionKey);
+    rootEl.innerHTML = renderBodySilhouette(selected);
+    if (focusAfter) {
+      const next = rootEl.querySelector(`[data-region="${CSS.escape(regionKey)}"][data-view="${CSS.escape(focusAfter)}"]`);
+      if (next) try { next.focus(); } catch (e) {}
+    }
+    if (onChange) onChange(selected);
+  };
+  rootEl.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-region]');
+    if (!t) return;
+    toggle(t.dataset.region, t.dataset.view);
+  });
+  rootEl.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const t = e.target.closest('[data-region]');
+    if (!t) return;
+    e.preventDefault(); // Space scrolling, Enter form-submit
+    toggle(t.dataset.region, t.dataset.view);
+  });
+}
+
 // ─── UI: detailed session log (anatomical regions + sunscreen + glass) ─
 
 export function openDetailedSessionDialog() {
@@ -472,6 +1335,15 @@ export function openDetailedSessionDialog() {
   const lastUsed = getSessions().filter(s => s.endedAt).slice(-1)[0];
   const eyeMode = lastUsed?.eyeExposure?.mode || 'direct';
   const lensTint = lastUsed?.eyeExposure?.lensTint || 'clear';
+  const lastRegions = new Set(lastUsed?.bodyExposure?.regions || []);
+
+  // Default the "Ended at" picker to now so quick "log the session that just
+  // ended" stays one-click. Users backfilling earlier sessions can pick any
+  // moment up to the present. <input type="datetime-local"> needs a local-tz
+  // string; build it manually so we don't rely on the browser's locale guess.
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const localNow = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
   // Region picker as a checkable chip grid — clearer than a tap-target SVG
   // silhouette per the v1.7.0a UX review. Each chip shows the region label
@@ -483,19 +1355,28 @@ export function openDetailedSessionDialog() {
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">For sessions that already happened. Tap each body region that was uncovered. Defaults match your last session.</p>
+      <p class="modal-body-hint">For sessions that already happened. Tap each body region that was uncovered.${lastUsed ? ' Body regions, eyewear, and lens tint default to your last session.' : ''}</p>
 
       <label class="ctx-label">Body regions exposed</label>
-      <div class="sun-region-chips" id="sun-region-chips">
-        ${BODY_REGIONS.map(r => `<button type="button" class="sun-region-chip" data-region="${escapeAttr(r.key)}">${escapeHTML(r.label)}</button>`).join('')}
-      </div>
+      <div class="sun-silhouette-wrap" id="sun-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
+      <div class="sun-silhouette-hint" id="sun-silhouette-hint">Tap any body region to toggle whether it was uncovered.</div>
 
       <div class="sun-detailed-row">
+        <label class="ctx-label">Ended at
+          <input type="datetime-local" id="det-ended-at" class="ctx-input" value="${escapeAttr(localNow)}" max="${escapeAttr(localNow)}" />
+        </label>
         <label class="ctx-label">Duration (min)
           <input type="number" id="det-duration" class="ctx-input" min="1" max="240" value="15" />
         </label>
+      </div>
+
+      <div class="sun-detailed-row">
         <label class="ctx-label">Sunscreen SPF
           <input type="number" id="det-spf" class="ctx-input" min="0" max="100" placeholder="none" />
+        </label>
+        <label class="ctx-label sun-detailed-glass" style="margin-top:24px">
+          <input type="checkbox" id="det-glass" />
+          Behind glass (window / car / sunroom)
         </label>
       </div>
 
@@ -512,11 +1393,6 @@ export function openDetailedSessionDialog() {
         </label>
       </div>
 
-      <label class="ctx-label sun-detailed-glass">
-        <input type="checkbox" id="det-glass" />
-        Glass between me and the sun (window, windshield, sunroom)
-      </label>
-
       <label class="ctx-label">Notes
         <textarea id="det-notes" class="ctx-input" rows="2" placeholder="Optional"></textarea>
       </label>
@@ -528,16 +1404,26 @@ export function openDetailedSessionDialog() {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  trapModalFocus(overlay);
 
-  const selected = new Set();
-  const chipsRoot = overlay.querySelector('#sun-region-chips');
-  chipsRoot.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-region]');
-    if (!btn) return;
-    const k = btn.dataset.region;
-    if (selected.has(k)) { selected.delete(k); btn.classList.remove('selected'); }
-    else { selected.add(k); btn.classList.add('selected'); }
-  });
+  const selected = new Set(lastRegions);
+  const slot = overlay.querySelector('#sun-silhouette-slot');
+  const hint = overlay.querySelector('#sun-silhouette-hint');
+  const updateHint = () => {
+    if (!hint) return;
+    const fraction = Array.from(selected).reduce((sum, key) => {
+      const r = BODY_REGIONS.find(b => b.key === key);
+      return sum + (r?.fraction || 0);
+    }, 0);
+    if (selected.size === 0) {
+      hint.textContent = 'Tap any body region to toggle whether it was uncovered.';
+    } else {
+      const labels = Array.from(selected).map(k => BODY_REGIONS.find(b => b.key === k)?.label || k).join(', ');
+      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
+    }
+  };
+  bindBodySilhouette(slot, selected, updateHint);
+  updateHint();
 
   overlay.querySelector('#det-save').addEventListener('click', async () => {
     const durationMin = parseInt(overlay.querySelector('#det-duration').value, 10) || 15;
@@ -547,6 +1433,11 @@ export function openDetailedSessionDialog() {
     const glass = overlay.querySelector('#det-glass').checked;
     const notes = overlay.querySelector('#det-notes').value || '';
 
+    // Resolve "Ended at" — falls back to now if the user cleared the field.
+    const endedAtRaw = overlay.querySelector('#det-ended-at').value;
+    const endedMs = endedAtRaw ? new Date(endedAtRaw).getTime() : Date.now();
+    const endedAt = Number.isFinite(endedMs) ? Math.min(endedMs, Date.now()) : Date.now();
+
     // Compute exposure fraction from selected regions
     const regions = Array.from(selected);
     const fraction = regions.reduce((sum, key) => {
@@ -554,10 +1445,10 @@ export function openDetailedSessionDialog() {
       return sum + (r?.fraction || 0);
     }, 0);
 
-    const start = Date.now() - durationMin * 60 * 1000;
+    const start = endedAt - durationMin * 60 * 1000;
     const sessId = await logCompletedSession({
       startedAt: start,
-      endedAt: Date.now(),
+      endedAt,
       bodyExposure: { preset: regions.length === 0 ? 'face_hands' : 'detailed', fraction: Math.max(0.05, fraction), regions, sunscreenSPF: spf, glassBetween: glass },
       eyeExposure: { mode: eyeModeVal, lensTint: lensTintVal, durationSec: durationMin * 60 },
       notes,
@@ -595,6 +1486,13 @@ if (typeof window !== 'undefined') {
     getSunCoords,
     requestPreciseLocation,
     openDetailedSessionDialog,
+    openStartSunSessionDialog,
+    openSunSessionDetail,
+    renderBodySilhouette,
+    bindBodySilhouette,
+    trapModalFocus,
+    _resumeActiveTickerIfNeeded,
+    _ensureActiveTicker,
     BODY_REGIONS,
     EXPOSURE_PRESETS,
     EYE_MODES,

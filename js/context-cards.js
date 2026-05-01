@@ -806,14 +806,7 @@ export function openLightCircadianEditor() {
     ${renderSelectField('Morning light', 'light-am', LIGHT_AM, current.amLight)}
     ${renderSelectField('Daytime outdoor exposure', 'light-daytime', LIGHT_DAYTIME, current.daytime)}
     ${renderSelectField('UV / sun exposure', 'light-uv', LIGHT_UV, current.uvExposure)}
-    <div class="ctx-field-group"><label class="ctx-field-label">Skin type</label>
-      <div class="ctx-skin-slider-wrap">
-        <div class="ctx-skin-emojis">${['\uD83E\uDDD1\uD83C\uDFFB','\uD83E\uDDD1\uD83C\uDFFC','\uD83E\uDDD1\uD83C\uDFFD','\uD83E\uDDD1\uD83C\uDFFE','\uD83E\uDDD1\uD83C\uDFFF','\uD83E\uDDD1\uD83C\uDFFF'].map((e, i) => `<span class="ctx-skin-face${current.skinType === SKIN_TYPE[i] ? ' active' : ''}" data-idx="${i}">${e}</span>`).join('')}</div>
-        <input type="range" min="0" max="5" value="${current.skinType ? SKIN_TYPE.indexOf(current.skinType) : -1}" class="ctx-skin-range" id="light-skin-range" oninput="updateSkinSlider(this.value)">
-        <div class="ctx-skin-label" id="light-skin-label">${current.skinType ? escapeHTML(current.skinType) : 'Not set'}</div>
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Affects vitamin D synthesis and UV tolerance.</div>
-    </div>
+    ${renderLightSetupMirror(current)}
     ${renderTagsField('Evening light discipline', 'light-evening', LIGHT_EVENING, current.evening)}
     <div class="ctx-editor-divider"></div>
     ${renderSelectField('Daily screen time', 'light-screen', LIGHT_SCREEN_TIME, current.screenTime)}
@@ -828,21 +821,66 @@ export function openLightCircadianEditor() {
   overlay.classList.add("show");
 }
 
-function updateSkinSlider(val) {
-  const idx = parseInt(val);
-  const faces = document.querySelectorAll('.ctx-skin-face');
-  faces.forEach((f, i) => f.classList.toggle('active', i === idx));
-  const label = document.getElementById('light-skin-label');
-  if (label) label.textContent = idx >= 0 && idx < SKIN_TYPE.length ? SKIN_TYPE[idx] : 'Not set';
+// Render a compact read-only summary of the user's Light lens setup —
+// skin type, home lighting, eyewear, and indoor/outdoor lifestyle. The
+// Light setup card is the single source of truth; this just surfaces what
+// the AI already knows about light from those answers and links over for
+// edits. Matches the design pattern of Settings → linked external editors.
+function renderLightSetupMirror(current) {
+  const sd = state.importedData?.sunDefaults || null;
+  const skin = current.skinType || (sd?.fitzpatrick ? `${sd.fitzpatrick}` : null);
+
+  // Resolve the human-readable home-lighting + eyewear labels by reading
+  // window-exposed metadata so we don't pull in the sun-defaults import
+  // (would create a circular dep with this file's many other consumers).
+  const homeLightOptions = (typeof window !== 'undefined' && window._sunHomeLightOptions) || [];
+  const eyewearOptions = (typeof window !== 'undefined' && window._sunEyewearOptions) || [];
+  const homeMeta = homeLightOptions.find(o => o.key === sd?.homeLight);
+  const eyewearMeta = eyewearOptions.find(o => o.key === sd?.eyewear);
+
+  let ottBadge = '';
+  if (sd && typeof sd.ottScore === 'number' && typeof window.ottScoreToLabel === 'function') {
+    const { label, tier } = window.ottScoreToLabel(sd.ottScore);
+    ottBadge = `<span class="light-ott-badge light-ott-tier-${tier}">${escapeHTML(label)}</span>`;
+  } else if (sd?.skipped) {
+    ottBadge = `<span class="light-ott-badge">skipped</span>`;
+  }
+
+  const hasAny = !!(skin || sd?.homeLight || sd?.eyewear || ottBadge);
+
+  if (!hasAny) {
+    return `<div class="ctx-field-group ctx-lightsetup-mirror">
+      <label class="ctx-field-label">Light lens setup</label>
+      <div class="ctx-lightsetup-empty">
+        <span>Not set yet — covers skin type, home lighting, eyewear, and indoor/outdoor lifestyle.</span>
+        <button type="button" class="ctx-lightsetup-edit" onclick="closeModal();window.navigate&&window.navigate('light');setTimeout(()=>window.reopenSunSetup&&window.reopenSunSetup(),200);">Set up Light lens →</button>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="ctx-field-group ctx-lightsetup-mirror">
+    <div class="ctx-lightsetup-head">
+      <label class="ctx-field-label" style="margin:0">Light lens setup</label>
+      <button type="button" class="ctx-lightsetup-edit" onclick="closeModal();window.navigate&&window.navigate('light');setTimeout(()=>window.reopenSunSetup&&window.reopenSunSetup(),200);">Edit →</button>
+    </div>
+    <div class="ctx-lightsetup-grid">
+      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Skin type</span><span class="ctx-lightsetup-value">${skin ? escapeHTML(skin) : '—'}</span></div>
+      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Home lighting</span><span class="ctx-lightsetup-value">${escapeHTML(homeMeta?.label || sd?.homeLight || '—')}</span></div>
+      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Eyewear outside</span><span class="ctx-lightsetup-value">${escapeHTML(eyewearMeta?.label || sd?.eyewear || '—')}</span></div>
+      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Light lifestyle</span><span class="ctx-lightsetup-value">${ottBadge || '—'}</span></div>
+    </div>
+    <div class="ctx-lightsetup-hint">Skin type drives UV tolerance and vitamin D math. Home lighting + eyewear shape your indoor light dose. Lifestyle frames the AI's interpretation everywhere.</div>
+  </div>`;
 }
 
 export function saveLightCircadian() {
   const amLight = getSelectedOption('light-am');
   const daytime = getSelectedOption('light-daytime');
   const uvExposure = getSelectedOption('light-uv');
-  const skinRangeEl = document.getElementById('light-skin-range');
-  const skinIdx = skinRangeEl ? parseInt(skinRangeEl.value) : -1;
-  const skinType = skinIdx >= 0 && skinIdx < SKIN_TYPE.length ? SKIN_TYPE[skinIdx] : null;
+  // Skin type is no longer editable here — it's owned by the Light setup card
+  // and mirrored to lightCircadian.skinType by sun-defaults.js. Preserve
+  // whatever value is currently saved so this editor doesn't overwrite it.
+  const skinType = state.importedData.lightCircadian?.skinType || null;
   const evening = getSelectedTags('light-evening');
   const screenTime = getSelectedOption('light-screen');
   const techEnv = getSelectedTags('light-tech');
@@ -1621,5 +1659,4 @@ Object.assign(window, {
   showDietContaminantsModal,
   openCardTipsModal,
   loadContextCardTips,
-  updateSkinSlider,
 });

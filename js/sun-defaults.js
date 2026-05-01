@@ -1,10 +1,11 @@
-// sun-defaults.js — Light lens onboarding: 4 setup questions + Ott
-// malillumination 10-question pre-test. Persists to importedData.sunDefaults.
+// sun-defaults.js — Light lens onboarding: 4 setup questions + a 10-item
+// indoor-light burden audit grounded in current photobiology. Persists to
+// importedData.sunDefaults.
 //
 // These are the user's baseline — Fitzpatrick skin type for MED scaling,
 // indoor light environment for the deficit-axis derivation, eyewear pattern
-// for eye-channel gating, and a malillumination score that frames their
-// starting point for the AI.
+// for eye-channel gating, and a burden score (0–10) that frames their
+// starting circadian/UV alignment for the AI.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
@@ -43,6 +44,18 @@ export const FITZPATRICK_OPTIONS = [
   { key: 'VI',  label: 'VI — never burns (deeply pigmented)' },
 ];
 
+// Short burn/tan descriptors used as the sub-line under the active label.
+// Pulled from the Fitzpatrick options above with the parenthetical body
+// trimmed off — keeps the descriptor punchy.
+const FITZPATRICK_DESCRIPTOR = [
+  'always burns, never tans',
+  'usually burns, tans minimally',
+  'sometimes burns, tans gradually',
+  'rarely burns, tans easily',
+  'very rarely burns, tans deeply',
+  'never burns, deeply pigmented',
+];
+
 export const HOME_LIGHT_OPTIONS = [
   { key: 'led-cool',     label: 'Mostly LED — cool/daylight (4000K+)' },
   { key: 'led-warm',     label: 'Mostly LED — warm white (2700–3000K)' },
@@ -62,21 +75,43 @@ export const EYEWEAR_OPTIONS = [
   { key: 'contacts-uv',   label: 'Contacts with UV block' },
 ];
 
-// ─── Ott malillumination pre-test ─────────────────────────────────────
-// 10 yes/no questions. Each "yes" adds 1 to the score (0–10 scale).
-// Higher = more malilluminated. Frames the user's baseline for the AI.
-
+// ─── Indoor-light burden audit ────────────────────────────────────────
+// 10 yes/no questions grounded in current photobiology and circadian
+// research. Each "yes" represents a known light-environment gap and adds
+// 1 to the burden score (0–10 scale, higher = more indoor / disrupted).
+//
+// References for each question are inline so the rationale is auditable:
+//   1. Morning light: Brown et al. 2022 (CIE recommendations); Münch et al.
+//      JCEM 2017 — within ~1hr of waking, >100 lux outdoor entrains the SCN.
+//   2. Glass-mediated day: Hattar 2002 (ipRGC) + window glass blocks UVB
+//      almost entirely → no vit-D synthesis, no skin α-MSH, no NO release.
+//   3. Workspace lux: WELL Building / IES TM-30 — daytime workspace >300
+//      melanopic-EDI (≈500 lux at eye) for proper circadian drive.
+//   4. Cool LED at night: Spitschan & Cajochen — high-CCT light suppresses
+//      melatonin even at modest intensities.
+//   5. Evening screens: Chang et al. AJCN 2015 — backlit screen reading
+//      delays melatonin onset by ~90min.
+//   6. Bright overhead lights post-sunset: Cajochen — peri-sleep ambient
+//      light shifts circadian phase.
+//   7. ANY light during sleep: Cain et al. JCSM 2020 — even <5 lux at the
+//      pillow degrades insulin sensitivity overnight.
+//   8. Sunscreen blocking UVB: Holick — chemical sunscreens >SPF8 block
+//      the wavelengths required for vit-D synthesis on bare skin.
+//   9. Sunglasses outdoors: Lambert / Hattar — eye-mediated α-MSH and the
+//      pupillary-light reflex modulate skin/mood/hormone responses.
+//  10. Total outdoor time: Stein et al. — <30min/day outdoor correlates
+//      with myopia, low vit D, blunted circadian amplitude.
 export const OTT_QUESTIONS = [
-  { key: 'desk_job',       text: 'Do you work indoors at a desk most weekdays?' },
-  { key: 'urban',          text: 'Do you live in a city / suburb (not rural / not high-altitude)?' },
-  { key: 'commute_car',    text: 'Do you commute mostly by car or other glass-enclosed transport?' },
-  { key: 'sunglasses_freq', text: 'Do you wear sunglasses outdoors more often than not?' },
-  { key: 'sunscreen_freq', text: 'Do you apply sunscreen on most sun-exposed days?' },
-  { key: 'glass_only',     text: 'Do you spend most "outdoor" time behind windows (sunroom, office glass)?' },
-  { key: 'led_only_home',  text: 'Are most lights in your home LED or fluorescent (not incandescent / candle)?' },
-  { key: 'screens_evening', text: 'Do you use bright screens (phone, TV) in the 2 hours before bed?' },
-  { key: 'curtains_open_dawn', text: 'Are your bedroom curtains usually CLOSED when you wake up?' },
-  { key: 'no_morning_outdoor', text: 'Do you typically NOT get any outdoor light in the first 2 hours after waking?' },
+  { key: 'morning-light-deficit',    text: 'Do you get less than 5 minutes of outdoor daylight within an hour of waking?' },
+  { key: 'glass-mediated-daytime',   text: 'Do you spend most of your daytime hours behind window glass (office, home, car)?' },
+  { key: 'dim-workspace',            text: 'Is your daytime workspace below office-bright (under ~500 lux at eye-level)?' },
+  { key: 'cool-led-evening',         text: 'Are most of your indoor lights after sunset cool / daylight-white (4000K+)?' },
+  { key: 'evening-screens',          text: 'Do you regularly use bright screens (phone, laptop, TV) in the 2 hours before bed?' },
+  { key: 'bright-after-sunset',      text: 'Do you keep overhead room lights on at full brightness after sunset?' },
+  { key: 'sleep-not-dark',           text: 'Is your bedroom not fully dark while you sleep (LED indicators, streetlight, partner\'s screen)?' },
+  { key: 'sunscreen-blocks-uvb',     text: 'Do you apply sunscreen on most sun-exposed days, including brief outdoor time?' },
+  { key: 'sunglasses-outside',       text: 'Do you wear sunglasses outdoors more often than not?' },
+  { key: 'low-outdoor-time',         text: 'Is your total outdoor time under 30 minutes on a typical day?' },
 ];
 
 // ─── Public API ────────────────────────────────────────────────────────
@@ -98,7 +133,7 @@ export function isOnboardingComplete() {
   return d && d.fitzpatrick && d.completedAt;
 }
 
-// ─── UI: setup card (4 questions + Ott pre-test) ──────────────────────
+// ─── UI: setup card (4 questions + indoor-light burden audit) ────────
 
 // Session-level flag — when set, the editor renders even if onboarding
 // was already completed. Cleared after a save / dismiss / cancel so the
@@ -115,48 +150,124 @@ function cancelReopenSunSetup() {
   if (window.navigate) window.navigate('light');
 }
 
-// Map an Ott malillumination score (0-10, higher = more indoor) to a
-// qualitative label + tier index for color coding. 0 = ideal outdoor life,
-// 10 = no natural light at all.
+// Map an indoor-light burden score (0-10, higher = more indoor) to a
+// qualitative label + tier index for color coding. 0 = well-aligned light
+// environment, 10 = severe burden across all 10 audit signals.
+//
+// Function name kept for backward-compat — call sites can still use
+// ottScoreToLabel() during the transition; alias `lightBurdenToLabel`
+// is the modern name and they share an implementation.
 export function ottScoreToLabel(score) {
   if (typeof score !== 'number') return { label: '—', tier: 0 };
-  if (score <= 2) return { label: 'mostly outdoor lifestyle', tier: 0 };
-  if (score <= 4) return { label: 'balanced indoor + outdoor', tier: 1 };
-  if (score <= 6) return { label: 'indoor-leaning', tier: 2 };
-  if (score <= 8) return { label: 'mostly indoor', tier: 3 };
-  return { label: 'high malillumination', tier: 4 };
+  if (score <= 1) return { label: 'well-aligned light environment', tier: 0 };
+  if (score <= 3) return { label: 'mostly aligned, minor gaps', tier: 1 };
+  if (score <= 5) return { label: 'moderate light burden', tier: 2 };
+  if (score <= 7) return { label: 'significant light burden', tier: 3 };
+  return { label: 'severe indoor-light burden', tier: 4 };
 }
+export const lightBurdenToLabel = ottScoreToLabel;
 
 // Compact summary of saved answers, with an Edit button. Renders in place
 // of the editor once the user has completed onboarding.
+//
+// Visual model: 4 chip-cards in a responsive grid, each with an icon + a
+// short value + an accent-colored bar tied to the answer's character.
+// Replaces the old label-value flat row which read like a form receipt.
 function renderSavedSummary() {
   const d = getSunDefaults() || {};
   const lcSkin = state.importedData?.lightCircadian?.skinType;
   const fp = d.fitzpatrick || skinTypeToFitzpatrick(lcSkin);
-  const fpLabel = fp ? SKIN_TYPE[fitzpatrickToSkinTypeIndex(fp)] : '—';
+  const fpIdx = fp ? fitzpatrickToSkinTypeIndex(fp) : -1;
+  const fpLabel = fpIdx >= 0 ? SKIN_TYPE[fpIdx] : '—';
   const homeMeta = HOME_LIGHT_OPTIONS.find(o => o.key === d.homeLight);
   const eyewearMeta = EYEWEAR_OPTIONS.find(o => o.key === d.eyewear);
 
-  let ottHtml;
+  // Per-field accent color — picked from the answer so the strip reads
+  // visually different at a glance for different users.
+  const skinEmoji = ['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'][fpIdx] || '🧑';
+  const homeIconMap = {
+    'led-cool': '💡', 'led-warm': '💡', 'led-tunable': '💡',
+    'fluorescent': '🌫️', 'incandescent': '🔥', 'halogen': '🔥',
+    'candle': '🕯️', 'mixed': '✨', 'natural-only': '☀️', 'unknown': '❔',
+  };
+  const homeAccentMap = {
+    'led-cool': 'cool', 'led-warm': 'warm', 'led-tunable': 'cool',
+    'fluorescent': 'cool', 'incandescent': 'warm', 'halogen': 'warm',
+    'candle': 'warm', 'natural-only': 'sun', 'mixed': 'neutral', 'unknown': 'neutral',
+  };
+  const homeIcon = homeIconMap[d.homeLight] || '💡';
+  const homeAccent = homeAccentMap[d.homeLight] || 'neutral';
+  const homeShort = (homeMeta?.label || d.homeLight || 'Not set').replace(/\s*\(.*\)/, ''); // strip parenthetical
+
+  const eyewearIconMap = {
+    'none': '👁', 'sunglasses': '🕶', 'clear-prescription': '👓',
+    'both': '🕶', 'contacts-uv': '👀',
+  };
+  const eyewearIcon = eyewearIconMap[d.eyewear] || '👁';
+  const eyewearShort = (eyewearMeta?.label || d.eyewear || 'Not set').split('—')[0].split(/[(,]/)[0].trim();
+
+  // Lifestyle chip — keep using the existing tier-colored badge logic
+  let ottChip;
   if (typeof d.ottScore === 'number') {
     const { label, tier } = ottScoreToLabel(d.ottScore);
-    ottHtml = `<span class="light-ott-badge light-ott-tier-${tier}" title="Ott malillumination: 0 = mostly outdoor, 10 = no natural light. Higher = more indoor.">${d.ottScore}/10 · ${escapeHTML(label)}</span>`;
+    ottChip = `<div class="light-setup-chip light-setup-chip-ott light-setup-chip-tier-${tier}" title="Indoor-light burden score (0–10): counts modern light-environment gaps — morning light deficit, glass-mediated days, dim workspace, cool LED at night, evening screens, bright after sunset, sleep darkness, sunscreen UVB block, sunglasses outdoors, total outdoor time.">
+      <div class="light-setup-chip-icon">☀</div>
+      <div class="light-setup-chip-body">
+        <div class="light-setup-chip-label">Light burden</div>
+        <div class="light-setup-chip-value">${escapeHTML(label)}</div>
+        <div class="light-setup-chip-sub">${d.ottScore}/10 burden score</div>
+      </div>
+    </div>`;
   } else if (d.skipped) {
-    ottHtml = `<span class="light-ott-badge">skipped</span>`;
+    ottChip = `<div class="light-setup-chip light-setup-chip-skipped">
+      <div class="light-setup-chip-icon">⏭</div>
+      <div class="light-setup-chip-body">
+        <div class="light-setup-chip-label">Light burden</div>
+        <div class="light-setup-chip-value">Skipped</div>
+        <div class="light-setup-chip-sub">tap Edit to fill in</div>
+      </div>
+    </div>`;
   } else {
-    ottHtml = '—';
+    ottChip = `<div class="light-setup-chip light-setup-chip-unset">
+      <div class="light-setup-chip-icon">·</div>
+      <div class="light-setup-chip-body">
+        <div class="light-setup-chip-label">Light burden</div>
+        <div class="light-setup-chip-value">—</div>
+      </div>
+    </div>`;
   }
 
   return `<div class="light-setup-summary">
     <div class="light-setup-summary-head">
-      <strong>Light setup saved</strong>
-      <button class="import-btn import-btn-secondary light-setup-summary-edit" onclick="window.reopenSunSetup && window.reopenSunSetup()">Edit setup</button>
+      <span class="light-setup-summary-headline">
+        <span class="light-setup-summary-tick">✓</span>
+        Light setup saved
+      </span>
+      <button class="import-btn import-btn-secondary light-setup-summary-edit" onclick="window.reopenSunSetup && window.reopenSunSetup()">Edit</button>
     </div>
-    <div class="light-setup-summary-grid">
-      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Skin type</span><span>${escapeHTML(fpLabel)}</span></div>
-      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Home lighting</span><span>${escapeHTML(homeMeta?.label || (d.homeLight ? d.homeLight : '—'))}</span></div>
-      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Eyewear outside</span><span>${escapeHTML(eyewearMeta?.label || (d.eyewear ? d.eyewear : '—'))}</span></div>
-      <div class="light-setup-summary-row"><span class="light-setup-summary-label">Light lifestyle</span>${ottHtml}</div>
+    <div class="light-setup-chips-grid">
+      <div class="light-setup-chip light-setup-chip-skin" title="${escapeAttr('Fitzpatrick ' + fpLabel + ' — drives MED math + UV tolerance.')}">
+        <div class="light-setup-chip-icon">${skinEmoji}</div>
+        <div class="light-setup-chip-body">
+          <div class="light-setup-chip-label">Skin type</div>
+          <div class="light-setup-chip-value">${escapeHTML(fpLabel)}</div>
+        </div>
+      </div>
+      <div class="light-setup-chip light-setup-chip-home light-setup-chip-home-${homeAccent}" title="${escapeAttr(homeMeta?.label || d.homeLight || 'Not set')}">
+        <div class="light-setup-chip-icon">${homeIcon}</div>
+        <div class="light-setup-chip-body">
+          <div class="light-setup-chip-label">Home lighting</div>
+          <div class="light-setup-chip-value">${escapeHTML(homeShort)}</div>
+        </div>
+      </div>
+      <div class="light-setup-chip light-setup-chip-eyewear" title="${escapeAttr(eyewearMeta?.label || d.eyewear || 'Not set')}">
+        <div class="light-setup-chip-icon">${eyewearIcon}</div>
+        <div class="light-setup-chip-body">
+          <div class="light-setup-chip-label">Eyewear outside</div>
+          <div class="light-setup-chip-value">${escapeHTML(eyewearShort)}</div>
+        </div>
+      </div>
+      ${ottChip}
     </div>
   </div>`;
 }
@@ -170,61 +281,85 @@ export function renderSetupCard() {
   }
   const d = getSunDefaults() || {};
 
+  // Count how many of the 4 core questions are filled — drives the "3 of 4
+  // done" progress hint (#9). Skin type counts only when actively tapped.
+  const skinFilled = !!getInitialFitzpatrick();
+  const homeFilled = !!d.homeLight;
+  const eyewearFilled = !!d.eyewear;
+  const locFilled = !!(d.coords?.lat && d.coords?.lon) || !!(window.getSunCoords && window.getSunCoords()?.source === 'country-band');
+  const filledCount = [skinFilled, homeFilled, eyewearFilled, locFilled].filter(Boolean).length;
+
   let html = `<div class="light-setup-card">
-    <div class="light-setup-title">Set up the Light lens
-      <a href="#" class="light-setup-skip" onclick="event.preventDefault();window.dismissSunSetup && window.dismissSunSetup()">skip for now</a>
+    <div class="light-setup-title">Quick light profile
+      <span class="light-setup-progress" aria-label="${filledCount} of 4 quick questions done">${filledCount}/4 done</span>
     </div>
-    <p class="light-setup-body">Four questions plus an optional 10-question baseline. Answers stay on this device and feed your AI's reasoning.</p>
+    <p class="light-setup-lead"><strong>30 seconds</strong> · once you've answered, the AI will know your sunburn threshold, your indoor light environment, and your circadian baseline — and can interpret your sun sessions and labs through that lens. Answers stay on this device.</p>
 
     <div class="light-setup-step">
-      <label class="ctx-label">Skin type</label>
+      <label class="ctx-label" id="setup-skin-label-id">Skin type</label>
+      <p class="light-setup-step-why">Sets your sunburn threshold (MED) and how much UV you can take before getting red.</p>
       <div class="ctx-skin-slider-wrap">
-        <div class="ctx-skin-emojis">${['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'].map((e, i) => `<span class="ctx-skin-face${(getInitialFitzpatrick() === ROMAN[i]) ? ' active' : ''}" data-idx="${i}" onclick="document.getElementById('setup-skin-range').value=${i};window._updateSetupSkinSlider && window._updateSetupSkinSlider(${i})">${e}</span>`).join('')}</div>
-        <input type="range" min="0" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : 2)}" class="ctx-skin-range" id="setup-skin-range" oninput="window._updateSetupSkinSlider && window._updateSetupSkinSlider(this.value)" data-set="${getInitialFitzpatrick() ? '1' : '0'}">
-        <div class="ctx-skin-label" id="setup-skin-label">${getInitialFitzpatrick() ? escapeHTML(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'Tap a face or drag the slider'}</div>
+        <div class="ctx-skin-emojis" role="radiogroup" aria-labelledby="setup-skin-label-id">${['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'].map((e, i) => {
+          const isActive = getInitialFitzpatrick() === ROMAN[i];
+          // tabindex: only the checked radio is in the tab order (roving
+          // tabindex pattern); arrow keys move between siblings inside the
+          // group. Default to index 2 (median III) when nothing is set.
+          const fallbackIdx = getInitialFitzpatrick() ? null : 2;
+          const inTabOrder = isActive || (fallbackIdx === i);
+          return `<span class="ctx-skin-face${isActive ? ' active' : ''}" data-idx="${i}" data-roman="${ROMAN[i]}" role="radio" tabindex="${inTabOrder ? '0' : '-1'}" aria-checked="${isActive ? 'true' : 'false'}" aria-label="Fitzpatrick ${escapeAttr(SKIN_TYPE[i])}" onclick="document.getElementById('setup-skin-range').value=${i};window._updateSetupSkinSlider && window._updateSetupSkinSlider(${i})" onkeydown="window._skinFaceKeydown && window._skinFaceKeydown(event, ${i})">${e}</span>`;
+        }).join('')}</div>
+        <input type="range" min="0" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : 2)}" class="ctx-skin-range" id="setup-skin-range" oninput="window._updateSetupSkinSlider && window._updateSetupSkinSlider(this.value)" data-set="${getInitialFitzpatrick() ? '1' : '0'}" aria-valuetext="${getInitialFitzpatrick() ? escapeAttr(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'not set — tap a face'}">
+        <div class="ctx-skin-label" id="setup-skin-label">${getInitialFitzpatrick() ? `${escapeHTML(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())])}<span class="ctx-skin-label-detail" id="setup-skin-label-detail">${escapeHTML(FITZPATRICK_DESCRIPTOR[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())])}</span>` : 'Tap a face or drag the slider'}</div>
       </div>
     </div>
 
     <div class="light-setup-step">
-      <label class="ctx-label">Home lighting
-        <select id="setup-homelight" class="ctx-select">
-          <option value="">Pick one</option>
-          ${HOME_LIGHT_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.homeLight === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-        </select>
-      </label>
+      <label class="ctx-label">Home lighting</label>
+      <p class="light-setup-step-why">Shapes your indoor melanopic dose — what the AI sees for the half of your day spent inside.</p>
+      <select id="setup-homelight" class="ctx-select">
+        <option value="">Choose what's mostly true at home</option>
+        ${HOME_LIGHT_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.homeLight === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
+      </select>
     </div>
 
     <div class="light-setup-step">
-      <label class="ctx-label">Eyewear outside
-        <select id="setup-eyewear" class="ctx-select">
-          <option value="">Pick one</option>
-          ${EYEWEAR_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.eyewear === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-        </select>
-      </label>
+      <label class="ctx-label">Eyewear outside</label>
+      <p class="light-setup-step-why">Eye exposure to UV / 360–400 nm violet drives circadian + α-MSH / dopamine signals.</p>
+      <select id="setup-eyewear" class="ctx-select">
+        <option value="">Choose what you wear most often outside</option>
+        ${EYEWEAR_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.eyewear === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
+      </select>
     </div>
 
     <div class="light-setup-step">
-      <label class="ctx-label">Location precision
+      <label class="ctx-label">Location</label>
+      <p class="light-setup-step-why">Drives sun-angle and UV-index math. Country-level is fine; precise lat/lon sharpens it.</p>
+      <div class="light-setup-loc-row">
         <span class="setup-hint-inline">${getSunCoordsLine()}</span>
-      </label>
-      <button class="import-btn import-btn-secondary" onclick="window.requestPreciseLocation && window.requestPreciseLocation().then(()=>window.navigate('light'))">Use precise location (one-time)</button>
+        <button class="import-btn import-btn-secondary" onclick="window.requestPreciseLocation && window.requestPreciseLocation().then(()=>window.navigate('light'))">Pinpoint location for sharper UV math</button>
+      </div>
     </div>
 
     <details class="light-setup-ott"${(d.ott && Object.values(d.ott).some(v => v)) ? ' open' : ''}>
-      <summary>Optional: how indoor is your lifestyle? <span class="light-setup-ott-summary-score" id="ott-summary-score">${(typeof d.ottScore === 'number') ? `· ${d.ottScore}/10 · ${ottScoreToLabel(d.ottScore).label}` : ''}</span></summary>
-      <p class="light-setup-body" style="margin:8px 0">Tick every box that's true. <strong>Each "yes" means more indoor / glass-mediated / artificial light</strong>. Coined by John Ott in 1973 as the "malillumination" baseline. Lower score = more outdoor life.</p>
+      <summary>Tune your light score (optional, ~1 min) <span class="light-setup-ott-summary-score" id="ott-summary-score">${(typeof d.ottScore === 'number') ? `· ${10 - d.ottScore}/10 aligned · ${ottScoreToLabel(d.ottScore).label}` : ''}</span></summary>
+      <p class="light-setup-body" style="margin:8px 0">10 yes/no questions, each grounded in current photobiology. <strong>"Yes" always = a gap</strong> — morning light skipped, glass-mediated days, dark sleep missed, etc. Higher alignment score = better-aligned circadian + UV environment.</p>
       <div class="light-setup-ott-questions">
         ${OTT_QUESTIONS.map(q => `<label class="light-setup-ott-q"><input type="checkbox" data-ott="${escapeAttr(q.key)}"${(d.ott && d.ott[q.key]) ? ' checked' : ''} oninput="window._updateOttRunningScore && window._updateOttRunningScore()"> ${escapeHTML(q.text)}</label>`).join('')}
       </div>
       <div class="light-setup-ott-running" id="ott-running-score">
-        Running score: <strong id="ott-running-value">${(d.ott ? Object.values(d.ott).filter(v => v).length : 0)}/10</strong>
+        <span class="light-setup-ott-running-pos">Alignment: <strong id="ott-running-aligned">${10 - (d.ott ? Object.values(d.ott).filter(v => v).length : 0)}/10</strong></span>
+        <span class="light-setup-ott-running-sep">·</span>
+        <span class="light-setup-ott-running-neg">Burden: <strong id="ott-running-value">${(d.ott ? Object.values(d.ott).filter(v => v).length : 0)}/10</strong></span>
         <span class="light-ott-badge light-ott-tier-${ottScoreToLabel(d.ott ? Object.values(d.ott).filter(v => v).length : 0).tier}" id="ott-running-label">${ottScoreToLabel(d.ott ? Object.values(d.ott).filter(v => v).length : 0).label}</span>
       </div>
     </details>
 
-    <div class="modal-actions" style="margin-top:14px">
-      <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">${isOnboardingComplete() ? 'Save changes' : 'Save and start tracking'}</button>
-      ${isOnboardingComplete() ? '<button class="import-btn import-btn-secondary" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">Cancel</button>' : ''}
+    <div class="light-setup-actions">
+      ${isOnboardingComplete()
+        ? `<button class="import-btn import-btn-secondary" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">Cancel</button>
+           <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save changes</button>`
+        : `<button class="import-btn import-btn-tertiary light-setup-skip-btn" onclick="window.dismissSunSetup && window.dismissSunSetup()">I'll do this later</button>
+           <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save profile · ${filledCount}/4 done</button>`}
     </div>
   </div>`;
   return html;
@@ -252,7 +387,7 @@ async function saveSunSetup() {
   const homeLight = root.querySelector('#setup-homelight')?.value || null;
   const eyewear = root.querySelector('#setup-eyewear')?.value || null;
   if (!fitzpatrick) {
-    showNotification('Pick a skin type to continue.');
+    showNotification('Tap a face to confirm your skin type.');
     return;
   }
   const ott = {};
@@ -293,16 +428,28 @@ function _updateOttRunningScore() {
   const cbs = root.querySelectorAll('input[data-ott]');
   let score = 0;
   cbs.forEach(cb => { if (cb.checked) score++; });
+  const aligned = 10 - score;
   const valueEl = root.querySelector('#ott-running-value');
+  const alignedEl = root.querySelector('#ott-running-aligned');
   const labelEl = root.querySelector('#ott-running-label');
   const summary = root.querySelector('#ott-summary-score');
   const meta = ottScoreToLabel(score);
   if (valueEl) valueEl.textContent = `${score}/10`;
+  if (alignedEl) alignedEl.textContent = `${aligned}/10`;
   if (labelEl) {
+    // Tier-change animation — flash the badge briefly when its tier color
+    // shifts so the score change feels alive instead of silently swapping.
+    const prevTier = labelEl.dataset.tier;
+    const newTier = String(meta.tier);
     labelEl.textContent = meta.label;
     labelEl.className = `light-ott-badge light-ott-tier-${meta.tier}`;
+    labelEl.dataset.tier = newTier;
+    if (prevTier !== undefined && prevTier !== newTier) {
+      labelEl.classList.add('tier-changed');
+      setTimeout(() => labelEl.classList.remove('tier-changed'), 600);
+    }
   }
-  if (summary) summary.textContent = `· ${score}/10 · ${meta.label}`;
+  if (summary) summary.textContent = `· ${aligned}/10 aligned · ${meta.label}`;
 }
 
 // Live update of the setup-card emoji slider (mirrors updateSkinSlider in
@@ -312,12 +459,26 @@ function _updateOttRunningScore() {
 function _updateSetupSkinSlider(val) {
   const idx = parseInt(val, 10);
   document.querySelectorAll('.light-setup-card .ctx-skin-face').forEach((el, i) => {
-    el.classList.toggle('active', i === idx);
+    const isActive = i === idx;
+    el.classList.toggle('active', isActive);
+    el.setAttribute('aria-checked', isActive ? 'true' : 'false');
   });
   const label = document.getElementById('setup-skin-label');
-  if (label) label.textContent = idx >= 0 && idx < SKIN_TYPE.length ? SKIN_TYPE[idx] : 'Tap a face or drag the slider';
+  const valid = idx >= 0 && idx < SKIN_TYPE.length;
+  const skinLabel = valid ? SKIN_TYPE[idx] : 'Tap a face or drag the slider';
+  const descriptor = valid ? FITZPATRICK_DESCRIPTOR[idx] : '';
+  if (label) {
+    if (valid) {
+      label.innerHTML = `${escapeHTML(skinLabel)}<span class="ctx-skin-label-detail" id="setup-skin-label-detail">${escapeHTML(descriptor)}</span>`;
+    } else {
+      label.textContent = skinLabel;
+    }
+  }
   const range = document.getElementById('setup-skin-range');
-  if (range) range.dataset.set = '1';
+  if (range) {
+    range.dataset.set = '1';
+    range.setAttribute('aria-valuetext', valid ? `${skinLabel} — ${descriptor}` : 'not set');
+  }
 }
 
 // Skip-for-now — marks the setup as completed without filled answers.
@@ -339,8 +500,39 @@ if (typeof window !== 'undefined') {
     reopenSunSetup,
     cancelReopenSunSetup,
     ottScoreToLabel,
+    _sunHomeLightOptions: HOME_LIGHT_OPTIONS,
+    _sunEyewearOptions: EYEWEAR_OPTIONS,
     _updateSetupSkinSlider,
     _updateOttRunningScore,
     _skinTypeToFitzpatrick: skinTypeToFitzpatrick,
+    _skinFaceKeydown,
   });
+}
+
+// Arrow-key navigation across the skin-type radiogroup. Implements the
+// roving tabindex pattern: Left/Right (and Up/Down) cycle the focused
+// face; Enter/Space activate the current face. Keeps the radiogroup
+// reachable for keyboard + screen-reader users.
+function _skinFaceKeydown(e, idx) {
+  const max = 5;
+  let next = null;
+  switch (e.key) {
+    case 'ArrowRight':
+    case 'ArrowDown':  next = (idx + 1) % (max + 1); break;
+    case 'ArrowLeft':
+    case 'ArrowUp':    next = (idx - 1 + (max + 1)) % (max + 1); break;
+    case 'Home':       next = 0; break;
+    case 'End':        next = max; break;
+    case 'Enter':
+    case ' ':          // Space
+      e.preventDefault();
+      const range = document.getElementById('setup-skin-range');
+      if (range) range.value = idx;
+      _updateSetupSkinSlider(idx);
+      return;
+  }
+  if (next == null) return;
+  e.preventDefault();
+  const target = document.querySelector(`.ctx-skin-face[data-idx="${next}"]`);
+  if (target) try { target.focus(); } catch (err) {}
 }

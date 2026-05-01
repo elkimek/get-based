@@ -47,13 +47,22 @@ export function getEnvironment() {
   return state.importedData.lightEnvironment;
 }
 
+// Common room names used as smarter defaults — cycle through these in order
+// before falling back to "Room N" so a fresh user lands on familiar labels.
+const DEFAULT_ROOM_NAMES = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
+
 export async function addRoom(name) {
   const env = getEnvironment();
   if (!Array.isArray(env.rooms)) env.rooms = [];
+
+  // Pre-fill primarySource from sunDefaults.homeLight when the user already
+  // answered Home lighting in the Light setup card — saves a redundant pick.
+  const homeLight = state.importedData?.sunDefaults?.homeLight;
+
   env.rooms.push({
     id: `room_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
     name: name || 'Room',
-    primarySource: 'unknown',
+    primarySource: homeLight || 'unknown',
     cct: null,
     flickerScore: null,
     hoursOccupiedPerDay: null,
@@ -61,6 +70,18 @@ export async function addRoom(name) {
     notes: '',
   });
   await saveImportedData();
+}
+
+// Pick the next default room name based on which common names haven't been
+// used yet. Names are matched case-insensitively so "bedroom" and "Bedroom"
+// don't collide. Falls back to "Room N" once the curated list is exhausted.
+export function nextDefaultRoomName() {
+  const env = getEnvironment();
+  const usedLC = new Set((env?.rooms || []).map(r => (r.name || '').trim().toLowerCase()));
+  for (const candidate of DEFAULT_ROOM_NAMES) {
+    if (!usedLC.has(candidate.toLowerCase())) return candidate;
+  }
+  return `Room ${(env?.rooms?.length || 0) + 1}`;
 }
 
 export async function updateRoom(id, patch) {
@@ -106,6 +127,88 @@ export async function deleteScreen(id) {
   await saveImportedData();
 }
 
+// ─── Per-room severity (Baubiologie-style at-a-glance dot) ───────────
+//
+// Mirrors the EMF Assessment severity-dot pattern: each room earns a 0–4
+// tier from green (good) to red (concerning) based on what we know about
+// it. Inputs:
+//   • primarySource — fluorescent + cool LED bias the score upward
+//   • after-sunset use of cool/tunable LED → blue-evening contamination
+//   • flicker measurement (latest, if any) — the strongest signal we have
+//     because IEEE PAR1789 thresholds are well-defined
+//   • lux measurement (latest) — too-low daytime lux drags toward yellow,
+//     too-bright bedroom evenings drag toward orange
+// Returns { tier, color, label, reason } so the dot + tooltip can render
+// from one source.
+//
+// Tier → CSS color token mapping intentionally matches EMF's so the two
+// surfaces feel like one design system.
+
+export function computeRoomSeverity(room, measurements = []) {
+  if (!room) return { tier: 0, color: 'green', label: 'Unknown', reason: 'No data yet' };
+
+  let tier = 0;
+  const reasons = [];
+
+  // Source-based bias
+  const src = room.primarySource;
+  if (src === 'fluorescent') {
+    tier = Math.max(tier, 2);
+    reasons.push('fluorescent / CFL primary');
+  } else if (src === 'led-cool' || src === 'led-tunable') {
+    tier = Math.max(tier, 1);
+    reasons.push('cool LED primary');
+  } else if (src === 'natural-only' || src === 'incandescent' || src === 'halogen' || src === 'candle') {
+    // friendly sources stay at 0 unless other signals pull them up
+  }
+
+  // After-sunset blue-light contamination
+  if (room.eveningUseAfterSunset && (src === 'led-cool' || src === 'led-tunable' || src === 'fluorescent')) {
+    tier = Math.max(tier, 2);
+    reasons.push('blue light after sunset');
+  }
+
+  // Latest flicker measurement (use most recent — flicker doesn't decay)
+  const flickers = measurements.filter(m => m.tool === 'flicker').sort((a, b) => b.capturedAt - a.capturedAt);
+  if (flickers.length) {
+    const score = flickers[0].value;
+    // saveMeasurement stores 0–3 for { Pristine, Mild, Moderate, Severe }
+    if (score >= 3) { tier = Math.max(tier, 4); reasons.push('severe flicker measured'); }
+    else if (score >= 2) { tier = Math.max(tier, 3); reasons.push('moderate flicker measured'); }
+    else if (score >= 1) { tier = Math.max(tier, 1); reasons.push('mild flicker measured'); }
+  }
+
+  // Daytime lux (low → yellow). Treat any reading < 100 lux as low-indoor.
+  const luxes = measurements.filter(m => m.tool === 'lux').sort((a, b) => b.capturedAt - a.capturedAt);
+  if (luxes.length) {
+    const lux = luxes[0].value;
+    if (lux < 50 && (room.hoursOccupiedPerDay || 0) >= 2) {
+      tier = Math.max(tier, 2);
+      reasons.push('very low daytime lux for hours occupied');
+    } else if (lux < 200 && (room.hoursOccupiedPerDay || 0) >= 4) {
+      tier = Math.max(tier, 1);
+      reasons.push('lower than office-bright for prolonged hours');
+    }
+  }
+
+  // Bedroom-specific: any sleep-darkness reading tells a story
+  const dark = measurements.filter(m => m.tool === 'darkness').sort((a, b) => b.capturedAt - a.capturedAt);
+  if (dark.length && /bedroom|sleep/i.test(room.name || '')) {
+    const lux = dark[0].value;
+    if (lux > 1) { tier = Math.max(tier, 3); reasons.push('bedroom not dark enough for melatonin'); }
+    else if (lux > 0.1) { tier = Math.max(tier, 2); reasons.push('measurable light leak in bedroom'); }
+  }
+
+  const colorMap = ['green', 'yellow', 'orange', 'red', 'red'];
+  const labelMap = ['Good', 'Mild', 'Moderate', 'Concerning', 'Severe'];
+  return {
+    tier,
+    color: colorMap[Math.min(tier, 4)],
+    label: labelMap[Math.min(tier, 4)],
+    reason: reasons.length ? reasons.join(' · ') : 'No signals detected',
+  };
+}
+
 // ─── Derived deficit signals ──────────────────────────────────────────
 
 // Returns { d2: hours, d3: hours, junkLightHours }
@@ -136,6 +239,110 @@ export function computeDeficitAxes() {
 }
 
 // ─── UI: Light Environment page (lives at /light-environment route) ───
+//
+// Layout mirrors EMF Assessment's at-a-glance pattern (severity dot per
+// room, tabs when 3+ rooms, detail panel with measurements attached). Up
+// to 2 rooms render as inline cards; 3+ activates the tabbed selector.
+
+const ACTIVE_ROOM_KEY = 'labcharts-light-env-active-room';
+
+function readActiveRoomId() {
+  try { return localStorage.getItem(ACTIVE_ROOM_KEY); } catch (e) { return null; }
+}
+function writeActiveRoomId(id) {
+  try { id ? localStorage.setItem(ACTIVE_ROOM_KEY, id) : localStorage.removeItem(ACTIVE_ROOM_KEY); } catch (e) {}
+}
+
+function getMeasurementsFor(roomId) {
+  if (typeof window.getMeasurementsForRoom !== 'function') return [];
+  return window.getMeasurementsForRoom(roomId);
+}
+
+function fmtMeasureValue(m) {
+  if (m.tool === 'lux') return Math.round(m.value).toLocaleString() + ' lux';
+  if (m.tool === 'flicker') return ['pristine', 'mild', 'moderate', 'severe'][Math.min(m.value || 0, 3)] + ' flicker';
+  if (m.tool === 'cct') return Math.round(m.value).toLocaleString() + ' K';
+  if (m.tool === 'darkness') return (m.value < 1 ? m.value.toFixed(2) : Math.round(m.value)) + ' lux (sleep)';
+  if (m.tool === 'spectrum') return String(m.value);
+  if (m.tool === 'glass-transmission') return Math.round((m.value || 0) * 100) + '% transmits';
+  return String(m.value);
+}
+
+function fmtMeasureTime(ts) {
+  const days = Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.round(days / 7)}w ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+const TOOL_ICONS = {
+  lux: '📏', flicker: '⚡', cct: '🎨', darkness: '🌙', spectrum: '🔬', 'glass-transmission': '🪟',
+};
+
+function renderRoomDetailCard(r) {
+  const measurements = getMeasurementsFor(r.id).sort((a, b) => b.capturedAt - a.capturedAt);
+  const sev = computeRoomSeverity(r, measurements);
+  const dot = `<span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>`;
+
+  // Latest reading per tool
+  const latestByTool = new Map();
+  for (const m of measurements) {
+    if (!latestByTool.has(m.tool)) latestByTool.set(m.tool, m);
+  }
+
+  let html = `<div class="light-env-room-card" data-id="${escapeAttr(r.id)}">
+    <div class="light-env-room-card-head">
+      ${dot}
+      <input type="text" class="light-env-room-name" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
+      <span class="light-env-sev-label" title="${escapeAttr(sev.reason)}">${escapeHTML(sev.label)}</span>
+      <button class="light-env-delete" onclick="window.deleteLightEnvRoom('${escapeAttr(r.id)}')" aria-label="Delete room">×</button>
+    </div>
+
+    <div class="light-env-room-card-body">
+      <div class="light-env-room-meta">
+        <label class="ctx-label">Primary light source
+          <select class="ctx-select" onchange="window.updateLightEnvRoom('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
+            ${PRIMARY_SOURCES.map(s => `<option value="${escapeAttr(s.key)}"${r.primarySource === s.key ? ' selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="ctx-label">Hours occupied per day
+          <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="hr/day" value="${r.hoursOccupiedPerDay ?? ''}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { hoursOccupiedPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
+        </label>
+        <label class="light-env-evening">
+          <input type="checkbox"${r.eveningUseAfterSunset ? ' checked' : ''} onchange="window.updateLightEnvRoom('${escapeAttr(r.id)}', { eveningUseAfterSunset: this.checked })" />
+          Used after sunset
+        </label>
+      </div>
+
+      <div class="light-env-room-tools">
+        <span class="light-env-tools-label">Measure in this room:</span>
+        <button class="light-env-tool-pill" onclick="window.openLuxMeter && window.openLuxMeter({ roomId: '${escapeAttr(r.id)}' })" title="Measure lux">📏 Lux</button>
+        <button class="light-env-tool-pill" onclick="window.openFlickerDetector && window.openFlickerDetector({ roomId: '${escapeAttr(r.id)}' })" title="Test for flicker">⚡ Flicker</button>
+        <button class="light-env-tool-pill" onclick="window.openCCTMeter && window.openCCTMeter({ roomId: '${escapeAttr(r.id)}' })" title="Color temperature">🎨 Color temp</button>
+        <button class="light-env-tool-pill" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum">🔬 Spectrum</button>
+        ${/bedroom|sleep/i.test(r.name || '') ? `<button class="light-env-tool-pill" onclick="window.openDarknessMeter && window.openDarknessMeter({ roomId: '${escapeAttr(r.id)}' })" title="Sleep darkness">🌙 Sleep dark</button>` : ''}
+      </div>`;
+
+  if (latestByTool.size === 0) {
+    html += `<p class="light-env-room-empty">No measurements yet for this room. Run any tool above and the result will live here.</p>`;
+  } else {
+    html += `<div class="light-env-room-readings">`;
+    for (const [tool, m] of latestByTool) {
+      const icon = TOOL_ICONS[tool] || '·';
+      html += `<div class="light-env-reading">
+        <span class="light-env-reading-icon">${icon}</span>
+        <span class="light-env-reading-value">${escapeHTML(fmtMeasureValue(m))}</span>
+        <span class="light-env-reading-time">${escapeHTML(fmtMeasureTime(m.capturedAt))}</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
 
 export function renderEnvironmentSection() {
   const env = getEnvironment();
@@ -156,25 +363,24 @@ export function renderEnvironmentSection() {
     </div>`;
   if (rooms.length === 0) {
     html += `<p class="light-env-empty">No rooms added yet.</p>`;
+  } else if (rooms.length <= 2) {
+    // Stacked detail cards — fine for 1-2 rooms, no tab overhead
+    html += `<div class="light-env-room-cards">`;
+    for (const r of rooms) html += renderRoomDetailCard(r);
+    html += `</div>`;
   } else {
-    html += `<div class="light-env-rows">`;
+    // Tabbed view: severity dot in each tab, detail panel below for the active room
+    let activeId = readActiveRoomId();
+    if (!rooms.find(r => r.id === activeId)) activeId = rooms[0].id;
+    html += `<div class="light-env-room-tabs" role="tablist">`;
     for (const r of rooms) {
-      html += `<div class="light-env-row" data-id="${escapeAttr(r.id)}">
-        <input type="text" class="light-env-input" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
-        <select class="ctx-select light-env-input" onchange="window.updateLightEnvRoom('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
-          ${PRIMARY_SOURCES.map(s => `<option value="${escapeAttr(s.key)}"${r.primarySource === s.key ? ' selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
-        </select>
-        <input type="number" min="0" max="24" step="0.5" class="ctx-input light-env-input light-env-hours" placeholder="hr/day" value="${r.hoursOccupiedPerDay ?? ''}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { hoursOccupiedPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
-        <label class="light-env-evening">
-          <input type="checkbox"${r.eveningUseAfterSunset ? ' checked' : ''} onchange="window.updateLightEnvRoom('${escapeAttr(r.id)}', { eveningUseAfterSunset: this.checked })" />
-          after sunset
-        </label>
-        <button class="light-env-tool" onclick="window.openLuxMeter && window.openLuxMeter()" title="Measure lux in this room">📏</button>
-        <button class="light-env-tool" onclick="window.openFlickerDetector && window.openFlickerDetector()" title="Test for flicker">⚡</button>
-        <button class="light-env-delete" onclick="window.deleteLightEnvRoom('${escapeAttr(r.id)}')" aria-label="Delete room">×</button>
-      </div>`;
+      const sev = computeRoomSeverity(r, getMeasurementsFor(r.id));
+      const dot = `<span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>`;
+      html += `<button class="light-env-room-tab${r.id === activeId ? ' active' : ''}" role="tab" aria-selected="${r.id === activeId ? 'true' : 'false'}" onclick="window.setActiveLightEnvRoom('${escapeAttr(r.id)}')">${dot}<span class="light-env-room-tab-name">${escapeHTML(r.name || 'Room')}</span></button>`;
     }
     html += `</div>`;
+    const active = rooms.find(r => r.id === activeId);
+    if (active) html += renderRoomDetailCard(active);
   }
   html += `</div>`;
 
@@ -224,12 +430,22 @@ if (typeof window !== 'undefined') {
   Object.assign(window, {
     getLightEnvironment: getEnvironment,
     addLightEnvRoom: async () => {
-      await addRoom(`Room ${(getEnvironment()?.rooms?.length || 0) + 1}`);
+      const env = getEnvironment();
+      const before = env?.rooms?.length || 0;
+      await addRoom(nextDefaultRoomName());
+      // Make the new room the active tab so the detail panel jumps to it
+      const after = env?.rooms || [];
+      if (after.length > before) writeActiveRoomId(after[after.length - 1].id);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     updateLightEnvRoom: async (id, patch) => { await updateRoom(id, patch); },
     deleteLightEnvRoom: async (id) => {
       await deleteRoom(id);
+      if (readActiveRoomId() === id) writeActiveRoomId(null);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    setActiveLightEnvRoom: (id) => {
+      writeActiveRoomId(id);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     addLightEnvScreen: async () => {
@@ -242,6 +458,7 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     computeLightDeficitAxes: computeDeficitAxes,
+    computeRoomSeverity,
     renderEnvironmentSection,
   });
 }

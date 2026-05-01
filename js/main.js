@@ -347,6 +347,15 @@ document.addEventListener("keydown", e => {
     if (settingsOverlay && settingsOverlay.classList.contains("show")) { window.closeSettingsModal(); return; }
     const modalOverlay = document.getElementById("modal-overlay");
     if (modalOverlay && modalOverlay.classList.contains("show")) { window.closeModal(); return; }
+    // Generic fallback: any dynamically-injected `.modal-overlay.show` (sun
+    // sessions, light tools, conditions inspect, etc.) gets dismissed by
+    // removing its top-most overlay. Skip overlays with explicit close
+    // wiring above. Last resort so Escape never silently no-ops.
+    const dynamicOverlays = document.querySelectorAll('.modal-overlay.show');
+    if (dynamicOverlays.length > 0) {
+      const top = dynamicOverlays[dynamicOverlays.length - 1];
+      if (!top.id) { top.remove(); return; } // only remove anonymous (id-less) overlays we created on the fly
+    }
     return;
   }
   // Focus trap for open modals. Sync overlays use `.confirm-overlay` not

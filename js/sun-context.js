@@ -163,7 +163,17 @@ function formatSessionDetail(sess) {
   const end = sess.endedAt ? new Date(sess.endedAt).toISOString() : '(in progress)';
   let s = `\n#### Session ${sess.id}\n`;
   s += `- Window: ${start} → ${end} (${Math.round(sess.durationMin || 0)} min)\n`;
-  if (sess.location) s += `- Location: ${sess.location.lat?.toFixed(2)}, ${sess.location.lon?.toFixed(2)} @ ${sess.location.altitudeM || 0}m\n`;
+  if (sess.location) {
+    // Honor the user's network privacyRounding setting when building the
+    // AI context. Hardcoding `toFixed(2)` (~1.1 km) leaks ~10× sharper
+    // coords than the network calls do for users on the default 0.1°
+    // (~11 km) rounding. Falls back to 0.01° when no config available.
+    let p = 0.01;
+    try { p = (window.getMeteoConfig && window.getMeteoConfig().privacyRounding) || 0.01; } catch (e) {}
+    const f = 1 / p;
+    const round = (n) => (Math.round(n * f) / f).toFixed(p < 0.1 ? 2 : 1);
+    s += `- Location: ${round(sess.location.lat)}, ${round(sess.location.lon)} @ ${sess.location.altitudeM || 0}m\n`;
+  }
   if (sess.atmosphere) {
     s += `- Atmosphere: UV=${sess.atmosphere.uvIndex?.toFixed(1)} | ozone=${sess.atmosphere.ozoneDU || '?'}DU | cloud=${sess.atmosphere.cloudCover || '?'}% | T=${sess.atmosphere.temperatureC?.toFixed(0)}°C | source=${sess.atmosphere.source} (confidence ${sess.atmosphere.confidence?.toFixed(2)})\n`;
   }
