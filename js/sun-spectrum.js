@@ -125,6 +125,55 @@ export function glassTransmission(nm) {
   return 0.0;                       // mid-IR blocked
 }
 
+// Synthesize a sparse spectrum for a therapy device from its declared
+// peak wavelengths + total irradiance. Each peak becomes a narrow Gaussian
+// (30 nm FWHM, typical for an LED), and the device's `mwPerCm2At15cm`
+// total is split across peaks so the integrated irradiance ∫ E(λ)dλ
+// matches the device rating.
+//
+// Inputs:
+//   device: { peakWavelengths: number[], mwPerCm2At15cm: number, lux?: number }
+//   bandShares?: optional Record<nm, fraction> overriding equal distribution
+// Output: { wavelengths[], irradiance[] (W/m²/nm) } — same shape as
+//   reconstructSpectrum, so it drops straight into computeChannelDoses.
+//
+// Why this matters: the previous heuristic gave each declared `channel`
+// the FULL device irradiance, double-counting the same photons across
+// pbm_red, pbm_nir, vitamin_d, etc. Routing through computeChannelDoses
+// with a real (synthesized) spectrum produces wavelength-correct, non-
+// duplicating per-channel doses by construction — and inherits glass +
+// sunscreen attenuation for free.
+//
+// The 30 nm FWHM (sigma ~12.7) reflects typical LED bin width. Narrowband
+// laser sources (e.g. Pulse torch, Sperti UVB tubes) are slightly wider
+// in this approximation than reality — acceptable for relative-trend
+// correlation; not a radiometric reference.
+export function synthesizeDeviceSpectrum(device) {
+  if (!device) return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
+  const peaks = Array.isArray(device.peakWavelengths) ? device.peakWavelengths : [];
+  // Convert mW/cm² → W/m² (×10) so units match reconstructSpectrum
+  const totalWm2 = (Number(device.mwPerCm2At15cm) || 0) * 10;
+  if (peaks.length === 0 || totalWm2 <= 0) {
+    return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
+  }
+  const perPeakWm2 = totalWm2 / peaks.length;
+  const sigma = 12.7; // ~30 nm FWHM
+  // Per-nm Gaussian: peak amplitude such that integral over wavelength
+  // equals perPeakWm2. Gaussian integrand factor 1/(sigma·√(2π)) keeps
+  // ∫ E(λ)dλ ≈ perPeakWm2 over the band.
+  const norm = 1 / (sigma * Math.sqrt(2 * Math.PI));
+  const irradiance = WAVELENGTHS.map(() => 0);
+  for (const peak of peaks) {
+    if (!Number.isFinite(peak)) continue;
+    for (let i = 0; i < WAVELENGTHS.length; i++) {
+      const nm = WAVELENGTHS[i];
+      const g = Math.exp(-Math.pow(nm - peak, 2) / (2 * sigma * sigma)) * norm;
+      irradiance[i] += perPeakWm2 * g;
+    }
+  }
+  return { wavelengths: WAVELENGTHS, irradiance };
+}
+
 // Broad-spectrum sunscreen wavelength-dependent transmission for a given
 // SPF rating. SPF is defined relative to erythemal dose (UVB-weighted),
 // so 1/SPF is exact for UVB. UVA-PF (UVA protection factor) is typically
@@ -365,6 +414,7 @@ export { erythemalAt, vitaminDAt, melanopicAt, opn5At, ccoAt, noReleaseAt };
 if (typeof window !== 'undefined') {
   Object.assign(window, {
     reconstructSpectrum,
+    synthesizeDeviceSpectrum,
     computeChannelDoses,
     erythemalSED,
     fractionOfMED,

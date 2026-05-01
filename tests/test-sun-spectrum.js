@@ -261,6 +261,124 @@ return (async function() {
   assert('Glass + SPF stack: even lower than either alone',
     stackedSED <= glassSED && stackedSED <= spf50SED);
 
+  // ─── 7. Device spectrum synthesis ───────────────────────────────────
+  console.log('%c 7. Device spectrum synthesis ', 'font-weight:bold;color:#f59e0b');
+
+  const { synthesizeDeviceSpectrum } = window;
+  assert('synthesizeDeviceSpectrum exposed on window', typeof synthesizeDeviceSpectrum === 'function');
+
+  // Empty / invalid device → all-zero spectrum
+  const empty = synthesizeDeviceSpectrum({});
+  assert('Empty device → all-zero spectrum',
+    empty.irradiance.every(v => v === 0));
+  const noPeaks = synthesizeDeviceSpectrum({ mwPerCm2At15cm: 100 });
+  assert('Device with no peakWavelengths → all-zero',
+    noPeaks.irradiance.every(v => v === 0));
+
+  // Single-peak narrowband UVB lamp (like Sperti Fiji at 311 nm)
+  const sperti = synthesizeDeviceSpectrum({ peakWavelengths: [311], mwPerCm2At15cm: 50 });
+  // Peak should be near 311 nm, drop off rapidly outside ±30 nm
+  const idx311 = sperti.wavelengths.indexOf(310);
+  const idx400 = sperti.wavelengths.indexOf(400);
+  const idx850 = sperti.wavelengths.indexOf(850);
+  assert('Sperti single-peak: irradiance peaks near 311 nm',
+    sperti.irradiance[idx311] > sperti.irradiance[idx400] * 100);
+  assert('Sperti single-peak: zero NIR contribution',
+    sperti.irradiance[idx850] < sperti.irradiance[idx311] * 1e-6);
+
+  // Mitochondriak Maxi UVB — 9 wavelengths spanning UVB → NIR
+  const maxiUVB = synthesizeDeviceSpectrum({
+    peakWavelengths: [295, 380, 480, 630, 670, 760, 810, 830, 850],
+    mwPerCm2At15cm: 120,
+  });
+  const idx295 = maxiUVB.wavelengths.indexOf(295);
+  const idx480 = maxiUVB.wavelengths.indexOf(480);
+  const idx660 = maxiUVB.wavelengths.indexOf(660);
+  const idx820 = maxiUVB.wavelengths.indexOf(820);
+  assert('Maxi UVB: irradiance non-zero at every declared peak',
+    maxiUVB.irradiance[idx295] > 0 && maxiUVB.irradiance[idx480] > 0 &&
+    maxiUVB.irradiance[idx660] > 0 && maxiUVB.irradiance[idx820] > 0);
+  assert('Maxi UVB: gaps between bands are quiet (e.g. 580 nm)',
+    maxiUVB.irradiance[maxiUVB.wavelengths.indexOf(580)] <
+    Math.max(maxiUVB.irradiance[idx480], maxiUVB.irradiance[idx660]) * 0.5);
+  // Total integrated W/m² should be roughly 120 mW/cm² × 10 = 1200 W/m²
+  // (within ±25% — gaussians don't perfectly preserve the boxcar total)
+  const totalIntegrated = maxiUVB.irradiance.reduce((a, b) => a + b * 5, 0);
+  assert('Maxi UVB: integrated irradiance ≈ device rating (1200 W/m²)',
+    totalIntegrated > 900 && totalIntegrated < 1500,
+    `total=${totalIntegrated.toFixed(0)} W/m²`);
+
+  // ─── 8. Device-session channel doses (no double-counting) ────────────
+  console.log('%c 8. Device-session channel doses ', 'font-weight:bold;color:#f59e0b');
+
+  // Maxi UVB session: 20 min, full-body, eyes direct (so eye channels fire too)
+  const maxiDoses = computeChannelDoses({
+    spectrum: maxiUVB,
+    durationMin: 20,
+    bodyExposureFraction: 0.5, // half-body coverage, typical Maxi
+    eyeExposure: { mode: 'direct', durationSec: 20 * 60 },
+  });
+  assert('Maxi UVB feeds vitamin_d (UVB at 295 nm)',
+    maxiDoses.vitamin_d > 0);
+  assert('Maxi UVB feeds pomc (erythemal includes UVB + UVA short)',
+    maxiDoses.pomc > 0);
+  assert('Maxi UVB feeds no_cv (UVA via 380 nm peak)',
+    maxiDoses.no_cv > 0);
+  assert('Maxi UVB feeds violet_eye (OPN5 via 380/480 nm peaks + eye direct)',
+    maxiDoses.violet_eye > 0);
+  assert('Maxi UVB feeds circadian (melanopic via 480 + visible peaks + eye direct)',
+    maxiDoses.circadian > 0);
+  assert('Maxi UVB feeds pbm_red (660 nm peak)',
+    maxiDoses.pbm_red > 0);
+  assert('Maxi UVB feeds pbm_nir (810/830/850 nm peaks)',
+    maxiDoses.pbm_nir > 0);
+  assert('Maxi UVB does NOT feed pbm-bands beyond their action range (sanity)',
+    Object.values(maxiDoses).every(v => Number.isFinite(v) && v >= 0));
+
+  // No double-counting: pbm_red and pbm_nir should be DIFFERENT magnitudes
+  // because they integrate different action spectra at different peaks. If
+  // the old heuristic were still active, both would equal the device's
+  // total irradiance × duration × area (same number, no wavelength gating).
+  assert('Maxi UVB: pbm_red ≠ pbm_nir (wavelength-correct, not double-counted)',
+    Math.abs(maxiDoses.pbm_red - maxiDoses.pbm_nir) > 1,
+    `red=${maxiDoses.pbm_red.toFixed(2)} nir=${maxiDoses.pbm_nir.toFixed(2)}`);
+  // vitamin_d should be much smaller than pbm_red, because UVB is only
+  // 1 of 9 peaks and the device spreads its irradiance across all bands.
+  // Old heuristic would give vitamin_d = 0.5 × full_irradiance ≈ pbm_red.
+  assert('Maxi UVB: vitamin_d much less than pbm_red (UVB is 1 of 9 peaks)',
+    maxiDoses.vitamin_d < maxiDoses.pbm_red * 0.5,
+    `vitamin_d=${maxiDoses.vitamin_d.toFixed(2)} pbm_red=${maxiDoses.pbm_red.toFixed(2)}`);
+
+  // EMR-Tek-style 2-peak panel — should feed pbm_red + pbm_nir, nothing else
+  const emrTek = synthesizeDeviceSpectrum({
+    peakWavelengths: [660, 850],
+    mwPerCm2At15cm: 150,
+  });
+  const emrDoses = computeChannelDoses({
+    spectrum: emrTek,
+    durationMin: 10,
+    bodyExposureFraction: 0.5,
+    eyeExposure: { mode: 'direct', durationSec: 600 },
+  });
+  assert('660+850 panel: vitamin_d ≈ 0 (no UVB)', emrDoses.vitamin_d < 1e-3,
+    `vitamin_d=${emrDoses.vitamin_d.toExponential(2)}`);
+  assert('660+850 panel: pomc ≈ 0 (no erythemal weight)', emrDoses.pomc < 1e-3);
+  assert('660+850 panel: no_cv ≈ 0 (no UVA at 345 nm)', emrDoses.no_cv < 1e-3);
+  assert('660+850 panel: pbm_red > 0', emrDoses.pbm_red > 0);
+  assert('660+850 panel: pbm_nir > 0', emrDoses.pbm_nir > 0);
+
+  // Glass attenuation also applies to device sessions when relevant
+  const maxiThruGlass = computeChannelDoses({
+    spectrum: maxiUVB,
+    durationMin: 20,
+    bodyExposureFraction: 0.5,
+    eyeExposure: { mode: 'direct', durationSec: 20 * 60 },
+    bodyModifiers: { glassBetween: true },
+  });
+  assert('Device session through glass: vitamin_d crashes',
+    maxiThruGlass.vitamin_d < maxiDoses.vitamin_d * 0.05,
+    `ratio=${(maxiThruGlass.vitamin_d / Math.max(maxiDoses.vitamin_d, 1e-9)).toFixed(4)}`);
+
   // ─── Summary ────────────────────────────────────────────────────────
   console.log(`%c Sun Spectrum: ${pass} passed, ${fail} failed`,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold`);

@@ -88,43 +88,60 @@ export async function deleteDevice(id) {
 }
 
 // Log a completed device session (e.g. "10 min on the Joovv Mini at 15cm").
-// Computes dose contributions for the device's channels using a simple
-// linear model: doseChannel = irradianceContribution × durationSec × area.
+//
+// Per-channel doses are computed by synthesizing a sparse spectrum from
+// the device's declared `peakWavelengths` + `mwPerCm2At15cm`, then routing
+// it through the SAME `computeChannelDoses` used by sun sessions. That
+// produces wavelength-correct doses (UVB → vitamin_d only, NIR → pbm_nir
+// only, etc.) without double-counting photons across multiple channels —
+// which the previous heuristic did, giving every declared channel the
+// full device irradiance.
+//
+// Falls back to a legacy lux-only path for SAD lamps that declare `lux`
+// instead of `mwPerCm2At15cm` (Verilux, Carex, Lumie, etc.) — those don't
+// have a meaningful peak-wavelengths spectrum and only feed the circadian
+// channel via lux-seconds.
 export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', eyesProtected = true, notes = '' }) {
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
   const sessionId = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const seconds = durationMin * 60;
 
-  // Distance-square correction (irradiance falls as 1/r²)
-  const baseRangeCm = 15;
-  const distFactor = (baseRangeCm / Math.max(distanceCm, 5)) ** 2;
-
-  // Crude per-channel dose: irradiance × seconds × area-fraction
-  // Area fractions match BODY_REGIONS rough proportions
+  // Body-area fractions match sun.js BODY_REGIONS proportions.
   const AREA_FRACTIONS = {
     'face': 0.04, 'arms': 0.10, 'torso-front': 0.13, 'torso': 0.13,
     'legs': 0.30, 'whole-body': 0.85, 'targeted': 0.05,
   };
   const area = AREA_FRACTIONS[bodyArea] ?? 0.10;
-  const irradiance = device.mwPerCm2At15cm || 0;
-  const lux = device.lux || 0;
 
-  const doses = {};
-  for (const ch of (device.channels || [])) {
-    if (ch === 'circadian') {
-      // Lux-based — eye-channel; skip if eyes protected, else ~lux × seconds
-      if (eyesProtected) doses[ch] = 0;
-      else doses[ch] = lux * seconds / 100;
-    } else if (ch === 'pbm_red' || ch === 'pbm_nir') {
-      // Irradiance-based — skin channel
-      doses[ch] = irradiance * seconds * area * distFactor;
-    } else if (ch === 'vitamin_d' || ch === 'pomc' || ch === 'no_cv') {
-      // UVB/UVA targeted — proxy from device irradiance + area
-      doses[ch] = irradiance * seconds * area * distFactor * 0.5;
-    } else {
-      doses[ch] = irradiance * seconds * area;
-    }
+  // Distance-square correction (panels approach inverse-square at far
+  // field; closer in this is roughly accurate for desktop-scale form
+  // factors, generous for full-body panels).
+  const baseRangeCm = 15;
+  const distFactor = (baseRangeCm / Math.max(distanceCm, 5)) ** 2;
+
+  let doses = {};
+  const synthesizeDeviceSpectrum = window.synthesizeDeviceSpectrum;
+  const computeChannelDoses = window.computeChannelDoses;
+  const hasPeaks = Array.isArray(device.peakWavelengths) && device.peakWavelengths.length > 0;
+  const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
+  const eyeMode = eyesProtected ? 'closed-eyes' : 'direct';
+
+  if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
+    // Wavelength-correct path: synthesize spectrum → action-spectrum
+    // convolve → per-channel dose. Distance + area fold in via standard
+    // bodyExposureFraction × distFactor multipliers.
+    const spectrum = synthesizeDeviceSpectrum(device);
+    doses = computeChannelDoses({
+      spectrum,
+      durationMin,
+      bodyExposureFraction: area * distFactor,
+      eyeExposure: { mode: eyeMode, durationSec: seconds },
+    });
+  } else {
+    // Lux-only fallback (SAD lamps without per-band irradiance / peaks).
+    const lux = device.lux || 0;
+    if (!eyesProtected && lux > 0) doses.circadian = lux * seconds / 100;
   }
 
   const session = {
