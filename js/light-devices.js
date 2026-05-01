@@ -70,6 +70,7 @@ export async function addDeviceFromPreset(presetId, overrides = {}) {
     peakWavelengths: overrides.peakWavelengths || preset.peakWavelengths || [],
     mwPerCm2At15cm: overrides.mwPerCm2At15cm ?? preset.mwPerCm2At15cm ?? null,
     lux: overrides.lux ?? preset.lux ?? null,
+    recommendedDistanceCm: overrides.recommendedDistanceCm ?? preset.recommendedDistanceCm ?? 15,
     channels: overrides.channels || preset.channels || [],
     catalogSlug: preset.catalogSlug || null,
     notes: overrides.notes || '',
@@ -116,10 +117,16 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   };
   const area = AREA_FRACTIONS[bodyArea] ?? 0.10;
 
-  // Distance-square correction (panels approach inverse-square at far
-  // field; closer in this is roughly accurate for desktop-scale form
-  // factors, generous for full-body panels).
-  const baseRangeCm = 15;
+  // Distance-square correction. Base range is the device's vendor
+  // reference distance (15 cm typical; 50 cm for COB devices like the
+  // Firewave Compact whose manufacturer rates output at 20 inches).
+  // The schema field `mwPerCm2At15cm` is legacy-named but its value
+  // is interpreted as "irradiance at recommendedDistanceCm" — keeping
+  // distFactor = 1 when the user logs at the default. Inverse-square
+  // is a coarse approximation for LED panels (near-field cosine for
+  // large sources, focused beams for COBs); accurate enough for
+  // relative-trend correlation but not radiometric reference.
+  const baseRangeCm = device.recommendedDistanceCm || 15;
   const distFactor = (baseRangeCm / Math.max(distanceCm, 5)) ** 2;
 
   let doses = {};
@@ -382,8 +389,11 @@ export async function openCustomDeviceDialog() {
         <label class="ctx-label">Peak wavelengths (nm, comma-separated)
           <input type="text" id="custom-dev-peaks" class="ctx-input" placeholder="e.g. 660, 850" />
         </label>
-        <label class="ctx-label">Irradiance @ 15 cm (mW/cm²)
+        <label class="ctx-label">Irradiance (mW/cm² at vendor's reference distance)
           <input type="number" id="custom-dev-irradiance" class="ctx-input" min="0" step="any" placeholder="e.g. 100 (leave blank for SAD lamps)" />
+        </label>
+        <label class="ctx-label">Vendor reference distance (cm)
+          <input type="number" id="custom-dev-distance" class="ctx-input" min="1" max="200" step="any" placeholder="e.g. 15 — distance the irradiance was measured at" />
         </label>
         <label class="ctx-label">Lux at the eye (for SAD / dawn lamps)
           <input type="number" id="custom-dev-lux" class="ctx-input" min="0" step="any" placeholder="e.g. 10000" />
@@ -423,6 +433,7 @@ function _readCustomDeviceForm(overlay) {
     ? peaksRaw.split(/[,\s]+/).map(s => parseFloat(s)).filter(n => Number.isFinite(n) && n > 100 && n < 3000)
     : [];
   const irrRaw = overlay.querySelector('#custom-dev-irradiance').value.trim();
+  const distRaw = overlay.querySelector('#custom-dev-distance').value.trim();
   const luxRaw = overlay.querySelector('#custom-dev-lux').value.trim();
   return {
     brand: overlay.querySelector('#custom-dev-brand').value.trim(),
@@ -430,6 +441,7 @@ function _readCustomDeviceForm(overlay) {
     type: overlay.querySelector('#custom-dev-type').value,
     peakWavelengths: peaks,
     mwPerCm2At15cm: irrRaw ? parseFloat(irrRaw) : null,
+    recommendedDistanceCm: distRaw ? parseFloat(distRaw) : null,
     lux: luxRaw ? parseFloat(luxRaw) : null,
   };
 }
@@ -454,6 +466,7 @@ function _applyParsedDevice(parsed, overlay) {
     if (peaks) set('#custom-dev-peaks', peaks);
   }
   set('#custom-dev-irradiance', parsed.mwPerCm2At15cm);
+  set('#custom-dev-distance', parsed.recommendedDistanceCm);
   set('#custom-dev-lux', parsed.lux);
   showNotification('Specs extracted — review and save.', 'success');
 }
@@ -464,8 +477,9 @@ const _CUSTOM_DEVICE_PROMPT = `Extract light therapy device specs from this prod
   "model": "model name",
   "type": "uvb|uva|combined|pbm-targeted|sad|dawn-sim|full-spectrum",
   "peakWavelengths": [numbers in nm e.g. 660, 850],
-  "mwPerCm2At15cm": number or null,
-  "lux": number or null,
+  "mwPerCm2At15cm": number or null (the irradiance value; field is legacy-named — store the vendor's reading at whatever distance they publish),
+  "recommendedDistanceCm": number or null (the distance at which the manufacturer measured the irradiance above — typically 15-30 cm; some COB devices recommend 50+ cm. Convert inches to cm: 6 in ≈ 15 cm, 12 in ≈ 30 cm, 20 in ≈ 50 cm),
+  "lux": number or null (only for SAD / dawn lamps),
   "notes": "short description"
 }
 
@@ -518,7 +532,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
       .replace(/<!--[\s\S]*?-->/g, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s{2,}/g, ' ');
-    const kwPattern = /(.{0,300}(?:wavelength|spectrum|nm|red light|near.?infrared|UV[AB]?|irradiance|mW\/cm|lux|specifications?|specs).{0,500})/gi;
+    const kwPattern = /(.{0,300}(?:wavelength|spectrum|nm|red light|near.?infrared|UV[AB]?|irradiance|mW\/cm|lux|inches|distance|specifications?|specs).{0,500})/gi;
     const kwMatches = plainText.match(kwPattern) || [];
     const trimmed = (ldText + '\n' + kwMatches.join('\n') + '\n' + plainText.slice(0, 5000)).slice(0, 15000);
     const result = await callClaudeAPI({
@@ -590,6 +604,7 @@ export async function addCustomDevice(spec) {
     peakWavelengths: Array.isArray(spec.peakWavelengths) ? spec.peakWavelengths : [],
     mwPerCm2At15cm: Number.isFinite(spec.mwPerCm2At15cm) ? spec.mwPerCm2At15cm : null,
     lux: Number.isFinite(spec.lux) ? spec.lux : null,
+    recommendedDistanceCm: Number.isFinite(spec.recommendedDistanceCm) && spec.recommendedDistanceCm > 0 ? spec.recommendedDistanceCm : 15,
     channels: TYPE_CHANNELS[spec.type] || ['pbm_red', 'pbm_nir'],
     catalogSlug: null,
     notes: spec.notes || '',
@@ -617,7 +632,8 @@ export async function openDeviceSessionDialog(deviceId) {
         <input type="number" id="dev-session-duration" class="ctx-input" min="1" max="120" value="10" />
       </label>
       <label class="ctx-label">Distance from device (cm)
-        <input type="number" id="dev-session-distance" class="ctx-input" min="5" max="200" value="15" />
+        <input type="number" id="dev-session-distance" class="ctx-input" min="5" max="200" value="${device.recommendedDistanceCm || 15}" />
+        <span class="dev-session-hint">Vendor reference: ${device.recommendedDistanceCm || 15} cm. The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
       </label>
       <label class="ctx-label">Body area
         <select id="dev-session-area" class="ctx-select">
@@ -643,7 +659,7 @@ export async function openDeviceSessionDialog(deviceId) {
 
   overlay.querySelector('#dev-session-save').addEventListener('click', async () => {
     const durationMin = parseInt(overlay.querySelector('#dev-session-duration').value, 10) || 10;
-    const distanceCm = parseInt(overlay.querySelector('#dev-session-distance').value, 10) || 15;
+    const distanceCm = parseInt(overlay.querySelector('#dev-session-distance').value, 10) || (device.recommendedDistanceCm || 15);
     const bodyArea = overlay.querySelector('#dev-session-area').value || 'targeted';
     const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
     await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, eyesProtected });

@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "description": "Preset library — curated to the brands getbased has direct context on (Mitochondriak, Chroma, EMR-Tek). Anything not on this list goes through the AI-powered custom-add flow (paste URL or scan label) which extracts specs via the user's Claude provider. Each preset maps to a channel-specific dose profile so deviceSessions feed the same accumulators as outdoor solar sessions. catalogSlug links to data/recommendations.json `_internal.lightDevices` for the affiliate-link surface on each device card.",
+  "version": 3,
+  "description": "Preset library — curated to the brands getbased has direct context on (Mitochondriak, Chroma, EMR-Tek). Anything not on this list goes through the AI-powered custom-add flow (paste URL or scan label) which extracts specs via the user's Claude provider. Each preset maps to a channel-specific dose profile so deviceSessions feed the same accumulators as outdoor solar sessions. catalogSlug links to data/recommendations.json `_internal.lightDevices` for the affiliate-link surface on each device card. recommendedDistanceCm is the vendor's reference distance for the published irradiance — also used as the default working distance in the session-log dialog so dose math at default == manufacturer's spec, sidestepping the inverse-square pitfall at close ranges.",
   "presets": [
     {
       "id": "mitochondriak-pulse",
@@ -9,6 +9,7 @@
       "type": "pbm-targeted",
       "peakWavelengths": [460, 630, 670, 850, 900],
       "mwPerCm2At15cm": 50,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-pulse",
       "notes": "Handheld torch (12.5 cm wand). 5 wavelengths incl. blue 460 nm. Manufacturer quotes >230 mW/cm² @ 1 cm; ~50 at 15 cm working distance. Targeted PBM — small illuminated area."
@@ -20,6 +21,7 @@
       "type": "pbm-targeted",
       "peakWavelengths": [630, 670, 760, 810, 830, 850],
       "mwPerCm2At15cm": 120,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-bulb",
       "notes": "Screw-in 12×12 cm bulb with holder. 56 W. Targeted PBM — small illuminated area."
@@ -31,6 +33,7 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
       "mwPerCm2At15cm": 136,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-mini",
       "notes": "32×22 cm portable panel — quarter-body coverage. 210 W. Includes long-NIR 940 nm."
@@ -42,6 +45,7 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
       "mwPerCm2At15cm": 120,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-office-upgraded",
       "notes": "Stationary quarter-body panel for desk/office use. 310 W. Manufacturer quotes >60 mW/cm² @ 30 cm; ~120 at 15 cm (near-field 2×)."
@@ -53,6 +57,7 @@
       "type": "uva",
       "peakWavelengths": [360, 366, 630, 670, 760, 810, 830, 850],
       "mwPerCm2At15cm": 24,
+      "recommendedDistanceCm": 15,
       "channels": ["no_cv", "violet_eye", "pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-uv-portable",
       "notes": "15×23 cm portable panel with UVA 360/366 nm on top of red+NIR. No UVB. 36 W. Manufacturer quotes >12 mW/cm² @ 30 cm; ~24 at 15 cm (near-field 2×)."
@@ -64,6 +69,7 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
       "mwPerCm2At15cm": 210,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-maxi-upgraded",
       "notes": "90×30 cm half-body panel. 900 W. Same form factor as the Maxi UVB but red+NIR only — no UV. Manufacturer quotes >105 mW/cm² @ 30 cm; ~210 at 15 cm (near-field 2×)."
@@ -75,6 +81,7 @@
       "type": "uvb",
       "peakWavelengths": [295, 380, 480, 630, 670, 760, 810, 830, 850],
       "mwPerCm2At15cm": 120,
+      "recommendedDistanceCm": 15,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
       "catalogSlug": "mitochondriak-maxi-uvb",
       "notes": "Czech 90×30 cm broad-spectrum panel. UVB 295 nm + UVA 380 nm + blue 480 nm + red 630/670 nm + NIR 760/810/830/850 nm. Independent on/off for UV+blue vs red+NIR — touchscreen presets gate which channels fire per session. Half-body coverage."
@@ -86,9 +93,10 @@
       "type": "uvb",
       "peakWavelengths": [297, 385, 405, 485, 630, 670, 760, 810, 850, 935, 1050],
       "mwPerCm2At15cm": 200,
+      "recommendedDistanceCm": 20,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-trinity",
-      "notes": "Three modular modes — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Modes fire independently — adjust the dose if you only run one. Handheld, ~310 W combined."
+      "notes": "Three modular modes — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Modes fire independently — adjust the dose if you only run one. Handheld, ~310 W combined. Vendor measures @ 8 inches (~20 cm)."
     },
     {
       "id": "chroma-ironforge",
@@ -97,6 +105,7 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 850],
       "mwPerCm2At15cm": 250,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-ironforge",
       "notes": "5-wavelength PBM handheld. 850/810/760/670/630 nm. 200 W. 148 mW/cm² @ 6 inches; ~250 at 15 cm. 850-nm-dominant (50% of output) for deep tissue."
@@ -108,6 +117,7 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 760, 810, 850],
       "mwPerCm2At15cm": 250,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-ironforge-mini",
       "notes": "Yoga-block-sized handheld. Same 5-wavelength split as Ironforge (850-dominant). 200 W. 148 mW/cm² @ 6 inches; ~250 at 15 cm."
@@ -119,6 +129,7 @@
       "type": "combined",
       "peakWavelengths": [405, 630, 660, 810],
       "mwPerCm2At15cm": 80,
+      "recommendedDistanceCm": 15,
       "channels": ["violet_eye", "pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-radiance",
       "notes": "Compact 4-band handheld with violet 405 nm on top of red + near-IR. 50 W, 28 oz. Violet adds eye/skin OPN5 effects beyond pure PBM."
@@ -130,9 +141,10 @@
       "type": "combined",
       "peakWavelengths": [670, 810],
       "mwPerCm2At15cm": 50,
+      "recommendedDistanceCm": 50,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-red-portal",
-      "notes": "Desk / wall ambient PBM lamp. 670 + 810 nm. 40 W. Workspace-grade — lower irradiance, all-day exposure model."
+      "notes": "Desk / wall ambient PBM lamp. 670 + 810 nm. 40 W. Workspace-grade — designed for ~50 cm desk distance, all-day exposure model."
     },
     {
       "id": "chroma-sky-portal",
@@ -141,9 +153,10 @@
       "type": "sad",
       "peakWavelengths": [415, 480, 660],
       "lux": 10000,
+      "recommendedDistanceCm": 25,
       "channels": ["circadian", "violet_eye"],
       "catalogSlug": "chroma-sky-portal",
-      "notes": "Circadian desk lamp. Day mode: violet 415 + cyan 480 + balanced NIR (>10,000 melanopic lux @ 10 inches). Night mode: deep red 660 + 1300 K warm glow. Eye-channel device — no PBM dose."
+      "notes": "Circadian desk lamp. Day mode: violet 415 + cyan 480 + balanced NIR (>10,000 melanopic lux @ 10 inches ≈ 25 cm). Night mode: deep red 660 + 1300 K warm glow. Eye-channel device — no PBM dose."
     },
     {
       "id": "chroma-chromatorch",
@@ -152,6 +165,7 @@
       "type": "pbm-targeted",
       "peakWavelengths": [670, 810, 850],
       "mwPerCm2At15cm": 40,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "chroma-chromatorch",
       "notes": "Pocket torch (226 g). Three-band split (~33% each at 670 / 810 / 850). 85 mW/cm² at faceplate; ~40 at 15 cm working distance. 800+ hr battery."
@@ -163,6 +177,7 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 830],
       "mwPerCm2At15cm": 150,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-inferno",
       "notes": "Full-body red + near-IR therapy panel. 1400 W from 132 LEDs + 5 COB modules. >200 mW/cm² @ 6 inches; ~150 at 15 cm."
@@ -174,6 +189,7 @@
       "type": "combined",
       "peakWavelengths": [630, 660, 670, 810, 830, 850],
       "mwPerCm2At15cm": 120,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firedragon",
       "notes": "Desktop / mid-size 6-wavelength panel. 504 W. COB architecture, adjustable stand, LCD timer. Irradiance not published; ~120 at 15 cm based on wattage / form factor."
@@ -185,9 +201,10 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 830],
       "mwPerCm2At15cm": 250,
+      "recommendedDistanceCm": 50,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firewave-compact",
-      "notes": "Desktop COB device. 200 W focused chip-on-board. Manufacturer quotes 1400 mW/cm² at the panel face; effective output at 20 inches matches a standard panel at 6 inches. ~250 at 15 cm working distance."
+      "notes": "Desktop COB device. 200 W focused chip-on-board. Manufacturer recommends 20 inches (~50 cm) working distance — at that range output matches a standard panel at 6 inches. Closer use risks over-dosing; default keyed to vendor's recommended distance."
     },
     {
       "id": "emr-tek-firewave-pro",
@@ -196,6 +213,7 @@
       "type": "combined",
       "peakWavelengths": [630, 670, 830],
       "mwPerCm2At15cm": 200,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firewave-pro",
       "notes": "Desktop 350 W panel. 3 wavelengths. Irradiance not published; ~200 at 15 cm extrapolated from power."
@@ -207,6 +225,7 @@
       "type": "pbm-targeted",
       "peakWavelengths": [630, 670, 830],
       "mwPerCm2At15cm": 50,
+      "recommendedDistanceCm": 15,
       "channels": ["pbm_red", "pbm_nir"],
       "catalogSlug": "emr-tek-firefly",
       "notes": "USB-C battery-powered handheld. 1.5 hr runtime per charge. 'Panel-grade output' (exact wattage not disclosed) — handheld dose profile, treat as targeted PBM."
