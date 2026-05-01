@@ -372,20 +372,71 @@ export async function openFlickerDetector(opts = {}) {
       // 200 Hz PWM lamp the camera literally can't see.
       resultEl.innerHTML += `<br><small style="color:var(--orange)">⚠ camera running at ${Math.round(lock.frameRate)} fps — PWM above ${Math.round(lock.frameRate / 2)} Hz won't show up. Try a different camera if available.</small>`;
     }
+    // Two-channel detection:
+    //   1. Frame-luma variance (detects PWM up to fps/2 Hz only — useless
+    //      above ~30 Hz on a 60 fps camera). Kept for slow flicker /
+    //      mains-frequency 50/60 Hz visibility.
+    //   2. Intra-frame ROW banding from rolling shutter. The sensor reads
+    //      out top-to-bottom over ~15-33 ms; a PWM source modulates the
+    //      light during that readout, painting horizontal stripes onto
+    //      the frame. Detecting variance ROW-WISE (column means per row,
+    //      then stddev across rows) reveals PWM at 100 Hz – 25 kHz that
+    //      frame-rate sampling literally cannot see. Standard technique
+    //      used by commercial PWM-detection apps + still photography.
+    //
+    // Use 64x48 capture so we have enough rows to see banding cleanly.
     const canvas = document.createElement('canvas');
-    canvas.width = 32; canvas.height = 32;
+    canvas.width = 64; canvas.height = 48;
     const ctx = canvas.getContext('2d');
-    const samples = [];
+    const frameSamples = [];
+    const bandingSamples = [];
     const startTime = performance.now();
     const tick = () => {
       if (!_flickerState.running) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 4) sum += data[i] + data[i + 1] + data[i + 2];
-      samples.push({ t: performance.now() - startTime, v: sum });
-      if (samples.length > 240) samples.shift();
-      if (samples.length >= 60) renderFlicker(samples, lock);
+      // Compute per-row mean luma — that's the rolling-shutter signal.
+      const W = canvas.width, H = canvas.height;
+      const rowMeans = new Float32Array(H);
+      let frameSum = 0;
+      for (let y = 0; y < H; y++) {
+        let rowSum = 0;
+        const base = y * W * 4;
+        for (let x = 0; x < W; x++) {
+          const i = base + x * 4;
+          rowSum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+        }
+        const m = rowSum / W;
+        rowMeans[y] = m;
+        frameSum += m;
+      }
+      const frameMean = frameSum / H;
+      // Banding ratio: stddev of row means, normalized by frame mean.
+      // High value = strong horizontal stripes = PWM during readout.
+      let varSum = 0;
+      for (let y = 0; y < H; y++) {
+        const d = rowMeans[y] - frameMean;
+        varSum += d * d;
+      }
+      const rowStddev = Math.sqrt(varSum / H);
+      const bandingRatio = frameMean > 1 ? rowStddev / frameMean : 0;
+      // Crude readout-time-derived frequency: count zero-crossings of the
+      // detrended row-mean signal across the frame. If the camera's
+      // rolling-shutter readout is ~25ms (typical phone), N stripes mean
+      // a PWM frequency of N / 0.025s = N * 40 Hz. Without per-device
+      // calibration this is rough; we surface "fast/slow" not exact Hz.
+      let crossings = 0;
+      for (let y = 1; y < H; y++) {
+        if ((rowMeans[y] >= frameMean) !== (rowMeans[y - 1] >= frameMean)) crossings++;
+      }
+      const stripes = Math.floor(crossings / 2);
+      // Frame-luma channel (legacy)
+      const frameLumaSum = frameMean * H;
+      frameSamples.push({ t: performance.now() - startTime, v: frameLumaSum });
+      bandingSamples.push({ t: performance.now() - startTime, banding: bandingRatio, stripes });
+      if (frameSamples.length > 240) frameSamples.shift();
+      if (bandingSamples.length > 240) bandingSamples.shift();
+      if (frameSamples.length >= 60) renderFlicker(frameSamples, bandingSamples, lock);
       if (_flickerState.running) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -393,38 +444,49 @@ export async function openFlickerDetector(opts = {}) {
     resultEl.textContent = 'Camera access denied — flicker detector unavailable.';
   }
 
-  function renderFlicker(samples, lock) {
-    // Simple peak-to-trough variance ratio over the last second of samples
-    const recent = samples.slice(-120);
+  function renderFlicker(frameSamples, bandingSamples, lock) {
+    const recent = frameSamples.slice(-120);
     if (recent.length < 30) return;
+
+    // Channel 1: frame-luma variance over last second (slow flicker, mains 50/60 Hz).
     const vals = recent.map(s => s.v);
     const min = Math.min(...vals);
     const max = Math.max(...vals);
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-    const ratio = mean ? (max - min) / mean : 0;
-    let score, label, freq = '';
-    // Auto-mode AE smooths frame-luma → flicker-free reading is unreliable.
-    // Bump the "flicker-free" threshold pessimistically when AE is active
-    // so we don't false-negative a real PWM lamp.
+    const frameRatio = mean ? (max - min) / mean : 0;
+
+    // Channel 2: intra-frame row banding — the strong signal for fast PWM.
+    // Take the maximum banding ratio across recent frames (banding flickers
+    // in/out as PWM phase aligns with readout). Single-frame max is more
+    // robust than mean: a strong stripe pattern in any one frame is real.
+    const recentBanding = bandingSamples.slice(-60);
+    const peakBanding = recentBanding.reduce((m, s) => Math.max(m, s.banding), 0);
+    const peakStripes = recentBanding.reduce((m, s) => Math.max(m, s.stripes), 0);
+
+    // Combined score — banding dominates because it sees the PWM range
+    // that frame-luma can't (>30 Hz on a 60 fps camera).
+    let score, label;
     const aeActive = !lock || lock.exposure !== 'manual';
-    const lowThreshold = aeActive ? 0.02 : 0.05;
-    if (ratio < lowThreshold) { score = 0; label = aeActive ? 'Below detection threshold (camera in auto mode)' : 'Flicker-free'; }
-    else if (ratio < 0.12) { score = 1; label = 'Mild flicker, likely OK for most'; }
-    else if (ratio < 0.25) { score = 2; label = 'Visible flicker — eye-strain risk'; }
-    else { score = 3; label = 'Heavy flicker — consider replacing this light'; }
+    if (peakBanding > 0.18) { score = 3; label = 'Heavy flicker — consider replacing this light'; }
+    else if (peakBanding > 0.10) { score = 2; label = 'Visible flicker — eye-strain risk'; }
+    else if (peakBanding > 0.04 || frameRatio > 0.12) { score = 1; label = 'Mild flicker, likely OK for most'; }
+    else if (aeActive) { score = 0; label = 'Below detection threshold (camera in auto mode)'; }
+    else { score = 0; label = 'Flicker-free (no rolling-shutter banding detected)'; }
 
-    // Crude frequency estimate via zero-crossing on detrended signal
-    const detrended = vals.map(v => v - mean);
-    let crossings = 0;
-    for (let i = 1; i < detrended.length; i++) {
-      if ((detrended[i] >= 0) !== (detrended[i - 1] >= 0)) crossings++;
+    // Frequency estimate from stripe count + assumed 25ms readout
+    let freq = '';
+    if (peakStripes >= 2) {
+      const estHz = peakStripes * 40; // N / 0.025s
+      freq = ` · ~${estHz} Hz (rolling-shutter banding)`;
     }
-    const durationS = (recent[recent.length - 1].t - recent[0].t) / 1000;
-    const estFreq = durationS > 0 ? Math.round(crossings / 2 / durationS) : 0;
-    if (estFreq > 0) freq = ` · ~${estFreq} Hz`;
 
-    lastResult = { score, label, ratio, estFreq };
-    resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong>${escapeHTML(freq)}<br><small style="color:var(--text-muted)">peak-trough ratio ${ratio.toFixed(2)}</small>`;
+    lastResult = {
+      score, label,
+      bandingRatio: peakBanding,
+      stripes: peakStripes,
+      frameRatio,
+    };
+    resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong>${escapeHTML(freq)}<br><small style="color:var(--text-muted)">banding ${peakBanding.toFixed(3)} · frame-luma ${frameRatio.toFixed(3)}${peakStripes >= 2 ? ` · ${peakStripes} stripes/frame` : ''}</small>`;
   }
 
   overlay.querySelector('#flicker-save').addEventListener('click', async () => {
