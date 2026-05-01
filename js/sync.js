@@ -456,7 +456,7 @@ function _forcePull() {
     return;
   }
   _pulling = false;
-  console.log('[sync] Force pull triggered');
+  dbg('Force pull triggered');
   onSyncReceived();
   return 'triggered';
 }
@@ -736,7 +736,7 @@ async function pushProfile(profileId, importedData) {
     const devCount = Array.isArray(importedData?.lightDevices) ? importedData.lightDevices.length : 0;
     const queueMsg = `Queued ${profileId.slice(0,8)} — sun=${sunCount} dev=${devCount}`;
     const queuedAt = Date.now();
-    console.log(`[sync] ${queueMsg} @ ${queuedAt}`);
+    dbg(`${queueMsg} @ ${queuedAt}`);
     _logSyncEvent('queue', queueMsg);
 
     let completed = false;
@@ -750,7 +750,7 @@ async function pushProfile(profileId, importedData) {
       const elapsed = Date.now() - queuedAt;
       updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now() });
       const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
-      console.log(`[sync] ${okMsg}`);
+      dbg(okMsg);
       _logSyncEvent('push', okMsg);
       finish();
     };
@@ -1047,7 +1047,7 @@ async function onSyncReceived() {
     await applyRemoteTombstones();
 
     const rawRows = evolu.getQueryRows(profileQuery);
-    console.log(`[sync] onSyncReceived: ${rawRows?.length ?? 0} rows`);
+    dbg(`onSyncReceived: ${rawRows?.length ?? 0} rows`);
     if (!rawRows || rawRows.length === 0) return;
 
     // Dedupe by profileId, keeping the row with the highest syncedAt.
@@ -1097,11 +1097,11 @@ async function onSyncReceived() {
         // in state.importedData" stall.
         if (remoteUpdated < localUpdated) {
           const skipMsg = `Skip ${profileId.slice(0,8)} — remote older`;
-          console.log(`[sync] Row ${profileId.slice(0,8)}: skip (remote ${remoteUpdated} < local ${localUpdated})`);
+          dbg(`Row ${profileId.slice(0,8)}: skip (remote ${remoteUpdated} < local ${localUpdated})`);
           _logSyncEvent('skip', skipMsg);
           continue;
         }
-        console.log(`[sync] Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated} ${remoteUpdated === localUpdated ? '==' : '>'} local ${localUpdated})`);
+        dbg(`Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated} ${remoteUpdated === localUpdated ? '==' : '>'} local ${localUpdated})`);
 
         // Remote is newer — parse payload
         const { importedData, profile, aiSettings, chatData, displayPrefs } = parseSyncPayload(row.dataJson);
@@ -1162,7 +1162,7 @@ async function onSyncReceived() {
           : importedData;
         const _ct = (b, k) => Array.isArray(b?.[k]) ? b[k].length : 0;
         const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${_ct(localImportedForMerge,'sunSessions')}/dev=${_ct(localImportedForMerge,'lightDevices')} · remote sun=${_ct(importedData,'sunSessions')}/dev=${_ct(importedData,'lightDevices')} · merged sun=${_ct(merged,'sunSessions')}/dev=${_ct(merged,'lightDevices')}`;
-        console.log(`[sync] ${mergeMsg}`);
+        dbg(mergeMsg);
         _logSyncEvent('pull', mergeMsg);
         // wearableConnections preservation already happened on `importedData`;
         // mergeImportedData carries it through (since it's not in
@@ -1248,13 +1248,13 @@ async function onSyncReceived() {
             // displayPrefs handlers above already re-rendered their own
             // surfaces; skip the global navigate() so an in-progress form
             // (e.g. typing a duration into the session log dialog) survives.
-            console.log(`[sync] Pulled active profile ${profileId.slice(0,8)} — no new rows from remote, skipping re-render of '${cat}'`);
+            dbg(`Pulled active profile ${profileId.slice(0,8)} — no new rows from remote, skipping re-render of '${cat}'`);
           } else {
             window.navigate?.(cat);
             if (cat !== 'dashboard') {
               showNotification('Data updated from another device', 'success');
             }
-            console.log(`[sync] Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
+            dbg(`Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
           }
         } else {
           dbg('Pulled profile:', profileId);
@@ -1272,10 +1272,10 @@ async function onSyncReceived() {
           // rebroadcast if a push is already pending; the next pull cycle
           // (after that push lands) will redo this check correctly.
           if (_syncStatus.push === 'pending') {
-            console.log(`[sync] Row ${profileId.slice(0,8)}: rebroadcast deferred — push already pending`);
+            dbg(`Row ${profileId.slice(0,8)}: rebroadcast deferred — push already pending`);
             _logSyncEvent('skip', `Rebroadcast deferred — push pending`);
           } else {
-            console.log(`[sync] Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
+            dbg(`Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
             _logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
             // Snapshot importedData at SCHEDULE time and re-verify the
             // active profile when the timer fires. Without these, a profile
@@ -1284,7 +1284,7 @@ async function onSyncReceived() {
             const snapshotImported = merged;
             setTimeout(() => {
               if (profileId !== state.currentProfile) {
-                console.log(`[sync] Rebroadcast aborted — active profile switched`);
+                dbg(`Rebroadcast aborted — active profile switched`);
                 return;
               }
               pushProfile(profileId, snapshotImported);
