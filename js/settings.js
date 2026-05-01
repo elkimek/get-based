@@ -373,7 +373,7 @@ export function renderSunDataSourceSettings() {
     <div style="display:flex;flex-direction:column;gap:8px">
       ${_renderMeteoModeOption('auto', 'getbased default (Open-Meteo)', 'Public CC-BY 4.0 dataset. lat/lon goes to api.open-meteo.com. Standard CDN telemetry only — no logged user data.')}
       ${_renderMeteoModeOption('selfhost', 'Self-hosted server', 'Use your own getbased-uvdata server. Lat/lon never leaves your infrastructure. Set URL + bearer below.')}
-      ${_renderMeteoModeOption('manual', 'Manual entry only', 'Type the UV index per session. No network calls at all.')}
+      ${_renderMeteoModeOption('manual', 'UV meter / manual entry', 'Type the UV index per session — most accurate when you own a UV meter (Solarmeter 6.5R, Hocoma, EMR-Tek). Sessions log a meter-confidence reading instead of a model estimate. Also: no network calls at all.')}
     </div>
     <div id="meteo-selfhost-fields" style="margin-top:10px;${cfg.mode === 'selfhost' ? '' : 'display:none'}">
       <label style="font-size:12px;color:var(--text-muted)">Server URL</label>
