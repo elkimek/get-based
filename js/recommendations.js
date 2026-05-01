@@ -225,7 +225,7 @@ export function renderLightDeviceAffiliateRow(catalog, slug, opts = {}) {
   const slug_ = _eventSlug(product.key || product.name || slug);
   const evtName = `light-device-rec-${slug_}`.slice(0, 50).replace(/-+$/, '');
   const url = _addUTMParams(rawUrl, `light-device-${slug_}`, 'light-devices');
-  return `<a class="rec-product-link rec-light-device-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on ${vendorName}, opens in new tab">Source on ${vendorName} →</a>`;
+  return `<a class="rec-product-link rec-light-device-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on ${vendorName}, opens in new tab">View on ${vendorName} →</a>`;
 }
 
 export function getEMFProductsForMitigations(catalog, tags) {
