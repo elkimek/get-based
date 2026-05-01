@@ -5687,6 +5687,15 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   align-self: flex-start;
   padding: 6px 14px; font-size: 12px;
 }
+.light-device-actions {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 4px;
+}
+.rec-light-device-link {
+  font-size: 12px; color: var(--accent);
+  text-decoration: none;
+}
+.rec-light-device-link:hover { text-decoration: underline; }
 
 /* Unified sessions list — sun + device sessions interleaved
    chronologically. Row shape mirrors the sun-only list with an extra

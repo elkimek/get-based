@@ -226,6 +226,7 @@
       "peakWavelengths": [460, 630, 670, 850, 900],
       "mwPerCm2At15cm": 50,
       "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-pulse",
       "notes": "Handheld torch (12.5 cm wand). 5 wavelengths incl. blue 460 nm. Manufacturer quotes >230 mW/cm² @ 1 cm; ~50 at 15 cm working distance. Targeted PBM — small illuminated area."
     },
     {
@@ -236,6 +237,7 @@
       "peakWavelengths": [630, 670, 760, 810, 830, 850],
       "mwPerCm2At15cm": 120,
       "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-bulb",
       "notes": "Screw-in 12×12 cm bulb with holder. 56 W. Targeted PBM — small illuminated area."
     },
     {
@@ -246,6 +248,7 @@
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
       "mwPerCm2At15cm": 136,
       "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-mini",
       "notes": "32×22 cm portable panel — quarter-body coverage. 210 W. Includes long-NIR 940 nm."
     },
     {
@@ -256,6 +259,7 @@
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
       "mwPerCm2At15cm": 120,
       "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-office-upgraded",
       "notes": "Stationary quarter-body panel for desk/office use. 310 W. Manufacturer quotes >60 mW/cm² @ 30 cm; ~120 at 15 cm (near-field 2×)."
     },
     {
@@ -266,6 +270,7 @@
       "peakWavelengths": [360, 366, 630, 670, 760, 810, 830, 850],
       "mwPerCm2At15cm": 24,
       "channels": ["no_cv", "violet_eye", "pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-uv-portable",
       "notes": "15×23 cm portable panel with UVA 360/366 nm on top of red+NIR. No UVB. 36 W. Manufacturer quotes >12 mW/cm² @ 30 cm; ~24 at 15 cm (near-field 2×)."
     },
     {
@@ -276,6 +281,7 @@
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
       "mwPerCm2At15cm": 210,
       "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-maxi-upgraded",
       "notes": "90×30 cm half-body panel. 900 W. Same form factor as the Maxi UVB but red+NIR only — no UV. Manufacturer quotes >105 mW/cm² @ 30 cm; ~210 at 15 cm (near-field 2×)."
     },
     {
@@ -286,6 +292,7 @@
       "peakWavelengths": [295, 380, 480, 630, 670, 760, 810, 830, 850],
       "mwPerCm2At15cm": 120,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-maxi-uvb",
       "notes": "Czech 90×30 cm broad-spectrum panel. UVB 295 nm + UVA 380 nm + blue 480 nm + red 630/670 nm + NIR 760/810/830/850 nm. Independent on/off for UV+blue vs red+NIR — touchscreen presets gate which channels fire per session. Half-body coverage."
     },
     {
@@ -296,6 +303,7 @@
       "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
       "mwPerCm2At15cm": 210,
       "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-maxi-ultra",
       "notes": "180×30 cm full-body dual-panel system — two Maxi Upgraded panels tiled. 1800 W. No UV."
     },
     {
@@ -306,6 +314,7 @@
       "peakWavelengths": [295, 380, 480, 630, 670, 760, 810, 830, 850],
       "mwPerCm2At15cm": 120,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "catalogSlug": "mitochondriak-maxi-uvb-ultra",
       "notes": "180×30 cm full-body dual-panel system — two Maxi UVB panels tiled. 1800 W. Same broad-spectrum coverage as Maxi UVB; UV + blue toggle independently."
     },
     {
@@ -316,6 +325,7 @@
       "peakWavelengths": [297, 385, 405, 485, 630, 670, 760, 810, 850, 935, 1050],
       "mwPerCm2At15cm": 200,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "catalogSlug": "chroma-trinity",
       "notes": "Three modular modes — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Modes fire independently — adjust the dose if you only run one. Handheld, ~310 W combined."
     },
     {
@@ -326,6 +336,7 @@
       "peakWavelengths": [660, 850],
       "mwPerCm2At15cm": 150,
       "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "emr-tek-inferno-pro",
       "notes": "Full-body red + near-IR therapy panel. 660 nm + 850 nm only — no UV, no blue."
     },
     {

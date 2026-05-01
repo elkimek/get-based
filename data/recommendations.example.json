@@ -17,6 +17,10 @@
       "label": "EMF meters",
       "_internal": true
     },
+    "_internal.lightDevices": {
+      "label": "Light therapy devices",
+      "_internal": true
+    },
     "env.shieldingPaint": {
       "label": "RF shielding paint",
       "card": "Environment",
@@ -57,6 +61,20 @@
         "url": "https://example.com/rf-meter?ref=getbased",
         "affiliateUrl": "https://example.com/rf-meter?ref=getbased",
         "matchTypes": ["rfMicrowave"],
+        "regions": ["INTL"]
+      }
+    ],
+    "_internal.lightDevices": [
+      {
+        "type": "product",
+        "key": "example-panel",
+        "name": "Example Light Panel",
+        "vendor": "Example Vendor",
+        "vendorKey": "example",
+        "kind": "Red + near-IR therapy panel",
+        "blurb": "Sample light-device catalog entry. The `key` field must match the preset's `catalogSlug` in data/light-device-presets.json so device cards on the Light page can resolve and surface the affiliate link.",
+        "url": "https://example.com/light-panel?ref=getbased",
+        "affiliateUrl": "https://example.com/light-panel?ref=getbased",
         "regions": ["INTL"]
       }
     ],

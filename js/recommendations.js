@@ -180,6 +180,54 @@ const _MITIGATION_TAG_TO_SLOT = {
   'grounding rod': 'env.grounding',
 };
 
+// Look up a light-therapy device in the catalog by slug. The slug
+// matches `device.catalogSlug` (which mirrors the preset id in
+// data/light-device-presets.json) and the catalog product's `key` field.
+// Falls back to the device's preset id if catalogSlug isn't set on
+// older device records — old devices added before this wiring landed
+// still resolve correctly without a migration.
+export function getLightDeviceProduct(catalog, slug) {
+  if (!catalog?.products || !slug) return null;
+  const products = catalog.products['_internal.lightDevices'];
+  if (!Array.isArray(products) || products.length === 0) return null;
+  // Per-region visibility filter — same chain semantics as
+  // getProductsForSlot. Devices tagged ["INTL"] visible everywhere;
+  // ["CZ"] only to CZ + CZSK users; etc.
+  const region = getUserRegion();
+  const chain = new Set(regionLookupChain(region));
+  return products.find(p =>
+    p.key === slug &&
+    Array.isArray(p.regions) &&
+    p.regions.some(r => chain.has(r))
+  ) || null;
+}
+
+// Render a small "Source on {vendor}" affiliate row to surface alongside
+// a device card on the Light page. Same UTM + sponsored-rel + Umami
+// event pattern as the EMF product rows. Returns '' when:
+//   - product recs toggle is off
+//   - catalog or slug missing
+//   - no matching product in catalog
+//   - resolved URL fails the trusted-host allowlist
+//
+// Campaign tag is "light-devices" so the partner-side UTM dashboard can
+// attribute device-card traffic separately from the EMF + supplement
+// surfaces.
+export function renderLightDeviceAffiliateRow(catalog, slug, opts = {}) {
+  if (!isProductRecsEnabled() || !catalog || !slug) return '';
+  const product = getLightDeviceProduct(catalog, slug);
+  if (!product) return '';
+  const region = getUserRegion();
+  const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
+  if (!_isTrustedAffiliateUrl(rawUrl, catalog)) return '';
+  const productName = escapeHTML(product.name || slug);
+  const vendorName = escapeHTML(product.vendor || product.brand || 'vendor');
+  const slug_ = _eventSlug(product.key || product.name || slug);
+  const evtName = `light-device-rec-${slug_}`.slice(0, 50).replace(/-+$/, '');
+  const url = _addUTMParams(rawUrl, `light-device-${slug_}`, 'light-devices');
+  return `<a class="rec-product-link rec-light-device-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on ${vendorName}, opens in new tab">Source on ${vendorName} →</a>`;
+}
+
 export function getEMFProductsForMitigations(catalog, tags) {
   if (!catalog?.products) return [];
   const out = [];
@@ -1089,5 +1137,7 @@ Object.assign(window, {
   renderEMFMitigationRecs,
   detectEMFRelevance,
   detectMitigationsInText,
+  getLightDeviceProduct,
+  renderLightDeviceAffiliateRow,
   copyCouponCode,
 });

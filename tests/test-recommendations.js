@@ -223,6 +223,84 @@ return (async function() {
   assert('escapeHTML used for slot label', recSrc.includes('escapeHTML(label)'));
 
   // ═══════════════════════════════════════
+  // 14. Light-device catalog wiring
+  // ═══════════════════════════════════════
+  console.log('%c 14. Light-device catalog wiring ', 'font-weight:bold;color:#f59e0b');
+
+  assert('getLightDeviceProduct exported',
+    recSrc.includes('export function getLightDeviceProduct'));
+  assert('renderLightDeviceAffiliateRow exported',
+    recSrc.includes('export function renderLightDeviceAffiliateRow'));
+  assert('getLightDeviceProduct on window', typeof window.getLightDeviceProduct === 'function');
+  assert('renderLightDeviceAffiliateRow on window', typeof window.renderLightDeviceAffiliateRow === 'function');
+
+  // Synthetic catalog with a matching slug
+  const stubCatalog = {
+    region: 'INTL',
+    countries: ['worldwide'],
+    products: {
+      '_internal.lightDevices': [
+        {
+          type: 'product',
+          key: 'mitochondriak-maxi-uvb',
+          name: 'Mitochondriak Maxi UVB',
+          vendor: 'Mitochondriak',
+          vendorKey: 'mitochondriak',
+          url: 'https://www.mitochondriak.com/maxi-uvb?ref=getbased',
+          affiliateUrl: 'https://www.mitochondriak.com/maxi-uvb?ref=getbased',
+          regions: ['INTL'],
+        },
+      ],
+    },
+    vendors: {},
+  };
+  const found = window.getLightDeviceProduct(stubCatalog, 'mitochondriak-maxi-uvb');
+  assert('getLightDeviceProduct: matching slug → product', !!found && found.key === 'mitochondriak-maxi-uvb');
+  const missing = window.getLightDeviceProduct(stubCatalog, 'unknown-device');
+  assert('getLightDeviceProduct: unknown slug → null', missing === null);
+  const noCatalog = window.getLightDeviceProduct(null, 'mitochondriak-maxi-uvb');
+  assert('getLightDeviceProduct: null catalog → null', noCatalog === null);
+  const noSlug = window.getLightDeviceProduct(stubCatalog, '');
+  assert('getLightDeviceProduct: empty slug → null', noSlug === null);
+
+  // Render: requires product recs enabled
+  window.setProductRecsEnabled(true);
+  const row = window.renderLightDeviceAffiliateRow(stubCatalog, 'mitochondriak-maxi-uvb');
+  assert('renderLightDeviceAffiliateRow: produces sponsored anchor when enabled',
+    row.includes('rel="noopener sponsored"') &&
+    row.includes('href="') &&
+    row.includes('Mitochondriak'));
+  assert('renderLightDeviceAffiliateRow: stamps utm_campaign=light-devices',
+    row.includes('utm_campaign=light-devices'));
+  assert('renderLightDeviceAffiliateRow: Umami event uses light-device-rec prefix',
+    /data-umami-event="light-device-rec-/.test(row));
+  assert('renderLightDeviceAffiliateRow: target=_blank for new tab',
+    row.includes('target="_blank"'));
+  assert('renderLightDeviceAffiliateRow: has aria-label for screen readers',
+    /aria-label="View .* on .*, opens in new tab"/.test(row));
+
+  const emptyOnMiss = window.renderLightDeviceAffiliateRow(stubCatalog, 'unknown-device');
+  assert('renderLightDeviceAffiliateRow: missing product → empty string', emptyOnMiss === '');
+
+  window.setProductRecsEnabled(false);
+  const offWhenDisabled = window.renderLightDeviceAffiliateRow(stubCatalog, 'mitochondriak-maxi-uvb');
+  assert('renderLightDeviceAffiliateRow: toggle off → empty string', offWhenDisabled === '');
+  window.setProductRecsEnabled(true);
+
+  // Preset side: every Mitochondriak / Chroma / EMR-Tek preset must have a
+  // catalogSlug equal to its id so the device card resolves to the catalog
+  // without manual mapping.
+  const presetsRes = await fetchWithRetry('data/light-device-presets.json');
+  const presetsData = JSON.parse(presetsRes);
+  const newBrands = ['Mitochondriak', 'Chroma', 'EMR-Tek'];
+  for (const p of presetsData.presets) {
+    if (!newBrands.includes(p.brand)) continue;
+    assert(`Preset ${p.id}: catalogSlug equals id`,
+      p.catalogSlug === p.id,
+      `got ${p.catalogSlug}`);
+  }
+
+  // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
   console.log(`\n%c Results: ${pass} passed, ${fail} failed `, `background:${fail?'#ef4444':'#22c55e'};color:#fff;font-size:14px;padding:4px 12px;border-radius:4px`);

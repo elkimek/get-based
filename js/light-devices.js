@@ -190,6 +190,15 @@ export async function renderDevicesSection() {
   const devices = getDevices();
   const sessions = getDeviceSessions().slice().sort((a, b) => b.startedAt - a.startedAt).slice(0, 6);
 
+  // Load the recommendations catalog up-front so each device card can
+  // surface a "Source on {vendor}" affiliate link inline. Falls back to
+  // null silently — the renderer no-ops on missing catalog or when the
+  // product-recs toggle is off.
+  let catalog = null;
+  try {
+    if (window.loadCatalog) catalog = await window.loadCatalog();
+  } catch { /* offline / 404 — no affiliate row, page still renders */ }
+
   let html = `<div class="light-devices-section">
     <div class="light-devices-head">
       <h3 class="light-section-title">Light devices</h3>
@@ -204,6 +213,13 @@ export async function renderDevicesSection() {
 
   html += `<div class="light-devices-grid">`;
   for (const dev of devices) {
+    // Resolve catalog slug — prefer device.catalogSlug (set at add time)
+    // and fall back to device.presetId so older devices added before the
+    // wiring still work without a migration. Both default to null.
+    const slug = dev.catalogSlug || dev.presetId || null;
+    const affRow = (slug && window.renderLightDeviceAffiliateRow)
+      ? window.renderLightDeviceAffiliateRow(catalog, slug)
+      : '';
     html += `<div class="light-device-card" data-id="${escapeAttr(dev.id)}">
       <div class="light-device-head">
         <span class="light-device-name">${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}</span>
@@ -214,7 +230,10 @@ export async function renderDevicesSection() {
         ${dev.mwPerCm2At15cm ? ` · ${dev.mwPerCm2At15cm} mW/cm² @15cm` : ''}
         ${dev.lux ? ` · ${dev.lux} lux` : ''}
       </div>
-      <button class="import-btn import-btn-primary light-device-log" onclick="window.openDeviceSessionDialog('${escapeAttr(dev.id)}')">Log session</button>
+      <div class="light-device-actions">
+        <button class="import-btn import-btn-primary light-device-log" onclick="window.openDeviceSessionDialog('${escapeAttr(dev.id)}')">Log session</button>
+        ${affRow}
+      </div>
     </div>`;
   }
   html += `</div>`;
