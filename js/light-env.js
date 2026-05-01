@@ -369,14 +369,14 @@ function renderScreenCard(s, opts = {}) {
   const env = getEnvironment();
   const rooms = env?.rooms || [];
   const roomOptions = rooms.length > 0
-    ? `<select class="ctx-select light-env-screen-room" onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { roomId: this.value || null })" aria-label="Used in room">
+    ? `<select class="ctx-select light-env-screen-room" onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { roomId: this.value || null })" aria-label="Used in room">
         <option value=""${!s.roomId ? ' selected' : ''}>Portable / multiple rooms</option>
         ${rooms.map(r => `<option value="${escapeAttr(r.id)}"${s.roomId === r.id ? ' selected' : ''}>${escapeHTML(r.name || 'Room')}</option>`).join('')}
       </select>`
     : '';
   return `<div class="light-env-screen-card light-env-card-sev-${status.color}${compact ? ' light-env-screen-card-compact' : ''}" data-id="${escapeAttr(s.id)}">
     <div class="light-env-screen-card-head">
-      <select class="ctx-select light-env-screen-device" onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
+      <select class="ctx-select light-env-screen-device" onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
         ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
       </select>
       <span class="light-env-sev-chip light-env-sev-chip-${status.color}" title="${escapeAttr(status.reason)}">${escapeHTML(status.label)}</span>
@@ -390,7 +390,7 @@ function renderScreenCard(s, opts = {}) {
         <input type="number" min="0" max="12" step="0.5" class="ctx-input" placeholder="0" value="${s.eveningUseAfterSunset ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { eveningUseAfterSunset: parseFloat(this.value) || 0 })" aria-label="Evening hours" />
       </label>
       <label class="light-env-evening light-env-screen-blocker">
-        <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
+        <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
         Blue blocker (glasses, f.lux, Night Shift, amber tint)
       </label>
       ${!compact && roomOptions ? `<label class="ctx-label light-env-screen-room-label">Used in
@@ -420,7 +420,7 @@ function renderRoomDetailCard(r) {
     <div class="light-env-room-card-body">
       <div class="light-env-room-meta">
         <label class="ctx-label">Primary light source
-          <select class="ctx-select" onchange="window.updateLightEnvRoom('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
+          <select class="ctx-select" onchange="window.updateLightEnvRoomAndRender('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
             ${PRIMARY_SOURCES.map(s => `<option value="${escapeAttr(s.key)}"${r.primarySource === s.key ? ' selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
           </select>
         </label>
@@ -428,7 +428,7 @@ function renderRoomDetailCard(r) {
           <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="hr/day" value="${r.hoursOccupiedPerDay ?? ''}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { hoursOccupiedPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
         </label>
         <label class="light-env-evening">
-          <input type="checkbox"${r.eveningUseAfterSunset ? ' checked' : ''} onchange="window.updateLightEnvRoom('${escapeAttr(r.id)}', { eveningUseAfterSunset: this.checked })" />
+          <input type="checkbox"${r.eveningUseAfterSunset ? ' checked' : ''} onchange="window.updateLightEnvRoomAndRender('${escapeAttr(r.id)}', { eveningUseAfterSunset: this.checked })" />
           Used after sunset
         </label>
       </div>
@@ -578,6 +578,15 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     updateLightEnvRoom: async (id, patch) => { await updateRoom(id, patch); },
+    // Discrete-toggle variant — same persistence as updateLightEnvRoom
+    // but follows up with a navigate('light') so the severity chip
+    // and accent strip refresh. Use for select/checkbox handlers
+    // where focus-loss isn't a concern; keep plain updateLightEnvRoom
+    // for text + number inputs to preserve cursor mid-typing.
+    updateLightEnvRoomAndRender: async (id, patch) => {
+      await updateRoom(id, patch);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
     deleteLightEnvRoom: async (id) => {
       await deleteRoom(id);
       if (readActiveRoomId() === id) writeActiveRoomId(null);
@@ -604,6 +613,10 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     updateLightEnvScreen: async (id, patch) => { await updateScreen(id, patch); },
+    updateLightEnvScreenAndRender: async (id, patch) => {
+      await updateScreen(id, patch);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
     deleteLightEnvScreen: async (id) => {
       await deleteScreen(id);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
