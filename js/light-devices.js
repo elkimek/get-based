@@ -166,6 +166,12 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
     notes,
   };
   getDeviceSessions().push(session);
+  // Remember the user's chosen params on the device record so the
+  // next session log dialog opens with their actual ritual prefilled
+  // (most users do the same duration / distance / body area each
+  // session — re-typing every time is friction). Notes intentionally
+  // excluded — they're session-specific, shouldn't leak forward.
+  device.lastSession = { durationMin, distanceCm, bodyArea, eyesProtected };
   await saveImportedData();
   return session;
 }
@@ -757,6 +763,23 @@ export async function addCustomDevice(spec) {
 export async function openDeviceSessionDialog(deviceId) {
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return;
+  // Prefill from the user's last logged session on this device. First-
+  // time logs fall through to vendor reference distance + sensible
+  // defaults (10 min, torso, eyes protected). Each save updates
+  // device.lastSession so the dialog opens with the user's actual
+  // ritual next time.
+  const last = device.lastSession || {};
+  const defaultDuration = Number.isFinite(last.durationMin) && last.durationMin > 0 ? last.durationMin : 10;
+  const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm > 0
+    ? last.distanceCm
+    : (device.recommendedDistanceCm || 15);
+  const defaultBodyArea = last.bodyArea || 'torso';
+  const defaultEyesProtected = last.eyesProtected !== false;
+  const BODY_AREA_OPTIONS = [
+    ['targeted', 'Targeted (single area)'], ['face', 'Face'],
+    ['torso', 'Torso'], ['arms', 'Arms'], ['legs', 'Legs'],
+    ['whole-body', 'Whole body'],
+  ];
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Log device session">
@@ -766,36 +789,38 @@ export async function openDeviceSessionDialog(deviceId) {
     </div>
     <div class="modal-body">
       <label class="ctx-label">Duration (minutes)
-        <input type="number" id="dev-session-duration" class="ctx-input" min="1" max="120" value="10" />
+        <input type="number" id="dev-session-duration" class="ctx-input" min="1" max="120" value="${defaultDuration}" />
       </label>
       ${(() => {
         const useUS = state.unitSystem === 'US';
         const startUnit = useUS ? 'in' : 'cm';
-        const baseCm = device.recommendedDistanceCm || 15;
+        const refCm = device.recommendedDistanceCm || 15;
         const fmt = (cm, u) => u === 'in' ? +(cm / 2.54).toFixed(1) : cm;
+        // Hint surfaces the vendor reference always; if the user has
+        // overridden it before, surface that override too so they know
+        // why the input shows a different default.
+        const hasOverride = Number.isFinite(last.distanceCm) && Math.abs(last.distanceCm - refCm) > 0.5;
+        const overrideHint = hasOverride
+          ? ` You usually log at ${fmt(defaultDistanceCm, 'cm')} cm — prefilled below.`
+          : '';
         return `<label class="ctx-label">Distance from device
           <div class="dev-distance-row">
-            <input type="number" id="dev-session-distance" class="ctx-input" min="2" max="200" step="0.5" value="${fmt(baseCm, startUnit)}" data-unit="${startUnit}" data-base-cm="${baseCm}" />
+            <input type="number" id="dev-session-distance" class="ctx-input" min="2" max="200" step="0.5" value="${fmt(defaultDistanceCm, startUnit)}" data-unit="${startUnit}" data-base-cm="${refCm}" />
             <div class="dev-unit-toggle" role="tablist" aria-label="Distance unit">
               <button type="button" class="dev-unit-btn${startUnit === 'cm' ? ' active' : ''}" data-unit="cm" role="tab" aria-selected="${startUnit === 'cm'}">cm</button>
               <button type="button" class="dev-unit-btn${startUnit === 'in' ? ' active' : ''}" data-unit="in" role="tab" aria-selected="${startUnit === 'in'}">in</button>
             </div>
           </div>
-          <span class="dev-session-hint">Vendor reference: ${fmt(baseCm, 'cm')} cm (${fmt(baseCm, 'in')} in). The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
+          <span class="dev-session-hint">Vendor reference: ${fmt(refCm, 'cm')} cm (${fmt(refCm, 'in')} in).${overrideHint} The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
         </label>`;
       })()}
       <label class="ctx-label">Body area
         <select id="dev-session-area" class="ctx-select">
-          <option value="targeted">Targeted (single area)</option>
-          <option value="face">Face</option>
-          <option value="torso">Torso</option>
-          <option value="arms">Arms</option>
-          <option value="legs">Legs</option>
-          <option value="whole-body">Whole body</option>
+          ${BODY_AREA_OPTIONS.map(([v, l]) => `<option value="${v}"${v === defaultBodyArea ? ' selected' : ''}>${escapeHTML(l)}</option>`).join('')}
         </select>
       </label>
       <label class="ctx-label">
-        <input type="checkbox" id="dev-session-eyes" checked />
+        <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''} />
         Eyes protected (goggles or closed)
       </label>
       <div class="modal-actions" style="margin-top:18px">
