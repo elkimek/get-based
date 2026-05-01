@@ -5275,15 +5275,18 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 
 /* Light page channel pills — same vocabulary as the dashboard strip,
    adds a click-to-expand affordance for the drill-down panel below. */
-.light-pills-interactive .light-pill-interactive {
+.light-pills-interactive .light-pill-interactive,
+.light-pill-dashboard {
   cursor: pointer;
   font-family: inherit;
   /* button-element reset */
 }
-.light-pills-interactive .light-pill-interactive:hover {
+.light-pills-interactive .light-pill-interactive:hover,
+.light-pill-dashboard:hover {
   filter: brightness(1.08);
   border-color: var(--accent);
 }
+.light-pill-dashboard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .light-pills-interactive .light-pill-interactive[aria-expanded="true"] {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);

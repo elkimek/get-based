@@ -109,15 +109,19 @@ export function renderLightTodayStrip() {
   // outdoor sessions still sees PBM channels light up.
   const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
   const combinedTotals7d = mergeTotalsLocal(totals7d, devTotals7d);
+  // Dashboard pills are clickable — navigate to the Light & Sun page
+  // and auto-expand the matching channel's drill-down panel. Same
+  // vocabulary as the Light page pills, just one click away from the
+  // detail instead of three (open Light page → find pill → tap).
   const pills = order.map(k => {
     const meta = ch[k] || {};
     const t = tier(combinedTotals7d[k] || 0, k);
-    const tip = `${meta.what || ''} — last 7 days: ${tlabel(t)}.`;
-    return `<span class="light-pill light-pill-tier-${t}" title="${escapeHTML(tip)}">
-      <span class="light-pill-icon">${meta.icon || '·'}</span>
+    const tip = `${meta.what || ''} — last 7 days: ${tlabel(t)}. Tap for details.`;
+    return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" onclick="window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" aria-label="${escapeHTML((meta.label || k) + ', ' + tlabel(t) + ' last 7 days, tap to open detail')}">
+      <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
-      <span class="light-pill-dots">${dots(t)}</span>
-    </span>`;
+      <span class="light-pill-dots" aria-hidden="true">${dots(t)}</span>
+    </button>`;
   }).join('');
 
   // Burn-risk gauge — qualitative, plain English, no acronyms
@@ -1067,11 +1071,15 @@ export function showLight(_data) {
   // science copy + tier comparison + suggestion. Empty defined as "no
   // light data of any kind" — devices count too.
   const isEmpty = totalSessions === 0;
+  // Single title across empty + populated states — the dot fill on
+  // the pills is what differentiates "ready to start" from "in
+  // progress." Lead copy adapts: empty version explains the model;
+  // populated version invites drill-down.
   const lead = isEmpty
-    ? 'Tap any channel to learn what it does. Each fills as you log sessions outdoors or with a therapy device.'
-    : 'Tap any channel for the science, last-30-day comparison, and what to do next.';
+    ? "Sun isn't just vitamin D. Each pill is a different biological effect of light — they fill as you log sessions outdoors or with a therapy device. Tap any pill for the science."
+    : 'Tap any pill for the science, last-30-day comparison, and what to do next.';
   html += `<div class="light-channels-section">
-    <h3 class="light-section-title">${isEmpty ? "Light isn't just vitamin D" : "Your light channels"}</h3>
+    <h3 class="light-section-title">Your light, by what it does</h3>
     <p class="light-section-hint">${lead}</p>
     ${renderChannelPills(combined7d, combined30d)}
     ${isEmpty ? getSunCoordsHint() : ''}
@@ -1223,12 +1231,15 @@ function _renderChannelDetailPanel(channelKey) {
   const devices = (window.getDevices && window.getDevices()) || [];
   const matchingDevice = devices.find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
   let suggestion = '';
+  const dev = matchingDevice ? `${matchingDevice.brand} ${matchingDevice.model}` : '';
   if (t7 === 0) {
-    if (matchingDevice) suggestion = `Log a session on your ${matchingDevice.brand} ${matchingDevice.model} or get this channel from outdoor sun.`;
-    else suggestion = `Log a sun session outdoors to start filling this channel.`;
+    suggestion = matchingDevice
+      ? `Spend time outdoors or run a session on your ${dev} — both feed this channel.`
+      : `Spend time outdoors to start filling this channel.`;
   } else if (t7 < 3) {
-    if (matchingDevice) suggestion = `One more solid session — outdoors or on your ${matchingDevice.brand} ${matchingDevice.model} — could push this to ${dots(Math.min(4, t7 + 1))}.`;
-    else suggestion = `One more solid session this week could push this to ${dots(Math.min(4, t7 + 1))}.`;
+    suggestion = matchingDevice
+      ? `One more session this week tips you to ${dots(Math.min(4, t7 + 1))} — outdoor sun or your ${dev}.`
+      : `One more session this week tips you to ${dots(Math.min(4, t7 + 1))}.`;
   } else if (t7 === 3) {
     suggestion = `Consistent good range. One more this week tips you to strong (${dots(4)}).`;
   } else {
@@ -1257,6 +1268,29 @@ function _renderChannelDetailPanel(channelKey) {
     </div>
     <p class="light-channel-detail-suggestion">${escapeHTML(suggestion)}</p>
   </div>`;
+}
+
+// Navigate to the Light & Sun page and auto-expand the channel's
+// drill-down panel. Used when the user taps a dashboard pill — gives
+// them one-click access to the science / 30d trend / suggestion
+// instead of forcing them to find the same pill on the Light page
+// after navigation. Already on Light? Just toggle in place.
+function _openChannelOnLightPage(channelKey) {
+  if (state.currentView === 'light') {
+    _toggleChannelDetail(channelKey);
+    return;
+  }
+  if (window.navigate) window.navigate('light');
+  // Light page renders synchronously; the pill row is in the DOM by
+  // the next animation frame. Defer the toggle so the section exists.
+  // Two rAFs to make sure the async devices/env/tools slot doesn't
+  // race the toggle.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    _toggleChannelDetail(channelKey);
+    // Scroll the expanded panel into view so the user lands on it.
+    const panel = document.getElementById(`light-pill-detail-${channelKey}`);
+    if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
 }
 
 // Toggle a per-channel detail panel below the pill row. One channel
@@ -1291,26 +1325,19 @@ function _toggleChannelDetail(channelKey) {
 }
 
 // Unified sessions list — sun + device sessions merged into a single
-// chronological feed. Differentiated by leading icon and label so the
-// user can scan both kinds in one place. Click on a sun session opens
-// its detail modal (openSunSessionDetail); click on a device session
-// is currently a no-op (no per-device-session detail modal yet — drop
-// the row to delete via the × button). When the list is empty falls
-// through to the existing sun-only "log your first session" hero.
+// chronological feed. Sun rows reuse renderSunSessionRow from sun.js
+// so the rich treatment (channel chips, burn-risk meta, click-to-open
+// detail modal) is consistent whether the user has only sun, only
+// device, or both kinds of sessions. Device rows render inline since
+// they have a simpler shape (no per-channel chips on the device-side
+// — those would be the SAME chips on every row, not informative).
 function renderUnifiedSessionsList() {
   const sunSessions = (window.getSessions && window.getSessions()) || [];
   const devSessions = (window.getDeviceSessions && window.getDeviceSessions()) || [];
-  if (sunSessions.length === 0 && devSessions.length === 0) {
-    return (window.renderSessionsList && window.renderSessionsList()) || '';
-  }
-  // If only sun sessions exist, defer to the richer sun-only list with
-  // its per-session detail modal + channel chips. Adding device rows
-  // would only matter when there's at least one device session to
-  // weave in.
+  // Pure-sun path defers to the original list (no merge needed).
   if (devSessions.length === 0) {
     return (window.renderSessionsList && window.renderSessionsList()) || '';
   }
-  // Merge: tag each row with kind, sort by startedAt desc.
   const rows = [];
   for (const s of sunSessions) rows.push({ kind: 'sun', startedAt: s.startedAt || 0, sess: s });
   for (const s of devSessions) rows.push({ kind: 'device', startedAt: s.startedAt || 0, sess: s });
@@ -1318,37 +1345,17 @@ function renderUnifiedSessionsList() {
 
   const devices = (window.getDevices && window.getDevices()) || [];
   const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
+  const renderSunRow = window.renderSunSessionRow;
 
   let html = `<div class="sun-sessions-list light-sessions-list-unified">`;
   for (const row of rows) {
-    const date = formatDate(new Date(row.startedAt).toISOString().slice(0, 10));
-    if (row.kind === 'sun') {
-      // Reuse the sun-session row markup so click → openSunSessionDetail
-      // and the channel-chip + burn-risk treatment carry through. We
-      // generate the row by isolating the per-row block from the main
-      // renderer; rather than duplicate that logic we just call the
-      // existing renderer once and prepend a separator label.
-      // Simpler approach: build a thin wrapper row pointing at the
-      // existing detail modal, with an icon to distinguish it from a
-      // device row.
-      const sess = row.sess;
-      const isActive = !sess.endedAt;
-      const dur = isActive
-        ? _formatElapsedShort(Date.now() - sess.startedAt)
-        : (sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress');
-      html += `<div class="sun-session light-session-row light-session-sun" role="button" tabindex="0" aria-label="Open ${date} sun session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
-        <div class="sun-session-head">
-          <span class="light-session-icon" aria-hidden="true">☀</span>
-          <span class="sun-session-date">${escapeHTML(date)}</span>
-          <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${escapeHTML(dur)}</span>
-          <span class="light-session-kind">Outdoor sun</span>
-          <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession && window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
-        </div>
-      </div>`;
-    } else {
+    if (row.kind === 'sun' && renderSunRow) {
+      html += renderSunRow(row.sess);
+    } else if (row.kind === 'device') {
       const sess = row.sess;
       const dev = deviceById[sess.deviceId];
       const devName = dev ? `${dev.brand} ${dev.model}` : 'Removed device';
+      const date = formatDate(new Date(row.startedAt).toISOString().slice(0, 10));
       const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : '—';
       const meta = `${dur} @ ${sess.distanceCm}cm · ${sess.bodyArea || ''}${sess.eyesProtected ? ' · eyes protected' : ''}`;
       html += `<div class="sun-session light-session-row light-session-device">
@@ -3557,6 +3564,7 @@ Object.assign(window, {
   showLight,
   _expandLightToolsSection,
   _toggleChannelDetail,
+  _openChannelOnLightPage,
   renderLightTodayStrip,
   renderLightChannelsLive,
   renderConditionsNow,

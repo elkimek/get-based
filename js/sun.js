@@ -863,6 +863,46 @@ function _summarizeBodyExposure(sess) {
 
 // ─── UI: Sessions list (used by the dedicated Light & Sun page) ────────
 
+// Render a single sun-session row. Extracted so the unified
+// sun+device sessions list (views.js renderUnifiedSessionsList) can
+// reuse the same rich treatment instead of rebuilding a stripped-down
+// row from scratch — channel chips + burn-risk meta + click-to-open
+// detail modal stay consistent whether the user owns devices or not.
+export function renderSunSessionRow(sess) {
+  const eyeLabels = Object.fromEntries(EYE_MODES.map(e => [e.key, e.label]));
+  const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
+  const isActive = !sess.endedAt;
+  const dur = isActive
+    ? _formatElapsed(Date.now() - sess.startedAt)
+    : (sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress');
+  const med = sess.safety?.medFraction;
+  let medStr = '';
+  if (med != null) {
+    const pct = Math.round(med * 100);
+    let label = 'safe', cls = '';
+    if (med >= 1) { label = 'over threshold'; cls = 'over'; }
+    else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
+    else if (med >= 0.3) { label = 'moderate'; cls = ''; }
+    medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose: ${pct}% of your personal threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn risk: ${escapeHTML(label)}</span>`;
+  }
+  const channelChips = renderChannelChips(sess.doses);
+  // Click anywhere on the card (except the × delete) to open the detail
+  // modal. Each delete button stops propagation so it only deletes.
+  return `<div class="sun-session" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
+    <div class="sun-session-head">
+      <span class="light-session-icon" aria-hidden="true">☀</span>
+      <span class="sun-session-date">${start}</span>
+      <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
+      ${medStr}
+      <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
+    </div>
+    <div class="sun-session-meta">
+      ${escapeHTML(_summarizeBodyExposure(sess))} · ${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
+    </div>
+    ${channelChips}
+  </div>`;
+}
+
 export function renderSessionsList() {
   const sessions = [...getSessions()].sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
   if (sessions.length === 0) {
@@ -871,41 +911,8 @@ export function renderSessionsList() {
       <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">Log your first session</button>
     </div>`;
   }
-  const presetLabels = Object.fromEntries(EXPOSURE_PRESETS.map(p => [p.key, p.label]));
-  const eyeLabels = Object.fromEntries(EYE_MODES.map(e => [e.key, e.label]));
   let html = `<div class="sun-sessions-list">`;
-  for (const sess of sessions) {
-    const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
-    const isActive = !sess.endedAt;
-    const dur = isActive
-      ? _formatElapsed(Date.now() - sess.startedAt)
-      : (sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress');
-    const med = sess.safety?.medFraction;
-    let medStr = '';
-    if (med != null) {
-      const pct = Math.round(med * 100);
-      let label = 'safe', cls = '';
-      if (med >= 1) { label = 'over threshold'; cls = 'over'; }
-      else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
-      else if (med >= 0.3) { label = 'moderate'; cls = ''; }
-      medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose: ${pct}% of your personal threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn risk: ${escapeHTML(label)}</span>`;
-    }
-    const channelChips = renderChannelChips(sess.doses);
-    // Click anywhere on the card (except the × delete) to open the detail
-    // modal. Each delete button stops propagation so it only deletes.
-    html += `<div class="sun-session" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
-      <div class="sun-session-head">
-        <span class="sun-session-date">${start}</span>
-        <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
-        ${medStr}
-        <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
-      </div>
-      <div class="sun-session-meta">
-        ${escapeHTML(_summarizeBodyExposure(sess))} · ${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
-      </div>
-      ${channelChips}
-    </div>`;
-  }
+  for (const sess of sessions) html += renderSunSessionRow(sess);
   html += `</div>`;
   return html;
 }
@@ -1495,6 +1502,7 @@ if (typeof window !== 'undefined') {
     rollingChannelTotals,
     cumulativeMEDToday,
     renderSessionsList,
+    renderSunSessionRow,
     getSunCoords,
     requestPreciseLocation,
     openDetailedSessionDialog,
