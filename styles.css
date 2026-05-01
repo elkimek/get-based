@@ -5229,9 +5229,18 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-today-med-over { color: var(--red); }
 .light-today-med-over strong { color: var(--red); }
 
+/* CTA group — wraps one or more CTA buttons together so they sit
+   adjacent (8px gap) and the GROUP gets pushed right via margin-left:
+   auto. Previously each CTA had margin-left:auto individually, which
+   made multiple CTAs spread out across the foot row instead of
+   clustering. Single-button case still works (group of 1 → button
+   right-aligned as before). */
+.light-today-cta-group {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
 /* CTA — brand gradient. Active (mid-session) flips to red as a "stop" cue. */
 .light-today-cta {
-  margin-left: auto;
   padding: 8px 16px;
   background: var(--accent-gradient);
   color: #fff;
@@ -5244,6 +5253,15 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   background: var(--red);
 }
 .light-today-cta-active:hover { box-shadow: 0 2px 12px var(--red-bg); }
+/* Secondary CTA used as a paired "🔴 Device" button next to the
+   primary "☀ Sun" — slightly subdued so the eye lands on the
+   solar-window CTA first when both are present. */
+.light-today-cta-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.light-today-cta-secondary:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); border-color: var(--accent); }
 
 /* Light & Sun page — quick-log row + section headings */
 .light-quicklog-row {

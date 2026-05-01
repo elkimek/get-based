@@ -61,23 +61,40 @@ export function renderLightTodayStrip() {
   // winter user with a Joovv but no recent sun should see the device
   // option as a peer, not buried under sun-only copy. Solar windows
   // still privilege outdoor sun (it's a transient cue you'd miss).
-  const hasDevices = !!(window.getDevices && window.getDevices().length > 0);
+  // CTAs are wrapped in .light-today-cta-group so margin-left:auto
+  // applies once to the GROUP — without the wrapper each individual
+  // CTA's margin-left:auto pushed every button to the right edge,
+  // spreading them apart instead of clustering them.
+  const devicesArr = (window.getDevices && window.getDevices()) || [];
+  const hasDevices = devicesArr.length > 0;
+  // Device button copy adapts to how many devices the user owns. With
+  // 1 device, name it inline so the click goes straight to that
+  // device's session log. With 2+, show a generic "Device ▼" — taps
+  // open the picker (quickLogDeviceSession already handles this case).
+  let deviceBtn = '';
+  if (hasDevices) {
+    if (devicesArr.length === 1) {
+      const d = devicesArr[0];
+      const label = `🔴 ${d.brand || ''} ${d.model || ''}`.trim();
+      deviceBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()" title="Log a session on your ${escapeHTML(d.brand || '')} ${escapeHTML(d.model || '')}">${escapeHTML(label)}</button>`;
+    } else {
+      deviceBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()" title="Pick from your ${devicesArr.length} devices">🔴 Device <span aria-hidden="true">▼</span></button>`;
+    }
+  }
   let cta;
   if (active) {
     // mm:ss live counter; the active-session ticker updates this same
     // element every second via the [data-live-elapsed-for] selector.
     const elapsedMs = Date.now() - active.startedAt;
     const elapsed = _formatElapsedShort(elapsedMs);
-    cta = `<button class="light-today-cta light-today-cta-active" onclick="window.quickLogSunSession()" aria-label="Stop active sun session"><span aria-hidden="true">⏹ Stop session — </span><span data-live-elapsed-for="${active.id}" aria-live="off">${elapsed}</span></button>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta light-today-cta-active" onclick="window.quickLogSunSession()" aria-label="Stop active sun session"><span aria-hidden="true">⏹ Stop session — </span><span data-live-elapsed-for="${active.id}" aria-live="off">${elapsed}</span></button></div>`;
   } else if (inSolarWindow) {
     const wlabel = solarWindowLabel();
-    cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ ${wlabel} — log a session</button>`;
-    if (hasDevices) cta += ` <button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Device</button>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ ${wlabel} — log a session</button>${deviceBtn}</div>`;
   } else if (hasDevices) {
-    cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Sun</button>
-      <button class="light-today-cta" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Device</button>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Sun</button>${deviceBtn}</div>`;
   } else {
-    cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button></div>`;
   }
 
   // Qualitative pill summary of the 6 user-facing channels for the past 7 days.
