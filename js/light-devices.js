@@ -259,7 +259,11 @@ export async function openAddDeviceDialog() {
     if (!groups[p.type]) groups[p.type] = [];
     groups[p.type].push(p);
   }
-  const orderedTypes = ['combined', 'pbm-targeted', 'uvb', 'uva', 'sad', 'dawn-sim', 'full-spectrum'];
+  // Order: UV (most distinctive — vitamin D capable) first, then UVA-only,
+  // then red+NIR panels, then targeted PBM, then eye-channel devices
+  // (SAD → dawn → full-spectrum bulbs). Mirrors the natural mental
+  // model "what kind of light am I trying to add?"
+  const orderedTypes = ['uvb', 'uva', 'combined', 'pbm-targeted', 'sad', 'dawn-sim', 'full-spectrum'];
 
   let opts = '<option value="" disabled selected>Choose your device…</option>';
   for (const t of orderedTypes) {
