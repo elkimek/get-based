@@ -219,6 +219,36 @@
       "notes": "Flexible PBM panel — face/body/joints."
     },
     {
+      "id": "mitochondriak-maxi-uvb",
+      "brand": "Mitochondriak",
+      "model": "Maxi UVB",
+      "type": "combined",
+      "peakWavelengths": [295, 380, 480, 630, 670, 760, 810, 830, 850],
+      "mwPerCm2At15cm": 120,
+      "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "notes": "Czech 90×30 cm broad-spectrum panel. UVB 295 nm + UVA 380 nm + blue 480 nm + red 630/670 nm + NIR 760/810/830/850 nm. Independent on/off for UV+blue vs red+NIR — touchscreen presets gate which channels fire per session. Half-body coverage."
+    },
+    {
+      "id": "chroma-trinity",
+      "brand": "Chroma",
+      "model": "Trinity",
+      "type": "combined",
+      "peakWavelengths": [297, 385, 405, 485, 630, 670, 760, 810, 850, 935, 1050],
+      "mwPerCm2At15cm": 200,
+      "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "notes": "Three modular modes — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Modes fire independently — adjust the dose if you only run one. Handheld, ~310 W combined."
+    },
+    {
+      "id": "emr-tek-inferno-pro",
+      "brand": "EMR-Tek",
+      "model": "Inferno Pro",
+      "type": "combined",
+      "peakWavelengths": [660, 850],
+      "mwPerCm2At15cm": 150,
+      "channels": ["pbm_red", "pbm_nir"],
+      "notes": "Full-body red + near-IR therapy panel. 660 nm + 850 nm only — no UV, no blue."
+    },
+    {
       "id": "custom",
       "brand": "Custom",
       "model": "Other / not listed",
