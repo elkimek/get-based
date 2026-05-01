@@ -81,8 +81,7 @@
 [data-theme="light"] .supp-timeline,
 [data-theme="light"] .alert-card,
 [data-theme="light"] .light-today-strip,
-[data-theme="light"] .light-channel-row,
-[data-theme="light"] .light-intro-card,
+[data-theme="light"] .light-channel-detail,
 [data-theme="light"] .light-med-banner,
 [data-theme="light"] .sun-session { box-shadow: var(--shadow); border-color: transparent; }
 [data-theme="light"] .header { box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-bottom-color: transparent; }
@@ -5256,52 +5255,83 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-section-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0 0 4px; }
 .light-section-hint { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
 
-/* Channel cards grid */
-.light-channels-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: 12px;
+/* Light page channel pills — same vocabulary as the dashboard strip,
+   adds a click-to-expand affordance for the drill-down panel below. */
+.light-pills-interactive .light-pill-interactive {
+  cursor: pointer;
+  font-family: inherit;
+  /* button-element reset */
 }
-.light-channel-row {
+.light-pills-interactive .light-pill-interactive:hover {
+  filter: brightness(1.08);
+  border-color: var(--accent);
+}
+.light-pills-interactive .light-pill-interactive[aria-expanded="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.light-pill-interactive[data-trend="up"]   .light-pill-dots { color: var(--green); }
+.light-pill-interactive[data-trend="down"] .light-pill-dots { color: var(--orange); }
+
+/* Drill-down detail panel — appears below the pill row when a pill is
+   tapped. One channel expanded at a time. */
+.light-channel-detail-slot { margin-top: 12px; }
+.light-channel-detail {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+  outline: none;
 }
-.light-channel-head { display: flex; align-items: center; gap: 8px; }
-.light-channel-icon { font-size: 16px; }
-.light-channel-name { font-weight: 600; color: var(--text-primary); }
-.light-channel-status {
-  margin-left: auto; font-size: 11px;
-  color: var(--text-secondary); text-transform: capitalize;
+.light-channel-detail-head {
+  display: flex; align-items: center; gap: 10px;
 }
-.light-channel-bar {
-  height: 6px; background: var(--bg-secondary);
-  border-radius: 3px; overflow: hidden;
+.light-channel-detail-icon { font-size: 18px; }
+.light-channel-detail-title {
+  font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 0;
 }
-.light-channel-fill {
-  height: 100%; background: var(--text-muted);
-  border-radius: 3px; transition: width 0.3s;
-}
-.light-channel-tier-0 .light-channel-fill { background: var(--text-muted); opacity: 0.4; }
-.light-channel-tier-1 .light-channel-fill { background: var(--text-secondary); }
-.light-channel-tier-2 .light-channel-fill { background: var(--text-primary); opacity: 0.7; }
-.light-channel-tier-3 .light-channel-fill { background: var(--accent); }
-.light-channel-tier-4 .light-channel-fill { background: var(--green); }
-.light-channel-foot {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; color: var(--text-muted);
-  flex-wrap: wrap;
-}
-.light-channel-foot-tier { color: var(--text-secondary); text-transform: capitalize; }
-.light-channel-foot-trend {
-  font-weight: 700; font-size: 13px; line-height: 1;
-  display: inline-block; min-width: 12px; text-align: center;
+.light-channel-detail-close {
+  margin-left: auto;
+  background: transparent; border: none;
   color: var(--text-muted);
+  font-size: 20px; line-height: 1;
+  padding: 4px 10px; border-radius: 4px;
+  cursor: pointer;
 }
-/* Trend arrows are color-coded by direction so they pop visually */
-.light-channel-row[data-trend="up"]   .light-channel-foot-trend { color: var(--green); }
-.light-channel-row[data-trend="down"] .light-channel-foot-trend { color: var(--orange); }
+.light-channel-detail-close:hover { color: var(--text-primary); background: var(--bg-secondary); }
+.light-channel-detail-body {
+  font-size: 13px; line-height: 1.5; color: var(--text-secondary);
+  margin: 0;
+}
+.light-channel-detail-stats {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.light-channel-detail-stat {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.light-channel-detail-stat-label {
+  font-size: 11px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.light-channel-detail-stat-dots {
+  font-family: var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
+  font-size: 14px; letter-spacing: 1px;
+}
+.light-channel-detail-stat-tier {
+  font-size: 12px; color: var(--text-secondary); text-transform: capitalize;
+}
+.light-channel-detail-trend {
+  font-size: 18px; font-weight: 700; color: var(--text-muted);
+}
+.light-channel-detail[data-trend="up"]   .light-channel-detail-trend { color: var(--green); }
+.light-channel-detail[data-trend="down"] .light-channel-detail-trend { color: var(--orange); }
+.light-channel-detail-suggestion {
+  font-size: 13px; color: var(--text-primary); margin: 0;
+  background: var(--accent-bg, rgba(79, 140, 255, 0.08));
+  padding: 8px 12px; border-radius: 6px;
+  border-left: 3px solid var(--accent);
+}
 
 /* Top-3 chip expand on session card */
 .sun-channel-chips .sun-chip-extra { display: none; }
@@ -5603,23 +5633,7 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-setup-ott-q input { margin-top: 3px; }
 
-/* First-time intro card on the Light & Sun page (zero sessions) */
-.light-intro-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  margin: 16px 0;
-  box-shadow: var(--shadow);
-}
-.light-intro-title {
-  font-size: 18px; font-weight: 700;
-  color: var(--text-primary); margin-bottom: 8px;
-}
-.light-intro-body {
-  font-size: 14px; color: var(--text-secondary);
-  line-height: 1.6; margin-bottom: 16px;
-}
+/* Coords hint shown below the channel pills on the Light page empty state */
 .light-intro-hint {
   font-size: 12px; color: var(--text-muted);
   margin-top: 12px;
@@ -6407,11 +6421,6 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 /* Detailed (past) session modal — silhouette picker + form fields */
 .sun-detailed-modal, .sun-start-modal { max-width: 560px; }
 
-/* Channel-card empty state — shown when no doses logged yet */
-.light-channel-foot-empty {
-  font-size: 11px; color: var(--text-muted);
-  font-style: italic; padding-top: 4px;
-}
 
 /* Per-session detail modal — opened by clicking a session row */
 .sun-detail-modal { max-width: 540px; }

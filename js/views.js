@@ -101,6 +101,10 @@ export function renderLightTodayStrip() {
   else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'getting close to your skin threshold'; }
   else if (medToday >= 0.3) { medCls = 'ok'; medMsg = 'moderate sun exposure today'; }
 
+  // Surface the burn-risk gauge only when it actually carries information.
+  // Below 30% MED it's noise on a normal day — the user has the full
+  // banner one click away on the Light & Sun page if they need it.
+  const showBurnRisk = medToday >= 0.3;
   return `<section class="light-today-strip">
     <div class="light-today-head">
       <span class="light-today-icon">☀</span>
@@ -113,9 +117,9 @@ export function renderLightTodayStrip() {
       ${pills}
     </div>
     <div class="light-today-foot">
-      <span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your skin's sunburn threshold (Fitzpatrick-based). 100% = sunburn risk.">
+      ${showBurnRisk ? `<span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your skin's sunburn threshold (Fitzpatrick-based). 100% = sunburn risk.">
         ☀ Sun exposure today: <strong>${medMsg}</strong>${medPct > 0 ? ` (${medPct}%)` : ''}
-      </span>
+      </span>` : ''}
       ${cta}
     </div>
   </section>`;
@@ -897,10 +901,11 @@ function _formatElapsedShort(ms) {
   return `${m}:${pad(s)}`;
 }
 
-// In-place re-render of the Light & Sun page channel grid only. Called by
-// the active-session ticker every 5s so live partial doses propagate to
-// the channel cards without doing a full navigate(). No-op when not on
-// the Light page.
+// In-place re-render of the Light & Sun page channel pill row only.
+// Called by the active-session ticker every 5s so live partial doses
+// propagate to the pills without doing a full navigate(). Preserves any
+// open drill-down panel by re-rendering it after the pills swap.
+// No-op when not on the Light page.
 export function renderLightChannelsLive() {
   const section = document.querySelector('.light-channels-section');
   if (!section) return;
@@ -910,12 +915,20 @@ export function renderLightChannelsLive() {
   const devTotals30d = (window.rollingDeviceTotals && window.rollingDeviceTotals(30)) || {};
   const combined7d = mergeTotals(totals7d, devTotals7d);
   const combined30d = mergeTotals(totals30d, devTotals30d);
-  // Preserve the section header; replace just the grid below it
-  const grid = section.querySelector('.light-channels-grid');
-  if (grid) {
+  const row = section.querySelector('.light-pills-row');
+  const slot = section.querySelector('[data-channel-detail-slot]');
+  const openChannel = slot?.dataset.openChannel || '';
+  if (row) {
     const wrap = document.createElement('div');
-    wrap.innerHTML = renderChannelBars(combined7d, combined30d);
-    if (wrap.firstElementChild) grid.replaceWith(wrap.firstElementChild);
+    wrap.innerHTML = renderChannelPills(combined7d, combined30d);
+    const newRow = wrap.querySelector('.light-pills-row');
+    if (newRow) row.replaceWith(newRow);
+    // Replace the slot with the freshly-built one too, then re-render the
+    // open panel if there was one. This keeps tier/dot updates live in
+    // both the pill row AND the visible drill-down stats.
+    const newSlot = wrap.querySelector('[data-channel-detail-slot]');
+    if (slot && newSlot) slot.replaceWith(newSlot);
+    if (openChannel) _toggleChannelDetail(openChannel);
   }
 }
 
@@ -993,23 +1006,22 @@ export function showLight(_data) {
   const combined7d = mergeTotals(totals7d, devTotals7d);
   const combined30d = mergeTotals(totals30d, devTotals30d);
 
-  if (sessions.length === 0) {
-    // First-time explainer in place of the channel grid + burn-risk + sessions
-    // list — but devices/environment/tools render below regardless because
-    // those features are useful even without sun-session data.
-    html += `<div class="light-intro-card">
-      <div class="light-intro-title">Sun isn't just vitamin D</div>
-      <p class="light-intro-body">Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. Tap "Start a sun session" when you go outside and we'll compute your dose across six biological channels. ${getSunCoordsHint().replace(/<[^>]+>/g, '').trim() ? '' : ''}</p>
-      ${getSunCoordsHint()}
-    </div>`;
-  } else {
-    // Channel breakdown — visual bars
-    html += `<div class="light-channels-section">
-      <h3 class="light-section-title">This week's light, by what it does</h3>
-      <p class="light-section-hint">Each tile is a different biological effect of light. Hover for the science.</p>
-      ${renderChannelBars(combined7d, combined30d)}
-    </div>`;
+  // Unified channel pill row — same vocabulary as the dashboard strip.
+  // Empty state shows all ○○○○; populated state lights up dots as data
+  // accumulates. Tapping a pill expands a drill-down panel with the full
+  // science copy + tier comparison + suggestion.
+  const isEmpty = sessions.length === 0;
+  const lead = isEmpty
+    ? 'Tap any channel to learn what it does. Each fills as you log sessions outdoors or with a therapy device.'
+    : 'Tap any channel for the science, last-30-day comparison, and what to do next.';
+  html += `<div class="light-channels-section">
+    <h3 class="light-section-title">${isEmpty ? "Sun isn't just vitamin D" : "Your light channels"}</h3>
+    <p class="light-section-hint">${lead}</p>
+    ${renderChannelPills(combined7d, combined30d)}
+    ${isEmpty ? getSunCoordsHint() : ''}
+  </div>`;
 
+  if (!isEmpty) {
     // Today's burn-risk card
     const medPct = Math.round(medToday * 100);
     let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
@@ -1087,47 +1099,121 @@ function mergeTotals(a, b) {
 }
 function mergeTotalsLocal(a, b) { return mergeTotals(a, b); }
 
-// Visual bar grid for the channel summary on the Light & Sun page
-function renderChannelBars(totals7d, totals30d) {
+// Unified channel pill row — same vocabulary as the dashboard strip,
+// reused on the Light page where each pill is a click-to-expand entry into
+// a per-channel drill-down panel (full science, 7d/30d tier comparison,
+// suggestion). Empty state renders the same row with all-zero tiers; pills
+// fill in as data accumulates. One renderer for both states.
+function renderChannelPills(totals7d, totals30d) {
   const ch = window.CHANNEL_DISPLAY || {};
   const tier = window.channelTier || (() => 0);
+  const dots = window.tierDots || (() => '○○○○');
   const tlabel = window.tierLabel || (() => 'none');
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  let html = `<div class="light-channels-grid">`;
+  let html = `<div class="light-pills-row light-pills-interactive">`;
   for (const k of order) {
     const meta = ch[k] || {};
     const v7 = totals7d[k] || 0;
     const v30 = totals30d[k] || 0;
     const t7 = tier(v7, k);
     const t30 = tier(v30, k);
-    const pct7 = Math.min(100, Math.round((v7 / ((meta.dailyTarget || 1000) * 7)) * 100));
-    let trendIcon = '·';
-    if (t7 > t30) trendIcon = '↑';
-    else if (t7 < t30) trendIcon = '↓';
     const trendDir = t7 > t30 ? 'up' : t7 < t30 ? 'down' : 'flat';
-    // Show the "this week / last 30d" tier comparison only when there's at
-    // least one tier > 0 across the whole grid (i.e. user has logged some
-    // sessions and we have something to compare). The hollow "none / none"
-    // row is depressing and uninformative for fresh users.
-    const hasAnyData = (v7 + v30) > 0;
-    html += `<div class="light-channel-row light-channel-tier-${t7}" data-trend="${trendDir}" title="${escapeHTML(meta.what || '')}">
-      <div class="light-channel-head">
-        <span class="light-channel-icon">${meta.icon || '·'}</span>
-        <span class="light-channel-name">${escapeHTML(meta.label || k)}</span>
-        <span class="light-channel-status">${hasAnyData ? tlabel(t7) : '—'}</span>
-      </div>
-      <div class="light-channel-bar"><div class="light-channel-fill" style="width:${pct7}%"></div></div>
-      ${hasAnyData ? `<div class="light-channel-foot">
-        <span class="light-channel-foot-label">this week:</span>
-        <span class="light-channel-foot-tier">${tlabel(t7)}</span>
-        <span class="light-channel-foot-trend">${trendIcon}</span>
-        <span class="light-channel-foot-label">last 30d:</span>
-        <span class="light-channel-foot-tier">${tlabel(t30)}</span>
-      </div>` : `<div class="light-channel-foot light-channel-foot-empty">No sun yet — log a session to start tracking</div>`}
-    </div>`;
+    const tip = `${meta.what || ''} — last 7 days: ${tlabel(t7)}.`;
+    const detailId = `light-pill-detail-${k}`;
+    html += `<button type="button" class="light-pill light-pill-tier-${t7} light-pill-interactive" data-channel="${escapeAttr(k)}" data-trend="${trendDir}" aria-expanded="false" aria-controls="${detailId}" title="${escapeHTML(tip)}" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(k)}')">
+      <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
+      <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
+      <span class="light-pill-dots" aria-hidden="true">${dots(t7)}</span>
+      <span class="sr-only">${tlabel(t7)}, last 7 days</span>
+    </button>`;
   }
   html += `</div>`;
+  // The drill-down slot lives below the row. Only one channel is expanded
+  // at a time — toggling collapses any other open detail.
+  html += `<div class="light-channel-detail-slot" data-channel-detail-slot></div>`;
   return html;
+}
+
+// Build the drill-down panel HTML for a single channel. Renders into the
+// `[data-channel-detail-slot]` container when the user taps a pill.
+function _renderChannelDetailPanel(channelKey) {
+  const ch = window.CHANNEL_DISPLAY || {};
+  const meta = ch[channelKey] || {};
+  const tier = window.channelTier || (() => 0);
+  const dots = window.tierDots || (() => '○○○○');
+  const tlabel = window.tierLabel || (() => 'none');
+  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
+  const totals30d = (window.rollingChannelTotals && window.rollingChannelTotals(30)) || {};
+  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
+  const devTotals30d = (window.rollingDeviceTotals && window.rollingDeviceTotals(30)) || {};
+  const v7 = (totals7d[channelKey] || 0) + (devTotals7d[channelKey] || 0);
+  const v30 = (totals30d[channelKey] || 0) + (devTotals30d[channelKey] || 0);
+  const t7 = tier(v7, channelKey);
+  const t30 = tier(v30, channelKey);
+  let trendIcon = '·', trendDir = 'flat';
+  if (t7 > t30) { trendIcon = '↑'; trendDir = 'up'; }
+  else if (t7 < t30) { trendIcon = '↓'; trendDir = 'down'; }
+  // Suggest the next move based on the gap between current 7d tier and
+  // the "good" target (tier 3). Tier 0 (no data) gets a starter prompt.
+  let suggestion = '';
+  if (t7 === 0) suggestion = `Log a sun session outdoors to start filling this channel.`;
+  else if (t7 < 3) suggestion = `One more solid session this week could push this to ${dots(Math.min(4, t7 + 1))}.`;
+  else if (t7 === 3) suggestion = `Consistent good range. One more this week tips you to strong (${dots(4)}).`;
+  else suggestion = `Strong range — keep your weekly rhythm.`;
+
+  return `<div class="light-channel-detail" id="light-pill-detail-${escapeAttr(channelKey)}" role="region" aria-label="${escapeHTML(meta.label || channelKey)} detail" data-trend="${trendDir}">
+    <div class="light-channel-detail-head">
+      <span class="light-channel-detail-icon" aria-hidden="true">${meta.icon || '·'}</span>
+      <h4 class="light-channel-detail-title">${escapeHTML(meta.label || channelKey)}</h4>
+      <button type="button" class="light-channel-detail-close" aria-label="Close ${escapeAttr(meta.label || channelKey)} detail" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(channelKey)}')">×</button>
+    </div>
+    <p class="light-channel-detail-body">${escapeHTML(meta.what || '')}</p>
+    <div class="light-channel-detail-stats">
+      <div class="light-channel-detail-stat">
+        <span class="light-channel-detail-stat-label">This week</span>
+        <span class="light-channel-detail-stat-dots">${dots(t7)}</span>
+        <span class="light-channel-detail-stat-tier">${tlabel(t7)}</span>
+      </div>
+      <span class="light-channel-detail-trend" aria-hidden="true">${trendIcon}</span>
+      <div class="light-channel-detail-stat">
+        <span class="light-channel-detail-stat-label">Last 30 days</span>
+        <span class="light-channel-detail-stat-dots">${dots(t30)}</span>
+        <span class="light-channel-detail-stat-tier">${tlabel(t30)}</span>
+      </div>
+    </div>
+    <p class="light-channel-detail-suggestion">${escapeHTML(suggestion)}</p>
+  </div>`;
+}
+
+// Toggle a per-channel detail panel below the pill row. One channel
+// expanded at a time — opening another collapses the previous one.
+// Re-clicking the same pill collapses it.
+function _toggleChannelDetail(channelKey) {
+  const slot = document.querySelector('[data-channel-detail-slot]');
+  if (!slot) return;
+  const row = slot.previousElementSibling; // the pill row
+  const pills = row ? row.querySelectorAll('.light-pill') : [];
+  const currentlyOpen = slot.dataset.openChannel || '';
+  // Reset every pill's aria-expanded
+  for (const p of pills) p.setAttribute('aria-expanded', 'false');
+  if (currentlyOpen === channelKey) {
+    // Re-tap → collapse
+    slot.innerHTML = '';
+    slot.dataset.openChannel = '';
+    return;
+  }
+  slot.innerHTML = _renderChannelDetailPanel(channelKey);
+  slot.dataset.openChannel = channelKey;
+  // Mark the matching pill expanded; move focus into the panel for SR users
+  for (const p of pills) {
+    if (p.dataset.channel === channelKey) {
+      p.setAttribute('aria-expanded', 'true');
+      const panel = slot.firstElementChild;
+      if (panel) panel.setAttribute('tabindex', '-1');
+      requestAnimationFrame(() => panel && panel.focus({ preventScroll: false }));
+      break;
+    }
+  }
 }
 
 // One-line action suggestion based on the lowest-tier channel.
@@ -3319,6 +3405,7 @@ Object.assign(window, {
   showDashboard,
   showLight,
   _expandLightToolsSection,
+  _toggleChannelDetail,
   renderLightTodayStrip,
   renderLightChannelsLive,
   renderConditionsNow,
