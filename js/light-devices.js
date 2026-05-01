@@ -197,16 +197,33 @@ export function rollingDeviceTotals(days = 7) {
 
 export async function renderDevicesSection() {
   const devices = getDevices();
-  const sessions = getDeviceSessions().slice().sort((a, b) => b.startedAt - a.startedAt).slice(0, 6);
+  const allSessions = getDeviceSessions();
 
-  // Load the recommendations catalog up-front so each device card can
-  // surface a "Source on {vendor}" affiliate link inline. Falls back to
-  // null silently — the renderer no-ops on missing catalog or when the
-  // product-recs toggle is off.
+  // Load the recommendations catalog + preset type metadata up-front
+  // so each card can render with the human-friendly type label, the
+  // type icon, and the "Source on {Vendor}" affiliate link inline.
+  // Both fall back gracefully on missing data.
   let catalog = null;
   try {
     if (window.loadCatalog) catalog = await window.loadCatalog();
-  } catch { /* offline / 404 — no affiliate row, page still renders */ }
+  } catch { /* offline / 404 — page still renders without affiliate row */ }
+  let typesMeta = {};
+  try {
+    const presetData = await loadPresets();
+    typesMeta = presetData.types || {};
+  } catch { /* presets file unreachable; fallback uses raw type strings */ }
+
+  // Build per-device usage stats from the session log: count + most
+  // recent startedAt. Lets the card show "12 sessions · last 2 days
+  // ago" instead of just "added this device, no idea if you ever used
+  // it."
+  const statsByDevice = {};
+  for (const s of allSessions) {
+    if (!s.deviceId) continue;
+    const acc = statsByDevice[s.deviceId] = statsByDevice[s.deviceId] || { count: 0, lastAt: 0 };
+    acc.count++;
+    if ((s.startedAt || 0) > acc.lastAt) acc.lastAt = s.startedAt;
+  }
 
   let html = `<div class="light-devices-section">
     <div class="light-devices-head">
@@ -222,25 +239,39 @@ export async function renderDevicesSection() {
 
   html += `<div class="light-devices-grid">`;
   for (const dev of devices) {
-    // Resolve catalog slug — prefer device.catalogSlug (set at add time)
-    // and fall back to device.presetId so older devices added before the
-    // wiring still work without a migration. Both default to null.
     const slug = dev.catalogSlug || dev.presetId || null;
     const affRow = (slug && window.renderLightDeviceAffiliateRow)
       ? window.renderLightDeviceAffiliateRow(catalog, slug)
       : '';
-    html += `<div class="light-device-card" data-id="${escapeAttr(dev.id)}">
+    const typeMeta = typesMeta[dev.type] || {};
+    const typeIcon = typeMeta.icon || '🔴';
+    const typeLabel = typeMeta.label || dev.type || 'Device';
+    const peaks = Array.isArray(dev.peakWavelengths) ? dev.peakWavelengths : [];
+    const wavelengthStr = _formatWavelengthSummary(peaks);
+    const intensityStr = dev.mwPerCm2At15cm
+      ? `${dev.mwPerCm2At15cm} mW/cm²`
+      : (dev.lux ? `${dev.lux} lux` : '');
+    const channelChips = _renderDeviceChannelChips(dev.channels || []);
+    const stats = statsByDevice[dev.id] || { count: 0, lastAt: 0 };
+    const statsLine = stats.count === 0
+      ? 'No sessions yet'
+      : `${stats.count} session${stats.count !== 1 ? 's' : ''} · last ${_relativeTimeShort(stats.lastAt)}`;
+    html += `<div class="light-device-card light-device-card-type-${escapeAttr(dev.type)}" data-id="${escapeAttr(dev.id)}">
       <div class="light-device-head">
-        <span class="light-device-name">${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}</span>
+        <span class="light-device-icon" aria-hidden="true">${typeIcon}</span>
+        <div class="light-device-titleblock">
+          <span class="light-device-name">${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}</span>
+          <span class="light-device-typeline">${escapeHTML(typeLabel)}${wavelengthStr ? ` · ${escapeHTML(wavelengthStr)}` : ''}${intensityStr ? ` · ${escapeHTML(intensityStr)}` : ''}</span>
+        </div>
         <button class="light-device-delete" onclick="window.deleteLightDevice('${escapeAttr(dev.id)}')" title="Remove device" aria-label="Remove device">×</button>
       </div>
-      <div class="light-device-meta">
-        ${escapeHTML(dev.type)} · ${(dev.peakWavelengths || []).join('/')}nm
-        ${dev.mwPerCm2At15cm ? ` · ${dev.mwPerCm2At15cm} mW/cm² @15cm` : ''}
-        ${dev.lux ? ` · ${dev.lux} lux` : ''}
-      </div>
+      ${channelChips ? `<div class="light-device-feeds">
+        <span class="light-device-feeds-label">Feeds</span>
+        ${channelChips}
+      </div>` : ''}
+      <div class="light-device-stats">${escapeHTML(statsLine)}</div>
       <div class="light-device-actions">
-        <button class="import-btn import-btn-primary light-device-log" onclick="window.openDeviceSessionDialog('${escapeAttr(dev.id)}')">Log session</button>
+        <button class="import-btn import-btn-primary light-device-log" onclick="window.openDeviceSessionDialog('${escapeAttr(dev.id)}')">▶ Log session</button>
         ${affRow}
       </div>
     </div>`;
@@ -253,6 +284,59 @@ export async function renderDevicesSection() {
 
   html += `</div>`;
   return html;
+}
+
+// Compress a peak-wavelength array into a human-friendly summary.
+// 0 peaks → empty. 1-3 peaks → list as comma-separated. 4+ peaks →
+// "min-max nm (N bands)" so a 9-wavelength panel doesn't render as
+// "295/380/480/630/670/760/810/830/850 nm" eyeball-soup.
+function _formatWavelengthSummary(peaks) {
+  if (!Array.isArray(peaks) || peaks.length === 0) return '';
+  const sorted = peaks.slice().sort((a, b) => a - b);
+  if (sorted.length <= 3) return sorted.join(' / ') + ' nm';
+  return `${sorted[0]}–${sorted[sorted.length - 1]} nm (${sorted.length} bands)`;
+}
+
+// Per-device channel-icon strip — same icon set the dashboard pills
+// use, so users see at-a-glance which channels this device feeds. Hover
+// title shows the full channel name for screen readers / tooltips.
+function _renderDeviceChannelChips(channelKeys) {
+  if (!Array.isArray(channelKeys) || channelKeys.length === 0) return '';
+  // Order matches the dashboard pill row so the visual scan is consistent
+  const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
+  const present = new Set(channelKeys);
+  const chips = [];
+  for (const k of order) {
+    if (!present.has(k)) continue;
+    const meta = CHANNEL_DISPLAY[k] || {};
+    chips.push(`<span class="light-device-feed-chip" title="${escapeAttr((meta.label || k) + ' — ' + (meta.what || ''))}">
+      <span class="light-device-feed-icon" aria-hidden="true">${meta.icon || '·'}</span>
+      <span class="light-device-feed-label">${escapeHTML(meta.label || k)}</span>
+    </span>`);
+  }
+  return chips.join('');
+}
+
+// Coarse relative-time formatter — "today" / "yesterday" / "N days ago"
+// / "N weeks ago" / "N months ago". Specifically NOT "X minutes ago"
+// because device sessions are typically minutes-long therapy bouts —
+// the user cares about the day-grain cadence, not freshness.
+function _relativeTimeShort(ts) {
+  if (!ts) return 'never';
+  const days = Math.floor((Date.now() - ts) / (24 * 3600 * 1000));
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) {
+    const w = Math.floor(days / 7);
+    return `${w} week${w !== 1 ? 's' : ''} ago`;
+  }
+  if (days < 365) {
+    const m = Math.floor(days / 30);
+    return `${m} month${m !== 1 ? 's' : ''} ago`;
+  }
+  const y = Math.floor(days / 365);
+  return `${y} year${y !== 1 ? 's' : ''} ago`;
 }
 
 // ─── UI: Add-device modal ──────────────────────────────────────────────

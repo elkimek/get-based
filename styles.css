@@ -5676,34 +5676,108 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-devices-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 14px;
 }
+/* Device card — visual hierarchy: type-icon + brand/model header,
+   compact spec-line under the name, channel-feed chip row, usage
+   stats footer, primary action button, optional affiliate link.
+   Type-specific accent strip on the left edge so a row of cards
+   reads as "UV / UVA / red+NIR / SAD" at a glance. */
 .light-device-card {
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  display: flex; flex-direction: column; gap: 8px;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
+.light-device-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.light-device-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--text-muted);
+}
+.light-device-card-type-uvb::before          { background: linear-gradient(to bottom, #f59e0b, #ef4444); }
+.light-device-card-type-uva::before          { background: #f97316; }
+.light-device-card-type-combined::before     { background: #ef4444; }
+.light-device-card-type-pbm-targeted::before { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
+.light-device-card-type-sad::before          { background: #fbbf24; }
+.light-device-card-type-dawn-sim::before     { background: #fb923c; }
+.light-device-card-type-full-spectrum::before { background: #facc15; }
+
 .light-device-head {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.light-device-icon {
+  font-size: 22px; line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.light-device-titleblock {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
 }
 .light-device-name {
   font-weight: 600; color: var(--text-primary);
-  flex: 1; min-width: 0;
+  font-size: 14px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.light-device-typeline {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 .light-device-delete {
   background: transparent; border: none;
   color: var(--text-muted); font-size: 18px; line-height: 1;
-  cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  cursor: pointer; padding: 4px 8px; border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
+.light-device-card:hover .light-device-delete,
+.light-device-delete:focus-visible { opacity: 1; }
 .light-device-delete:hover { color: var(--red); background: var(--bg-secondary); }
-.light-device-meta {
-  font-size: 12px; color: var(--text-secondary);
+
+/* Channel-feed strip — small chips listing the channels this device
+   feeds. Same icons + labels the dashboard pills use, just tighter
+   spacing so they fit inside a card. Tooltip on hover gives the
+   full science blurb. */
+.light-device-feeds {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11px;
+}
+.light-device-feeds-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
+.light-device-feed-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.light-device-feed-icon { font-size: 12px; }
+.light-device-feed-label { font-size: 11px; font-weight: 500; }
+
+.light-device-stats {
+  font-size: 11px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 .light-device-log {
-  align-self: flex-start;
-  padding: 6px 14px; font-size: 12px;
+  width: 100%;
+  padding: 8px 14px; font-size: 13px;
+  font-weight: 600;
 }
 .light-device-actions {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
