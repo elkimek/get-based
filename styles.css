@@ -6032,6 +6032,46 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-env-tab-sev-orange { border-bottom: 2px solid var(--orange); }
 .light-env-tab-sev-red    { border-bottom: 2px solid var(--red); }
 
+/* Per-day "in use today / skipped today" toggle. Auto-resets at
+   midnight so the baseline schedule stays set-and-forget; the toggle
+   only affects today's exposure math. */
+.light-env-today-toggle {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px; font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.light-env-today-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.light-env-today-on {
+  background: rgba(34,197,94,0.08);
+  border-color: var(--green);
+  color: var(--green);
+}
+.light-env-today-off {
+  background: var(--bg-secondary);
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+  font-style: italic;
+}
+/* Cards toggled "skipped today" dim down so the user can see at a
+   glance which items aren't contributing to today's burden math.
+   The severity chip stays at full opacity (it's a baseline judgement,
+   not a today value) so the room's chronic state is still readable. */
+.light-env-card-skipped { opacity: 0.55; }
+.light-env-card-skipped:hover { opacity: 0.85; }
+.light-env-card-skipped .light-env-today-toggle { opacity: 1; }
+.light-env-card-skipped .light-env-sev-chip { opacity: 0.85; }
+
 /* Screens — now cards (was 5-element flat rows that wrapped badly
    on mobile). Each card carries a status chip for evening blue
    exposure tier. */

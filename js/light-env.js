@@ -122,6 +122,40 @@ export function getScreensForRoom(roomId) {
   return (env?.screens || []).filter(s => (s.roomId || null) === (roomId || null));
 }
 
+// Today's date as YYYY-MM-DD in local time — used to scope per-day
+// "skip today" toggles. Local date because the user's "today" is a
+// circadian construct, not a UTC day.
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// True when an item (room or screen) is counted toward today's
+// exposure. Default is active. A `todayOverride` field stamped with
+// today's date can flip it to inactive ("skipped today"); stamps from
+// any earlier date are ignored — the toggle auto-resets overnight
+// without needing a cron / scheduler.
+export function isActiveToday(item) {
+  if (!item) return false;
+  const ov = item.todayOverride;
+  if (!ov || ov.date !== todayKey()) return true;
+  return ov.active !== false;
+}
+
+// Toggle the "in use today" state for a room or screen. Always stamps
+// today's date so a skip from yesterday auto-clears.
+export async function setTodayActive(kind, id, active) {
+  const env = getEnvironment();
+  const list = kind === 'room' ? (env?.rooms || []) : (env?.screens || []);
+  const item = list.find(x => x.id === id);
+  if (!item) return;
+  item.todayOverride = { date: todayKey(), active: !!active };
+  await saveImportedData();
+}
+
 export async function updateScreen(id, patch) {
   const env = getEnvironment();
   const scr = (env.screens || []).find(s => s.id === id);
@@ -212,8 +246,8 @@ export function computeRoomSeverity(room, measurements = []) {
   // a screen in this room rolls into the room's severity. Compounds
   // multiplicatively with after-sunset use of cool-LED room lighting —
   // a bedroom with cool LED + a phone for 3 evening hours is worse
-  // than either signal alone.
-  const screensHere = getScreensForRoom(room.id);
+  // than either signal alone. Screens skipped today don't count.
+  const screensHere = getScreensForRoom(room.id).filter(isActiveToday);
   let unblockedEveHours = 0;
   for (const s of screensHere) {
     if (!s.blueBlockerEnabled && (s.eveningUseAfterSunset || 0) > 0) {
@@ -271,7 +305,14 @@ export function computeIndoorBurden() {
   const labelMap = ['Light load', 'Moderate load', 'Heavy load'];
   const colorMap = ['green', 'orange', 'red'];
   let interp = '';
-  if (d2 + d3 === 0) interp = 'No mapped exposure yet — add a room or screen to start.';
+  if (d2 + d3 === 0) {
+    // Distinguish "nothing mapped yet" from "everything skipped today."
+    const env = getEnvironment();
+    const totalItems = (env?.rooms?.length || 0) + (env?.screens?.length || 0);
+    interp = totalItems === 0
+      ? 'No mapped exposure yet — add a room or screen to start.'
+      : 'Everything is skipped today — looks like a mostly-outdoor day.';
+  }
   else if (tier === 0) interp = 'Mostly daylight-aligned. Indoor exposure is short and mostly friendly sources.';
   else if (tier === 1 && d3 > d2 / 2) interp = "Indoor lighting after sunset is the bigger pull on your circadian rhythm — consider warmer evening sources or blue blockers.";
   else if (tier === 1) interp = 'Plenty of indoor hours during the day — consider getting more outdoor time, especially in the morning.';
@@ -297,6 +338,7 @@ export function computeDeficitAxes() {
   if (!env) return { d2: 0, d3: 0 };
   let d2 = 0, d3 = 0;
   for (const r of env.rooms || []) {
+    if (!isActiveToday(r)) continue;
     const hours = r.hoursOccupiedPerDay || 0;
     if (hours <= 0) continue;
     // d2: any indoor hour without daylight contribution counts toward deficit
@@ -310,6 +352,7 @@ export function computeDeficitAxes() {
     }
   }
   for (const s of env.screens || []) {
+    if (!isActiveToday(s)) continue;
     const eveningHours = s.eveningUseAfterSunset || 0;
     if (eveningHours > 0 && !s.blueBlockerEnabled) d3 += eveningHours * 0.5;
   }
@@ -359,6 +402,21 @@ const TOOL_ICONS = {
   lux: '📏', flicker: '⚡', cct: '🎨', darkness: '🌙', spectrum: '🔬', 'glass-transmission': '🪟',
 };
 
+// Per-day "in use today / skipped today" toggle pill. Auto-resets at
+// midnight via the date stamp on the override (todayKey() check). The
+// pill telegraphs current state with text + icon; click flips it via
+// setTodayActive. kind is 'room' or 'screen' so one window handler
+// can route both.
+function _renderTodayToggle(kind, id, activeToday) {
+  const cls = `light-env-today-toggle${activeToday ? ' light-env-today-on' : ' light-env-today-off'}`;
+  const label = activeToday ? '✓ In use today' : '⊘ Skipped today';
+  const flipTo = activeToday ? 'false' : 'true';
+  const tip = activeToday
+    ? "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+    : "Click to use today — counts toward today's exposure.";
+  return `<button type="button" class="${cls}" onclick="window.setLightEnvTodayActive('${kind}', '${escapeAttr(id)}', ${flipTo})" title="${escapeAttr(tip)}" aria-pressed="${activeToday}">${label}</button>`;
+}
+
 // Single screen card markup — used both at top level (portable) and
 // nested inside a room card (compact mode). When compact, density
 // ratchets down; the "Used in" dropdown lets the user reassign
@@ -366,6 +424,7 @@ const TOOL_ICONS = {
 function renderScreenCard(s, opts = {}) {
   const compact = !!opts.compact;
   const status = computeScreenStatus(s);
+  const activeToday = isActiveToday(s);
   const env = getEnvironment();
   const rooms = env?.rooms || [];
   const roomOptions = rooms.length > 0
@@ -374,12 +433,13 @@ function renderScreenCard(s, opts = {}) {
         ${rooms.map(r => `<option value="${escapeAttr(r.id)}"${s.roomId === r.id ? ' selected' : ''}>${escapeHTML(r.name || 'Room')}</option>`).join('')}
       </select>`
     : '';
-  return `<div class="light-env-screen-card light-env-card-sev-${status.color}${compact ? ' light-env-screen-card-compact' : ''}" data-id="${escapeAttr(s.id)}">
+  return `<div class="light-env-screen-card light-env-card-sev-${status.color}${compact ? ' light-env-screen-card-compact' : ''}${activeToday ? '' : ' light-env-card-skipped'}" data-id="${escapeAttr(s.id)}">
     <div class="light-env-screen-card-head">
       <select class="ctx-select light-env-screen-device" onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
         ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
       </select>
       <span class="light-env-sev-chip light-env-sev-chip-${status.color}" title="${escapeAttr(status.reason)}">${escapeHTML(status.label)}</span>
+      ${_renderTodayToggle('screen', s.id, activeToday)}
       <button class="light-env-delete" onclick="window.deleteLightEnvScreen('${escapeAttr(s.id)}')" aria-label="Delete screen">×</button>
     </div>
     <div class="light-env-screen-fields">
@@ -403,6 +463,7 @@ function renderScreenCard(s, opts = {}) {
 function renderRoomDetailCard(r) {
   const measurements = getMeasurementsFor(r.id).sort((a, b) => b.capturedAt - a.capturedAt);
   const sev = computeRoomSeverity(r, measurements);
+  const activeToday = isActiveToday(r);
 
   // Latest reading per tool
   const latestByTool = new Map();
@@ -410,10 +471,11 @@ function renderRoomDetailCard(r) {
     if (!latestByTool.has(m.tool)) latestByTool.set(m.tool, m);
   }
 
-  let html = `<div class="light-env-room-card light-env-card-sev-${sev.color}" data-id="${escapeAttr(r.id)}">
+  let html = `<div class="light-env-room-card light-env-card-sev-${sev.color}${activeToday ? '' : ' light-env-card-skipped'}" data-id="${escapeAttr(r.id)}">
     <div class="light-env-room-card-head">
       <input type="text" class="light-env-room-name" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
       <span class="light-env-sev-chip light-env-sev-chip-${sev.color}" title="${escapeAttr(sev.reason)}">${escapeHTML(sev.label)}</span>
+      ${_renderTodayToggle('room', r.id, activeToday)}
       <button class="light-env-delete" onclick="window.deleteLightEnvRoom('${escapeAttr(r.id)}')" aria-label="Delete room">×</button>
     </div>
 
@@ -626,6 +688,11 @@ if (typeof window !== 'undefined') {
     computeScreenStatus,
     computeIndoorBurden,
     getScreensForRoom,
+    isLightEnvActiveToday: isActiveToday,
+    setLightEnvTodayActive: async (kind, id, active) => {
+      await setTodayActive(kind, id, active);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
     renderEnvironmentSection,
   });
 }
