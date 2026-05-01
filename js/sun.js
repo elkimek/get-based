@@ -238,16 +238,22 @@ export async function hydrateSession(id, { lat, lon } = {}) {
       altitudeM,
       cloudCover: (atm.cloudCover ?? 0) / 100,
     });
+    const bodyModifiers = {
+      glassBetween: !!sess.bodyExposure?.glassBetween,
+      sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
+    };
     sess.doses = computeChannelDoses({
       spectrum,
       durationMin: sess.durationMin,
       bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
       eyeExposure: sess.eyeExposure,
+      bodyModifiers,
     });
     const sed = erythemalSED({
       spectrum,
       durationMin: sess.durationMin,
       bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+      bodyModifiers,
     });
     // Read from one of two places, in priority order:
     //   1. sunDefaults.fitzpatrick (Light setup card)
@@ -563,16 +569,22 @@ async function _snapshotActiveRate(sess) {
       altitudeM: coords.altitudeM ?? 0,
       cloudCover: (atm.cloudCover ?? 0) / 100,
     });
+    const liveBodyModifiers = {
+      glassBetween: !!sess.bodyExposure?.glassBetween,
+      sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
+    };
     const ratePerMin = computeChannelDoses({
       spectrum,
       durationMin: 1,
       bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
       eyeExposure: sess.eyeExposure,
+      bodyModifiers: liveBodyModifiers,
     });
     const sedPerMin = erythemalSED({
       spectrum,
       durationMin: 1,
       bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+      bodyModifiers: liveBodyModifiers,
     });
     const lcSkin = state.importedData?.lightCircadian?.skinType;
     const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);

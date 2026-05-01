@@ -103,6 +103,44 @@ function pbmNirAt(nm) {
   return Math.exp(-Math.pow(nm - 850, 2) / (2 * 25 * 25));
 }
 
+// ─── Body-side modifiers ──────────────────────────────────────────────
+//
+// When a session is logged "behind glass" or "with sunscreen," skin-channel
+// doses must be attenuated wavelength-by-wavelength, not via a single
+// global multiplier. UVB at 297 nm and NIR at 850 nm pass through glass
+// very differently, and SPF-rated sunscreen leaves visible/NIR untouched
+// while blocking ~98% of UVB.
+
+// Standard clear soda-lime window glass transmission. Approximates Pilkington
+// optical-data datasheets: total UVB block, partial UVA, mostly clear visible,
+// tapering NIR. Single-pane; double glazing roughly halves NIR transmission
+// further (not modeled — bigger fish to fry).
+export function glassTransmission(nm) {
+  if (nm < 320) return 0.0;        // UVB blocked entirely
+  if (nm < 340) return 0.05;       // short UVA — almost entirely blocked
+  if (nm < 380) return 0.4;        // long UVA — partial pass
+  if (nm < 700) return 0.85;       // visible — most passes (~80-90%)
+  if (nm < 1100) return 0.7;       // NIR — partial pass through glass
+  if (nm < 2500) return 0.3;       // longer NIR — heavily attenuated
+  return 0.0;                       // mid-IR blocked
+}
+
+// Broad-spectrum sunscreen wavelength-dependent transmission for a given
+// SPF rating. SPF is defined relative to erythemal dose (UVB-weighted),
+// so 1/SPF is exact for UVB. UVA-PF (UVA protection factor) is typically
+// ~1/3 of SPF for broad-spectrum products, so UVA transmission is higher.
+// Visible + NIR pass essentially unattenuated (most sunscreens are clear
+// to those bands; tinted iron-oxide sunscreens that block HEV are not
+// the typical case and aren't modeled here).
+export function sunscreenTransmission(nm, spf) {
+  const s = Number(spf) || 0;
+  if (s <= 1) return 1.0;
+  if (nm < 320) return 1.0 / s;                    // UVB — defined target of SPF
+  if (nm < 360) return Math.min(1, 1.4 / s);       // UVA short — broad-spectrum is ~70% of SPF
+  if (nm < 400) return Math.min(1, 2.0 / s);       // UVA long — typically ~50% of SPF
+  return 1.0;                                       // visible + NIR pass
+}
+
 const CHANNELS = [
   { id: 1, key: 'vitamin_d',  fn: vitaminDAt,   label: 'Vit D synthesis' },
   { id: 2, key: 'pomc',       fn: erythemalAt,  label: 'POMC / melanocortin' },
@@ -198,9 +236,12 @@ function ozoneAbsorption(nm) {
 //   durationMin: minutes of exposure
 //   bodyExposureFraction: 0-1 (0=indoors, 1=naked sunbathing)
 //   eyeExposure: { mode, durationSec, lensTint } — gates circadian + violet channels
+//   bodyModifiers: { glassBetween?, sunscreenSPF? } — wavelength-dependent
+//     attenuation applied INSIDE the integration loop on skin channels only.
+//     Eye-side glass/lens attenuation lives in eyeMultiplier and is unaffected.
 // Output: { vitamin_d, pomc, no_cv, violet_eye, circadian, nir_solar, pbm_red, pbm_nir }
 //   Each in arbitrary "channel-au" units. Intended for relative comparison.
-export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFraction = 1, eyeExposure = null } = {}) {
+export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFraction = 1, eyeExposure = null, bodyModifiers = null } = {}) {
   const result = {};
   if (!spectrum || !Array.isArray(spectrum.irradiance) || durationMin <= 0) {
     for (const ch of CHANNELS) result[ch.key] = 0;
@@ -208,18 +249,26 @@ export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFra
   }
   const seconds = durationMin * 60;
   const dlambda = 5; // nm
+  const glassBetween = !!bodyModifiers?.glassBetween;
+  const spf = Number(bodyModifiers?.sunscreenSPF) || 0;
   for (const ch of CHANNELS) {
+    // Channels gated by body exposure: skin-mediated channels (vit D, POMC, NO, NIR, PBM)
+    const isSkinChannel = ['vitamin_d', 'pomc', 'no_cv', 'nir_solar', 'pbm_red', 'pbm_nir'].includes(ch.key);
+    // Channels gated by eye exposure: circadian + violet
+    const isEyeChannel = ['circadian', 'violet_eye'].includes(ch.key);
     let sum = 0;
     for (let i = 0; i < spectrum.irradiance.length; i++) {
       const nm = spectrum.wavelengths[i];
       const E = spectrum.irradiance[i];
       const w = ch.fn(nm);
-      if (w > 0) sum += E * w * dlambda;
+      if (w <= 0) continue;
+      let bandT = 1;
+      if (isSkinChannel) {
+        if (glassBetween) bandT *= glassTransmission(nm);
+        if (spf > 1) bandT *= sunscreenTransmission(nm, spf);
+      }
+      sum += E * w * dlambda * bandT;
     }
-    // Channels gated by body exposure: skin-mediated channels (vit D, POMC, NO, NIR, PBM)
-    const isSkinChannel = ['vitamin_d', 'pomc', 'no_cv', 'nir_solar', 'pbm_red', 'pbm_nir'].includes(ch.key);
-    // Channels gated by eye exposure: circadian + violet
-    const isEyeChannel = ['circadian', 'violet_eye'].includes(ch.key);
     let gain = 1;
     if (isSkinChannel) gain = bodyExposureFraction;
     if (isEyeChannel) gain = eyeMultiplier(eyeExposure);
@@ -259,16 +308,28 @@ const MED_BY_FITZPATRICK = { I: 2, II: 2.5, III: 3, IV: 4.5, V: 6, VI: 10 };
 
 // Compute erythemal dose in SED for a session.
 // Returns: SED (1 SED = ~1 sunburn unit for type II skin)
-export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1 }) {
+//
+// `bodyModifiers` plumbs glass + sunscreen wavelength-dependent attenuation
+// the same way computeChannelDoses does. A session "behind glass" produces
+// near-zero erythemal dose (glass blocks UVB entirely); a session with
+// SPF 50 produces ~1/50 the erythemal dose of bare skin. Both feed the
+// burn-risk gauge and the % MED indicator on the dashboard.
+export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1, bodyModifiers = null }) {
   if (!spectrum || durationMin <= 0) return 0;
   const seconds = durationMin * 60;
   const dlambda = 5;
+  const glassBetween = !!bodyModifiers?.glassBetween;
+  const spf = Number(bodyModifiers?.sunscreenSPF) || 0;
   let irradiance_E = 0;
   for (let i = 0; i < spectrum.irradiance.length; i++) {
     const nm = spectrum.wavelengths[i];
     const E = spectrum.irradiance[i];
     const w = erythemalAt(nm);
-    if (w > 0) irradiance_E += E * w * dlambda; // W/m² CIE-weighted
+    if (w <= 0) continue;
+    let bandT = 1;
+    if (glassBetween) bandT *= glassTransmission(nm);
+    if (spf > 1) bandT *= sunscreenTransmission(nm, spf);
+    irradiance_E += E * w * dlambda * bandT; // W/m² CIE-weighted
   }
   const J_per_m2 = irradiance_E * seconds * bodyExposureFraction;
   return J_per_m2 / SED_JOULES_PER_M2;
@@ -308,6 +369,8 @@ if (typeof window !== 'undefined') {
     erythemalSED,
     fractionOfMED,
     retinalUVdose,
+    glassTransmission,
+    sunscreenTransmission,
     SUN_CHANNELS,
   });
 }

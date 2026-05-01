@@ -166,6 +166,101 @@ return (async function() {
   assert('Night SED is zero',
     erythemalSED({ spectrum: night, durationMin: 60, bodyExposureFraction: 1 }) === 0);
 
+  // ─── 6. Body-side modifiers: glass + sunscreen ──────────────────────
+  console.log('%c 6. Glass + sunscreen attenuation ', 'font-weight:bold;color:#f59e0b');
+
+  const { glassTransmission, sunscreenTransmission } = window;
+  assert('glassTransmission exposed on window', typeof glassTransmission === 'function');
+  assert('sunscreenTransmission exposed on window', typeof sunscreenTransmission === 'function');
+
+  // Glass transmission curve sanity checks
+  assert('Glass blocks UVB entirely (300 nm → 0)', glassTransmission(300) === 0);
+  assert('Glass mostly blocks UVA short (335 nm < 0.1)', glassTransmission(335) < 0.1,
+    `T(335)=${glassTransmission(335)}`);
+  assert('Glass passes most visible (550 nm > 0.7)', glassTransmission(550) > 0.7);
+  assert('Glass partially passes NIR (850 nm 0.5-0.9)',
+    glassTransmission(850) > 0.5 && glassTransmission(850) < 0.9);
+  assert('Glass blocks mid-IR (3000 nm → 0)', glassTransmission(3000) === 0);
+
+  // Sunscreen transmission curve sanity checks
+  assert('SPF 50 transmits ~1/50 at UVB peak 297 nm', Math.abs(sunscreenTransmission(297, 50) - 1/50) < 1e-9);
+  assert('SPF 30 transmits 1/30 UVB', Math.abs(sunscreenTransmission(300, 30) - 1/30) < 1e-9);
+  assert('SPF 50 transmits more UVA than UVB (broad-spectrum ratio)',
+    sunscreenTransmission(370, 50) > sunscreenTransmission(297, 50));
+  assert('Sunscreen leaves visible untouched (550 nm → 1)', sunscreenTransmission(550, 50) === 1);
+  assert('Sunscreen leaves NIR untouched (900 nm → 1)', sunscreenTransmission(900, 50) === 1);
+  assert('SPF 0 / 1 / null → no attenuation (sentinel)',
+    sunscreenTransmission(297, 0) === 1 && sunscreenTransmission(297, 1) === 1 && sunscreenTransmission(297, null) === 1);
+
+  // Integration tests on a real spectrum
+  const noonSpec = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300, altitudeM: 0, cloudCover: 0 });
+  const baseDoses = computeChannelDoses({
+    spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1,
+    eyeExposure: { mode: 'direct', durationSec: 1800 },
+  });
+  const glassDoses = computeChannelDoses({
+    spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1,
+    eyeExposure: { mode: 'direct', durationSec: 1800 },
+    bodyModifiers: { glassBetween: true },
+  });
+  // Glass attenuation thresholds intentionally generous — the
+  // Bird-Riordan model is simplified (~25% relative for our use), and
+  // erythemal/UV-driven channels include long-UVA tails that glass
+  // partially passes. Tests assert directional correctness, not
+  // radiometric precision.
+  assert('Behind glass: vitamin_d crashes to ~0 (UVB blocked)',
+    glassDoses.vitamin_d < baseDoses.vitamin_d * 0.05,
+    `ratio=${(glassDoses.vitamin_d/Math.max(baseDoses.vitamin_d, 1e-9)).toFixed(4)}`);
+  assert('Behind glass: pomc strictly less than bare skin',
+    glassDoses.pomc < baseDoses.pomc,
+    `base=${baseDoses.pomc.toFixed(3)} glass=${glassDoses.pomc.toFixed(3)} ratio=${(glassDoses.pomc/baseDoses.pomc).toFixed(3)}`);
+  assert('Behind glass: no_cv reduced (UVA peak 345 nm in glass-attenuated band)',
+    glassDoses.no_cv < baseDoses.no_cv,
+    `ratio=${(glassDoses.no_cv/baseDoses.no_cv).toFixed(3)}`);
+  assert('Behind glass: nir_solar partially passes (some retained, some blocked)',
+    glassDoses.nir_solar > baseDoses.nir_solar * 0.3 &&
+    glassDoses.nir_solar < baseDoses.nir_solar * 0.95,
+    `ratio=${(glassDoses.nir_solar/baseDoses.nir_solar).toFixed(3)}`);
+  assert('Behind glass: circadian (eye channel) UNCHANGED — eye gating is separate',
+    Math.abs(glassDoses.circadian - baseDoses.circadian) < 1e-6);
+
+  // SPF 50 attenuation
+  const spf50Doses = computeChannelDoses({
+    spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1,
+    eyeExposure: { mode: 'direct', durationSec: 1800 },
+    bodyModifiers: { sunscreenSPF: 50 },
+  });
+  assert('SPF 50: vitamin_d roughly 1/50 of bare (UVB defines SPF)',
+    spf50Doses.vitamin_d < baseDoses.vitamin_d * 0.05 &&
+    spf50Doses.vitamin_d > baseDoses.vitamin_d * 0.001,
+    `ratio=${(spf50Doses.vitamin_d/baseDoses.vitamin_d).toFixed(5)}`);
+  assert('SPF 50: nir_solar untouched (>99% retained)',
+    spf50Doses.nir_solar > baseDoses.nir_solar * 0.99);
+  assert('SPF 50: circadian (eye) untouched',
+    Math.abs(spf50Doses.circadian - baseDoses.circadian) < 1e-6);
+  assert('SPF 50: no_cv reduced (UVA-driven, broad-spectrum SPF still attenuates)',
+    spf50Doses.no_cv < baseDoses.no_cv * 0.5,
+    `ratio=${(spf50Doses.no_cv/baseDoses.no_cv).toFixed(4)}`);
+
+  // Erythemal SED tests — burn-risk gauge must respect both modifiers
+  const baseSED = erythemalSED({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1 });
+  const glassSED = erythemalSED({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1, bodyModifiers: { glassBetween: true } });
+  const spf50SED = erythemalSED({ spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1, bodyModifiers: { sunscreenSPF: 50 } });
+  assert('Erythemal SED: behind glass strictly less than bare skin',
+    glassSED < baseSED,
+    `base=${baseSED.toFixed(4)} glass=${glassSED.toFixed(4)} ratio=${(glassSED/baseSED).toFixed(3)}`);
+  assert('Erythemal SED: SPF 50 strictly less than bare skin',
+    spf50SED < baseSED && spf50SED > 0,
+    `base=${baseSED.toFixed(4)} spf50=${spf50SED.toFixed(4)} ratio=${(spf50SED/baseSED).toFixed(4)}`);
+
+  // Combined: glass + SPF stack multiplicatively
+  const stackedSED = erythemalSED({
+    spectrum: noonSpec, durationMin: 30, bodyExposureFraction: 1,
+    bodyModifiers: { glassBetween: true, sunscreenSPF: 50 },
+  });
+  assert('Glass + SPF stack: even lower than either alone',
+    stackedSED <= glassSED && stackedSED <= spf50SED);
+
   // ─── Summary ────────────────────────────────────────────────────────
   console.log(`%c Sun Spectrum: ${pass} passed, ${fail} failed`,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold`);
