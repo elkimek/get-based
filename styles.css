@@ -5688,41 +5688,49 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   padding: 6px 14px; font-size: 12px;
 }
 
-.light-devices-history {
-  margin-top: 12px;
+/* Unified sessions list — sun + device sessions interleaved
+   chronologically. Row shape mirrors the sun-only list with an extra
+   leading icon and a "kind" pill so each row is scannable. Falls back
+   to the existing .sun-session styling for the bulk of the chrome. */
+.light-sessions-list-unified .light-session-row { gap: 6px; }
+.light-session-icon {
+  font-size: 16px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; flex-shrink: 0;
+}
+.light-session-kind {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 10px;
   background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  margin-left: auto;
+  white-space: nowrap;
 }
-.light-devices-history summary {
-  cursor: pointer; font-size: 13px; color: var(--text-secondary);
-  padding: 4px 0;
+.light-session-device .light-session-icon { color: var(--accent); }
+.light-session-sun .light-session-icon { color: var(--orange); }
+
+/* Device picker (Light page CTA → "Start a device session" with 2+ devs) */
+.light-device-picker-list {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 8px;
 }
-.light-device-sessions-list {
-  display: flex; flex-direction: column; gap: 4px;
-  margin-top: 8px;
+.light-device-picker-row {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-family: inherit; cursor: pointer;
+  text-align: left;
 }
-.light-device-session {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 12px; padding: 6px 0;
-  border-top: 1px solid var(--border);
+.light-device-picker-row:hover {
+  border-color: var(--accent);
+  background: var(--bg-card);
 }
-.light-device-session-date {
-  color: var(--text-muted); width: 80px; flex-shrink: 0;
+.light-device-picker-name {
+  font-weight: 600; color: var(--text-primary); font-size: 14px;
 }
-.light-device-session-name {
-  font-weight: 500; color: var(--text-primary); flex: 1;
+.light-device-picker-meta {
+  color: var(--text-secondary); font-size: 12px;
 }
-.light-device-session-meta {
-  color: var(--text-secondary);
-}
-.light-device-session-delete {
-  background: transparent; border: none;
-  color: var(--text-muted); font-size: 14px;
-  cursor: pointer; padding: 2px 6px;
-}
-.light-device-session-delete:hover { color: var(--red); }
 
 /* Light Environment — rooms + screens survey */
 .light-env-section { margin-top: 24px; }

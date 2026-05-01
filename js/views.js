@@ -57,6 +57,11 @@ export function renderLightTodayStrip() {
   const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
   const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
 
+  // CTA — adaptive to whether the user has therapy devices set up. A
+  // winter user with a Joovv but no recent sun should see the device
+  // option as a peer, not buried under sun-only copy. Solar windows
+  // still privilege outdoor sun (it's a transient cue you'd miss).
+  const hasDevices = !!(window.getDevices && window.getDevices().length > 0);
   let cta;
   if (active) {
     // mm:ss live counter; the active-session ticker updates this same
@@ -67,6 +72,10 @@ export function renderLightTodayStrip() {
   } else if (inSolarWindow) {
     const wlabel = solarWindowLabel();
     cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ ${wlabel} — log a session</button>`;
+    if (hasDevices) cta += ` <button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Device</button>`;
+  } else if (hasDevices) {
+    cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Sun</button>
+      <button class="light-today-cta" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Device</button>`;
   } else {
     cta = `<button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>`;
   }
@@ -105,11 +114,19 @@ export function renderLightTodayStrip() {
   // Below 30% MED it's noise on a normal day — the user has the full
   // banner one click away on the Light & Sun page if they need it.
   const showBurnRisk = medToday >= 0.3;
+  // Combined session count for the past 7 days — sun + device. Replaces
+  // the previous sun-only "X sessions this week" copy which lied about
+  // its window (it was actually counting all-time sun sessions).
+  const weekCutoff = Date.now() - 7 * 86400 * 1000;
+  const sunWeek = sessions.filter(s => (s.startedAt || 0) >= weekCutoff).length;
+  const devSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const devWeek = devSessionsAll.filter(s => (s.startedAt || 0) >= weekCutoff).length;
+  const weekTotal = sunWeek + devWeek;
   return `<section class="light-today-strip">
     <div class="light-today-head">
       <span class="light-today-icon">☀</span>
       <span class="light-today-title">Light Today</span>
-      <span class="light-today-sub">${sessions.length} session${sessions.length !== 1 ? 's' : ''} this week</span>
+      <span class="light-today-sub" title="${sunWeek} sun + ${devWeek} device · last 7 days">${weekTotal} light session${weekTotal !== 1 ? 's' : ''} this week</span>
       <a href="#" class="light-today-link" onclick="event.preventDefault();window.navigate('light')">Open Light &amp; Sun →</a>
     </div>
     ${renderConditionsNow({ variant: 'compact' })}
@@ -990,14 +1007,35 @@ export function showLight(_data) {
     html += window.renderSunSetupCard();
   }
 
-  // Quick-log CTA at top — primary action. Always visible, even at zero
-  // sessions, so the user has a clear way to start.
+  // Quick-log CTA row — primary action. Adaptive: a winter user with a
+  // therapy panel sees "Start a device session" alongside (or instead of)
+  // "Start a sun session," and the count below counts BOTH session kinds.
+  // Devices and outdoor sun feed the same channels; the page shouldn't
+  // privilege one over the other.
+  const devices = (window.getDevices && window.getDevices()) || [];
+  const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const hasDevices = devices.length > 0;
+  const totalSessions = sessions.length + deviceSessionsAll.length;
+  const sunCount = sessions.length;
+  const devCount = deviceSessionsAll.length;
+  const tallyDetail = (sunCount > 0 || devCount > 0)
+    ? `${sunCount} sun + ${devCount} device`
+    : '';
+  const sunActive = !!(window.getActiveSession && window.getActiveSession());
+  let ctaButtons = '';
+  if (sunActive) {
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">⏹ Stop &amp; save current session</button>`;
+  } else if (hasDevices) {
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">☀ Start a sun session</button>
+      <button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Start a device session</button>`;
+  } else {
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">☀ Start a sun session</button>
+      <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()">+ Add a light device</button>`;
+  }
   html += `<div class="light-quicklog-row">
-    <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">
-      ${(window.getActiveSession && window.getActiveSession()) ? '⏹ Stop & save current session' : '☀ Start a sun session'}
-    </button>
+    ${ctaButtons}
     <button class="import-btn import-btn-secondary" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">Log a past session</button>
-    <span class="light-summary-tally">${sessions.length === 0 ? 'No sessions yet' : `${sessions.length} total session${sessions.length !== 1 ? 's' : ''}`}</span>
+    <span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>${totalSessions === 0 ? 'No sessions yet' : `${totalSessions} total light session${totalSessions !== 1 ? 's' : ''}`}</span>
   </div>`;
 
   // Combine sun + device totals so channels reflect every light source
@@ -1009,39 +1047,45 @@ export function showLight(_data) {
   // Unified channel pill row — same vocabulary as the dashboard strip.
   // Empty state shows all ○○○○; populated state lights up dots as data
   // accumulates. Tapping a pill expands a drill-down panel with the full
-  // science copy + tier comparison + suggestion.
-  const isEmpty = sessions.length === 0;
+  // science copy + tier comparison + suggestion. Empty defined as "no
+  // light data of any kind" — devices count too.
+  const isEmpty = totalSessions === 0;
   const lead = isEmpty
     ? 'Tap any channel to learn what it does. Each fills as you log sessions outdoors or with a therapy device.'
     : 'Tap any channel for the science, last-30-day comparison, and what to do next.';
   html += `<div class="light-channels-section">
-    <h3 class="light-section-title">${isEmpty ? "Sun isn't just vitamin D" : "Your light channels"}</h3>
+    <h3 class="light-section-title">${isEmpty ? "Light isn't just vitamin D" : "Your light channels"}</h3>
     <p class="light-section-hint">${lead}</p>
     ${renderChannelPills(combined7d, combined30d)}
     ${isEmpty ? getSunCoordsHint() : ''}
   </div>`;
 
   if (!isEmpty) {
-    // Today's burn-risk card
-    const medPct = Math.round(medToday * 100);
-    let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
-    if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
-    else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching sunburn threshold'; medMsg = 'You\'re getting close to your skin\'s daily limit. Move to shade or cover up if you go back out.'; }
-    else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
-    html += `<div class="light-med-banner light-med-${medCls}">
-      <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
-      <div class="light-med-body">
-        <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your personal threshold)</span>` : ''}</div>
-        <div class="light-med-sub">${medMsg}</div>
-      </div>
-    </div>`;
+    // Today's burn-risk card — sun-specific, gated on having sun sessions.
+    // A winter user with only device sessions doesn't need a "Sun exposure
+    // today: safe (0%)" panel taking up space. Surfaces once outdoor sun
+    // is part of the routine.
+    if (sunCount > 0) {
+      const medPct = Math.round(medToday * 100);
+      let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
+      if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
+      else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching sunburn threshold'; medMsg = 'You\'re getting close to your skin\'s daily limit. Move to shade or cover up if you go back out.'; }
+      else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
+      html += `<div class="light-med-banner light-med-${medCls}">
+        <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
+        <div class="light-med-body">
+          <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your personal threshold)</span>` : ''}</div>
+          <div class="light-med-sub">${medMsg}</div>
+        </div>
+      </div>`;
+    }
 
-    // Suggestion AFTER the burn-risk card
+    // Suggestion (channel-agnostic, reads merged totals)
     html += renderSuggestion(combined7d);
 
-    // Sessions list
+    // Unified sessions list — sun + device merged chronologically.
     html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
-    html += (window.renderSessionsList && window.renderSessionsList()) || '';
+    html += renderUnifiedSessionsList();
   }
 
   // Devices, environment, tools — auto-collapsed when empty per v1.7.0a UX review
@@ -1058,7 +1102,7 @@ export function showLight(_data) {
         const env = (window.getLightEnvironment && window.getLightEnvironment()) || null;
         const hasRooms = !!(env?.rooms?.length || env?.screens?.length);
         const measurements = (window.getMeasurements && window.getMeasurements()) || [];
-        let aux = devices.length > 0 ? devHtml : renderCollapsedSubsection('My light devices', '+ Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, dawn simulators — log them here and your sessions feed the same channels as outdoor sun.');
+        let aux = devices.length > 0 ? devHtml : renderCollapsedSubsection('Light devices', '+ Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, dawn simulators — log them here and your sessions feed the same channels as outdoor sun.');
         aux += hasRooms ? ((window.renderEnvironmentSection && window.renderEnvironmentSection()) || '') : renderCollapsedSubsection('Light environment', '+ Map a room', "window.addLightEnvRoom && window.addLightEnvRoom()", 'Indoor light is the dominant exposure most days. Map your spaces to give the AI the full picture.');
         aux += measurements.length > 0
           ? ((window.renderLightTools && window.renderLightTools()) || '')
@@ -1153,13 +1197,26 @@ function _renderChannelDetailPanel(channelKey) {
   let trendIcon = '·', trendDir = 'flat';
   if (t7 > t30) { trendIcon = '↑'; trendDir = 'up'; }
   else if (t7 < t30) { trendIcon = '↓'; trendDir = 'down'; }
-  // Suggest the next move based on the gap between current 7d tier and
-  // the "good" target (tier 3). Tier 0 (no data) gets a starter prompt.
+  // Suggest the next move based on the current 7d tier and the user's
+  // available light sources. A user with a therapy panel that covers
+  // this channel sees a device-specific nudge; otherwise the suggestion
+  // points at outdoor sun. Channel-coverage check uses the device's
+  // declared `channels` array — so a Joovv that lists 'pbm_red' won't
+  // be suggested as a path to fill 'circadian'.
+  const devices = (window.getDevices && window.getDevices()) || [];
+  const matchingDevice = devices.find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
   let suggestion = '';
-  if (t7 === 0) suggestion = `Log a sun session outdoors to start filling this channel.`;
-  else if (t7 < 3) suggestion = `One more solid session this week could push this to ${dots(Math.min(4, t7 + 1))}.`;
-  else if (t7 === 3) suggestion = `Consistent good range. One more this week tips you to strong (${dots(4)}).`;
-  else suggestion = `Strong range — keep your weekly rhythm.`;
+  if (t7 === 0) {
+    if (matchingDevice) suggestion = `Log a session on your ${matchingDevice.brand} ${matchingDevice.model} or get this channel from outdoor sun.`;
+    else suggestion = `Log a sun session outdoors to start filling this channel.`;
+  } else if (t7 < 3) {
+    if (matchingDevice) suggestion = `One more solid session — outdoors or on your ${matchingDevice.brand} ${matchingDevice.model} — could push this to ${dots(Math.min(4, t7 + 1))}.`;
+    else suggestion = `One more solid session this week could push this to ${dots(Math.min(4, t7 + 1))}.`;
+  } else if (t7 === 3) {
+    suggestion = `Consistent good range. One more this week tips you to strong (${dots(4)}).`;
+  } else {
+    suggestion = `Strong range — keep your weekly rhythm.`;
+  }
 
   return `<div class="light-channel-detail" id="light-pill-detail-${escapeAttr(channelKey)}" role="region" aria-label="${escapeHTML(meta.label || channelKey)} detail" data-trend="${trendDir}">
     <div class="light-channel-detail-head">
@@ -1214,6 +1271,83 @@ function _toggleChannelDetail(channelKey) {
       break;
     }
   }
+}
+
+// Unified sessions list — sun + device sessions merged into a single
+// chronological feed. Differentiated by leading icon and label so the
+// user can scan both kinds in one place. Click on a sun session opens
+// its detail modal (openSunSessionDetail); click on a device session
+// is currently a no-op (no per-device-session detail modal yet — drop
+// the row to delete via the × button). When the list is empty falls
+// through to the existing sun-only "log your first session" hero.
+function renderUnifiedSessionsList() {
+  const sunSessions = (window.getSessions && window.getSessions()) || [];
+  const devSessions = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  if (sunSessions.length === 0 && devSessions.length === 0) {
+    return (window.renderSessionsList && window.renderSessionsList()) || '';
+  }
+  // If only sun sessions exist, defer to the richer sun-only list with
+  // its per-session detail modal + channel chips. Adding device rows
+  // would only matter when there's at least one device session to
+  // weave in.
+  if (devSessions.length === 0) {
+    return (window.renderSessionsList && window.renderSessionsList()) || '';
+  }
+  // Merge: tag each row with kind, sort by startedAt desc.
+  const rows = [];
+  for (const s of sunSessions) rows.push({ kind: 'sun', startedAt: s.startedAt || 0, sess: s });
+  for (const s of devSessions) rows.push({ kind: 'device', startedAt: s.startedAt || 0, sess: s });
+  rows.sort((a, b) => b.startedAt - a.startedAt);
+
+  const devices = (window.getDevices && window.getDevices()) || [];
+  const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
+
+  let html = `<div class="sun-sessions-list light-sessions-list-unified">`;
+  for (const row of rows) {
+    const date = formatDate(new Date(row.startedAt).toISOString().slice(0, 10));
+    if (row.kind === 'sun') {
+      // Reuse the sun-session row markup so click → openSunSessionDetail
+      // and the channel-chip + burn-risk treatment carry through. We
+      // generate the row by isolating the per-row block from the main
+      // renderer; rather than duplicate that logic we just call the
+      // existing renderer once and prepend a separator label.
+      // Simpler approach: build a thin wrapper row pointing at the
+      // existing detail modal, with an icon to distinguish it from a
+      // device row.
+      const sess = row.sess;
+      const isActive = !sess.endedAt;
+      const dur = isActive
+        ? _formatElapsedShort(Date.now() - sess.startedAt)
+        : (sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress');
+      html += `<div class="sun-session light-session-row light-session-sun" role="button" tabindex="0" aria-label="Open ${date} sun session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
+        <div class="sun-session-head">
+          <span class="light-session-icon" aria-hidden="true">☀</span>
+          <span class="sun-session-date">${escapeHTML(date)}</span>
+          <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${escapeHTML(dur)}</span>
+          <span class="light-session-kind">Outdoor sun</span>
+          <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession && window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
+        </div>
+      </div>`;
+    } else {
+      const sess = row.sess;
+      const dev = deviceById[sess.deviceId];
+      const devName = dev ? `${dev.brand} ${dev.model}` : 'Removed device';
+      const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : '—';
+      const meta = `${dur} @ ${sess.distanceCm}cm · ${sess.bodyArea || ''}${sess.eyesProtected ? ' · eyes protected' : ''}`;
+      html += `<div class="sun-session light-session-row light-session-device">
+        <div class="sun-session-head">
+          <span class="light-session-icon" aria-hidden="true">🔴</span>
+          <span class="sun-session-date">${escapeHTML(date)}</span>
+          <span class="sun-session-duration">${escapeHTML(dur)}</span>
+          <span class="light-session-kind">${escapeHTML(devName)}</span>
+          <button class="sun-session-delete" onclick="window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
+        </div>
+        <div class="sun-session-meta">${escapeHTML(meta)}</div>
+      </div>`;
+    }
+  }
+  html += `</div>`;
+  return html;
 }
 
 // One-line action suggestion based on the lowest-tier channel.

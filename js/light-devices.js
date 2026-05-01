@@ -175,7 +175,7 @@ export async function renderDevicesSection() {
 
   let html = `<div class="light-devices-section">
     <div class="light-devices-head">
-      <h3 class="light-section-title">My light devices</h3>
+      <h3 class="light-section-title">Light devices</h3>
       <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog()">+ Add device</button>
     </div>`;
 
@@ -202,22 +202,9 @@ export async function renderDevicesSection() {
   }
   html += `</div>`;
 
-  if (sessions.length > 0) {
-    html += `<details class="light-devices-history" open>
-      <summary>Recent device sessions (${getDeviceSessions().length} total)</summary>
-      <div class="light-device-sessions-list">`;
-    for (const sess of sessions) {
-      const dev = devices.find(d => d.id === sess.deviceId);
-      const date = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
-      html += `<div class="light-device-session">
-        <span class="light-device-session-date">${date}</span>
-        <span class="light-device-session-name">${dev ? `${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}` : 'Removed device'}</span>
-        <span class="light-device-session-meta">${Math.round(sess.durationMin)} min @ ${sess.distanceCm}cm · ${escapeHTML(sess.bodyArea)}</span>
-        <button class="light-device-session-delete" onclick="window.deleteDeviceSession('${escapeAttr(sess.id)}')" aria-label="Delete">×</button>
-      </div>`;
-    }
-    html += `</div></details>`;
-  }
+  // Device sessions live in the unified sessions list higher on the page
+  // (renderUnifiedSessionsList) — no duplicate list here. This subsection
+  // is the device library: panels owned, log-session entry points, add.
 
   html += `</div>`;
   return html;
@@ -340,6 +327,56 @@ export async function openDeviceSessionDialog(deviceId) {
   });
 }
 
+// ─── Quick-log entry point ────────────────────────────────────────────
+// Single entry used by the Light page CTA row, dashboard strip, and
+// drill-down panel suggestions. Behaviour by device count:
+//   0 devices → opens the Add-device dialog
+//   1 device  → opens that device's session dialog directly
+//   2+        → opens a small picker, then the chosen device's dialog
+export function quickLogDeviceSession() {
+  const devices = getDevices();
+  if (devices.length === 0) { openAddDeviceDialog(); return; }
+  if (devices.length === 1) { openDeviceSessionDialog(devices[0].id); return; }
+  _openDevicePicker(devices);
+}
+
+function _openDevicePicker(devices) {
+  // Most-recently-added first so the user's primary panel is at the top.
+  // (Devices array order isn't guaranteed chronological — sort by id which
+  // embeds Date.now() base36, monotonically increasing.)
+  const ordered = devices.slice().sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  let rows = '';
+  for (const dev of ordered) {
+    const meta = `${escapeHTML(dev.type || '')}${dev.peakWavelengths?.length ? ' · ' + dev.peakWavelengths.join('/') + 'nm' : ''}${dev.mwPerCm2At15cm ? ' · ' + dev.mwPerCm2At15cm + ' mW/cm²' : ''}`;
+    rows += `<button type="button" class="light-device-picker-row" data-device-id="${escapeAttr(dev.id)}">
+      <span class="light-device-picker-name">${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}</span>
+      <span class="light-device-picker-meta">${meta}</span>
+    </button>`;
+  }
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Pick a device to log a session">
+    <div class="modal-header">
+      <h3>Which device?</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="light-device-picker-list">${rows}</div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  for (const btn of overlay.querySelectorAll('.light-device-picker-row')) {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-device-id');
+      overlay.remove();
+      openDeviceSessionDialog(id);
+    });
+  }
+}
+
 // ─── Window export ─────────────────────────────────────────────────────
 
 if (typeof window !== 'undefined') {
@@ -360,5 +397,6 @@ if (typeof window !== 'undefined') {
     renderDevicesSection,
     openAddDeviceDialog,
     openDeviceSessionDialog,
+    quickLogDeviceSession,
   });
 }
