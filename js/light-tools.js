@@ -1074,6 +1074,32 @@ export async function openEyeLevelAudit() {
   const toggleBtn = overlay.querySelector('#audit-toggle');
   let pauseDetections = [];
 
+  // Common room labels for one-tap selection. The free-text input is
+  // always available; this just removes the typing burden mid-walkthrough.
+  const COMMON_ROOMS = ['Bedroom', 'Living room', 'Kitchen', 'Bathroom', 'Office', 'Hallway', 'Kids room'];
+
+  // Render each detected pause with a label input + datalist of common
+  // names. Default placeholder shows "Room N" so an unlabeled save still
+  // works, but the input is always live for the user to type into.
+  function renderAuditList() {
+    listEl.innerHTML = pauseDetections.map((p, i) => `
+      <li style="margin-bottom:8px;list-style:none;display:flex;gap:8px;align-items:center">
+        <span style="font-size:12px;color:var(--text-muted);min-width:48px">${Math.round(p.lux)} lux</span>
+        <input type="text" class="audit-room-label-input" data-idx="${i}" placeholder="Room ${i + 1} (tap to label)" value="${escapeAttr(p.label || '')}" list="audit-rooms-${i}" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)">
+        <datalist id="audit-rooms-${i}">${COMMON_ROOMS.map(r => `<option value="${escapeAttr(r)}">`).join('')}</datalist>
+      </li>
+    `).join('');
+    // Wire up the inputs every render — DOM was just rebuilt.
+    listEl.querySelectorAll('.audit-room-label-input').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.dataset.idx, 10);
+        if (!isNaN(idx) && pauseDetections[idx]) {
+          pauseDetections[idx].label = e.target.value.trim();
+        }
+      });
+    });
+  }
+
   toggleBtn.addEventListener('click', async () => {
     if (!_auditState.running) {
       // Start
@@ -1116,8 +1142,8 @@ export async function openEyeLevelAudit() {
             else if (t - pauseStart > 5000) {
               // Mark a pause snapshot
               const lux = Math.max(0, luma * 40 * loadLuxCalibration());
-              pauseDetections.push({ at: t, luma, lux });
-              listEl.innerHTML = pauseDetections.map((p, i) => `<li>Room ${i + 1}: ~${Math.round(p.lux)} lux</li>`).join('');
+              pauseDetections.push({ at: t, luma, lux, label: '' });
+              renderAuditList();
               pauseStart = null; // reset until movement
             }
           } else {
@@ -1135,13 +1161,20 @@ export async function openEyeLevelAudit() {
       // Stop
       _auditState.running = false;
       if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
-      // Save detections as one bulk measurement
+      // Save detections as one bulk measurement, preserving any labels
+      // the user typed in during the walkthrough.
       if (pauseDetections.length > 0) {
         await saveMeasurement('audit', pauseDetections.length, {
           confidence: 0.5,
-          extra: { rooms: pauseDetections.map((p, i) => ({ index: i + 1, lux: p.lux })) },
+          extra: { rooms: pauseDetections.map((p, i) => ({
+            index: i + 1,
+            lux: p.lux,
+            label: (p.label || '').trim() || `Room ${i + 1}`,
+          })) },
         });
-        showNotification(`Audit saved · ${pauseDetections.length} room snapshots.`);
+        const labeled = pauseDetections.filter(p => (p.label || '').trim()).length;
+        const labelNote = labeled > 0 ? ` (${labeled}/${pauseDetections.length} labeled)` : '';
+        showNotification(`Audit saved · ${pauseDetections.length} room snapshots${labelNote}.`);
       } else {
         showNotification('No room pauses detected — try holding still longer next time.');
       }
