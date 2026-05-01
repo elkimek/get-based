@@ -13,7 +13,8 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, formatDate, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { getProfileLocation } from './profile.js';
-import { COUNTRY_LATITUDES } from './constants.js';
+import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
+import { recordTombstone } from './data-merge.js';
 
 // ─── Anatomical regions (for body silhouette picker) ───────────────────
 // 11 regions per the design — each carries optional research notes for AI.
@@ -201,6 +202,7 @@ export async function deleteSession(id) {
   const sessions = getSessions();
   const idx = sessions.findIndex(s => s.id === id);
   if (idx < 0) return false;
+  recordTombstone(state.importedData, 'sunSessions', id);
   sessions.splice(idx, 1);
   _clearLiveState(id);
   await saveImportedData();
@@ -788,11 +790,8 @@ async function _hydrateFromProfileCoords(id) {
   await hydrateSession(id);
 }
 
-// Country band → centroid lat (0=tropical, 4=subarctic). Longitude defaults
-// to the user's UTC offset converted to degrees (15° per hour) so sun-zenith
-// estimates roughly track the user's local solar time. This is coarse — but
-// it works without a geolocation prompt and matches the existing privacy
-// posture (we already store country, never lat/lon, in the profile).
+// Country band → centroid lat (0=tropical, 4=subarctic). Used as the lat
+// fallback when a country lacks an explicit COUNTRY_CENTROIDS entry.
 const BAND_CENTROID_LAT = [15, 32, 45, 55, 65];
 
 export function getSunCoords() {
@@ -801,14 +800,22 @@ export function getSunCoords() {
   if (profileLoc && Number.isFinite(profileLoc.lat) && Number.isFinite(profileLoc.lon)) {
     return { lat: profileLoc.lat, lon: profileLoc.lon, source: 'profile-precise' };
   }
-  // 2. Profile country → band centroid lat (Greenwich-shifted lon from tz)
+  // 2. Profile country → deterministic centroid (lat + lon both keyed off the
+  // country, never off the device's tz). Earlier versions derived lon from
+  // `new Date().getTimezoneOffset()`, which produced different solar-position
+  // results across devices in different OS timezones (or DST states) for the
+  // same profile — surfaced as cross-device "last UV-A" / UVI mismatches.
   const country = (getProfileLocation()?.country || '').toLowerCase().trim();
   if (country && COUNTRY_LATITUDES[country] !== undefined) {
+    const centroid = COUNTRY_CENTROIDS[country];
+    if (centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lon)) {
+      return { lat: centroid.lat, lon: centroid.lon, source: 'country-band' };
+    }
+    // Country listed in band table but missing centroid — degrade to band
+    // centroid lat + Greenwich. Still device-independent.
     const bandIdx = COUNTRY_LATITUDES[country];
     const lat = BAND_CENTROID_LAT[bandIdx] ?? 45;
-    // Browser timezone offset (minutes west of UTC) → degrees east of Greenwich
-    const lon = -((new Date().getTimezoneOffset() / 60) * 15);
-    return { lat, lon, source: 'country-band' };
+    return { lat, lon: 0, source: 'country-band' };
   }
   // No country, no precise coords — return null. The previous tz-only
   // fallback hardcoded lat=45 (NH temperate), which produces physically

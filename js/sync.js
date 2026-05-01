@@ -6,14 +6,70 @@ import { state } from './state.js';
 import { showNotification, isDebugMode, escapeHTML } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
+import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
+
+// Ring buffer of recent sync events — surfaced in the sync popover so phone
+// users can see push/pull payload counts without USB-debugging the console.
+// Each entry: { at: ms, kind: 'push'|'pull'|'skip'|'rebroadcast', text }.
+const _syncEvents = [];
+const _SYNC_EVENT_CAP = 12;
+function _logSyncEvent(kind, text) {
+  _syncEvents.push({ at: Date.now(), kind, text });
+  if (_syncEvents.length > _SYNC_EVENT_CAP) _syncEvents.shift();
+}
+export function getRecentSyncEvents() { return _syncEvents.slice(); }
+
+// Snapshot Evolu's current state for the in-popover Diagnose button. Used
+// when push/pull behave correctly per-device but cross-device convergence
+// stalls — usually a mnemonic mismatch (different Evolu owners, so devices
+// can't see each other's rows) or stale-row replication (relay has the
+// data, this device's local Evolu DB hasn't pulled it down yet).
+export function getEvoluDiagnostics() {
+  const out = {
+    syncEnabled: _syncEnabled,
+    relay: getSyncRelay(),
+    ownerId: _appOwner?.id ? String(_appOwner.id).slice(0, 12) + '…' : null,
+    mnemonicPrefix: _appOwner?.mnemonic ? _appOwner.mnemonic.split(' ').slice(0, 2).join(' ') + ' …' : null,
+    rows: [],
+    activeProfileId: state.currentProfile,
+    activeImported: { sunSessions: 0, lightDevices: 0 },
+  };
+  try {
+    const rows = (evolu && profileQuery) ? evolu.getQueryRows(profileQuery) : [];
+    for (const row of rows || []) {
+      let sun = 0, dev = 0;
+      try {
+        const parsed = JSON.parse(row.dataJson || '{}');
+        const imp = parsed?.importedData || parsed;
+        sun = Array.isArray(imp?.sunSessions) ? imp.sunSessions.length : 0;
+        dev = Array.isArray(imp?.lightDevices) ? imp.lightDevices.length : 0;
+      } catch {}
+      out.rows.push({
+        profileId: row.profileId,
+        syncedAt: row.syncedAt,
+        syncedAtMs: row.syncedAt ? new Date(row.syncedAt).getTime() : 0,
+        sun, dev,
+        bytes: (row.dataJson || '').length,
+      });
+    }
+  } catch (e) { out.rowsError = String(e?.message || e); }
+  // What's actually in this device's active state right now
+  out.activeImported.sunSessions = Array.isArray(state.importedData?.sunSessions) ? state.importedData.sunSessions.length : 0;
+  out.activeImported.lightDevices = Array.isArray(state.importedData?.lightDevices) ? state.importedData.lightDevices.length : 0;
+  return out;
+}
 
 let evolu = null;
 let profileQuery = null;
 let tombstoneQuery = null;
 let _syncEnabled = false;
 let _syncing = false;
+// Tracks when _syncing was last set so a hung push (Evolu onComplete never
+// fires) can be detected and the flag cleared on the next push attempt
+// instead of silently blocking every subsequent push for the session.
+let _syncingSince = 0;
 let _pulling = false;
 let _appOwner = null;
 let _appOwnerError = null;
@@ -657,17 +713,54 @@ const PROFILE_MERGE_FIELDS = ['name', 'sex', 'dob', 'location', 'tags', 'archive
 // ═══════════════════════════════════════════════
 
 async function pushProfile(profileId, importedData) {
-  if (!evolu || !_syncEnabled || _syncing) return;
+  if (!evolu || !_syncEnabled) return;
   if (!profileId || typeof profileId !== 'string') return;
+  // _syncing was a guard against concurrent pushes, but if a previous push
+  // hangs (Evolu's onComplete never fires) _syncing stays true and every
+  // subsequent push (including manual Sync now / Reload-and-retry) silently
+  // no-ops. Replaced with a stale-flag reset: if more than 60s have passed
+  // since _syncing was set, assume the prior push is dead and proceed.
+  if (_syncing && Date.now() - _syncingSince < 60_000) {
+    console.warn('[sync] pushProfile bailed — another push is in-flight (set <60s ago)');
+    return;
+  }
+  if (_syncing) console.warn('[sync] pushProfile clearing stale _syncing flag (>60s old)');
   _syncing = true;
+  _syncingSince = Date.now();
   updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
   try {
     const dataJson = await buildSyncPayload(profileId, importedData);
     const syncedAt = new Date().toISOString();
 
+    const sunCount = Array.isArray(importedData?.sunSessions) ? importedData.sunSessions.length : 0;
+    const devCount = Array.isArray(importedData?.lightDevices) ? importedData.lightDevices.length : 0;
+    const queueMsg = `Queued ${profileId.slice(0,8)} — sun=${sunCount} dev=${devCount}`;
+    const queuedAt = Date.now();
+    console.log(`[sync] ${queueMsg} @ ${queuedAt}`);
+    _logSyncEvent('queue', queueMsg);
+
+    let completed = false;
     const onComplete = () => {
+      completed = true;
+      const elapsed = Date.now() - queuedAt;
       updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now() });
+      const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
+      console.log(`[sync] ${okMsg}`);
+      _logSyncEvent('push', okMsg);
     };
+    // Watchdog: if Evolu never calls onComplete within 30s, the worker is
+    // wedged (broken WS, OPFS lock, dead replication). Log explicitly so
+    // the user / popover can show "Stuck — try reloading the page" instead
+    // of silent forever-pending. This was the v1.7.6 "phone push went red
+    // and never confirmed" symptom.
+    setTimeout(() => {
+      if (!completed) {
+        const stuckMsg = `Push NOT committed after 30s ${profileId.slice(0,8)} — Evolu worker likely wedged`;
+        console.warn(`[sync] ${stuckMsg}`);
+        _logSyncEvent('skip', `Push stuck >30s — try reloading`);
+        updateSyncStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
+      }
+    }, 30_000);
 
     // Check if row exists for this profile
     const rows = evolu.getQueryRows(profileQuery);
@@ -690,7 +783,6 @@ async function pushProfile(profileId, importedData) {
     // Use syncedAt (same value stored in Evolu) so the pull side sees exact equality
     // and doesn't skip the row due to a 1ms clock drift between the two Date.now() calls.
     localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
-    dbg('Pushed:', profileId);
   } catch (e) {
     console.error('[sync] Push failed:', e);
     updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
@@ -702,6 +794,14 @@ async function pushProfile(profileId, importedData) {
 export async function pushCurrentProfile() {
   await pushProfile(state.currentProfile, state.importedData);
   pushContextToGateway();
+}
+
+// User-triggered "Sync now" — pushes our local writes, then forces a pull so
+// rows other devices pushed land here even if Evolu's auto-replication
+// missed them. Symmetric — merge is order-independent.
+export async function syncNow() {
+  await pushCurrentProfile();
+  _forcePull();
 }
 
 // Soft-delete a profile's row on the relay so other devices stop seeing it.
@@ -936,7 +1036,7 @@ async function onSyncReceived() {
     await applyRemoteTombstones();
 
     const rawRows = evolu.getQueryRows(profileQuery);
-    dbg(`onSyncReceived: ${rawRows?.length ?? 0} rows`);
+    console.log(`[sync] onSyncReceived: ${rawRows?.length ?? 0} rows`);
     if (!rawRows || rawRows.length === 0) return;
 
     // Dedupe by profileId, keeping the row with the highest syncedAt.
@@ -977,11 +1077,20 @@ async function onSyncReceived() {
         const localMeta = localStorage.getItem(`labcharts-${profileId}-sync-ts`);
         const localUpdated = localMeta ? parseInt(localMeta, 10) : 0;
 
-        if (remoteUpdated <= localUpdated) {
-          dbg(`Row ${profileId}: skip (remote ${remoteUpdated} <= local ${localUpdated})`);
+        // Skip only when remote is strictly OLDER than what we've applied —
+        // equal timestamps used to skip too, which left rows un-merged after
+        // an earlier whole-blob-LWW pull stored its watermark but never
+        // unioned local+remote. Reprocessing equal rows under the new merge
+        // is idempotent (mergeImportedData is structurally pure) so this is
+        // safe and fixes the "data already in localStorage but not visible
+        // in state.importedData" stall.
+        if (remoteUpdated < localUpdated) {
+          const skipMsg = `Skip ${profileId.slice(0,8)} — remote older`;
+          console.log(`[sync] Row ${profileId.slice(0,8)}: skip (remote ${remoteUpdated} < local ${localUpdated})`);
+          _logSyncEvent('skip', skipMsg);
           continue;
         }
-        dbg(`Row ${profileId}: PULLING (remote ${remoteUpdated} > local ${localUpdated})`);
+        console.log(`[sync] Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated} ${remoteUpdated === localUpdated ? '==' : '>'} local ${localUpdated})`);
 
         // Remote is newer — parse payload
         const { importedData, profile, aiSettings, chatData, displayPrefs } = parseSyncPayload(row.dataJson);
@@ -1019,8 +1128,51 @@ async function onSyncReceived() {
           importedData.wearableConnections = localWearableConnections;
         }
 
+        // Per-array union merge for id-keyed append-only arrays (sun feature
+        // + a couple related). Without this, two devices each writing
+        // independent rows clobber each other on whole-blob LWW. Single-
+        // object subtrees and id-less arrays still LWW (handled inside
+        // mergeImportedData).
+        let localImportedForMerge = null;
+        if (profileId === state.currentProfile) {
+          localImportedForMerge = state.importedData || null;
+        } else {
+          try {
+            const rawLocal = getEncryptionEnabled()
+              ? await encryptedGetItem(localKey)
+              : localStorage.getItem(localKey);
+            if (rawLocal) localImportedForMerge = JSON.parse(rawLocal);
+          } catch (e) {
+            dbg('Could not read local importedData for merge:', e.message);
+          }
+        }
+        const merged = localImportedForMerge
+          ? mergeImportedData(localImportedForMerge, importedData)
+          : importedData;
+        const _ct = (b, k) => Array.isArray(b?.[k]) ? b[k].length : 0;
+        const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${_ct(localImportedForMerge,'sunSessions')}/dev=${_ct(localImportedForMerge,'lightDevices')} · remote sun=${_ct(importedData,'sunSessions')}/dev=${_ct(importedData,'lightDevices')} · merged sun=${_ct(merged,'sunSessions')}/dev=${_ct(merged,'lightDevices')}`;
+        console.log(`[sync] ${mergeMsg}`);
+        _logSyncEvent('pull', mergeMsg);
+        // wearableConnections preservation already happened on `importedData`;
+        // mergeImportedData carries it through (since it's not in
+        // ID_KEYED_ARRAYS, it falls into the LWW path which takes remote —
+        // but `importedData` here was already patched with localWearableConnections).
+
+        // If the merge added rows the remote didn't have (i.e. local had
+        // unsynced state — the canonical case is "phone logged C, desktop
+        // pushed Y first, neither sees the other"), the relay row still
+        // reflects only the remote side. We need to rebroadcast the merged
+        // result so the *other* device pulls our union next round. Without
+        // this, convergence stalls at the first cross-device race because
+        // pull-and-merge is local-only — nothing republishes the union.
+        // Use a structural id-set diff (not JSON.stringify equality) — JSON
+        // serialization order varies with merge-insertion order and would
+        // cause an infinite ping-pong rebroadcast across devices.
+        const needsRebroadcast = !!localImportedForMerge
+          && localHasRowsRemoteLacks(localImportedForMerge, importedData);
+
         // Update importedData in localStorage
-        const importedJson = JSON.stringify(importedData);
+        const importedJson = JSON.stringify(merged);
         if (getEncryptionEnabled()) {
           await encryptedSetItem(localKey, importedJson);
         } else {
@@ -1057,7 +1209,7 @@ async function onSyncReceived() {
 
         // If this is the active profile, update in-memory state
         if (profileId === state.currentProfile) {
-          state.importedData = importedData;
+          state.importedData = merged;
           migrateProfileData(state.importedData);
           // Reload chat threads + active thread messages into memory and re-render
           if (chatData) {
@@ -1065,16 +1217,41 @@ async function onSyncReceived() {
             window.renderThreadList?.();
             window.loadChatHistory?.(); // reloads state.chatHistory from localStorage + renders
           }
-          // Only auto-navigate if user is on the dashboard (don't interrupt other views)
+          // Re-render whatever view the user is on so the merged state
+          // becomes visible. Earlier this only re-rendered the dashboard
+          // and showed a toast on other views — which left a Light & Sun
+          // page unrefreshed even though state.importedData had the new
+          // session locally. navigate(currentCategory) is idempotent.
           const activeNav = document.querySelector('.nav-item.active');
-          if (!activeNav || activeNav.dataset.category === 'dashboard') {
-            window.navigate?.('dashboard');
-          } else {
+          const cat = activeNav?.dataset?.category || 'dashboard';
+          window.navigate?.(cat);
+          if (cat !== 'dashboard') {
             showNotification('Data updated from another device', 'success');
           }
-          dbg('Pulled active profile:', profileId);
+          console.log(`[sync] Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
         } else {
           dbg('Pulled profile:', profileId);
+        }
+
+        // Rebroadcast the union if local had rows the remote lacked. Defer
+        // with setTimeout to avoid recursing inside the pull tick + give
+        // chat/profile/aiSettings appliers a chance to settle first. Skipped
+        // for non-active profiles — pushProfile uses state.importedData,
+        // which is only valid for the current profile.
+        if (needsRebroadcast && profileId === state.currentProfile) {
+          // Don't pile rebroadcast pushes on top of an in-flight push — Evolu
+          // serializes them and the relay can lag, producing the
+          // sun=0/sun=1/sun=1 push storm seen in v1.7.5 diagnostics. Skip the
+          // rebroadcast if a push is already pending; the next pull cycle
+          // (after that push lands) will redo this check correctly.
+          if (_syncStatus.push === 'pending') {
+            console.log(`[sync] Row ${profileId.slice(0,8)}: rebroadcast deferred — push already pending`);
+            _logSyncEvent('skip', `Rebroadcast deferred — push pending`);
+          } else {
+            console.log(`[sync] Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
+            _logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
+            setTimeout(() => pushProfile(profileId, state.importedData), 100);
+          }
         }
       } catch (e) {
         console.error('[sync] Pull failed for row:', e);
@@ -1103,12 +1280,16 @@ export function onDataSaved() {
   if (_syncEnabled && evolu) {
     const profileId = state.currentProfile;
     const data = state.importedData;
-    // Bump sync-ts immediately so a pull firing during the debounce window
-    // sees local as newer and skips — otherwise it would clobber the fresh
-    // local write (e.g. wearableConnections from OAuth callback) with the
-    // pre-write relay snapshot. pushProfile bumps sync-ts again on success.
+    // Earlier versions pre-bumped local-sync-ts to Date.now() here, to keep a
+    // pull firing during the debounce window from clobbering a fresh local
+    // write (back when pull did wholesale-replace). With the per-array merge
+    // (data-merge.js mergeImportedData) the clobber is gone — pull now does
+    // a union-by-id, and incidental local saves (re-renders, derived caches)
+    // were silently shifting the watermark above incoming remote rows so
+    // pulls skipped with `remoteUpdated <= localUpdated`. Letting pull run
+    // and merge is correct: cross-device adds converge instead of skipping.
+    // pushProfile still bumps sync-ts after a successful push.
     if (profileId) {
-      localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(Date.now()));
       const prev = _debounceTimers.get(profileId);
       if (prev) clearTimeout(prev);
       const timer = setTimeout(() => {
@@ -1250,24 +1431,51 @@ export function toggleSyncDetail() {
   if (!btn) return;
   const ds = getSyncDisplayState();
   const s = _syncStatus;
+  const relayUrl = getSyncRelay();
   const relayDot = s.relay === 'connected' ? '#22c55e' : s.relay === 'unreachable' ? 'var(--red)' : 'var(--text-muted)';
   const relayLabel = s.relay === 'connected' ? 'Connected to relay' : s.relay === 'unreachable' ? 'Relay unreachable' : 'Checking\u2026';
-  const pushLabel = s.push === 'confirmed' ? `Confirmed ${_timeAgo(s.pushConfirmedAt)}` : s.push === 'pending' ? 'Pending\u2026' : s.push === 'error' ? 'Failed' : '\u2014';
+  // Detect a stuck push: pending > 15s usually means Evolu's worker can't
+  // reach the relay (offline phone, relay down, OPFS lock). Surface it so
+  // the user knows clicking Sync now won't help \u2014 they need network back.
+  // Also treat the post-watchdog `error: PushStuck` state as stuck so the
+  // Reload button stays visible even after status flips off `pending`.
+  const pendingMs = (s.push === 'pending' && s.pushStartedAt) ? (Date.now() - s.pushStartedAt) : 0;
+  const isPushStuckError = s.push === 'error' && s.lastError?.type === 'PushStuck';
+  const stuckPush = pendingMs > 15_000 || isPushStuckError;
+  const pushLabel = s.push === 'confirmed' ? `Confirmed ${_timeAgo(s.pushConfirmedAt)}`
+    : isPushStuckError ? `<span style="color:var(--red)">Stuck \u2014 relay didn't ack</span>`
+    : pendingMs > 15_000 ? `<span style="color:var(--red)">Stuck for ${Math.round(pendingMs/1000)}s \u2014 relay unreachable?</span>`
+    : s.push === 'pending' ? 'Pending\u2026'
+    : s.push === 'error' ? '<span style="color:var(--red)">Failed</span>' : '\u2014';
   const pullLabel = s.pullReceivedAt ? `Checked ${_timeAgo(s.pullReceivedAt)}` : '\u2014';
   const errorLine = s.lastError ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px">${escapeHTML(s.lastError.type)} ${_timeAgo(s.lastError.at)}</div>` : '';
 
   pop = document.createElement('div');
   pop.id = 'sync-popover';
   pop.className = 'sync-popover';
+  // Last few sync events — visible without USB-debugging the console.
+  // Useful when phone vs desktop disagree on what's on the relay.
+  const events = getRecentSyncEvents().slice(-6).reverse();
+  const eventColor = { push: 'var(--accent)', pull: 'var(--green)', skip: 'var(--text-muted)', rebroadcast: 'var(--orange)' };
+  const eventsHtml = events.length ? `
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:140px;overflow-y:auto">
+      <div style="font-weight:600;margin-bottom:4px;color:var(--text-secondary)">Recent activity</div>
+      ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
+    </div>` : '';
   pop.innerHTML = `
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span style="width:8px;height:8px;border-radius:50%;background:${relayDot};display:inline-block"></span><span style="font-size:13px">${relayLabel}</span></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:8px;height:8px;border-radius:50%;background:${relayDot};display:inline-block"></span><span style="font-size:13px">${relayLabel}</span></div>
+    <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:8px;word-break:break-all">${escapeHTML(relayUrl)}</div>
     <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
       <div>Push: ${pushLabel}</div>
       <div>Pull: ${pullLabel}</div>
     </div>
     ${errorLine}
-    <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="ctx-btn-option" style="font-size:12px" onclick="pushCurrentProfile();toggleSyncDetail()">Sync now</button>
+    ${eventsHtml}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="ctx-btn-option" style="font-size:12px" onclick="syncNow();toggleSyncDetail()">Sync now</button>
+      <button class="ctx-btn-option" style="font-size:12px" onclick="checkRelayConnection().then(ok=>showNotification(ok?'Relay reachable':'Relay UNREACHABLE',ok?'success':'error'))">Test relay</button>
+      <button class="ctx-btn-option" style="font-size:12px;${stuckPush ? 'color:var(--red);border-color:var(--red)' : ''}" onclick="window.location.reload()" title="Reloads the page to re-init the sync worker.">Reload</button>
+      <button class="ctx-btn-option" style="font-size:12px" onclick="showSyncDiagnose()">Diagnose</button>
       <button class="ctx-btn-option" style="font-size:12px" onclick="toggleSyncDetail();openSettingsModal('data')">Settings</button>
     </div>`;
   btn.parentElement.style.position = 'relative';
@@ -1277,8 +1485,54 @@ export function toggleSyncDetail() {
   setTimeout(() => document.addEventListener('click', close), 0);
 }
 
-// Subscribe to status changes → repaint indicator
-subscribeSyncStatus(() => updateSyncIndicator());
+// Read-only modal that dumps Evolu's local state — both devices should
+// show the same `ownerId` / `mnemonicPrefix`. If they differ, the two
+// devices are talking to different Evolu owners and will never see each
+// other's data despite using the same relay URL.
+export function showSyncDiagnose() {
+  const d = getEvoluDiagnostics();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  const rowsHtml = d.rows.length
+    ? d.rows.map(r => `<tr><td style="padding:4px 8px;font-family:monospace;font-size:11px">${escapeHTML(r.profileId || '?')}</td><td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.syncedAtMs}</td><td style="padding:4px 8px;text-align:right">${r.sun}</td><td style="padding:4px 8px;text-align:right">${r.dev}</td><td style="padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px">${r.bytes}b</td></tr>`).join('')
+    : '<tr><td colspan="5" style="padding:8px;color:var(--text-muted);text-align:center">No rows in local Evolu DB</td></tr>';
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Sync diagnose" style="max-width:640px">
+    <div class="modal-header"><h3>Sync diagnose</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button></div>
+    <div class="modal-body" style="font-size:13px">
+      <div style="margin-bottom:12px">
+        <div><b>Sync enabled:</b> ${d.syncEnabled ? 'yes' : 'no'}</div>
+        <div><b>Relay:</b> <span style="font-family:monospace;font-size:11px;word-break:break-all">${escapeHTML(d.relay || '—')}</span></div>
+        <div><b>Owner ID:</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.ownerId || '— (not initialized)')}</span></div>
+        <div><b>Mnemonic prefix:</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.mnemonicPrefix || '—')}</span></div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">If two devices show different Owner ID or Mnemonic prefix, they are using different identities and will never see each other's data even on the same relay.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div><b>Active profile (this device):</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.activeProfileId || '?')}</span></div>
+        <div>In-memory state: sunSessions=${d.activeImported.sunSessions} lightDevices=${d.activeImported.lightDevices}</div>
+      </div>
+      <div>
+        <b>Rows in this device's local Evolu DB:</b>
+        <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances.</div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// Subscribe to status changes → repaint indicator + re-render the popover
+// in place so a watchdog flip (e.g. 30s push-stuck) updates the labels and
+// the Reload button styling without the user closing / reopening the panel.
+subscribeSyncStatus(() => {
+  updateSyncIndicator();
+  if (document.getElementById('sync-popover')) {
+    toggleSyncDetail(); toggleSyncDetail();
+  }
+});
 
 // ═══════════════════════════════════════════════
 // EXPORTS for window binding
@@ -1293,6 +1547,8 @@ Object.assign(window, {
   restoreFromMnemonic,
   isSyncEnabled,
   pushCurrentProfile,
+  syncNow,
+  showSyncDiagnose,
   deleteProfileFromRelay,
   listPendingTombstones,
   applyPendingTombstone,

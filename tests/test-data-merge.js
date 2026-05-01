@@ -1,0 +1,228 @@
+// test-data-merge.js — per-array union-by-id sync merge: additions, edit
+// conflict resolution, tombstones (no resurrection of deleted rows), nested
+// paths inside lightEnvironment, single-object LWW preservation.
+// Run: fetch('tests/test-data-merge.js').then(r=>r.text()).then(s=>Function(s)())
+
+return (async function() {
+  let pass = 0, fail = 0;
+  function assert(name, condition, detail) {
+    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
+    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
+  }
+
+  console.log('%c Data Merge Tests ', 'background:#f59e0b;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+
+  const mod = await import('/js/data-merge.js?bust=' + Date.now());
+  const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHasRowsRemoteLacks } = mod;
+
+  // ─── 1. Coverage of known arrays ──────────────────────────────────────
+  console.log('%c 1. ID_KEYED_ARRAYS coverage ', 'font-weight:bold;color:#f59e0b');
+  for (const path of ['sunSessions','deviceSessions','lightDevices','lightMeasurements','lightEnvironment.rooms','lightEnvironment.screens']) {
+    assert(`covers ${path}`, ID_KEYED_ARRAYS.includes(path));
+  }
+
+  // ─── 2. unionById additivity ──────────────────────────────────────────
+  console.log('%c 2. unionById additive merge ', 'font-weight:bold;color:#f59e0b');
+  const A = [{id:'a',startedAt:1},{id:'b',startedAt:2}];
+  const B = [{id:'b',startedAt:2},{id:'c',startedAt:3}];
+  const u = unionById(A, B, []);
+  assert('union has all 3 ids', u.length === 3 && u.find(x=>x.id==='a') && u.find(x=>x.id==='b') && u.find(x=>x.id==='c'));
+
+  // Conflict: higher updatedAt wins
+  const L = [{id:'x', text:'old', updatedAt:100}];
+  const R = [{id:'x', text:'new', updatedAt:200}];
+  const c = unionById(L, R, []);
+  assert('higher updatedAt wins', c.length === 1 && c[0].text === 'new');
+
+  // Falls back to startedAt when updatedAt absent
+  const L2 = [{id:'y', text:'old', startedAt:500}];
+  const R2 = [{id:'y', text:'new', startedAt:400}];
+  const c2 = unionById(L2, R2, []);
+  assert('falls back to startedAt', c2.length === 1 && c2[0].text === 'old');
+
+  // Items without ids preserved on both sides
+  const L3 = [{foo:1}];
+  const R3 = [{bar:2}];
+  const c3 = unionById(L3, R3, []);
+  assert('id-less items preserved (both sides)', c3.length === 2);
+
+  // ─── 3. Tombstones drop resurrected rows ──────────────────────────────
+  console.log('%c 3. Tombstone resurrection guard ', 'font-weight:bold;color:#f59e0b');
+  const remoteWithStale = [{id:'a',startedAt:1},{id:'b',startedAt:2}]; // remote hasn't pulled the delete yet
+  const localAfterDelete = [{id:'a',startedAt:1}]; // local deleted b
+  const tomb = ['b'];
+  const u2 = unionById(localAfterDelete, remoteWithStale, tomb);
+  assert('tombstoned id is dropped from union', u2.length === 1 && u2[0].id === 'a');
+
+  // ─── 4. mergeImportedData end-to-end (the user's symptom) ─────────────
+  console.log('%c 4. mergeImportedData additive ', 'font-weight:bold;color:#f59e0b');
+
+  // Phone state after logging session C
+  const phone = {
+    sunSessions: [{id:'a',startedAt:1},{id:'b',startedAt:2},{id:'c',startedAt:3}],
+    lightDevices: [{id:'X',addedAt:1}],
+    sunDefaults: { coords: { lat: 49.8, lon: 15.5 } },
+  };
+  // Desktop state after adding device Y (hadn't pulled C yet)
+  const desktop = {
+    sunSessions: [{id:'a',startedAt:1},{id:'b',startedAt:2}],
+    lightDevices: [{id:'X',addedAt:1},{id:'Y',addedAt:5}],
+    sunDefaults: { coords: { lat: 49.8, lon: 15.5 } },
+  };
+
+  // Phone pulls desktop's blob — should keep C and gain Y
+  const onPhone = mergeImportedData(phone, desktop);
+  assert('phone keeps own session C after pull', onPhone.sunSessions.find(s=>s.id==='c'));
+  assert('phone gains desktop device Y', onPhone.lightDevices.find(d=>d.id==='Y'));
+  assert('phone keeps session A and B', onPhone.sunSessions.find(s=>s.id==='a') && onPhone.sunSessions.find(s=>s.id==='b'));
+
+  // Desktop pulls phone's blob — should keep Y and gain C
+  const onDesktop = mergeImportedData(desktop, phone);
+  assert('desktop keeps own device Y after pull', onDesktop.lightDevices.find(d=>d.id==='Y'));
+  assert('desktop gains phone session C', onDesktop.sunSessions.find(s=>s.id==='c'));
+
+  // ─── 5. mergeImportedData with tombstones ─────────────────────────────
+  console.log('%c 5. mergeImportedData tombstones ', 'font-weight:bold;color:#f59e0b');
+
+  // Phone deletes session B → tombstoned + removed locally
+  const phoneAfterDelete = {
+    sunSessions: [{id:'a',startedAt:1},{id:'c',startedAt:3}],
+    _deleted: { sunSessions: ['b'] },
+  };
+  // Desktop didn't see the delete; still has B
+  const desktopStale = {
+    sunSessions: [{id:'a',startedAt:1},{id:'b',startedAt:2}],
+  };
+  const merged = mergeImportedData(phoneAfterDelete, desktopStale);
+  assert('deleted session B does NOT resurrect on merge', !merged.sunSessions.find(s=>s.id==='b'));
+  assert('non-deleted sessions A and C remain', merged.sunSessions.find(s=>s.id==='a') && merged.sunSessions.find(s=>s.id==='c'));
+  assert('tombstone preserved through merge', merged._deleted && merged._deleted.sunSessions && merged._deleted.sunSessions.includes('b'));
+
+  // ─── 6. Nested paths (lightEnvironment.rooms / .screens) ──────────────
+  console.log('%c 6. Nested path merge (lightEnvironment) ', 'font-weight:bold;color:#f59e0b');
+
+  const phoneEnv = {
+    lightEnvironment: {
+      rooms: [{id:'r1',name:'Bedroom',createdAt:1},{id:'r2',name:'Office',createdAt:2}],
+      screens: [{id:'s1',roomId:'r1',createdAt:1}],
+      somethingScalar: 'phone-value',
+    },
+  };
+  const desktopEnv = {
+    lightEnvironment: {
+      rooms: [{id:'r1',name:'Bedroom',createdAt:1},{id:'r3',name:'Kitchen',createdAt:3}],
+      screens: [{id:'s2',roomId:'r3',createdAt:3}],
+      somethingScalar: 'desktop-value',
+    },
+  };
+  const mergedEnv = mergeImportedData(phoneEnv, desktopEnv);
+  assert('rooms union: r1 + r2 + r3 all present',
+    mergedEnv.lightEnvironment.rooms.length === 3 &&
+    mergedEnv.lightEnvironment.rooms.find(r=>r.id==='r1') &&
+    mergedEnv.lightEnvironment.rooms.find(r=>r.id==='r2') &&
+    mergedEnv.lightEnvironment.rooms.find(r=>r.id==='r3'));
+  assert('screens union: s1 + s2 both present',
+    mergedEnv.lightEnvironment.screens.length === 2 &&
+    mergedEnv.lightEnvironment.screens.find(s=>s.id==='s1') &&
+    mergedEnv.lightEnvironment.screens.find(s=>s.id==='s2'));
+  // Scalar inside lightEnvironment falls through to LWW (remote wins)
+  assert('non-id-keyed scalar inside nested path uses LWW (remote)',
+    mergedEnv.lightEnvironment.somethingScalar === 'desktop-value');
+
+  // ─── 7. Single-object subtrees stay LWW ───────────────────────────────
+  console.log('%c 7. Single-object LWW preservation ', 'font-weight:bold;color:#f59e0b');
+
+  const phoneCfg = { sunDefaults: { coords:{lat:49.8,lon:15.5}, fitzpatrick:'III' } };
+  const desktopCfg = { sunDefaults: { coords:{lat:49.8,lon:15.5}, fitzpatrick:'IV' } };
+  const mergedCfg = mergeImportedData(phoneCfg, desktopCfg);
+  // No timestamp on these — pull-side blob (desktop) should win as remote.
+  assert('sunDefaults uses remote LWW (no merge inside)',
+    mergedCfg.sunDefaults.fitzpatrick === 'IV');
+
+  // ─── 8. Empty / null inputs ───────────────────────────────────────────
+  console.log('%c 8. Empty / null edge cases ', 'font-weight:bold;color:#f59e0b');
+
+  assert('null remote returns local',
+    mergeImportedData({sunSessions:[{id:'a'}]}, null).sunSessions.length === 1);
+  assert('null local returns remote',
+    mergeImportedData(null, {sunSessions:[{id:'a'}]}).sunSessions.length === 1);
+  // Empty arrays merge cleanly
+  const e1 = mergeImportedData({sunSessions:[]}, {sunSessions:[{id:'a'}]});
+  assert('empty + one returns the one', e1.sunSessions.length === 1 && e1.sunSessions[0].id === 'a');
+
+  // ─── 9. recordTombstone helper ────────────────────────────────────────
+  console.log('%c 9. recordTombstone ', 'font-weight:bold;color:#f59e0b');
+  const blob = { sunSessions: [{id:'a'},{id:'b'}] };
+  recordTombstone(blob, 'sunSessions', 'b');
+  assert('first tombstone creates _deleted entry',
+    blob._deleted && Array.isArray(blob._deleted.sunSessions) && blob._deleted.sunSessions.includes('b'));
+  recordTombstone(blob, 'sunSessions', 'b');
+  assert('duplicate tombstone is deduped',
+    blob._deleted.sunSessions.filter(x=>x==='b').length === 1);
+  recordTombstone(blob, 'lightDevices', 'X');
+  assert('multiple paths tracked separately',
+    blob._deleted.lightDevices.includes('X') && blob._deleted.sunSessions.includes('b'));
+
+  // ─── 10. Tombstone union from both sides ──────────────────────────────
+  console.log('%c 10. Tombstone union ', 'font-weight:bold;color:#f59e0b');
+  const phoneT = { sunSessions:[{id:'a'}], _deleted:{sunSessions:['b']} };
+  const desktopT = { sunSessions:[{id:'a'}], _deleted:{sunSessions:['c']} };
+  const mt = mergeImportedData(phoneT, desktopT);
+  assert('both deletes kept in merged tombstones',
+    mt._deleted.sunSessions.includes('b') && mt._deleted.sunSessions.includes('c'));
+
+  // ─── 11. localHasRowsRemoteLacks (rebroadcast trigger) ────────────────
+  console.log('%c 11. localHasRowsRemoteLacks ', 'font-weight:bold;color:#f59e0b');
+
+  // Local has C that remote lacks → rebroadcast needed
+  assert('local has unsynced row → true',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'a'},{id:'b'},{id:'c'}]},
+      {sunSessions:[{id:'a'},{id:'b'}]}
+    ) === true);
+
+  // Local is a subset of remote → no rebroadcast
+  assert('local subset of remote → false',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'a'},{id:'b'}]},
+      {sunSessions:[{id:'a'},{id:'b'},{id:'c'}]}
+    ) === false);
+
+  // Identical → no rebroadcast (no infinite loop)
+  assert('identical sides → false',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'a'},{id:'b'}], lightDevices:[{id:'X'}]},
+      {sunSessions:[{id:'a'},{id:'b'}], lightDevices:[{id:'X'}]}
+    ) === false);
+
+  // Same ids but different INSERTION ORDER must NOT trigger rebroadcast —
+  // this was the bug that would have caused a JSON.stringify-based diff to
+  // ping-pong endlessly across devices.
+  assert('different insertion order, same ids → false (no ping-pong)',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'a'},{id:'b'},{id:'c'}]},
+      {sunSessions:[{id:'b'},{id:'c'},{id:'a'}]}
+    ) === false);
+
+  // Local tombstone that remote lacks → rebroadcast (delete needs to propagate)
+  assert('local tombstone not on remote → true',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'a'}], _deleted:{sunSessions:['b']}},
+      {sunSessions:[{id:'a'},{id:'b'}]}
+    ) === true);
+
+  // Both sides have the same tombstone → no rebroadcast
+  assert('matching tombstones → false',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'a'}], _deleted:{sunSessions:['b']}},
+      {sunSessions:[{id:'a'}], _deleted:{sunSessions:['b']}}
+    ) === false);
+
+  // Null guards
+  assert('null local → false', localHasRowsRemoteLacks(null, {sunSessions:[{id:'a'}]}) === false);
+  assert('null remote → true (everything local is news)',
+    localHasRowsRemoteLacks({sunSessions:[{id:'a'}]}, null) === true);
+
+  console.log(`%c Data Merge: ${pass} passed, ${fail} failed `,
+    `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
+})();

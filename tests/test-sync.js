@@ -167,11 +167,17 @@ return (async function() {
   assert('onDataSaved has 2s debounce', syncSrc.includes('}, 2000)'));
   assert('onDataSaved captures profileId at schedule time', syncSrc.includes('const profileId = state.currentProfile') && syncSrc.includes('pushProfile(profileId'));
   assert('onDataSaved retries if _syncing', syncSrc.includes('if (_syncing)') && syncSrc.includes('pushProfile(profileId, data)'));
-  assert('onSyncReceived checks remoteUpdated > localUpdated', syncSrc.includes('remoteUpdated <= localUpdated'));
+  // v1.7.4: skip is now strict `<` so equal-timestamp rows reprocess
+  // (idempotent under the merge), fixing stalls when local already has
+  // the merged blob but state.importedData hadn't been re-set.
+  assert('onSyncReceived skips strictly-older rows only', syncSrc.includes('remoteUpdated < localUpdated'));
   assert('onSyncReceived guards on _pulling', syncSrc.includes('_pulling') && syncSrc.includes('_pulling = true'));
   assert('Pull handles encryption', syncSrc.includes('getEncryptionEnabled()') && syncSrc.includes('encryptedSetItem(localKey'));
   assert('Pull merges profiles with allowlist', syncSrc.includes('PROFILE_MERGE_FIELDS') && syncSrc.includes('saveProfiles(profiles)'));
-  assert('Pull calls navigate for active profile', syncSrc.includes("window.navigate?.('dashboard')"));
+  // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
+  // (so a Light & Sun page picks up newly-merged sun sessions immediately
+  // instead of just showing a "Data updated" toast).
+  assert('Pull re-renders the active view', syncSrc.includes('window.navigate?.(cat)'));
   assert('Pull calls migrateProfileData', syncSrc.includes('migrateProfileData(state.importedData)'));
   assert('pushAllProfiles pushes all profiles on first enable', syncSrc.includes('async function pushAllProfiles'));
   assert('disableSync clears _appOwner', syncSrc.includes('_appOwner = null'));

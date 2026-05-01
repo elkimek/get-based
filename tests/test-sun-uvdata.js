@@ -19,6 +19,7 @@ return (async function() {
     manualAtmosphere,
     fetchAtmosphere,
     solarZenithAngle,
+    nearestHourIndex,
   } = mod;
 
   // ─── 1. UV_SOURCE_CONFIDENCE shape ─────────────────────────────────────
@@ -181,6 +182,38 @@ return (async function() {
   threw = false;
   try { await fetchAtmosphere({ lat: 50 }); } catch (e) { threw = /lat, lon/.test(e.message); }
   assert('fetchAtmosphere throws when only lat provided', threw);
+
+  // ─── 6.5 nearestHourIndex is timezone-agnostic ────────────────────────
+  console.log('%c 6.5 nearestHourIndex tz-agnostic ', 'font-weight:bold;color:#f59e0b');
+
+  // Repro of the cross-device 5.9-vs-1.8 UVI bug. Open-Meteo with timezone=auto
+  // returns hourly time strings without an offset suffix. The naive `new Date(s)`
+  // parse uses the *device's* local tz, so a phone in tz X picks a different
+  // hour than a desktop in tz Y from the same response. The fix: use
+  // `utc_offset_seconds` from the response so the index is stable.
+  const pragueHourly = [
+    '2026-05-01T10:00','2026-05-01T11:00','2026-05-01T12:00','2026-05-01T13:00',
+    '2026-05-01T14:00','2026-05-01T15:00','2026-05-01T16:00','2026-05-01T17:00',
+  ];
+  const pragueOffset = 7200; // CEST (+02:00)
+  // 12:00 UTC on May 1, 2026 == 14:00 in Prague — should pick index 4.
+  const target = '2026-05-01T12:00:00.000Z';
+  assert('nearestHourIndex returns Prague-noon entry for UTC noon target',
+    nearestHourIndex(pragueHourly, target, pragueOffset) === 4,
+    `got ${nearestHourIndex(pragueHourly, target, pragueOffset)}, expected 4`);
+
+  // Without the offset (legacy behavior), the result depends on the device's tz —
+  // exactly the bug. Just assert that passing the offset gives the *same* answer
+  // regardless of how naive parsing would land. Using a UTC-tagged response
+  // (offset 0) for the same UTC target should pick the index whose stamp == 12:00.
+  const utcHourly = pragueHourly.slice();
+  assert('nearestHourIndex with offset 0 picks the literal 12:00 entry',
+    nearestHourIndex(utcHourly, target, 0) === 2,
+    `got ${nearestHourIndex(utcHourly, target, 0)}, expected 2`);
+
+  // Same Prague-tagged response, target one hour later (13:00 UTC == 15:00 Prague).
+  assert('nearestHourIndex tracks target across hours',
+    nearestHourIndex(pragueHourly, '2026-05-01T13:00:00.000Z', pragueOffset) === 5);
 
   // ─── 7. Confidence values exist for every named source ────────────────
   console.log('%c 7. Source coverage ', 'font-weight:bold;color:#f59e0b');

@@ -20,6 +20,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, formatDate, showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
+import { recordTombstone } from './data-merge.js';
 import { CHANNEL_DISPLAY, channelTier, tierLabel } from './sun.js';
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
@@ -85,6 +86,7 @@ export async function deleteDevice(id) {
   const devs = getDevices();
   const idx = devs.findIndex(d => d.id === id);
   if (idx < 0) return false;
+  recordTombstone(state.importedData, 'lightDevices', id);
   devs.splice(idx, 1);
   await saveImportedData();
   return true;
@@ -172,6 +174,7 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   // session — re-typing every time is friction). Notes intentionally
   // excluded — they're session-specific, shouldn't leak forward.
   device.lastSession = { durationMin, distanceCm, bodyArea, eyesProtected };
+  device.updatedAt = Date.now();
   await saveImportedData();
   return session;
 }
@@ -180,6 +183,7 @@ export async function deleteDeviceSession(id) {
   const sessions = getDeviceSessions();
   const idx = sessions.findIndex(s => s.id === id);
   if (idx < 0) return false;
+  recordTombstone(state.importedData, 'deviceSessions', id);
   sessions.splice(idx, 1);
   await saveImportedData();
   return true;

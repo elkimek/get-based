@@ -15,6 +15,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
+import { recordTombstone } from './data-merge.js';
 
 export const PRIMARY_SOURCES = [
   { key: 'led-cool',       label: 'LED — cool/daylight (4000K+)' },
@@ -84,16 +85,20 @@ export function nextDefaultRoomName() {
   return `Room ${(env?.rooms?.length || 0) + 1}`;
 }
 
+// `updatedAt` is bumped on every patch so the per-array sync merge can
+// resolve cross-device edit conflicts (higher updatedAt wins).
 export async function updateRoom(id, patch) {
   const env = getEnvironment();
   const room = (env.rooms || []).find(r => r.id === id);
   if (!room) return;
   Object.assign(room, patch);
+  room.updatedAt = Date.now();
   await saveImportedData();
 }
 
 export async function deleteRoom(id) {
   const env = getEnvironment();
+  recordTombstone(state.importedData, 'lightEnvironment.rooms', id);
   env.rooms = (env.rooms || []).filter(r => r.id !== id);
   await saveImportedData();
 }
@@ -153,6 +158,7 @@ export async function setTodayActive(kind, id, active) {
   const item = list.find(x => x.id === id);
   if (!item) return;
   item.todayOverride = { date: todayKey(), active: !!active };
+  item.updatedAt = Date.now();
   await saveImportedData();
 }
 
@@ -161,11 +167,13 @@ export async function updateScreen(id, patch) {
   const scr = (env.screens || []).find(s => s.id === id);
   if (!scr) return;
   Object.assign(scr, patch);
+  scr.updatedAt = Date.now();
   await saveImportedData();
 }
 
 export async function deleteScreen(id) {
   const env = getEnvironment();
+  recordTombstone(state.importedData, 'lightEnvironment.screens', id);
   env.screens = (env.screens || []).filter(s => s.id !== id);
   await saveImportedData();
 }

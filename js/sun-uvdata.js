@@ -258,14 +258,21 @@ function providerOrder(cfg) {
 
 function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
   if (!fcJson?.hourly?.time || !fcJson.hourly.uv_index) return null;
-  const idx = nearestHourIndex(fcJson.hourly.time, isoTime);
+  // Forecast endpoint is queried with `timezone=auto` so its time strings are
+  // local-clock at the location, no offset suffix. AQ endpoint defaults to
+  // GMT so its strings are UTC-clock. JS `new Date(naiveString)` interprets
+  // either as the *device's* local tz, which gives the wrong hour-index when
+  // the device tz != location tz (the 5.9 vs 1.8 cross-device bug).
+  const fcOffsetS = Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0;
+  const aqOffsetS = Number.isFinite(aqJson?.utc_offset_seconds) ? aqJson.utc_offset_seconds : 0;
+  const idx = nearestHourIndex(fcJson.hourly.time, isoTime, fcOffsetS);
   if (idx < 0) return null;
   const fc = (k) => Array.isArray(fcJson.hourly[k]) ? fcJson.hourly[k][idx] : null;
 
   // Air-quality lookup — same hourly index strategy. Some fields also live
   // on `current` (no time series); use those as a fallback when present.
   let aqIdx = -1;
-  if (aqJson?.hourly?.time) aqIdx = nearestHourIndex(aqJson.hourly.time, isoTime);
+  if (aqJson?.hourly?.time) aqIdx = nearestHourIndex(aqJson.hourly.time, isoTime, aqOffsetS);
   const aq = (k) => {
     if (aqIdx >= 0 && Array.isArray(aqJson.hourly?.[k])) return aqJson.hourly[k][aqIdx];
     if (aqJson?.current?.[k] != null) return aqJson.current[k];
@@ -500,12 +507,28 @@ async function fetchJson(url, opts = {}) {
   }
 }
 
-function nearestHourIndex(timeArray, isoTime) {
+// Open-Meteo returns hourly time strings without an offset suffix
+// (e.g. "2026-05-01T14:00"). With `timezone=auto` they're location-local;
+// without it they're UTC. JS's `new Date(naiveString)` interprets them as
+// the *device's* local tz, which gives a wrong hour-index whenever the
+// device tz != response tz — and produced the cross-device 5.9-vs-1.8
+// UVI divergence on phone-over-Tailscale. Parse the calendar fields with
+// Date.UTC() and shift by the response's `utc_offset_seconds` to get a
+// true UTC instant, regardless of device tz.
+function parseNaiveHourMs(s, offsetSeconds) {
+  const m = typeof s === 'string' && s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return NaN;
+  const asUtcMs = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0);
+  return asUtcMs - (offsetSeconds || 0) * 1000;
+}
+
+export function nearestHourIndex(timeArray, isoTime, offsetSeconds = 0) {
   if (!Array.isArray(timeArray)) return -1;
   const target = new Date(isoTime).getTime();
   let bestIdx = -1, bestDelta = Infinity;
   for (let i = 0; i < timeArray.length; i++) {
-    const t = new Date(timeArray[i]).getTime();
+    const t = parseNaiveHourMs(timeArray[i], offsetSeconds);
+    if (!Number.isFinite(t)) continue;
     const delta = Math.abs(t - target);
     if (delta < bestDelta) { bestDelta = delta; bestIdx = i; }
   }

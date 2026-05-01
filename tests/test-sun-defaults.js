@@ -166,6 +166,56 @@ return (async function() {
   // Restore
   window._labState.importedData = orig;
 
+  // ─── 8. getSunCoords country-band path is device-tz-independent ────────
+  // Regression: previously lon was derived from `new Date().getTimezoneOffset()`,
+  // so the same profile produced different coords on devices in different OS
+  // timezones (or DST states), surfaced as cross-device "last UV-A" / UVI
+  // mismatches. Country centroid lookup is now fully deterministic.
+  console.log('%c 8. getSunCoords cross-device determinism ', 'font-weight:bold;color:#f59e0b');
+
+  const sunMod = await import('/js/sun.js?bust=' + Date.now());
+  const { getSunCoords } = sunMod;
+  const profileMod = await import('/js/profile.js?bust=' + Date.now());
+  const { setProfileLocation, getProfileLocation } = profileMod;
+
+  // Stash original profile location
+  const origLoc = getProfileLocation();
+  // Ensure we're in country-band mode (no profile-precise coords)
+  const stashedSunDefaults = window._labState.importedData?.sunDefaults;
+  if (window._labState.importedData) window._labState.importedData.sunDefaults = null;
+
+  setProfileLocation(null, 'czech republic', '');
+  const cz = getSunCoords();
+  assert("Czech profile resolves to country-band centroid",
+    cz && cz.source === 'country-band', `got ${JSON.stringify(cz)}`);
+  assert("Czech centroid lat ≈ 49.8 (was tz-stable, now deterministic)",
+    cz && Math.abs(cz.lat - 49.8) < 0.5, `lat=${cz?.lat}`);
+  assert("Czech centroid lon ≈ 15.5 (was device-tz-derived → divergent)",
+    cz && Math.abs(cz.lon - 15.5) < 0.5, `lon=${cz?.lon}`);
+
+  // The lon must NOT depend on the device tz. Repeated calls (which would
+  // re-evaluate `new Date().getTimezoneOffset()` under the old code) yield
+  // identical lon today.
+  const cz2 = getSunCoords();
+  assert("getSunCoords is pure for the same profile (no tz drift)",
+    cz2 && cz2.lon === cz.lon && cz2.lat === cz.lat);
+
+  // Different country → different centroid.
+  setProfileLocation(null, 'japan', '');
+  const jp = getSunCoords();
+  assert("Japan resolves to its own centroid (lat ~36, lon ~138)",
+    jp && Math.abs(jp.lat - 36.2) < 0.5 && Math.abs(jp.lon - 138.3) < 0.5,
+    `got ${JSON.stringify(jp)}`);
+
+  // Country known to band table but if centroid map ever loses an entry,
+  // we degrade to band-lat + lon=0 — never to a tz-derived guess.
+  // (No assertion here for missing-country path since the table is full;
+  // the code path is a guarded fallback.)
+
+  // Restore profile location
+  setProfileLocation(null, origLoc.country || '', origLoc.zip || '');
+  if (window._labState.importedData) window._labState.importedData.sunDefaults = stashedSunDefaults;
+
   console.log(`%c Sun Defaults: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

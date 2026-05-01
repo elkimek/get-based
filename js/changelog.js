@@ -5,6 +5,12 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.1', date: '2026-05-01', title: 'Bugfixes & improvements',
+    items: [
+      'Fixes for cross-device sync, UV-conditions accuracy on phones, and a few smaller polish items.',
+    ]
+  },
+  {
     version: '1.7.0', date: '2026-04-29', title: 'Light — track your photobiology, not just your sun',
     items: [
       '<b>Sun isn\'t just vitamin D.</b> Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. The new <b>☀ Light & Sun</b> lens tracks your light exposure across six biological channels (Vitamin D, Mood & hormones, Cardiovascular, Outdoor eye light, Body clock, Cellular repair) and lets you correlate them with your labs and wearable data over time.',

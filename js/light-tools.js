@@ -20,6 +20,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, formatDate, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
+import { recordTombstone } from './data-merge.js';
 
 // ─── Storage ───────────────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ export async function deleteMeasurement(id) {
   const list = getMeasurements();
   const idx = list.findIndex(m => m.id === id);
   if (idx < 0) return false;
+  recordTombstone(state.importedData, 'lightMeasurements', id);
   list.splice(idx, 1);
   await saveImportedData();
   return true;

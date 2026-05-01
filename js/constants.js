@@ -115,6 +115,27 @@ export const COUNTRY_LATITUDES = {
 };
 export const LATITUDE_BANDS = ['<25° latitude (tropical)', '25-40° (subtropical)', '40-50° (temperate)', '50-60° (northern)', '>60° (subarctic)'];
 
+// Country → approximate population-weighted centroid { lat, lon }. Used by
+// sun-position math when the user hasn't granted precise geolocation. Both
+// values are deterministic (country-keyed), so the same profile produces the
+// same coords on desktop and phone — fixing the cross-device divergence
+// where lon was previously derived from `new Date().getTimezoneOffset()`
+// (device-OS-tz dependent → up to ±15° lon swing → ~hour solar-time error).
+// Coverage matches COUNTRY_LATITUDES; unknown countries fall back to the
+// band-centroid lat + Greenwich (lon=0) — better than a tz-derived guess.
+export const COUNTRY_CENTROIDS = {
+  // Tropical
+  'singapore':{lat:1.3,lon:103.8},'malaysia':{lat:4.2,lon:101.9},'indonesia':{lat:-2.5,lon:118.0},'thailand':{lat:15.9,lon:101.0},'philippines':{lat:13.0,lon:122.0},'colombia':{lat:4.6,lon:-74.1},'ecuador':{lat:-1.8,lon:-78.2},'peru':{lat:-9.2,lon:-75.0},'venezuela':{lat:6.4,lon:-66.6},'kenya':{lat:-0.0,lon:37.9},'nigeria':{lat:9.1,lon:8.7},'ghana':{lat:7.9,lon:-1.0},'cameroon':{lat:7.4,lon:12.4},'tanzania':{lat:-6.4,lon:34.9},'uganda':{lat:1.4,lon:32.3},'costa rica':{lat:9.7,lon:-83.8},'panama':{lat:8.5,lon:-80.8},'cuba':{lat:21.5,lon:-77.8},'dominican republic':{lat:18.7,lon:-70.2},'jamaica':{lat:18.1,lon:-77.3},'puerto rico':{lat:18.2,lon:-66.6},'hawaii':{lat:21.1,lon:-157.5},'india':{lat:20.6,lon:78.96},'vietnam':{lat:14.1,lon:108.3},'myanmar':{lat:21.9,lon:95.9},'cambodia':{lat:12.6,lon:104.9},'sri lanka':{lat:7.9,lon:80.8},'bangladesh':{lat:23.7,lon:90.4},'brazil':{lat:-14.2,lon:-51.9},
+  // Subtropical
+  'mexico':{lat:23.6,lon:-102.5},'egypt':{lat:26.8,lon:30.8},'morocco':{lat:31.8,lon:-7.1},'tunisia':{lat:33.9,lon:9.5},'israel':{lat:31.0,lon:34.9},'jordan':{lat:30.6,lon:36.2},'saudi arabia':{lat:23.9,lon:45.1},'uae':{lat:23.4,lon:53.8},'iran':{lat:32.4,lon:53.7},'pakistan':{lat:30.4,lon:69.3},'nepal':{lat:28.4,lon:84.1},'japan':{lat:36.2,lon:138.3},'south korea':{lat:35.9,lon:127.8},'taiwan':{lat:23.7,lon:121.0},'china':{lat:35.9,lon:104.2},'australia':{lat:-25.3,lon:133.8},'new zealand':{lat:-40.9,lon:174.9},'south africa':{lat:-30.6,lon:22.9},'argentina':{lat:-38.4,lon:-63.6},'chile':{lat:-35.7,lon:-71.5},'greece':{lat:39.1,lon:21.8},'turkey':{lat:38.96,lon:35.2},'spain':{lat:40.5,lon:-3.7},'españa':{lat:40.5,lon:-3.7},'espana':{lat:40.5,lon:-3.7},'portugal':{lat:39.4,lon:-8.2},'cyprus':{lat:35.1,lon:33.4},'malta':{lat:35.9,lon:14.4},
+  // Temperate
+  'france':{lat:46.2,lon:2.2},'austria':{lat:47.5,lon:14.6},'switzerland':{lat:46.8,lon:8.2},'hungary':{lat:47.2,lon:19.5},'slovenia':{lat:46.2,lon:14.99},'slovakia':{lat:48.7,lon:19.7},'slovensko':{lat:48.7,lon:19.7},'usa':{lat:39.8,lon:-98.6},'us':{lat:39.8,lon:-98.6},'united states':{lat:39.8,lon:-98.6},'america':{lat:39.8,lon:-98.6},'canada':{lat:56.1,lon:-106.3},'ca':{lat:56.1,lon:-106.3},'italy':{lat:41.9,lon:12.6},'italia':{lat:41.9,lon:12.6},'croatia':{lat:45.1,lon:15.2},'serbia':{lat:44.0,lon:21.0},'bulgaria':{lat:42.7,lon:25.5},'romania':{lat:45.9,lon:24.97},'bosnia':{lat:43.9,lon:17.7},'bosnia and herzegovina':{lat:43.9,lon:17.7},'montenegro':{lat:42.7,lon:19.4},'north macedonia':{lat:41.6,lon:21.7},'albania':{lat:41.2,lon:20.2},'moldova':{lat:47.4,lon:28.4},'georgia':{lat:42.3,lon:43.4},
+  // Northern
+  'uk':{lat:55.4,lon:-3.4},'united kingdom':{lat:55.4,lon:-3.4},'ireland':{lat:53.4,lon:-8.2},'germany':{lat:51.2,lon:10.5},'deutschland':{lat:51.2,lon:10.5},'netherlands':{lat:52.1,lon:5.3},'belgium':{lat:50.5,lon:4.5},'luxembourg':{lat:49.8,lon:6.1},'poland':{lat:51.9,lon:19.1},'czech republic':{lat:49.8,lon:15.5},'czechia':{lat:49.8,lon:15.5},'česko':{lat:49.8,lon:15.5},'denmark':{lat:56.3,lon:9.5},'lithuania':{lat:55.2,lon:23.9},'latvia':{lat:56.9,lon:24.6},'estonia':{lat:58.6,lon:25.0},'belarus':{lat:53.7,lon:27.95},'ukraine':{lat:48.4,lon:31.2},'russia':{lat:61.5,lon:105.3},'россия':{lat:61.5,lon:105.3},'rossiya':{lat:61.5,lon:105.3},
+  // Subarctic
+  'sweden':{lat:60.1,lon:18.6},'sverige':{lat:60.1,lon:18.6},'norway':{lat:60.5,lon:8.5},'norge':{lat:60.5,lon:8.5},'finland':{lat:61.9,lon:25.7},'suomi':{lat:61.9,lon:25.7},'iceland':{lat:64.96,lon:-19.0},'alaska':{lat:64.2,lon:-149.5},'greenland':{lat:71.7,lon:-42.6}
+};
+
 // ── Import steps ──
 export const IMPORT_STEPS = [
   "Extracting text from PDF",
