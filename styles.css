@@ -6074,6 +6074,58 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   cursor: pointer;
 }
 .light-env-screen-blocker input[type="checkbox"] { margin-right: 4px; }
+.light-env-screen-room-label {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+.light-env-screen-room { width: 100%; margin-top: 4px; }
+
+/* Inline "Screens used here" block within each room card — appears
+   below the readings strip. Uses compact-mode screen cards that
+   share markup with the top-level Portable screens section but
+   ratchet density down (smaller padding, denser fields). Goal:
+   set-once UX where one Office card carries everything the user
+   needs to keep up to date. */
+.light-env-room-screens {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.light-env-room-screens-head {
+  display: flex; align-items: center; gap: 12px;
+}
+.light-env-room-screens-head strong {
+  font-size: 12px; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  flex: 1;
+}
+.light-env-add-screen-here {
+  background: transparent; border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px; font-size: 12px;
+  color: var(--text-secondary); cursor: pointer;
+  font-family: inherit;
+}
+.light-env-add-screen-here:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.light-env-room-screens-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+/* Compact screen card — used inside a room. Tighter padding +
+   2-col fields layout to keep the block compact. */
+.light-env-screen-card-compact .light-env-screen-card-head {
+  padding: 8px 12px;
+}
+.light-env-screen-card-compact .light-env-screen-fields {
+  padding: 10px 12px; gap: 10px;
+}
+.light-env-screen-card-compact .ctx-label { font-size: 11px; }
+.light-env-screen-card-compact .light-env-screen-blocker {
+  font-size: 12px; padding-top: 6px;
+}
 
 /* Room tabs (≥3 rooms) — EMF-style horizontal scroller */
 .light-env-room-tabs {

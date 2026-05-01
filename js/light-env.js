@@ -98,12 +98,13 @@ export async function deleteRoom(id) {
   await saveImportedData();
 }
 
-export async function addScreen(device) {
+export async function addScreen(device, roomId = null) {
   const env = getEnvironment();
   if (!Array.isArray(env.screens)) env.screens = [];
   env.screens.push({
     id: `scr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
     device: device || 'phone',
+    roomId: roomId || null,
     hoursPerDay: null,
     eveningUseAfterSunset: null,
     blueBlockerEnabled: false,
@@ -111,6 +112,14 @@ export async function addScreen(device) {
     brightness: 'medium',
   });
   await saveImportedData();
+}
+
+// Filter screens to those belonging to a given room (or portable when
+// roomId is null). Existing screen records without a roomId field are
+// treated as portable so no migration is needed.
+export function getScreensForRoom(roomId) {
+  const env = getEnvironment();
+  return (env?.screens || []).filter(s => (s.roomId || null) === (roomId || null));
 }
 
 export async function updateScreen(id, patch) {
@@ -197,6 +206,26 @@ export function computeRoomSeverity(room, measurements = []) {
     const lux = dark[0].value;
     if (lux > 1) { tier = Math.max(tier, 3); reasons.push('bedroom not dark enough for melatonin'); }
     else if (lux > 0.1) { tier = Math.max(tier, 2); reasons.push('measurable light leak in bedroom'); }
+  }
+
+  // Screens-in-this-room contribution: heavy evening blue exposure from
+  // a screen in this room rolls into the room's severity. Compounds
+  // multiplicatively with after-sunset use of cool-LED room lighting —
+  // a bedroom with cool LED + a phone for 3 evening hours is worse
+  // than either signal alone.
+  const screensHere = getScreensForRoom(room.id);
+  let unblockedEveHours = 0;
+  for (const s of screensHere) {
+    if (!s.blueBlockerEnabled && (s.eveningUseAfterSunset || 0) > 0) {
+      unblockedEveHours += s.eveningUseAfterSunset;
+    }
+  }
+  if (unblockedEveHours >= 3) {
+    tier = Math.max(tier, 3);
+    reasons.push(`${unblockedEveHours.toFixed(1)} hr/day evening screen exposure here`);
+  } else if (unblockedEveHours >= 1) {
+    tier = Math.max(tier, 2);
+    reasons.push(`${unblockedEveHours.toFixed(1)} hr/day evening screen exposure here`);
   }
 
   const colorMap = ['green', 'yellow', 'orange', 'red', 'red'];
@@ -330,6 +359,47 @@ const TOOL_ICONS = {
   lux: '📏', flicker: '⚡', cct: '🎨', darkness: '🌙', spectrum: '🔬', 'glass-transmission': '🪟',
 };
 
+// Single screen card markup — used both at top level (portable) and
+// nested inside a room card (compact mode). When compact, density
+// ratchets down; the "Used in" dropdown lets the user reassign
+// without leaving the page.
+function renderScreenCard(s, opts = {}) {
+  const compact = !!opts.compact;
+  const status = computeScreenStatus(s);
+  const env = getEnvironment();
+  const rooms = env?.rooms || [];
+  const roomOptions = rooms.length > 0
+    ? `<select class="ctx-select light-env-screen-room" onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { roomId: this.value || null })" aria-label="Used in room">
+        <option value=""${!s.roomId ? ' selected' : ''}>Portable / multiple rooms</option>
+        ${rooms.map(r => `<option value="${escapeAttr(r.id)}"${s.roomId === r.id ? ' selected' : ''}>${escapeHTML(r.name || 'Room')}</option>`).join('')}
+      </select>`
+    : '';
+  return `<div class="light-env-screen-card light-env-card-sev-${status.color}${compact ? ' light-env-screen-card-compact' : ''}" data-id="${escapeAttr(s.id)}">
+    <div class="light-env-screen-card-head">
+      <select class="ctx-select light-env-screen-device" onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
+        ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
+      </select>
+      <span class="light-env-sev-chip light-env-sev-chip-${status.color}" title="${escapeAttr(status.reason)}">${escapeHTML(status.label)}</span>
+      <button class="light-env-delete" onclick="window.deleteLightEnvScreen('${escapeAttr(s.id)}')" aria-label="Delete screen">×</button>
+    </div>
+    <div class="light-env-screen-fields">
+      <label class="ctx-label">Hours per day
+        <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="0" value="${s.hoursPerDay ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { hoursPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
+      </label>
+      <label class="ctx-label">Evening hours (after sunset)
+        <input type="number" min="0" max="12" step="0.5" class="ctx-input" placeholder="0" value="${s.eveningUseAfterSunset ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { eveningUseAfterSunset: parseFloat(this.value) || 0 })" aria-label="Evening hours" />
+      </label>
+      <label class="light-env-evening light-env-screen-blocker">
+        <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
+        Blue blocker (glasses, f.lux, Night Shift, amber tint)
+      </label>
+      ${!compact && roomOptions ? `<label class="ctx-label light-env-screen-room-label">Used in
+        ${roomOptions}
+      </label>` : ''}
+    </div>
+  </div>`;
+}
+
 function renderRoomDetailCard(r) {
   const measurements = getMeasurementsFor(r.id).sort((a, b) => b.capturedAt - a.capturedAt);
   const sev = computeRoomSeverity(r, measurements);
@@ -387,6 +457,26 @@ function renderRoomDetailCard(r) {
     html += `</div>`;
   }
 
+  // Screens used in this room — set-and-forget block. Each screen
+  // shows a compact summary line (status chip + device + hours +
+  // evening + blocker), all inline-editable. "+ Add a screen here"
+  // creates a screen pre-assigned to this room so the user never has
+  // to wire it up after the fact.
+  const screensHere = getScreensForRoom(r.id);
+  html += `<div class="light-env-room-screens">
+    <div class="light-env-room-screens-head">
+      <strong>Screens used here</strong>
+      <button class="light-env-add-screen-here" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Add a screen here</button>
+    </div>`;
+  if (screensHere.length === 0) {
+    html += `<p class="light-env-room-empty">No screens mapped to this room yet. Add your laptop, monitor, or phone — fields prefill from your room defaults.</p>`;
+  } else {
+    html += `<div class="light-env-room-screens-list">`;
+    for (const s of screensHere) html += renderScreenCard(s, { compact: true });
+    html += `</div>`;
+  }
+  html += `</div>`;
+
   html += `</div></div>`;
   return html;
 }
@@ -434,45 +524,27 @@ export function renderEnvironmentSection() {
   }
   html += `</div>`;
 
-  // Screens — now cards (was flat rows). Each carries a status badge
-  // for evening-blue exposure tier so the row is glanceable, not just
-  // a form to fill out.
+  // Top-level screens block — now ONLY portable devices (no roomId).
+  // Screens that live in a specific room render INSIDE that room's
+  // card so the user has one place to look for their Office, Bedroom,
+  // etc. Phone-style devices that move around stay here.
+  const portableScreens = screens.filter(s => !s.roomId);
   html += `<div class="light-env-block">
     <div class="light-env-block-head">
-      <strong>Screens you use</strong>
-      <button class="import-btn import-btn-secondary" onclick="window.addLightEnvScreen()">+ Screen</button>
+      <strong>Portable screens</strong>
+      <button class="import-btn import-btn-secondary" onclick="window.addLightEnvScreen()">+ Portable screen</button>
     </div>`;
-  if (screens.length === 0) {
+  if (portableScreens.length === 0 && screens.length === 0 && rooms.length === 0) {
+    // First-time: show the value-prop CTA only when the whole section is empty
     html += `<div class="light-env-empty light-env-empty-cta">
-      <p><strong>Add your phone, laptop, and TV.</strong> Evening blue-light exposure compounds with your room lighting — tracking screen hours surfaces in your sleep markers and lets the AI explain melatonin trends.</p>
-      <button class="import-btn import-btn-primary" onclick="window.addLightEnvScreen()">+ Add a screen</button>
+      <p><strong>Track your phone, TV, or any screen that moves between rooms.</strong> Screens you use in a specific room (laptop in the Office, TV in the Living Room) live inside that room's card — add them from there.</p>
+      <button class="import-btn import-btn-primary" onclick="window.addLightEnvScreen()">+ Add a portable screen</button>
     </div>`;
+  } else if (portableScreens.length === 0) {
+    html += `<p class="light-env-empty">No portable screens yet. Devices that stay in one place are listed inside their room card above.</p>`;
   } else {
     html += `<div class="light-env-screen-cards">`;
-    for (const s of screens) {
-      const status = computeScreenStatus(s);
-      html += `<div class="light-env-screen-card light-env-card-sev-${status.color}" data-id="${escapeAttr(s.id)}">
-        <div class="light-env-screen-card-head">
-          <select class="ctx-select light-env-screen-device" onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
-            ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
-          </select>
-          <span class="light-env-sev-chip light-env-sev-chip-${status.color}" title="${escapeAttr(status.reason)}">${escapeHTML(status.label)}</span>
-          <button class="light-env-delete" onclick="window.deleteLightEnvScreen('${escapeAttr(s.id)}')" aria-label="Delete screen">×</button>
-        </div>
-        <div class="light-env-screen-fields">
-          <label class="ctx-label">Hours per day
-            <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="0" value="${s.hoursPerDay ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { hoursPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
-          </label>
-          <label class="ctx-label">Evening hours (after sunset)
-            <input type="number" min="0" max="12" step="0.5" class="ctx-input" placeholder="0" value="${s.eveningUseAfterSunset ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { eveningUseAfterSunset: parseFloat(this.value) || 0 })" aria-label="Evening hours" />
-          </label>
-          <label class="light-env-evening light-env-screen-blocker">
-            <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
-            Blue blocker (glasses, f.lux, Night Shift, amber tint)
-          </label>
-        </div>
-      </div>`;
-    }
+    for (const s of portableScreens) html += renderScreenCard(s);
     html += `</div>`;
   }
   html += `</div>`;
@@ -515,8 +587,20 @@ if (typeof window !== 'undefined') {
       writeActiveRoomId(id);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
-    addLightEnvScreen: async () => {
-      await addScreen('phone');
+    addLightEnvScreen: async (roomId = null) => {
+      // Sensible default device by room name — laptop for office, TV
+      // for living room, phone for everything else (incl. portable).
+      // User can change immediately via the device dropdown.
+      let device = 'phone';
+      if (roomId) {
+        const env = getEnvironment();
+        const room = (env?.rooms || []).find(r => r.id === roomId);
+        const name = (room?.name || '').toLowerCase();
+        if (/office|study|desk/.test(name)) device = 'laptop';
+        else if (/living|family|tv/.test(name)) device = 'tv';
+        else if (/bedroom|sleep/.test(name)) device = 'phone';
+      }
+      await addScreen(device, roomId);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     updateLightEnvScreen: async (id, patch) => { await updateScreen(id, patch); },
@@ -528,6 +612,7 @@ if (typeof window !== 'undefined') {
     computeRoomSeverity,
     computeScreenStatus,
     computeIndoorBurden,
+    getScreensForRoom,
     renderEnvironmentSection,
   });
 }
