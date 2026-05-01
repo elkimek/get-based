@@ -394,10 +394,16 @@ export async function openCustomDeviceDialog() {
         </label>
         ${(() => {
           const useUS = state.unitSystem === 'US';
-          const unit = useUS ? 'in' : 'cm';
-          const ph = useUS ? 'e.g. 6 — distance the irradiance was measured at' : 'e.g. 15 — distance the irradiance was measured at';
-          return `<label class="ctx-label">Vendor reference distance (${unit})
-            <input type="number" id="custom-dev-distance" class="ctx-input" min="1" max="200" step="any" placeholder="${ph}" data-unit="${unit}" />
+          const startUnit = useUS ? 'in' : 'cm';
+          const ph = startUnit === 'in' ? 'e.g. 6' : 'e.g. 15';
+          return `<label class="ctx-label">Vendor reference distance — distance the irradiance was measured at
+            <div class="dev-distance-row">
+              <input type="number" id="custom-dev-distance" class="ctx-input" min="1" max="200" step="any" placeholder="${ph}" data-unit="${startUnit}" />
+              <div class="dev-unit-toggle" role="tablist" aria-label="Distance unit">
+                <button type="button" class="dev-unit-btn${startUnit === 'cm' ? ' active' : ''}" data-target="custom-dev-distance" data-unit="cm" role="tab" aria-selected="${startUnit === 'cm'}">cm</button>
+                <button type="button" class="dev-unit-btn${startUnit === 'in' ? ' active' : ''}" data-target="custom-dev-distance" data-unit="in" role="tab" aria-selected="${startUnit === 'in'}">in</button>
+              </div>
+            </div>
           </label>`;
         })()}
         <label class="ctx-label">Lux at the eye (for SAD / dawn lamps)
@@ -411,6 +417,31 @@ export async function openCustomDeviceDialog() {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+
+  // Per-field unit toggle on the Vendor reference distance input —
+  // same in-place conversion as the session dialog. data-target picks
+  // out which input each toggle button governs (only one in this
+  // modal, but the helper is reusable).
+  for (const btn of overlay.querySelectorAll('.dev-unit-btn[data-target]')) {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-unit');
+      const inputId = btn.getAttribute('data-target');
+      const input = overlay.querySelector('#' + inputId);
+      const cur = input.dataset.unit || 'cm';
+      if (cur === target) return;
+      const v = parseFloat(input.value);
+      if (Number.isFinite(v)) {
+        const cm = cur === 'in' ? v * 2.54 : v;
+        input.value = target === 'in' ? +(cm / 2.54).toFixed(1) : Math.round(cm * 10) / 10;
+      }
+      input.dataset.unit = target;
+      for (const b of overlay.querySelectorAll(`.dev-unit-btn[data-target="${inputId}"]`)) {
+        const active = b.getAttribute('data-unit') === target;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      }
+    });
+  }
 
   if (hasAI) {
     overlay.querySelector('#custom-dev-fetch').addEventListener('click', () => _fetchCustomDeviceFromURL(overlay));
@@ -655,15 +686,18 @@ export async function openDeviceSessionDialog(deviceId) {
       </label>
       ${(() => {
         const useUS = state.unitSystem === 'US';
-        const unit = useUS ? 'in' : 'cm';
+        const startUnit = useUS ? 'in' : 'cm';
         const baseCm = device.recommendedDistanceCm || 15;
-        const fmt = (cm) => useUS ? +(cm / 2.54).toFixed(1) : cm;
-        const minVal = useUS ? 2 : 5;
-        const maxVal = useUS ? 80 : 200;
-        const stepVal = useUS ? '0.5' : '1';
-        return `<label class="ctx-label">Distance from device (${unit})
-          <input type="number" id="dev-session-distance" class="ctx-input" min="${minVal}" max="${maxVal}" step="${stepVal}" value="${fmt(baseCm)}" data-unit="${unit}" />
-          <span class="dev-session-hint">Vendor reference: ${fmt(baseCm)} ${unit}${useUS ? ` (${baseCm} cm)` : ''}. The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
+        const fmt = (cm, u) => u === 'in' ? +(cm / 2.54).toFixed(1) : cm;
+        return `<label class="ctx-label">Distance from device
+          <div class="dev-distance-row">
+            <input type="number" id="dev-session-distance" class="ctx-input" min="2" max="200" step="0.5" value="${fmt(baseCm, startUnit)}" data-unit="${startUnit}" data-base-cm="${baseCm}" />
+            <div class="dev-unit-toggle" role="tablist" aria-label="Distance unit">
+              <button type="button" class="dev-unit-btn${startUnit === 'cm' ? ' active' : ''}" data-unit="cm" role="tab" aria-selected="${startUnit === 'cm'}">cm</button>
+              <button type="button" class="dev-unit-btn${startUnit === 'in' ? ' active' : ''}" data-unit="in" role="tab" aria-selected="${startUnit === 'in'}">in</button>
+            </div>
+          </div>
+          <span class="dev-session-hint">Vendor reference: ${fmt(baseCm, 'cm')} cm (${fmt(baseCm, 'in')} in). The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
         </label>`;
       })()}
       <label class="ctx-label">Body area
@@ -687,6 +721,32 @@ export async function openDeviceSessionDialog(deviceId) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+
+  // Per-field unit toggle: cm ↔ in. Lets a US user briefly type a cm
+  // value (or vice versa) without mental math when their global unit
+  // preference doesn't match the spec sheet they're reading from.
+  // Conversion happens in-place on the visible value; data-unit attr
+  // tracks what the field is currently representing.
+  for (const btn of overlay.querySelectorAll('.dev-unit-btn')) {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-unit');
+      const input = overlay.querySelector('#dev-session-distance');
+      const cur = input.dataset.unit || 'cm';
+      if (cur === target) return;
+      const v = parseFloat(input.value);
+      if (Number.isFinite(v)) {
+        const cm = cur === 'in' ? v * 2.54 : v;
+        input.value = target === 'in' ? +(cm / 2.54).toFixed(1) : Math.round(cm);
+      }
+      input.dataset.unit = target;
+      input.step = target === 'in' ? '0.5' : '1';
+      for (const b of overlay.querySelectorAll('.dev-unit-btn')) {
+        const active = b.getAttribute('data-unit') === target;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      }
+    });
+  }
 
   overlay.querySelector('#dev-session-save').addEventListener('click', async () => {
     const durationMin = parseInt(overlay.querySelector('#dev-session-duration').value, 10) || 10;

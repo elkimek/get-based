@@ -5729,6 +5729,35 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   margin-top: 4px;
   line-height: 1.4;
 }
+/* Distance input + per-field cm/in unit toggle. The toggle sits to the
+   right of the number input; clicking flips both the visible value and
+   the underlying data-unit attribute. Lets a user enter the spec in
+   whichever unit their reference happens to be in, regardless of the
+   global state.unitSystem default. */
+.dev-distance-row {
+  display: flex; align-items: stretch; gap: 8px;
+  margin-top: 4px;
+}
+.dev-distance-row .ctx-input { flex: 1; min-width: 0; }
+.dev-unit-toggle {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+.dev-unit-btn {
+  padding: 0 12px;
+  font-size: 12px; font-weight: 600;
+  background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-family: inherit;
+}
+.dev-unit-btn + .dev-unit-btn { border-left: 1px solid var(--border); }
+.dev-unit-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.dev-unit-btn:not(.active):hover { color: var(--text-primary); background: var(--bg-card); }
 .rec-light-device-link {
   font-size: 12px; color: var(--accent);
   text-decoration: none;
