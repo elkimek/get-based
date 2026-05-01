@@ -392,9 +392,14 @@ export async function openCustomDeviceDialog() {
         <label class="ctx-label">Irradiance (mW/cm² at vendor's reference distance)
           <input type="number" id="custom-dev-irradiance" class="ctx-input" min="0" step="any" placeholder="e.g. 100 (leave blank for SAD lamps)" />
         </label>
-        <label class="ctx-label">Vendor reference distance (cm)
-          <input type="number" id="custom-dev-distance" class="ctx-input" min="1" max="200" step="any" placeholder="e.g. 15 — distance the irradiance was measured at" />
-        </label>
+        ${(() => {
+          const useUS = state.unitSystem === 'US';
+          const unit = useUS ? 'in' : 'cm';
+          const ph = useUS ? 'e.g. 6 — distance the irradiance was measured at' : 'e.g. 15 — distance the irradiance was measured at';
+          return `<label class="ctx-label">Vendor reference distance (${unit})
+            <input type="number" id="custom-dev-distance" class="ctx-input" min="1" max="200" step="any" placeholder="${ph}" data-unit="${unit}" />
+          </label>`;
+        })()}
         <label class="ctx-label">Lux at the eye (for SAD / dawn lamps)
           <input type="number" id="custom-dev-lux" class="ctx-input" min="0" step="any" placeholder="e.g. 10000" />
         </label>
@@ -433,7 +438,12 @@ function _readCustomDeviceForm(overlay) {
     ? peaksRaw.split(/[,\s]+/).map(s => parseFloat(s)).filter(n => Number.isFinite(n) && n > 100 && n < 3000)
     : [];
   const irrRaw = overlay.querySelector('#custom-dev-irradiance').value.trim();
-  const distRaw = overlay.querySelector('#custom-dev-distance').value.trim();
+  const distInput = overlay.querySelector('#custom-dev-distance');
+  const distRaw = distInput.value.trim();
+  const distUnit = distInput.dataset.unit || 'cm';
+  const distCm = distRaw
+    ? (distUnit === 'in' ? parseFloat(distRaw) * 2.54 : parseFloat(distRaw))
+    : null;
   const luxRaw = overlay.querySelector('#custom-dev-lux').value.trim();
   return {
     brand: overlay.querySelector('#custom-dev-brand').value.trim(),
@@ -441,7 +451,7 @@ function _readCustomDeviceForm(overlay) {
     type: overlay.querySelector('#custom-dev-type').value,
     peakWavelengths: peaks,
     mwPerCm2At15cm: irrRaw ? parseFloat(irrRaw) : null,
-    recommendedDistanceCm: distRaw ? parseFloat(distRaw) : null,
+    recommendedDistanceCm: distCm,
     lux: luxRaw ? parseFloat(luxRaw) : null,
   };
 }
@@ -466,7 +476,19 @@ function _applyParsedDevice(parsed, overlay) {
     if (peaks) set('#custom-dev-peaks', peaks);
   }
   set('#custom-dev-irradiance', parsed.mwPerCm2At15cm);
-  set('#custom-dev-distance', parsed.recommendedDistanceCm);
+  // Distance comes back from AI in cm. If the input is rendered in
+  // inches (US users), convert before populating so the visible value
+  // matches the field's unit label.
+  if (parsed.recommendedDistanceCm != null) {
+    const distEl = overlay.querySelector('#custom-dev-distance');
+    if (distEl && !distEl.value) {
+      const distUnit = distEl.dataset.unit || 'cm';
+      const v = distUnit === 'in'
+        ? +(Number(parsed.recommendedDistanceCm) / 2.54).toFixed(1)
+        : Number(parsed.recommendedDistanceCm);
+      if (Number.isFinite(v) && v > 0) distEl.value = v;
+    }
+  }
   set('#custom-dev-lux', parsed.lux);
   showNotification('Specs extracted — review and save.', 'success');
 }
@@ -631,10 +653,19 @@ export async function openDeviceSessionDialog(deviceId) {
       <label class="ctx-label">Duration (minutes)
         <input type="number" id="dev-session-duration" class="ctx-input" min="1" max="120" value="10" />
       </label>
-      <label class="ctx-label">Distance from device (cm)
-        <input type="number" id="dev-session-distance" class="ctx-input" min="5" max="200" value="${device.recommendedDistanceCm || 15}" />
-        <span class="dev-session-hint">Vendor reference: ${device.recommendedDistanceCm || 15} cm. The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
-      </label>
+      ${(() => {
+        const useUS = state.unitSystem === 'US';
+        const unit = useUS ? 'in' : 'cm';
+        const baseCm = device.recommendedDistanceCm || 15;
+        const fmt = (cm) => useUS ? +(cm / 2.54).toFixed(1) : cm;
+        const minVal = useUS ? 2 : 5;
+        const maxVal = useUS ? 80 : 200;
+        const stepVal = useUS ? '0.5' : '1';
+        return `<label class="ctx-label">Distance from device (${unit})
+          <input type="number" id="dev-session-distance" class="ctx-input" min="${minVal}" max="${maxVal}" step="${stepVal}" value="${fmt(baseCm)}" data-unit="${unit}" />
+          <span class="dev-session-hint">Vendor reference: ${fmt(baseCm)} ${unit}${useUS ? ` (${baseCm} cm)` : ''}. The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
+        </label>`;
+      })()}
       <label class="ctx-label">Body area
         <select id="dev-session-area" class="ctx-select">
           <option value="targeted">Targeted (single area)</option>
@@ -659,7 +690,14 @@ export async function openDeviceSessionDialog(deviceId) {
 
   overlay.querySelector('#dev-session-save').addEventListener('click', async () => {
     const durationMin = parseInt(overlay.querySelector('#dev-session-duration').value, 10) || 10;
-    const distanceCm = parseInt(overlay.querySelector('#dev-session-distance').value, 10) || (device.recommendedDistanceCm || 15);
+    // Read distance in whatever unit the input was rendered with — the
+    // data-unit attribute carries the unit, the dose math always works in cm.
+    const distInput = overlay.querySelector('#dev-session-distance');
+    const distVal = parseFloat(distInput.value);
+    const distUnit = distInput.dataset.unit || 'cm';
+    const distanceCm = Number.isFinite(distVal)
+      ? (distUnit === 'in' ? distVal * 2.54 : distVal)
+      : (device.recommendedDistanceCm || 15);
     const bodyArea = overlay.querySelector('#dev-session-area').value || 'targeted';
     const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
     await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, eyesProtected });
