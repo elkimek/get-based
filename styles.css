@@ -6833,6 +6833,136 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 .sun-empty p { margin-bottom: 12px; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   Light & Sun — mobile responsive pass
+   ═══════════════════════════════════════════════════════════════════
+   Audited surfaces: Dashboard Light Today strip, Light page channel
+   pill row + drill-down, device cards, sessions list, quick-log row,
+   session-log dialog, conditions-now strip. Each issue addressed with
+   the minimal media query needed. Touch + hover interactions split via
+   @media (hover: none) so devices that can't hover still see all
+   affordances (no fade-in delete, etc.).
+*/
+
+/* Touch / no-hover devices: device-card delete must be visible —
+   the pointer-hover-reveal pattern is invisible on touch. */
+@media (hover: none) {
+  .light-device-delete { opacity: 0.5; }
+  .light-device-delete:active { opacity: 1; }
+}
+
+/* Tablet + below — channel-feed chip strip on broad-spectrum cards
+   has up to 7 chips (Maxi UVB / Trinity). Drop the text label and
+   keep just the icon so a row of chips fits on one line. Tooltip
+   already carries the full channel name + science blurb. */
+@media (max-width: 768px) {
+  .light-device-feed-label { display: none; }
+  .light-device-feed-chip {
+    padding: 4px 6px;
+    min-width: 24px; justify-content: center;
+  }
+  .light-device-feed-icon { font-size: 13px; }
+}
+
+/* Phones — Light & Sun page layout adjustments */
+@media (max-width: 600px) {
+  /* Quick-log CTA row stacks: primary CTAs full-width, tally on its
+     own line below. Was a 4-element flex row that collapsed into a
+     visual pile of buttons + text on narrow widths. */
+  .light-quicklog-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .light-quicklog-row .import-btn { width: 100%; }
+  .light-quicklog-row .light-summary-tally {
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  /* Pill row tightens on phones — pills wrap naturally but the gap
+     gets a touch larger so each is comfortable to tap. */
+  .light-pills-row { gap: 6px; }
+  .light-pill {
+    padding: 8px 12px;     /* was 6px 12px — +2px each side for tap target */
+    font-size: 13px;
+  }
+  .light-pill-dots { font-size: 12px; }
+
+  /* Drill-down stats row stacks vertically so the trend arrow and
+     the two stat blocks aren't squeezed onto a wrapping line. */
+  .light-channel-detail-stats {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .light-channel-detail-trend {
+    align-self: center;
+    transform: rotate(90deg);
+  }
+
+  /* Channel-detail close button — keep the corner anchor but tighten
+     the head row spacing. */
+  .light-channel-detail { padding: 14px 16px; }
+  .light-channel-detail-head { gap: 8px; }
+
+  /* Device cards — 1 col, taller padding for readability, brand+model
+     allowed to wrap to two lines so long names like "Mitochondriak
+     LED RED + NIR bulb" don't get truncated by ellipsis. */
+  .light-devices-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .light-device-card { padding: 14px 14px 14px 18px; }
+  .light-device-name {
+    white-space: normal;       /* was ellipsis */
+    overflow: visible;
+    line-height: 1.3;
+  }
+  .light-device-typeline {
+    /* Long type lines wrap to a second line at 11 px which is fine —
+       eyebrow context, not a primary read. */
+    line-height: 1.4;
+  }
+  /* Always-visible delete on phones (hover not reliable). */
+  .light-device-delete { opacity: 0.6; }
+
+  /* Session-log dialog inputs — distance + cm/in toggle stack so the
+     toggle doesn't get crushed against the right edge. */
+  .dev-distance-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .dev-unit-toggle { align-self: flex-start; }
+
+  /* Light Today (dashboard) strip — pill row tighter, foot wraps so
+     burn-risk pill doesn't hog horizontal space. */
+  .light-today-strip { padding: 12px; }
+  .light-today-foot { gap: 8px; }
+  .light-today-cta-group { width: 100%; margin-left: 0; }
+  .light-today-cta-group .light-today-cta { flex: 1 1 auto; }
+
+  /* Conditions-now full variant on the Light page is much taller than
+     the compact dashboard variant. On phones, drop to the compact
+     style for parity. */
+  .conditions-now-full { padding: 8px 12px; }
+
+  /* Sessions list rows — head row wraps cleanly so duration / kind /
+     med pill don't overflow. */
+  .sun-session-head { flex-wrap: wrap; gap: 6px; }
+  .light-session-kind { margin-left: 0; }
+}
+
+/* Very narrow phones (≤375px) — text content drops one more notch. */
+@media (max-width: 375px) {
+  .light-pill { padding: 7px 10px; font-size: 12px; }
+  .light-pill-label { max-width: 85px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .light-channels-section .light-section-title { font-size: 15px; }
+  .light-device-name { font-size: 13px; }
+  .light-device-typeline { font-size: 10px; }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
