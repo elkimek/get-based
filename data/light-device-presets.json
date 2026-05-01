@@ -91,15 +91,125 @@
       "notes": "Three modular modes — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Modes fire independently — adjust the dose if you only run one. Handheld, ~310 W combined."
     },
     {
-      "id": "emr-tek-inferno-pro",
-      "brand": "EMR-Tek",
-      "model": "Inferno Pro",
+      "id": "chroma-ironforge",
+      "brand": "Chroma",
+      "model": "Ironforge",
       "type": "combined",
-      "peakWavelengths": [660, 850],
+      "peakWavelengths": [630, 670, 760, 810, 850],
+      "mwPerCm2At15cm": 250,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "chroma-ironforge",
+      "notes": "5-wavelength PBM handheld. 850/810/760/670/630 nm. 200 W. 148 mW/cm² @ 6 inches; ~250 at 15 cm. 850-nm-dominant (50% of output) for deep tissue."
+    },
+    {
+      "id": "chroma-ironforge-mini",
+      "brand": "Chroma",
+      "model": "Ironforge Mini",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 760, 810, 850],
+      "mwPerCm2At15cm": 250,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "chroma-ironforge-mini",
+      "notes": "Yoga-block-sized handheld. Same 5-wavelength split as Ironforge (850-dominant). 200 W. 148 mW/cm² @ 6 inches; ~250 at 15 cm."
+    },
+    {
+      "id": "chroma-radiance",
+      "brand": "Chroma",
+      "model": "Radiance",
+      "type": "combined",
+      "peakWavelengths": [405, 630, 660, 810],
+      "mwPerCm2At15cm": 80,
+      "channels": ["violet_eye", "pbm_red", "pbm_nir"],
+      "catalogSlug": "chroma-radiance",
+      "notes": "Compact 4-band handheld with violet 405 nm on top of red + near-IR. 50 W, 28 oz. Violet adds eye/skin OPN5 effects beyond pure PBM."
+    },
+    {
+      "id": "chroma-red-portal",
+      "brand": "Chroma",
+      "model": "Red Portal",
+      "type": "combined",
+      "peakWavelengths": [670, 810],
+      "mwPerCm2At15cm": 50,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "chroma-red-portal",
+      "notes": "Desk / wall ambient PBM lamp. 670 + 810 nm. 40 W. Workspace-grade — lower irradiance, all-day exposure model."
+    },
+    {
+      "id": "chroma-sky-portal",
+      "brand": "Chroma",
+      "model": "Sky Portal 2.1",
+      "type": "sad",
+      "peakWavelengths": [415, 480, 660],
+      "lux": 10000,
+      "channels": ["circadian", "violet_eye"],
+      "catalogSlug": "chroma-sky-portal",
+      "notes": "Circadian desk lamp. Day mode: violet 415 + cyan 480 + balanced NIR (>10,000 melanopic lux @ 10 inches). Night mode: deep red 660 + 1300 K warm glow. Eye-channel device — no PBM dose."
+    },
+    {
+      "id": "chroma-chromatorch",
+      "brand": "Chroma",
+      "model": "Chromatorch",
+      "type": "pbm-targeted",
+      "peakWavelengths": [670, 810, 850],
+      "mwPerCm2At15cm": 40,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "chroma-chromatorch",
+      "notes": "Pocket torch (226 g). Three-band split (~33% each at 670 / 810 / 850). 85 mW/cm² at faceplate; ~40 at 15 cm working distance. 800+ hr battery."
+    },
+    {
+      "id": "emr-tek-inferno",
+      "brand": "EMR-Tek",
+      "model": "Inferno",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 830],
       "mwPerCm2At15cm": 150,
       "channels": ["pbm_red", "pbm_nir"],
-      "catalogSlug": "emr-tek-inferno-pro",
-      "notes": "Full-body red + near-IR therapy panel. 660 nm + 850 nm only — no UV, no blue."
+      "catalogSlug": "emr-tek-inferno",
+      "notes": "Full-body red + near-IR therapy panel. 1400 W from 132 LEDs + 5 COB modules. >200 mW/cm² @ 6 inches; ~150 at 15 cm."
+    },
+    {
+      "id": "emr-tek-firedragon",
+      "brand": "EMR-Tek",
+      "model": "Firedragon",
+      "type": "combined",
+      "peakWavelengths": [630, 660, 670, 810, 830, 850],
+      "mwPerCm2At15cm": 120,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "emr-tek-firedragon",
+      "notes": "Desktop / mid-size 6-wavelength panel. 504 W. COB architecture, adjustable stand, LCD timer. Irradiance not published; ~120 at 15 cm based on wattage / form factor."
+    },
+    {
+      "id": "emr-tek-firewave-compact",
+      "brand": "EMR-Tek",
+      "model": "Firewave Compact",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 830],
+      "mwPerCm2At15cm": 250,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "emr-tek-firewave-compact",
+      "notes": "Desktop COB device. 200 W focused chip-on-board. Manufacturer quotes 1400 mW/cm² at the panel face; effective output at 20 inches matches a standard panel at 6 inches. ~250 at 15 cm working distance."
+    },
+    {
+      "id": "emr-tek-firewave-pro",
+      "brand": "EMR-Tek",
+      "model": "Firewave Pro",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 830],
+      "mwPerCm2At15cm": 200,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "emr-tek-firewave-pro",
+      "notes": "Desktop 350 W panel. 3 wavelengths. Irradiance not published; ~200 at 15 cm extrapolated from power."
+    },
+    {
+      "id": "emr-tek-firefly",
+      "brand": "EMR-Tek",
+      "model": "Firefly Portable",
+      "type": "pbm-targeted",
+      "peakWavelengths": [630, 670, 830],
+      "mwPerCm2At15cm": 50,
+      "channels": ["pbm_red", "pbm_nir"],
+      "catalogSlug": "emr-tek-firefly",
+      "notes": "USB-C battery-powered handheld. 1.5 hr runtime per charge. 'Panel-grade output' (exact wattage not disclosed) — handheld dose profile, treat as targeted PBM."
     }
   ],
   "_types": {
