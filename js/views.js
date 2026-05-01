@@ -1132,6 +1132,16 @@ export function showLight(_data) {
         aux += measurements.length > 0
           ? ((window.renderLightTools && window.renderLightTools()) || '')
           : renderCollapsedSubsection('Light tools', '🛠 Open light tools', 'window._expandLightToolsSection && window._expandLightToolsSection()', 'Eight on-device measurement tools — lux, flicker, color temp, glass transmission, sleep darkness, more. Camera frames stay on your phone.', 'light-tools-section-collapsed');
+        // Sun data source — collapsed by default. Most users stay on the
+        // Open-Meteo default; the panel matters when self-hosting CAMS or
+        // disabling network calls entirely. Lives here (per-feature config)
+        // rather than Settings → Privacy.
+        if (typeof window.renderSunDataSourceSettings === 'function') {
+          aux += `<details class="light-data-source-details" style="margin-top:24px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0">
+            <summary style="padding:12px 16px;cursor:pointer;font-size:13px;color:var(--text-secondary);user-select:none">⚙ Sun data source &amp; privacy</summary>
+            <div style="padding:0 16px 16px 16px">${window.renderSunDataSourceSettings()}</div>
+          </details>`;
+        }
         slot.outerHTML = aux;
       }
     }).catch(() => {});

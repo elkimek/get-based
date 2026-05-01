@@ -12,7 +12,10 @@
 // Manual UV-meter entries weighted highest (1.0). Estimated fallbacks discounted.
 //
 // Privacy: lat/lon may be rounded to 0.1° (~11km grid) before any network call.
-// Self-hosters override `METEO_BASE_URL` via Settings → Light & Sun → Sun Data Source.
+// Self-hosters configure the data source on the Light & Sun page itself
+// (☀ Sun data source & privacy details panel) — moved out of Settings →
+// Privacy in v1.7.x because URL/bearer/mode are feature config, not
+// privacy posture.
 
 const STORAGE_KEY = 'labcharts-meteo-config';
 const CACHE_PREFIX = 'meteo:';
