@@ -5900,6 +5900,21 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   font-size: 13px; color: var(--text-muted);
   padding: 12px 0;
 }
+/* Empty-state CTA card — replaces the flat "No rooms added yet"
+   line with a value-prop block + primary action. Mirrors the
+   pattern used by other empty surfaces in the app. */
+.light-env-empty-cta {
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+}
+.light-env-empty-cta p {
+  margin: 0; color: var(--text-secondary);
+  font-size: 13px; line-height: 1.5;
+}
+.light-env-empty-cta strong { color: var(--text-primary); }
 .light-env-rows {
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -5933,15 +5948,38 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-env-delete:hover { color: var(--red); }
 
+/* Indoor-light burden summary — interpretive plain-English copy with
+   tier indicator, instead of raw "8.2 hr/day · 4.2 hr/day" numbers
+   that read as abstract without context. Color-coded by tier so a
+   row of green / orange / red strips down the page tells the story
+   at a glance. */
 .light-env-summary {
-  margin-top: 14px; padding: 10px 14px;
-  background: var(--bg-secondary);
+  margin-top: 16px; padding: 14px 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 13px; color: var(--text-secondary);
-  display: flex; align-items: center; gap: 8px;
-  flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 6px;
+  border-left: 4px solid var(--text-muted);
 }
+.light-env-summary-green  { background: var(--green-bg, rgba(34,197,94,0.06));  border-left-color: var(--green); }
+.light-env-summary-orange { background: var(--orange-bg, rgba(249,115,22,0.06)); border-left-color: var(--orange); }
+.light-env-summary-red    { background: var(--red-bg, rgba(239,68,68,0.06));    border-left-color: var(--red); }
+.light-env-summary-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.light-env-summary-tier {
+  font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+.light-env-summary-parts {
+  font-size: 12px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.light-env-summary-interp {
+  margin: 0; font-size: 13px; line-height: 1.5;
+  color: var(--text-secondary);
+}
+/* Legacy classes used elsewhere — kept for back-compat */
 .light-env-summary strong { color: var(--text-primary); }
 .light-env-summary-sep { opacity: 0.4; }
 
@@ -5959,6 +5997,83 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   letter-spacing: 0.4px; color: var(--text-muted);
   margin-left: auto;
 }
+/* Severity chip — pill-shaped tinted background, more prominent than
+   the previous tiny grey label. Used in room + screen card heads. */
+.light-env-sev-chip {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-left: auto;
+}
+.light-env-sev-chip-green  { background: var(--green-bg, rgba(34,197,94,0.12));  color: var(--green); }
+.light-env-sev-chip-yellow { background: var(--yellow-bg, rgba(234,179,8,0.12)); color: var(--yellow); }
+.light-env-sev-chip-orange { background: var(--orange-bg, rgba(249,115,22,0.12)); color: var(--orange); }
+.light-env-sev-chip-red    { background: var(--red-bg,    rgba(239,68,68,0.12)); color: var(--red); }
+/* Card-level severity accent strip on the left edge — ties room +
+   screen cards into the same visual language as the device cards. */
+.light-env-card-sev-green::before,
+.light-env-card-sev-yellow::before,
+.light-env-card-sev-orange::before,
+.light-env-card-sev-red::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+}
+.light-env-card-sev-green::before  { background: var(--green); }
+.light-env-card-sev-yellow::before { background: var(--yellow); }
+.light-env-card-sev-orange::before { background: var(--orange); }
+.light-env-card-sev-red::before    { background: var(--red); }
+.light-env-card-sev-green,
+.light-env-card-sev-yellow,
+.light-env-card-sev-orange,
+.light-env-card-sev-red { position: relative; }
+/* Tab severity tint — subtle border-bottom hue so the active+inactive
+   tabs both telegraph the room's status. */
+.light-env-tab-sev-yellow { border-bottom: 2px solid var(--yellow); }
+.light-env-tab-sev-orange { border-bottom: 2px solid var(--orange); }
+.light-env-tab-sev-red    { border-bottom: 2px solid var(--red); }
+
+/* Screens — now cards (was 5-element flat rows that wrapped badly
+   on mobile). Each card carries a status chip for evening blue
+   exposure tier. */
+.light-env-screen-cards {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.light-env-screen-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.light-env-screen-card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.light-env-screen-device {
+  flex: 1; min-width: 0;
+  font-size: 13px; padding: 6px 10px;
+}
+.light-env-screen-fields {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1fr);
+  gap: 14px;
+  padding: 14px;
+}
+.light-env-screen-fields .ctx-label {
+  margin: 0;
+  font-size: 12px;
+}
+.light-env-screen-fields .ctx-input { width: 100%; }
+.light-env-screen-blocker {
+  grid-column: 1 / -1;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+}
+.light-env-screen-blocker input[type="checkbox"] { margin-right: 4px; }
 
 /* Room tabs (≥3 rooms) — EMF-style horizontal scroller */
 .light-env-room-tabs {
@@ -6952,6 +7067,23 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
      med pill don't overflow. */
   .sun-session-head { flex-wrap: wrap; gap: 6px; }
   .light-session-kind { margin-left: 0; }
+
+  /* Light Environment — room-card meta grid stacks; screens fields
+     stack to single column; tab strip becomes horizontally scrollable
+     so 5+ rooms don't overflow into a wrap that fights the rest of
+     the layout. */
+  .light-env-room-meta { grid-template-columns: 1fr; gap: 10px; }
+  .light-env-screen-fields { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+  .light-env-room-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .light-env-room-tabs::-webkit-scrollbar { height: 4px; }
+  .light-env-room-card-head { flex-wrap: wrap; }
+  .light-env-empty-cta { padding: 14px 16px; }
+  .light-env-summary { padding: 12px 14px; }
 }
 
 /* Very narrow phones (≤375px) — text content drops one more notch. */

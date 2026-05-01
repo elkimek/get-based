@@ -209,6 +209,55 @@ export function computeRoomSeverity(room, measurements = []) {
   };
 }
 
+// ─── Per-screen status (mirror of computeRoomSeverity) ─────────────────
+// Evening blue exposure is the dominant junk-light vector for screens.
+// Blocking the blue end (via blue-blocker glasses, software like
+// f.lux/Night Shift, or amber-tinted filters) effectively zeroes the
+// circadian penalty even at long evening hours. Without that, exposure
+// scales with hours after sunset.
+export function computeScreenStatus(screen) {
+  if (!screen) return { tier: 0, color: 'green', label: 'Unknown', reason: 'no data' };
+  const eveHours = screen.eveningUseAfterSunset || 0;
+  const blocker = !!screen.blueBlockerEnabled;
+  if (blocker) return { tier: 0, color: 'green', label: 'Mitigated', reason: 'blue blocker enabled' };
+  if (eveHours <= 0) return { tier: 0, color: 'green', label: 'Daytime only', reason: 'no evening exposure' };
+  if (eveHours < 1) return { tier: 1, color: 'yellow', label: 'Mild', reason: '< 1 evening hour' };
+  if (eveHours < 3) return { tier: 2, color: 'orange', label: 'Moderate', reason: `${eveHours} evening hours without blocker` };
+  return { tier: 3, color: 'red', label: 'Heavy', reason: `${eveHours}+ evening hours without blocker` };
+}
+
+// Aggregate the deficit numbers into a plain-English burden tier.
+// Used by the summary line at the bottom of the section so the user
+// doesn't have to interpret raw "8.2 hr/day" numbers themselves.
+export function computeIndoorBurden() {
+  const { d2, d3 } = computeDeficitAxes();
+  // Tiers: 0 light, 1 moderate, 2 heavy
+  let tier = 0, parts = [];
+  if (d2 > 8) { tier = Math.max(tier, 2); parts.push(`${d2.toFixed(1)} hr/day indoors`); }
+  else if (d2 > 4) { tier = Math.max(tier, 1); parts.push(`${d2.toFixed(1)} hr/day indoors`); }
+  else if (d2 > 0) parts.push(`${d2.toFixed(1)} hr/day indoors`);
+  if (d3 > 4) { tier = Math.max(tier, 2); parts.push(`${d3.toFixed(1)} hr/day junk-light`); }
+  else if (d3 > 2) { tier = Math.max(tier, 1); parts.push(`${d3.toFixed(1)} hr/day junk-light`); }
+  else if (d3 > 0) parts.push(`${d3.toFixed(1)} hr/day junk-light`);
+  const labelMap = ['Light load', 'Moderate load', 'Heavy load'];
+  const colorMap = ['green', 'orange', 'red'];
+  let interp = '';
+  if (d2 + d3 === 0) interp = 'No mapped exposure yet — add a room or screen to start.';
+  else if (tier === 0) interp = 'Mostly daylight-aligned. Indoor exposure is short and mostly friendly sources.';
+  else if (tier === 1 && d3 > d2 / 2) interp = "Indoor lighting after sunset is the bigger pull on your circadian rhythm — consider warmer evening sources or blue blockers.";
+  else if (tier === 1) interp = 'Plenty of indoor hours during the day — consider getting more outdoor time, especially in the morning.';
+  else if (tier === 2 && d3 >= d2) interp = 'Heavy blue-evening exposure plus long indoor hours. Both are pulling against melatonin — fixing screens or evening lighting would move the needle most.';
+  else interp = 'Long daytime hours indoors and meaningful evening contamination. Outdoor morning light + warmer evening sources would help.';
+  return {
+    tier,
+    color: colorMap[tier],
+    label: labelMap[tier],
+    parts,
+    interp,
+    d2, d3,
+  };
+}
+
 // ─── Derived deficit signals ──────────────────────────────────────────
 
 // Returns { d2: hours, d3: hours, junkLightHours }
@@ -284,7 +333,6 @@ const TOOL_ICONS = {
 function renderRoomDetailCard(r) {
   const measurements = getMeasurementsFor(r.id).sort((a, b) => b.capturedAt - a.capturedAt);
   const sev = computeRoomSeverity(r, measurements);
-  const dot = `<span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>`;
 
   // Latest reading per tool
   const latestByTool = new Map();
@@ -292,11 +340,10 @@ function renderRoomDetailCard(r) {
     if (!latestByTool.has(m.tool)) latestByTool.set(m.tool, m);
   }
 
-  let html = `<div class="light-env-room-card" data-id="${escapeAttr(r.id)}">
+  let html = `<div class="light-env-room-card light-env-card-sev-${sev.color}" data-id="${escapeAttr(r.id)}">
     <div class="light-env-room-card-head">
-      ${dot}
       <input type="text" class="light-env-room-name" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
-      <span class="light-env-sev-label" title="${escapeAttr(sev.reason)}">${escapeHTML(sev.label)}</span>
+      <span class="light-env-sev-chip light-env-sev-chip-${sev.color}" title="${escapeAttr(sev.reason)}">${escapeHTML(sev.label)}</span>
       <button class="light-env-delete" onclick="window.deleteLightEnvRoom('${escapeAttr(r.id)}')" aria-label="Delete room">×</button>
     </div>
 
@@ -352,7 +399,7 @@ export function renderEnvironmentSection() {
   let html = `<div class="light-env-section">
     <div class="light-env-head">
       <h3 class="light-section-title">Light environment</h3>
-      <p class="light-section-hint">Indoor light is the dominant exposure most days. Map your spaces and the AI sees the full picture.</p>
+      <p class="light-section-hint">Indoor light is the dominant exposure most days. Map your spaces and screens — the rest of the app uses this to weight your channel pills + interpret your sleep data.</p>
     </div>`;
 
   // Rooms
@@ -362,21 +409,24 @@ export function renderEnvironmentSection() {
       <button class="import-btn import-btn-secondary" onclick="window.addLightEnvRoom()">+ Room</button>
     </div>`;
   if (rooms.length === 0) {
-    html += `<p class="light-env-empty">No rooms added yet.</p>`;
+    html += `<div class="light-env-empty light-env-empty-cta">
+      <p><strong>Map your bedroom first.</strong> We grade it for melatonin-friendly darkness, flicker, cool-LED contamination, and evening-blue exposure — and feed that grade into your circadian channel.</p>
+      <button class="import-btn import-btn-primary" onclick="window.addLightEnvRoom()">+ Add your first room</button>
+    </div>`;
   } else if (rooms.length <= 2) {
     // Stacked detail cards — fine for 1-2 rooms, no tab overhead
     html += `<div class="light-env-room-cards">`;
     for (const r of rooms) html += renderRoomDetailCard(r);
     html += `</div>`;
   } else {
-    // Tabbed view: severity dot in each tab, detail panel below for the active room
+    // Tabbed view: severity chip in each tab, detail panel below for the active room
     let activeId = readActiveRoomId();
     if (!rooms.find(r => r.id === activeId)) activeId = rooms[0].id;
     html += `<div class="light-env-room-tabs" role="tablist">`;
     for (const r of rooms) {
       const sev = computeRoomSeverity(r, getMeasurementsFor(r.id));
       const dot = `<span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>`;
-      html += `<button class="light-env-room-tab${r.id === activeId ? ' active' : ''}" role="tab" aria-selected="${r.id === activeId ? 'true' : 'false'}" onclick="window.setActiveLightEnvRoom('${escapeAttr(r.id)}')">${dot}<span class="light-env-room-tab-name">${escapeHTML(r.name || 'Room')}</span></button>`;
+      html += `<button class="light-env-room-tab light-env-tab-sev-${sev.color}${r.id === activeId ? ' active' : ''}" role="tab" aria-selected="${r.id === activeId ? 'true' : 'false'}" onclick="window.setActiveLightEnvRoom('${escapeAttr(r.id)}')">${dot}<span class="light-env-room-tab-name">${escapeHTML(r.name || 'Room')}</span></button>`;
     }
     html += `</div>`;
     const active = rooms.find(r => r.id === activeId);
@@ -384,42 +434,59 @@ export function renderEnvironmentSection() {
   }
   html += `</div>`;
 
-  // Screens
+  // Screens — now cards (was flat rows). Each carries a status badge
+  // for evening-blue exposure tier so the row is glanceable, not just
+  // a form to fill out.
   html += `<div class="light-env-block">
     <div class="light-env-block-head">
       <strong>Screens you use</strong>
       <button class="import-btn import-btn-secondary" onclick="window.addLightEnvScreen()">+ Screen</button>
     </div>`;
   if (screens.length === 0) {
-    html += `<p class="light-env-empty">No screens added yet.</p>`;
+    html += `<div class="light-env-empty light-env-empty-cta">
+      <p><strong>Add your phone, laptop, and TV.</strong> Evening blue-light exposure compounds with your room lighting — tracking screen hours surfaces in your sleep markers and lets the AI explain melatonin trends.</p>
+      <button class="import-btn import-btn-primary" onclick="window.addLightEnvScreen()">+ Add a screen</button>
+    </div>`;
   } else {
-    html += `<div class="light-env-rows">`;
+    html += `<div class="light-env-screen-cards">`;
     for (const s of screens) {
-      html += `<div class="light-env-row" data-id="${escapeAttr(s.id)}">
-        <select class="ctx-select light-env-input" onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
-          ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
-        </select>
-        <input type="number" min="0" max="24" step="0.5" class="ctx-input light-env-input light-env-hours" placeholder="hr/day" value="${s.hoursPerDay ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { hoursPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
-        <input type="number" min="0" max="12" step="0.5" class="ctx-input light-env-input light-env-hours" placeholder="evening hr" value="${s.eveningUseAfterSunset ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { eveningUseAfterSunset: parseFloat(this.value) || 0 })" aria-label="Evening hours" />
-        <label class="light-env-evening">
-          <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
-          blue blocker
-        </label>
-        <button class="light-env-delete" onclick="window.deleteLightEnvScreen('${escapeAttr(s.id)}')" aria-label="Delete screen">×</button>
+      const status = computeScreenStatus(s);
+      html += `<div class="light-env-screen-card light-env-card-sev-${status.color}" data-id="${escapeAttr(s.id)}">
+        <div class="light-env-screen-card-head">
+          <select class="ctx-select light-env-screen-device" onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
+            ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
+          </select>
+          <span class="light-env-sev-chip light-env-sev-chip-${status.color}" title="${escapeAttr(status.reason)}">${escapeHTML(status.label)}</span>
+          <button class="light-env-delete" onclick="window.deleteLightEnvScreen('${escapeAttr(s.id)}')" aria-label="Delete screen">×</button>
+        </div>
+        <div class="light-env-screen-fields">
+          <label class="ctx-label">Hours per day
+            <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="0" value="${s.hoursPerDay ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { hoursPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
+          </label>
+          <label class="ctx-label">Evening hours (after sunset)
+            <input type="number" min="0" max="12" step="0.5" class="ctx-input" placeholder="0" value="${s.eveningUseAfterSunset ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { eveningUseAfterSunset: parseFloat(this.value) || 0 })" aria-label="Evening hours" />
+          </label>
+          <label class="light-env-evening light-env-screen-blocker">
+            <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreen('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
+            Blue blocker (glasses, f.lux, Night Shift, amber tint)
+          </label>
+        </div>
       </div>`;
     }
     html += `</div>`;
   }
   html += `</div>`;
 
-  // Deficit summary
-  const def = computeDeficitAxes();
-  html += `<div class="light-env-summary">
-    <span class="light-env-summary-label">Daytime indoor hours:</span>
-    <strong>${def.d2.toFixed(1)} hr/day</strong>
-    <span class="light-env-summary-sep">·</span>
-    <span class="light-env-summary-label">LED + blue-evening exposure:</span>
-    <strong>${def.d3.toFixed(1)} hr/day</strong>
+  // Deficit summary — interpretive plain-English copy with tier
+  // indicator, instead of the raw "8.2 hr/day · 4.2 hr/day" numbers
+  // which read as abstract without context.
+  const burden = computeIndoorBurden();
+  html += `<div class="light-env-summary light-env-summary-${burden.color}">
+    <div class="light-env-summary-head">
+      <span class="light-env-summary-tier">${escapeHTML(burden.label)}</span>
+      ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
+    </div>
+    <p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>
   </div>`;
 
   html += `</div>`;
@@ -459,6 +526,8 @@ if (typeof window !== 'undefined') {
     },
     computeLightDeficitAxes: computeDeficitAxes,
     computeRoomSeverity,
+    computeScreenStatus,
+    computeIndoorBurden,
     renderEnvironmentSection,
   });
 }
