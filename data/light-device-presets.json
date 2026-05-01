@@ -219,6 +219,66 @@
       "notes": "Flexible PBM panel — face/body/joints."
     },
     {
+      "id": "mitochondriak-pulse",
+      "brand": "Mitochondriak",
+      "model": "Pulse",
+      "type": "pbm-targeted",
+      "peakWavelengths": [460, 630, 670, 850, 900],
+      "mwPerCm2At15cm": 50,
+      "channels": ["pbm_red", "pbm_nir"],
+      "notes": "Handheld torch (12.5 cm wand). 5 wavelengths incl. blue 460 nm. Manufacturer quotes >230 mW/cm² @ 1 cm; ~50 at 15 cm working distance. Targeted PBM — small illuminated area."
+    },
+    {
+      "id": "mitochondriak-bulb",
+      "brand": "Mitochondriak",
+      "model": "LED RED + NIR bulb",
+      "type": "pbm-targeted",
+      "peakWavelengths": [630, 670, 760, 810, 830, 850],
+      "mwPerCm2At15cm": 120,
+      "channels": ["pbm_red", "pbm_nir"],
+      "notes": "Screw-in 12×12 cm bulb with holder. 56 W. Targeted PBM — small illuminated area."
+    },
+    {
+      "id": "mitochondriak-mini",
+      "brand": "Mitochondriak",
+      "model": "Mini",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
+      "mwPerCm2At15cm": 136,
+      "channels": ["pbm_red", "pbm_nir"],
+      "notes": "32×22 cm portable panel — quarter-body coverage. 210 W. Includes long-NIR 940 nm."
+    },
+    {
+      "id": "mitochondriak-office-upgraded",
+      "brand": "Mitochondriak",
+      "model": "Office Upgraded",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
+      "mwPerCm2At15cm": 120,
+      "channels": ["pbm_red", "pbm_nir"],
+      "notes": "Stationary quarter-body panel for desk/office use. 310 W. Manufacturer quotes >60 mW/cm² @ 30 cm; ~120 at 15 cm (near-field 2×)."
+    },
+    {
+      "id": "mitochondriak-uv-portable",
+      "brand": "Mitochondriak",
+      "model": "UV portable",
+      "type": "combined",
+      "peakWavelengths": [360, 366, 630, 670, 760, 810, 830, 850],
+      "mwPerCm2At15cm": 24,
+      "channels": ["no_cv", "violet_eye", "pbm_red", "pbm_nir"],
+      "notes": "15×23 cm portable panel with UVA 360/366 nm on top of red+NIR. No UVB. 36 W. Manufacturer quotes >12 mW/cm² @ 30 cm; ~24 at 15 cm (near-field 2×)."
+    },
+    {
+      "id": "mitochondriak-maxi-upgraded",
+      "brand": "Mitochondriak",
+      "model": "Maxi Upgraded",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
+      "mwPerCm2At15cm": 210,
+      "channels": ["pbm_red", "pbm_nir"],
+      "notes": "90×30 cm half-body panel. 900 W. Same form factor as the Maxi UVB but red+NIR only — no UV. Manufacturer quotes >105 mW/cm² @ 30 cm; ~210 at 15 cm (near-field 2×)."
+    },
+    {
       "id": "mitochondriak-maxi-uvb",
       "brand": "Mitochondriak",
       "model": "Maxi UVB",
@@ -227,6 +287,26 @@
       "mwPerCm2At15cm": 120,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
       "notes": "Czech 90×30 cm broad-spectrum panel. UVB 295 nm + UVA 380 nm + blue 480 nm + red 630/670 nm + NIR 760/810/830/850 nm. Independent on/off for UV+blue vs red+NIR — touchscreen presets gate which channels fire per session. Half-body coverage."
+    },
+    {
+      "id": "mitochondriak-maxi-ultra",
+      "brand": "Mitochondriak",
+      "model": "Maxi ULTRA",
+      "type": "combined",
+      "peakWavelengths": [630, 670, 760, 810, 830, 850, 940],
+      "mwPerCm2At15cm": 210,
+      "channels": ["pbm_red", "pbm_nir"],
+      "notes": "180×30 cm full-body dual-panel system — two Maxi Upgraded panels tiled. 1800 W. No UV."
+    },
+    {
+      "id": "mitochondriak-maxi-uvb-ultra",
+      "brand": "Mitochondriak",
+      "model": "Maxi UVB ULTRA",
+      "type": "combined",
+      "peakWavelengths": [295, 380, 480, 630, 670, 760, 810, 830, 850],
+      "mwPerCm2At15cm": 120,
+      "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "notes": "180×30 cm full-body dual-panel system — two Maxi UVB panels tiled. 1800 W. Same broad-spectrum coverage as Maxi UVB; UV + blue toggle independently."
     },
     {
       "id": "chroma-trinity",
