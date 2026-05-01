@@ -136,6 +136,25 @@ return (async function() {
   assert('weight log inputs respect state.unitSystem',
     wearSrc.includes("state.unitSystem === 'US' ? 'lb' : 'kg'"));
 
+  // ─── 12b. Light-device browse modals close on backdrop click ───
+  // Browse-style modals (Add device, picker) close on backdrop; form-input
+  // modals (Log device session) require explicit Cancel/Save so accidental
+  // taps don't lose typed values.
+  const lightDevSrc = await fetch('/js/light-devices.js').then(r => r.text());
+  // Two browse modals each get a backdrop-close listener guarded by
+  // `e.target === overlay` so child clicks don't bubble out.
+  const backdropMatches = lightDevSrc.match(/overlay\.addEventListener\('click', \(e\) => \{\s*if \(e\.target === overlay\) overlay\.remove\(\);/g) || [];
+  assert('Add-device + device-picker modals each have backdrop-click close',
+    backdropMatches.length >= 2,
+    `found ${backdropMatches.length} backdrop-close listeners`);
+  // openDeviceSessionDialog is a form modal — must NOT have backdrop-close
+  // (would lose typed duration/distance/notes on stray click).
+  const sessionDialogStart = lightDevSrc.indexOf('export async function openDeviceSessionDialog');
+  const sessionDialogEnd = lightDevSrc.indexOf('export', sessionDialogStart + 1);
+  const sessionDialogBody = lightDevSrc.slice(sessionDialogStart, sessionDialogEnd > 0 ? sessionDialogEnd : undefined);
+  assert('openDeviceSessionDialog (form modal) has NO backdrop-close listener',
+    !/overlay\.addEventListener\('click'/.test(sessionDialogBody));
+
   // ─── 13. Light-page channel pill drill-down a11y ───
   // Pills are <button>s (native focusable + Enter/Space) with aria-expanded
   // toggling between false/true and aria-controls pointing at the panel.

@@ -263,6 +263,14 @@ export async function openAddDeviceDialog() {
   </div>`;
   document.body.appendChild(overlay);
 
+  // Backdrop-click closes — this is a browse/pick modal (single select, no
+  // typed input), so accidental dismissal doesn't lose any data the user
+  // hasn't already chosen via dropdown. Escape is handled globally in
+  // main.js's anonymous-overlay fallback.
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
   overlay.querySelector('#add-device-confirm').addEventListener('click', async () => {
     const sel = overlay.querySelector('#add-device-preset');
     const presetId = sel.value;
@@ -368,6 +376,10 @@ function _openDevicePicker(devices) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  // Backdrop-click closes — browse-style modal, no user-entered data.
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
   for (const btn of overlay.querySelectorAll('.light-device-picker-row')) {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-device-id');
