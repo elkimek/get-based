@@ -77,6 +77,101 @@ export async function deleteMeasurement(id) {
   return true;
 }
 
+// ─── Camera AE/AWB lock helper ────────────────────────────────────────
+//
+// `getUserMedia` defaults to auto-exposure + auto-white-balance + auto-
+// focus, which silently neutralizes the signal we're trying to read:
+// - Lux: AE compensates for actual brightness → ~constant luma whatever
+//   the room.
+// - CCT / Spectrum: AWB color-corrects so blue-rich light reads neutral.
+// - Flicker: AE smooths brightness fluctuations frame-to-frame.
+// - Glass transmission: AE drifts between the two samples → ratio wrong.
+//
+// Modern browsers expose manual mode via `getCapabilities()` /
+// `applyConstraints()`. Older Safari / iOS Chrome may not — we read the
+// capability, attempt the lock, and report what actually stuck so the
+// caller can show a fallback note. Tools that benefit from auto mode
+// (sleep-darkness uses long-exposure auto-gain) just skip this helper.
+//
+// Returns: { exposure: 'manual' | 'auto', whiteBalance: 'manual' | 'auto',
+//            focus: 'manual' | 'auto', frameRate: <fps actually delivered> }
+export async function lockCameraForMeasurement(stream, opts = {}) {
+  const result = { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: null };
+  if (!stream || !stream.getVideoTracks) return result;
+  const track = stream.getVideoTracks()[0];
+  if (!track) return result;
+  const settings = track.getSettings ? track.getSettings() : {};
+  result.frameRate = settings.frameRate || null;
+  // Some Chromium builds throw when getCapabilities is missing or the
+  // track isn't fully started yet — treat as "auto fallback" rather than
+  // hard-failing the whole tool.
+  let caps = {};
+  try { caps = (track.getCapabilities && track.getCapabilities()) || {}; } catch (e) { caps = {}; }
+  const advanced = [];
+  if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('manual')) {
+    advanced.push({ exposureMode: 'manual' });
+    if (Number.isFinite(caps.exposureCompensation?.min)) advanced.push({ exposureCompensation: 0 });
+    // Pin shutter to a usable value for flicker detection — short enough
+    // that PWM banding at 100 Hz+ shows up as visible stripes (not blurred
+    // by a long shutter), but long enough that ambient indoor light gives
+    // signal. 1/120s = 8.33ms is a reasonable middle ground if the camera
+    // exposes `exposureTime` (units: 100 µs in the WICG spec).
+    if (opts.shortExposure && Number.isFinite(caps.exposureTime?.min)) {
+      const target = Math.max(caps.exposureTime.min, Math.min(caps.exposureTime.max, 83)); // ~8.3ms
+      advanced.push({ exposureTime: target });
+    }
+    result.exposure = 'manual';
+  }
+  if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('manual')) {
+    advanced.push({ whiteBalanceMode: 'manual' });
+    // 5500 K (D55) is the closest to "no color cast" for measurements
+    // taken against neutral surfaces. CCT/spectrum tools want consistent
+    // raw R/G/B regardless of source illumination.
+    if (Number.isFinite(caps.colorTemperature?.min)) {
+      const target = Math.max(caps.colorTemperature.min, Math.min(caps.colorTemperature.max, 5500));
+      advanced.push({ colorTemperature: target });
+    }
+    result.whiteBalance = 'manual';
+  }
+  if (Array.isArray(caps.focusMode) && caps.focusMode.includes('manual')) {
+    advanced.push({ focusMode: 'manual' });
+    result.focus = 'manual';
+  }
+  if (advanced.length === 0) return result;
+  try {
+    await track.applyConstraints({ advanced });
+  } catch (e) {
+    // Constraint rejected — typically iOS Safari. Report the auto fallback
+    // honestly; caller decides whether to warn the user.
+    return { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: result.frameRate };
+  }
+  // Re-read settings to confirm the lock actually applied — some platforms
+  // accept the constraint without honoring it.
+  try {
+    const after = track.getSettings ? track.getSettings() : {};
+    if (after.exposureMode && after.exposureMode !== 'manual') result.exposure = 'auto';
+    if (after.whiteBalanceMode && after.whiteBalanceMode !== 'manual') result.whiteBalance = 'auto';
+    if (after.focusMode && after.focusMode !== 'manual') result.focus = 'auto';
+    if (after.frameRate) result.frameRate = after.frameRate;
+  } catch (e) {}
+  return result;
+}
+
+// Short status line for the tool UI — tells the user when the camera is
+// running in degraded auto-mode so a low-confidence reading is expected.
+export function cameraLockStatusLine(lock) {
+  if (!lock) return '';
+  const allManual = lock.exposure === 'manual' && lock.whiteBalance === 'manual';
+  if (allManual) {
+    const fps = lock.frameRate ? ` · ${Math.round(lock.frameRate)} fps` : '';
+    return `<span style="color:var(--green);font-size:11px">✓ camera locked${fps}</span>`;
+  }
+  const auto = [];
+  if (lock.exposure !== 'manual') auto.push('exposure');
+  if (lock.whiteBalance !== 'manual') auto.push('white-balance');
+  return `<span style="color:var(--orange);font-size:11px">⚠ camera ${auto.join(' + ')} on auto — reading may drift</span>`;
+}
+
 // ─── Tool 1: Lux Meter ─────────────────────────────────────────────────
 
 const LUX_ZONES = [
@@ -160,10 +255,11 @@ export async function openLuxMeter(opts = {}) {
 
   // Fallback: camera-based estimate
   if (!usingALS) {
-    sourceLine.textContent = 'Using camera with calibration factor ' + _luxState.calibration.toFixed(2) + '× (estimate, ±30%).';
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 320, height: 240 } });
       _luxState.stream = stream;
+      const lock = await lockCameraForMeasurement(stream);
+      sourceLine.innerHTML = `Camera estimate (calibration ${_luxState.calibration.toFixed(2)}×, ±30%). ${cameraLockStatusLine(lock)}`;
       const video = document.createElement('video');
       video.srcObject = stream;
       video.muted = true;
@@ -264,6 +360,18 @@ export async function openFlickerDetector(opts = {}) {
     _flickerState.stream = stream;
     video.srcObject = stream;
     await video.play();
+    // Lock exposure short + manual so PWM banding is visible — auto mode
+    // smooths the brightness fluctuations that ARE the signal we're after.
+    const lock = await lockCameraForMeasurement(stream, { shortExposure: true });
+    const lockNote = cameraLockStatusLine(lock);
+    if (lockNote) resultEl.innerHTML = `Hold camera on a light for 5 seconds…<br>${lockNote}`;
+    if (lock.frameRate && lock.frameRate < 60) {
+      // Below 60 fps the Nyquist limit puts a 30 Hz ceiling on detectable
+      // PWM. Phone cameras often clamp to 30 fps regardless of `ideal: 240`.
+      // Tell the user up-front rather than reporting "Flicker-free" for a
+      // 200 Hz PWM lamp the camera literally can't see.
+      resultEl.innerHTML += `<br><small style="color:var(--orange)">⚠ camera running at ${Math.round(lock.frameRate)} fps — PWM above ${Math.round(lock.frameRate / 2)} Hz won't show up. Try a different camera if available.</small>`;
+    }
     const canvas = document.createElement('canvas');
     canvas.width = 32; canvas.height = 32;
     const ctx = canvas.getContext('2d');
@@ -277,7 +385,7 @@ export async function openFlickerDetector(opts = {}) {
       for (let i = 0; i < data.length; i += 4) sum += data[i] + data[i + 1] + data[i + 2];
       samples.push({ t: performance.now() - startTime, v: sum });
       if (samples.length > 240) samples.shift();
-      if (samples.length >= 60) renderFlicker(samples);
+      if (samples.length >= 60) renderFlicker(samples, lock);
       if (_flickerState.running) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -285,7 +393,7 @@ export async function openFlickerDetector(opts = {}) {
     resultEl.textContent = 'Camera access denied — flicker detector unavailable.';
   }
 
-  function renderFlicker(samples) {
+  function renderFlicker(samples, lock) {
     // Simple peak-to-trough variance ratio over the last second of samples
     const recent = samples.slice(-120);
     if (recent.length < 30) return;
@@ -295,7 +403,12 @@ export async function openFlickerDetector(opts = {}) {
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
     const ratio = mean ? (max - min) / mean : 0;
     let score, label, freq = '';
-    if (ratio < 0.05) { score = 0; label = 'Flicker-free'; }
+    // Auto-mode AE smooths frame-luma → flicker-free reading is unreliable.
+    // Bump the "flicker-free" threshold pessimistically when AE is active
+    // so we don't false-negative a real PWM lamp.
+    const aeActive = !lock || lock.exposure !== 'manual';
+    const lowThreshold = aeActive ? 0.02 : 0.05;
+    if (ratio < lowThreshold) { score = 0; label = aeActive ? 'Below detection threshold (camera in auto mode)' : 'Flicker-free'; }
     else if (ratio < 0.12) { score = 1; label = 'Mild flicker, likely OK for most'; }
     else if (ratio < 0.25) { score = 2; label = 'Visible flicker — eye-strain risk'; }
     else { score = 3; label = 'Heavy flicker — consider replacing this light'; }
@@ -460,6 +573,13 @@ export async function openCCTMeter(opts = {}) {
     _cctState.stream = stream;
     video.srcObject = stream;
     await video.play();
+    // Manual WB + exposure are the entire game here — auto-WB neutralizes
+    // the color cast we're trying to measure. Without the lock, R/B ratio
+    // is the camera's residual error, not the source CCT.
+    const lock = await lockCameraForMeasurement(stream);
+    if (lock.whiteBalance !== 'manual') {
+      cohEl.innerHTML = `<span style="color:var(--orange);font-size:11px">⚠ camera auto-white-balance is on — CCT reading is the camera's error, not the source. Try a different browser / phone, or use a meter for accurate readings.</span>`;
+    }
     const canvas = document.createElement('canvas');
     canvas.width = 32; canvas.height = 24;
     const ctx = canvas.getContext('2d');
@@ -480,7 +600,10 @@ export async function openCCTMeter(opts = {}) {
       currentCCT = cct;
       valueEl.textContent = `${cct} K`;
       toneEl.textContent = cctTone(cct);
-      cohEl.innerHTML = solarCoherence(cct);
+      // Only render the solar-coherence hint when WB lock succeeded —
+      // otherwise the CCT value itself is unreliable, so the hint built
+      // on top of it would mislead.
+      if (lock.whiteBalance === 'manual') cohEl.innerHTML = solarCoherence(cct);
       if (_cctState.running) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -562,6 +685,13 @@ export async function openSpectrumClassifier(opts = {}) {
     _specState.stream = stream;
     video.srcObject = stream;
     await video.play();
+    // Manual exposure + WB so the classifier reads the actual emitter,
+    // not the camera's auto-corrected output. Auto-mode would map every
+    // light source toward neutral grey, defeating classification.
+    const lock = await lockCameraForMeasurement(stream, { shortExposure: true });
+    if (lock.whiteBalance !== 'manual' || lock.exposure !== 'manual') {
+      resultEl.innerHTML = `<span style="color:var(--orange);font-size:12px">⚠ camera auto-mode partially active — classification reliability is reduced. ${cameraLockStatusLine(lock)}</span>`;
+    }
     const canvas = document.createElement('canvas');
     canvas.width = 32; canvas.height = 32;
     const ctx = canvas.getContext('2d');
@@ -580,6 +710,9 @@ export async function openSpectrumClassifier(opts = {}) {
       lumaSamples.push(luma);
       if (lumaSamples.length > 120) lumaSamples.shift();
       result = classifyLight({ r, g, b, lumaSamples });
+      // Discount confidence by 30% when WB couldn't be locked — under
+      // auto-WB the R/G/B ratios reflect camera correction, not source.
+      if (lock.whiteBalance !== 'manual') result = { ...result, confidence: result.confidence * 0.7, reason: result.reason + ' (camera auto-WB → low confidence)' };
       resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small>`;
       if (_specState.running) requestAnimationFrame(tick);
     };
@@ -668,6 +801,7 @@ export async function openGlassTransmission(opts = {}) {
 
   _glassReadings = { inside: null, outside: null };
 
+  let _lastGlassLock = null;
   const measure = async (which) => {
     // Reuse the lux-camera path inline. Simpler than spinning up the modal.
     try {
@@ -675,6 +809,11 @@ export async function openGlassTransmission(opts = {}) {
       const video = document.createElement('video');
       video.srcObject = stream; video.muted = true; video.playsInline = true;
       await video.play();
+      // Critical: the through-glass and direct samples MUST use the same
+      // exposure/WB or the ratio compares apples to oranges. Auto-mode
+      // re-exposes for each scene → ratio reflects camera-AE, not glass.
+      const lock = await lockCameraForMeasurement(stream);
+      _lastGlassLock = lock;
       const canvas = document.createElement('canvas');
       canvas.width = 32; canvas.height = 24;
       const ctx = canvas.getContext('2d');
@@ -705,16 +844,17 @@ export async function openGlassTransmission(opts = {}) {
     if (_glassReadings.inside == null || _glassReadings.outside == null) return;
     const transmission = Math.min(1, _glassReadings.inside / Math.max(_glassReadings.outside, 1));
     const blocked = (1 - transmission) * 100;
-    // UV transmission for typical low-E coatings is ~12–18% of clear glass UV transmission
-    const uvTrans = Math.round(transmission * 15);
+    const lockNote = _lastGlassLock && _lastGlassLock.exposure !== 'manual'
+      ? `<br><small style="color:var(--orange)">⚠ camera auto-exposure was active — re-exposes between samples, the ratio above is approximate. Re-take readings if you need precision.</small>`
+      : '';
     overlay.querySelector('#glass-result').innerHTML =
-      `<strong>Glass transmits ${(transmission * 100).toFixed(0)}% of total light</strong>` +
-      `<br><small>Blocks ~${blocked.toFixed(0)}% of broadband · estimated UV transmission ${uvTrans}% (typical Low-E coating)</small>`;
+      `<strong>Glass transmits ${(transmission * 100).toFixed(0)}% of visible light</strong>` +
+      `<br><small>Blocks ~${blocked.toFixed(0)}% of broadband visible. <strong>UV transmission cannot be inferred from this measurement</strong> — Low-E and UV-blocking coatings have very different UV/visible ratios. A handheld UV meter is required to verify UV-A or UV-B blocking.</small>${lockNote}`;
     overlay.querySelector('#glass-save').disabled = false;
     overlay.querySelector('#glass-save').onclick = async () => {
       await saveMeasurement('glass-transmission', transmission, {
-        confidence: 0.6,
-        extra: { inside: _glassReadings.inside, outside: _glassReadings.outside, uvTrans },
+        confidence: _lastGlassLock && _lastGlassLock.exposure === 'manual' ? 0.7 : 0.5,
+        extra: { inside: _glassReadings.inside, outside: _glassReadings.outside, lockMode: _lastGlassLock?.exposure || 'auto' },
         roomId,
       });
       showNotification(`Glass transmission saved: ${(transmission * 100).toFixed(0)}%`);
@@ -816,6 +956,14 @@ export async function openEyeLevelAudit() {
         const video = document.createElement('video');
         video.srcObject = stream; video.muted = true; video.playsInline = true;
         await video.play();
+        // Lock exposure across the whole walkthrough — without this, AE
+        // re-exposes when you walk into a brighter / dimmer room, making
+        // the per-room luma values incomparable. We want the absolute
+        // brightness signal, not the camera-corrected one.
+        const lock = await lockCameraForMeasurement(stream);
+        if (lock.exposure !== 'manual') {
+          statusEl.innerHTML = `Recording… <span style="color:var(--orange);font-size:11px">⚠ camera auto-exposure on — per-room values will be relative, not absolute lux.</span>`;
+        }
         const canvas = document.createElement('canvas');
         canvas.width = 32; canvas.height = 24;
         const ctx = canvas.getContext('2d');
