@@ -67,7 +67,10 @@ const TEST_FILES = [
   'tests/test-security-phase1.js',
   'tests/test-correctness-phase2.js',
   'tests/test-a11y-phase3.js',
-  'tests/test-sun-spectrum.js'
+  'tests/test-sun-spectrum.js',
+  'tests/test-sun-uvdata.js',
+  'tests/test-sun-correlations.js',
+  'tests/test-sun-defaults.js'
 ];
 
 const PORT = process.env.PORT || 8000;
