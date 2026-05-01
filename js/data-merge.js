@@ -104,12 +104,27 @@ export function unionById(localArr, remoteArr, tombstones) {
   return [...byId.values(), ...noId];
 }
 
-// Union two tombstone arrays — order-insensitive set union.
+// Union two tombstone arrays — order-insensitive set union. Capped so a
+// tampered remote payload can't ship 10⁶ fabricated ids and bloat every
+// device's localStorage / pull cost. Real workloads should stay well below
+// this — a user deleting 50 rows/month for a year is 600 entries.
+const TOMBSTONE_CAP_PER_PATH = 5000;
 function mergeTombstones(localT, remoteT) {
   const out = new Set();
   if (Array.isArray(localT))  for (const id of localT)  if (typeof id === 'string') out.add(id);
   if (Array.isArray(remoteT)) for (const id of remoteT) if (typeof id === 'string') out.add(id);
-  return [...out];
+  if (out.size <= TOMBSTONE_CAP_PER_PATH) return [...out];
+  return [...out].slice(0, TOMBSTONE_CAP_PER_PATH);
+}
+
+// Dangerous keys that, if reached via bracket-assignment, mutate the
+// prototype chain or shadow built-ins. The merge only writes to keys
+// that pass this filter.
+const SAFE_PATH_RE = /^[a-zA-Z][a-zA-Z0-9_.]*$/;
+function isSafeArrayPath(path) {
+  if (typeof path !== 'string' || !SAFE_PATH_RE.test(path)) return false;
+  if (path === '__proto__' || path === 'constructor' || path === 'prototype') return false;
+  return true;
 }
 
 // Merge two `importedData` blobs into one. `local` is what's already on this
@@ -125,12 +140,16 @@ export function mergeImportedData(local, remote) {
   // non-id-keyed scalars and arrays.
   const out = { ...remote };
 
-  // Tombstones — union both sides' deletes.
+  // Tombstones — union both sides' deletes. Restricted to paths in
+  // ID_KEYED_ARRAYS to prevent (a) prototype-pollution via `__proto__`
+  // / `constructor` keys from a tampered remote payload, and (b) unbounded
+  // accumulation of unrelated keys. mergeTombstones itself caps each
+  // path's tombstone list at TOMBSTONE_CAP_PER_PATH to limit DoS bloat.
   const localDel  = (local._deleted  && typeof local._deleted  === 'object') ? local._deleted  : {};
   const remoteDel = (remote._deleted && typeof remote._deleted === 'object') ? remote._deleted : {};
-  const mergedDel = {};
-  const allArrPaths = new Set([...Object.keys(localDel), ...Object.keys(remoteDel), ...ID_KEYED_ARRAYS]);
-  for (const path of allArrPaths) {
+  const mergedDel = Object.create(null); // null-prototype so __proto__ key cannot mutate the chain
+  for (const path of ID_KEYED_ARRAYS) {
+    if (!isSafeArrayPath(path)) continue; // guard against future ID_KEYED_ARRAYS entries
     const merged = mergeTombstones(localDel[path], remoteDel[path]);
     if (merged.length) mergedDel[path] = merged;
   }
@@ -179,10 +198,13 @@ export function localHasRowsRemoteLacks(local, remote) {
     }
   }
   // Tombstones on local but not on remote also need rebroadcast so the
-  // delete propagates.
+  // delete propagates. Restricted to ID_KEYED_ARRAYS paths — same guard
+  // as mergeImportedData's tombstone block; prevents an attacker-injected
+  // path from forcing an infinite rebroadcast.
   const lDel = (local._deleted && typeof local._deleted === 'object') ? local._deleted : {};
   const rDel = (remote._deleted && typeof remote._deleted === 'object') ? remote._deleted : {};
-  for (const path of Object.keys(lDel)) {
+  for (const path of ID_KEYED_ARRAYS) {
+    if (!Object.prototype.hasOwnProperty.call(lDel, path)) continue;
     const remoteSet = new Set(Array.isArray(rDel[path]) ? rDel[path] : []);
     for (const id of (lDel[path] || [])) {
       if (typeof id === 'string' && !remoteSet.has(id)) return true;

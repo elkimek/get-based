@@ -223,6 +223,49 @@ return (async function() {
   assert('null remote → true (everything local is news)',
     localHasRowsRemoteLacks({sunSessions:[{id:'a'}]}, null) === true);
 
+  // ─── 12. Hardening: prototype-pollution guard via _deleted key ────────
+  console.log('%c 12. Prototype pollution guard ', 'font-weight:bold;color:#f59e0b');
+
+  // Remote payload tries to inject __proto__ / constructor keys into _deleted.
+  // mergeImportedData should drop them (only ID_KEYED_ARRAYS paths are kept).
+  const evilRemote = {
+    sunSessions: [{id:'a'}],
+    _deleted: {
+      __proto__: ['x','y'],
+      constructor: ['z'],
+      sunSessions: ['legit-tombstone'],
+      randomUnknownPath: ['noise'],
+    },
+  };
+  const safeLocal = { sunSessions: [{id:'a'}] };
+  const m12 = mergeImportedData(safeLocal, evilRemote);
+  assert('legit tombstone is preserved',
+    m12._deleted && Array.isArray(m12._deleted.sunSessions) && m12._deleted.sunSessions.includes('legit-tombstone'));
+  assert('__proto__ key is NOT present in _deleted',
+    !('__proto__' in m12._deleted) || m12._deleted.__proto__ === Object.prototype || m12._deleted.__proto__ === null,
+    'merged.__proto__: ' + Object.getPrototypeOf(m12._deleted));
+  assert('constructor key dropped from _deleted',
+    !Object.prototype.hasOwnProperty.call(m12._deleted, 'constructor') || !Array.isArray(m12._deleted.constructor));
+  assert('unknown remote paths dropped from _deleted',
+    !Object.prototype.hasOwnProperty.call(m12._deleted, 'randomUnknownPath'));
+  // Confirm prototype chain wasn't poisoned
+  assert('plain object literal still has Object.prototype methods unaffected',
+    typeof ({}).hasOwnProperty === 'function');
+
+  // ─── 13. Hardening: tombstone DoS cap ─────────────────────────────────
+  console.log('%c 13. Tombstone cap ', 'font-weight:bold;color:#f59e0b');
+
+  // Build a remote payload with 6000 fabricated tombstones (over the 5000 cap).
+  const huge = [];
+  for (let i = 0; i < 6000; i++) huge.push('id_' + i);
+  const m13 = mergeImportedData(
+    { sunSessions: [{id:'real'}] },
+    { sunSessions: [{id:'real'}], _deleted: { sunSessions: huge } }
+  );
+  assert('tombstone list capped at 5000 entries',
+    m13._deleted.sunSessions.length === 5000,
+    'got length=' + m13._deleted.sunSessions.length);
+
   console.log(`%c Data Merge: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

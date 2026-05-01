@@ -740,6 +740,11 @@ async function pushProfile(profileId, importedData) {
     _logSyncEvent('queue', queueMsg);
 
     let completed = false;
+    let watchdogId = null;
+    const finish = () => {
+      _syncing = false;
+      if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
+    };
     const onComplete = () => {
       completed = true;
       const elapsed = Date.now() - queuedAt;
@@ -747,18 +752,20 @@ async function pushProfile(profileId, importedData) {
       const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
       console.log(`[sync] ${okMsg}`);
       _logSyncEvent('push', okMsg);
+      finish();
     };
     // Watchdog: if Evolu never calls onComplete within 30s, the worker is
     // wedged (broken WS, OPFS lock, dead replication). Log explicitly so
     // the user / popover can show "Stuck — try reloading the page" instead
-    // of silent forever-pending. This was the v1.7.6 "phone push went red
-    // and never confirmed" symptom.
-    setTimeout(() => {
+    // of silent forever-pending. Cleared on success so a slow-but-eventually-
+    // successful push doesn't get a spurious "stuck" event in the activity log.
+    watchdogId = setTimeout(() => {
       if (!completed) {
         const stuckMsg = `Push NOT committed after 30s ${profileId.slice(0,8)} — Evolu worker likely wedged`;
         console.warn(`[sync] ${stuckMsg}`);
         _logSyncEvent('skip', `Push stuck >30s — try reloading`);
         updateSyncStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
+        finish();
       }
     }, 30_000);
 
@@ -786,9 +793,13 @@ async function pushProfile(profileId, importedData) {
   } catch (e) {
     console.error('[sync] Push failed:', e);
     updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
-  } finally {
+    // Synchronous error path — onComplete will never fire, release the lock.
     _syncing = false;
   }
+  // _syncing now released by onComplete / watchdog / catch — NOT here. The
+  // earlier synchronous `finally { _syncing = false }` released it before
+  // Evolu's async replication completed, so the concurrent-push guard the
+  // outer 60s stale-clear logic relies on was effectively cosmetic.
 }
 
 export async function pushCurrentProfile() {
@@ -1170,6 +1181,12 @@ async function onSyncReceived() {
         // cause an infinite ping-pong rebroadcast across devices.
         const needsRebroadcast = !!localImportedForMerge
           && localHasRowsRemoteLacks(localImportedForMerge, importedData);
+        // Same diff in the *other* direction: did REMOTE bring rows local
+        // didn't have? Used to gate the active-view re-render so we don't
+        // wipe an in-progress form input on every pull where the merge
+        // produced no observable change.
+        const remoteBroughtNewRows = !!localImportedForMerge
+          && localHasRowsRemoteLacks(importedData, localImportedForMerge);
 
         // Update importedData in localStorage
         const importedJson = JSON.stringify(merged);
@@ -1218,17 +1235,27 @@ async function onSyncReceived() {
             window.loadChatHistory?.(); // reloads state.chatHistory from localStorage + renders
           }
           // Re-render whatever view the user is on so the merged state
-          // becomes visible. Earlier this only re-rendered the dashboard
-          // and showed a toast on other views — which left a Light & Sun
-          // page unrefreshed even though state.importedData had the new
-          // session locally. navigate(currentCategory) is idempotent.
+          // becomes visible — but ONLY when the merge actually produced
+          // new content from the remote side. `localImportedForMerge`
+          // already had everything ⇒ no observable change ⇒ skip the
+          // re-render so an in-progress form (e.g. typing a duration
+          // into the session log dialog) doesn't get wiped on every pull.
           const activeNav = document.querySelector('.nav-item.active');
           const cat = activeNav?.dataset?.category || 'dashboard';
-          window.navigate?.(cat);
-          if (cat !== 'dashboard') {
-            showNotification('Data updated from another device', 'success');
+          if (!remoteBroughtNewRows) {
+            // Remote brought nothing new (local was already a superset or
+            // identical for every id-keyed array). Profile-field / chat /
+            // displayPrefs handlers above already re-rendered their own
+            // surfaces; skip the global navigate() so an in-progress form
+            // (e.g. typing a duration into the session log dialog) survives.
+            console.log(`[sync] Pulled active profile ${profileId.slice(0,8)} — no new rows from remote, skipping re-render of '${cat}'`);
+          } else {
+            window.navigate?.(cat);
+            if (cat !== 'dashboard') {
+              showNotification('Data updated from another device', 'success');
+            }
+            console.log(`[sync] Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
           }
-          console.log(`[sync] Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
         } else {
           dbg('Pulled profile:', profileId);
         }
@@ -1250,7 +1277,18 @@ async function onSyncReceived() {
           } else {
             console.log(`[sync] Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
             _logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
-            setTimeout(() => pushProfile(profileId, state.importedData), 100);
+            // Snapshot importedData at SCHEDULE time and re-verify the
+            // active profile when the timer fires. Without these, a profile
+            // switch in the 100ms gap would push the new active profile's
+            // state.importedData into the *original* profile's relay row.
+            const snapshotImported = merged;
+            setTimeout(() => {
+              if (profileId !== state.currentProfile) {
+                console.log(`[sync] Rebroadcast aborted — active profile switched`);
+                return;
+              }
+              pushProfile(profileId, snapshotImported);
+            }, 100);
           }
         }
       } catch (e) {
