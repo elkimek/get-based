@@ -5992,6 +5992,15 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-env-sev-yellow { background: var(--yellow); color: var(--yellow); }
 .light-env-sev-orange { background: var(--orange); color: var(--orange); }
 .light-env-sev-red    { background: var(--red);    color: var(--red); }
+/* Distinct from "Good" — gray dot for rooms that have nothing graders
+   can use yet, so users don't read an unreviewed default green dot
+   as "we verified you're good." */
+.light-env-sev-incomplete {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1.5px dashed var(--text-muted);
+  box-shadow: none;
+}
 .light-env-sev-label {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.4px; color: var(--text-muted);
@@ -6381,6 +6390,63 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   .light-env-room-disclosure-head { flex-wrap: wrap; gap: 6px; }
   .light-env-room-disclosure-spacer { display: none; }
   .light-env-room-step-body { padding-left: 0; }
+}
+
+/* Step 1 chip pickers — replace the lonely number field + 10-option
+   dropdown + boolean checkbox with three concise chip rows the user
+   can answer by *looking* at a bulb / their day. */
+.light-env-room-step-sub {
+  margin: -4px 0 0 28px;
+  font-size: 12px; color: var(--text-muted);
+  line-height: 1.4;
+}
+.light-env-picker { display: flex; flex-direction: column; gap: 6px; }
+.light-env-picker-label {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600;
+}
+.light-env-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.light-env-chip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px; font-size: 13px;
+  color: var(--text-primary); cursor: pointer;
+  transition: all 0.15s;
+}
+.light-env-chip:hover { background: var(--bg-hover); border-color: var(--accent); }
+.light-env-chip-active {
+  background: var(--accent); border-color: var(--accent); color: white;
+}
+.light-env-chip-active:hover { background: var(--accent); border-color: var(--accent); }
+.light-env-picker-more {
+  margin-top: 2px; font-size: 12px;
+}
+.light-env-picker-more summary {
+  cursor: pointer; color: var(--text-muted);
+  padding: 2px 0; user-select: none;
+}
+.light-env-picker-more summary:hover { color: var(--text-primary); }
+.light-env-picker-more[open] { padding-top: 6px; }
+.light-env-picker-more select,
+.light-env-picker-more input { margin-top: 4px; }
+
+/* Spectrum tool gets primary-action treatment as the recommended
+   start — it auto-detects warm / cool / fluorescent so it's the
+   single best button for users who don't know their bulb specs. */
+.light-env-tool-pill-primary {
+  background: var(--bg-card);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.light-env-tool-pill-primary:hover {
+  background: var(--accent); color: white;
+}
+.light-env-tool-pill-hint {
+  font-size: 10px; font-weight: 500;
+  margin-left: 4px; opacity: 0.85;
+  text-transform: uppercase; letter-spacing: 0.4px;
 }
 
 /* Light Audits — frozen snapshots of rooms + screens + measurements.

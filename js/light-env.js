@@ -59,6 +59,10 @@ export async function addRoom(name) {
   // Pre-fill primarySource from sunDefaults.homeLight when the user already
   // answered Home lighting in the Light setup card — saves a redundant pick.
   const homeLight = state.importedData?.sunDefaults?.homeLight;
+  // Pre-fill hours by room name — bedroom/office default high, kitchen/
+  // bath default low. User adjusts via chip row if their pattern differs;
+  // beats opening the room to a lonely empty number field.
+  const presetHours = defaultHoursForName(name);
 
   env.rooms.push({
     id: `room_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
@@ -66,7 +70,11 @@ export async function addRoom(name) {
     primarySource: homeLight || 'unknown',
     cct: null,
     flickerScore: null,
-    hoursOccupiedPerDay: null,
+    hoursOccupiedPerDay: presetHours,
+    // New chip-picker field for evening exposure — null means unanswered.
+    // Legacy `eveningUseAfterSunset` boolean stays at false for back-compat
+    // with rooms saved before the chip picker existed.
+    eveningHoursAfterSunset: null,
     eveningUseAfterSunset: false,
     notes: '',
   });
@@ -195,8 +203,28 @@ export async function deleteScreen(id) {
 // Tier → CSS color token mapping intentionally matches EMF's so the two
 // surfaces feel like one design system.
 
+// True when the room has nothing graders can use — no source picked
+// (or "I don't know"), no occupancy answer, no measurements, no
+// evening-hours answer. The severity helper returns an "incomplete"
+// gray-dot in that case so users don't read the default green dot
+// as "we verified you're good" when really it means "we know nothing
+// about this room yet."
+function _hasAnyRoomSignal(room, measurements) {
+  if (!room) return false;
+  const hasSource = room.primarySource && room.primarySource !== 'unknown';
+  const hasHours = (+room.hoursOccupiedPerDay) > 0;
+  const hasEvening = room.eveningHoursAfterSunset != null || room.eveningUseAfterSunset === true;
+  const hasMeas = (measurements || []).length > 0;
+  return hasSource || hasHours || hasEvening || hasMeas;
+}
+
 export function computeRoomSeverity(room, measurements = []) {
   if (!room) return { tier: 0, color: 'green', label: 'Unknown', reason: 'No data yet' };
+
+  // Gray-dot incomplete state for empty rooms — distinct from "Good".
+  if (!_hasAnyRoomSignal(room, measurements)) {
+    return { tier: 0, color: 'incomplete', label: 'Needs setup', reason: 'No signals yet — pick a light source, hours, or run a measurement.' };
+  }
 
   let tier = 0;
   const reasons = [];
@@ -213,8 +241,13 @@ export function computeRoomSeverity(room, measurements = []) {
     // friendly sources stay at 0 unless other signals pull them up
   }
 
-  // After-sunset blue-light contamination
-  if (room.eveningUseAfterSunset && (src === 'led-cool' || src === 'led-tunable' || src === 'fluorescent')) {
+  // After-sunset blue-light contamination — derive the boolean from the
+  // newer eveningHoursAfterSunset chip-picker if present, else fall back
+  // to the legacy boolean field.
+  const eveningActive = (room.eveningHoursAfterSunset != null)
+    ? (+room.eveningHoursAfterSunset) > 0
+    : !!room.eveningUseAfterSunset;
+  if (eveningActive && (src === 'led-cool' || src === 'led-tunable' || src === 'fluorescent')) {
     tier = Math.max(tier, 2);
     reasons.push('blue light after sunset');
   }
@@ -271,13 +304,147 @@ export function computeRoomSeverity(room, measurements = []) {
   }
 
   const colorMap = ['green', 'yellow', 'orange', 'red', 'red'];
-  const labelMap = ['Good', 'Mild', 'Moderate', 'Concerning', 'Severe'];
+  const labelMap = ['Sleep-friendly', 'Mild', 'Moderate', 'Concerning', 'Severe'];
   return {
     tier,
     color: colorMap[Math.min(tier, 4)],
     label: labelMap[Math.min(tier, 4)],
-    reason: reasons.length ? reasons.join(' · ') : 'No signals detected',
+    reason: reasons.length ? reasons.join(' · ') : 'No issues detected',
   };
+}
+
+// ─── Step 1 helpers — chip-picker mappings ─────────────────────────────
+//
+// The Step 1 form was a wall of dropdowns + lonely number fields. These
+// helpers translate the underlying schema (10 source options, free-form
+// numbers, boolean flag) into 4-archetype source chips, hours buckets,
+// and evening-hours buckets — answers the user can give by *looking*
+// at a bulb / their day.
+
+// 4 archetypes the user can pick from a glance, mapped to canonical
+// schema values. Power users hit "More options…" to drill down into
+// the 10-option dropdown.
+const SOURCE_ARCHETYPES = [
+  { key: 'warm',         emoji: '🌅', label: 'Warm yellow',     storeAs: 'led-warm',    matches: ['led-warm', 'incandescent', 'halogen', 'candle'] },
+  { key: 'cool',         emoji: '☀️', label: 'Cool white',      storeAs: 'led-cool',    matches: ['led-cool', 'led-tunable'] },
+  { key: 'fluorescent',  emoji: '🌫️', label: 'Fluorescent tube', storeAs: 'fluorescent', matches: ['fluorescent'] },
+  { key: 'mixed',        emoji: '❓', label: 'Mixed / unsure',   storeAs: 'mixed',       matches: ['mixed', 'unknown'] },
+];
+
+function activeSourceArchetype(primarySource) {
+  if (!primarySource) return null;
+  for (const a of SOURCE_ARCHETYPES) {
+    if (a.matches.includes(primarySource)) return a.key;
+  }
+  return null; // covers natural-only — power-user-only
+}
+
+// Hours buckets — store the bucket midpoint so downstream tiering math
+// (currently "≥ 2 hr / ≥ 4 hr" thresholds) keeps working unchanged.
+const HOURS_BUCKETS = [
+  { key: 'short',  label: '< 1 hr',   min: 0,    max: 1,   midpoint: 0.5 },
+  { key: 'some',   label: '1–3 hr',   min: 1,    max: 3,   midpoint: 2 },
+  { key: 'lots',   label: '3–6 hr',   min: 3,    max: 6,   midpoint: 4.5 },
+  { key: 'most',   label: '6+ hr',    min: 6,    max: 24,  midpoint: 8 },
+];
+
+function activeHoursBucket(hours) {
+  if (hours == null || hours === '' || isNaN(+hours)) return null;
+  const h = +hours;
+  for (const b of HOURS_BUCKETS) {
+    if (h >= b.min && h < b.max) return b.key;
+  }
+  return 'most';
+}
+
+// Evening-hours buckets — replaces the binary eveningUseAfterSunset
+// checkbox. Stored as a number on the new `eveningHoursAfterSunset`
+// field; legacy boolean is left untouched but read as 1.5 (mid of
+// "1–3 hr") when only the boolean is set.
+const EVENING_BUCKETS = [
+  { key: 'none', label: 'None',     midpoint: 0 },
+  { key: 'lt1',  label: '< 1 hr',   midpoint: 0.5 },
+  { key: 'mid',  label: '1–3 hr',   midpoint: 2 },
+  { key: 'gt3',  label: '3+ hr',    midpoint: 4 },
+];
+
+function activeEveningBucket(room) {
+  if (room.eveningHoursAfterSunset != null) {
+    const h = +room.eveningHoursAfterSunset;
+    if (h <= 0) return 'none';
+    if (h < 1) return 'lt1';
+    if (h < 3) return 'mid';
+    return 'gt3';
+  }
+  if (room.eveningUseAfterSunset === true) return 'mid';  // legacy bool → 1–3 hr
+  if (room.eveningUseAfterSunset === false) return 'none';
+  return null; // unanswered
+}
+
+// Step 1 chip-picker render helpers — produce the inline chip rows
+// for source / hours / evening, plus the "More options" reveal that
+// drops back to the full 10-option dropdown for power users.
+
+function renderSourcePicker(r) {
+  const active = activeSourceArchetype(r.primarySource);
+  const chips = SOURCE_ARCHETYPES.map(a => {
+    const isActive = active === a.key;
+    return `<button class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvRoomSourceArchetype('${escapeAttr(r.id)}','${a.key}')">${a.emoji} ${escapeHTML(a.label)}</button>`;
+  }).join('');
+  // Power-user reveal — keep the full 10-option dropdown for users who
+  // know their CCT spec or want "natural-only" / "tunable LED".
+  const showFullDropdown = !active; // expand by default if we couldn't map their saved value into an archetype
+  return `<div class="light-env-picker">
+    <span class="light-env-picker-label">Light source</span>
+    <div class="light-env-chip-row">${chips}</div>
+    <details class="light-env-picker-more"${showFullDropdown ? ' open' : ''}>
+      <summary>More options…</summary>
+      <select class="ctx-select" onchange="window.updateLightEnvRoomAndRender('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
+        ${PRIMARY_SOURCES.map(s => `<option value="${escapeAttr(s.key)}"${r.primarySource === s.key ? ' selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
+      </select>
+    </details>
+  </div>`;
+}
+
+function renderHoursPicker(r) {
+  const active = activeHoursBucket(r.hoursOccupiedPerDay);
+  const chips = HOURS_BUCKETS.map(b => {
+    const isActive = active === b.key;
+    return `<button class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvRoomHoursBucket('${escapeAttr(r.id)}','${b.key}')">${escapeHTML(b.label)}</button>`;
+  }).join('');
+  return `<div class="light-env-picker">
+    <span class="light-env-picker-label">Time you spend here</span>
+    <div class="light-env-chip-row">${chips}</div>
+    <details class="light-env-picker-more">
+      <summary>More precise…</summary>
+      <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="hr/day" value="${r.hoursOccupiedPerDay ?? ''}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { hoursOccupiedPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
+    </details>
+  </div>`;
+}
+
+function renderEveningPicker(r) {
+  const active = activeEveningBucket(r);
+  const chips = EVENING_BUCKETS.map(b => {
+    const isActive = active === b.key;
+    return `<button class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvRoomEveningBucket('${escapeAttr(r.id)}','${b.key}')">${escapeHTML(b.label)}</button>`;
+  }).join('');
+  return `<div class="light-env-picker">
+    <span class="light-env-picker-label">Time here after sunset</span>
+    <div class="light-env-chip-row">${chips}</div>
+  </div>`;
+}
+
+// Default occupancy hours seeded by room name on first add. User can
+// adjust immediately via the chip row — this just keeps them out of
+// the lonely-empty-number-field cold start.
+function defaultHoursForName(name) {
+  const n = (name || '').toLowerCase();
+  if (/bedroom|sleep/.test(n)) return 8;
+  if (/office|study|work/.test(n)) return 8;
+  if (/living|family|den|lounge/.test(n)) return 4;
+  if (/kitchen/.test(n)) return 2;
+  if (/bath/.test(n)) return 1;
+  return 4;
 }
 
 // ─── Per-screen status (mirror of computeRoomSeverity) ─────────────────
@@ -545,22 +712,14 @@ function renderRoomExpandedBody(r, measurements, sev) {
 
     <div class="light-env-room-step">
       <div class="light-env-room-step-head"><span class="light-env-room-step-num">1</span> About this room</div>
+      <p class="light-env-room-step-sub">This shapes how the AI weights your day-vs-evening light. The more you fill in, the more accurate the read.</p>
       <div class="light-env-room-step-body">
         <label class="ctx-label">Room name
           <input type="text" class="ctx-input light-env-room-name-input" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
         </label>
-        <label class="ctx-label">Primary light source
-          <select class="ctx-select" onchange="window.updateLightEnvRoomAndRender('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
-            ${PRIMARY_SOURCES.map(s => `<option value="${escapeAttr(s.key)}"${r.primarySource === s.key ? ' selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="ctx-label">Hours occupied per day
-          <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="hr/day" value="${r.hoursOccupiedPerDay ?? ''}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { hoursOccupiedPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
-        </label>
-        <label class="light-env-evening">
-          <input type="checkbox"${r.eveningUseAfterSunset ? ' checked' : ''} onchange="window.updateLightEnvRoomAndRender('${escapeAttr(r.id)}', { eveningUseAfterSunset: this.checked })" />
-          Used after sunset
-        </label>
+        ${renderSourcePicker(r)}
+        ${renderHoursPicker(r)}
+        ${renderEveningPicker(r)}
       </div>
     </div>
 
@@ -568,10 +727,10 @@ function renderRoomExpandedBody(r, measurements, sev) {
       <div class="light-env-room-step-head"><span class="light-env-room-step-num">2</span> Measure (optional)</div>
       <div class="light-env-room-step-body">
         <div class="light-env-room-tools">
+          <button class="light-env-tool-pill light-env-tool-pill-primary" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum (recommended start — auto-detects warm/cool/fluorescent)">🔬 Spectrum <span class="light-env-tool-pill-hint">start here</span></button>
           <button class="light-env-tool-pill" onclick="window.openLuxMeter && window.openLuxMeter({ roomId: '${escapeAttr(r.id)}' })" title="Measure lux">📏 Lux</button>
           <button class="light-env-tool-pill" onclick="window.openFlickerDetector && window.openFlickerDetector({ roomId: '${escapeAttr(r.id)}' })" title="Test for flicker">⚡ Flicker</button>
           <button class="light-env-tool-pill" onclick="window.openCCTMeter && window.openCCTMeter({ roomId: '${escapeAttr(r.id)}' })" title="Color temperature">🎨 CCT</button>
-          <button class="light-env-tool-pill" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum">🔬 Spectrum</button>
           ${/bedroom|sleep/i.test(r.name || '') ? `<button class="light-env-tool-pill" onclick="window.openDarknessMeter && window.openDarknessMeter({ roomId: '${escapeAttr(r.id)}' })" title="Sleep darkness">🌙 Sleep dark</button>` : ''}
         </div>`;
 
@@ -1057,6 +1216,33 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     updateLightEnvRoom: async (id, patch) => { await updateRoom(id, patch); },
+    // Chip-picker setters — translate archetype/bucket choices into
+    // canonical schema values, then call updateRoom + re-render so the
+    // active chip + severity dot reflect the new state.
+    setLightEnvRoomSourceArchetype: async (id, archetypeKey) => {
+      const a = SOURCE_ARCHETYPES.find(x => x.key === archetypeKey);
+      if (!a) return;
+      await updateRoom(id, { primarySource: a.storeAs });
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    setLightEnvRoomHoursBucket: async (id, bucketKey) => {
+      const b = HOURS_BUCKETS.find(x => x.key === bucketKey);
+      if (!b) return;
+      await updateRoom(id, { hoursOccupiedPerDay: b.midpoint });
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    setLightEnvRoomEveningBucket: async (id, bucketKey) => {
+      const b = EVENING_BUCKETS.find(x => x.key === bucketKey);
+      if (!b) return;
+      // Write the new chip-picker field; keep the legacy boolean in sync
+      // so any code still reading the old name (or older synced clients)
+      // gets a sensible value.
+      await updateRoom(id, {
+        eveningHoursAfterSunset: b.midpoint,
+        eveningUseAfterSunset: b.midpoint > 0,
+      });
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
     // Discrete-toggle variant — same persistence as updateLightEnvRoom
     // but follows up with a navigate('light') so the severity chip
     // and accent strip refresh. Use for select/checkbox handlers
