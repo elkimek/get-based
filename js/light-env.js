@@ -468,27 +468,87 @@ function renderScreenCard(s, opts = {}) {
   </div>`;
 }
 
-function renderRoomDetailCard(r) {
+// Quick-pick chip row for adding common rooms — eliminates the
+// "Room 1" footgun and accelerates the common path. Hides chips for
+// names already in use; "Other…" opens a prompt for custom names.
+const ROOM_QUICK_PICKS = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
+
+function renderRoomQuickPicks(rooms) {
+  const usedLC = new Set((rooms || []).map(r => (r.name || '').trim().toLowerCase()));
+  const chips = ROOM_QUICK_PICKS
+    .filter(name => !usedLC.has(name.toLowerCase()))
+    .map(name => `<button class="light-env-quickpick" onclick="window.addLightEnvRoomNamed('${escapeAttr(name)}')">+ ${escapeHTML(name)}</button>`)
+    .join('');
+  return `<div class="light-env-quickpicks-row">
+    <span class="light-env-quickpicks-label">${rooms.length === 0 ? 'Add your first room' : 'Add a room'}:</span>
+    ${chips}
+    <button class="light-env-quickpick light-env-quickpick-other" onclick="window.addLightEnvRoomCustom()">+ Other…</button>
+  </div>`;
+}
+
+// Compact source label for the collapsed header — full PRIMARY_SOURCES
+// labels are too verbose ("LED — cool/daylight (4000K+)"). Returns
+// '' for unknown so the header doesn't show a dangling "I don't know".
+const PRIMARY_SOURCE_SHORT = {
+  'led-cool': 'Cool LED',
+  'led-warm': 'Warm LED',
+  'led-tunable': 'Tunable LED',
+  'fluorescent': 'Fluorescent',
+  'incandescent': 'Incandescent',
+  'halogen': 'Halogen',
+  'candle': 'Candle',
+  'mixed': 'Mixed',
+  'natural-only': 'Natural only',
+};
+
+// Disclosure-pattern room card. Header shows: name · severity dot ·
+// hours · source · today-toggle · expand affordance. Click anywhere on
+// the header (except interactive children) to toggle expand. Expanded
+// state reveals the Step 1/2/3 body.
+function renderRoomDisclosure(r, expanded) {
   const measurements = getMeasurementsFor(r.id).sort((a, b) => b.capturedAt - a.capturedAt);
   const sev = computeRoomSeverity(r, measurements);
   const activeToday = isActiveToday(r);
+  const sourceShort = PRIMARY_SOURCE_SHORT[r.primarySource] || '';
+  const hours = r.hoursOccupiedPerDay;
+  const hoursLabel = hours ? `${hours} hr/day` : '';
 
-  // Latest reading per tool
+  let html = `<div class="light-env-room-disclosure light-env-card-sev-${sev.color}${activeToday ? '' : ' light-env-card-skipped'}${expanded ? ' expanded' : ''}" data-id="${escapeAttr(r.id)}">
+    <div class="light-env-room-disclosure-head" onclick="window.toggleLightEnvRoomExpanded('${escapeAttr(r.id)}', event)">
+      <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>
+      <span class="light-env-room-disclosure-name">${escapeHTML(r.name || 'Room')}</span>
+      <span class="light-env-room-disclosure-signals">
+        ${hoursLabel ? `<span class="light-env-room-signal">${escapeHTML(hoursLabel)}</span>` : ''}
+        ${sourceShort ? `<span class="light-env-room-signal">${escapeHTML(sourceShort)}</span>` : ''}
+        ${r.eveningUseAfterSunset ? `<span class="light-env-room-signal light-env-room-signal-evening">after-sunset</span>` : ''}
+      </span>
+      <span class="light-env-room-disclosure-spacer"></span>
+      ${_renderTodayToggle('room', r.id, activeToday)}
+      <span class="light-env-room-disclosure-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>
+    </div>`;
+
+  if (expanded) html += renderRoomExpandedBody(r, measurements, sev);
+  html += `</div>`;
+  return html;
+}
+
+// The expanded body — three numbered steps so the linear flow is
+// obvious (versus the old layout where 5 concerns competed for
+// attention all at once).
+function renderRoomExpandedBody(r, measurements, sev) {
   const latestByTool = new Map();
   for (const m of measurements) {
     if (!latestByTool.has(m.tool)) latestByTool.set(m.tool, m);
   }
 
-  let html = `<div class="light-env-room-card light-env-card-sev-${sev.color}${activeToday ? '' : ' light-env-card-skipped'}" data-id="${escapeAttr(r.id)}">
-    <div class="light-env-room-card-head">
-      <input type="text" class="light-env-room-name" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
-      <span class="light-env-sev-chip light-env-sev-chip-${sev.color}" title="${escapeAttr(sev.reason)}">${escapeHTML(sev.label)}</span>
-      ${_renderTodayToggle('room', r.id, activeToday)}
-      <button class="light-env-delete" onclick="window.deleteLightEnvRoom('${escapeAttr(r.id)}')" aria-label="Delete room">×</button>
-    </div>
+  let html = `<div class="light-env-room-disclosure-body">
 
-    <div class="light-env-room-card-body">
-      <div class="light-env-room-meta">
+    <div class="light-env-room-step">
+      <div class="light-env-room-step-head"><span class="light-env-room-step-num">1</span> About this room</div>
+      <div class="light-env-room-step-body">
+        <label class="ctx-label">Room name
+          <input type="text" class="ctx-input light-env-room-name-input" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
+        </label>
         <label class="ctx-label">Primary light source
           <select class="ctx-select" onchange="window.updateLightEnvRoomAndRender('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
             ${PRIMARY_SOURCES.map(s => `<option value="${escapeAttr(s.key)}"${r.primarySource === s.key ? ' selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
@@ -502,18 +562,21 @@ function renderRoomDetailCard(r) {
           Used after sunset
         </label>
       </div>
+    </div>
 
-      <div class="light-env-room-tools">
-        <span class="light-env-tools-label">Measure in this room:</span>
-        <button class="light-env-tool-pill" onclick="window.openLuxMeter && window.openLuxMeter({ roomId: '${escapeAttr(r.id)}' })" title="Measure lux">📏 Lux</button>
-        <button class="light-env-tool-pill" onclick="window.openFlickerDetector && window.openFlickerDetector({ roomId: '${escapeAttr(r.id)}' })" title="Test for flicker">⚡ Flicker</button>
-        <button class="light-env-tool-pill" onclick="window.openCCTMeter && window.openCCTMeter({ roomId: '${escapeAttr(r.id)}' })" title="Color temperature">🎨 Color temp</button>
-        <button class="light-env-tool-pill" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum">🔬 Spectrum</button>
-        ${/bedroom|sleep/i.test(r.name || '') ? `<button class="light-env-tool-pill" onclick="window.openDarknessMeter && window.openDarknessMeter({ roomId: '${escapeAttr(r.id)}' })" title="Sleep darkness">🌙 Sleep dark</button>` : ''}
-      </div>`;
+    <div class="light-env-room-step">
+      <div class="light-env-room-step-head"><span class="light-env-room-step-num">2</span> Measure (optional)</div>
+      <div class="light-env-room-step-body">
+        <div class="light-env-room-tools">
+          <button class="light-env-tool-pill" onclick="window.openLuxMeter && window.openLuxMeter({ roomId: '${escapeAttr(r.id)}' })" title="Measure lux">📏 Lux</button>
+          <button class="light-env-tool-pill" onclick="window.openFlickerDetector && window.openFlickerDetector({ roomId: '${escapeAttr(r.id)}' })" title="Test for flicker">⚡ Flicker</button>
+          <button class="light-env-tool-pill" onclick="window.openCCTMeter && window.openCCTMeter({ roomId: '${escapeAttr(r.id)}' })" title="Color temperature">🎨 CCT</button>
+          <button class="light-env-tool-pill" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum">🔬 Spectrum</button>
+          ${/bedroom|sleep/i.test(r.name || '') ? `<button class="light-env-tool-pill" onclick="window.openDarknessMeter && window.openDarknessMeter({ roomId: '${escapeAttr(r.id)}' })" title="Sleep darkness">🌙 Sleep dark</button>` : ''}
+        </div>`;
 
   if (latestByTool.size === 0) {
-    html += `<p class="light-env-room-empty">No measurements yet for this room. Run any tool above and the result will live here.</p>`;
+    html += `<p class="light-env-room-empty">No measurements yet. Run any tool above and the result lives here.</p>`;
   } else {
     html += `<div class="light-env-room-readings">`;
     for (const [tool, m] of latestByTool) {
@@ -526,28 +589,30 @@ function renderRoomDetailCard(r) {
     }
     html += `</div>`;
   }
+  html += `</div></div>`;
 
-  // Screens used in this room — set-and-forget block. Each screen
-  // shows a compact summary line (status chip + device + hours +
-  // evening + blocker), all inline-editable. "+ Add a screen here"
-  // creates a screen pre-assigned to this room so the user never has
-  // to wire it up after the fact.
+  // Step 3: screens used here
   const screensHere = getScreensForRoom(r.id);
-  html += `<div class="light-env-room-screens">
-    <div class="light-env-room-screens-head">
-      <strong>Screens used here</strong>
-      <button class="light-env-add-screen-here" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Add a screen here</button>
-    </div>`;
+  html += `<div class="light-env-room-step">
+    <div class="light-env-room-step-head"><span class="light-env-room-step-num">3</span> Screens used here</div>
+    <div class="light-env-room-step-body">`;
   if (screensHere.length === 0) {
-    html += `<p class="light-env-room-empty">No screens mapped to this room yet. Add your laptop, monitor, or phone — fields prefill from your room defaults.</p>`;
+    html += `<p class="light-env-room-empty">No screens mapped to this room yet.</p>`;
   } else {
     html += `<div class="light-env-room-screens-list">`;
     for (const s of screensHere) html += renderScreenCard(s, { compact: true });
     html += `</div>`;
   }
-  html += `</div>`;
+  html += `<button class="light-env-add-screen-here" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Add a screen here</button>
+    </div>
+  </div>`;
 
-  html += `</div></div>`;
+  // Footer: delete (destructive, lives at the bottom away from primary actions)
+  html += `<div class="light-env-room-disclosure-footer">
+    <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="window.deleteLightEnvRoomConfirm('${escapeAttr(r.id)}')">Delete room</button>
+  </div>`;
+
+  html += `</div>`;
   return html;
 }
 
@@ -562,35 +627,34 @@ export function renderEnvironmentSection() {
       <p class="light-section-hint">Indoor light is the dominant exposure most days. Map your spaces and screens — the rest of the app uses this to weight your channel pills + interpret your sleep data.</p>
     </div>`;
 
-  // Rooms
+  // Rooms — disclosure list (mirrors EMF Assessment + Light Audits).
+  // Each row is collapsed-by-default with name + severity + key
+  // signals; clicking expands a Step 1/2/3 form. Auto-expands the
+  // only room when there's exactly one (no click needed for the
+  // common starter case) or the room marked active in localStorage.
   html += `<div class="light-env-block">
     <div class="light-env-block-head">
       <strong>Rooms you spend time in</strong>
-      <button class="import-btn import-btn-secondary" onclick="window.addLightEnvRoom()">+ Room</button>
     </div>`;
   if (rooms.length === 0) {
     html += `<div class="light-env-empty light-env-empty-cta">
       <p><strong>Map your bedroom first.</strong> We grade it for melatonin-friendly darkness, flicker, cool-LED contamination, and evening-blue exposure — and feed that grade into your circadian channel.</p>
-      <button class="import-btn import-btn-primary" onclick="window.addLightEnvRoom()">+ Add your first room</button>
+      ${renderRoomQuickPicks(rooms)}
     </div>`;
-  } else if (rooms.length <= 2) {
-    // Stacked detail cards — fine for 1-2 rooms, no tab overhead
-    html += `<div class="light-env-room-cards">`;
-    for (const r of rooms) html += renderRoomDetailCard(r);
-    html += `</div>`;
   } else {
-    // Tabbed view: severity chip in each tab, detail panel below for the active room
     let activeId = readActiveRoomId();
-    if (!rooms.find(r => r.id === activeId)) activeId = rooms[0].id;
-    html += `<div class="light-env-room-tabs" role="tablist">`;
+    if (rooms.length === 1) activeId = rooms[0].id; // single-room: always expanded
+    else if (!rooms.find(r => r.id === activeId)) {
+      // Pick most-recently-edited as the default expanded room
+      const sorted = rooms.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      activeId = sorted[0].id;
+    }
+    html += `<div class="light-env-room-list">`;
     for (const r of rooms) {
-      const sev = computeRoomSeverity(r, getMeasurementsFor(r.id));
-      const dot = `<span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>`;
-      html += `<button class="light-env-room-tab light-env-tab-sev-${sev.color}${r.id === activeId ? ' active' : ''}" role="tab" aria-selected="${r.id === activeId ? 'true' : 'false'}" onclick="window.setActiveLightEnvRoom('${escapeAttr(r.id)}')">${dot}<span class="light-env-room-tab-name">${escapeHTML(r.name || 'Room')}</span></button>`;
+      html += renderRoomDisclosure(r, r.id === activeId);
     }
     html += `</div>`;
-    const active = rooms.find(r => r.id === activeId);
-    if (active) html += renderRoomDetailCard(active);
+    html += `<div class="light-env-room-quickpicks">${renderRoomQuickPicks(rooms)}</div>`;
   }
   html += `</div>`;
 
@@ -931,9 +995,65 @@ if (typeof window !== 'undefined') {
       const env = getEnvironment();
       const before = env?.rooms?.length || 0;
       await addRoom(nextDefaultRoomName());
-      // Make the new room the active tab so the detail panel jumps to it
+      // Auto-expand the new room so the user can fill it out immediately
       const after = env?.rooms || [];
       if (after.length > before) writeActiveRoomId(after[after.length - 1].id);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    // Quick-pick chip handler — adds a room with the exact chosen name
+    // (no "Room N" fallback). Auto-expands the new room.
+    addLightEnvRoomNamed: async (name) => {
+      const env = getEnvironment();
+      const before = env?.rooms?.length || 0;
+      await addRoom(name);
+      const after = env?.rooms || [];
+      if (after.length > before) writeActiveRoomId(after[after.length - 1].id);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    // "Other…" quick-pick — opens the prompt dialog for a custom name.
+    addLightEnvRoomCustom: async () => {
+      const name = await showPromptDialog('Room name', {
+        defaultValue: '',
+        okLabel: 'Add room',
+        placeholder: 'e.g. Workshop, Garage, Studio',
+      });
+      if (name === null) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const env = getEnvironment();
+      const before = env?.rooms?.length || 0;
+      await addRoom(trimmed);
+      const after = env?.rooms || [];
+      if (after.length > before) writeActiveRoomId(after[after.length - 1].id);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    // Disclosure toggle — clicking the header expands/collapses. The
+    // event check ignores clicks on interactive children (the today-
+    // toggle button, severity dot tooltip area) so they don't double-
+    // fire as both their own action AND a card toggle.
+    toggleLightEnvRoomExpanded: (id, event) => {
+      // Bail if the click landed on an interactive descendant (button,
+      // input, select, label, anchor) — let it handle its own action.
+      if (event && event.target) {
+        const t = event.target;
+        if (t.closest('button, input, select, textarea, a, label')) {
+          // The header itself doesn't have buttons that should bubble;
+          // the today-toggle is a button, so its click reaches here too.
+          // Only allow expand-toggle when the click was on a non-
+          // interactive part of the header.
+          if (!t.classList.contains('light-env-room-disclosure-head')
+              && !t.classList.contains('light-env-room-disclosure-name')
+              && !t.classList.contains('light-env-room-disclosure-signals')
+              && !t.classList.contains('light-env-room-signal')
+              && !t.classList.contains('light-env-room-disclosure-chevron')
+              && !t.classList.contains('light-env-room-disclosure-spacer')
+              && !t.classList.contains('light-env-sev-dot')) {
+            return;
+          }
+        }
+      }
+      const current = readActiveRoomId();
+      writeActiveRoomId(current === id ? null : id);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     updateLightEnvRoom: async (id, patch) => { await updateRoom(id, patch); },
@@ -950,6 +1070,16 @@ if (typeof window !== 'undefined') {
       await deleteRoom(id);
       if (readActiveRoomId() === id) writeActiveRoomId(null);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    // Confirm-dialog wrapped delete — reachable from the expanded
+    // room's footer. The bare delete handler stays in case anything
+    // else wires it up without confirmation.
+    deleteLightEnvRoomConfirm: (id) => {
+      showConfirmDialog('Delete this room? Measurements stay but lose their room link.', async () => {
+        await deleteRoom(id);
+        if (readActiveRoomId() === id) writeActiveRoomId(null);
+        if (window.navigate && state.currentView === 'light') window.navigate('light');
+      });
     },
     setActiveLightEnvRoom: (id) => {
       writeActiveRoomId(id);

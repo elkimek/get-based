@@ -6275,6 +6275,114 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   .light-env-room-tabs { overflow-x: auto; flex-wrap: nowrap; }
 }
 
+/* Disclosure-pattern room list — replaces the tabs/stacked mode-switch.
+   Each row is collapsed by default; clicking the header expands a
+   Step 1/2/3 form. Mirrors EMF Assessment + Light Audits so the three
+   sub-modules share one mental model. */
+.light-env-room-list { display: flex; flex-direction: column; gap: 8px; }
+.light-env-room-disclosure {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.light-env-room-disclosure.expanded { border-color: var(--accent); }
+.light-env-room-disclosure-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  background: var(--bg-secondary);
+  transition: background 0.15s;
+}
+.light-env-room-disclosure-head:hover { background: var(--bg-hover); }
+.light-env-room-disclosure.expanded .light-env-room-disclosure-head {
+  border-bottom: 1px solid var(--border);
+}
+.light-env-room-disclosure-name {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  flex-shrink: 0;
+}
+.light-env-room-disclosure-signals {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-muted);
+}
+.light-env-room-signal { white-space: nowrap; }
+.light-env-room-signal-evening { color: var(--orange); }
+.light-env-room-disclosure-spacer { flex: 1; }
+.light-env-room-disclosure-chevron {
+  color: var(--text-muted); font-size: 12px; flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.light-env-room-disclosure-body {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.light-env-room-disclosure-footer {
+  display: flex; gap: 8px; align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.light-env-room-disclosure.light-env-card-skipped { opacity: 0.7; }
+
+/* Step blocks inside the expanded body — numbered to make the linear
+   flow obvious (versus the old layout where 5 concerns competed for
+   attention all at once). */
+.light-env-room-step {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.light-env-room-step-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.light-env-room-step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px;
+  background: var(--accent); color: white;
+  border-radius: 50%; font-size: 11px; font-weight: 700;
+  text-transform: none; letter-spacing: 0;
+}
+.light-env-room-step-body {
+  display: flex; flex-direction: column; gap: 10px;
+  padding-left: 28px;
+}
+.light-env-room-step-body .light-env-room-tools {
+  padding-top: 0; border-top: none;
+}
+.light-env-room-step-body .ctx-label { margin: 0; }
+.light-env-room-name-input { font-size: 14px; }
+
+/* Quick-pick chip row for adding rooms — replaces the bare "+ Room"
+   button. Common names are one-click; "Other…" prompts for custom. */
+.light-env-room-quickpicks { margin-top: 12px; }
+.light-env-quickpicks-row {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.light-env-quickpicks-label {
+  font-size: 12px; color: var(--text-muted);
+  margin-right: 4px;
+}
+.light-env-quickpick {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px; font-size: 12px;
+  color: var(--text-primary); cursor: pointer;
+  transition: all 0.15s;
+}
+.light-env-quickpick:hover {
+  background: var(--accent); border-color: var(--accent);
+  color: white;
+}
+.light-env-quickpick-other { font-style: italic; }
+
+@media (max-width: 600px) {
+  .light-env-room-disclosure-head { flex-wrap: wrap; gap: 6px; }
+  .light-env-room-disclosure-spacer { display: none; }
+  .light-env-room-step-body { padding-left: 0; }
+}
+
 /* Light Audits — frozen snapshots of rooms + screens + measurements.
    Visual pattern mirrors EMF assessments (collapsed cards with severity
    dot, expand to detail, side-by-side compare table) so the two
