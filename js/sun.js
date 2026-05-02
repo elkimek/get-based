@@ -260,6 +260,17 @@ export async function updateSession(id, patch) {
 
 // Hydrate a session record with computed atmosphere + channel doses.
 // Idempotent — reruns after edits.
+// Bump this whenever the dose/safety math changes incompatibly so
+// `rehydrateStaleSessions` knows to re-run hydrate on existing sessions
+// computed under the old engine. Versions:
+//   1: original v1.7.0 ship
+//   2: 2026-05-02 fix — Bird-Riordan Rayleigh formula was inverted,
+//      collapsing UVB irradiance to ~1e-8 W/m²/nm. Sessions hydrated
+//      under v1 had `safety.medFraction ≈ 0` and ~0 vitamin_d / pomc
+//      doses regardless of UVI. Bumping forces a fresh hydrate so
+//      stale numbers heal automatically on next page load.
+export const SUN_ENGINE_VERSION = 2;
+
 export async function hydrateSession(id, { lat, lon } = {}) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || !sess.endedAt) return null;
@@ -319,11 +330,55 @@ export async function hydrateSession(id, { lat, lon } = {}) {
       retinalUV: retinalUVdose({ spectrum, eyeExposure: sess.eyeExposure }),
       fitzpatrick,
     };
+    // Stamp the engine version so rehydrateStaleSessions can detect
+    // sessions computed under older (buggy) versions and recompute.
+    sess.engineVersion = SUN_ENGINE_VERSION;
     await saveImportedData();
     return sess;
   } catch (e) {
     if (window.console && console.warn) console.warn('hydrateSession failed', e);
     return null;
+  }
+}
+
+// Self-healing on load: walk the saved sessions, re-hydrate any whose
+// stamped engineVersion is older than the current SUN_ENGINE_VERSION.
+// Cheap (one network call per stale session, debounced; all-fresh
+// sessions just iterate the array). Lazy: caller invokes from main.js
+// after the engine module is loaded. Skips active sessions and ones
+// without a location (atmosphere fetch needs coords).
+//
+// Idempotent: subsequent calls find no stale sessions and bail in O(N).
+//
+// Memory note for future engine-version bumps — anything that changes
+// the computed values incompatibly (Rayleigh formula, channel action
+// spectra, MED thresholds, fitzpatrick mapping) should bump the
+// constant so users on the old data get a fresh recompute on reload.
+let _rehydrateInFlight = false;
+export async function rehydrateStaleSessions() {
+  if (_rehydrateInFlight) return { skipped: 'in flight' };
+  _rehydrateInFlight = true;
+  try {
+    const sessions = getSessions();
+    const stale = sessions.filter(s =>
+      s.endedAt &&
+      s.location?.lat != null &&
+      (s.engineVersion ?? 0) < SUN_ENGINE_VERSION
+    );
+    if (stale.length === 0) return { rehydrated: 0 };
+    // Serialize so we don't fan out N concurrent atmosphere fetches.
+    let ok = 0;
+    for (const s of stale) {
+      try {
+        const result = await hydrateSession(s.id, { lat: s.location.lat, lon: s.location.lon });
+        if (result) ok++;
+      } catch (e) {
+        if (window.console && console.warn) console.warn('rehydrateStaleSessions:', s.id, e?.message || e);
+      }
+    }
+    return { rehydrated: ok, ofTotal: stale.length };
+  } finally {
+    _rehydrateInFlight = false;
   }
 }
 
@@ -1575,6 +1630,7 @@ async function editSunSessionDuration(id) {
 }
 
 if (typeof window !== 'undefined') {
+  window.SUN_ENGINE_VERSION = SUN_ENGINE_VERSION;
   Object.assign(window, {
     quickLogSunSession,
     startSession,
@@ -1584,6 +1640,7 @@ if (typeof window !== 'undefined') {
     editSunSessionDuration,
     deleteSunSession,
     hydrateSession,
+    rehydrateStaleSessions,
     getSessions,
     getActiveSession,
     rollingChannelTotals,

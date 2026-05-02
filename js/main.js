@@ -103,6 +103,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   const savedImported = await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'));
   if (savedImported) { try { state.importedData = JSON.parse(savedImported); if (!state.importedData.notes) state.importedData.notes = []; migrateProfileData(state.importedData); } catch(e) {} }
 
+  // Self-heal sun-session doses + safety after engine math fixes. The
+  // engineVersion stamp on each session lets us detect data computed
+  // under an older (buggy) version and re-run hydrate. Fires async so
+  // it doesn't block init; one network call per stale session,
+  // serialized inside rehydrateStaleSessions. No-op when everything is
+  // already stamped at the current version.
+  if (typeof window.rehydrateStaleSessions === 'function') {
+    setTimeout(() => {
+      window.rehydrateStaleSessions().then(r => {
+        if (r?.rehydrated) {
+          // Surface in debug console only — not worth a user-facing
+          // notification for a silent self-heal.
+          if (window.console && console.log) console.log('[sun] self-healed', r.rehydrated, 'session(s) under v' + (window.SUN_ENGINE_VERSION || '?'));
+        }
+      }).catch(() => {});
+    }, 1500); // give the engine modules time to settle
+  }
+
   // Health Metrics unification (Commit 1/5): walk legacy importedData.biometrics
   // into the wearables IndexedDB with source: 'manual'. Idempotent — tagged in
   // the wearables meta store so it only runs once per profile. Old biometrics
