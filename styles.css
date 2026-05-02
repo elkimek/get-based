@@ -6575,18 +6575,29 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   }
 }
 
-/* Light tools — measurement utility cards */
+/* Light tools — measurement utility cards, grouped by use case so the
+   8 tools don't appear as one undifferentiated wall. Quick checks
+   first (most common path), then full measurements, then walkthroughs.
+   Spectrum gets primary-action treatment as the recommended start. */
 .light-tools-section { margin-top: 24px; }
+.light-tools-group { margin-bottom: 18px; }
+.light-tools-group:last-of-type { margin-bottom: 12px; }
+.light-tools-group-head {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.6px;
+  margin-bottom: 8px;
+}
 .light-tools-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 .light-tool-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 16px;
+  padding: 14px;
   cursor: pointer;
   text-align: left;
   display: flex; flex-direction: column; gap: 6px;
@@ -6598,9 +6609,39 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   border-color: var(--accent);
   background: var(--bg-hover);
 }
+.light-tool-card-primary {
+  border: 1.5px solid var(--accent);
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-secondary));
+}
+.light-tool-card-primary .light-tool-name { color: var(--accent); }
 .light-tool-icon { font-size: 22px; }
 .light-tool-name { font-weight: 600; }
-.light-tool-desc { font-size: 12px; color: var(--text-secondary); }
+.light-tool-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+.light-tool-pill-hint {
+  font-size: 9px; font-weight: 600;
+  margin-left: 6px; padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--accent); color: white;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+.light-tools-stats {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted);
+  text-align: center;
+}
+.light-tools-stats-empty {
+  border-top: none; padding-top: 0;
+  margin-top: 14px;
+  text-align: left;
+  background: var(--bg-secondary);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--accent);
+  line-height: 1.5;
+}
+.light-tools-stats-empty strong { color: var(--accent); }
 
 /* Lux meter dial */
 .lux-dial {

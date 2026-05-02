@@ -1408,51 +1408,59 @@ export async function openEyeLevelAudit() {
 // ─── Tools page render ────────────────────────────────────────────────
 
 export function renderLightTools() {
+  // Compute lightweight stats for the "since-you-started" footer line.
+  // No new state — just walks the existing measurements array which
+  // saveMeasurement appends to. Stays cheap even at hundreds of rows
+  // because we early-out at the totals (no per-tool aggregation here;
+  // the Light Environment page surfaces per-tool results elsewhere).
+  const all = getMeasurements();
+  const total = all.length;
+  const cutoff7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recent7 = all.filter(m => (m.capturedAt || 0) >= cutoff7d).length;
+
+  // Tool groups — quick reach, full measurement, walkthrough/log.
+  // Spectrum gets primary-action treatment as the "start here" tool —
+  // same logic as inside rooms (auto-detects warm / cool / fluorescent
+  // in 10s, so it's the highest-value first measurement for someone
+  // who doesn't know their bulb specs).
+  const card = (handler, icon, name, desc, opts = {}) => `
+    <button class="light-tool-card${opts.primary ? ' light-tool-card-primary' : ''}" onclick="${handler}">
+      <div class="light-tool-icon">${icon}</div>
+      <div class="light-tool-name">${name}${opts.primary ? ` <span class="light-tool-pill-hint">start here</span>` : ''}</div>
+      <div class="light-tool-desc">${desc}</div>
+    </button>`;
+
   return `<div class="light-tools-section">
     <h3 class="light-section-title">Light tools</h3>
     <p class="light-section-hint">Measurements run on your device. Camera frames never leave your phone.</p>
-    <div class="light-tools-grid">
-      <button class="light-tool-card" onclick="window.openLuxMeter()">
-        <div class="light-tool-icon">📏</div>
-        <div class="light-tool-name">Lux Meter</div>
-        <div class="light-tool-desc">How bright is this room?</div>
-      </button>
-      <button class="light-tool-card" onclick="window.openFlickerDetector()">
-        <div class="light-tool-icon">⚡</div>
-        <div class="light-tool-name">Flicker Detector</div>
-        <div class="light-tool-desc">Is this light flickering?</div>
-      </button>
-      <button class="light-tool-card" onclick="window.openCCTMeter()">
-        <div class="light-tool-icon">🎨</div>
-        <div class="light-tool-name">Color Temp</div>
-        <div class="light-tool-desc">Warm or cool? Matches solar time?</div>
-      </button>
-      <button class="light-tool-card" onclick="window.openSpectrumClassifier()">
-        <div class="light-tool-icon">🔬</div>
-        <div class="light-tool-name">What is this light?</div>
-        <div class="light-tool-desc">LED, fluorescent, daylight, or incandescent?</div>
-      </button>
-      <button class="light-tool-card" onclick="window.openGlassTransmission()">
-        <div class="light-tool-icon">🪟</div>
-        <div class="light-tool-name">Glass Transmission</div>
-        <div class="light-tool-desc">How much does this window cut?</div>
-      </button>
-      <button class="light-tool-card" onclick="window.openDarknessMeter()">
-        <div class="light-tool-icon">🌙</div>
-        <div class="light-tool-name">Sleep Darkness</div>
-        <div class="light-tool-desc">Is your bedroom dark enough?</div>
-      </button>
-      <button class="light-tool-card" onclick="window.openSunriseLogger()">
-        <div class="light-tool-icon">🌅</div>
-        <div class="light-tool-name">Golden hour log</div>
-        <div class="light-tool-desc">Quick log for sunrise / sunset sessions.</div>
-      </button>
-      <button class="light-tool-card" onclick="window.openEyeLevelAudit()">
-        <div class="light-tool-icon">🚶</div>
-        <div class="light-tool-name">Home audit (10 min)</div>
-        <div class="light-tool-desc">Walk through, pause in each room. Get a per-room snapshot.</div>
-      </button>
+
+    <div class="light-tools-group">
+      <div class="light-tools-group-head">Quick checks · 10–30 s</div>
+      <div class="light-tools-grid">
+        ${card("window.openSpectrumClassifier()", '🔬', 'What is this light?', 'LED, fluorescent, daylight, or incandescent? Auto-detects warm vs cool + melanopic load.', { primary: true })}
+        ${card("window.openLuxMeter()", '📏', 'Lux Meter', 'How bright is this room? Daylight comparison + per-device calibration.')}
+        ${card("window.openCCTMeter()", '🎨', 'Color Temp', 'Warm or cool kelvin? Matches solar time? Flags PWM dimming.')}
+      </div>
     </div>
+
+    <div class="light-tools-group">
+      <div class="light-tools-group-head">Full measurements · 30 s – 2 min</div>
+      <div class="light-tools-grid">
+        ${card("window.openFlickerDetector()", '⚡', 'Flicker Detector', 'Is this light flickering? Sees PWM up to 25 kHz via rolling-shutter banding.')}
+        ${card("window.openDarknessMeter()", '🌙', 'Sleep Darkness', 'Is your bedroom dark enough for melatonin? Measures mean + peak lux at the pillow.')}
+        ${card("window.openGlassTransmission()", '🪟', 'Window check', 'How much visible light does this glass cut? Two readings, side-by-side.')}
+      </div>
+    </div>
+
+    <div class="light-tools-group">
+      <div class="light-tools-group-head">Walkthroughs &amp; logs</div>
+      <div class="light-tools-grid">
+        ${card("window.openEyeLevelAudit()", '🚶', 'Home audit', 'Walk through, pause in each room for ~5 s. Get a per-room snapshot in 10 minutes.')}
+        ${card("window.openSunriseLogger()", '🌅', 'Golden hour log', 'Quick after-the-fact log for sunrise / sunset sessions.')}
+      </div>
+    </div>
+
+    ${total > 0 ? `<p class="light-tools-stats">${total} measurement${total === 1 ? '' : 's'} taken${recent7 > 0 ? ` · ${recent7} in the last 7 days` : ''}.</p>` : `<p class="light-tools-stats light-tools-stats-empty">No measurements yet. Start with <strong>What is this light?</strong> on the bulb closest to where you spend your evenings.</p>`}
   </div>`;
 }
 
