@@ -7319,6 +7319,24 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   border-radius: var(--radius-sm);
   font-size: 13px;
 }
+.sun-detail-channel-row-clickable {
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.sun-detail-channel-row-clickable:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.sun-detail-channel-row-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sun-detail-channel-chevron {
+  color: var(--text-muted);
+  font-size: 16px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
 .sun-detail-channel-icon { font-size: 16px; flex-shrink: 0; }
 .sun-detail-channel-label { color: var(--text-primary); flex-shrink: 0; }
 .sun-detail-channel-value {

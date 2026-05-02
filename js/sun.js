@@ -1367,11 +1367,13 @@ export function openSunSessionDetail(id) {
     const target = meta.dailyTarget || 0;
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
     const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex);
-    return `<div class="sun-detail-channel-row sun-chip-tier-${t}">
-      <span class="sun-detail-channel-icon">${meta.icon || '·'}</span>
+    const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
+    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
+      <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
       <span class="sun-detail-channel-value">${unitText || (pctOfTarget != null ? `${pctOfTarget}% of daily target` : '')}</span>
       <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
+      <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
     </div>`;
   }).join('') : '<p class="sun-detail-empty">No channel doses computed for this session yet.</p>';
 
