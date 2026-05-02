@@ -10,7 +10,7 @@
 // in profile.js migrateProfileData().
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, formatDate, showNotification } from './utils.js';
+import { escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { getProfileLocation } from './profile.js';
 import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
@@ -207,6 +207,55 @@ export async function deleteSession(id) {
   _clearLiveState(id);
   await saveImportedData();
   return true;
+}
+
+// Edit fields on a saved session. Bumps `updatedAt` so the cross-device
+// merge (data-merge.js pickTimestamp) picks this version on conflict —
+// without that, a careless re-end on a second device would silently
+// stick because endedAt-based timestamps favored the later end. With
+// updatedAt set, an edit anywhere becomes the canonical version.
+//
+// When the patch changes session duration (durationMin or endedAt),
+// re-derive doses + safety via hydrateSession so the per-channel
+// breakdown reflects the new duration. Doses are downstream of duration,
+// so leaving them stale would silently misrepresent the session.
+export async function updateSession(id, patch) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess) return null;
+  // Apply allowed fields. Whitelist keeps a careless caller from blowing
+  // away the immutable id / startedAt or injecting fields the dose
+  // engine would choke on.
+  const ALLOWED = ['durationMin', 'endedAt', 'notes'];
+  let durationChanged = false;
+  for (const k of Object.keys(patch)) {
+    if (!ALLOWED.includes(k)) continue;
+    if (k === 'durationMin' || k === 'endedAt') durationChanged = true;
+    sess[k] = patch[k];
+  }
+  // Keep durationMin and endedAt consistent — the consumer of either
+  // shouldn't have to compute the other. If only one was patched, derive
+  // the other from startedAt.
+  if (patch.durationMin != null && patch.endedAt == null) {
+    sess.endedAt = sess.startedAt + patch.durationMin * 60000;
+  } else if (patch.endedAt != null && patch.durationMin == null) {
+    sess.durationMin = Math.max(0, (sess.endedAt - sess.startedAt) / 60000);
+  }
+  // Eye-exposure duration mirrors session duration when not explicitly
+  // shorter (eye open the whole time vs eyes closed for some interval).
+  if (durationChanged && sess.eyeExposure && sess.eyeExposure.durationSec != null) {
+    sess.eyeExposure.durationSec = Math.round(sess.durationMin * 60);
+  }
+  sess.updatedAt = Date.now();
+  await saveImportedData();
+  // Re-hydrate doses asynchronously when duration changed. hydrateSession
+  // is idempotent + handles missing coords gracefully (skips dose recompute
+  // if we don't know where the session was). Don't await — the UI should
+  // update immediately on the duration change; doses can fill in on next
+  // tick.
+  if (durationChanged && sess.location) {
+    hydrateSession(id, { lat: sess.location.lat, lon: sess.location.lon }).catch(() => {});
+  }
+  return sess;
 }
 
 // Hydrate a session record with computed atmosphere + channel doses.
@@ -1056,6 +1105,7 @@ export function openSunSessionDetail(id) {
 
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        ${sess.endedAt ? `<button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editSunSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when a re-end on a second device set it wrong, or you forgot to stop on time.">Edit duration</button>` : ''}
         <button class="import-btn" style="color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteSunSession('${escapeAttr(sess.id)}')">Delete</button>
       </div>
     </div>
@@ -1496,12 +1546,42 @@ async function deleteSunSession(id) {
 
 // ─── Window export ─────────────────────────────────────────────────────
 
+// User-facing edit-duration entry point — prompts for a new minutes
+// value, validates the range, calls updateSession (which bumps
+// updatedAt + re-hydrates doses on duration change), then re-renders.
+async function editSunSessionDuration(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess) {
+    showNotification('Session not found', 'error');
+    return;
+  }
+  const current = Math.max(0, Math.round(sess.durationMin || 0));
+  const raw = await showPromptDialog('New duration (in minutes)', {
+    defaultValue: String(current),
+    okLabel: 'Save',
+    placeholder: 'e.g. 26',
+  });
+  if (raw === null) return; // user cancelled
+  const parsed = parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 600) {
+    showNotification('Enter a duration between 0 and 600 minutes.', 'error');
+    return;
+  }
+  const next = Math.round(parsed);
+  if (next === current) return; // nothing to do
+  await updateSession(id, { durationMin: next });
+  showNotification(`Session duration set to ${next} min. Other devices will pull this on next sync.`, 'success');
+  if (window.navigate && state.currentView === 'light') window.navigate('light');
+}
+
 if (typeof window !== 'undefined') {
   Object.assign(window, {
     quickLogSunSession,
     startSession,
     stopSession,
     logCompletedSession,
+    updateSession,
+    editSunSessionDuration,
     deleteSunSession,
     hydrateSession,
     getSessions,
