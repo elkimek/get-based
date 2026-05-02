@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.4', date: '2026-05-02', title: 'Light & Sun for biohackers',
+    items: [
+      '<b>Manual UVI override.</b> Got a real UV meter? Type your reading into the Conditions Now footer and hit Apply — the spectrum reconstruction, burn math, and vitamin D estimates all use your number until you clear it. A "manual" badge appears on the UVI cell so you never forget you\'re overriding.',
+      '<b>Per-channel citations + action spectra.</b> Tap any channel pill, expand "Action spectrum &amp; citations" — every channel now declares its action spectrum (CIE 174:2006 pre-vit-D, CIE S 026 melanopic, cytochrome-c-oxidase windows, etc.) and links 2–3 PubMed/journal references behind the model. Audit the science instead of trusting our copy.',
+      '<b>Session detail shows the math.</b> Saved sessions now display solar zenith angle, altitude, ozone column, and an approximate UVB/UVA split alongside UVI/cloud/PM2.5. Each cell hover-shows what it means. The atmosphere snapshot tells you exactly what the engine saw.',
+      '<b>Per-channel 7-day rhythm chart.</b> Each channel pill\'s drill-down now includes a tiny stacked bar chart — solid bars are sun, faded bars are devices, today is highlighted. See at a glance whether your week is even or front-loaded, whether your therapy panel actually carries a channel through the cloudy days.',
+    ]
+  },
+  {
     version: '1.7.3', date: '2026-05-02', title: 'Sun-session UX polish',
     items: [
       '<b>Plain-English session summary on stop.</b> Hitting "Stop" now shows what just happened in normal language: <i>"Saved · 22 min outside · ~600–1500 IU vitamin D · 35% burn dose — well within safe range."</i> No more dropping a number you have to mentally translate.',

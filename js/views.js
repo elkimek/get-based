@@ -273,6 +273,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
         noCache: !!opts.force, // user-triggered refresh skips both fresh + stale cache
       });
       if (atm?._stale) online = false;
+      if (atm && window._applyAtmOverrides) atm = window._applyAtmOverrides(atm);
     } catch (e) {
       online = false;
       fetchError = String(e?.message || e);
@@ -319,6 +320,38 @@ function _refreshConditionsNow() {
     const variant = el.dataset.variant || 'full';
     if (id) _refreshConditions(id, variant, { force: true });
   });
+}
+
+async function _setManualUvi() {
+  const input = document.getElementById('manual-uvi-input');
+  if (!input) return;
+  const v = parseFloat(input.value);
+  if (!Number.isFinite(v) || v < 0 || v > 20) {
+    if (window.showNotification) window.showNotification('UVI must be between 0 and 20', 'error');
+    return;
+  }
+  const data = state.importedData;
+  if (!data) return;
+  if (!data.sunDefaults) data.sunDefaults = {};
+  if (!data.sunDefaults.overrides) data.sunDefaults.overrides = {};
+  data.sunDefaults.overrides.uvIndex = v;
+  if (window.saveImportedData) await window.saveImportedData();
+  // Bust the in-memory conditions cache so the next render re-renders with
+  // the override applied. Fetch isn't re-issued — the override is applied
+  // to whatever atm we have cached.
+  _conditionsCache = null;
+  if (window.showNotification) window.showNotification(`Manual UVI ${v.toFixed(1)} applied — burn math + spectrum will use it until cleared.`, 'success', 5000);
+  _refreshConditionsNow();
+}
+
+async function _clearManualUvi() {
+  const data = state.importedData;
+  if (!data?.sunDefaults?.overrides) return;
+  delete data.sunDefaults.overrides.uvIndex;
+  if (window.saveImportedData) await window.saveImportedData();
+  _conditionsCache = null;
+  if (window.showNotification) window.showNotification('Manual UVI cleared — back to live atmosphere data.');
+  _refreshConditionsNow();
 }
 
 // User-triggered: open a modal showing the raw atmosphere response so the
@@ -561,12 +594,19 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
 
   // Trust footer — source attribution + freshness + sanity warnings.
   // Refresh + Inspect now live in the title row, not down here.
+  const ovStored = state.importedData?.sunDefaults?.overrides?.uvIndex;
   const trustFooter = `<div class="conditions-now-trust">
     <span class="conditions-now-source ${offline ? 'is-offline' : (atm._stale ? 'is-stale' : 'is-fresh')}" title="${escapeAttr(`via ${sourceLabel} · ${freshnessLabel} · refreshes every few minutes · works offline once cached`)}">
       <span class="conditions-now-source-dot"></span>
       ${offline ? 'offline · cached' : (atm._stale ? 'stale · cached' : 'live')} · via ${escapeHTML(sourceLabel)} · ${escapeHTML(freshnessLabel)}
     </span>
     ${sanityWarnings.length ? `<span class="conditions-now-warning" title="${escapeAttr(sanityWarnings.join(' · '))}">⚠ ${sanityWarnings.length} sanity warning${sanityWarnings.length === 1 ? '' : 's'}</span>` : ''}
+    <span class="conditions-now-override" title="Manual UVI override — feeds your own UV-meter reading into the spectrum reconstruction. Leave blank to use the live atmosphere fetch.">
+      <label>Manual UVI:</label>
+      <input type="number" min="0" max="20" step="0.1" inputmode="decimal" id="manual-uvi-input" value="${Number.isFinite(ovStored) ? ovStored : ''}" placeholder="${atm.uvIndex != null && !atm._uvOverridden ? atm.uvIndex.toFixed(1) : '—'}">
+      <button type="button" onclick="window._setManualUvi && window._setManualUvi()">Apply</button>
+      ${Number.isFinite(ovStored) ? `<button type="button" onclick="window._clearManualUvi && window._clearManualUvi()" title="Clear the manual override">×</button>` : ''}
+    </span>
   </div>`;
 
   if (variant === 'compact') {
@@ -595,7 +635,7 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   // 4-column grid where UVI spans 2 columns to dominate visually.
   return `<div class="conditions-now-grid">
     <div class="conditions-now-cell conditions-now-cell-hero ${uvi != null ? `conditions-uvi-${uviCls}` : ''}">
-      <div class="conditions-now-label">UV index</div>
+      <div class="conditions-now-label">UV index${atm._uvOverridden ? ' <span class="conditions-now-override-badge" title="Manual UVI override active — clear in Light setup or via the override row below.">manual</span>' : ''}</div>
       <div class="conditions-now-value conditions-now-value-hero">${uvi != null ? uvi : '—'}</div>
       ${uvi != null ? `<div class="conditions-now-interpretation"${medResult && medResult.kind === 'minutes' ? ` title="${escapeAttr(TANNING_MODIFIERS_NOTE)}"` : ''}>${escapeHTML(vitDLabel)}${(() => {
         if (!medResult) return '';
@@ -1267,6 +1307,98 @@ function renderChannelPills(totals7d, totals30d) {
   return html;
 }
 
+// Per-channel scientific citations + action spectrum. Surfaced inside the
+// drill-down panel so biohackers can audit which biology each pill encodes.
+const CHANNEL_CITATIONS = {
+  vitamin_d: {
+    spectrum: 'Pre-vitamin-D action spectrum (CIE 174:2006), peak ~298 nm UVB',
+    refs: [
+      ['Holick MF (2008). "Vitamin D Deficiency." NEJM 357:266', 'https://www.nejm.org/doi/full/10.1056/NEJMra070553'],
+      ['Bogh MK & Wulf HC (2010). "Vitamin D production after UVB exposure depends on baseline 25(OH)D and total cholesterol." J Invest Dermatol 130:546', 'https://pubmed.ncbi.nlm.nih.gov/19812604/'],
+      ['Webb AR (2018). "The role of sunlight exposure in determining the vitamin D status of the U.K. white adult population." Br J Dermatol 179:1142', 'https://onlinelibrary.wiley.com/doi/10.1111/bjd.16805'],
+    ],
+  },
+  circadian: {
+    spectrum: 'Melanopic action spectrum (CIE S 026/E:2018), peak ~490 nm',
+    refs: [
+      ['Brown TM et al. (2022). "Recommendations for daytime, evening, and nighttime indoor light exposure." PLOS Biol 20:e3001571', 'https://doi.org/10.1371/journal.pbio.3001571'],
+      ['Hattar S et al. (2002). "Melanopsin-containing retinal ganglion cells: architecture, projections, and intrinsic photosensitivity." Science 295:1065', 'https://pubmed.ncbi.nlm.nih.gov/11834835/'],
+    ],
+  },
+  nir_solar: {
+    spectrum: 'Cytochrome-c-oxidase absorption (660-850 nm windows)',
+    refs: [
+      ['Hamblin MR (2017). "Mechanisms and applications of the anti-inflammatory effects of photobiomodulation." AIMS Biophys 4:337', 'https://pubmed.ncbi.nlm.nih.gov/28748217/'],
+      ['Karu TI (2010). "Multiple roles of cytochrome c oxidase in mammalian cells under action of red and IR-A radiation." IUBMB Life 62:607', 'https://pubmed.ncbi.nlm.nih.gov/20681024/'],
+    ],
+  },
+  no_cv: {
+    spectrum: 'UVA + violet (320-440 nm) on bare skin → photo-released NO',
+    refs: [
+      ['Liu D et al. (2014). "UVA irradiation of human skin vasodilates arterial vasculature and lowers blood pressure independently of nitric oxide synthase." J Invest Dermatol 134:1839', 'https://pubmed.ncbi.nlm.nih.gov/24445737/'],
+      ['Feelisch M et al. (2010). "Is sunlight good for our heart?" Eur Heart J 31:1041', 'https://pubmed.ncbi.nlm.nih.gov/20223744/'],
+    ],
+  },
+  pomc: {
+    spectrum: 'UVA + UVB on skin keratinocytes → POMC → α-MSH/β-endorphin',
+    refs: [
+      ['Slominski A et al. (2012). "Sensing the environment: regulation of local and global homeostasis by the skin\'s neuroendocrine system." Adv Anat Embryol Cell Biol 212:1', 'https://pubmed.ncbi.nlm.nih.gov/22894052/'],
+      ['Fell GL et al. (2014). "Skin β-endorphin mediates addiction to UV light." Cell 157:1527', 'https://pubmed.ncbi.nlm.nih.gov/24949966/'],
+    ],
+  },
+  violet_eye: {
+    spectrum: 'Violet 360-400 nm at the eye → ipRGC + dopamine release',
+    refs: [
+      ['Torii H et al. (2017). "Violet light exposure can be a preventive strategy against myopia progression." EBioMedicine 15:210', 'https://pubmed.ncbi.nlm.nih.gov/28063779/'],
+      ['Spitschan M & Cajochen C (2024). "Implementing CIE S 026:2018 in research and clinical practice." J Pineal Res 77:e12972', 'https://doi.org/10.1111/jpi.12972'],
+    ],
+  },
+};
+
+function _renderChannelCitations(channelKey) {
+  const cit = CHANNEL_CITATIONS[channelKey];
+  if (!cit) return '';
+  const refs = cit.refs.map(([txt, href]) => `<li><a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHTML(txt)}</a></li>`).join('');
+  return `<details class="light-channel-cit">
+    <summary>Action spectrum &amp; citations</summary>
+    <p class="light-channel-cit-spec"><strong>Spectrum:</strong> ${escapeHTML(cit.spectrum)}</p>
+    <ul class="light-channel-cit-refs">${refs}</ul>
+  </details>`;
+}
+
+// 7-day stacked bar chart: per-day sun + device totals for one channel.
+// Tiny inline SVG, no Chart.js dependency. Day with most dose anchors max.
+function _renderChannelWeekChart(channelKey) {
+  if (!window.dailyChannelBreakdown) return '';
+  const days = window.dailyChannelBreakdown(channelKey, 7);
+  const max = Math.max(0.0001, ...days.map(d => d.sun + d.device));
+  if (max < 0.001) return '';
+  const W = 280, H = 80, pad = 16, barW = (W - 2 * pad) / 7;
+  const barInner = Math.max(8, barW * 0.7);
+  const dayLetter = (date) => 'SMTWTFS'[date.getDay()];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const bars = days.map((d, i) => {
+    const x = pad + i * barW + (barW - barInner) / 2;
+    const total = d.sun + d.device;
+    const h = (total / max) * (H - pad - 14);
+    const sunH = (d.sun / max) * (H - pad - 14);
+    const devH = (d.device / max) * (H - pad - 14);
+    const y = H - 14 - h;
+    const isToday = d.date.getTime() === today.getTime();
+    return `<g>
+      ${devH > 0 ? `<rect x="${x}" y="${y}" width="${barInner}" height="${devH}" fill="var(--accent)" opacity="0.55"/>` : ''}
+      ${sunH > 0 ? `<rect x="${x}" y="${y + devH}" width="${barInner}" height="${sunH}" fill="var(--accent)"/>` : ''}
+      <text x="${x + barInner / 2}" y="${H - 2}" text-anchor="middle" font-size="10" fill="${isToday ? 'var(--text-primary)' : 'var(--text-muted)'}" font-weight="${isToday ? '700' : '400'}">${dayLetter(d.date)}</text>
+    </g>`;
+  }).join('');
+  return `<div class="light-channel-weekchart" title="Last 7 days · solid = sun, faded = device">
+    <div class="light-channel-weekchart-label">7-day rhythm</div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-label="7-day per-day exposure for this channel" role="img">
+      ${bars}
+    </svg>
+  </div>`;
+}
+
 // Build the drill-down panel HTML for a single channel. Renders into the
 // `[data-channel-detail-slot]` container when the user taps a pill.
 function _renderChannelDetailPanel(channelKey) {
@@ -1331,6 +1463,8 @@ function _renderChannelDetailPanel(channelKey) {
       </div>
     </div>
     <p class="light-channel-detail-suggestion">${escapeHTML(suggestion)}</p>
+    ${_renderChannelWeekChart(channelKey)}
+    ${_renderChannelCitations(channelKey)}
   </div>`;
 }
 
@@ -3634,6 +3768,8 @@ Object.assign(window, {
   renderConditionsNow,
   _refreshConditionsNow,
   _inspectConditionsNow,
+  _setManualUvi,
+  _clearManualUvi,
   renderFocusCard,
   buildFocusContext,
   loadFocusCard,

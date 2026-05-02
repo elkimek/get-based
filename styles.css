@@ -5375,6 +5375,29 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   padding: 8px 12px; border-radius: 6px;
   border-left: 3px solid var(--accent);
 }
+.light-channel-weekchart {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-secondary); border-radius: 6px;
+}
+.light-channel-weekchart-label {
+  font-size: 11px; color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.light-channel-cit { margin-top: 12px; }
+.light-channel-cit summary {
+  font-size: 12px; color: var(--text-muted); cursor: pointer;
+  user-select: none; padding: 4px 0;
+}
+.light-channel-cit-spec { font-size: 12px; color: var(--text-secondary); margin: 6px 0; }
+.light-channel-cit-spec strong { color: var(--text-primary); }
+.light-channel-cit-refs {
+  margin: 4px 0 0 0; padding-left: 18px;
+  font-size: 11px; color: var(--text-secondary); line-height: 1.55;
+}
+.light-channel-cit-refs li { margin-bottom: 4px; }
+.light-channel-cit-refs a { color: var(--accent); text-decoration: none; }
+.light-channel-cit-refs a:hover { text-decoration: underline; }
 
 /* Top-3 chip expand on session card */
 .sun-channel-chips .sun-chip-extra { display: none; }
@@ -7110,6 +7133,29 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .conditions-now-source.is-fresh   .conditions-now-source-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
 .conditions-now-source.is-stale   .conditions-now-source-dot { background: var(--yellow); }
 .conditions-now-source.is-offline .conditions-now-source-dot { background: var(--orange); }
+.conditions-now-override {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-muted);
+}
+.conditions-now-override input[type="number"] {
+  width: 56px; padding: 2px 6px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 4px; font-size: 11px; color: var(--text-primary);
+  font-family: inherit;
+}
+.conditions-now-override button {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 8px; font-size: 11px;
+  color: var(--text-secondary); cursor: pointer; font-family: inherit;
+}
+.conditions-now-override button:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+.conditions-now-override-badge {
+  display: inline-block; margin-left: 6px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 1px 6px; border-radius: 3px;
+  background: var(--accent); color: var(--bg);
+}
 .conditions-now-refresh, .conditions-now-inspect {
   background: transparent;
   border: 1px solid var(--border);

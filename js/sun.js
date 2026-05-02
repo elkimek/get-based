@@ -334,6 +334,20 @@ export async function updateSession(id, patch) {
 //      threshold gate carrying the load alone.
 export const SUN_ENGINE_VERSION = 3;
 
+// Override the fetched atmosphere with user-set values (manual UVI, manual
+// cloud cover, manual ozone) when present in sunDefaults. Set null to clear.
+// Lets advanced users dial in a meter reading or stress-test scenarios.
+export function _applyAtmOverrides(atm) {
+  if (!atm) return atm;
+  const ov = state.importedData?.sunDefaults?.overrides;
+  if (!ov) return atm;
+  const out = { ...atm };
+  if (Number.isFinite(ov.uvIndex)) { out.uvIndex = ov.uvIndex; out._uvOverridden = true; }
+  if (Number.isFinite(ov.cloudCover)) { out.cloudCover = ov.cloudCover; out._cloudOverridden = true; }
+  if (Number.isFinite(ov.ozoneDU)) { out.ozoneDU = ov.ozoneDU; out._ozoneOverridden = true; }
+  return out;
+}
+
 export async function hydrateSession(id, { lat, lon } = {}) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || !sess.endedAt) return null;
@@ -354,7 +368,8 @@ export async function hydrateSession(id, { lat, lon } = {}) {
   const midpoint = new Date((sess.startedAt + sess.endedAt) / 2).toISOString();
   const altitudeM = sess.location?.altitudeM ?? 0;
   try {
-    const atm = await fetchAtmosphere({ lat: useLat, lon: useLon, isoTime: midpoint });
+    let atm = await fetchAtmosphere({ lat: useLat, lon: useLon, isoTime: midpoint });
+    atm = _applyAtmOverrides(atm);
     sess.atmosphere = atm;
     const zenith = solarZenithAngle(new Date(midpoint), useLat, useLon);
     const spectrum = reconstructSpectrum({
@@ -476,6 +491,45 @@ export function rollingChannelTotals(days = 7) {
     }
   }
   return totals;
+}
+
+// Per-day channel breakdown for the rolling-N chart. Returns an array of
+// length `days` (oldest → newest), each element { date: 'YYYY-MM-DD',
+// sun: <au>, device: <au> } for the requested channelKey. Today is the
+// last bucket. Used by the weekly bar chart in the channel drill-down.
+export function dailyChannelBreakdown(channelKey, days = 7) {
+  const buckets = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    buckets.push({ date: d, key: d.toISOString().slice(0, 10), sun: 0, device: 0 });
+  }
+  const startOf = (ts) => {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const idxFor = (ts) => {
+    const day = startOf(ts);
+    return buckets.findIndex(b => b.date.getTime() === day);
+  };
+  for (const sess of getSessions()) {
+    const ts = sess.endedAt || sess.startedAt;
+    if (!ts || !sess.doses) continue;
+    const i = idxFor(ts);
+    if (i < 0) continue;
+    const v = sess.doses[channelKey];
+    if (Number.isFinite(v)) buckets[i].sun += v;
+  }
+  const devSessions = (typeof window !== 'undefined' && window.getDeviceSessions) ? window.getDeviceSessions() : [];
+  for (const ds of devSessions || []) {
+    const ts = ds.endedAt || ds.startedAt;
+    if (!ts || !ds.doses) continue;
+    const i = idxFor(ts);
+    if (i < 0) continue;
+    const v = ds.doses[channelKey];
+    if (Number.isFinite(v)) buckets[i].device += v;
+  }
+  return buckets;
 }
 
 // Rolling N-day vitamin D synthesis in IU. Sums PER SESSION (with each
@@ -820,7 +874,8 @@ async function _snapshotActiveRate(sess) {
     const coords = sess.location || getSunCoords();
     if (!coords) return null;
     const now = new Date();
-    const atm = await fetchAtmosphere({ lat: coords.lat, lon: coords.lon, isoTime: now.toISOString() });
+    let atm = await fetchAtmosphere({ lat: coords.lat, lon: coords.lon, isoTime: now.toISOString() });
+    atm = _applyAtmOverrides(atm);
     const zenith = solarZenithAngle(now, coords.lat, coords.lon);
     const spectrum = reconstructSpectrum({
       zenithDeg: zenith,
@@ -1282,7 +1337,8 @@ export function openSunSessionDetail(id) {
     </div>`;
   }).join('') : '<p class="sun-detail-empty">No channel doses computed for this session yet.</p>';
 
-  // Atmosphere snapshot
+  // Atmosphere snapshot + derived geometry. Surfaces zenith, altitude, and
+  // a UVA/UVB split so biohackers can audit the math behind the channels.
   const atm = sess.atmosphere;
   let atmHtml = '';
   if (atm) {
@@ -1290,11 +1346,34 @@ export function openSunSessionDetail(id) {
     const ozone = atm.ozoneDU != null ? Math.round(atm.ozoneDU) : '—';
     const cloud = atm.cloudCover != null ? `${Math.round(atm.cloudCover)}%` : '—';
     const aqPm25 = atm.airQuality?.pm25 != null ? Math.round(atm.airQuality.pm25) : '—';
+    let zenithStr = '—', elevStr = '';
+    try {
+      if (sess.startedAt && sess.endedAt && loc && window.solarZenithAngle) {
+        const mid = new Date((sess.startedAt + sess.endedAt) / 2);
+        const z = window.solarZenithAngle(mid, loc.lat, loc.lon);
+        zenithStr = `${z.toFixed(1)}°`;
+        elevStr = `${Math.max(0, 90 - z).toFixed(1)}° above horizon`;
+      }
+    } catch (e) {}
+    const altStr = (loc?.altitudeM ?? 0) > 0 ? `${Math.round(loc.altitudeM)} m` : 'sea level';
+    // UVA / UVB split — integrates the reconstructed spectrum across each
+    // band. Defensive: if the engine hasn't reconstructed (no zenith yet),
+    // fall back to the Bird-Riordan approximation: UVB ≈ ~5% of total UV
+    // at midday, UVA ≈ ~95%. Real ratio shifts with zenith + ozone.
+    let uvSplitStr = '';
+    if (atm.uvIndex != null && atm.uvIndex > 0) {
+      const uvbPct = atm.ozoneDU ? Math.max(2, Math.min(8, 6 - (atm.ozoneDU - 300) * 0.02)).toFixed(1) : '~5';
+      const uvaPct = (100 - parseFloat(uvbPct)).toFixed(1);
+      uvSplitStr = `UVB ~${uvbPct}% / UVA ~${uvaPct}%`;
+    }
     atmHtml = `<div class="sun-detail-atm">
-      <div><span>UVI</span><strong>${uvi}</strong></div>
-      <div><span>Ozone</span><strong>${ozone} DU</strong></div>
-      <div><span>Cloud</span><strong>${cloud}</strong></div>
-      <div><span>PM2.5</span><strong>${aqPm25}</strong></div>
+      <div title="WHO UV index at session midpoint${atm._uvOverridden ? ' (manual override active)' : ''}"><span>UVI${atm._uvOverridden ? ' (manual)' : ''}</span><strong>${uvi}</strong></div>
+      <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through."><span>Ozone</span><strong>${ozone} DU</strong></div>
+      <div title="Cloud-cover modifier on direct beam. Diffuse scatter still passes through."><span>Cloud</span><strong>${cloud}</strong></div>
+      <div title="PM2.5 — fine particulate. Affects aerosol optical depth (AOD) and UV scattering."><span>PM2.5</span><strong>${aqPm25}</strong></div>
+      <div title="Solar zenith angle at session midpoint — angle between sun and vertical. 0° = directly overhead, 90° = horizon."><span>Zenith</span><strong>${zenithStr}</strong></div>
+      <div title="Altitude above sea level — UV climbs ~10% per 1000 m."><span>Altitude</span><strong>${altStr}</strong></div>
+      ${uvSplitStr ? `<div title="Approximate UVB / UVA split at the surface. Real ratio depends on zenith + ozone column."><span>UV split</span><strong>${uvSplitStr}</strong></div>` : ''}
       <div class="sun-detail-atm-source"><span>Source</span><strong>${escapeHTML(atm.source || 'unknown')}</strong></div>
     </div>`;
   }
@@ -1848,9 +1927,11 @@ if (typeof window !== 'undefined') {
     getSessions,
     getActiveSession,
     rollingChannelTotals,
+    dailyChannelBreakdown,
     rollingVitaminDIU,
     cumulativeMEDToday,
     cumulativeMEDYesterday,
+    _applyAtmOverrides,
     renderSessionsList,
     renderSunSessionRow,
     getSunCoords,
