@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.9', date: '2026-05-02', title: 'Code hygiene',
+    items: [
+      'Removed 6 unused imports across light-devices.js, light-tools.js, sun-correlations.js, data.js, context-cards.js (formatDate, channelTier, tierLabel, rollingChannelTotals, rollingDeviceTotals, getEncryptionEnabled, SKIN_TYPE — each grep-verified zero callers).',
+      'Updated stale Phase-1c/1d narrative comment in light-tools.js header — all 8 tools have shipped.',
+      'CLAUDE.md: Light & Sun module group added to the architecture roster (was missing 11 new modules from this branch); five-lenses summary updated to reflect what shipped vs what was "coming."',
+    ]
+  },
+  {
     version: '1.7.8', date: '2026-05-02', title: 'Vocabulary + copy polish',
     items: [
       '<b>Burn-risk vocabulary unified.</b> One label per tier, used everywhere: <i>safe</i> (under 30%), <i>moderate</i> (30–70%), <i>approaching burn threshold</i> (70–100%), <i>burn threshold reached</i> (100%+). The dose readout is always "burn dose <b>N%</b>." Replaces six different phrasings ("skin threshold," "personal threshold," "sunburn threshold," "burn risk," "burn dose," "skin\'s daily limit") that had piled up across the dashboard, live ticker, banner, session row, stop summary, and alerts.',

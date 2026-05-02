@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
 import { hashString, getStatus, formatValue, linearRegression, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp } from './profile.js';
-import { encryptedSetItem, broadcastDataChanged, getEncryptionEnabled, scheduleAutoBackup } from './crypto.js';
+import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
 
 // ═══════════════════════════════════════════════

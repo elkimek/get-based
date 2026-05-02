@@ -7,8 +7,7 @@
 // result. Cache key invalidates when sessions[] or device sessions change.
 
 import { state } from './state.js';
-import { getSessions, rollingChannelTotals } from './sun.js';
-import { rollingDeviceTotals } from './light-devices.js';
+import { getSessions } from './sun.js';
 
 const TARGET_BIOMARKERS = [
   // Lab markers worth correlating against light channels

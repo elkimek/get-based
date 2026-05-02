@@ -1,24 +1,25 @@
 // light-tools.js — In-browser measurement tools for the Light lens.
 //
-// All tools run fully on-device. Camera frames are processed in-browser and
-// never leave the user's device. The first 3 tools ship in Phase 1c:
+// All tools run fully on-device. Camera frames are processed in-browser
+// and never leave the user's device. Eight tools ship:
 //
-//   Tool 1: Lux Meter           — AmbientLightSensor (Chrome Android) or
-//                                  camera fallback with one-shot calibration.
-//   Tool 2: Flicker Detector    — getUserMedia at the highest-available frame
-//                                  rate, FFT on intensity to find PWM peaks.
-//   Tool 6: Sleep Darkness Meter — long-exposure (high gain, multi-frame
-//                                  averaged) reading at the pillow position.
+//   Tool 1: Lux Meter             — AmbientLightSensor (Chrome Android) or
+//                                    camera fallback with one-shot calibration.
+//   Tool 2: Flicker Detector      — getUserMedia at the highest-available
+//                                    frame rate, FFT on intensity to find PWM.
+//   Tool 3: CCT Meter             — color temperature with solar-coherence check.
+//   Tool 4: Spectrum Classifier   — LED / fluorescent / incandescent / daylight.
+//   Tool 5: Glass Transmission    — two-step bare/through-glass camera capture.
+//   Tool 6: Sleep Darkness Meter  — long-exposure pillow-level reading.
+//   Tool 7: Sunrise/Sunset Logger — solar-geometry session entry.
+//   Tool 8: Eye-Level Audit       — 4 fps walkthrough with pause-detection
+//                                    that auto-snapshots a reading per room.
 //
-// Tools 3 (CCT), 4 (Spectrum classifier), 5 (Glass transmission), 7 (Sunrise
-// logger) ship in Phase 1d. Tool 8 (Eye-Level Audit) defers to v1.1.
-//
-// Measurements persist via importedData.lightMeasurements[] (already migrated
-// in profile.js). Each entry stores tool, timestamp, value, confidence,
-// optional location label.
+// Measurements persist via importedData.lightMeasurements[]. Each entry
+// stores tool, timestamp, value, confidence, optional location label.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, formatDate, showNotification } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
 

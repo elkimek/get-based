@@ -18,10 +18,10 @@
 //   importedData.deviceSessions[] — session log
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, formatDate, showNotification, isDebugMode } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
-import { CHANNEL_DISPLAY, channelTier, tierLabel } from './sun.js';
+import { CHANNEL_DISPLAY } from './sun.js';
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 
