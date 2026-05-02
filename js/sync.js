@@ -1496,8 +1496,11 @@ export function toggleSyncDetail() {
   const events = getRecentSyncEvents().slice(-6).reverse();
   const eventColor = { push: 'var(--accent)', pull: 'var(--green)', skip: 'var(--text-muted)', rebroadcast: 'var(--orange)' };
   const eventsHtml = events.length ? `
-    <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:140px;overflow-y:auto">
-      <div style="font-weight:600;margin-bottom:4px;color:var(--text-secondary)">Recent activity</div>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-weight:600;color:var(--text-secondary);flex:1">Recent activity</span>
+        <button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" onclick="window.copySyncEvents(this)" title="Copy events to clipboard">Copy</button>
+      </div>
       ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
     </div>` : '';
   pop.innerHTML = `
@@ -1576,6 +1579,41 @@ subscribeSyncStatus(() => {
 // EXPORTS for window binding
 // ═══════════════════════════════════════════════
 
+// Copy the recent sync activity log to clipboard — meant for triage,
+// when phone-side debugging needs the events shared without retyping.
+// Format: ISO timestamp + kind + text per line. Falls back to a manual
+// selection prompt on browsers without clipboard API permission.
+async function copySyncEvents(btn) {
+  const events = getRecentSyncEvents();
+  const lines = events.map(e => `${new Date(e.at).toISOString()}  ${e.kind.padEnd(12)}  ${e.text}`);
+  const blob = `Sync activity (${events.length} events) — ${new Date().toISOString()}\n` +
+               `Relay: ${getSyncRelay() || '(none)'}\n` +
+               `Sync enabled: ${isSyncEnabled()}\n\n` +
+               lines.join('\n');
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(blob);
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => { if (btn) btn.textContent = orig; }, 1200);
+      }
+      return;
+    }
+  } catch (e) {
+    // Clipboard API blocked (e.g. iframe, insecure context, permissions
+    // denied) → fall through to the textarea-select path so the user
+    // can still grab the log manually.
+  }
+  const ta = document.createElement('textarea');
+  ta.value = blob;
+  ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;max-width:600px;height:60vh;z-index:10000;background:var(--bg-card,#222);color:var(--text-primary,#fff);border:1px solid var(--border,#444);padding:12px;font:12px monospace;border-radius:8px';
+  document.body.appendChild(ta);
+  ta.select();
+  showNotification('Auto-copy blocked — select the text above and copy manually.', 'warning');
+  ta.addEventListener('blur', () => ta.remove(), { once: true });
+}
+
 Object.assign(window, {
   enableSync,
   disableSync,
@@ -1602,4 +1640,5 @@ Object.assign(window, {
   renderSyncIndicator,
   updateSyncIndicator,
   toggleSyncDetail,
+  copySyncEvents,
 });
