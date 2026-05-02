@@ -223,6 +223,36 @@ return (async function() {
   assert('null remote → true (everything local is news)',
     localHasRowsRemoteLacks({sunSessions:[{id:'a'}]}, null) === true);
 
+  // Within-id conflict: same id, local's record has a strictly higher
+  // pickTimestamp than remote's. After mergeImportedData this means
+  // the local copy is the canonical one and remote's row is stale →
+  // rebroadcast so the other device pulls our winner. Regression
+  // guard for the live "phone ended at 26min, desktop ended same
+  // session at 41min, phone never re-pulls" bug.
+  assert('same id, local endedAt > remote endedAt → true (rebroadcast)',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'s1', startedAt: 100, endedAt: 200}]},
+      {sunSessions:[{id:'s1', startedAt: 100, endedAt: 150}]}
+    ) === true);
+  assert('same id, equal endedAt → false (no rebroadcast)',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'s1', startedAt: 100, endedAt: 200}]},
+      {sunSessions:[{id:'s1', startedAt: 100, endedAt: 200}]}
+    ) === false);
+  assert('same id, remote endedAt > local endedAt → false (remote wins, we pull)',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'s1', startedAt: 100, endedAt: 150}]},
+      {sunSessions:[{id:'s1', startedAt: 100, endedAt: 200}]}
+    ) === false);
+  // updatedAt takes precedence over endedAt in pickTimestamp — verify
+  // the conflict-detection uses the same precedence so the rebroadcast
+  // decision aligns with the merge winner.
+  assert('updatedAt outranks endedAt for the conflict check',
+    localHasRowsRemoteLacks(
+      {sunSessions:[{id:'s1', endedAt: 100, updatedAt: 500}]},
+      {sunSessions:[{id:'s1', endedAt: 200, updatedAt: 400}]}
+    ) === true);
+
   // ─── 12. Hardening: prototype-pollution guard via _deleted key ────────
   console.log('%c 12. Prototype pollution guard ', 'font-weight:bold;color:#f59e0b');
 

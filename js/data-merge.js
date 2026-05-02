@@ -238,11 +238,24 @@ export function mergeImportedData(local, remote) {
   return out;
 }
 
-// True iff `local` has any record id (in any ID_KEYED_ARRAYS array) that
-// `remote` lacks, OR has a tombstone `remote` lacks. Used after a pull-and-
-// merge to decide whether to rebroadcast our union back to the relay.
-// Order-independent — uses Sets, not JSON-string comparison, so different
-// merge insertion orders across devices don't trigger a rebroadcast loop.
+// True iff `local` has anything `remote` doesn't reflect — used after a
+// pull-and-merge to decide whether to rebroadcast our union back to the
+// relay. Three triggers:
+//
+//  1. New ids: local has a record id remote lacks.
+//  2. Within-id timestamp wins: local AND remote both have a record with
+//     the same id, but local's pickTimestamp is strictly higher (meaning
+//     after merge the local copy is the canonical one and the remote's
+//     copy is stale). Without this branch, the cross-device "I ended
+//     this session at 41min, the other device ended it at 26min" race
+//     leaves desktop with the right value but never republishes — phone
+//     stays stale forever even after pulling. Symptom matched the live
+//     bug today.
+//  3. Tombstones local has that remote lacks (delete propagation).
+//
+// Order-independent — uses Sets / pickTimestamp, not JSON-string
+// comparison, so different merge insertion orders across devices don't
+// trigger a rebroadcast loop.
 export function localHasRowsRemoteLacks(local, remote) {
   if (!local || typeof local !== 'object') return false;
   if (!remote || typeof remote !== 'object') return true; // no remote, all local is news
@@ -250,17 +263,30 @@ export function localHasRowsRemoteLacks(local, remote) {
     const lArr = getAt(local, path);
     const rArr = getAt(remote, path);
     if (!Array.isArray(lArr)) continue;
-    const remoteIds = new Set(
-      Array.isArray(rArr) ? rArr.filter(x => x && typeof x.id === 'string').map(x => x.id) : []
-    );
+    const remoteById = new Map();
+    if (Array.isArray(rArr)) {
+      for (const item of rArr) {
+        if (item && typeof item.id === 'string') remoteById.set(item.id, item);
+      }
+    }
     for (const item of lArr) {
-      if (item && typeof item.id === 'string' && !remoteIds.has(item.id)) return true;
+      if (!item || typeof item.id !== 'string') continue;
+      const remoteItem = remoteById.get(item.id);
+      // (1) new id — local has it, remote doesn't
+      if (!remoteItem) return true;
+      // (2) within-id conflict — same id, but local's record has a
+      //     strictly higher canonical timestamp. Same logic mergeImportedData
+      //     uses to pick a winner; mirroring it here keeps the rebroadcast
+      //     decision aligned with what the merge actually did.
+      const lTs = pickTimestamp(item);
+      const rTs = pickTimestamp(remoteItem);
+      if (lTs > rTs) return true;
     }
   }
-  // Tombstones on local but not on remote also need rebroadcast so the
-  // delete propagates. Restricted to ID_KEYED_ARRAYS paths — same guard
-  // as mergeImportedData's tombstone block; prevents an attacker-injected
-  // path from forcing an infinite rebroadcast.
+  // (3) Tombstones on local but not on remote also need rebroadcast so
+  // the delete propagates. Restricted to ID_KEYED_ARRAYS paths — same
+  // guard as mergeImportedData's tombstone block; prevents an attacker-
+  // injected path from forcing an infinite rebroadcast.
   const lDel = (local._deleted && typeof local._deleted === 'object') ? local._deleted : {};
   const rDel = (remote._deleted && typeof remote._deleted === 'object') ? remote._deleted : {};
   for (const path of ID_KEYED_ARRAYS) {
