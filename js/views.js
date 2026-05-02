@@ -143,6 +143,21 @@ export function renderLightTodayStrip() {
   const devSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
   const devWeek = devSessionsAll.filter(s => (s.startedAt || 0) >= weekCutoff).length;
   const weekTotal = sunWeek + devWeek;
+  // Rolling 7-day vitamin D total in IU — sums per-session yields with
+  // each session's 20k saturation cap, so a week of three good sessions
+  // doesn't get clipped to one session's maximum. Hidden when the total
+  // is essentially zero (cloudy week / no UVB exposure / device-only).
+  const weeklyIU = (window.rollingVitaminDIU && window.rollingVitaminDIU(7)) || 0;
+  let weeklyIUStr = '';
+  if (weeklyIU >= 100) {
+    const iuLabel = weeklyIU >= 10000
+      ? '~' + (weeklyIU / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
+      : weeklyIU >= 1000
+        ? '~' + Math.round(weeklyIU / 100) * 100 + ' IU'
+        : '~' + Math.round(weeklyIU / 10) * 10 + ' IU';
+    weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun exposure over the last 7 days, summed per session and Fitzpatrick-scaled. Each session caps at ~20k IU per Holick photoisomerization saturation; the weekly figure sums multiple sessions.">☀ ${iuLabel} vitamin D this week</span>`;
+  }
+
   return `<section class="light-today-strip">
     <div class="light-today-head">
       <span class="light-today-icon">☀</span>
@@ -154,6 +169,7 @@ export function renderLightTodayStrip() {
     <div class="light-pills-row">
       ${pills}
     </div>
+    ${weeklyIUStr ? `<div class="light-today-vitd-row">${weeklyIUStr}</div>` : ''}
     <div class="light-today-foot">
       ${showBurnRisk ? `<span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your skin's sunburn threshold (Fitzpatrick-based). 100% = sunburn risk.">
         ☀ Sun exposure today: <strong>${medMsg}</strong>${medPct > 0 ? ` (${medPct}%)` : ''}

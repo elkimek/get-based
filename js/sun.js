@@ -449,6 +449,38 @@ export function rollingChannelTotals(days = 7) {
   return totals;
 }
 
+// Rolling N-day vitamin D synthesis in IU. Sums PER SESSION (with each
+// session's 20k saturation cap from vitaminDIU) rather than summing
+// channel-au and converting once — saturation is a within-session
+// photoisomerization phenomenon (Holick 2007), so a user with three
+// 30-min sessions across the week genuinely accumulates 3× per-session
+// yields, even if each session individually saturates near the cap.
+//
+// Per-session Fitzpatrick is read from sess.safety.fitzpatrick (set by
+// hydrateSession). Active sessions contribute their live channel-au
+// converted via the same per-session vitaminDIU path.
+export function rollingVitaminDIU(days = 7) {
+  if (typeof window.vitaminDIU !== 'function') return 0;
+  const cutoff = Date.now() - days * 86400 * 1000;
+  let total = 0;
+  for (const sess of getSessions()) {
+    if (!sess.endedAt) {
+      if ((sess.startedAt || 0) < cutoff) continue;
+      const live = _liveDosesFor(sess);
+      if (live?.doses?.vitamin_d) {
+        const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
+        total += window.vitaminDIU(live.doses.vitamin_d, fitz);
+      }
+      continue;
+    }
+    if (!sess.doses?.vitamin_d) continue;
+    if (sess.endedAt < cutoff) continue;
+    const fitz = sess.safety?.fitzpatrick || 'III';
+    total += window.vitaminDIU(sess.doses.vitamin_d, fitz);
+  }
+  return total;
+}
+
 // Cumulative MED today (for the safety gauge and pre-session warnings).
 // Includes the in-progress session's live partial burn-dose so the gauge
 // fills as you sit in the sun.
@@ -1713,6 +1745,7 @@ if (typeof window !== 'undefined') {
     getSessions,
     getActiveSession,
     rollingChannelTotals,
+    rollingVitaminDIU,
     cumulativeMEDToday,
     renderSessionsList,
     renderSunSessionRow,

@@ -5229,6 +5229,21 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-today-med-over { color: var(--red); }
 .light-today-med-over strong { color: var(--red); }
 
+/* Weekly vitamin D total — small line between pills and footer.
+   Approximate; tooltip explains the per-session-with-saturation
+   summing methodology. */
+.light-today-vitd-row {
+  margin-top: 6px;
+  display: flex; align-items: center;
+}
+.light-today-vitd {
+  font-size: 12px; font-weight: 500;
+  color: var(--accent);
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 10px;
+  background: var(--accent-bg, rgba(96,165,250,0.10));
+}
+
 /* CTA group — wraps one or more CTA buttons together so they sit
    adjacent (8px gap) and the GROUP gets pushed right via margin-left:
    auto. Previously each CTA had margin-left:auto individually, which
