@@ -419,6 +419,7 @@ function _inspectConditionsNow() {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 }

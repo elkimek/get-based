@@ -771,14 +771,19 @@ export async function openStartSunSessionDialog() {
 // handler with a mousedown guard so a drag-from-inside-the-modal that
 // releases on the backdrop doesn't accidentally close (matches the global
 // _mouseDownInsideModal pattern in main.js for keyed overlays).
-export function _wireBackdropClose(overlay) {
+//
+// Optional `closeFn` runs instead of plain `overlay.remove()` — needed for
+// modals with cleanup logic (camera streams in light-tools, focus restore,
+// etc.). Falls back to overlay.remove() when not given.
+export function _wireBackdropClose(overlay, closeFn) {
+  const close = typeof closeFn === 'function' ? closeFn : () => overlay.remove();
   let mouseDownInside = false;
   overlay.addEventListener('mousedown', (e) => {
     mouseDownInside = !!e.target.closest('.modal');
   });
   overlay.addEventListener('click', (e) => {
     if (mouseDownInside) { mouseDownInside = false; return; }
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) close();
   });
 }
 
@@ -2003,6 +2008,7 @@ if (typeof window !== 'undefined') {
     renderBodySilhouette,
     bindBodySilhouette,
     trapModalFocus,
+    _wireBackdropClose,
     _resumeActiveTickerIfNeeded,
     _ensureActiveTicker,
     BODY_REGIONS,

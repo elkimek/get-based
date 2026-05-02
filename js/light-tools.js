@@ -326,6 +326,7 @@ export async function openLuxMeter(opts = {}) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeLuxMeter()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -498,6 +499,7 @@ export async function openFlickerDetector(opts = {}) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeFlicker()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -644,6 +646,7 @@ export async function openDarknessMeter(opts = {}) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeDark()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -788,6 +791,7 @@ export async function openCCTMeter(opts = {}) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeCCT()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -931,6 +935,7 @@ export async function openSpectrumClassifier(opts = {}) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeSpec()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -1081,6 +1086,7 @@ export async function openGlassTransmission(opts = {}) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeGlass()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -1246,6 +1252,7 @@ export function openSunriseLogger() {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -1291,6 +1298,7 @@ export async function openEyeLevelAudit() {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeAudit()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 

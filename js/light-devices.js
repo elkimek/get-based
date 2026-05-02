@@ -407,6 +407,7 @@ export async function openAddDeviceDialog() {
       <button type="button" class="import-btn import-btn-secondary" id="add-device-custom" style="width:100%;margin-top:8px">+ Custom device (paste link or scan photo)</button>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -512,6 +513,7 @@ export async function openCustomDeviceDialog() {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -836,6 +838,7 @@ export async function openDeviceSessionDialog(deviceId) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
@@ -924,6 +927,7 @@ function _openDevicePicker(devices) {
       </div>
     </div>
   </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
   // Backdrop-click closes — browse-style modal, no user-entered data.
