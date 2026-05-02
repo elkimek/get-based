@@ -106,10 +106,14 @@ export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
 // Conversions live in sun-spectrum.js with citations. Unit choice
 // here is the user-facing copy; if you tweak (e.g. IU → kIU when
 // large), tweak only here, not the underlying math.
-export function formatChannelUnit(channelKey, channelAu, durationMin) {
+//
+// `fitzpatrick` modulates the vitamin D conversion (melanin reduces
+// yield at the keratinocyte layer). Pass the session's stored value
+// from `safety.fitzpatrick`; fallback to 'III' (median).
+export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III') {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (channelKey === 'vitamin_d') {
-    const iu = window.vitaminDIU ? window.vitaminDIU(channelAu) : channelAu * 10;
+    const iu = window.vitaminDIU ? window.vitaminDIU(channelAu, fitzpatrick) : channelAu * 40;
     if (iu >= 10000) return '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU';
     if (iu >= 1000) return '~' + Math.round(iu / 100) * 100 + ' IU';
     return '~' + Math.round(iu / 10) * 10 + ' IU';
@@ -816,7 +820,8 @@ function _renderActiveCardBody(sess) {
   let vitaminDStr = '';
   if (live?.doses?.vitamin_d > 0) {
     const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
-    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d) : live.doses.vitamin_d * 10;
+    const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
+    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz) : live.doses.vitamin_d * 40;
     const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
     if (iu >= 50) {
       const iuLabel = iu >= 10000 ? '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
@@ -1133,7 +1138,7 @@ export function openSunSessionDetail(id) {
     const tlabel = tierLabel(t);
     const target = meta.dailyTarget || 0;
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-    const unitText = formatChannelUnit(k, v, sess.durationMin || 0);
+    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III');
     return `<div class="sun-detail-channel-row sun-chip-tier-${t}">
       <span class="sun-detail-channel-icon">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
@@ -1178,7 +1183,7 @@ export function openSunSessionDetail(id) {
         <div><span>Ended</span><strong>${escapeHTML(end ? fmtTime(end) : '—')}</strong></div>
         <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
         <div><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
-        ${sess.doses?.vitamin_d ? `<div title="Bogh & Wulf 2010 conversion. Approximate; saturates around 20k IU."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0))}</strong></div>` : ''}
+        ${sess.doses?.vitamin_d ? `<div title="Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}. Approximate; saturates around 20k IU."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III'))}</strong></div>` : ''}
       </div>
 
       <div class="sun-detail-section">

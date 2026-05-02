@@ -409,20 +409,39 @@ export function fractionOfMED({ sed, fitzpatrick = 'III' }) {
 // All conversions are deliberately rough — order-of-magnitude correct
 // but not lab-grade. Sources cited per channel.
 
-// Vitamin D synthesis (IU). Source: Bogh & Wulf 2010, "The Adequacy
-// of Vitamin D Synthesis Following Sunlight Exposure on a Cloud-Free
-// Day" — establishes that ~100 J/m² CIE-pre-vit-D-weighted UVB on
-// whole body produces ~1000 IU vitamin D₃ in fair skin. Our channel-au
-// for vitamin_d already integrates J/m² × actionSpectrum × bodyFraction,
-// so the conversion is linear at moderate doses.
+// Vitamin D synthesis (IU). Two reference points cross-verify the
+// conversion factor:
+//   • Holick 2008, "Vitamin D Deficiency", NEJM 357:266: "Exposure to
+//     sunlight that causes a slight pinkness of the skin (1 MED) results
+//     in the production of >10,000 IU of vitamin D in skin." Type II
+//     MED = 250 J/m² erythemal-weighted; vit-D-action and erythemal
+//     integrals at solar noon are within ~30%, so 250 channel-au of
+//     vit-D-weighted dose → ~10,000 IU → 40 IU per channel-au.
+//   • Bogh & Wulf 2010 (J Invest Dermatol 130:546): 4 SED on ~24%
+//     body → ~1000 IU. Equivalent: 1 J/m²·bodyFraction → ~42 IU. Same
+//     factor.
 //
-// Saturation: pre-vit-D photoisomerizes back at high doses (Holick
-// 2007), so above ~20,000 IU the actual yield plateaus. We cap the
-// displayed value to keep the UI honest about that ceiling.
-export function vitaminDIU(channelAu) {
+// Skin type (Fitzpatrick) modulates yield via melanin absorption at
+// the keratinocyte layer. Approximate scaling from Webb 2018 + Holick
+// 2007 + Olds 2008:
+//   I/II → 1.00  (very fair, the reference)
+//   III  → 0.85
+//   IV   → 0.65
+//   V    → 0.45
+//   VI   → 0.30  (deeply pigmented; needs ~3× more sun for equivalent D)
+//
+// Saturation: pre-vit-D photoisomerizes back to inactive isomers
+// (lumisterol, tachysterol) at high doses (Holick 2007). Above ~20,000
+// IU the actual yield plateaus regardless of further exposure. We cap
+// the displayed value to keep the UI honest about that ceiling.
+const VITD_FITZPATRICK_SCALE = { I: 1.0, II: 1.0, III: 0.85, IV: 0.65, V: 0.45, VI: 0.30 };
+const VITD_IU_PER_CHANNEL_AU = 40;
+const VITD_SATURATION_IU = 20000;
+export function vitaminDIU(channelAu, fitzpatrick = 'III') {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
-  const raw = channelAu * 10;
-  return Math.min(raw, 20000);
+  const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
+  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale;
+  return Math.min(raw, VITD_SATURATION_IU);
 }
 
 // PBM dose (J/cm²) for the red/NIR therapy channels and the wider
