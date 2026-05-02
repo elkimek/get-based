@@ -467,16 +467,25 @@ export function computeScreenStatus(screen) {
 // Aggregate the deficit numbers into a plain-English burden tier.
 // Used by the summary line at the bottom of the section so the user
 // doesn't have to interpret raw "8.2 hr/day" numbers themselves.
+//
+// Interpretation copy follows three rules:
+// - Verdict in 1 short sentence (what's heaviest right now).
+// - Concrete action in 1 short sentence (the single thing that would
+//   move the needle most given the tier + d2/d3 ratio).
+// - Avoid "junk-light" jargon — say "evening blue exposure" instead,
+//   which most users already understand.
 export function computeIndoorBurden() {
   const { d2, d3 } = computeDeficitAxes();
   // Tiers: 0 light, 1 moderate, 2 heavy
   let tier = 0, parts = [];
-  if (d2 > 8) { tier = Math.max(tier, 2); parts.push(`${d2.toFixed(1)} hr/day indoors`); }
-  else if (d2 > 4) { tier = Math.max(tier, 1); parts.push(`${d2.toFixed(1)} hr/day indoors`); }
-  else if (d2 > 0) parts.push(`${d2.toFixed(1)} hr/day indoors`);
-  if (d3 > 4) { tier = Math.max(tier, 2); parts.push(`${d3.toFixed(1)} hr/day junk-light`); }
-  else if (d3 > 2) { tier = Math.max(tier, 1); parts.push(`${d3.toFixed(1)} hr/day junk-light`); }
-  else if (d3 > 0) parts.push(`${d3.toFixed(1)} hr/day junk-light`);
+  // Round to integers — these are estimates, sub-hour precision is
+  // false confidence ("8.2 hr/day" reads more rigorous than it is).
+  if (d2 > 8) { tier = Math.max(tier, 2); parts.push(`${Math.round(d2)} hr indoors`); }
+  else if (d2 > 4) { tier = Math.max(tier, 1); parts.push(`${Math.round(d2)} hr indoors`); }
+  else if (d2 > 0) parts.push(`${Math.round(d2)} hr indoors`);
+  if (d3 > 4) { tier = Math.max(tier, 2); parts.push(`${Math.round(d3)} hr blue-after-sunset`); }
+  else if (d3 > 2) { tier = Math.max(tier, 1); parts.push(`${Math.round(d3)} hr blue-after-sunset`); }
+  else if (d3 > 0) parts.push(`${Math.round(d3)} hr blue-after-sunset`);
   const labelMap = ['Light load', 'Moderate load', 'Heavy load'];
   const colorMap = ['green', 'orange', 'red'];
   let interp = '';
@@ -488,11 +497,11 @@ export function computeIndoorBurden() {
       ? 'No mapped exposure yet — add a room or screen to start.'
       : 'Everything is skipped today — looks like a mostly-outdoor day.';
   }
-  else if (tier === 0) interp = 'Mostly daylight-aligned. Indoor exposure is short and mostly friendly sources.';
-  else if (tier === 1 && d3 > d2 / 2) interp = "Indoor lighting after sunset is the bigger pull on your circadian rhythm — consider warmer evening sources or blue blockers.";
-  else if (tier === 1) interp = 'Plenty of indoor hours during the day — consider getting more outdoor time, especially in the morning.';
-  else if (tier === 2 && d3 >= d2) interp = 'Heavy blue-evening exposure plus long indoor hours. Both are pulling against melatonin — fixing screens or evening lighting would move the needle most.';
-  else interp = 'Long daytime hours indoors and meaningful evening contamination. Outdoor morning light + warmer evening sources would help.';
+  else if (tier === 0) interp = 'Mostly daylight-aligned with friendly indoor sources. Keep doing what you\'re doing.';
+  else if (tier === 1 && d3 > d2 / 2) interp = 'Evening blue exposure is the bigger pull right now. Warmer bulbs after sunset or a blue blocker on screens would move the needle most.';
+  else if (tier === 1) interp = 'Plenty of indoor daytime hours. More outdoor light — especially before 10am — is the highest-leverage fix.';
+  else if (tier === 2 && d3 >= d2) interp = 'Long indoor hours AND heavy evening blue. Evening sources are dragging melatonin — fix those first, then add outdoor morning light.';
+  else interp = 'Long daytime hours indoors plus meaningful evening contamination. Outdoor morning light + warmer evening bulbs would help.';
   return {
     tier,
     color: colorMap[tier],
@@ -1159,6 +1168,59 @@ const COMPARE_CHANNELS = [
   { tool: 'cct',      label: 'CCT',       fmt: v => `${v} K`,                      better: 'depends' },
 ];
 
+// Serialize an audit pair into a plain-text comparison the AI can
+// reason about. Format mirrors EMF's interpretEMFComparison but stays
+// terse — only rooms with measurements show up, channels are labeled
+// in plain English, deltas are explicit.
+function serializeAuditComparison(a1, a2) {
+  const fmtDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString();
+  const lines = [];
+  lines.push(`Light environment audit comparison`);
+  lines.push(`Before: ${fmtDate(a1.date)}${a1.label ? ` (${a1.label})` : ''}`);
+  lines.push(`After:  ${fmtDate(a2.date)}${a2.label ? ` (${a2.label})` : ''}`);
+  lines.push('');
+
+  const roomNames = [...new Set([
+    ...(a1.rooms || []).map(r => r.name),
+    ...(a2.rooms || []).map(r => r.name),
+  ])];
+
+  for (const name of roomNames) {
+    const r1 = (a1.rooms || []).find(r => r.name === name);
+    const r2 = (a2.rooms || []).find(r => r.name === name);
+    const sev1 = r1 ? computeRoomSeverity(r1, (a1.measurements || []).filter(m => m.roomId === r1.id)) : null;
+    const sev2 = r2 ? computeRoomSeverity(r2, (a2.measurements || []).filter(m => m.roomId === r2.id)) : null;
+    const channels = [];
+    for (const ch of COMPARE_CHANNELS) {
+      const m1 = r1 ? latestInAudit(a1, ch.tool, r1.id) : null;
+      const m2 = r2 ? latestInAudit(a2, ch.tool, r2.id) : null;
+      if (!m1 && !m2) continue;
+      const before = m1 ? ch.fmt(m1.value) : '—';
+      const after = m2 ? ch.fmt(m2.value) : '—';
+      channels.push(`  ${ch.label}: ${before} → ${after}`);
+    }
+    const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
+    const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
+    const mel1 = sp1?.extra?.melanopic;
+    const mel2 = sp2?.extra?.melanopic;
+    if (mel1 != null || mel2 != null) {
+      const before = mel1 != null ? `${(mel1 * 100).toFixed(0)}%` : '—';
+      const after = mel2 != null ? `${(mel2 * 100).toFixed(0)}%` : '—';
+      channels.push(`  Melanopic ratio: ${before} → ${after}`);
+    }
+    if (!channels.length && !(sev1 || sev2)) continue;
+    let header = `Room: ${name}`;
+    if (sev1 && sev2) header += ` — status ${sev1.label} → ${sev2.label}`;
+    else if (sev2) header += ` — status (new) ${sev2.label}`;
+    else if (sev1) header += ` — status ${sev1.label} (room since removed)`;
+    lines.push(header);
+    if (channels.length) lines.push(...channels);
+    else lines.push('  (no measurements)');
+    lines.push('');
+  }
+  return lines.join('\n').trim();
+}
+
 function renderLightAuditCompare(audits) {
   const sorted = audits.slice().sort((a, b) => b.date.localeCompare(a.date));
   const a2 = sorted[0];        // newer (After)
@@ -1172,10 +1234,19 @@ function renderLightAuditCompare(audits) {
     ...(a2.rooms || []).map(r => r.name),
   ])];
 
+  // "Interpret changes" — only when we have an AI provider configured.
+  // Opens the chat panel with a pre-filled comparison summary so the
+  // user can ask the AI what shifted + what to try next. Mirrors EMF
+  // assessment's Interpret Comparison flow without the heavyweight
+  // streaming overlay (the chat panel already serves the same purpose).
+  const hasAI = (typeof window !== 'undefined' && typeof window.hasAIProvider === 'function')
+    ? window.hasAIProvider()
+    : false;
   let html = `<div class="light-audit-compare-head">
     <span class="light-audit-compare-label">Before: ${escapeHTML(fmtAuditDate(a1.date))}${a1.label ? ' — ' + escapeHTML(a1.label) : ''}</span>
     <span class="light-audit-compare-arrow">→</span>
     <span class="light-audit-compare-label">After: ${escapeHTML(fmtAuditDate(a2.date))}${a2.label ? ' — ' + escapeHTML(a2.label) : ''}</span>
+    ${hasAI ? `<button class="import-btn import-btn-secondary light-audit-interpret-btn" onclick="window.interpretLightAuditCompare('${escapeAttr(a1.id)}','${escapeAttr(a2.id)}')" title="Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.">✨ Interpret changes</button>` : ''}
   </div>`;
 
   if (sorted.length > 2) {
@@ -1575,6 +1646,29 @@ if (typeof window !== 'undefined') {
         if (_expandedAuditId === id) _expandedAuditId = null;
         if (window.navigate && state.currentView === 'light') window.navigate('light');
       });
+    },
+    // "Interpret changes" — pre-fills the chat panel with a comparison
+    // summary so the AI can reason about what shifted and what to try
+    // next. Lighter-weight than EMF's dedicated streaming overlay; the
+    // chat panel already covers the same use case (and lets the user
+    // follow up with questions inline).
+    interpretLightAuditCompare: (oldId, newId) => {
+      const audits = getLightAudits();
+      const a1 = audits.find(a => a.id === oldId);
+      const a2 = audits.find(a => a.id === newId);
+      if (!a1 || !a2) {
+        showNotification('Could not find one of the audits to compare.', 'error');
+        return;
+      }
+      const summary = serializeAuditComparison(a1, a2);
+      const prompt = `Here is a Light Environment audit comparison from my home. ` +
+        `Walk me through what improved, what regressed, and what one or two changes ` +
+        `would have the biggest circadian impact next.\n\n${summary}`;
+      if (typeof window.openChatPanel === 'function') {
+        window.openChatPanel(prompt);
+      } else {
+        showNotification('Chat panel unavailable on this build.', 'error');
+      }
     },
   });
 }

@@ -6506,6 +6506,14 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-audit-compare-label { font-size: 13px; font-weight: 600; }
 .light-audit-compare-arrow { color: var(--text-muted); font-size: 16px; }
 .light-audit-compare-note { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+.light-audit-interpret-btn {
+  margin-left: auto;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+@media (max-width: 600px) {
+  .light-audit-interpret-btn { margin-left: 0; width: 100%; }
+}
 .light-audit-compare-rooms { display: flex; flex-direction: column; gap: 8px; }
 .light-audit-compare-room {
   background: var(--bg-secondary);
