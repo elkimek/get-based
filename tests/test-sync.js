@@ -41,7 +41,7 @@ return (async function() {
   assert('sync.js declares a tombstoneQuery selecting isDeleted = 1 rows',
     /tombstoneQuery\s*=\s*evolu\.createQuery[\s\S]{0,300}isDeleted[",\s]+=[",\s]+1/.test(syncSrc));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
-    /applyRemoteTombstones[\s\S]{0,4000}localStorage\.removeItem\(profileStorageKey\(tombId,\s*'imported'\)\)/.test(syncSrc));
+    /applyRemoteTombstones[\s\S]{0,4000}encryptedRemoveItem\(profileStorageKey\(tombId,\s*'imported'\)\)/.test(syncSrc));
   // Quarantine: a remote-driven mass-delete (≥ 2 profiles tombstoned at
   // once) is auth'd only by the BIP-39 mnemonic. If the mnemonic leaks,
   // an attacker could publish tombstones for every profileId. Single-
@@ -301,9 +301,12 @@ return (async function() {
   assert('Pull re-injects preserved wearableConnections into pulled blob',
     syncSrc.includes('importedData.wearableConnections = localWearableConnections'));
 
-  // Guard: preserve branch must run before the localStorage write (otherwise stale)
+  // Guard: preserve branch must run before the storage write (otherwise stale).
+  // Post-IDB-migration the write goes through encryptedSetItem (which routes
+  // `-imported` keys to IndexedDB); the preserve-before-write invariant
+  // applies to whichever underlying setter is used.
   const preserveIdx = syncSrc.indexOf('importedData.wearableConnections = localWearableConnections');
-  const writeIdx = syncSrc.indexOf('setItem(localKey, importedJson)');
+  const writeIdx = syncSrc.indexOf('encryptedSetItem(localKey, importedJson)');
   assert('Preserve runs before localStorage write', preserveIdx > 0 && preserveIdx < writeIdx,
     `preserve at ${preserveIdx}, write at ${writeIdx}`);
 

@@ -5,7 +5,7 @@ import { getStatus, formatValue, showNotification, showConfirmDialog, getTrend }
 import { getActiveData, filterDatesByRange, getEffectiveRange, getAllFlaggedMarkers, getLatestValueIndex, saveImportedData } from './data.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, saveProfiles, migrateProfileData } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
-import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
+import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -956,7 +956,9 @@ export function clearAllData() {
     // Wipe storage for every profile
     for (const p of profiles) {
       const id = p.id;
-      localStorage.removeItem(profileStorageKey(id, 'imported'));
+      // The `-imported` blob lives in IndexedDB now → encryptedRemoveItem
+      // hits both backends so the IDB residue is also wiped.
+      await encryptedRemoveItem(profileStorageKey(id, 'imported'));
       localStorage.removeItem(profileStorageKey(id, 'units'));
       localStorage.removeItem(profileStorageKey(id, 'suppOverlay'));
       localStorage.removeItem(profileStorageKey(id, 'noteOverlay'));
@@ -1031,10 +1033,14 @@ export async function loadDemoData(sex = 'male') {
     const allProfiles = getProfiles();
     const emptyDefault = allProfiles.find(p => p.id === 'default');
     if (emptyDefault) {
-      const defaultData = JSON.parse(localStorage.getItem('labcharts-default-imported') || '{}');
+      // `labcharts-default-imported` matches the `*-imported` suffix and now
+      // lives in IndexedDB. encryptedGetItem migrates from localStorage on
+      // first read, so this works whether the value is in either place.
+      const defaultRaw = await encryptedGetItem('labcharts-default-imported');
+      const defaultData = defaultRaw ? JSON.parse(defaultRaw) : {};
       if (!defaultData.entries || defaultData.entries.length === 0) {
         await saveProfileList(allProfiles.filter(p => p.id !== 'default'));
-        localStorage.removeItem('labcharts-default-imported');
+        await encryptedRemoveItem('labcharts-default-imported');
       }
     }
     switchProfile(profileId);

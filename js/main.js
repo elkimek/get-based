@@ -77,7 +77,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     setActiveProfileId('default');
     const oldImported = localStorage.getItem('labcharts-imported');
     if (oldImported) {
-      localStorage.setItem(profileStorageKey('default', 'imported'), oldImported);
+      // Route through encryptedSetItem so the destination key
+      // (`labcharts-default-imported`) lands in IndexedDB rather than
+      // localStorage. Otherwise this v1→v2 migration could fail when
+      // the legacy blob is large enough to exceed the localStorage cap
+      // even though it just barely fit at the old key.
+      const { encryptedSetItem } = await import('./crypto.js');
+      await encryptedSetItem(profileStorageKey('default', 'imported'), oldImported);
       localStorage.removeItem('labcharts-imported');
     }
     const oldUnits = localStorage.getItem('labcharts-units');

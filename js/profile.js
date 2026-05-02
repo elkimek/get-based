@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { showNotification } from './utils.js';
-import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled } from './crypto.js';
+import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
 
 // ═══════════════════════════════════════════════
 // PROFILE MANAGEMENT
@@ -420,10 +420,12 @@ export function touchProfileTimestamp(profileId) {
 export function deleteProfile(profileId, onComplete) {
   const profiles = getProfiles();
   if (profiles.length <= 1) { showNotification("Cannot delete the last profile", "error"); return; }
-  window.showConfirmDialog('Delete this profile and all its data? This cannot be undone.', () => {
+  window.showConfirmDialog('Delete this profile and all its data? This cannot be undone.', async () => {
     const updated = profiles.filter(p => p.id !== profileId);
     saveProfiles(updated);
-    localStorage.removeItem(profileStorageKey(profileId, 'imported'));
+    // The `-imported` blob lives in IndexedDB now → encryptedRemoveItem
+    // hits both backends so the IDB residue is also wiped.
+    await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
     localStorage.removeItem(profileStorageKey(profileId, 'units'));
     localStorage.removeItem(profileStorageKey(profileId, 'suppOverlay'));
     localStorage.removeItem(profileStorageKey(profileId, 'noteOverlay'));

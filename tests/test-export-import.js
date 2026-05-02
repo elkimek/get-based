@@ -296,8 +296,9 @@ return (async function() {
 
   assert('clearAllData exists', typeof window.clearAllData === 'function');
 
-  // Verify it clears the expected localStorage keys
-  assert('Clears imported data key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'imported'))"));
+  // Verify it clears the expected storage keys. The `-imported` blob lives in
+  // IndexedDB now → encryptedRemoveItem hits both backends.
+  assert('Clears imported data key', exportSrc.includes("encryptedRemoveItem(profileStorageKey(id, 'imported'))"));
   assert('Clears units key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'units'))"));
   assert('Clears suppOverlay key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'suppOverlay'))"));
   assert('Clears noteOverlay key', exportSrc.includes("localStorage.removeItem(profileStorageKey(id, 'noteOverlay'))"));

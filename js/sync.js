@@ -5,7 +5,7 @@
 import { state } from './state.js';
 import { showNotification, isDebugMode, escapeHTML } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
-import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
+import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
@@ -1075,8 +1075,9 @@ async function applyRemoteTombstones() {
     // Mirror profile.js:deleteProfile's local cleanup. Doing it inline here
     // (instead of calling deleteProfile) avoids the confirm dialog and the
     // recursive deleteProfileFromRelay call — the tombstone is already on
-    // the relay, that's how we got here.
-    localStorage.removeItem(profileStorageKey(tombId, 'imported'));
+    // the relay, that's how we got here. The `-imported` blob lives in
+    // IndexedDB now → encryptedRemoveItem hits both backends.
+    await encryptedRemoveItem(profileStorageKey(tombId, 'imported'));
     localStorage.removeItem(profileStorageKey(tombId, 'units'));
     localStorage.removeItem(profileStorageKey(tombId, 'suppOverlay'));
     localStorage.removeItem(profileStorageKey(tombId, 'noteOverlay'));
@@ -1138,8 +1139,10 @@ export async function applyPendingTombstone(profileId) {
   const profiles = getProfiles();
   const survivors = profiles.filter(p => p.id !== profileId);
   if (survivors.length === 0) return { ok: false, reason: 'last-profile' };
-  // Mirror the inline cleanup from applyRemoteTombstones.
-  localStorage.removeItem(profileStorageKey(profileId, 'imported'));
+  // Mirror the inline cleanup from applyRemoteTombstones. The
+  // `-imported` blob lives in IndexedDB now → encryptedRemoveItem
+  // hits both backends so the IDB residue is also wiped.
+  await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
   for (const k of ['units','suppOverlay','noteOverlay','rangeMode','suppImpact']) {
     localStorage.removeItem(profileStorageKey(profileId, k));
   }
@@ -1336,13 +1339,13 @@ async function onSyncReceived() {
         const remoteBroughtNewRows = !!localImportedForMerge
           && localHasRowsRemoteLacks(importedData, localImportedForMerge);
 
-        // Update importedData in localStorage
+        // Persist the merged importedData. Always go through
+        // encryptedSetItem — it routes big-blob `-imported` keys to
+        // IndexedDB regardless of encryption state. Bypassing this
+        // (the old non-encryption branch did `localStorage.setItem`
+        // directly) re-introduces the 5 MB quota wall.
         const importedJson = JSON.stringify(merged);
-        if (getEncryptionEnabled()) {
-          await encryptedSetItem(localKey, importedJson);
-        } else {
-          localStorage.setItem(localKey, importedJson);
-        }
+        await encryptedSetItem(localKey, importedJson);
         localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
 
         // Merge profile into local profiles list (allowlisted fields only)

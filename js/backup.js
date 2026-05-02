@@ -2,10 +2,35 @@
 
 import { showNotification, showConfirmDialog, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile.js';
+import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 
 // Use window.* to avoid circular import (crypto.js imports from backup.js)
 const getEncryptionEnabled = () => window.getEncryptionEnabled?.() || false;
 const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');
+
+// Read the RAW stored value (encrypted-if-encryption-on, plaintext-if-off)
+// for any key. Big-blob `-imported` keys live in IndexedDB now; everything
+// else stays in localStorage. Backup needs the raw form so the encrypted
+// envelope (if any) round-trips unchanged through restore.
+async function readRawStoredItem(key) {
+  if (shouldUseBlob(key)) {
+    const blob = await getBlob(key);
+    if (blob != null) return blob;
+    // Migration safety: pre-IDB installs have the value in localStorage.
+    return localStorage.getItem(key);
+  }
+  return localStorage.getItem(key);
+}
+
+async function writeRawStoredItem(key, value) {
+  if (shouldUseBlob(key)) {
+    await setBlob(key, value);
+    // Best-effort cleanup of any pre-IDB localStorage residue for this key.
+    try { localStorage.removeItem(key); } catch {}
+  } else {
+    localStorage.setItem(key, value);
+  }
+}
 
 // ═══════════════════════════════════════════════
 // BACKUP / RESTORE
@@ -164,13 +189,25 @@ export function buildBackupSnapshot() {
   };
 }
 
-// Build a snapshot AND populate the wearable L1 rows in the same call.
-// Most callers (auto-backup, folder-backup, manual export) want the full
-// payload; the legacy synchronous `buildBackupSnapshot` stays for tests
-// that don't need IDB rows.
+// Build a snapshot AND populate the wearable L1 rows + the IDB-backed
+// `-imported` blobs. Most callers (auto-backup, folder-backup, manual
+// export) want the full payload; the legacy synchronous
+// `buildBackupSnapshot` stays for tests that don't need IDB rows.
+//
+// `buildBackupSnapshot` reads only localStorage, so post-IDB-migration
+// the `-imported` slot in each profile.keys would be empty for users
+// whose blob already moved. Patch that here by fetching from IDB when
+// localStorage didn't have the value.
 export async function buildFullBackupSnapshot() {
   const snap = buildBackupSnapshot();
   if (!snap) return null;
+  for (const p of snap.profiles || []) {
+    if (p.keys && p.keys.imported == null) {
+      const key = profileStorageKey(p.profileId, 'imported');
+      const idbBlob = await getBlob(key);
+      if (idbBlob != null) p.keys.imported = idbBlob;
+    }
+  }
   const profileIds = (snap.profiles || []).map(p => p.profileId);
   snap.wearableIDB = await collectWearableIDB(profileIds);
   return snap;
@@ -228,18 +265,29 @@ export function importEncryptedBackup(file) {
 
           localStorage.setItem('labcharts-profiles', backup.profileList);
 
-          if (backup.profiles) {
-            for (const p of backup.profiles) {
-              for (const [suffix, value] of Object.entries(p.keys)) {
-                localStorage.setItem(`labcharts-${p.profileId}-${suffix}`, value);
+          // Restore each profile's keys. Big-blob keys (`-imported`)
+          // route to IndexedDB; everything else stays in localStorage.
+          // writeRawStoredItem is async because of the IDB path \u2014 wrap
+          // the whole restore in a Promise.all chain so the wearable
+          // restore + reload only fires after all profile keys are
+          // actually written.
+          const writeAll = (async () => {
+            if (backup.profiles) {
+              for (const p of backup.profiles) {
+                for (const [suffix, value] of Object.entries(p.keys)) {
+                  const key = `labcharts-${p.profileId}-${suffix}`;
+                  await writeRawStoredItem(key, value);
+                }
               }
             }
-          }
+          })();
 
-          restoreWearableIDB(backup.wearableIDB).finally(() => {
-            showNotification('Backup restored \u2014 reloading...', 'success');
-            setTimeout(() => location.reload(), 1000);
-          });
+          writeAll
+            .then(() => restoreWearableIDB(backup.wearableIDB))
+            .finally(() => {
+              showNotification('Backup restored \u2014 reloading...', 'success');
+              setTimeout(() => location.reload(), 1000);
+            });
         }
       );
     } catch (err) {

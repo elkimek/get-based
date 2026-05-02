@@ -71,7 +71,8 @@ const TEST_FILES = [
   'tests/test-sun-uvdata.js',
   'tests/test-sun-correlations.js',
   'tests/test-sun-defaults.js',
-  'tests/test-data-merge.js'
+  'tests/test-data-merge.js',
+  'tests/test-blob-storage.js'
 ];
 
 const PORT = process.env.PORT || 8000;

@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { showNotification, showConfirmDialog, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile.js';
+import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 
 // ═══════════════════════════════════════════════
 // SENSITIVE KEY PATTERNS
@@ -199,17 +200,53 @@ export async function _setTestSessionKey(passphrase) {
 // STORAGE WRAPPERS
 // ═══════════════════════════════════════════════
 export async function encryptedSetItem(key, value) {
+  let stored;
   if (isSensitiveKey(key) && getEncryptionEnabled() && _sessionKey) {
     const { iv, ciphertext } = await encrypt(_sessionKey, value);
-    localStorage.setItem(key, formatEncryptedValue(iv, ciphertext));
+    stored = formatEncryptedValue(iv, ciphertext);
   } else {
-    localStorage.setItem(key, value);
+    stored = value;
+  }
+  // Big-blob keys (currently `*-imported`) go to IndexedDB to escape
+  // the ~5 MB localStorage cap. Failed IDB writes propagate so callers
+  // can show a quota error — falling back to localStorage on failure
+  // would just trade an explicit error for the silent wedge we're
+  // trying to leave behind.
+  if (shouldUseBlob(key)) {
+    await setBlob(key, stored);
+    // Best-effort cleanup of any localStorage leftover from a pre-IDB
+    // install. We've already written to IDB above so the canonical
+    // copy is safe.
+    try { localStorage.removeItem(key); } catch {}
+  } else {
+    localStorage.setItem(key, stored);
   }
 }
 
 export async function encryptedGetItem(key) {
-  const raw = localStorage.getItem(key);
-  if (raw === null) return null;
+  let raw;
+  if (shouldUseBlob(key)) {
+    raw = await getBlob(key);
+    // Migration path: pre-IDB installs have the blob in localStorage.
+    // On the first read we copy it into IDB and (only on successful
+    // write) clear it from localStorage. Failed migration keeps the
+    // localStorage copy intact so the value isn't lost.
+    if (raw == null) {
+      const lsRaw = localStorage.getItem(key);
+      if (lsRaw !== null) {
+        raw = lsRaw;
+        try {
+          await setBlob(key, lsRaw);
+          try { localStorage.removeItem(key); } catch {}
+        } catch (e) {
+          console.warn('[crypto] blob migration failed for', key, '—', e?.message || e);
+        }
+      }
+    }
+  } else {
+    raw = localStorage.getItem(key);
+  }
+  if (raw == null) return null;
   if (isEncryptedValue(raw) && _sessionKey) {
     const parsed = parseEncryptedValue(raw);
     if (!parsed) return raw;
@@ -220,6 +257,17 @@ export async function encryptedGetItem(key) {
     }
   }
   return raw;
+}
+
+// Companion to encryptedSetItem/encryptedGetItem — ensures big-blob
+// keys are removed from BOTH backends. Use this for any cleanup path
+// that wipes profile data, otherwise IDB residue accumulates after
+// profile deletion / reset.
+export async function encryptedRemoveItem(key) {
+  if (shouldUseBlob(key)) {
+    try { await deleteBlob(key); } catch {}
+  }
+  try { localStorage.removeItem(key); } catch {}
 }
 
 // ═══════════════════════════════════════════════
