@@ -227,9 +227,19 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
   const irradiance = WAVELENGTHS.map((nm) => {
     // Extraterrestrial spectral irradiance (rough fit to ASTM E490)
     const E0 = extraterrestrialIrradiance(nm);
-    // Rayleigh scattering (Bird-Riordan, simplified)
-    const tauR = (115.6406 / Math.pow(nm / 1000, 4) - 1.335 / Math.pow(nm / 1000, 2)) * altScale;
-    const Tr = Math.exp(-tauR * airMass / 1000);
+    // Rayleigh scattering — Bird-Riordan 1986 formulation:
+    //   τR(λ) = (P/P₀) / (λ⁴ × (115.6406 − 1.335/λ²))
+    // where λ is in micrometers and P/P₀ is the relative pressure (the
+    // altScale exp(-z/8000) we computed above). The previous form had the
+    // expression INVERTED — it computed (115.6406/λ⁴ − 1.335/λ²) and
+    // divided by 1000 — producing optical depths ~10000× too large.
+    // That collapsed UVB to ~10⁻⁸ at noon and dimmed visible 10×, which
+    // wiped out vit-D / POMC channel doses and gave 0% MED across all
+    // sessions regardless of UVI. Test #16 below pins absolute values
+    // so this can't silently regress again.
+    const lambda_um = nm / 1000;
+    const tauR = altScale / (Math.pow(lambda_um, 4) * (115.6406 - 1.335 / Math.pow(lambda_um, 2)));
+    const Tr = Math.exp(-tauR * airMass);
     // Ozone absorption — Bass-Paur cross-section approximation in the UVB
     const tauO3 = ozoneAbsorption(nm) * (ozoneDU / 1000);
     const To = Math.exp(-tauO3 * airMass);

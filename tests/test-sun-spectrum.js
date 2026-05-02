@@ -379,6 +379,62 @@ return (async function() {
     maxiThruGlass.vitamin_d < maxiDoses.vitamin_d * 0.05,
     `ratio=${(maxiThruGlass.vitamin_d / Math.max(maxiDoses.vitamin_d, 1e-9)).toFixed(4)}`);
 
+  // ─── 16. Absolute magnitudes (regression guard) ─────────────────────
+  // Pre-existing tests checked monotonicity (more ozone → less UVB) but
+  // never absolute values, which is how a Rayleigh-formula inversion
+  // shipped that produced 7-order-too-low UVB while still passing every
+  // directional comparison. These checks pin spectrum + dose magnitudes
+  // to physical reality so the same class of bug can't recur.
+  console.log('%c 16. Absolute magnitudes (regression guard) ', 'font-weight:bold;color:#f59e0b');
+  const noonRef = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300, altitudeM: 0, cloudCover: 0 });
+  const irrAt = (target) => {
+    const idx = noonRef.wavelengths.indexOf(target);
+    return idx >= 0 ? noonRef.irradiance[idx] : 0;
+  };
+  // Reference values for clear-sky noon at zenith=30° (mid-latitude solar)
+  // come from ASTM G173 + Bird-Riordan published tables. We allow ±50%
+  // bands — the model is "accurate to ~25% relative" per its own
+  // docstring; the bug we're guarding against was 10⁷× off.
+  const i305 = irrAt(305);
+  const i400 = irrAt(400);
+  const i500 = irrAt(500);
+  const i700 = irrAt(700);
+  assert('305 nm UVB irradiance is in 0.001–0.5 W/m²/nm range',
+    i305 > 0.001 && i305 < 0.5, `got ${i305.toExponential(2)} W/m²/nm`);
+  assert('400 nm violet irradiance is in 0.3–2.5 W/m²/nm range',
+    i400 > 0.3 && i400 < 2.5, `got ${i400.toFixed(3)} W/m²/nm`);
+  assert('500 nm visible irradiance is in 0.5–2.5 W/m²/nm range',
+    i500 > 0.5 && i500 < 2.5, `got ${i500.toFixed(3)} W/m²/nm`);
+  assert('700 nm red/NIR irradiance is in 0.3–1.5 W/m²/nm range',
+    i700 > 0.3 && i700 < 1.5, `got ${i700.toFixed(3)} W/m²/nm`);
+
+  // erythemalSED at 30min naked sunbathing (fraction=1) clear noon should
+  // produce at least 1 SED (the threshold for noticeable redness on Type II
+  // skin). The pre-fix model produced 1e-5 SED → 0% MED across all
+  // sessions regardless of UVI.
+  const sedNoon = erythemalSED({ spectrum: noonRef, durationMin: 30, bodyExposureFraction: 1 });
+  assert('30 min naked clear-noon → at least 1 SED of erythemal exposure',
+    sedNoon >= 1, `got ${sedNoon.toFixed(3)} SED`);
+  const medNoonIII = fractionOfMED({ sed: sedNoon, fitzpatrick: 'III' });
+  assert('30 min naked clear-noon → ≥ 30% MED for Type III skin',
+    medNoonIII >= 0.3, `got ${(medNoonIII * 100).toFixed(1)}% MED`);
+
+  // Channel doses: 30 min naked clear-noon should reach moderate-to-good
+  // tier on the UVB-mediated channels (vit_d, pomc) and ≥strong on the
+  // bigger eye/NIR channels.
+  const fullNoon = computeChannelDoses({
+    spectrum: noonRef,
+    durationMin: 30,
+    bodyExposureFraction: 1,
+    eyeExposure: { mode: 'direct', durationSec: 1800, lensTint: 'clear' },
+  });
+  assert('30 min naked clear-noon: vitamin_d dose >= 100 channel-au (was ~0 pre-fix)',
+    fullNoon.vitamin_d >= 100, `got ${fullNoon.vitamin_d.toExponential(2)}`);
+  assert('30 min naked clear-noon: pomc dose >= 100 channel-au',
+    fullNoon.pomc >= 100, `got ${fullNoon.pomc.toExponential(2)}`);
+  assert('30 min naked clear-noon: no_cv dose >= 50 channel-au',
+    fullNoon.no_cv >= 50, `got ${fullNoon.no_cv.toFixed(2)}`);
+
   // ─── Summary ────────────────────────────────────────────────────────
   console.log(`%c Sun Spectrum: ${pass} passed, ${fail} failed`,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold`);
