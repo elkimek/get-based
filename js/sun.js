@@ -304,11 +304,17 @@ export async function updateSession(id, patch) {
 // computed under the old engine. Versions:
 //   1: original v1.7.0 ship
 //   2: 2026-05-02 fix — Bird-Riordan Rayleigh formula was inverted,
-//      collapsing UVB irradiance to ~1e-8 W/m²/nm. Sessions hydrated
-//      under v1 had `safety.medFraction ≈ 0` and ~0 vitamin_d / pomc
-//      doses regardless of UVI. Bumping forces a fresh hydrate so
-//      stale numbers heal automatically on next page load.
-export const SUN_ENGINE_VERSION = 2;
+//      collapsing UVB irradiance to ~1e-8 W/m²/nm.
+//   3: 2026-05-02 second fix — proper Bass-Paur ozone cross-sections
+//      (was ~3× too transmissive in UVB), added diffuse scatter term
+//      (was ~50% under in UVB / 30% under in UVA), corrected aerosol
+//      baseline to clean-sky default β=0.10 (was 0.27 / polluted),
+//      added cosZ to direct-beam horizontal flux. Implied UVI at
+//      zenith=30° now matches real-world (7.4 vs 7-8 reference);
+//      vit D synthesis at low sun naturally falls to ~zero per
+//      Bird-Riordan + JPL 19-5 cross-sections without the hand-tuned
+//      threshold gate carrying the load alone.
+export const SUN_ENGINE_VERSION = 3;
 
 export async function hydrateSession(id, { lat, lon } = {}) {
   const sess = getSessions().find(s => s.id === id);

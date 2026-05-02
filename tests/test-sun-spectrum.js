@@ -392,15 +392,17 @@ return (async function() {
     return idx >= 0 ? noonRef.irradiance[idx] : 0;
   };
   // Reference values for clear-sky noon at zenith=30° (mid-latitude solar)
-  // come from ASTM G173 + Bird-Riordan published tables. We allow ±50%
-  // bands — the model is "accurate to ~25% relative" per its own
-  // docstring; the bug we're guarding against was 10⁷× off.
+  // come from ASTM G173 + Bird-Riordan + TUV/NIWA published tables.
+  // ±50% bands — the model is "accurate to ~25% relative" per its
+  // docstring; the bugs we're guarding against were 10⁷× off in UVB.
+  // Engine v3 (proper Bass-Paur ozone + diffuse scatter + clean-sky
+  // aerosol + cosZ) produces values within these bands.
   const i305 = irrAt(305);
   const i400 = irrAt(400);
   const i500 = irrAt(500);
   const i700 = irrAt(700);
-  assert('305 nm UVB irradiance is in 0.001–0.5 W/m²/nm range',
-    i305 > 0.001 && i305 < 0.5, `got ${i305.toExponential(2)} W/m²/nm`);
+  assert('305 nm UVB irradiance is in 0.005–0.2 W/m²/nm range',
+    i305 > 0.005 && i305 < 0.2, `got ${i305.toExponential(2)} W/m²/nm`);
   assert('400 nm violet irradiance is in 0.3–2.5 W/m²/nm range',
     i400 > 0.3 && i400 < 2.5, `got ${i400.toFixed(3)} W/m²/nm`);
   assert('500 nm visible irradiance is in 0.5–2.5 W/m²/nm range',
@@ -408,32 +410,55 @@ return (async function() {
   assert('700 nm red/NIR irradiance is in 0.3–1.5 W/m²/nm range',
     i700 > 0.3 && i700 < 1.5, `got ${i700.toFixed(3)} W/m²/nm`);
 
-  // erythemalSED at 30min naked sunbathing (fraction=1) clear noon should
-  // produce at least 1 SED (the threshold for noticeable redness on Type II
-  // skin). The pre-fix model produced 1e-5 SED → 0% MED across all
-  // sessions regardless of UVI.
+  // Implied UVI at zenith=30° clear noon should be 5-9 (real noon
+  // midlatitude summer is 7-8). The pre-engine-v3 model gave 4 due to
+  // ~3× transmissive ozone + missing diffuse + missing cosZ.
   const sedNoon = erythemalSED({ spectrum: noonRef, durationMin: 30, bodyExposureFraction: 1 });
-  assert('30 min naked clear-noon → at least 1 SED of erythemal exposure',
-    sedNoon >= 1, `got ${sedNoon.toFixed(3)} SED`);
-  const medNoonIII = fractionOfMED({ sed: sedNoon, fitzpatrick: 'III' });
-  assert('30 min naked clear-noon → ≥ 30% MED for Type III skin',
-    medNoonIII >= 0.3, `got ${(medNoonIII * 100).toFixed(1)}% MED`);
+  const erythemalIrr = sedNoon * 100 / (30 * 60); // W/m²
+  const impliedUVI = erythemalIrr / 0.025;
+  assert('zenith=30° clear-noon implies UVI 5-9 (real ~7-8)',
+    impliedUVI > 5 && impliedUVI < 9, `got UVI ${impliedUVI.toFixed(1)}`);
 
-  // Channel doses: 30 min naked clear-noon should reach moderate-to-good
-  // tier on the UVB-mediated channels (vit_d, pomc) and ≥strong on the
-  // bigger eye/NIR channels.
+  // SED at 30 min naked noon must give Type II at least 1 MED (real
+  // burn time at noon is 10-15 min for fair skin, so 30 min should
+  // produce 1.5-3 MED).
+  assert('30 min naked clear-noon → at least 1 MED of erythemal exposure (Type II)',
+    sedNoon >= 2.5 && sedNoon <= 6, `got ${sedNoon.toFixed(2)} SED`);
+
+  // Channel doses: 30 min naked clear-noon should produce visible
+  // vit_d / pomc / no_cv accumulation — the post-fix calibration sits
+  // between Bogh & Wulf 2010 lab values and Holick 2008 natural-sun.
   const fullNoon = computeChannelDoses({
     spectrum: noonRef,
     durationMin: 30,
     bodyExposureFraction: 1,
     eyeExposure: { mode: 'direct', durationSec: 1800, lensTint: 'clear' },
   });
-  assert('30 min naked clear-noon: vitamin_d dose >= 100 channel-au (was ~0 pre-fix)',
-    fullNoon.vitamin_d >= 100, `got ${fullNoon.vitamin_d.toExponential(2)}`);
-  assert('30 min naked clear-noon: pomc dose >= 100 channel-au',
-    fullNoon.pomc >= 100, `got ${fullNoon.pomc.toExponential(2)}`);
+  assert('30 min naked clear-noon: vitamin_d dose >= 30 channel-au',
+    fullNoon.vitamin_d >= 30, `got ${fullNoon.vitamin_d.toFixed(2)}`);
+  assert('30 min naked clear-noon: pomc dose >= 30 channel-au',
+    fullNoon.pomc >= 30, `got ${fullNoon.pomc.toFixed(2)}`);
   assert('30 min naked clear-noon: no_cv dose >= 50 channel-au',
     fullNoon.no_cv >= 50, `got ${fullNoon.no_cv.toFixed(2)}`);
+
+  // Vit D synthesis check: at zenith=30°, 30 min naked, Type II must
+  // produce 1500-6000 IU (Bogh lab values: ~2600-4000; Holick natural-sun
+  // extrapolation: ~10000; we pick a wide band that captures both).
+  const iu_typeII_noon = window.vitaminDIU(fullNoon.vitamin_d, 'II', impliedUVI);
+  assert('30 min naked clear-noon Type II → 1500-6000 IU vit D',
+    iu_typeII_noon >= 1500 && iu_typeII_noon <= 6000,
+    `got ${iu_typeII_noon.toFixed(0)} IU (Bogh ~2600-4000, Holick ~10000)`);
+
+  // Low-sun gate: at zenith=70° (UVI ~1.5), Type II naked 30 min should
+  // produce essentially no vit D (the UVI threshold gate plus the
+  // physics-correct UVB at low elevation both push toward ~0).
+  const lowSun70 = reconstructSpectrum({ zenithDeg: 70, ozoneDU: 300, altitudeM: 0, cloudCover: 0 });
+  const lowDoses70 = computeChannelDoses({ spectrum: lowSun70, durationMin: 30, bodyExposureFraction: 1, eyeExposure: null });
+  const lowSed70 = erythemalSED({ spectrum: lowSun70, durationMin: 30, bodyExposureFraction: 1 });
+  const lowUVI70 = (lowSed70 * 100 / (30 * 60)) / 0.025;
+  const iu_lowSun70 = window.vitaminDIU(lowDoses70.vitamin_d, 'II', lowUVI70);
+  assert('zenith=70° (UVI <2) → near-zero vit D synthesis',
+    iu_lowSun70 < 50, `got ${iu_lowSun70.toFixed(0)} IU at implied UVI ${lowUVI70.toFixed(2)}`);
 
   // ─── 17. UVI threshold gate on vit-D synthesis ──────────────────────
   // Webb 2018 / Lehmann 2013 / NIWA: no meaningful vit D synthesis
