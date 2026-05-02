@@ -96,7 +96,7 @@ export async function deleteMeasurement(id) {
 // Returns: { exposure: 'manual' | 'auto', whiteBalance: 'manual' | 'auto',
 //            focus: 'manual' | 'auto', frameRate: <fps actually delivered> }
 export async function lockCameraForMeasurement(stream, opts = {}) {
-  const result = { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: null };
+  const result = { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: null, iso: null, exposureTime: null };
   if (!stream || !stream.getVideoTracks) return result;
   const track = stream.getVideoTracks()[0];
   if (!track) return result;
@@ -119,8 +119,32 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
     if (opts.shortExposure && Number.isFinite(caps.exposureTime?.min)) {
       const target = Math.max(caps.exposureTime.min, Math.min(caps.exposureTime.max, 83)); // ~8.3ms
       advanced.push({ exposureTime: target });
+      result.exposureTime = target;
+    }
+    // Long-exposure path for the sleep-darkness meter: pin shutter to a
+    // long fixed value so dim pixels actually register, AND pin ISO/gain
+    // when the camera exposes it — without fixed ISO, auto-gain ramps up
+    // in darkness and produces a "bright-looking" noisy image, defeating
+    // the measurement. Target ~1/30s shutter (333 in 100µs units) which
+    // is the longest most phone cameras allow at 30 fps.
+    if (opts.longExposure && Number.isFinite(caps.exposureTime?.min)) {
+      const target = Math.max(caps.exposureTime.min, Math.min(caps.exposureTime.max, 333));
+      advanced.push({ exposureTime: target });
+      result.exposureTime = target;
     }
     result.exposure = 'manual';
+  }
+  // Lock ISO/gain to a known value so absolute pixel brightness is
+  // calibrated — only some Android Chromium builds expose this. Without
+  // it, we can't translate raw luma to lux at all.
+  if (opts.longExposure && Number.isFinite(caps.iso?.min)) {
+    const target = Math.max(caps.iso.min, Math.min(caps.iso.max, 400));
+    advanced.push({ iso: target });
+    result.iso = target;
+  } else if (opts.shortExposure && Number.isFinite(caps.iso?.min)) {
+    const target = Math.max(caps.iso.min, Math.min(caps.iso.max, 100));
+    advanced.push({ iso: target });
+    result.iso = target;
   }
   if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('manual')) {
     advanced.push({ whiteBalanceMode: 'manual' });
@@ -170,6 +194,57 @@ export function cameraLockStatusLine(lock) {
   if (lock.exposure !== 'manual') auto.push('exposure');
   if (lock.whiteBalance !== 'manual') auto.push('white-balance');
   return `<span style="color:var(--orange);font-size:11px">⚠ camera ${auto.join(' + ')} on auto — reading may drift</span>`;
+}
+
+// ─── Shared row-banding analyzer ───────────────────────────────────────
+//
+// The intra-frame rolling-shutter banding signal: a CMOS sensor reads out
+// rows top-to-bottom over ~15-33 ms. A PWM light source modulates during
+// that readout, painting horizontal stripes. Detecting variance ROW-WISE
+// (per-row mean luma, then stddev across rows) reveals PWM at 100 Hz –
+// 25 kHz that frame-rate sampling literally cannot see.
+//
+// Returns:
+//   frameMean   — mean luma across the whole frame (0–255 scale)
+//   frameMax    — max single-pixel luma (catches bright spikes)
+//   bandingRatio — stddev of row means / frame mean (PWM banding strength)
+//   stripes     — zero-crossings of detrended row signal across the frame
+//                 (rough N stripes / 25ms readout = N × 40 Hz PWM frequency)
+//   rowMeans    — Float32Array of per-row mean luma (debugging / future use)
+//
+// Used by flicker, spectrum, CCT, and (peripherally) sleep-darkness tools.
+// W and H must match the canvas the data was read from.
+export function computeRowBanding(data, W, H) {
+  const rowMeans = new Float32Array(H);
+  let frameSum = 0;
+  let frameMax = 0;
+  for (let y = 0; y < H; y++) {
+    let rowSum = 0;
+    const base = y * W * 4;
+    for (let x = 0; x < W; x++) {
+      const i = base + x * 4;
+      const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      rowSum += luma;
+      if (luma > frameMax) frameMax = luma;
+    }
+    const m = rowSum / W;
+    rowMeans[y] = m;
+    frameSum += m;
+  }
+  const frameMean = frameSum / H;
+  let varSum = 0;
+  for (let y = 0; y < H; y++) {
+    const d = rowMeans[y] - frameMean;
+    varSum += d * d;
+  }
+  const rowStddev = Math.sqrt(varSum / H);
+  const bandingRatio = frameMean > 1 ? rowStddev / frameMean : 0;
+  let crossings = 0;
+  for (let y = 1; y < H; y++) {
+    if ((rowMeans[y] >= frameMean) !== (rowMeans[y - 1] >= frameMean)) crossings++;
+  }
+  const stripes = Math.floor(crossings / 2);
+  return { frameMean, frameMax, bandingRatio, stripes, rowMeans };
 }
 
 // ─── Tool 1: Lux Meter ─────────────────────────────────────────────────
@@ -443,13 +518,9 @@ export async function openFlickerDetector(opts = {}) {
     //   1. Frame-luma variance (detects PWM up to fps/2 Hz only — useless
     //      above ~30 Hz on a 60 fps camera). Kept for slow flicker /
     //      mains-frequency 50/60 Hz visibility.
-    //   2. Intra-frame ROW banding from rolling shutter. The sensor reads
-    //      out top-to-bottom over ~15-33 ms; a PWM source modulates the
-    //      light during that readout, painting horizontal stripes onto
-    //      the frame. Detecting variance ROW-WISE (column means per row,
-    //      then stddev across rows) reveals PWM at 100 Hz – 25 kHz that
-    //      frame-rate sampling literally cannot see. Standard technique
-    //      used by commercial PWM-detection apps + still photography.
+    //   2. Intra-frame ROW banding from rolling shutter via the shared
+    //      computeRowBanding() helper — detects PWM at 100 Hz – 25 kHz
+    //      that frame-rate sampling literally cannot see.
     //
     // Use 64x48 capture so we have enough rows to see banding cleanly.
     const canvas = document.createElement('canvas');
@@ -462,43 +533,9 @@ export async function openFlickerDetector(opts = {}) {
       if (!_flickerState.running) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      // Compute per-row mean luma — that's the rolling-shutter signal.
-      const W = canvas.width, H = canvas.height;
-      const rowMeans = new Float32Array(H);
-      let frameSum = 0;
-      for (let y = 0; y < H; y++) {
-        let rowSum = 0;
-        const base = y * W * 4;
-        for (let x = 0; x < W; x++) {
-          const i = base + x * 4;
-          rowSum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-        }
-        const m = rowSum / W;
-        rowMeans[y] = m;
-        frameSum += m;
-      }
-      const frameMean = frameSum / H;
-      // Banding ratio: stddev of row means, normalized by frame mean.
-      // High value = strong horizontal stripes = PWM during readout.
-      let varSum = 0;
-      for (let y = 0; y < H; y++) {
-        const d = rowMeans[y] - frameMean;
-        varSum += d * d;
-      }
-      const rowStddev = Math.sqrt(varSum / H);
-      const bandingRatio = frameMean > 1 ? rowStddev / frameMean : 0;
-      // Crude readout-time-derived frequency: count zero-crossings of the
-      // detrended row-mean signal across the frame. If the camera's
-      // rolling-shutter readout is ~25ms (typical phone), N stripes mean
-      // a PWM frequency of N / 0.025s = N * 40 Hz. Without per-device
-      // calibration this is rough; we surface "fast/slow" not exact Hz.
-      let crossings = 0;
-      for (let y = 1; y < H; y++) {
-        if ((rowMeans[y] >= frameMean) !== (rowMeans[y - 1] >= frameMean)) crossings++;
-      }
-      const stripes = Math.floor(crossings / 2);
-      // Frame-luma channel (legacy)
-      const frameLumaSum = frameMean * H;
+      const { frameMean, bandingRatio, stripes } = computeRowBanding(data, canvas.width, canvas.height);
+      // Frame-luma channel (legacy): sum across rows ≈ frameMean × H.
+      const frameLumaSum = frameMean * canvas.height;
       frameSamples.push({ t: performance.now() - startTime, v: frameLumaSum });
       bandingSamples.push({ t: performance.now() - startTime, banding: bandingRatio, stripes });
       if (frameSamples.length > 240) frameSamples.shift();
@@ -616,33 +653,86 @@ export async function openDarknessMeter(opts = {}) {
       video.muted = true;
       video.playsInline = true;
       await video.play();
+      // Lock long shutter + fixed ISO so dim pixels register at a known
+      // gain. Without ISO lock, auto-gain compensates darkness and the
+      // raw pixel values can't be translated to lux. Surfaces the
+      // calibration state honestly when lock partially fails.
+      const lock = await lockCameraForMeasurement(stream, { longExposure: true });
       const canvas = document.createElement('canvas');
       canvas.width = 32; canvas.height = 24;
       const ctx = canvas.getContext('2d');
-      const lumas = [];
+      const lumas = [];      // mean per sample
+      const peaks = [];      // single-pixel max per sample
       const t0 = performance.now();
       while (performance.now() - t0 < 30000 && _darkState.running) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        let sum = 0;
-        for (let i = 0; i < data.length; i += 4) sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+        let sum = 0, max = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+          sum += luma;
+          if (luma > max) max = luma;
+        }
         lumas.push(sum / (data.length / 4));
+        peaks.push(max);
         await new Promise(r => setTimeout(r, 200));
       }
       const meanLuma = lumas.reduce((a, b) => a + b, 0) / Math.max(1, lumas.length);
-      // Rough lux estimate at near-darkness (camera noise floor ~2 luma → ~0.1 lux)
-      const lux = Math.max(0, meanLuma * 0.5);
+      // 95th-percentile peak across the 30s window — rejects single-frame
+      // noise spikes while still surfacing real bright events (a phone
+      // notification, a passing car, an LED standby light briefly visible).
+      const sortedPeaks = peaks.slice().sort((a, b) => a - b);
+      const peakLuma = sortedPeaks[Math.floor(sortedPeaks.length * 0.95)] || 0;
+      // Camera noise floor at near-darkness sits around 2 luma units; the
+      // 0.5 lux/luma scale factor is empirical from a Pixel 6 reference
+      // measurement (D55 light, locked exposure). Apply the user's
+      // device-calibration multiplier so per-device sensor variance is
+      // accounted for. Subtract noise floor for the mean-lux estimate so
+      // true darkness reads as ≈ 0, not the noise-floor ≈ 1 lux.
+      const calFactor = loadLuxCalibration();
+      const NOISE_FLOOR_LUMA = 2;
+      const meanLux = Math.max(0, (meanLuma - NOISE_FLOOR_LUMA) * 0.5 * calFactor);
+      const peakLux = Math.max(0, (peakLuma - NOISE_FLOOR_LUMA) * 0.5 * calFactor);
+      // Thresholds anchored to circadian literature:
+      //   Brainard 2001:        ≥ 1.5–2 lux at the cornea suppresses
+      //                         melatonin in ~30% of sensitive individuals
+      //   Phillips 2019:        5–10 lux for 5h shifts circadian phase
+      //                         by ~30 min in a population study
+      //   Phipps-Nelson 2003:   100 lux for 6.5h is full suppression
+      // We grade chronic (mean) and acute (peak) on different scales —
+      // acute light spikes are circadian disruptions even when the mean
+      // looks fine.
       let label, cls;
-      if (lux < 0.3) { label = 'Excellent — true darkness'; cls = 'ok'; }
-      else if (lux < 1) { label = 'Good — minor light leak, melatonin mostly preserved'; cls = 'ok'; }
-      else if (lux < 5) { label = 'Light leak detected — likely 20–30% melatonin attenuation'; cls = 'warn'; }
-      else { label = 'Bright — melatonin amplitude significantly suppressed'; cls = 'over'; }
-      result = { lux, label, cls };
-      statusEl.innerHTML = `<strong class="dark-status-${cls}">${escapeHTML(label)}</strong><br><small style="color:var(--text-muted)">Estimated ${lux.toFixed(2)} lux at sleep position</small>`;
+      if (meanLux < 0.3 && peakLux < 1) {
+        label = 'Excellent — true darkness'; cls = 'ok';
+      } else if (meanLux < 1 && peakLux < 5) {
+        label = 'Good — minor leak, melatonin mostly preserved'; cls = 'ok';
+      } else if (meanLux < 5 && peakLux < 20) {
+        label = 'Moderate leak — 20–30% melatonin attenuation likely'; cls = 'warn';
+      } else if (peakLux >= 20 && meanLux < 5) {
+        label = 'Bright spikes detected — investigate notifications / passing lights'; cls = 'warn';
+      } else {
+        label = 'Significant — circadian phase shift likely'; cls = 'over';
+      }
+      result = { meanLux, peakLux, lockMode: lock.exposure, isoLocked: lock.iso != null, calFactor, label, cls };
+      // Honesty caveat when ISO couldn't be pinned — pixel values are
+      // uncalibrated absolute, only the relative comparison is meaningful.
+      const calNote = lock.iso != null
+        ? `<small style="color:var(--text-muted)">Locked ISO ${lock.iso}, exposure ${lock.exposure}.</small>`
+        : `<small style="color:var(--orange)">⚠ ISO not lockable on this camera — readings are qualitative (good/moderate/bright), not absolute lux. ${cameraLockStatusLine(lock)}</small>`;
+      statusEl.innerHTML = `<strong class="dark-status-${cls}">${escapeHTML(label)}</strong>` +
+        `<br><small style="color:var(--text-muted)">~${meanLux.toFixed(2)} lux average · ~${peakLux.toFixed(2)} lux peak (95th-pctile)</small>` +
+        `<br>${calNote}`;
       startBtn.textContent = 'Save reading';
       startBtn.disabled = false;
       startBtn.onclick = async () => {
-        await saveMeasurement('darkness', lux, { confidence: 0.6, extra: result, roomId });
+        // Save the mean as the headline value (the chronic-exposure number);
+        // peak goes into `extra` so detail-modal / AI can surface spike events.
+        await saveMeasurement('darkness', meanLux, {
+          confidence: lock.iso != null ? 0.7 : 0.45,
+          extra: result,
+          roomId,
+        });
         showNotification('Sleep darkness reading saved.');
         window._closeDark();
       };
@@ -689,6 +779,8 @@ export async function openCCTMeter(opts = {}) {
   document.body.appendChild(overlay);
 
   let currentCCT = null;
+  let currentMelanopic = null;
+  let currentPWMActive = false;
   const valueEl = overlay.querySelector('#cct-value');
   const toneEl = overlay.querySelector('#cct-tone');
   const cohEl = overlay.querySelector('#cct-coherence');
@@ -709,9 +801,12 @@ export async function openCCTMeter(opts = {}) {
     if (lock.whiteBalance !== 'manual') {
       cohEl.innerHTML = `<span style="color:var(--orange);font-size:11px">⚠ camera auto-white-balance is on — CCT reading is the camera's error, not the source. Try a different browser / phone, or use a meter for accurate readings.</span>`;
     }
+    // 64x48 capture so we can also run row-banding detection — flags
+    // PWM-dimmed lights whose CCT shifts during the PWM cycle.
     const canvas = document.createElement('canvas');
-    canvas.width = 32; canvas.height = 24;
+    canvas.width = 64; canvas.height = 48;
     const ctx = canvas.getContext('2d');
+    const bandingPeaks = [];
     const tick = () => {
       if (!_cctState.running) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -726,13 +821,32 @@ export async function openCCTMeter(opts = {}) {
       // Higher b/r ratio → cooler. Map to 1800–7000K.
       const ratio = bN / Math.max(rN, 0.01);
       const cct = Math.round(1800 + Math.min(5200, ratio * 4500));
+      // Melanopic ratio (B / R+G+B) — circadian impact independent of CCT.
+      // Two LEDs at the same CCT can have very different blue spikes.
+      const melanopic = bN;
+      const { bandingRatio, stripes } = computeRowBanding(data, canvas.width, canvas.height);
+      bandingPeaks.push(bandingRatio);
+      if (bandingPeaks.length > 60) bandingPeaks.shift();
+      const peakBanding = bandingPeaks.reduce((m, x) => Math.max(m, x), 0);
       currentCCT = cct;
+      currentMelanopic = melanopic;
+      currentPWMActive = peakBanding > 0.10 && stripes >= 2;
       valueEl.textContent = `${cct} K`;
       toneEl.textContent = cctTone(cct);
       // Only render the solar-coherence hint when WB lock succeeded —
       // otherwise the CCT value itself is unreliable, so the hint built
-      // on top of it would mislead.
-      if (lock.whiteBalance === 'manual') cohEl.innerHTML = solarCoherence(cct);
+      // on top of it would mislead. Same for melanopic / PWM annotations.
+      if (lock.whiteBalance === 'manual') {
+        const melanopicNote = melanopic > 0.32
+          ? `<span style="color:var(--orange);font-size:11px">⚠ high melanopic load (${(melanopic * 100).toFixed(0)}%) — daytime use only</span>`
+          : melanopic < 0.25
+          ? `<span style="color:var(--green);font-size:11px">✓ sleep-safe melanopic load (${(melanopic * 100).toFixed(0)}%)</span>`
+          : `<span style="color:var(--text-muted);font-size:11px">mixed melanopic load (${(melanopic * 100).toFixed(0)}%)</span>`;
+        const pwmNote = peakBanding > 0.10 && stripes >= 2
+          ? `<br><span style="color:var(--orange);font-size:11px">⚠ PWM dimming detected — open Flicker Detector for severity</span>`
+          : '';
+        cohEl.innerHTML = solarCoherence(cct) + `<br>${melanopicNote}${pwmNote}`;
+      }
       if (_cctState.running) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -742,7 +856,11 @@ export async function openCCTMeter(opts = {}) {
 
   overlay.querySelector('#cct-save').addEventListener('click', async () => {
     if (currentCCT == null) return;
-    await saveMeasurement('cct', currentCCT, { confidence: 0.5, roomId });
+    await saveMeasurement('cct', currentCCT, {
+      confidence: 0.5,
+      extra: { melanopic: currentMelanopic, pwmActive: currentPWMActive },
+      roomId,
+    });
     showNotification(`Color temp saved: ${currentCCT} K`);
     window._closeCCT();
   });
@@ -821,28 +939,36 @@ export async function openSpectrumClassifier(opts = {}) {
     if (lock.whiteBalance !== 'manual' || lock.exposure !== 'manual') {
       resultEl.innerHTML = `<span style="color:var(--orange);font-size:12px">⚠ camera auto-mode partially active — classification reliability is reduced. ${cameraLockStatusLine(lock)}</span>`;
     }
+    // 64x48 capture so the row-banding analyzer has enough rows to see
+    // PWM stripes — the spectrum classifier shares the rolling-shutter
+    // signal with the flicker tool instead of using its own crude
+    // frame-luma variance (which can't see anything above fps/2).
     const canvas = document.createElement('canvas');
-    canvas.width = 32; canvas.height = 32;
+    canvas.width = 64; canvas.height = 48;
     const ctx = canvas.getContext('2d');
-    const lumaSamples = [];
+    const bandingPeaks = [];   // recent banding ratios — peak across last second wins
     const tick = () => {
       if (!_specState.running) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      let r = 0, g = 0, b = 0, luma = 0;
+      let r = 0, g = 0, b = 0;
       for (let i = 0; i < data.length; i += 4) {
         r += data[i]; g += data[i + 1]; b += data[i + 2];
-        luma += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
       }
       const px = data.length / 4;
-      r /= px; g /= px; b /= px; luma /= px;
-      lumaSamples.push(luma);
-      if (lumaSamples.length > 120) lumaSamples.shift();
-      result = classifyLight({ r, g, b, lumaSamples });
+      r /= px; g /= px; b /= px;
+      const { bandingRatio, stripes } = computeRowBanding(data, canvas.width, canvas.height);
+      bandingPeaks.push(bandingRatio);
+      if (bandingPeaks.length > 60) bandingPeaks.shift();
+      const peakBanding = bandingPeaks.reduce((m, x) => Math.max(m, x), 0);
+      result = classifyLight({ r, g, b, peakBanding, stripes });
       // Discount confidence by 30% when WB couldn't be locked — under
       // auto-WB the R/G/B ratios reflect camera correction, not source.
       if (lock.whiteBalance !== 'manual') result = { ...result, confidence: result.confidence * 0.7, reason: result.reason + ' (camera auto-WB → low confidence)' };
-      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small>`;
+      const circadianBadge = result.circadian === 'sleep-safe' ? `<span style="color:var(--green);font-size:11px">✓ sleep-safe spectrum</span>`
+        : result.circadian === 'day-only' ? `<span style="color:var(--orange);font-size:11px">⚠ day-only — high melanopic load</span>`
+        : `<span style="color:var(--text-muted);font-size:11px">mixed melanopic load</span>`;
+      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small><br>${circadianBadge} <span style="color:var(--text-muted);font-size:11px">· melanopic ratio ${(result.melanopic * 100).toFixed(0)}%</span>`;
       if (_specState.running) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -864,34 +990,49 @@ export async function openSpectrumClassifier(opts = {}) {
   };
 }
 
-// 5-category v1 classifier — RGB ratio + flicker variance signature
-function classifyLight({ r, g, b, lumaSamples }) {
+// Spectrum classifier — RGB ratio + rolling-shutter PWM banding +
+// melanopic indicator. The melanopic ratio is a coarse approximation
+// of the SPD's stimulation of the ipRGCs (intrinsically photosensitive
+// retinal ganglion cells) that drive circadian phase. Phone-camera blue
+// channels peak around 450-470 nm, close to the melanopsin peak at 480
+// nm — close enough for a relative comparison across light sources.
+// Returns label + confidence + reason + melanopic (0–1) + circadian
+// classification (sleep-safe / mixed / day-only).
+function classifyLight({ r, g, b, peakBanding, stripes }) {
   const sum = r + g + b || 1;
   const rN = r / sum, gN = g / sum, bN = b / sum;
-  // Flicker variance over recent samples
-  const mean = lumaSamples.reduce((a, b) => a + b, 0) / Math.max(1, lumaSamples.length);
-  const variance = lumaSamples.length > 10
-    ? Math.max(...lumaSamples) - Math.min(...lumaSamples)
-    : 0;
-  const flickerRatio = mean ? variance / mean : 0;
+  // Melanopic ratio: B / (R+G+B). Sleep-safe sources keep this below ~25%
+  // (incandescent ~12%, warm LED ~22%, candle ~6%). Day-only sources sit
+  // above ~32% (cool LED 36%, daylight ~33%, fluorescent often 30%+).
+  const melanopic = bN;
+  const circadian = melanopic < 0.25 ? 'sleep-safe' : melanopic > 0.32 ? 'day-only' : 'mixed';
+  // Heavy banding (>0.10 ratio, ≥2 stripes) means PWM is active. Used
+  // to disambiguate fluorescent (typically 100 Hz mains-doubled) from
+  // similar-RGB cool LEDs.
+  const heavyPWM = peakBanding > 0.10 && stripes >= 2;
 
-  // Decision tree (very simple — the published Phase 1d note)
-  if (flickerRatio > 0.20 && gN > 0.36) {
-    return { label: 'Fluorescent / CFL', confidence: 0.7, reason: 'High flicker variance + green spike — typical 60 Hz fluorescent signature.' };
+  if (heavyPWM && gN > 0.36) {
+    return { label: 'Fluorescent / CFL', confidence: 0.75, reason: 'PWM banding + green spike — fluorescent signature.', melanopic, circadian };
   }
   if (rN > 0.40 && bN < 0.20) {
-    return { label: 'Incandescent / halogen', confidence: 0.75, reason: 'Red-rich, low blue — filament-style emitter.' };
+    return { label: 'Incandescent / halogen', confidence: 0.8, reason: 'Red-rich, low blue — filament-style emitter, sleep-safe.', melanopic, circadian };
   }
-  if (bN > 0.36 && flickerRatio < 0.10) {
-    return { label: 'Cool LED (4000K+)', confidence: 0.7, reason: 'Blue-rich, near-flicker-free — cool LED.' };
+  if (bN > 0.36 && !heavyPWM) {
+    return { label: 'Cool LED (4000K+)', confidence: 0.75, reason: 'Blue-rich, near-flicker-free — daytime / focus light.', melanopic, circadian };
   }
-  if (rN > 0.32 && bN < 0.30 && flickerRatio < 0.10) {
-    return { label: 'Warm LED (2700–3000K)', confidence: 0.7, reason: 'Slight red lift, near-flicker-free — warm LED.' };
+  if (bN > 0.36 && heavyPWM) {
+    return { label: 'Cool LED with PWM dimming', confidence: 0.75, reason: 'Blue-rich + visible PWM stripes — eye-strain risk on dim setting.', melanopic, circadian };
+  }
+  if (rN > 0.32 && bN < 0.30 && !heavyPWM) {
+    return { label: 'Warm LED (2700–3000K)', confidence: 0.75, reason: 'Slight red lift, near-flicker-free — evening-friendly.', melanopic, circadian };
+  }
+  if (rN > 0.32 && bN < 0.30 && heavyPWM) {
+    return { label: 'Warm LED with PWM dimming', confidence: 0.7, reason: 'Warm + PWM stripes — replace with flicker-free for evening rooms.', melanopic, circadian };
   }
   if (Math.abs(rN - 0.33) < 0.05 && Math.abs(bN - 0.33) < 0.05) {
-    return { label: 'Daylight or full-spectrum', confidence: 0.6, reason: 'Balanced RGB — natural or full-spectrum source.' };
+    return { label: 'Daylight or full-spectrum', confidence: 0.65, reason: 'Balanced RGB — natural or full-spectrum source.', melanopic, circadian };
   }
-  return { label: 'Mixed / unclassified', confidence: 0.4, reason: 'Pattern doesn\'t match a known signature.' };
+  return { label: 'Mixed / unclassified', confidence: 0.4, reason: 'Pattern doesn\'t match a known signature.', melanopic, circadian };
 }
 
 // ─── Tool 5: Glass Transmission Test ──────────────────────────────────
