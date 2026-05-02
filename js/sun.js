@@ -96,6 +96,38 @@ const TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
 const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○', '●●●●'];
 
 export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
+
+// Render a channel dose in its natural real-world unit when the
+// conversion is defensible (IU for vit D, J/cm² for the PBM/NIR
+// channels, M-EDI lux for circadian). Falls back to "" for channels
+// without a single clean SI unit (no_cv / pomc / violet_eye); the
+// caller substitutes "% of daily target" as a grounded alternative.
+//
+// Conversions live in sun-spectrum.js with citations. Unit choice
+// here is the user-facing copy; if you tweak (e.g. IU → kIU when
+// large), tweak only here, not the underlying math.
+export function formatChannelUnit(channelKey, channelAu, durationMin) {
+  if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
+  if (channelKey === 'vitamin_d') {
+    const iu = window.vitaminDIU ? window.vitaminDIU(channelAu) : channelAu * 10;
+    if (iu >= 10000) return '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU';
+    if (iu >= 1000) return '~' + Math.round(iu / 100) * 100 + ' IU';
+    return '~' + Math.round(iu / 10) * 10 + ' IU';
+  }
+  if (channelKey === 'nir_solar' || channelKey === 'pbm_red' || channelKey === 'pbm_nir') {
+    const j = window.pbmJoulesPerCm2 ? window.pbmJoulesPerCm2(channelAu) : channelAu / 10000;
+    if (j >= 10) return j.toFixed(0) + ' J/cm²';
+    if (j >= 1) return j.toFixed(1) + ' J/cm²';
+    return j.toFixed(2) + ' J/cm²';
+  }
+  if (channelKey === 'circadian' && durationMin > 0) {
+    const lux = window.circadianMelanopicLux ? window.circadianMelanopicLux(channelAu, durationMin) : 0;
+    if (lux >= 1000) return '~' + (lux / 1000).toFixed(1).replace(/\.0$/, '') + 'k M-EDI lux';
+    if (lux >= 100) return '~' + Math.round(lux / 10) * 10 + ' M-EDI lux';
+    return '~' + Math.round(lux) + ' M-EDI lux';
+  }
+  return ''; // no_cv / pomc / violet_eye: no defensible single unit
+}
 export function tierDots(tier) { return TIER_DOTS[tier] || TIER_DOTS[0]; }
 
 // ─── Public API ────────────────────────────────────────────────────────
@@ -777,7 +809,24 @@ function _renderActiveCardBody(sess) {
     medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose so far — ${pct}% of your personal threshold (Fitzpatrick ${escapeAttr(live.fitzpatrick)})">${pct}% burn dose · ${escapeHTML(label)}</span>`;
   }
   const channelChips = live?.doses ? renderChannelChips(live.doses) : '';
-  return { elapsed, medStr, channelChips };
+  // Surface a live IU readout for vitamin D — the most user-resonant
+  // unit in the channel set. Computed from the same channel-au integral
+  // the chips render, just translated through vitaminDIU(). Hidden when
+  // the rate is essentially zero (cloudy / low UVB / behind glass).
+  let vitaminDStr = '';
+  if (live?.doses?.vitamin_d > 0) {
+    const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
+    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d) : live.doses.vitamin_d * 10;
+    const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
+    if (iu >= 50) {
+      const iuLabel = iu >= 10000 ? '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
+        : iu >= 1000 ? '~' + Math.round(iu / 100) * 100 + ' IU'
+        : '~' + Math.round(iu / 10) * 10 + ' IU';
+      const rateLabel = ratePerMin >= 100 ? `${Math.round(ratePerMin / 10) * 10} IU/min` : `${Math.round(ratePerMin)} IU/min`;
+      vitaminDStr = `<span class="sun-session-vitd" title="Approximate vitamin D₃ synthesis so far. Saturates around 20k IU per Bogh & Wulf 2010 / Holick.">☀ ${iuLabel} vit D · ${rateLabel}</span>`;
+    }
+  }
+  return { elapsed, medStr, vitaminDStr, channelChips };
 }
 
 // Update every active-session card on the page. Cheap — only DOM patches
@@ -831,6 +880,13 @@ function _tickActiveCards() {
         // Insert med chip into the head row if it doesn't exist yet
         const head = card.querySelector('.sun-session-head .sun-session-duration');
         if (head) head.insertAdjacentHTML('afterend', body.medStr);
+      }
+      const vitdEl = card.querySelector('.sun-session-vitd');
+      if (vitdEl) vitdEl.outerHTML = body.vitaminDStr || '';
+      else if (body.vitaminDStr) {
+        // Insert vit-D chip after med chip (or after duration if no med yet)
+        const after = card.querySelector('.sun-session-med') || card.querySelector('.sun-session-duration');
+        if (after) after.insertAdjacentHTML('afterend', body.vitaminDStr);
       }
       const oldChips = card.querySelector('.sun-channel-chips');
       if (oldChips) oldChips.outerHTML = body.channelChips || '';
@@ -1065,16 +1121,23 @@ export function openSunSessionDetail(id) {
     medStr = `${pct}% — ${label}`;
   }
 
-  // Per-channel breakdown
+  // Per-channel breakdown. Real-world units (IU, J/cm², M-EDI lux)
+  // surface where defensible; tier-only for channels without a clean
+  // single SI unit. See sun-spectrum.js {vitaminDIU, pbmJoulesPerCm2,
+  // circadianMelanopicLux} for the conversions and their sources.
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   const channelRows = sess.doses ? channelOrder.map(k => {
     const meta = CHANNEL_DISPLAY[k] || {};
     const v = sess.doses[k] || 0;
     const t = channelTier(v, k);
     const tlabel = tierLabel(t);
+    const target = meta.dailyTarget || 0;
+    const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
+    const unitText = formatChannelUnit(k, v, sess.durationMin || 0);
     return `<div class="sun-detail-channel-row sun-chip-tier-${t}">
       <span class="sun-detail-channel-icon">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
+      <span class="sun-detail-channel-value">${unitText || (pctOfTarget != null ? `${pctOfTarget}% of daily target` : '')}</span>
       <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
     </div>`;
   }).join('') : '<p class="sun-detail-empty">No channel doses computed for this session yet.</p>';
@@ -1115,6 +1178,7 @@ export function openSunSessionDetail(id) {
         <div><span>Ended</span><strong>${escapeHTML(end ? fmtTime(end) : '—')}</strong></div>
         <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
         <div><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
+        ${sess.doses?.vitamin_d ? `<div title="Bogh & Wulf 2010 conversion. Approximate; saturates around 20k IU."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0))}</strong></div>` : ''}
       </div>
 
       <div class="sun-detail-section">
@@ -1664,6 +1728,7 @@ if (typeof window !== 'undefined') {
     CHANNEL_DISPLAY,
     channelTier,
     tierLabel,
+    formatChannelUnit,
     tierDots,
   });
 }

@@ -7175,10 +7175,16 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   font-size: 13px;
 }
 .sun-detail-channel-icon { font-size: 16px; flex-shrink: 0; }
-.sun-detail-channel-label { flex: 1; color: var(--text-primary); }
+.sun-detail-channel-label { color: var(--text-primary); flex-shrink: 0; }
+.sun-detail-channel-value {
+  flex: 1; text-align: right;
+  font-size: 12px; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
 .sun-detail-channel-tier {
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
-  color: var(--text-muted);
+  color: var(--text-muted); flex-shrink: 0;
+  min-width: 60px; text-align: right;
 }
 .sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier { color: var(--green); }
 .sun-detail-channel-row.sun-chip-tier-2 .sun-detail-channel-tier { color: var(--accent); }
@@ -7340,6 +7346,18 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .sun-session-head { display: flex; align-items: center; gap: 12px; }
 .sun-session-date { font-weight: 600; color: var(--text-primary); }
 .sun-session-duration { color: var(--text-secondary); font-size: 13px; }
+/* Live vitamin D synthesis chip — surfaces approximate IU + IU/min on
+   active sessions. Sits next to the burn-dose chip in the session-row
+   header. Color stays neutral (it's a positive signal regardless of
+   tier) to keep the burn-dose chip's color the load-bearing visual. */
+.sun-session-vitd {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 10px;
+  background: var(--accent-bg, rgba(96,165,250,0.10));
+  color: var(--accent);
+  white-space: nowrap;
+}
 .sun-session-med {
   margin-left: auto;
   padding: 2px 8px; border-radius: 12px;

@@ -399,6 +399,54 @@ export function fractionOfMED({ sed, fitzpatrick = 'III' }) {
   return sed / med;
 }
 
+// ─── Real-world unit conversions ───────────────────────────────────────
+//
+// computeChannelDoses returns "channel-au" (arbitrary units) — the
+// integral E(λ) × actionSpectrum(λ) × dλ × seconds × bodyFraction. For
+// channels whose action spectrum maps to a known biological unit, we
+// expose conversion helpers so the UI can show meaningful numbers.
+//
+// All conversions are deliberately rough — order-of-magnitude correct
+// but not lab-grade. Sources cited per channel.
+
+// Vitamin D synthesis (IU). Source: Bogh & Wulf 2010, "The Adequacy
+// of Vitamin D Synthesis Following Sunlight Exposure on a Cloud-Free
+// Day" — establishes that ~100 J/m² CIE-pre-vit-D-weighted UVB on
+// whole body produces ~1000 IU vitamin D₃ in fair skin. Our channel-au
+// for vitamin_d already integrates J/m² × actionSpectrum × bodyFraction,
+// so the conversion is linear at moderate doses.
+//
+// Saturation: pre-vit-D photoisomerizes back at high doses (Holick
+// 2007), so above ~20,000 IU the actual yield plateaus. We cap the
+// displayed value to keep the UI honest about that ceiling.
+export function vitaminDIU(channelAu) {
+  if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
+  const raw = channelAu * 10;
+  return Math.min(raw, 20000);
+}
+
+// PBM dose (J/cm²) for the red/NIR therapy channels and the wider
+// nir_solar channel. channel-au is J/m² × bodyFraction × actionWeight;
+// dividing by 10,000 converts m² → cm². Matches the dose unit
+// printed on commercial therapy-panel datasheets (Joovv, Mito Red etc.).
+export function pbmJoulesPerCm2(channelAu) {
+  if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
+  return channelAu / 10000;
+}
+
+// Peak melanopic equivalent daylight illuminance (M-EDI lux) for the
+// `circadian` channel during a session. Channel-au is the time-
+// integrated J/m² × eyeMultiplier under the melanopic action spectrum;
+// to get peak lux we divide by session duration to recover the
+// instantaneous melanopic irradiance, then multiply by the CIE S 026
+// melanopic luminous efficacy K_mel,v (≈ 614 lx/(W/m²) for D65).
+export function circadianMelanopicLux(channelAu, durationMin) {
+  if (!Number.isFinite(channelAu) || channelAu <= 0 || durationMin <= 0) return 0;
+  const seconds = durationMin * 60;
+  const melanopic_W_per_m2 = channelAu / seconds; // average over the session
+  return melanopic_W_per_m2 * 614;
+}
+
 // Retinal UV exposure (separate safety counter — gates "is sun-gazing happening")
 // Returns J/m² UV at the eye; warning threshold ~1000 J/m² over a day.
 export function retinalUVdose({ spectrum, eyeExposure }) {
@@ -428,6 +476,9 @@ if (typeof window !== 'undefined') {
     computeChannelDoses,
     erythemalSED,
     fractionOfMED,
+    vitaminDIU,
+    pbmJoulesPerCm2,
+    circadianMelanopicLux,
     retinalUVdose,
     glassTransmission,
     sunscreenTransmission,
