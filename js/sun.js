@@ -561,10 +561,8 @@ export async function quickLogSunSession() {
     await _hydrateFromProfileCoords(active.id);
     const sess = getSessions().find(s => s.id === active.id);
     const dur = Math.round(sess?.durationMin || 0);
-    const top = _topChannel(sess);
-    showNotification(top
-      ? `Session saved — ${dur} min · best contribution: ${top.label} (${top.tier})`
-      : `Session saved — ${dur} min`);
+    const summary = _plainStopSummary(sess, dur);
+    showNotification(summary, summary.includes('over your burn threshold') ? 'error' : 'success', 7000);
     _refreshSurfaces();
     return;
   }
@@ -614,6 +612,7 @@ export async function openStartSunSessionDialog() {
           <input type="checkbox" id="start-glass"${defaultGlass ? ' checked' : ''} />
           Behind glass (window / car / sunroom)
         </label>
+        <p class="sun-detailed-glass-hint">Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through. We zero the burn dose accordingly.</p>
       </details>
 
       <div class="modal-actions" style="margin-top:18px">
@@ -700,6 +699,38 @@ export function trapModalFocus(overlay) {
     }
   });
   obs.observe(document.body, { childList: true, subtree: true });
+}
+
+// Plain-English session-stop summary. Leads with what the body got out of
+// the session (vit D in IU, top channel) and ends with the safety state —
+// the framing a normie reads after coming inside.
+function _plainStopSummary(sess, dur) {
+  if (!sess) return `Session saved — ${dur} min`;
+  const parts = [`Saved · ${dur} min outside`];
+  const fitz = sess.safety?.fitzpatrick || 'III';
+  const uvi = sess.atmosphere?.uvIndex;
+  const vitDAu = sess.doses?.vitamin_d || 0;
+  if (vitDAu > 0 && window.vitaminDIU) {
+    const iu = window.vitaminDIU(vitDAu, fitz, uvi);
+    if (iu >= 100) {
+      const lo = Math.round(iu * 0.6 / 50) * 50;
+      const hi = Math.round(iu * 1.5 / 50) * 50;
+      parts.push(`~${lo}–${hi} IU vitamin D`);
+    }
+  } else if (sess.bodyExposure?.glassBetween) {
+    parts.push('no vitamin D — glass blocks UVB');
+  } else if (uvi != null && uvi < 2) {
+    parts.push(`no vitamin D — UVI too low (${uvi.toFixed(1)})`);
+  }
+  const med = sess.safety?.medFraction || 0;
+  if (med >= 1.0) {
+    parts.push('over your burn threshold — no more sun today');
+  } else if (med >= 0.7) {
+    parts.push(`${Math.round(med * 100)}% burn dose — close to limit, ease up`);
+  } else if (med >= 0.3) {
+    parts.push(`${Math.round(med * 100)}% burn dose — well within safe range`);
+  }
+  return parts.join(' · ');
 }
 
 // Identify the strongest channel a session contributed to (for notification copy)
@@ -961,10 +992,10 @@ function _tickActiveCards() {
       const cur = _getLiveState(sess.id) || {};
       if (med >= 1.0 && !cur.alertedOver) {
         _setLiveState(sess.id, { alertedOver: true });
-        showNotification('Burn threshold reached — stop sun exposure now. Cover up or move to shade.', 'error', 8000);
+        showNotification('Burn threshold reached. Move to shade or cover up NOW. Hydrate. Skin damage from here is cumulative — no more direct sun today.', 'error', 10000);
       } else if (med >= 0.7 && !cur.alerted70) {
         _setLiveState(sess.id, { alerted70: true });
-        showNotification('Approaching burn threshold (70% MED) — wrap up soon.', 'warning', 6000);
+        showNotification('70% of your burn dose. Best move: head into shade for ~10 min, then decide. If you stay, watch for skin warmth or pinkness.', 'warning', 8000);
       }
     }
 

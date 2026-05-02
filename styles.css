@@ -7078,6 +7078,15 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   font-size: 11px; color: var(--text-muted);
   font-style: italic;
 }
+.conditions-now-stale.conditions-now-stale-mild {
+  color: var(--orange);
+  font-style: normal;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
 
 /* Trust footer — source attribution + refresh + inspect, always shown.
    Lets the user verify the data flow without opening DevTools. */
@@ -7360,6 +7369,9 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   .sun-detailed-row { grid-template-columns: 1fr; }
 }
 .sun-detailed-glass { display: flex; align-items: center; gap: 8px; }
+.sun-detailed-glass-hint {
+  margin: 4px 0 0 24px; font-size: 11px; color: var(--text-muted); line-height: 1.45;
+}
 
 /* Burn-risk banner on the Light & Sun page */
 .light-med-banner {
@@ -7383,6 +7395,24 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
+.light-explainer {
+  margin: 16px 0; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+.light-explainer summary {
+  padding: 12px 16px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  user-select: none;
+}
+.light-explainer summary::marker { color: var(--text-muted); }
+.light-explainer-body {
+  padding: 0 16px 14px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px; line-height: 1.55; color: var(--text-secondary);
+}
+.light-explainer-body p { margin: 10px 0; }
+.light-explainer-body strong { color: var(--text-primary); }
 
 /* Light & Sun page */
 .light-quicklog-row { margin: 12px 0 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

@@ -454,7 +454,11 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   const fetchedAgo = Math.max(0, Math.round((Date.now() - (atm.fetchedAt || Date.now())) / 60000));
   const staleness = offline
     ? `<span class="conditions-now-stale" title="Network unavailable — using cached values">⚠ offline · cached ${fetchedAgo} min ago</span>`
-    : (fetchedAgo > 60 ? `<span class="conditions-now-stale" title="Cached value, refresh on reconnect">cached ${fetchedAgo} min ago</span>` : '');
+    : (fetchedAgo > 60
+        ? `<span class="conditions-now-stale" title="Cached value, refresh to update">cached ${fetchedAgo} min ago — tap ↻ to refresh</span>`
+        : (fetchedAgo > 30
+            ? `<span class="conditions-now-stale conditions-now-stale-mild" title="Conditions can drift with cloud cover; tap refresh for a fresh fetch">data ${fetchedAgo} min old</span>`
+            : ''));
 
   // Resolve user's Fitzpatrick (for time-to-MED). Track whether it's
   // user-set vs the default III fallback so we can qualify the readout.
@@ -1143,6 +1147,20 @@ export function showLight(_data) {
 
     // Suggestion (channel-agnostic, reads merged totals)
     html += renderSuggestion(combined7d);
+
+    // "How we estimate" — single explainer covering MED / IU / channels /
+    // uncertainty. One-stop glossary so we don't litter every readout with
+    // a tooltip. Collapsed by default.
+    html += `<details class="light-explainer">
+      <summary>How we estimate vitamin D, burn risk &amp; channels</summary>
+      <div class="light-explainer-body">
+        <p><strong>Burn dose (% MED).</strong> 1 MED = "minimal erythemal dose," the smallest UV dose that turns your skin slightly pink. Set per Fitzpatrick skin type (Type I = 200 J/m² CIE-erythemal, Type VI = 1000 J/m²). 100% means a sunburn is starting; 70% means stop or cover up soon. Carries ~50% overnight.</p>
+        <p><strong>Vitamin D in IU.</strong> Bogh &amp; Wulf 2010 + Holick 2008. Roughly 40 IU per "channel-au" of pre-vit-D-action-spectrum-weighted UVB at sea-level zenith, scaled by your Fitzpatrick (melanin lowers it). Saturates around 20,000 IU per session — the skin photoisomerizes any extra back to inert tachysterol/lumisterol. <strong>Below UVI ~2 there's no meaningful synthesis</strong> (Webb 2018) — winter mornings, low sun, behind glass all yield zero.</p>
+        <p><strong>The ±50% range.</strong> Estimate is "central × 0.6 to × 1.5" because (a) the spectral reconstruction model adds ~20%, (b) skin response varies per person ~30%, (c) actual exposed area can differ 10-20% from your selected regions. Treat the band as honest — the central number alone is false precision.</p>
+        <p><strong>Six channels.</strong> Sun does six different things, each with its own action spectrum: vitamin D synthesis (UVB 290-315nm), circadian/melanopic (450-490nm at the eye), cardiovascular NO release (UVA-violet), POMC/α-MSH mood-hormones (UVA), violet-eye dopamine (380-440nm at the eye), and NIR cellular repair (660-850nm). Sun + therapy devices both feed these; we sum them.</p>
+        <p><strong>Atmosphere data.</strong> Open-Meteo (default) for UV index, ozone column, cloud cover, AQI. Refreshed every 5 minutes during a session. Self-host CAMS via the External-server panel for higher resolution. All math runs on-device — your location is rounded to 0.1° (~11km) before any network call unless you opt out.</p>
+      </div>
+    </details>`;
 
     // Unified sessions list — sun + device merged chronologically.
     html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;

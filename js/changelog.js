@@ -5,6 +5,16 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.3', date: '2026-05-02', title: 'Sun-session UX polish',
+    items: [
+      '<b>Plain-English session summary on stop.</b> Hitting "Stop" now shows what just happened in normal language: <i>"Saved · 22 min outside · ~600–1500 IU vitamin D · 35% burn dose — well within safe range."</i> No more dropping a number you have to mentally translate.',
+      '<b>Burn alerts now tell you what to do.</b> The 70% MED toast says <i>"head into shade for ~10 min, then decide"</i>; the 100% toast adds <i>"hydrate, no more direct sun today."</i> Action, not just a number.',
+      '<b>"Behind glass" explains itself.</b> Toggling the glass option in the session dialog now shows: <i>"Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through."</i> No more silent zeros.',
+      '<b>Stale-conditions indicator.</b> If your UV/ozone data is over 30 minutes old, a small chip appears on the conditions strip. Conditions can drift with cloud cover; you should know when you\'re looking at stale numbers.',
+      '<b>"How we estimate" explainer on the Light & Sun page.</b> One collapsible section that defines MED, IU, the ±50% range, the six channels, and where the atmosphere data comes from. Glossary in one place instead of scattered tooltips.',
+    ]
+  },
+  {
     version: '1.7.2', date: '2026-05-02', title: 'Sun safety guardrails',
     items: [
       '<b>Live burn-threshold alerts.</b> While a sun session is running, you now get a toast at 70% MED ("approaching burn threshold — wrap up soon") and a hard alert at 100% ("burn threshold reached — stop sun exposure"). No more checking the dashboard every five minutes; the app nudges you when it matters.',
