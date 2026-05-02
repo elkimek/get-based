@@ -116,10 +116,11 @@ export function computeSunCorrelations({ weeks = 12 } = {}) {
 // Cache helpers
 let _cache = null;
 function cacheKey() {
+  const p = state.currentProfile || 'default';
   const s = state.importedData?.sunSessions?.length || 0;
   const d = state.importedData?.deviceSessions?.length || 0;
   const e = state.importedData?.entries?.length || 0;
-  return `${s}-${d}-${e}`;
+  return `${p}-${s}-${d}-${e}`;
 }
 
 export function getSunCorrelations() {

@@ -335,6 +335,17 @@ return (async function() {
   assert('newest entries retained after cap', ids.has(249) && ids.has(200));
   assert('oldest entries dropped after cap', !ids.has(0) && !ids.has(49));
 
+  // Tie-break: when only one side has updatedAt, the side with the stamp wins.
+  // v1.7.5 fix: recordChange() now stamps updatedAt; old entries without it
+  // must lose to a stamped entry on conflict (otherwise old entries permanently
+  // shadow newer cross-device edits).
+  const m14d = mergeImportedData(
+    { changeHistory: [{ field: 'diet', date: '2026-05-01', snapshot: { v: 'old' } }] },
+    { changeHistory: [{ field: 'diet', date: '2026-05-01', snapshot: { v: 'new' }, updatedAt: 5 }] }
+  );
+  assert('updatedAt-stamped entry wins over unstamped on tie',
+    m14d.changeHistory[0].snapshot.v === 'new');
+
   console.log(`%c Data Merge: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

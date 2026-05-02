@@ -57,6 +57,14 @@ const COMPOSITE_KEYED_ARRAYS = [
 // usual creation timestamps. Returns 0 if nothing recognizable found —
 // the function is permissive so foreign records (older schemas) merge
 // instead of throwing.
+//
+// Returns { ts, explicit }: explicit=true when the value came from an
+// edit-time field (updatedAt/endedAt/startedAt/etc); false when it's
+// just a Date.parse(rec.date) fallback. Callers comparing two records
+// from the same composite key should prefer explicit over implicit on
+// tie-break — a record with no explicit stamp must lose to one with
+// any explicit stamp (otherwise old un-stamped entries permanently
+// shadow newer cross-device edits).
 function pickTimestamp(rec) {
   if (!rec || typeof rec !== 'object') return 0;
   const t = rec.updatedAt
@@ -72,6 +80,11 @@ function pickTimestamp(rec) {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+function hasExplicitTimestamp(rec) {
+  if (!rec || typeof rec !== 'object') return false;
+  return Number.isFinite(rec.updatedAt ?? rec.endedAt ?? rec.startedAt
+    ?? rec.capturedAt ?? rec.loggedAt ?? rec.createdAt ?? rec.at);
 }
 
 // Get/set helpers for the dotted path.
@@ -213,9 +226,13 @@ export function mergeImportedData(local, remote) {
         if (!k) { noKey.push(e); continue; }
         const existing = seen.get(k);
         if (!existing) { seen.set(k, e); continue; }
-        // Conflict: same composite key on both sides. Pick the higher
-        // timestamp; ties keep existing (remote, since we consume local
-        // first then remote).
+        // Conflict: same composite key on both sides. Prefer the entry
+        // with an explicit edit timestamp first; if both (or neither)
+        // have one, compare via pickTimestamp.
+        const eExp = hasExplicitTimestamp(e);
+        const xExp = hasExplicitTimestamp(existing);
+        if (eExp && !xExp) { seen.set(k, e); continue; }
+        if (!eExp && xExp) continue;
         const eTs = pickTimestamp(e);
         const xTs = pickTimestamp(existing);
         if (eTs > xTs) seen.set(k, e);

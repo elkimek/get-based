@@ -340,7 +340,7 @@ async function _setManualUvi() {
   // the override applied. Fetch isn't re-issued — the override is applied
   // to whatever atm we have cached.
   _conditionsCache = null;
-  if (window.showNotification) window.showNotification(`Manual UVI ${v.toFixed(1)} applied — burn math + spectrum will use it until cleared.`, 'success', 5000);
+  if (window.showNotification) window.showNotification(`Manual UVI ${v.toFixed(1)} applied — used for burn-time + vit-D-threshold math until cleared. (Spectrum stays driven by ozone + zenith + cloud cover.)`, 'success', 5000);
   _refreshConditionsNow();
 }
 

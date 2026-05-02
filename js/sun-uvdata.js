@@ -492,7 +492,15 @@ function readStaleCache(rLat, rLon) {
 
 function writeCache(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); }
-  catch (e) {}
+  catch (e) {
+    // Quota or serialization error. Surface in debug mode so the user
+    // can triage why their conditions strip stops persisting across reloads.
+    try {
+      if (typeof window !== 'undefined' && window.isDebugMode && window.isDebugMode()) {
+        console.warn('[sun-uvdata] writeCache failed', key, e?.name || e);
+      }
+    } catch {}
+  }
 }
 
 async function fetchJson(url, opts = {}) {

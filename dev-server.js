@@ -37,6 +37,10 @@ export function collectWearableOverrides(env) {
 }
 
 const PORT = parseInt(process.argv[2], 10) || 8000;
+// Bind address. Defaults to 127.0.0.1 (loopback only) so the dev server
+// stays off the LAN unless explicitly opted in. Set HOST=0.0.0.0 to expose
+// it to the local network — useful for testing on a phone over Wi-Fi.
+const HOST = process.env.HOST || '127.0.0.1';
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
 
@@ -1010,10 +1014,6 @@ const server = http.createServer((req, res) => {
 // `node dev-server.js`, different means `import ... from './dev-server.js'`.
 const _entryUrl = process.argv[1] ? new URL(`file://${path.resolve(process.argv[1])}`).href : '';
 const _isDirectRun = import.meta.url === _entryUrl;
-// Bind address. Defaults to 127.0.0.1 (loopback only) so the dev server
-// stays off the LAN unless explicitly opted in. Set HOST=0.0.0.0 to expose
-// it to the local network — useful for testing on a phone over Wi-Fi.
-const HOST = process.env.HOST || '127.0.0.1';
 if (_isDirectRun) server.listen(PORT, HOST, () => {
   console.log(`Dev server running at http://${HOST === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1'}:${PORT}`);
   if (HOST === '0.0.0.0') {

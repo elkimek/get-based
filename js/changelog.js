@@ -5,6 +5,22 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.6', date: '2026-05-02', title: 'Audit-pass fixes (correctness + security)',
+    items: [
+      '<b>Cross-device tie-break fix.</b> The composite-keyed merge now prefers an entry with an explicit edit timestamp over one without — older un-stamped changeHistory entries no longer silently shadow newer cross-device edits when they share a date.',
+      '<b>Hydrate serialization.</b> Concurrent <code>updateSession</code> calls (e.g. fast typing into a duration field) now serialize through a per-session promise queue. Previously the second await could land its doses before the first, briefly stamping the relay with stale numbers.',
+      '<b>Atmosphere export hygiene.</b> The private <code>_uvOverridden</code> / <code>_cloudOverridden</code> / <code>_ozoneOverridden</code> presentation-layer flags no longer get persisted into <code>sess.atmosphere</code> in localStorage / Evolu CRDT / JSON exports.',
+      '<b>Dashboard chart parity.</b> The 7-day per-channel bar chart now reflects the in-progress session\'s live partial dose (matches the rolling 7-day total above it). Previously today\'s bar read 0 even when the user was an hour into a sun session.',
+      '<b>Carry-over math now covers overnight sessions.</b> A session that started yesterday and is still running today proportions its dose between the two days for the carry-over chip — was previously contributing 0 to yesterday\'s cumulative.',
+      '<b>Hydrate null-atmosphere guard.</b> If the atmosphere fetch returns <code>null</code> (provider down + cache miss), <code>hydrateSession</code> now logs and bails cleanly instead of throwing a TypeError into the silent catch.',
+      '<b>Manual UVI copy fix.</b> Toast no longer claims the override drives the spectrum — the spectrum stays driven by ozone + zenith + cloud. Override only affects burn-time + vit-D-threshold math.',
+      '<b>Corrupt-blob backup is large-blob safe.</b> If the corrupted import was over 4 MB (the very condition that often caused the corruption), the backup now routes through IndexedDB instead of throwing QuotaExceededError on the localStorage path.',
+      '<b>Sync hardening.</b> Profile IDs from the relay now pass an allowlist regex (defense-in-depth against a compromised relay injecting cross-key collisions). Per-profile rebroadcast counter caps pings at 3 per 5-minute window so clock-skew oscillation can\'t run away.',
+      '<b>Privacy.</b> Sun-correlations cache is now keyed by active profile (was module-scoped — same-shape counts across profiles could serve stale results). Activity-log "Copy" button only renders in debug mode (was always visible — minor future leak surface).',
+      '<b>Dev server.</b> <code>HOST</code> declared up top with the other config constants — was forward-referenced from the request handler.',
+    ]
+  },
+  {
     version: '1.7.5', date: '2026-05-02', title: 'Audit-pass fixes',
     items: [
       '<b>Accessibility.</b> All eight light-tools modals + four light-devices modals now trap keyboard focus when open (was: focus stayed on whatever was behind, leaving keyboard users stranded). Room and screen disclosure cards in Light Environment are now proper buttons with <code>aria-expanded</code> + Enter/Space activation (was: bare <code>&lt;div onclick&gt;</code>, unreachable by keyboard). Manual UVI input, lux-meter calibration input, and audit-walkthrough room labels now have associated labels for screen readers.',

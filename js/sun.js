@@ -304,16 +304,24 @@ export async function updateSession(id, patch) {
   }
   sess.updatedAt = Date.now();
   await saveImportedData();
-  // Re-hydrate doses asynchronously when duration changed. hydrateSession
-  // is idempotent + handles missing coords gracefully (skips dose recompute
-  // if we don't know where the session was). Don't await — the UI should
-  // update immediately on the duration change; doses can fill in on next
-  // tick.
+  // Re-hydrate doses asynchronously. Per-session in-flight promise serializes
+  // concurrent edits — without it, two quick updateSession calls can race two
+  // fetchAtmosphere awaits and write doses for the older duration after the
+  // newer one shipped (the relay briefly holds stale doses).
   if (durationChanged && sess.location) {
-    hydrateSession(id, { lat: sess.location.lat, lon: sess.location.lon }).catch(() => {});
+    const prev = _hydrateInFlight.get(id) || Promise.resolve();
+    const next = prev
+      .catch(() => {})
+      .then(() => hydrateSession(id, { lat: sess.location.lat, lon: sess.location.lon }))
+      .catch(e => { if (window.console) console.warn('hydrateSession after updateSession failed', e); });
+    _hydrateInFlight.set(id, next);
+    next.finally(() => { if (_hydrateInFlight.get(id) === next) _hydrateInFlight.delete(id); });
   }
   return sess;
 }
+
+// Per-session hydrate serialization queue. Map<sessionId, Promise>.
+const _hydrateInFlight = new Map();
 
 // Hydrate a session record with computed atmosphere + channel doses.
 // Idempotent — reruns after edits.
@@ -369,8 +377,16 @@ export async function hydrateSession(id, { lat, lon } = {}) {
   const altitudeM = sess.location?.altitudeM ?? 0;
   try {
     let atm = await fetchAtmosphere({ lat: useLat, lon: useLon, isoTime: midpoint });
+    if (!atm) {
+      if (window.console) console.warn('hydrateSession: atmosphere fetch returned null for', id);
+      return null;
+    }
     atm = _applyAtmOverrides(atm);
-    sess.atmosphere = atm;
+    // Strip private flags before persisting — _uvOverridden/_cloudOverridden/_ozoneOverridden
+    // are presentation-layer markers, not session data; persisting them
+    // wastes bytes in localStorage/CRDT and surfaces in exports.
+    const { _uvOverridden, _cloudOverridden, _ozoneOverridden, ...persistedAtm } = atm;
+    sess.atmosphere = persistedAtm;
     const zenith = solarZenithAngle(new Date(midpoint), useLat, useLon);
     const spectrum = reconstructSpectrum({
       zenithDeg: zenith,
@@ -514,9 +530,18 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
   };
   for (const sess of getSessions()) {
     const ts = sess.endedAt || sess.startedAt;
-    if (!ts || !sess.doses) continue;
+    if (!ts) continue;
     const i = idxFor(ts);
     if (i < 0) continue;
+    if (!sess.endedAt) {
+      // In-progress session — pull live partial dose so the chart reflects
+      // an active session in progress (matches rollingChannelTotals).
+      const live = _liveDosesFor(sess);
+      const v = live?.doses?.[channelKey];
+      if (Number.isFinite(v)) buckets[i].sun += v;
+      continue;
+    }
+    if (!sess.doses) continue;
     const v = sess.doses[channelKey];
     if (Number.isFinite(v)) buckets[i].sun += v;
   }
@@ -596,7 +621,20 @@ export function cumulativeMEDYesterday() {
   const yStart = todayStart - 86400000;
   let total = 0;
   for (const sess of getSessions()) {
-    if (!sess.endedAt || !sess.safety) continue;
+    // In-progress session that started yesterday and is still running today
+    // contributes its dose proportionally (yesterday's portion to yesterday).
+    if (!sess.endedAt) {
+      const startedAt = sess.startedAt || 0;
+      if (startedAt < yStart || startedAt >= todayStart) continue;
+      const live = _liveDosesFor(sess);
+      if (!live || !Number.isFinite(live.medFraction)) continue;
+      const totalElapsedMs = Date.now() - startedAt;
+      const yesterdayMs = Math.max(0, todayStart - startedAt);
+      const yesterdayShare = totalElapsedMs > 0 ? yesterdayMs / totalElapsedMs : 0;
+      total += live.medFraction * yesterdayShare;
+      continue;
+    }
+    if (!sess.safety) continue;
     if (sess.endedAt < yStart || sess.endedAt >= todayStart) continue;
     total += sess.safety.medFraction || 0;
   }

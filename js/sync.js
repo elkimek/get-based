@@ -15,6 +15,23 @@ function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 // Each entry: { at: ms, kind: 'push'|'pull'|'skip'|'rebroadcast', text }.
 const _syncEvents = [];
 const _SYNC_EVENT_CAP = 12;
+// Per-profile rebroadcast counters with a 5-minute reset window.
+// Caps runaway rebroadcast loops if two devices' clocks skew enough
+// that same-id timestamp comparisons keep flipping which side "won".
+const _rebroadcastCounts = new Map(); // profileId → { count, since: ms }
+const _REBROADCAST_CAP = 3;
+const _REBROADCAST_WINDOW_MS = 5 * 60 * 1000;
+function _consumeRebroadcastBudget(profileId) {
+  const now = Date.now();
+  let entry = _rebroadcastCounts.get(profileId);
+  if (!entry || (now - entry.since) > _REBROADCAST_WINDOW_MS) {
+    entry = { count: 0, since: now };
+    _rebroadcastCounts.set(profileId, entry);
+  }
+  if (entry.count >= _REBROADCAST_CAP) return false;
+  entry.count++;
+  return true;
+}
 function _logSyncEvent(kind, text) {
   _syncEvents.push({ at: Date.now(), kind, text });
   if (_syncEvents.length > _SYNC_EVENT_CAP) _syncEvents.shift();
@@ -1232,6 +1249,11 @@ async function onSyncReceived() {
       try {
         const profileId = row.profileId;
         if (!profileId || typeof profileId !== 'string') continue;
+        // Allowlist regex — defense-in-depth against a compromised relay
+        // injecting a profileId that maps to a sensitive localStorage key
+        // collision (e.g. "default-imported-chat-threads" → would land at
+        // labcharts-default-imported-chat-threads-imported).
+        if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) continue;
         const remoteUpdated = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
 
         // Check local timestamp
@@ -1425,6 +1447,9 @@ async function onSyncReceived() {
           if (_syncStatus.push === 'pending') {
             dbg(`Row ${profileId.slice(0,8)}: rebroadcast deferred — push already pending`);
             _logSyncEvent('skip', `Rebroadcast deferred — push pending`);
+          } else if (!_consumeRebroadcastBudget(profileId)) {
+            dbg(`Row ${profileId.slice(0,8)}: rebroadcast suppressed — ${_REBROADCAST_CAP} already in last 5min (clock skew?)`);
+            _logSyncEvent('skip', `Rebroadcast budget exhausted — possible clock skew`);
           } else {
             dbg(`Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
             _logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
@@ -1650,7 +1675,7 @@ export function toggleSyncDetail() {
     <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <span style="font-weight:600;color:var(--text-secondary);flex:1">Recent activity</span>
-        <button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" onclick="window.copySyncEvents(this)" title="Copy events to clipboard">Copy</button>
+        ${(typeof window !== 'undefined' && window.isDebugMode && window.isDebugMode()) ? `<button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" onclick="window.copySyncEvents(this)" title="Copy events to clipboard (debug mode only)">Copy</button>` : ''}
       </div>
       ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
     </div>` : '';

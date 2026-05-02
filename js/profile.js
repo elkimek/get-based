@@ -301,9 +301,22 @@ export async function loadProfile(profileId) {
       // Don't silently substitute defaults — preserve the corrupted bytes so
       // the user can recover (or we can debug). Same key suffix every time
       // so a second corruption doesn't shadow the first recoverable copy.
+      // Route through IDB when the blob is large (the very condition that
+      // commonly triggers the corruption); fall back to localStorage otherwise.
+      // Fire-and-forget — the IIFE this catch lives in is sync, so we kick
+      // the IDB write off via Promise chain rather than awaiting it here.
       try {
         const corruptKey = profileStorageKey(profileId, 'imported-corrupt');
-        if (!localStorage.getItem(corruptKey)) localStorage.setItem(corruptKey, savedImported);
+        if (!localStorage.getItem(corruptKey)) {
+          if (savedImported.length < 4_000_000) {
+            try { localStorage.setItem(corruptKey, savedImported); }
+            catch { /* fall through to IDB */ }
+          }
+          import('./blob-storage.js').then(async ({ setBlob, getBlob }) => {
+            const existing = await getBlob(corruptKey).catch(() => null);
+            if (!existing) await setBlob(corruptKey, savedImported);
+          }).catch(() => {});
+        }
       } catch {}
       // Surface to the user via the global notification system if available;
       // fall back to console so headless paths still log it.
