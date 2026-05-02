@@ -577,19 +577,23 @@ const TOOL_ICONS = {
   lux: '📏', flicker: '⚡', cct: '🎨', darkness: '🌙', spectrum: '🔬', 'glass-transmission': '🪟',
 };
 
-// Per-day "in use today / skipped today" toggle pill. Auto-resets at
-// midnight via the date stamp on the override (todayKey() check). The
-// pill telegraphs current state with text + icon; click flips it via
-// setTodayActive. kind is 'room' or 'screen' so one window handler
-// can route both.
-function _renderTodayToggle(kind, id, activeToday) {
-  const cls = `light-env-today-toggle${activeToday ? ' light-env-today-on' : ' light-env-today-off'}`;
-  const label = activeToday ? '✓ In use today' : '⊘ Skipped today';
+// Per-day "in use today / skipped today" toggle. Auto-resets at
+// midnight via the date stamp on the override (todayKey() check).
+// Header-mode is icon-only (a check or slash) with a tooltip — most
+// users never touch this so the verbose pill of the old layout was
+// burning header real estate. `compact: true` collapses to icon;
+// callers in body footers can pass false for the full text label.
+function _renderTodayToggle(kind, id, activeToday, opts = {}) {
+  const compact = opts.compact !== false;
+  const cls = `light-env-today-toggle${activeToday ? ' light-env-today-on' : ' light-env-today-off'}${compact ? ' light-env-today-compact' : ''}`;
+  const icon = activeToday ? '✓' : '⊘';
+  const label = activeToday ? 'In use today' : 'Skipped today';
   const flipTo = activeToday ? 'false' : 'true';
   const tip = activeToday
     ? "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
     : "Click to use today — counts toward today's exposure.";
-  return `<button type="button" class="${cls}" onclick="window.setLightEnvTodayActive('${kind}', '${escapeAttr(id)}', ${flipTo})" title="${escapeAttr(tip)}" aria-pressed="${activeToday}">${label}</button>`;
+  const inner = compact ? `<span aria-hidden="true">${icon}</span><span class="visually-hidden">${escapeHTML(label)}</span>` : `${icon} ${escapeHTML(label)}`;
+  return `<button type="button" class="${cls}" onclick="event.stopPropagation();window.setLightEnvTodayActive('${kind}', '${escapeAttr(id)}', ${flipTo})" title="${escapeAttr(tip)}" aria-label="${escapeAttr(label)} — click to flip" aria-pressed="${activeToday}">${inner}</button>`;
 }
 
 // Single screen card markup — used both at top level (portable) and
@@ -680,17 +684,21 @@ function renderRoomDisclosure(r, expanded) {
   const hours = r.hoursOccupiedPerDay;
   const hoursLabel = hours ? `${hours} hr/day` : '';
 
+  // Whether the evening-after-sunset signal is "on" in the current schema —
+  // newer chip-picker field wins, falls back to legacy boolean.
+  const eveningOn = (r.eveningHoursAfterSunset != null) ? (+r.eveningHoursAfterSunset) > 0 : !!r.eveningUseAfterSunset;
   let html = `<div class="light-env-room-disclosure light-env-card-sev-${sev.color}${activeToday ? '' : ' light-env-card-skipped'}${expanded ? ' expanded' : ''}" data-id="${escapeAttr(r.id)}">
     <div class="light-env-room-disclosure-head" onclick="window.toggleLightEnvRoomExpanded('${escapeAttr(r.id)}', event)">
       <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>
       <span class="light-env-room-disclosure-name">${escapeHTML(r.name || 'Room')}</span>
-      <span class="light-env-room-disclosure-signals">
+      ${expanded ? '' : `<span class="light-env-room-disclosure-signals">
         ${hoursLabel ? `<span class="light-env-room-signal">${escapeHTML(hoursLabel)}</span>` : ''}
         ${sourceShort ? `<span class="light-env-room-signal">${escapeHTML(sourceShort)}</span>` : ''}
-        ${r.eveningUseAfterSunset ? `<span class="light-env-room-signal light-env-room-signal-evening">after-sunset</span>` : ''}
-      </span>
+        ${eveningOn ? `<span class="light-env-room-signal">evening</span>` : ''}
+      </span>`}
       <span class="light-env-room-disclosure-spacer"></span>
       ${_renderTodayToggle('room', r.id, activeToday)}
+      ${expanded ? `<button class="light-env-overflow" onclick="event.stopPropagation();window.deleteLightEnvRoomConfirm('${escapeAttr(r.id)}')" title="Delete room" aria-label="Delete room">⋯</button>` : ''}
       <span class="light-env-room-disclosure-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>
     </div>`;
 
@@ -766,11 +774,8 @@ function renderRoomExpandedBody(r, measurements, sev) {
     </div>
   </div>`;
 
-  // Footer: delete (destructive, lives at the bottom away from primary actions)
-  html += `<div class="light-env-room-disclosure-footer">
-    <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="window.deleteLightEnvRoomConfirm('${escapeAttr(r.id)}')">Delete room</button>
-  </div>`;
-
+  // Delete moved to the header overflow (⋯) — keeps destructive actions
+  // out of the primary scan path inside the body.
   html += `</div>`;
   return html;
 }
@@ -1230,6 +1235,31 @@ if (typeof window !== 'undefined') {
       if (!b) return;
       await updateRoom(id, { hoursOccupiedPerDay: b.midpoint });
       if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    // Auto-fill a room's primarySource from the Spectrum tool's
+    // classification — only when the user hasn't picked one yet, so
+    // we don't silently overwrite a manual answer. Mapping mirrors
+    // light-tools.js classifyLight() label values.
+    suggestRoomSourceFromSpectrum: async (roomId, spectrumLabel) => {
+      const env = getEnvironment();
+      const room = (env?.rooms || []).find(r => r.id === roomId);
+      if (!room) return;
+      // Bail if user has already given us a non-default source.
+      if (room.primarySource && room.primarySource !== 'unknown') return;
+      const SPECTRUM_TO_SOURCE = {
+        'Fluorescent / CFL':            'fluorescent',
+        'Incandescent / halogen':       'incandescent',
+        'Cool LED (4000K+)':            'led-cool',
+        'Cool LED with PWM dimming':    'led-cool',
+        'Warm LED (2700–3000K)':        'led-warm',
+        'Warm LED with PWM dimming':    'led-warm',
+        'Daylight or full-spectrum':    'natural-only',
+        'Mixed / unclassified':         'mixed',
+      };
+      const mapped = SPECTRUM_TO_SOURCE[spectrumLabel];
+      if (!mapped) return;
+      await updateRoom(roomId, { primarySource: mapped });
+      showNotification(`Auto-set ${room.name || 'this room'}'s light source to ${mapped.replace('-', ' ')} from spectrum reading.`);
     },
     setLightEnvRoomEveningBucket: async (id, bucketKey) => {
       const b = EVENING_BUCKETS.find(x => x.key === bucketKey);

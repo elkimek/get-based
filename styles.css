@@ -6081,6 +6081,43 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-env-card-skipped .light-env-today-toggle { opacity: 1; }
 .light-env-card-skipped .light-env-sev-chip { opacity: 0.85; }
 
+/* Compact mode — icon-only pill in disclosure headers. Most users
+   never touch the today-toggle, so it shouldn't burn header space
+   with a verbose label. The icon (✓ / ⊘) carries the state; full
+   text lives in the title attribute + visually-hidden span for SR. */
+.light-env-today-compact {
+  width: 26px; height: 26px;
+  padding: 0;
+  justify-content: center;
+  font-size: 13px; line-height: 1;
+}
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* Header overflow menu — currently single-purpose (delete) but
+   structured as a button so we can swap to a popover later when
+   more actions land. Sits next to the chevron, away from primary
+   scan path. */
+.light-env-overflow {
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 16px; line-height: 1;
+  transition: all 0.15s;
+}
+.light-env-overflow:hover {
+  background: rgba(244,67,54,0.08);
+  color: var(--red);
+  border-color: var(--red);
+}
+
 /* Screens — now cards (was 5-element flat rows that wrapped badly
    on mobile). Each card carries a status chip for evening blue
    exposure tier. */
