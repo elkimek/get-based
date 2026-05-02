@@ -237,6 +237,9 @@ function renderSavedSummary() {
     </div>`;
   }
 
+  const photoBanner = d.photosensitiveMeds
+    ? `<div class="light-setup-photo-banner" title="${escapeAttr('Burn threshold reduced ~2.5× while photosensitizing meds are active. Edit to clear when no longer applicable.')}">⚠ Photosensitizing medication active — burn alerts trigger 2.5× sooner.</div>`
+    : '';
   return `<div class="light-setup-summary">
     <div class="light-setup-summary-head">
       <span class="light-setup-summary-headline">
@@ -245,6 +248,7 @@ function renderSavedSummary() {
       </span>
       <button class="import-btn import-btn-secondary light-setup-summary-edit" onclick="window.reopenSunSetup && window.reopenSunSetup()">Edit</button>
     </div>
+    ${photoBanner}
     <div class="light-setup-chips-grid">
       <div class="light-setup-chip light-setup-chip-skin" title="${escapeAttr('Fitzpatrick ' + fpLabel + ' — drives MED math + UV tolerance.')}">
         <div class="light-setup-chip-icon">${skinEmoji}</div>
@@ -311,6 +315,15 @@ export function renderSetupCard() {
         <input type="range" min="0" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : 2)}" class="ctx-skin-range" id="setup-skin-range" oninput="window._updateSetupSkinSlider && window._updateSetupSkinSlider(this.value)" data-set="${getInitialFitzpatrick() ? '1' : '0'}" aria-valuetext="${getInitialFitzpatrick() ? escapeAttr(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'not set — tap a face'}">
         <div class="ctx-skin-label" id="setup-skin-label">${getInitialFitzpatrick() ? `${escapeHTML(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())])}<span class="ctx-skin-label-detail" id="setup-skin-label-detail">${escapeHTML(FITZPATRICK_DESCRIPTOR[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())])}</span>` : 'Tap a face or drag the slider'}</div>
       </div>
+    </div>
+
+    <div class="light-setup-step">
+      <label class="light-setup-photo-row">
+        <input type="checkbox" id="setup-photosensitive"${d.photosensitiveMeds ? ' checked' : ''}>
+        <span><strong>I take a photosensitizing medication or supplement.</strong>
+          <span class="light-setup-photo-why">Tetracyclines/doxycycline, isotretinoin/retinoids, amiodarone, thiazides, sulfa antibiotics, NSAIDs, St. John's Wort, and others lower your sunburn threshold ~2.5×. Burn alerts will trigger sooner. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">List of common ones →</a></span>
+        </span>
+      </label>
     </div>
 
     <div class="light-setup-step">
@@ -399,8 +412,10 @@ async function saveSunSetup() {
       if (cb.checked) ottScore++;
     }
   }
+  const photosensitiveMeds = !!root.querySelector('#setup-photosensitive')?.checked;
   await saveSunDefaults({
     fitzpatrick,
+    photosensitiveMeds,
     homeLight,
     eyewear,
     ott,

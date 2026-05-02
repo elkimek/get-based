@@ -160,11 +160,20 @@ export function renderLightTodayStrip() {
     weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun exposure over the last 7 days, summed per session and Fitzpatrick-scaled. ±50% range reflects model + biological response variance — central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU * 0.6)}-${fmt(weeklyIU * 1.5)} IU vitamin D this week</span>`;
   }
 
+  // High-altitude UV chip — UV irradiance climbs ~10% per 1000m above sea
+  // level (WHO/INTERSUN). At >1500m it's a meaningful safety modifier the
+  // user should see before going outside.
+  const altCoords = (window.getSunCoords && window.getSunCoords()) || null;
+  const altM = altCoords?.altitudeM || 0;
+  const altChip = altM > 1500
+    ? `<span class="light-today-altitude" title="UV irradiance climbs ~10% per 1000m above sea level. At ${Math.round(altM)}m, expect ~${Math.round((altM / 1000) * 10)}% more UV than sea-level estimates.">⛰ +${Math.round((altM / 1000) * 10)}% UV (altitude ${Math.round(altM)}m)</span>`
+    : '';
   return `<section class="light-today-strip">
     <div class="light-today-head">
       <span class="light-today-icon">☀</span>
       <span class="light-today-title">Light Today</span>
       <span class="light-today-sub" title="${sunWeek} sun + ${devWeek} device · last 7 days">${weekTotal} light session${weekTotal !== 1 ? 's' : ''} this week</span>
+      ${altChip}
       <a href="#" class="light-today-link" onclick="event.preventDefault();window.navigate('light')">Open Light &amp; Sun →</a>
     </div>
     ${renderConditionsNow({ variant: 'compact' })}
@@ -1110,15 +1119,24 @@ export function showLight(_data) {
     // is part of the routine.
     if (sunCount > 0) {
       const medPct = Math.round(medToday * 100);
+      const medY = (window.cumulativeMEDYesterday && window.cumulativeMEDYesterday()) || 0;
+      const combinedMED = medToday + medY;
       let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
       if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
       else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching sunburn threshold'; medMsg = 'You\'re getting close to your skin\'s daily limit. Move to shade or cover up if you go back out.'; }
       else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
+      // Carry-over chip — fires when today + yesterday combined exceeds
+      // 100%, even if today alone is under threshold. Skin doesn't reset
+      // overnight; back-to-back high-dose days are how vacation burns happen.
+      const carryChip = (combinedMED > 1.0 && medToday < 1.0)
+        ? `<div class="light-med-carryover" title="Yesterday ${Math.round(medY * 100)}% MED + today ${medPct}% MED. Skin partially carries dose between days — back-to-back exposure compounds burn risk.">⚠ Cumulative dose with yesterday: ${Math.round(combinedMED * 100)}% — go easy today.</div>`
+        : '';
       html += `<div class="light-med-banner light-med-${medCls}">
         <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
         <div class="light-med-body">
           <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your personal threshold)</span>` : ''}</div>
           <div class="light-med-sub">${medMsg}</div>
+          ${carryChip}
         </div>
       </div>`;
     }

@@ -145,6 +145,15 @@ return (async function() {
   assert('Type II skin reaches MED faster than Type VI', medFracII > medFracVI);
   assert('Type VI MED fraction is much smaller', medFracVI < medFracII / 3);
 
+  // Photosensitive medication scaling — burn threshold drops ~2.5× so
+  // the MED fraction climbs ~2.5× faster for the same dose.
+  const medFracIIPhoto = fractionOfMED({ sed, fitzpatrick: 'II', photosensitive: true });
+  assert('Photosensitive flag raises MED fraction', medFracIIPhoto > medFracII);
+  assert('Photosensitive scales MED fraction by ~2.5×',
+    Math.abs(medFracIIPhoto - medFracII * 2.5) < medFracII * 0.05);
+  assert('Photosensitive default false leaves MED fraction unchanged',
+    fractionOfMED({ sed, fitzpatrick: 'II' }) === medFracII);
+
   // Retinal UV — only counted in 'direct' eye mode
   const retDir = retinalUVdose({ spectrum: noon, eyeExposure: { mode: 'direct', durationSec: 60 } });
   const retSun = retinalUVdose({ spectrum: noon, eyeExposure: { mode: 'sunglasses', durationSec: 60 } });

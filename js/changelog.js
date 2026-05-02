@@ -5,6 +5,16 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.2', date: '2026-05-02', title: 'Sun safety guardrails',
+    items: [
+      '<b>Live burn-threshold alerts.</b> While a sun session is running, you now get a toast at 70% MED ("approaching burn threshold — wrap up soon") and a hard alert at 100% ("burn threshold reached — stop sun exposure"). No more checking the dashboard every five minutes; the app nudges you when it matters.',
+      '<b>Photosensitizing medication awareness.</b> The Light setup card now asks whether you\'re on a photosensitizing med (tetracyclines, doxycycline, retinoids, amiodarone, thiazides, sulfa antibiotics, NSAIDs, St. John\'s Wort, etc.). When set, your burn threshold drops 2.5× across the board and a banner reminds you on every session start. AAD-aligned guidance.',
+      '<b>Eye-safety reminder on uncovered-eye sessions.</b> Picking "Eyes uncovered" now triggers a clear toast: <i>"NEVER look directly at the sun. Direct means eyes open toward the sky, not staring at the disc."</i> The eye-mode label was renamed from "Direct (no glasses)" to "Eyes uncovered" so the dropdown itself can\'t be misread.',
+      '<b>Cumulative carry-over chip.</b> Skin doesn\'t fully reset overnight. When yesterday + today combined exceeds 100% MED, the burn-risk banner now shows a carry-over warning even if today alone is under threshold — the back-to-back day is how vacation burns happen.',
+      '<b>High-altitude UV chip.</b> Above 1500m, UV irradiance climbs ~10% per 1000m (WHO INTERSUN). The Light Today strip now shows an "+X% UV (altitude Ym)" chip when your saved location is high-altitude, so estimates can\'t silently understate burn risk.',
+    ]
+  },
+  {
     version: '1.7.1', date: '2026-05-01', title: 'Bugfixes & improvements',
     items: [
       'Fixes for cross-device sync, UV-conditions accuracy on phones, and a few smaller polish items.',

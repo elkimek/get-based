@@ -5193,6 +5193,13 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-today-icon { font-size: 16px; color: var(--accent); }
 .light-today-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .light-today-sub { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
+.light-today-altitude {
+  font-size: 11px; color: var(--text-primary); font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  margin-left: 6px;
+}
 .light-today-link { margin-left: auto; font-size: 12px; color: var(--accent); text-decoration: none; }
 .light-today-link:hover { text-decoration: underline; }
 
@@ -5567,6 +5574,30 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-setup-step { margin: 14px 0; }
 .light-setup-step .ctx-label { display: block; margin-bottom: 4px; }
+.light-setup-photo-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  font-size: 13px; line-height: 1.5;
+  cursor: pointer;
+}
+.light-setup-photo-row input[type="checkbox"] { margin-top: 3px; flex-shrink: 0; }
+.light-setup-photo-why {
+  display: block; margin-top: 4px;
+  font-size: 11px; color: var(--text-muted); line-height: 1.45; font-weight: normal;
+}
+.light-setup-photo-why a { color: var(--accent); text-decoration: underline; }
+.light-setup-photo-banner {
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 6px;
+  font-size: 12px; color: var(--text-primary);
+  line-height: 1.5;
+}
 /* "Why this matters" microcopy under each question label */
 .light-setup-step-why {
   font-size: 11px; color: var(--text-muted);
@@ -7346,6 +7377,12 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .light-med-title { font-size: 14px; color: var(--text-primary); }
 .light-med-pct { color: var(--text-muted); font-weight: normal; font-size: 12px; }
 .light-med-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.light-med-carryover {
+  margin-top: 6px; font-size: 12px; color: var(--text-primary);
+  padding: 6px 10px; border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
 
 /* Light & Sun page */
 .light-quicklog-row { margin: 12px 0 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

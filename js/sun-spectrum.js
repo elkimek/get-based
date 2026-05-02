@@ -475,8 +475,14 @@ export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction =
   return J_per_m2 / SED_JOULES_PER_M2;
 }
 
-export function fractionOfMED({ sed, fitzpatrick = 'III' }) {
-  const med = MED_BY_FITZPATRICK[fitzpatrick] ?? MED_BY_FITZPATRICK.III;
+// Photosensitizing meds (tetracyclines, doxycycline, retinoids, amiodarone, St. John's Wort,
+// thiazide diuretics, sulfa antibiotics, NSAIDs, etc.) lower the burn threshold ~2–3×.
+// We use 0.4 (≈2.5×) as a conservative fixed scale per AAD/Mayo Clinic guidance.
+const PHOTOSENSITIVE_MED_SCALE = 0.4;
+
+export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive = false }) {
+  const baseMED = MED_BY_FITZPATRICK[fitzpatrick] ?? MED_BY_FITZPATRICK.III;
+  const med = photosensitive ? baseMED * PHOTOSENSITIVE_MED_SCALE : baseMED;
   return sed / med;
 }
 

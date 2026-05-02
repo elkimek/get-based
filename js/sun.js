@@ -47,7 +47,7 @@ export const EXPOSURE_PRESETS = [
 ];
 
 export const EYE_MODES = [
-  { key: 'direct',         label: 'Direct (no glasses)' },
+  { key: 'direct',         label: 'Eyes uncovered (do not look at sun)' },
   { key: 'sunglasses',     label: 'Sunglasses' },
   { key: 'clear-glasses',  label: 'Clear glasses' },
   { key: 'closed-eyes',    label: 'Closed eyes' },
@@ -387,11 +387,13 @@ export async function hydrateSession(id, { lat, lon } = {}) {
     const lcSkin = state.importedData?.lightCircadian?.skinType;
     const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
+    const photosensitive = !!state.importedData?.sunDefaults?.photosensitiveMeds;
     sess.safety = {
       sed,
-      medFraction: fractionOfMED({ sed, fitzpatrick }),
+      medFraction: fractionOfMED({ sed, fitzpatrick, photosensitive }),
       retinalUV: retinalUVdose({ spectrum, eyeExposure: sess.eyeExposure }),
       fitzpatrick,
+      photosensitive,
     };
     // Stamp the engine version so rehydrateStaleSessions can detect
     // sessions computed under older (buggy) versions and recompute.
@@ -530,6 +532,23 @@ export function cumulativeMEDToday() {
   return total;
 }
 
+// Cumulative MED for the prior day. Skin doesn't fully reset overnight —
+// a yesterday-MED of 0.9 plus today-MED of 0.5 = ~1.4 cumulative,
+// well into burn territory. Surfaced as a "carry-over" warning chip when
+// yesterday + today exceeds 100%.
+export function cumulativeMEDYesterday() {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yStart = todayStart - 86400000;
+  let total = 0;
+  for (const sess of getSessions()) {
+    if (!sess.endedAt || !sess.safety) continue;
+    if (sess.endedAt < yStart || sess.endedAt >= todayStart) continue;
+    total += sess.safety.medFraction || 0;
+  }
+  return total;
+}
+
 // ─── UI: Quick log ─────────────────────────────────────────────────────
 
 // Single-tap "I'm outside now" — starts a session with last-used defaults.
@@ -641,6 +660,12 @@ export async function openStartSunSessionDialog() {
     const id = await startSession({ regions, eyeMode, lensTint, glassBetween, location: coords });
     overlay.remove();
     showNotification(`Outdoor session started · ${regions.length} region${regions.length === 1 ? '' : 's'} exposed`);
+    if (state.importedData?.sunDefaults?.photosensitiveMeds) {
+      showNotification('⚠ Photosensitizing medication active — your burn threshold is ~2.5× lower. Plan to wrap up at the first sign of pinkness.', 'warning', 7000);
+    }
+    if (eyeMode === 'direct') {
+      showNotification('Eyes-uncovered mode: NEVER look directly at the sun. "Direct" means eyes open toward the sky, not staring at the sun disc.', 'warning', 7000);
+    }
     _refreshSurfaces();
     _ensureActiveTicker();
     return id;
@@ -792,12 +817,13 @@ async function _snapshotActiveRate(sess) {
     const lcSkin = state.importedData?.lightCircadian?.skinType;
     const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
+    const photosensitive = !!state.importedData?.sunDefaults?.photosensitiveMeds;
     // baselineZenith is sampled once per session and never overwritten on
     // 10-min spectrum refresh — keeps the zenithScale denominator stable
     // so cumulative doses don't jump every refresh cycle.
     const existing = _getLiveState(sess.id) || {};
     _setLiveState(sess.id, {
-      ratePerMin, sedPerMin, fitzpatrick, atm, zenith,
+      ratePerMin, sedPerMin, fitzpatrick, photosensitive, atm, zenith,
       baselineZenith: existing.baselineZenith ?? zenith,
       snapshotAt: Date.now(),
       fractionOfMEDFn: fractionOfMED,
@@ -856,8 +882,8 @@ function _liveDosesFor(sess) {
   const doses = {};
   for (const [k, v] of Object.entries(rate)) doses[k] = v * elapsedMin * zenithScale;
   const sed = (live.sedPerMin || 0) * elapsedMin * zenithScale;
-  const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick }) : 0;
-  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, _zenithScale: zenithScale };
+  const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive }) : 0;
+  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive, _zenithScale: zenithScale };
 }
 
 // Render a compact live card body — elapsed time, burn-risk %, channel chips.
@@ -925,6 +951,20 @@ function _tickActiveCards() {
       if (Date.now() - last > 10 * 60 * 1000) {
         // Preserve baselineZenith; clear ratePerMin to force re-snapshot
         _setLiveState(sess.id, { ratePerMin: null });
+      }
+    }
+
+    // Fire once at 70% MED (warning) and 100% MED (stop). Dedup via _liveState flags.
+    const liveDoses = _liveDosesFor(sess);
+    if (liveDoses && Number.isFinite(liveDoses.medFraction)) {
+      const med = liveDoses.medFraction;
+      const cur = _getLiveState(sess.id) || {};
+      if (med >= 1.0 && !cur.alertedOver) {
+        _setLiveState(sess.id, { alertedOver: true });
+        showNotification('Burn threshold reached — stop sun exposure now. Cover up or move to shade.', 'error', 8000);
+      } else if (med >= 0.7 && !cur.alerted70) {
+        _setLiveState(sess.id, { alerted70: true });
+        showNotification('Approaching burn threshold (70% MED) — wrap up soon.', 'warning', 6000);
       }
     }
 
@@ -1779,6 +1819,7 @@ if (typeof window !== 'undefined') {
     rollingChannelTotals,
     rollingVitaminDIU,
     cumulativeMEDToday,
+    cumulativeMEDYesterday,
     renderSessionsList,
     renderSunSessionRow,
     getSunCoords,
