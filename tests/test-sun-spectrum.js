@@ -435,6 +435,30 @@ return (async function() {
   assert('30 min naked clear-noon: no_cv dose >= 50 channel-au',
     fullNoon.no_cv >= 50, `got ${fullNoon.no_cv.toFixed(2)}`);
 
+  // ─── 17. UVI threshold gate on vit-D synthesis ──────────────────────
+  // Webb 2018 / Lehmann 2013 / NIWA: no meaningful vit D synthesis
+  // below UVI ~2-3 because the 295-300 nm UVB needed for pre-vit-D
+  // photoisomerization is essentially absent at low solar elevation.
+  // The gate captures this clinical reality without needing the
+  // simplified Bird-Riordan model to be radiometrically perfect.
+  console.log('%c 17. UVI threshold gate ', 'font-weight:bold;color:#f59e0b');
+  const { vitaminDIU } = window;
+  // Same channel-au, varying UVI gates differently:
+  assert('UVI 1 → 0 IU (below threshold)', vitaminDIU(100, 'II', 1.0) === 0);
+  assert('UVI 2 → 0 IU (at threshold)', vitaminDIU(100, 'II', 2.0) === 0);
+  assert('UVI 2.5 → ~half yield (linear ramp)',
+    Math.abs(vitaminDIU(100, 'II', 2.5) - vitaminDIU(100, 'II', 4.0) * 0.5) < 1);
+  assert('UVI 3 → full yield', vitaminDIU(100, 'II', 3.0) === vitaminDIU(100, 'II', 8.0));
+  assert('UVI 8 → full yield (above threshold)', vitaminDIU(100, 'II', 8.0) === 4000);
+  assert('UVI null → no gating (trust channel-au)',
+    vitaminDIU(100, 'II', null) === vitaminDIU(100, 'II', 8.0));
+  // Fitzpatrick scaling still applies on top of the gate
+  assert('Type VI at UVI 6 = 30% of Type II yield',
+    Math.abs(vitaminDIU(100, 'VI', 6.0) - vitaminDIU(100, 'II', 6.0) * 0.30) < 1);
+  // Saturation cap still applies after gating
+  assert('UVI 8, Type II, 1000 channel-au → 20k IU saturation cap',
+    vitaminDIU(1000, 'II', 8.0) === 20000);
+
   // ─── Summary ────────────────────────────────────────────────────────
   console.log(`%c Sun Spectrum: ${pass} passed, ${fail} failed`,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold`);

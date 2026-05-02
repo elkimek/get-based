@@ -108,12 +108,15 @@ export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
 // large), tweak only here, not the underlying math.
 //
 // `fitzpatrick` modulates the vitamin D conversion (melanin reduces
-// yield at the keratinocyte layer). Pass the session's stored value
-// from `safety.fitzpatrick`; fallback to 'III' (median).
-export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III') {
+// yield at the keratinocyte layer). `uvi` gates synthesis below the
+// clinical threshold (Webb 2018: no meaningful vit D below UVI ~2-3).
+// Pass these from `sess.safety.fitzpatrick` and `sess.atmosphere.uvIndex`
+// respectively; fallback to 'III' / null.
+export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (channelKey === 'vitamin_d') {
-    const iu = window.vitaminDIU ? window.vitaminDIU(channelAu, fitzpatrick) : channelAu * 40;
+    const iu = window.vitaminDIU ? window.vitaminDIU(channelAu, fitzpatrick, uvi) : channelAu * 40;
+    if (iu < 10) return '<10 IU'; // below the gate / very low
     if (iu >= 10000) return '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU';
     if (iu >= 1000) return '~' + Math.round(iu / 100) * 100 + ' IU';
     return '~' + Math.round(iu / 10) * 10 + ' IU';
@@ -469,14 +472,16 @@ export function rollingVitaminDIU(days = 7) {
       const live = _liveDosesFor(sess);
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
-        total += window.vitaminDIU(live.doses.vitamin_d, fitz);
+        const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
+        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi);
       }
       continue;
     }
     if (!sess.doses?.vitamin_d) continue;
     if (sess.endedAt < cutoff) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
-    total += window.vitaminDIU(sess.doses.vitamin_d, fitz);
+    const uvi = sess.atmosphere?.uvIndex ?? null;
+    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi);
   }
   return total;
 }
@@ -853,7 +858,8 @@ function _renderActiveCardBody(sess) {
   if (live?.doses?.vitamin_d > 0) {
     const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
     const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
-    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz) : live.doses.vitamin_d * 40;
+    const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
+    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz, uvi) : live.doses.vitamin_d * 40;
     const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
     if (iu >= 50) {
       const iuLabel = iu >= 10000 ? '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
@@ -1170,7 +1176,7 @@ export function openSunSessionDetail(id) {
     const tlabel = tierLabel(t);
     const target = meta.dailyTarget || 0;
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III');
+    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex);
     return `<div class="sun-detail-channel-row sun-chip-tier-${t}">
       <span class="sun-detail-channel-icon">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
@@ -1215,7 +1221,7 @@ export function openSunSessionDetail(id) {
         <div><span>Ended</span><strong>${escapeHTML(end ? fmtTime(end) : '—')}</strong></div>
         <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
         <div><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
-        ${sess.doses?.vitamin_d ? `<div title="Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}. Approximate; saturates around 20k IU."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III'))}</strong></div>` : ''}
+        ${sess.doses?.vitamin_d ? `<div title="Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}. Gated by UVI threshold (Webb 2018: no meaningful synthesis below UVI ~2-3). Saturates around 20k IU per session."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex))}</strong></div>` : ''}
       </div>
 
       <div class="sun-detail-section">

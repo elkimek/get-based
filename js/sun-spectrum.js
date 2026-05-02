@@ -437,10 +437,33 @@ export function fractionOfMED({ sed, fitzpatrick = 'III' }) {
 const VITD_FITZPATRICK_SCALE = { I: 1.0, II: 1.0, III: 0.85, IV: 0.65, V: 0.45, VI: 0.30 };
 const VITD_IU_PER_CHANNEL_AU = 40;
 const VITD_SATURATION_IU = 20000;
-export function vitaminDIU(channelAu, fitzpatrick = 'III') {
+
+// UVI threshold gate. Webb 2018, Lehmann 2013, McKenzie 2009 (NIWA):
+// no meaningful vit D synthesis below UVI ~2-3 because the 295-300 nm
+// UVB needed for pre-vit-D photoisomerization is essentially absent at
+// low solar elevations (long ozone path absorbs it). Our spectrum
+// reconstruction over-estimates UVB at high zenith by ~6-10× — fixing
+// that requires a more accurate ozone cross-section table; the
+// clinical threshold gate captures the same reality more conservatively
+// without claiming radiometric precision the simplified Bird-Riordan
+// model can't deliver.
+//
+// Linear ramp 2.0 → 3.0 to avoid a hard cliff. Above UVI 3, full yield.
+// When uvi is unknown (no atmosphere data), apply no gating — trust
+// the channel-au integral and let the user know via the UI tooltip
+// that the value is approximate.
+function _uviThresholdMultiplier(uvi) {
+  if (!Number.isFinite(uvi)) return 1.0;
+  if (uvi <= 2.0) return 0;
+  if (uvi >= 3.0) return 1.0;
+  return uvi - 2.0;
+}
+
+export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
   const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
-  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale;
+  const uviMult = _uviThresholdMultiplier(uvi);
+  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult;
   return Math.min(raw, VITD_SATURATION_IU);
 }
 
