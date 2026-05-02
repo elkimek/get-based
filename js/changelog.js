@@ -5,127 +5,20 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
-    version: '1.7.9', date: '2026-05-02', title: 'Code hygiene',
-    items: [
-      'Removed 6 unused imports across light-devices.js, light-tools.js, sun-correlations.js, data.js, context-cards.js (formatDate, channelTier, tierLabel, rollingChannelTotals, rollingDeviceTotals, getEncryptionEnabled, SKIN_TYPE — each grep-verified zero callers).',
-      'Updated stale Phase-1c/1d narrative comment in light-tools.js header — all 8 tools have shipped.',
-      'CLAUDE.md: Light & Sun module group added to the architecture roster (was missing 11 new modules from this branch); five-lenses summary updated to reflect what shipped vs what was "coming."',
-    ]
-  },
-  {
-    version: '1.7.8', date: '2026-05-02', title: 'Vocabulary + copy polish',
-    items: [
-      '<b>Burn-risk vocabulary unified.</b> One label per tier, used everywhere: <i>safe</i> (under 30%), <i>moderate</i> (30–70%), <i>approaching burn threshold</i> (70–100%), <i>burn threshold reached</i> (100%+). The dose readout is always "burn dose <b>N%</b>." Replaces six different phrasings ("skin threshold," "personal threshold," "sunburn threshold," "burn risk," "burn dose," "skin\'s daily limit") that had piled up across the dashboard, live ticker, banner, session row, stop summary, and alerts.',
-      '<b>Channel suggestions now channel-specific.</b> Replaces the generic "Spend time outdoors to start filling this channel" with per-channel starter sentences: <i>"Get UVB on bare skin (UVI ≥ 3, no glass)"</i> for vitamin D, <i>"Get morning daylight in your eyes, ideally outdoors before work"</i> for circadian, <i>"UVA + violet on bare skin"</i> for cardiovascular nitric-oxide, and so on.',
-      '<b>Setup card title.</b> "Quick light profile" → "Light setup" (matches the saved-state header "Light setup saved" and the "Save setup · 4/4 done" button).',
-      '<b>"How we estimate" expander links the contributor doc.</b> Biohackers can now tap through to the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.',
-      '<b>Light Environment empty-state CTA.</b> Was "Indoor light is the dominant exposure most days." Now: <i>"LEDs, fluorescents, screens — most users spend 8–14 hours/day under them. Map your rooms so the AI sees the half of your day spent inside."</i>',
-      '<b>Atmosphere tooltips tighter.</b> Session-detail UV-split hover now reads "UVB-to-UVA ratio at ground level. Driven by zenith + ozone column" instead of the older verb-shy phrasing.',
-      '<b>Sidebar emoji.</b> Light & Sun nav icon dropped its FE0F variation selector — renders as a glyph monochrome, matching the rest of the sidebar (📋 🌸 📡 🧬) instead of standing out as colored.',
-      '<b>Docs.</b> Sun Sessions guide now reflects the photosensitive-meds checkbox added in v1.7.2 and renames the "Ott malillumination" pre-test to "light-burden audit" to match the in-app label.',
-    ]
-  },
-  {
-    version: '1.7.7', date: '2026-05-02', title: 'Accessibility hardening',
-    items: [
-      '<b>5 chip rows now signal selection state to screen readers.</b> Light Environment source/hours/evening pickers (and the screen-card variants) carry <code>aria-pressed</code> on each option — was color-only, identical to SR users regardless of which chip was active.',
-      '<b>7-day per-channel chart has a data alternative.</b> Each tap of a channel pill now exposes a per-day summary in the SVG <code>&lt;desc&gt;</code> + <code>aria-label</code> ("Sun: 1.2k, Mon: 800, Tue: no exposure…"). Was just "7-day per-day exposure for this channel."',
-      '<b>Channel pill aria-label includes trend direction.</b> Was "moderate, last 7 days" — now "moderate, last 7 days, trending up vs last 30 days." Color-only trend signaling closed.',
-      '<b>Audit walkthrough status now announced.</b> The room-by-room walkthrough state changes (ready → running → "pause detected: bedroom") now flow through <code>aria-live="polite"</code>. Was silent for screen readers.',
-      '<b>Add-device preset select now labeled.</b> Was a bare <code>&lt;select&gt;</code> next to hint copy.',
-      '<b>Camera-tool denial paths explain themselves.</b> Flicker, Sleep Darkness, and Eye-Level Audit now show "open your browser\'s site settings to allow camera access" plus a one-line note on what the tool needs and why there\'s no manual fallback.',
-      '<b>Photosensitive-meds checkbox no longer collides with its inline link.</b> Clicking "List of common ones →" no longer toggles the checkbox — link moved out of the <code>&lt;label&gt;</code> wrapper.',
-      '<b>Touch tap targets bumped to 44×44.</b> Light Environment chips, the channel-detail close X, the altitude UV chip, the conditions-now refresh + inspect + override buttons, and the picker-more summary all hit WCAG 2.5.5 on touchscreens. Mouse sessions stay compact.',
-      '<b>Decorative emoji on focusable buttons are now <code>aria-hidden</code>.</b> Sun/Stop/Add buttons were announcing as "sun emoji start a sun session" — emoji wrapped so SR users hear just the text.',
-      '<b>Reduced-motion preference honored.</b> Hover lifts, tier-changed badge flashes, and the just-refreshed source-dot pulse now disable when the OS preference is set.',
-      '<b>Conditions-now strip no longer re-announces its full content on every auto-refresh.</b> The wrapper\'s <code>aria-live</code> is dropped; user-triggered refreshes still announce via the dedicated notification toast.',
-      '<b>Chip focus indicators.</b> Light Environment chips get a visible focus ring on keyboard navigation (was relying on the browser default, often invisible against tinted backgrounds).',
-    ]
-  },
-  {
-    version: '1.7.6', date: '2026-05-02', title: 'Audit-pass fixes (correctness + security)',
-    items: [
-      '<b>Cross-device tie-break fix.</b> The composite-keyed merge now prefers an entry with an explicit edit timestamp over one without — older un-stamped changeHistory entries no longer silently shadow newer cross-device edits when they share a date.',
-      '<b>Hydrate serialization.</b> Concurrent <code>updateSession</code> calls (e.g. fast typing into a duration field) now serialize through a per-session promise queue. Previously the second await could land its doses before the first, briefly stamping the relay with stale numbers.',
-      '<b>Atmosphere export hygiene.</b> The private <code>_uvOverridden</code> / <code>_cloudOverridden</code> / <code>_ozoneOverridden</code> presentation-layer flags no longer get persisted into <code>sess.atmosphere</code> in localStorage / Evolu CRDT / JSON exports.',
-      '<b>Dashboard chart parity.</b> The 7-day per-channel bar chart now reflects the in-progress session\'s live partial dose (matches the rolling 7-day total above it). Previously today\'s bar read 0 even when the user was an hour into a sun session.',
-      '<b>Carry-over math now covers overnight sessions.</b> A session that started yesterday and is still running today proportions its dose between the two days for the carry-over chip — was previously contributing 0 to yesterday\'s cumulative.',
-      '<b>Hydrate null-atmosphere guard.</b> If the atmosphere fetch returns <code>null</code> (provider down + cache miss), <code>hydrateSession</code> now logs and bails cleanly instead of throwing a TypeError into the silent catch.',
-      '<b>Manual UVI copy fix.</b> Toast no longer claims the override drives the spectrum — the spectrum stays driven by ozone + zenith + cloud. Override only affects burn-time + vit-D-threshold math.',
-      '<b>Corrupt-blob backup is large-blob safe.</b> If the corrupted import was over 4 MB (the very condition that often caused the corruption), the backup now routes through IndexedDB instead of throwing QuotaExceededError on the localStorage path.',
-      '<b>Sync hardening.</b> Profile IDs from the relay now pass an allowlist regex (defense-in-depth against a compromised relay injecting cross-key collisions). Per-profile rebroadcast counter caps pings at 3 per 5-minute window so clock-skew oscillation can\'t run away.',
-      '<b>Privacy.</b> Sun-correlations cache is now keyed by active profile (was module-scoped — same-shape counts across profiles could serve stale results). Activity-log "Copy" button only renders in debug mode (was always visible — minor future leak surface).',
-      '<b>Dev server.</b> <code>HOST</code> declared up top with the other config constants — was forward-referenced from the request handler.',
-    ]
-  },
-  {
-    version: '1.7.5', date: '2026-05-02', title: 'Audit-pass fixes',
-    items: [
-      '<b>Accessibility.</b> All eight light-tools modals + four light-devices modals now trap keyboard focus when open (was: focus stayed on whatever was behind, leaving keyboard users stranded). Room and screen disclosure cards in Light Environment are now proper buttons with <code>aria-expanded</code> + Enter/Space activation (was: bare <code>&lt;div onclick&gt;</code>, unreachable by keyboard). Manual UVI input, lux-meter calibration input, and audit-walkthrough room labels now have associated labels for screen readers.',
-      '<b>Cross-device sync correctness.</b> Context-card edits made on the same day across two devices no longer silently drop the newer one. Root cause: <code>recordChange</code> never stamped <code>updatedAt</code>, so the cross-device merge tie-broke on date alone (always favoring local).',
-      '<b>Vitamin D math correctness.</b> The live ticker for an in-progress sun session was reporting IU as if UVI were always above the synthesis threshold (Webb 2018: ~UVI 2-3). Root cause: the live atmosphere snapshot was stored but never returned from <code>_liveDosesFor</code>, so the threshold gate saw <code>null</code> UVI. Affected the dashboard rolling 7-day total during any active session.',
-      '<b>Light setup polish.</b> Tool count reads "Eight" everywhere (was inconsistent: views.js + new changelog said Eight, docs + old changelog said Seven). "Save profile" button is now "Save setup" (matches the card title). The "Setup saved" toast no longer leaks the internal name "Ott score" — reads "light burden" like the rest of the UI. Color-changing LED option uses US spelling.',
-      '<b>Burn-alert tone.</b> The 100% MED toast no longer shouts <code>NOW</code> in caps. Eyes-uncovered toast no longer shouts <code>NEVER</code>. Both messages are still direct; the tone matches the rest of the app.',
-      '<b>Stop-summary readability.</b> Reframed from "<i>35% burn dose — well within safe range</i>" to "<i>burn dose 35% — well within safe range</i>" so the punctuation pile reads cleaner.',
-      '<b>Security.</b> The self-host CAMS bearer token is now encrypted at rest when encryption-at-rest is enabled (was stored unencrypted in <code>labcharts-meteo-config</code>).',
-      '<b>License.</b> Picked up the AGPL-3.0-or-later relicensing from main into the sun-sessions branch (LICENSE, THIRD_PARTY_LICENSES, OFL attribution restored).',
-    ]
-  },
-  {
-    version: '1.7.4', date: '2026-05-02', title: 'Light & Sun for biohackers',
-    items: [
-      '<b>Manual UVI override.</b> Got a real UV meter? Type your reading into the Conditions Now footer and hit Apply — the spectrum reconstruction, burn math, and vitamin D estimates all use your number until you clear it. A "manual" badge appears on the UVI cell so you never forget you\'re overriding.',
-      '<b>Per-channel citations + action spectra.</b> Tap any channel pill, expand "Action spectrum &amp; citations" — every channel now declares its action spectrum (CIE 174:2006 pre-vit-D, CIE S 026 melanopic, cytochrome-c-oxidase windows, etc.) and links 2–3 PubMed/journal references behind the model. Audit the science instead of trusting our copy.',
-      '<b>Session detail shows the math.</b> Saved sessions now display solar zenith angle, altitude, ozone column, and an approximate UVB/UVA split alongside UVI/cloud/PM2.5. Each cell hover-shows what it means. The atmosphere snapshot tells you exactly what the engine saw.',
-      '<b>Per-channel 7-day rhythm chart.</b> Each channel pill\'s drill-down now includes a tiny stacked bar chart — solid bars are sun, faded bars are devices, today is highlighted. See at a glance whether your week is even or front-loaded, whether your therapy panel actually carries a channel through the cloudy days.',
-    ]
-  },
-  {
-    version: '1.7.3', date: '2026-05-02', title: 'Sun-session UX polish',
-    items: [
-      '<b>Plain-English session summary on stop.</b> Hitting "Stop" now shows what just happened in normal language: <i>"Saved · 22 min outside · ~600–1500 IU vitamin D · 35% burn dose — well within safe range."</i> No more dropping a number you have to mentally translate.',
-      '<b>Burn alerts now tell you what to do.</b> The 70% MED toast says <i>"head into shade for ~10 min, then decide"</i>; the 100% toast adds <i>"hydrate, no more direct sun today."</i> Action, not just a number.',
-      '<b>"Behind glass" explains itself.</b> Toggling the glass option in the session dialog now shows: <i>"Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through."</i> No more silent zeros.',
-      '<b>Stale-conditions indicator.</b> If your UV/ozone data is over 30 minutes old, a small chip appears on the conditions strip. Conditions can drift with cloud cover; you should know when you\'re looking at stale numbers.',
-      '<b>"How we estimate" explainer on the Light & Sun page.</b> One collapsible section that defines MED, IU, the ±50% range, the six channels, and where the atmosphere data comes from. Glossary in one place instead of scattered tooltips.',
-    ]
-  },
-  {
-    version: '1.7.2', date: '2026-05-02', title: 'Sun safety guardrails',
-    items: [
-      '<b>Live burn-threshold alerts.</b> While a sun session is running, you now get a toast at 70% MED ("approaching burn threshold — wrap up soon") and a hard alert at 100% ("burn threshold reached — stop sun exposure"). No more checking the dashboard every five minutes; the app nudges you when it matters.',
-      '<b>Photosensitizing medication awareness.</b> The Light setup card now asks whether you\'re on a photosensitizing med (tetracyclines, doxycycline, retinoids, amiodarone, thiazides, sulfa antibiotics, NSAIDs, St. John\'s Wort, etc.). When set, your burn threshold drops 2.5× across the board and a banner reminds you on every session start. AAD-aligned guidance.',
-      '<b>Eye-safety reminder on uncovered-eye sessions.</b> Picking "Eyes uncovered" now triggers a clear toast: <i>"NEVER look directly at the sun. Direct means eyes open toward the sky, not staring at the disc."</i> The eye-mode label was renamed from "Direct (no glasses)" to "Eyes uncovered" so the dropdown itself can\'t be misread.',
-      '<b>Cumulative carry-over chip.</b> Skin doesn\'t fully reset overnight. When yesterday + today combined exceeds 100% MED, the burn-risk banner now shows a carry-over warning even if today alone is under threshold — the back-to-back day is how vacation burns happen.',
-      '<b>High-altitude UV chip.</b> Above 1500m, UV irradiance climbs ~10% per 1000m (WHO INTERSUN). The Light Today strip now shows an "+X% UV (altitude Ym)" chip when your saved location is high-altitude, so estimates can\'t silently understate burn risk.',
-    ]
-  },
-  {
-    version: '1.7.1', date: '2026-05-01', title: 'Bugfixes & improvements',
-    items: [
-      'Fixes for cross-device sync, UV-conditions accuracy on phones, and a few smaller polish items.',
-    ]
-  },
-  {
-    version: '1.7.0', date: '2026-04-29', title: 'Light — track your photobiology, not just your sun',
+    version: '1.6.0', date: '2026-05-02', title: '☀ Light & Sun — the lens for everything sunlight does to you',
     items: [
       '<b>Sun isn\'t just vitamin D.</b> Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. The new <b>☀ Light & Sun</b> lens tracks your light exposure across six biological channels (Vitamin D, Mood & hormones, Cardiovascular, Outdoor eye light, Body clock, Cellular repair) and lets you correlate them with your labs and wearable data over time.',
-      '<b>One-tap sun session logging.</b> Tap "log a sun session" when you go outside, tap again when you come back. We pull the actual UV and ozone for your location, reconstruct the solar spectrum at your zenith, and compute per-channel doses on the spot. No researcher will ask you for irradiance integrals.',
+      '<b>One-tap sun session logging.</b> Tap when you go outside, tap again when you come back. We pull the actual UV and ozone for your location, reconstruct the solar spectrum at your zenith, and compute per-channel doses on the spot. Plain-English summary on stop: <i>"Saved · 22 min outside · ~600–1500 IU vitamin D · burn dose 35% — well within safe range."</i>',
+      '<b>Sun-safety guardrails.</b> Live toast at 70% of your burn dose ("head into shade for ~10 min, then decide") and a hard alert at 100% ("burn threshold reached — cover up, hydrate, no more direct sun today"). Photosensitizing-medication checkbox in setup drops your threshold 2.5× across the board (tetracyclines, doxycycline, isotretinoin, amiodarone, thiazides, sulfa antibiotics, NSAIDs, St. John\'s Wort, others). Carry-over chip warns when yesterday + today combined exceeds your daily limit. High-altitude UV chip flags >1500m locations (~10% UV per 1000m). Eyes-uncovered mode triggers a clear "never look directly at the sun" reminder.',
       '<b>Light therapy devices, first-class.</b> Joovv panels, Mito Red, Sperti UVB lamps, Verilux SAD boxes, dawn simulators, full-spectrum bulbs — pick from a 24-device preset library or add a custom device. Therapy sessions feed the same channels as outdoor sun, so a Joovv user with no outdoor time still gets credit for the cellular-repair channel.',
       '<b>Indoor light environment matters too.</b> Map the rooms you spend time in (LED type, hours/day, after-sunset use) and the screens you stare at. The AI now sees the half of your day when you\'re indoors — not just the outdoor half — and the deficit signals (LED-only contamination, blue-after-sunset hours) flow into the same channels.',
-      '<b>Eight on-device measurement tools.</b> Lux Meter (with phone\'s ambient-light sensor when available, camera fallback otherwise) · Flicker Detector (240 fps camera + FFT to find PWM banding, IEEE PAR1789 risk scoring) · Color Temperature meter (with solar-coherence check) · Light classifier (LED / fluorescent / incandescent / daylight) · Glass transmission test · Sleep darkness meter (long-exposure check at the pillow) · Sunrise/sunset session logger · Eye-Level Audit (4 fps continuous capture with pause-detection across rooms). Camera frames never leave your device.',
-      '<b>Sidebar got a quiet upgrade.</b> Conditional entries for ☀ Light & Sun · ⌚ Wearables · 💊 Supplements · 🌸 Cycle · 📡 EMF · 🧬 Genetics now appear when their module has data, mirroring the Genetics-conditional pattern. Zero impact for users who don\'t use them; better discoverability for power users.',
-      '<b>AI sees the full picture.</b> Every chat now carries a Light & Sun summary — your active deficits, your therapy device library, your week\'s per-channel exposure (sun + devices combined), and your skin\'s daily sunburn budget. The AI can reason about your light environment with the same depth it has for your labs.',
-      '<b>Privacy posture.</b> Location resolves from your country (set in profile) — no automatic geolocation prompt at session start. You can opt-in to precise location once for sharper estimates. UV/ozone data fetches via Open-Meteo by default; CAMS-via-proxy + self-host paths land in v1.7.x. Camera frames and sensor readings stay on-device.',
-    ]
-  },
-  {
-    version: '1.6.0', date: '2026-04-29', title: 'Five Lenses — health intelligence that\'s actually yours',
-    items: [
-      '<b>getbased is not a blood-work dashboard.</b> It hasn\'t been for a while. Today it organizes around <b>five lenses on your biology</b> — 🩸 <b>Labs</b> (biomarkers, ranges, trends, biological age), 🧬 <b>Genome</b> (47 SNPs, APOE, mtDNA haplogroups, DNA-aware insights), ⌚ <b>Body</b> (wearables, biometrics, recovery, cycle), ☀ <b>Light</b> (sun, devices, environment — coming next release), and 🧠 <b>Insight</b> (AI chat, knowledge base, correlations, recommendations). Every lens informs every other.',
-      '<b>Anti-reductionist by design.</b> Your DNA shapes how labs are interpreted. Your wearable physiology shapes which biomarkers matter most. Your light environment shapes your sleep and your hormones. The AI synthesizes across all of them with full context — no single number, no single signal, no single discipline owns the truth.',
-      '<b>What changed: framing only.</b> Same app, same data, same privacy posture, same self-host story. The label "blood work dashboard" was years out of date — this release just stops pretending it ever was that. Existing users open the app and see exactly what they saw yesterday, with new framing in a few places they may or may not look at.',
-      '<b>What\'s next: ☀ Light lens.</b> Sun sessions with spectral reconstruction, photobiology device tracking, indoor light environment with on-device measurement tools (lux meter, flicker detector, sleep darkness check). Shipping as v1.7.0 in the coming weeks.',
+      '<b>Eight on-device measurement tools.</b> Lux Meter · Flicker Detector (PWM banding via 240 fps camera + FFT) · Color Temperature meter · Light classifier (LED / fluorescent / incandescent / daylight) · Glass transmission test · Sleep darkness meter (long-exposure check at the pillow) · Sunrise/sunset session logger · Eye-Level Audit (walkthrough that auto-snapshots a reading per room). Camera frames never leave your device.',
+      '<b>For biohackers: depth without lock-in.</b> Manual UVI override in Conditions Now feeds your own UV-meter reading into the math. Each channel pill expands to show its action spectrum + 2–3 PubMed/journal references (CIE 174:2006 for vit D, CIE S 026 for melanopic, etc.) and a 7-day per-day rhythm chart. Saved sessions show solar zenith, altitude, ozone column, UVB/UVA split — audit exactly what the engine saw. "How we estimate" expander defines MED / IU / ±50% range / channels in one place.',
+      '<b>Sidebar got a quiet upgrade.</b> Conditional entries for ☀ Light & Sun · ⌚ Wearables · 💊 Supplements · 🌸 Cycle · 📡 EMF · 🧬 Genetics now appear when their module has data. Zero impact for users who don\'t use them; better discoverability for power users.',
+      '<b>AI sees the full picture.</b> Every chat now carries a Light & Sun summary — your active deficits, your therapy device library, your week\'s per-channel exposure (sun + devices combined), and your daily burn-dose state. Once you have ≥4 weeks of overlapping sessions and labs, channel-by-biomarker correlations join the standard tier.',
+      '<b>Privacy posture.</b> Location resolves from your country (set in profile) — no automatic geolocation prompt at session start. You can opt-in to precise location once for sharper estimates. UV/ozone fetches via Open-Meteo by default; self-host CAMS via the External-server panel. Camera frames and sensor readings stay on-device.',
+      '<b>Five Lenses framing.</b> getbased is organized around five lenses on your biology — 🩸 <b>Labs</b>, 🧬 <b>Genome</b>, ⌚ <b>Body</b>, ☀ <b>Light</b>, 🧠 <b>Insight</b>. Anti-reductionist by design: every lens informs every other, the AI synthesizes across all of them.',
+      '<b>Behind the scenes.</b> Cross-device sync, vitamin D math, IndexedDB storage for large blobs, accessibility (keyboard + screen-reader), and a stack of internal correctness fixes all hardened in this release.',
     ]
   },
   {
