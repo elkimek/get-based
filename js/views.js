@@ -90,9 +90,9 @@ export function renderLightTodayStrip() {
     cta = `<div class="light-today-cta-group"><button class="light-today-cta light-today-cta-active" onclick="window.quickLogSunSession()" aria-label="Stop active sun session"><span aria-hidden="true">⏹ Stop session — </span><span data-live-elapsed-for="${active.id}" aria-live="off">${elapsed}</span></button></div>`;
   } else if (inSolarWindow) {
     const wlabel = solarWindowLabel();
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ ${wlabel} — log a session</button>${deviceBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> ${wlabel} — log a session</button>${deviceBtn}</div>`;
   } else if (hasDevices) {
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Sun</button>${deviceBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Sun</button>${deviceBtn}</div>`;
   } else {
     cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button></div>`;
   }
@@ -219,7 +219,10 @@ export function renderConditionsNow(opts = {}) {
   // Kick off async fetch once per ~10 minutes. Reuses the in-memory cache
   // so navigation doesn't re-fetch.
   setTimeout(() => _refreshConditions(slotId, variant), 50);
-  return `<div class="conditions-now conditions-now-${variant}" id="${slotId}" data-variant="${variant}" aria-live="polite" aria-busy="true">
+  // No aria-live on the wrapper — auto-refresh would re-announce the whole
+  // strip every cycle. Only user-triggered refresh announces, via a separate
+  // sr-only live region populated in _refreshConditions(opts.force).
+  return `<div class="conditions-now conditions-now-${variant}" id="${slotId}" data-variant="${variant}" aria-busy="true">
     <div class="conditions-now-loading">
       <span class="conditions-now-icon">☼</span>
       <span class="conditions-now-text">Loading current conditions…</span>
@@ -1116,13 +1119,13 @@ export function showLight(_data) {
   const sunActive = !!(window.getActiveSession && window.getActiveSession());
   let ctaButtons = '';
   if (sunActive) {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">⏹ Stop &amp; save current session</button>`;
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">⏹</span> Stop &amp; save current session</button>`;
   } else if (hasDevices) {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">☀ Start a sun session</button>
-      <button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Start a device session</button>`;
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Start a sun session</button>
+      <button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()"><span aria-hidden="true">🔴</span> Start a device session</button>`;
   } else {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">☀ Start a sun session</button>
-      <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()">+ Add a light device</button>`;
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Start a sun session</button>
+      <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()"><span aria-hidden="true">+</span> Add a light device</button>`;
   }
   html += `<div class="light-quicklog-row">
     ${ctaButtons}
@@ -1297,7 +1300,7 @@ function renderChannelPills(totals7d, totals30d) {
       <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
       <span class="light-pill-dots" aria-hidden="true">${dots(t7)}</span>
-      <span class="sr-only">${tlabel(t7)}, last 7 days</span>
+      <span class="sr-only">${tlabel(t7)}, last 7 days, trending ${trendDir} vs last 30 days</span>
     </button>`;
   }
   html += `</div>`;
@@ -1391,9 +1394,26 @@ function _renderChannelWeekChart(channelKey) {
       <text x="${x + barInner / 2}" y="${H - 2}" text-anchor="middle" font-size="10" fill="${isToday ? 'var(--text-primary)' : 'var(--text-muted)'}" font-weight="${isToday ? '700' : '400'}">${dayLetter(d.date)}</text>
     </g>`;
   }).join('');
+  // Per-day SR-readable summary — Daniel/M/T/W… name + sun + device totals.
+  // Numbers rounded to 2sf so the announcement is short.
+  const dayName = (date) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
+  const round2sf = (n) => {
+    if (n < 0.01) return '0';
+    const log = Math.floor(Math.log10(n));
+    const factor = Math.pow(10, log - 1);
+    return String(Math.round(n / factor) * factor);
+  };
+  const srRows = days.map(d => {
+    const total = d.sun + d.device;
+    if (total < 0.0001) return `${dayName(d.date)}: no exposure`;
+    if (d.device > 0 && d.sun > 0) return `${dayName(d.date)}: sun ${round2sf(d.sun)}, device ${round2sf(d.device)}`;
+    if (d.sun > 0) return `${dayName(d.date)}: sun ${round2sf(d.sun)}`;
+    return `${dayName(d.date)}: device ${round2sf(d.device)}`;
+  }).join('. ');
   return `<div class="light-channel-weekchart" title="Last 7 days · solid = sun, faded = device">
     <div class="light-channel-weekchart-label">7-day rhythm</div>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-label="7-day per-day exposure for this channel" role="img">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-label="7-day per-day exposure: ${escapeAttr(srRows)}" role="img">
+      <desc>${escapeHTML(srRows)}</desc>
       ${bars}
     </svg>
   </div>`;

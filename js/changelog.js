@@ -5,6 +5,23 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.7', date: '2026-05-02', title: 'Accessibility hardening',
+    items: [
+      '<b>5 chip rows now signal selection state to screen readers.</b> Light Environment source/hours/evening pickers (and the screen-card variants) carry <code>aria-pressed</code> on each option — was color-only, identical to SR users regardless of which chip was active.',
+      '<b>7-day per-channel chart has a data alternative.</b> Each tap of a channel pill now exposes a per-day summary in the SVG <code>&lt;desc&gt;</code> + <code>aria-label</code> ("Sun: 1.2k, Mon: 800, Tue: no exposure…"). Was just "7-day per-day exposure for this channel."',
+      '<b>Channel pill aria-label includes trend direction.</b> Was "moderate, last 7 days" — now "moderate, last 7 days, trending up vs last 30 days." Color-only trend signaling closed.',
+      '<b>Audit walkthrough status now announced.</b> The room-by-room walkthrough state changes (ready → running → "pause detected: bedroom") now flow through <code>aria-live="polite"</code>. Was silent for screen readers.',
+      '<b>Add-device preset select now labeled.</b> Was a bare <code>&lt;select&gt;</code> next to hint copy.',
+      '<b>Camera-tool denial paths explain themselves.</b> Flicker, Sleep Darkness, and Eye-Level Audit now show "open your browser\'s site settings to allow camera access" plus a one-line note on what the tool needs and why there\'s no manual fallback.',
+      '<b>Photosensitive-meds checkbox no longer collides with its inline link.</b> Clicking "List of common ones →" no longer toggles the checkbox — link moved out of the <code>&lt;label&gt;</code> wrapper.',
+      '<b>Touch tap targets bumped to 44×44.</b> Light Environment chips, the channel-detail close X, the altitude UV chip, the conditions-now refresh + inspect + override buttons, and the picker-more summary all hit WCAG 2.5.5 on touchscreens. Mouse sessions stay compact.',
+      '<b>Decorative emoji on focusable buttons are now <code>aria-hidden</code>.</b> Sun/Stop/Add buttons were announcing as "sun emoji start a sun session" — emoji wrapped so SR users hear just the text.',
+      '<b>Reduced-motion preference honored.</b> Hover lifts, tier-changed badge flashes, and the just-refreshed source-dot pulse now disable when the OS preference is set.',
+      '<b>Conditions-now strip no longer re-announces its full content on every auto-refresh.</b> The wrapper\'s <code>aria-live</code> is dropped; user-triggered refreshes still announce via the dedicated notification toast.',
+      '<b>Chip focus indicators.</b> Light Environment chips get a visible focus ring on keyboard navigation (was relying on the browser default, often invisible against tinted backgrounds).',
+    ]
+  },
+  {
     version: '1.7.6', date: '2026-05-02', title: 'Audit-pass fixes (correctness + security)',
     items: [
       '<b>Cross-device tie-break fix.</b> The composite-keyed merge now prefers an entry with an explicit edit timestamp over one without — older un-stamped changeHistory entries no longer silently shadow newer cross-device edits when they share a date.',

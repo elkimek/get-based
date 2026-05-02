@@ -555,7 +555,7 @@ export async function openFlickerDetector(opts = {}) {
     };
     requestAnimationFrame(tick);
   } catch (e) {
-    resultEl.textContent = 'Camera access denied — flicker detector unavailable.';
+    resultEl.innerHTML = 'Camera access denied — flicker detector unavailable. <br><span style="font-size:11px;color:var(--text-muted)">This tool needs the camera at 240 fps to detect PWM banding. To re-enable, open your browser\'s site settings and allow camera access.</span>';
   }
 
   function renderFlicker(frameSamples, bandingSamples, lock) {
@@ -748,7 +748,7 @@ export async function openDarknessMeter(opts = {}) {
         window._closeDark();
       };
     } catch (e) {
-      statusEl.textContent = 'Camera access denied — darkness meter unavailable.';
+      statusEl.innerHTML = 'Camera access denied — darkness meter unavailable. <br><span style="font-size:11px;color:var(--text-muted)">Open your browser\'s site settings to allow camera access. This tool runs a long-exposure capture to detect ambient light below 1 lux — there\'s no useful manual-entry fallback.</span>';
       startBtn.disabled = false;
     }
   });
@@ -1282,7 +1282,7 @@ export async function openEyeLevelAudit() {
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Walk through your home holding the phone at eye level. Pause briefly in each room (~5–10 seconds). Press Done when finished — we'll surface a per-room mini-report.</p>
-      <div class="audit-status" id="audit-status">Press Start when ready.</div>
+      <div class="audit-status" id="audit-status" aria-live="polite" aria-atomic="true">Press Start when ready.</div>
       <ol class="audit-room-list" id="audit-room-list" style="margin-top:12px;list-style:decimal inside;color:var(--text-secondary)"></ol>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="window._closeAudit()">Cancel</button>
@@ -1378,7 +1378,7 @@ export async function openEyeLevelAudit() {
         };
         tick();
       } catch (e) {
-        statusEl.textContent = 'Camera access denied — audit unavailable.';
+        statusEl.innerHTML = 'Camera access denied — audit unavailable. <br><span style="font-size:11px;color:var(--text-muted)">The walkthrough captures 4 frames per second to detect when you\'ve paused in a new room. Open your browser\'s site settings to allow camera access, or log rooms manually from the Light Environment section.</span>';
         _auditState.running = false;
       }
     } else {

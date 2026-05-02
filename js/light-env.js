@@ -389,7 +389,7 @@ function renderSourcePicker(r) {
   const active = activeSourceArchetype(r.primarySource);
   const chips = SOURCE_ARCHETYPES.map(a => {
     const isActive = active === a.key;
-    return `<button class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvRoomSourceArchetype('${escapeAttr(r.id)}','${a.key}')">${a.emoji} ${escapeHTML(a.label)}</button>`;
+    return `<button type="button" class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" aria-pressed="${isActive ? 'true' : 'false'}" onclick="window.setLightEnvRoomSourceArchetype('${escapeAttr(r.id)}','${a.key}')">${a.emoji} ${escapeHTML(a.label)}</button>`;
   }).join('');
   // Power-user reveal — keep the full 10-option dropdown for users who
   // know their CCT spec or want "natural-only" / "tunable LED".
@@ -410,7 +410,7 @@ function renderHoursPicker(r) {
   const active = activeHoursBucket(r.hoursOccupiedPerDay);
   const chips = HOURS_BUCKETS.map(b => {
     const isActive = active === b.key;
-    return `<button class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvRoomHoursBucket('${escapeAttr(r.id)}','${b.key}')">${escapeHTML(b.label)}</button>`;
+    return `<button type="button" class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" aria-pressed="${isActive ? 'true' : 'false'}" onclick="window.setLightEnvRoomHoursBucket('${escapeAttr(r.id)}','${b.key}')">${escapeHTML(b.label)}</button>`;
   }).join('');
   return `<div class="light-env-picker">
     <span class="light-env-picker-label">Time you spend here</span>
@@ -426,7 +426,7 @@ function renderEveningPicker(r) {
   const active = activeEveningBucket(r);
   const chips = EVENING_BUCKETS.map(b => {
     const isActive = active === b.key;
-    return `<button class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvRoomEveningBucket('${escapeAttr(r.id)}','${b.key}')">${escapeHTML(b.label)}</button>`;
+    return `<button type="button" class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" aria-pressed="${isActive ? 'true' : 'false'}" onclick="window.setLightEnvRoomEveningBucket('${escapeAttr(r.id)}','${b.key}')">${escapeHTML(b.label)}</button>`;
   }).join('');
   return `<div class="light-env-picker">
     <span class="light-env-picker-label">Time here after sunset</span>
@@ -691,7 +691,7 @@ function renderScreenExpandedBody(s, rooms) {
   const eveActive = activeScreenEveningBucket(s.eveningUseAfterSunset);
 
   const hoursChips = SCREEN_HOURS_BUCKETS.map(b =>
-    `<button class="light-env-chip${hoursActive === b.key ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvScreenHoursBucket('${escapeAttr(s.id)}','${b.key}')">${escapeHTML(b.label)}</button>`
+    `<button type="button" class="light-env-chip${hoursActive === b.key ? ' light-env-chip-active' : ''}" aria-pressed="${hoursActive === b.key ? 'true' : 'false'}" onclick="window.setLightEnvScreenHoursBucket('${escapeAttr(s.id)}','${b.key}')">${escapeHTML(b.label)}</button>`
   ).join('');
 
   const eveBuckets = [
@@ -701,7 +701,7 @@ function renderScreenExpandedBody(s, rooms) {
     { key: 'gt3',  label: '3+ hr',    midpoint: 4 },
   ];
   const eveChips = eveBuckets.map(b =>
-    `<button class="light-env-chip${eveActive === b.key ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvScreenEveningBucket('${escapeAttr(s.id)}','${b.key}')">${escapeHTML(b.label)}</button>`
+    `<button type="button" class="light-env-chip${eveActive === b.key ? ' light-env-chip-active' : ''}" aria-pressed="${eveActive === b.key ? 'true' : 'false'}" onclick="window.setLightEnvScreenEveningBucket('${escapeAttr(s.id)}','${b.key}')">${escapeHTML(b.label)}</button>`
   ).join('');
 
   const roomOptions = rooms.length > 0

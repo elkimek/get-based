@@ -392,7 +392,8 @@ export async function openAddDeviceDialog() {
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>
-      <select id="add-device-preset" class="ctx-select" style="width:100%;margin-top:12px">
+      <label for="add-device-preset" class="sr-only">Pick a preset device</label>
+      <select id="add-device-preset" class="ctx-select" style="width:100%;margin-top:12px" aria-label="Pick a preset device">
         ${opts}
       </select>
       <div class="modal-actions" style="margin-top:18px">

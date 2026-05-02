@@ -317,13 +317,12 @@ export function renderSetupCard() {
       </div>
     </div>
 
-    <div class="light-setup-step">
-      <label class="light-setup-photo-row">
+    <div class="light-setup-step light-setup-photo-row">
+      <label for="setup-photosensitive" class="light-setup-photo-label">
         <input type="checkbox" id="setup-photosensitive"${d.photosensitiveMeds ? ' checked' : ''}>
-        <span><strong>I take a photosensitizing medication or supplement.</strong>
-          <span class="light-setup-photo-why">Tetracyclines/doxycycline, isotretinoin/retinoids, amiodarone, thiazides, sulfa antibiotics, NSAIDs, St. John's Wort, and others lower your sunburn threshold ~2.5×. Burn alerts will trigger sooner. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">List of common ones →</a></span>
-        </span>
+        <strong>I take a photosensitizing medication or supplement.</strong>
       </label>
+      <p class="light-setup-photo-why">Tetracyclines/doxycycline, isotretinoin/retinoids, amiodarone, thiazides, sulfa antibiotics, NSAIDs, St. John's Wort, and others lower your sunburn threshold ~2.5×. Burn alerts will trigger sooner. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">List of common ones →</a></p>
     </div>
 
     <div class="light-setup-step">
