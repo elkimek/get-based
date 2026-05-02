@@ -1,6 +1,6 @@
 # Light Tools
 
-Seven on-device measurement utilities. All processing runs in your browser — camera frames and sensor data never leave your phone.
+Eight on-device measurement utilities. All processing runs in your browser — camera frames and sensor data never leave your phone.
 
 | Tool | What it does | Best for |
 |---|---|---|

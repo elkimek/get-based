@@ -493,12 +493,17 @@ export function recordChange(field) {
   // Skip if identical to last snapshot for this field
   const lastIdx = history.findLastIndex(e => e.field === field);
   if (lastIdx >= 0 && JSON.stringify(history[lastIdx].snapshot) === snapshotStr) return;
-  // Same field + same day → overwrite
+  // Same field + same day → overwrite. Stamp updatedAt so cross-device
+  // tie-break prefers the newer write (composite-keyed merge in data-merge.js
+  // falls back to Date.parse(date) without this — same-day = tie = local-wins,
+  // silently dropping the remote's newer snapshot).
+  const now = Date.now();
   const todayIdx = history.findIndex(e => e.field === field && e.date === today);
   if (todayIdx >= 0) {
     history[todayIdx].snapshot = snapshot;
+    history[todayIdx].updatedAt = now;
   } else {
-    history.push({ field, date: today, snapshot });
+    history.push({ field, date: today, snapshot, updatedAt: now });
   }
   // Cap at 200
   while (history.length > 200) history.shift();

@@ -670,8 +670,8 @@ function renderScreenCard(s, opts = {}) {
   const summary = _screenSummary(s, status);
 
   let html = `<div class="light-env-screen-card light-env-card-sev-${status.color}${activeToday ? '' : ' light-env-card-skipped'}${expanded ? ' expanded' : ''}" data-id="${escapeAttr(s.id)}">
-    <div class="light-env-screen-card-head" onclick="window.toggleLightEnvScreenExpanded('${escapeAttr(s.id)}', event)">
-      <span class="light-env-sev-dot light-env-sev-${status.color}" title="${escapeAttr(status.label + ' — ' + status.reason)}"></span>
+    <div class="light-env-screen-card-head" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(deviceLabel + ' — ' + status.label + (summary ? ', ' + summary : '') + (expanded ? ', expanded' : ', collapsed'))}" onclick="window.toggleLightEnvScreenExpanded('${escapeAttr(s.id)}', event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightEnvScreenExpanded('${escapeAttr(s.id)}', event)}">
+      <span class="light-env-sev-dot light-env-sev-${status.color}" title="${escapeAttr(status.label + ' — ' + status.reason)}"><span class="sr-only">${escapeHTML(status.label)}</span></span>
       <span class="light-env-screen-card-icon" aria-hidden="true">${deviceIcon}</span>
       <span class="light-env-screen-card-name">${escapeHTML(deviceLabel)}</span>
       ${expanded ? '' : `<span class="light-env-screen-card-summary">${escapeHTML(summary || 'Tap to set up')}</span>`}
@@ -785,9 +785,10 @@ function renderRoomDisclosure(r, expanded) {
   // Whether the evening-after-sunset signal is "on" in the current schema —
   // newer chip-picker field wins, falls back to legacy boolean.
   const eveningOn = (r.eveningHoursAfterSunset != null) ? (+r.eveningHoursAfterSunset) > 0 : !!r.eveningUseAfterSunset;
+  const roomAriaLabel = `${r.name || 'Room'} — ${sev.label}${hoursLabel ? ', ' + hoursLabel : ''}${sourceShort ? ', ' + sourceShort : ''}${expanded ? ', expanded' : ', collapsed'}`;
   let html = `<div class="light-env-room-disclosure light-env-card-sev-${sev.color}${activeToday ? '' : ' light-env-card-skipped'}${expanded ? ' expanded' : ''}" data-id="${escapeAttr(r.id)}">
-    <div class="light-env-room-disclosure-head" onclick="window.toggleLightEnvRoomExpanded('${escapeAttr(r.id)}', event)">
-      <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"></span>
+    <div class="light-env-room-disclosure-head" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(roomAriaLabel)}" onclick="window.toggleLightEnvRoomExpanded('${escapeAttr(r.id)}', event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightEnvRoomExpanded('${escapeAttr(r.id)}', event)}">
+      <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label + ' — ' + sev.reason)}"><span class="sr-only">${escapeHTML(sev.label)}</span></span>
       <span class="light-env-room-disclosure-name">${escapeHTML(r.name || 'Room')}</span>
       ${expanded ? '' : `<span class="light-env-room-disclosure-signals">
         ${hoursLabel ? `<span class="light-env-room-signal">${escapeHTML(hoursLabel)}</span>` : ''}

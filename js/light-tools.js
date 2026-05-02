@@ -308,7 +308,7 @@ export async function openLuxMeter(opts = {}) {
         <div style="padding:0 12px 12px 12px;font-size:12px;color:var(--text-muted)">
           <p style="margin:4px 0 8px 0">Aim the camera at a light source whose lux you know — from a real meter, a second phone with an ambient-light sensor, or an indoor reading you trust. Enter the reference value below; we'll compute the factor that maps the camera's raw luma to that lux value and save it for future readings.</p>
           <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
-            <label style="font-size:12px;color:var(--text-muted)">Known reading (lux)</label>
+            <label for="lux-cal-reference" style="font-size:12px;color:var(--text-muted)">Known reading (lux)</label>
             <input type="number" id="lux-cal-reference" class="ctx-input" min="0" step="any" placeholder="e.g. 400" style="flex:1;max-width:140px">
             <button class="import-btn import-btn-secondary" id="lux-cal-apply" style="font-size:12px;padding:6px 10px">Apply</button>
           </div>
@@ -326,6 +326,7 @@ export async function openLuxMeter(opts = {}) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   let currentLux = null;
   // Snapshot of the LATEST raw camera luma (before calibration multiply).
@@ -497,6 +498,7 @@ export async function openFlickerDetector(opts = {}) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   let lastResult = null;
   const resultEl = overlay.querySelector('#flicker-result');
@@ -642,6 +644,7 @@ export async function openDarknessMeter(opts = {}) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   let result = null;
   const statusEl = overlay.querySelector('#dark-status');
@@ -785,6 +788,7 @@ export async function openCCTMeter(opts = {}) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   let currentCCT = null;
   let currentMelanopic = null;
@@ -927,6 +931,7 @@ export async function openSpectrumClassifier(opts = {}) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   let result = null;
   const resultEl = overlay.querySelector('#spec-result');
@@ -1076,6 +1081,7 @@ export async function openGlassTransmission(opts = {}) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   _glassReadings = { inside: null, outside: null };
 
@@ -1240,6 +1246,7 @@ export function openSunriseLogger() {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   overlay.querySelector('#sunrise-save').addEventListener('click', async () => {
     const minutes = parseInt(overlay.querySelector('#sunrise-duration').value, 10) || 15;
@@ -1284,6 +1291,7 @@ export async function openEyeLevelAudit() {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   const statusEl = overlay.querySelector('#audit-status');
   const listEl = overlay.querySelector('#audit-room-list');
@@ -1301,7 +1309,7 @@ export async function openEyeLevelAudit() {
     listEl.innerHTML = pauseDetections.map((p, i) => `
       <li style="margin-bottom:8px;list-style:none;display:flex;gap:8px;align-items:center">
         <span style="font-size:12px;color:var(--text-muted);min-width:48px">${Math.round(p.lux)} lux</span>
-        <input type="text" class="audit-room-label-input" data-idx="${i}" placeholder="Room ${i + 1} (tap to label)" value="${escapeAttr(p.label || '')}" list="audit-rooms-${i}" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)">
+        <input type="text" class="audit-room-label-input" aria-label="Label for room ${i + 1} (${Math.round(p.lux)} lux)" data-idx="${i}" placeholder="Room ${i + 1} (tap to label)" value="${escapeAttr(p.label || '')}" list="audit-rooms-${i}" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)">
         <datalist id="audit-rooms-${i}">${COMMON_ROOMS.map(r => `<option value="${escapeAttr(r)}">`).join('')}</datalist>
       </li>
     `).join('');

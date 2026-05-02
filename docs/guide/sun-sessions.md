@@ -36,7 +36,7 @@ When you open the Light & Sun page for the first time, an onboarding card asks f
 - **Location precision** — your country (from profile) is the default; tap "Use precise location" for sharper UV math (one-time)
 - **Ott malillumination pre-test (optional, 10 yes/no questions)** — coined by John Ott in 1973, captures how indoor / glass-mediated / artificial-light-dominated your modern life is
 
-Answers stay on your device. The AI uses them as a baseline ("your low body-clock channel makes sense given your Ott score of 8/10").
+Answers stay on your device. The AI uses them as a baseline ("your low body-clock channel makes sense given your light-burden score of 8/10").
 
 ## Burn-risk safety
 
@@ -75,7 +75,7 @@ Camera frames never leave your device.
 
 ## Where the data flows
 
-- **AI chat** — every chat carries a Lifelight summary: your active deficits, your devices, your week's per-channel exposure (sun + devices combined), and your skin's daily sunburn budget. Once you have ≥4 weeks of overlapping sessions and labs, channel-by-biomarker correlations join the standard tier.
+- **AI chat** — every chat carries a Light & Sun summary: your active deficits, your devices, your week's per-channel exposure (sun + devices combined), and your skin's daily sunburn budget. Once you have ≥4 weeks of overlapping sessions and labs, channel-by-biomarker correlations join the standard tier.
 - **Detail-modal overlays** *(coming in v1.7.x)* — toggle a sun-channel layer on biomarker detail charts to see the dose-vs-marker relationship visually.
 - **Wearables strip** — sun and wearables sit side-by-side on the dashboard; the AI sees both.
 - **Genetics** — your DNA-aware AI prompts already factor in VDR, MC1R, CYP2R1, GC, NPAS2, CRY2, PER3 polymorphisms when relevant.

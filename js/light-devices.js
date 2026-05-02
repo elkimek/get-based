@@ -407,6 +407,7 @@ export async function openAddDeviceDialog() {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   overlay.querySelector('#add-device-custom').addEventListener('click', () => {
     overlay.remove();
@@ -511,6 +512,7 @@ export async function openCustomDeviceDialog() {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   // Per-field unit toggle on the Vendor reference distance input —
   // same in-place conversion as the session dialog. data-target picks
@@ -834,6 +836,7 @@ export async function openDeviceSessionDialog(deviceId) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   // Per-field unit toggle: cm ↔ in. Lets a US user briefly type a cm
   // value (or vice versa) without mental math when their global unit
@@ -921,6 +924,7 @@ function _openDevicePicker(devices) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
   // Backdrop-click closes — browse-style modal, no user-entered data.
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();

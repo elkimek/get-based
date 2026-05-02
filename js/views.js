@@ -602,10 +602,10 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
     </span>
     ${sanityWarnings.length ? `<span class="conditions-now-warning" title="${escapeAttr(sanityWarnings.join(' · '))}">⚠ ${sanityWarnings.length} sanity warning${sanityWarnings.length === 1 ? '' : 's'}</span>` : ''}
     <span class="conditions-now-override" title="Manual UVI override — feeds your own UV-meter reading into the spectrum reconstruction. Leave blank to use the live atmosphere fetch.">
-      <label>Manual UVI:</label>
+      <label for="manual-uvi-input">Manual UVI:</label>
       <input type="number" min="0" max="20" step="0.1" inputmode="decimal" id="manual-uvi-input" value="${Number.isFinite(ovStored) ? ovStored : ''}" placeholder="${atm.uvIndex != null && !atm._uvOverridden ? atm.uvIndex.toFixed(1) : '—'}">
       <button type="button" onclick="window._setManualUvi && window._setManualUvi()">Apply</button>
-      ${Number.isFinite(ovStored) ? `<button type="button" onclick="window._clearManualUvi && window._clearManualUvi()" title="Clear the manual override">×</button>` : ''}
+      ${Number.isFinite(ovStored) ? `<button type="button" onclick="window._clearManualUvi && window._clearManualUvi()" title="Clear the manual override" aria-label="Clear manual UVI override">×</button>` : ''}
     </span>
   </div>`;
 

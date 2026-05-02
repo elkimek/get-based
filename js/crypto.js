@@ -23,6 +23,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-lens-key$/,
   /^labcharts-ollama$/,
   /^labcharts-cashu-wallet-mnemonic$/,
+  /^labcharts-meteo-config$/,
 ];
 
 function isSensitiveKey(key) {

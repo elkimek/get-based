@@ -717,7 +717,7 @@ export async function openStartSunSessionDialog() {
       showNotification('⚠ Photosensitizing medication active — your burn threshold is ~2.5× lower. Plan to wrap up at the first sign of pinkness.', 'warning', 7000);
     }
     if (eyeMode === 'direct') {
-      showNotification('Eyes-uncovered mode: NEVER look directly at the sun. "Direct" means eyes open toward the sky, not staring at the sun disc.', 'warning', 7000);
+      showNotification('Eyes-uncovered mode: never look directly at the sun. "Uncovered" means eyes open toward the sky, not staring at the sun disc.', 'warning', 7000);
     }
     _refreshSurfaces();
     _ensureActiveTicker();
@@ -780,9 +780,9 @@ function _plainStopSummary(sess, dur) {
   if (med >= 1.0) {
     parts.push('over your burn threshold — no more sun today');
   } else if (med >= 0.7) {
-    parts.push(`${Math.round(med * 100)}% burn dose — close to limit, ease up`);
+    parts.push(`burn dose ${Math.round(med * 100)}% — close to limit, ease up`);
   } else if (med >= 0.3) {
-    parts.push(`${Math.round(med * 100)}% burn dose — well within safe range`);
+    parts.push(`burn dose ${Math.round(med * 100)}% — well within safe range`);
   }
   return parts.join(' · ');
 }
@@ -969,7 +969,7 @@ function _liveDosesFor(sess) {
   for (const [k, v] of Object.entries(rate)) doses[k] = v * elapsedMin * zenithScale;
   const sed = (live.sedPerMin || 0) * elapsedMin * zenithScale;
   const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive }) : 0;
-  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive, _zenithScale: zenithScale };
+  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive, atm: live.atm, _zenithScale: zenithScale };
 }
 
 // Render a compact live card body — elapsed time, burn-risk %, channel chips.
@@ -1047,7 +1047,7 @@ function _tickActiveCards() {
       const cur = _getLiveState(sess.id) || {};
       if (med >= 1.0 && !cur.alertedOver) {
         _setLiveState(sess.id, { alertedOver: true });
-        showNotification('Burn threshold reached. Move to shade or cover up NOW. Hydrate. Skin damage from here is cumulative — no more direct sun today.', 'error', 10000);
+        showNotification('Burn threshold reached. Move to shade or cover up. Hydrate, no more direct sun today — damage from here is cumulative.', 'error', 10000);
       } else if (med >= 0.7 && !cur.alerted70) {
         _setLiveState(sess.id, { alerted70: true });
         showNotification('70% of your burn dose. Best move: head into shade for ~10 min, then decide. If you stay, watch for skin warmth or pinkness.', 'warning', 8000);

@@ -59,7 +59,7 @@ const FITZPATRICK_DESCRIPTOR = [
 export const HOME_LIGHT_OPTIONS = [
   { key: 'led-cool',     label: 'Mostly LED — cool/daylight (4000K+)' },
   { key: 'led-warm',     label: 'Mostly LED — warm white (2700–3000K)' },
-  { key: 'led-tunable',  label: 'LED — tunable / colour-changing' },
+  { key: 'led-tunable',  label: 'LED — tunable / color-changing' },
   { key: 'fluorescent',  label: 'Fluorescent / CFL' },
   { key: 'incandescent', label: 'Incandescent (filament)' },
   { key: 'mixed',        label: 'Mixed / multiple types' },
@@ -372,7 +372,7 @@ export function renderSetupCard() {
         ? `<button class="import-btn import-btn-secondary" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">Cancel</button>
            <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save changes</button>`
         : `<button class="import-btn import-btn-tertiary light-setup-skip-btn" onclick="window.dismissSunSetup && window.dismissSunSetup()">I'll do this later</button>
-           <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save profile · ${filledCount}/4 done</button>`}
+           <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save setup · ${filledCount}/4 done</button>`}
     </div>
   </div>`;
   return html;
@@ -430,7 +430,7 @@ async function saveSunSetup() {
   state.importedData.lightCircadian.skinType = SKIN_TYPE[skinIdx];
   await saveImportedData();
   _setupForceOpen = false;
-  showNotification(`Setup saved · Ott score ${ottScore}/10`);
+  showNotification(`Setup saved · light burden ${ottScore}/10`);
   if (window.navigate) window.navigate('light');
 }
 
