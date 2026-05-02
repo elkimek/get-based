@@ -1074,6 +1074,26 @@ function renderLightAuditCard(a, expanded) {
   return html;
 }
 
+// Pull the per-channel measurement values for a room inside an audit.
+// Returns null for any tool that has no reading; callers decide whether
+// to render the row at all.
+function _auditRoomChannels(audit, room) {
+  const lux = latestInAudit(audit, 'lux', room.id);
+  const dark = latestInAudit(audit, 'darkness', room.id);
+  const fli = latestInAudit(audit, 'flicker', room.id);
+  const cct = latestInAudit(audit, 'cct', room.id);
+  const spec = latestInAudit(audit, 'spectrum', room.id);
+  return [
+    lux ? { key: 'lux', label: 'Lux', text: `${Math.round(lux.value)} lux` } : null,
+    dark ? { key: 'darkness', label: 'Darkness', text: `${(+dark.value).toFixed(2)} lux` } : null,
+    fli ? { key: 'flicker', label: 'Flicker', text: flickerLabel(fli.value) } : null,
+    cct ? { key: 'cct', label: 'CCT', text: `${cct.value} K` } : null,
+    spec?.extra?.melanopic != null
+      ? { key: 'melanopic', label: 'Melanopic', text: `${(spec.extra.melanopic * 100).toFixed(0)}%` }
+      : null,
+  ].filter(Boolean);
+}
+
 function renderLightAuditDetail(a) {
   let html = `<div class="light-audit-detail">
     <div class="light-audit-meta-row">
@@ -1084,28 +1104,32 @@ function renderLightAuditDetail(a) {
   if (!(a.rooms || []).length) {
     html += `<p class="light-audit-empty">No rooms in this audit's snapshot.</p>`;
   } else {
-    html += `<div class="light-audit-table-wrap"><table class="light-audit-table">
-      <thead><tr><th>Room</th><th>Tier</th><th>Lux</th><th>Darkness</th><th>Flicker</th><th>CCT</th><th>Melanopic</th></tr></thead>
-      <tbody>`;
+    html += `<div class="light-audit-rooms">`;
     for (const r of a.rooms) {
       const roomMeas = (a.measurements || []).filter(m => m.roomId === r.id);
       const sev = computeRoomSeverity(r, roomMeas);
-      const lux = latestInAudit(a, 'lux', r.id);
-      const dark = latestInAudit(a, 'darkness', r.id);
-      const fli = latestInAudit(a, 'flicker', r.id);
-      const cct = latestInAudit(a, 'cct', r.id);
-      const spec = latestInAudit(a, 'spectrum', r.id);
-      html += `<tr>
-        <td>${escapeHTML(r.name || 'Room')}</td>
-        <td><span class="light-env-sev-dot light-env-sev-${sev.color}"></span> ${escapeHTML(sev.label)}</td>
-        <td>${lux ? `${Math.round(lux.value)} lux` : '—'}</td>
-        <td>${dark ? `${(+dark.value).toFixed(2)} lux` : '—'}</td>
-        <td>${fli ? escapeHTML(flickerLabel(fli.value)) : '—'}</td>
-        <td>${cct ? `${cct.value} K` : '—'}</td>
-        <td>${spec?.extra?.melanopic != null ? `${(spec.extra.melanopic * 100).toFixed(0)}%` : '—'}</td>
-      </tr>`;
+      const channels = _auditRoomChannels(a, r);
+      html += `<div class="light-audit-room-card">
+        <div class="light-audit-room-head">
+          <span class="light-env-sev-dot light-env-sev-${sev.color}"></span>
+          <span class="light-audit-room-name">${escapeHTML(r.name || 'Room')}</span>
+          <span class="light-audit-room-status light-audit-room-status-${sev.color}">${escapeHTML(sev.label)}</span>
+        </div>`;
+      if (channels.length === 0) {
+        html += `<p class="light-audit-room-empty">No measurements taken in this room before the snapshot.</p>`;
+      } else {
+        html += `<div class="light-audit-room-channels">`;
+        for (const ch of channels) {
+          html += `<div class="light-audit-channel">
+            <span class="light-audit-channel-label">${escapeHTML(ch.label)}</span>
+            <span class="light-audit-channel-value">${escapeHTML(ch.text)}</span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
     }
-    html += `</tbody></table></div>`;
+    html += `</div>`;
   }
 
   html += `<div class="light-audit-footer">
@@ -1114,6 +1138,26 @@ function renderLightAuditDetail(a) {
   </div>`;
   return html;
 }
+
+// Compare-view directional arrow + color. `better` says which direction
+// improvement looks like ('lower', 'higher', or 'depends' = neutral).
+function _compareArrow(delta, better) {
+  const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
+  let color = 'var(--text-muted)';
+  if (better === 'lower') color = delta < 0 ? 'var(--green)' : delta > 0 ? 'var(--red)' : color;
+  else if (better === 'higher') color = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : color;
+  return `<span class="light-audit-arrow" style="color:${color}">${arrow}</span>`;
+}
+
+// Per-channel metadata for compare. `better` is the improvement direction:
+// darkness/flicker/melanopic ↓ = better (sleep-safer); lux/CCT depend on
+// time-of-day so neutral arrow color (we still show direction).
+const COMPARE_CHANNELS = [
+  { tool: 'lux',      label: 'Lux',       fmt: v => `${Math.round(v)} lux`,        better: 'depends' },
+  { tool: 'darkness', label: 'Darkness',  fmt: v => `${(+v).toFixed(2)} lux`,      better: 'lower' },
+  { tool: 'flicker',  label: 'Flicker',   fmt: v => flickerLabel(v),               better: 'lower' },
+  { tool: 'cct',      label: 'CCT',       fmt: v => `${v} K`,                      better: 'depends' },
+];
 
 function renderLightAuditCompare(audits) {
   const sorted = audits.slice().sort((a, b) => b.date.localeCompare(a.date));
@@ -1138,99 +1182,129 @@ function renderLightAuditCompare(audits) {
     html += `<div class="light-audit-compare-note">Comparing the two most recent audits. ${sorted.length - 2} earlier audit${sorted.length > 3 ? 's' : ''} not shown.</div>`;
   }
 
-  // Channels and which direction = "improvement" for the arrow color
-  const channels = [
-    { tool: 'lux', label: 'Lux', fmt: v => `${Math.round(v)}`, better: 'depends' },
-    { tool: 'darkness', label: 'Darkness', fmt: v => `${(+v).toFixed(2)}`, better: 'lower' },
-    { tool: 'flicker', label: 'Flicker', fmt: v => flickerLabel(v), better: 'lower' },
-    { tool: 'cct', label: 'CCT (K)', fmt: v => `${v}`, better: 'depends' },
-  ];
+  // Stack per-room delta cards — one card per room with measurements.
+  // Rooms with NO data on either side are skipped (a room that exists
+  // in the snapshot but was never measured is just visual noise here).
+  html += `<div class="light-audit-compare-rooms">`;
 
-  const arrowSpan = (delta, better) => {
-    const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
-    let color = 'var(--text-muted)';
-    if (better === 'lower') color = delta < 0 ? 'var(--green)' : delta > 0 ? 'var(--red)' : color;
-    else if (better === 'higher') color = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : color;
-    return `<span style="color:${color};font-weight:600">${arrow}</span>`;
-  };
-
-  html += `<div class="light-audit-table-wrap"><table class="light-audit-table light-audit-compare-table">
-    <thead><tr><th>Room</th><th>Tier</th>`;
-  for (const ch of channels) html += `<th>${escapeHTML(ch.label)}</th>`;
-  html += `<th>Melanopic</th></tr></thead><tbody>`;
-
+  let renderedAny = false;
   for (const name of roomNames) {
     const r1 = (a1.rooms || []).find(r => r.name === name);
     const r2 = (a2.rooms || []).find(r => r.name === name);
     const sev1 = r1 ? computeRoomSeverity(r1, (a1.measurements || []).filter(m => m.roomId === r1.id)) : null;
     const sev2 = r2 ? computeRoomSeverity(r2, (a2.measurements || []).filter(m => m.roomId === r2.id)) : null;
 
-    html += `<tr><td>${escapeHTML(name)}</td>`;
-
-    if (sev1 && sev2) {
-      html += `<td><span class="light-env-sev-dot light-env-sev-${sev1.color}"></span> ${arrowSpan(sev2.tier - sev1.tier, 'lower')} <span class="light-env-sev-dot light-env-sev-${sev2.color}"></span></td>`;
-    } else if (sev2) {
-      html += `<td>— → <span class="light-env-sev-dot light-env-sev-${sev2.color}"></span></td>`;
-    } else if (sev1) {
-      html += `<td><span class="light-env-sev-dot light-env-sev-${sev1.color}"></span> → —</td>`;
-    } else {
-      html += `<td>—</td>`;
-    }
-
-    for (const ch of channels) {
+    // Build the list of comparable rows — only channels that have data
+    // on at least ONE side. A row with both sides null is dropped.
+    const rows = [];
+    for (const ch of COMPARE_CHANNELS) {
       const m1 = r1 ? latestInAudit(a1, ch.tool, r1.id) : null;
       const m2 = r2 ? latestInAudit(a2, ch.tool, r2.id) : null;
-      if (m1 && m2) {
-        const delta = (+m2.value) - (+m1.value);
-        html += `<td>${ch.fmt(m1.value)} ${arrowSpan(delta, ch.better)} ${ch.fmt(m2.value)}</td>`;
-      } else if (m2) {
-        html += `<td>— → ${ch.fmt(m2.value)}</td>`;
-      } else if (m1) {
-        html += `<td>${ch.fmt(m1.value)} → —</td>`;
-      } else {
-        html += `<td>—</td>`;
-      }
+      if (!m1 && !m2) continue;
+      rows.push({ ch, m1, m2 });
     }
-
-    // Melanopic from spectrum tool's extra.melanopic — lower is sleep-safer
+    // Melanopic comes from spectrum.extra
     const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
     const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
     const mel1 = sp1?.extra?.melanopic;
     const mel2 = sp2?.extra?.melanopic;
-    if (mel1 != null && mel2 != null) {
-      const delta = mel2 - mel1;
-      // Use a small deadband (±2pp) so noise doesn't paint arrows green/red
-      const better = Math.abs(delta) < 0.02 ? 'depends' : 'lower';
-      html += `<td>${(mel1 * 100).toFixed(0)}% ${arrowSpan(delta, better)} ${(mel2 * 100).toFixed(0)}%</td>`;
-    } else if (mel2 != null) {
-      html += `<td>— → ${(mel2 * 100).toFixed(0)}%</td>`;
-    } else if (mel1 != null) {
-      html += `<td>${(mel1 * 100).toFixed(0)}% → —</td>`;
-    } else {
-      html += `<td>—</td>`;
+    const hasMelanopic = mel1 != null || mel2 != null;
+
+    // Skip rooms that have no measurements on either side AND no
+    // severity flip worth surfacing.
+    const sevChange = sev1 && sev2 && sev1.tier !== sev2.tier;
+    if (!rows.length && !hasMelanopic && !sevChange) continue;
+    renderedAny = true;
+
+    // Card header — severity dot before/arrow/dot after, room name,
+    // verdict label. Verdict keys stay single-word so they're valid CSS
+    // class suffixes; the displayed label can differ (`unchanged` →
+    // "no change" reads more naturally as a verdict).
+    const verdict = sevChange
+      ? (sev2.tier < sev1.tier ? 'improved' : 'regressed')
+      : (rows.length || hasMelanopic ? 'measured' : 'unchanged');
+    const verdictLabel = verdict === 'unchanged' ? 'no change' : verdict;
+    html += `<div class="light-audit-compare-room light-audit-compare-room-${verdict}">
+      <div class="light-audit-compare-room-head">
+        ${sev1 ? `<span class="light-env-sev-dot light-env-sev-${sev1.color}" title="Before"></span>` : '<span class="light-audit-sev-empty"></span>'}
+        <span class="light-audit-arrow" style="color:var(--text-muted)">→</span>
+        ${sev2 ? `<span class="light-env-sev-dot light-env-sev-${sev2.color}" title="After"></span>` : '<span class="light-audit-sev-empty"></span>'}
+        <span class="light-audit-compare-room-name">${escapeHTML(name)}</span>
+        <span class="light-audit-compare-verdict light-audit-compare-verdict-${verdict}">${escapeHTML(verdictLabel)}</span>
+      </div>`;
+
+    // Per-channel rows — `before → after` with arrow per channel.
+    if (rows.length || hasMelanopic) {
+      html += `<div class="light-audit-compare-channels">`;
+      for (const { ch, m1, m2 } of rows) {
+        const before = m1 ? ch.fmt(m1.value) : '—';
+        const after = m2 ? ch.fmt(m2.value) : '—';
+        const arrow = (m1 && m2) ? _compareArrow((+m2.value) - (+m1.value), ch.better) : '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
+        html += `<div class="light-audit-compare-channel">
+          <span class="light-audit-compare-channel-label">${escapeHTML(ch.label)}</span>
+          <span class="light-audit-compare-channel-before">${escapeHTML(before)}</span>
+          ${arrow}
+          <span class="light-audit-compare-channel-after">${escapeHTML(after)}</span>
+        </div>`;
+      }
+      if (hasMelanopic) {
+        const before = mel1 != null ? `${(mel1 * 100).toFixed(0)}%` : '—';
+        const after = mel2 != null ? `${(mel2 * 100).toFixed(0)}%` : '—';
+        let arrow;
+        if (mel1 != null && mel2 != null) {
+          const delta = mel2 - mel1;
+          // ±2pp deadband → noise doesn't paint green/red
+          const better = Math.abs(delta) < 0.02 ? 'depends' : 'lower';
+          arrow = _compareArrow(delta, better);
+        } else {
+          arrow = '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
+        }
+        html += `<div class="light-audit-compare-channel">
+          <span class="light-audit-compare-channel-label">Melanopic</span>
+          <span class="light-audit-compare-channel-before">${escapeHTML(before)}</span>
+          ${arrow}
+          <span class="light-audit-compare-channel-after">${escapeHTML(after)}</span>
+        </div>`;
+      }
+      html += `</div>`;
     }
-    html += `</tr>`;
+    html += `</div>`;
   }
-  html += `</tbody></table></div>`;
+
+  if (!renderedAny) {
+    html += `<p class="light-audit-empty">Both audits have rooms but no measurements taken yet — nothing to compare. Use the Light Tools above to capture readings, then save another audit.</p>`;
+  }
+
+  html += `</div>`;
   return html;
 }
 
 function renderLightAuditsBlock() {
   const audits = getLightAudits();
+  // When ≥2 audits exist, Compare becomes the primary action. Bumped to
+  // import-btn-primary so it's visually weighted ahead of "Save audit".
+  const compareBtn = audits.length >= 2
+    ? `<button class="import-btn ${_auditCompareMode ? 'import-btn-secondary' : 'import-btn-primary'}" onclick="window.toggleLightAuditCompare()">${_auditCompareMode ? 'Exit compare' : '⇄ Compare'}</button>`
+    : '';
   let html = `<div class="light-env-block light-audits-block">
     <div class="light-env-block-head">
       <strong>Light audits</strong>
       <div class="light-audit-actions">
-        ${audits.length >= 2 ? `<button class="import-btn import-btn-secondary" onclick="window.toggleLightAuditCompare()">${_auditCompareMode ? 'Exit compare' : 'Compare'}</button>` : ''}
+        ${compareBtn}
         <button class="import-btn import-btn-secondary" onclick="window.saveLightAuditFromUI()">+ Save audit</button>
       </div>
     </div>`;
 
   if (audits.length === 0) {
-    html += `<p class="light-env-empty">Save snapshots over time to track improvements. Take measurements with the tools above (lux, flicker, darkness, CCT, spectrum), then save an audit to lock that state in. Saved audits show side-by-side deltas after the second one.</p>`;
-  } else if (_auditCompareMode && audits.length >= 2) {
+    html += `<p class="light-env-empty">Snapshot your rooms + measurements so you can see what a change actually did. Run the tools, save a "Before" audit, make a change (warmer bulbs, blackouts, blue blockers), save an "After". Once you have two, Compare lights up and you'll see the deltas per room.</p>`;
+  } else if (audits.length === 1) {
+    // Surface the "save another to compare" hint inline with the single
+    // saved audit — without it, Compare seems to materialize from nowhere.
+    html += `<p class="light-audit-hint">Save a second audit after making changes to unlock the side-by-side comparison.</p>`;
+  }
+  if (_auditCompareMode && audits.length >= 2) {
     html += renderLightAuditCompare(audits);
-  } else {
+  } else if (audits.length > 0) {
     const sorted = audits.slice().sort((a, b) => b.date.localeCompare(a.date));
     for (const a of sorted) {
       html += renderLightAuditCard(a, _expandedAuditId === a.id);

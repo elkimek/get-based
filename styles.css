@@ -6440,22 +6440,64 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   display: flex; flex-direction: column; gap: 4px;
   font-size: 11px; color: var(--text-muted); flex: 1; min-width: 140px;
 }
-.light-audit-empty { color: var(--text-muted); font-size: 12px; padding: 12px 0; }
-.light-audit-table-wrap { overflow-x: auto; }
-.light-audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.light-audit-table th {
-  text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--border);
-  font-size: 11px; color: var(--text-muted); white-space: nowrap;
+.light-audit-empty { color: var(--text-muted); font-size: 12px; padding: 12px 0; line-height: 1.5; }
+.light-audit-hint {
+  font-size: 12px; color: var(--text-muted);
+  padding: 6px 10px; margin-bottom: 10px;
+  background: var(--bg-secondary); border-left: 2px solid var(--accent);
+  border-radius: 4px;
 }
-.light-audit-table td {
-  padding: 6px 8px; white-space: nowrap;
-  border-bottom: 1px solid var(--border);
-}
-.light-audit-table tr:last-child td { border-bottom: none; }
 .light-audit-footer {
   display: flex; gap: 8px; align-items: center; margin-top: 12px;
   padding-top: 12px; border-top: 1px solid var(--border);
 }
+
+/* Single-audit detail — per-room mini cards stacked. Replaces the wide
+   7-column table that scrolled horizontally on mobile. Each card shows
+   severity dot + room name + status label + measurement chips for the
+   channels that have readings. Channels with no data are omitted (vs
+   the table's "—" cells which were just visual noise). */
+.light-audit-rooms {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-audit-room-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.light-audit-room-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.light-audit-room-name {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+.light-audit-room-status {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  white-space: nowrap;
+}
+.light-audit-room-status-green      { background: rgba(34,197,94,0.12);  color: var(--green); }
+.light-audit-room-status-yellow     { background: rgba(234,179,8,0.12);  color: var(--yellow); }
+.light-audit-room-status-orange     { background: rgba(249,115,22,0.12); color: var(--orange); }
+.light-audit-room-status-red        { background: rgba(239,68,68,0.12);  color: var(--red); }
+.light-audit-room-status-incomplete { background: var(--bg-card);        color: var(--text-muted); }
+.light-audit-room-empty { font-size: 12px; color: var(--text-muted); margin: 0; font-style: italic; }
+.light-audit-room-channels {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.light-audit-channel {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 8px; font-size: 12px;
+}
+.light-audit-channel-label { color: var(--text-muted); font-size: 11px; }
+.light-audit-channel-value { color: var(--text-primary); font-weight: 500; }
+
+/* Compare view — per-room delta cards, no wide table. Each card stacks
+   the channel rows; each row is `before  →  after` with a directional
+   arrow whose color signals improvement (green) / regression (red) /
+   neutral (depends-on-context channels like CCT and lux). */
 .light-audit-compare-head {
   display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
   padding: 10px 14px; background: var(--bg-card); border-radius: var(--radius-sm);
@@ -6464,14 +6506,58 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-audit-compare-label { font-size: 13px; font-weight: 600; }
 .light-audit-compare-arrow { color: var(--text-muted); font-size: 16px; }
 .light-audit-compare-note { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
-.light-audit-compare-table th { text-align: center; }
-.light-audit-compare-table th:first-child { text-align: left; }
-.light-audit-compare-table td { text-align: center; }
-.light-audit-compare-table td:first-child { text-align: left; font-weight: 600; }
+.light-audit-compare-rooms { display: flex; flex-direction: column; gap: 8px; }
+.light-audit-compare-room {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.light-audit-compare-room-improved   { border-left: 3px solid var(--green); }
+.light-audit-compare-room-regressed  { border-left: 3px solid var(--red); }
+.light-audit-compare-room-measured   { border-left: 3px solid var(--text-muted); }
+.light-audit-compare-room-unchanged  { border-left: 3px solid transparent; }
+.light-audit-compare-room-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.light-audit-sev-empty {
+  display: inline-block; width: 10px; height: 10px;
+  border: 1.5px dashed var(--text-muted); border-radius: 50%;
+  flex-shrink: 0;
+}
+.light-audit-compare-room-name {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  flex: 1;
+}
+.light-audit-compare-verdict {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  padding: 2px 8px; border-radius: 10px;
+}
+.light-audit-compare-verdict-improved   { background: rgba(34,197,94,0.12);  color: var(--green); }
+.light-audit-compare-verdict-regressed  { background: rgba(239,68,68,0.12);  color: var(--red); }
+.light-audit-compare-verdict-measured   { background: var(--bg-card);        color: var(--text-muted); }
+.light-audit-compare-verdict-unchanged  { display: none; }
+.light-audit-compare-channels {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.light-audit-compare-channel {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(60px, auto) auto minmax(60px, auto);
+  gap: 8px; align-items: baseline;
+  font-size: 12px; padding: 3px 0;
+}
+.light-audit-compare-channel-label { color: var(--text-muted); font-size: 11px; }
+.light-audit-compare-channel-before { color: var(--text-secondary); text-align: right; }
+.light-audit-compare-channel-after  { color: var(--text-primary); font-weight: 500; }
+.light-audit-arrow { font-weight: 600; font-size: 13px; }
+
 @media (max-width: 600px) {
   .light-audit-header { flex-direction: column; align-items: flex-start; gap: 6px; }
-  .light-audit-table { font-size: 11px; }
-  .light-audit-table th, .light-audit-table td { padding: 4px 5px; }
+  .light-audit-compare-channel {
+    grid-template-columns: minmax(70px, 1fr) auto auto auto;
+    font-size: 11px;
+  }
 }
 
 /* Light tools — measurement utility cards */
