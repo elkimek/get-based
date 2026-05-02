@@ -548,6 +548,28 @@ export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null) {
   return Math.min(raw, VITD_SATURATION_IU);
 }
 
+// Uncertainty band on the vitamin D estimate. Honest framing: the
+// simplified Bird-Riordan + Bass-Paur model claims ~25% relative
+// accuracy at noon, degrades to ~50% at high zenith. Inter-individual
+// 25(OH)D response variance for the same UV dose is another ~2-3×
+// (Webb 2018, Datta 2019) on top of model uncertainty. Combined, the
+// honest "I really might produce X IU" band is roughly 0.5×–2× the
+// central estimate. We use 0.6× / 1.5× — slightly tighter to keep the
+// band useful, but wide enough to capture model + biological variance.
+//
+// Returns { central, low, high } in IU. UI surfaces the range so users
+// see when the model says "narrow band, trust this" (high UVI noon)
+// vs "wide band, calibrate against your own bloods" (anything off-noon).
+export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = null) {
+  const central = vitaminDIU(channelAu, fitzpatrick, uvi);
+  if (central === 0) return { central: 0, low: 0, high: 0 };
+  return {
+    central,
+    low: Math.max(0, Math.round(central * 0.6)),
+    high: Math.min(VITD_SATURATION_IU, Math.round(central * 1.5)),
+  };
+}
+
 // PBM dose (J/cm²) for the red/NIR therapy channels and the wider
 // nir_solar channel. channel-au is J/m² × bodyFraction × actionWeight;
 // dividing by 10,000 converts m² → cm². Matches the dose unit
@@ -600,6 +622,7 @@ if (typeof window !== 'undefined') {
     erythemalSED,
     fractionOfMED,
     vitaminDIU,
+    vitaminDIURange,
     pbmJoulesPerCm2,
     circadianMelanopicLux,
     retinalUVdose,

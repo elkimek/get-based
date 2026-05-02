@@ -97,6 +97,12 @@ const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○
 
 export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
 
+// Saturation flag threshold: when central IU ≥ 19,000 we're within 5%
+// of the 20,000 cap baked into vitaminDIU (Holick photoisomerization
+// plateau). Surface "saturated" copy at that point rather than the
+// uncertainty band — the cap dominates so the band collapses anyway.
+const VITD_SAT_FLAG = 19000;
+
 // Render a channel dose in its natural real-world unit when the
 // conversion is defensible (IU for vit D, J/cm² for the PBM/NIR
 // channels, M-EDI lux for circadian). Falls back to "" for channels
@@ -115,11 +121,23 @@ export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
 export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (channelKey === 'vitamin_d') {
-    const iu = window.vitaminDIU ? window.vitaminDIU(channelAu, fitzpatrick, uvi) : channelAu * 40;
-    if (iu < 10) return '<10 IU'; // below the gate / very low
-    if (iu >= 10000) return '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU';
-    if (iu >= 1000) return '~' + Math.round(iu / 100) * 100 + ' IU';
-    return '~' + Math.round(iu / 10) * 10 + ' IU';
+    // Display the uncertainty band rather than a single point estimate.
+    // Bird-Riordan model is ~25% at noon / ~50% off-noon; biological
+    // 25(OH)D response variance adds another 2-3×. Honest framing:
+    // "~50-150 IU" instead of "~100 IU" — user understands the model
+    // says "roughly this much, not exact."
+    const range = window.vitaminDIURange
+      ? window.vitaminDIURange(channelAu, fitzpatrick, uvi)
+      : { central: channelAu * 40, low: 0, high: 0 };
+    if (range.central === 0) return 'below UVI threshold';
+    if (range.central < 30) return 'minimal';
+    const fmt = (n) => {
+      if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+      if (n >= 1000) return Math.round(n / 100) * 100;
+      return Math.round(n / 10) * 10;
+    };
+    if (range.central >= VITD_SAT_FLAG) return `~${fmt(range.central)} IU (saturated)`;
+    return `~${fmt(range.low)}-${fmt(range.high)} IU`;
   }
   if (channelKey === 'nir_solar' || channelKey === 'pbm_red' || channelKey === 'pbm_nir') {
     const j = window.pbmJoulesPerCm2 ? window.pbmJoulesPerCm2(channelAu) : channelAu / 10000;
@@ -865,6 +883,8 @@ function _renderActiveCardBody(sess) {
     const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
     const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
     const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
+    // Live ticker uses the central estimate (the chip's already small;
+    // a range there gets too noisy). Detail modal surfaces the band.
     const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz, uvi) : live.doses.vitamin_d * 40;
     const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
     if (iu >= 50) {
@@ -872,7 +892,7 @@ function _renderActiveCardBody(sess) {
         : iu >= 1000 ? '~' + Math.round(iu / 100) * 100 + ' IU'
         : '~' + Math.round(iu / 10) * 10 + ' IU';
       const rateLabel = ratePerMin >= 100 ? `${Math.round(ratePerMin / 10) * 10} IU/min` : `${Math.round(ratePerMin)} IU/min`;
-      vitaminDStr = `<span class="sun-session-vitd" title="Approximate vitamin D₃ synthesis so far. Saturates around 20k IU per Bogh & Wulf 2010 / Holick.">☀ ${iuLabel} vit D · ${rateLabel}</span>`;
+      vitaminDStr = `<span class="sun-session-vitd" title="Approximate vitamin D₃ synthesis so far (central estimate; ±50% band — see session detail). Saturates around 20k IU per Holick photoisomerization plateau.">☀ ~${iuLabel} vit D · ${rateLabel}</span>`;
     }
   }
   return { elapsed, medStr, vitaminDStr, channelChips };

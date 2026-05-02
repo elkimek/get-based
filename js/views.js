@@ -150,12 +150,14 @@ export function renderLightTodayStrip() {
   const weeklyIU = (window.rollingVitaminDIU && window.rollingVitaminDIU(7)) || 0;
   let weeklyIUStr = '';
   if (weeklyIU >= 100) {
-    const iuLabel = weeklyIU >= 10000
-      ? '~' + (weeklyIU / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
-      : weeklyIU >= 1000
-        ? '~' + Math.round(weeklyIU / 100) * 100 + ' IU'
-        : '~' + Math.round(weeklyIU / 10) * 10 + ' IU';
-    weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun exposure over the last 7 days, summed per session and Fitzpatrick-scaled. Each session caps at ~20k IU per Holick photoisomerization saturation; the weekly figure sums multiple sessions.">☀ ${iuLabel} vitamin D this week</span>`;
+    // Surface the same uncertainty band as session detail. The weekly
+    // total inherits each session's per-session uncertainty; using the
+    // central estimate × 0.6 / × 1.5 is a fair aggregate since the
+    // model errors are not strongly correlated session-to-session.
+    const fmt = (n) => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+      : n >= 1000 ? Math.round(n / 100) * 100
+      : Math.round(n / 10) * 10;
+    weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun exposure over the last 7 days, summed per session and Fitzpatrick-scaled. ±50% range reflects model + biological response variance — central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU * 0.6)}-${fmt(weeklyIU * 1.5)} IU vitamin D this week</span>`;
   }
 
   return `<section class="light-today-strip">
