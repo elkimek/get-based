@@ -1377,6 +1377,10 @@ export function openSunSessionDetail(id) {
     </div>`;
   }).join('') : '<p class="sun-detail-empty">No channel doses computed for this session yet.</p>';
 
+  // Location summary (declared above the atmosphere block so derived metrics
+  // can read sess.location for zenith + altitude).
+  const loc = sess.location;
+
   // Atmosphere snapshot + derived geometry. Surfaces zenith, altitude, and
   // a UVA/UVB split so biohackers can audit the math behind the channels.
   const atm = sess.atmosphere;
@@ -1418,8 +1422,7 @@ export function openSunSessionDetail(id) {
     </div>`;
   }
 
-  // Location summary
-  const loc = sess.location;
+  // Location summary string (uses `loc` declared above).
   const locStr = loc
     ? `${loc.lat.toFixed(2)}°, ${loc.lon.toFixed(2)}° · ${escapeHTML(loc.source || 'unknown')}`
     : 'Location not recorded';
