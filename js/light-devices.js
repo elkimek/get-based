@@ -189,6 +189,123 @@ export async function deleteDeviceSession(id) {
   return true;
 }
 
+// ─── UI: per-device-session detail modal ──────────────────────────────
+//
+// Mirrors openSunSessionDetail in shape so the unified sessions list
+// behaves consistently — clicking any row opens its details. Device
+// sessions don't carry atmosphere or location, so we surface device
+// info instead (peak wavelengths, irradiance, recommended distance).
+const _DEVICE_AREA_LABELS = {
+  'targeted': 'Targeted (single area)',
+  'face': 'Face',
+  'torso': 'Torso',
+  'torso-front': 'Torso (front)',
+  'arms': 'Arms',
+  'legs': 'Legs',
+  'whole-body': 'Whole body',
+};
+
+export function openDeviceSessionDetail(id) {
+  const sessions = getDeviceSessions();
+  const sess = sessions.find(s => s.id === id);
+  if (!sess) return;
+  const device = getDevices().find(d => d.id === sess.deviceId) || null;
+  const channelTier = window.channelTier || (() => 0);
+  const tierLabel = window.tierLabel || (() => 'none');
+  const formatChannelUnit = window.formatChannelUnit || (() => '');
+  const formatDate = window.formatDate || ((s) => s);
+  const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
+
+  const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
+  const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : '—';
+  const devName = device ? `${device.brand} ${device.model}` : 'Removed device';
+  const typeLabel = device?.type || '—';
+  const peakStr = device?.peakWavelengths?.length
+    ? device.peakWavelengths.map(w => `${w} nm`).join(', ') : '—';
+  const irradianceStr = device?.mwPerCm2At15cm
+    ? `${device.mwPerCm2At15cm} mW/cm² @ ${device?.recommendedDistanceCm || 15} cm`
+    : (device?.lux ? `${device.lux.toLocaleString()} lux` : '—');
+  const distanceStr = sess.distanceCm ? `${sess.distanceCm} cm` : '—';
+  const areaLabel = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '—';
+  const eyesLabel = sess.eyesProtected ? 'Protected (closed / blocked)' : 'Uncovered';
+
+  const channelRows = sess.doses ? channelOrder
+    .filter(k => sess.doses[k] != null)
+    .map(k => {
+      const meta = (window.CHANNEL_DISPLAY || {})[k] || {};
+      const v = sess.doses[k] || 0;
+      const t = channelTier(v, k);
+      const tlabel = tierLabel(t);
+      const unitText = formatChannelUnit(k, v, sess.durationMin || 0, 'III', null);
+      const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
+      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
+        <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
+        <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
+        <span class="sun-detail-channel-value">${escapeHTML(unitText || '')}</span>
+        <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
+        <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
+      </div>`;
+    }).join('') : '';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.innerHTML = `<div class="modal sun-detail-modal" role="dialog" aria-label="Device session details">
+    <div class="modal-header">
+      <h3>Device session — ${escapeHTML(start)}</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="sun-detail-summary">
+        <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
+        <div><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
+        <div><span>Body area</span><strong>${escapeHTML(areaLabel)}</strong></div>
+      </div>
+
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Device</div>
+        <div class="sun-detail-section-value">${escapeHTML(devName)}${typeLabel !== '—' ? ` · ${escapeHTML(typeLabel)}` : ''}</div>
+      </div>
+
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Eyes</div>
+        <div class="sun-detail-section-value">${escapeHTML(eyesLabel)}</div>
+      </div>
+
+      ${device ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Device spec</div>
+          <div class="sun-detail-atm">
+            <div title="Peak emission wavelengths declared by the device — drives which channels the spectrum convolution lights up."><span>Peaks</span><strong>${escapeHTML(peakStr)}</strong></div>
+            <div title="Irradiance at the manufacturer's reference distance. Distance-square correction (recommendedDistanceCm / actual distance)² is applied to your session."><span>Irradiance</span><strong>${escapeHTML(irradianceStr)}</strong></div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${channelRows ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Channels</div>
+          <div class="sun-detail-channels">${channelRows}</div>
+        </div>
+      ` : '<p class="sun-detail-empty">No channel doses computed for this session.</p>'}
+
+      ${sess.notes ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Notes</div>
+          <div class="sun-detail-section-value">${escapeHTML(sess.notes)}</div>
+        </div>
+      ` : ''}
+
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')">Delete</button>
+      </div>
+    </div>
+  </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
+  document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+}
+
 // Rolling totals — same shape as sun.rollingChannelTotals so the AI context
 // and dashboard pills can sum across both sources transparently.
 export function rollingDeviceTotals(days = 7) {
@@ -961,6 +1078,7 @@ if (typeof window !== 'undefined') {
     },
     rollingDeviceTotals,
     renderDevicesSection,
+    openDeviceSessionDetail,
     openAddDeviceDialog,
     openCustomDeviceDialog,
     addCustomDevice,

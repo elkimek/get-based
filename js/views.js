@@ -1589,13 +1589,14 @@ function renderUnifiedSessionsList() {
       const date = formatDate(new Date(row.startedAt).toISOString().slice(0, 10));
       const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : '—';
       const meta = `${dur} @ ${sess.distanceCm}cm · ${sess.bodyArea || ''}${sess.eyesProtected ? ' · eyes protected' : ''}`;
-      html += `<div class="sun-session light-session-row light-session-device">
+      const devAriaLabel = `Open ${date} device session details — ${devName}`;
+      html += `<div class="sun-session light-session-row light-session-device" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}" onclick="window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
         <div class="sun-session-head">
           <span class="light-session-icon" aria-hidden="true">🔴</span>
           <span class="sun-session-date">${escapeHTML(date)}</span>
           <span class="sun-session-duration">${escapeHTML(dur)}</span>
           <span class="light-session-kind">${escapeHTML(devName)}</span>
-          <button class="sun-session-delete" onclick="window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
+          <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
         </div>
         <div class="sun-session-meta">${escapeHTML(meta)}</div>
       </div>`;
