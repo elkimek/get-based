@@ -22,14 +22,34 @@
 
 // id-keyed arrays inside importedData. Each key is a dotted path; nested
 // arrays inside lightEnvironment go through a tiny accessor helper.
+//
+// IMPORTANT: every entry must have a string `id` field for unionById to
+// dedup. Lists where entries are keyed by something other than `id` (e.g.
+// changeHistory, which is keyed by field+date) belong in
+// COMPOSITE_KEYED_ARRAYS instead, NOT here — otherwise the noId fallback
+// in unionById will keep both sides' records and double the array on
+// every cross-device pull, blowing past per-site caps.
 export const ID_KEYED_ARRAYS = [
   'sunSessions',
   'deviceSessions',
   'lightDevices',
   'lightMeasurements',
-  'changeHistory',
+  'lightAudits',
   'lightEnvironment.rooms',
   'lightEnvironment.screens',
+];
+
+// Arrays whose entries don't carry an `id` but have a stable composite
+// key. Each entry: { path, key: (entry) => string, cap?: number }.
+// During merge we union local + remote, dedup by composite key (later
+// entry wins on tie via timestamp), then optionally cap the array.
+//
+// changeHistory: keyed by `field|date` (recordChange overwrites
+// same-day same-field by design). Cap matches the per-site cap of 200
+// in context-cards.js + export.js + wearables-summary.js so a multi-
+// device merge can never sneak past it.
+const COMPOSITE_KEYED_ARRAYS = [
+  { path: 'changeHistory', key: (e) => e?.field && e?.date ? `${e.field}|${e.date}` : null, cap: 200 },
 ];
 
 // Pick a comparable timestamp for conflict resolution. Higher wins.
@@ -173,6 +193,46 @@ export function mergeImportedData(local, remote) {
       // preserve other lightEnvironment fields from remote (LWW for scalars).
       setAt(out, path, merged);
     }
+  }
+
+  // Composite-keyed arrays (changeHistory etc.) — dedup by composite key,
+  // cap to the configured per-array max. Without this, the merge would
+  // double the array on every cross-device pull (no `id` for unionById to
+  // dedup on) and blow past the per-site caps applied at write time.
+  for (const { path, key, cap } of COMPOSITE_KEYED_ARRAYS) {
+    const localArr  = getAt(local,  path);
+    const remoteArr = getAt(remote, path);
+    if (!Array.isArray(localArr) && !Array.isArray(remoteArr)) continue;
+    const seen = new Map(); // composite-key → entry
+    const noKey = []; // entries that can't produce a key — kept as-is
+    function consume(arr) {
+      if (!Array.isArray(arr)) return;
+      for (const e of arr) {
+        if (!e || typeof e !== 'object') continue;
+        const k = key(e);
+        if (!k) { noKey.push(e); continue; }
+        const existing = seen.get(k);
+        if (!existing) { seen.set(k, e); continue; }
+        // Conflict: same composite key on both sides. Pick the higher
+        // timestamp; ties keep existing (remote, since we consume local
+        // first then remote).
+        const eTs = pickTimestamp(e);
+        const xTs = pickTimestamp(existing);
+        if (eTs > xTs) seen.set(k, e);
+      }
+    }
+    consume(localArr);
+    consume(remoteArr);
+    let merged = [...seen.values(), ...noKey];
+    if (Number.isFinite(cap) && merged.length > cap) {
+      // Sort by timestamp desc, keep newest `cap` entries. pickTimestamp
+      // already falls back through updatedAt → date — works for the
+      // changeHistory `{field, date, snapshot}` shape via the date string
+      // fallback in pickTimestamp.
+      merged.sort((a, b) => pickTimestamp(b) - pickTimestamp(a));
+      merged = merged.slice(0, cap);
+    }
+    setAt(out, path, merged);
   }
 
   return out;

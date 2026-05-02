@@ -266,6 +266,45 @@ return (async function() {
     m13._deleted.sunSessions.length === 5000,
     'got length=' + m13._deleted.sunSessions.length);
 
+  // ─── 14. Composite-keyed merge: changeHistory dedup + 200-cap ─────────
+  // changeHistory entries lack `id` and were silently doubling on every
+  // cross-device pull (unionById's noId fallback kept both copies).
+  // Now lives in COMPOSITE_KEYED_ARRAYS, deduped by `field|date`, capped
+  // at 200 — matching the per-site write caps in context-cards.js,
+  // export.js, wearables-summary.js. Regression guard for the live bug
+  // that filled a user's localStorage to 4.4 MB / 5 MB cap.
+  console.log('%c 14. changeHistory composite-key merge ', 'font-weight:bold;color:#f59e0b');
+  assert('changeHistory NOT in ID_KEYED_ARRAYS (would double on merge)',
+    !ID_KEYED_ARRAYS.includes('changeHistory'));
+  // Same field+date on both sides → dedup, newer (higher updatedAt) wins.
+  const m14a = mergeImportedData(
+    { changeHistory: [{ field: 'diet', date: '2026-05-01', snapshot: { v: 1 }, updatedAt: 1 }] },
+    { changeHistory: [{ field: 'diet', date: '2026-05-01', snapshot: { v: 2 }, updatedAt: 2 }] }
+  );
+  assert('same field+date deduped to 1 entry', m14a.changeHistory.length === 1);
+  assert('higher updatedAt wins on dedup', m14a.changeHistory[0].snapshot.v === 2);
+
+  // Different field+date pairs both kept.
+  const m14b = mergeImportedData(
+    { changeHistory: [{ field: 'diet', date: '2026-05-01', snapshot: {} }] },
+    { changeHistory: [{ field: 'exercise', date: '2026-05-01', snapshot: {} }] }
+  );
+  assert('different field+date pairs both kept', m14b.changeHistory.length === 2);
+
+  // 200-cap enforced post-merge: throw 250 distinct entries at it,
+  // verify result is sorted-newest-first and trimmed to 200.
+  const big = [];
+  for (let i = 0; i < 250; i++) big.push({
+    field: 'diet', date: `2024-01-${String(i % 31 + 1).padStart(2,'0')}-${i}`,
+    snapshot: { i }, updatedAt: i,
+  });
+  const m14c = mergeImportedData({ changeHistory: big.slice(0, 125) }, { changeHistory: big.slice(125) });
+  assert('changeHistory capped at 200 post-merge', m14c.changeHistory.length === 200);
+  // The 50 oldest (i = 0..49) should be dropped; newest (i = 200..249) retained.
+  const ids = new Set(m14c.changeHistory.map(e => e.snapshot.i));
+  assert('newest entries retained after cap', ids.has(249) && ids.has(200));
+  assert('oldest entries dropped after cap', !ids.has(0) && !ids.has(49));
+
   console.log(`%c Data Merge: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();
