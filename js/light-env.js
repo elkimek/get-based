@@ -1112,14 +1112,15 @@ function renderLightAuditCard(a, expanded) {
   const sev = computeAuditSeverity(a);
   const roomsCount = (a.rooms || []).length;
   const measCount = (a.measurements || []).length;
+  const cardAriaLabel = `${fmtAuditDate(a.date)}${a.label ? ' — ' + a.label : ''} — ${roomsCount} room${roomsCount === 1 ? '' : 's'}, ${measCount} measurement${measCount === 1 ? '' : 's'}, ${sev.label}${expanded ? ', expanded' : ', collapsed'}`;
   let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}">
-    <div class="light-audit-header" onclick="window.toggleLightAudit('${escapeAttr(a.id)}')">
+    <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" onclick="window.toggleLightAudit('${escapeAttr(a.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightAudit('${escapeAttr(a.id)}')}">
       <div class="light-audit-info">
         <span class="light-audit-date">${escapeHTML(fmtAuditDate(a.date))}</span>
         ${a.label ? `<span class="light-audit-label">${escapeHTML(a.label)}</span>` : ''}
         <span class="light-audit-meta">${roomsCount} room${roomsCount === 1 ? '' : 's'} · ${measCount} measurement${measCount === 1 ? '' : 's'}</span>
       </div>
-      <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label)}"></span>
+      <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label)}"><span class="sr-only">${escapeHTML(sev.label)}</span></span>
     </div>`;
   if (expanded) html += renderLightAuditDetail(a);
   html += `</div>`;
@@ -1147,10 +1148,17 @@ function _auditRoomChannels(audit, room) {
 }
 
 function renderLightAuditDetail(a) {
+  const auditIdAttr = escapeAttr(a.id);
   let html = `<div class="light-audit-detail">
     <div class="light-audit-meta-row">
-      <label>Date <input type="date" class="light-input" value="${escapeAttr(a.date)}" onchange="window.updateLightAuditField('${escapeAttr(a.id)}','date',this.value)"></label>
-      <label>Label <input type="text" class="light-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" onchange="window.updateLightAuditField('${escapeAttr(a.id)}','label',this.value)"></label>
+      <label class="light-audit-meta-field light-audit-meta-field--date">
+        <span class="light-audit-meta-field-text">Date</span>
+        <input type="date" class="ctx-input" value="${escapeAttr(a.date)}" aria-label="Audit date" onchange="window.updateLightAuditField('${auditIdAttr}','date',this.value)">
+      </label>
+      <label class="light-audit-meta-field light-audit-meta-field--label">
+        <span class="light-audit-meta-field-text">Label</span>
+        <input type="text" class="ctx-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" aria-label="Audit label" onchange="window.updateLightAuditField('${auditIdAttr}','label',this.value)">
+      </label>
     </div>`;
 
   if (!(a.rooms || []).length) {

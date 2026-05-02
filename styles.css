@@ -6550,16 +6550,27 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   padding: 10px 14px; cursor: pointer; transition: background 0.15s;
 }
 .light-audit-header:hover { background: var(--bg-hover); }
+.light-audit-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .light-audit-info { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .light-audit-date { font-weight: 600; font-size: 13px; }
 .light-audit-label { font-size: 12px; color: var(--text-secondary); }
 .light-audit-meta { font-size: 11px; color: var(--text-muted); }
 .light-audit-detail { padding: 0 14px 14px; }
-.light-audit-meta-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-.light-audit-meta-row label {
-  display: flex; flex-direction: column; gap: 4px;
-  font-size: 11px; color: var(--text-muted); flex: 1; min-width: 140px;
+.light-audit-meta-row {
+  display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+  align-items: flex-end;
 }
+.light-audit-meta-field {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 11px; color: var(--text-muted);
+}
+.light-audit-meta-field--date { flex: 0 0 auto; width: 160px; }
+.light-audit-meta-field--label { flex: 1 1 200px; min-width: 0; max-width: 360px; }
+.light-audit-meta-field-text {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.light-audit-meta-row .ctx-input { margin-top: 0; font-size: 13px; padding: 6px 10px; }
 .light-audit-empty { color: var(--text-muted); font-size: 12px; padding: 12px 0; line-height: 1.5; }
 .light-audit-hint {
   font-size: 12px; color: var(--text-muted);
