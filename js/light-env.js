@@ -536,9 +536,11 @@ export function computeDeficitAxes() {
 
 // ─── UI: Light Environment page (lives at /light-environment route) ───
 //
-// Layout mirrors EMF Assessment's at-a-glance pattern (severity dot per
-// room, tabs when 3+ rooms, detail panel with measurements attached). Up
-// to 2 rooms render as inline cards; 3+ activates the tabbed selector.
+// Layout: disclosure list (collapsed-by-default cards with severity
+// dots; expanding reveals a Step 1/2/3 form). Mirrors the EMF
+// Assessment + Light Audits pattern so the three sub-modules share one
+// mental model. Single-room case auto-expands; multi-room case
+// expands the most-recently-edited room (sorted by `updatedAt`).
 
 const ACTIVE_ROOM_KEY = 'labcharts-light-env-active-room';
 
@@ -600,42 +602,129 @@ function _renderTodayToggle(kind, id, activeToday, opts = {}) {
 // nested inside a room card (compact mode). When compact, density
 // ratchets down; the "Used in" dropdown lets the user reassign
 // without leaving the page.
+// Screen card — disclosure pattern matching rooms + audits + EMF.
+// Collapsed header shows: status dot + device-icon + device-label +
+// one-line summary (hours, evening, blocker) + today-toggle + chevron.
+// Expanded body holds the full controls. Single global `_expandedScreenId`
+// — tracking expansion isn't worth localStorage persistence here.
+const SCREEN_DEVICE_ICONS = {
+  phone: '📱', laptop: '💻', monitor: '🖥', tablet: '📲', tv: '📺',
+};
+
+let _expandedScreenId = null;
+
+function _screenSummary(s, status) {
+  const parts = [];
+  const hours = s.hoursPerDay;
+  if (hours != null && hours > 0) parts.push(`${hours} hr/day`);
+  const eve = s.eveningUseAfterSunset;
+  if (eve != null && eve > 0) parts.push(`${eve} hr evening`);
+  else if (hours > 0) parts.push('daytime only');
+  if (s.blueBlockerEnabled) parts.push('✓ blocker');
+  return parts.join(' · ');
+}
+
+// Hours-per-day chip buckets — separate set from room HOURS_BUCKETS
+// because screen total-day usage often skews lower (a phone is 3 hr,
+// not 8). Stored as numeric midpoint, same as rooms.
+const SCREEN_HOURS_BUCKETS = [
+  { key: 'short',  label: '< 1 hr',  midpoint: 0.5, min: 0, max: 1 },
+  { key: 'some',   label: '1–3 hr',  midpoint: 2,   min: 1, max: 3 },
+  { key: 'lots',   label: '3–6 hr',  midpoint: 4.5, min: 3, max: 6 },
+  { key: 'most',   label: '6+ hr',   midpoint: 8,   min: 6, max: 24 },
+];
+
+function activeScreenHoursBucket(hours) {
+  if (hours == null || isNaN(+hours)) return null;
+  const h = +hours;
+  for (const b of SCREEN_HOURS_BUCKETS) if (h >= b.min && h < b.max) return b.key;
+  return 'most';
+}
+
+function activeScreenEveningBucket(eve) {
+  if (eve == null) return null;
+  const h = +eve;
+  if (h <= 0) return 'none';
+  if (h < 1) return 'lt1';
+  if (h < 3) return 'mid';
+  return 'gt3';
+}
+
 function renderScreenCard(s, opts = {}) {
-  const compact = !!opts.compact;
   const status = computeScreenStatus(s);
   const activeToday = isActiveToday(s);
+  const expanded = _expandedScreenId === s.id;
   const env = getEnvironment();
   const rooms = env?.rooms || [];
+  const deviceIcon = SCREEN_DEVICE_ICONS[s.device] || '📱';
+  const deviceLabel = (SCREEN_DEVICES.find(d => d.key === s.device)?.label) || 'Device';
+  const summary = _screenSummary(s, status);
+
+  let html = `<div class="light-env-screen-card light-env-card-sev-${status.color}${activeToday ? '' : ' light-env-card-skipped'}${expanded ? ' expanded' : ''}" data-id="${escapeAttr(s.id)}">
+    <div class="light-env-screen-card-head" onclick="window.toggleLightEnvScreenExpanded('${escapeAttr(s.id)}', event)">
+      <span class="light-env-sev-dot light-env-sev-${status.color}" title="${escapeAttr(status.label + ' — ' + status.reason)}"></span>
+      <span class="light-env-screen-card-icon" aria-hidden="true">${deviceIcon}</span>
+      <span class="light-env-screen-card-name">${escapeHTML(deviceLabel)}</span>
+      ${expanded ? '' : `<span class="light-env-screen-card-summary">${escapeHTML(summary || 'Tap to set up')}</span>`}
+      <span class="light-env-room-disclosure-spacer"></span>
+      ${_renderTodayToggle('screen', s.id, activeToday)}
+      ${expanded ? `<button class="light-env-overflow" onclick="event.stopPropagation();window.deleteLightEnvScreenConfirm('${escapeAttr(s.id)}')" title="Delete screen" aria-label="Delete screen">⋯</button>` : ''}
+      <span class="light-env-room-disclosure-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>
+    </div>`;
+
+  if (expanded) html += renderScreenExpandedBody(s, rooms);
+  html += `</div>`;
+  return html;
+}
+
+function renderScreenExpandedBody(s, rooms) {
+  const hoursActive = activeScreenHoursBucket(s.hoursPerDay);
+  const eveActive = activeScreenEveningBucket(s.eveningUseAfterSunset);
+
+  const hoursChips = SCREEN_HOURS_BUCKETS.map(b =>
+    `<button class="light-env-chip${hoursActive === b.key ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvScreenHoursBucket('${escapeAttr(s.id)}','${b.key}')">${escapeHTML(b.label)}</button>`
+  ).join('');
+
+  const eveBuckets = [
+    { key: 'none', label: 'None',     midpoint: 0 },
+    { key: 'lt1',  label: '< 1 hr',   midpoint: 0.5 },
+    { key: 'mid',  label: '1–3 hr',   midpoint: 2 },
+    { key: 'gt3',  label: '3+ hr',    midpoint: 4 },
+  ];
+  const eveChips = eveBuckets.map(b =>
+    `<button class="light-env-chip${eveActive === b.key ? ' light-env-chip-active' : ''}" onclick="window.setLightEnvScreenEveningBucket('${escapeAttr(s.id)}','${b.key}')">${escapeHTML(b.label)}</button>`
+  ).join('');
+
   const roomOptions = rooms.length > 0
     ? `<select class="ctx-select light-env-screen-room" onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { roomId: this.value || null })" aria-label="Used in room">
         <option value=""${!s.roomId ? ' selected' : ''}>Portable / multiple rooms</option>
         ${rooms.map(r => `<option value="${escapeAttr(r.id)}"${s.roomId === r.id ? ' selected' : ''}>${escapeHTML(r.name || 'Room')}</option>`).join('')}
       </select>`
     : '';
-  return `<div class="light-env-screen-card light-env-card-sev-${status.color}${compact ? ' light-env-screen-card-compact' : ''}${activeToday ? '' : ' light-env-card-skipped'}" data-id="${escapeAttr(s.id)}">
-    <div class="light-env-screen-card-head">
-      <select class="ctx-select light-env-screen-device" onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
-        ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
-      </select>
-      <span class="light-env-sev-chip light-env-sev-chip-${status.color}" title="${escapeAttr(status.reason)}">${escapeHTML(status.label)}</span>
-      ${_renderTodayToggle('screen', s.id, activeToday)}
-      <button class="light-env-delete" onclick="window.deleteLightEnvScreen('${escapeAttr(s.id)}')" aria-label="Delete screen">×</button>
-    </div>
-    <div class="light-env-screen-fields">
-      <label class="ctx-label">Hours per day
-        <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="0" value="${s.hoursPerDay ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { hoursPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
+
+  return `<div class="light-env-screen-card-body">
+    <div class="light-env-screen-meta-row">
+      <label class="ctx-label">Device
+        <select class="ctx-select" onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { device: this.value })" aria-label="Device type">
+          ${SCREEN_DEVICES.map(d => `<option value="${escapeAttr(d.key)}"${s.device === d.key ? ' selected' : ''}>${escapeHTML(d.label)}</option>`).join('')}
+        </select>
       </label>
-      <label class="ctx-label">Evening hours (after sunset)
-        <input type="number" min="0" max="12" step="0.5" class="ctx-input" placeholder="0" value="${s.eveningUseAfterSunset ?? ''}" oninput="window.updateLightEnvScreen('${escapeAttr(s.id)}', { eveningUseAfterSunset: parseFloat(this.value) || 0 })" aria-label="Evening hours" />
-      </label>
-      <label class="light-env-evening light-env-screen-blocker">
-        <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
-        Blue blocker (glasses, f.lux, Night Shift, amber tint)
-      </label>
-      ${!compact && roomOptions ? `<label class="ctx-label light-env-screen-room-label">Used in
+      ${roomOptions ? `<label class="ctx-label">Used in
         ${roomOptions}
       </label>` : ''}
     </div>
+    <div class="light-env-picker">
+      <span class="light-env-picker-label">Hours per day</span>
+      <div class="light-env-chip-row">${hoursChips}</div>
+    </div>
+    <div class="light-env-picker">
+      <span class="light-env-picker-label">Time after sunset</span>
+      <div class="light-env-chip-row">${eveChips}</div>
+    </div>
+    <label class="light-env-evening light-env-screen-blocker">
+      <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
+      Blue blocker (glasses, f.lux, Night Shift, amber tint) — zeroes the circadian penalty
+    </label>
   </div>`;
 }
 
@@ -1324,6 +1413,44 @@ if (typeof window !== 'undefined') {
     },
     deleteLightEnvScreen: async (id) => {
       await deleteScreen(id);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    deleteLightEnvScreenConfirm: (id) => {
+      showConfirmDialog('Delete this screen?', async () => {
+        await deleteScreen(id);
+        if (_expandedScreenId === id) _expandedScreenId = null;
+        if (window.navigate && state.currentView === 'light') window.navigate('light');
+      });
+    },
+    // Disclosure toggle for screen cards — same event-target gating as
+    // the room toggle so clicks on inner controls don't double-fire.
+    toggleLightEnvScreenExpanded: (id, event) => {
+      if (event && event.target) {
+        const t = event.target;
+        if (t.closest('button, input, select, textarea, a, label')
+            && !t.classList.contains('light-env-screen-card-head')
+            && !t.classList.contains('light-env-screen-card-name')
+            && !t.classList.contains('light-env-screen-card-icon')
+            && !t.classList.contains('light-env-screen-card-summary')
+            && !t.classList.contains('light-env-room-disclosure-chevron')
+            && !t.classList.contains('light-env-room-disclosure-spacer')
+            && !t.classList.contains('light-env-sev-dot')) {
+          return;
+        }
+      }
+      _expandedScreenId = (_expandedScreenId === id) ? null : id;
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    setLightEnvScreenHoursBucket: async (id, bucketKey) => {
+      const b = SCREEN_HOURS_BUCKETS.find(x => x.key === bucketKey);
+      if (!b) return;
+      await updateScreen(id, { hoursPerDay: b.midpoint });
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    setLightEnvScreenEveningBucket: async (id, bucketKey) => {
+      const map = { none: 0, lt1: 0.5, mid: 2, gt3: 4 };
+      if (!(bucketKey in map)) return;
+      await updateScreen(id, { eveningUseAfterSunset: map[bucketKey] });
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     computeLightDeficitAxes: computeDeficitAxes,

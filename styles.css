@@ -6118,53 +6118,61 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   border-color: var(--red);
 }
 
-/* Screens — now cards (was 5-element flat rows that wrapped badly
-   on mobile). Each card carries a status chip for evening blue
-   exposure tier. */
+/* Screens — disclosure pattern matching rooms. Collapsed shows
+   status dot · device-icon · device label · one-line summary +
+   today-toggle + chevron. Expanded body holds chip pickers for
+   hours / evening + the blue-blocker checkbox + room-reassignment. */
 .light-env-screen-cards {
-  display: flex; flex-direction: column; gap: 12px;
+  display: flex; flex-direction: column; gap: 8px;
 }
 .light-env-screen-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  transition: border-color 0.15s;
 }
+.light-env-screen-card.expanded { border-color: var(--accent); }
 .light-env-screen-card-head {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px;
+  padding: 10px 14px; cursor: pointer;
   background: var(--bg-secondary);
+  transition: background 0.15s;
+}
+.light-env-screen-card-head:hover { background: var(--bg-hover); }
+.light-env-screen-card.expanded .light-env-screen-card-head {
   border-bottom: 1px solid var(--border);
 }
-.light-env-screen-device {
-  flex: 1; min-width: 0;
-  font-size: 13px; padding: 6px 10px;
+.light-env-screen-card-icon { font-size: 16px; }
+.light-env-screen-card-name {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
 }
-.light-env-screen-fields {
+.light-env-screen-card-summary {
+  font-size: 12px; color: var(--text-muted);
+}
+.light-env-screen-card-body {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.light-env-screen-meta-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1fr);
-  gap: 14px;
-  padding: 14px;
+  grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr);
+  gap: 12px;
 }
-.light-env-screen-fields .ctx-label {
-  margin: 0;
-  font-size: 12px;
-}
-.light-env-screen-fields .ctx-input { width: 100%; }
+.light-env-screen-meta-row .ctx-label { margin: 0; }
 .light-env-screen-blocker {
-  grid-column: 1 / -1;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
   font-size: 13px; color: var(--text-secondary);
   display: flex; align-items: center; gap: 8px;
   cursor: pointer;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
 }
 .light-env-screen-blocker input[type="checkbox"] { margin-right: 4px; }
-.light-env-screen-room-label {
-  grid-column: 1 / -1;
-  font-size: 12px;
+.light-env-screen-room { width: 100%; }
+@media (max-width: 600px) {
+  .light-env-screen-card-head { flex-wrap: wrap; gap: 6px; }
+  .light-env-screen-meta-row { grid-template-columns: 1fr; }
 }
-.light-env-screen-room { width: 100%; margin-top: 4px; }
 
 /* Inline "Screens used here" block within each room card — appears
    below the readings strip. Uses compact-mode screen cards that
@@ -6186,99 +6194,24 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   text-transform: uppercase; letter-spacing: 0.04em;
   flex: 1;
 }
+/* "+ Add a screen here" — dashed-outline button at the bottom of
+   each room's Step 3 list. Distinguishes "add" from primary CTAs. */
 .light-env-add-screen-here {
   background: transparent; border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
   padding: 4px 10px; font-size: 12px;
   color: var(--text-secondary); cursor: pointer;
   font-family: inherit;
+  margin-top: 8px;
 }
 .light-env-add-screen-here:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
-.light-env-room-screens-list {
-  display: flex; flex-direction: column; gap: 8px;
-}
-/* Compact screen card — used inside a room. Tighter padding +
-   2-col fields layout to keep the block compact. */
-.light-env-screen-card-compact .light-env-screen-card-head {
-  padding: 8px 12px;
-}
-.light-env-screen-card-compact .light-env-screen-fields {
-  padding: 10px 12px; gap: 10px;
-}
-.light-env-screen-card-compact .ctx-label { font-size: 11px; }
-.light-env-screen-card-compact .light-env-screen-blocker {
-  font-size: 12px; padding-top: 6px;
-}
 
-/* Room tabs (≥3 rooms) — EMF-style horizontal scroller */
-.light-env-room-tabs {
-  display: flex; gap: 6px; flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-.light-env-room-tab {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 7px 12px; font-size: 13px;
-  color: var(--text-secondary); cursor: pointer;
-  transition: all 0.15s;
-}
-.light-env-room-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
-.light-env-room-tab.active {
-  background: var(--bg-secondary);
-  border-color: var(--accent);
-  color: var(--text-primary); font-weight: 600;
-}
-.light-env-room-tab-name { white-space: nowrap; }
-
-/* Per-room detail card */
-.light-env-room-cards {
-  display: flex; flex-direction: column; gap: 12px;
-}
-.light-env-room-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-.light-env-room-card-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-}
-.light-env-room-name {
-  flex: 1; min-width: 100px;
-  background: transparent; border: 1px solid transparent;
-  font-size: 15px; font-weight: 600;
-  color: var(--text-primary);
-  padding: 4px 8px; border-radius: 4px;
-}
-.light-env-room-name:hover, .light-env-room-name:focus {
-  border-color: var(--border); background: var(--bg-card);
-}
-.light-env-room-card-body {
-  padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 14px;
-}
-.light-env-room-meta {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(140px, auto) auto;
-  gap: 12px; align-items: end;
-}
-.light-env-room-meta .ctx-label { margin: 0; }
+/* Per-room measurement tools (Step 2) — pill row + readings strip. */
 .light-env-room-tools {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-.light-env-tools-label {
-  font-size: 12px; color: var(--text-muted);
-  margin-right: 4px;
 }
 .light-env-tool-pill {
   background: var(--bg-secondary);
@@ -6293,10 +6226,11 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   color: white;
 }
 
-/* Per-room latest readings */
+/* Step-body empty / readings copy. Used by no-measurements + no-screens
+   placeholders. */
 .light-env-room-empty {
   font-size: 12px; color: var(--text-muted);
-  margin: 0; padding: 8px 0 0;
+  margin: 0;
   font-style: italic;
 }
 .light-env-room-readings {
@@ -6314,12 +6248,6 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-env-reading-icon { font-size: 13px; }
 .light-env-reading-value { color: var(--text-primary); font-weight: 500; }
 .light-env-reading-time { color: var(--text-muted); font-size: 11px; }
-
-/* Mobile: collapse meta grid to a single column */
-@media (max-width: 600px) {
-  .light-env-room-meta { grid-template-columns: 1fr; }
-  .light-env-room-tabs { overflow-x: auto; flex-wrap: nowrap; }
-}
 
 /* Disclosure-pattern room list — replaces the tabs/stacked mode-switch.
    Each row is collapsed by default; clicking the header expands a
