@@ -6208,6 +6208,13 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   border-color: var(--accent);
   color: var(--accent);
 }
+/* Quick-pick chip row inside Step 3 — mirrors the room quick-picks at
+   the bottom of the Rooms section. Common device types are one-click;
+   "+ Other…" falls back to the device-by-room-name inference path. */
+.light-env-screen-quickpicks {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  margin-top: 10px;
+}
 
 /* Per-room measurement tools (Step 2) — pill row + readings strip. */
 .light-env-room-tools {

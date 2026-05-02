@@ -856,20 +856,62 @@ function renderRoomExpandedBody(r, measurements, sev) {
   }
   html += `</div></div>`;
 
-  // Step 3: screens used here
+  // Step 3: screens used here. Step head + empty-state copy customize
+  // per room because the dominant device differs sharply (bedroom →
+  // phone, office → laptop / monitor, living room → TV). The phone-in-
+  // bed signal in particular is high-leverage: junk-light memory note
+  // says it's the dominant vector for most users, so the copy nudges
+  // toward it for bedroom rooms.
   const screensHere = getScreensForRoom(r.id);
+  const roomName = (r.name || '').toLowerCase();
+  let stepHead, emptyCopy, quickPicks;
+  if (/bedroom|sleep/.test(roomName)) {
+    stepHead = 'Screens used in bed';
+    emptyCopy = 'Phone in bed is the single biggest pull on melatonin most users have. Add it here so the AI weights evening blue accurately.';
+    quickPicks = ['phone', 'tablet', 'tv'];
+  } else if (/office|study|desk|work/.test(roomName)) {
+    stepHead = 'Screens at this desk';
+    emptyCopy = 'Long stretches in front of a laptop or monitor add up. Map them here so daytime exposure isn\'t overweighted vs evening.';
+    quickPicks = ['laptop', 'monitor', 'phone'];
+  } else if (/living|family|den|lounge/.test(roomName)) {
+    stepHead = 'Screens in this room';
+    emptyCopy = 'TV after sunset shifts melatonin most when it\'s a wall of cool blue. Worth mapping.';
+    quickPicks = ['tv', 'phone', 'tablet'];
+  } else {
+    stepHead = 'Screens used here';
+    emptyCopy = 'Map any phone, tablet, laptop, monitor, or TV used in this room.';
+    quickPicks = ['phone', 'laptop', 'tv'];
+  }
+  // Hide quick-picks for devices already mapped to this room — no need
+  // to suggest "+ phone" if there's already a phone here.
+  const existingDevices = new Set(screensHere.map(s => s.device));
+  const availablePicks = quickPicks.filter(d => !existingDevices.has(d));
+  const pickLabels = { phone: '📱 Phone', laptop: '💻 Laptop', monitor: '🖥 Monitor', tablet: '📲 Tablet', tv: '📺 TV' };
+
   html += `<div class="light-env-room-step">
-    <div class="light-env-room-step-head"><span class="light-env-room-step-num">3</span> Screens used here</div>
+    <div class="light-env-room-step-head"><span class="light-env-room-step-num">3</span> ${escapeHTML(stepHead)}</div>
     <div class="light-env-room-step-body">`;
   if (screensHere.length === 0) {
-    html += `<p class="light-env-room-empty">No screens mapped to this room yet.</p>`;
+    html += `<p class="light-env-room-empty">${escapeHTML(emptyCopy)}</p>`;
   } else {
     html += `<div class="light-env-room-screens-list">`;
     for (const s of screensHere) html += renderScreenCard(s, { compact: true });
     html += `</div>`;
   }
-  html += `<button class="light-env-add-screen-here" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Add a screen here</button>
-    </div>
+  // Quick-pick chip row — one-click adds a screen with the right device
+  // type. "Other…" falls back to the original generic "+ Add screen"
+  // path which infers device by room name.
+  if (availablePicks.length > 0) {
+    html += `<div class="light-env-screen-quickpicks">`;
+    for (const device of availablePicks) {
+      html += `<button class="light-env-quickpick" onclick="window.addLightEnvScreenWithDevice('${escapeAttr(r.id)}','${device}')">+ ${escapeHTML(pickLabels[device] || device)}</button>`;
+    }
+    html += `<button class="light-env-quickpick light-env-quickpick-other" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Other…</button>`;
+    html += `</div>`;
+  } else {
+    html += `<button class="light-env-add-screen-here" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Add another screen</button>`;
+  }
+  html += `    </div>
   </div>`;
 
   // Delete moved to the header overflow (⋯) — keeps destructive actions
@@ -1533,6 +1575,18 @@ if (typeof window !== 'undefined') {
     },
     setActiveLightEnvRoom: (id) => {
       writeActiveRoomId(id);
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    // Quick-pick variant — adds a screen with an explicit device type
+    // (phone / laptop / monitor / tablet / tv). Auto-expands the new
+    // screen card so the user can fill in hours immediately.
+    addLightEnvScreenWithDevice: async (roomId, device) => {
+      const validDevices = SCREEN_DEVICES.map(d => d.key);
+      const deviceKey = validDevices.includes(device) ? device : 'phone';
+      await addScreen(deviceKey, roomId || null);
+      const env = getEnvironment();
+      const after = env?.screens || [];
+      if (after.length > 0) _expandedScreenId = after[after.length - 1].id;
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     addLightEnvScreen: async (roomId = null) => {
