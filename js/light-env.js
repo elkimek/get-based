@@ -13,7 +13,7 @@
 //   }
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
 
@@ -619,6 +619,12 @@ export function renderEnvironmentSection() {
   }
   html += `</div>`;
 
+  // Light Audits — frozen snapshots of rooms + screens + measurements.
+  // Hidden until the user has at least one room mapped.
+  if ((env?.rooms || []).length > 0) {
+    html += renderLightAuditsBlock();
+  }
+
   // Deficit summary — interpretive plain-English copy with tier
   // indicator, instead of the raw "8.2 hr/day · 4.2 hr/day" numbers
   // which read as abstract without context.
@@ -630,6 +636,289 @@ export function renderEnvironmentSection() {
     </div>
     <p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>
   </div>`;
+
+  html += `</div>`;
+  return html;
+}
+
+// ─── Light Audits — frozen snapshots of the environment ───────────────
+//
+// Mirrors the EMF Assessment pattern: each audit is a dated, labeled,
+// immutable snapshot of the rooms + screens + recent measurements at
+// that point in time. Used for the "measure → mitigate → re-measure →
+// see delta" loop. The live `lightEnvironment.rooms[]` continues to
+// drive AI weighting; audits are pure historical records.
+//
+// Audit shape:
+//   { id, date (YYYY-MM-DD), label, notes, rooms: [...deep-copy],
+//     screens: [...deep-copy], measurements: [...last 30d, deep-copy],
+//     createdAt, updatedAt? }
+
+let _expandedAuditId = null;
+let _auditCompareMode = false;
+
+const AUDIT_MEASUREMENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function getLightAudits() {
+  if (!state.importedData) return [];
+  if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
+  return state.importedData.lightAudits;
+}
+
+export async function saveLightAudit(label = '') {
+  const env = getEnvironment();
+  if (!env) return null;
+  const audits = getLightAudits();
+  // Snapshot recent measurements (last 30 days) — older ones likely
+  // reflect a different state of the environment than what's being
+  // audited, so they'd skew before/after comparisons.
+  const cutoff = Date.now() - AUDIT_MEASUREMENT_WINDOW_MS;
+  const measurements = (state.importedData?.lightMeasurements || [])
+    .filter(m => (m.capturedAt || 0) >= cutoff)
+    .map(m => ({ ...m }));
+  const today = new Date();
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const audit = {
+    id: `la_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    date,
+    label: label || `Audit ${audits.length + 1}`,
+    notes: '',
+    rooms: JSON.parse(JSON.stringify(env.rooms || [])),
+    screens: JSON.parse(JSON.stringify(env.screens || [])),
+    measurements,
+    createdAt: Date.now(),
+  };
+  audits.push(audit);
+  await saveImportedData();
+  return audit;
+}
+
+export async function updateLightAudit(id, patch) {
+  const audits = getLightAudits();
+  const a = audits.find(x => x.id === id);
+  if (!a) return;
+  Object.assign(a, patch);
+  a.updatedAt = Date.now();
+  await saveImportedData();
+}
+
+export async function deleteLightAudit(id) {
+  const audits = getLightAudits();
+  recordTombstone(state.importedData, 'lightAudits', id);
+  state.importedData.lightAudits = audits.filter(a => a.id !== id);
+  await saveImportedData();
+}
+
+// Worst-room-tier rolls up to the audit-level severity badge.
+function computeAuditSeverity(audit) {
+  const rooms = audit?.rooms || [];
+  const measurements = audit?.measurements || [];
+  let worstTier = 0;
+  for (const r of rooms) {
+    const roomMeas = measurements.filter(m => m.roomId === r.id);
+    const sev = computeRoomSeverity(r, roomMeas);
+    if (sev.tier > worstTier) worstTier = sev.tier;
+  }
+  const colorMap = ['green', 'yellow', 'orange', 'red', 'red'];
+  const labelMap = ['Good', 'Mild', 'Moderate', 'Concerning', 'Severe'];
+  return { tier: worstTier, color: colorMap[Math.min(worstTier, 4)], label: labelMap[Math.min(worstTier, 4)] };
+}
+
+// Most-recent measurement of a tool, scoped to a room, inside an audit.
+function latestInAudit(audit, tool, roomId) {
+  return (audit?.measurements || [])
+    .filter(m => m.tool === tool && m.roomId === roomId)
+    .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0))[0];
+}
+
+function fmtAuditDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function flickerLabel(score) {
+  return ['Pristine', 'Mild', 'Moderate', 'Severe'][Math.min(3, Math.max(0, Math.round(score)))] || String(score);
+}
+
+function renderLightAuditCard(a, expanded) {
+  const sev = computeAuditSeverity(a);
+  const roomsCount = (a.rooms || []).length;
+  const measCount = (a.measurements || []).length;
+  let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}">
+    <div class="light-audit-header" onclick="window.toggleLightAudit('${escapeAttr(a.id)}')">
+      <div class="light-audit-info">
+        <span class="light-audit-date">${escapeHTML(fmtAuditDate(a.date))}</span>
+        ${a.label ? `<span class="light-audit-label">${escapeHTML(a.label)}</span>` : ''}
+        <span class="light-audit-meta">${roomsCount} room${roomsCount === 1 ? '' : 's'} · ${measCount} measurement${measCount === 1 ? '' : 's'}</span>
+      </div>
+      <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label)}"></span>
+    </div>`;
+  if (expanded) html += renderLightAuditDetail(a);
+  html += `</div>`;
+  return html;
+}
+
+function renderLightAuditDetail(a) {
+  let html = `<div class="light-audit-detail">
+    <div class="light-audit-meta-row">
+      <label>Date <input type="date" class="light-input" value="${escapeAttr(a.date)}" onchange="window.updateLightAuditField('${escapeAttr(a.id)}','date',this.value)"></label>
+      <label>Label <input type="text" class="light-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" onchange="window.updateLightAuditField('${escapeAttr(a.id)}','label',this.value)"></label>
+    </div>`;
+
+  if (!(a.rooms || []).length) {
+    html += `<p class="light-audit-empty">No rooms in this audit's snapshot.</p>`;
+  } else {
+    html += `<div class="light-audit-table-wrap"><table class="light-audit-table">
+      <thead><tr><th>Room</th><th>Tier</th><th>Lux</th><th>Darkness</th><th>Flicker</th><th>CCT</th><th>Melanopic</th></tr></thead>
+      <tbody>`;
+    for (const r of a.rooms) {
+      const roomMeas = (a.measurements || []).filter(m => m.roomId === r.id);
+      const sev = computeRoomSeverity(r, roomMeas);
+      const lux = latestInAudit(a, 'lux', r.id);
+      const dark = latestInAudit(a, 'darkness', r.id);
+      const fli = latestInAudit(a, 'flicker', r.id);
+      const cct = latestInAudit(a, 'cct', r.id);
+      const spec = latestInAudit(a, 'spectrum', r.id);
+      html += `<tr>
+        <td>${escapeHTML(r.name || 'Room')}</td>
+        <td><span class="light-env-sev-dot light-env-sev-${sev.color}"></span> ${escapeHTML(sev.label)}</td>
+        <td>${lux ? `${Math.round(lux.value)} lux` : '—'}</td>
+        <td>${dark ? `${(+dark.value).toFixed(2)} lux` : '—'}</td>
+        <td>${fli ? escapeHTML(flickerLabel(fli.value)) : '—'}</td>
+        <td>${cct ? `${cct.value} K` : '—'}</td>
+        <td>${spec?.extra?.melanopic != null ? `${(spec.extra.melanopic * 100).toFixed(0)}%` : '—'}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  html += `<div class="light-audit-footer">
+      <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="window.deleteLightAuditConfirm('${escapeAttr(a.id)}')">Delete audit</button>
+    </div>
+  </div>`;
+  return html;
+}
+
+function renderLightAuditCompare(audits) {
+  const sorted = audits.slice().sort((a, b) => b.date.localeCompare(a.date));
+  const a2 = sorted[0];        // newer (After)
+  const a1 = sorted[1] || sorted[0]; // older (Before)
+
+  // Match rooms across both audits by name — the IDs differ between
+  // snapshots (each audit deep-copies the live rooms with their then-
+  // current IDs), so name is the cross-audit key.
+  const roomNames = [...new Set([
+    ...(a1.rooms || []).map(r => r.name),
+    ...(a2.rooms || []).map(r => r.name),
+  ])];
+
+  let html = `<div class="light-audit-compare-head">
+    <span class="light-audit-compare-label">Before: ${escapeHTML(fmtAuditDate(a1.date))}${a1.label ? ' — ' + escapeHTML(a1.label) : ''}</span>
+    <span class="light-audit-compare-arrow">→</span>
+    <span class="light-audit-compare-label">After: ${escapeHTML(fmtAuditDate(a2.date))}${a2.label ? ' — ' + escapeHTML(a2.label) : ''}</span>
+  </div>`;
+
+  if (sorted.length > 2) {
+    html += `<div class="light-audit-compare-note">Comparing the two most recent audits. ${sorted.length - 2} earlier audit${sorted.length > 3 ? 's' : ''} not shown.</div>`;
+  }
+
+  // Channels and which direction = "improvement" for the arrow color
+  const channels = [
+    { tool: 'lux', label: 'Lux', fmt: v => `${Math.round(v)}`, better: 'depends' },
+    { tool: 'darkness', label: 'Darkness', fmt: v => `${(+v).toFixed(2)}`, better: 'lower' },
+    { tool: 'flicker', label: 'Flicker', fmt: v => flickerLabel(v), better: 'lower' },
+    { tool: 'cct', label: 'CCT (K)', fmt: v => `${v}`, better: 'depends' },
+  ];
+
+  const arrowSpan = (delta, better) => {
+    const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
+    let color = 'var(--text-muted)';
+    if (better === 'lower') color = delta < 0 ? 'var(--green)' : delta > 0 ? 'var(--red)' : color;
+    else if (better === 'higher') color = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : color;
+    return `<span style="color:${color};font-weight:600">${arrow}</span>`;
+  };
+
+  html += `<div class="light-audit-table-wrap"><table class="light-audit-table light-audit-compare-table">
+    <thead><tr><th>Room</th><th>Tier</th>`;
+  for (const ch of channels) html += `<th>${escapeHTML(ch.label)}</th>`;
+  html += `<th>Melanopic</th></tr></thead><tbody>`;
+
+  for (const name of roomNames) {
+    const r1 = (a1.rooms || []).find(r => r.name === name);
+    const r2 = (a2.rooms || []).find(r => r.name === name);
+    const sev1 = r1 ? computeRoomSeverity(r1, (a1.measurements || []).filter(m => m.roomId === r1.id)) : null;
+    const sev2 = r2 ? computeRoomSeverity(r2, (a2.measurements || []).filter(m => m.roomId === r2.id)) : null;
+
+    html += `<tr><td>${escapeHTML(name)}</td>`;
+
+    if (sev1 && sev2) {
+      html += `<td><span class="light-env-sev-dot light-env-sev-${sev1.color}"></span> ${arrowSpan(sev2.tier - sev1.tier, 'lower')} <span class="light-env-sev-dot light-env-sev-${sev2.color}"></span></td>`;
+    } else if (sev2) {
+      html += `<td>— → <span class="light-env-sev-dot light-env-sev-${sev2.color}"></span></td>`;
+    } else if (sev1) {
+      html += `<td><span class="light-env-sev-dot light-env-sev-${sev1.color}"></span> → —</td>`;
+    } else {
+      html += `<td>—</td>`;
+    }
+
+    for (const ch of channels) {
+      const m1 = r1 ? latestInAudit(a1, ch.tool, r1.id) : null;
+      const m2 = r2 ? latestInAudit(a2, ch.tool, r2.id) : null;
+      if (m1 && m2) {
+        const delta = (+m2.value) - (+m1.value);
+        html += `<td>${ch.fmt(m1.value)} ${arrowSpan(delta, ch.better)} ${ch.fmt(m2.value)}</td>`;
+      } else if (m2) {
+        html += `<td>— → ${ch.fmt(m2.value)}</td>`;
+      } else if (m1) {
+        html += `<td>${ch.fmt(m1.value)} → —</td>`;
+      } else {
+        html += `<td>—</td>`;
+      }
+    }
+
+    // Melanopic from spectrum tool's extra.melanopic — lower is sleep-safer
+    const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
+    const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
+    const mel1 = sp1?.extra?.melanopic;
+    const mel2 = sp2?.extra?.melanopic;
+    if (mel1 != null && mel2 != null) {
+      const delta = mel2 - mel1;
+      // Use a small deadband (±2pp) so noise doesn't paint arrows green/red
+      const better = Math.abs(delta) < 0.02 ? 'depends' : 'lower';
+      html += `<td>${(mel1 * 100).toFixed(0)}% ${arrowSpan(delta, better)} ${(mel2 * 100).toFixed(0)}%</td>`;
+    } else if (mel2 != null) {
+      html += `<td>— → ${(mel2 * 100).toFixed(0)}%</td>`;
+    } else if (mel1 != null) {
+      html += `<td>${(mel1 * 100).toFixed(0)}% → —</td>`;
+    } else {
+      html += `<td>—</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function renderLightAuditsBlock() {
+  const audits = getLightAudits();
+  let html = `<div class="light-env-block light-audits-block">
+    <div class="light-env-block-head">
+      <strong>Light audits</strong>
+      <div class="light-audit-actions">
+        ${audits.length >= 2 ? `<button class="import-btn import-btn-secondary" onclick="window.toggleLightAuditCompare()">${_auditCompareMode ? 'Exit compare' : 'Compare'}</button>` : ''}
+        <button class="import-btn import-btn-secondary" onclick="window.saveLightAuditFromUI()">+ Save audit</button>
+      </div>
+    </div>`;
+
+  if (audits.length === 0) {
+    html += `<p class="light-env-empty">Save snapshots over time to track improvements. Take measurements with the tools above (lux, flicker, darkness, CCT, spectrum), then save an audit to lock that state in. Saved audits show side-by-side deltas after the second one.</p>`;
+  } else if (_auditCompareMode && audits.length >= 2) {
+    html += renderLightAuditCompare(audits);
+  } else {
+    const sorted = audits.slice().sort((a, b) => b.date.localeCompare(a.date));
+    for (const a of sorted) {
+      html += renderLightAuditCard(a, _expandedAuditId === a.id);
+    }
+  }
 
   html += `</div>`;
   return html;
@@ -702,5 +991,43 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     renderEnvironmentSection,
+    // ─── Light Audits ───
+    getLightAudits,
+    saveLightAuditFromUI: async () => {
+      const defaultLabel = `Audit ${getLightAudits().length + 1}`;
+      const label = await showPromptDialog('Audit label (e.g. "Pre-mitigation", "After LED swap")', {
+        defaultValue: defaultLabel,
+        okLabel: 'Save audit',
+        placeholder: 'Audit label',
+      });
+      // showPromptDialog resolves to null on Cancel/Esc/backdrop-click.
+      if (label === null) return;
+      const trimmed = label.trim() || defaultLabel;
+      const audit = await saveLightAudit(trimmed);
+      if (audit) {
+        showNotification(`Saved audit: ${audit.label}`);
+        _expandedAuditId = audit.id;
+        if (window.navigate && state.currentView === 'light') window.navigate('light');
+      }
+    },
+    toggleLightAudit: (id) => {
+      _expandedAuditId = (_expandedAuditId === id) ? null : id;
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    toggleLightAuditCompare: () => {
+      _auditCompareMode = !_auditCompareMode;
+      _expandedAuditId = null;
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
+    updateLightAuditField: async (id, field, value) => {
+      await updateLightAudit(id, { [field]: value });
+    },
+    deleteLightAuditConfirm: (id) => {
+      showConfirmDialog('Delete this audit? This cannot be undone.', async () => {
+        await deleteLightAudit(id);
+        if (_expandedAuditId === id) _expandedAuditId = null;
+        if (window.navigate && state.currentView === 'light') window.navigate('light');
+      });
+    },
   });
 }

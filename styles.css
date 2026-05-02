@@ -6275,6 +6275,66 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   .light-env-room-tabs { overflow-x: auto; flex-wrap: nowrap; }
 }
 
+/* Light Audits — frozen snapshots of rooms + screens + measurements.
+   Visual pattern mirrors EMF assessments (collapsed cards with severity
+   dot, expand to detail, side-by-side compare table) so the two
+   surfaces feel like one design system. */
+.light-audits-block { margin-top: 18px; }
+.light-audit-actions { display: flex; gap: 8px; }
+.light-audit-card {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 8px; overflow: hidden; background: var(--bg-card);
+}
+.light-audit-card.expanded { border-color: var(--accent); }
+.light-audit-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; cursor: pointer; transition: background 0.15s;
+}
+.light-audit-header:hover { background: var(--bg-hover); }
+.light-audit-info { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.light-audit-date { font-weight: 600; font-size: 13px; }
+.light-audit-label { font-size: 12px; color: var(--text-secondary); }
+.light-audit-meta { font-size: 11px; color: var(--text-muted); }
+.light-audit-detail { padding: 0 14px 14px; }
+.light-audit-meta-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.light-audit-meta-row label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 11px; color: var(--text-muted); flex: 1; min-width: 140px;
+}
+.light-audit-empty { color: var(--text-muted); font-size: 12px; padding: 12px 0; }
+.light-audit-table-wrap { overflow-x: auto; }
+.light-audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.light-audit-table th {
+  text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--border);
+  font-size: 11px; color: var(--text-muted); white-space: nowrap;
+}
+.light-audit-table td {
+  padding: 6px 8px; white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+.light-audit-table tr:last-child td { border-bottom: none; }
+.light-audit-footer {
+  display: flex; gap: 8px; align-items: center; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+.light-audit-compare-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  padding: 10px 14px; background: var(--bg-card); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); flex-wrap: wrap;
+}
+.light-audit-compare-label { font-size: 13px; font-weight: 600; }
+.light-audit-compare-arrow { color: var(--text-muted); font-size: 16px; }
+.light-audit-compare-note { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+.light-audit-compare-table th { text-align: center; }
+.light-audit-compare-table th:first-child { text-align: left; }
+.light-audit-compare-table td { text-align: center; }
+.light-audit-compare-table td:first-child { text-align: left; font-weight: 600; }
+@media (max-width: 600px) {
+  .light-audit-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .light-audit-table { font-size: 11px; }
+  .light-audit-table th, .light-audit-table td { padding: 4px 5px; }
+}
+
 /* Light tools — measurement utility cards */
 .light-tools-section { margin-top: 24px; }
 .light-tools-grid {

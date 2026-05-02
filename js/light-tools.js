@@ -90,8 +90,9 @@ export async function deleteMeasurement(id) {
 // Modern browsers expose manual mode via `getCapabilities()` /
 // `applyConstraints()`. Older Safari / iOS Chrome may not — we read the
 // capability, attempt the lock, and report what actually stuck so the
-// caller can show a fallback note. Tools that benefit from auto mode
-// (sleep-darkness uses long-exposure auto-gain) just skip this helper.
+// caller can show a fallback note. Sleep-darkness uses the longExposure
+// option (long shutter + fixed ISO) so dim pixels register at a known
+// gain instead of being amplified by auto-gain.
 //
 // Returns: { exposure: 'manual' | 'auto', whiteBalance: 'manual' | 'auto',
 //            focus: 'manual' | 'auto', frameRate: <fps actually delivered> }
