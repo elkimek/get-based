@@ -77,7 +77,7 @@ Switch providers anytime. All non-AI features work without a provider configured
 | | getbased | Typical health apps |
 |---|---|---|
 | Scope | Five integrated lenses (Labs / Genome / Body / Light / Insight) | One data class only |
-| Open source | GPL-3.0 | Closed source |
+| Open source | AGPL-3.0 | Closed source |
 | Cost | Free | Free tier + paid upsell |
 | Data storage | Local browser, encrypted | Cloud (their servers) |
 | AI providers | 6 choices (including fully local + bring-your-own) | Locked to one |
@@ -151,4 +151,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Project board: [planned features](https:
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE).
+AGPL-3.0-or-later. See [LICENSE](LICENSE).
+
+If you run a modified version as a network service, AGPLv3 §13 requires you to offer your users the corresponding source. Vendored third-party libraries are listed under their own licenses in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
