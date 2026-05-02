@@ -294,14 +294,14 @@ export function renderSetupCard() {
   const filledCount = [skinFilled, homeFilled, eyewearFilled, locFilled].filter(Boolean).length;
 
   let html = `<div class="light-setup-card">
-    <div class="light-setup-title">Quick light profile
-      <span class="light-setup-progress" aria-label="${filledCount} of 4 quick questions done">${filledCount}/4 done</span>
+    <div class="light-setup-title">Light setup
+      <span class="light-setup-progress" aria-label="${filledCount} of 4 questions done">${filledCount}/4 done</span>
     </div>
-    <p class="light-setup-lead"><strong>30 seconds</strong> · once you've answered, the AI will know your sunburn threshold, your indoor light environment, and your circadian baseline — and can interpret your sun sessions and labs through that lens. Answers stay on this device.</p>
+    <p class="light-setup-lead"><strong>30 seconds.</strong> Once you've answered, the AI knows your burn threshold, your indoor light environment, and your circadian baseline — and can interpret your sun sessions and labs through that lens. Answers stay on this device.</p>
 
     <div class="light-setup-step">
       <label class="ctx-label" id="setup-skin-label-id">Skin type</label>
-      <p class="light-setup-step-why">Sets your sunburn threshold (MED) and how much UV you can take before getting red.</p>
+      <p class="light-setup-step-why">Sets your burn threshold (MED) and how much UV you can take before getting red.</p>
       <div class="ctx-skin-slider-wrap">
         <div class="ctx-skin-emojis" role="radiogroup" aria-labelledby="setup-skin-label-id">${['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'].map((e, i) => {
           const isActive = getInitialFitzpatrick() === ROMAN[i];

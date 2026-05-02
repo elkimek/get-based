@@ -67,7 +67,7 @@ export function buildSidebar(data) {
   const weekCount = sunSessions.filter(s => (s.endedAt || s.startedAt || 0) >= weekStart).length;
   html += _renderConditionalNavItem({
     key: 'light',
-    icon: '\u2600\uFE0F',
+    icon: '\u2600', // monochrome glyph (no FE0F selector) \u2014 matches the rest of the sidebar (\uD83D\uDCCB \uD83C\uDF38 \uD83D\uDCE1 \uD83E\uDDEC)
     label: 'Light & Sun',
     navigate: 'light',
     badge: weekCount > 0 ? (weekCount > 9 ? '9+' : weekCount) : null,

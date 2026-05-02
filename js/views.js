@@ -126,9 +126,9 @@ export function renderLightTodayStrip() {
 
   // Burn-risk gauge — qualitative, plain English, no acronyms
   const medPct = Math.round(medToday * 100);
-  let medCls = 'ok', medMsg = 'safe — well under your skin threshold';
-  if (medToday >= 1) { medCls = 'over'; medMsg = 'over your skin threshold — sunburn risk, no more sun today'; }
-  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'getting close to your skin threshold'; }
+  let medCls = 'ok', medMsg = 'safe — well under your burn threshold';
+  if (medToday >= 1) { medCls = 'over'; medMsg = 'burn threshold reached — sunburn risk, no more sun today'; }
+  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'approaching burn threshold'; }
   else if (medToday >= 0.3) { medCls = 'ok'; medMsg = 'moderate sun exposure today'; }
 
   // Surface the burn-risk gauge only when it actually carries information.
@@ -182,7 +182,7 @@ export function renderLightTodayStrip() {
     </div>
     ${weeklyIUStr ? `<div class="light-today-vitd-row">${weeklyIUStr}</div>` : ''}
     <div class="light-today-foot">
-      ${showBurnRisk ? `<span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your skin's sunburn threshold (Fitzpatrick-based). 100% = sunburn risk.">
+      ${showBurnRisk ? `<span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your burn threshold (Fitzpatrick-based). 100% = burn threshold reached.">
         ☀ Sun exposure today: <strong>${medMsg}</strong>${medPct > 0 ? ` (${medPct}%)` : ''}
       </span>` : ''}
       ${cta}
@@ -1168,9 +1168,9 @@ export function showLight(_data) {
       const medPct = Math.round(medToday * 100);
       const medY = (window.cumulativeMEDYesterday && window.cumulativeMEDYesterday()) || 0;
       const combinedMED = medToday + medY;
-      let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your skin\'s sunburn threshold.';
-      if (medToday >= 1) { medCls = 'over'; medTitle = 'Sunburn risk reached'; medMsg = 'You\'ve crossed your skin\'s threshold for the day. Avoid more direct sun until tomorrow.'; }
-      else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching sunburn threshold'; medMsg = 'You\'re getting close to your skin\'s daily limit. Move to shade or cover up if you go back out.'; }
+      let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your burn threshold.';
+      if (medToday >= 1) { medCls = 'over'; medTitle = 'Burn threshold reached'; medMsg = 'You\'ve crossed your burn threshold for the day. Avoid more direct sun until tomorrow.'; }
+      else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching burn threshold'; medMsg = 'You\'re getting close to your daily limit. Move to shade or cover up if you go back out.'; }
       else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
       // Carry-over chip — fires when today + yesterday combined exceeds
       // 100%, even if today alone is under threshold. Skin doesn't reset
@@ -1181,7 +1181,7 @@ export function showLight(_data) {
       html += `<div class="light-med-banner light-med-${medCls}">
         <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
         <div class="light-med-body">
-          <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your personal threshold)</span>` : ''}</div>
+          <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your burn threshold)</span>` : ''}</div>
           <div class="light-med-sub">${medMsg}</div>
           ${carryChip}
         </div>
@@ -1202,6 +1202,7 @@ export function showLight(_data) {
         <p><strong>The ±50% range.</strong> Estimate is "central × 0.6 to × 1.5" because (a) the spectral reconstruction model adds ~20%, (b) skin response varies per person ~30%, (c) actual exposed area can differ 10-20% from your selected regions. Treat the band as honest — the central number alone is false precision.</p>
         <p><strong>Six channels.</strong> Sun does six different things, each with its own action spectrum: vitamin D synthesis (UVB 290-315nm), circadian/melanopic (450-490nm at the eye), cardiovascular NO release (UVA-violet), POMC/α-MSH mood-hormones (UVA), violet-eye dopamine (380-440nm at the eye), and NIR cellular repair (660-850nm). Sun + therapy devices both feed these; we sum them.</p>
         <p><strong>Atmosphere data.</strong> Open-Meteo (default) for UV index, ozone column, cloud cover, AQI. Refreshed every 5 minutes during a session. Self-host CAMS via the External-server panel for higher resolution. All math runs on-device — your location is rounded to 0.1° (~11km) before any network call unless you opt out.</p>
+        <p><strong>Want the math?</strong> See <a href="/docs/contributor/sun-spectrum-model" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
       </div>
     </details>`;
 
@@ -1225,7 +1226,7 @@ export function showLight(_data) {
         const hasRooms = !!(env?.rooms?.length || env?.screens?.length);
         const measurements = (window.getMeasurements && window.getMeasurements()) || [];
         let aux = devices.length > 0 ? devHtml : renderCollapsedSubsection('Light devices', '+ Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, dawn simulators — log them here and your sessions feed the same channels as outdoor sun.');
-        aux += hasRooms ? ((window.renderEnvironmentSection && window.renderEnvironmentSection()) || '') : renderCollapsedSubsection('Light environment', '+ Map a room', "window.addLightEnvRoom && window.addLightEnvRoom()", 'Indoor light is the dominant exposure most days. Map your spaces to give the AI the full picture.');
+        aux += hasRooms ? ((window.renderEnvironmentSection && window.renderEnvironmentSection()) || '') : renderCollapsedSubsection('Light environment', '+ Map a room', "window.addLightEnvRoom && window.addLightEnvRoom()", 'LEDs, fluorescents, screens — most users spend 8–14 hours/day under them. Map your rooms so the AI sees the half of your day spent inside.');
         aux += measurements.length > 0
           ? ((window.renderLightTools && window.renderLightTools()) || '')
           : renderCollapsedSubsection('Light tools', '🛠 Open light tools', 'window._expandLightToolsSection && window._expandLightToolsSection()', 'Eight on-device measurement tools — lux, flicker, color temp, glass transmission, sleep darkness, more. Camera frames stay on your phone.', 'light-tools-section-collapsed');
@@ -1448,10 +1449,21 @@ function _renderChannelDetailPanel(channelKey) {
   const matchingDevice = devices.find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
   let suggestion = '';
   const dev = matchingDevice ? `${matchingDevice.brand} ${matchingDevice.model}` : '';
+  // Channel-specific starter sentences — generic "spend time outdoors" is
+  // less useful than a description of what the channel actually responds to.
+  const STARTER_BY_CHANNEL = {
+    vitamin_d:    'Get UVB on bare skin (UVI ≥ 3, no glass between you and the sun)',
+    circadian:    'Get morning daylight in your eyes, ideally outdoors before work',
+    nir_solar:    'Spend time outdoors mid-day, especially around sunrise/sunset NIR',
+    no_cv:        'Sun on bare skin (UVA + violet) for cardiovascular nitric-oxide release',
+    pomc:         'UVA on bare skin to trigger α-MSH/β-endorphin release',
+    violet_eye:   'Outdoor light into your eyes (uncovered, no glass) for the violet-eye dopamine signal',
+  };
+  const starter = STARTER_BY_CHANNEL[channelKey] || 'Spend time outdoors';
   if (t7 === 0) {
     suggestion = matchingDevice
-      ? `Spend time outdoors or run a session on your ${dev} — both feed this channel.`
-      : `Spend time outdoors to start filling this channel.`;
+      ? `${starter} — or run a session on your ${dev} (both feed this channel).`
+      : `${starter} to start filling this channel.`;
   } else if (t7 < 3) {
     suggestion = matchingDevice
       ? `One more session this week tips you to ${dots(Math.min(4, t7 + 1))} — outdoor sun or your ${dev}.`

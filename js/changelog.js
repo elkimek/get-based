@@ -5,6 +5,19 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.8', date: '2026-05-02', title: 'Vocabulary + copy polish',
+    items: [
+      '<b>Burn-risk vocabulary unified.</b> One label per tier, used everywhere: <i>safe</i> (under 30%), <i>moderate</i> (30–70%), <i>approaching burn threshold</i> (70–100%), <i>burn threshold reached</i> (100%+). The dose readout is always "burn dose <b>N%</b>." Replaces six different phrasings ("skin threshold," "personal threshold," "sunburn threshold," "burn risk," "burn dose," "skin\'s daily limit") that had piled up across the dashboard, live ticker, banner, session row, stop summary, and alerts.',
+      '<b>Channel suggestions now channel-specific.</b> Replaces the generic "Spend time outdoors to start filling this channel" with per-channel starter sentences: <i>"Get UVB on bare skin (UVI ≥ 3, no glass)"</i> for vitamin D, <i>"Get morning daylight in your eyes, ideally outdoors before work"</i> for circadian, <i>"UVA + violet on bare skin"</i> for cardiovascular nitric-oxide, and so on.',
+      '<b>Setup card title.</b> "Quick light profile" → "Light setup" (matches the saved-state header "Light setup saved" and the "Save setup · 4/4 done" button).',
+      '<b>"How we estimate" expander links the contributor doc.</b> Biohackers can now tap through to the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.',
+      '<b>Light Environment empty-state CTA.</b> Was "Indoor light is the dominant exposure most days." Now: <i>"LEDs, fluorescents, screens — most users spend 8–14 hours/day under them. Map your rooms so the AI sees the half of your day spent inside."</i>',
+      '<b>Atmosphere tooltips tighter.</b> Session-detail UV-split hover now reads "UVB-to-UVA ratio at ground level. Driven by zenith + ozone column" instead of the older verb-shy phrasing.',
+      '<b>Sidebar emoji.</b> Light & Sun nav icon dropped its FE0F variation selector — renders as a glyph monochrome, matching the rest of the sidebar (📋 🌸 📡 🧬) instead of standing out as colored.',
+      '<b>Docs.</b> Sun Sessions guide now reflects the photosensitive-meds checkbox added in v1.7.2 and renames the "Ott malillumination" pre-test to "light-burden audit" to match the in-app label.',
+    ]
+  },
+  {
     version: '1.7.7', date: '2026-05-02', title: 'Accessibility hardening',
     items: [
       '<b>5 chip rows now signal selection state to screen readers.</b> Light Environment source/hours/evening pickers (and the screen-card variants) carry <code>aria-pressed</code> on each option — was color-only, identical to SR users regardless of which chip was active.',

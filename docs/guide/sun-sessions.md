@@ -34,7 +34,8 @@ When you open the Light & Sun page for the first time, an onboarding card asks f
 - **Home lighting** — LED cool, LED warm, fluorescent, incandescent, mixed
 - **Eyewear outside** — none, sunglasses, clear glasses, both, contacts-with-UV-block
 - **Location precision** — your country (from profile) is the default; tap "Use precise location" for sharper UV math (one-time)
-- **Ott malillumination pre-test (optional, 10 yes/no questions)** — coined by John Ott in 1973, captures how indoor / glass-mediated / artificial-light-dominated your modern life is
+- **Photosensitizing medication checkbox** — if you take tetracyclines, isotretinoin, amiodarone, thiazides, NSAIDs, St. John's Wort, or similar, your burn threshold drops ~2.5×
+- **Light-burden audit (optional, 10 yes/no questions)** — captures how indoor / glass-mediated / artificial-light-dominated your modern life is
 
 Answers stay on your device. The AI uses them as a baseline ("your low body-clock channel makes sense given your light-burden score of 8/10").
 

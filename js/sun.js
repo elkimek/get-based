@@ -1021,7 +1021,7 @@ function _renderActiveCardBody(sess) {
     if (live.medFraction >= 1) { label = 'over threshold'; cls = 'over'; }
     else if (live.medFraction >= 0.7) { label = 'high'; cls = 'warn'; }
     else if (live.medFraction >= 0.3) { label = 'moderate'; cls = ''; }
-    medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose so far — ${pct}% of your personal threshold (Fitzpatrick ${escapeAttr(live.fitzpatrick)})">${pct}% burn dose · ${escapeHTML(label)}</span>`;
+    medStr = `<span class="sun-session-med ${cls}" title="Burn dose so far — ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(live.fitzpatrick)})">${pct}% burn dose · ${escapeHTML(label)}</span>`;
   }
   const channelChips = live?.doses ? renderChannelChips(live.doses) : '';
   // Surface a live IU readout for vitamin D — the most user-resonant
@@ -1283,7 +1283,7 @@ export function renderSunSessionRow(sess) {
     if (med >= 1) { label = 'over threshold'; cls = 'over'; }
     else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
     else if (med >= 0.3) { label = 'moderate'; cls = ''; }
-    medStr = `<span class="sun-session-med ${cls}" title="Skin sunburn dose: ${pct}% of your personal threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn risk: ${escapeHTML(label)}</span>`;
+    medStr = `<span class="sun-session-med ${cls}" title="Burn dose: ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn dose: ${escapeHTML(label)}</span>`;
   }
   const channelChips = renderChannelChips(sess.doses);
   // Click anywhere on the card (except the × delete) to open the detail
@@ -1411,7 +1411,7 @@ export function openSunSessionDetail(id) {
       <div title="PM2.5 — fine particulate. Affects aerosol optical depth (AOD) and UV scattering."><span>PM2.5</span><strong>${aqPm25}</strong></div>
       <div title="Solar zenith angle at session midpoint — angle between sun and vertical. 0° = directly overhead, 90° = horizon."><span>Zenith</span><strong>${zenithStr}</strong></div>
       <div title="Altitude above sea level — UV climbs ~10% per 1000 m."><span>Altitude</span><strong>${altStr}</strong></div>
-      ${uvSplitStr ? `<div title="Approximate UVB / UVA split at the surface. Real ratio depends on zenith + ozone column."><span>UV split</span><strong>${uvSplitStr}</strong></div>` : ''}
+      ${uvSplitStr ? `<div title="UVB-to-UVA ratio at ground level. Driven by zenith + ozone column."><span>UV split</span><strong>${uvSplitStr}</strong></div>` : ''}
       <div class="sun-detail-atm-source"><span>Source</span><strong>${escapeHTML(atm.source || 'unknown')}</strong></div>
     </div>`;
   }
