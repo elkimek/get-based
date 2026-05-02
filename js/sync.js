@@ -826,6 +826,15 @@ async function pushProfile(profileId, importedData, opts = {}) {
       const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
       dbg(okMsg);
       _logSyncEvent('push', okMsg);
+      // Only advance the local-sync-ts watermark when the push actually
+      // landed. The previous (synchronous) bump after evolu.update meant
+      // a wedged push set the watermark anyway → subsequent pulls saw
+      // `remote.syncedAt < local-sync-ts` and skipped, leaving the local
+      // Evolu row stuck at older state with no auto-recovery. Now the
+      // watermark only moves on real success.
+      // Use syncedAt (same value stored in Evolu) so pulls see exact
+      // equality and don't skip the row from 1ms clock drift.
+      localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
       finish();
     };
     // Watchdog: if Evolu never calls onComplete within 30s, the worker is
@@ -860,10 +869,7 @@ async function pushProfile(profileId, importedData, opts = {}) {
         syncedAt,
       }, { onComplete });
     }
-    // Only update sync-ts after successful push.
-    // Use syncedAt (same value stored in Evolu) so the pull side sees exact equality
-    // and doesn't skip the row due to a 1ms clock drift between the two Date.now() calls.
-    localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
+    // local-sync-ts is now bumped inside onComplete only — see comment there.
   } catch (e) {
     console.error('[sync] Push failed:', e);
     updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
