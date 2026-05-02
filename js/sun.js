@@ -713,6 +713,7 @@ export async function openStartSunSessionDialog() {
       </div>
     </div>
   </div>`;
+  _wireBackdropClose(overlay);
   document.body.appendChild(overlay);
   trapModalFocus(overlay);
 
@@ -766,6 +767,21 @@ export async function openStartSunSessionDialog() {
 // Focus management for dynamically-injected modals. Captures the current
 // focused element, lands focus on the first focusable inside the new
 // overlay, and restores focus to the trigger when the overlay is removed.
+// Wire backdrop click → close on a `.modal-overlay` element. Pairs the click
+// handler with a mousedown guard so a drag-from-inside-the-modal that
+// releases on the backdrop doesn't accidentally close (matches the global
+// _mouseDownInsideModal pattern in main.js for keyed overlays).
+export function _wireBackdropClose(overlay) {
+  let mouseDownInside = false;
+  overlay.addEventListener('mousedown', (e) => {
+    mouseDownInside = !!e.target.closest('.modal');
+  });
+  overlay.addEventListener('click', (e) => {
+    if (mouseDownInside) { mouseDownInside = false; return; }
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
 // Single export so sun.js / views.js / light-tools.js share one helper.
 export function trapModalFocus(overlay) {
   const previouslyFocused = document.activeElement;
@@ -1487,10 +1503,11 @@ export function openSunSessionDetail(id) {
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
         ${sess.endedAt ? `<button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editSunSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when a re-end on a second device set it wrong, or you forgot to stop on time.">Edit duration</button>` : ''}
-        <button class="import-btn" style="color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteSunSession('${escapeAttr(sess.id)}')">Delete</button>
+        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteSunSession('${escapeAttr(sess.id)}')">Delete</button>
       </div>
     </div>
   </div>`;
+  _wireBackdropClose(overlay);
   document.body.appendChild(overlay);
   trapModalFocus(overlay);
 }
@@ -1860,6 +1877,7 @@ export function openDetailedSessionDialog() {
       </div>
     </div>
   </div>`;
+  _wireBackdropClose(overlay);
   document.body.appendChild(overlay);
   trapModalFocus(overlay);
 
