@@ -881,6 +881,59 @@ export async function pushCurrentProfile() {
   pushContextToGateway();
 }
 
+// "Clean storage" — emergency localStorage compaction. The 'imported'
+// blob can grow past the browser's 5 MB localStorage cap (caps were
+// bypassed by the cross-device merge before the data-merge.js fix).
+// When that happens every saveImportedData() throws QuotaExceededError
+// and pushes wedge silently. This trims changeHistory to its intended
+// 200-cap, drops cached model lists (re-fetched on demand), and reports
+// before/after sizes via showNotification. Reachable from the sync
+// popover so a phone user can run it without dev-tools access.
+export async function cleanStorage() {
+  let beforeBytes = 0;
+  for (const key of Object.keys(localStorage)) beforeBytes += new Blob([localStorage.getItem(key) || '']).size;
+
+  // 1. Drop ephemeral model-list caches — safe, will re-fetch on next API use
+  const cacheKeys = [
+    'labcharts-openrouter-models',
+    'labcharts-venice-models',
+    'labcharts-ppq-models',
+    'labcharts-routstr-models',
+    'labcharts-venice-e2ee-models',
+  ];
+  let cachesCleared = 0;
+  for (const k of cacheKeys) {
+    if (localStorage.getItem(k) != null) { localStorage.removeItem(k); cachesCleared++; }
+  }
+
+  // 2. Cap changeHistory in state.importedData if it's grown past 200
+  let historyTrimmed = 0;
+  if (Array.isArray(state.importedData?.changeHistory) && state.importedData.changeHistory.length > 200) {
+    historyTrimmed = state.importedData.changeHistory.length - 200;
+    state.importedData.changeHistory = state.importedData.changeHistory.slice(-200);
+    // Persist immediately so localStorage shrinks
+    try {
+      const { saveImportedData } = await import('./data.js');
+      await saveImportedData();
+    } catch (e) {
+      console.warn('[sync] cleanStorage: saveImportedData failed:', e?.message || e);
+    }
+  }
+
+  let afterBytes = 0;
+  for (const key of Object.keys(localStorage)) afterBytes += new Blob([localStorage.getItem(key) || '']).size;
+  const freedKB = ((beforeBytes - afterBytes) / 1024).toFixed(0);
+  const beforeMB = (beforeBytes / 1024 / 1024).toFixed(2);
+  const afterMB = (afterBytes / 1024 / 1024).toFixed(2);
+
+  const msg = `Storage: ${beforeMB} MB → ${afterMB} MB (freed ${freedKB} KB). ` +
+              `Caches cleared: ${cachesCleared}. ` +
+              `History trimmed: ${historyTrimmed}.`;
+  _logSyncEvent('cleanup', msg);
+  showNotification(msg, freedKB > 0 ? 'success' : 'info');
+  return { beforeBytes, afterBytes, freedKB: +freedKB, cachesCleared, historyTrimmed };
+}
+
 // "Force resend" — bypasses the _syncing guard so a wedged in-flight flag
 // doesn't silently no-op the push. Use when the local Evolu DB row is
 // out of date with state.importedData and a normal Sync now isn't
@@ -1604,6 +1657,7 @@ export function toggleSyncDetail() {
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="ctx-btn-option" style="font-size:12px" onclick="syncNow();toggleSyncDetail()">Sync now</button>
       <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" onclick="forceResendCurrentProfile();toggleSyncDetail()" title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
+      <button class="ctx-btn-option" style="font-size:12px" onclick="cleanStorage().then(()=>toggleSyncDetail())" title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
       <button class="ctx-btn-option" style="font-size:12px" onclick="checkRelayConnection().then(ok=>showNotification(ok?'Relay reachable':'Relay UNREACHABLE',ok?'success':'error'))">Test relay</button>
       <button class="ctx-btn-option" style="font-size:12px;${stuckPush ? 'color:var(--red);border-color:var(--red)' : ''}" onclick="window.location.reload()" title="Reloads the page to re-init the sync worker.">Reload</button>
       <button class="ctx-btn-option" style="font-size:12px" onclick="showSyncDiagnose()">Diagnose</button>
@@ -1714,6 +1768,7 @@ Object.assign(window, {
   isSyncEnabled,
   pushCurrentProfile,
   forceResendCurrentProfile,
+  cleanStorage,
   syncNow,
   showSyncDiagnose,
   deleteProfileFromRelay,
