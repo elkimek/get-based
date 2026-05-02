@@ -313,10 +313,80 @@ export async function initSync() {
     }, 60000);
 
     dbg('Initialized, relay:', relay);
+
+    // Startup reconciliation — handles the case where state.importedData
+    // (loaded fresh from localStorage on this page-load) has rows that
+    // the local Evolu DB row's dataJson doesn't have. This happens when
+    // a previous session's pushProfile got wedged (Evolu's onComplete
+    // never fired, _syncing stayed true until the watchdog), so saves
+    // landed in localStorage but never reached Evolu's CRDT log. Fix:
+    // detect the divergence after init + force-push so the row catches
+    // up. Defer until after appOwner + initial query both load — those
+    // are async and the CRDT row doesn't exist until then.
+    Promise.all([_readyPromise, _queryLoaded]).then(() => {
+      _reconcileLocalStorageWithEvolu().catch(e => {
+        console.warn('[sync] Startup reconciliation failed:', e);
+      });
+    });
   } catch (e) {
     console.error('[sync] Failed to initialize Evolu:', e);
     _syncEnabled = false;
   }
+}
+
+// Compare state.importedData (loaded from localStorage on page-load) with
+// the Evolu DB row's dataJson for the active profile. If localStorage has
+// strictly more data than the row (id-set superset across the major
+// id-keyed arrays — sunSessions, deviceSessions, lightDevices, lightAudits,
+// lightMeasurements, entries, notes, supplements, healthGoals — or just a
+// different sunSession/audit count), trigger a forced push so the wedge
+// auto-recovers without the user needing to tap Force Resend.
+async function _reconcileLocalStorageWithEvolu() {
+  if (!evolu || !_syncEnabled || !state.currentProfile || !state.importedData) return;
+  const rows = evolu.getQueryRows(profileQuery);
+  const existing = rows?.find(r => r.profileId === state.currentProfile);
+  // No existing row → first sync ever for this profile, normal push path
+  // (onDataSaved or enableSync) will handle it. Skip.
+  if (!existing) return;
+  let remoteImported;
+  try {
+    const parsed = parseSyncPayload(existing.dataJson);
+    remoteImported = parsed?.importedData || null;
+  } catch {
+    // Malformed row → reconciliation can't reason about it. The user can
+    // still recover via the Force Resend button.
+    return;
+  }
+  if (!remoteImported) return;
+
+  // Compare id-keyed arrays. We don't need a perfect deep-diff — just any
+  // signal that local has rows the remote row's dataJson lacks. Same
+  // shape used elsewhere by the rebroadcast logic (localHasRowsRemoteLacks).
+  const ID_ARRAYS = ['entries', 'notes', 'supplements', 'healthGoals', 'sunSessions',
+    'deviceSessions', 'lightDevices', 'lightAudits', 'lightMeasurements'];
+  let mismatch = null;
+  for (const key of ID_ARRAYS) {
+    const local = Array.isArray(state.importedData[key]) ? state.importedData[key] : [];
+    const remote = Array.isArray(remoteImported[key]) ? remoteImported[key] : [];
+    if (local.length === 0 && remote.length === 0) continue;
+    const localIds = new Set(local.map(r => r?.id).filter(Boolean));
+    const remoteIds = new Set(remote.map(r => r?.id).filter(Boolean));
+    // Local has at least one id remote doesn't
+    for (const id of localIds) {
+      if (!remoteIds.has(id)) { mismatch = { key, missingId: id, localCount: local.length, remoteCount: remote.length }; break; }
+    }
+    if (mismatch) break;
+  }
+  if (!mismatch) {
+    dbg('Startup reconciliation: localStorage and Evolu row match — nothing to do');
+    return;
+  }
+  dbg('Startup reconciliation: localStorage has rows Evolu row lacks', mismatch);
+  _logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} — local has unsynced ${mismatch.key} (${mismatch.localCount} vs row ${mismatch.remoteCount})`);
+  // Force-push so the next watchdog cycle can't lose us a clearly-needed
+  // catch-up. Bypasses the _syncing guard if it was wedged from a prior
+  // session — the same wedge that caused the divergence in the first place.
+  await pushProfile(state.currentProfile, state.importedData, { force: true });
 }
 
 // ═══════════════════════════════════════════════
@@ -712,7 +782,7 @@ const PROFILE_MERGE_FIELDS = ['name', 'sex', 'dob', 'location', 'tags', 'archive
 // PUSH — localStorage → Evolu
 // ═══════════════════════════════════════════════
 
-async function pushProfile(profileId, importedData) {
+async function pushProfile(profileId, importedData, opts = {}) {
   if (!evolu || !_syncEnabled) return;
   if (!profileId || typeof profileId !== 'string') return;
   // _syncing was a guard against concurrent pushes, but if a previous push
@@ -720,11 +790,15 @@ async function pushProfile(profileId, importedData) {
   // subsequent push (including manual Sync now / Reload-and-retry) silently
   // no-ops. Replaced with a stale-flag reset: if more than 60s have passed
   // since _syncing was set, assume the prior push is dead and proceed.
-  if (_syncing && Date.now() - _syncingSince < 60_000) {
+  // `opts.force` skips the in-flight check entirely — used by the Force
+  // Resend popover button + startup reconciliation, both of which need to
+  // run regardless of a stuck flag from a prior wedged push.
+  if (!opts.force && _syncing && Date.now() - _syncingSince < 60_000) {
     console.warn('[sync] pushProfile bailed — another push is in-flight (set <60s ago)');
     return;
   }
-  if (_syncing) console.warn('[sync] pushProfile clearing stale _syncing flag (>60s old)');
+  if (_syncing && !opts.force) console.warn('[sync] pushProfile clearing stale _syncing flag (>60s old)');
+  if (opts.force && _syncing) console.warn('[sync] pushProfile force-overriding in-flight flag');
   _syncing = true;
   _syncingSince = Date.now();
   updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
@@ -804,6 +878,21 @@ async function pushProfile(profileId, importedData) {
 
 export async function pushCurrentProfile() {
   await pushProfile(state.currentProfile, state.importedData);
+  pushContextToGateway();
+}
+
+// "Force resend" — bypasses the _syncing guard so a wedged in-flight flag
+// doesn't silently no-op the push. Use when the local Evolu DB row is
+// out of date with state.importedData and a normal Sync now isn't
+// reaching evolu.update (most common cause: previous push set _syncing
+// and Evolu's onComplete never fired, so subsequent pushes bail).
+export async function forceResendCurrentProfile() {
+  if (!evolu || !_syncEnabled) {
+    showNotification('Sync is not enabled — nothing to push.', 'warning');
+    return;
+  }
+  _logSyncEvent('forced', `Force resend ${state.currentProfile?.slice(0,8) || '?'}`);
+  await pushProfile(state.currentProfile, state.importedData, { force: true });
   pushContextToGateway();
 }
 
@@ -1514,6 +1603,7 @@ export function toggleSyncDetail() {
     ${eventsHtml}
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="ctx-btn-option" style="font-size:12px" onclick="syncNow();toggleSyncDetail()">Sync now</button>
+      <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" onclick="forceResendCurrentProfile();toggleSyncDetail()" title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
       <button class="ctx-btn-option" style="font-size:12px" onclick="checkRelayConnection().then(ok=>showNotification(ok?'Relay reachable':'Relay UNREACHABLE',ok?'success':'error'))">Test relay</button>
       <button class="ctx-btn-option" style="font-size:12px;${stuckPush ? 'color:var(--red);border-color:var(--red)' : ''}" onclick="window.location.reload()" title="Reloads the page to re-init the sync worker.">Reload</button>
       <button class="ctx-btn-option" style="font-size:12px" onclick="showSyncDiagnose()">Diagnose</button>
@@ -1623,6 +1713,7 @@ Object.assign(window, {
   restoreFromMnemonic,
   isSyncEnabled,
   pushCurrentProfile,
+  forceResendCurrentProfile,
   syncNow,
   showSyncDiagnose,
   deleteProfileFromRelay,
