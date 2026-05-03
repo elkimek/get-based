@@ -15,6 +15,7 @@ import { saveImportedData } from './data.js';
 import { getProfileLocation } from './profile.js';
 import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
 import { recordTombstone } from './data-merge.js';
+import { MALE_BODY_PATH, FEMALE_BODY_PATH, SILHOUETTE_NATIVE } from './silhouette-paths.js';
 
 // ─── Anatomical regions (for body silhouette picker) ───────────────────
 // 11 regions per the design — each carries optional research notes for AI.
@@ -1591,212 +1592,84 @@ function _activeProfileSex() {
 // distinct keys (arms-front vs arms-back, legs-front vs legs-back) so the
 // two silhouette views can be toggled independently — clicking front-legs
 // no longer also selects the back of the legs.
-function _silhouetteRegionPaths(sex) {
-  const female = sex === 'female';
+function _silhouetteRegionPaths(_sex) {
+  // Generous tap-target zones sized to cover both the male (~74 wide
+  // rendered) and female (~92 wide rendered) freesvg silhouettes. Each
+  // path is a rounded rectangle approximating the body part — the freesvg
+  // outline beneath provides the visual character; the region tap-target
+  // simply tints accent where it overlaps when selected.
 
-  // Arms — tapered shape following the actual upper-arm + forearm outline.
-  // Left arm: outer edge from shoulder ball at (22,52) to wrist (28,130);
-  // inner edge from armpit (36,58) tracing the bicep/forearm back up.
-  const armsPath = female
-    ? 'M 22 50 C 20 60, 21 75, 23 90 C 24 105, 26 120, 28 130 L 32 130 C 30 120, 29 105, 29 90 C 30 75, 32 65, 36 58 Z M 78 50 C 80 60, 79 75, 77 90 C 76 105, 74 120, 72 130 L 68 130 C 70 120, 71 105, 71 90 C 70 75, 68 65, 64 58 Z'
-    : 'M 18 52 C 16 62, 17 78, 19 95 C 21 110, 23 122, 25 132 L 30 130 C 28 120, 27 108, 27 95 C 28 80, 30 68, 36 58 Z M 82 52 C 84 62, 83 78, 81 95 C 79 110, 77 122, 75 132 L 70 130 C 72 120, 73 108, 73 95 C 72 80, 70 68, 64 58 Z';
+  // Arms — outer strips down both sides, generous to catch wider female
+  // shoulders. y 38–135 covers shoulder cap → wrist.
+  const armsPath =
+    'M 4 40 L 28 40 L 28 132 L 4 132 Z ' +
+    'M 72 40 L 96 40 L 96 132 L 72 132 Z';
 
-  // Legs — anatomical thigh + shin shape per side; narrows at knee, calf
-  // bulge mid-shin, ankle taper.
-  const legsPath = female
-    ? 'M 32 142 C 30 156, 30 172, 32 188 C 32 200, 34 207, 38 209 L 46 206 C 47 196, 47 184, 47 172 C 47 158, 48 148, 49 140 L 41 138 Z M 51 138 L 49 140 C 50 148, 51 158, 51 172 C 51 184, 52 196, 53 206 L 61 209 C 65 207, 67 200, 67 188 C 69 172, 69 156, 67 142 L 59 138 Z'
-    : 'M 31 138 C 29 152, 29 170, 31 188 C 32 200, 34 207, 38 207 L 47 204 C 48 192, 48 178, 48 166 C 48 154, 49 144, 50 134 L 41 134 Z M 51 134 L 50 134 C 51 144, 51 154, 52 166 C 52 178, 52 192, 53 204 L 62 207 C 66 207, 68 200, 69 188 C 71 170, 71 152, 69 138 L 59 134 Z';
+  // Legs — split per side at the centerline, y 138–202.
+  const legsPath =
+    'M 28 140 L 50 140 L 50 202 L 28 202 Z ' +
+    'M 50 140 L 72 140 L 72 202 L 50 202 Z';
 
-  // Feet sole tap-targets — bottom edge of each foot.
-  const solesPath = 'M 32 205 L 46 205 L 46 209 L 32 209 Z M 54 205 L 68 205 L 68 209 L 54 209 Z';
+  // Soles — bottom strip per foot.
+  const solesPath = 'M 28 202 L 50 202 L 50 212 L 28 212 Z M 50 202 L 72 202 L 72 212 L 50 212 Z';
 
   const front = {
-    'face':           'M 38 4 C 38 -1, 62 -1, 62 4 L 62 24 C 62 32, 58 35, 50 36 C 42 35, 38 32, 38 24 Z',
-    'thyroid-throat': 'M 43 36 L 57 36 L 57 44 L 43 44 Z',
-    'breast-chest':   female
-      ? 'M 35 44 L 65 44 C 67 50, 66 58, 60 64 C 56 68, 53 68, 50 66 C 47 68, 44 68, 40 64 C 34 58, 33 50, 35 44 Z'
-      : 'M 35 44 L 65 44 L 65 76 L 35 76 Z',
+    'face':           'M 38 5 L 62 5 L 62 30 L 38 30 Z',
+    'thyroid-throat': 'M 43 30 L 57 30 L 57 40 L 43 40 Z',
+    'breast-chest':   'M 28 40 L 72 40 L 72 72 L 28 72 Z',
     'arms-front':     armsPath,
-    'torso-front':    'M 36 76 L 64 76 L 62 96 L 38 96 Z',
-    'abdomen':        'M 38 96 L 62 96 L 60 124 L 40 124 Z',
-    'genitals':       'M 43 124 L 57 124 L 55 138 L 45 138 Z',
+    'torso-front':    'M 32 72 L 68 72 L 68 96 L 32 96 Z',
+    'abdomen':        'M 36 96 L 64 96 L 64 122 L 36 122 Z',
+    'genitals':       'M 44 122 L 56 122 L 56 138 L 44 138 Z',
     'legs-front':     legsPath,
     'soles-of-feet':  solesPath,
   };
   const back = {
     'arms-back':     armsPath,
-    'torso-back':    'M 36 44 L 64 44 L 62 110 L 38 110 Z',
-    'glutes':        female
-      ? 'M 33 110 L 67 110 C 70 122, 69 134, 64 140 L 36 140 C 31 134, 30 122, 33 110 Z'
-      : 'M 34 110 L 66 110 C 69 120, 68 132, 64 138 L 36 138 C 32 132, 31 120, 34 110 Z',
+    'torso-back':    'M 32 40 L 68 40 L 68 110 L 32 110 Z',
+    'glutes':        'M 28 110 L 72 110 L 72 138 L 28 138 Z',
     'legs-back':     legsPath,
     'soles-of-feet': solesPath,
   };
   return { front, back };
 }
 
-// Anatomical landmark hints — thin non-tappable strokes drawn under the
-// region overlays to give the silhouette readability (collarbone, sternum,
-// navel, knee dimples on front; spine, scapulae, gluteal cleft, popliteal
-// fossae on back). Returns an array of `d=` strings for stroke paths.
-function _silhouetteLandmarks(sex, view) {
-  const female = sex === 'female';
-  if (view === 'front') {
-    const collar = 'M 38 44 Q 50 47, 62 44';
-    const sternum = female ? 'M 50 50 L 50 70' : 'M 50 48 L 50 78';
-    const navel = 'M 50 96 L 50 100';
-    const kneeL = 'M 33 175 Q 38 178, 42 175';
-    const kneeR = 'M 58 175 Q 62 178, 67 175';
-    const pec = female
-      ? 'M 41 60 Q 50 70, 59 60'
-      : 'M 40 60 L 50 64 L 60 60';
-    return [collar, sternum, navel, kneeL, kneeR, pec];
-  }
-  const spine = 'M 50 44 L 50 134';
-  const scapL = 'M 36 55 Q 42 65, 44 75';
-  const scapR = 'M 64 55 Q 58 65, 56 75';
-  const glutealCleft = 'M 50 138 L 50 158';
-  const poplitealL = 'M 36 178 Q 40 180, 44 178';
-  const poplitealR = 'M 56 178 Q 60 180, 64 178';
-  return [spine, scapL, scapR, glutealCleft, poplitealL, poplitealR];
+// Anatomical landmark hints — kept as a no-op extension point. The
+// freesvg silhouettes already carry their own anatomical character
+// (collarbone shape, navel, knees, calf curves), so we don't overlay
+// extra stroke marks. Future use: highlight selected regions with
+// landmark callouts, or differentiate front/back via spine/scapula
+// strokes if a fork wants stricter front/back differentiation.
+// eslint-disable-next-line no-unused-vars
+function _silhouetteLandmarks(_sex, _view) { return []; }
+
+// Anatomical outline path for the silhouette body. Sourced from OpenClipart
+// via freesvg.org (CC0 / Public Domain) — see js/silhouette-paths.js for
+// origin URLs and license. The freesvg paths are at native sizes
+// (male 604×1628, female 837×1819); _silhouetteTransform() returns the
+// (translate, scale) values to fit each body into our 100×210 picker
+// viewBox so the existing region tap-targets line up.
+//
+// Returns { d, transform } so renderBodySilhouette can wrap each path in
+// a <g transform="..."> for inline scaling. Front + back share the same
+// outer profile — landmark differences (spine, scapulae, gluteal cleft on
+// the back view) come from _silhouetteLandmarks.
+function _silhouetteTransform(sex) {
+  const native = SILHOUETTE_NATIVE[sex] || SILHOUETTE_NATIVE.male;
+  const targetH = 200;
+  const scale = targetH / native.vbH;
+  const renderedW = native.vbW * scale;
+  const tx = (100 - renderedW) / 2;  // center horizontally in the 100-wide column
+  const ty = 5;                      // top margin so the head doesn't touch the viewBox edge
+  return `translate(${tx.toFixed(2)} ${ty}) scale(${scale.toFixed(5)})`;
 }
 
-// Anatomical outline path for the silhouette body. Single closed path
-// that traces head → trapezius → deltoid → upper arm → forearm → wrist
-// → back up the arm inside → lat/oblique → waist → hip → outer thigh
-// → outer calf → ankle → foot → inner shin → inner thigh → crotch
-// centerline → mirror right side. ViewBox is 100×210 per body.
-//
-// Female: narrower shoulders (~56 wide), bust curve, hourglass waist,
-// wider hips (~58), softer thigh taper.
-// Male: wider shoulders (~64), prominent deltoid, narrow waist, narrower
-// hips, more developed forearm/quad bulges.
-//
-// Front + back use the same outer profile (the silhouette is symmetric to
-// first order); the back view differentiates via interior landmark lines
-// (spine, scapulae, gluteal cleft) drawn separately by _silhouetteLandmarks.
 function _silhouetteBody(sex) {
-  if (sex === 'female') {
-    const front = 'M 50 4 ' +
-      'C 43 4, 38 9, 38 17 ' +
-      'C 38 24, 41 30, 45 34 ' +
-      'C 45 36, 44 38, 43 39 ' +
-      'L 43 43 ' +
-      'C 39 44, 32 47, 25 52 ' +
-      'C 22 55, 21 60, 22 67 ' +
-      'L 22 88 ' +
-      'C 23 96, 24 105, 26 114 ' +
-      'L 27 128 ' +
-      'C 30 130, 32 128, 31 124 ' +
-      'C 30 116, 29 108, 29 100 ' +
-      'C 29 92, 30 84, 31 76 ' +
-      'C 32 70, 34 66, 36 62 ' +
-      'C 38 56, 40 50, 41 46 ' +
-      'C 36 50, 33 56, 35 64 ' +
-      'C 37 70, 41 74, 44 76 ' +
-      'C 43 84, 42 92, 41 100 ' +
-      'L 39 110 ' +
-      'C 40 116, 42 120, 44 124 ' +
-      'C 42 130, 36 134, 33 142 ' +
-      'C 31 152, 30 162, 31 172 ' +
-      'L 31 184 ' +
-      'C 30 192, 30 200, 32 206 ' +
-      'L 36 209 ' +
-      'C 38 209, 41 208, 43 206 ' +
-      'L 45 200 ' +
-      'C 46 192, 47 184, 47 176 ' +
-      'C 47 166, 48 156, 49 146 ' +
-      'L 50 138 ' +
-      'L 51 146 ' +
-      'C 52 156, 53 166, 53 176 ' +
-      'C 53 184, 54 192, 55 200 ' +
-      'L 57 206 ' +
-      'C 59 208, 62 209, 64 209 ' +
-      'L 68 206 ' +
-      'C 70 200, 70 192, 69 184 ' +
-      'L 69 172 ' +
-      'C 70 162, 69 152, 67 142 ' +
-      'C 64 134, 58 130, 56 124 ' +
-      'C 58 120, 60 116, 61 110 ' +
-      'L 59 100 ' +
-      'C 58 92, 57 84, 56 76 ' +
-      'C 59 74, 63 70, 65 64 ' +
-      'C 67 56, 64 50, 59 46 ' +
-      'C 60 50, 62 56, 64 62 ' +
-      'C 66 66, 68 70, 69 76 ' +
-      'C 70 84, 71 92, 71 100 ' +
-      'C 71 108, 70 116, 69 124 ' +
-      'C 68 128, 70 130, 73 128 ' +
-      'L 74 114 ' +
-      'C 76 105, 77 96, 77 88 ' +
-      'L 77 67 ' +
-      'C 78 60, 77 55, 74 52 ' +
-      'C 67 47, 60 44, 56 43 ' +
-      'L 56 39 ' +
-      'C 55 38, 54 36, 54 34 ' +
-      'C 58 30, 61 24, 61 17 ' +
-      'C 61 9, 56 4, 50 4 Z';
-    return { front, back: front };
-  }
-  // Male — broader shoulders, deeper deltoid bulge, more pec/lat depth,
-  // narrower waist + hips, prominent quadriceps and calf muscles.
-  const front = 'M 50 4 ' +
-    'C 43 4, 38 9, 38 17 ' +
-    'C 38 24, 41 30, 45 34 ' +
-    'C 45 36, 44 38, 43 39 ' +
-    'L 43 43 ' +
-    'C 38 44, 30 48, 22 53 ' +
-    'C 18 56, 17 61, 18 68 ' +
-    'L 18 90 ' +
-    'C 19 100, 21 110, 23 118 ' +
-    'L 25 130 ' +
-    'C 28 132, 30 130, 29 126 ' +
-    'C 28 117, 27 108, 27 99 ' +
-    'C 27 90, 28 81, 30 73 ' +
-    'C 32 67, 34 62, 36 58 ' +
-    'C 36 52, 37 48, 38 46 ' +
-    'C 40 56, 42 66, 43 76 ' +
-    'C 43 86, 42 96, 41 106 ' +
-    'L 39 116 ' +
-    'C 39 122, 39 128, 38 134 ' +
-    'C 36 142, 33 148, 31 156 ' +
-    'C 30 168, 30 178, 31 188 ' +
-    'L 32 200 ' +
-    'L 35 207 ' +
-    'C 37 208, 40 208, 43 207 ' +
-    'L 46 202 ' +
-    'C 47 192, 48 182, 48 172 ' +
-    'C 48 162, 49 152, 49 144 ' +
-    'L 50 134 ' +
-    'L 51 144 ' +
-    'C 51 152, 52 162, 52 172 ' +
-    'C 52 182, 53 192, 54 202 ' +
-    'L 57 207 ' +
-    'C 60 208, 63 208, 65 207 ' +
-    'L 68 200 ' +
-    'L 69 188 ' +
-    'C 70 178, 70 168, 69 156 ' +
-    'C 67 148, 64 142, 62 134 ' +
-    'C 61 128, 61 122, 61 116 ' +
-    'L 59 106 ' +
-    'C 58 96, 57 86, 57 76 ' +
-    'C 58 66, 60 56, 62 46 ' +
-    'C 63 48, 64 52, 64 58 ' +
-    'C 66 62, 68 67, 70 73 ' +
-    'C 72 81, 73 90, 73 99 ' +
-    'C 73 108, 72 117, 71 126 ' +
-    'C 70 130, 72 132, 75 130 ' +
-    'L 77 118 ' +
-    'C 79 110, 81 100, 82 90 ' +
-    'L 82 68 ' +
-    'C 83 61, 82 56, 78 53 ' +
-    'C 70 48, 62 44, 57 43 ' +
-    'L 57 39 ' +
-    'C 56 38, 55 36, 55 34 ' +
-    'C 59 30, 62 24, 62 17 ' +
-    'C 62 9, 57 4, 50 4 Z';
-  return { front, back: front };
+  const d = sex === 'female' ? FEMALE_BODY_PATH : MALE_BODY_PATH;
+  const transform = _silhouetteTransform(sex);
+  return { d, transform };
 }
+
 
 // Render the two-view silhouette picker as an SVG with an integrated
 // physique toggle (♂ / ♀). `selected` is a Set of region keys; each
@@ -1833,18 +1706,19 @@ export function renderBodySilhouette(selected, opts = {}) {
     <button type="button" class="sun-silhouette-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex-toggle="female" role="radio" aria-checked="${sex === 'female'}" aria-label="Female physique">♀ Female</button>
   </div>`;
 
-  // Two columns: front 0–100, back 100–200 (translated). Region tap-targets
-  // are invisible until selected (transparent fill); landmarks are thin
-  // strokes drawn over the outline for anatomical readability.
+  // Two columns: front 0–100, back 100–200 (translated). The freesvg outline
+  // is wrapped in <g body.transform> for scale + center; region tap-targets
+  // sit on top in the 100×210 picker space (invisible until selected);
+  // landmark strokes are drawn over the outline for anatomical hints.
   const svg = `<svg viewBox="0 0 200 215" class="sun-silhouette" data-sex="${sex}" role="group" aria-label="Body region picker — tap or press Enter on each region you want to toggle">
     <g class="sun-silhouette-view sun-silhouette-front">
-      <path d="${body.front}" class="sun-silhouette-outline"/>
+      <g transform="${body.transform}"><path d="${body.d}" class="sun-silhouette-outline"/></g>
       ${renderLandmarks(frontLandmarks)}
       ${renderRegion(front, 'front')}
       <text x="50" y="214" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Front</text>
     </g>
     <g class="sun-silhouette-view sun-silhouette-back" transform="translate(100 0)">
-      <path d="${body.back}" class="sun-silhouette-outline"/>
+      <g transform="${body.transform}"><path d="${body.d}" class="sun-silhouette-outline"/></g>
       ${renderLandmarks(backLandmarks)}
       ${renderRegion(back, 'back')}
       <text x="50" y="214" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Back</text>
