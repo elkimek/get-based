@@ -5434,6 +5434,23 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   display: inline-flex; gap: 10px;
 }
 
+/* "Daily beats banking" caption — channel-specific reason daily exposure
+   matters more than one big day. Sits between the chart and Next-move
+   so the user reads "what counted as a real day this week" → "here's why
+   that framing is the one that matches biology" → "what to do next."  */
+.light-channel-banking-note {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 11.5px; line-height: 1.5; color: var(--text-secondary);
+  border-left: 3px solid var(--text-muted);
+  background: rgba(148, 163, 184, 0.06);
+  border-radius: 0 6px 6px 0;
+}
+.light-channel-banking-note strong {
+  color: var(--text-primary);
+  display: inline-block; margin-right: 4px;
+}
+
 /* "Next move" — channel-specific concrete recipe + action button(s).
    Distinct from the hero (this is what to DO; hero is what you HAVE). */
 .light-channel-nextmove {

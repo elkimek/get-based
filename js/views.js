@@ -1465,6 +1465,18 @@ function _renderChannelWeekChart(channelKey) {
   // Empty-day placeholder bar so the chart never reads as a giant blank.
   const placeholderH = 3;
 
+  // Color bar by how the day's dose stacks up against the daily target.
+  // Visual at-a-glance: green = hit/exceeded daily, accent = meaningful,
+  // muted = marginal. Encourages reading the chart as "did I check this
+  // box today?" instead of "what big number did I rack up?".
+  const dayThreshold = _CHANNEL_DAY_THRESHOLD[channelKey] ?? 0.30;
+  const colorForDay = (total) => {
+    if (dailyTarget <= 0 || total < dailyTarget * 0.05) return { fill: 'var(--text-muted)', op: 0.40 };
+    if (total >= dailyTarget) return { fill: 'var(--green)', op: 1.0 };
+    if (total >= dailyTarget * dayThreshold) return { fill: 'var(--accent)', op: 0.85 };
+    return { fill: 'var(--accent)', op: 0.45 };
+  };
+
   const bars = days.map((d, i) => {
     const x = padX + i * barW + (barW - barInner) / 2;
     const total = d.sun + d.device;
@@ -1474,11 +1486,17 @@ function _renderChannelWeekChart(channelKey) {
     const y = padTop + innerH - h;
     const isToday = d.date.getTime() === today.getTime();
     const labelTxt = total > 0 ? fmt(total) : '';
+    const { fill: barFill, op: barOp } = colorForDay(total);
+    // Hit-target check mark — greener visual cue when the day cleared the
+    // daily target line. Reduces the urge to chase higher percentages
+    // ("more is better") past the saturation point.
+    const checkMark = (dailyTarget > 0 && total >= dailyTarget) ? `<text x="${x + barInner / 2}" y="${y - 12}" text-anchor="middle" font-size="11" fill="var(--green)" font-weight="700">✓</text>` : '';
     return `<g>
       ${total > 0 ? '' : `<rect x="${x}" y="${padTop + innerH - placeholderH}" width="${barInner}" height="${placeholderH}" fill="var(--text-muted)" opacity="0.20" rx="1"/>`}
-      ${devH > 0 ? `<rect x="${x}" y="${y}" width="${barInner}" height="${devH}" fill="var(--accent)" opacity="0.55" rx="1"/>` : ''}
-      ${sunH > 0 ? `<rect x="${x}" y="${y + devH}" width="${barInner}" height="${sunH}" fill="var(--accent)" rx="1"/>` : ''}
-      ${labelTxt ? `<text x="${x + barInner / 2}" y="${y - 2}" text-anchor="middle" font-size="9" fill="var(--text-secondary)">${labelTxt}</text>` : ''}
+      ${devH > 0 ? `<rect x="${x}" y="${y}" width="${barInner}" height="${devH}" fill="${barFill}" opacity="${barOp * 0.55}" rx="1"/>` : ''}
+      ${sunH > 0 ? `<rect x="${x}" y="${y + devH}" width="${barInner}" height="${sunH}" fill="${barFill}" opacity="${barOp}" rx="1"/>` : ''}
+      ${checkMark}
+      ${labelTxt && !checkMark ? `<text x="${x + barInner / 2}" y="${y - 2}" text-anchor="middle" font-size="9" fill="var(--text-secondary)">${labelTxt}</text>` : ''}
       <text x="${x + barInner / 2}" y="${H - 3}" text-anchor="middle" font-size="10" fill="${isToday ? 'var(--text-primary)' : 'var(--text-muted)'}" font-weight="${isToday ? '700' : '400'}">${dayLetter(d.date)}</text>
     </g>`;
   }).join('');
@@ -1511,103 +1529,122 @@ function _renderChannelWeekChart(channelKey) {
   </div>`;
 }
 
-// Hero stat for a channel — the headline number at the top of the
-// drill-down panel. Resolves to a real, named unit for every channel:
-//   • vitamin_d → IU synthesized this week (Holick/Bogh conversion)
-//   • nir_solar → J/cm² weekly cellular-repair dose (pbmJoulesPerCm2)
-//   • circadian / no_cv / pomc / violet_eye → percent of a "typical
-//     active week" target. Channel-au is a dimensionless integration
-//     of irradiance × action-spectrum × time, so showing it as a raw
-//     number ("576K of what?") is meaningless to users — the percent
-//     is the only honest summary at that level of abstraction.
-function _channelHero(channelKey, totalCurrent, totalPrev) {
+// Threshold (fraction of daily target) above which a day counts as
+// "meaningful exposure" toward this channel. Stricter for the eye-bound
+// circadian/violet channels because the biological response requires
+// real entrainment-strength dose, not a brief glance.
+const _CHANNEL_DAY_THRESHOLD = {
+  vitamin_d:  0.30,
+  nir_solar:  0.30,
+  no_cv:      0.30,
+  pomc:       0.30,
+  circadian:  0.50,
+  violet_eye: 0.50,
+};
+
+// Count days in the breakdown where the day's combined dose hit at least
+// `threshold × dailyTarget`. Sub-meaningful days don't count — partial
+// glance light isn't biologically equivalent to a real dose.
+function _meaningfulDayCount(days, dailyTarget, threshold) {
+  if (!Array.isArray(days) || dailyTarget <= 0) return 0;
+  const floor = threshold * dailyTarget;
+  let n = 0;
+  for (const d of days) {
+    if ((d.sun + d.device) >= floor) n++;
+  }
+  return n;
+}
+
+// Hero stat for a channel — leads with DAILY CONSISTENCY ("3 of 7
+// days") instead of weekly cumulative. Health-wise, daily exposure
+// matters more than banking one big day for every channel here:
+// circadian needs daily entrainment, vit-D plateaus per session
+// around 20k IU, NO release dissipates, NIR benefit is dose-per-
+// exposure not banked. The "X of 7 days" framing matches the biology;
+// the cumulative real-unit (IU / J/cm²) when defensible is shown as
+// a sub-line for completeness.
+function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7) {
   const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
   const target = meta.dailyTarget || 0;
-  const weeklyTarget = target * 7; // 7-day equivalent of the daily target
+  const threshold = _CHANNEL_DAY_THRESHOLD[channelKey] ?? 0.30;
   const fmtIntK = (n) => {
     if (n < 10) return n.toFixed(1);
     if (n < 1000) return String(Math.round(n));
     if (n < 10000) return (n / 1000).toFixed(1) + 'k';
     return (n / 1000).toFixed(0) + 'k';
   };
-  let primary = '';
-  let primarySub = '';
-  // Trend baseline value for the "vs last week" chip. Same unit as the
-  // primary so the comparison is apples-to-apples (e.g. percent → percent).
-  let prevForTrend = totalPrev;
-  let curForTrend = totalCurrent;
 
+  const dayCountCur  = _meaningfulDayCount(days7,     target, threshold);
+  const dayCountPrev = _meaningfulDayCount(daysPrev7, target, threshold);
+
+  // Cumulative real-unit summary (always computed; only shown if defensible).
+  let cumulative = '';
   if (channelKey === 'vitamin_d' && window.rollingVitaminDIU) {
     const iu = window.rollingVitaminDIU(7);
-    if (iu >= 30) {
-      primary = `~${fmtIntK(iu)} IU`;
-      primarySub = 'vitamin D synthesized this week';
-    } else {
-      primary = '—';
-      primarySub = 'no meaningful synthesis this week';
-    }
-    // Vit-D last-week sum: rough equivalent — apply the same
-    // channel-au→IU ratio observed for the current week to the prev-week
-    // channel-au total. Keeps the trend chip in the same IU unit.
-    if (totalCurrent > 0 && iu > 0) {
-      prevForTrend = totalPrev * (iu / totalCurrent);
-      curForTrend = iu;
-    }
+    if (iu >= 30) cumulative = `· ~${fmtIntK(iu)} IU total`;
   } else if (channelKey === 'nir_solar' && window.pbmJoulesPerCm2) {
     const j = window.pbmJoulesPerCm2(totalCurrent);
-    if (j >= 0.1) {
-      primary = `${j >= 10 ? Math.round(j) : j.toFixed(1)} J/cm²`;
-      primarySub = 'NIR cellular-repair dose this week';
-    } else {
-      primary = '—';
-      primarySub = 'no meaningful NIR exposure this week';
-    }
-    // Trend in J/cm² — convert prev-week channel-au too.
-    prevForTrend = window.pbmJoulesPerCm2(totalPrev);
-    curForTrend = j;
+    if (j >= 0.1) cumulative = `· ${j >= 10 ? Math.round(j) : j.toFixed(1)} J/cm² total`;
+  }
+
+  let primary = '';
+  let primarySub = '';
+  if (totalCurrent < 0.5 && dayCountCur === 0) {
+    primary = '—';
+    primarySub = 'no exposure logged this week';
   } else {
-    // Unitless channels — channel-au has no real-world unit, so the
-    // hero is the percent-of-typical-week. Big and named.
-    if (totalCurrent < 0.5) {
-      primary = '—';
-      primarySub = 'no exposure logged this week';
-    } else if (weeklyTarget > 0) {
-      const pct = Math.round(100 * totalCurrent / weeklyTarget);
-      primary = `${pct}%`;
-      primarySub = 'of a typical active-outdoor week';
+    primary = `${dayCountCur} of 7 days`;
+    // Channel-aware sub-label — what counts as "meaningful exposure"
+    // varies per channel, but the framing stays consistent.
+    const SUB_LABELS = {
+      vitamin_d:  'with meaningful UVB synthesis',
+      nir_solar:  'with meaningful NIR exposure',
+      circadian:  'with strong morning/midday daylight in your eyes',
+      no_cv:      'with meaningful UVA on bare skin',
+      pomc:       'with meaningful sun on bare skin',
+      violet_eye: 'with strong outdoor light reaching your eyes',
+    };
+    const subBase = SUB_LABELS[channelKey] || 'with meaningful exposure';
+    primarySub = `${subBase} ${cumulative}`.trim();
+  }
+
+  // Trend = day-count delta vs last week. Same unit (days) so comparison
+  // reads naturally without conversion gymnastics.
+  let trend = '';
+  if (dayCountCur > 0 || dayCountPrev > 0) {
+    const delta = dayCountCur - dayCountPrev;
+    if (delta >= 1) {
+      trend = `<span class="light-channel-hero-trend up">↑ ${delta} more day${delta === 1 ? '' : 's'} than last week</span>`;
+    } else if (delta <= -1) {
+      trend = `<span class="light-channel-hero-trend down">↓ ${-delta} fewer day${delta === -1 ? '' : 's'} than last week</span>`;
+    } else if (dayCountCur > 0) {
+      trend = `<span class="light-channel-hero-trend flat">~ same day count as last week</span>`;
     } else {
-      primary = '—';
-      primarySub = 'no target calibration available';
-    }
-    // Trend in percent — convert both windows to percent for apples-to-
-    // apples comparison.
-    if (weeklyTarget > 0) {
-      prevForTrend = (totalPrev / weeklyTarget) * 100;
-      curForTrend = (totalCurrent / weeklyTarget) * 100;
+      trend = `<span class="light-channel-hero-trend down">↓ no qualifying days this week (had ${dayCountPrev} last week)</span>`;
     }
   }
 
-  // Trend vs previous 7 days — only show when both windows have data.
-  let trend = '';
-  if (prevForTrend > 0.5 && curForTrend > 0.5) {
-    const ratio = curForTrend / prevForTrend;
-    if (ratio >= 1.20) {
-      trend = `<span class="light-channel-hero-trend up">↑ ${Math.round((ratio - 1) * 100)}% vs last week</span>`;
-    } else if (ratio <= 0.80) {
-      trend = `<span class="light-channel-hero-trend down">↓ ${Math.round((1 - ratio) * 100)}% vs last week</span>`;
-    } else {
-      trend = `<span class="light-channel-hero-trend flat">~ steady vs last week</span>`;
-    }
-  } else if (curForTrend > 0.5 && prevForTrend < 0.5) {
-    trend = `<span class="light-channel-hero-trend up">↑ first week with exposure here</span>`;
-  } else if (curForTrend < 0.5 && prevForTrend > 0.5) {
-    trend = `<span class="light-channel-hero-trend down">↓ no exposure this week</span>`;
-  }
   return `<div class="light-channel-hero">
     <div class="light-channel-hero-primary">${escapeHTML(primary)}</div>
     <div class="light-channel-hero-sub">${escapeHTML(primarySub)}</div>
     ${trend}
   </div>`;
+}
+
+// Caption explaining why daily exposure beats banking one big day.
+// Channel-specific so the reason is biologically grounded, not generic.
+function _renderDailyBeatsBankingNote(channelKey) {
+  const NOTES = {
+    vitamin_d:  'Skin photoisomerizes excess back to inactive isomers around 20k IU per session — daily 10-min sessions outperform one big day (Holick 2007, Webb 2018).',
+    nir_solar:  'Mitochondrial benefit is dose-dependent per exposure, not banked — daily 20-min walks deliver more cumulative cellular signal than one long session.',
+    circadian:  'Body clock entrainment depends on daily timing of morning light — one banked day doesn\'t prevent the next day\'s drift toward later sleep onset.',
+    no_cv:      'UVA-driven nitric oxide release happens during exposure and dissipates over hours — daily refreshes the vasodilatory + BP-lowering signal.',
+    pomc:       'POMC pathway tone resets between sessions — daily sun maintains α-MSH (tan signal) and β-endorphin (mood) baseline rather than spiking and crashing.',
+    violet_eye: 'Violet-eye dopamine release is per-exposure — daily outdoor minutes accumulate the myopia-protective + alertness signal that one long day can\'t bank.',
+  };
+  const txt = NOTES[channelKey];
+  if (!txt) return '';
+  return `<p class="light-channel-banking-note"><strong>Daily beats banking.</strong> ${escapeHTML(txt)}</p>`;
 }
 
 // Source-mix mini bar — what fraction of the week's dose came from sun
@@ -1738,10 +1775,14 @@ function _renderChannelDetailPanel(channelKey) {
   // preceding week, last 7 days = current week). Lets the hero show
   // a real "vs last week" delta instead of a vague tier-vs-tier arrow.
   let totalPrev = 0;
+  let days7 = [];
+  let daysPrev7 = [];
   try {
     if (window.dailyChannelBreakdown) {
       const days14 = window.dailyChannelBreakdown(channelKey, 14);
-      totalPrev = days14.slice(0, 7).reduce((s, d) => s + d.sun + d.device, 0);
+      daysPrev7 = days14.slice(0, 7);
+      days7 = days14.slice(7);
+      totalPrev = daysPrev7.reduce((s, d) => s + d.sun + d.device, 0);
     }
   } catch (e) {}
 
@@ -1764,13 +1805,15 @@ function _renderChannelDetailPanel(channelKey) {
       <button type="button" class="light-channel-detail-close" aria-label="Close ${escapeAttr(meta.label || channelKey)} detail" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(channelKey)}')">×</button>
     </header>
 
-    ${_channelHero(channelKey, totalCurrent, totalPrev)}
+    ${_channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7)}
 
     <p class="light-channel-detail-body">${escapeHTML(meta.what || '')}</p>
 
     ${_renderChannelSourceMix(sun7, dev7)}
 
     ${_renderChannelWeekChart(channelKey)}
+
+    ${_renderDailyBeatsBankingNote(channelKey)}
 
     ${_channelNextMove(channelKey, t7, totalCurrent, devices, atm)}
 
