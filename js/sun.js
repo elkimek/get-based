@@ -1643,31 +1643,20 @@ function _silhouetteRegionPaths(_sex) {
 // eslint-disable-next-line no-unused-vars
 function _silhouetteLandmarks(_sex, _view) { return []; }
 
-// Anatomical outline path for the silhouette body. Sourced from OpenClipart
-// via freesvg.org (CC0 / Public Domain) — see js/silhouette-paths.js for
-// origin URLs and license. The freesvg paths are at native sizes
-// (male 604×1628, female 837×1819); _silhouetteTransform() returns the
-// (translate, scale) values to fit each body into our 100×210 picker
-// viewBox so the existing region tap-targets line up.
+// Anatomical outline path for the silhouette body. Compound paths supplied
+// by the maintainer (see js/silhouette-paths.js) — each silhouette is
+// composed of multiple subpaths (body / head / arms / legs) merged into
+// one d-string so it renders as a single fill.
 //
-// Returns { d, transform } so renderBodySilhouette can wrap each path in
-// a <g transform="..."> for inline scaling. Front + back share the same
-// outer profile — landmark differences (spine, scapulae, gluteal cleft on
-// the back view) come from _silhouetteLandmarks.
-function _silhouetteTransform(sex) {
-  const native = SILHOUETTE_NATIVE[sex] || SILHOUETTE_NATIVE.male;
-  const targetH = 200;
-  const scale = targetH / native.vbH;
-  const renderedW = native.vbW * scale;
-  const tx = (100 - renderedW) / 2;  // center horizontally in the 100-wide column
-  const ty = 5;                      // top margin so the head doesn't touch the viewBox edge
-  return `translate(${tx.toFixed(2)} ${ty}) scale(${scale.toFixed(5)})`;
-}
-
+// Returns the native viewBox + d-string so renderBodySilhouette can mount
+// the path inside a <symbol viewBox="..."> and reference it with
+// <use width="100" height="200" preserveAspectRatio="xMidYMid meet">. SVG
+// handles scale + centering natively, no manual transform math needed.
 function _silhouetteBody(sex) {
+  const native = SILHOUETTE_NATIVE[sex] || SILHOUETTE_NATIVE.male;
   const d = sex === 'female' ? FEMALE_BODY_PATH : MALE_BODY_PATH;
-  const transform = _silhouetteTransform(sex);
-  return { d, transform };
+  const viewBox = `${native.vbX} ${native.vbY} ${native.vbW} ${native.vbH}`;
+  return { d, viewBox };
 }
 
 
@@ -1706,34 +1695,41 @@ export function renderBodySilhouette(selected, opts = {}) {
     <button type="button" class="sun-silhouette-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex-toggle="female" role="radio" aria-checked="${sex === 'female'}" aria-label="Female physique">♀ Female</button>
   </div>`;
 
-  // Body silhouette renders in <g transform="..."> which scales the freesvg
-  // path into the picker. We reuse that exact same transformed path in a
-  // <clipPath> so any region overlay's hover/selection fill is masked to
-  // the body shape — without the clip, accent fills would spill outside
-  // the silhouette into transparent space and look like floating boxes.
-  // clipPathUnits defaults to userSpaceOnUse, so the same clipPath works
-  // for both front + back groups (each applies it in their own local space).
-  const clipId = `sun-silhouette-body-clip-${sex}`;
+  // The body silhouette is defined once as a <symbol> with its own native
+  // viewBox; <use> instances render it scaled to fit any (x,y,w,h) target
+  // box via preserveAspectRatio. The same symbol is referenced twice as
+  // visible silhouette (front + back) AND inside a <clipPath> so region
+  // overlays' selection fill is masked to the body — no floating boxes.
+  // Symbol IDs are sex-suffixed so re-render after sex toggle picks up
+  // the new shape.
+  const symId = `sun-silhouette-body-${sex}`;
+  const clipFrontId = `sun-silhouette-clip-front-${sex}`;
+  const clipBackId = `sun-silhouette-clip-back-${sex}`;
+  // Body fits inside x=0–100, y=5–205 of the picker column.
+  const useAttrs = 'x="0" y="5" width="100" height="200" preserveAspectRatio="xMidYMid meet"';
 
-  // Two columns: front 0–100, back 100–200 (translated). Region tap-targets
-  // sit on top in the 100×210 picker space (transparent until selected) and
-  // are clipped to the silhouette shape so highlights hug the body.
   const svg = `<svg viewBox="0 0 200 215" class="sun-silhouette" data-sex="${sex}" role="group" aria-label="Body region picker — tap or press Enter on each region you want to toggle">
     <defs>
-      <clipPath id="${clipId}">
-        <path d="${body.d}" transform="${body.transform}" />
+      <symbol id="${symId}" viewBox="${body.viewBox}">
+        <path d="${body.d}" />
+      </symbol>
+      <clipPath id="${clipFrontId}">
+        <use href="#${symId}" ${useAttrs} />
+      </clipPath>
+      <clipPath id="${clipBackId}">
+        <use href="#${symId}" ${useAttrs} />
       </clipPath>
     </defs>
     <g class="sun-silhouette-view sun-silhouette-front">
-      <g transform="${body.transform}"><path d="${body.d}" class="sun-silhouette-outline"/></g>
+      <use href="#${symId}" class="sun-silhouette-outline" ${useAttrs} />
       ${renderLandmarks(frontLandmarks)}
-      <g clip-path="url(#${clipId})">${renderRegion(front, 'front')}</g>
+      <g clip-path="url(#${clipFrontId})">${renderRegion(front, 'front')}</g>
       <text x="50" y="214" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Front</text>
     </g>
     <g class="sun-silhouette-view sun-silhouette-back" transform="translate(100 0)">
-      <g transform="${body.transform}"><path d="${body.d}" class="sun-silhouette-outline"/></g>
+      <use href="#${symId}" class="sun-silhouette-outline" ${useAttrs} />
       ${renderLandmarks(backLandmarks)}
-      <g clip-path="url(#${clipId})">${renderRegion(back, 'back')}</g>
+      <g clip-path="url(#${clipBackId})">${renderRegion(back, 'back')}</g>
       <text x="50" y="214" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Back</text>
     </g>
   </svg>`;
