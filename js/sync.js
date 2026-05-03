@@ -70,7 +70,13 @@ export async function getEvoluDiagnostics() {
         // wild on cross-device replication of older inserts) — read it
         // from the payload's nested profile object.
         payloadProfileId = parsed?.profile?.id || null;
-      } catch {}
+      } catch (e) {
+        // v1.7.15 audit fix: previously silent. The diagnose modal would
+        // render the row as 0/0 — indistinguishable from a real empty row.
+        // Log so triage can see which rows the parse path is rejecting
+        // (gzip-bomb defence trips, malformed envelope, etc).
+        _logSyncEvent('skip', `Diagnose row ${String(row.id || '?').slice(0, 8)} parse failed: ${String(e?.message || e).slice(0, 80)}`);
+      }
       out.rows.push({
         profileId: row.profileId || payloadProfileId,
         profileIdSource: row.profileId ? 'column' : (payloadProfileId ? 'payload' : 'missing'),
@@ -2556,7 +2562,12 @@ async function onSyncReceived() {
         // step downstream will fill in every field from itemRow data.
         // Anything else falsy/non-object is genuinely malformed → skip.
         const isV4Cutover = importedData === null;
-        if (!isV4Cutover && (!importedData || typeof importedData !== 'object')) continue;
+        if (!isV4Cutover && (!importedData || typeof importedData !== 'object')) {
+          // v1.7.15 audit fix: log so a chronically-corrupted row is
+          // visible in the activity log instead of silently disappearing.
+          _logSyncEvent('skip', `Pull ${profileId.slice(0, 8)} — malformed importedData shape, skipping row`);
+          continue;
+        }
 
         // Preserve local wearableConnections — they're stripped from the push
         // payload (tokens stay per-device), so the remote blob never carries

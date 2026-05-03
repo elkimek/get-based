@@ -369,18 +369,28 @@ function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
   const sunrise = Array.isArray(daily.sunrise) ? daily.sunrise[0] : null;
   const sunset = Array.isArray(daily.sunset) ? daily.sunset[0] : null;
   const uvIndexMax = Array.isArray(daily.uv_index_max) ? daily.uv_index_max[0] : null;
-  // Today's local date string in the LOCATION's timezone — derived from
-  // the response's utc_offset_seconds + current Date.now(). Matches the
-  // 'YYYY-MM-DD' prefix Open-Meteo emits in hourly.time entries.
+  // Today's local date string in the LOCATION's timezone. Prefer the
+  // canonical anchor from `daily.time[0]` (Open-Meteo's authoritative
+  // "today" for the requested location, immune to DST edge cases) and
+  // only fall back to `utc_offset_seconds + Date.now()` derivation
+  // when the daily array is missing. v1.7.15 audit fix: the previous
+  // derivation drifted at DST boundaries — opening the app at 23:55
+  // local time the day before a DST jump computed yesterday's date
+  // for the next morning's hourly entries because `getUTCDate()` on
+  // an offset-shifted Date doesn't track DST transitions.
   let todayPrefix = null;
-  try {
-    const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0) * 1000;
-    const localNow = new Date(Date.now() + offsetMs);
-    const y = localNow.getUTCFullYear();
-    const m = String(localNow.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(localNow.getUTCDate()).padStart(2, '0');
-    todayPrefix = `${y}-${m}-${d}`;
-  } catch (e) {}
+  if (typeof daily.time?.[0] === 'string' && /^\d{4}-\d{2}-\d{2}/.test(daily.time[0])) {
+    todayPrefix = daily.time[0].slice(0, 10);
+  } else {
+    try {
+      const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0) * 1000;
+      const localNow = new Date(Date.now() + offsetMs);
+      const y = localNow.getUTCFullYear();
+      const m = String(localNow.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(localNow.getUTCDate()).padStart(2, '0');
+      todayPrefix = `${y}-${m}-${d}`;
+    } catch (e) {}
+  }
   let peakAt = null;
   if (uvIndexMax != null && Array.isArray(fcJson.hourly?.uv_index) && Array.isArray(fcJson.hourly.time)) {
     let bestI = -1, bestV = -Infinity;

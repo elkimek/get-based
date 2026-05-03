@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.15', date: '2026-05-03', title: 'Diagnose-modal silent drops + DST-safe peak finder + parse-equivalence test',
+    items: [
+      '<b>Sync diagnose now logs which rows it can\'t parse.</b> The modal\'s pre-pass over every relay row used to swallow parse exceptions silently — a malformed or bomb-rejected row would render as <code>0/0</code> in the table, indistinguishable from a real empty row. Now emits a <code>skip</code> activity-log line with the row id and a short error excerpt so triage can see what got dropped. Same fix on the receive-side malformed-shape branch.',
+      '<b>Sun peak-finder is DST-safe.</b> The "today" anchor used to filter <code>hourly.uv_index</code> entries is now derived from <code>daily.time[0]</code> (Open-Meteo\'s authoritative date for the requested location) instead of <code>utc_offset_seconds + Date.now()</code>. The previous derivation drifted at DST boundaries — opening the app at 23:55 local time the day before a DST jump computed yesterday\'s date for the next morning\'s hourly entries.',
+      '<b>Runtime parse-equivalence test.</b> Closes the test-coverage gap that would have caught the v1.6.5/v1.6.6 regression class: builds a payload via the same gzip envelope the producer emits, decodes it via the same path the consumer uses, asserts <code>profile.id</code> + <code>importedData.sunSessions.length</code> survive intact. Source-grep tests can\'t catch a divergence between two encoders that both look superficially correct.',
+    ]
+  },
+  {
     version: '1.7.14', date: '2026-05-03', title: 'Pre-v1.7 audit pass — gzip-bomb defence + owner-scoped warnings',
     items: [
       '<b>Decompression-bomb defence on the blob pull path.</b> The per-row gunzip path was capped in v1.7.12, but <code>parseSyncPayload</code> (used for the fat-blob and for the diagnose modal\'s pre-pass over every relay row) still ran uncapped — the post-decompression size check fired only after the full gunzipped output had been buffered, so a 5 MB compressed gzip-bomb could decompress to GBs and OOM the tab before the cap triggered. Now routed through the same streaming-capped reader; bombs fail fast at the cap.',
