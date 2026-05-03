@@ -167,10 +167,13 @@ return (async function() {
   assert('onDataSaved has 2s debounce', syncSrc.includes('}, 2000)'));
   assert('onDataSaved captures profileId at schedule time', syncSrc.includes('const profileId = state.currentProfile') && syncSrc.includes('pushProfile(profileId'));
   assert('onDataSaved retries if _syncing', syncSrc.includes('if (_syncing)') && syncSrc.includes('pushProfile(profileId, data)'));
-  // v1.7.4: skip is now strict `<` so equal-timestamp rows reprocess
-  // (idempotent under the merge), fixing stalls when local already has
-  // the merged blob but state.importedData hadn't been re-set.
-  assert('onSyncReceived skips strictly-older rows only', syncSrc.includes('remoteUpdated < localUpdated'));
+  // v1.6.x: skip-decision is content-hash based, NOT timestamp-based.
+  // Clock-skew between phone + desktop used to make older-clocked
+  // pushes get skipped on the receiving side; hash equality is the
+  // deterministic signal across clocks.
+  assert('onSyncReceived skips on content-hash equality, not timestamp',
+    syncSrc.includes('remoteContentHash === localContentHash') &&
+    syncSrc.includes('hashString(row.dataJson'));
   assert('onSyncReceived guards on _pulling', syncSrc.includes('_pulling') && syncSrc.includes('_pulling = true'));
   assert('Pull handles encryption', syncSrc.includes('getEncryptionEnabled()') && syncSrc.includes('encryptedSetItem(localKey'));
   assert('Pull merges profiles with allowlist', syncSrc.includes('PROFILE_MERGE_FIELDS') && syncSrc.includes('saveProfiles(profiles)'));

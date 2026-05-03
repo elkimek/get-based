@@ -3,7 +3,7 @@
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
 
 import { state } from './state.js';
-import { showNotification, isDebugMode, escapeHTML } from './utils.js';
+import { showNotification, isDebugMode, escapeHTML, hashString } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
@@ -852,6 +852,12 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // Use syncedAt (same value stored in Evolu) so pulls see exact
       // equality and don't skip the row from 1ms clock drift.
       localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
+      // Mark this exact dataJson as locally-applied so the immediate
+      // post-push pull tick recognizes its own row by hash and skips
+      // re-merging. Without this we'd pull-and-merge our own push,
+      // which is idempotent but wasteful + can bounce the rebroadcast
+      // budget on race conditions.
+      localStorage.setItem(`labcharts-${profileId}-sync-hash`, hashString(dataJson));
       finish();
     };
     // Watchdog: if Evolu never calls onComplete within 30s, the worker is
@@ -1256,25 +1262,28 @@ async function onSyncReceived() {
         if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) continue;
         const remoteUpdated = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
 
-        // Check local timestamp
+        // Check local timestamp + content hash. Hash-based skip is the
+        // primary correctness mechanism — clock-skew between devices
+        // (phone slightly behind desktop, common with NTP drift) used to
+        // make `remote.syncedAt < local-sync-ts` for rows that were
+        // actually NEWER content, silently skipping pushes from the
+        // older-clocked device. Hash is deterministic across clocks.
         const localKey = profileStorageKey(profileId, 'imported');
         const localMeta = localStorage.getItem(`labcharts-${profileId}-sync-ts`);
         const localUpdated = localMeta ? parseInt(localMeta, 10) : 0;
+        const localContentHash = localStorage.getItem(`labcharts-${profileId}-sync-hash`) || '';
+        const remoteContentHash = hashString(row.dataJson || '');
 
-        // Skip only when remote is strictly OLDER than what we've applied —
-        // equal timestamps used to skip too, which left rows un-merged after
-        // an earlier whole-blob-LWW pull stored its watermark but never
-        // unioned local+remote. Reprocessing equal rows under the new merge
-        // is idempotent (mergeImportedData is structurally pure) so this is
-        // safe and fixes the "data already in localStorage but not visible
-        // in state.importedData" stall.
-        if (remoteUpdated < localUpdated) {
-          const skipMsg = `Skip ${profileId.slice(0,8)} — remote older`;
-          dbg(`Row ${profileId.slice(0,8)}: skip (remote ${remoteUpdated} < local ${localUpdated})`);
+        // Skip when content hash matches — we've already applied this
+        // exact bytes. Hash collisions are negligibly improbable for our
+        // payload sizes (djb2 → 32 bits ≈ 4B distinct outputs).
+        if (remoteContentHash === localContentHash && localContentHash) {
+          const skipMsg = `Skip ${profileId.slice(0,8)} — content already applied`;
+          dbg(`Row ${profileId.slice(0,8)}: skip (hash match ${remoteContentHash})`);
           _logSyncEvent('skip', skipMsg);
           continue;
         }
-        dbg(`Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated} ${remoteUpdated === localUpdated ? '==' : '>'} local ${localUpdated})`);
+        dbg(`Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated} vs local ${localUpdated}, hash ${remoteContentHash}!=${localContentHash || '(none)'})`);
 
         // Remote is newer — parse payload
         const { importedData, profile, aiSettings, chatData, displayPrefs } = parseSyncPayload(row.dataJson);
@@ -1369,6 +1378,10 @@ async function onSyncReceived() {
         const importedJson = JSON.stringify(merged);
         await encryptedSetItem(localKey, importedJson);
         localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
+        // Track content hash of what we just applied so the next pull
+        // can skip on content-equality (clock-skew immune). Stored
+        // alongside -sync-ts which is kept for diagnostics + UI display.
+        localStorage.setItem(`labcharts-${profileId}-sync-hash`, remoteContentHash);
 
         // Merge profile into local profiles list (allowlisted fields only)
         if (profile && typeof profile === 'object') {
