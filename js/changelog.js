@@ -5,6 +5,18 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.0', date: '2026-05-03', title: 'Per-row sync deltas — Phase 1 of the real fix',
+    items: [
+      '<b>Sync now uses CRDT deltas, not full snapshots.</b> Until v1.6.x, every save re-uploaded your <i>entire</i> health record (~200 KB compressed) on every push. The relay\'s 50 MB per-owner cap meant ~280 pushes between compactions. Phase 1 of the architecture fix shipped here — adding a sun session, editing a note, or logging a supplement now also writes a per-row CRDT message (a few hundred bytes), and the receiving device merges those individual rows on top of whatever it already has.',
+      '<b>Both formats ship in parallel.</b> The full-blob push still happens for back-compat with devices on older versions, so your data converges either way. Once the per-row datapath has baked under real cross-device traffic for ≥2 weeks, Phase 2 will drop the blob writes entirely. After that, the per-owner quota stops mattering in practice — pushes are small enough that you\'d need months of constant editing to refill it.',
+      '<b>Per-row data is authoritative on pull.</b> If a per-row tombstone says "this sun session was deleted" and the blob still has it, the tombstone wins. This is the design — per-row state is up-to-the-moment, the blob may be a stale snapshot from before another device synced. Idempotent: when both agree, it\'s a no-op.',
+      '<b>Arrays covered in Phase 1:</b> sun sessions, light devices + their session logs, light audits, light measurements, lab entries, notes, supplements, health goals. (Cycle data, marker notes, and change history follow in a later phase — they have specialized merge logic worth handling separately.)',
+      '<b>Tombstones are conservative.</b> If we don\'t have a snapshot of what was previously pushed for an array (e.g. fresh device, recently restored from mnemonic), no tombstones get emitted — the system would rather skip a delete than push a phantom one that wipes data on receiving devices.',
+      '<b>Snapshot-after-success.</b> The "what we last pushed" pointer only advances when the push actually commits. A wedged or failed push leaves the snapshot intact so the next attempt re-emits the same delta — no silent data drift between local state and what the relay has.',
+      '<b>Backwards compatible.</b> Devices on v1.6.x and older still receive your data via the fat-blob path. They don\'t see per-row pushes, but the blob still ships, so nothing visibly changes for them.',
+    ]
+  },
+  {
     version: '1.6.7', date: '2026-05-03', title: 'Relay storage indicator + warning toasts',
     items: [
       '<b>You can now see how full your relay storage is.</b> Click the sync indicator in the header — the popover shows <i>Storage: X.X / 50 MB · Y%</i> with a green/amber/red dot. Settings → Sync → Diagnose has the full breakdown with a progress bar.',

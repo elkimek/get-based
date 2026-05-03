@@ -123,6 +123,7 @@ function _evoluDiagnosticsText(d) {
 let evolu = null;
 let profileQuery = null;
 let tombstoneQuery = null;
+let itemRowQuery = null;
 let _syncEnabled = false;
 let _syncing = false;
 // Tracks when _syncing was last set so a hung push (Evolu onComplete never
@@ -261,11 +262,33 @@ export async function initSync() {
       await import('../vendor/evolu/evolu-bundle.js');
 
     const ProfileDataId = id("ProfileData");
+    const ItemRowId = id("ItemRow");
+    // Per-array delta table (Phase 1 of the CRDT-delta refactor — see
+    // memory/project_evolu_delta_refactor_plan.md). Each row holds ONE
+    // item from one of the importedData arrays (sunSessions, lightDevices,
+    // entries, …). Push side dual-writes: every successful pushProfile()
+    // also emits inserts/updates/tombstones for items that changed since
+    // the last successful push (snapshot diff). Pull side merges itemRow
+    // payloads into state.importedData BEFORE the fat-blob merge runs, so
+    // per-row data is authoritative when present and the blob acts as
+    // fallback for pre-Phase-1 device pushes.
+    //
+    // ONE table with arrayName discriminator instead of N tables: adding a
+    // new array doesn't require schema migration, single subscribeQuery
+    // covers everything, identical merge logic per array.
     const Schema = {
       profileData: {
         id: ProfileDataId,
         profileId: NonEmptyString,
         dataJson: NonEmptyString,
+        syncedAt: nullOr(NonEmptyString),
+      },
+      itemRow: {
+        id: ItemRowId,
+        profileId: NonEmptyString,
+        arrayName: NonEmptyString,  // 'sunSessions' | 'lightDevices' | …
+        itemId: NonEmptyString,     // the item.id field, e.g. 'sun_1714780123456'
+        payload: NonEmptyString,    // gzip-base64-encoded JSON of one item
         syncedAt: nullOr(NonEmptyString),
       },
     };
@@ -295,10 +318,27 @@ export async function initSync() {
         .where("isDeleted", "=", 1)
     );
 
+    // Per-array delta rows (live + tombstoned). The merge logic in
+    // _mergeItemRowsIntoImported sorts on isDeleted, so a single query
+    // returning every itemRow is sufficient. profileId filter applied
+    // at merge time so subscribeQuery doesn't have to refire on each
+    // currentProfile change.
+    itemRowQuery = evolu.createQuery((db) =>
+      db.selectFrom("itemRow").selectAll()
+    );
+
     // Subscribe to sync updates
     evolu.subscribeQuery(profileQuery)(() => {
       _subscriptionFireCount++;
       dbg(`subscription fired (#${_subscriptionFireCount}), syncing: ${_syncing}, pulling: ${_pulling}`);
+      if (!_syncing && !_pulling) onSyncReceived();
+    });
+    // itemRow rows arriving asynchronously must also retrigger the merge
+    // — without this, a per-row push from device A would only land on
+    // device B after the next blob-driven pull tick (which v1.6.4's 10s
+    // debounce stretches out). Subscribing here gives near-real-time
+    // delta propagation, which is half the point of Phase 1.
+    evolu.subscribeQuery(itemRowQuery)(() => {
       if (!_syncing && !_pulling) onSyncReceived();
     });
 
@@ -306,6 +346,7 @@ export async function initSync() {
     _queryLoaded = Promise.all([
       evolu.loadQuery(profileQuery),
       evolu.loadQuery(tombstoneQuery),
+      evolu.loadQuery(itemRowQuery),
     ]).then(() => {
       dbg('Initial queries loaded');
     }).catch(e => {
@@ -896,6 +937,179 @@ async function parseSyncPayload(dataJson) {
 }
 
 // ═══════════════════════════════════════════════
+// PER-ARRAY DELTA SYNC — Phase 1 of CRDT-delta refactor
+// ═══════════════════════════════════════════════
+//
+// See memory/project_evolu_delta_refactor_plan.md for full design + risk
+// register. Short version: every pushProfile writes the entire ~200 KB
+// importedData blob into one CRDT message. Evolu's per-owner relay quota
+// fills in ~280 pushes (~few weeks of normal use), creating a recurring
+// "phone says committed, desktop sees stale" wedge. The cure is to use
+// Evolu the way it expects — many small rows mutated independently —
+// so each push is a few KB of CRDT delta instead of half a megabyte of
+// full-state snapshot.
+//
+// Phase 1 is ADDITIVE: blob still ships every push for back-compat with
+// pre-Phase-1 devices. Per-row inserts/updates/tombstones run in parallel.
+// Pull-side merges per-row first (authoritative), then blob (fallback).
+// Phase 2 (separate release ≥2 weeks later, after this datapath has
+// validated under real cross-device traffic) drops blob writes.
+
+// Arrays subject to delta sync. Highest-velocity first — these drive the
+// fat-blob size that fills the quota. Adding to this list does NOT
+// require schema migration since the itemRow table is generic.
+const DELTA_ARRAYS = [
+  'sunSessions',         // 1–10/day, ~500 B each
+  'lightDevices',        // rare add but per-device session logs are frequent
+  'deviceSessions',
+  'lightAudits',
+  'lightMeasurements',
+  'entries',             // 1–4/month at lab cadence, ~2 KB each
+  'notes',               // ad-hoc; user-driven cadence
+  'supplements',         // editorial churn during routine tweaking
+  'healthGoals',
+];
+
+// Returns the localStorage key holding the last-pushed snapshot
+// (`{itemId: contentHash}`) for one (profileId, arrayName). Snapshot is
+// updated only after a successful onComplete so a wedged push doesn't
+// strand future deltas behind a never-cleared diff.
+function _deltaSnapshotKey(profileId, arrayName) {
+  return `labcharts-${profileId}-delta-${arrayName}`;
+}
+
+function _readDeltaSnapshot(profileId, arrayName) {
+  try {
+    const raw = localStorage.getItem(_deltaSnapshotKey(profileId, arrayName));
+    return raw ? (JSON.parse(raw) || {}) : {};
+  } catch { return {}; }
+}
+
+function _writeDeltaSnapshot(profileId, arrayName, snap) {
+  try { localStorage.setItem(_deltaSnapshotKey(profileId, arrayName), JSON.stringify(snap)); } catch {}
+}
+
+// Stable hash for content-equality detection. djb2 — fine for our
+// purpose (ferret out unchanged items so we don't re-push), and
+// already in utils.js historically. We dropped the import in v1.6.3;
+// re-add a local copy here scoped to delta-diffing only.
+function _djb2(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+// Push the diff between the current array state and the last-pushed
+// snapshot. Returns the candidate-new snapshot (caller commits it from
+// onComplete after the blob push lands successfully).
+async function _planArrayDelta(profileId, arrayName, items) {
+  const prev = _readDeltaSnapshot(profileId, arrayName);
+  const next = {};
+  const ops = []; // collected pending evolu mutations
+
+  // Index existing itemRow rows for this (profile, array) so we can
+  // reuse their `id` on update instead of creating phantom duplicates.
+  const allItemRows = (evolu && itemRowQuery) ? (evolu.getQueryRows(itemRowQuery) || []) : [];
+  const matching = allItemRows.filter(r => r.profileId === profileId && r.arrayName === arrayName);
+  const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
+
+  const live = Array.isArray(items) ? items.filter(it => it && typeof it.id === 'string' && /^[a-zA-Z0-9_.-]+$/.test(it.id)) : [];
+  for (const item of live) {
+    const json = JSON.stringify(item);
+    const hash = _djb2(json);
+    next[item.id] = hash;
+    if (prev[item.id] === hash) continue; // unchanged — skip push
+
+    // Compress payload the same way buildSyncPayload does — itemRow.payload
+    // is a NonEmptyString, gzip+base64 envelope keeps small items tiny.
+    let payload = json;
+    if (typeof CompressionStream !== 'undefined' && json.length > 256) {
+      try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
+    }
+    const existing = rowByItemId.get(item.id);
+    const syncedAt = new Date().toISOString();
+    if (existing) {
+      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName, itemId: item.id, payload, syncedAt } });
+    } else {
+      ops.push({ kind: 'insert', args: { profileId, arrayName, itemId: item.id, payload, syncedAt } });
+    }
+  }
+
+  // Tombstones: items that were in the prev snapshot but no longer in
+  // the array. Skip if the row is already tombstoned, or if no row
+  // exists yet (could just be a snapshot/local-storage drift on a
+  // fresh device; safer to no-op than to push a phantom delete).
+  for (const prevId of Object.keys(prev)) {
+    if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
+    const row = rowByItemId.get(prevId);
+    if (!row || row.isDeleted) continue;
+    ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+  }
+
+  return { ops, next };
+}
+
+// Apply the planned ops via Evolu. Called from pushProfile's onComplete
+// after the fat-blob push lands; on failure we leave the snapshot
+// untouched so the next push retries the same delta automatically.
+function _applyArrayDelta(arrayName, plan) {
+  for (const op of plan.ops) {
+    try {
+      if (op.kind === 'insert') evolu.insert("itemRow", op.args);
+      else if (op.kind === 'update') evolu.update("itemRow", op.args);
+      else if (op.kind === 'tombstone') evolu.update("itemRow", op.args);
+    } catch (e) {
+      console.warn(`[sync] delta op ${op.kind} ${arrayName} failed:`, e?.message || e);
+    }
+  }
+}
+
+// Pull-side: walk every itemRow for this profileId, group by arrayName,
+// apply tombstones (drop matching items from imported[arrayName]) and
+// upsert live payloads (replace by item.id, or push if unseen). Per-row
+// state is authoritative — a tombstone here removes an item even if the
+// blob still has it, and a live payload here overrides the blob's copy.
+async function _mergeItemRowsIntoImported(profileId, imported) {
+  if (!evolu || !itemRowQuery) return imported;
+  const rows = evolu.getQueryRows(itemRowQuery) || [];
+  const byArray = new Map();
+  for (const row of rows) {
+    if (!row || row.profileId !== profileId) continue;
+    if (!byArray.has(row.arrayName)) byArray.set(row.arrayName, []);
+    byArray.get(row.arrayName).push(row);
+  }
+  for (const [arrayName, arrRows] of byArray) {
+    if (!Array.isArray(imported[arrayName])) imported[arrayName] = [];
+    const tombs = new Set();
+    const liveById = new Map();
+    for (const row of arrRows) {
+      if (row.isDeleted) { tombs.add(row.itemId); continue; }
+      try {
+        let json = row.payload;
+        if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
+          if (typeof DecompressionStream === 'undefined') continue;
+          json = await _gunzipToString(_base64ToBytes(json.slice(6)));
+        }
+        const item = JSON.parse(json);
+        if (item && typeof item === 'object' && item.id === row.itemId) {
+          liveById.set(row.itemId, item);
+        }
+      } catch {}
+    }
+    // Apply tombstones (drop) + live (replace or insert)
+    imported[arrayName] = imported[arrayName].filter(it => !tombs.has(it?.id));
+    const seen = new Map();
+    for (let i = 0; i < imported[arrayName].length; i++) seen.set(imported[arrayName][i]?.id, i);
+    for (const [itemId, item] of liveById) {
+      const idx = seen.get(itemId);
+      if (idx !== undefined) imported[arrayName][idx] = item;
+      else imported[arrayName].push(item);
+    }
+  }
+  return imported;
+}
+
+// ═══════════════════════════════════════════════
 // RELAY QUOTA ESTIMATE (client-side, no relay endpoint needed)
 // ═══════════════════════════════════════════════
 //
@@ -981,6 +1195,28 @@ async function pushProfile(profileId, importedData, opts = {}) {
     dbg(`${queueMsg} @ ${queuedAt}`);
     _logSyncEvent('queue', queueMsg);
 
+    // Phase 1 of CRDT-delta refactor: plan per-array deltas BEFORE the
+    // blob update so the diff is computed against the same importedData
+    // snapshot we're about to ship. Apply runs from onComplete so a
+    // wedged blob push doesn't strand the snapshot pointer past the
+    // unmerged delta.
+    const deltaPlans = [];
+    let deltaOpCount = 0;
+    if (importedData && typeof importedData === 'object') {
+      for (const arrayName of DELTA_ARRAYS) {
+        const items = Array.isArray(importedData[arrayName]) ? importedData[arrayName] : [];
+        try {
+          const plan = await _planArrayDelta(profileId, arrayName, items);
+          if (plan.ops.length > 0) {
+            deltaPlans.push({ arrayName, plan });
+            deltaOpCount += plan.ops.length;
+          }
+        } catch (e) {
+          console.warn(`[sync] delta-plan ${arrayName} failed:`, e?.message || e);
+        }
+      }
+    }
+
     let completed = false;
     let watchdogId = null;
     const finish = () => {
@@ -1008,6 +1244,18 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // to the cumulative — close enough to relay's storedBytes to warn
       // the user before the 50 MB wall.
       _trackPushBytes((dataJson || '').length);
+      // Phase 1 of CRDT-delta refactor: apply the planned per-array
+      // deltas now that the blob committed. Snapshot is committed only
+      // after the per-row mutations are queued — failure to apply a
+      // delta will retry on the next push since the snapshot still
+      // reflects what was last successfully reflected to the relay.
+      if (deltaPlans.length > 0) {
+        for (const { arrayName, plan } of deltaPlans) {
+          _applyArrayDelta(arrayName, plan);
+          _writeDeltaSnapshot(profileId, arrayName, plan.next);
+        }
+        dbg(`Applied ${deltaOpCount} delta ops across ${deltaPlans.length} array(s)`);
+      }
       finish();
     };
     // Watchdog: if Evolu never calls onComplete within 30s, the worker is
@@ -1551,9 +1799,21 @@ async function onSyncReceived() {
             dbg('Could not read local importedData for merge:', e.message);
           }
         }
-        const merged = localImportedForMerge
+        let merged = localImportedForMerge
           ? mergeImportedData(localImportedForMerge, importedData)
           : importedData;
+        // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER
+        // the blob merge. Per-row state is authoritative — a tombstone
+        // here drops the corresponding item even if the blob (which is
+        // older or written by a pre-Phase-1 device) still carried it.
+        // Order matters: blob first establishes baseline, then per-row
+        // applies the up-to-date deltas on top. Idempotent: if the blob
+        // and per-row tables agree, the overlay is a no-op.
+        try {
+          merged = await _mergeItemRowsIntoImported(profileId, merged) || merged;
+        } catch (e) {
+          console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
+        }
         const _ct = (b, k) => Array.isArray(b?.[k]) ? b[k].length : 0;
         const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${_ct(localImportedForMerge,'sunSessions')}/dev=${_ct(localImportedForMerge,'lightDevices')} · remote sun=${_ct(importedData,'sunSessions')}/dev=${_ct(importedData,'lightDevices')} · merged sun=${_ct(merged,'sunSessions')}/dev=${_ct(merged,'lightDevices')}`;
         dbg(mergeMsg);

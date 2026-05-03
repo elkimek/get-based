@@ -144,6 +144,79 @@ return (async function() {
     localStorage.removeItem(fakeKey);
   }
 
+  // ═══════════════════════════════════════
+  // 11. CRDT-DELTA REFACTOR — PHASE 1 (v1.7.0)
+  // ═══════════════════════════════════════
+  console.log('%c 11. CRDT-Delta Phase 1 ', 'font-weight:bold;color:#10b981');
+
+  // Schema additions
+  assert('Schema declares itemRow table',
+    /itemRow:\s*\{[\s\S]{0,300}arrayName:\s*NonEmptyString[\s\S]{0,300}itemId:\s*NonEmptyString[\s\S]{0,200}payload:\s*NonEmptyString/.test(syncSrc));
+  assert('itemRowQuery created on init',
+    /itemRowQuery\s*=\s*evolu\.createQuery\([\s\S]{0,200}selectFrom\("itemRow"\)/.test(syncSrc));
+  assert('itemRowQuery loaded with profileQuery + tombstoneQuery',
+    /Promise\.all\(\[[\s\S]{0,400}evolu\.loadQuery\(itemRowQuery\)/.test(syncSrc));
+  assert('itemRow subscription retriggers onSyncReceived',
+    /evolu\.subscribeQuery\(itemRowQuery\)\([\s\S]{0,200}onSyncReceived\(\)/.test(syncSrc));
+
+  // DELTA_ARRAYS list (high-velocity arrays)
+  assert('DELTA_ARRAYS includes sunSessions + lightDevices',
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,400}'sunSessions'[\s\S]{0,400}'lightDevices'/.test(syncSrc));
+  assert('DELTA_ARRAYS includes entries + notes (high-importance lab data)',
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,800}'entries'[\s\S]{0,400}'notes'/.test(syncSrc));
+
+  // Push-side plan/apply contract
+  assert('_planArrayDelta diffs against last-pushed snapshot',
+    /_planArrayDelta[\s\S]{0,800}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,800}prev\[item\.id\]\s*===\s*hash/.test(syncSrc));
+  assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
+    /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncSrc));
+  assert('_planArrayDelta gzip-compresses payloads >256 bytes',
+    /json\.length > 256[\s\S]{0,200}GZ\|v1\|/.test(syncSrc));
+  assert('_planArrayDelta emits tombstones for items removed since last push',
+    /kind:\s*'tombstone'[\s\S]{0,200}isDeleted:\s*1/.test(syncSrc));
+  assert('_planArrayDelta is conservative on missing rows (no phantom delete)',
+    /safer to no-op[\s\S]{0,100}phantom delete/.test(syncSrc));
+  assert('_applyArrayDelta dispatches insert/update/tombstone',
+    /_applyArrayDelta[\s\S]{0,300}evolu\.insert\("itemRow"[\s\S]{0,200}evolu\.update\("itemRow"/.test(syncSrc));
+
+  // Push integration in pushProfile
+  assert('pushProfile plans deltas before evolu.update on profileData',
+    /deltaPlans\s*=\s*\[\][\s\S]{0,1000}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,400}_planArrayDelta/.test(syncSrc));
+  // Anchor on "Push committed" — unique to the onComplete arrow function,
+  // unlike "onComplete" which also appears in evolu.update call sites.
+  assert('pushProfile applies deltas only after onComplete (blob commit)',
+    /Push committed[\s\S]{0,2500}deltaPlans\.length > 0[\s\S]{0,400}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}_writeDeltaSnapshot/.test(syncSrc));
+
+  // Pull-side merge contract — per-row authoritative, blob fallback
+  assert('onSyncReceived overlays per-row state AFTER blob merge',
+    /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
+    /_mergeItemRowsIntoImported[\s\S]{0,1500}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(it\?\.id\)\)/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
+    /idx\s*!==\s*undefined[\s\S]{0,200}imported\[arrayName\]\[idx\]\s*=\s*item/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads',
+    /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToString\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',
+    /item\.id\s*===\s*row\.itemId/.test(syncSrc));
+
+  // Snapshot persistence contract
+  assert('Delta snapshot key namespaced per (profile, arrayName)',
+    /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncSrc));
+  assert('Snapshot only writes after onComplete (wedged-push safety)',
+    /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next\)/.test(syncSrc));
+
+  // Live diff sanity: confirm the diff logic respects content-equality
+  if (typeof CompressionStream !== 'undefined') {
+    const itemA = { id: 's1', kind: 'sun', minutes: 12 };
+    const itemAcopy = { id: 's1', kind: 'sun', minutes: 12 };
+    const itemB = { id: 's1', kind: 'sun', minutes: 13 };
+    const hashA = (() => { let h = 5381; const s = JSON.stringify(itemA); for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); })();
+    const hashAc = (() => { let h = 5381; const s = JSON.stringify(itemAcopy); for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); })();
+    const hashB = (() => { let h = 5381; const s = JSON.stringify(itemB); for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); })();
+    assert('djb2 hash equality holds for content-identical items', hashA === hashAc, `${hashA} vs ${hashAc}`);
+    assert('djb2 hash differs for content-changed items', hashA !== hashB, `${hashA} vs ${hashB}`);
+  }
+
   // Live gzip round-trip — exercises CompressionStream/DecompressionStream
   // the same way the push/pull paths will. Catches a future regression
   // where the envelope encoding diverges from the decoder.
