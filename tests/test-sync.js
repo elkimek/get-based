@@ -705,6 +705,88 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
+  // 14c. PHASE 2 CUTOVER READINESS CHECK (v1.7.9)
+  // ═══════════════════════════════════════
+  console.log('%c 14c. Phase 2 Cutover Readiness ', 'font-weight:bold;color:#f59e0b');
+
+  assert('getDeltaCutoverReadiness exported', /export function getDeltaCutoverReadiness/.test(syncSrc));
+  assert('getDeltaCutoverReadiness exposed on window',
+    /window[\s\S]{0,5000}getDeltaCutoverReadiness/.test(syncSrc));
+  assert('Cutover check classifies missing-rows as blocker',
+    /missing-rows[\s\S]{0,200}blockers\+\+/.test(syncSrc));
+  assert('Cutover check iterates DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS',
+    /getDeltaCutoverReadiness[\s\S]{0,3500}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,1000}for \(const mapName of DELTA_MAPS\)[\s\S]{0,1000}for \(const scalarName of DELTA_SCALARS\)/.test(syncSrc));
+  assert('getEvoluDiagnostics includes cutoverReadiness',
+    /out\.cutoverReadiness\s*=\s*state\.currentProfile/.test(syncSrc));
+  assert('Diagnose Copy text includes Phase 2 readiness section',
+    /Phase 2 cutover readiness:/.test(syncSrc));
+  assert('Diagnose modal renders cutover panel with blocker breakdown',
+    /<b>Phase 2 cutover readiness:<\/b>/.test(syncSrc) && /Surfaces with local data but no per-row push/.test(syncSrc));
+
+  // Live: synthesize an importedData object and call the readiness check
+  // through window.getDeltaCutoverReadiness with a known profile, verify
+  // the surface classification is right.
+  if (typeof window !== 'undefined' && typeof window.getDeltaCutoverReadiness === 'function') {
+    const TEST_PID = '__cutover_test__';
+    const synthImported = {
+      // arrays
+      sunSessions: [{ id: 's1' }, { id: 's2' }],
+      lightDevices: [],
+      deviceSessions: [],
+      lightAudits: [],
+      lightMeasurements: [],
+      entries: [{ id: 'e1' }],
+      notes: [],
+      supplements: [],
+      healthGoals: [],
+      changeHistory: [],
+      // maps
+      markerNotes: { 'biochemistry.glucose': 'note' },
+      customMarkers: {},
+      manualValues: {},
+      // scalars
+      menstrualCycle: { lastPeriod: '2026-04-15' },
+      diet: null,
+      exercise: null,
+      sleepRest: null,
+      diagnoses: null,
+      lightCircadian: null,
+      stress: null,
+      loveLife: null,
+      environment: null,
+      interpretiveLens: '',
+      contextNotes: '',
+      emfAssessment: null,
+      genetics: null,
+      biometrics: null,
+      lightEnvironment: null,
+      sunCorrelations: null,
+      lifelightProfile: null,
+      sunDefaults: null,
+    };
+    const r = window.getDeltaCutoverReadiness(TEST_PID, synthImported);
+    assert('readiness returns structured report', r && typeof r === 'object' && r.surfaces);
+    // No relay rows for this synthetic profile, so any surface with local
+    // data will be a blocker (status=missing-rows).
+    assert('readiness flags sunSessions as blocker (local data, no rows)',
+      r.surfaces.sunSessions?.status === 'missing-rows', r.surfaces.sunSessions?.status);
+    assert('readiness counts entries as blocker', r.surfaces.entries?.status === 'missing-rows');
+    assert('readiness counts markerNotes as blocker', r.surfaces.markerNotes?.status === 'missing-rows');
+    assert('readiness counts menstrualCycle scalar as blocker', r.surfaces.menstrualCycle?.status === 'missing-rows');
+    assert('readiness no-data status for empty arrays', r.surfaces.notes?.status === 'no-data');
+    assert('readiness no-data status for empty maps', r.surfaces.customMarkers?.status === 'no-data');
+    assert('readiness no-data status for null scalars', r.surfaces.diet?.status === 'no-data');
+    assert('readiness ready=false when blockers exist', r.ready === false);
+    assert('readiness blockerCount > 0', r.blockerCount > 0);
+    // Edge: empty importedData should be all no-data + ready=true (no
+    // local data anywhere → nothing for Phase 2 to lose).
+    const empty = window.getDeltaCutoverReadiness(TEST_PID, {});
+    assert('empty importedData → ready=true (no surfaces have local data)', empty.ready === true, `blockers=${empty.blockerCount}`);
+    // Edge: null profileId → returns error
+    assert('null profileId returns error', window.getDeltaCutoverReadiness(null)?.error === 'no-profile');
+  }
+
+  // ═══════════════════════════════════════
   // 15. VENDOR FILES
   // ═══════════════════════════════════════
   console.log('%c 15. Vendor Files ', 'font-weight:bold;color:#f59e0b');

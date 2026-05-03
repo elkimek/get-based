@@ -90,6 +90,10 @@ export async function getEvoluDiagnostics() {
   // gate), and (b) per-array row counts seen by the pull side (cross-
   // device replication gauge).
   out.deltaTelemetry = state.currentProfile ? getDeltaTelemetry(state.currentProfile) : null;
+  // Phase 2 cutover readiness — per-surface gap analysis. Surfaces in
+  // 'missing-rows' state would silently lose data on Phase 2 flip; the
+  // modal renders the full table so any blocker is visible.
+  out.cutoverReadiness = state.currentProfile ? getDeltaCutoverReadiness(state.currentProfile, state.importedData) : null;
   return out;
 }
 
@@ -154,6 +158,23 @@ function _evoluDiagnosticsText(d) {
         lines.push(`    ${name.padEnd(20)} live=${v.live} tombstones=${v.tombstones}`);
       }
       lines.push('    (compare across devices — diverging counts = relay replication lag)');
+    }
+  }
+  const r = d.cutoverReadiness;
+  if (r) {
+    lines.push('');
+    lines.push(`Phase 2 cutover readiness: ${r.ready ? 'READY ✓' : `BLOCKED — ${r.blockerCount} surface(s) missing rows`}`);
+    lines.push(`  ${r.surfaceCount} surfaces total`);
+    const blockers = Object.entries(r.surfaces).filter(([, v]) => v.status === 'missing-rows');
+    if (blockers.length > 0) {
+      lines.push(`  ⚠ BLOCKERS — surfaces with local data but no per-row push:`);
+      for (const [name, v] of blockers) {
+        lines.push(`    ${name.padEnd(20)} shape=${v.shape} local=${v.localCount} rows=${v.rowCount}`);
+      }
+    }
+    const ok = Object.entries(r.surfaces).filter(([, v]) => v.status === 'ok');
+    if (ok.length > 0) {
+      lines.push(`  ✓ ok (${ok.length}): ${ok.map(([n]) => n).join(', ')}`);
     }
   }
   return lines.join('\n');
@@ -1619,6 +1640,79 @@ export function resetDeltaTelemetry(profileId) {
   try { localStorage.removeItem(_deltaTelemetryKey(profileId)); return true; } catch { return false; }
 }
 
+// ═══════════════════════════════════════════════
+// PHASE 2 CUTOVER READINESS (v1.7.9)
+// ═══════════════════════════════════════════════
+//
+// Once cross-device bake completes (≥2 weeks of real traffic on v1.7.0+),
+// dropping the fat-blob writes is a one-line change in buildSyncPayload.
+// This check is the hard gate before that flip — it surveys every
+// DELTA_ARRAYS / DELTA_MAPS / DELTA_SCALARS field for the active profile
+// and reports whether each surface that has LOCAL data also has at least
+// one corresponding itemRow in this device's Evolu DB. If any surface
+// has data locally but no per-row row, the per-row datapath isn't
+// carrying that surface yet — flipping Phase 2 would silently lose it.
+//
+// Returns a structured `{ ready: bool, surfaces: { [name]: { localCount,
+// rowCount, status } } }` so the caller can render a per-surface table.
+// status values: 'ok' (data on both sides), 'no-data' (nothing locally,
+// nothing to verify), 'missing-rows' (local data exists but no rows
+// shipped — BLOCKER), 'rows-only' (rows exist but no local data —
+// fine: another device pushed, this one hasn't synced or had it).
+export function getDeltaCutoverReadiness(profileId, importedData) {
+  if (!profileId) return { ready: false, error: 'no-profile', surfaces: {} };
+  if (!importedData) importedData = state.importedData || {};
+  const surfaces = {};
+  let blockers = 0;
+
+  // Index existing itemRow rows for this profile so each surface check
+  // is a Map lookup, not an O(n) scan.
+  const allItemRows = (evolu && itemRowQuery) ? (evolu.getQueryRows(itemRowQuery) || []) : [];
+  const rowsByName = new Map();
+  for (const r of allItemRows) {
+    if (!r || r.profileId !== profileId) continue;
+    if (!rowsByName.has(r.arrayName)) rowsByName.set(r.arrayName, []);
+    rowsByName.get(r.arrayName).push(r);
+  }
+
+  function classify(name, localCount, rowCount) {
+    let status;
+    if (localCount === 0 && rowCount === 0) status = 'no-data';
+    else if (localCount > 0 && rowCount === 0) { status = 'missing-rows'; blockers++; }
+    else if (localCount === 0 && rowCount > 0) status = 'rows-only';
+    else status = 'ok';
+    surfaces[name] = { shape: undefined, localCount, rowCount, status };
+  }
+
+  for (const arrayName of DELTA_ARRAYS) {
+    const items = Array.isArray(importedData[arrayName]) ? importedData[arrayName] : [];
+    const rows = (rowsByName.get(arrayName) || []).filter(r => !r.isDeleted);
+    classify(arrayName, items.length, rows.length);
+    surfaces[arrayName].shape = 'array';
+  }
+  for (const mapName of DELTA_MAPS) {
+    const obj = importedData[mapName];
+    const localCount = (obj && typeof obj === 'object' && !Array.isArray(obj)) ? Object.keys(obj).length : 0;
+    const rows = (rowsByName.get(mapName) || []).filter(r => !r.isDeleted);
+    classify(mapName, localCount, rows.length);
+    surfaces[mapName].shape = 'map';
+  }
+  for (const scalarName of DELTA_SCALARS) {
+    const v = importedData[scalarName];
+    const hasValue = v !== null && v !== undefined && !(typeof v === 'string' && v.length === 0);
+    const rows = (rowsByName.get(scalarName) || []).filter(r => !r.isDeleted);
+    classify(scalarName, hasValue ? 1 : 0, rows.length);
+    surfaces[scalarName].shape = 'scalar';
+  }
+
+  return {
+    ready: blockers === 0,
+    blockerCount: blockers,
+    surfaceCount: Object.keys(surfaces).length,
+    surfaces,
+  };
+}
+
 // Allowed fields when merging a synced profile into the local profiles list
 const PROFILE_MERGE_FIELDS = ['name', 'sex', 'dob', 'location', 'tags', 'archived', 'pinned', 'flagged', 'avatar', 'color'];
 
@@ -2793,6 +2887,32 @@ export async function showSyncDiagnose() {
           ${pullHtml}
         </div>`;
       })()}
+      ${(() => {
+        const r = d.cutoverReadiness;
+        if (!r) return '';
+        const blockers = Object.entries(r.surfaces).filter(([, v]) => v.status === 'missing-rows');
+        const okCount = Object.values(r.surfaces).filter(v => v.status === 'ok').length;
+        const noDataCount = Object.values(r.surfaces).filter(v => v.status === 'no-data').length;
+        const headerColor = r.ready ? 'var(--green)' : 'var(--orange)';
+        const headerLabel = r.ready ? 'READY ✓' : `BLOCKED — ${r.blockerCount} surface(s)`;
+        const blockerHtml = blockers.length === 0 ? '' : `
+          <div style="margin-top:6px;padding:8px;background:var(--surface);border-left:3px solid var(--orange);border-radius:4px">
+            <div style="color:var(--orange);font-weight:600;margin-bottom:4px;font-size:12px">⚠ Surfaces with local data but no per-row push:</div>
+            <table style="width:100%;font-size:11px">
+              ${blockers.map(([name, v]) => `<tr><td style="font-family:monospace;padding:2px 6px">${escapeHTML(name)}</td><td style="padding:2px 6px;color:var(--text-muted)">${v.shape}</td><td style="padding:2px 6px;text-align:right">local=${v.localCount} rows=${v.rowCount}</td></tr>`).join('')}
+            </table>
+            <div style="color:var(--text-muted);font-size:10px;margin-top:4px">Phase 2 (drop blob writes) would silently lose these surfaces. Trigger a save on each blocker, then re-check.</div>
+          </div>`;
+        return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <b>Phase 2 cutover readiness:</b>
+            <span style="color:${headerColor};font-weight:600">${headerLabel}</span>
+          </div>
+          <div style="color:var(--text-muted);font-size:11px">${r.surfaceCount} surfaces tracked · ${okCount} ok · ${noDataCount} no-data · ${blockers.length} blocker${blockers.length === 1 ? '' : 's'}</div>
+          <div style="color:var(--text-muted);font-size:11px;margin-top:4px">When this reads READY across both devices for ≥2 weeks <i>and</i> the dual-write ratio above sits &lt;5%, Phase 2 (drop the fat-blob writes entirely) is safe to ship.</div>
+          ${blockerHtml}
+        </div>`;
+      })()}
       <div>
         <b>Rows in this device's local Evolu DB:</b>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
@@ -3010,4 +3130,5 @@ Object.assign(window, {
   getDeltaTelemetry,
   resetDeltaTelemetry,
   confirmResetDeltaTelemetry,
+  getDeltaCutoverReadiness,
 });

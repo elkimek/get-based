@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.9', date: '2026-05-03', title: 'Phase 2 cutover-readiness check (in Sync diagnose)',
+    items: [
+      '<b>Sync diagnose now reports per-surface Phase 2 readiness.</b> A new "Phase 2 cutover readiness" panel surveys all 31 importedData surfaces (10 arrays + 3 keyed maps + 18 scalars) and classifies each as ok / no-data / missing-rows / rows-only. If any surface has local data but no per-row push (status: missing-rows), Phase 2 — dropping the fat-blob writes entirely — would silently lose it. The check is the hard gate before that flip.',
+      '<b>What you\'ll see on a healthy device.</b> READY ✓ in green, with the surface count broken down (e.g. "31 surfaces tracked · 12 ok · 19 no-data · 0 blockers"). The "no-data" tally is fine — many surfaces are optional (genetics, EMF assessment, cycle data) and only relevant if the user has populated them.',
+      '<b>What you\'ll see on a not-yet-baked device.</b> "BLOCKED — N surfaces" in orange, with a per-surface table showing the blockers. Triggering a save on each (editing the corresponding card / array) ships the per-row deltas and clears the blocker.',
+      '<b>How this becomes the cutover gate.</b> When this reads READY across BOTH paired devices for ≥2 weeks AND the dual-write ratio (v1.7.1 telemetry) sits &lt;5%, the architectural gate is fully satisfied: every surface has a proven per-row datapath, the per-row payload is small, and dropping the blob is a safe one-line change.',
+    ]
+  },
+  {
     version: '1.7.8', date: '2026-05-03', title: 'Selfhost CAMS — DNS-rebinding hardening',
     items: [
       '<b>Selfhost UV-data URLs that carry a bearer token now require HTTPS.</b> Closes the DNS-rebinding gap acknowledged in the v1.6.0 audit. The attack: an attacker controls a public domain you paste into Settings → Light & Sun → Sun Data Source. First DNS lookup returns a public IP (passes the existing SSRF allowlist); subsequent lookups return 169.254.169.254 (cloud metadata), 192.168.1.1 (your router), or any LAN IP. Browser fetch is opaque to us, so the bearer travels with the rebound request. With HTTPS required, the rebound endpoint must present a valid TLS certificate for the original hostname — LAN/metadata targets won\'t have one, so the handshake fails before the Authorization header is sent.',
