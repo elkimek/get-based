@@ -1411,7 +1411,8 @@ function _renderChannelWeekChart(channelKey) {
   const days = window.dailyChannelBreakdown(channelKey, 7);
   const ch = window.CHANNEL_DISPLAY || {};
   const meta = ch[channelKey] || {};
-  const dailyTargetSlice = (meta.dailyTarget || 0) / 7; // weekly target evenly distributed across the 7 days
+  const dailyTarget = meta.dailyTarget || 0;
+  const dailyTargetSlice = dailyTarget; // chart is per-day, so target IS the daily target
   const observedMax = Math.max(0, ...days.map(d => d.sun + d.device));
   // Anchor the chart to whichever is bigger — the highest day or the
   // target-per-day line. Without this, very-low-dose weeks compress
@@ -1425,15 +1426,40 @@ function _renderChannelWeekChart(channelKey) {
   const dayLetter = (date) => 'SMTWTFS'[date.getDay()];
   const today = new Date(); today.setHours(0,0,0,0);
 
-  // Number formatter: aggressive 1-2 significant digits so the stub
-  // labels above the bars stay readable.
+  // Per-day number formatter — converts channel-au into the channel's
+  // natural unit so the chart labels match the hero's unit. Channel-au
+  // by itself is dimensionless ("576K of what?"); always show something
+  // human-readable.
+  //
+  // Returns "" for zero/sub-meaningful values so the chart doesn't get
+  // peppered with "0%" labels on empty days.
   const fmt = (n) => {
-    if (n < 1) return '·';
-    if (n >= 10000) return (n / 1000).toFixed(0) + 'k';
-    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-    if (n >= 100) return String(Math.round(n / 10) * 10);
-    if (n >= 10) return String(Math.round(n));
-    return n.toFixed(1);
+    if (!Number.isFinite(n) || n < 0.5) return '';
+    if (channelKey === 'vitamin_d' && window.vitaminDIU) {
+      // No per-day fitz/uvi context; use Fitz III + assume threshold met
+      // as a chart-only approximation. Hero uses the per-session-correct
+      // rollingVitaminDIU; chart reads as relative IU per day.
+      const iu = window.vitaminDIU(n, 'III', 7);
+      if (iu < 1) return '';
+      if (iu >= 1000) return (iu / 1000).toFixed(1) + 'k';
+      if (iu >= 100) return String(Math.round(iu / 10) * 10);
+      return String(Math.round(iu));
+    }
+    if (channelKey === 'nir_solar' && window.pbmJoulesPerCm2) {
+      const j = window.pbmJoulesPerCm2(n);
+      if (j < 0.05) return '';
+      if (j >= 10) return String(Math.round(j));
+      if (j >= 1) return j.toFixed(1);
+      return j.toFixed(2);
+    }
+    // Unitless channels — show percent-of-daily-target so the day-vs-day
+    // comparison reads as % of typical day, not raw channel-au.
+    if (dailyTarget > 0) {
+      const pct = Math.round(100 * n / dailyTarget);
+      if (pct === 0) return '';
+      return `${pct}%`;
+    }
+    return '';
   };
 
   // Empty-day placeholder bar so the chart never reads as a giant blank.
@@ -1485,14 +1511,20 @@ function _renderChannelWeekChart(channelKey) {
   </div>`;
 }
 
-// Hero stat for a channel — what the user actually wants to see at the
-// top of the panel. Real-unit aggregate when defensible (vit-D IU, J/cm²),
-// channel-au + percent for unitless channels.
-function _channelHero(channelKey, totalCurrent, totalPrev, fitzpatrick) {
+// Hero stat for a channel — the headline number at the top of the
+// drill-down panel. Resolves to a real, named unit for every channel:
+//   • vitamin_d → IU synthesized this week (Holick/Bogh conversion)
+//   • nir_solar → J/cm² weekly cellular-repair dose (pbmJoulesPerCm2)
+//   • circadian / no_cv / pomc / violet_eye → percent of a "typical
+//     active week" target. Channel-au is a dimensionless integration
+//     of irradiance × action-spectrum × time, so showing it as a raw
+//     number ("576K of what?") is meaningless to users — the percent
+//     is the only honest summary at that level of abstraction.
+function _channelHero(channelKey, totalCurrent, totalPrev) {
   const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
   const target = meta.dailyTarget || 0;
   const weeklyTarget = target * 7; // 7-day equivalent of the daily target
-  const fmtBig = (n) => {
+  const fmtIntK = (n) => {
     if (n < 10) return n.toFixed(1);
     if (n < 1000) return String(Math.round(n));
     if (n < 10000) return (n / 1000).toFixed(1) + 'k';
@@ -1500,17 +1532,26 @@ function _channelHero(channelKey, totalCurrent, totalPrev, fitzpatrick) {
   };
   let primary = '';
   let primarySub = '';
-  // Channel-specific real-unit conversion when the math has a defensible
-  // weekly aggregate. Otherwise fall back to the channel-au value with
-  // qualitative tier framing.
+  // Trend baseline value for the "vs last week" chip. Same unit as the
+  // primary so the comparison is apples-to-apples (e.g. percent → percent).
+  let prevForTrend = totalPrev;
+  let curForTrend = totalCurrent;
+
   if (channelKey === 'vitamin_d' && window.rollingVitaminDIU) {
     const iu = window.rollingVitaminDIU(7);
     if (iu >= 30) {
-      primary = `~${fmtBig(iu)} IU`;
+      primary = `~${fmtIntK(iu)} IU`;
       primarySub = 'vitamin D synthesized this week';
     } else {
       primary = '—';
       primarySub = 'no meaningful synthesis this week';
+    }
+    // Vit-D last-week sum: rough equivalent — apply the same
+    // channel-au→IU ratio observed for the current week to the prev-week
+    // channel-au total. Keeps the trend chip in the same IU unit.
+    if (totalCurrent > 0 && iu > 0) {
+      prevForTrend = totalPrev * (iu / totalCurrent);
+      curForTrend = iu;
     }
   } else if (channelKey === 'nir_solar' && window.pbmJoulesPerCm2) {
     const j = window.pbmJoulesPerCm2(totalCurrent);
@@ -1521,24 +1562,35 @@ function _channelHero(channelKey, totalCurrent, totalPrev, fitzpatrick) {
       primary = '—';
       primarySub = 'no meaningful NIR exposure this week';
     }
+    // Trend in J/cm² — convert prev-week channel-au too.
+    prevForTrend = window.pbmJoulesPerCm2(totalPrev);
+    curForTrend = j;
   } else {
-    // Unitless channels — show channel-au value rounded for readability,
-    // with the percent-of-target as the contextual sub-label.
+    // Unitless channels — channel-au has no real-world unit, so the
+    // hero is the percent-of-typical-week. Big and named.
     if (totalCurrent < 0.5) {
       primary = '—';
       primarySub = 'no exposure logged this week';
+    } else if (weeklyTarget > 0) {
+      const pct = Math.round(100 * totalCurrent / weeklyTarget);
+      primary = `${pct}%`;
+      primarySub = 'of a typical active-outdoor week';
     } else {
-      primary = fmtBig(totalCurrent);
-      const pct = weeklyTarget > 0 ? Math.round(100 * totalCurrent / weeklyTarget) : null;
-      primarySub = pct != null
-        ? `${pct}% of typical-active-week target`
-        : 'channel-au this week (raw)';
+      primary = '—';
+      primarySub = 'no target calibration available';
+    }
+    // Trend in percent — convert both windows to percent for apples-to-
+    // apples comparison.
+    if (weeklyTarget > 0) {
+      prevForTrend = (totalPrev / weeklyTarget) * 100;
+      curForTrend = (totalCurrent / weeklyTarget) * 100;
     }
   }
+
   // Trend vs previous 7 days — only show when both windows have data.
   let trend = '';
-  if (totalPrev > 0.5 && totalCurrent > 0.5) {
-    const ratio = totalCurrent / totalPrev;
+  if (prevForTrend > 0.5 && curForTrend > 0.5) {
+    const ratio = curForTrend / prevForTrend;
     if (ratio >= 1.20) {
       trend = `<span class="light-channel-hero-trend up">↑ ${Math.round((ratio - 1) * 100)}% vs last week</span>`;
     } else if (ratio <= 0.80) {
@@ -1546,10 +1598,10 @@ function _channelHero(channelKey, totalCurrent, totalPrev, fitzpatrick) {
     } else {
       trend = `<span class="light-channel-hero-trend flat">~ steady vs last week</span>`;
     }
-  } else if (totalCurrent > 0.5 && totalPrev < 0.5) {
+  } else if (curForTrend > 0.5 && prevForTrend < 0.5) {
     trend = `<span class="light-channel-hero-trend up">↑ first week with exposure here</span>`;
-  } else if (totalCurrent < 0.5 && totalPrev > 0.5) {
-    trend = `<span class="light-channel-hero-trend down">↓ no exposure this week (had ${fmtBig(totalPrev)} last week)</span>`;
+  } else if (curForTrend < 0.5 && prevForTrend > 0.5) {
+    trend = `<span class="light-channel-hero-trend down">↓ no exposure this week</span>`;
   }
   return `<div class="light-channel-hero">
     <div class="light-channel-hero-primary">${escapeHTML(primary)}</div>
