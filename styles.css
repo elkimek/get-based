@@ -7356,14 +7356,25 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   font-variant-numeric: tabular-nums;
 }
 .sun-detail-channel-tier {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
   color: var(--text-muted); flex-shrink: 0;
-  min-width: 60px; text-align: right;
+  min-width: 70px; text-align: center;
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
 }
-.sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier { color: var(--green); }
-.sun-detail-channel-row.sun-chip-tier-2 .sun-detail-channel-tier { color: var(--accent); }
-.sun-detail-channel-row.sun-chip-tier-3 .sun-detail-channel-tier { color: var(--orange); }
-.sun-detail-channel-row.sun-chip-tier-4 .sun-detail-channel-tier { color: var(--red); }
+.sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier {
+  color: var(--green); border-color: rgba(34, 197, 94, 0.30); background: rgba(34, 197, 94, 0.10);
+}
+.sun-detail-channel-row.sun-chip-tier-2 .sun-detail-channel-tier {
+  color: var(--accent); border-color: rgba(79, 140, 255, 0.30); background: rgba(79, 140, 255, 0.10);
+}
+.sun-detail-channel-row.sun-chip-tier-3 .sun-detail-channel-tier {
+  color: var(--orange); border-color: rgba(245, 158, 11, 0.30); background: rgba(245, 158, 11, 0.10);
+}
+.sun-detail-channel-row.sun-chip-tier-4 .sun-detail-channel-tier {
+  color: var(--red); border-color: rgba(239, 68, 68, 0.30); background: rgba(239, 68, 68, 0.10);
+}
 .sun-detail-atm {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -7378,8 +7389,11 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   font-size: 11px;
 }
 .sun-detail-atm span { color: var(--text-muted); font-size: 10px; }
-.sun-detail-atm strong { color: var(--text-primary); font-size: 13px; }
+.sun-detail-atm strong { color: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
 .sun-detail-atm-source { grid-column: 1 / -1; }
+/* UV split readout is verbose ("UVB 3.0% (1.0 W/m²) · UVA 97.0% (30.7 W/m²)"); span the full grid row so it doesn't get cropped or overflow into other cells. */
+.sun-detail-atm-uvsplit { grid-column: 1 / -1; }
+.sun-detail-atm-uvsplit strong { font-size: 12px; }
 .sun-detail-empty {
   font-size: 12px; color: var(--text-muted); font-style: italic;
 }

@@ -2027,8 +2027,16 @@ export function openSunSessionDetail(id) {
   const start = new Date(sess.startedAt);
   const end = sess.endedAt ? new Date(sess.endedAt) : null;
   const fmtTime = (d) => d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
-  const fmtDate = (d) => d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '—';
+  // Modal title date: full month + day + year — avoids the "Sun session
+  // — Sun, May 3" stutter and gives a clear timestamp at a glance.
+  const fmtTitleDate = (d) => d ? d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—';
   const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress';
+  // Combined "When" string — a single cell beats three near-redundant ones
+  // (Started / Ended / Duration). Renders "10:07–10:32 · 25 min" or
+  // "10:07 · started 5 min ago" for in-progress sessions.
+  const whenStr = end
+    ? `${fmtTime(start)}–${fmtTime(end)} · ${dur}`
+    : `${fmtTime(start)} · ${dur}`;
 
   const presetLabels = Object.fromEntries(EXPOSURE_PRESETS.map(p => [p.key, p.label]));
   const eyeLabels = Object.fromEntries(EYE_MODES.map(e => [e.key, e.label]));
@@ -2050,7 +2058,8 @@ export function openSunSessionDetail(id) {
     if (med >= 1) label = 'over threshold';
     else if (med >= 0.7) label = 'high';
     else if (med >= 0.3) label = 'moderate';
-    medStr = `${pct}% — ${label}`;
+    // Non-breaking space between number and label keeps them on one line.
+    medStr = `${pct}% · ${label}`;
   }
 
   // Per-channel breakdown. Real-world units (IU, J/cm², M-EDI lux)
@@ -2095,7 +2104,10 @@ export function openSunSessionDetail(id) {
   let atmHtml = '';
   if (atm) {
     const uvi = atm.uvIndex != null ? Math.round(atm.uvIndex * 10) / 10 : '—';
-    const ozone = atm.ozoneDU != null ? Math.round(atm.ozoneDU) : '—';
+    // Open-Meteo free tier doesn't expose stratospheric ozone DU; engine
+    // substitutes 300 DU internally. Show a clear "—" + "(default 300)"
+    // suffix instead of the awkward "— DU".
+    const ozoneStr = atm.ozoneDU != null ? `${Math.round(atm.ozoneDU)} DU` : '— (default 300)';
     const cloud = atm.cloudCover != null ? `${Math.round(atm.cloudCover)}%` : '—';
     const aqPm25 = atm.airQuality?.pm25 != null ? Math.round(atm.airQuality.pm25) : '—';
     let zenithStr = '—', elevStr = '';
@@ -2148,15 +2160,18 @@ export function openSunSessionDetail(id) {
         }
       }
     } catch (e) {}
+    // Source label: pretty-print the raw provider key.
+    const sourceLabels = { open_meteo: 'Open-Meteo', cams: 'CAMS', noaa_nws: 'NOAA NWS', selfhost: 'Self-hosted', manual: 'Manual entry' };
+    const sourceStr = sourceLabels[atm.source] || atm.source || 'unknown';
     atmHtml = `<div class="sun-detail-atm">
       <div title="WHO UV index at session midpoint${atm._uvOverridden ? ' (manual override active)' : ''}"><span>UVI${atm._uvOverridden ? ' (manual)' : ''}</span><strong>${uvi}</strong></div>
-      <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through."><span>Ozone</span><strong>${ozone} DU</strong></div>
+      <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through. Engine defaults to 300 DU when source doesn't expose it."><span>Ozone</span><strong>${ozoneStr}</strong></div>
       <div title="Cloud-cover modifier on direct beam. Diffuse scatter still passes through."><span>Cloud</span><strong>${cloud}</strong></div>
       <div title="PM2.5 — fine particulate. Affects aerosol optical depth (AOD) and UV scattering."><span>PM2.5</span><strong>${aqPm25}</strong></div>
       <div title="Solar zenith angle at session midpoint — angle between sun and vertical. 0° = directly overhead, 90° = horizon."><span>Zenith</span><strong>${zenithStr}</strong></div>
       <div title="Altitude above sea level — UV climbs ~10% per 1000 m."><span>Altitude</span><strong>${altStr}</strong></div>
-      ${uvSplitStr ? `<div title="UVB-to-UVA ratio at ground level. Driven by zenith + ozone column."><span>UV split</span><strong>${uvSplitStr}</strong></div>` : ''}
-      <div class="sun-detail-atm-source"><span>Source</span><strong>${escapeHTML(atm.source || 'unknown')}</strong></div>
+      ${uvSplitStr ? `<div class="sun-detail-atm-uvsplit" title="UVB-to-UVA ratio at ground level, computed from the reconstructed Bird-Riordan spectrum. Driven by zenith, ozone, cloud cover, and aerosols."><span>UV split</span><strong>${uvSplitStr}</strong></div>` : ''}
+      <div class="sun-detail-atm-source"><span>Source</span><strong>${escapeHTML(sourceStr)}</strong></div>
     </div>`;
   }
 
@@ -2167,45 +2182,61 @@ export function openSunSessionDetail(id) {
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
+  // Body summary — combine fraction + regions onto one line so the section
+  // doesn't flag the percent as a label decoration. Also consolidate Eyes
+  // + Modifiers into the same section when both fit cleanly.
+  const eyeMode = eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset';
+  const lensTintStr = sess.eyeExposure?.lensTint && sess.eyeExposure.lensTint !== 'clear'
+    ? ` · ${lensLabels[sess.eyeExposure.lensTint] || ''}` : '';
+  const modifierBits = [];
+  if (sess.bodyExposure?.glassBetween) modifierBits.push('Behind glass');
+  if (sess.bodyExposure?.sunscreenSPF) modifierBits.push(`SPF ${sess.bodyExposure.sunscreenSPF}`);
+  if (sess.posture && sess.posture !== 'standing') {
+    const postureLabel = (POSTURE_OPTIONS.find(p => p.key === sess.posture) || {}).label;
+    if (postureLabel) modifierBits.push(postureLabel);
+  }
+  if (sess.surfaceAlbedo && sess.surfaceAlbedo !== 'grass') {
+    const surfLabel = (SURFACE_OPTIONS.find(s => s.key === sess.surfaceAlbedo) || {}).label;
+    if (surfLabel) modifierBits.push(surfLabel.split(' (')[0]); // drop the "(~25%)" suffix
+  }
+
   overlay.innerHTML = `<div class="modal sun-detail-modal" role="dialog" aria-label="Sun session details">
     <div class="modal-header">
-      <h3>Sun session — ${escapeHTML(fmtDate(start))}</h3>
+      <h3>Sun session · ${escapeHTML(fmtTitleDate(start))}</h3>
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <div class="sun-detail-grid">
-        <div><span>Started</span><strong>${escapeHTML(fmtTime(start))}</strong></div>
-        <div><span>Ended</span><strong>${escapeHTML(end ? fmtTime(end) : '—')}</strong></div>
-        <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
-        <div><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
-        ${sess.doses?.vitamin_d ? `<div title="Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}. Gated by UVI threshold (Webb 2018: no meaningful synthesis below UVI ~2-3). Saturates around 20k IU per session. Range = MODEL uncertainty (±20% noon, ±45% low sun); blood 25(OH)D response to the same dose varies an additional 2-3× across individuals (Webb 2018, Datta 2019) — calibrate against your own labs over time."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith))}</strong></div>` : ''}
+        <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
+        <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
+        ${sess.doses?.vitamin_d ? `<div title="Approximate vitamin D₃ synthesis. Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session. Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith))}</strong></div>` : ''}
       </div>
 
       <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Body exposed (${fractionPct}% of skin)</div>
+        <div class="sun-detail-section-label">Skin exposed · ${fractionPct}%</div>
         <div class="sun-detail-section-value">${escapeHTML(regionLabels)}</div>
       </div>
 
       <div class="sun-detail-section">
         <div class="sun-detail-section-label">Eyes</div>
-        <div class="sun-detail-section-value">${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Unset')}${sess.eyeExposure?.lensTint && sess.eyeExposure.lensTint !== 'clear' ? ` · ${escapeHTML(lensLabels[sess.eyeExposure.lensTint] || '')}` : ''}</div>
+        <div class="sun-detail-section-value">${escapeHTML(eyeMode + lensTintStr)}</div>
       </div>
 
-      ${sess.bodyExposure?.glassBetween || sess.bodyExposure?.sunscreenSPF ? `
+      ${modifierBits.length ? `
         <div class="sun-detail-section">
           <div class="sun-detail-section-label">Modifiers</div>
-          <div class="sun-detail-section-value">${sess.bodyExposure?.glassBetween ? 'Behind glass' : ''}${sess.bodyExposure?.glassBetween && sess.bodyExposure?.sunscreenSPF ? ' · ' : ''}${sess.bodyExposure?.sunscreenSPF ? `SPF ${sess.bodyExposure.sunscreenSPF}` : ''}</div>
+          <div class="sun-detail-section-value">${escapeHTML(modifierBits.join(' · '))}</div>
         </div>
       ` : ''}
 
       <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Channels</div>
+        <div class="sun-detail-section-label">Per-channel dose</div>
         <div class="sun-detail-channels">${channelRows}</div>
       </div>
 
       ${atmHtml ? `
         <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Atmosphere at session midpoint</div>
+          <div class="sun-detail-section-label">Conditions during this session</div>
           ${atmHtml}
         </div>
       ` : ''}
@@ -2223,9 +2254,8 @@ export function openSunSessionDetail(id) {
       ` : ''}
 
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
         ${sess.endedAt ? `<button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editSunSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when a re-end on a second device set it wrong, or you forgot to stop on time.">Edit duration</button>` : ''}
-        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteSunSession('${escapeAttr(sess.id)}')">Delete</button>
+        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteSunSession('${escapeAttr(sess.id)}')">Delete session</button>
       </div>
     </div>
   </div>`;
