@@ -5,6 +5,13 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.16', date: '2026-05-03', title: 'Sync — concurrent-push snapshot clobber fix',
+    items: [
+      '<b>Stale onComplete can no longer clobber a fresher push\'s snapshot.</b> The 60-second <code>_syncing</code> in-flight guard plus delayed <code>onComplete</code> writing meant push A planned at T=0 could have its <code>onComplete</code> fire at T=70s — AFTER push B started at T=65s and already wrote its snapshot. A\'s late <code>onComplete</code> would clobber B\'s fresher view, and the next push would diff against A\'s stale state, silently skipping items B had already added.',
+      '<b>How the fix works.</b> Each delta plan now carries a <code>plannedAt</code> stamp captured at planning start (not end — gzip is slow). On snapshot write, the gate compares against the existing snapshot\'s persisted <code>plannedAt</code> meta and refuses to overwrite when the existing is newer. <code>onComplete</code> now logs <code>{snapshotsAdvanced}/{deltaPlans.length}</code> so a stale push that loses the gate is visible in the activity log instead of silently dropping snapshots.',
+    ]
+  },
+  {
     version: '1.7.15', date: '2026-05-03', title: 'Diagnose-modal silent drops + DST-safe peak finder + parse-equivalence test',
     items: [
       '<b>Sync diagnose now logs which rows it can\'t parse.</b> The modal\'s pre-pass over every relay row used to swallow parse exceptions silently — a malformed or bomb-rejected row would render as <code>0/0</code> in the table, indistinguishable from a real empty row. Now emits a <code>skip</code> activity-log line with the row id and a short error excerpt so triage can see what got dropped. Same fix on the receive-side malformed-shape branch.',

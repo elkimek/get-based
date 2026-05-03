@@ -1265,8 +1265,36 @@ function _readDeltaSnapshot(profileId, arrayName) {
   } catch { return {}; }
 }
 
-function _writeDeltaSnapshot(profileId, arrayName, snap) {
-  try { localStorage.setItem(_deltaSnapshotKey(profileId, arrayName), JSON.stringify(snap)); } catch {}
+// v1.7.16 audit fix: snapshot write is now plannedAt-gated. The
+// _syncing 60s in-flight guard plus delayed onComplete writing meant
+// push A planned at T=0 could have its onComplete fire at T=70s
+// AFTER push B started at T=65s and already wrote its snapshot —
+// A's late onComplete would clobber B's fresher view, and the next
+// push would diff against A's stale state, silently skipping items
+// B had already added. Stamping each plan with its planning time
+// and refusing to overwrite a snapshot whose plannedAt is newer
+// than this plan's closes that race.
+function _writeDeltaSnapshot(profileId, arrayName, snap, plannedAt) {
+  try {
+    const metaKey = `${_deltaSnapshotKey(profileId, arrayName)}-meta`;
+    if (Number.isFinite(plannedAt)) {
+      const prevMetaRaw = localStorage.getItem(metaKey);
+      if (prevMetaRaw) {
+        try {
+          const m = JSON.parse(prevMetaRaw);
+          if (Number.isFinite(m?.plannedAt) && m.plannedAt > plannedAt) {
+            // A fresher push has already advanced this snapshot. Skip
+            // the clobber so the per-array diff stays in sync with
+            // what's actually on the relay.
+            return false;
+          }
+        } catch {}
+      }
+      localStorage.setItem(metaKey, JSON.stringify({ plannedAt }));
+    }
+    localStorage.setItem(_deltaSnapshotKey(profileId, arrayName), JSON.stringify(snap));
+    return true;
+  } catch { return false; }
 }
 
 // Stable hash for content-equality detection. djb2 — fine for our
@@ -1297,6 +1325,7 @@ function _isAllowlistSafeId(id) {
 // snapshot. Returns the candidate-new snapshot (caller commits it from
 // onComplete after the blob push lands successfully).
 async function _planArrayDelta(profileId, arrayName, items) {
+  const plannedAt = Date.now();
   const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
   const itemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const prev = _readDeltaSnapshot(profileId, arrayName);
@@ -1356,7 +1385,7 @@ async function _planArrayDelta(profileId, arrayName, items) {
     }
   }
 
-  return { ops, next };
+  return { ops, next, plannedAt };
 }
 
 // Keyed-map planner. Same shape as _planArrayDelta but iterates
@@ -1367,6 +1396,7 @@ async function _planArrayDelta(profileId, arrayName, items) {
 // markerNote keys are user-owned, `delete state.importedData.markerNotes[k]`
 // is real intent that must propagate.
 async function _planKeyedMapDelta(profileId, mapName, mapObj) {
+  const plannedAt = Date.now();
   const cfg = DELTA_MAP_CONFIG[mapName] || {};
   // keyIdFn: derive itemId from raw key. Default = identity-with-allowlist
   // (rejects unsafe keys including __proto__); custom fns may sanitize
@@ -1427,7 +1457,7 @@ async function _planKeyedMapDelta(profileId, mapName, mapObj) {
     ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
   }
 
-  return { ops, next };
+  return { ops, next, plannedAt };
 }
 
 // Scalar planner. Singleton-shape fields (menstrualCycle, context cards,
@@ -1438,6 +1468,7 @@ async function _planKeyedMapDelta(profileId, mapName, mapObj) {
 // (real user intent: "I cleared this card"); they DON'T emit on initial
 // load when the scalar has always been null (no prev snapshot row exists).
 async function _planScalarDelta(profileId, scalarName, scalarValue) {
+  const plannedAt = Date.now();
   const prev = _readDeltaSnapshot(profileId, scalarName);
   const next = {};
   const ops = [];
@@ -1484,7 +1515,7 @@ async function _planScalarDelta(profileId, scalarName, scalarValue) {
     // exists for it. Skips the boot-with-default-null case.
     ops.push({ kind: 'tombstone', args: { id: canonical.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
   }
-  return { ops, next };
+  return { ops, next, plannedAt };
 }
 
 // Apply the planned ops via Evolu. Called from pushProfile's onComplete
@@ -2045,8 +2076,11 @@ async function pushProfile(profileId, importedData, opts = {}) {
           // relay → failed items got silently skipped forever.
           const allOk = _applyArrayDelta(arrayName, plan);
           if (allOk) {
-            _writeDeltaSnapshot(profileId, arrayName, plan.next);
-            snapshotsAdvanced++;
+            // v1.7.16: thread plannedAt so a stale onComplete (push A
+            // arriving after push B has already written its snapshot)
+            // doesn't clobber the fresher view.
+            const wrote = _writeDeltaSnapshot(profileId, arrayName, plan.next, plan.plannedAt);
+            if (wrote) snapshotsAdvanced++;
           }
         }
         dbg(`Applied ${deltaOpCount} delta ops across ${deltaPlans.length} array(s) — ${snapshotsAdvanced}/${deltaPlans.length} snapshots advanced`);

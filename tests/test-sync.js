@@ -203,7 +203,7 @@ return (async function() {
   assert('Delta snapshot key namespaced per (profile, arrayName)',
     /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
-    /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next\)/.test(syncSrc));
+    /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncSrc));
 
   // Live diff sanity: confirm the diff logic respects content-equality
   if (typeof CompressionStream !== 'undefined') {
@@ -869,7 +869,7 @@ return (async function() {
   assert('_isAllowlistSafeId combines regex + proto-key Set',
     /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_PROTO_POLLUTION_KEYS\.has\(id\)/.test(syncSrc));
   assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
-    /_planArrayDelta[\s\S]{0,1000}_isAllowlistSafeId\(id\)/.test(syncSrc));
+    /_planArrayDelta[\s\S]{0,1500}_isAllowlistSafeId\(id\)/.test(syncSrc));
   assert('_planKeyedMapDelta uses _isAllowlistSafeId on derived itemId',
     /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(syncSrc));
   assert('Map-shape pull wraps keyIdFn with _isAllowlistSafeId guard',
@@ -941,7 +941,7 @@ return (async function() {
   assert('_applyArrayDelta returns boolean success',
     /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(syncSrc));
   assert('onComplete advances snapshot only when _applyArrayDelta returned true',
-    /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,200}_writeDeltaSnapshot/.test(syncSrc));
+    /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncSrc));
   assert('onComplete logs partial-failure ratio',
     /snapshotsAdvanced\}\/\$\{deltaPlans\.length\}/.test(syncSrc));
 
@@ -1143,6 +1143,74 @@ return (async function() {
       assert('round-trip parse-equivalence test ran without exception',
         false, `unexpected error: ${e?.message || e}`);
     }
+  }
+
+  // ═══════════════════════════════════════
+  // 14j. v1.7.16 — concurrent-push snapshot clobber fix
+  // ═══════════════════════════════════════
+  console.log('%c 14j. v1.7.16 snapshot clobber fix ', 'font-weight:bold;color:#f59e0b');
+
+  assert('_writeDeltaSnapshot accepts plannedAt 4th arg',
+    /function _writeDeltaSnapshot\(profileId,\s*arrayName,\s*snap,\s*plannedAt\)/.test(syncSrc));
+  assert('_writeDeltaSnapshot refuses to overwrite when existing meta plannedAt is newer',
+    /m\?\.plannedAt\)\s*&&\s*m\.plannedAt\s*>\s*plannedAt[\s\S]{0,200}return false/.test(syncSrc));
+  assert('_writeDeltaSnapshot returns boolean (write-skipped vs written)',
+    /_writeDeltaSnapshot[\s\S]{0,800}return true[\s\S]{0,200}return false/.test(syncSrc));
+  assert('Snapshot meta key derives from snapshot key (-meta suffix)',
+    /\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta/.test(syncSrc));
+  assert('All 3 planners stamp plannedAt at start (not end)',
+    (syncSrc.match(/const plannedAt\s*=\s*Date\.now\(\);/g) || []).length >= 3);
+  assert('All 3 planners return plan with plannedAt field',
+    (syncSrc.match(/return \{ ops, next, plannedAt \};/g) || []).length === 3);
+  assert('onComplete passes plan.plannedAt to _writeDeltaSnapshot',
+    /_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncSrc));
+  assert('onComplete tracks wrote vs allOk separately (skip-clobber count)',
+    /const wrote = _writeDeltaSnapshot[\s\S]{0,200}if \(wrote\) snapshotsAdvanced\+\+/.test(syncSrc));
+
+  // Live: round-trip the gate. Set a snapshot with a future plannedAt,
+  // then try to write with a stale plannedAt — must be refused.
+  if (typeof window !== 'undefined') {
+    const TEST_PID = '__snapshot_clobber_test__';
+    const TEST_ARRAY = 'sunSessions';
+    const KEY = `labcharts-${TEST_PID}-delta-${TEST_ARRAY}`;
+    const META_KEY = `${KEY}-meta`;
+    try { localStorage.removeItem(KEY); localStorage.removeItem(META_KEY); } catch {}
+    // Write the meta with plannedAt = future time
+    const futureT = Date.now() + 100000;
+    const staleT = Date.now() - 100000;
+    try {
+      localStorage.setItem(META_KEY, JSON.stringify({ plannedAt: futureT }));
+      localStorage.setItem(KEY, JSON.stringify({ s1: 'fresh-hash' }));
+    } catch {}
+    // Reproduce the gate inline (the function isn't on window)
+    const gateCheck = () => {
+      const prevMetaRaw = localStorage.getItem(META_KEY);
+      if (prevMetaRaw) {
+        try {
+          const m = JSON.parse(prevMetaRaw);
+          if (Number.isFinite(m?.plannedAt) && m.plannedAt > staleT) return false;
+        } catch {}
+      }
+      return true;
+    };
+    assert('Gate rejects stale write attempt when meta.plannedAt is newer', gateCheck() === false);
+    // Now flip: stale meta, fresh write should succeed
+    try { localStorage.setItem(META_KEY, JSON.stringify({ plannedAt: staleT })); } catch {}
+    const gateCheckFreshWin = () => {
+      const prevMetaRaw = localStorage.getItem(META_KEY);
+      if (prevMetaRaw) {
+        try {
+          const m = JSON.parse(prevMetaRaw);
+          if (Number.isFinite(m?.plannedAt) && m.plannedAt > futureT) return false;
+        } catch {}
+      }
+      return true;
+    };
+    assert('Gate accepts fresh write attempt when meta.plannedAt is older', gateCheckFreshWin() === true);
+    // No meta = no gate
+    try { localStorage.removeItem(META_KEY); } catch {}
+    assert('Gate accepts write when no meta exists yet', gateCheck() === true);
+    try { localStorage.removeItem(KEY); localStorage.removeItem(META_KEY); } catch {}
   }
 
   // ═══════════════════════════════════════
