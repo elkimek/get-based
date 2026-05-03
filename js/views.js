@@ -116,11 +116,13 @@ export function renderLightTodayStrip() {
   const pills = order.map(k => {
     const meta = ch[k] || {};
     const t = tier(combinedTotals7d[k] || 0, k);
-    const tip = `${meta.what || ''} — last 7 days: ${tlabel(t)}. Tap for details.`;
-    return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" onclick="window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" aria-label="${escapeHTML((meta.label || k) + ', ' + tlabel(t) + ' last 7 days, tap to open detail')}">
+    const dc = _channelDayCount(k);
+    const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week. Tap for details.`;
+    return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" onclick="window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" aria-label="${escapeHTML((meta.label || k) + ', ' + dc.n + ' of 7 days hit target, tap to open detail')}">
       <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
-      <span class="light-pill-dots" aria-hidden="true">${dots(t)}</span>
+      ${_channelSparkline(k)}
+      <span class="light-pill-daycount">${escapeHTML(dc.txt)}</span>
     </button>`;
   }).join('');
 
@@ -1317,15 +1319,71 @@ function mergeTotals(a, b) {
 }
 function mergeTotalsLocal(a, b) { return mergeTotals(a, b); }
 
+// Mini 7-day sparkline rendered as inline SVG. Bars are heightless when a
+// day's combined dose is sub-meaningful (~5% of daily target) — a faint
+// stub so the day position stays readable without inflating an empty
+// week. Replaces the prior ●○○○ dots metaphor which (a) implied a
+// "fillable container" mental model that contradicts the daily-beats-
+// banking framing and (b) had ~4 bits of resolution loss vs the
+// continuous channel-au value.
+//
+// Width: 7 bars × 5px + 6 gaps × 2px = 47px in viewBox. Renders crisply
+// at any pill height because we use viewBox + width 100%.
+function _channelSparkline(channelKey, totals = null) {
+  if (!window.dailyChannelBreakdown) return '';
+  const days = window.dailyChannelBreakdown(channelKey, 7);
+  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const dailyTarget = meta.dailyTarget || 0;
+  const observedMax = Math.max(0, ...days.map(d => d.sun + d.device));
+  const max = Math.max(observedMax, dailyTarget * 1.05, 0.001);
+  const W = 47, H = 14, barW = 5, gap = 2;
+  const colorFor = (total) => {
+    if (dailyTarget <= 0 || total < dailyTarget * 0.05) return null; // faint stub
+    if (total >= dailyTarget) return 'var(--green)';
+    if (total >= dailyTarget * 0.30) return 'var(--accent)';
+    return 'var(--accent)';
+  };
+  const opacityFor = (total) => {
+    if (dailyTarget <= 0 || total < dailyTarget * 0.05) return 0.35;
+    if (total >= dailyTarget) return 1.0;
+    if (total >= dailyTarget * 0.30) return 0.85;
+    return 0.55;
+  };
+  const bars = days.map((d, i) => {
+    const x = i * (barW + gap);
+    const total = d.sun + d.device;
+    const isStub = !colorFor(total);
+    const barH = isStub ? 1.5 : Math.max(1.5, (total / max) * H);
+    const y = H - barH;
+    const fill = colorFor(total) || 'var(--text-muted)';
+    return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${fill}" opacity="${opacityFor(total)}" rx="0.6"/>`;
+  }).join('');
+  return `<svg class="light-pill-sparkline" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${bars}</svg>`;
+}
+
+// "X days" label for the pill — count of days that hit the channel's
+// meaningful-dose threshold. Returns "—" when no day qualified.
+function _channelDayCount(channelKey) {
+  if (!window.dailyChannelBreakdown) return { txt: '—', n: 0 };
+  const days = window.dailyChannelBreakdown(channelKey, 7);
+  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const target = meta.dailyTarget || 0;
+  const threshold = (typeof _CHANNEL_DAY_THRESHOLD !== 'undefined' && _CHANNEL_DAY_THRESHOLD[channelKey]) || 0.30;
+  const floor = target * threshold;
+  let n = 0;
+  for (const d of days) if ((d.sun + d.device) >= floor) n++;
+  return { txt: n === 0 ? '—' : `${n}d`, n };
+}
+
 // Unified channel pill row — same vocabulary as the dashboard strip,
 // reused on the Light page where each pill is a click-to-expand entry into
 // a per-channel drill-down panel (full science, 7d/30d tier comparison,
-// suggestion). Empty state renders the same row with all-zero tiers; pills
-// fill in as data accumulates. One renderer for both states.
+// suggestion). Empty state renders the same row with all-empty
+// sparklines; bars fill in as data accumulates. One renderer for both
+// states.
 function renderChannelPills(totals7d, totals30d) {
   const ch = window.CHANNEL_DISPLAY || {};
   const tier = window.channelTier || (() => 0);
-  const dots = window.tierDots || (() => '○○○○');
   const tlabel = window.tierLabel || (() => 'none');
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   let html = `<div class="light-pills-row light-pills-interactive">`;
@@ -1336,13 +1394,15 @@ function renderChannelPills(totals7d, totals30d) {
     const t7 = tier(v7, k);
     const t30 = tier(v30, k);
     const trendDir = t7 > t30 ? 'up' : t7 < t30 ? 'down' : 'flat';
-    const tip = `${meta.what || ''} — last 7 days: ${tlabel(t7)}.`;
+    const dc = _channelDayCount(k);
+    const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week.`;
     const detailId = `light-pill-detail-${k}`;
     html += `<button type="button" class="light-pill light-pill-tier-${t7} light-pill-interactive" data-channel="${escapeAttr(k)}" data-trend="${trendDir}" aria-expanded="false" aria-controls="${detailId}" title="${escapeHTML(tip)}" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(k)}')">
       <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
-      <span class="light-pill-dots" aria-hidden="true">${dots(t7)}</span>
-      <span class="sr-only">${tlabel(t7)}, last 7 days, trending ${trendDir} vs last 30 days</span>
+      ${_channelSparkline(k)}
+      <span class="light-pill-daycount">${escapeHTML(dc.txt)}</span>
+      <span class="sr-only">${tlabel(t7)}, ${dc.n} of 7 days hit target this week, trending ${trendDir} vs last 30 days</span>
     </button>`;
   }
   html += `</div>`;

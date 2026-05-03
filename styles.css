@@ -5214,10 +5214,26 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-pill-icon { font-size: 13px; }
 .light-pill-label { font-weight: 500; }
-.light-pill-dots {
-  letter-spacing: 1px; opacity: 0.85; font-size: 11px;
-  font-family: var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
+/* 7-day sparkline embedded in the pill — replaces the prior dot
+   metaphor which implied a fillable container. Bars show daily rhythm
+   (today = rightmost), color-coded green when day hit target / accent
+   when meaningful / faint stub when negligible. Reinforces the
+   daily-beats-banking framing with a real-data visualization. */
+.light-pill-sparkline {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 47px; height: 14px;
+  vertical-align: middle;
 }
+.light-pill-daycount {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: inherit; opacity: 0.9;
+  min-width: 24px; text-align: right;
+}
+/* Legacy class kept in case anything still references it; renders
+   as zero-width so older cached templates don't blow out the layout. */
+.light-pill-dots { display: none; }
 /* Tier 0 = no meaningful exposure logged for this channel. Visually
    reads as "empty placeholder" (dashed border, transparent fill, faded
    label) instead of "filled container that's been dimmed" — so the user
