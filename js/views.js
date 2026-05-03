@@ -1440,14 +1440,32 @@ const CHANNEL_CITATIONS = {
 function _renderChannelCitations(channelKey) {
   const cit = CHANNEL_CITATIONS[channelKey];
   if (!cit) return '';
+  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const channelName = meta.label || channelKey;
   const refs = cit.refs.map(({ cite, href, why }) => `<li>
     <a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHTML(cite)}</a>
     ${why ? `<div class="light-channel-cit-why">${escapeHTML(why)}</div>` : ''}
   </li>`).join('');
+  // "Suggest a better study" — same pattern as recommendations.js. Pre-
+  // fills a GitHub issue with the channel name + current reference list
+  // so the maintainer has context when triaging the suggestion. Open in
+  // a new tab so reading the panel isn't interrupted.
+  const issueTitle = encodeURIComponent(`[Light & Sun] ${channelName}: better study / correction`);
+  const currentList = cit.refs.map(r => `- ${r.cite}\n  ${r.href}`).join('\n');
+  const issueBody = encodeURIComponent(
+    `**Channel:** ${channelName} (\`${channelKey}\`)\n` +
+    `**Action spectrum:** ${cit.spectrum}\n\n` +
+    `**Current references:**\n${currentList}\n\n` +
+    `**What's wrong / what's better:**\n\n` +
+    `**Suggested study (with link):**\n\n` +
+    `**Why this is a better fit (one line):**\n`
+  );
+  const suggestLink = `<div class="light-channel-cit-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=light-channel-citations" target="_blank" rel="noopener">Suggest a better study →</a></div>`;
   return `<details class="light-channel-cit">
     <summary>Action spectrum &amp; citations</summary>
     <p class="light-channel-cit-spec"><strong>Spectrum:</strong> ${escapeHTML(cit.spectrum)}</p>
     <ul class="light-channel-cit-refs">${refs}</ul>
+    ${suggestLink}
   </details>`;
 }
 

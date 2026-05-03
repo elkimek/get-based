@@ -5492,6 +5492,17 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   font-size: 11px; line-height: 1.45; color: var(--text-muted);
   font-style: italic;
 }
+/* "Suggest a better study" link at the foot of the citations expander.
+   Mirrors the .rec-suggest pattern from recommendations.js — quiet
+   default state, accent on hover. Pre-fills a GitHub issue with the
+   channel + current ref list so the maintainer has context. */
+.light-channel-cit-suggest {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px; text-align: right;
+}
+.light-channel-cit-suggest a { color: var(--text-muted); text-decoration: none; }
+.light-channel-cit-suggest a:hover { color: var(--accent); text-decoration: underline; }
 .light-channel-cit-refs a { color: var(--accent); text-decoration: none; }
 .light-channel-cit-refs a:hover { text-decoration: underline; }
 
