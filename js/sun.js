@@ -1001,92 +1001,149 @@ async function _snapshotActiveRate(sess) {
   }
 }
 
+// Compute the per-minute channel rate + erythemal SED rate for a session
+// at a specific instant. Pulls interpolated atm fields from the cached
+// atmosphere's hourly arrays (so values smoothly cross hour boundaries
+// instead of step-changing) and computes a fresh spectrum using the live
+// solar zenith. Returns { rate, sedPerMin } in dose-per-minute units, or
+// null if any required engine module isn't wired yet.
+//
+// This is the inner kernel used by Simpson integration in _liveDosesFor /
+// _commitCurrentSlice — replaces the previous single-rate-times-elapsed
+// approximation with proper sub-slice spectral resolution.
+function _rateAtInstant(sess, instantMs) {
+  const live = _getLiveState(sess?.id);
+  if (!live || !live.atm) return null;
+  const reconstructSpectrum = window.reconstructSpectrum;
+  const computeChannelDoses = window.computeChannelDoses;
+  const erythemalSED = window.erythemalSED;
+  const solarZenithAngle = window.solarZenithAngle;
+  const interpolateAtmosphere = window.interpolateAtmosphere;
+  if (!reconstructSpectrum || !computeChannelDoses || !erythemalSED || !solarZenithAngle) return null;
+
+  const coords = sess.location;
+  if (!coords) return null;
+  const when = new Date(instantMs);
+  const isoTime = when.toISOString();
+
+  // Interpolate atm fields between hourly buckets when arrays available;
+  // otherwise fall back to the snapshot's scalar values.
+  let atmAtT = live.atm;
+  if (interpolateAtmosphere) {
+    const interp = interpolateAtmosphere(live.atm, isoTime);
+    if (interp) {
+      atmAtT = {
+        ...live.atm,
+        uvIndex: interp.uvIndex ?? live.atm.uvIndex,
+        cloudCover: interp.cloudCover ?? live.atm.cloudCover,
+        temperatureC: interp.temperatureC ?? live.atm.temperatureC,
+      };
+    }
+  }
+  // Re-apply user overrides on top of interpolated values so manual UVI
+  // takes precedence over both forecast + interpolation.
+  atmAtT = _applyAtmOverrides(atmAtT);
+
+  const zenith = solarZenithAngle(when, coords.lat, coords.lon);
+  const spectrum = reconstructSpectrum({
+    zenithDeg: zenith,
+    ozoneDU: atmAtT.ozoneDU ?? 300,
+    altitudeM: coords.altitudeM ?? 0,
+    cloudCover: (atmAtT.cloudCover ?? 0) / 100,
+  });
+  const bodyModifiers = {
+    glassBetween: !!sess.bodyExposure?.glassBetween,
+    sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
+  };
+  const rate = computeChannelDoses({
+    spectrum,
+    durationMin: 1,
+    bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+    eyeExposure: sess.eyeExposure,
+    bodyModifiers,
+  });
+  const sedPerMin = erythemalSED({
+    spectrum,
+    durationMin: 1,
+    bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+    bodyModifiers,
+  });
+  return { rate, sedPerMin };
+}
+
+// Simpson's 1/3 rule integration of channel doses + SED across [a, b]
+// using 3 sample points (start, midpoint, end). Second-order accurate vs
+// the previous midpoint approximation, captures sub-slice spectral shifts
+// at low sun (where pure cosine zenith scaling underestimates UVB drop).
+// Cost: 3 spectrum + dose computes per call (~15K JS ops, negligible).
+function _integrateSlice(sess, startMs, endMs) {
+  const durationMin = Math.max(0, (endMs - startMs) / 60000);
+  if (durationMin <= 0) return { doses: {}, sed: 0 };
+  const midMs = (startMs + endMs) / 2;
+  const r0 = _rateAtInstant(sess, startMs);
+  const r1 = _rateAtInstant(sess, midMs);
+  const r2 = _rateAtInstant(sess, endMs);
+  if (!r0 || !r1 || !r2) return { doses: {}, sed: 0 };
+  // Simpson: ∫ ≈ (b - a) × (f(a) + 4f(m) + f(b)) / 6
+  const doses = {};
+  for (const k of Object.keys(r1.rate)) {
+    const a = r0.rate[k] ?? 0;
+    const m = r1.rate[k] ?? 0;
+    const b = r2.rate[k] ?? 0;
+    doses[k] = durationMin * (a + 4 * m + b) / 6;
+  }
+  const sed = durationMin * (r0.sedPerMin + 4 * r1.sedPerMin + r2.sedPerMin) / 6;
+  return { doses, sed };
+}
+
 // Commit the current rate slice's contribution into committedDoses. Called
 // just before re-snapshotting so the user-visible cumulative dose stays
 // correct across rate changes (cloud cover shifts, hour rollover, etc.).
-// Idempotent — no-op if there's nothing committable yet.
+// Uses Simpson integration for sub-slice accuracy.
 function _commitCurrentSlice(sess) {
   const live = _getLiveState(sess?.id);
   if (!live || !live.ratePerMin || !live.snapshotAt) return;
   const sliceStart = live.snapshotAt;
   const sliceEnd = Date.now();
-  const sliceDurationMin = Math.max(0, (sliceEnd - sliceStart) / 60000);
-  if (sliceDurationMin <= 0) return;
-  let zenithScale = 1;
-  try {
-    const coords = sess.location;
-    const fnZenith = window.solarZenithAngle;
-    if (coords && fnZenith) {
-      const samples = 5;
-      let sumCos = 0;
-      for (let i = 0; i < samples; i++) {
-        const t = sliceStart + (i + 0.5) * (sliceEnd - sliceStart) / samples;
-        const z = fnZenith(new Date(t), coords.lat, coords.lon);
-        sumCos += Math.max(0, Math.cos(z * Math.PI / 180));
-      }
-      const avgCos = sumCos / samples;
-      const baselineZ = live.baselineZenith ?? live.zenith ?? 0;
-      const startCos = Math.max(0.001, Math.cos(baselineZ * Math.PI / 180));
-      zenithScale = avgCos / startCos;
-    }
-  } catch (e) {}
+  if (sliceEnd <= sliceStart) return;
+  const { doses, sed } = _integrateSlice(sess, sliceStart, sliceEnd);
   const committedDoses = { ...(live.committedDoses || {}) };
-  for (const [k, v] of Object.entries(live.ratePerMin || {})) {
-    committedDoses[k] = (committedDoses[k] || 0) + v * sliceDurationMin * zenithScale;
+  for (const [k, v] of Object.entries(doses)) {
+    committedDoses[k] = (committedDoses[k] || 0) + v;
   }
-  const committedSED = (live.committedSED || 0) + (live.sedPerMin || 0) * sliceDurationMin * zenithScale;
+  const committedSED = (live.committedSED || 0) + sed;
   _setLiveState(sess.id, { committedDoses, committedSED });
 }
 
-// Compute live doses = committedDoses (sum of past slices) + current slice
-// contribution (current rate × time-since-current-snapshot × zenithScale).
+// Compute live doses = committedDoses (sum of past, fully-closed slices) +
+// current-slice contribution integrated via Simpson's rule.
 //
-// Zenith math is purely local (date + lat/lon → angle), so we do it every
-// tick at zero cost — but only over the CURRENT slice, since past slices
-// already had their zenith correction baked in at commit time.
+// Each Simpson sample reconstructs the spectrum at its instant using the
+// live solar zenith and INTERPOLATED atmosphere (linearly between the two
+// hourly forecast buckets surrounding the sample). This captures both
+// solar-angle drift AND sub-hourly atmospheric variation properly per
+// channel — vs the previous cosine-scaled-rate which underestimated UVB
+// attenuation at low sun (where Air Mass climbs non-linearly).
 //
-// UVI and cloud cover are locked to whatever the last fetch returned —
-// those drift much slower than zenith and refetch on a separate 5-min
-// cadence (managed by _tickActiveCards), at which point the current slice
-// is committed and a new slice begins with fresh atmospheric data.
+// Cost: 3 spectrum + dose computes per call. _liveDosesFor is invoked
+// from several places per tick — if profiling shows hotspots we can add
+// per-tick memoization keyed by tickCount.
 function _liveDosesFor(sess) {
   const live = _getLiveState(sess?.id);
   if (!live || !live.ratePerMin) return null;
   const sliceStart = live.snapshotAt || sess.startedAt;
-  const sliceElapsedMin = Math.max(0, (Date.now() - sliceStart) / 60000);
-  const rate = live.ratePerMin || {};
+  const now = Date.now();
 
-  // Zenith correction across the CURRENT slice only.
-  let zenithScale = 1;
-  try {
-    const coords = sess.location;
-    const fnZenith = window.solarZenithAngle;
-    if (coords && fnZenith && sliceElapsedMin > 1) {
-      const samples = 5;
-      let sumCos = 0, count = 0;
-      for (let i = 0; i < samples; i++) {
-        const t = sliceStart + (i + 0.5) * (Date.now() - sliceStart) / samples;
-        const z = fnZenith(new Date(t), coords.lat, coords.lon);
-        const cosZ = Math.max(0, Math.cos(z * Math.PI / 180));
-        sumCos += cosZ; count++;
-      }
-      const avgCos = count ? sumCos / count : 0;
-      const baselineZ = live.baselineZenith ?? live.zenith ?? 0;
-      const startCos = Math.max(0.001, Math.cos(baselineZ * Math.PI / 180));
-      zenithScale = avgCos / startCos;
-    }
-  } catch (e) {}
+  const { doses: sliceDoses, sed: sliceSed } = _integrateSlice(sess, sliceStart, now);
 
-  // Total = committed (closed slices) + current slice contribution.
   const committed = live.committedDoses || {};
   const doses = { ...committed };
-  for (const [k, v] of Object.entries(rate)) {
-    doses[k] = (doses[k] || 0) + v * sliceElapsedMin * zenithScale;
+  for (const [k, v] of Object.entries(sliceDoses)) {
+    doses[k] = (doses[k] || 0) + v;
   }
-  const sliceSed = (live.sedPerMin || 0) * sliceElapsedMin * zenithScale;
   const sed = (live.committedSED || 0) + sliceSed;
   const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive }) : 0;
-  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive, atm: live.atm, _zenithScale: zenithScale };
+  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive, atm: live.atm };
 }
 
 // Render a compact live card body — elapsed time, burn-risk %, channel chips.

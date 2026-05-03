@@ -332,12 +332,17 @@ function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
       uvIndexMax,
       peakAt,
     },
-    // Today's hourly UVI forecast — used by views.js to integrate the
-    // erythemal dose from now until sunset for an accurate "time to MED".
+    // Today's hourly forecast arrays — used by views.js for "time to MED"
+    // integration AND by sun.js _liveDosesFor for sub-hourly atm
+    // interpolation during active sessions (so a 10:55 session reading
+    // doesn't snap-step to the 11:00 cloud cover at the hour boundary).
     hourly: Array.isArray(fcJson.hourly?.time) ? {
       time: fcJson.hourly.time,
+      utcOffsetSeconds: fcOffsetS,
       uv_index: fcJson.hourly.uv_index || [],
       uv_index_clear_sky: fcJson.hourly.uv_index_clear_sky || [],
+      cloud_cover: fcJson.hourly.cloud_cover || [],
+      temperature_2m: fcJson.hourly.temperature_2m || [],
     } : null,
     source: sourceLabel,
     confidence: UV_SOURCE_CONFIDENCE[sourceLabel] ?? 0.6,
@@ -546,6 +551,77 @@ export function nearestHourIndex(timeArray, isoTime, offsetSeconds = 0) {
   return bestIdx;
 }
 
+// Linearly interpolate hourly atmospheric fields at an arbitrary instant.
+// Open-Meteo / CAMS deliver hourly time series; without interpolation the
+// live session math step-changes at every clock-hour boundary which reads
+// as discontinuities in the channel readouts. Returns scalar overrides for
+// uvIndex / cloudCover / temperatureC; caller merges into atm before
+// computing the spectrum.
+//
+// Falls back to the nearest hour when the target is outside the array
+// range. Returns null when the atm shape lacks `hourly` arrays (older
+// cached entries, NOAA, manual fallback).
+export function interpolateAtmosphere(atm, isoTime) {
+  if (!atm || !atm.hourly || !Array.isArray(atm.hourly.time) || atm.hourly.time.length === 0) {
+    return null;
+  }
+  const offsetS = atm.hourly.utcOffsetSeconds || 0;
+  const targetMs = new Date(isoTime).getTime();
+  if (!Number.isFinite(targetMs)) return null;
+
+  // Find the bracketing pair (i, i+1) with t[i] <= target <= t[i+1].
+  // Bail to nearest-hour at the array endpoints.
+  const times = atm.hourly.time;
+  let lowIdx = -1;
+  for (let i = 0; i < times.length - 1; i++) {
+    const t0 = parseNaiveHourMs(times[i], offsetS);
+    const t1 = parseNaiveHourMs(times[i + 1], offsetS);
+    if (!Number.isFinite(t0) || !Number.isFinite(t1)) continue;
+    if (t0 <= targetMs && targetMs <= t1) { lowIdx = i; break; }
+  }
+  if (lowIdx < 0) {
+    const idx = nearestHourIndex(times, isoTime, offsetS);
+    if (idx < 0) return null;
+    return _atmAtIndex(atm.hourly, idx);
+  }
+  const t0 = parseNaiveHourMs(times[lowIdx], offsetS);
+  const t1 = parseNaiveHourMs(times[lowIdx + 1], offsetS);
+  const span = t1 - t0;
+  const frac = span > 0 ? (targetMs - t0) / span : 0;
+  return _lerpAtm(atm.hourly, lowIdx, lowIdx + 1, frac);
+}
+
+function _atmAtIndex(hourly, i) {
+  return {
+    uvIndex: _safe(hourly.uv_index, i),
+    uvClearSky: _safe(hourly.uv_index_clear_sky, i),
+    cloudCover: _safe(hourly.cloud_cover, i),
+    temperatureC: _safe(hourly.temperature_2m, i),
+  };
+}
+
+function _lerpAtm(hourly, i, j, frac) {
+  const lerp = (arr) => {
+    const a = _safe(arr, i);
+    const b = _safe(arr, j);
+    if (!Number.isFinite(a)) return Number.isFinite(b) ? b : null;
+    if (!Number.isFinite(b)) return a;
+    return a + (b - a) * frac;
+  };
+  return {
+    uvIndex: lerp(hourly.uv_index),
+    uvClearSky: lerp(hourly.uv_index_clear_sky),
+    cloudCover: lerp(hourly.cloud_cover),
+    temperatureC: lerp(hourly.temperature_2m),
+  };
+}
+
+function _safe(arr, i) {
+  if (!Array.isArray(arr)) return null;
+  const v = arr[i];
+  return Number.isFinite(v) ? v : null;
+}
+
 function isUSCoords(lat, lon) {
   // Continental US + Alaska + Hawaii rough bounding
   if (lat >= 24 && lat <= 49.5 && lon >= -125 && lon <= -66) return true;
@@ -559,6 +635,7 @@ if (typeof window !== 'undefined') {
   Object.assign(window, {
     fetchAtmosphere,
     manualAtmosphere,
+    interpolateAtmosphere,
     getMeteoConfig,
     saveMeteoConfig,
     solarZenithAngle,
