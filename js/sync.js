@@ -43,7 +43,7 @@ export function getRecentSyncEvents() { return _syncEvents.slice(); }
 // stalls — usually a mnemonic mismatch (different Evolu owners, so devices
 // can't see each other's rows) or stale-row replication (relay has the
 // data, this device's local Evolu DB hasn't pulled it down yet).
-export function getEvoluDiagnostics() {
+export async function getEvoluDiagnostics() {
   const out = {
     syncEnabled: _syncEnabled,
     relay: getSyncRelay(),
@@ -56,18 +56,27 @@ export function getEvoluDiagnostics() {
   try {
     const rows = (evolu && profileQuery) ? evolu.getQueryRows(profileQuery) : [];
     for (const row of rows || []) {
-      let sun = 0, dev = 0;
+      let sun = 0, dev = 0, payloadProfileId = null, format = 'plain';
       try {
-        const parsed = JSON.parse(row.dataJson || '{}');
+        // parseSyncPayload routes plain JSON + the v1.6.4 GZ envelope.
+        // Without it the new compressed rows would render as 0/0 + ? in
+        // the diagnose modal (raw JSON.parse on `GZ|v1|<base64>` throws).
+        if (typeof row.dataJson === 'string' && row.dataJson.startsWith('GZ|v1|')) format = 'gz';
+        const parsed = await parseSyncPayload(row.dataJson || '{}');
         const imp = parsed?.importedData || parsed;
         sun = Array.isArray(imp?.sunSessions) ? imp.sunSessions.length : 0;
         dev = Array.isArray(imp?.lightDevices) ? imp.lightDevices.length : 0;
+        // Fallback when the row's profileId column is empty (seen in the
+        // wild on cross-device replication of older inserts) — read it
+        // from the payload's nested profile object.
+        payloadProfileId = parsed?.profile?.id || null;
       } catch {}
       out.rows.push({
-        profileId: row.profileId,
+        profileId: row.profileId || payloadProfileId,
+        profileIdSource: row.profileId ? 'column' : (payloadProfileId ? 'payload' : 'missing'),
         syncedAt: row.syncedAt,
         syncedAtMs: row.syncedAt ? new Date(row.syncedAt).getTime() : 0,
-        sun, dev,
+        sun, dev, format,
         bytes: (row.dataJson || '').length,
       });
     }
@@ -76,6 +85,39 @@ export function getEvoluDiagnostics() {
   out.activeImported.sunSessions = Array.isArray(state.importedData?.sunSessions) ? state.importedData.sunSessions.length : 0;
   out.activeImported.lightDevices = Array.isArray(state.importedData?.lightDevices) ? state.importedData.lightDevices.length : 0;
   return out;
+}
+
+// Render the diagnostics object as plain text — meant for the Copy button
+// in showSyncDiagnose, so a user can paste the device's state into chat /
+// support without retyping. Mirrors the modal's structure exactly.
+function _evoluDiagnosticsText(d) {
+  const lines = [
+    `Sync diagnose @ ${new Date().toISOString()}`,
+    `Sync enabled: ${d.syncEnabled ? 'yes' : 'no'}`,
+    `Relay: ${d.relay || '-'}`,
+    `Owner ID: ${d.ownerId || '- (not initialized)'}`,
+    `Mnemonic prefix: ${d.mnemonicPrefix || '-'}`,
+    `Active profile: ${d.activeProfileId || '?'}`,
+    `In-memory state: sunSessions=${d.activeImported.sunSessions} lightDevices=${d.activeImported.lightDevices}`,
+    `Rows in this device's local Evolu DB:`,
+  ];
+  if (!d.rows.length) {
+    lines.push('  (none)');
+  } else {
+    lines.push('  profileId         syncedAtMs       sun  dev  size       fmt   src');
+    for (const r of d.rows) {
+      const pid = String(r.profileId || '?').padEnd(17);
+      const ts = String(r.syncedAtMs).padEnd(16);
+      const sun = String(r.sun).padStart(3);
+      const dev = String(r.dev).padStart(3);
+      const size = String(r.bytes + 'b').padStart(9);
+      const fmt = String(r.format || '?').padEnd(5);
+      const src = String(r.profileIdSource || '?');
+      lines.push(`  ${pid} ${ts} ${sun}  ${dev}  ${size}  ${fmt} ${src}`);
+    }
+  }
+  if (d.rowsError) lines.push(`Rows read error: ${d.rowsError}`);
+  return lines.join('\n');
 }
 
 let evolu = null;
@@ -1788,13 +1830,23 @@ export function toggleSyncDetail() {
 // show the same `ownerId` / `mnemonicPrefix`. If they differ, the two
 // devices are talking to different Evolu owners and will never see each
 // other's data despite using the same relay URL.
-export function showSyncDiagnose() {
-  const d = getEvoluDiagnostics();
+export async function showSyncDiagnose() {
+  const d = await getEvoluDiagnostics();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
   const rowsHtml = d.rows.length
-    ? d.rows.map(r => `<tr><td style="padding:4px 8px;font-family:monospace;font-size:11px">${escapeHTML(r.profileId || '?')}</td><td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.syncedAtMs}</td><td style="padding:4px 8px;text-align:right">${r.sun}</td><td style="padding:4px 8px;text-align:right">${r.dev}</td><td style="padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px">${r.bytes}b</td></tr>`).join('')
-    : '<tr><td colspan="5" style="padding:8px;color:var(--text-muted);text-align:center">No rows in local Evolu DB</td></tr>';
+    ? d.rows.map(r => {
+        const pidCell = escapeHTML(r.profileId || '?');
+        // Mark a profileId pulled from the payload (column was empty) so
+        // a divergence between desktop + phone diagnose tables is legible.
+        const pidNote = r.profileIdSource === 'payload' ? ' <span style="color:var(--orange);font-size:10px" title="profileId column empty; recovered from payload">*</span>' : '';
+        const fmtCell = r.format === 'gz' ? '<span title="gzip envelope (v1.6.4)" style="color:var(--green)">gz</span>' : 'plain';
+        return `<tr><td style="padding:4px 8px;font-family:monospace;font-size:11px">${pidCell}${pidNote}</td><td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.syncedAtMs}</td><td style="padding:4px 8px;text-align:right">${r.sun}</td><td style="padding:4px 8px;text-align:right">${r.dev}</td><td style="padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px">${r.bytes}b</td><td style="padding:4px 8px;text-align:right;font-size:11px">${fmtCell}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="6" style="padding:8px;color:var(--text-muted);text-align:center">No rows in local Evolu DB</td></tr>';
+  // Stash diagnostics text on the modal node so the Copy button can read
+  // the same snapshot the user is staring at (avoids racing a re-fetch).
+  const copyText = _evoluDiagnosticsText(d);
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Sync diagnose" style="max-width:640px">
     <div class="modal-header"><h3>Sync diagnose</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button></div>
     <div class="modal-body" style="font-size:13px">
@@ -1812,15 +1864,52 @@ export function showSyncDiagnose() {
       <div>
         <b>Rows in this device's local Evolu DB:</b>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
-          <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th></tr></thead>
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th><th style="padding:4px 8px;text-align:right">fmt</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances.</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+        <button class="ctx-btn-option" onclick="window.copySyncDiagnose(this)" title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>
+        <button class="ctx-btn-option" onclick="this.closest('.modal-overlay').remove()">Close</button>
       </div>
     </div>
   </div>`;
+  overlay.dataset.copyText = copyText;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// Copies the Sync diagnose snapshot to the clipboard. Walks up to find
+// the overlay so we read the same `data-copy-text` blob the modal was
+// rendered from (no stale-snapshot races when sync ticks during read).
+async function copySyncDiagnose(btn) {
+  const overlay = btn?.closest?.('.modal-overlay');
+  const text = overlay?.dataset?.copyText || '';
+  if (!text) {
+    try { showNotification('Nothing to copy', 'error'); } catch {}
+    return;
+  }
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // Fallback for browsers without async clipboard permission
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    const original = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } catch (e) {
+    try { showNotification(`Copy failed: ${e?.message || e}`, 'error'); } catch {}
+  }
 }
 
 // Subscribe to status changes → repaint indicator + re-render the popover
@@ -1901,4 +1990,5 @@ Object.assign(window, {
   updateSyncIndicator,
   toggleSyncDetail,
   copySyncEvents,
+  copySyncDiagnose,
 });

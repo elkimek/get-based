@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.5', date: '2026-05-03', title: 'Sync diagnose — readable rows + Copy button',
+    items: [
+      '<b>Sun + device counts in Sync diagnose now read correctly.</b> v1.6.4\'s gzip-compressed payloads were appearing as 0/0 in the diagnose table because the modal was JSON-parsing the raw blob — now it routes through the same decoder the sync engine uses.',
+      '<b>profileId column has a fallback.</b> When the row\'s profileId column is empty (seen on some cross-device replicated rows), it\'s now recovered from the payload itself and marked with a small <span style="color:var(--orange)">*</span> so you can tell the difference.',
+      '<b>New "fmt" column</b> shows whether a row is gzip-compressed (v1.6.4+) or plain JSON (older), useful when diagnosing mixed-version sync.',
+      '<b>Copy button</b> on the Sync diagnose modal — one click writes the full snapshot (relay, owner, in-memory state, all rows) to your clipboard so you can paste it into a chat or issue without retyping.',
+    ]
+  },
+  {
     version: '1.6.4', date: '2026-05-03', title: 'Sync storage — gzipped pushes + longer debounce',
     items: [
       '<b>Each sync push now ships compressed.</b> Your full health record was being uploaded uncompressed every time you saved a change (~500 KB per push). With gzip + base64 envelope it\'s ~150 KB — about 3× more pushes before the relay\'s per-owner storage cap.',
