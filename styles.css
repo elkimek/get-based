@@ -7573,6 +7573,56 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 .sun-session-retinal.warn { background: rgba(239, 68, 68, 0.12); color: var(--red, #ef4444); border-color: rgba(239, 68, 68, 0.30); }
 
+/* Active-session inline controls — Pause/Resume + Sunscreen + Ozone.
+   Compact pill row beneath the meta line on active session cards. */
+.sun-session-active-controls {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 8px 0 4px;
+}
+.sun-session-ctl {
+  padding: 4px 10px; font-size: 11px;
+  background: var(--bg-input); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sun-session-ctl:hover { background: var(--bg-card); border-color: var(--accent); color: var(--accent); }
+
+.sun-session-paused {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  background: rgba(148, 163, 184, 0.18); color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.sun-session-forgot {
+  margin: 8px 0; padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.30);
+  border-radius: var(--radius-sm);
+  font-size: 12px; line-height: 1.4;
+  cursor: pointer; color: var(--text-primary);
+}
+.sun-session-forgot:hover { background: rgba(245, 158, 11, 0.15); }
+
+/* Vit-D daily budget chip on the dashboard Light Today row. */
+.light-today-vitd-warn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  background: rgba(239, 68, 68, 0.12); color: var(--red, #ef4444);
+  border: 1px solid rgba(239, 68, 68, 0.30);
+  margin-left: 8px;
+}
+.light-today-vitd-info {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; color: var(--text-secondary);
+  background: var(--bg-input); border: 1px solid var(--border);
+  margin-left: 8px;
+}
+
 /* Burn-risk banner on the Light & Sun page */
 .light-med-banner {
   margin: 16px 0;

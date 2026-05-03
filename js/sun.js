@@ -10,7 +10,7 @@
 // in profile.js migrateProfileData().
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog } from './utils.js';
+import { escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { getProfileLocation } from './profile.js';
 import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
@@ -314,6 +314,133 @@ export async function deleteSession(id) {
   _clearLiveState(id);
   await saveImportedData();
   return true;
+}
+
+// Pause an active session. Commits the current rate slice to
+// committedDoses (so accumulated dose is preserved), then marks the
+// session paused so future ticks contribute zero. Active ticker
+// continues for elapsed display + UI state but stops accruing dose.
+// Idempotent — calling on an already-paused session is a no-op.
+export async function pauseSession(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return null;
+  if (sess.paused) return sess;
+  // Commit current slice with the currently-cached rate so the user-
+  // visible cumulative dose persists across the pause boundary.
+  _commitCurrentSlice(sess);
+  sess.paused = true;
+  sess.pausedAt = Date.now();
+  // Clear rate so resume forces a fresh snapshot with current atm.
+  _setLiveState(id, { ratePerMin: null });
+  await saveImportedData();
+  return sess;
+}
+
+// Resume a paused session — clears paused flag and the ticker re-snapshots
+// with current atmosphere on the next pass. New slice begins from now.
+export async function resumeSession(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt || !sess.paused) return null;
+  sess.paused = false;
+  delete sess.pausedAt;
+  await saveImportedData();
+  return sess;
+}
+
+// User-facing wrappers — called from inline onclick handlers in
+// renderSunSessionRow's active controls. Both call the surface refresh
+// to update the dashboard strip + Light page state immediately.
+export async function pauseSunSession(id) {
+  await pauseSession(id);
+  showNotification('Session paused — dose accrual frozen until you resume.', 'success', 3500);
+  _refreshSurfaces();
+}
+export async function resumeSunSession(id) {
+  await resumeSession(id);
+  showNotification('Session resumed — fresh atmosphere snapshot on the next tick.', 'success', 3500);
+  _refreshSurfaces();
+}
+
+// Mid-session "I just reapplied sunscreen" hook. Commits the slice
+// computed under the OLD SPF, prompts for the new value, then updates
+// the session record. The next tick snapshots a fresh rate with the
+// new SPF baked in via _rateAtInstant's bodyModifiers path.
+export async function applySunscreenMidSession(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return;
+  const cur = sess.bodyExposure?.sunscreenSPF || 0;
+  const raw = await showPromptDialog(
+    `Reapply sunscreen — what SPF? (Currently SPF ${cur || 'none'})`,
+    { defaultValue: cur ? String(cur) : '30', okLabel: 'Apply', placeholder: 'SPF (15-100)' }
+  );
+  if (raw == null) return;
+  const spf = parseInt(raw, 10);
+  if (!Number.isFinite(spf) || spf < 0 || spf > 100) {
+    showNotification('SPF must be 0-100.', 'error', 3000);
+    return;
+  }
+  // Commit current slice with OLD SPF before the change, then update +
+  // clear rate so the next tick snapshots fresh under the NEW SPF.
+  _commitCurrentSlice(sess);
+  if (!sess.bodyExposure) sess.bodyExposure = {};
+  sess.bodyExposure.sunscreenSPF = spf || null;
+  _setLiveState(id, { ratePerMin: null });
+  await saveImportedData();
+  showNotification(`SPF updated to ${spf || 'none'} — next dose-rate sample uses the new value.`, 'success', 3500);
+  _refreshSurfaces();
+}
+
+// Quick ozone-DU override surfaced from the active card — saves to
+// sunDefaults.overrides.ozoneDU which _applyAtmOverrides reads on every
+// _rateAtInstant. Clears live ratePerMin so the new override applies on
+// the next tick.
+export async function setOzoneOverrideMidSession() {
+  const cur = state.importedData?.sunDefaults?.overrides?.ozoneDU;
+  const raw = await showPromptDialog(
+    `Stratospheric ozone column (Dobson Units). Typical 220-450 DU. Leave empty to clear and use the source value.`,
+    { defaultValue: cur ? String(cur) : '', okLabel: 'Apply', placeholder: 'e.g. 320' }
+  );
+  if (raw == null) return;
+  const trimmed = String(raw).trim();
+  if (!state.importedData.sunDefaults) state.importedData.sunDefaults = {};
+  if (!state.importedData.sunDefaults.overrides) state.importedData.sunDefaults.overrides = {};
+  if (trimmed === '') {
+    state.importedData.sunDefaults.overrides.ozoneDU = null;
+    showNotification('Ozone override cleared — using source value.', 'success', 3000);
+  } else {
+    const du = parseFloat(trimmed);
+    if (!Number.isFinite(du) || du < 100 || du > 600) {
+      showNotification('Ozone DU must be 100-600.', 'error', 3000);
+      return;
+    }
+    state.importedData.sunDefaults.overrides.ozoneDU = du;
+    showNotification(`Ozone override set: ${du} DU. Active session re-snapshots on next tick.`, 'success', 3500);
+  }
+  // Force re-snapshot for any active session.
+  for (const s of getSessions().filter(x => !x.endedAt)) {
+    _commitCurrentSlice(s);
+    _setLiveState(s.id, { ratePerMin: null });
+  }
+  await saveImportedData();
+  _refreshSurfaces();
+}
+
+// Forgot-to-stop banner action — closes a session that's been running
+// > 12h. Sets endedAt to now (or the previous sunset, whichever is
+// earlier and still after startedAt) so the dose math is bounded.
+export async function _forgotStopPrompt(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return;
+  const hours = ((Date.now() - sess.startedAt) / 3600000).toFixed(1);
+  showConfirmDialog(
+    `End this session that's been running ${hours} hours? Best-guess end time: now. The recorded duration will still reflect this — please trim it from the session detail if you ended earlier.`,
+    async () => {
+      await stopSession(sess.id);
+      await _hydrateFromProfileCoords(sess.id);
+      _refreshSurfaces();
+      showNotification('Session ended. Open the session detail to adjust the duration if needed.', 'success', 4500);
+    }
+  );
 }
 
 // Edit fields on a saved session. Bumps `updatedAt` so the cross-device
@@ -650,6 +777,88 @@ export function rollingVitaminDIU(days = 7) {
     total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi);
   }
   return total;
+}
+
+// Cumulative vitamin D IU synthesized from sun TODAY (local-day window).
+// Mirrors rollingVitaminDIU logic but bounds by local midnight instead of
+// a rolling-N-day cutoff. Used by the vit-D budget cross-check.
+export function cumulativeVitaminDIUToday() {
+  if (typeof window.vitaminDIU !== 'function') return 0;
+  const now = new Date();
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  let total = 0;
+  for (const sess of getSessions()) {
+    if (!sess.endedAt) {
+      if ((sess.startedAt || 0) < dayStart) continue;
+      const live = _liveDosesFor(sess);
+      if (live?.doses?.vitamin_d) {
+        const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
+        const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
+        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi);
+      }
+      continue;
+    }
+    if (!sess.doses?.vitamin_d) continue;
+    if (sess.endedAt < dayStart) continue;
+    const fitz = sess.safety?.fitzpatrick || 'III';
+    const uvi = sess.atmosphere?.uvIndex ?? null;
+    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi);
+  }
+  return total;
+}
+
+// Today's vitamin D from active supplements. Walks importedData.supplements
+// looking for ingredients whose name matches vitamin D variants
+// (D / D3 / cholecalciferol / D2 / ergocalciferol). Converts mcg→IU
+// (1 mcg = 40 IU). Returns total IU/day. Active period defined as no
+// endDate or endDate >= today.
+function _dailySupplementVitaminDIU() {
+  const supps = state.importedData?.supplements || [];
+  const today = new Date().toISOString().slice(0, 10);
+  let total = 0;
+  for (const supp of supps) {
+    // Filter to currently-active supplement records — same logic the
+    // timeline + supplement-impact uses (start <= today, end empty/future).
+    if (supp.startDate && supp.startDate > today) continue;
+    if (supp.endDate && supp.endDate < today) continue;
+    for (const ing of (supp.ingredients || [])) {
+      const name = (ing.name || '').toLowerCase();
+      if (!/vit(?:amin)?[\s-]*d[23]?\b|cholecalciferol|ergocalciferol/.test(name)) continue;
+      // Skip topical/cream forms (don't add to systemic budget).
+      if (/cream|topical|serum/.test(name)) continue;
+      const total24h = (window.ingredientDailyTotal && window.ingredientDailyTotal(ing, supp))
+        || (typeof ingredientDailyTotal === 'function' ? ingredientDailyTotal(ing, supp) : null);
+      if (!total24h) continue;
+      const u = (total24h.unit || '').toLowerCase();
+      let iu = total24h.value;
+      if (/mcg|µg|μg/.test(u)) iu *= 40; // 1 mcg = 40 IU
+      total += iu;
+    }
+  }
+  return total;
+}
+
+// Vitamin D daily-budget assessment — combines supplement + sun-derived
+// totals. Returns a structured object so views.js can render whatever
+// surface fits (chip, banner, banner-with-detail).
+//
+// Reference: IOM 2010 sets 4000 IU/d as the Tolerable Upper Intake Level
+// (UL) from supplements alone. Sun-derived vit D doesn't count toward
+// this limit because skin photoisomerization plateaus at ~20,000 IU per
+// session — the body self-regulates. We surface the supplement total
+// against UL, and the combined total as informational context.
+export function vitaminDBudgetStatus() {
+  const supplementIU = _dailySupplementVitaminDIU();
+  const sunIU = cumulativeVitaminDIUToday();
+  const total = supplementIU + sunIU;
+  const supplementUL = 4000;
+  return {
+    supplementIU,
+    sunIU,
+    total,
+    supplementUL,
+    exceedsSupplementUL: supplementIU > supplementUL,
+  };
 }
 
 // Cumulative MED today (for the safety gauge and pre-session warnings).
@@ -1342,7 +1551,17 @@ function _commitCurrentSlice(sess) {
 // per-tick memoization keyed by tickCount.
 function _liveDosesFor(sess) {
   const live = _getLiveState(sess?.id);
-  if (!live || !live.ratePerMin) return null;
+  if (!live) return null;
+  // Paused sessions: surface committed totals only — current slice
+  // contributes zero. Skips the Simpson integration entirely.
+  if (sess?.paused) {
+    const committed = live.committedDoses || {};
+    const sed = live.committedSED || 0;
+    const retinalUV = live.committedRetinalUV || 0;
+    const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, medScale: live.medScale ?? 1.0 }) : 0;
+    return { doses: { ...committed }, sed, retinalUV, medFraction, fitzpatrick: live.fitzpatrick, psmTier: live.psmTier, atm: live.atm, paused: true };
+  }
+  if (!live.ratePerMin) return null;
   const sliceStart = live.snapshotAt || sess.startedAt;
   const now = Date.now();
 
@@ -1431,9 +1650,16 @@ function _tickActiveCards() {
   _tickCount++;
   for (const sess of sessions) {
     const live = _getLiveState(sess.id);
-    // Lazy snapshot of the rate (async — fires once per session, cached
-    // in module-scoped _liveState map, never written to the session record)
-    if ((!live || !live.ratePerMin) && (!live || !live.pending)) _snapshotActiveRate(sess);
+    // Skip rate-related work entirely while paused — the slice is committed
+    // and we want zero dose accrual from pausedAt → resume time.
+    if (sess.paused) {
+      // Paused cards still tick for display state; refresh DOM below but
+      // bypass snapshot/refresh + alerts.
+    } else {
+      // Lazy snapshot of the rate (async — fires once per session, cached
+      // in module-scoped _liveState map, never written to the session record)
+      if ((!live || !live.ratePerMin) && (!live || !live.pending)) _snapshotActiveRate(sess);
+    }
 
     // Refresh the cached atmosphere snapshot every 5 min so cloud cover
     // and UVI drift get reflected in the live rate. Commit the current
@@ -1441,7 +1667,7 @@ function _tickActiveCards() {
     // jump when the new rate replaces the old), then clear ratePerMin to
     // force the next tick to re-snapshot. baselineZenith + committedDoses
     // are preserved across refreshes by _snapshotActiveRate.
-    if (live && live.ratePerMin && !live.pending) {
+    if (live && live.ratePerMin && !live.pending && !sess.paused) {
       const last = live.snapshotAt || 0;
       if (Date.now() - last > 5 * 60 * 1000) {
         _commitCurrentSlice(sess);
@@ -1701,6 +1927,24 @@ export function renderSunSessionRow(sess) {
     medStr = `<span class="sun-session-med ${cls}" title="Burn dose: ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn dose: ${escapeHTML(label)}</span>`;
   }
   const channelChips = renderChannelChips(sess.doses);
+  // Active-session controls: Pause/Resume + Sunscreen re-applied + Set
+  // ozone. Stop propagation so the row's open-detail click handler
+  // doesn't fire when these are tapped.
+  let activeControls = '';
+  if (isActive) {
+    const isPaused = !!sess.paused;
+    const pauseLabel = isPaused ? '▶ Resume' : '⏸ Pause';
+    const pauseAction = isPaused ? `window.resumeSunSession('${escapeAttr(sess.id)}')` : `window.pauseSunSession('${escapeAttr(sess.id)}')`;
+    activeControls = `<div class="sun-session-active-controls" onclick="event.stopPropagation()">
+      <button class="sun-session-ctl" onclick="event.stopPropagation();${pauseAction}" title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}">${pauseLabel}</button>
+      <button class="sun-session-ctl" onclick="event.stopPropagation();window.applySunscreenMidSession('${escapeAttr(sess.id)}')" title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF">🧴 Sunscreen</button>
+      <button class="sun-session-ctl" onclick="event.stopPropagation();window.setOzoneOverrideMidSession()" title="Calibrate ozone column from a meter / weather station">🛰 Ozone</button>
+    </div>`;
+  }
+  const pausedBadge = isActive && sess.paused ? `<span class="sun-session-paused" title="Dose accrual paused — elapsed time still ticks but channel + burn totals stay frozen.">⏸ paused</span>` : '';
+  const forgotBanner = isActive && (Date.now() - sess.startedAt > 12 * 3600 * 1000)
+    ? `<div class="sun-session-forgot" onclick="event.stopPropagation();window._forgotStopPrompt && window._forgotStopPrompt('${escapeAttr(sess.id)}')" role="button" tabindex="0">⚠ This session has been running for ${Math.round((Date.now() - sess.startedAt) / 3600000)}h. Tap to end it.</div>`
+    : '';
   // Click anywhere on the card (except the × delete) to open the detail
   // modal. Each delete button stops propagation so it only deletes.
   return `<div class="sun-session" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
@@ -1708,12 +1952,15 @@ export function renderSunSessionRow(sess) {
       <span class="light-session-icon" aria-hidden="true">☀</span>
       <span class="sun-session-date">${start}</span>
       <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
+      ${pausedBadge}
       ${medStr}
       <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
     </div>
     <div class="sun-session-meta">
       ${escapeHTML(_summarizeBodyExposure(sess))} · ${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
     </div>
+    ${forgotBanner}
+    ${activeControls}
     ${channelChips}
   </div>`;
 }
@@ -2380,6 +2627,11 @@ if (typeof window !== 'undefined') {
     quickLogSunSession,
     startSession,
     stopSession,
+    pauseSession, resumeSession,
+    pauseSunSession, resumeSunSession,
+    applySunscreenMidSession,
+    setOzoneOverrideMidSession,
+    _forgotStopPrompt,
     logCompletedSession,
     updateSession,
     editSunSessionDuration,
@@ -2393,6 +2645,8 @@ if (typeof window !== 'undefined') {
     rollingVitaminDIU,
     cumulativeMEDToday,
     cumulativeMEDYesterday,
+    cumulativeVitaminDIUToday,
+    vitaminDBudgetStatus,
     _applyAtmOverrides,
     renderSessionsList,
     renderSunSessionRow,

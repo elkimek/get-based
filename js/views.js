@@ -160,6 +160,23 @@ export function renderLightTodayStrip() {
     weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun exposure over the last 7 days, summed per session and Fitzpatrick-scaled. ±50% range reflects model + biological response variance — central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU * 0.6)}-${fmt(weeklyIU * 1.5)} IU vitamin D this week</span>`;
   }
 
+  // Vit-D budget cross-check — shows today's combined sun-derived +
+  // supplement IU. Warn chip when supplements alone exceed the IOM 4000
+  // IU/d Tolerable Upper Intake Level. Sun-derived doesn't count toward
+  // UL (skin photoisomerization plateaus naturally) but is shown for
+  // context — clinicians treating high serum 25(OH)D look at total daily
+  // input.
+  let vitDBudgetChip = '';
+  if (typeof window.vitaminDBudgetStatus === 'function') {
+    const b = window.vitaminDBudgetStatus();
+    const fmtIU = (n) => n >= 1000 ? `${(n/1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n)}`;
+    if (b.exceedsSupplementUL) {
+      vitDBudgetChip = `<span class="light-today-vitd-warn" title="IOM 2010 Tolerable Upper Intake Level for vitamin D from supplements alone is 4000 IU/d. Today: ${fmtIU(b.supplementIU)} IU supplement + ~${fmtIU(b.sunIU)} IU sun = ~${fmtIU(b.total)} IU total. Supplement above UL — flag this with your clinician.">⚠ Vit D today: ${fmtIU(b.supplementIU)} IU supplement above 4000 IU UL (+${fmtIU(b.sunIU)} sun)</span>`;
+    } else if (b.supplementIU > 0 && b.total > 8000) {
+      vitDBudgetChip = `<span class="light-today-vitd-info" title="High combined dose today — sun usually self-regulates via photoisomerization plateau but supplements stack additively. Worth tracking serum 25(OH)D over time.">Vit D today: ~${fmtIU(b.total)} IU (${fmtIU(b.supplementIU)} supplement + ~${fmtIU(b.sunIU)} sun)</span>`;
+    }
+  }
+
   // High-altitude UV chip — UV irradiance climbs ~10% per 1000m above sea
   // level (WHO/INTERSUN). At >1500m it's a meaningful safety modifier the
   // user should see before going outside.
@@ -180,7 +197,7 @@ export function renderLightTodayStrip() {
     <div class="light-pills-row">
       ${pills}
     </div>
-    ${weeklyIUStr ? `<div class="light-today-vitd-row">${weeklyIUStr}</div>` : ''}
+    ${weeklyIUStr || vitDBudgetChip ? `<div class="light-today-vitd-row">${weeklyIUStr}${vitDBudgetChip ? ' ' + vitDBudgetChip : ''}</div>` : ''}
     <div class="light-today-foot">
       ${showBurnRisk ? `<span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your burn threshold (Fitzpatrick-based). 100% = burn threshold reached.">
         ☀ Sun exposure today: <strong>${medMsg}</strong>${medPct > 0 ? ` (${medPct}%)` : ''}

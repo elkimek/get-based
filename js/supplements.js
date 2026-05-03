@@ -838,4 +838,4 @@ function applyImpactToDOM(editIdx, cached) {
   }
 }
 
-Object.assign(window, { renderSupplementsSection, openSupplementsEditor, toggleSuppAccordion, showAddSuppForm, saveSupplement, deleteSupplement, askAIMitoContext, computeAllImpacts, getSupplementPeriods, addIngredientRow, removeIngredientRow, addPeriodRow, removePeriodRow, scanSupplementLabel, fetchSupplementFromURL, refreshSupplementImpact, updateIngTotal, updateAllIngTotals });
+Object.assign(window, { renderSupplementsSection, openSupplementsEditor, toggleSuppAccordion, showAddSuppForm, saveSupplement, deleteSupplement, askAIMitoContext, computeAllImpacts, getSupplementPeriods, addIngredientRow, removeIngredientRow, addPeriodRow, removePeriodRow, scanSupplementLabel, fetchSupplementFromURL, refreshSupplementImpact, updateIngTotal, updateAllIngTotals, ingredientDailyTotal });
