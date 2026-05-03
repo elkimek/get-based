@@ -101,7 +101,8 @@ export default defineConfig({
             { text: 'Data Pipeline', link: '/contributor/data-pipeline' },
             { text: 'Testing', link: '/contributor/testing' },
             { text: 'Deployment', link: '/contributor/deployment' },
-            { text: 'Storage Schema', link: '/contributor/storage-schema' }
+            { text: 'Storage Schema', link: '/contributor/storage-schema' },
+            { text: 'Sun Spectrum Model', link: '/contributor/sun-spectrum-model' }
           ]
         }
       ]
