@@ -7893,10 +7893,18 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 .sun-chip-icon { font-size: 12px; }
 .sun-chip-label { font-weight: 500; }
-.sun-chip-dots {
-  font-family: var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
-  font-size: 10px; opacity: 0.8; letter-spacing: 1px;
+/* Per-channel value on the chip (e.g. "~1.8k IU", "8 J/cm²", "158%").
+   Replaces the old dot tier indicator with the actual real-unit
+   contribution from this session — way more informative at a glance.
+   Tabular nums so the digit alignment doesn't jitter across chips. */
+.sun-chip-value {
+  font-size: 10px; font-weight: 600;
+  color: inherit; opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+  padding-left: 2px;
 }
+/* Legacy dots class — kept hidden so any cached HTML still renders. */
+.sun-chip-dots { display: none; }
 .sun-chip-tier-0 { opacity: 0.4; }
 .sun-chip-tier-1 { color: var(--text-secondary); }
 .sun-chip-tier-2 { color: var(--text-primary); border-color: var(--text-muted); }

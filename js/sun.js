@@ -1625,7 +1625,7 @@ function _renderActiveCardBody(sess) {
     else if (live.medFraction >= 0.3) { label = 'moderate'; cls = ''; }
     medStr = `<span class="sun-session-med ${cls}" title="Burn dose so far — ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(live.fitzpatrick)})">${pct}% burn dose · ${escapeHTML(label)}</span>`;
   }
-  const channelChips = live?.doses ? renderChannelChips(live.doses) : '';
+  const channelChips = live?.doses ? renderChannelChips(live.doses, sess) : '';
   // Surface a live IU readout for vitamin D — the most user-resonant
   // unit in the channel set. Computed from the same channel-au integral
   // the chips render, just translated through vitaminDIU(). Hidden when
@@ -1963,7 +1963,7 @@ export function renderSunSessionRow(sess) {
     else if (med >= 0.3) { label = 'moderate'; cls = ''; }
     medStr = `<span class="sun-session-med ${cls}" title="Burn dose: ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn dose: ${escapeHTML(label)}</span>`;
   }
-  const channelChips = renderChannelChips(sess.doses);
+  const channelChips = renderChannelChips(sess.doses, sess);
   // Active-session controls: Pause/Resume + Sunscreen re-applied + Set
   // ozone. Stop propagation so the row's open-detail click handler
   // doesn't fire when these are tapped.
@@ -2264,7 +2264,57 @@ export function openSunSessionDetail(id) {
   trapModalFocus(overlay);
 }
 
-function renderChannelChips(doses) {
+// Per-channel chip value — small inline real-unit number rendered on
+// the chip. Channel-aware so units match what the user expects:
+//   vitamin_d → IU
+//   nir_solar → J/cm²
+//   circadian → ~k M-EDI lux (peak melanopic during the session)
+//   no_cv / pomc / violet_eye → percent of daily target
+// Returns '' when the value is sub-meaningful so chips for low channels
+// stay tight (icon + label only).
+function _sessionChipValue(channelKey, channelAu, sess) {
+  if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
+  const meta = CHANNEL_DISPLAY[channelKey] || {};
+  const fitz = sess?.safety?.fitzpatrick || 'III';
+  const uvi = sess?.atmosphere?.uvIndex ?? null;
+  const dur = sess?.durationMin || 0;
+  if (channelKey === 'vitamin_d' && typeof window.vitaminDIU === 'function') {
+    const iu = window.vitaminDIU(channelAu, fitz, uvi);
+    if (iu < 30) return '';
+    if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU`;
+    return `~${Math.round(iu / 10) * 10} IU`;
+  }
+  if (channelKey === 'nir_solar' && typeof window.pbmJoulesPerCm2 === 'function') {
+    const j = window.pbmJoulesPerCm2(channelAu);
+    if (j < 0.1) return '';
+    if (j >= 10) return `${Math.round(j)} J/cm²`;
+    return `${j.toFixed(1)} J/cm²`;
+  }
+  if (channelKey === 'circadian' && dur > 0 && typeof window.circadianMelanopicLux === 'function') {
+    const lux = window.circadianMelanopicLux(channelAu, dur);
+    if (lux < 100) return '';
+    // Round aggressively at this magnitude — peak M-EDI lux is a big
+    // number and chip-width-readable form beats decimal precision.
+    if (lux >= 10000) return `~${Math.round(lux / 1000)}k lux`;
+    if (lux >= 1000) return `~${(lux / 1000).toFixed(1)}k lux`;
+    return `~${Math.round(lux / 10) * 10} lux`;
+  }
+  // Unitless channels — percent-of-daily-target. Past hit-target the
+  // exact number is noise (the user got more than enough); collapse
+  // anything ≥ 200% to "✓ over" so the chip stays informative without
+  // a 4-digit percentage that adds nothing actionable.
+  const target = meta.dailyTarget || 0;
+  if (target > 0) {
+    const pct = Math.round(100 * channelAu / target);
+    if (pct < 5) return '';
+    if (pct >= 200) return '✓ over';
+    if (pct >= 100) return `✓ ${pct}%`;
+    return `${pct}%`;
+  }
+  return '';
+}
+
+function renderChannelChips(doses, sess = null) {
   if (!doses) return '';
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar'];
   // Top-3 contributing channels for at-a-glance reading. Full grid lives on
@@ -2274,29 +2324,24 @@ function renderChannelChips(doses) {
     .sort((a, b) => b.tier - a.tier || b.v - a.v);
   const showAll = ranked.filter(r => r.tier > 0).length > 3;
   const visible = showAll ? ranked.slice(0, 3) : ranked;
-  let html = `<div class="sun-channel-chips">`;
-  for (const r of visible) {
+  const chipFor = (r, extraClass = '') => {
     const meta = CHANNEL_DISPLAY[r.key];
     const label = meta?.label || r.key.replace('_', ' ');
-    const tip = `${meta?.what || ''} (level: ${tierLabel(r.tier)})`;
-    html += `<span class="sun-chip sun-chip-tier-${r.tier}" data-channel="${r.key}" title="${escapeAttr(tip)}">
+    const valueStr = _sessionChipValue(r.key, r.v, sess);
+    const tip = valueStr
+      ? `${meta?.what || ''} — this session: ${valueStr}`
+      : `${meta?.what || ''} (level: ${tierLabel(r.tier)})`;
+    return `<span class="sun-chip sun-chip-tier-${r.tier}${extraClass}" data-channel="${r.key}" title="${escapeAttr(tip)}">
       <span class="sun-chip-icon">${meta?.icon || '·'}</span>
       <span class="sun-chip-label">${escapeHTML(label)}</span>
-      <span class="sun-chip-dots">${tierDots(r.tier)}</span>
+      ${valueStr ? `<span class="sun-chip-value">${escapeHTML(valueStr)}</span>` : ''}
     </span>`;
-  }
+  };
+  let html = `<div class="sun-channel-chips">`;
+  for (const r of visible) html += chipFor(r);
   if (showAll) {
     html += `<button class="sun-chip-more" onclick="this.parentElement.classList.toggle('sun-chips-expanded')">+ ${ranked.length - 3} more</button>`;
-    for (const r of ranked.slice(3)) {
-      const meta = CHANNEL_DISPLAY[r.key];
-      const label = meta?.label || r.key.replace('_', ' ');
-      const tip = `${meta?.what || ''} (level: ${tierLabel(r.tier)})`;
-      html += `<span class="sun-chip sun-chip-tier-${r.tier} sun-chip-extra" data-channel="${r.key}" title="${escapeAttr(tip)}">
-        <span class="sun-chip-icon">${meta?.icon || '·'}</span>
-        <span class="sun-chip-label">${escapeHTML(label)}</span>
-        <span class="sun-chip-dots">${tierDots(r.tier)}</span>
-      </span>`;
-    }
+    for (const r of ranked.slice(3)) html += chipFor(r, ' sun-chip-extra');
   }
   html += `</div>`;
   return html;
