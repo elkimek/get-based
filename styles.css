@@ -5391,10 +5391,20 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   border: 1px solid var(--border); background: var(--bg-secondary);
   color: var(--text-muted);
 }
-.light-channel-detail-tierpill.tier1 { color: var(--green); border-color: rgba(34, 197, 94, 0.30); background: rgba(34, 197, 94, 0.10); }
+/* Tier color scheme aligns with the chart's hit-target semantics
+   (chart bars: gray <5%, faint accent <30%, accent 30-100%, GREEN at
+   target, GREEN above target). The header tier pill should match:
+   - tier 0: muted gray (no exposure)
+   - tier 1: low / accent muted
+   - tier 2: moderate / accent
+   - tier 3: good / accent (approaching hit-target)
+   - tier 4: strong / GREEN (hit target across the week)
+   Previously tier 4 was RED which conflicted with the chart's
+   green-for-hit-target visual: same channel, opposite signal. */
+.light-channel-detail-tierpill.tier1 { color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary); }
 .light-channel-detail-tierpill.tier2 { color: var(--accent); border-color: rgba(79, 140, 255, 0.30); background: rgba(79, 140, 255, 0.10); }
-.light-channel-detail-tierpill.tier3 { color: var(--orange); border-color: rgba(245, 158, 11, 0.30); background: rgba(245, 158, 11, 0.10); }
-.light-channel-detail-tierpill.tier4 { color: var(--red); border-color: rgba(239, 68, 68, 0.30); background: rgba(239, 68, 68, 0.10); }
+.light-channel-detail-tierpill.tier3 { color: var(--accent); border-color: var(--accent); background: rgba(79, 140, 255, 0.15); }
+.light-channel-detail-tierpill.tier4 { color: var(--green); border-color: rgba(34, 197, 94, 0.40); background: rgba(34, 197, 94, 0.12); }
 
 /* Hero stat block — the big number you actually want to see (e.g. "~1.8k IU
    vitamin D this week"). Lives directly under the header so the eye lands
@@ -7511,17 +7521,21 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   .sun-detail-atm { grid-template-columns: 1fr 1fr; }
   .sun-detail-atm strong { font-size: 12px; }
 }
+/* Channel-row tier chips inside the session detail modal — same scheme
+   as the .light-channel-detail-tierpill in the Light page panel:
+   tier 4 (hit weekly target) is GREEN, not red. Mirrors the chart's
+   green-for-hit-target visual so the user gets one consistent signal. */
 .sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier {
-  color: var(--green); border-color: rgba(34, 197, 94, 0.30); background: rgba(34, 197, 94, 0.10);
+  color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary);
 }
 .sun-detail-channel-row.sun-chip-tier-2 .sun-detail-channel-tier {
   color: var(--accent); border-color: rgba(79, 140, 255, 0.30); background: rgba(79, 140, 255, 0.10);
 }
 .sun-detail-channel-row.sun-chip-tier-3 .sun-detail-channel-tier {
-  color: var(--orange); border-color: rgba(245, 158, 11, 0.30); background: rgba(245, 158, 11, 0.10);
+  color: var(--accent); border-color: var(--accent); background: rgba(79, 140, 255, 0.15);
 }
 .sun-detail-channel-row.sun-chip-tier-4 .sun-detail-channel-tier {
-  color: var(--red); border-color: rgba(239, 68, 68, 0.30); background: rgba(239, 68, 68, 0.10);
+  color: var(--green); border-color: rgba(34, 197, 94, 0.40); background: rgba(34, 197, 94, 0.12);
 }
 .sun-detail-atm {
   display: grid;
