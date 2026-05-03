@@ -102,8 +102,6 @@ export function renderLightTodayStrip() {
   // strong" tiers + dots. Hover for science.
   const ch = window.CHANNEL_DISPLAY || {};
   const tier = window.channelTier || (() => 0);
-  const dots = window.tierDots || (() => '○○○○');
-  const tlabel = window.tierLabel || (() => 'none');
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   // Combine sun + device contributions so a user with a Joovv panel and no
   // outdoor sessions still sees PBM channels light up.

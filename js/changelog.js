@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.14', date: '2026-05-03', title: 'Pre-v1.7 audit pass — gzip-bomb defence + owner-scoped warnings',
+    items: [
+      '<b>Decompression-bomb defence on the blob pull path.</b> The per-row gunzip path was capped in v1.7.12, but <code>parseSyncPayload</code> (used for the fat-blob and for the diagnose modal\'s pre-pass over every relay row) still ran uncapped — the post-decompression size check fired only after the full gunzipped output had been buffered, so a 5 MB compressed gzip-bomb could decompress to GBs and OOM the tab before the cap triggered. Now routed through the same streaming-capped reader; bombs fail fast at the cap.',
+      '<b>Owner change cleanups.</b> <code>disableSync</code> and <code>restoreFromMnemonic</code> now drop <code>-relay-bytes-</code> counter keys + the legacy global <code>labcharts-relay-quota-warned</code> marker alongside the v1.7.11 delta-snapshot/cutover-flag clear. Without this, restoring a previously-used mnemonic would inherit stale phantom storage usage from that owner\'s last session, and the threshold-warning toast wouldn\'t fire for the new owner because the marker still said "already warned".',
+      '<b>Quota-warned marker is now per-owner.</b> Previously a single global key meant a user with two relays (or a mnemonic restore) could miss the first amber/red warning on the new owner because the legacy global marker still said "already warned". Now scoped to <code>{owner-id}-relay-quota-warned</code>; both old + new keys are cleared on reset for full re-arm.',
+    ]
+  },
+  {
     version: '1.7.13', date: '2026-05-03', title: 'Sync audit P2 cleanup',
     items: [
       '<b>manualValues synth-id collision fix.</b> The v1.7.5 algorithm (`:` → `_`) could collapse two distinct keys to the same itemRow id when a marker key contained `_`. Switched to a doubling-escape (each `_` → `__`, then each `:` → `_`) so distinct rawKeys always produce distinct synths. Branch is unpushed so no migration concern — applied directly. Pull side still restores the original `:`-bearing key from `payload.k`.',

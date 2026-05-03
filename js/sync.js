@@ -628,7 +628,7 @@ export async function disableSync() {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const key = localStorage.key(i);
     if (!key) continue;
-    if (key.includes('-delta-') || key.includes('-sync-cutover-v2')) {
+    if (key.includes('-delta-') || key.includes('-sync-cutover-v2') || key.includes('-relay-bytes-') || key === 'labcharts-relay-quota-warned') {
       localStorage.removeItem(key);
     }
   }
@@ -740,7 +740,7 @@ export async function restoreFromMnemonic(mnemonic) {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
       if (!key) continue;
-      if (key.endsWith('-sync-ts') || key.includes('-delta-') || key.includes('-sync-cutover-v2')) {
+      if (key.endsWith('-sync-ts') || key.includes('-delta-') || key.includes('-sync-cutover-v2') || key.includes('-relay-bytes-') || key === 'labcharts-relay-quota-warned') {
         localStorage.removeItem(key);
       }
     }
@@ -949,8 +949,12 @@ async function buildSyncPayload(profileId, importedData) {
   // Gzip + base64 envelope. v3 plain-JSON pushes were averaging ~500 KB,
   // hitting the relay's 50 MB per-owner cap in ~95 pushes (≈2 days of
   // moderate use) since Evolu stores every CRDT message in evolu_message
-  // and we ship the entire blob each push. Gzip drops typical payloads
-  // ~70%, base64 reinflates ~33%, net ~3× more pushes per quota.
+  // and (when Phase 2 cutover is OFF) we ship the entire importedData
+  // blob each push. Gzip drops typical payloads ~70%, base64 reinflates
+  // ~33%, net ~3× more pushes per quota. With Phase 2 cutover ON the
+  // blob is omitted entirely (importedData absent above) and the inner
+  // payload shrinks to a few KB envelope — gzip is still cheap enough
+  // to stay on rather than special-case the smaller path.
   // Discriminator: pre-existing v3 plain JSON starts with "{"; the new
   // envelope starts with "GZ|" which is unambiguously not JSON. The
   // 1 KB threshold avoids spending the round-trip on tiny payloads
@@ -1044,6 +1048,12 @@ async function parseSyncPayload(dataJson) {
   }
   // Gzip envelope: "GZ|v1|<base64>". Decompress before JSON.parse.
   // Plain v3 payloads still start with "{" and skip this branch.
+  // v1.7.14 audit fix: routed through _gunzipToStringCapped so a
+  // gzip-bomb (max ratio ~1032×; pathological zero-fill achieves it)
+  // cannot decompress past MAX_SYNC_PAYLOAD_BYTES into memory before
+  // the size check fires. The previous post-decompression `inner.length`
+  // check ran *after* the full gunzipped output had been buffered, so
+  // a 5 MB compressed bomb could OOM the tab before failing the cap.
   let inner = dataJson;
   if (dataJson.startsWith('GZ|v1|')) {
     if (typeof DecompressionStream === 'undefined') {
@@ -1051,10 +1061,7 @@ async function parseSyncPayload(dataJson) {
     }
     const b64 = dataJson.slice(6);
     const bytes = _base64ToBytes(b64);
-    inner = await _gunzipToString(bytes);
-    if (inner.length > MAX_SYNC_PAYLOAD_BYTES) {
-      throw new Error('Invalid sync payload: decompressed size exceeds cap');
-    }
+    inner = await _gunzipToStringCapped(bytes, MAX_SYNC_PAYLOAD_BYTES);
   }
   const parsed = JSON.parse(inner);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -3210,7 +3217,13 @@ function _doResetRelayQuota(btn) {
     try { showNotification('Relay-storage counter reset to 0', 'success'); } catch {}
     // Bust the cached "already toasted" markers so future thresholds
     // re-warn even if the user pre-emptively reset before crossing back.
+    // Both owner-scoped (v1.7.14+) and the legacy global key are cleared
+    // for full re-arm regardless of which version wrote them.
     try { localStorage.removeItem('labcharts-relay-quota-warned'); } catch {}
+    try {
+      const owner = _appOwner?.id ? String(_appOwner.id) : 'unknown';
+      localStorage.removeItem(`labcharts-${owner}-relay-quota-warned`);
+    } catch {}
     if (btn) {
       const overlay = btn.closest?.('.modal-overlay');
       if (overlay) overlay.remove();
@@ -3299,11 +3312,18 @@ function confirmDisablePhase2(btn) {
 // Toast users when they cross the 80% / 95% threshold the first time.
 // Uses a single-key marker so we don't re-fire on every push at the same
 // threshold; resets when the counter is reset (i.e. after compaction).
+// v1.7.14 audit fix: marker key is now owner-scoped — without this, a
+// `restoreFromMnemonic` to a different owner inherited the previous
+// owner's amber/red marker and silently suppressed the first warning
+// for the new owner. The legacy global key 'labcharts-relay-quota-warned'
+// is also cleaned up by disableSync/restoreFromMnemonic so pre-v1.7.14
+// state doesn't linger.
 function _maybeWarnQuotaThreshold() {
   try {
     const q = getRelayQuotaEstimate();
     if (!q || q.level === 'green') return;
-    const key = 'labcharts-relay-quota-warned';
+    const owner = _appOwner?.id ? String(_appOwner.id) : 'unknown';
+    const key = `labcharts-${owner}-relay-quota-warned`;
     const prev = localStorage.getItem(key) || '';
     const want = q.level; // 'amber' or 'red'
     // Only escalate (green→amber, amber→red), never re-fire same level.
