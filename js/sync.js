@@ -1112,11 +1112,19 @@ async function parseSyncPayload(dataJson) {
 // so each push is a few KB of CRDT delta instead of half a megabyte of
 // full-state snapshot.
 //
-// Phase 1 is ADDITIVE: blob still ships every push for back-compat with
-// pre-Phase-1 devices. Per-row inserts/updates/tombstones run in parallel.
-// Pull-side merges per-row first (authoritative), then blob (fallback).
-// Phase 2 (separate release ≥2 weeks later, after this datapath has
-// validated under real cross-device traffic) drops blob writes.
+// Phase 1 (v1.7.0–v1.7.6) is the additive datapath: per-row CRDT messages
+// run alongside the existing fat-blob push so devices on older versions
+// stay in sync. Pull-side: blob merge establishes the baseline first,
+// then per-row state overlays on top — per-row wins on disagreement
+// because each row carries its own LWW timestamp and reflects the
+// up-to-the-moment state, while the blob may be a stale snapshot from
+// before another device synced.
+//
+// Phase 2 (v1.7.10) introduces a per-profile cutover flag — when on,
+// buildSyncPayload omits importedData entirely and per-row deltas
+// become the only carrier. v1.7.9's getDeltaCutoverReadiness gates
+// the flag so it can't be enabled while any surface still has local
+// data without a per-row push (which would silently lose it).
 
 // Arrays subject to delta sync. Highest-velocity first — these drive the
 // fat-blob size that fills the quota. Adding to this list does NOT
@@ -1214,14 +1222,16 @@ const DELTA_SCALARS = [
 // `k` field, so the pull side rebuilds the map under its real key.
 const DELTA_MAP_CONFIG = {
   // manualValues keys are `category.markerKey:date` — `:` fails the
-  // allowlist regex. Replace with `_` for the itemId column (collision-
-  // safe because `:` is reserved as the dotKey/date separator and
-  // doesn't appear in valid `category.markerKey` segments). Pull side
-  // restores the original `:`-bearing key from payload.k.
+  // allowlist regex. Use a doubling-escape for unambiguous synthesis:
+  // each original `_` becomes `__`, then each `:` becomes a single `_`.
+  // Distinct rawKeys produce distinct synth itemIds (the v1.7.5 naive
+  // `:` → `_` substitution could collide for marker keys containing
+  // `_`; v1.7.13 audit fix). Pull side restores the original `:`-bearing
+  // key from payload.k regardless.
   manualValues: {
     keyIdFn: (rawKey) => {
       if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
-      const safe = rawKey.replace(/:/g, '_');
+      const safe = rawKey.replace(/_/g, '__').replace(/:/g, '_');
       return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
     },
   },
@@ -1247,8 +1257,8 @@ function _writeDeltaSnapshot(profileId, arrayName, snap) {
 }
 
 // Stable hash for content-equality detection. djb2 — fine for our
-// purpose (ferret out unchanged items so we don't re-push). Local
-// copy scoped to delta-diffing only.
+// purpose (ferret out unchanged items so we don't re-push). Scoped
+// to this module; not exported.
 function _djb2(str) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;

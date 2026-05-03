@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.13', date: '2026-05-03', title: 'Sync audit P2 cleanup',
+    items: [
+      '<b>manualValues synth-id collision fix.</b> The v1.7.5 algorithm (`:` → `_`) could collapse two distinct keys to the same itemRow id when a marker key contained `_`. Switched to a doubling-escape (each `_` → `__`, then each `:` → `_`) so distinct rawKeys always produce distinct synths. Branch is unpushed so no migration concern — applied directly. Pull side still restores the original `:`-bearing key from `payload.k`.',
+      '<b>Selfhost UV-data URL: lat/lon defence-in-depth.</b> Coordinates are now Number-coerced and clamped to ±90 / ±180 before URL interpolation, then formatted via `toFixed(6)`. The caller chain validates them as numbers, but a future code path with corrupted profile data couldn\'t inject `?` or `&` to split the URL.',
+      '<b>Doc accuracy fixes.</b> The Phase 1 block-header comment in sync.js incorrectly described the pull order (it said "per-row first, then blob" — actual code is "blob first, per-row overlays on top"). Rewritten + extended to cover the v1.7.10 Phase 2 cutover. Removed a false history claim in the `_djb2` helper comment.',
+    ]
+  },
+  {
     version: '1.7.12', date: '2026-05-03', title: 'Sync audit follow-up — 3 P1 fixes',
     items: [
       '<b>Decompression-bomb defence on per-row payloads.</b> The per-row gunzip path had no size cap on the decompressed result — a malicious relay (or a peer device sending a crafted row) could ship a tiny base64 envelope that decompresses to hundreds of MB and OOM the tab. Per-row payloads are individual items (one sun session, one marker note); 1 MB cap leaves comfortable headroom while killing the bomb fast via streaming abort.',

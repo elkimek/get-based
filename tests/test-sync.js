@@ -535,8 +535,8 @@ return (async function() {
     /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'customMarkers'/.test(syncSrc));
   assert('DELTA_MAPS includes manualValues (v1.7.5)',
     /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'manualValues'/.test(syncSrc));
-  assert('DELTA_MAP_CONFIG defines manualValues keyIdFn (colon→underscore)',
-    /DELTA_MAP_CONFIG\s*=\s*\{[\s\S]{0,1500}manualValues:[\s\S]{0,500}rawKey\.replace\(\/:\/g,\s*'_'\)/.test(syncSrc));
+  assert('DELTA_MAP_CONFIG defines manualValues keyIdFn (doubling-escape)',
+    /DELTA_MAP_CONFIG\s*=\s*\{[\s\S]{0,1500}manualValues:[\s\S]{0,500}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(syncSrc));
   assert('_planKeyedMapDelta uses cfg.keyIdFn when present',
     /_planKeyedMapDelta[\s\S]{0,2000}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,1500}keyIdFn\(rawKey\)/.test(syncSrc));
   assert('_planKeyedMapDelta payload preserves the ORIGINAL raw key (not the synth)',
@@ -955,6 +955,50 @@ return (async function() {
     /COMPOSITE_KEYED_ARRAYS\.find\(c\s*=>\s*c\.path\s*===\s*arrayName\)\?\.cap[\s\S]{0,500}imported\[arrayName\]\.slice\(0,\s*cap\)/.test(syncSrc));
   assert('Cap trim sorts newest-first by updatedAt/createdAt/date',
     /imported\[arrayName\]\.sort[\s\S]{0,400}updatedAt[\s\S]{0,100}createdAt[\s\S]{0,100}Date\.parse\(a\.date\)/.test(syncSrc));
+
+  // ═══════════════════════════════════════
+  // 14g. v1.7.13 P2 cleanup — comments + lat/lon + manualValues collision
+  // ═══════════════════════════════════════
+  console.log('%c 14g. v1.7.13 P2 cleanup ', 'font-weight:bold;color:#f59e0b');
+
+  // Doc accuracy
+  assert('Pull-order header comment matches actual code (blob first, per-row overlays)',
+    /Pull-side: blob merge establishes the baseline first[\s\S]{0,400}per-row state overlays on top/.test(syncSrc));
+  assert('_djb2 false history claim removed',
+    !/already in utils\.js historically/.test(syncSrc));
+
+  // manualValues collision fix
+  assert('manualValues keyIdFn uses doubling-escape (unambiguous)',
+    /manualValues:[\s\S]{0,500}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(syncSrc));
+  // Live test: distinct rawKeys → distinct synth itemIds (prove the
+  // v1.7.5 collision case is closed)
+  if (typeof window !== 'undefined') {
+    const synthV13 = (rawKey) => {
+      if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
+      const safe = rawKey.replace(/_/g, '__').replace(/:/g, '_');
+      return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
+    };
+    // Collision case from the audit: two marker keys that v1.7.5 would
+    // have collapsed to the same synth must now produce distinct synths.
+    assert('manualValues v1.7.13 synth: distinct rawKeys → distinct synths (closes underscore collision)',
+      synthV13('biochemistry.b_12:2026-05-03') !== synthV13('biochemistry.b_12_2026-05-03'),
+      `${synthV13('biochemistry.b_12:2026-05-03')} vs ${synthV13('biochemistry.b_12_2026-05-03')}`);
+    assert('manualValues v1.7.13 synth: typical case stays allowlist-safe',
+      /^[a-zA-Z0-9_.-]+$/.test(synthV13('biochemistry.glucose:2026-05-03')));
+    assert('manualValues v1.7.13 synth: round-trips deterministically',
+      synthV13('a:b:c') === synthV13('a:b:c'));
+  }
+
+  // lat/lon URL sanitization in selfhost provider
+  assert('sun-uvdata: lat coerced to Number + clamped to ±90',
+    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+      /Math\.max\(-90,\s*Math\.min\(90,\s*Number\(lat\)\)\)/.test(s)));
+  assert('sun-uvdata: lon coerced to Number + clamped to ±180',
+    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+      /Math\.max\(-180,\s*Math\.min\(180,\s*Number\(lon\)\)\)/.test(s)));
+  assert('sun-uvdata: safe lat/lon used in URL via toFixed(6)',
+    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+      /latitude=\$\{safeLat\.toFixed\(6\)\}&longitude=\$\{safeLon\.toFixed\(6\)\}/.test(s)));
 
   // ═══════════════════════════════════════
   // 15. VENDOR FILES

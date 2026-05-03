@@ -218,7 +218,14 @@ const PROVIDERS = {
           ? 'selfhost URL rejected — bearer-bearing requests require https:// (DNS-rebinding hardening; see v1.7.8)'
           : 'selfhost URL rejected — must be public https/http, not loopback / RFC1918 / link-local');
       }
-      const url = `${cfg.selfhostUrl.replace(/\/$/, '')}/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=uv_index,uv_index_clear_sky,ozone,cloud_cover,temperature_2m`;
+      // v1.7.13 audit defence-in-depth: lat/lon are interpolated into
+      // the URL string. Caller chain validates them as numbers, but a
+      // future code path (corrupted profile, reflection, test stub)
+      // could pass a string containing `?` or `&` that would split the
+      // URL. Coerce explicitly + clamp to valid earth coordinates.
+      const safeLat = Math.max(-90, Math.min(90, Number(lat))) || 0;
+      const safeLon = Math.max(-180, Math.min(180, Number(lon))) || 0;
+      const url = `${cfg.selfhostUrl.replace(/\/$/, '')}/v1/forecast?latitude=${safeLat.toFixed(6)}&longitude=${safeLon.toFixed(6)}&hourly=uv_index,uv_index_clear_sky,ozone,cloud_cover,temperature_2m`;
       const headers = {};
       if (cfg.selfhostBearer) headers.Authorization = `Bearer ${cfg.selfhostBearer}`;
       const json = await fetchJson(url, { headers });
