@@ -1706,21 +1706,34 @@ export function renderBodySilhouette(selected, opts = {}) {
     <button type="button" class="sun-silhouette-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex-toggle="female" role="radio" aria-checked="${sex === 'female'}" aria-label="Female physique">♀ Female</button>
   </div>`;
 
-  // Two columns: front 0–100, back 100–200 (translated). The freesvg outline
-  // is wrapped in <g body.transform> for scale + center; region tap-targets
-  // sit on top in the 100×210 picker space (invisible until selected);
-  // landmark strokes are drawn over the outline for anatomical hints.
+  // Body silhouette renders in <g transform="..."> which scales the freesvg
+  // path into the picker. We reuse that exact same transformed path in a
+  // <clipPath> so any region overlay's hover/selection fill is masked to
+  // the body shape — without the clip, accent fills would spill outside
+  // the silhouette into transparent space and look like floating boxes.
+  // clipPathUnits defaults to userSpaceOnUse, so the same clipPath works
+  // for both front + back groups (each applies it in their own local space).
+  const clipId = `sun-silhouette-body-clip-${sex}`;
+
+  // Two columns: front 0–100, back 100–200 (translated). Region tap-targets
+  // sit on top in the 100×210 picker space (transparent until selected) and
+  // are clipped to the silhouette shape so highlights hug the body.
   const svg = `<svg viewBox="0 0 200 215" class="sun-silhouette" data-sex="${sex}" role="group" aria-label="Body region picker — tap or press Enter on each region you want to toggle">
+    <defs>
+      <clipPath id="${clipId}">
+        <path d="${body.d}" transform="${body.transform}" />
+      </clipPath>
+    </defs>
     <g class="sun-silhouette-view sun-silhouette-front">
       <g transform="${body.transform}"><path d="${body.d}" class="sun-silhouette-outline"/></g>
       ${renderLandmarks(frontLandmarks)}
-      ${renderRegion(front, 'front')}
+      <g clip-path="url(#${clipId})">${renderRegion(front, 'front')}</g>
       <text x="50" y="214" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Front</text>
     </g>
     <g class="sun-silhouette-view sun-silhouette-back" transform="translate(100 0)">
       <g transform="${body.transform}"><path d="${body.d}" class="sun-silhouette-outline"/></g>
       ${renderLandmarks(backLandmarks)}
-      ${renderRegion(back, 'back')}
+      <g clip-path="url(#${clipId})">${renderRegion(back, 'back')}</g>
       <text x="50" y="214" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">Back</text>
     </g>
   </svg>`;

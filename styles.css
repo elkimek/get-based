@@ -7453,12 +7453,17 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   stroke: var(--text-primary);
   opacity: 0.35;
 }
-/* Region tap-targets — invisible by default, filled accent when selected */
+/* Region tap-targets — invisible by default, filled accent when selected.
+   pointer-events: all keeps the full rectangle clickable even though the
+   visible fill is clipped to the silhouette body shape — without this,
+   taps in the transparent margin between body and rectangle wouldn't
+   register on touch devices. */
 .sun-silhouette-region {
   fill: transparent;
   stroke: transparent;
   stroke-width: 1.2;
   cursor: pointer;
+  pointer-events: all;
   transition: fill 0.15s, stroke 0.15s, fill-opacity 0.15s;
 }
 .sun-silhouette-region:hover {
