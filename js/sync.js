@@ -1042,6 +1042,17 @@ const DELTA_ARRAY_CONFIG = {
   },
 };
 
+// Importance-scoped maps subject to delta sync. Parallel to DELTA_ARRAYS
+// but for keyed-object shapes (`{ [key]: value }`) — markerNotes today,
+// customMarkers a likely follow-up. The itemRow table is shape-agnostic
+// (arrayName + itemId + payload), so the only difference vs the array
+// path is how items are enumerated and reconstructed. Keys that fail
+// the allowlist regex are silently skipped at the planner — same
+// defence-in-depth posture as malformed `.id` fields on the array path.
+const DELTA_MAPS = [
+  'markerNotes',         // user-attached freeform notes per marker, ~bytes per entry, frequent edits
+];
+
 // Returns the localStorage key holding the last-pushed snapshot
 // (`{itemId: contentHash}`) for one (profileId, arrayName). Snapshot is
 // updated only after a successful onComplete so a wedged push doesn't
@@ -1133,6 +1144,59 @@ async function _planArrayDelta(profileId, arrayName, items) {
   return { ops, next };
 }
 
+// Keyed-map planner. Same shape as _planArrayDelta but iterates
+// Object.entries() and uses the map key (sanitized) as itemId. Payload
+// is `{k, v}` so the pull side can verify the key column matches the
+// payload's claimed key — same defence-in-depth as itemIdFn(item) ===
+// row.itemId on the array path. Tombstones DO emit (unlike changeHistory):
+// markerNote keys are user-owned, `delete state.importedData.markerNotes[k]`
+// is real intent that must propagate.
+async function _planKeyedMapDelta(profileId, mapName, mapObj) {
+  const prev = _readDeltaSnapshot(profileId, mapName);
+  const next = {};
+  const ops = [];
+
+  const allItemRows = (evolu && itemRowQuery) ? (evolu.getQueryRows(itemRowQuery) || []) : [];
+  const matching = allItemRows.filter(r => r.profileId === profileId && r.arrayName === mapName);
+  const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
+
+  const obj = (mapObj && typeof mapObj === 'object' && !Array.isArray(mapObj)) ? mapObj : {};
+  for (const [rawKey, value] of Object.entries(obj)) {
+    if (typeof rawKey !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(rawKey)) continue;
+    if (value === null || value === undefined) continue;
+    const itemId = rawKey;
+    const payloadObj = { k: itemId, v: value };
+    const json = JSON.stringify(payloadObj);
+    const hash = _djb2(json);
+    next[itemId] = hash;
+    if (prev[itemId] === hash) continue;
+
+    let payload = json;
+    if (typeof CompressionStream !== 'undefined' && json.length > 256) {
+      try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
+    }
+    const existing = rowByItemId.get(itemId);
+    const syncedAt = new Date().toISOString();
+    if (existing) {
+      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName: mapName, itemId, payload, syncedAt } });
+    } else {
+      ops.push({ kind: 'insert', args: { profileId, arrayName: mapName, itemId, payload, syncedAt } });
+    }
+  }
+
+  // Tombstones: keys present in prev snapshot but not in current map.
+  // Same conservative guard as the array path — only emit if a row
+  // actually exists for that itemId, and isn't already tombstoned.
+  for (const prevId of Object.keys(prev)) {
+    if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
+    const row = rowByItemId.get(prevId);
+    if (!row || row.isDeleted) continue;
+    ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+  }
+
+  return { ops, next };
+}
+
 // Apply the planned ops via Evolu. Called from pushProfile's onComplete
 // after the fat-blob push lands; on failure we leave the snapshot
 // untouched so the next push retries the same delta automatically.
@@ -1176,7 +1240,44 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
   _pullDeltaSnapshot.profileId = profileId;
   _pullDeltaSnapshot.perArray = {};
   _pullDeltaSnapshot.mergedAt = Date.now();
+  const _DELTA_MAPS_SET = new Set(DELTA_MAPS);
   for (const [arrayName, arrRows] of byArray) {
+    // Keyed-map shape (markerNotes etc) reconstructs an object, not an
+    // array. Same itemRow source, different output container — payload
+    // carries `{k, v}` so we can verify the row's itemId column matches
+    // what the payload claims (defence-in-depth against a relay swapping
+    // payloads between rows).
+    if (_DELTA_MAPS_SET.has(arrayName)) {
+      if (!imported[arrayName] || typeof imported[arrayName] !== 'object' || Array.isArray(imported[arrayName])) {
+        imported[arrayName] = {};
+      }
+      let live = 0, tombs = 0;
+      for (const row of arrRows) {
+        if (row.isDeleted) {
+          if (Object.prototype.hasOwnProperty.call(imported[arrayName], row.itemId)) {
+            delete imported[arrayName][row.itemId];
+          }
+          tombs++;
+          continue;
+        }
+        try {
+          let json = row.payload;
+          if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
+            if (typeof DecompressionStream === 'undefined') continue;
+            json = await _gunzipToString(_base64ToBytes(json.slice(6)));
+          }
+          const parsed = JSON.parse(json);
+          // Verify k matches the row's itemId column — same defence as
+          // itemIdFn(item) === row.itemId on the array path.
+          if (parsed && typeof parsed === 'object' && parsed.k === row.itemId) {
+            imported[arrayName][row.itemId] = parsed.v;
+            live++;
+          }
+        } catch {}
+      }
+      _pullDeltaSnapshot.perArray[arrayName] = { live, tombstones: tombs };
+      continue;
+    }
     if (!Array.isArray(imported[arrayName])) imported[arrayName] = [];
     // Same itemId derivation push side used. For arrays without `.id`
     // (composite-keyed like changeHistory) this matches the synth-id
@@ -1403,6 +1504,22 @@ async function pushProfile(profileId, importedData, opts = {}) {
           }
         } catch (e) {
           console.warn(`[sync] delta-plan ${arrayName} failed:`, e?.message || e);
+        }
+      }
+      // Keyed-map shapes (markerNotes etc) — same itemRow table, different
+      // enumeration. Tagged with the same arrayName field on the row so
+      // telemetry + the diagnose UI render them uniformly with the array
+      // arrays.
+      for (const mapName of DELTA_MAPS) {
+        const obj = importedData[mapName];
+        try {
+          const plan = await _planKeyedMapDelta(profileId, mapName, obj);
+          if (plan.ops.length > 0) {
+            deltaPlans.push({ arrayName: mapName, plan });
+            deltaOpCount += plan.ops.length;
+          }
+        } catch (e) {
+          console.warn(`[sync] delta-plan map ${mapName} failed:`, e?.message || e);
         }
       }
     }

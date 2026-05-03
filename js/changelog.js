@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.3', date: '2026-05-03', title: 'markerNotes now sync as per-row deltas too',
+    items: [
+      '<b>Adds keyed-map shapes to the Phase 1 per-row datapath.</b> markerNotes — the freeform notes you can attach to any biomarker — was the last high-velocity surface still riding the fat-blob path. Now each marker note is its own per-row CRDT message: editing the note on glucose ships the note for glucose, not your entire health record.',
+      '<b>How the keyed-map shape works.</b> The itemRow table is shape-agnostic (just a name + id + payload), so the same on-disk schema covers both arrays (`sunSessions[i].id`) and keyed objects (`markerNotes[\'biochemistry.glucose\']`). A new `_planKeyedMapDelta` enumerates `Object.entries(map)` and uses each key as the row\'s itemId. The payload wraps `{k, v}` so the receiving side can verify the row\'s itemId column matches what the payload claims — same defence-in-depth as the array path.',
+      '<b>Tombstones DO emit on map shapes.</b> Unlike changeHistory (where local cap-eviction would propagate as a phantom delete), markerNote keys are user-owned: deleting a note via the UI clears the key from the map, and that\'s a real intent that should propagate. The conservative "no row exists yet" guard from the array path still applies — fresh devices restoring from mnemonic don\'t accidentally delete data they\'ve never seen.',
+      '<b>Phase 2 cutover gate update.</b> With markerNotes covered, only `menstrualCycle` (a singular scalar object) and `customMarkers` (also keyed-map; identical shape, easy follow-up) remain on the blob path. Once both are covered, Phase 2 can drop the blob writes entirely after the bake window completes.',
+    ]
+  },
+  {
     version: '1.7.2', date: '2026-05-03', title: 'changeHistory now syncs as per-row deltas too',
     items: [
       '<b>Adds changeHistory to the Phase 1 per-row datapath.</b> Until v1.7.1 only nine arrays (sun sessions, light devices/sessions/audits/measurements, lab entries, notes, supplements, health goals) were shipping deltas; the change-history log (every AI-temporal-reasoning datapoint) was still re-shipped wholesale on every push. Now it ships as small per-row inserts/updates like everything else.',

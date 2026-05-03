@@ -191,7 +191,7 @@ return (async function() {
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,2500}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,5000}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
     /idx\s*!==\s*undefined[\s\S]{0,200}imported\[arrayName\]\[idx\]\s*=\s*item/.test(syncSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads',
@@ -497,7 +497,7 @@ return (async function() {
   assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',
     /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',
-    /_mergeItemRowsIntoImported[\s\S]{0,3000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,1500}itemIdFn\(imported\[arrayName\]\[i\]\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,6000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,1500}itemIdFn\(imported\[arrayName\]\[i\]\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported verifies payload itemId matches row column',
     /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
 
@@ -522,6 +522,50 @@ return (async function() {
     assert('synth itemId returns null for missing field', synthFn({ ...e, field: undefined }) === null);
     assert('synth itemId returns null for missing date', synthFn({ ...e, date: undefined }) === null);
     assert('synth itemId returns null for unparseable date', synthFn({ ...e, date: 'not-a-date' }) === null);
+  }
+
+  // ═══════════════════════════════════════
+  // 14a-2. DELTA_MAPS — keyed-map shape (markerNotes)
+  // ═══════════════════════════════════════
+  console.log('%c 14a-2. Delta Maps (keyed-object shape) ', 'font-weight:bold;color:#f59e0b');
+
+  assert('DELTA_MAPS list defined parallel to DELTA_ARRAYS',
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'markerNotes'/.test(syncSrc));
+  assert('_planKeyedMapDelta defined',
+    /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(syncSrc));
+  assert('_planKeyedMapDelta validates key allowlist (no weird itemIds)',
+    /_planKeyedMapDelta[\s\S]{0,800}\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncSrc));
+  assert('_planKeyedMapDelta wraps payload as {k, v} for itemId verification on pull',
+    /_planKeyedMapDelta[\s\S]{0,800}payloadObj\s*=\s*\{\s*k:\s*itemId,\s*v:\s*value\s*\}/.test(syncSrc));
+  assert('_planKeyedMapDelta emits tombstones when keys are removed',
+    /_planKeyedMapDelta[\s\S]{0,2500}kind:\s*'tombstone'/.test(syncSrc));
+  assert('pushProfile loops DELTA_MAPS after DELTA_ARRAYS',
+    /for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,800}for \(const mapName of DELTA_MAPS\)/.test(syncSrc));
+  assert('pushProfile uses _planKeyedMapDelta for map shapes',
+    /_planKeyedMapDelta\(profileId,\s*mapName,\s*obj\)/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported routes map vs array by DELTA_MAPS membership',
+    /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,500}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
+  assert('Map-shape merge writes to imported[arrayName][itemId] (object, not array push)',
+    /imported\[arrayName\]\[row\.itemId\]\s*=\s*parsed\.v/.test(syncSrc));
+  assert('Map-shape merge deletes tombstoned keys from the object',
+    /row\.isDeleted[\s\S]{0,400}delete imported\[arrayName\]\[row\.itemId\]/.test(syncSrc));
+  assert('Map-shape merge verifies parsed.k === row.itemId (defence-in-depth)',
+    /parsed\.k\s*===\s*row\.itemId/.test(syncSrc));
+
+  // Live: round-trip a synthetic markerNotes map through the planner
+  // logic (replicated locally) — ensures the value/key contract is what
+  // we think it is. Skips when CompressionStream unavailable.
+  if (typeof window !== 'undefined') {
+    const sample = { 'biochemistry.glucose': 'a bit high after Christmas', 'biochemistry.sodium': 'fine' };
+    const keys = Object.keys(sample).filter(k => /^[a-zA-Z0-9_.-]+$/.test(k));
+    assert('All sample markerNote keys pass allowlist regex', keys.length === 2, `kept ${keys.length}/2`);
+    const wrapped = JSON.stringify({ k: 'biochemistry.glucose', v: sample['biochemistry.glucose'] });
+    const reparsed = JSON.parse(wrapped);
+    assert('Wrapped {k,v} payload round-trips via JSON',
+      reparsed.k === 'biochemistry.glucose' && reparsed.v === 'a bit high after Christmas');
+    // A pathological key with `:` or spaces should be skipped, not pushed
+    assert('Key with colon fails allowlist (would be skipped by planner)',
+      !/^[a-zA-Z0-9_.-]+$/.test('weird:key'));
   }
 
   // ═══════════════════════════════════════
