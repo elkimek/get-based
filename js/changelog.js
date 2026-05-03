@@ -5,6 +5,12 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.3', date: '2026-05-03', title: 'Sync reliability fix',
+    items: [
+      '<b>Cross-device sync no longer strands rows behind a "content already applied" skip.</b> The skip path was misfiring when the local hash key matched the relay row\'s bytes but the actual local state had drifted (e.g. after manual data edits or upgrades from a prior version). Sync now always applies remote rows through the union-merge — re-applying matching bytes is a no-op, but stale state finally catches up. If you saw "Skip — content already applied" in the activity log while a phone-side session was missing on the desktop, this is the fix.',
+    ]
+  },
+  {
     version: '1.6.0', date: '2026-05-02', title: '☀ Light & Sun — the lens for everything sunlight does to you',
     items: [
       '<b>Sun isn\'t just vitamin D.</b> Different parts of sunlight do different things — set your body clock, support circulation, charge your mitochondria, regulate mood-hormones. The new <b>☀ Light & Sun</b> lens tracks your light exposure across six biological channels (Vitamin D, Mood & hormones, Cardiovascular, Outdoor eye light, Body clock, Cellular repair) and lets you correlate them with your labs and wearable data over time.',

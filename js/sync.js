@@ -3,7 +3,7 @@
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
 
 import { state } from './state.js';
-import { showNotification, isDebugMode, escapeHTML, hashString } from './utils.js';
+import { showNotification, isDebugMode, escapeHTML } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
@@ -852,12 +852,6 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // Use syncedAt (same value stored in Evolu) so pulls see exact
       // equality and don't skip the row from 1ms clock drift.
       localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
-      // Mark this exact dataJson as locally-applied so the immediate
-      // post-push pull tick recognizes its own row by hash and skips
-      // re-merging. Without this we'd pull-and-merge our own push,
-      // which is idempotent but wasteful + can bounce the rebroadcast
-      // budget on race conditions.
-      localStorage.setItem(`labcharts-${profileId}-sync-hash`, hashString(dataJson));
       finish();
     };
     // Watchdog: if Evolu never calls onComplete within 30s, the worker is
@@ -1206,11 +1200,12 @@ export async function rejectPendingTombstone(profileId) {
   return { ok: true };
 }
 
-// One-time migration: clear stale per-profile -sync-hash keys so the
-// first pull after the v1.6.x hash-skip upgrade always proceeds to
-// apply (even if a desktop sat on a row whose stored hash happened
-// to match its localStorage from a prior code version). Cheap, linear
-// in localStorage keys, idempotent via the migration flag.
+// One-time cleanup: the v1.6.0–v1.6.2 hash-skip mechanism wrote
+// `labcharts-{profileId}-sync-hash` keys; v1.6.3 removed the skip
+// path entirely (bytes were occasionally stranding rows when local
+// state went out of sync with the stored hash). Sweep the now-orphan
+// keys on first pull after upgrade. Linear in localStorage keys,
+// idempotent via the migration flag.
 function _onceClearStaleSyncHashes() {
   try {
     if (localStorage.getItem('labcharts-sync-hash-v2-migrated')) return;
@@ -1281,29 +1276,23 @@ async function onSyncReceived() {
         // labcharts-default-imported-chat-threads-imported).
         if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) continue;
         const remoteUpdated = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
-
-        // Check local timestamp + content hash. Hash-based skip is the
-        // primary correctness mechanism — clock-skew between devices
-        // (phone slightly behind desktop, common with NTP drift) used to
-        // make `remote.syncedAt < local-sync-ts` for rows that were
-        // actually NEWER content, silently skipping pushes from the
-        // older-clocked device. Hash is deterministic across clocks.
         const localKey = profileStorageKey(profileId, 'imported');
         const localMeta = localStorage.getItem(`labcharts-${profileId}-sync-ts`);
         const localUpdated = localMeta ? parseInt(localMeta, 10) : 0;
-        const localContentHash = localStorage.getItem(`labcharts-${profileId}-sync-hash`) || '';
-        const remoteContentHash = hashString(row.dataJson || '');
 
-        // Skip when content hash matches — we've already applied this
-        // exact bytes. Hash collisions are negligibly improbable for our
-        // payload sizes (djb2 → 32 bits ≈ 4B distinct outputs).
-        if (remoteContentHash === localContentHash && localContentHash) {
-          const skipMsg = `Skip ${profileId.slice(0,8)} — content already applied`;
-          dbg(`Row ${profileId.slice(0,8)}: skip (hash match ${remoteContentHash})`);
-          _logSyncEvent('skip', skipMsg);
-          continue;
-        }
-        dbg(`Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated} vs local ${localUpdated}, hash ${remoteContentHash}!=${localContentHash || '(none)'})`);
+        // No skip-decision before the merge runs. Both the timestamp-skip
+        // and the hash-skip have caused users to miss cross-device data:
+        // - Timestamp-skip: clock-skew across phone vs desktop made the
+        //   strictly-older comparison silently drop newer pushes.
+        // - Hash-skip: a stale -sync-hash from a previous code version
+        //   matched the relay row's content but the local state didn't
+        //   actually have the data, so the skip path stranded the row.
+        // The merge itself (mergeImportedData) is structurally idempotent
+        // and union-based, so re-applying the same bytes is a no-op when
+        // local already equals remote. Cheap (one JSON parse + one
+        // pass over id-keyed arrays per pull tick); cheaper than a sync
+        // bug that leaves users insisting it's broken.
+        dbg(`Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated}, local ${localUpdated})`);
 
         // Remote is newer — parse payload
         const { importedData, profile, aiSettings, chatData, displayPrefs } = parseSyncPayload(row.dataJson);
@@ -1398,10 +1387,6 @@ async function onSyncReceived() {
         const importedJson = JSON.stringify(merged);
         await encryptedSetItem(localKey, importedJson);
         localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
-        // Track content hash of what we just applied so the next pull
-        // can skip on content-equality (clock-skew immune). Stored
-        // alongside -sync-ts which is kept for diagnostics + UI display.
-        localStorage.setItem(`labcharts-${profileId}-sync-hash`, remoteContentHash);
 
         // Merge profile into local profiles list (allowlisted fields only)
         if (profile && typeof profile === 'object') {

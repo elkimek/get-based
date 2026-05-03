@@ -167,13 +167,15 @@ return (async function() {
   assert('onDataSaved has 2s debounce', syncSrc.includes('}, 2000)'));
   assert('onDataSaved captures profileId at schedule time', syncSrc.includes('const profileId = state.currentProfile') && syncSrc.includes('pushProfile(profileId'));
   assert('onDataSaved retries if _syncing', syncSrc.includes('if (_syncing)') && syncSrc.includes('pushProfile(profileId, data)'));
-  // v1.6.x: skip-decision is content-hash based, NOT timestamp-based.
-  // Clock-skew between phone + desktop used to make older-clocked
-  // pushes get skipped on the receiving side; hash equality is the
-  // deterministic signal across clocks.
-  assert('onSyncReceived skips on content-hash equality, not timestamp',
-    syncSrc.includes('remoteContentHash === localContentHash') &&
-    syncSrc.includes('hashString(row.dataJson'));
+  // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip
+  // and hash-skip caused users to miss cross-device data (clock-skew
+  // and stale hash keys from prior code versions). The mergeImportedData
+  // pass is union-based + idempotent, so re-applying the same bytes is
+  // a no-op when local already equals remote — cheaper than a sync bug.
+  assert('onSyncReceived has no pre-merge skip path',
+    !syncSrc.includes('remoteContentHash === localContentHash') &&
+    !/if\s*\(\s*remoteUpdated\s*<\s*localUpdated\s*\)/.test(syncSrc),
+    'skip-decisions before merge regress to clock-skew/stale-hash bugs');
   assert('onSyncReceived guards on _pulling', syncSrc.includes('_pulling') && syncSrc.includes('_pulling = true'));
   assert('Pull handles encryption', syncSrc.includes('getEncryptionEnabled()') && syncSrc.includes('encryptedSetItem(localKey'));
   assert('Pull merges profiles with allowlist', syncSrc.includes('PROFILE_MERGE_FIELDS') && syncSrc.includes('saveProfiles(profiles)'));
