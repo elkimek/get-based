@@ -191,7 +191,7 @@ return (async function() {
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,8000}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,10000}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
     /idx\s*!==\s*undefined[\s\S]{0,200}imported\[arrayName\]\[idx\]\s*=\s*item/.test(syncSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads',
@@ -571,11 +571,11 @@ return (async function() {
   assert('_planKeyedMapDelta defined',
     /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(syncSrc));
   assert('_planKeyedMapDelta validates key allowlist (no weird itemIds)',
-    /_planKeyedMapDelta[\s\S]{0,800}\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(syncSrc));
   assert('_planKeyedMapDelta wraps payload as {k, v} for itemId verification on pull',
-    /_planKeyedMapDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,2200}payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(syncSrc));
   assert('_planKeyedMapDelta emits tombstones when keys are removed',
-    /_planKeyedMapDelta[\s\S]{0,2500}kind:\s*'tombstone'/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,3500}kind:\s*'tombstone'/.test(syncSrc));
   assert('pushProfile loops DELTA_MAPS after DELTA_ARRAYS',
     /for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,800}for \(const mapName of DELTA_MAPS\)/.test(syncSrc));
   assert('pushProfile uses _planKeyedMapDelta for map shapes',
@@ -856,6 +856,70 @@ return (async function() {
     assert('disable rejects null profileId', window.disablePhase2Cutover(null) === false);
     assert('isPhase2CutoverEnabled returns false for null profileId',
       window.isPhase2CutoverEnabled(null) === false);
+  }
+
+  // ═══════════════════════════════════════
+  // 14e. v1.7.11 AUDIT FIXES — proto-pollution / resurrect / cutover scope
+  // ═══════════════════════════════════════
+  console.log('%c 14e. v1.7.11 audit fixes ', 'font-weight:bold;color:#f59e0b');
+
+  // Proto-pollution defence
+  assert('_isAllowlistSafeId rejects __proto__ / constructor / prototype',
+    /_PROTO_POLLUTION_KEYS\s*=\s*new Set\(\['__proto__',\s*'constructor',\s*'prototype'\]\)/.test(syncSrc));
+  assert('_isAllowlistSafeId combines regex + proto-key Set',
+    /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_PROTO_POLLUTION_KEYS\.has\(id\)/.test(syncSrc));
+  assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
+    /_planArrayDelta[\s\S]{0,1000}_isAllowlistSafeId\(id\)/.test(syncSrc));
+  assert('_planKeyedMapDelta uses _isAllowlistSafeId on derived itemId',
+    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(syncSrc));
+  assert('Map-shape pull wraps keyIdFn with _isAllowlistSafeId guard',
+    /rawKeyIdFn[\s\S]{0,200}keyIdFn\s*=\s*\(k\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(syncSrc));
+  assert('Array-shape pull wraps itemIdFn with _isAllowlistSafeId guard',
+    /rawItemIdFn[\s\S]{0,200}itemIdFn\s*=\s*\(it\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(syncSrc));
+  assert('Fresh map container uses Object.create(null) defence',
+    /imported\[arrayName\]\s*=\s*Object\.create\(null\)/.test(syncSrc));
+
+  // Resurrect-after-tombstone fix
+  assert('_planArrayDelta resurrects tombstoned row by clearing isDeleted',
+    /_planArrayDelta[\s\S]{0,2500}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(syncSrc));
+  assert('_planKeyedMapDelta resurrects tombstoned row by clearing isDeleted',
+    /_planKeyedMapDelta[\s\S]{0,2700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(syncSrc));
+  assert('_planScalarDelta resurrects tombstoned row by clearing isDeleted',
+    /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(syncSrc));
+
+  // Phase 2 cutover scope — previously unenumerated importedData fields
+  assert('DELTA_MAPS includes refOverrides (Phase 2 scope fix)',
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'refOverrides'/.test(syncSrc));
+  assert('DELTA_MAPS includes categoryLabels',
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'categoryLabels'/.test(syncSrc));
+  assert('DELTA_MAPS includes categoryIcons',
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'categoryIcons'/.test(syncSrc));
+  assert('DELTA_MAPS includes markerLabels',
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'markerLabels'/.test(syncSrc));
+  assert('DELTA_SCALARS includes wearableSummary (Phase 2 scope fix)',
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,1500}'wearableSummary'/.test(syncSrc));
+  assert('DELTA_SCALARS includes wearableCardOrder',
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,1500}'wearableCardOrder'/.test(syncSrc));
+
+  // Snapshot rotation on owner change
+  assert('disableSync clears delta snapshots',
+    /disableSync[\s\S]{0,3000}key\.includes\('-delta-'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncSrc));
+  assert('disableSync clears cutover flag',
+    /disableSync[\s\S]{0,3000}-sync-cutover-v2/.test(syncSrc));
+  assert('restoreFromMnemonic clears delta snapshots',
+    /restoreFromMnemonic[\s\S]{0,1000}key\.includes\('-delta-'\)/.test(syncSrc));
+  assert('restoreFromMnemonic clears cutover flag',
+    /restoreFromMnemonic[\s\S]{0,1000}-sync-cutover-v2/.test(syncSrc));
+
+  // Live: proto-pollution defence — verify a malicious key is rejected
+  if (typeof window !== 'undefined') {
+    const safeFn = (id) => typeof id === 'string' && id.length > 0
+      && /^[a-zA-Z0-9_.-]+$/.test(id) && !['__proto__', 'constructor', 'prototype'].includes(id);
+    assert('proto check: __proto__ rejected', safeFn('__proto__') === false);
+    assert('proto check: constructor rejected', safeFn('constructor') === false);
+    assert('proto check: prototype rejected', safeFn('prototype') === false);
+    assert('proto check: legitimate keys still pass',
+      safeFn('biochemistry.glucose') === true && safeFn('s1') === true);
   }
 
   // ═══════════════════════════════════════

@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.11', date: '2026-05-03', title: 'Sync arc audit pass — 4 critical fixes',
+    items: [
+      '<b>Prototype pollution defence on the per-row pull path.</b> The itemId allowlist regex (<code>[a-zA-Z0-9_.-]+</code>) accepts <code>__proto__</code>, <code>constructor</code>, and <code>prototype</code> — all three would set <code>Object.prototype</code> when used as a map write key, polluting every <code>{}</code> in the page. A malicious relay (or a peer device sending crafted rows) could exploit this. Fixed by adding an explicit reject-set on top of the regex (<code>_isAllowlistSafeId</code>) used everywhere itemIds are accepted, plus <code>Object.create(null)</code> for freshly-initialised map containers as defence-in-depth.',
+      '<b>Re-add after delete now actually re-syncs.</b> When a user deleted an item then re-added it (e.g. accidentally removed a sun session, then re-logged it), the planner reused the same itemRow id but never reset <code>isDeleted=1</code> — peers kept seeing the resurrected item as a tombstone and dropped it from their local state. Fixed in all three planners (array / map / scalar) by explicitly clearing <code>isDeleted</code> when the existing row was tombstoned.',
+      '<b>Phase 2 cutover scope expanded to cover all top-level fields.</b> Six importedData fields (<code>refOverrides</code> / <code>categoryLabels</code> / <code>categoryIcons</code> / <code>markerLabels</code> / <code>wearableSummary</code> / <code>wearableCardOrder</code>) had no per-row datapath, so flipping Phase 2 would have silently stopped syncing your reference-range overrides, custom UI labels, and wearable L2 state. Added to <code>DELTA_MAPS</code> / <code>DELTA_SCALARS</code> so cutover readiness can\'t report READY while these surfaces are still blob-only.',
+      '<b>Snapshot rotation on owner change.</b> <code>restoreFromMnemonic</code> and <code>disableSync</code> now clear the per-array delta snapshots and cutover flag in localStorage. Without this, the new Evolu owner started with zero rows but the OLD snapshot told the planner "I already pushed these items" → next push silently skipped them, leaving the new owner\'s relay forever empty for pre-existing data.',
+    ]
+  },
+  {
     version: '1.7.10', date: '2026-05-03', title: 'Phase 2 cutover behind a readiness-gated flag',
     items: [
       '<b>Phase 2 (drop the fat-blob writes entirely) is now a one-button flip in Sync diagnose, gated by the readiness check.</b> An "Enable Phase 2" button appears next to the readiness panel — disabled when blockers exist, green-bordered when READY. Enabling sets a per-profile per-device flag; from then on, outbound pushes carry only the small profile/AI/chat envelope plus per-row CRDT deltas. The full importedData blob stops shipping.',

@@ -617,6 +617,22 @@ export async function disableSync() {
     if (key && key.endsWith('-sync-ts')) localStorage.removeItem(key);
   }
 
+  // v1.7.11 audit fix: clear per-array delta snapshots too. After a
+  // re-enable (which may bring a different Evolu owner via mnemonic
+  // change), the OLD snapshot would tell the planner "I already pushed
+  // these items" → next push silently skips them, so the new owner's
+  // relay never receives the user's existing data. Drop the snapshots
+  // so the next push re-emits everything as inserts (relay starts
+  // empty under the new owner anyway). Same for telemetry + cutover
+  // flag (cutover was profile-scoped to the previous owner).
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key.includes('-delta-') || key.includes('-sync-cutover-v2')) {
+      localStorage.removeItem(key);
+    }
+  }
+
   // Fire-and-forget the Evolu reset. We can't trust this await: if the
   // worker is hung (OPFS / lock contention), `resetAppOwner` never
   // resolves and the user sees the toggle silently do nothing.
@@ -714,10 +730,19 @@ export async function restoreFromMnemonic(mnemonic) {
   if (!evolu) return false;
   try {
     await evolu.restoreAppOwner(mnemonic);
-    // Clear sync timestamps only after successful restore
+    // Clear sync timestamps + per-array delta snapshots + cutover flag.
+    // After mnemonic restore, the new Evolu owner has zero rows; the OLD
+    // delta snapshot would tell the planner "I already pushed these
+    // items" → next push silently skips them, leaving the new owner's
+    // relay forever empty for those items. Drop the snapshots so the
+    // first push under the new identity re-emits everything as inserts.
+    // (v1.7.11 audit fix.)
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && key.endsWith('-sync-ts')) localStorage.removeItem(key);
+      if (!key) continue;
+      if (key.endsWith('-sync-ts') || key.includes('-delta-') || key.includes('-sync-cutover-v2')) {
+        localStorage.removeItem(key);
+      }
     }
     showNotification('Restored from mnemonic — reloading…', 'success');
     // Reload so the app re-initializes from the now-restored CRDT identity.
@@ -1121,6 +1146,10 @@ const DELTA_MAPS = [
   'markerNotes',         // user-attached freeform notes per marker, ~bytes per entry, frequent edits
   'customMarkers',       // user-defined markers (PDF imports + manual creation), keyed by `category.markerKey`
   'manualValues',        // membership flags for manually-typed entry values, keyed `category.markerKey:date` (synth-id)
+  'refOverrides',        // user-edited reference ranges per marker, keyed by `category.markerKey`
+  'categoryLabels',      // user-renamed category labels, keyed by category key
+  'categoryIcons',       // user-picked category icons, keyed by category key
+  'markerLabels',        // user-renamed marker labels, keyed by `category.markerKey`
 ];
 
 // Singleton-shape importedData fields (scalars — null/object/string defaults
@@ -1143,6 +1172,9 @@ const DELTA_SCALARS = [
   // Domain modules
   'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics',
   'lightEnvironment', 'sunCorrelations', 'lifelightProfile', 'sunDefaults',
+  // Wearable L2 derived state — wearableConnections is intentionally NOT
+  // listed (refresh tokens stay per-device; see stripWearableCredentials).
+  'wearableSummary', 'wearableCardOrder',
 ];
 
 // Per-map overrides parallel to DELTA_ARRAY_CONFIG. `keyIdFn(rawKey)`
@@ -1184,13 +1216,27 @@ function _writeDeltaSnapshot(profileId, arrayName, snap) {
 }
 
 // Stable hash for content-equality detection. djb2 — fine for our
-// purpose (ferret out unchanged items so we don't re-push), and
-// already in utils.js historically. We dropped the import in v1.6.3;
-// re-add a local copy here scoped to delta-diffing only.
+// purpose (ferret out unchanged items so we don't re-push). Local
+// copy scoped to delta-diffing only.
 function _djb2(str) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
+}
+
+// Defence-in-depth against prototype pollution via relay-controlled itemId
+// or map key. The allowlist regex `[a-zA-Z0-9_.-]+` accepts `__proto__`,
+// `constructor`, and `prototype` — all three would set Object.prototype
+// when used as a map write key (`imported[arrayName]['__proto__'] = v`).
+// Reject these explicitly at every itemId-from-payload path: planner
+// allowlist on push, _mergeItemRowsIntoImported on pull, getDeltaCutoverReadiness
+// when iterating row.itemId. Net cost: O(1) per check.
+const _PROTO_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function _isAllowlistSafeId(id) {
+  return typeof id === 'string'
+    && id.length > 0
+    && /^[a-zA-Z0-9_.-]+$/.test(id)
+    && !_PROTO_POLLUTION_KEYS.has(id);
 }
 
 // Push the diff between the current array state and the last-pushed
@@ -1210,10 +1256,9 @@ async function _planArrayDelta(profileId, arrayName, items) {
   const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
 
   // Build [item, itemId] tuples, dropping anything whose derived itemId
-  // fails the allowlist regex. Defence-in-depth — both for malformed
-  // local data and for a custom itemIdFn that returns something weird.
+  // fails _isAllowlistSafeId (covers regex + proto-pollution rejection).
   const tuples = Array.isArray(items)
-    ? items.map(it => [it, itemIdFn(it)]).filter(([, id]) => typeof id === 'string' && /^[a-zA-Z0-9_.-]+$/.test(id))
+    ? items.map(it => [it, itemIdFn(it)]).filter(([, id]) => _isAllowlistSafeId(id))
     : [];
   for (const [item, itemId] of tuples) {
     const json = JSON.stringify(item);
@@ -1229,8 +1274,13 @@ async function _planArrayDelta(profileId, arrayName, items) {
     }
     const existing = rowByItemId.get(itemId);
     const syncedAt = new Date().toISOString();
+    // v1.7.11 audit fix: when the existing row is tombstoned (user deleted
+    // the item, then re-added it), evolu.update without isDeleted leaves
+    // the LWW register stuck at 1 — peers keep seeing it as a delete.
+    // Explicitly set isDeleted to null so the resurrect wins LWW.
+    const resurrect = existing?.isDeleted ? { isDeleted: null } : {};
     if (existing) {
-      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName, itemId, payload, syncedAt } });
+      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName, itemId, payload, syncedAt, ...resurrect } });
     } else {
       ops.push({ kind: 'insert', args: { profileId, arrayName, itemId, payload, syncedAt } });
     }
@@ -1265,11 +1315,12 @@ async function _planArrayDelta(profileId, arrayName, items) {
 async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   const cfg = DELTA_MAP_CONFIG[mapName] || {};
   // keyIdFn: derive itemId from raw key. Default = identity-with-allowlist
-  // (rejects unsafe keys); custom fns may sanitize colons etc and return
-  // a string that still has to pass the allowlist regex below.
+  // (rejects unsafe keys including __proto__); custom fns may sanitize
+  // colons etc but every result still goes through _isAllowlistSafeId
+  // below for proto-pollution defence regardless of what the cfg returns.
   const keyIdFn = typeof cfg.keyIdFn === 'function'
     ? cfg.keyIdFn
-    : (k => (typeof k === 'string' && /^[a-zA-Z0-9_.-]+$/.test(k) ? k : null));
+    : (k => (_isAllowlistSafeId(k) ? k : null));
   const prev = _readDeltaSnapshot(profileId, mapName);
   const next = {};
   const ops = [];
@@ -1281,7 +1332,10 @@ async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   const obj = (mapObj && typeof mapObj === 'object' && !Array.isArray(mapObj)) ? mapObj : {};
   for (const [rawKey, value] of Object.entries(obj)) {
     const itemId = keyIdFn(rawKey);
-    if (typeof itemId !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(itemId)) continue;
+    // Defence-in-depth: even if cfg.keyIdFn returns a string that passes
+    // its own check, re-validate via _isAllowlistSafeId so a buggy custom
+    // fn can't smuggle __proto__/constructor through.
+    if (!_isAllowlistSafeId(itemId)) continue;
     if (value === null || value === undefined) continue;
     // payload.k carries the ORIGINAL key — pull side rebuilds the map
     // under that key, not the synth itemId, so consumers reading the
@@ -1298,8 +1352,12 @@ async function _planKeyedMapDelta(profileId, mapName, mapObj) {
     }
     const existing = rowByItemId.get(itemId);
     const syncedAt = new Date().toISOString();
+    // v1.7.11 audit fix: resurrect a tombstoned row by explicitly clearing
+    // isDeleted (otherwise the LWW register stays 1 and peers keep seeing
+    // a delete). Same fix as the array planner.
+    const resurrect = existing?.isDeleted ? { isDeleted: null } : {};
     if (existing) {
-      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName: mapName, itemId, payload, syncedAt } });
+      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName: mapName, itemId, payload, syncedAt, ...resurrect } });
     } else {
       ops.push({ kind: 'insert', args: { profileId, arrayName: mapName, itemId, payload, syncedAt } });
     }
@@ -1355,8 +1413,13 @@ async function _planScalarDelta(profileId, scalarName, scalarValue) {
         try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
       }
       const syncedAt = new Date().toISOString();
+      // v1.7.11 audit fix: resurrect after delete (object→null→object).
+      // canonical may be tombstoned if the user previously cleared the
+      // scalar; reusing its id without isDeleted: null leaves the LWW
+      // register stuck at 1 and peers keep treating the scalar as null.
+      const resurrect = canonical?.isDeleted ? { isDeleted: null } : {};
       if (canonical) {
-        ops.push({ kind: 'update', args: { id: canonical.id, profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt } });
+        ops.push({ kind: 'update', args: { id: canonical.id, profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt, ...resurrect } });
       } else {
         ops.push({ kind: 'insert', args: { profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt } });
       }
@@ -1469,15 +1532,22 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     // payloads between rows).
     if (_DELTA_MAPS_SET.has(arrayName)) {
       if (!imported[arrayName] || typeof imported[arrayName] !== 'object' || Array.isArray(imported[arrayName])) {
-        imported[arrayName] = {};
+        // Object.create(null) (no Object.prototype chain) so a relay-
+        // controlled key like '__proto__' that somehow slipped past the
+        // _isAllowlistSafeId checks below would be a regular property
+        // write, not a prototype-pollution sink. Defence-in-depth.
+        imported[arrayName] = Object.create(null);
       }
       // Same keyIdFn as push so synth-id maps verify correctly. Default
       // (identity-with-allowlist) collapses to `parsed.k === row.itemId`
-      // for the markerNotes / customMarkers case.
+      // for the markerNotes / customMarkers case. Wrapped with
+      // _isAllowlistSafeId so a misbehaving cfg.keyIdFn can't bypass
+      // the proto-pollution rejection.
       const mapCfg = DELTA_MAP_CONFIG[arrayName] || {};
-      const keyIdFn = typeof mapCfg.keyIdFn === 'function'
+      const rawKeyIdFn = typeof mapCfg.keyIdFn === 'function'
         ? mapCfg.keyIdFn
-        : (k => (typeof k === 'string' && /^[a-zA-Z0-9_.-]+$/.test(k) ? k : null));
+        : (k => (_isAllowlistSafeId(k) ? k : null));
+      const keyIdFn = (k) => { const id = rawKeyIdFn(k); return _isAllowlistSafeId(id) ? id : null; };
       // Build a tombstone-key set first so deletes can find the original
       // raw key in the current map even when the row only carries the
       // synth itemId (synth-id maps don't preserve the original key on
@@ -1521,9 +1591,12 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     // Same itemId derivation push side used. For arrays without `.id`
     // (composite-keyed like changeHistory) this matches the synth-id
     // path so replace-or-insert finds the right slot instead of always
-    // appending and silently doubling.
+    // appending and silently doubling. Wrap the itemIdFn so any result
+    // failing _isAllowlistSafeId becomes null (proto-pollution defence)
+    // even if a future cfg.itemIdFn returned __proto__ for some reason.
     const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
-    const itemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
+    const rawItemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
+    const itemIdFn = (it) => { const id = rawItemIdFn(it); return _isAllowlistSafeId(id) ? id : null; };
     const tombs = new Set();
     const liveById = new Map();
     for (const row of arrRows) {
