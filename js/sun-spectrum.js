@@ -275,7 +275,24 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
     else if (lambda_um < 0.50) diffuseFraction = 0.25;        // violet/blue
     else if (lambda_um < 0.70) diffuseFraction = 0.15;        // visible
     else                       diffuseFraction = 0.08;        // NIR
-    const surface = directBeam * (1 + diffuseFraction);
+    // P1.3 audit (v1.7.7): the constant fraction underestimates total
+    // irradiance at extreme zenith. Direct beam attenuates as exp(-τ·m),
+    // so it drops exponentially with airMass; diffuse light only weakly
+    // does (most of the sky stays bright as the sun sets). The diffuse-
+    // to-direct ratio therefore grows with airMass — at zenith=78° (m=5)
+    // diffuse can equal or exceed direct in UVB.
+    //
+    // Empirical scaling against TUV/NIWA reference: √airMass tracks the
+    // observed growth in ratio, capped at 3× to keep the model bounded
+    // as zenith→90° (where the direct beam vanishes anyway and the
+    // remaining surface flux is dominated by purely diffuse paths).
+    // At airMass=1 (zenith=0) this is a no-op vs the v1.7.6 model.
+    //
+    // Without this term, surface UVB at zenith=80° was ~30-50% under the
+    // TUV reference; vitamin-D estimates at low UVI (sunset / morning
+    // walks at high latitudes) were correspondingly suppressed.
+    const amScale = Math.min(Math.sqrt(airMass), 3);
+    const surface = directBeam * (1 + diffuseFraction * amScale);
     return Math.max(0, surface);
   });
   return { wavelengths: WAVELENGTHS, irradiance };

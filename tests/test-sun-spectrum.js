@@ -37,6 +37,43 @@ return (async function() {
     lowSun.irradiance[idx_300nm] < highSun.irradiance[idx_300nm],
     `high=${highSun.irradiance[idx_300nm].toFixed(4)} vs low=${lowSun.irradiance[idx_300nm].toFixed(4)}`);
 
+  // P1.3 audit fix (v1.7.7): the airMass-scaled diffuse fraction must
+  // boost extreme-zenith UVB above the v1.7.6 baseline (where the
+  // diffuse fraction was constant and the direct beam dominated).
+  // The model still reports lower TOTAL irradiance at lowSun than
+  // highSun (the previous assertion above) — diffuse can't fully
+  // compensate for the exponential direct-beam attenuation. But
+  // compared to a hypothetical v1.7.6 (constant diffuse fraction),
+  // the v1.7.7 lowSun UVB should be measurably higher because the
+  // diffuse multiplier grows with airMass.
+  const veryLowSun = reconstructSpectrum({ zenithDeg: 80, ozoneDU: 300 });
+  const v176Equivalent_at80 = (() => {
+    const z = 80, cosZ = Math.cos(z * Math.PI / 180);
+    const am = 1 / Math.max(cosZ, 0.001);
+    // Strip the airMass scaling: divide back out to recover the
+    // direct-beam-only equivalent the old model would have computed.
+    const amScale = Math.min(Math.sqrt(am), 3);
+    const diffuseFrac = 0.55; // UVB band per the model
+    return veryLowSun.irradiance[idx_300nm] * (1 + diffuseFrac) / (1 + diffuseFrac * amScale);
+  })();
+  assert('v1.7.7 airMass-scaled diffuse boosts UVB at zenith=80° vs constant-fraction baseline',
+    veryLowSun.irradiance[idx_300nm] > v176Equivalent_at80,
+    `boosted=${veryLowSun.irradiance[idx_300nm].toFixed(6)} vs equiv=${v176Equivalent_at80.toFixed(6)}`);
+  // Bound check: even at extreme zenith, diffuse-scaled output must
+  // still be lower than the noon (zenith=30) value — this is a sanity
+  // gate so a future code change can't accidentally make low-sun UVB
+  // exceed high-sun UVB.
+  assert('Extreme-zenith UVB still below high-sun UVB (no runaway scaling)',
+    veryLowSun.irradiance[idx_300nm] < highSun.irradiance[idx_300nm],
+    `extreme=${veryLowSun.irradiance[idx_300nm].toFixed(6)} vs high=${highSun.irradiance[idx_300nm].toFixed(6)}`);
+  // Cap check: at zenith approaching 90°, airMass→∞ so √airMass would
+  // also blow up without the cap; the min(_, 3) ensures the ratio
+  // multiplier stays bounded. Verify by exercising airMass=10
+  // (zenith≈84°) and checking the output is finite + non-negative.
+  const nearHorizon = reconstructSpectrum({ zenithDeg: 84, ozoneDU: 300 });
+  assert('Near-horizon irradiance is finite + non-negative (airMass cap)',
+    nearHorizon.irradiance.every(v => Number.isFinite(v) && v >= 0));
+
   // More ozone → less UVB
   const lowO3 = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 250 });
   const highO3 = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 400 });

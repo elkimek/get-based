@@ -5,6 +5,13 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.7', date: '2026-05-03', title: 'Sun spectrum — diffuse fix at low-sun (P1.3 audit)',
+    items: [
+      '<b>Sun-spectrum reconstruction now scales the diffuse-light component with airMass</b>, fixing the ~30-50% UVB underestimate the v1.6.0 audit flagged at extreme zenith (≥75°). The previous model multiplied the direct beam by a constant per-band diffuse fraction (0.55 in UVB), which silently dropped to zero alongside the direct beam at sunset / sunrise / high-latitude winter. The physical reality: direct light attenuates exponentially with airMass while diffuse only weakly does, so the diffuse-to-direct ratio grows as the sun gets lower.',
+      '<b>What changes for users.</b> Vitamin-D and circadian estimates at low UVI (morning walks at 50°+ latitude, late-afternoon outdoor time, post-equinox sun) read higher than before — closer to TUV/NIWA reference values. Noon estimates are unchanged (airMass ≈ 1, scaling collapses to the v1.7.6 model). The scaling is capped at 3× to keep the model bounded as zenith → 90°.',
+    ]
+  },
+  {
     version: '1.7.6', date: '2026-05-03', title: 'Scalar fields join the per-row datapath',
     items: [
       '<b>The remaining 18 singleton fields now sync as per-row deltas.</b> Until v1.7.5 these (menstrualCycle, the 8 context cards, genetics/DNA, biometrics, lightEnvironment, sunCorrelations, lifelightProfile, sunDefaults, emfAssessment, interpretiveLens, contextNotes) were the actual reason the fat blob couldn\'t fully drop in Phase 2 — they\'re not enumerable as items, so no array/map planner could touch them. Without this patch, Phase 2 would have silently stopped syncing all of them.',
