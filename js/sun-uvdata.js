@@ -217,11 +217,16 @@ const PROVIDERS = {
       // hourly UVI across the day (for peak-finder). Open-Meteo's forecast
       // endpoint does not return total-column ozone (despite older docs);
       // ozone lives on the air-quality endpoint as `ozone` (µg/m³, NOT DU).
-      const fcUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=uv_index,uv_index_clear_sky,cloud_cover,temperature_2m&daily=sunrise,sunset,uv_index_max&timezone=auto&forecast_days=1`;
+      // past_days=2 covers hydrating yesterday + day-before sessions; without
+      // it the hourly arrays only carry today, so nearestHourIndex() snaps
+      // any past timestamp to today's first available hour (00:00 → UVI 0)
+      // and the persisted atmosphere reads as a midnight session.
+      const fcUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=uv_index,uv_index_clear_sky,cloud_cover,temperature_2m&daily=sunrise,sunset,uv_index_max&timezone=auto&past_days=2&forecast_days=1`;
       // Air-quality API — PM2.5, PM10, AOD, NO2, total-column ozone (DU
       // conversion handled in shape function — ~2.144 µg/m³ ≈ 1 DU at
-      // standard atmosphere).
-      const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,nitrogen_dioxide,aerosol_optical_depth,ozone&current=pm2_5,pm10,european_aqi`;
+      // standard atmosphere). Same past_days widening so hydrating past
+      // sessions gets matching air-quality samples.
+      const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,nitrogen_dioxide,aerosol_optical_depth,ozone&current=pm2_5,pm10,european_aqi&past_days=2`;
       // Fire both in parallel; tolerate AQ failure (stratospheric ozone is
       // nice-to-have, not critical for sunburn-dose math).
       const [fcJson, aqJson] = await Promise.allSettled([

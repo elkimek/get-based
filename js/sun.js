@@ -545,7 +545,14 @@ const _hydrateInFlight = new Map();
 //      switched retinalUVdose from unweighted UV (280-400 sum) to
 //      actinic-weighted (CIE erythemal) — old sessions had retinalUV
 //      stored at 30-100× the correct ICNIRP-comparable value.
-export const SUN_ENGINE_VERSION = 4;
+//   5: 2026-05-03 — fix Open-Meteo past_days=0 bug. Forecast endpoint
+//      was queried with `forecast_days=1` and no `past_days`, so any
+//      session hydrated for a midpoint outside today (yesterday or
+//      earlier) snapped to today's 00:00 hour → atmosphere UVI 0 and
+//      the vit-D channel read "below UVI threshold" for sessions that
+//      were actually fine. URL now requests past_days=2; existing
+//      sessions stamped at v4 re-hydrate to pick up correct atm.
+export const SUN_ENGINE_VERSION = 5;
 
 // Override the fetched atmosphere with user-set values (manual UVI, manual
 // cloud cover, manual ozone) when present in sunDefaults. Set null to clear.
