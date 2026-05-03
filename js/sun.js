@@ -172,27 +172,22 @@ const VITD_SAT_FLAG = 19000;
 export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (channelKey === 'vitamin_d') {
-    // Lead with the model's central estimate; surface the uncertainty
-    // band parenthetically when it would actually inform the user (band
-    // wider than ±10% of central). At high noon with known atm, the
-    // band is tight (~±20%); at low sun it widens to ±45%.
-    const range = window.vitaminDIURange
-      ? window.vitaminDIURange(channelAu, fitzpatrick, uvi, zenith)
-      : { central: channelAu * 40, low: 0, high: 0 };
-    if (range.central === 0) return 'below UVI threshold';
-    if (range.central < 30) return 'minimal';
+    // Single approximate value — uncertainty lives in the tooltip.
+    // "~1100 IU" is more readable than "700-1800 IU" for normal users;
+    // power users open the row tooltip for the model band + biological
+    // variance breakdown.
+    const central = window.vitaminDIU
+      ? window.vitaminDIU(channelAu, fitzpatrick, uvi)
+      : channelAu * 40;
+    if (central === 0) return 'below UVI threshold';
+    if (central < 30) return 'minimal';
     const fmt = (n) => {
       if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
       if (n >= 1000) return Math.round(n / 100) * 100;
       return Math.round(n / 10) * 10;
     };
-    if (range.central >= VITD_SAT_FLAG) return `~${fmt(range.central)} IU (saturated)`;
-    // Drop the band when it's narrow enough to be noise (single number
-    // is more readable). Otherwise lead with central + show range as
-    // model-uncertainty annotation.
-    const spread = (range.high - range.low) / Math.max(range.central, 1);
-    if (spread < 0.20) return `~${fmt(range.central)} IU`;
-    return `~${fmt(range.central)} IU (model: ${fmt(range.low)}–${fmt(range.high)})`;
+    if (central >= VITD_SAT_FLAG) return `~${fmt(central)} IU (saturated)`;
+    return `~${fmt(central)} IU`;
   }
   if (channelKey === 'nir_solar' || channelKey === 'pbm_red' || channelKey === 'pbm_nir') {
     const j = window.pbmJoulesPerCm2 ? window.pbmJoulesPerCm2(channelAu) : channelAu / 10000;

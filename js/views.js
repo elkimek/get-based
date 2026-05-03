@@ -158,7 +158,7 @@ export function renderLightTodayStrip() {
     const fmt = (n) => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
       : n >= 1000 ? Math.round(n / 100) * 100
       : Math.round(n / 10) * 10;
-    weeklyIUStr = `<span class="light-today-vitd" title="Central estimate of vitamin D₃ synthesized from sun over the last 7 days, summed per session and Fitzpatrick-scaled. ±25% range = model uncertainty (Bird-Riordan + Bass-Paur, aggregated). Inter-individual blood 25(OH)D response to the same UV dose adds a separate 2-3× variance — calibrate against your own labs over time. Central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU)} IU vitamin D this week (model: ${fmt(weeklyIU * 0.75)}–${fmt(weeklyIU * 1.25)})</span>`;
+    weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun over the last 7 days, summed per session and Fitzpatrick-scaled. Model accuracy ±25% across a week (Bird-Riordan + Bass-Paur, aggregated). Your blood 25(OH)D response to the same UV dose can vary 2-3× across individuals — calibrate against your own labs over time. Central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU)} IU vitamin D this week</span>`;
   }
 
   // Vit-D budget cross-check — shows today's combined sun-derived +
