@@ -977,8 +977,14 @@ async function pushProfile(profileId, importedData, opts = {}) {
     const existing = rows?.find(r => r.profileId === profileId);
 
     if (existing) {
+      // profileId is repeated on every update so post-compaction replicas
+      // see it on every CRDT message — without this, a relay that drops
+      // the original insert from `evolu_message` (e.g. /compact-owner)
+      // strands every receiving device with an empty profileId column,
+      // which onSyncReceived's allowlist regex rejects → row never merges.
       evolu.update("profileData", {
         id: existing.id,
+        profileId,
         dataJson,
         syncedAt,
       }, { onComplete });
@@ -1100,7 +1106,9 @@ export async function deleteProfileFromRelay(profileId) {
     // stop seeing the profile. CRDT LWW means a stale device that hasn't
     // pulled yet won't accidentally resurrect the row, because its newer
     // tombstone wins on next pull-merge.
-    evolu.update('profileData', { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() });
+    // profileId carried explicitly so post-compaction replicas of this
+    // tombstone still know which local profile to wipe.
+    evolu.update('profileData', { id: row.id, profileId, isDeleted: 1, syncedAt: new Date().toISOString() });
     localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
     dbg('Soft-deleted on relay:', profileId);
     return { ok: true };
@@ -1154,7 +1162,21 @@ async function applyRemoteTombstones() {
   const tombs = evolu.getQueryRows(tombstoneQuery) || [];
   if (tombs.length === 0) return;
   const profiles = getProfiles();
-  const tombIds = new Set(tombs.map(t => t.profileId).filter(Boolean));
+  // Same payload-fallback as onSyncReceived: a tombstone row whose
+  // profileId column was lost to compaction still carries profile.id
+  // inside dataJson, so we recover it before deciding what to wipe.
+  const tombIdsArr = [];
+  for (const t of tombs) {
+    if (t.profileId) { tombIdsArr.push(t.profileId); continue; }
+    try {
+      const parsed = await parseSyncPayload(t.dataJson || '{}');
+      const candidate = parsed?.profile?.id;
+      if (typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate)) {
+        tombIdsArr.push(candidate);
+      }
+    } catch {}
+  }
+  const tombIds = new Set(tombIdsArr);
   const survivors = profiles.filter(p => !tombIds.has(p.id));
   if (survivors.length === profiles.length) return; // nothing local to wipe
 
@@ -1342,6 +1364,31 @@ async function onSyncReceived() {
     dbg(`onSyncReceived: ${rawRows?.length ?? 0} rows`);
     if (!rawRows || rawRows.length === 0) return;
 
+    // Pre-pass: recover profileId from the payload when the column is empty.
+    // After a relay compaction, only the latest evolu.update messages survive
+    // — those don't carry profileId — so a fresh device replicating a
+    // post-compact log materializes the row with a blank profileId column.
+    // The payload itself still contains profile.id, so we read that and use
+    // it as the row's effective profileId for dedupe + merge.
+    const enrichedRows = [];
+    for (const row of rawRows) {
+      if (!row) continue;
+      let effectiveProfileId = row.profileId || null;
+      if (!effectiveProfileId) {
+        try {
+          const parsed = await parseSyncPayload(row.dataJson || '{}');
+          const candidate = parsed?.profile?.id;
+          if (typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate)) {
+            effectiveProfileId = candidate;
+          }
+        } catch {
+          // Malformed payload + empty column → can't merge, drop the row.
+        }
+      }
+      if (!effectiveProfileId) continue;
+      enrichedRows.push({ ...row, profileId: effectiveProfileId });
+    }
+
     // Dedupe by profileId, keeping the row with the highest syncedAt.
     // Evolu can return multiple rows per profileId after a tombstone +
     // recreate or a restore-from-mnemonic race; iterating in CRDT order
@@ -1351,8 +1398,7 @@ async function onSyncReceived() {
     // processed first, then the older row's `remoteUpdated <= localUpdated`
     // guard short-circuits as intended.
     const byProfile = new Map();
-    for (const row of rawRows) {
-      if (!row?.profileId) continue;
+    for (const row of enrichedRows) {
       const ts = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
       const prev = byProfile.get(row.profileId);
       if (!prev || ts > (prev.syncedAt ? new Date(prev.syncedAt).getTime() : 0)) {

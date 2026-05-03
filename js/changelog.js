@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.6', date: '2026-05-03', title: 'Sync — fix post-compaction "ghost" rows',
+    items: [
+      '<b>Fixes the actual cross-device sync bug.</b> When the relay\'s storage gets compacted (a maintenance step that drops old CRDT log entries), the receiving device sometimes saw rows with an empty profileId column — even though the data itself was intact in the row\'s payload. The pull pipeline\'s safety regex (which exists to stop a compromised relay from injecting weird profileIds) was rejecting these blank-column rows, so genuinely-fresh data sat in the local Evolu DB but never made it into your in-memory state. That\'s why phone said "push committed sun=3" but desktop kept showing sun=2.',
+      '<b>Two-pronged fix.</b> Going forward, every push (insert AND update) carries the profileId so future compactions can\'t strip it. And the receiving side now falls back to reading profileId from the row\'s payload when the column is empty — same data, just one indirection deeper. Tombstone propagation (cross-device profile deletes) gets the same treatment.',
+      '<b>What you\'ll see.</b> Reload both devices after picking up this update and the missing data should appear within seconds of the next sync tick. The Sync diagnose modal\'s "fmt" + profileId-source columns will tell you whether your rows are still in the post-compact "payload-recovered" state (small orange * next to the profileId) or back to canonical "column" reads after the next push.',
+    ]
+  },
+  {
     version: '1.6.5', date: '2026-05-03', title: 'Sync diagnose — readable rows + Copy button',
     items: [
       '<b>Sun + device counts in Sync diagnose now read correctly.</b> v1.6.4\'s gzip-compressed payloads were appearing as 0/0 in the diagnose table because the modal was JSON-parsing the raw blob — now it routes through the same decoder the sync engine uses.',

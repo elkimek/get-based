@@ -29,7 +29,7 @@ return (async function() {
   // getbased only wiped local state — the Evolu row stayed on the relay
   // and other devices kept seeing the deleted profile).
   assert('deleteProfileFromRelay sets isDeleted=1 via evolu.update',
-    /deleteProfileFromRelay[\s\S]{0,800}evolu\.update\([\s\S]{0,200}isDeleted:\s*1/.test(syncSrc));
+    /deleteProfileFromRelay[\s\S]{0,1200}evolu\.update\([\s\S]{0,400}isDeleted:\s*1/.test(syncSrc));
   assert('deleteProfileFromRelay is idempotent on missing rows (returns no-row reason)',
     /deleteProfileFromRelay[\s\S]{0,500}reason:\s*'no-row'/.test(syncSrc));
   const profileSrc = await fetch('/js/profile.js').then(r => r.text());
@@ -91,6 +91,27 @@ return (async function() {
   assert('parseSyncPayload caps decompressed size (zip-bomb guard)',
     /decompressed size exceeds cap/.test(syncSrc));
   assert('parseSyncPayload is async (gzip decode)', /async function parseSyncPayload/.test(syncSrc));
+
+  // v1.6.6: recovery from compaction-induced empty profileId column.
+  // After /compact-owner drops the original `evolu.insert` from the
+  // CRDT log, fresh replicas materialize the row with no profileId
+  // — the column was never re-written by the surviving update messages.
+  // Two-pronged fix:
+  //   - PUSH side ALWAYS includes profileId in evolu.update so future
+  //     compactions can't repeat the loss for newly-pushed rows.
+  //   - PULL side recovers profileId from the payload's nested profile.id
+  //     when the column is empty, in BOTH onSyncReceived (live rows) and
+  //     applyRemoteTombstones (cross-device deletes).
+  assert('pushProfile evolu.update carries profileId',
+    /evolu\.update\("profileData",\s*\{\s*id:\s*existing\.id,\s*profileId\s*,\s*dataJson/.test(syncSrc));
+  assert('deleteProfileFromRelay tombstone update carries profileId',
+    /evolu\.update\('profileData',\s*\{\s*id:\s*row\.id,\s*profileId\s*,\s*isDeleted/.test(syncSrc));
+  assert('onSyncReceived recovers profileId from payload when column is empty',
+    /enrichedRows[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncSrc));
+  assert('applyRemoteTombstones recovers profileId from payload',
+    /tombIdsArr[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncSrc));
+  assert('Recovered profileId still validated against allowlist regex',
+    /\^\[a-zA-Z0-9_-\]\+\$/.test(syncSrc));
 
   // Live gzip round-trip — exercises CompressionStream/DecompressionStream
   // the same way the push/pull paths will. Catches a future regression
