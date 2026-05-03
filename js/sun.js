@@ -913,11 +913,22 @@ function _formatElapsed(ms) {
   return `${m}:${pad(s)}`;
 }
 
-// Snapshot the per-minute channel rate for the active session. Lazy — runs
-// once per session and caches in the module-scoped _liveState map. Returns
-// null on first call (the ticker retries next interval); subsequent calls
-// return the cached rate. NEVER mutates the session object — keeps the
-// atm payload + function refs out of localStorage / CRDT.
+// Snapshot the per-minute channel rate for the active session.
+//
+// Sliced model: each snapshot defines a "rate slice" that applies from
+// snapshotAt to the next snapshot (or to session end). committedDoses
+// accumulates the contribution of all closed slices; the current slice's
+// contribution is computed live in _liveDosesFor and added on top.
+//
+// First snapshot of a session: snapshotAt = sess.startedAt so the slice
+// covers from session start (handles page reload — first snapshot after
+// reload covers from start).
+// Re-snapshot (committedDoses already exists): snapshotAt = Date.now(),
+// the previous slice was committed by _commitCurrentSlice() before the
+// caller cleared ratePerMin.
+//
+// NEVER mutates the session object — keeps the atm payload + function
+// refs out of localStorage / CRDT.
 async function _snapshotActiveRate(sess) {
   const cur = _getLiveState(sess.id);
   if (cur && cur.ratePerMin) return cur;
@@ -964,14 +975,21 @@ async function _snapshotActiveRate(sess) {
     const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
     const photosensitive = !!state.importedData?.sunDefaults?.photosensitiveMeds;
-    // baselineZenith is sampled once per session and never overwritten on
-    // 10-min spectrum refresh — keeps the zenithScale denominator stable
-    // so cumulative doses don't jump every refresh cycle.
+    // baselineZenith is sampled once per session and never overwritten —
+    // keeps the per-slice zenithScale denominator stable so cumulative
+    // doses don't jump every refresh cycle.
     const existing = _getLiveState(sess.id) || {};
+    // First snapshot: slice begins at sess.startedAt so all elapsed time
+    // counts. Re-snapshot (committedDoses already populated by the
+    // commit step): slice begins now.
+    const isReSnapshot = !!existing.committedDoses;
+    const sliceStart = isReSnapshot ? Date.now() : sess.startedAt;
     _setLiveState(sess.id, {
       ratePerMin, sedPerMin, fitzpatrick, photosensitive, atm, zenith,
       baselineZenith: existing.baselineZenith ?? zenith,
-      snapshotAt: Date.now(),
+      snapshotAt: sliceStart,
+      committedDoses: existing.committedDoses || {},
+      committedSED: existing.committedSED || 0,
       fractionOfMEDFn: fractionOfMED,
       pending: false,
     });
@@ -983,37 +1001,71 @@ async function _snapshotActiveRate(sess) {
   }
 }
 
-// Compute live doses from the cached spectrum, but apply a real-time
-// zenith correction so a session started at 11am with rising sun isn't
-// underestimating dose rates by the time it's noon.
-//
-// Zenith math is purely local (date + lat/lon → angle), so we can do it
-// every tick at zero cost. UVI and cloud cover are locked to whatever the
-// last fetch returned — those drift much slower than zenith and refetch
-// on a separate 10-min cadence. The cumulative dose is the integral of
-// rate(t) over the session, which is approximately:
-//   ∫₀ᵉ rate_at_time(t) dt ≈ rate_at_midpoint × elapsedMin
-// since the rate-vs-time curve is roughly symmetric across midpoint.
-function _liveDosesFor(sess) {
+// Commit the current rate slice's contribution into committedDoses. Called
+// just before re-snapshotting so the user-visible cumulative dose stays
+// correct across rate changes (cloud cover shifts, hour rollover, etc.).
+// Idempotent — no-op if there's nothing committable yet.
+function _commitCurrentSlice(sess) {
   const live = _getLiveState(sess?.id);
-  if (!live || !live.ratePerMin) return null;
-  const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
-  const rate = live.ratePerMin || {};
-
-  // Zenith correction: scale the cached rate by the ratio of average
-  // zenith-cosine over the elapsed window vs the BASELINE zenith (sampled
-  // once at session start, never overwritten on spectrum refresh). Without
-  // a stable baseline the integral jumps every 10-min refresh cycle.
+  if (!live || !live.ratePerMin || !live.snapshotAt) return;
+  const sliceStart = live.snapshotAt;
+  const sliceEnd = Date.now();
+  const sliceDurationMin = Math.max(0, (sliceEnd - sliceStart) / 60000);
+  if (sliceDurationMin <= 0) return;
   let zenithScale = 1;
   try {
     const coords = sess.location;
     const fnZenith = window.solarZenithAngle;
-    if (coords && fnZenith && elapsedMin > 1) {
-      // Sample 5 points evenly across [start, now] for a midpoint integral.
+    if (coords && fnZenith) {
+      const samples = 5;
+      let sumCos = 0;
+      for (let i = 0; i < samples; i++) {
+        const t = sliceStart + (i + 0.5) * (sliceEnd - sliceStart) / samples;
+        const z = fnZenith(new Date(t), coords.lat, coords.lon);
+        sumCos += Math.max(0, Math.cos(z * Math.PI / 180));
+      }
+      const avgCos = sumCos / samples;
+      const baselineZ = live.baselineZenith ?? live.zenith ?? 0;
+      const startCos = Math.max(0.001, Math.cos(baselineZ * Math.PI / 180));
+      zenithScale = avgCos / startCos;
+    }
+  } catch (e) {}
+  const committedDoses = { ...(live.committedDoses || {}) };
+  for (const [k, v] of Object.entries(live.ratePerMin || {})) {
+    committedDoses[k] = (committedDoses[k] || 0) + v * sliceDurationMin * zenithScale;
+  }
+  const committedSED = (live.committedSED || 0) + (live.sedPerMin || 0) * sliceDurationMin * zenithScale;
+  _setLiveState(sess.id, { committedDoses, committedSED });
+}
+
+// Compute live doses = committedDoses (sum of past slices) + current slice
+// contribution (current rate × time-since-current-snapshot × zenithScale).
+//
+// Zenith math is purely local (date + lat/lon → angle), so we do it every
+// tick at zero cost — but only over the CURRENT slice, since past slices
+// already had their zenith correction baked in at commit time.
+//
+// UVI and cloud cover are locked to whatever the last fetch returned —
+// those drift much slower than zenith and refetch on a separate 5-min
+// cadence (managed by _tickActiveCards), at which point the current slice
+// is committed and a new slice begins with fresh atmospheric data.
+function _liveDosesFor(sess) {
+  const live = _getLiveState(sess?.id);
+  if (!live || !live.ratePerMin) return null;
+  const sliceStart = live.snapshotAt || sess.startedAt;
+  const sliceElapsedMin = Math.max(0, (Date.now() - sliceStart) / 60000);
+  const rate = live.ratePerMin || {};
+
+  // Zenith correction across the CURRENT slice only.
+  let zenithScale = 1;
+  try {
+    const coords = sess.location;
+    const fnZenith = window.solarZenithAngle;
+    if (coords && fnZenith && sliceElapsedMin > 1) {
       const samples = 5;
       let sumCos = 0, count = 0;
       for (let i = 0; i < samples; i++) {
-        const t = sess.startedAt + (i + 0.5) * (Date.now() - sess.startedAt) / samples;
+        const t = sliceStart + (i + 0.5) * (Date.now() - sliceStart) / samples;
         const z = fnZenith(new Date(t), coords.lat, coords.lon);
         const cosZ = Math.max(0, Math.cos(z * Math.PI / 180));
         sumCos += cosZ; count++;
@@ -1025,9 +1077,14 @@ function _liveDosesFor(sess) {
     }
   } catch (e) {}
 
-  const doses = {};
-  for (const [k, v] of Object.entries(rate)) doses[k] = v * elapsedMin * zenithScale;
-  const sed = (live.sedPerMin || 0) * elapsedMin * zenithScale;
+  // Total = committed (closed slices) + current slice contribution.
+  const committed = live.committedDoses || {};
+  const doses = { ...committed };
+  for (const [k, v] of Object.entries(rate)) {
+    doses[k] = (doses[k] || 0) + v * sliceElapsedMin * zenithScale;
+  }
+  const sliceSed = (live.sedPerMin || 0) * sliceElapsedMin * zenithScale;
+  const sed = (live.committedSED || 0) + sliceSed;
   const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive }) : 0;
   return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive, atm: live.atm, _zenithScale: zenithScale };
 }
@@ -1088,14 +1145,16 @@ function _tickActiveCards() {
     // in module-scoped _liveState map, never written to the session record)
     if ((!live || !live.ratePerMin) && (!live || !live.pending)) _snapshotActiveRate(sess);
 
-    // Refresh the cached atmosphere snapshot every ~10 min so cloud cover
-    // and UVI drift get reflected in the live rate. Re-runs the same
-    // spectrum/dose math; baselineZenith is preserved across refreshes
-    // so the zenith-correction integral stays continuous.
+    // Refresh the cached atmosphere snapshot every 5 min so cloud cover
+    // and UVI drift get reflected in the live rate. Commit the current
+    // slice's accumulated dose first (so the cumulative readout doesn't
+    // jump when the new rate replaces the old), then clear ratePerMin to
+    // force the next tick to re-snapshot. baselineZenith + committedDoses
+    // are preserved across refreshes by _snapshotActiveRate.
     if (live && live.ratePerMin && !live.pending) {
       const last = live.snapshotAt || 0;
-      if (Date.now() - last > 10 * 60 * 1000) {
-        // Preserve baselineZenith; clear ratePerMin to force re-snapshot
+      if (Date.now() - last > 5 * 60 * 1000) {
+        _commitCurrentSlice(sess);
         _setLiveState(sess.id, { ratePerMin: null });
       }
     }

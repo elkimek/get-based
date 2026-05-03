@@ -216,9 +216,20 @@ function _coordKey(coords) {
 export function renderConditionsNow(opts = {}) {
   const variant = opts.variant || 'full'; // 'full' (Light page) | 'compact' (dashboard)
   const slotId = opts.slotId || `cond-now-${Date.now()}`;
-  // Kick off async fetch once per ~10 minutes. Reuses the in-memory cache
-  // so navigation doesn't re-fetch.
+  // Initial fetch shortly after mount.
   setTimeout(() => _refreshConditions(slotId, variant), 50);
+  // Auto-refresh every 5 min so the strip reflects current conditions
+  // without a manual ↻ tap. Self-clears when the slot leaves the DOM
+  // (page navigation, slot re-render). Underlying fetchAtmosphere has its
+  // own 1-hour cache key bucketed per clock hour, so most ticks within a
+  // single hour serve cache; only the hour-rollover triggers a network hit.
+  const handle = setInterval(() => {
+    if (!document.getElementById(slotId)) {
+      clearInterval(handle);
+      return;
+    }
+    _refreshConditions(slotId, variant);
+  }, 5 * 60 * 1000);
   // No aria-live on the wrapper — auto-refresh would re-announce the whole
   // strip every cycle. Only user-triggered refresh announces, via a separate
   // sr-only live region populated in _refreshConditions(opts.force).
