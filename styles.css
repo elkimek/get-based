@@ -7470,6 +7470,20 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   border: 1px solid var(--border);
   background: var(--bg-secondary);
 }
+@media (max-width: 480px) {
+  /* Mobile: shrink the tier pill so longer channel labels (Outdoor eye
+     light, Mood & hormones) don't get squeezed by the chip + chevron. */
+  .sun-detail-channel-tier { min-width: 50px; padding: 3px 6px; font-size: 9px; }
+  /* Modal title — full-day-of-week + 4-digit-year wraps to 2 lines on
+     phones. Drop the day-of-week and year at narrow widths via a smaller
+     font + tighter line-height. */
+  .sun-detail-modal .modal-header h3 { font-size: 15px; line-height: 1.25; }
+  /* Atmosphere "— (default 300)" string is long for the 80px grid cell;
+     allow the cell to be wider on mobile by dropping the auto-fit and
+     using 2 columns so each cell has more breathing room. */
+  .sun-detail-atm { grid-template-columns: 1fr 1fr; }
+  .sun-detail-atm strong { font-size: 12px; }
+}
 .sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier {
   color: var(--green); border-color: rgba(34, 197, 94, 0.30); background: rgba(34, 197, 94, 0.10);
 }
