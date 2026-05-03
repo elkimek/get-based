@@ -610,21 +610,31 @@ export function circadianMelanopicLux(channelAu, durationMin) {
   return melanopic_W_per_m2 * 614;
 }
 
-// Retinal UV exposure (separate safety counter — gates "is sun-gazing happening")
-// Returns J/m² UV at the eye; warning threshold ~1000 J/m² over a day.
+// Retinal UV exposure — actinic-weighted dose at the eye (ICNIRP S(λ)
+// approximated by the CIE erythemal action spectrum, which peaks at 297
+// nm and drops to ~0.0001 at 400 nm). This is the right basis for the
+// photokeratitis threshold; integrating *unweighted* UV would overstate
+// the dose 30-100× because UVA (the dominant wavelength of total UV) is
+// only weakly damaging vs UVB.
+//
+// Returns J/m² actinic UV at the eye. ICNIRP daily exposure limit is
+// 30 J/m². Photokeratitis symptoms appear above ~50 J/m². Alert
+// thresholds in sun.js use 15 J/m² (warning) and 30 J/m² (over limit).
 export function retinalUVdose({ spectrum, eyeExposure }) {
   if (!spectrum || !eyeExposure) return 0;
   const mode = eyeExposure.mode || 'indoor';
   if (mode !== 'direct') return 0;
   const seconds = (eyeExposure.durationSec || 0);
   const dlambda = 5;
-  let uv_irradiance = 0;
+  let actinic_irradiance = 0;
   for (let i = 0; i < spectrum.irradiance.length; i++) {
     const nm = spectrum.wavelengths[i];
     if (nm > 400) break;
-    uv_irradiance += spectrum.irradiance[i] * dlambda;
+    const w = erythemalAt(nm); // actinic action spectrum (≈ ICNIRP S(λ))
+    if (w <= 0) continue;
+    actinic_irradiance += spectrum.irradiance[i] * w * dlambda;
   }
-  return uv_irradiance * seconds;
+  return actinic_irradiance * seconds;
 }
 
 // ─── Public exports ────────────────────────────────────────────────────

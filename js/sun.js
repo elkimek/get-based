@@ -93,17 +93,39 @@ export const LENS_TINTS = [
 ];
 
 // ─── Channel display metadata ─────────────────────────────────────────
-// Daily targets are deliberately rough — they represent "a meaningful
-// healthy dose for one day" derived from typical noon-zenith integrals.
-// We use them only to map raw doses → qualitative tiers for display.
-// AI context still ships raw numbers; users never see them.
+// Daily targets calibrated against a "good outdoor day" reference: roughly
+// 30-60 minutes of moderate-body-fraction (~30%) midday exposure for
+// skin channels, or 10-30 minutes of eye-direct outdoor light for eye
+// channels. Raw channel-au scales with body fraction × duration × spectral
+// integration — a fully-exposed sunbather will hit several hundred percent
+// of these targets in a long session, which is the correct mathematical
+// outcome (they got a lot of that signal), not a UI bug.
+//
+// Calibration basis per channel noted inline. Targets are "ceiling for a
+// typical active outdoor day", not "minimum for benefit" — most users
+// will see 30-100% on most days.
 export const CHANNEL_DISPLAY = {
   vitamin_d:  { icon: '☀',  label: 'Vitamin D',          dailyTarget:    300, what: 'UVB on bare skin makes vitamin D. Stops increasing around the point your skin starts to redden — longer is not better.' },
-  pomc:       { icon: '⚡',  label: 'Mood & hormones',    dailyTarget:    800, what: 'Sun on skin triggers a hormone cascade — α-MSH (the tan signal), β-endorphin (mood), ACTH (stress response). Part of why sun feels good.' },
-  no_cv:      { icon: '❤',  label: 'Cardiovascular',     dailyTarget:    100, what: 'UVA from skin releases nitric oxide — supports blood-vessel function, lowers blood pressure, improves circulation, dampens inflammation.' },
-  violet_eye: { icon: '👁',  label: 'Outdoor eye light',  dailyTarget:   6000, what: 'Outdoor 360–400 nm hits sensors in eye and skin. Linked to eye health and dopamine release — the difference between "outside" and "window light" even when both feel bright.' },
+  // POMC uses CIE-erythemal action spectrum (UVB-heavy) — accumulates
+  // ~4× slower per minute than vit-D. ~30 min noon at face+hands ≈ 60
+  // channel-au. Target 80 = strong daily UVA-UVB exposure.
+  pomc:       { icon: '⚡',  label: 'Mood & hormones',    dailyTarget:     80, what: 'Sun on skin triggers a hormone cascade — α-MSH (the tan signal), β-endorphin (mood), ACTH (stress response). Part of why sun feels good.' },
+  // NO/cardiovascular uses UVA action spectrum (Liu/Oplander 2014).
+  // BP-reducing dose ~30 min midday on 30-50% body ≈ 5000 channel-au.
+  // Set to 5000 — matches the empirical threshold in the literature.
+  no_cv:      { icon: '❤',  label: 'Cardiovascular',     dailyTarget:   5000, what: 'UVA from skin releases nitric oxide — supports blood-vessel function, lowers blood pressure, improves circulation, dampens inflammation.' },
+  // Violet-eye (Opn5 360-440nm at eye). Hattar/Huberman recommend
+  // 10-30 min outdoor morning light for dopamine + eye health. 30 min
+  // morning walk eye-direct ≈ 8000 channel-au; target 8000.
+  violet_eye: { icon: '👁',  label: 'Outdoor eye light',  dailyTarget:   8000, what: 'Outdoor 360–400 nm hits sensors in eye and skin. Linked to eye health and dopamine release — the difference between "outside" and "window light" even when both feel bright.' },
+  // Circadian/melanopic at eye. ~30-60 min outdoor light entrains the
+  // SCN. Per CIE S 026 melanopic luminous efficacy K_mel,v ≈ 614 lx/(W/m²).
+  // 30 min direct outdoor = ~20000 channel-au. Keep target.
   circadian:  { icon: '🌅', label: 'Body clock',         dailyTarget:  20000, what: 'Bright light at the eye sets your circadian rhythm — earlier bedtime, faster wake-up, deeper sleep. Strongest effect in the first 2 hours after sunrise.' },
-  nir_solar:  { icon: '🔥', label: 'Cellular repair',    dailyTarget: 100000, what: 'Solar 600–1400 nm penetrates deep into tissue and reaches mitochondria. Supports recovery, raises local melatonin in cells, reduces inflammation. The half of sunlight that windows block.' },
+  // NIR-solar broadband (600-1400nm). Wunsch/Jeffery optical tissue
+  // window — solar NIR is ~250-400 W/m² at noon. 60 min @ 30% body =
+  // ~30000 channel-au. Target 30000.
+  nir_solar:  { icon: '🔥', label: 'Cellular repair',    dailyTarget:  30000, what: 'Solar 600–1400 nm penetrates deep into tissue and reaches mitochondria. Supports recovery, raises local melatonin in cells, reduces inflammation. The half of sunlight that windows block.' },
   pbm_red:    { icon: '🔴', label: 'Red light therapy',  dailyTarget:   8000, what: 'Narrowband red light (660 nm) from a therapy panel. Same target as solar red but more concentrated and indoor.' },
   pbm_nir:    { icon: '🟣', label: 'Near-IR therapy',    dailyTarget:  10000, what: 'Narrowband near-infrared (810/850 nm) from a therapy panel. Reaches deeper tissue than visible red.' },
 };
@@ -517,7 +539,13 @@ const _hydrateInFlight = new Map();
 //      vit D synthesis at low sun naturally falls to ~zero per
 //      Bird-Riordan + JPL 19-5 cross-sections without the hand-tuned
 //      threshold gate carrying the load alone.
-export const SUN_ENGINE_VERSION = 3;
+//   4: 2026-05-03 — added posture multiplier (lying-supine ×1.4 etc),
+//      surface albedo reception multiplier (sand/water/snow), AOD-driven
+//      Bird-Riordan β when atm provides aerosol_optical_depth, and
+//      switched retinalUVdose from unweighted UV (280-400 sum) to
+//      actinic-weighted (CIE erythemal) — old sessions had retinalUV
+//      stored at 30-100× the correct ICNIRP-comparable value.
+export const SUN_ENGINE_VERSION = 4;
 
 // Override the fetched atmosphere with user-set values (manual UVI, manual
 // cloud cover, manual ozone) when present in sunDefaults. Set null to clear.
@@ -1624,13 +1652,15 @@ function _renderActiveCardBody(sess) {
   }
 
   // Retinal-UV chip — only meaningful when eye mode is 'direct'. Shows
-  // current cumulative dose toward the photokeratitis threshold.
+  // current cumulative ACTINIC-weighted UV at the eye (matches ICNIRP
+  // S(λ) basis). Daily limit 30 J/m²; warn at 15 J/m².
   let retinalStr = '';
-  if (sess.eyeExposure?.mode === 'direct' && Number.isFinite(live?.retinalUV) && live.retinalUV > 100) {
-    const ruv = Math.round(live.retinalUV);
-    const cls = ruv >= 500 ? ' warn' : '';
-    const label = ruv >= 1000 ? 'photokeratitis threshold' : ruv >= 500 ? 'half-threshold' : 'low';
-    retinalStr = `<span class="sun-session-retinal${cls}" title="Cumulative UV at the eye — photokeratitis appears at ~1000 J/m². At ${ruv} J/m² you're ${label}.">👁 ${ruv} J/m² eye UV</span>`;
+  if (sess.eyeExposure?.mode === 'direct' && Number.isFinite(live?.retinalUV) && live.retinalUV > 3) {
+    const ruv = live.retinalUV;
+    const ruvDisplay = ruv >= 10 ? Math.round(ruv) : ruv.toFixed(1);
+    const cls = ruv >= 15 ? ' warn' : '';
+    const label = ruv >= 30 ? 'at ICNIRP daily limit' : ruv >= 15 ? 'half the daily limit' : 'building';
+    retinalStr = `<span class="sun-session-retinal${cls}" title="Actinic-weighted UV at the eye (≈ICNIRP S(λ)). Daily limit 30 J/m²; photokeratitis appears above ~50 J/m². At ${ruvDisplay} J/m² you're ${label}.">👁 ${ruvDisplay} J/m² eye UV</span>`;
   }
 
   return { elapsed, medStr, vitaminDStr, channelChips, heatStr, retinalStr };
@@ -1691,18 +1721,19 @@ function _tickActiveCards() {
 
     // Retinal-UV alerts — only fire when eye mode is 'direct' (eyes
     // uncovered + open toward sky). Sunglass / closed-eyes / behind-glass
-    // sessions accumulate zero retinal UV. Threshold 1000 J/m² is the
-    // approximate photokeratitis floor (WHO/ICNIRP); 500 J/m² as a
+    // sessions accumulate zero retinal UV. retinalUV is now actinic-
+    // weighted (≈ ICNIRP S(λ)); ICNIRP daily exposure limit is 30 J/m²
+    // actinic, photokeratitis appears above ~50 J/m². 15 J/m² used as a
     // half-way warning so the user can still react.
     if (liveDoses && Number.isFinite(liveDoses.retinalUV) && sess.eyeExposure?.mode === 'direct') {
       const ruv = liveDoses.retinalUV;
       const cur = _getLiveState(sess.id) || {};
-      if (ruv >= 1000 && !cur.alertedRetinalOver) {
+      if (ruv >= 30 && !cur.alertedRetinalOver) {
         _setLiveState(sess.id, { alertedRetinalOver: true });
-        showNotification('Eye UV at the photokeratitis threshold. Put on UV-blocking sunglasses now — symptoms (gritty eyes, sensitivity to light) appear 6-12 hours after exposure.', 'error', 10000);
-      } else if (ruv >= 500 && !cur.alertedRetinal500) {
+        showNotification('Eye UV at the ICNIRP daily exposure limit. Put on UV-blocking sunglasses now — symptoms (gritty eyes, sensitivity to light) appear 6-12 hours after exposure.', 'error', 10000);
+      } else if (ruv >= 15 && !cur.alertedRetinal500) {
         _setLiveState(sess.id, { alertedRetinal500: true });
-        showNotification('Eyes at half the daily UV limit — sunglasses or look-down breaks recommended. Cumulative eye exposure causes pterygium and cataract over years.', 'warning', 8000);
+        showNotification('Eyes at half the daily ICNIRP UV limit — sunglasses or look-down breaks recommended. Cumulative eye exposure causes pterygium and cataract over years.', 'warning', 8000);
       }
     }
 
