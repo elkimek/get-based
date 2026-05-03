@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.12', date: '2026-05-03', title: 'Sync audit follow-up — 3 P1 fixes',
+    items: [
+      '<b>Decompression-bomb defence on per-row payloads.</b> The per-row gunzip path had no size cap on the decompressed result — a malicious relay (or a peer device sending a crafted row) could ship a tiny base64 envelope that decompresses to hundreds of MB and OOM the tab. Per-row payloads are individual items (one sun session, one marker note); 1 MB cap leaves comfortable headroom while killing the bomb fast via streaming abort.',
+      '<b>Snapshot-poisoning fix on partial push failure.</b> <code>_applyArrayDelta</code> swallowed individual op failures with a console warning, then the caller advanced the snapshot anyway — next push diff\'d against state that didn\'t match the relay, so failed items got silently skipped forever. Now returns boolean success; snapshot only advances when every op landed.',
+      '<b>changeHistory cap re-applied on v4 cutover overlay.</b> The 200-entry cap is enforced in <code>mergeImportedData</code>\'s blob path. v4 cutover skips that step and the per-row overlay used to grow <code>changeHistory</code> past 200 (because <code>noTombstones: true</code> means the relay accumulates rows forever and the pull replays all of them). Cap is now re-applied inside the per-row array overlay using <code>COMPOSITE_KEYED_ARRAYS</code> imported from data-merge.js — newest-first trim by <code>updatedAt</code> / <code>createdAt</code> / <code>date</code>.',
+    ]
+  },
+  {
     version: '1.7.11', date: '2026-05-03', title: 'Sync arc audit pass — 4 critical fixes',
     items: [
       '<b>Prototype pollution defence on the per-row pull path.</b> The itemId allowlist regex (<code>[a-zA-Z0-9_.-]+</code>) accepts <code>__proto__</code>, <code>constructor</code>, and <code>prototype</code> — all three would set <code>Object.prototype</code> when used as a map write key, polluting every <code>{}</code> in the page. A malicious relay (or a peer device sending crafted rows) could exploit this. Fixed by adding an explicit reject-set on top of the regex (<code>_isAllowlistSafeId</code>) used everywhere itemIds are accepted, plus <code>Object.create(null)</code> for freshly-initialised map containers as defence-in-depth.',

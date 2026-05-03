@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { showNotification, isDebugMode, escapeHTML } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
-import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
+import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS } from './data-merge.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
@@ -978,6 +978,37 @@ async function _gunzipToString(bytes) {
   return await new Response(stream).text();
 }
 
+// v1.7.12 audit fix: decompression-bomb defence for per-row payloads.
+// A relay-controlled itemRow.payload could be a tiny gzip envelope
+// (~few KB) that decompresses to hundreds of MB — gzip ratios above
+// 1000:1 are trivial. Multiplied across 31 surfaces × N rows per
+// surface, the tab OOMs. Per-row payloads are individual items
+// (sun session, marker note, scalar object) — 1 MB is comfortably
+// above any legitimate single-item size and well below any tab-killing
+// threshold. Stream-reads with an in-flight cap so a 100-MB bomb
+// fails fast instead of waiting for full decompression to OOM.
+const _PER_ROW_DECOMPRESSED_CAP_BYTES = 1024 * 1024;
+async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRESSED_CAP_BYTES) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let out = '';
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      try { await reader.cancel(); } catch {}
+      throw new Error(`per-row payload exceeds ${maxBytes} bytes after gunzip — refusing to trust (decompression-bomb defence)`);
+    }
+    out += decoder.decode(value, { stream: true });
+  }
+  out += decoder.decode();
+  return out;
+}
+
 function _bytesToBase64(bytes) {
   let s = '';
   // Chunked to avoid the call-stack-size cap on huge spreads (~100 KB+).
@@ -1434,18 +1465,26 @@ async function _planScalarDelta(profileId, scalarName, scalarValue) {
 }
 
 // Apply the planned ops via Evolu. Called from pushProfile's onComplete
-// after the fat-blob push lands; on failure we leave the snapshot
-// untouched so the next push retries the same delta automatically.
+// after the fat-blob push lands.
+//
+// v1.7.12 audit fix: returns true only when every op succeeded. The
+// caller (`onComplete`) skips the snapshot advance when this returns
+// false — a partial failure used to silently advance the snapshot,
+// poisoning future pushes (next push thought the failed items were
+// already shipped to the relay and skipped them).
 function _applyArrayDelta(arrayName, plan) {
+  let allOk = true;
   for (const op of plan.ops) {
     try {
       if (op.kind === 'insert') evolu.insert("itemRow", op.args);
       else if (op.kind === 'update') evolu.update("itemRow", op.args);
       else if (op.kind === 'tombstone') evolu.update("itemRow", op.args);
     } catch (e) {
+      allOk = false;
       console.warn(`[sync] delta op ${op.kind} ${arrayName} failed:`, e?.message || e);
     }
   }
+  return allOk;
 }
 
 // Pull-side row-count snapshot, refreshed on every _mergeItemRowsIntoImported
@@ -1504,7 +1543,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
           let json = row.payload;
           if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
             if (typeof DecompressionStream === 'undefined') continue;
-            json = await _gunzipToString(_base64ToBytes(json.slice(6)));
+            json = await _gunzipToStringCapped(_base64ToBytes(json.slice(6)));
           }
           const parsed = JSON.parse(json);
           if (!parsed || typeof parsed !== 'object') continue;
@@ -1560,7 +1599,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
           let json = row.payload;
           if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
             if (typeof DecompressionStream === 'undefined') continue;
-            json = await _gunzipToString(_base64ToBytes(json.slice(6)));
+            json = await _gunzipToStringCapped(_base64ToBytes(json.slice(6)));
           }
           const parsed = JSON.parse(json);
           if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
@@ -1605,7 +1644,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
         let json = row.payload;
         if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
           if (typeof DecompressionStream === 'undefined') continue;
-          json = await _gunzipToString(_base64ToBytes(json.slice(6)));
+          json = await _gunzipToStringCapped(_base64ToBytes(json.slice(6)));
         }
         const item = JSON.parse(json);
         // Verify the payload's derived itemId matches the row column —
@@ -1628,6 +1667,22 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       const idx = seen.get(itemId);
       if (idx !== undefined) imported[arrayName][idx] = item;
       else imported[arrayName].push(item);
+    }
+    // v1.7.12 audit fix: re-apply COMPOSITE_KEYED_ARRAYS cap after the
+    // per-row overlay. mergeImportedData (the blob path) caps automatically,
+    // but v4 cutover skips the blob merge entirely — without this re-cap,
+    // changeHistory would grow past 200 entries on a v4 device because
+    // `noTombstones: true` means the relay accumulates rows forever and
+    // the pull replays all of them. Sort by timestamp (newest first via
+    // pickTimestamp-equivalent inline) and trim to cap.
+    const cap = COMPOSITE_KEYED_ARRAYS.find(c => c.path === arrayName)?.cap;
+    if (cap && imported[arrayName].length > cap) {
+      imported[arrayName].sort((a, b) => {
+        const ta = a?.updatedAt ?? a?.createdAt ?? a?.at ?? (typeof a?.date === 'string' ? Date.parse(a.date) : 0) ?? 0;
+        const tb = b?.updatedAt ?? b?.createdAt ?? b?.at ?? (typeof b?.date === 'string' ? Date.parse(b.date) : 0) ?? 0;
+        return tb - ta;
+      });
+      imported[arrayName] = imported[arrayName].slice(0, cap);
     }
     _pullDeltaSnapshot.perArray[arrayName] = { live: liveById.size, tombstones: tombs.size };
   }
@@ -1958,11 +2013,20 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // delta will retry on the next push since the snapshot still
       // reflects what was last successfully reflected to the relay.
       if (deltaPlans.length > 0) {
+        let snapshotsAdvanced = 0;
         for (const { arrayName, plan } of deltaPlans) {
-          _applyArrayDelta(arrayName, plan);
-          _writeDeltaSnapshot(profileId, arrayName, plan.next);
+          // v1.7.12 audit fix: only advance the snapshot when every op in
+          // the plan succeeded. A partial failure (e.g. one row's evolu.insert
+          // throwing on duplicate-id) used to advance the snapshot anyway,
+          // so the next push diff'd against state that didn't match the
+          // relay → failed items got silently skipped forever.
+          const allOk = _applyArrayDelta(arrayName, plan);
+          if (allOk) {
+            _writeDeltaSnapshot(profileId, arrayName, plan.next);
+            snapshotsAdvanced++;
+          }
         }
-        dbg(`Applied ${deltaOpCount} delta ops across ${deltaPlans.length} array(s)`);
+        dbg(`Applied ${deltaOpCount} delta ops across ${deltaPlans.length} array(s) — ${snapshotsAdvanced}/${deltaPlans.length} snapshots advanced`);
       }
       // Phase 1 telemetry: record blob size + per-array delta breakdown.
       // Always recorded — even when deltaPlans is empty (a no-delta push

@@ -185,7 +185,7 @@ return (async function() {
   // Anchor on "Push committed" — unique to the onComplete arrow function,
   // unlike "onComplete" which also appears in evolu.update call sites.
   assert('pushProfile applies deltas only after onComplete (blob commit)',
-    /Push committed[\s\S]{0,2500}deltaPlans\.length > 0[\s\S]{0,400}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}_writeDeltaSnapshot/.test(syncSrc));
+    /Push committed[\s\S]{0,2500}deltaPlans\.length > 0[\s\S]{0,800}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncSrc));
 
   // Pull-side merge contract — per-row authoritative, blob fallback
   assert('onSyncReceived overlays per-row state AFTER blob merge',
@@ -194,8 +194,8 @@ return (async function() {
     /_mergeItemRowsIntoImported[\s\S]{0,10000}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
     /idx\s*!==\s*undefined[\s\S]{0,200}imported\[arrayName\]\[idx\]\s*=\s*item/.test(syncSrc));
-  assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads',
-    /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToString\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads via capped variant',
+    /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',
     /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
 
@@ -921,6 +921,40 @@ return (async function() {
     assert('proto check: legitimate keys still pass',
       safeFn('biochemistry.glucose') === true && safeFn('s1') === true);
   }
+
+  // ═══════════════════════════════════════
+  // 14f. v1.7.12 AUDIT FIXES — gunzip cap / snapshot-poisoning / changeHistory cap
+  // ═══════════════════════════════════════
+  console.log('%c 14f. v1.7.12 audit fixes ', 'font-weight:bold;color:#f59e0b');
+
+  // Decompression-bomb defence
+  assert('_gunzipToStringCapped defined with size cap',
+    /_PER_ROW_DECOMPRESSED_CAP_BYTES\s*=\s*1024\s*\*\s*1024[\s\S]{0,500}async function _gunzipToStringCapped/.test(syncSrc));
+  assert('_gunzipToStringCapped throws on cap exceeded',
+    /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncSrc));
+  assert('All 3 per-row gunzip sites use the capped variant',
+    (syncSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length === 3);
+  assert('Blob path still uses uncapped _gunzipToString (has its own 5MB cap)',
+    /async function _gunzipToString\(bytes\)/.test(syncSrc));
+
+  // Snapshot-poisoning fix
+  assert('_applyArrayDelta returns boolean success',
+    /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(syncSrc));
+  assert('onComplete advances snapshot only when _applyArrayDelta returned true',
+    /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,200}_writeDeltaSnapshot/.test(syncSrc));
+  assert('onComplete logs partial-failure ratio',
+    /snapshotsAdvanced\}\/\$\{deltaPlans\.length\}/.test(syncSrc));
+
+  // changeHistory cap on v4 overlay
+  assert('COMPOSITE_KEYED_ARRAYS imported from data-merge.js',
+    /from '\.\/data-merge\.js'[\s\S]{0,300}COMPOSITE_KEYED_ARRAYS/.test(syncSrc) ||
+    /COMPOSITE_KEYED_ARRAYS[\s\S]{0,200}from '\.\/data-merge\.js'/.test(syncSrc));
+  assert('COMPOSITE_KEYED_ARRAYS exported from data-merge.js',
+    await fetchWithRetry('js/data-merge.js').then(s => /export const COMPOSITE_KEYED_ARRAYS/.test(s)));
+  assert('Per-row array overlay re-applies cap after merge',
+    /COMPOSITE_KEYED_ARRAYS\.find\(c\s*=>\s*c\.path\s*===\s*arrayName\)\?\.cap[\s\S]{0,500}imported\[arrayName\]\.slice\(0,\s*cap\)/.test(syncSrc));
+  assert('Cap trim sorts newest-first by updatedAt/createdAt/date',
+    /imported\[arrayName\]\.sort[\s\S]{0,400}updatedAt[\s\S]{0,100}createdAt[\s\S]{0,100}Date\.parse\(a\.date\)/.test(syncSrc));
 
   // ═══════════════════════════════════════
   // 15. VENDOR FILES

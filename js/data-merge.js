@@ -48,7 +48,10 @@ export const ID_KEYED_ARRAYS = [
 // same-day same-field by design). Cap matches the per-site cap of 200
 // in context-cards.js + export.js + wearables-summary.js so a multi-
 // device merge can never sneak past it.
-const COMPOSITE_KEYED_ARRAYS = [
+// Exported so sync.js's per-row overlay can re-apply the cap after a
+// v4 cutover pull (which bypasses mergeImportedData's natural cap step).
+// Keep entries here in sync with consumer-side caps.
+export const COMPOSITE_KEYED_ARRAYS = [
   { path: 'changeHistory', key: (e) => e?.field && e?.date ? `${e.field}|${e.date}` : null, cap: 200 },
 ];
 
