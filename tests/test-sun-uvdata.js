@@ -103,6 +103,32 @@ return (async function() {
   await expectSelfhostRejected('ftp://example.com/api', 'non-http(s) protocol');
   await expectSelfhostRejected('not a url', 'unparseable URL');
 
+  // v1.7.8 DNS-rebinding hardening: bearer-bearing requests must use HTTPS
+  // so a rebound LAN/metadata target fails TLS before the bearer ships.
+  // Plain HTTP without a bearer remains allowed (legitimate local dev).
+  console.log('%c 3b. Bearer-bearing HTTP must be rejected (DNS rebinding hardening) ', 'font-weight:bold;color:#f59e0b');
+  async function expectBearerRejection(url, bearer, label) {
+    saveMeteoConfig({ ...origCfg, mode: 'selfhost', selfhostUrl: url, selfhostBearer: bearer });
+    let crossed = false;
+    const origFetch = window.fetch;
+    window.fetch = (u) => { if (typeof u === 'string' && u.startsWith(url)) crossed = true; return Promise.reject(new Error('blocked by test')); };
+    try { await fetchAtmosphere({ lat: 50, lon: 14, isoTime: new Date().toISOString(), noCache: true }); } catch {}
+    finally { window.fetch = origFetch; }
+    assert(`Bearer rejection: ${label}`, !crossed, `would have fetched ${url}`);
+  }
+  await expectBearerRejection('http://uvdata.example.com', 'secret-token', 'plain HTTP + bearer (rebinding-vulnerable)');
+  // No-bearer HTTP must still work for local dev — verify it crosses
+  // (request gets made, even if the test-mock fetch rejects it).
+  saveMeteoConfig({ ...origCfg, mode: 'selfhost', selfhostUrl: 'http://uvdata.example.com', selfhostBearer: '' });
+  {
+    let attempted = false;
+    const origFetch = window.fetch;
+    window.fetch = (u) => { if (typeof u === 'string' && u.includes('uvdata.example.com')) attempted = true; return Promise.reject(new Error('blocked by test')); };
+    try { await fetchAtmosphere({ lat: 50, lon: 14, isoTime: new Date().toISOString(), noCache: true }); } catch {}
+    finally { window.fetch = origFetch; }
+    assert('Plain HTTP + no bearer remains allowed (local dev path)', attempted);
+  }
+
   restoreCfg();
 
   // ─── 4. solarZenithAngle ───────────────────────────────────────────────

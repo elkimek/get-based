@@ -141,17 +141,38 @@ export function manualAtmosphere({ uvIndex, ozoneDU = null, hasMeter = false, no
 // Validate the user-provided self-host URL before sending the bearer
 // token to it. Block private/loopback/link-local hosts so a bad config
 // can't smuggle credentials to internal services (Redis on 6379, etc).
+//
+// `withBearer=true` enforces stricter rules — the bearer token is the
+// thing worth stealing, and DNS rebinding is the canonical attack
+// (attacker controls a public domain, first DNS lookup returns a public
+// IP, subsequent lookups return 169.254.169.254 or a LAN IP; the browser
+// is opaque to us and the bearer travels with the rebound request). We
+// can't pin DNS in a browser, so the defence is: when a bearer is
+// present, REQUIRE HTTPS (eliminates the plain-text MITM and ensures
+// the rebound endpoint must present a valid certificate for the
+// hostname — DNS rebinding to a LAN IP without a matching cert fails
+// the TLS handshake before the bearer is sent in headers).
+//
+// Plain HTTP remains allowed when no bearer is configured (local dev
+// against an unauthenticated LAN endpoint is a legitimate use case
+// and there's no credential to leak).
+//
 // Returns true if the URL is safe to fetch, false otherwise.
-function _isValidSelfhostUrl(raw) {
+function _isValidSelfhostUrl(raw, withBearer = false) {
   let u;
   try { u = new URL(raw); } catch { return false; }
   if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+  // v1.7.8 hardening: bearer-bearing requests require HTTPS so DNS
+  // rebinding to a LAN/metadata IP fails at the TLS layer (rebound
+  // host won't have a cert for the original domain).
+  if (withBearer && u.protocol !== 'https:') return false;
   const host = u.hostname.toLowerCase();
   // Block IP-literal forms targeting internal hosts. Hostnames go through
-  // DNS at fetch time — those can still resolve to private IPs, but the
-  // browser fetch is opaque to us, and the bearer is only consequential
-  // when paired with an attacker's domain (which they could just stand
-  // up). Catching the obvious cases is what matters here.
+  // DNS at fetch time — those can still resolve to private IPs, but with
+  // the bearer-requires-HTTPS rule above, a rebound request fails TLS
+  // before the bearer leaves the device. Catching the obvious cases is
+  // still what matters for non-bearer configs and for refusing ambiguous
+  // pastes outright.
   if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') return false;
   if (host === '0.0.0.0') return false;
   // RFC1918 + link-local + cloud-metadata IP literals
@@ -170,18 +191,44 @@ function _isValidSelfhostUrl(raw) {
   return true;
 }
 
+// Defence-in-depth: validates that a selfhost response payload looks
+// like the Open-Meteo shape we expect. If the URL gets DNS-rebound to
+// a service that returns valid JSON but isn't Open-Meteo (a router
+// admin page, a cloud metadata service that returns JSON, etc), this
+// rejects it before we treat the result as authoritative atmosphere
+// data. Fails closed: returns false on any structural mismatch.
+function _looksLikeOpenMeteoResponse(json) {
+  if (!json || typeof json !== 'object') return false;
+  const h = json.hourly;
+  if (!h || typeof h !== 'object') return false;
+  // Must have a time array AND at least one of the requested data series.
+  if (!Array.isArray(h.time) || h.time.length === 0) return false;
+  const expectedSeries = ['uv_index', 'uv_index_clear_sky', 'cloud_cover', 'temperature_2m'];
+  return expectedSeries.some(k => Array.isArray(h[k]));
+}
+
 const PROVIDERS = {
   selfhost: {
     name: 'selfhost',
-    available: (cfg) => Boolean(cfg.selfhostUrl) && _isValidSelfhostUrl(cfg.selfhostUrl),
+    available: (cfg) => Boolean(cfg.selfhostUrl) && _isValidSelfhostUrl(cfg.selfhostUrl, Boolean(cfg.selfhostBearer)),
     fetch: async ({ lat, lon, isoTime, cfg }) => {
-      if (!_isValidSelfhostUrl(cfg.selfhostUrl)) {
-        throw new Error('selfhost URL rejected — must be public https/http, not loopback / RFC1918 / link-local');
+      const hasBearer = Boolean(cfg.selfhostBearer);
+      if (!_isValidSelfhostUrl(cfg.selfhostUrl, hasBearer)) {
+        throw new Error(hasBearer
+          ? 'selfhost URL rejected — bearer-bearing requests require https:// (DNS-rebinding hardening; see v1.7.8)'
+          : 'selfhost URL rejected — must be public https/http, not loopback / RFC1918 / link-local');
       }
       const url = `${cfg.selfhostUrl.replace(/\/$/, '')}/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=uv_index,uv_index_clear_sky,ozone,cloud_cover,temperature_2m`;
       const headers = {};
       if (cfg.selfhostBearer) headers.Authorization = `Bearer ${cfg.selfhostBearer}`;
       const json = await fetchJson(url, { headers });
+      // v1.7.8 defence-in-depth: validate response shape before trusting
+      // it. A DNS-rebound endpoint (or a misconfigured selfhost server)
+      // could return valid JSON that isn't Open-Meteo — refuse it loudly
+      // so downstream code never treats foreign data as authoritative.
+      if (!_looksLikeOpenMeteoResponse(json)) {
+        throw new Error('selfhost response did not match Open-Meteo shape — refusing to trust the payload (DNS rebinding or misconfiguration?)');
+      }
       // Selfhost is expected to return Open-Meteo-shaped JSON. No air-quality
       // companion endpoint contract yet — pass null and the shaper handles it.
       return shapeOpenMeteoResponse(json, null, isoTime, 'selfhost');

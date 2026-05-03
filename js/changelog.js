@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.8', date: '2026-05-03', title: 'Selfhost CAMS — DNS-rebinding hardening',
+    items: [
+      '<b>Selfhost UV-data URLs that carry a bearer token now require HTTPS.</b> Closes the DNS-rebinding gap acknowledged in the v1.6.0 audit. The attack: an attacker controls a public domain you paste into Settings → Light & Sun → Sun Data Source. First DNS lookup returns a public IP (passes the existing SSRF allowlist); subsequent lookups return 169.254.169.254 (cloud metadata), 192.168.1.1 (your router), or any LAN IP. Browser fetch is opaque to us, so the bearer travels with the rebound request. With HTTPS required, the rebound endpoint must present a valid TLS certificate for the original hostname — LAN/metadata targets won\'t have one, so the handshake fails before the Authorization header is sent.',
+      '<b>Plain HTTP without a bearer is still allowed</b> — legitimate local-dev path against unauthenticated LAN endpoints, no credential to leak.',
+      '<b>Defence-in-depth: response-shape validation.</b> Even if a bearer-less HTTP request gets DNS-rebound to a non-Open-Meteo service that returns valid JSON, the new payload-shape check refuses to treat the result as authoritative atmosphere data. Selfhost responses must look like Open-Meteo (have an `hourly` object with at least one of `uv_index` / `cloud_cover` / `temperature_2m`) — anything else fails closed with a clear error.',
+    ]
+  },
+  {
     version: '1.7.7', date: '2026-05-03', title: 'Sun spectrum — diffuse fix at low-sun (P1.3 audit)',
     items: [
       '<b>Sun-spectrum reconstruction now scales the diffuse-light component with airMass</b>, fixing the ~30-50% UVB underestimate the v1.6.0 audit flagged at extreme zenith (≥75°). The previous model multiplied the direct beam by a constant per-band diffuse fraction (0.55 in UVB), which silently dropped to zero alongside the direct beam at sunset / sunrise / high-latitude winter. The physical reality: direct light attenuates exponentially with airMass while diffuse only weakly does, so the diffuse-to-direct ratio grows as the sun gets lower.',
