@@ -103,7 +103,9 @@ The indicator checks relay connectivity every 60 seconds and monitors Evolu's er
 
 ## Conflict Resolution
 
-Sync uses **last-write-wins** at the profile level, based on timestamps. This is designed for single-user, multi-device use — one person using getbased on their phone and laptop. If you edit the same profile on two devices simultaneously before they sync, the most recent push wins.
+Sync uses **last-write-wins per item**, based on timestamps. As of v1.7.0+, edits ship as small per-item CRDT deltas (one sun session, one marker note, one lab entry) rather than re-shipping your entire health record on every save. If two devices edit *the same item* simultaneously before they sync, the most recent push for that item wins. Edits to *different* items merge cleanly — adding a sun session on your phone while editing a marker note on your desktop both land on the relay independently and both arrive on the other device.
+
+A profile-level fat-blob push runs in parallel for back-compat with devices on older versions, so mixed-version cohorts (e.g. one device on v1.6.x, another on v1.7.x) converge correctly. Settings → Sync → Diagnose surfaces a per-surface health table — when both your devices report READY for ≥2 weeks and the delta-to-blob ratio sits below 5%, you can opt into Phase 2 (drop the fat-blob writes entirely) via the Enable Phase 2 button in the same modal. After cutover, your relay storage usage drops ~20× because each push ships only what changed.
 
 ## Relay Server
 
