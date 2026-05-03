@@ -84,6 +84,12 @@ export async function getEvoluDiagnostics() {
   // What's actually in this device's active state right now
   out.activeImported.sunSessions = Array.isArray(state.importedData?.sunSessions) ? state.importedData.sunSessions.length : 0;
   out.activeImported.lightDevices = Array.isArray(state.importedData?.lightDevices) ? state.importedData.lightDevices.length : 0;
+  // Phase 1 dual-write health for the active profile. Surfaces (a) recent
+  // push payload sizes (blob vs delta) so we can confirm the per-row
+  // datapath is shipping a small fraction of the blob (Phase 2 cutover
+  // gate), and (b) per-array row counts seen by the pull side (cross-
+  // device replication gauge).
+  out.deltaTelemetry = state.currentProfile ? getDeltaTelemetry(state.currentProfile) : null;
   return out;
 }
 
@@ -117,6 +123,39 @@ function _evoluDiagnosticsText(d) {
     }
   }
   if (d.rowsError) lines.push(`Rows read error: ${d.rowsError}`);
+  const t = d.deltaTelemetry;
+  if (t) {
+    const s = t.summary;
+    const pct = (s.ratio * 100).toFixed(1);
+    lines.push('');
+    lines.push(`Phase 1 dual-write health (last ${s.count} pushes):`);
+    lines.push(`  blob total: ${s.totalBlobBytes}b · delta total: ${s.totalDeltaBytes}b · ops: ${s.totalOps}`);
+    lines.push(`  ratio (delta:blob): ${pct}%  ${s.ratio < 0.05 ? '(healthy — Phase 2 cutover safe)' : '(still high — keep baking)'}`);
+    if (t.pushes.length > 0) {
+      lines.push('  recent pushes:');
+      lines.push('    when                blob       delta      ops  arrays');
+      for (const p of t.pushes.slice(-6).reverse()) {
+        const when = new Date(p.at).toISOString().slice(11, 19) + 'Z';
+        const blob = String((p.blobBytes || 0) + 'b').padStart(9);
+        const delta = String((p.totalDeltaBytes || 0) + 'b').padStart(9);
+        const ops = String(p.totalOps || 0).padStart(3);
+        const arrs = Object.entries(p.perArray || {})
+          .filter(([, v]) => (v.ins + v.upd + v.tom) > 0)
+          .map(([k, v]) => `${k}(${v.ins}/${v.upd}/${v.tom})`).join(' ');
+        lines.push(`    ${when}        ${blob}  ${delta}  ${ops}  ${arrs || '-'}`);
+      }
+      lines.push('    (arrays column: name(insert/update/tombstone))');
+    }
+    const pullArrays = Object.keys(t.pull.perArray || {});
+    if (pullArrays.length > 0) {
+      lines.push(`  pull-side rows (latest merge ${t.pull.mergedAt ? new Date(t.pull.mergedAt).toISOString() : '-'}):`);
+      for (const name of pullArrays.sort()) {
+        const v = t.pull.perArray[name];
+        lines.push(`    ${name.padEnd(20)} live=${v.live} tombstones=${v.tombstones}`);
+      }
+      lines.push('    (compare across devices — diverging counts = relay replication lag)');
+    }
+  }
   return lines.join('\n');
 }
 
@@ -1064,6 +1103,14 @@ function _applyArrayDelta(arrayName, plan) {
   }
 }
 
+// Pull-side row-count snapshot, refreshed on every _mergeItemRowsIntoImported
+// run. Used by getDeltaTelemetry / Sync diagnose so a user comparing two
+// devices can see whether the relay actually replicated per-row state evenly
+// (e.g. desktop sees 14 sunSession rows, phone sees 12 → relay replication
+// lag, not a local merge bug). In-memory only — re-derives on every merge,
+// no localStorage churn.
+const _pullDeltaSnapshot = { profileId: null, perArray: {}, mergedAt: 0 };
+
 // Pull-side: walk every itemRow for this profileId, group by arrayName,
 // apply tombstones (drop matching items from imported[arrayName]) and
 // upsert live payloads (replace by item.id, or push if unseen). Per-row
@@ -1078,6 +1125,12 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     if (!byArray.has(row.arrayName)) byArray.set(row.arrayName, []);
     byArray.get(row.arrayName).push(row);
   }
+  // Reset the pull-side telemetry snapshot for this merge — only keep
+  // counts for arrays still present in the relay's row set so a profile
+  // switch doesn't carry stale counts forward.
+  _pullDeltaSnapshot.profileId = profileId;
+  _pullDeltaSnapshot.perArray = {};
+  _pullDeltaSnapshot.mergedAt = Date.now();
   for (const [arrayName, arrRows] of byArray) {
     if (!Array.isArray(imported[arrayName])) imported[arrayName] = [];
     const tombs = new Set();
@@ -1105,6 +1158,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       if (idx !== undefined) imported[arrayName][idx] = item;
       else imported[arrayName].push(item);
     }
+    _pullDeltaSnapshot.perArray[arrayName] = { live: liveById.size, tombstones: tombs.size };
   }
   return imported;
 }
@@ -1155,6 +1209,84 @@ export function getRelayQuotaEstimate() {
 export function resetRelayQuotaEstimate() {
   if (!_appOwner?.id) return false;
   try { localStorage.removeItem(_ownerStorageKey()); return true; } catch { return false; }
+}
+
+// ═══════════════════════════════════════════════
+// PHASE 1 DELTA TELEMETRY (observability for cutover decision)
+// ═══════════════════════════════════════════════
+//
+// Phase 2 of the CRDT-delta refactor (drop blob writes entirely) is gated
+// on ≥2 weeks of cross-device bake under real traffic with the per-row
+// datapath proven healthy. "Healthy" = (a) per-push delta payload is a
+// small fraction of the blob (proves we're not double-shipping the same
+// content), and (b) every device's local Evolu DB shows the same per-array
+// row counts (proves relay replication is propagating per-row state, not
+// just blob updates). This module records both signals to localStorage
+// and surfaces them in the Sync diagnose modal — no telemetry leaves the
+// device, no extra network I/O. When the ratio sits at <0.05 across N
+// devices and per-array counts converge, Phase 2 is safe to ship.
+
+const _DELTA_TELEMETRY_CAP = 50; // last-N pushes; ~6 KB at p99 entry size
+function _deltaTelemetryKey(profileId) {
+  return `labcharts-${profileId}-delta-telemetry`;
+}
+function _readDeltaTelemetry(profileId) {
+  try {
+    const raw = localStorage.getItem(_deltaTelemetryKey(profileId));
+    return raw ? (JSON.parse(raw) || { pushes: [] }) : { pushes: [] };
+  } catch { return { pushes: []  }; }
+}
+function _recordPushTelemetry(profileId, blobBytes, deltaPlans) {
+  if (!profileId) return;
+  const perArray = {};
+  let totalDeltaBytes = 0;
+  let totalOps = 0;
+  for (const { arrayName, plan } of deltaPlans) {
+    let ins = 0, upd = 0, tom = 0, bytes = 0;
+    for (const op of plan.ops) {
+      if (op.kind === 'insert') ins++;
+      else if (op.kind === 'update') upd++;
+      else if (op.kind === 'tombstone') tom++;
+      bytes += (op.args?.payload || '').length;
+    }
+    perArray[arrayName] = { ins, upd, tom, bytes };
+    totalDeltaBytes += bytes;
+    totalOps += plan.ops.length;
+  }
+  const entry = { at: Date.now(), blobBytes: blobBytes | 0, totalDeltaBytes, totalOps, perArray };
+  try {
+    const cur = _readDeltaTelemetry(profileId);
+    cur.pushes.push(entry);
+    if (cur.pushes.length > _DELTA_TELEMETRY_CAP) cur.pushes.splice(0, cur.pushes.length - _DELTA_TELEMETRY_CAP);
+    localStorage.setItem(_deltaTelemetryKey(profileId), JSON.stringify(cur));
+  } catch {}
+}
+// Public read accessor — returns recent pushes + latest pull-side row
+// counts for the active profile. Pull snapshot is in-memory (re-derived
+// every merge), pushes persist across reloads.
+export function getDeltaTelemetry(profileId) {
+  if (!profileId) return null;
+  const t = _readDeltaTelemetry(profileId);
+  const pushes = Array.isArray(t.pushes) ? t.pushes : [];
+  // Aggregate over the last N pushes for the diagnose summary row.
+  let aggBlob = 0, aggDelta = 0, aggOps = 0;
+  for (const p of pushes) {
+    aggBlob += p.blobBytes || 0;
+    aggDelta += p.totalDeltaBytes || 0;
+    aggOps += p.totalOps || 0;
+  }
+  const ratio = aggBlob > 0 ? aggDelta / aggBlob : 0;
+  return {
+    pushes,
+    pull: _pullDeltaSnapshot.profileId === profileId
+      ? { perArray: { ..._pullDeltaSnapshot.perArray }, mergedAt: _pullDeltaSnapshot.mergedAt }
+      : { perArray: {}, mergedAt: 0 },
+    summary: { count: pushes.length, totalBlobBytes: aggBlob, totalDeltaBytes: aggDelta, totalOps: aggOps, ratio },
+  };
+}
+export function resetDeltaTelemetry(profileId) {
+  if (!profileId) return false;
+  try { localStorage.removeItem(_deltaTelemetryKey(profileId)); return true; } catch { return false; }
 }
 
 // Allowed fields when merging a synced profile into the local profiles list
@@ -1256,6 +1388,11 @@ async function pushProfile(profileId, importedData, opts = {}) {
         }
         dbg(`Applied ${deltaOpCount} delta ops across ${deltaPlans.length} array(s)`);
       }
+      // Phase 1 telemetry: record blob size + per-array delta breakdown.
+      // Always recorded — even when deltaPlans is empty (a no-delta push
+      // is a valid signal: the user is online but didn't change anything,
+      // and the still-shipped blob is pure overhead Phase 2 will remove).
+      _recordPushTelemetry(profileId, (dataJson || '').length, deltaPlans);
       finish();
     };
     // Watchdog: if Evolu never calls onComplete within 30s, the worker is
@@ -2253,6 +2390,47 @@ export async function showSyncDiagnose() {
           <div style="color:var(--text-muted);font-size:11px">${note}</div>
         </div>`;
       })()}
+      ${(() => {
+        const t = d.deltaTelemetry;
+        if (!t || t.summary.count === 0) return '';
+        const s = t.summary;
+        const pct = (s.ratio * 100).toFixed(1);
+        const healthy = s.ratio < 0.05;
+        const ratioColor = healthy ? 'var(--green)' : 'var(--orange)';
+        const recentRows = t.pushes.slice(-6).reverse().map(p => {
+          const when = new Date(p.at).toISOString().slice(11, 19) + 'Z';
+          const arrs = Object.entries(p.perArray || {})
+            .filter(([, v]) => (v.ins + v.upd + v.tom) > 0)
+            .map(([k, v]) => `${escapeHTML(k)}(${v.ins}/${v.upd}/${v.tom})`).join(' ');
+          return `<tr><td style="padding:3px 6px;font-family:monospace;font-size:11px;color:var(--text-muted)">${when}</td><td style="padding:3px 6px;text-align:right;font-family:monospace;font-size:11px">${p.blobBytes}b</td><td style="padding:3px 6px;text-align:right;font-family:monospace;font-size:11px">${p.totalDeltaBytes}b</td><td style="padding:3px 6px;text-align:right;font-family:monospace;font-size:11px">${p.totalOps}</td><td style="padding:3px 6px;font-family:monospace;font-size:10px;color:var(--text-muted)">${arrs || '—'}</td></tr>`;
+        }).join('');
+        const pullArrays = Object.keys(t.pull.perArray || {}).sort();
+        const pullHtml = pullArrays.length === 0 ? '' :
+          `<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
+            <div style="margin-bottom:4px"><b>Pull-side rows (latest merge ${t.pull.mergedAt ? new Date(t.pull.mergedAt).toISOString().slice(11, 19) + 'Z' : '—'}):</b></div>
+            <div style="font-family:monospace;font-size:11px">${pullArrays.map(name => {
+              const v = t.pull.perArray[name];
+              return `${escapeHTML(name)} live=${v.live} tomb=${v.tombstones}`;
+            }).join(' · ')}</div>
+            <div style="margin-top:4px">Compare across devices — diverging counts mean relay replication isn't propagating per-row state evenly.</div>
+          </div>`;
+        return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <b>Phase 1 dual-write health (last ${s.count} pushes):</b>
+            <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmResetDeltaTelemetry(this)" title="Resets the local last-N-push log. Useful when starting a fresh measurement window.">Reset window</button>
+          </div>
+          <div style="margin-bottom:4px">
+            <span style="color:${ratioColor};font-weight:600">delta:blob ratio ${pct}%</span>
+            <span style="color:var(--text-muted);font-size:11px"> · blob ${s.totalBlobBytes}b · delta ${s.totalDeltaBytes}b · ops ${s.totalOps}</span>
+          </div>
+          <div style="color:var(--text-muted);font-size:11px;margin-bottom:8px">${healthy ? 'Healthy — Phase 2 cutover is safe once this stays &lt;5% across devices for 2 weeks.' : 'Still high — keep baking. Per-row datapath isn\'t carrying enough of the state yet.'}</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:3px 6px">when</th><th style="padding:3px 6px;text-align:right">blob</th><th style="padding:3px 6px;text-align:right">delta</th><th style="padding:3px 6px;text-align:right">ops</th><th style="padding:3px 6px">arrays(ins/upd/tom)</th></tr></thead>
+            <tbody>${recentRows}</tbody>
+          </table>
+          ${pullHtml}
+        </div>`;
+      })()}
       <div>
         <b>Rows in this device's local Evolu DB:</b>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
@@ -2337,6 +2515,29 @@ function _doResetRelayQuota(btn) {
   } else {
     try { showNotification('Could not reset counter (sync not initialized?)', 'error'); } catch {}
   }
+}
+
+// "Reset window" — drops the rolling per-push telemetry log so the user
+// can start a fresh measurement window (e.g. after a backfill push that
+// would skew the ratio for days). Confirms via the same dialog helper
+// as the relay-quota reset.
+function confirmResetDeltaTelemetry(btn) {
+  const t = state.currentProfile ? getDeltaTelemetry(state.currentProfile) : null;
+  const n = t?.summary?.count || 0;
+  const message = `Reset the Phase 1 dual-write telemetry window? This drops the ${n} recent push entries used to compute the delta:blob ratio. Per-array snapshots and on-the-relay state are unaffected.`;
+  const doReset = () => {
+    if (state.currentProfile && resetDeltaTelemetry(state.currentProfile)) {
+      try { showNotification('Telemetry window reset', 'success'); } catch {}
+      if (btn) {
+        const overlay = btn.closest?.('.modal-overlay');
+        if (overlay) overlay.remove();
+      }
+    } else {
+      try { showNotification('Could not reset telemetry (no active profile?)', 'error'); } catch {}
+    }
+  };
+  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doReset);
+  else doReset();
 }
 
 // Toast users when they cross the 80% / 95% threshold the first time.
@@ -2444,4 +2645,7 @@ Object.assign(window, {
   confirmResetRelayQuota,
   getRelayQuotaEstimate,
   resetRelayQuotaEstimate,
+  getDeltaTelemetry,
+  resetDeltaTelemetry,
+  confirmResetDeltaTelemetry,
 });

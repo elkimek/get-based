@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.1', date: '2026-05-03', title: 'Phase 1 dual-write health (in Sync diagnose)',
+    items: [
+      '<b>The Sync diagnose modal now shows whether the per-row datapath is actually carrying its weight.</b> A new "Phase 1 dual-write health" panel reports the delta-to-blob ratio over the last 50 pushes, a per-push breakdown (when, blob bytes, delta bytes, ops, which arrays + insert/update/tombstone counts), and the latest pull-side row counts per array. Read-only — no extra network calls, no telemetry leaves the device.',
+      '<b>Why it exists.</b> Phase 2 of the sync refactor (dropping blob writes entirely) is gated on real cross-device traffic proving the per-row datapath is healthy. "Healthy" = ratio &lt;5% across devices for ≥2 weeks, and per-array row counts converging on every device. This panel is how we — and you, if you compare two devices side by side — read that signal.',
+      '<b>Reset window button</b> drops the rolling log so you can start a fresh measurement (e.g. after a backfill push that would skew the average for days). The on-relay state and per-array snapshots are unaffected.',
+    ]
+  },
+  {
     version: '1.7.0', date: '2026-05-03', title: 'Per-row sync deltas — Phase 1 of the real fix',
     items: [
       '<b>Sync now uses CRDT deltas, not full snapshots.</b> Until v1.6.x, every save re-uploaded your <i>entire</i> health record (~200 KB compressed) on every push. The relay\'s 50 MB per-owner cap meant ~280 pushes between compactions. Phase 1 of the architecture fix shipped here — adding a sun session, editing a note, or logging a supplement now also writes a per-row CRDT message (a few hundred bytes), and the receiving device merges those individual rows on top of whatever it already has.',

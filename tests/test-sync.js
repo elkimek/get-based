@@ -478,6 +478,67 @@ return (async function() {
     `preserve at ${preserveIdx}, write at ${writeIdx}`);
 
   // ═══════════════════════════════════════
+  // 14b. PHASE 1 DUAL-WRITE TELEMETRY (observability for cutover decision)
+  // ═══════════════════════════════════════
+  console.log('%c 14b. Phase 1 Dual-Write Telemetry ', 'font-weight:bold;color:#f59e0b');
+
+  // Source-shape: helpers + exports + diagnose surface wiring
+  assert('getDeltaTelemetry exported', /export function getDeltaTelemetry/.test(syncSrc));
+  assert('resetDeltaTelemetry exported', /export function resetDeltaTelemetry/.test(syncSrc));
+  assert('Telemetry key is profile-scoped',
+    /labcharts-\$\{profileId\}-delta-telemetry/.test(syncSrc));
+  assert('_recordPushTelemetry counts ins/upd/tom per array + payload bytes',
+    /_recordPushTelemetry[\s\S]{0,800}op\.kind\s*===\s*'insert'[\s\S]{0,200}op\.kind\s*===\s*'update'[\s\S]{0,200}op\.kind\s*===\s*'tombstone'[\s\S]{0,300}op\.args\?\.payload/.test(syncSrc));
+  assert('Telemetry rolling window capped at 50 pushes',
+    /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(syncSrc));
+  assert('pushProfile records telemetry from onComplete (not synchronously)',
+    /Push committed[\s\S]{0,3500}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(syncSrc));
+  assert('Pull-side merge updates _pullDeltaSnapshot per array',
+    /_pullDeltaSnapshot\.perArray\[arrayName\]\s*=\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*tombs\.size\s*\}/.test(syncSrc));
+  assert('Pull snapshot resets profileId on each merge (no stale carry-over)',
+    /_pullDeltaSnapshot\.profileId\s*=\s*profileId[\s\S]{0,200}_pullDeltaSnapshot\.perArray\s*=\s*\{\}/.test(syncSrc));
+  assert('Diagnose surface renders Phase 1 dual-write health section',
+    /Phase 1 dual-write health/.test(syncSrc));
+  assert('Diagnose Copy text includes ratio + cutover hint',
+    /ratio \(delta:blob\)[\s\S]{0,200}Phase 2 cutover safe/.test(syncSrc));
+  assert('Reset window button confirms via showConfirmDialog',
+    /confirmResetDeltaTelemetry[\s\S]{0,1500}showConfirmDialog/.test(syncSrc));
+  assert('Telemetry helpers exposed on window',
+    /window[\s\S]{0,4000}getDeltaTelemetry,\s*\n\s*resetDeltaTelemetry,\s*\n\s*confirmResetDeltaTelemetry/.test(syncSrc));
+
+  // Live: write a synthetic telemetry blob, read it back, confirm shape +
+  // ratio math + cap behaviour. Skips if window.getDeltaTelemetry isn't
+  // bound (test page may not have loaded sync.js yet).
+  if (typeof window !== 'undefined' && typeof window.getDeltaTelemetry === 'function') {
+    const TEST_PID = '__telemetry_test_profile__';
+    const KEY = `labcharts-${TEST_PID}-delta-telemetry`;
+    try { localStorage.removeItem(KEY); } catch {}
+    const synth = { pushes: [
+      { at: 1700000000000, blobBytes: 200000, totalDeltaBytes: 5000, totalOps: 3, perArray: { sunSessions: { ins: 2, upd: 1, tom: 0, bytes: 5000 } } },
+      { at: 1700000010000, blobBytes: 200000, totalDeltaBytes: 1000, totalOps: 1, perArray: { entries: { ins: 0, upd: 1, tom: 0, bytes: 1000 } } },
+    ] };
+    try { localStorage.setItem(KEY, JSON.stringify(synth)); } catch {}
+    const t = window.getDeltaTelemetry(TEST_PID);
+    assert('getDeltaTelemetry returns object for known profile', t && typeof t === 'object');
+    assert('Summary aggregates blob bytes across pushes', t?.summary?.totalBlobBytes === 400000, `got ${t?.summary?.totalBlobBytes}`);
+    assert('Summary aggregates delta bytes across pushes', t?.summary?.totalDeltaBytes === 6000, `got ${t?.summary?.totalDeltaBytes}`);
+    assert('Summary computes ratio = delta/blob', Math.abs((t?.summary?.ratio || 0) - 0.015) < 0.0001, `got ${t?.summary?.ratio}`);
+    assert('Summary counts pushes', t?.summary?.count === 2);
+    assert('resetDeltaTelemetry clears the entry', window.resetDeltaTelemetry(TEST_PID) === true && localStorage.getItem(KEY) === null);
+    // Cap behaviour: write 60 entries, confirm only 50 survive after a record
+    const big = { pushes: Array.from({ length: 60 }, (_, i) => ({ at: i, blobBytes: 1000, totalDeltaBytes: 10, totalOps: 1, perArray: {} })) };
+    try { localStorage.setItem(KEY, JSON.stringify(big)); } catch {}
+    const t2 = window.getDeltaTelemetry(TEST_PID);
+    assert('getDeltaTelemetry returns up-to-cap rows when storage was over-cap',
+      t2?.pushes?.length === 60, `got ${t2?.pushes?.length} (cap is enforced on write, not read)`);
+    try { localStorage.removeItem(KEY); } catch {}
+    assert('getDeltaTelemetry on missing profile returns empty pushes',
+      window.getDeltaTelemetry(TEST_PID)?.summary?.count === 0);
+    assert('getDeltaTelemetry on null profileId returns null',
+      window.getDeltaTelemetry(null) === null);
+  }
+
+  // ═══════════════════════════════════════
   // 15. VENDOR FILES
   // ═══════════════════════════════════════
   console.log('%c 15. Vendor Files ', 'font-weight:bold;color:#f59e0b');
