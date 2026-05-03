@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.7', date: '2026-05-03', title: 'Relay storage indicator + warning toasts',
+    items: [
+      '<b>You can now see how full your relay storage is.</b> Click the sync indicator in the header — the popover shows <i>Storage: X.X / 50 MB · Y%</i> with a green/amber/red dot. Settings → Sync → Diagnose has the full breakdown with a progress bar.',
+      '<b>Automatic warnings before the wall.</b> One toast at 80% ("plan a compaction in the next few days"), a louder one at 95% ("compact soon or pushes will start failing silently"). Each level fires once per crossing — no spam.',
+      '<b>"I just compacted" reset.</b> The indicator is a local cumulative-bytes counter (close enough to the relay\'s actual storedBytes to warn before the wall, but it doesn\'t reset on its own). After your relay maintainer runs the compaction, click the button in Diagnose to reset the counter back to 0.',
+      '<b>Why this isn\'t a self-service compact button yet.</b> Compaction needs a writeKey-signed endpoint on the relay so the app can call it without exposing the admin token. That endpoint is queued for the next relay deploy. For now, ping Hermes / your maintainer when the indicator goes red.',
+    ]
+  },
+  {
     version: '1.6.6', date: '2026-05-03', title: 'Sync — fix post-compaction "ghost" rows',
     items: [
       '<b>Fixes the actual cross-device sync bug.</b> When the relay\'s storage gets compacted (a maintenance step that drops old CRDT log entries), the receiving device sometimes saw rows with an empty profileId column — even though the data itself was intact in the row\'s payload. The pull pipeline\'s safety regex (which exists to stop a compromised relay from injecting weird profileIds) was rejecting these blank-column rows, so genuinely-fresh data sat in the local Evolu DB but never made it into your in-memory state. That\'s why phone said "push committed sun=3" but desktop kept showing sun=2.',

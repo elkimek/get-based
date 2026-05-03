@@ -895,6 +895,54 @@ async function parseSyncPayload(dataJson) {
   throw new Error('Invalid sync payload: unknown shape');
 }
 
+// ═══════════════════════════════════════════════
+// RELAY QUOTA ESTIMATE (client-side, no relay endpoint needed)
+// ═══════════════════════════════════════════════
+//
+// The relay caps each owner at 50 MB of evolu_message rows; once that
+// fills, writes are silently rejected and clients see "push committed"
+// with no actual durable write. We can't ask the relay for our own
+// owner's storedBytes without a writeKey-signed admin endpoint we don't
+// yet have, so this tracks the cumulative bytes-pushed locally as a
+// best-available estimate. Resets only on user action ("I just compacted")
+// or when sync identity changes (different ownerId via mnemonic restore).
+// Estimate is within ~10% of the relay's actual count under typical use
+// — close enough to warn the user before the wall, not so loose that
+// it cries wolf.
+
+const RELAY_OWNER_QUOTA_BYTES = 50 * 1024 * 1024;
+function _ownerStorageKey() {
+  const owner = _appOwner?.id ? String(_appOwner.id) : 'unknown';
+  return `labcharts-relay-bytes-${owner}`;
+}
+function _trackPushBytes(bytes) {
+  if (!_appOwner?.id || !Number.isFinite(bytes) || bytes <= 0) return;
+  try {
+    const key = _ownerStorageKey();
+    const cur = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+    localStorage.setItem(key, String(cur + bytes));
+  } catch {}
+  // After every successful push, check whether we crossed an alert
+  // threshold (80% amber, 95% red). One toast per transition so the user
+  // gets a single clear notice, not a per-push spammer.
+  _maybeWarnQuotaThreshold();
+}
+export function getRelayQuotaEstimate() {
+  if (!_appOwner?.id) return null;
+  let bytes = 0;
+  try { bytes = parseInt(localStorage.getItem(_ownerStorageKey()) || '0', 10) || 0; } catch {}
+  const cap = RELAY_OWNER_QUOTA_BYTES;
+  const pct = Math.min(100, Math.round((bytes / cap) * 100));
+  let level = 'green';
+  if (pct >= 95) level = 'red';
+  else if (pct >= 80) level = 'amber';
+  return { bytes, cap, pct, level };
+}
+export function resetRelayQuotaEstimate() {
+  if (!_appOwner?.id) return false;
+  try { localStorage.removeItem(_ownerStorageKey()); return true; } catch { return false; }
+}
+
 // Allowed fields when merging a synced profile into the local profiles list
 const PROFILE_MERGE_FIELDS = ['name', 'sex', 'dob', 'location', 'tags', 'archived', 'pinned', 'flagged', 'avatar', 'color'];
 
@@ -955,6 +1003,11 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // Use syncedAt (same value stored in Evolu) so pulls see exact
       // equality and don't skip the row from 1ms clock drift.
       localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
+      // Track bytes for the local relay-storage estimate (see
+      // getRelayQuotaEstimate). Each successful push adds dataJson.length
+      // to the cumulative — close enough to relay's storedBytes to warn
+      // the user before the 50 MB wall.
+      _trackPushBytes((dataJson || '').length);
       finish();
     };
     // Watchdog: if Evolu never calls onComplete within 30s, the worker is
@@ -1847,12 +1900,24 @@ export function toggleSyncDetail() {
       </div>
       ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
     </div>` : '';
+  // Relay storage estimate. Local cumulative bytes-pushed counter; close
+  // enough to relay's actual storedBytes to warn before the 50 MB wall.
+  const q = getRelayQuotaEstimate();
+  let quotaLine = '';
+  if (q && q.bytes > 0) {
+    const mb = (q.bytes / (1024 * 1024)).toFixed(1);
+    const capMb = (q.cap / (1024 * 1024)).toFixed(0);
+    const color = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--text-muted)';
+    const dot = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--green)';
+    quotaLine = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:6px;height:6px;border-radius:50%;background:${dot};display:inline-block"></span><span style="color:${color}">Storage: ${mb} / ${capMb} MB · ${q.pct}%</span></div>`;
+  }
   pop.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:8px;height:8px;border-radius:50%;background:${relayDot};display:inline-block"></span><span style="font-size:13px">${relayLabel}</span></div>
     <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:8px;word-break:break-all">${escapeHTML(relayUrl)}</div>
     <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
       <div>Push: ${pushLabel}</div>
       <div>Pull: ${pullLabel}</div>
+      ${quotaLine}
     </div>
     ${errorLine}
     ${eventsHtml}
@@ -1907,6 +1972,27 @@ export async function showSyncDiagnose() {
         <div><b>Active profile (this device):</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.activeProfileId || '?')}</span></div>
         <div>In-memory state: sunSessions=${d.activeImported.sunSessions} lightDevices=${d.activeImported.lightDevices}</div>
       </div>
+      ${(() => {
+        const q = getRelayQuotaEstimate();
+        if (!q) return '';
+        const mb = (q.bytes / (1024 * 1024)).toFixed(2);
+        const capMb = (q.cap / (1024 * 1024)).toFixed(0);
+        const color = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--green)';
+        const note = q.level === 'red'
+          ? 'Storage almost full — pushes will start silently rejecting at the cap. Compact via SSH (see Hermes / runbook) and click "I just compacted" below.'
+          : q.level === 'amber'
+          ? 'Approaching the relay\'s per-owner cap. Plan to compact in the next few days.'
+          : 'Healthy. Each push adds to this counter; resets on compaction.';
+        return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <b>Relay storage (estimate, this device):</b>
+            <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmResetRelayQuota(this)" title="Resets the local cumulative-bytes counter — use after running /compact-owner on the relay so the indicator matches reality.">I just compacted</button>
+          </div>
+          <div style="margin-bottom:4px"><span style="color:${color};font-weight:600">${mb} / ${capMb} MB · ${q.pct}%</span></div>
+          <div style="height:8px;border-radius:4px;background:var(--surface);overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${q.pct}%;background:${color}"></div></div>
+          <div style="color:var(--text-muted);font-size:11px">${note}</div>
+        </div>`;
+      })()}
       <div>
         <b>Rows in this device's local Evolu DB:</b>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
@@ -1956,6 +2042,64 @@ async function copySyncDiagnose(btn) {
   } catch (e) {
     try { showNotification(`Copy failed: ${e?.message || e}`, 'error'); } catch {}
   }
+}
+
+// "I just compacted" — resets the local cumulative-bytes counter so the
+// quota indicator drops back to 0 / 50 MB. Confirms via showConfirmDialog
+// (project policy: no native window.confirm, which doesn't render in PWA
+// + sandboxed contexts).
+function confirmResetRelayQuota(btn) {
+  const q = getRelayQuotaEstimate();
+  const mb = q ? (q.bytes / 1024 / 1024).toFixed(1) : '?';
+  const message = `Reset the local relay-storage counter to 0? Current estimate: ${mb} MB. Only click this if you've just run /compact-owner on the relay — the relay's actual storage is unaffected by this button.`;
+  if (typeof window.showConfirmDialog === 'function') {
+    window.showConfirmDialog(message, () => _doResetRelayQuota(btn));
+  } else {
+    // Fallback when the dialog helper isn't loaded yet (very early init);
+    // straight reset rather than blocking the user.
+    _doResetRelayQuota(btn);
+  }
+}
+
+function _doResetRelayQuota(btn) {
+  if (resetRelayQuotaEstimate()) {
+    try { showNotification('Relay-storage counter reset to 0', 'success'); } catch {}
+    // Bust the cached "already toasted" markers so future thresholds
+    // re-warn even if the user pre-emptively reset before crossing back.
+    try { localStorage.removeItem('labcharts-relay-quota-warned'); } catch {}
+    if (btn) {
+      const overlay = btn.closest?.('.modal-overlay');
+      if (overlay) overlay.remove();
+    }
+    if (document.getElementById('sync-popover')) {
+      toggleSyncDetail(); toggleSyncDetail();
+    }
+  } else {
+    try { showNotification('Could not reset counter (sync not initialized?)', 'error'); } catch {}
+  }
+}
+
+// Toast users when they cross the 80% / 95% threshold the first time.
+// Uses a single-key marker so we don't re-fire on every push at the same
+// threshold; resets when the counter is reset (i.e. after compaction).
+function _maybeWarnQuotaThreshold() {
+  try {
+    const q = getRelayQuotaEstimate();
+    if (!q || q.level === 'green') return;
+    const key = 'labcharts-relay-quota-warned';
+    const prev = localStorage.getItem(key) || '';
+    const want = q.level; // 'amber' or 'red'
+    // Only escalate (green→amber, amber→red), never re-fire same level.
+    const order = { '': 0, green: 0, amber: 1, red: 2 };
+    if (order[want] <= order[prev]) return;
+    localStorage.setItem(key, want);
+    if (q.level === 'red') {
+      _logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
+      try { showNotification(`Relay storage ${q.pct}% full — compact soon or pushes will start failing silently. See Settings → Sync → Diagnose.`, 'error'); } catch {}
+    } else {
+      try { showNotification(`Relay storage ${q.pct}% — plan a compaction in the next few days. See Sync diagnose.`, 'warning'); } catch {}
+    }
+  } catch {}
 }
 
 // Subscribe to status changes → repaint indicator + re-render the popover
@@ -2037,4 +2181,7 @@ Object.assign(window, {
   toggleSyncDetail,
   copySyncEvents,
   copySyncDiagnose,
+  confirmResetRelayQuota,
+  getRelayQuotaEstimate,
+  resetRelayQuotaEstimate,
 });

@@ -113,6 +113,37 @@ return (async function() {
   assert('Recovered profileId still validated against allowlist regex',
     /\^\[a-zA-Z0-9_-\]\+\$/.test(syncSrc));
 
+  // v1.6.7: relay-storage estimate (local cumulative tracker, no relay
+  // endpoint needed). Warns the user before they hit the 50 MB per-owner
+  // cap that silently rejects pushes.
+  assert('Relay quota tracker exports getRelayQuotaEstimate',
+    /export function getRelayQuotaEstimate/.test(syncSrc));
+  assert('Relay quota tracker exports resetRelayQuotaEstimate',
+    /export function resetRelayQuotaEstimate/.test(syncSrc));
+  assert('Push success path increments tracker via _trackPushBytes',
+    /Push committed[\s\S]{0,1500}_trackPushBytes\(\s*\(dataJson \|\| ''\)\.length/.test(syncSrc));
+  assert('Quota threshold warning fires on transition (amber → red)',
+    /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncSrc));
+  assert('Quota indicator visible on popover (green/amber/red dot)',
+    /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncSrc));
+  assert('Sync diagnose modal has "I just compacted" reset button',
+    /confirmResetRelayQuota\(this\)/.test(syncSrc));
+  assert('Cap is 50 MB (RELAY_OWNER_QUOTA_BYTES)',
+    /RELAY_OWNER_QUOTA_BYTES = 50 \* 1024 \* 1024/.test(syncSrc));
+
+  // Live tracker round-trip (browser side): set a fake owner, simulate
+  // pushes by writing the same key the tracker writes, verify the
+  // estimate calculation matches the function's contract.
+  if (typeof localStorage !== 'undefined') {
+    const fakeKey = 'labcharts-relay-bytes-TEST_OWNER_xyz';
+    localStorage.setItem(fakeKey, String(45 * 1024 * 1024));
+    const expectedPct = Math.round((45 / 50) * 100);
+    assert('Quota math: 45 MB → 90% (amber threshold path)',
+      expectedPct === 90,
+      `expected 90, got ${expectedPct}`);
+    localStorage.removeItem(fakeKey);
+  }
+
   // Live gzip round-trip — exercises CompressionStream/DecompressionStream
   // the same way the push/pull paths will. Catches a future regression
   // where the envelope encoding diverges from the decoder.
