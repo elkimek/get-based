@@ -2064,7 +2064,7 @@ export function openSunSessionDetail(id) {
     return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
-      <span class="sun-detail-channel-value">${unitText || (pctOfTarget != null ? `${pctOfTarget}% of daily target` : '')}</span>
+      <span class="sun-detail-channel-value"${pctOfTarget != null && !unitText ? ` title="${escapeAttr('% of typical-active-day target — calibrated to roughly 30-60 min of moderate-body-fraction midday exposure (skin channels) or 10-30 min eye-direct outdoor light (eye channels). Over 100% means you got more than typical, NOT more than safe — burn risk is the % MED chip, not this. Targets are dosing references, not exposure ceilings.')}"` : ''}>${unitText || (pctOfTarget != null ? `${pctOfTarget}% of daily target` : '')}</span>
       <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
       <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
     </div>`;
