@@ -5354,44 +5354,106 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   font-size: 13px; line-height: 1.5; color: var(--text-secondary);
   margin: 0;
 }
-.light-channel-detail-stats {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+/* Tier pill in the channel-detail header — sits next to the title to
+   give an immediate at-a-glance signal of where the user stands on
+   this channel for the current week. */
+.light-channel-detail-tierpill {
+  margin-left: 8px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-secondary);
+  color: var(--text-muted);
 }
-.light-channel-detail-stat {
+.light-channel-detail-tierpill.tier1 { color: var(--green); border-color: rgba(34, 197, 94, 0.30); background: rgba(34, 197, 94, 0.10); }
+.light-channel-detail-tierpill.tier2 { color: var(--accent); border-color: rgba(79, 140, 255, 0.30); background: rgba(79, 140, 255, 0.10); }
+.light-channel-detail-tierpill.tier3 { color: var(--orange); border-color: rgba(245, 158, 11, 0.30); background: rgba(245, 158, 11, 0.10); }
+.light-channel-detail-tierpill.tier4 { color: var(--red); border-color: rgba(239, 68, 68, 0.30); background: rgba(239, 68, 68, 0.10); }
+
+/* Hero stat block — the big number you actually want to see (e.g. "~1.8k IU
+   vitamin D this week"). Lives directly under the header so the eye lands
+   on it before the prose. */
+.light-channel-hero {
   display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 14px; border-radius: 8px;
+  background: linear-gradient(135deg, rgba(79, 140, 255, 0.06), rgba(99, 102, 241, 0.04));
+  border: 1px solid var(--border);
 }
-.light-channel-detail-stat-label {
-  font-size: 11px; color: var(--text-muted); text-transform: uppercase;
-  letter-spacing: 0.04em;
+.light-channel-hero-primary {
+  font-size: 24px; font-weight: 700; line-height: 1.1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
-.light-channel-detail-stat-dots {
-  font-family: var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
-  font-size: 14px; letter-spacing: 1px;
+.light-channel-hero-sub {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.4;
 }
-.light-channel-detail-stat-tier {
-  font-size: 12px; color: var(--text-secondary); text-transform: capitalize;
+.light-channel-hero-trend {
+  font-size: 11px; margin-top: 4px; font-weight: 500;
+  color: var(--text-muted);
 }
-.light-channel-detail-trend {
-  font-size: 18px; font-weight: 700; color: var(--text-muted);
+.light-channel-hero-trend.up   { color: var(--green); }
+.light-channel-hero-trend.down { color: var(--orange); }
+.light-channel-hero-trend.flat { color: var(--text-muted); }
+
+/* Sun/device source-mix bar — slim 6px stacked bar + legend below.
+   Hidden when one source is essentially 100% (no useful "mix"). */
+.light-channel-mix {
+  display: flex; flex-direction: column; gap: 4px;
 }
-.light-channel-detail[data-trend="up"]   .light-channel-detail-trend { color: var(--green); }
-.light-channel-detail[data-trend="down"] .light-channel-detail-trend { color: var(--orange); }
-.light-channel-detail-suggestion {
-  font-size: 13px; color: var(--text-primary); margin: 0;
-  background: var(--accent-bg, rgba(79, 140, 255, 0.08));
-  padding: 8px 12px; border-radius: 6px;
-  border-left: 3px solid var(--accent);
+.light-channel-mix-bar {
+  display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+  background: var(--bg-secondary);
 }
+.light-channel-mix-sun { background: var(--accent); }
+.light-channel-mix-dev { background: var(--accent); opacity: 0.45; }
+.light-channel-mix-legend {
+  display: flex; gap: 14px;
+  font-size: 11px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lc-leg-sun, .lc-leg-dev, .lc-leg-tgt {
+  display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+  margin-right: 4px; vertical-align: middle;
+}
+.lc-leg-sun { background: var(--accent); }
+.lc-leg-dev { background: var(--accent); opacity: 0.45; }
+.lc-leg-tgt { background: transparent; border-bottom: 2px dashed var(--text-muted); border-radius: 0; height: 0; margin-bottom: 2px; }
+
+/* 7-day rhythm chart wrapper + the legend strip below the section label. */
 .light-channel-weekchart {
-  margin-top: 12px;
-  padding: 10px 12px;
+  margin-top: 4px;
+  padding: 12px 12px 8px;
   background: var(--bg-secondary); border-radius: 6px;
 }
 .light-channel-weekchart-label {
   font-size: 11px; color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
 }
+.light-channel-weekchart-legend {
+  font-size: 10px; color: var(--text-muted);
+  display: inline-flex; gap: 10px;
+}
+
+/* "Next move" — channel-specific concrete recipe + action button(s).
+   Distinct from the hero (this is what to DO; hero is what you HAVE). */
+.light-channel-nextmove {
+  padding: 10px 14px; border-radius: 8px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-channel-nextmove-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.light-channel-nextmove-text {
+  font-size: 13px; line-height: 1.5; color: var(--text-primary);
+  margin: 0;
+}
+.light-channel-nextmove-text strong { color: var(--accent); font-weight: 600; }
+.light-channel-nextmove-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;
+}
+.light-channel-cta-btn { font-size: 12px !important; padding: 6px 12px !important; }
 .light-channel-cit { margin-top: 12px; }
 .light-channel-cit summary {
   font-size: 12px; color: var(--text-muted); cursor: pointer;

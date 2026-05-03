@@ -1401,131 +1401,327 @@ function _renderChannelCitations(channelKey) {
 }
 
 // 7-day stacked bar chart: per-day sun + device totals for one channel.
-// Tiny inline SVG, no Chart.js dependency. Day with most dose anchors max.
+// Always renders (even all-zero days) so the user has a baseline visual
+// reference. Includes a dashed target line at (dailyTarget / 7) so the
+// per-day chart shows what "hitting your weekly target evenly" looks
+// like. Numeric labels above each bar surface the actual numbers when
+// non-zero.
 function _renderChannelWeekChart(channelKey) {
   if (!window.dailyChannelBreakdown) return '';
   const days = window.dailyChannelBreakdown(channelKey, 7);
-  const max = Math.max(0.0001, ...days.map(d => d.sun + d.device));
-  if (max < 0.001) return '';
-  const W = 280, H = 80, pad = 16, barW = (W - 2 * pad) / 7;
-  const barInner = Math.max(8, barW * 0.7);
+  const ch = window.CHANNEL_DISPLAY || {};
+  const meta = ch[channelKey] || {};
+  const dailyTargetSlice = (meta.dailyTarget || 0) / 7; // weekly target evenly distributed across the 7 days
+  const observedMax = Math.max(0, ...days.map(d => d.sun + d.device));
+  // Anchor the chart to whichever is bigger — the highest day or the
+  // target-per-day line. Without this, very-low-dose weeks compress
+  // the target off the top of the chart and lose context.
+  const max = Math.max(observedMax, dailyTargetSlice * 1.2, 0.001);
+
+  const W = 280, H = 96, padX = 18, padTop = 14, padBottom = 16;
+  const innerH = H - padTop - padBottom;
+  const barW = (W - 2 * padX) / 7;
+  const barInner = Math.max(10, barW * 0.7);
   const dayLetter = (date) => 'SMTWTFS'[date.getDay()];
   const today = new Date(); today.setHours(0,0,0,0);
+
+  // Number formatter: aggressive 1-2 significant digits so the stub
+  // labels above the bars stay readable.
+  const fmt = (n) => {
+    if (n < 1) return '·';
+    if (n >= 10000) return (n / 1000).toFixed(0) + 'k';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    if (n >= 100) return String(Math.round(n / 10) * 10);
+    if (n >= 10) return String(Math.round(n));
+    return n.toFixed(1);
+  };
+
+  // Empty-day placeholder bar so the chart never reads as a giant blank.
+  const placeholderH = 3;
+
   const bars = days.map((d, i) => {
-    const x = pad + i * barW + (barW - barInner) / 2;
+    const x = padX + i * barW + (barW - barInner) / 2;
     const total = d.sun + d.device;
-    const h = (total / max) * (H - pad - 14);
-    const sunH = (d.sun / max) * (H - pad - 14);
-    const devH = (d.device / max) * (H - pad - 14);
-    const y = H - 14 - h;
+    const h = total > 0 ? (total / max) * innerH : placeholderH;
+    const sunH = total > 0 ? (d.sun / max) * innerH : 0;
+    const devH = total > 0 ? (d.device / max) * innerH : 0;
+    const y = padTop + innerH - h;
     const isToday = d.date.getTime() === today.getTime();
+    const labelTxt = total > 0 ? fmt(total) : '';
     return `<g>
-      ${devH > 0 ? `<rect x="${x}" y="${y}" width="${barInner}" height="${devH}" fill="var(--accent)" opacity="0.55"/>` : ''}
-      ${sunH > 0 ? `<rect x="${x}" y="${y + devH}" width="${barInner}" height="${sunH}" fill="var(--accent)"/>` : ''}
-      <text x="${x + barInner / 2}" y="${H - 2}" text-anchor="middle" font-size="10" fill="${isToday ? 'var(--text-primary)' : 'var(--text-muted)'}" font-weight="${isToday ? '700' : '400'}">${dayLetter(d.date)}</text>
+      ${total > 0 ? '' : `<rect x="${x}" y="${padTop + innerH - placeholderH}" width="${barInner}" height="${placeholderH}" fill="var(--text-muted)" opacity="0.20" rx="1"/>`}
+      ${devH > 0 ? `<rect x="${x}" y="${y}" width="${barInner}" height="${devH}" fill="var(--accent)" opacity="0.55" rx="1"/>` : ''}
+      ${sunH > 0 ? `<rect x="${x}" y="${y + devH}" width="${barInner}" height="${sunH}" fill="var(--accent)" rx="1"/>` : ''}
+      ${labelTxt ? `<text x="${x + barInner / 2}" y="${y - 2}" text-anchor="middle" font-size="9" fill="var(--text-secondary)">${labelTxt}</text>` : ''}
+      <text x="${x + barInner / 2}" y="${H - 3}" text-anchor="middle" font-size="10" fill="${isToday ? 'var(--text-primary)' : 'var(--text-muted)'}" font-weight="${isToday ? '700' : '400'}">${dayLetter(d.date)}</text>
     </g>`;
   }).join('');
-  // Per-day SR-readable summary — Daniel/M/T/W… name + sun + device totals.
-  // Numbers rounded to 2sf so the announcement is short.
+
+  // Target line — dashed accent, drawn under the bars so the bar fills sit
+  // on top of it visually. Surfaces the "what hitting the weekly target
+  // evenly looks like" reference. Only meaningful when target > 0.
+  const targetLine = dailyTargetSlice > 0
+    ? `<line x1="${padX}" x2="${W - padX}" y1="${padTop + innerH - (dailyTargetSlice / max) * innerH}" y2="${padTop + innerH - (dailyTargetSlice / max) * innerH}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>
+       <text x="${W - padX + 2}" y="${padTop + innerH - (dailyTargetSlice / max) * innerH + 3}" font-size="9" fill="var(--text-muted)" text-anchor="start">target</text>`
+    : '';
+
+  // SR readable summary
   const dayName = (date) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
-  const round2sf = (n) => {
-    if (n < 0.01) return '0';
-    const log = Math.floor(Math.log10(n));
-    const factor = Math.pow(10, log - 1);
-    return String(Math.round(n / factor) * factor);
-  };
   const srRows = days.map(d => {
     const total = d.sun + d.device;
     if (total < 0.0001) return `${dayName(d.date)}: no exposure`;
-    if (d.device > 0 && d.sun > 0) return `${dayName(d.date)}: sun ${round2sf(d.sun)}, device ${round2sf(d.device)}`;
-    if (d.sun > 0) return `${dayName(d.date)}: sun ${round2sf(d.sun)}`;
-    return `${dayName(d.date)}: device ${round2sf(d.device)}`;
+    if (d.device > 0 && d.sun > 0) return `${dayName(d.date)}: sun ${fmt(d.sun)}, device ${fmt(d.device)}`;
+    if (d.sun > 0) return `${dayName(d.date)}: sun ${fmt(d.sun)}`;
+    return `${dayName(d.date)}: device ${fmt(d.device)}`;
   }).join('. ');
-  return `<div class="light-channel-weekchart" title="Last 7 days · solid = sun, faded = device">
-    <div class="light-channel-weekchart-label">7-day rhythm</div>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-label="7-day per-day exposure: ${escapeAttr(srRows)}" role="img">
+
+  return `<div class="light-channel-weekchart" title="Last 7 days · solid = sun, faded = device · dashed line = even-pace daily target">
+    <div class="light-channel-weekchart-label">7-day rhythm <span class="light-channel-weekchart-legend"><span class="lc-leg-sun"></span> sun · <span class="lc-leg-dev"></span> device · <span class="lc-leg-tgt"></span> target</span></div>
+    <svg viewBox="0 0 ${W + 32} ${H}" width="100%" height="${H}" aria-label="7-day per-day exposure: ${escapeAttr(srRows)}" role="img">
       <desc>${escapeHTML(srRows)}</desc>
+      ${targetLine}
       ${bars}
     </svg>
   </div>`;
 }
 
+// Hero stat for a channel — what the user actually wants to see at the
+// top of the panel. Real-unit aggregate when defensible (vit-D IU, J/cm²),
+// channel-au + percent for unitless channels.
+function _channelHero(channelKey, totalCurrent, totalPrev, fitzpatrick) {
+  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const target = meta.dailyTarget || 0;
+  const weeklyTarget = target * 7; // 7-day equivalent of the daily target
+  const fmtBig = (n) => {
+    if (n < 10) return n.toFixed(1);
+    if (n < 1000) return String(Math.round(n));
+    if (n < 10000) return (n / 1000).toFixed(1) + 'k';
+    return (n / 1000).toFixed(0) + 'k';
+  };
+  let primary = '';
+  let primarySub = '';
+  // Channel-specific real-unit conversion when the math has a defensible
+  // weekly aggregate. Otherwise fall back to the channel-au value with
+  // qualitative tier framing.
+  if (channelKey === 'vitamin_d' && window.rollingVitaminDIU) {
+    const iu = window.rollingVitaminDIU(7);
+    if (iu >= 30) {
+      primary = `~${fmtBig(iu)} IU`;
+      primarySub = 'vitamin D synthesized this week';
+    } else {
+      primary = '—';
+      primarySub = 'no meaningful synthesis this week';
+    }
+  } else if (channelKey === 'nir_solar' && window.pbmJoulesPerCm2) {
+    const j = window.pbmJoulesPerCm2(totalCurrent);
+    if (j >= 0.1) {
+      primary = `${j >= 10 ? Math.round(j) : j.toFixed(1)} J/cm²`;
+      primarySub = 'NIR cellular-repair dose this week';
+    } else {
+      primary = '—';
+      primarySub = 'no meaningful NIR exposure this week';
+    }
+  } else {
+    // Unitless channels — show channel-au value rounded for readability,
+    // with the percent-of-target as the contextual sub-label.
+    if (totalCurrent < 0.5) {
+      primary = '—';
+      primarySub = 'no exposure logged this week';
+    } else {
+      primary = fmtBig(totalCurrent);
+      const pct = weeklyTarget > 0 ? Math.round(100 * totalCurrent / weeklyTarget) : null;
+      primarySub = pct != null
+        ? `${pct}% of typical-active-week target`
+        : 'channel-au this week (raw)';
+    }
+  }
+  // Trend vs previous 7 days — only show when both windows have data.
+  let trend = '';
+  if (totalPrev > 0.5 && totalCurrent > 0.5) {
+    const ratio = totalCurrent / totalPrev;
+    if (ratio >= 1.20) {
+      trend = `<span class="light-channel-hero-trend up">↑ ${Math.round((ratio - 1) * 100)}% vs last week</span>`;
+    } else if (ratio <= 0.80) {
+      trend = `<span class="light-channel-hero-trend down">↓ ${Math.round((1 - ratio) * 100)}% vs last week</span>`;
+    } else {
+      trend = `<span class="light-channel-hero-trend flat">~ steady vs last week</span>`;
+    }
+  } else if (totalCurrent > 0.5 && totalPrev < 0.5) {
+    trend = `<span class="light-channel-hero-trend up">↑ first week with exposure here</span>`;
+  } else if (totalCurrent < 0.5 && totalPrev > 0.5) {
+    trend = `<span class="light-channel-hero-trend down">↓ no exposure this week (had ${fmtBig(totalPrev)} last week)</span>`;
+  }
+  return `<div class="light-channel-hero">
+    <div class="light-channel-hero-primary">${escapeHTML(primary)}</div>
+    <div class="light-channel-hero-sub">${escapeHTML(primarySub)}</div>
+    ${trend}
+  </div>`;
+}
+
+// Source-mix mini bar — what fraction of the week's dose came from sun
+// vs from devices. Surfaces hidden context (e.g. "your circadian channel
+// is 90% from your dawn simulator, 10% from outdoor sun").
+function _renderChannelSourceMix(sun, dev) {
+  const total = sun + dev;
+  if (total < 0.5) return '';
+  const sunPct = Math.round(100 * sun / total);
+  const devPct = 100 - sunPct;
+  // Hide when one source is essentially zero — no useful "mix" to show.
+  if (sunPct >= 99 || sunPct <= 1) return '';
+  return `<div class="light-channel-mix" aria-label="This week's source mix: ${sunPct}% sun, ${devPct}% device">
+    <div class="light-channel-mix-bar">
+      <div class="light-channel-mix-sun" style="flex: ${sunPct}"></div>
+      <div class="light-channel-mix-dev" style="flex: ${devPct}"></div>
+    </div>
+    <div class="light-channel-mix-legend">
+      <span><span class="lc-leg-sun"></span> Sun ${sunPct}%</span>
+      <span><span class="lc-leg-dev"></span> Device ${devPct}%</span>
+    </div>
+  </div>`;
+}
+
+// Channel-specific "next move" — a concrete recipe the user can act on
+// right now. Picks the best CTA based on channel + tier + available
+// devices + current sun conditions.
+function _channelNextMove(channelKey, t7, totalCurrent, devices, atm) {
+  const matchingDevice = (devices || []).find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
+  const dev = matchingDevice ? `${matchingDevice.brand} ${matchingDevice.model}` : '';
+  const uvi = atm?.uvIndex ?? null;
+  const peakTime = atm?.daily?.peakAt || null;
+  const peakUVI = atm?.daily?.uvIndexMax ?? null;
+  const peakHHMM = peakTime ? new Date(peakTime).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : null;
+
+  // Per-channel recipes — each returns a concrete, time-aware suggestion.
+  const recipes = {
+    vitamin_d: {
+      empty: `UVB on bare skin makes vitamin D — needs UVI ≥ 3 and no glass. ${peakHHMM && peakUVI >= 3 ? `Today's UV peaks at <strong>${peakHHMM}</strong> (UVI ${peakUVI.toFixed(1)}). 15-20 min in shorts at peak ≈ 1,000-2,000 IU.` : 'Glass blocks UVB; window-side sun yields zero.'}${matchingDevice ? ` Or a session on your ${dev}.` : ''}`,
+      low:   `${peakHHMM && peakUVI >= 3 ? `UV peaks at <strong>${peakHHMM}</strong> (UVI ${peakUVI.toFixed(1)}). One more 15-20 min midday session this week tips you to good range.` : 'A midday session on a clear day would tip you up.'}${matchingDevice ? ` Or a longer session on your ${dev}.` : ''}`,
+      mod:   `Solid weekly base. ${peakHHMM ? `Today's peak: ${peakHHMM} (UVI ${peakUVI?.toFixed(1) || '?'}).` : 'Keep your current rhythm.'} One more session this week reaches strong.`,
+      good:  `Strong week. Consistency matters more than intensity from here — same rhythm next week maintains 25(OH)D.`,
+      strong:`Above typical-week target. Pull back if you're seeing pinkness; otherwise this is a solid trajectory for serum 25(OH)D.`,
+    },
+    circadian: {
+      empty: `Get morning daylight in your eyes — ideally outdoors before work, no sunglasses, no glass. 10-30 min in the first 2 hours after sunrise = strongest entrainment.${matchingDevice ? ` Or 30 min on your ${dev} on overcast days.` : ''}`,
+      low:   `Add a 15-20 min outdoor walk in your morning routine. Even cloudy mornings deliver 10-50× more melanopic light than indoor lighting.${matchingDevice ? ` Or a session on your ${dev}.` : ''}`,
+      mod:   `Healthy entrainment dose. Mornings have the biggest effect on sleep onset that night — keep prioritizing AM over midday.`,
+      good:  `Strong circadian signal. Consistent daily timing matters more than total dose at this point.`,
+      strong:`Strong consistent entrainment. Watch for evening light contamination (cool LEDs after sunset) which can blunt melatonin even with strong AM exposure.`,
+    },
+    nir_solar: {
+      empty: `Solar NIR is half of sunlight (600-1400 nm). 30-60 min outdoors at any time of day delivers a meaningful dose; window glass blocks ~70% of long NIR.${matchingDevice ? ` Or a 10-20 min session on your ${dev}.` : ''}`,
+      low:   `Add an outdoor walk this week — sunrise/sunset light is NIR-rich and won't push burn dose.${matchingDevice ? ` Or 15 min on your ${dev}.` : ''}`,
+      mod:   `Solid base. NIR doesn't need to be midday — golden-hour light delivers comparable dose without UVB burn risk.`,
+      good:  `Strong weekly NIR. Mitochondrial repair signal is well-saturated for this week.`,
+      strong:`Above typical-week NIR. No upper safety concern from broadband NIR — this is a maintenance pattern.`,
+    },
+    no_cv: {
+      empty: `UVA on bare skin (320-400 nm) photo-releases nitric oxide from skin stores. ${peakHHMM && peakUVI >= 3 ? `15-30 min outdoors anytime UV is up — today peaks at <strong>${peakHHMM}</strong> (UVI ${peakUVI.toFixed(1)}).` : 'Open-sky exposure during daylight hours.'} Sunscreen partially blocks UVA — bare-skin sessions count more.`,
+      low:   `Add a 20-30 min outdoor session this week with face + arms uncovered. UVA accumulates throughout the day, not just at solar noon.`,
+      mod:   `Healthy weekly UVA dose — sustained NO release supports BP + arterial function (Liu 2014).`,
+      good:  `Strong NO/cardiovascular signal. Good aggregate UVA exposure for vasodilatory benefit.`,
+      strong:`Above typical-week UVA. Be mindful of cumulative photoaging if this is a daily pattern; UVA is the long-wavelength culprit.`,
+    },
+    pomc: {
+      empty: `UVA + UVB on skin keratinocytes triggers POMC → α-MSH (tan signal) + β-endorphin (the "feels good in the sun" effect). Same recipe as cardiovascular — open-sky daylight on bare skin.`,
+      low:   `Same path as vit-D and NO/CV: midday outdoor sessions on bare skin. One more session this week tips you up.`,
+      mod:   `Healthy weekly POMC pathway activation.`,
+      good:  `Solid mood-hormone weekly signal.`,
+      strong:`Above typical-week POMC stimulus.`,
+    },
+    violet_eye: {
+      empty: `Outdoor violet 360-440 nm hits ipRGC sensors in the eye — different from "bright window light," which window glass attenuates. 15-30 min outdoors with eyes uncovered (no sunglasses, no glass) builds the dopamine signal linked to myopia control + alertness.`,
+      low:   `Add an outdoor walk with eyes uncovered (no sunglasses) this week. Even 10 min counts — this channel saturates quickly.`,
+      mod:   `Healthy weekly outdoor-violet dose.`,
+      good:  `Solid violet-eye signal — keep eyes uncovered during morning outdoor time for the strongest effect.`,
+      strong:`Above typical-week. Sunglasses are still appropriate at high UVI for eye safety; the violet signal banks well below sunburn risk levels.`,
+    },
+  };
+  const r = recipes[channelKey] || {};
+  let txt = '';
+  if (t7 === 0) txt = r.empty || '';
+  else if (t7 === 1) txt = r.low || '';
+  else if (t7 === 2) txt = r.mod || '';
+  else if (t7 === 3) txt = r.good || '';
+  else txt = r.strong || '';
+  if (!txt) return '';
+  // Action button — channel-keyed; sun channels lead with "Log a sun
+  // session", device-only channels lead with the device dialog. Mixed
+  // channels surface both.
+  const showSun = true; // every channel can be filled with sun
+  const showDev = !!matchingDevice;
+  const buttons = `
+    ${showSun ? `<button type="button" class="import-btn import-btn-primary light-channel-cta-btn" onclick="window.quickLogSunSession && window.quickLogSunSession()">☀ Log a sun session</button>` : ''}
+    ${showDev ? `<button type="button" class="import-btn import-btn-secondary light-channel-cta-btn" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Log device session</button>` : ''}`;
+  return `<section class="light-channel-nextmove">
+    <div class="light-channel-nextmove-label">Next move</div>
+    <p class="light-channel-nextmove-text">${txt}</p>
+    <div class="light-channel-nextmove-actions">${buttons}</div>
+  </section>`;
+}
+
 // Build the drill-down panel HTML for a single channel. Renders into the
 // `[data-channel-detail-slot]` container when the user taps a pill.
+//
+// Layout (top → bottom):
+//   1. Header: icon + title + tier pill + close
+//   2. Hero stat: real-unit aggregate this week (or empty-state)
+//   3. What it does: one-sentence description
+//   4. Source mix bar: sun vs device split (when both contribute)
+//   5. 7-day chart with target line + numeric labels
+//   6. Next move: channel-specific concrete recipe + action button
+//   7. Action spectrum + paper citations (expandable)
 function _renderChannelDetailPanel(channelKey) {
   const ch = window.CHANNEL_DISPLAY || {};
   const meta = ch[channelKey] || {};
   const tier = window.channelTier || (() => 0);
-  const dots = window.tierDots || (() => '○○○○');
   const tlabel = window.tierLabel || (() => 'none');
-  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
-  const totals30d = (window.rollingChannelTotals && window.rollingChannelTotals(30)) || {};
-  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
-  const devTotals30d = (window.rollingDeviceTotals && window.rollingDeviceTotals(30)) || {};
-  const v7 = (totals7d[channelKey] || 0) + (devTotals7d[channelKey] || 0);
-  const v30 = (totals30d[channelKey] || 0) + (devTotals30d[channelKey] || 0);
-  const t7 = tier(v7, channelKey);
-  const t30 = tier(v30, channelKey);
-  let trendIcon = '·', trendDir = 'flat';
-  if (t7 > t30) { trendIcon = '↑'; trendDir = 'up'; }
-  else if (t7 < t30) { trendIcon = '↓'; trendDir = 'down'; }
-  // Suggest the next move based on the current 7d tier and the user's
-  // available light sources. A user with a therapy panel that covers
-  // this channel sees a device-specific nudge; otherwise the suggestion
-  // points at outdoor sun. Channel-coverage check uses the device's
-  // declared `channels` array — so a Joovv that lists 'pbm_red' won't
-  // be suggested as a path to fill 'circadian'.
-  const devices = (window.getDevices && window.getDevices()) || [];
-  const matchingDevice = devices.find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
-  let suggestion = '';
-  const dev = matchingDevice ? `${matchingDevice.brand} ${matchingDevice.model}` : '';
-  // Channel-specific starter sentences — generic "spend time outdoors" is
-  // less useful than a description of what the channel actually responds to.
-  const STARTER_BY_CHANNEL = {
-    vitamin_d:    'Get UVB on bare skin (UVI ≥ 3, no glass between you and the sun)',
-    circadian:    'Get morning daylight in your eyes, ideally outdoors before work',
-    nir_solar:    'Spend time outdoors mid-day, especially around sunrise/sunset NIR',
-    no_cv:        'Sun on bare skin (UVA + violet) for cardiovascular nitric-oxide release',
-    pomc:         'UVA on bare skin to trigger α-MSH/β-endorphin release',
-    violet_eye:   'Outdoor light into your eyes (uncovered, no glass) for the violet-eye dopamine signal',
-  };
-  const starter = STARTER_BY_CHANNEL[channelKey] || 'Spend time outdoors';
-  if (t7 === 0) {
-    suggestion = matchingDevice
-      ? `${starter} — or run a session on your ${dev} (both feed this channel).`
-      : `${starter} to start filling this channel.`;
-  } else if (t7 < 3) {
-    suggestion = matchingDevice
-      ? `One more session this week tips you to ${dots(Math.min(4, t7 + 1))} — outdoor sun or your ${dev}.`
-      : `One more session this week tips you to ${dots(Math.min(4, t7 + 1))}.`;
-  } else if (t7 === 3) {
-    suggestion = `Consistent good range. One more this week tips you to strong (${dots(4)}).`;
-  } else {
-    suggestion = `Strong range — keep your weekly rhythm.`;
-  }
+  const sunTot7 = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
+  const devTot7 = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
+  const sun7 = sunTot7[channelKey] || 0;
+  const dev7 = devTot7[channelKey] || 0;
+  const totalCurrent = sun7 + dev7;
+  const t7 = tier(totalCurrent, channelKey);
 
-  return `<div class="light-channel-detail" id="light-pill-detail-${escapeAttr(channelKey)}" role="region" aria-label="${escapeHTML(meta.label || channelKey)} detail" data-trend="${trendDir}">
-    <div class="light-channel-detail-head">
+  // Previous-week total via 14-day breakdown (first 7 days = the
+  // preceding week, last 7 days = current week). Lets the hero show
+  // a real "vs last week" delta instead of a vague tier-vs-tier arrow.
+  let totalPrev = 0;
+  try {
+    if (window.dailyChannelBreakdown) {
+      const days14 = window.dailyChannelBreakdown(channelKey, 14);
+      totalPrev = days14.slice(0, 7).reduce((s, d) => s + d.sun + d.device, 0);
+    }
+  } catch (e) {}
+
+  const devices = (window.getDevices && window.getDevices()) || [];
+
+  // Pull the Conditions Now atm if in cache so the next-move can quote
+  // today's UV-peak time — way more actionable than "spend time outdoors."
+  const atm = _conditionsCache?.atm || null;
+
+  // Tier pill at top — same color scheme as the in-row chip; gives
+  // immediate visual signal of where the user stands without scrolling.
+  const tierColors = ['muted', 'tier1', 'tier2', 'tier3', 'tier4'];
+  const tierPill = `<span class="light-channel-detail-tierpill ${tierColors[t7]}">${escapeHTML(tlabel(t7))} this week</span>`;
+
+  return `<div class="light-channel-detail" id="light-pill-detail-${escapeAttr(channelKey)}" role="region" aria-label="${escapeHTML(meta.label || channelKey)} detail">
+    <header class="light-channel-detail-head">
       <span class="light-channel-detail-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <h4 class="light-channel-detail-title">${escapeHTML(meta.label || channelKey)}</h4>
+      ${tierPill}
       <button type="button" class="light-channel-detail-close" aria-label="Close ${escapeAttr(meta.label || channelKey)} detail" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(channelKey)}')">×</button>
-    </div>
+    </header>
+
+    ${_channelHero(channelKey, totalCurrent, totalPrev)}
+
     <p class="light-channel-detail-body">${escapeHTML(meta.what || '')}</p>
-    <div class="light-channel-detail-stats">
-      <div class="light-channel-detail-stat">
-        <span class="light-channel-detail-stat-label">This week</span>
-        <span class="light-channel-detail-stat-dots">${dots(t7)}</span>
-        <span class="light-channel-detail-stat-tier">${tlabel(t7)}</span>
-      </div>
-      <span class="light-channel-detail-trend" aria-hidden="true">${trendIcon}</span>
-      <div class="light-channel-detail-stat">
-        <span class="light-channel-detail-stat-label">Last 30 days</span>
-        <span class="light-channel-detail-stat-dots">${dots(t30)}</span>
-        <span class="light-channel-detail-stat-tier">${tlabel(t30)}</span>
-      </div>
-    </div>
-    <p class="light-channel-detail-suggestion">${escapeHTML(suggestion)}</p>
+
+    ${_renderChannelSourceMix(sun7, dev7)}
+
     ${_renderChannelWeekChart(channelKey)}
+
+    ${_channelNextMove(channelKey, t7, totalCurrent, devices, atm)}
+
     ${_renderChannelCitations(channelKey)}
   </div>`;
 }
