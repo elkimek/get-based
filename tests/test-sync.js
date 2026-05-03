@@ -191,7 +191,7 @@ return (async function() {
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,5000}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,8000}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
     /idx\s*!==\s*undefined[\s\S]{0,200}imported\[arrayName\]\[idx\]\s*=\s*item/.test(syncSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads',
@@ -497,7 +497,7 @@ return (async function() {
   assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',
     /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',
-    /_mergeItemRowsIntoImported[\s\S]{0,6000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,1500}itemIdFn\(imported\[arrayName\]\[i\]\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,9000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,1500}itemIdFn\(imported\[arrayName\]\[i\]\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported verifies payload itemId matches row column',
     /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
 
@@ -533,12 +533,47 @@ return (async function() {
     /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'markerNotes'/.test(syncSrc));
   assert('DELTA_MAPS includes customMarkers (v1.7.4)',
     /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'customMarkers'/.test(syncSrc));
+  assert('DELTA_MAPS includes manualValues (v1.7.5)',
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'manualValues'/.test(syncSrc));
+  assert('DELTA_MAP_CONFIG defines manualValues keyIdFn (colon→underscore)',
+    /DELTA_MAP_CONFIG\s*=\s*\{[\s\S]{0,1500}manualValues:[\s\S]{0,500}rawKey\.replace\(\/:\/g,\s*'_'\)/.test(syncSrc));
+  assert('_planKeyedMapDelta uses cfg.keyIdFn when present',
+    /_planKeyedMapDelta[\s\S]{0,2000}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,1500}keyIdFn\(rawKey\)/.test(syncSrc));
+  assert('_planKeyedMapDelta payload preserves the ORIGINAL raw key (not the synth)',
+    /payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(syncSrc));
+  assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
+    /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
+  assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
+    /for \(const \[rawKey, v\] of liveByRawKey\) imported\[arrayName\]\[rawKey\]\s*=\s*v/.test(syncSrc));
+
+  // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
+  // result is allowlist-safe, original key recoverable on pull via
+  // payload.k. Validates the synth-id contract end-to-end.
+  if (typeof window !== 'undefined') {
+    const synthFn = (rawKey) => {
+      if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
+      const safe = rawKey.replace(/:/g, '_');
+      return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
+    };
+    assert('synth keyId for ISO date',
+      synthFn('biochemistry.glucose:2026-05-03') === 'biochemistry.glucose_2026-05-03');
+    assert('synth keyId for ISO timestamp (multi-colon date)',
+      synthFn('biochemistry.glucose:2026-05-03T10:30:00Z') === 'biochemistry.glucose_2026-05-03T10_30_00Z');
+    assert('synth keyId passes allowlist regex for typical key',
+      /^[a-zA-Z0-9_.-]+$/.test(synthFn('biochemistry.glucose:2026-05-03T10:30:00Z')));
+    assert('synth keyId returns null for empty input', synthFn('') === null);
+    assert('synth keyId returns null for non-string', synthFn(null) === null);
+    // Distinct keys must produce distinct synths (no collisions for
+    // real-world manualValues shapes)
+    assert('distinct keys → distinct synths',
+      synthFn('biochemistry.glucose:2026-05-03') !== synthFn('biochemistry.sodium:2026-05-03'));
+  }
   assert('_planKeyedMapDelta defined',
     /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(syncSrc));
   assert('_planKeyedMapDelta validates key allowlist (no weird itemIds)',
     /_planKeyedMapDelta[\s\S]{0,800}\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncSrc));
   assert('_planKeyedMapDelta wraps payload as {k, v} for itemId verification on pull',
-    /_planKeyedMapDelta[\s\S]{0,800}payloadObj\s*=\s*\{\s*k:\s*itemId,\s*v:\s*value\s*\}/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(syncSrc));
   assert('_planKeyedMapDelta emits tombstones when keys are removed',
     /_planKeyedMapDelta[\s\S]{0,2500}kind:\s*'tombstone'/.test(syncSrc));
   assert('pushProfile loops DELTA_MAPS after DELTA_ARRAYS',
@@ -547,12 +582,12 @@ return (async function() {
     /_planKeyedMapDelta\(profileId,\s*mapName,\s*obj\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported routes map vs array by DELTA_MAPS membership',
     /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,500}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
-  assert('Map-shape merge writes to imported[arrayName][itemId] (object, not array push)',
-    /imported\[arrayName\]\[row\.itemId\]\s*=\s*parsed\.v/.test(syncSrc));
-  assert('Map-shape merge deletes tombstoned keys from the object',
-    /row\.isDeleted[\s\S]{0,400}delete imported\[arrayName\]\[row\.itemId\]/.test(syncSrc));
-  assert('Map-shape merge verifies parsed.k === row.itemId (defence-in-depth)',
-    /parsed\.k\s*===\s*row\.itemId/.test(syncSrc));
+  assert('Map-shape merge writes to imported[arrayName][rawKey] (preserves original key)',
+    /imported\[arrayName\]\[rawKey\]\s*=\s*v/.test(syncSrc));
+  assert('Map-shape merge deletes tombstoned keys from the object via synth-id reverse-lookup',
+    /tombItemIds\.has\(synth\)[\s\S]{0,200}delete imported\[arrayName\]\[k\]/.test(syncSrc));
+  assert('Map-shape merge verifies via keyIdFn(parsed.k) === row.itemId (defence-in-depth, synth-aware)',
+    /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
 
   // Live: round-trip a synthetic markerNotes map through the planner
   // logic (replicated locally) — ensures the value/key contract is what

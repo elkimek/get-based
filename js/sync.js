@@ -1052,10 +1052,27 @@ const DELTA_ARRAY_CONFIG = {
 const DELTA_MAPS = [
   'markerNotes',         // user-attached freeform notes per marker, ~bytes per entry, frequent edits
   'customMarkers',       // user-defined markers (PDF imports + manual creation), keyed by `category.markerKey`
+  'manualValues',        // membership flags for manually-typed entry values, keyed `category.markerKey:date` (synth-id)
 ];
-// NOT added: `manualValues` uses keys like `category.markerKey:date` whose
-// `:` fails the allowlist regex; needs a synth-id pass (similar to
-// changeHistory's field|date → field.dateMs treatment) before it can join.
+
+// Per-map overrides parallel to DELTA_ARRAY_CONFIG. `keyIdFn(rawKey)`
+// derives the row's itemId from the map key when the raw key isn't
+// allowlist-safe; the original raw key still travels in the payload's
+// `k` field, so the pull side rebuilds the map under its real key.
+const DELTA_MAP_CONFIG = {
+  // manualValues keys are `category.markerKey:date` — `:` fails the
+  // allowlist regex. Replace with `_` for the itemId column (collision-
+  // safe because `:` is reserved as the dotKey/date separator and
+  // doesn't appear in valid `category.markerKey` segments). Pull side
+  // restores the original `:`-bearing key from payload.k.
+  manualValues: {
+    keyIdFn: (rawKey) => {
+      if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
+      const safe = rawKey.replace(/:/g, '_');
+      return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
+    },
+  },
+};
 
 // Returns the localStorage key holding the last-pushed snapshot
 // (`{itemId: contentHash}`) for one (profileId, arrayName). Snapshot is
@@ -1156,6 +1173,13 @@ async function _planArrayDelta(profileId, arrayName, items) {
 // markerNote keys are user-owned, `delete state.importedData.markerNotes[k]`
 // is real intent that must propagate.
 async function _planKeyedMapDelta(profileId, mapName, mapObj) {
+  const cfg = DELTA_MAP_CONFIG[mapName] || {};
+  // keyIdFn: derive itemId from raw key. Default = identity-with-allowlist
+  // (rejects unsafe keys); custom fns may sanitize colons etc and return
+  // a string that still has to pass the allowlist regex below.
+  const keyIdFn = typeof cfg.keyIdFn === 'function'
+    ? cfg.keyIdFn
+    : (k => (typeof k === 'string' && /^[a-zA-Z0-9_.-]+$/.test(k) ? k : null));
   const prev = _readDeltaSnapshot(profileId, mapName);
   const next = {};
   const ops = [];
@@ -1166,10 +1190,13 @@ async function _planKeyedMapDelta(profileId, mapName, mapObj) {
 
   const obj = (mapObj && typeof mapObj === 'object' && !Array.isArray(mapObj)) ? mapObj : {};
   for (const [rawKey, value] of Object.entries(obj)) {
-    if (typeof rawKey !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(rawKey)) continue;
+    const itemId = keyIdFn(rawKey);
+    if (typeof itemId !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(itemId)) continue;
     if (value === null || value === undefined) continue;
-    const itemId = rawKey;
-    const payloadObj = { k: itemId, v: value };
+    // payload.k carries the ORIGINAL key — pull side rebuilds the map
+    // under that key, not the synth itemId, so consumers reading the
+    // raw `category.markerKey:date` form keep working.
+    const payloadObj = { k: rawKey, v: value };
     const json = JSON.stringify(payloadObj);
     const hash = _djb2(json);
     next[itemId] = hash;
@@ -1255,15 +1282,21 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       if (!imported[arrayName] || typeof imported[arrayName] !== 'object' || Array.isArray(imported[arrayName])) {
         imported[arrayName] = {};
       }
-      let live = 0, tombs = 0;
+      // Same keyIdFn as push so synth-id maps verify correctly. Default
+      // (identity-with-allowlist) collapses to `parsed.k === row.itemId`
+      // for the markerNotes / customMarkers case.
+      const mapCfg = DELTA_MAP_CONFIG[arrayName] || {};
+      const keyIdFn = typeof mapCfg.keyIdFn === 'function'
+        ? mapCfg.keyIdFn
+        : (k => (typeof k === 'string' && /^[a-zA-Z0-9_.-]+$/.test(k) ? k : null));
+      // Build a tombstone-key set first so deletes can find the original
+      // raw key in the current map even when the row only carries the
+      // synth itemId (synth-id maps don't preserve the original key on
+      // the row itself — it's only in the payload).
+      const liveByRawKey = new Map();
+      const tombItemIds = new Set();
       for (const row of arrRows) {
-        if (row.isDeleted) {
-          if (Object.prototype.hasOwnProperty.call(imported[arrayName], row.itemId)) {
-            delete imported[arrayName][row.itemId];
-          }
-          tombs++;
-          continue;
-        }
+        if (row.isDeleted) { tombItemIds.add(row.itemId); continue; }
         try {
           let json = row.payload;
           if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
@@ -1271,15 +1304,28 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
             json = await _gunzipToString(_base64ToBytes(json.slice(6)));
           }
           const parsed = JSON.parse(json);
-          // Verify k matches the row's itemId column — same defence as
-          // itemIdFn(item) === row.itemId on the array path.
-          if (parsed && typeof parsed === 'object' && parsed.k === row.itemId) {
-            imported[arrayName][row.itemId] = parsed.v;
-            live++;
-          }
+          if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
+          // Defence-in-depth: re-derive itemId from the payload's claimed
+          // k and verify it matches the row column. Catches a relay
+          // swapping payloads between rows even for synth-id maps.
+          if (keyIdFn(parsed.k) !== row.itemId) continue;
+          liveByRawKey.set(parsed.k, parsed.v);
         } catch {}
       }
-      _pullDeltaSnapshot.perArray[arrayName] = { live, tombstones: tombs };
+      // Apply tombstones: walk current map keys, drop any whose synth
+      // itemId is in the tombstone set. Skips entries that just happened
+      // to be re-inserted in this batch (liveByRawKey wins via overwrite).
+      if (tombItemIds.size > 0) {
+        for (const k of Object.keys(imported[arrayName])) {
+          if (liveByRawKey.has(k)) continue;
+          const synth = keyIdFn(k);
+          if (synth && tombItemIds.has(synth)) delete imported[arrayName][k];
+        }
+      }
+      // Apply live entries under their ORIGINAL key (preserves the `:`
+      // for manualValues etc — consumers read the raw key, not the synth).
+      for (const [rawKey, v] of liveByRawKey) imported[arrayName][rawKey] = v;
+      _pullDeltaSnapshot.perArray[arrayName] = { live: liveByRawKey.size, tombstones: tombItemIds.size };
       continue;
     }
     if (!Array.isArray(imported[arrayName])) imported[arrayName] = [];

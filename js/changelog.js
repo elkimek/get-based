@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.5', date: '2026-05-03', title: 'manualValues — Phase 2 cutover blocker cleared',
+    items: [
+      '<b>manualValues now sync as per-row deltas — last array on the blob path is gone.</b> manualValues holds membership flags for entry values you typed in by hand (vs imported from a PDF), keyed by <code>category.markerKey:date</code>. The colon in those keys failed the row-itemId allowlist regex; this patch adds optional per-map <code>keyIdFn</code> support so a map can synthesize an allowlist-safe itemId while the payload preserves the original colon-bearing key for pull-side reconstruction.',
+      '<b>How synth-keyed maps work.</b> Push side: the keyIdFn maps `glucose:2026-05-03` → `glucose_2026-05-03` for the row\'s itemId column. Payload still carries `{k: "glucose:2026-05-03", v: true}`. Pull side: re-derives the synth from `parsed.k` and verifies it equals `row.itemId` (defence-in-depth — catches a relay swapping payloads), then writes the map entry under the original `:`-bearing key so consumers reading <code>state.importedData.manualValues[\'glucose:2026-05-03\']</code> keep working without code changes elsewhere.',
+      '<b>Phase 2 is now functionally unblocked.</b> Every high-velocity surface (10 arrays + 3 keyed maps) has a per-row datapath. Once the cross-device bake clock completes, dropping the fat-blob writes is a one-flag-flip change. menstrualCycle stays on the blob (singular scalar, near-zero churn — per-row would be over-engineering).',
+    ]
+  },
+  {
     version: '1.7.4', date: '2026-05-03', title: 'customMarkers join the per-row datapath',
     items: [
       '<b>customMarkers — your user-defined biomarkers (from PDF import + manual creation) — now sync as per-row deltas.</b> Identical keyed-map shape to markerNotes, so the keyed-map planner shipped in v1.7.3 covers it with a one-line addition. Adding a custom marker now ships only that marker, not your full custom-marker registry.',
