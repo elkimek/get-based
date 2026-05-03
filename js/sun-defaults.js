@@ -18,6 +18,16 @@ import { SKIN_TYPE } from './constants.js';
 //   lightCircadian.skinType : 'I — very fair' | ...         (used by context card)
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
+// Map legacy boolean photosensitiveMeds storage to tier key for the
+// rendered select. true → 'moderate' (matches the previous fixed ×2.5
+// MED reduction), false / null → 'none'. New string-tier storage passes
+// through unchanged.
+function _psmTierOf(raw) {
+  if (raw === true) return 'moderate';
+  if (raw === false || raw == null) return 'none';
+  return String(raw);
+}
+
 function fitzpatrickToSkinTypeIndex(fp) {
   return Math.max(0, ROMAN.indexOf(fp));
 }
@@ -237,8 +247,14 @@ function renderSavedSummary() {
     </div>`;
   }
 
-  const photoBanner = d.photosensitiveMeds
-    ? `<div class="light-setup-photo-banner" title="${escapeAttr('Burn threshold reduced ~2.5× while photosensitizing meds are active. Edit to clear when no longer applicable.')}">⚠ Photosensitizing medication active — burn alerts trigger 2.5× sooner.</div>`
+  const psmTier = _psmTierOf(d.photosensitiveMeds);
+  const psmCopy = {
+    mild:     { mult: '~1.4×', label: 'mild' },
+    moderate: { mult: '~2.5×', label: 'moderate' },
+    severe:   { mult: '~4×',   label: 'severe' },
+  }[psmTier];
+  const photoBanner = psmCopy
+    ? `<div class="light-setup-photo-banner" title="${escapeAttr(`Burn threshold reduced ${psmCopy.mult} for ${psmCopy.label} photosensitizers. Edit to change tier or clear when no longer applicable.`)}">⚠ ${psmCopy.label.charAt(0).toUpperCase() + psmCopy.label.slice(1)} photosensitizer active — burn alerts trigger ${psmCopy.mult} sooner.</div>`
     : '';
   return `<div class="light-setup-summary">
     <div class="light-setup-summary-head">
@@ -318,11 +334,14 @@ export function renderSetupCard() {
     </div>
 
     <div class="light-setup-step light-setup-photo-row">
-      <label for="setup-photosensitive" class="light-setup-photo-label">
-        <input type="checkbox" id="setup-photosensitive"${d.photosensitiveMeds ? ' checked' : ''}>
-        <strong>I take a photosensitizing medication or supplement.</strong>
-      </label>
-      <p class="light-setup-photo-why">Tetracyclines/doxycycline, isotretinoin/retinoids, amiodarone, thiazides, sulfa antibiotics, NSAIDs, St. John's Wort, and others lower your sunburn threshold ~2.5×. Burn alerts will trigger sooner. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">List of common ones →</a></p>
+      <label for="setup-photosensitive" class="ctx-label"><strong>Photosensitizing meds / supplements</strong></label>
+      <select id="setup-photosensitive" class="ctx-select">
+        <option value="none"${_psmTierOf(d.photosensitiveMeds) === 'none' ? ' selected' : ''}>None — no photosensitizers</option>
+        <option value="mild"${_psmTierOf(d.photosensitiveMeds) === 'mild' ? ' selected' : ''}>Mild — antihistamines, light NSAIDs (×0.7 burn threshold)</option>
+        <option value="moderate"${_psmTierOf(d.photosensitiveMeds) === 'moderate' ? ' selected' : ''}>Moderate — NSAIDs, thiazides, sulfa, St. John's Wort, topical retinol (×0.4)</option>
+        <option value="severe"${_psmTierOf(d.photosensitiveMeds) === 'severe' ? ' selected' : ''}>Severe — tetracyclines, oral retinoids, amiodarone, citrus oils on skin (×0.25)</option>
+      </select>
+      <p class="light-setup-photo-why">Lowers your sunburn threshold so burn alerts trigger sooner. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">AAD list →</a></p>
     </div>
 
     <div class="light-setup-step">
@@ -411,7 +430,13 @@ async function saveSunSetup() {
       if (cb.checked) ottScore++;
     }
   }
-  const photosensitiveMeds = !!root.querySelector('#setup-photosensitive')?.checked;
+  // photosensitiveMeds was a boolean checkbox; now a tier-based select.
+  // Read .value (string) and fall back to legacy boolean parsing for any
+  // mid-rollout state that still has a checkbox node (cached templates).
+  const psmEl = root.querySelector('#setup-photosensitive');
+  const photosensitiveMeds = psmEl?.tagName === 'SELECT'
+    ? (psmEl.value || 'none')
+    : (psmEl?.checked ? 'moderate' : 'none');
   await saveSunDefaults({
     fitzpatrick,
     photosensitiveMeds,

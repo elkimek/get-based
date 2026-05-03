@@ -19,6 +19,34 @@ import { MALE_BODY_PATH, FEMALE_BODY_PATH, SILHOUETTE_NATIVE } from './silhouett
 
 // ─── Anatomical regions (for body silhouette picker) ───────────────────
 // 11 regions per the design — each carries optional research notes for AI.
+// Photosensitizing medication scale tiers — used by fractionOfMED() in
+// place of the legacy boolean flag. MED multipliers from AAD/Mayo Clinic
+// guidance: severe drugs (tetracyclines, retinoids systemic, amiodarone)
+// shift erythemal threshold ~4×; moderate (NSAIDs, thiazides, sulfa) ~2.5×;
+// mild (some antihistamines) ~1.5×.
+export const PHOTOSENSITIVE_MED_TIERS = [
+  { key: 'none',     label: 'None',      medScale: 1.0,  examples: '' },
+  { key: 'mild',     label: 'Mild',      medScale: 0.7,  examples: 'antihistamines (most), some NSAIDs' },
+  { key: 'moderate', label: 'Moderate',  medScale: 0.4,  examples: 'NSAIDs, thiazide diuretics, sulfa antibiotics, St. John\'s Wort, topical retinol' },
+  { key: 'severe',   label: 'Severe',    medScale: 0.25, examples: 'tetracyclines (doxycycline), oral retinoids (isotretinoin), amiodarone, citrus essential oils on skin' },
+];
+
+// Map tier key to multiplier; default to none (no scaling) on unknown.
+export function photosensitiveMedScale(tier) {
+  const t = PHOTOSENSITIVE_MED_TIERS.find(x => x.key === tier);
+  return t ? t.medScale : 1.0;
+}
+
+// Normalize legacy boolean photosensitiveMeds storage into a tier key.
+// boolean true → 'moderate' (the previous fixed-0.4 multiplier semantically
+// matches moderate); boolean false / null / undefined → 'none'.
+export function _normalizePSMTier(raw) {
+  if (raw === true) return 'moderate';
+  if (raw === false || raw == null) return 'none';
+  if (typeof raw === 'string' && PHOTOSENSITIVE_MED_TIERS.some(t => t.key === raw)) return raw;
+  return 'none';
+}
+
 // Anatomical regions for the silhouette picker. Limbs split into front/back
 // so front-of-legs and back-of-legs are independent — matters for
 // realistic photobiology (e.g. sunbathing face-up exposes only front).
@@ -178,11 +206,30 @@ export function getActiveSession() {
   return getSessions().find(s => !s.endedAt) || null;
 }
 
+// Posture options surfaced in pickers + applied as a multiplier on the
+// effective body fraction (see _POSTURE_MULTIPLIERS in _rateAtInstant).
+export const POSTURE_OPTIONS = [
+  { key: 'standing',     label: 'Standing / walking' },
+  { key: 'sitting',      label: 'Sitting / reclined' },
+  { key: 'lying-supine', label: 'Lying face-up' },
+  { key: 'lying-prone',  label: 'Lying face-down' },
+];
+
+// Surface albedo dropdown values — UV reflection from below augments
+// total received irradiance by ~(albedo × 0.5). See _SURFACE_ALBEDO.
+export const SURFACE_OPTIONS = [
+  { key: 'grass',    label: 'Grass / dirt (~3% reflect)' },
+  { key: 'concrete', label: 'Concrete / pavement (~10%)' },
+  { key: 'sand',     label: 'Sand (~25%)' },
+  { key: 'water',    label: 'Water / pool (~25%)' },
+  { key: 'snow',     label: 'Snow / ice (~80%)' },
+];
+
 // Start a session — minimal entry with sensible defaults. Returns id.
 // Accepts either an `exposurePreset` (legacy 4-preset coarse buckets) or a
 // `regions` array (anatomical-region picker output). Regions take priority
 // when both are supplied — fraction is computed by summing region fractions.
-export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location } = {}) {
+export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location, posture = 'standing', surfaceAlbedo = 'grass' } = {}) {
   const id = `sun_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
   let preset, fraction, regionsArr;
@@ -211,6 +258,8 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
     location: location || null,
     bodyExposure: { preset: preset.key, fraction, regions: regionsArr, sunscreenSPF: null, glassBetween },
     eyeExposure: { mode: eyeMode, lensTint, durationSec: null }, // durationSec assigned at stop
+    posture,                  // body orientation multiplier — see _POSTURE_MULTIPLIERS
+    surfaceAlbedo,            // ground reflectance multiplier — see _SURFACE_ALBEDO
     atmosphere: null, // populated at stop or fetched async
     doses: null,
     safety: null,
@@ -394,22 +443,29 @@ export async function hydrateSession(id, { lat, lon } = {}) {
       ozoneDU: atm.ozoneDU ?? 300,
       altitudeM,
       cloudCover: (atm.cloudCover ?? 0) / 100,
+      aod: atm?.airQuality?.aod ?? null,
     });
     const bodyModifiers = {
       glassBetween: !!sess.bodyExposure?.glassBetween,
       sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
     };
+    // Apply posture + surface-albedo multipliers to body fraction so
+    // hydrated doses match the live engine's accounting.
+    const baseFraction = sess.bodyExposure?.fraction ?? 0;
+    const postureMult = _POSTURE_MULTIPLIERS[sess.posture] ?? 1.0;
+    const albedoMult = 1 + (_SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5;
+    const effFraction = baseFraction * postureMult * albedoMult;
     sess.doses = computeChannelDoses({
       spectrum,
       durationMin: sess.durationMin,
-      bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+      bodyExposureFraction: effFraction,
       eyeExposure: sess.eyeExposure,
       bodyModifiers,
     });
     const sed = erythemalSED({
       spectrum,
       durationMin: sess.durationMin,
-      bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+      bodyExposureFraction: effFraction,
       bodyModifiers,
     });
     // Read from one of two places, in priority order:
@@ -419,13 +475,17 @@ export async function hydrateSession(id, { lat, lon } = {}) {
     const lcSkin = state.importedData?.lightCircadian?.skinType;
     const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
-    const photosensitive = !!state.importedData?.sunDefaults?.photosensitiveMeds;
+    const psmTier = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
+    const medScale = photosensitiveMedScale(psmTier);
     sess.safety = {
       sed,
-      medFraction: fractionOfMED({ sed, fitzpatrick, photosensitive }),
+      medFraction: fractionOfMED({ sed, fitzpatrick, medScale }),
       retinalUV: retinalUVdose({ spectrum, eyeExposure: sess.eyeExposure }),
       fitzpatrick,
-      photosensitive,
+      photosensitiveMedTier: psmTier,
+      // Legacy boolean kept for backward compat with consumers that
+      // haven't migrated to the tier field yet.
+      photosensitive: medScale < 1.0,
     };
     // Stamp the engine version so rehydrateStaleSessions can detect
     // sessions computed under older (buggy) versions and recompute.
@@ -664,16 +724,81 @@ export async function quickLogSunSession() {
   return openStartSunSessionDialog();
 }
 
+// Lookup current UVI from the configured atm provider. Returns the scalar
+// uvIndex or null on any failure (no coords / fetch error / missing field).
+// Used for the pre-session high-UV warning banner.
+async function _fetchCurrentUVI() {
+  if (!window.fetchAtmosphere) return null;
+  const coords = getSunCoords();
+  if (!coords) return null;
+  try {
+    const atm = await window.fetchAtmosphere({
+      lat: coords.lat, lon: coords.lon, isoTime: new Date().toISOString(),
+    });
+    const overridden = _applyAtmOverrides(atm);
+    return overridden?.uvIndex ?? null;
+  } catch (e) { return null; }
+}
+
+// Estimated minutes-to-MED for a given UVI + Fitzpatrick + photosensitive
+// status. The CIE-erythemal action spectrum + UVI definition give us
+// MED time = baseMED_J_per_m2 / (UVI × ~25 mW/m²). Photosensitive meds
+// scale the MED denominator down via PHOTOSENSITIVE_MED_TIERS.
+function _estimateMedMinutes(uvi, fitzpatrick, psmTier) {
+  if (!Number.isFinite(uvi) || uvi <= 0) return null;
+  const fitzMED = { I: 200, II: 250, III: 300, IV: 450, V: 600, VI: 1000 };
+  const baseMED = fitzMED[fitzpatrick] ?? fitzMED.III;
+  const med = baseMED * (photosensitiveMedScale(psmTier) || 1.0);
+  // 1 UVI unit = 25 mW/m² CIE-erythemal-weighted irradiance.
+  const irradiance = uvi * 25; // mW/m²
+  const seconds = (med * 1000) / irradiance; // J/m² ÷ mW/m² → seconds (×1000 for unit alignment)
+  return Math.round(seconds / 60);
+}
+
+// Render the pre-session UVI banner HTML. Returns '' when conditions
+// don't warrant a warning (UVI < 8 OR Fitz IV-VI without photosensitive
+// meds). Always shows when photosensitiveMeds is moderate/severe even
+// at lower UVI because their MED is sharply lowered.
+function _renderUVIPreflightBanner(uvi, fitzpatrick, psmTier) {
+  if (!Number.isFinite(uvi)) return '';
+  const fairSkin = ['I', 'II', 'III'].includes(fitzpatrick);
+  const psmHigh = psmTier === 'moderate' || psmTier === 'severe';
+  // Don't pester at low UVI for non-fair, non-photosensitive users.
+  if (uvi < 8 && !psmHigh) return '';
+  if (uvi < 5 && !psmHigh) return '';
+  const medMin = _estimateMedMinutes(uvi, fitzpatrick, psmTier);
+  let cls = 'sun-uvi-warn';
+  let icon = '☀';
+  let title = '';
+  if (uvi >= 11) { cls = 'sun-uvi-extreme'; icon = '⚠'; title = `Extreme UV (UVI ${uvi.toFixed(1)})`; }
+  else if (uvi >= 8) { cls = 'sun-uvi-veryhigh'; icon = '☀'; title = `Very high UV (UVI ${uvi.toFixed(1)})`; }
+  else { title = `UV ${uvi.toFixed(1)} — burn risk elevated by photosensitizer`; }
+  const medLine = medMin ? `Estimated MED for Fitzpatrick ${fitzpatrick}${psmHigh ? ` + ${psmTier} photosensitizer` : ''}: ~${medMin} min uncovered.` : '';
+  return `<div class="${cls}"><strong>${icon} ${escapeHTML(title)}</strong> ${escapeHTML(medLine)} Sunscreen + cover up + a shorter session strongly suggested.</div>`;
+}
+
 // Show the "What's uncovered?" dialog with the body silhouette + a Start
 // button. The picker pre-selects regions from the user's last completed
 // session so habitual users hit Start without changes; first-time users
 // pick everything fresh.
+//
+// Pre-flight UVI warning: when current UVI is in the high range (≥8) and
+// the user is a fair skin type (Fitzpatrick I-III), prepend an alert
+// banner with the estimated MED time for plain-text comprehension.
 export async function openStartSunSessionDialog() {
   const last = getSessions().filter(s => s.endedAt).slice(-1)[0];
   const lastRegions = new Set(last?.bodyExposure?.regions || []);
   const defaultEye = last?.eyeExposure?.mode || 'direct';
   const defaultLens = last?.eyeExposure?.lensTint || 'clear';
   const defaultGlass = !!last?.bodyExposure?.glassBetween;
+  const defaultPosture = last?.posture || 'standing';
+  const defaultSurface = last?.surfaceAlbedo || 'grass';
+  // Pull current UVI for the high-UV pre-flight banner. Fire-and-forget;
+  // dialog opens immediately even if the fetch lags. Banner lights up
+  // when the promise resolves (slot in the modal).
+  const fitz = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  const psm = state.importedData?.sunDefaults?.photosensitiveMeds || 'none';
+  const uviPromise = _fetchCurrentUVI();
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
@@ -683,12 +808,26 @@ export async function openStartSunSessionDialog() {
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
+      <div id="sun-start-uvi-banner" class="sun-start-uvi-banner" hidden></div>
       <p class="modal-body-hint">Tap each body region that's uncovered right now. The session begins as soon as you hit Start.</p>
       <div class="sun-silhouette-wrap" id="sun-start-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
       <div class="sun-silhouette-hint" id="sun-start-hint">Tap any body region to toggle whether it's uncovered.</div>
 
       <details class="sun-start-details">
-        <summary>Eyewear, sunscreen, glass — change defaults</summary>
+        <summary>Posture, surface, eyewear, sunscreen, glass — change defaults</summary>
+        <div class="sun-detailed-row" style="margin-top:10px">
+          <label class="ctx-label">Posture
+            <select id="start-posture" class="ctx-select">
+              ${POSTURE_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${o.key === defaultPosture ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
+            </select>
+          </label>
+          <label class="ctx-label">Surface
+            <select id="start-surface" class="ctx-select">
+              ${SURFACE_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${o.key === defaultSurface ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <p class="sun-detailed-glass-hint">Lying flat catches more sun than standing (~40%). Reflective surfaces (sand, water, snow) bounce UV onto your skin from below.</p>
         <div class="sun-detailed-row" style="margin-top:10px">
           <label class="ctx-label">Eyes
             <select id="start-eye-mode" class="ctx-select">
@@ -736,10 +875,25 @@ export async function openStartSunSessionDialog() {
   bindBodySilhouette(slot, selected, updateHint);
   updateHint();
 
+  // Resolve the UVI lookup; render the pre-flight banner if conditions
+  // warrant it. Async — the dialog is already shown so we don't block.
+  uviPromise.then((uvi) => {
+    if (!Number.isFinite(uvi)) return;
+    const banner = overlay.querySelector('#sun-start-uvi-banner');
+    if (!banner) return;
+    const html = _renderUVIPreflightBanner(uvi, fitz, psm);
+    if (html) {
+      banner.innerHTML = html;
+      banner.hidden = false;
+    }
+  });
+
   overlay.querySelector('#start-confirm').addEventListener('click', async () => {
     const eyeMode = overlay.querySelector('#start-eye-mode').value || 'direct';
     const lensTint = overlay.querySelector('#start-lens-tint').value || 'clear';
     const glassBetween = overlay.querySelector('#start-glass').checked;
+    const posture = overlay.querySelector('#start-posture').value || 'standing';
+    const surfaceAlbedo = overlay.querySelector('#start-surface').value || 'grass';
     const regions = Array.from(selected);
     if (regions.length === 0) {
       hint.textContent = 'Tap at least one region before starting — what part of you is uncovered?';
@@ -750,11 +904,13 @@ export async function openStartSunSessionDialog() {
     // Stash coords on the new session so the ticker can compute doses
     // immediately without re-resolving location every tick.
     const coords = getSunCoords();
-    const id = await startSession({ regions, eyeMode, lensTint, glassBetween, location: coords });
+    const id = await startSession({ regions, eyeMode, lensTint, glassBetween, posture, surfaceAlbedo, location: coords });
     overlay.remove();
     showNotification(`Outdoor session started · ${regions.length} region${regions.length === 1 ? '' : 's'} exposed`);
-    if (state.importedData?.sunDefaults?.photosensitiveMeds) {
-      showNotification('⚠ Photosensitizing medication active — your burn threshold is ~2.5× lower. Plan to wrap up at the first sign of pinkness.', 'warning', 7000);
+    const psmTierActive = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
+    if (psmTierActive !== 'none') {
+      const factor = { mild: '~1.4×', moderate: '~2.5×', severe: '~4×' }[psmTierActive] || '~2.5×';
+      showNotification(`⚠ ${psmTierActive.charAt(0).toUpperCase() + psmTierActive.slice(1)} photosensitizer active — your burn threshold is ${factor} lower. Plan to wrap up at the first sign of pinkness.`, 'warning', 7000);
     }
     if (eyeMode === 'direct') {
       showNotification('Eyes-uncovered mode: never look directly at the sun. "Uncovered" means eyes open toward the sky, not staring at the sun disc.', 'warning', 7000);
@@ -974,7 +1130,8 @@ async function _snapshotActiveRate(sess) {
     const lcSkin = state.importedData?.lightCircadian?.skinType;
     const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
-    const photosensitive = !!state.importedData?.sunDefaults?.photosensitiveMeds;
+    const psmTier = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
+    const medScale = photosensitiveMedScale(psmTier);
     // baselineZenith is sampled once per session and never overwritten —
     // keeps the per-slice zenithScale denominator stable so cumulative
     // doses don't jump every refresh cycle.
@@ -985,11 +1142,12 @@ async function _snapshotActiveRate(sess) {
     const isReSnapshot = !!existing.committedDoses;
     const sliceStart = isReSnapshot ? Date.now() : sess.startedAt;
     _setLiveState(sess.id, {
-      ratePerMin, sedPerMin, fitzpatrick, photosensitive, atm, zenith,
+      ratePerMin, sedPerMin, fitzpatrick, medScale, psmTier, atm, zenith,
       baselineZenith: existing.baselineZenith ?? zenith,
       snapshotAt: sliceStart,
       committedDoses: existing.committedDoses || {},
       committedSED: existing.committedSED || 0,
+      committedRetinalUV: existing.committedRetinalUV || 0,
       fractionOfMEDFn: fractionOfMED,
       pending: false,
     });
@@ -1044,12 +1202,23 @@ function _rateAtInstant(sess, instantMs) {
   // takes precedence over both forecast + interpolation.
   atmAtT = _applyAtmOverrides(atmAtT);
 
+  // Surface-orientation + albedo boost on the effective body fraction.
+  // Posture: standing/sitting/lying-supine/lying-prone. Albedo: surfaces
+  // (sand 25%, water 25%, snow 80%) reflect UV onto the body — modeled
+  // as a +(albedo × 0.5) multiplier (rough — half the reflected light
+  // reaches the body geometry from below).
+  const baseFraction = sess.bodyExposure?.fraction ?? 0;
+  const postureMult = _POSTURE_MULTIPLIERS[sess.posture] ?? 1.0;
+  const albedoMult = 1 + (_SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5;
+  const effFraction = baseFraction * postureMult * albedoMult;
+
   const zenith = solarZenithAngle(when, coords.lat, coords.lon);
   const spectrum = reconstructSpectrum({
     zenithDeg: zenith,
     ozoneDU: atmAtT.ozoneDU ?? 300,
     altitudeM: coords.altitudeM ?? 0,
     cloudCover: (atmAtT.cloudCover ?? 0) / 100,
+    aod: atmAtT?.airQuality?.aod ?? null,
   });
   const bodyModifiers = {
     glassBetween: !!sess.bodyExposure?.glassBetween,
@@ -1058,32 +1227,73 @@ function _rateAtInstant(sess, instantMs) {
   const rate = computeChannelDoses({
     spectrum,
     durationMin: 1,
-    bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+    bodyExposureFraction: effFraction,
     eyeExposure: sess.eyeExposure,
     bodyModifiers,
   });
   const sedPerMin = erythemalSED({
     spectrum,
     durationMin: 1,
-    bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+    bodyExposureFraction: effFraction,
     bodyModifiers,
   });
-  return { rate, sedPerMin };
+  // Retinal UV per minute — only nonzero when eye mode is 'direct'.
+  // Integrates 280-400 nm spectrum × 1 minute (60 s) for a J/m² rate.
+  const retinalUVPerMin = (sess.eyeExposure?.mode === 'direct') ? _retinalUVPerMin(spectrum) : 0;
+  return { rate, sedPerMin, retinalUVPerMin };
 }
 
-// Simpson's 1/3 rule integration of channel doses + SED across [a, b]
-// using 3 sample points (start, midpoint, end). Second-order accurate vs
-// the previous midpoint approximation, captures sub-slice spectral shifts
-// at low sun (where pure cosine zenith scaling underestimates UVB drop).
-// Cost: 3 spectrum + dose computes per call (~15K JS ops, negligible).
+// Posture orientation multipliers on bodyExposureFraction. Lying-supine
+// makes the front of the body nearly horizontal at noon → near-full beam
+// reception (~1.4× baseline standing). Lying-prone same for back. Sitting
+// is between standing and lying. These are rough — proper modeling would
+// require per-region cosine weighting based on actual body geometry.
+const _POSTURE_MULTIPLIERS = {
+  standing:    1.0,
+  sitting:     0.85,
+  'lying-supine': 1.4,
+  'lying-prone':  1.4,
+};
+
+// Surface albedo (UV reflectance). 0.25 = sand/water; 0.80 = fresh snow.
+// Source: WHO INTERSUN guidance + CIE 174:2006.
+const _SURFACE_ALBEDO = {
+  grass:    0.03,
+  concrete: 0.10,
+  sand:     0.25,
+  water:    0.25,
+  snow:     0.80,
+};
+
+// Helper: integrate UV-band irradiance to get J/m² per minute at the eye.
+// Mirrors retinalUVdose() math but returns a rate (per-minute) instead of
+// total. Used by Simpson integration in _rateAtInstant.
+function _retinalUVPerMin(spectrum) {
+  if (!spectrum) return 0;
+  const dlambda = 5;
+  let uv = 0;
+  for (let i = 0; i < spectrum.irradiance.length; i++) {
+    const nm = spectrum.wavelengths[i];
+    if (nm > 400) break;
+    uv += spectrum.irradiance[i] * dlambda;
+  }
+  return uv * 60; // per-minute (60 s)
+}
+
+// Simpson's 1/3 rule integration of channel doses + SED + retinal UV
+// across [a, b] using 3 sample points (start, midpoint, end). Second-order
+// accurate vs the previous midpoint approximation, captures sub-slice
+// spectral shifts at low sun (where pure cosine zenith scaling
+// underestimates UVB drop). Cost: 3 spectrum + dose computes per call
+// (~15K JS ops, negligible).
 function _integrateSlice(sess, startMs, endMs) {
   const durationMin = Math.max(0, (endMs - startMs) / 60000);
-  if (durationMin <= 0) return { doses: {}, sed: 0 };
+  if (durationMin <= 0) return { doses: {}, sed: 0, retinalUV: 0 };
   const midMs = (startMs + endMs) / 2;
   const r0 = _rateAtInstant(sess, startMs);
   const r1 = _rateAtInstant(sess, midMs);
   const r2 = _rateAtInstant(sess, endMs);
-  if (!r0 || !r1 || !r2) return { doses: {}, sed: 0 };
+  if (!r0 || !r1 || !r2) return { doses: {}, sed: 0, retinalUV: 0 };
   // Simpson: ∫ ≈ (b - a) × (f(a) + 4f(m) + f(b)) / 6
   const doses = {};
   for (const k of Object.keys(r1.rate)) {
@@ -1093,7 +1303,8 @@ function _integrateSlice(sess, startMs, endMs) {
     doses[k] = durationMin * (a + 4 * m + b) / 6;
   }
   const sed = durationMin * (r0.sedPerMin + 4 * r1.sedPerMin + r2.sedPerMin) / 6;
-  return { doses, sed };
+  const retinalUV = durationMin * (r0.retinalUVPerMin + 4 * r1.retinalUVPerMin + r2.retinalUVPerMin) / 6;
+  return { doses, sed, retinalUV };
 }
 
 // Commit the current rate slice's contribution into committedDoses. Called
@@ -1106,13 +1317,14 @@ function _commitCurrentSlice(sess) {
   const sliceStart = live.snapshotAt;
   const sliceEnd = Date.now();
   if (sliceEnd <= sliceStart) return;
-  const { doses, sed } = _integrateSlice(sess, sliceStart, sliceEnd);
+  const { doses, sed, retinalUV } = _integrateSlice(sess, sliceStart, sliceEnd);
   const committedDoses = { ...(live.committedDoses || {}) };
   for (const [k, v] of Object.entries(doses)) {
     committedDoses[k] = (committedDoses[k] || 0) + v;
   }
   const committedSED = (live.committedSED || 0) + sed;
-  _setLiveState(sess.id, { committedDoses, committedSED });
+  const committedRetinalUV = (live.committedRetinalUV || 0) + retinalUV;
+  _setLiveState(sess.id, { committedDoses, committedSED, committedRetinalUV });
 }
 
 // Compute live doses = committedDoses (sum of past, fully-closed slices) +
@@ -1134,7 +1346,7 @@ function _liveDosesFor(sess) {
   const sliceStart = live.snapshotAt || sess.startedAt;
   const now = Date.now();
 
-  const { doses: sliceDoses, sed: sliceSed } = _integrateSlice(sess, sliceStart, now);
+  const { doses: sliceDoses, sed: sliceSed, retinalUV: sliceRetinalUV } = _integrateSlice(sess, sliceStart, now);
 
   const committed = live.committedDoses || {};
   const doses = { ...committed };
@@ -1142,8 +1354,9 @@ function _liveDosesFor(sess) {
     doses[k] = (doses[k] || 0) + v;
   }
   const sed = (live.committedSED || 0) + sliceSed;
-  const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive }) : 0;
-  return { doses, sed, medFraction, fitzpatrick: live.fitzpatrick, photosensitive: live.photosensitive, atm: live.atm };
+  const retinalUV = (live.committedRetinalUV || 0) + sliceRetinalUV;
+  const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, medScale: live.medScale ?? 1.0 }) : 0;
+  return { doses, sed, retinalUV, medFraction, fitzpatrick: live.fitzpatrick, psmTier: live.psmTier, atm: live.atm };
 }
 
 // Render a compact live card body — elapsed time, burn-risk %, channel chips.
@@ -1181,7 +1394,27 @@ function _renderActiveCardBody(sess) {
       vitaminDStr = `<span class="sun-session-vitd" title="Approximate vitamin D₃ synthesis so far (central estimate; ±50% band — see session detail). Saturates around 20k IU per Holick photoisomerization plateau.">☀ ~${iuLabel} vit D · ${rateLabel}</span>`;
     }
   }
-  return { elapsed, medStr, vitaminDStr, channelChips };
+  // Heat-stress chip — temperatureC > 30 + elapsed > 30 min. Visual
+  // affordance for the same condition that fires the showNotification
+  // alert (so users who dismissed the toast still see the cue).
+  let heatStr = '';
+  const tempC = live?.atm?.temperatureC ?? null;
+  const elapsedMin = (Date.now() - sess.startedAt) / 60000;
+  if (Number.isFinite(tempC) && tempC > 30 && elapsedMin > 30) {
+    heatStr = `<span class="sun-session-heat" title="Ambient ${tempC.toFixed(0)}°C — heat-stress risk rises with duration. Drink water, take a 10-min shade break.">🌡 ${Math.round(tempC)}°C · take a break</span>`;
+  }
+
+  // Retinal-UV chip — only meaningful when eye mode is 'direct'. Shows
+  // current cumulative dose toward the photokeratitis threshold.
+  let retinalStr = '';
+  if (sess.eyeExposure?.mode === 'direct' && Number.isFinite(live?.retinalUV) && live.retinalUV > 100) {
+    const ruv = Math.round(live.retinalUV);
+    const cls = ruv >= 500 ? ' warn' : '';
+    const label = ruv >= 1000 ? 'photokeratitis threshold' : ruv >= 500 ? 'half-threshold' : 'low';
+    retinalStr = `<span class="sun-session-retinal${cls}" title="Cumulative UV at the eye — photokeratitis appears at ~1000 J/m². At ${ruv} J/m² you're ${label}.">👁 ${ruv} J/m² eye UV</span>`;
+  }
+
+  return { elapsed, medStr, vitaminDStr, channelChips, heatStr, retinalStr };
 }
 
 // Update every active-session card on the page. Cheap — only DOM patches
@@ -1230,6 +1463,36 @@ function _tickActiveCards() {
       }
     }
 
+    // Retinal-UV alerts — only fire when eye mode is 'direct' (eyes
+    // uncovered + open toward sky). Sunglass / closed-eyes / behind-glass
+    // sessions accumulate zero retinal UV. Threshold 1000 J/m² is the
+    // approximate photokeratitis floor (WHO/ICNIRP); 500 J/m² as a
+    // half-way warning so the user can still react.
+    if (liveDoses && Number.isFinite(liveDoses.retinalUV) && sess.eyeExposure?.mode === 'direct') {
+      const ruv = liveDoses.retinalUV;
+      const cur = _getLiveState(sess.id) || {};
+      if (ruv >= 1000 && !cur.alertedRetinalOver) {
+        _setLiveState(sess.id, { alertedRetinalOver: true });
+        showNotification('Eye UV at the photokeratitis threshold. Put on UV-blocking sunglasses now — symptoms (gritty eyes, sensitivity to light) appear 6-12 hours after exposure.', 'error', 10000);
+      } else if (ruv >= 500 && !cur.alertedRetinal500) {
+        _setLiveState(sess.id, { alertedRetinal500: true });
+        showNotification('Eyes at half the daily UV limit — sunglasses or look-down breaks recommended. Cumulative eye exposure causes pterygium and cataract over years.', 'warning', 8000);
+      }
+    }
+
+    // Heat-stress chip alert — fires once at 30 min into a session when
+    // temperatureC > 30. Heat exhaustion risk rises faster with duration
+    // than UV burn at high ambient; UV alerts alone don't catch this.
+    const tempC = liveDoses?.atm?.temperatureC ?? null;
+    const elapsedMinNow = (Date.now() - sess.startedAt) / 60000;
+    if (Number.isFinite(tempC) && tempC > 30 && elapsedMinNow > 30) {
+      const cur = _getLiveState(sess.id) || {};
+      if (!cur.alertedHeat) {
+        _setLiveState(sess.id, { alertedHeat: true });
+        showNotification(`${tempC.toFixed(0)}°C ambient — drink water, take a 10-min shade break. Heat exhaustion ramps faster than UV burn at this temperature.`, 'warning', 8000);
+      }
+    }
+
     // Update any "live elapsed" text node on the page — dashboard Light
     // Today CTA uses [data-live-elapsed-for] so the timer ticks every
     // second from anywhere in the app.
@@ -1258,6 +1521,20 @@ function _tickActiveCards() {
         // Insert vit-D chip after med chip (or after duration if no med yet)
         const after = card.querySelector('.sun-session-med') || card.querySelector('.sun-session-duration');
         if (after) after.insertAdjacentHTML('afterend', body.vitaminDStr);
+      }
+      // Heat chip — replace if present, insert in head row if not.
+      const heatEl = card.querySelector('.sun-session-heat');
+      if (heatEl) heatEl.outerHTML = body.heatStr || '';
+      else if (body.heatStr) {
+        const after = card.querySelector('.sun-session-vitd') || card.querySelector('.sun-session-med') || card.querySelector('.sun-session-duration');
+        if (after) after.insertAdjacentHTML('afterend', body.heatStr);
+      }
+      // Retinal-UV chip — same pattern.
+      const retinalEl = card.querySelector('.sun-session-retinal');
+      if (retinalEl) retinalEl.outerHTML = body.retinalStr || '';
+      else if (body.retinalStr) {
+        const after = card.querySelector('.sun-session-heat') || card.querySelector('.sun-session-vitd') || card.querySelector('.sun-session-med') || card.querySelector('.sun-session-duration');
+        if (after) after.insertAdjacentHTML('afterend', body.retinalStr);
       }
       const oldChips = card.querySelector('.sun-channel-chips');
       if (oldChips) oldChips.outerHTML = body.channelChips || '';
@@ -1975,6 +2252,19 @@ export function openDetailedSessionDialog() {
         </label>
       </div>
 
+      <div class="sun-detailed-row">
+        <label class="ctx-label">Posture
+          <select id="det-posture" class="ctx-select">
+            ${POSTURE_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${o.key === (lastUsed?.posture || 'standing') ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="ctx-label">Surface
+          <select id="det-surface" class="ctx-select">
+            ${SURFACE_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${o.key === (lastUsed?.surfaceAlbedo || 'grass') ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+
       <label class="ctx-label">Notes
         <textarea id="det-notes" class="ctx-input" rows="2" placeholder="Optional"></textarea>
       </label>
@@ -2029,11 +2319,14 @@ export function openDetailedSessionDialog() {
     }, 0);
 
     const start = endedAt - durationMin * 60 * 1000;
+    const posture = overlay.querySelector('#det-posture')?.value || 'standing';
+    const surfaceAlbedo = overlay.querySelector('#det-surface')?.value || 'grass';
     const sessId = await logCompletedSession({
       startedAt: start,
       endedAt,
       bodyExposure: { preset: regions.length === 0 ? 'face_hands' : 'detailed', fraction: Math.max(0.05, fraction), regions, sunscreenSPF: spf, glassBetween: glass },
       eyeExposure: { mode: eyeModeVal, lensTint: lensTintVal, durationSec: durationMin * 60 },
+      posture, surfaceAlbedo,
       notes,
     });
     if (sessId && window.hydrateSession) await window.hydrateSession(sessId);

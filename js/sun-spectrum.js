@@ -215,7 +215,7 @@ const CHANNELS = [
 // × aerosol attenuation × cloud transmission. This is a heavily simplified
 // Bird-Riordan-derived model — accurate to ~25% relative for our use, which
 // is correlation against biomarkers (relative trends), not radiometry.
-export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, cloudCover = 0 } = {}) {
+export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, cloudCover = 0, aod = null } = {}) {
   if (zenithDeg == null || zenithDeg >= 90) {
     return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
   }
@@ -223,6 +223,12 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
   const airMass = 1 / Math.max(cosZ, 0.001);
   const altScale = Math.exp(-altitudeM / 8000); // pressure scaling
   const cloudT = 1 - 0.75 * cloudCover; // simple cloud transmission
+  // AOD@500nm — when supplied by the atmospheric source (Open-Meteo
+  // air-quality endpoint exposes `aerosol_optical_depth`), use it as
+  // the Ångström β. Falls back to 0.10 (clean continental sky) when
+  // unknown. Polluted city air can reach β=0.5+; the difference matters
+  // most in the visible band (~10-20% irradiance shift).
+  const beta = (Number.isFinite(aod) && aod > 0) ? aod : 0.10;
 
   const irradiance = WAVELENGTHS.map((nm) => {
     // Extraterrestrial spectral irradiance (rough fit to ASTM E490)
@@ -240,13 +246,11 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
     const To = Math.exp(-tauO3 * airMass);
     // Aerosol attenuation — Ångström-type wavelength dependence,
     //   τ_a(λ) = β × (λ/500nm)^(-α)
-    // with α=1.14 (typical continental aerosol) and β=0.10 (clean
-    // continental sky; AERONET background sites). The previous β=0.27
-    // assumed a moderately-polluted sky which under-stated UV by ~30%
-    // for the clear-day default the model is supposed to represent.
-    // Future enhancement: take β as an atmosphere field if Open-Meteo /
-    // sun-uvdata starts providing AOD.
-    const tauA = 0.10 * Math.pow(nm / 500, -1.14);
+    // with α=1.14 (typical continental aerosol). β is sourced from the
+    // atmosphere caller (Open-Meteo AOD@500nm) when available, else
+    // defaults to 0.10 (clean continental sky; AERONET background
+    // sites). Polluted city air β can reach 0.5+.
+    const tauA = beta * Math.pow(nm / 500, -1.14);
     const Ta = Math.exp(-tauA * airMass);
     // Direct beam: extraterrestrial × all path attenuations × cosine of
     // incidence (already absorbed into the airMass parameter through
@@ -475,14 +479,22 @@ export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction =
   return J_per_m2 / SED_JOULES_PER_M2;
 }
 
-// Photosensitizing meds (tetracyclines, doxycycline, retinoids, amiodarone, St. John's Wort,
-// thiazide diuretics, sulfa antibiotics, NSAIDs, etc.) lower the burn threshold ~2–3×.
-// We use 0.4 (≈2.5×) as a conservative fixed scale per AAD/Mayo Clinic guidance.
+// Photosensitizing meds lower the burn threshold. Legacy boolean path
+// uses a fixed 0.4 (≈2.5×) per AAD/Mayo Clinic guidance — kept for
+// backward compatibility with callers that haven't migrated to the
+// tier-based scale. New callers pass `medScale` directly (typically
+// from sun.js photosensitiveMedScale(tier) → 1.0/0.7/0.4/0.25 for
+// none/mild/moderate/severe). When medScale is supplied, photosensitive
+// boolean is ignored.
 const PHOTOSENSITIVE_MED_SCALE = 0.4;
 
-export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive = false }) {
+export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive = false, medScale }) {
   const baseMED = MED_BY_FITZPATRICK[fitzpatrick] ?? MED_BY_FITZPATRICK.III;
-  const med = photosensitive ? baseMED * PHOTOSENSITIVE_MED_SCALE : baseMED;
+  let scale;
+  if (typeof medScale === 'number') scale = medScale;
+  else if (photosensitive) scale = PHOTOSENSITIVE_MED_SCALE;
+  else scale = 1.0;
+  const med = baseMED * scale;
   return sed / med;
 }
 
