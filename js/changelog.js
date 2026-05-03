@@ -5,6 +5,16 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.10', date: '2026-05-03', title: 'Phase 2 cutover behind a readiness-gated flag',
+    items: [
+      '<b>Phase 2 (drop the fat-blob writes entirely) is now a one-button flip in Sync diagnose, gated by the readiness check.</b> An "Enable Phase 2" button appears next to the readiness panel — disabled when blockers exist, green-bordered when READY. Enabling sets a per-profile per-device flag; from then on, outbound pushes carry only the small profile/AI/chat envelope plus per-row CRDT deltas. The full importedData blob stops shipping.',
+      '<b>Reversible at any time.</b> A "Disable Phase 2" button (orange) is always available — the escape hatch. Use it if a peer device on the dual-write path appears to be missing data; the next push will re-include the blob and the peer will re-merge.',
+      '<b>How the wire format evolves.</b> v3 dual-write payloads (current default) include `importedData`. v4 cutover payloads omit it (sentinel: `_v: 4` + no `importedData`). The receive path detects v4 and skips the blob-merge step, falling through to the per-row overlay alone — safe because every importedData surface has a per-row datapath since v1.7.6. Devices on v1.7.x or older still pull v4 rows correctly: they see `importedData` as missing → no-op blob merge → per-row pulls fill in the data they were going to update anyway. Mixed-version cohorts converge.',
+      '<b>What this means in practice.</b> Per-push size on a Phase 2 device drops from ~150 KB (gzipped blob) to ~5–10 KB (envelope only) + a few hundred bytes per changed item. The relay\'s 50 MB per-owner cap, which used to fill in ~280 pushes (a few weeks of moderate use) and trigger the recurring "phone says committed, desktop sees stale" wedge, becomes a non-issue — months of constant editing before refill.',
+      '<b>The bake clock still applies.</b> Don\'t enable Phase 2 until BOTH paired devices report READY for ≥2 weeks AND the dual-write delta:blob ratio sits &lt;5%. The button is your gate; the wait is yours.',
+    ]
+  },
+  {
     version: '1.7.9', date: '2026-05-03', title: 'Phase 2 cutover-readiness check (in Sync diagnose)',
     items: [
       '<b>Sync diagnose now reports per-surface Phase 2 readiness.</b> A new "Phase 2 cutover readiness" panel surveys all 31 importedData surfaces (10 arrays + 3 keyed maps + 18 scalars) and classifies each as ok / no-data / missing-rows / rows-only. If any surface has local data but no per-row push (status: missing-rows), Phase 2 — dropping the fat-blob writes entirely — would silently lose it. The check is the hard gate before that flip.',

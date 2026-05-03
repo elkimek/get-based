@@ -63,7 +63,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 2. Sync Payload Format ', 'font-weight:bold;color:#f59e0b');
 
-  assert('buildSyncPayload includes _v: 3', syncSrc.includes('_v: 3'));
+  assert('buildSyncPayload still emits _v: 3 (default dual-write)', syncSrc.includes('cutover ? 4 : 3'));
   assert('buildSyncPayload includes importedData', syncSrc.includes('importedData,') || syncSrc.includes('importedData:'));
   assert('buildSyncPayload includes profile metadata', syncSrc.includes('profile: profile'));
   assert('buildSyncPayload includes aiSettings', syncSrc.includes('aiSettings'));
@@ -784,6 +784,78 @@ return (async function() {
     assert('empty importedData → ready=true (no surfaces have local data)', empty.ready === true, `blockers=${empty.blockerCount}`);
     // Edge: null profileId → returns error
     assert('null profileId returns error', window.getDeltaCutoverReadiness(null)?.error === 'no-profile');
+  }
+
+  // ═══════════════════════════════════════
+  // 14d. PHASE 2 CUTOVER FLAG (v1.7.10) — readiness-gated, reversible
+  // ═══════════════════════════════════════
+  console.log('%c 14d. Phase 2 Cutover Flag (gated) ', 'font-weight:bold;color:#f59e0b');
+
+  assert('isPhase2CutoverEnabled exported', /export function isPhase2CutoverEnabled/.test(syncSrc));
+  assert('enablePhase2Cutover exported', /export function enablePhase2Cutover/.test(syncSrc));
+  assert('disablePhase2Cutover exported', /export function disablePhase2Cutover/.test(syncSrc));
+  assert('enablePhase2Cutover gated by getDeltaCutoverReadiness',
+    /enablePhase2Cutover[\s\S]{0,400}getDeltaCutoverReadiness\(profileId\)[\s\S]{0,200}!r\.ready[\s\S]{0,200}reason:\s*'not-ready'/.test(syncSrc));
+  assert('disablePhase2Cutover always allowed (escape hatch)',
+    /disablePhase2Cutover[\s\S]{0,300}removeItem\(_cutoverFlagKey/.test(syncSrc));
+  assert('Cutover flag is per-profile (key includes profileId)',
+    /_cutoverFlagKey[\s\S]{0,200}labcharts-\$\{profileId\}-sync-cutover-v2/.test(syncSrc));
+  assert('buildSyncPayload checks isPhase2CutoverEnabled',
+    /buildSyncPayload[\s\S]{0,2000}isPhase2CutoverEnabled\(profileId\)/.test(syncSrc));
+  assert('v4 payload omits importedData when cutover is on',
+    /cutover\s*\?\s*4\s*:\s*3[\s\S]{0,500}cutover\s*\?\s*undefined\s*:\s*safeImported/.test(syncSrc));
+  assert('parseSyncPayload handles _v: 4 (importedData=null sentinel)',
+    /parsed\._v\s*===\s*4[\s\S]{0,400}importedData:\s*null/.test(syncSrc));
+  assert('Receive path treats v4 (importedData null) as legitimate, not malformed',
+    /isV4Cutover\s*=\s*importedData\s*===\s*null[\s\S]{0,200}!isV4Cutover\s*&&\s*\(!importedData/.test(syncSrc));
+  assert('Receive path uses local as baseline when v4 (no blob to merge)',
+    /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localImportedForMerge,\s*importedData\)\s*:\s*localImportedForMerge/.test(syncSrc));
+  assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
+    /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(syncSrc));
+  assert('Cutover modal button gated when not ready (disabled attribute)',
+    /Enable Phase 2[\s\S]{0,200}disabled/.test(syncSrc));
+  assert('Cutover modal shows PHASE 2 ON badge when enabled',
+    /PHASE 2 ON/.test(syncSrc));
+  assert('Cutover handlers exposed on window',
+    /window[\s\S]{0,5500}confirmEnablePhase2,\s*\n\s*confirmDisablePhase2/.test(syncSrc));
+
+  // Live: read/write/disable contract for the cutover flag. Skips the
+  // enable() path here because enable consults getDeltaCutoverReadiness
+  // which reads state.importedData (the live test session may have
+  // populated arrays that classify as missing-rows blockers, making
+  // enable correctly reject). Source-shape assertions above already
+  // cover the gating contract.
+  if (typeof window !== 'undefined' && typeof window.isPhase2CutoverEnabled === 'function') {
+    const TEST_PID = '__cutover_flag_test__';
+    const KEY = `labcharts-${TEST_PID}-sync-cutover-v2`;
+    try { localStorage.removeItem(KEY); } catch {}
+    assert('isPhase2CutoverEnabled returns false when flag not set',
+      window.isPhase2CutoverEnabled(TEST_PID) === false);
+    // Manually set the flag (bypassing enable's readiness gate) and
+    // verify the reader picks it up.
+    try { localStorage.setItem(KEY, '1'); } catch {}
+    assert('isPhase2CutoverEnabled reads back true when flag set',
+      window.isPhase2CutoverEnabled(TEST_PID) === true);
+    assert('disable always allowed (escape hatch)',
+      window.disablePhase2Cutover(TEST_PID) === true);
+    assert('isPhase2CutoverEnabled reads back false after disable',
+      window.isPhase2CutoverEnabled(TEST_PID) === false);
+    // enable's gating: when state.importedData has any populated
+    // surface (likely in this test environment), readiness fails →
+    // enable rejects with reason='not-ready'. Don't assert ok or
+    // !ok directly; assert that enable returns the structured shape
+    // so the contract is verified regardless of test-state cleanliness.
+    const r = window.enablePhase2Cutover(TEST_PID);
+    assert('enablePhase2Cutover returns structured result', r && typeof r === 'object' && 'ok' in r);
+    if (!r.ok) {
+      assert('enable failure includes reason field', typeof r.reason === 'string');
+    }
+    try { localStorage.removeItem(KEY); } catch {}
+    // null profileId rejection
+    assert('enable rejects null profileId', window.enablePhase2Cutover(null)?.ok === false);
+    assert('disable rejects null profileId', window.disablePhase2Cutover(null) === false);
+    assert('isPhase2CutoverEnabled returns false for null profileId',
+      window.isPhase2CutoverEnabled(null) === false);
   }
 
   // ═══════════════════════════════════════

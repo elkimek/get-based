@@ -862,6 +862,37 @@ function applyDisplayPrefs(profileId, prefs) {
   }
 }
 
+// Phase 2 cutover flag — when set, buildSyncPayload omits importedData
+// from the blob entirely. Per-row CRDT deltas (DELTA_ARRAYS / DELTA_MAPS /
+// DELTA_SCALARS) carry every field instead. Per-profile because different
+// profiles may bake at different rates (e.g. a sun-only profile may be
+// READY before a labs+sun+context-cards profile). Set via the diagnose UI
+// only when getDeltaCutoverReadiness reports READY — see enablePhase2Cutover
+// below for the gated setter.
+function _cutoverFlagKey(profileId) {
+  return `labcharts-${profileId}-sync-cutover-v2`;
+}
+export function isPhase2CutoverEnabled(profileId) {
+  if (!profileId) return false;
+  try { return localStorage.getItem(_cutoverFlagKey(profileId)) === '1'; } catch { return false; }
+}
+// Gated setter — refuses to enable cutover when readiness check finds
+// blockers. Returns { ok, reason, blockerCount } so the UI can render
+// a useful error. Disable is always allowed (escape hatch).
+export function enablePhase2Cutover(profileId) {
+  if (!profileId) return { ok: false, reason: 'no-profile' };
+  const r = getDeltaCutoverReadiness(profileId);
+  if (!r || !r.ready) {
+    return { ok: false, reason: 'not-ready', blockerCount: r?.blockerCount || -1 };
+  }
+  try { localStorage.setItem(_cutoverFlagKey(profileId), '1'); return { ok: true }; }
+  catch (e) { return { ok: false, reason: 'storage', error: String(e?.message || e) }; }
+}
+export function disablePhase2Cutover(profileId) {
+  if (!profileId) return false;
+  try { localStorage.removeItem(_cutoverFlagKey(profileId)); return true; } catch { return false; }
+}
+
 async function buildSyncPayload(profileId, importedData) {
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
@@ -874,9 +905,17 @@ async function buildSyncPayload(profileId, importedData) {
   // tokens stay local. Users connect each wearable per-device — see the note
   // in the Settings → Integrations panel.
   const safeImported = stripWearableCredentials(importedData);
+  // Phase 2: when cutover is enabled (readiness-gated), drop importedData
+  // from the blob. Per-row deltas carry every field. The blob still
+  // ships the small profile/aiSettings/chatData/displayPrefs envelope
+  // because those don't have a per-row datapath (they're multi-key,
+  // cross-cutting client config — different responsibility than the
+  // data the user is tracking). Net push size drops from ~150 KB
+  // (gzipped blob) to ~5–10 KB (envelope only) + per-row deltas.
+  const cutover = isPhase2CutoverEnabled(profileId);
   const inner = JSON.stringify({
-    _v: 3,
-    importedData: safeImported,
+    _v: cutover ? 4 : 3,
+    importedData: cutover ? undefined : safeImported,
     profile: profile || null,
     aiSettings: Object.keys(aiSettings).length > 0 ? aiSettings : undefined,
     chatData: chatData || undefined,
@@ -977,6 +1016,14 @@ async function parseSyncPayload(dataJson) {
       return rest;
     }
     return imp;
+  }
+  // v4 (Phase 2 cutover): importedData omitted — per-row CRDT deltas
+  // carry every field. The receiving merger sees `importedData: null`,
+  // skips its blob-merge step, and relies entirely on the per-row pull
+  // path (_mergeItemRowsIntoImported). v3 / v2 / v1 sources still merge
+  // both ways for back-compat — Phase 2 is per-profile, per-device opt-in.
+  if (parsed._v === 4) {
+    return { importedData: null, profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs };
   }
   // v3: includes chat data + display prefs
   if (parsed._v === 3) {
@@ -2347,8 +2394,15 @@ async function onSyncReceived() {
           latestAiTs = remoteUpdated;
         }
 
-        // Validate importedData shape
-        if (!importedData || typeof importedData !== 'object') continue;
+        // Validate importedData shape. v4 (Phase 2 cutover) intentionally
+        // omits importedData — it's null by design, not malformed. We
+        // still want to run the per-row pull for that case, so detect v4
+        // (importedData strictly === null after parseSyncPayload) and
+        // continue with an empty-object placeholder; the per-row overlay
+        // step downstream will fill in every field from itemRow data.
+        // Anything else falsy/non-object is genuinely malformed → skip.
+        const isV4Cutover = importedData === null;
+        if (!isV4Cutover && (!importedData || typeof importedData !== 'object')) continue;
 
         // Preserve local wearableConnections — they're stripped from the push
         // payload (tokens stay per-device), so the remote blob never carries
@@ -2370,7 +2424,7 @@ async function onSyncReceived() {
             dbg('Could not read local wearableConnections for preserve:', e.message);
           }
         }
-        if (localWearableConnections) {
+        if (localWearableConnections && importedData) {
           importedData.wearableConnections = localWearableConnections;
         }
 
@@ -2392,9 +2446,12 @@ async function onSyncReceived() {
             dbg('Could not read local importedData for merge:', e.message);
           }
         }
+        // v4 cutover: importedData is null by design. Use local as the
+        // baseline; per-row overlay below fills in every field. v3 and
+        // older still merge blob-into-local as before.
         let merged = localImportedForMerge
-          ? mergeImportedData(localImportedForMerge, importedData)
-          : importedData;
+          ? (importedData ? mergeImportedData(localImportedForMerge, importedData) : localImportedForMerge)
+          : (importedData || {});
         // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER
         // the blob merge. Per-row state is authoritative — a tombstone
         // here drops the corresponding item even if the blob (which is
@@ -2426,13 +2483,17 @@ async function onSyncReceived() {
         // Use a structural id-set diff (not JSON.stringify equality) — JSON
         // serialization order varies with merge-insertion order and would
         // cause an infinite ping-pong rebroadcast across devices.
-        const needsRebroadcast = !!localImportedForMerge
+        // v4 cutover: importedData is null, so the diff is meaningless
+        // (per-row deltas already drove the merge). Skip the rebroadcast
+        // gate — per-row pushes don't have the "local has rows remote
+        // lacks" pathology since each row is its own CRDT message.
+        const needsRebroadcast = !!localImportedForMerge && !!importedData
           && localHasRowsRemoteLacks(localImportedForMerge, importedData);
         // Same diff in the *other* direction: did REMOTE bring rows local
         // didn't have? Used to gate the active-view re-render so we don't
         // wipe an in-progress form input on every pull where the merge
         // produced no observable change.
-        const remoteBroughtNewRows = !!localImportedForMerge
+        const remoteBroughtNewRows = !!localImportedForMerge && !!importedData
           && localHasRowsRemoteLacks(importedData, localImportedForMerge);
 
         // Persist the merged importedData. Always go through
@@ -2903,10 +2964,26 @@ export async function showSyncDiagnose() {
             </table>
             <div style="color:var(--text-muted);font-size:10px;margin-top:4px">Phase 2 (drop blob writes) would silently lose these surfaces. Trigger a save on each blocker, then re-check.</div>
           </div>`;
+        const cutoverEnabled = isPhase2CutoverEnabled(state.currentProfile);
+        // Cutover toggle: disabled when not READY (prevents accidental flip
+        // before the per-row datapath is proven). When already enabled, the
+        // button reads "Disable Phase 2" as an escape hatch — the user can
+        // always revert to dual-write.
+        const buttonHtml = cutoverEnabled
+          ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--orange);border-color:var(--orange)" onclick="window.confirmDisablePhase2(this)" title="Re-enables fat-blob writes alongside per-row deltas. Always allowed (escape hatch) — use if a Phase 2 device sees missing data on a peer.">Disable Phase 2</button>`
+          : (r.ready
+            ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--green);border-color:var(--green)" onclick="window.confirmEnablePhase2(this)" title="Drops the fat-blob from outbound pushes. Per-row CRDT deltas become the only carrier. Reversible via the Disable button.">Enable Phase 2</button>`
+            : `<button class="ctx-btn-option" style="font-size:11px;opacity:0.5;cursor:not-allowed" disabled title="Resolve the blockers below before enabling Phase 2. Trigger a save on each surface that has local data but no per-row push.">Enable Phase 2</button>`);
+        const cutoverBadge = cutoverEnabled
+          ? `<span style="color:var(--green);font-size:10px;font-weight:600;padding:2px 6px;border:1px solid var(--green);border-radius:3px;margin-left:6px">PHASE 2 ON</span>`
+          : '';
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <b>Phase 2 cutover readiness:</b>
-            <span style="color:${headerColor};font-weight:600">${headerLabel}</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">
+            <div><b>Phase 2 cutover readiness:</b>${cutoverBadge}</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:${headerColor};font-weight:600">${headerLabel}</span>
+              ${buttonHtml}
+            </div>
           </div>
           <div style="color:var(--text-muted);font-size:11px">${r.surfaceCount} surfaces tracked · ${okCount} ok · ${noDataCount} no-data · ${blockers.length} blocker${blockers.length === 1 ? '' : 's'}</div>
           <div style="color:var(--text-muted);font-size:11px;margin-top:4px">When this reads READY across both devices for ≥2 weeks <i>and</i> the dual-write ratio above sits &lt;5%, Phase 2 (drop the fat-blob writes entirely) is safe to ship.</div>
@@ -3022,6 +3099,56 @@ function confirmResetDeltaTelemetry(btn) {
   else doReset();
 }
 
+// "Enable Phase 2" — flips the fat-blob off for this profile on this
+// device. Gated behind getDeltaCutoverReadiness READY (the diagnose UI
+// already disables the button when not ready, but we re-check here as
+// defence-in-depth in case the modal HTML was tampered with). Uses
+// showConfirmDialog because this is a meaningful behaviour change with
+// a (deliberate) impact on what other devices see when pulling.
+function confirmEnablePhase2(btn) {
+  if (!state.currentProfile) return;
+  const r = getDeltaCutoverReadiness(state.currentProfile);
+  if (!r?.ready) {
+    try { showNotification('Phase 2 not ready — resolve blockers first', 'error'); } catch {}
+    return;
+  }
+  const message = `Enable Phase 2 sync cutover for this profile on this device?\n\nFrom now on, outbound pushes will NOT include the full importedData blob — only per-row CRDT deltas + the small profile/AI/chat envelope. Other devices on Phase 2 see no change. Devices still on v1.7.x dual-write also see no change (they keep their existing data and pull per-row updates as normal).\n\nReversible via the Disable button at any time.`;
+  const doEnable = () => {
+    const result = enablePhase2Cutover(state.currentProfile);
+    if (result.ok) {
+      try { showNotification('Phase 2 enabled — next push will use per-row only', 'success'); } catch {}
+      _logSyncEvent('cutover', `Phase 2 enabled for ${state.currentProfile.slice(0, 8)}`);
+      if (btn) {
+        const overlay = btn.closest?.('.modal-overlay');
+        if (overlay) overlay.remove();
+      }
+    } else {
+      try { showNotification(`Could not enable Phase 2 (${result.reason})`, 'error'); } catch {}
+    }
+  };
+  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doEnable);
+  else doEnable();
+}
+
+function confirmDisablePhase2(btn) {
+  if (!state.currentProfile) return;
+  const message = `Disable Phase 2 sync cutover for this profile on this device?\n\nReverts to dual-write — outbound pushes will again include the full importedData blob alongside per-row deltas. Use this if you see missing data on a peer device that hasn't received the per-row updates.\n\nNo data loss either way.`;
+  const doDisable = () => {
+    if (disablePhase2Cutover(state.currentProfile)) {
+      try { showNotification('Phase 2 disabled — back to dual-write', 'success'); } catch {}
+      _logSyncEvent('cutover', `Phase 2 disabled for ${state.currentProfile.slice(0, 8)}`);
+      if (btn) {
+        const overlay = btn.closest?.('.modal-overlay');
+        if (overlay) overlay.remove();
+      }
+    } else {
+      try { showNotification('Could not disable Phase 2', 'error'); } catch {}
+    }
+  };
+  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doDisable);
+  else doDisable();
+}
+
 // Toast users when they cross the 80% / 95% threshold the first time.
 // Uses a single-key marker so we don't re-fire on every push at the same
 // threshold; resets when the counter is reset (i.e. after compaction).
@@ -3131,4 +3258,9 @@ Object.assign(window, {
   resetDeltaTelemetry,
   confirmResetDeltaTelemetry,
   getDeltaCutoverReadiness,
+  isPhase2CutoverEnabled,
+  enablePhase2Cutover,
+  disablePhase2Cutover,
+  confirmEnablePhase2,
+  confirmDisablePhase2,
 });
