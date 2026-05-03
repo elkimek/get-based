@@ -2100,16 +2100,46 @@ export function openSunSessionDetail(id) {
       }
     } catch (e) {}
     const altStr = (loc?.altitudeM ?? 0) > 0 ? `${Math.round(loc.altitudeM)} m` : 'sea level';
-    // UVA / UVB split — integrates the reconstructed spectrum across each
-    // band. Defensive: if the engine hasn't reconstructed (no zenith yet),
-    // fall back to the Bird-Riordan approximation: UVB ≈ ~5% of total UV
-    // at midday, UVA ≈ ~95%. Real ratio shifts with zenith + ozone.
+    // UVA / UVB split — reconstruct the actual spectrum at session
+    // midpoint and integrate over each band:
+    //   UVB: 280–320 nm (vit-D synthesis + sunburn)
+    //   UVA: 320–400 nm (NO release, POMC, photoaging)
+    // Surfaces both the absolute irradiance (W/m²) and the percent split
+    // so users can see the real numbers, not a hand-waved fallback. No
+    // more `~5%` placeholder when ozoneDU is missing — Bird-Riordan
+    // already substitutes 300 DU internally so the spectrum is computed
+    // either way.
     let uvSplitStr = '';
-    if (atm.uvIndex != null && atm.uvIndex > 0) {
-      const uvbPct = atm.ozoneDU ? Math.max(2, Math.min(8, 6 - (atm.ozoneDU - 300) * 0.02)).toFixed(1) : '~5';
-      const uvaPct = (100 - parseFloat(uvbPct)).toFixed(1);
-      uvSplitStr = `UVB ~${uvbPct}% / UVA ~${uvaPct}%`;
-    }
+    try {
+      if (loc && window.reconstructSpectrum && window.solarZenithAngle && atm.uvIndex != null) {
+        const mid = new Date((sess.startedAt + sess.endedAt) / 2);
+        const z = window.solarZenithAngle(mid, loc.lat, loc.lon);
+        if (z < 90) {
+          const spec = window.reconstructSpectrum({
+            zenithDeg: z,
+            ozoneDU: atm.ozoneDU ?? 300,
+            altitudeM: loc.altitudeM ?? 0,
+            cloudCover: (atm.cloudCover ?? 0) / 100,
+            aod: atm?.airQuality?.aod ?? null,
+          });
+          const dl = 5;
+          let uvb = 0, uva = 0;
+          for (let i = 0; i < spec.irradiance.length; i++) {
+            const nm = spec.wavelengths[i];
+            if (nm > 400) break;
+            const e = spec.irradiance[i];
+            if (nm < 320) uvb += e * dl;
+            else uva += e * dl;
+          }
+          const total = uvb + uva;
+          if (total > 0.001) {
+            const uvbPct = (uvb / total * 100).toFixed(1);
+            const uvaPct = (uva / total * 100).toFixed(1);
+            uvSplitStr = `UVB ${uvbPct}% (${uvb.toFixed(1)} W/m²) · UVA ${uvaPct}% (${uva.toFixed(1)} W/m²)`;
+          }
+        }
+      }
+    } catch (e) {}
     atmHtml = `<div class="sun-detail-atm">
       <div title="WHO UV index at session midpoint${atm._uvOverridden ? ' (manual override active)' : ''}"><span>UVI${atm._uvOverridden ? ' (manual)' : ''}</span><strong>${uvi}</strong></div>
       <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through."><span>Ozone</span><strong>${ozone} DU</strong></div>
