@@ -531,6 +531,8 @@ return (async function() {
 
   assert('DELTA_MAPS list defined parallel to DELTA_ARRAYS',
     /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'markerNotes'/.test(syncSrc));
+  assert('DELTA_MAPS includes customMarkers (v1.7.4)',
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'customMarkers'/.test(syncSrc));
   assert('_planKeyedMapDelta defined',
     /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(syncSrc));
   assert('_planKeyedMapDelta validates key allowlist (no weird itemIds)',

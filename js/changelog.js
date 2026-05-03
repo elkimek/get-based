@@ -5,6 +5,13 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.4', date: '2026-05-03', title: 'customMarkers join the per-row datapath',
+    items: [
+      '<b>customMarkers — your user-defined biomarkers (from PDF import + manual creation) — now sync as per-row deltas.</b> Identical keyed-map shape to markerNotes, so the keyed-map planner shipped in v1.7.3 covers it with a one-line addition. Adding a custom marker now ships only that marker, not your full custom-marker registry.',
+      '<b>What\'s left on the blob.</b> Two arrays remain: <code>manualValues</code> (keys like <code>category.markerKey:date</code> contain a colon, which fails the allowlist regex — needs a synth-id pass like changeHistory got, queued for a follow-up) and <code>menstrualCycle</code> (singular scalar object, minimal per-row benefit, will likely stay on the blob path permanently). Phase 2 cutover blocker is now down to one fix-up.',
+    ]
+  },
+  {
     version: '1.7.3', date: '2026-05-03', title: 'markerNotes now sync as per-row deltas too',
     items: [
       '<b>Adds keyed-map shapes to the Phase 1 per-row datapath.</b> markerNotes — the freeform notes you can attach to any biomarker — was the last high-velocity surface still riding the fat-blob path. Now each marker note is its own per-row CRDT message: editing the note on glucose ships the note for glucose, not your entire health record.',

@@ -1051,7 +1051,11 @@ const DELTA_ARRAY_CONFIG = {
 // defence-in-depth posture as malformed `.id` fields on the array path.
 const DELTA_MAPS = [
   'markerNotes',         // user-attached freeform notes per marker, ~bytes per entry, frequent edits
+  'customMarkers',       // user-defined markers (PDF imports + manual creation), keyed by `category.markerKey`
 ];
+// NOT added: `manualValues` uses keys like `category.markerKey:date` whose
+// `:` fails the allowlist regex; needs a synth-id pass (similar to
+// changeHistory's field|date → field.dateMs treatment) before it can join.
 
 // Returns the localStorage key holding the last-pushed snapshot
 // (`{itemId: contentHash}`) for one (profileId, arrayName). Snapshot is
