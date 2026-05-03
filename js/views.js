@@ -152,12 +152,13 @@ export function renderLightTodayStrip() {
   if (weeklyIU >= 100) {
     // Surface the same uncertainty band as session detail. The weekly
     // total inherits each session's per-session uncertainty; using the
-    // central estimate × 0.6 / × 1.5 is a fair aggregate since the
-    // model errors are not strongly correlated session-to-session.
+    // central estimate ± 25% — aggregating across many sessions averages
+    // out per-session model error somewhat, so the band tightens vs the
+    // single-session model band (which is ±20-45% per zenith).
     const fmt = (n) => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
       : n >= 1000 ? Math.round(n / 100) * 100
       : Math.round(n / 10) * 10;
-    weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun exposure over the last 7 days, summed per session and Fitzpatrick-scaled. ±50% range reflects model + biological response variance — central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU * 0.6)}-${fmt(weeklyIU * 1.5)} IU vitamin D this week</span>`;
+    weeklyIUStr = `<span class="light-today-vitd" title="Central estimate of vitamin D₃ synthesized from sun over the last 7 days, summed per session and Fitzpatrick-scaled. ±25% range = model uncertainty (Bird-Riordan + Bass-Paur, aggregated). Inter-individual blood 25(OH)D response to the same UV dose adds a separate 2-3× variance — calibrate against your own labs over time. Central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU)} IU vitamin D this week (model: ${fmt(weeklyIU * 0.75)}–${fmt(weeklyIU * 1.25)})</span>`;
   }
 
   // Vit-D budget cross-check — shows today's combined sun-derived +

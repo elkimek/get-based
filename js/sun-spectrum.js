@@ -566,25 +566,44 @@ export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null) {
   return Math.min(raw, VITD_SATURATION_IU);
 }
 
-// Uncertainty band on the vitamin D estimate. Honest framing: the
-// simplified Bird-Riordan + Bass-Paur model claims ~25% relative
-// accuracy at noon, degrades to ~50% at high zenith. Inter-individual
-// 25(OH)D response variance for the same UV dose is another ~2-3×
-// (Webb 2018, Datta 2019) on top of model uncertainty. Combined, the
-// honest "I really might produce X IU" band is roughly 0.5×–2× the
-// central estimate. We use 0.6× / 1.5× — slightly tighter to keep the
-// band useful, but wide enough to capture model + biological variance.
+// Uncertainty band on the vitamin D estimate. Honest framing has two
+// independent components:
+//   • MODEL uncertainty: the simplified Bird-Riordan + Bass-Paur
+//     spectrum is ~20% accurate at high noon, degrades to ~50% at low
+//     sun. The band returned by this function reflects MODEL ONLY —
+//     "given the same skin and biology, the model could be this far off."
+//   • BIOLOGICAL variance: inter-individual 25(OH)D response for the
+//     SAME UV dose varies 2-3× (Webb 2018, Datta 2019) — gut absorption,
+//     adiposity, age, baseline status, supplement co-intake. This
+//     variance applies on TOP of the model band when comparing to
+//     blood labs, but isn't useful for "did this session contribute
+//     meaningfully" — for that the model band is what you want.
 //
-// Returns { central, low, high } in IU. UI surfaces the range so users
-// see when the model says "narrow band, trust this" (high UVI noon)
-// vs "wide band, calibrate against your own bloods" (anything off-noon).
-export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = null) {
+// We surface the model band by default. The session detail tooltip
+// notes that the actual blood response can be wider.
+//
+// `zenith` (degrees) tightens the band when supplied — at high noon the
+// model is much more accurate than at sunrise/sunset.
+//
+// Returns { central, low, high } in IU.
+export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = null, zenith = null) {
   const central = vitaminDIU(channelAu, fitzpatrick, uvi);
   if (central === 0) return { central: 0, low: 0, high: 0 };
+  // Per-zenith model uncertainty (multipliers for low/high band):
+  //   high noon (z ≤ 35°)    → ±20%   (model in its sweet spot)
+  //   morning/afternoon      → ±30%
+  //   low sun (z > 55°)      → ±45%   (Bird-Riordan accuracy degrades)
+  //   no zenith supplied     → ±35%   (legacy default — was 0.6/1.5)
+  let lowMul = 0.65, highMul = 1.35;
+  if (Number.isFinite(zenith)) {
+    if (zenith <= 35) { lowMul = 0.80; highMul = 1.20; }
+    else if (zenith <= 55) { lowMul = 0.70; highMul = 1.30; }
+    else { lowMul = 0.55; highMul = 1.45; }
+  }
   return {
-    central,
-    low: Math.max(0, Math.round(central * 0.6)),
-    high: Math.min(VITD_SATURATION_IU, Math.round(central * 1.5)),
+    central: Math.round(central),
+    low: Math.max(0, Math.round(central * lowMul)),
+    high: Math.min(VITD_SATURATION_IU, Math.round(central * highMul)),
   };
 }
 

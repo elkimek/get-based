@@ -169,16 +169,15 @@ const VITD_SAT_FLAG = 19000;
 // clinical threshold (Webb 2018: no meaningful vit D below UVI ~2-3).
 // Pass these from `sess.safety.fitzpatrick` and `sess.atmosphere.uvIndex`
 // respectively; fallback to 'III' / null.
-export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null) {
+export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (channelKey === 'vitamin_d') {
-    // Display the uncertainty band rather than a single point estimate.
-    // Bird-Riordan model is ~25% at noon / ~50% off-noon; biological
-    // 25(OH)D response variance adds another 2-3×. Honest framing:
-    // "~50-150 IU" instead of "~100 IU" — user understands the model
-    // says "roughly this much, not exact."
+    // Lead with the model's central estimate; surface the uncertainty
+    // band parenthetically when it would actually inform the user (band
+    // wider than ±10% of central). At high noon with known atm, the
+    // band is tight (~±20%); at low sun it widens to ±45%.
     const range = window.vitaminDIURange
-      ? window.vitaminDIURange(channelAu, fitzpatrick, uvi)
+      ? window.vitaminDIURange(channelAu, fitzpatrick, uvi, zenith)
       : { central: channelAu * 40, low: 0, high: 0 };
     if (range.central === 0) return 'below UVI threshold';
     if (range.central < 30) return 'minimal';
@@ -188,7 +187,12 @@ export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatric
       return Math.round(n / 10) * 10;
     };
     if (range.central >= VITD_SAT_FLAG) return `~${fmt(range.central)} IU (saturated)`;
-    return `~${fmt(range.low)}-${fmt(range.high)} IU`;
+    // Drop the band when it's narrow enough to be noise (single number
+    // is more readable). Otherwise lead with central + show range as
+    // model-uncertainty annotation.
+    const spread = (range.high - range.low) / Math.max(range.central, 1);
+    if (spread < 0.20) return `~${fmt(range.central)} IU`;
+    return `~${fmt(range.central)} IU (model: ${fmt(range.low)}–${fmt(range.high)})`;
   }
   if (channelKey === 'nir_solar' || channelKey === 'pbm_red' || channelKey === 'pbm_nir') {
     const j = window.pbmJoulesPerCm2 ? window.pbmJoulesPerCm2(channelAu) : channelAu / 10000;
@@ -2058,6 +2062,15 @@ export function openSunSessionDetail(id) {
   // surface where defensible; tier-only for channels without a clean
   // single SI unit. See sun-spectrum.js {vitaminDIU, pbmJoulesPerCm2,
   // circadianMelanopicLux} for the conversions and their sources.
+  // Compute zenith at session midpoint once so vit-D's uncertainty band
+  // can tighten when conditions are favorable (high noon clear sky).
+  let sessZenith = null;
+  try {
+    if (sess.startedAt && sess.endedAt && sess.location && window.solarZenithAngle) {
+      const midDate = new Date((sess.startedAt + sess.endedAt) / 2);
+      sessZenith = window.solarZenithAngle(midDate, sess.location.lat, sess.location.lon);
+    }
+  } catch (e) {}
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   const channelRows = sess.doses ? channelOrder.map(k => {
     const meta = CHANNEL_DISPLAY[k] || {};
@@ -2066,7 +2079,7 @@ export function openSunSessionDetail(id) {
     const tlabel = tierLabel(t);
     const target = meta.dailyTarget || 0;
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex);
+    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith);
     const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
     return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
@@ -2170,7 +2183,7 @@ export function openSunSessionDetail(id) {
         <div><span>Ended</span><strong>${escapeHTML(end ? fmtTime(end) : '—')}</strong></div>
         <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
         <div><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
-        ${sess.doses?.vitamin_d ? `<div title="Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}. Gated by UVI threshold (Webb 2018: no meaningful synthesis below UVI ~2-3). Saturates around 20k IU per session."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex))}</strong></div>` : ''}
+        ${sess.doses?.vitamin_d ? `<div title="Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}. Gated by UVI threshold (Webb 2018: no meaningful synthesis below UVI ~2-3). Saturates around 20k IU per session. Range = MODEL uncertainty (±20% noon, ±45% low sun); blood 25(OH)D response to the same dose varies an additional 2-3× across individuals (Webb 2018, Datta 2019) — calibrate against your own labs over time."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith))}</strong></div>` : ''}
       </div>
 
       <div class="sun-detail-section">
