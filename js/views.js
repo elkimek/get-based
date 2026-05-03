@@ -572,7 +572,15 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   // ipRGC entrainment, eye-skin α-MSH cascade, retinal dopamine release).
   const { firstUVA, lastUVA } = _computeUvaWindow(coords, sunrise || new Date());
   const events = [];
-  if (sunrise) events.push({ icon: '↑', label: _fmtTime(sunrise), ts: new Date(sunrise).getTime(), kind: 'sunrise', tooltip: 'Geometric sunrise — sun crosses horizon. UV-A still negligible, eye-light barely above twilight.' });
+  // Sun-arc icon language (deliberately distinct so no two events share
+  // the same emoji meaning):
+  //   🌅 = geometric sunrise   (universal "sun crossing horizon")
+  //   ◐  = UV-A on (rising)    (half-sun rising — biological dawn)
+  //   ☀  = peak UVI            (solar noon)
+  //   ◑  = UV-A off (setting)  (half-sun setting — biological dusk)
+  //   🌇 = geometric sunset    (universal "sun below horizon")
+  //   ⏵  = now                 (current time pointer)
+  if (sunrise) events.push({ icon: '🌅', label: _fmtTime(sunrise), ts: new Date(sunrise).getTime(), kind: 'sunrise', tooltip: 'Geometric sunrise — sun crosses horizon. UV-A still negligible, eye-light barely above twilight.' });
   // Local-time HH:MM formatter — matches the format Open-Meteo returns
   // (YYYY-MM-DDTHH:MM in the requested timezone) so all events on the
   // sun-arc row are in the same timezone.
@@ -582,8 +590,8 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   };
   if (firstUVA) {
     events.push({
-      icon: '🌅',
-      label: `${localHHMM(firstUVA)} · 1st UV-A`,
+      icon: '◐',
+      label: `${localHHMM(firstUVA)} · UV-A on`,
       ts: firstUVA.getTime(),
       kind: 'first-uva',
       uvaEvent: true,
@@ -593,24 +601,24 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   if (peakAt)  events.push({ icon: '☀', label: `${_fmtTime(peakAt)}${peakUvi != null ? ` · UVI ${peakUvi.toFixed(1)}` : ''}`, ts: new Date(peakAt).getTime(), peak: true, kind: 'peak', tooltip: 'Solar noon — UVI at its daily maximum.' });
   if (lastUVA) {
     events.push({
-      icon: '🌆',
-      label: `${localHHMM(lastUVA)} · last UV-A`,
+      icon: '◑',
+      label: `${localHHMM(lastUVA)} · UV-A off`,
       ts: lastUVA.getTime(),
       kind: 'last-uva',
       uvaEvent: true,
       tooltip: 'Sun drops below ~5° elevation — UV-A fades from the surface. Biological dusk window closes; melatonin synthesis ramps up.',
     });
   }
-  if (sunset)  events.push({ icon: '↓', label: _fmtTime(sunset), ts: new Date(sunset).getTime(), kind: 'sunset', tooltip: 'Geometric sunset — sun drops below horizon. UV-A already gone for ~30-60 min.' });
+  if (sunset)  events.push({ icon: '🌇', label: _fmtTime(sunset), ts: new Date(sunset).getTime(), kind: 'sunset', tooltip: 'Geometric sunset — sun drops below horizon. UV-A already gone for ~30-60 min.' });
   const nowTs = Date.now();
   // Find next upcoming event for the "now" actionable readout
   const upcoming = events.filter(e => e.ts > nowTs).sort((a, b) => a.ts - b.ts);
   const nextEvent = upcoming[0];
   const nextEventLabel = nextEvent ? ({
     sunrise: 'sunrise',
-    'first-uva': '1st UV-A',
+    'first-uva': 'UV-A on',
     peak: 'peak',
-    'last-uva': 'last UV-A',
+    'last-uva': 'UV-A off',
     sunset: 'sunset',
   })[nextEvent.kind] : null;
   const minsToNext = nextEvent ? Math.round((nextEvent.ts - nowTs) / 60000) : null;
