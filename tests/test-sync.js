@@ -581,7 +581,7 @@ return (async function() {
   assert('pushProfile uses _planKeyedMapDelta for map shapes',
     /_planKeyedMapDelta\(profileId,\s*mapName,\s*obj\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported routes map vs array by DELTA_MAPS membership',
-    /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,500}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
+    /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,4000}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
   assert('Map-shape merge writes to imported[arrayName][rawKey] (preserves original key)',
     /imported\[arrayName\]\[rawKey\]\s*=\s*v/.test(syncSrc));
   assert('Map-shape merge deletes tombstoned keys from the object via synth-id reverse-lookup',
@@ -604,6 +604,44 @@ return (async function() {
     assert('Key with colon fails allowlist (would be skipped by planner)',
       !/^[a-zA-Z0-9_.-]+$/.test('weird:key'));
   }
+
+  // ═══════════════════════════════════════
+  // 14a-3. DELTA_SCALARS — singleton fields (menstrualCycle, context cards)
+  // ═══════════════════════════════════════
+  console.log('%c 14a-3. Delta Scalars (singleton fields) ', 'font-weight:bold;color:#f59e0b');
+
+  assert('DELTA_SCALARS list defined alongside DELTA_ARRAYS / DELTA_MAPS',
+    /const DELTA_SCALARS\s*=\s*\[/.test(syncSrc));
+  assert('DELTA_SCALARS includes menstrualCycle (closes Phase 2 blocker)',
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,500}'menstrualCycle'/.test(syncSrc));
+  assert('DELTA_SCALARS includes the 8 context cards',
+    /'diagnoses'/.test(syncSrc) && /'diet'/.test(syncSrc) && /'exercise'/.test(syncSrc) && /'sleepRest'/.test(syncSrc) && /'lightCircadian'/.test(syncSrc) && /'stress'/.test(syncSrc) && /'loveLife'/.test(syncSrc) && /'environment'/.test(syncSrc));
+  assert('DELTA_SCALARS includes domain modules (genetics, biometrics, lightEnvironment)',
+    /'genetics'/.test(syncSrc) && /'biometrics'/.test(syncSrc) && /'lightEnvironment'/.test(syncSrc));
+  assert('DELTA_SCALARS includes free-form text fields',
+    /'interpretiveLens'/.test(syncSrc) && /'contextNotes'/.test(syncSrc));
+  assert('_planScalarDelta defined',
+    /async function _planScalarDelta\(profileId,\s*scalarName,\s*scalarValue\)/.test(syncSrc));
+  assert('_planScalarDelta wraps payload as {v: value}',
+    /_planScalarDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*v:\s*scalarValue\s*\}/.test(syncSrc));
+  assert('_planScalarDelta picks most-recently-synced when multiple rows exist',
+    /_planScalarDelta[\s\S]{0,800}sort\(\(a,\s*b\)\s*=>\s*String\(b\.syncedAt[\s\S]{0,200}\.localeCompare\(String\(a\.syncedAt/.test(syncSrc));
+  assert('_planScalarDelta emits tombstones only on non-null → null transition',
+    /_planScalarDelta[\s\S]{0,3000}prev\[scalarName\]\s*&&\s*canonical\s*&&\s*!canonical\.isDeleted[\s\S]{0,800}kind:\s*'tombstone'/.test(syncSrc));
+  assert('_planScalarDelta treats empty-string + null + undefined as absence (parity with blob)',
+    /_planScalarDelta[\s\S]{0,2000}hasValue\s*=\s*scalarValue\s*!==\s*null[\s\S]{0,200}!==\s*undefined[\s\S]{0,200}length\s*===\s*0/.test(syncSrc));
+  assert('pushProfile loops DELTA_SCALARS after DELTA_MAPS',
+    /for \(const mapName of DELTA_MAPS\)[\s\S]{0,800}for \(const scalarName of DELTA_SCALARS\)/.test(syncSrc));
+  assert('pushProfile uses _planScalarDelta',
+    /_planScalarDelta\(profileId,\s*scalarName,\s*value\)/.test(syncSrc));
+  assert('Pull-side branch routes scalars via _DELTA_SCALARS_SET',
+    /_DELTA_SCALARS_SET\s*=\s*new Set\(DELTA_SCALARS\)[\s\S]{0,800}_DELTA_SCALARS_SET\.has\(arrayName\)/.test(syncSrc));
+  assert('Pull-side scalar branch ignores foreign rows in the same slot (defence-in-depth)',
+    /row\.itemId\s*!==\s*arrayName[\s\S]{0,80}continue/.test(syncSrc));
+  assert('Pull-side scalar tombstone wins LWW only when at-or-newer than live',
+    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,200}imported\[arrayName\]\s*=\s*null/.test(syncSrc));
+  assert('Pull-side scalar live row writes imported[arrayName] = chosen.v',
+    /imported\[arrayName\]\s*=\s*chosen\.v/.test(syncSrc));
 
   // ═══════════════════════════════════════
   // 14b. PHASE 1 DUAL-WRITE TELEMETRY (observability for cutover decision)

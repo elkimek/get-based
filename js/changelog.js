@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.6', date: '2026-05-03', title: 'Scalar fields join the per-row datapath',
+    items: [
+      '<b>The remaining 18 singleton fields now sync as per-row deltas.</b> Until v1.7.5 these (menstrualCycle, the 8 context cards, genetics/DNA, biometrics, lightEnvironment, sunCorrelations, lifelightProfile, sunDefaults, emfAssessment, interpretiveLens, contextNotes) were the actual reason the fat blob couldn\'t fully drop in Phase 2 — they\'re not enumerable as items, so no array/map planner could touch them. Without this patch, Phase 2 would have silently stopped syncing all of them.',
+      '<b>How the scalar planner works.</b> One <code>itemRow</code> per scalar per profile, itemId = the field name itself (<code>menstrualCycle</code>, <code>diet</code>, etc). Payload = <code>{v: value}</code> so the value can be any JSON shape. On edit, the row updates; on initial null→object transition, the row inserts; on object→null (you cleared a card), the row tombstones. Latest-write-wins between live and tombstone using <code>syncedAt</code>, so an old delete can\'t obliterate a fresh edit even with cross-device clock skew.',
+      '<b>Conservative tombstoning.</b> A scalar that\'s never been set (default <code>null</code>) doesn\'t emit anything — only a non-null → null transition fires a tombstone. Same logic as the array path\'s "no row exists yet" guard, scaled to the scalar shape.',
+      '<b>Phase 2 is now genuinely complete.</b> Every importedData field — 10 arrays + 3 keyed maps + 18 scalars — has a per-row datapath. Once the cross-device bake clock completes, dropping the fat-blob writes is a one-line change with no data-loss risk for any user surface.',
+    ]
+  },
+  {
     version: '1.7.5', date: '2026-05-03', title: 'manualValues — Phase 2 cutover blocker cleared',
     items: [
       '<b>manualValues now sync as per-row deltas — last array on the blob path is gone.</b> manualValues holds membership flags for entry values you typed in by hand (vs imported from a PDF), keyed by <code>category.markerKey:date</code>. The colon in those keys failed the row-itemId allowlist regex; this patch adds optional per-map <code>keyIdFn</code> support so a map can synthesize an allowlist-safe itemId while the payload preserves the original colon-bearing key for pull-side reconstruction.',

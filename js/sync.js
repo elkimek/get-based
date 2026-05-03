@@ -1055,6 +1055,28 @@ const DELTA_MAPS = [
   'manualValues',        // membership flags for manually-typed entry values, keyed `category.markerKey:date` (synth-id)
 ];
 
+// Singleton-shape importedData fields (scalars — null/object/string defaults
+// that flip wholesale on edit). Until v1.7.6 these were the entire reason
+// menstrualCycle / context cards / DNA / etc still rode the fat blob path:
+// they're not enumerable as items, so no array/map planner could touch
+// them. Phase 2 cutover would have silently stopped syncing all of these.
+//
+// Each scalar gets ONE itemRow per profile, itemId = the scalar's field
+// name. Payload is `{v: scalarValue}` so the value can be any JSON
+// (object, string, number, null after delete). On edit, the row updates;
+// on initial null→object transition, the row inserts; on object→null the
+// row tombstones (semantically: "this scalar has been cleared").
+const DELTA_SCALARS = [
+  // Context cards
+  'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian',
+  'stress', 'loveLife', 'environment',
+  // Free-form text on the dashboard
+  'interpretiveLens', 'contextNotes',
+  // Domain modules
+  'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics',
+  'lightEnvironment', 'sunCorrelations', 'lifelightProfile', 'sunDefaults',
+];
+
 // Per-map overrides parallel to DELTA_ARRAY_CONFIG. `keyIdFn(rawKey)`
 // derives the row's itemId from the map key when the raw key isn't
 // allowlist-safe; the original raw key still travels in the payload's
@@ -1228,6 +1250,58 @@ async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   return { ops, next };
 }
 
+// Scalar planner. Singleton-shape fields (menstrualCycle, context cards,
+// DNA, etc) — one itemRow per scalar, itemId = the scalar's field name.
+// Payload is `{v: value}` for symmetry with the map shape (and so the
+// pull side can defensively check `parsed` is an object before reading).
+// Tombstones emit when the scalar transitions from non-null → null/undefined
+// (real user intent: "I cleared this card"); they DON'T emit on initial
+// load when the scalar has always been null (no prev snapshot row exists).
+async function _planScalarDelta(profileId, scalarName, scalarValue) {
+  const prev = _readDeltaSnapshot(profileId, scalarName);
+  const next = {};
+  const ops = [];
+
+  const allItemRows = (evolu && itemRowQuery) ? (evolu.getQueryRows(itemRowQuery) || []) : [];
+  const matching = allItemRows.filter(r => r.profileId === profileId && r.arrayName === scalarName);
+  // Only one row per scalar; if multiples slipped in (e.g. a v1.7.5-era
+  // race), use the most-recently-synced as canonical so the next update
+  // overwrites that one and the others naturally fade.
+  const canonical = matching.length === 0
+    ? null
+    : matching.slice().sort((a, b) => String(b.syncedAt || '').localeCompare(String(a.syncedAt || '')))[0];
+  // Empty / null / undefined treated as absence — same posture as the
+  // existing blob path, where buildSyncPayload sends null and the merger
+  // treats it as "no opinion this push".
+  const hasValue = scalarValue !== null && scalarValue !== undefined
+    && !(typeof scalarValue === 'string' && scalarValue.length === 0);
+
+  if (hasValue) {
+    const payloadObj = { v: scalarValue };
+    const json = JSON.stringify(payloadObj);
+    const hash = _djb2(json);
+    next[scalarName] = hash;
+    if (prev[scalarName] !== hash) {
+      let payload = json;
+      if (typeof CompressionStream !== 'undefined' && json.length > 256) {
+        try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
+      }
+      const syncedAt = new Date().toISOString();
+      if (canonical) {
+        ops.push({ kind: 'update', args: { id: canonical.id, profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt } });
+      } else {
+        ops.push({ kind: 'insert', args: { profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt } });
+      }
+    }
+  } else if (prev[scalarName] && canonical && !canonical.isDeleted) {
+    // non-null → null transition. Conservative tombstone — only emit if
+    // we previously pushed a value (prev hash exists) AND a row actually
+    // exists for it. Skips the boot-with-default-null case.
+    ops.push({ kind: 'tombstone', args: { id: canonical.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+  }
+  return { ops, next };
+}
+
 // Apply the planned ops via Evolu. Called from pushProfile's onComplete
 // after the fat-blob push lands; on failure we leave the snapshot
 // untouched so the next push retries the same delta automatically.
@@ -1272,7 +1346,54 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
   _pullDeltaSnapshot.perArray = {};
   _pullDeltaSnapshot.mergedAt = Date.now();
   const _DELTA_MAPS_SET = new Set(DELTA_MAPS);
+  const _DELTA_SCALARS_SET = new Set(DELTA_SCALARS);
   for (const [arrayName, arrRows] of byArray) {
+    // Scalar shape (menstrualCycle, context cards, DNA, etc) — one row
+    // per scalar field. Pick the most recent live row, set
+    // imported[arrayName] = parsed.v. A tombstone clears the field
+    // (sets to null) — same posture the blob path had when the user
+    // explicitly cleared a card.
+    if (_DELTA_SCALARS_SET.has(arrayName)) {
+      let live = 0, tombs = 0;
+      let chosen = null;
+      let chosenAt = '';
+      let tombstoned = false;
+      let tombstonedAt = '';
+      for (const row of arrRows) {
+        if (row.itemId !== arrayName) continue; // defence: ignore foreign rows in this slot
+        if (row.isDeleted) {
+          if (String(row.syncedAt || '') > tombstonedAt) {
+            tombstoned = true;
+            tombstonedAt = String(row.syncedAt || '');
+          }
+          tombs++;
+          continue;
+        }
+        try {
+          let json = row.payload;
+          if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
+            if (typeof DecompressionStream === 'undefined') continue;
+            json = await _gunzipToString(_base64ToBytes(json.slice(6)));
+          }
+          const parsed = JSON.parse(json);
+          if (!parsed || typeof parsed !== 'object') continue;
+          // Prefer the most-recently-synced live row when multiples exist.
+          const ts = String(row.syncedAt || '');
+          if (ts > chosenAt) { chosen = parsed; chosenAt = ts; }
+          live++;
+        } catch {}
+      }
+      // Latest write wins between live + tombstone — tombstone only
+      // overwrites when its syncedAt is at-or-newer than the chosen
+      // live row (otherwise an old delete would obliterate a fresh edit).
+      if (tombstoned && tombstonedAt >= chosenAt) {
+        imported[arrayName] = null;
+      } else if (chosen) {
+        imported[arrayName] = chosen.v;
+      }
+      _pullDeltaSnapshot.perArray[arrayName] = { live, tombstones: tombs };
+      continue;
+    }
     // Keyed-map shape (markerNotes etc) reconstructs an object, not an
     // array. Same itemRow source, different output container — payload
     // carries `{k, v}` so we can verify the row's itemId column matches
@@ -1570,6 +1691,22 @@ async function pushProfile(profileId, importedData, opts = {}) {
           }
         } catch (e) {
           console.warn(`[sync] delta-plan map ${mapName} failed:`, e?.message || e);
+        }
+      }
+      // Scalars (menstrualCycle / context cards / DNA / etc) — one row
+      // per scalar. Without this loop, Phase 2 (drop blob writes) would
+      // silently stop syncing all 18 scalar fields. Same plan/apply
+      // contract so telemetry + cap watchdog cover them uniformly.
+      for (const scalarName of DELTA_SCALARS) {
+        const value = importedData[scalarName];
+        try {
+          const plan = await _planScalarDelta(profileId, scalarName, value);
+          if (plan.ops.length > 0) {
+            deltaPlans.push({ arrayName: scalarName, plan });
+            deltaOpCount += plan.ops.length;
+          }
+        } catch (e) {
+          console.warn(`[sync] delta-plan scalar ${scalarName} failed:`, e?.message || e);
         }
       }
     }
