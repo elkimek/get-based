@@ -81,6 +81,40 @@ return (async function() {
     syncSrc.includes("Invalid sync payload: unknown shape"));
   assert('parseSyncPayload validates payload type', syncSrc.includes("typeof dataJson !== 'string'"));
 
+  // v1.6.3: gzip envelope. Pushes >1 KB get compressed before storing
+  // in Evolu's CRDT log; cuts the per-message size ~3× and pushes the
+  // per-owner quota wedge from "every 2 days" toward "weeks/months".
+  assert('buildSyncPayload gzip envelope (>1 KB compressed)',
+    /CompressionStream/.test(syncSrc) && /GZ\|v1\|/.test(syncSrc) && /inner\.length > 1024/.test(syncSrc));
+  assert('parseSyncPayload detects + decompresses gzip envelope',
+    /dataJson\.startsWith\('GZ\|v1\|'\)/.test(syncSrc) && /DecompressionStream/.test(syncSrc));
+  assert('parseSyncPayload caps decompressed size (zip-bomb guard)',
+    /decompressed size exceeds cap/.test(syncSrc));
+  assert('parseSyncPayload is async (gzip decode)', /async function parseSyncPayload/.test(syncSrc));
+
+  // Live gzip round-trip — exercises CompressionStream/DecompressionStream
+  // the same way the push/pull paths will. Catches a future regression
+  // where the envelope encoding diverges from the decoder.
+  if (typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined') {
+    const sample = JSON.stringify({ _v: 3, importedData: { entries: Array.from({length: 50}, (_, i) => ({ id: `e${i}`, date: '2026-05-03', values: { 'biochemistry.glucose': 5.4 } })) } });
+    const gzStream = new Blob([sample]).stream().pipeThrough(new CompressionStream('gzip'));
+    const gzBytes = new Uint8Array(await new Response(gzStream).arrayBuffer());
+    let b64 = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < gzBytes.length; i += CHUNK) b64 += String.fromCharCode.apply(null, gzBytes.subarray(i, i + CHUNK));
+    b64 = btoa(b64);
+    const envelope = `GZ|v1|${b64}`;
+    assert('gzip envelope is meaningfully smaller than plain JSON',
+      envelope.length < sample.length * 0.85,
+      `plain ${sample.length} → envelope ${envelope.length} (${Math.round(envelope.length/sample.length*100)}%)`);
+    // Decompress side: rebuild bytes, gunzip, parse
+    const decoded = atob(envelope.slice(6));
+    const back = new Uint8Array(decoded.length);
+    for (let i = 0; i < decoded.length; i++) back[i] = decoded.charCodeAt(i);
+    const ungz = await new Response(new Blob([back]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    assert('gzip envelope round-trips to identical JSON', ungz === sample);
+  }
+
   // ═══════════════════════════════════════
   // 3. AI SETTINGS SYNC
   // ═══════════════════════════════════════
@@ -164,7 +198,10 @@ return (async function() {
 
   assert('pushProfile guards on _syncing', syncSrc.includes('!_syncing') && syncSrc.includes('_syncing = true'));
   assert('pushProfile uses insert/update pattern', syncSrc.includes('evolu.insert(') && syncSrc.includes('evolu.update('));
-  assert('onDataSaved has 2s debounce', syncSrc.includes('}, 2000)'));
+  // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
+  // blob (~500 KB pre-gzip), so coalescing editing bursts directly reduces
+  // the rate at which the relay's per-owner quota fills.
+  assert('onDataSaved has 10s debounce', syncSrc.includes('}, 10_000)'));
   assert('onDataSaved captures profileId at schedule time', syncSrc.includes('const profileId = state.currentProfile') && syncSrc.includes('pushProfile(profileId'));
   assert('onDataSaved retries if _syncing', syncSrc.includes('if (_syncing)') && syncSrc.includes('pushProfile(profileId, data)'));
   // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip

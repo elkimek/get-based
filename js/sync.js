@@ -367,7 +367,7 @@ async function _reconcileLocalStorageWithEvolu() {
   if (!existing) return;
   let remoteImported;
   try {
-    const parsed = parseSyncPayload(existing.dataJson);
+    const parsed = await parseSyncPayload(existing.dataJson);
     remoteImported = parsed?.importedData || null;
   } catch {
     // Malformed row → reconciliation can't reason about it. The user can
@@ -731,7 +731,7 @@ async function buildSyncPayload(profileId, importedData) {
   // tokens stay local. Users connect each wearable per-device — see the note
   // in the Settings → Integrations panel.
   const safeImported = stripWearableCredentials(importedData);
-  return JSON.stringify({
+  const inner = JSON.stringify({
     _v: 3,
     importedData: safeImported,
     profile: profile || null,
@@ -739,6 +739,53 @@ async function buildSyncPayload(profileId, importedData) {
     chatData: chatData || undefined,
     displayPrefs: displayPrefs || undefined,
   });
+  // Gzip + base64 envelope. v3 plain-JSON pushes were averaging ~500 KB,
+  // hitting the relay's 50 MB per-owner cap in ~95 pushes (≈2 days of
+  // moderate use) since Evolu stores every CRDT message in evolu_message
+  // and we ship the entire blob each push. Gzip drops typical payloads
+  // ~70%, base64 reinflates ~33%, net ~3× more pushes per quota.
+  // Discriminator: pre-existing v3 plain JSON starts with "{"; the new
+  // envelope starts with "GZ|" which is unambiguously not JSON. The
+  // 1 KB threshold avoids spending the round-trip on tiny payloads
+  // where gzip overhead dominates.
+  if (typeof CompressionStream !== 'undefined' && inner.length > 1024) {
+    try {
+      const gz = await _gzipString(inner);
+      return `GZ|v1|${_bytesToBase64(gz)}`;
+    } catch {
+      // Fall through to plain JSON. Never block a push on a compression
+      // glitch — the relay accepts both formats.
+    }
+  }
+  return inner;
+}
+
+async function _gzipString(str) {
+  const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
+  const buf = await new Response(stream).arrayBuffer();
+  return new Uint8Array(buf);
+}
+
+async function _gunzipToString(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(stream).text();
+}
+
+function _bytesToBase64(bytes) {
+  let s = '';
+  // Chunked to avoid the call-stack-size cap on huge spreads (~100 KB+).
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(s);
+}
+
+function _base64ToBytes(b64) {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
 }
 
 function stripWearableCredentials(importedData) {
@@ -753,11 +800,25 @@ function stripWearableCredentials(importedData) {
 // relay's blast radius.
 const MAX_SYNC_PAYLOAD_BYTES = 5_000_000;
 
-function parseSyncPayload(dataJson) {
+async function parseSyncPayload(dataJson) {
   if (typeof dataJson !== 'string' || dataJson.length > MAX_SYNC_PAYLOAD_BYTES) {
     throw new Error('Invalid sync payload: bad type or too large');
   }
-  const parsed = JSON.parse(dataJson);
+  // Gzip envelope: "GZ|v1|<base64>". Decompress before JSON.parse.
+  // Plain v3 payloads still start with "{" and skip this branch.
+  let inner = dataJson;
+  if (dataJson.startsWith('GZ|v1|')) {
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('Invalid sync payload: gzip envelope but no DecompressionStream');
+    }
+    const b64 = dataJson.slice(6);
+    const bytes = _base64ToBytes(b64);
+    inner = await _gunzipToString(bytes);
+    if (inner.length > MAX_SYNC_PAYLOAD_BYTES) {
+      throw new Error('Invalid sync payload: decompressed size exceeds cap');
+    }
+  }
+  const parsed = JSON.parse(inner);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Invalid sync payload');
   }
@@ -1294,8 +1355,9 @@ async function onSyncReceived() {
         // bug that leaves users insisting it's broken.
         dbg(`Row ${profileId.slice(0,8)}: PULLING (remote ${remoteUpdated}, local ${localUpdated})`);
 
-        // Remote is newer — parse payload
-        const { importedData, profile, aiSettings, chatData, displayPrefs } = parseSyncPayload(row.dataJson);
+        // Remote is newer — parse payload (async because the gzip envelope
+        // routes through DecompressionStream)
+        const { importedData, profile, aiSettings, chatData, displayPrefs } = await parseSyncPayload(row.dataJson);
 
         // Track latest AI settings (apply once, from most recent row)
         if (aiSettings && remoteUpdated > latestAiTs) {
@@ -1531,7 +1593,7 @@ export function onDataSaved() {
         } else {
           pushProfile(profileId, data);
         }
-      }, 2000);
+      }, 10_000);
       _debounceTimers.set(profileId, timer);
     }
   }

@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.4', date: '2026-05-03', title: 'Sync storage — gzipped pushes + longer debounce',
+    items: [
+      '<b>Each sync push now ships compressed.</b> Your full health record was being uploaded uncompressed every time you saved a change (~500 KB per push). With gzip + base64 envelope it\'s ~150 KB — about 3× more pushes before the relay\'s per-owner storage cap.',
+      '<b>Edit-burst coalescing improved.</b> Push debounce went from 2 seconds to 10 seconds, so a flurry of saves (typing a long note, logging multiple sun sessions, scrolling through context cards) now syncs as one push instead of 5–10. Your changes still arrive on other devices within a few seconds — just not <i>immediately</i> per keystroke.',
+      '<b>Combined effect.</b> The relay storage cap that triggered "phone says push committed but desktop sees stale data" should now take roughly 10× longer to fill under typical use. We still need to give you a quota indicator in the sync UI + an in-app self-service compact button — coming in a follow-up release.',
+      '<b>Backwards compatible.</b> Old uncompressed pushes from devices on older versions still parse cleanly; this device gracefully falls back to plain JSON if the browser somehow lacks gzip support (it won\'t — every browser since 2023 has it).',
+    ]
+  },
+  {
     version: '1.6.3', date: '2026-05-03', title: 'Sync reliability fix',
     items: [
       '<b>Cross-device sync no longer strands rows behind a "content already applied" skip.</b> The skip path was misfiring when the local hash key matched the relay row\'s bytes but the actual local state had drifted (e.g. after manual data edits or upgrades from a prior version). Sync now always applies remote rows through the union-merge — re-applying matching bytes is a no-op, but stale state finally catches up. If you saw "Skip — content already applied" in the activity log while a phone-side session was missing on the desktop, this is the fix.',
