@@ -5482,7 +5482,16 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   margin: 4px 0 0 0; padding-left: 18px;
   font-size: 11px; color: var(--text-secondary); line-height: 1.55;
 }
-.light-channel-cit-refs li { margin-bottom: 4px; }
+.light-channel-cit-refs li { margin-bottom: 8px; }
+/* "Why this paper matters" tag under each citation — gives the user a
+   one-line reason to choose between papers instead of staring at three
+   bare titles. Indented + lower-contrast so it reads as annotation, not
+   another link. */
+.light-channel-cit-why {
+  margin-top: 2px; padding-left: 2px;
+  font-size: 11px; line-height: 1.45; color: var(--text-muted);
+  font-style: italic;
+}
 .light-channel-cit-refs a { color: var(--accent); text-decoration: none; }
 .light-channel-cit-refs a:hover { text-decoration: underline; }
 

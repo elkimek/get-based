@@ -1343,48 +1343,96 @@ function renderChannelPills(totals7d, totals30d) {
 
 // Per-channel scientific citations + action spectrum. Surfaced inside the
 // drill-down panel so biohackers can audit which biology each pill encodes.
+// Per-channel citations curated for fit + accessibility. Each entry is
+// { cite, href, why }: the citation string, an open-access landing page
+// (PubMed PMID or DOI), and a one-line "why this paper matters" tag so
+// users can self-select what to read instead of staring at a list of
+// titles. Selection priority: directly on-channel > foundational
+// mechanism > population/RCT confirmation. Avoid tangential papers
+// (e.g. measurement-methodology unless the engine uses that standard).
 const CHANNEL_CITATIONS = {
   vitamin_d: {
     spectrum: 'Pre-vitamin-D action spectrum (CIE 174:2006), peak ~298 nm UVB',
     refs: [
-      ['Holick MF (2008). "Vitamin D Deficiency." NEJM 357:266', 'https://www.nejm.org/doi/full/10.1056/NEJMra070553'],
-      ['Bogh MK & Wulf HC (2010). "Vitamin D production after UVB exposure depends on baseline 25(OH)D and total cholesterol." J Invest Dermatol 130:546', 'https://pubmed.ncbi.nlm.nih.gov/19812604/'],
-      ['Webb AR (2018). "The role of sunlight exposure in determining the vitamin D status of the U.K. white adult population." Br J Dermatol 179:1142', 'https://onlinelibrary.wiley.com/doi/10.1111/bjd.16805'],
+      { cite: 'Webb AR & Engelsen O (2006). "Calculated ultraviolet exposure levels for a healthy vitamin D status." Photochem Photobiol 82:1697',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/17017847/',
+        why: 'Dose-response calculations that justify the UVI ≥ 2-3 threshold the engine uses' },
+      { cite: 'Holick MF (2007). "Vitamin D Deficiency." NEJM 357:266',
+        href: 'https://www.nejm.org/doi/full/10.1056/NEJMra070553',
+        why: 'Most-cited modern clinical review of the vitamin D pathway and 20k IU per-session photoisomerization plateau' },
+      { cite: 'Bogh MK & Wulf HC (2010). "Vitamin D production after UVB exposure depends on baseline 25(OH)D and total cholesterol." J Invest Dermatol 130:546',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/19812604/',
+        why: 'Per-session IU yield variability — why the model bands at ±20-45% per zenith and biological response adds another 2-3×' },
     ],
   },
   circadian: {
     spectrum: 'Melanopic action spectrum (CIE S 026/E:2018), peak ~490 nm',
     refs: [
-      ['Brown TM et al. (2022). "Recommendations for daytime, evening, and nighttime indoor light exposure." PLOS Biol 20:e3001571', 'https://doi.org/10.1371/journal.pbio.3001571'],
-      ['Hattar S et al. (2002). "Melanopsin-containing retinal ganglion cells: architecture, projections, and intrinsic photosensitivity." Science 295:1065', 'https://pubmed.ncbi.nlm.nih.gov/11834835/'],
+      { cite: 'Brown TM et al. (2022). "Recommendations for daytime, evening, and nighttime indoor light exposure." PLOS Biol 20:e3001571',
+        href: 'https://doi.org/10.1371/journal.pbio.3001571',
+        why: 'Current expert-consensus recommendations: ≥250 melanopic lux daytime, <10 evening, <1 night' },
+      { cite: 'Lucas RJ et al. (2014). "Measuring and using light in the melanopsin age." Trends Neurosci 37:1',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/24287308/',
+        why: 'Defines the M-EDI lux measurement framework the engine uses (CIE S 026 originated here)' },
+      { cite: 'Hattar S et al. (2002). "Melanopsin-containing retinal ganglion cells: architecture, projections, and intrinsic photosensitivity." Science 295:1065',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/11834835/',
+        why: 'Discovery of melanopsin and the ipRGC photoreceptor — the why-this-channel-exists paper' },
     ],
   },
   nir_solar: {
     spectrum: 'Cytochrome-c-oxidase absorption (660-850 nm windows)',
     refs: [
-      ['Hamblin MR (2017). "Mechanisms and applications of the anti-inflammatory effects of photobiomodulation." AIMS Biophys 4:337', 'https://pubmed.ncbi.nlm.nih.gov/28748217/'],
-      ['Karu TI (2010). "Multiple roles of cytochrome c oxidase in mammalian cells under action of red and IR-A radiation." IUBMB Life 62:607', 'https://pubmed.ncbi.nlm.nih.gov/20681024/'],
+      { cite: 'Liebert A et al. (2018). "Endogenous spectrally selective stimulation of cytochrome c oxidase by sunlight." Photochem Photobiol Sci 17:613',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/29662993/',
+        why: 'Directly about SOLAR NIR (vs narrowband PBM panels) hitting mitochondrial cytochrome c oxidase' },
+      { cite: 'Hamblin MR (2017). "Mechanisms and applications of the anti-inflammatory effects of photobiomodulation." AIMS Biophys 4:337',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/28748217/',
+        why: 'Comprehensive PBM mechanism review — applies to both narrowband panels and broadband solar NIR' },
+      { cite: 'Karu TI (2010). "Multiple roles of cytochrome c oxidase in mammalian cells under action of red and IR-A radiation." IUBMB Life 62:607',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/20681024/',
+        why: 'Cytochrome c oxidase as the primary photoacceptor — the molecular target underlying every NIR effect' },
     ],
   },
   no_cv: {
     spectrum: 'UVA + violet (320-440 nm) on bare skin → photo-released NO',
     refs: [
-      ['Liu D et al. (2014). "UVA irradiation of human skin vasodilates arterial vasculature and lowers blood pressure independently of nitric oxide synthase." J Invest Dermatol 134:1839', 'https://pubmed.ncbi.nlm.nih.gov/24445737/'],
-      ['Feelisch M et al. (2010). "Is sunlight good for our heart?" Eur Heart J 31:1041', 'https://pubmed.ncbi.nlm.nih.gov/20223744/'],
+      { cite: 'Liu D et al. (2014). "UVA irradiation of human skin vasodilates arterial vasculature and lowers blood pressure independently of nitric oxide synthase." J Invest Dermatol 134:1839',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/24445737/',
+        why: 'Landmark RCT showing UVA on skin lowers BP via photo-released NO from skin stores (NOT via vit-D)' },
+      { cite: 'Lindqvist PG et al. (2016). "Avoidance of sun exposure as a risk factor for major causes of death." J Intern Med 280:375',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/26992108/',
+        why: '20-year Swedish cohort: sun-avoidance carries all-cause mortality risk comparable to smoking' },
+      { cite: 'Feelisch M et al. (2010). "Is sunlight good for our heart?" Eur Heart J 31:1041',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/20223744/',
+        why: 'Foundational hypothesis paper laying out the UVA→NO→cardiovascular mechanism' },
     ],
   },
   pomc: {
     spectrum: 'UVA + UVB on skin keratinocytes → POMC → α-MSH/β-endorphin',
     refs: [
-      ['Slominski A et al. (2012). "Sensing the environment: regulation of local and global homeostasis by the skin\'s neuroendocrine system." Adv Anat Embryol Cell Biol 212:1', 'https://pubmed.ncbi.nlm.nih.gov/22894052/'],
-      ['Fell GL et al. (2014). "Skin β-endorphin mediates addiction to UV light." Cell 157:1527', 'https://pubmed.ncbi.nlm.nih.gov/24949966/'],
+      { cite: 'Fell GL et al. (2014). "Skin β-endorphin mediates addiction to UV light." Cell 157:1527',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/24949966/',
+        why: 'Landmark Cell paper showing UV → keratinocyte β-endorphin → opioid-receptor-mediated mood/addictive response' },
+      { cite: 'Slominski A et al. (2012). "Sensing the environment: regulation of local and global homeostasis by the skin\'s neuroendocrine system." Adv Anat Embryol Cell Biol 212:1',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/22894052/',
+        why: 'Comprehensive review of skin as a neuroendocrine organ — POMC, α-MSH, ACTH, cortisol all expressed in skin' },
+      { cite: 'Cui R et al. (2007). "Central role of p53 in the suntan response and pathologic hyperpigmentation." Cell 128:853',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/17350573/',
+        why: 'p53 → POMC → α-MSH → melanin pathway: the molecular mechanism behind the tan signal' },
     ],
   },
   violet_eye: {
     spectrum: 'Violet 360-400 nm at the eye → ipRGC + dopamine release',
     refs: [
-      ['Torii H et al. (2017). "Violet light exposure can be a preventive strategy against myopia progression." EBioMedicine 15:210', 'https://pubmed.ncbi.nlm.nih.gov/28063779/'],
-      ['Spitschan M & Cajochen C (2024). "Implementing CIE S 026:2018 in research and clinical practice." J Pineal Res 77:e12972', 'https://doi.org/10.1111/jpi.12972'],
+      { cite: 'Torii H et al. (2017). "Violet light exposure can be a preventive strategy against myopia progression." EBioMedicine 15:210',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/28063779/',
+        why: 'Foundational paper linking 360-400 nm violet light at the eye to slowed myopia progression in children' },
+      { cite: 'Rose KA et al. (2008). "Outdoor activity reduces the prevalence of myopia in children." Ophthalmology 115:1279',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/18294691/',
+        why: 'Cohort of >2000 kids: time outdoors (not near-work) is the protective factor against myopia' },
+      { cite: 'He M et al. (2015). "Effect of Time Spent Outdoors at School on the Development of Myopia Among Children in China: A Randomized Clinical Trial." JAMA 314:1142',
+        href: 'https://pubmed.ncbi.nlm.nih.gov/26372583/',
+        why: 'JAMA RCT in 1900 first-graders confirming 40 extra outdoor minutes/day cuts new-myopia incidence ~25%' },
     ],
   },
 };
@@ -1392,7 +1440,10 @@ const CHANNEL_CITATIONS = {
 function _renderChannelCitations(channelKey) {
   const cit = CHANNEL_CITATIONS[channelKey];
   if (!cit) return '';
-  const refs = cit.refs.map(([txt, href]) => `<li><a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHTML(txt)}</a></li>`).join('');
+  const refs = cit.refs.map(({ cite, href, why }) => `<li>
+    <a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHTML(cite)}</a>
+    ${why ? `<div class="light-channel-cit-why">${escapeHTML(why)}</div>` : ''}
+  </li>`).join('');
   return `<details class="light-channel-cit">
     <summary>Action spectrum &amp; citations</summary>
     <p class="light-channel-cit-spec"><strong>Spectrum:</strong> ${escapeHTML(cit.spectrum)}</p>
