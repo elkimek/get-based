@@ -1007,7 +1007,40 @@ const DELTA_ARRAYS = [
   'notes',               // ad-hoc; user-driven cadence
   'supplements',         // editorial churn during routine tweaking
   'healthGoals',
+  'changeHistory',       // composite-keyed (field|date), capped at 200, append+update only
 ];
+
+// Per-array overrides for arrays that don't fit the default
+// `it.id` / tombstone-on-removal contract. Two knobs:
+//   itemIdFn(item) — derive a stable allowlist-safe itemId for items
+//     without a `.id` field (e.g. composite keys). Returning a string
+//     that fails the allowlist regex causes the item to be skipped
+//     defensively (same as malformed `.id` for default arrays).
+//   noTombstones: true — don't emit tombstones when an item disappears
+//     from the local array. Use for arrays where local eviction is
+//     expected (capped lists like changeHistory) and a tombstone would
+//     destroy the same item on a peer device whose window happens to
+//     still include it. Cap is enforced consumer-side via data-merge.js,
+//     so the relay accumulating extra rows is fine — they're harmless
+//     until someone genuinely deletes the entry.
+const DELTA_ARRAY_CONFIG = {
+  // changeHistory entries are { field, date, snapshot, ... } with no `id`.
+  // Synthesize a stable itemId from the same composite key data-merge.js
+  // uses (`field|date`), but encoded in the allowlist alphabet — `.field`
+  // is already category.markerKey shape, `Date.parse(date)` is numeric.
+  // Sanitize defensively so a future schema add (e.g. unicode field names)
+  // doesn't bypass the regex; replacement keeps uniqueness because `field`
+  // and `date` are independent dimensions.
+  changeHistory: {
+    itemIdFn: (it) => {
+      if (!it || typeof it !== 'object' || !it.field || !it.date) return null;
+      const ts = Date.parse(it.date);
+      if (!Number.isFinite(ts)) return null;
+      return `${it.field}.${ts}`.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    },
+    noTombstones: true,
+  },
+};
 
 // Returns the localStorage key holding the last-pushed snapshot
 // (`{itemId: contentHash}`) for one (profileId, arrayName). Snapshot is
@@ -1042,6 +1075,8 @@ function _djb2(str) {
 // snapshot. Returns the candidate-new snapshot (caller commits it from
 // onComplete after the blob push lands successfully).
 async function _planArrayDelta(profileId, arrayName, items) {
+  const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
+  const itemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const prev = _readDeltaSnapshot(profileId, arrayName);
   const next = {};
   const ops = []; // collected pending evolu mutations
@@ -1052,12 +1087,17 @@ async function _planArrayDelta(profileId, arrayName, items) {
   const matching = allItemRows.filter(r => r.profileId === profileId && r.arrayName === arrayName);
   const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
 
-  const live = Array.isArray(items) ? items.filter(it => it && typeof it.id === 'string' && /^[a-zA-Z0-9_.-]+$/.test(it.id)) : [];
-  for (const item of live) {
+  // Build [item, itemId] tuples, dropping anything whose derived itemId
+  // fails the allowlist regex. Defence-in-depth — both for malformed
+  // local data and for a custom itemIdFn that returns something weird.
+  const tuples = Array.isArray(items)
+    ? items.map(it => [it, itemIdFn(it)]).filter(([, id]) => typeof id === 'string' && /^[a-zA-Z0-9_.-]+$/.test(id))
+    : [];
+  for (const [item, itemId] of tuples) {
     const json = JSON.stringify(item);
     const hash = _djb2(json);
-    next[item.id] = hash;
-    if (prev[item.id] === hash) continue; // unchanged — skip push
+    next[itemId] = hash;
+    if (prev[itemId] === hash) continue; // unchanged — skip push
 
     // Compress payload the same way buildSyncPayload does — itemRow.payload
     // is a NonEmptyString, gzip+base64 envelope keeps small items tiny.
@@ -1065,12 +1105,12 @@ async function _planArrayDelta(profileId, arrayName, items) {
     if (typeof CompressionStream !== 'undefined' && json.length > 256) {
       try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
     }
-    const existing = rowByItemId.get(item.id);
+    const existing = rowByItemId.get(itemId);
     const syncedAt = new Date().toISOString();
     if (existing) {
-      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName, itemId: item.id, payload, syncedAt } });
+      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName, itemId, payload, syncedAt } });
     } else {
-      ops.push({ kind: 'insert', args: { profileId, arrayName, itemId: item.id, payload, syncedAt } });
+      ops.push({ kind: 'insert', args: { profileId, arrayName, itemId, payload, syncedAt } });
     }
   }
 
@@ -1078,11 +1118,16 @@ async function _planArrayDelta(profileId, arrayName, items) {
   // the array. Skip if the row is already tombstoned, or if no row
   // exists yet (could just be a snapshot/local-storage drift on a
   // fresh device; safer to no-op than to push a phantom delete).
-  for (const prevId of Object.keys(prev)) {
-    if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
-    const row = rowByItemId.get(prevId);
-    if (!row || row.isDeleted) continue;
-    ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+  // Skipped entirely for arrays flagged noTombstones — capped lists where
+  // local eviction is expected and a tombstone would destroy data on a
+  // peer whose window happens to still include the item.
+  if (!cfg.noTombstones) {
+    for (const prevId of Object.keys(prev)) {
+      if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
+      const row = rowByItemId.get(prevId);
+      if (!row || row.isDeleted) continue;
+      ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+    }
   }
 
   return { ops, next };
@@ -1133,6 +1178,12 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
   _pullDeltaSnapshot.mergedAt = Date.now();
   for (const [arrayName, arrRows] of byArray) {
     if (!Array.isArray(imported[arrayName])) imported[arrayName] = [];
+    // Same itemId derivation push side used. For arrays without `.id`
+    // (composite-keyed like changeHistory) this matches the synth-id
+    // path so replace-or-insert finds the right slot instead of always
+    // appending and silently doubling.
+    const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
+    const itemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
     const tombs = new Set();
     const liveById = new Map();
     for (const row of arrRows) {
@@ -1144,15 +1195,22 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
           json = await _gunzipToString(_base64ToBytes(json.slice(6)));
         }
         const item = JSON.parse(json);
-        if (item && typeof item === 'object' && item.id === row.itemId) {
+        // Verify the payload's derived itemId matches the row column —
+        // catches a compromised relay swapping payloads between rows.
+        if (item && typeof item === 'object' && itemIdFn(item) === row.itemId) {
           liveById.set(row.itemId, item);
         }
       } catch {}
     }
-    // Apply tombstones (drop) + live (replace or insert)
-    imported[arrayName] = imported[arrayName].filter(it => !tombs.has(it?.id));
+    // Apply tombstones (drop) + live (replace or insert). Both sides key
+    // on itemIdFn so changeHistory finds existing entries by their
+    // synthesized field|date id rather than appending duplicates.
+    imported[arrayName] = imported[arrayName].filter(it => !tombs.has(itemIdFn(it)));
     const seen = new Map();
-    for (let i = 0; i < imported[arrayName].length; i++) seen.set(imported[arrayName][i]?.id, i);
+    for (let i = 0; i < imported[arrayName].length; i++) {
+      const k = itemIdFn(imported[arrayName][i]);
+      if (k != null) seen.set(k, i);
+    }
     for (const [itemId, item] of liveById) {
       const idx = seen.get(itemId);
       if (idx !== undefined) imported[arrayName][idx] = item;

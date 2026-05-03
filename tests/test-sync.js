@@ -167,7 +167,7 @@ return (async function() {
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
-    /_planArrayDelta[\s\S]{0,800}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,800}prev\[item\.id\]\s*===\s*hash/.test(syncSrc));
+    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
     /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncSrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
@@ -191,13 +191,13 @@ return (async function() {
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,1500}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(it\?\.id\)\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,2500}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
     /idx\s*!==\s*undefined[\s\S]{0,200}imported\[arrayName\]\[idx\]\s*=\s*item/.test(syncSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads',
     /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToString\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',
-    /item\.id\s*===\s*row\.itemId/.test(syncSrc));
+    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
 
   // Snapshot persistence contract
   assert('Delta snapshot key namespaced per (profile, arrayName)',
@@ -476,6 +476,53 @@ return (async function() {
   const writeIdx = syncSrc.indexOf('encryptedSetItem(localKey, importedJson)');
   assert('Preserve runs before localStorage write', preserveIdx > 0 && preserveIdx < writeIdx,
     `preserve at ${preserveIdx}, write at ${writeIdx}`);
+
+  // ═══════════════════════════════════════
+  // 14a. DELTA_ARRAY_CONFIG — composite-keyed + noTombstones
+  // ═══════════════════════════════════════
+  console.log('%c 14a. Delta Array Config ', 'font-weight:bold;color:#f59e0b');
+
+  assert('changeHistory listed in DELTA_ARRAYS',
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1000}'changeHistory'/.test(syncSrc));
+  assert('DELTA_ARRAY_CONFIG defines changeHistory itemIdFn',
+    /DELTA_ARRAY_CONFIG\s*=\s*\{[\s\S]{0,2000}changeHistory:\s*\{[\s\S]{0,800}itemIdFn:/.test(syncSrc));
+  assert('changeHistory itemIdFn synth = field.dateMs (allowlist-safe numeric)',
+    /changeHistory:[\s\S]{0,800}\$\{it\.field\}\.\$\{ts\}[\s\S]{0,200}replace\(\/\[\^a-zA-Z0-9_\.-\]/.test(syncSrc));
+  assert('changeHistory flagged noTombstones (cap-eviction safety)',
+    /changeHistory:[\s\S]{0,1200}noTombstones:\s*true/.test(syncSrc));
+  assert('_planArrayDelta consults DELTA_ARRAY_CONFIG[arrayName]',
+    /_planArrayDelta[\s\S]{0,400}DELTA_ARRAY_CONFIG\[arrayName\]/.test(syncSrc));
+  assert('_planArrayDelta skips tombstones when cfg.noTombstones is set',
+    /if \(!cfg\.noTombstones\) \{[\s\S]{0,800}kind:\s*'tombstone'/.test(syncSrc));
+  assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',
+    /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',
+    /_mergeItemRowsIntoImported[\s\S]{0,3000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,1500}itemIdFn\(imported\[arrayName\]\[i\]\)/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported verifies payload itemId matches row column',
+    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
+
+  // Live: round-trip the changeHistory itemIdFn — verify a synth itemId
+  // for a realistic recordChange entry is allowlist-safe and stable.
+  if (typeof window !== 'undefined') {
+    const synthFn = (it) => {
+      if (!it || typeof it !== 'object' || !it.field || !it.date) return null;
+      const ts = Date.parse(it.date);
+      if (!Number.isFinite(ts)) return null;
+      return `${it.field}.${ts}`.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    };
+    const e = { field: 'biochemistry.glucose', date: '2026-05-03T10:30:00Z', snapshot: { value: 5.4 } };
+    const id = synthFn(e);
+    assert('synth itemId is non-null for valid changeHistory entry', typeof id === 'string' && id.length > 0, id);
+    assert('synth itemId passes the allowlist regex', /^[a-zA-Z0-9_.-]+$/.test(id), id);
+    assert('synth itemId is stable across calls', synthFn(e) === id);
+    assert('synth itemId differs when field differs',
+      synthFn({ ...e, field: 'biochemistry.sodium' }) !== id);
+    assert('synth itemId differs when date differs',
+      synthFn({ ...e, date: '2026-05-04T10:30:00Z' }) !== id);
+    assert('synth itemId returns null for missing field', synthFn({ ...e, field: undefined }) === null);
+    assert('synth itemId returns null for missing date', synthFn({ ...e, date: undefined }) === null);
+    assert('synth itemId returns null for unparseable date', synthFn({ ...e, date: 'not-a-date' }) === null);
+  }
 
   // ═══════════════════════════════════════
   // 14b. PHASE 1 DUAL-WRITE TELEMETRY (observability for cutover decision)

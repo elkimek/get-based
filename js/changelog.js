@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.2', date: '2026-05-03', title: 'changeHistory now syncs as per-row deltas too',
+    items: [
+      '<b>Adds changeHistory to the Phase 1 per-row datapath.</b> Until v1.7.1 only nine arrays (sun sessions, light devices/sessions/audits/measurements, lab entries, notes, supplements, health goals) were shipping deltas; the change-history log (every AI-temporal-reasoning datapoint) was still re-shipped wholesale on every push. Now it ships as small per-row inserts/updates like everything else.',
+      '<b>Composite-keyed without an `id`.</b> changeHistory entries are <code>{field, date, snapshot}</code> with no `id` field. The planner now supports a per-array itemId function: changeHistory derives a synthetic id from <code>field.dateMs</code> (numeric, allowlist-safe). Pull side uses the same function for replace-or-insert matching, so existing entries get updated rather than duplicated.',
+      '<b>No tombstones for changeHistory.</b> The array is capped at 200 entries — when the cap kicks in locally, that\'s an eviction, not a user delete. A tombstone here would propagate that eviction to a peer device whose recent-200 window still includes the entry, destroying data. Per-array <code>noTombstones: true</code> flag suppresses delete events on the push side; the consumer-side cap in data-merge.js still enforces 200 after the union.',
+      '<b>What\'s still on the blob path.</b> markerNotes (a keyed object, not an array) and menstrualCycle (a single scalar object) — both need a different planner shape than the array-keyed itemRow path. They stay on the fat-blob until the keyed-map and scalar planners land in a future patch. Phase 2 cutover gate still applies — both still need a per-row datapath before the blob can drop.',
+    ]
+  },
+  {
     version: '1.7.1', date: '2026-05-03', title: 'Phase 1 dual-write health (in Sync diagnose)',
     items: [
       '<b>The Sync diagnose modal now shows whether the per-row datapath is actually carrying its weight.</b> A new "Phase 1 dual-write health" panel reports the delta-to-blob ratio over the last 50 pushes, a per-push breakdown (when, blob bytes, delta bytes, ops, which arrays + insert/update/tombstone counts), and the latest pull-side row counts per array. Read-only — no extra network calls, no telemetry leaves the device.',
