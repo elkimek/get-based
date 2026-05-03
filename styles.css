@@ -5218,7 +5218,18 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   letter-spacing: 1px; opacity: 0.85; font-size: 11px;
   font-family: var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
 }
-.light-pill-tier-0 { opacity: 0.45; }
+/* Tier 0 = no meaningful exposure logged for this channel. Visually
+   reads as "empty placeholder" (dashed border, transparent fill, faded
+   label) instead of "filled container that's been dimmed" — so the user
+   doesn't think they have data they don't. */
+.light-pill-tier-0 {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.light-pill-tier-0 .light-pill-dots { opacity: 0.5; }
 .light-pill-tier-1 { color: var(--text-secondary); }
 .light-pill-tier-2 { color: var(--text-primary); border-color: var(--text-muted); }
 .light-pill-tier-3 { color: var(--accent); border-color: var(--accent); }

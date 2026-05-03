@@ -1175,13 +1175,24 @@ export function showLight(_data) {
   // science copy + tier comparison + suggestion. Empty defined as "no
   // light data of any kind" — devices count too.
   const isEmpty = totalSessions === 0;
-  // Single title across empty + populated states — the dot fill on
-  // the pills is what differentiates "ready to start" from "in
-  // progress." Lead copy adapts: empty version explains the model;
-  // populated version invites drill-down.
-  const lead = isEmpty
-    ? "Sun isn't just vitamin D. Each pill is a different biological effect of light — they fill as you log sessions outdoors or with a therapy device. Tap any pill for the science."
-    : 'Tap any pill for the science, last-30-day comparison, and what to do next.';
+  // Lead copy adapts to the actual state of the data, not just session
+  // count. Three regimes:
+  //   • No sessions ever            → explain the model
+  //   • Sessions exist but every channel is at tier 0 (low-dose / sub-
+  //     threshold) → don't oversell "30-day comparison"; describe what's
+  //     actually there
+  //   • At least one channel has a meaningful tier → invite drill-down
+  //     with realistic copy
+  const channelKeysOrdered = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  const litChannels = channelKeysOrdered.filter(k => (window.channelTier ? window.channelTier(combined7d[k] || 0, k) : 0) > 0).length;
+  let lead;
+  if (isEmpty) {
+    lead = "Sun isn't just vitamin D. Each pill is a different biological effect of light — they fill as you log sessions outdoors or with a therapy device. Tap any pill to see how to fill it.";
+  } else if (litChannels === 0) {
+    lead = `${totalSessions} session${totalSessions === 1 ? '' : 's'} logged but no channel has crossed the meaningful-dose threshold yet (sub-tier exposure). Tap any pill for what it tracks and a concrete next step.`;
+  } else {
+    lead = `${litChannels} of 6 channels lit by your recent sessions. Tap any pill for what you've logged, the 7-day rhythm, and what would tip it up.`;
+  }
   html += `<div class="light-channels-section">
     <h3 class="light-section-title">Your light, by what it does</h3>
     <p class="light-section-hint">${lead}</p>
