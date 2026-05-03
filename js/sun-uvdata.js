@@ -304,18 +304,38 @@ function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
     ? { pm25, pm10, aod, no2, surfaceOzoneUgM3: surfaceOzone, european_aqi }
     : null;
 
-  // Daily sun-events + peak UVI (today). Open-Meteo's `daily` arrays are
-  // single-element when forecast_days=1. Find the time-of-peak by
-  // scanning the hourly UVI array — Open-Meteo doesn't return the peak
-  // timestamp directly, only the daily max value.
+  // Daily sun-events + peak UVI (today). Open-Meteo's `daily` arrays
+  // (sunrise/sunset/uv_index_max) are single-element with forecast_days=1.
+  // The hourly array now spans 3 calendar days because we request
+  // past_days=2 (needed to hydrate past sessions) — so the peak-finder
+  // MUST filter to today's calendar date in the location's timezone,
+  // otherwise it picks the absolute max across all 72 hours and pegs
+  // peakAt to a past or future moment that breaks the sun-arc sort.
   const daily = fcJson.daily || {};
   const sunrise = Array.isArray(daily.sunrise) ? daily.sunrise[0] : null;
   const sunset = Array.isArray(daily.sunset) ? daily.sunset[0] : null;
   const uvIndexMax = Array.isArray(daily.uv_index_max) ? daily.uv_index_max[0] : null;
+  // Today's local date string in the LOCATION's timezone — derived from
+  // the response's utc_offset_seconds + current Date.now(). Matches the
+  // 'YYYY-MM-DD' prefix Open-Meteo emits in hourly.time entries.
+  let todayPrefix = null;
+  try {
+    const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0) * 1000;
+    const localNow = new Date(Date.now() + offsetMs);
+    const y = localNow.getUTCFullYear();
+    const m = String(localNow.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(localNow.getUTCDate()).padStart(2, '0');
+    todayPrefix = `${y}-${m}-${d}`;
+  } catch (e) {}
   let peakAt = null;
   if (uvIndexMax != null && Array.isArray(fcJson.hourly?.uv_index) && Array.isArray(fcJson.hourly.time)) {
     let bestI = -1, bestV = -Infinity;
     for (let i = 0; i < fcJson.hourly.uv_index.length; i++) {
+      const t = fcJson.hourly.time[i];
+      // Skip hours that aren't today (past_days=2 puts yesterday + day-
+      // before-yesterday in the array; without this filter the peak
+      // could be from any of those days).
+      if (todayPrefix && typeof t === 'string' && !t.startsWith(todayPrefix)) continue;
       const v = fcJson.hourly.uv_index[i];
       if (Number.isFinite(v) && v > bestV) { bestV = v; bestI = i; }
     }

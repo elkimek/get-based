@@ -1206,12 +1206,32 @@ export async function rejectPendingTombstone(profileId) {
   return { ok: true };
 }
 
+// One-time migration: clear stale per-profile -sync-hash keys so the
+// first pull after the v1.6.x hash-skip upgrade always proceeds to
+// apply (even if a desktop sat on a row whose stored hash happened
+// to match its localStorage from a prior code version). Cheap, linear
+// in localStorage keys, idempotent via the migration flag.
+function _onceClearStaleSyncHashes() {
+  try {
+    if (localStorage.getItem('labcharts-sync-hash-v2-migrated')) return;
+    const toClear = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('labcharts-') && k.endsWith('-sync-hash')) toClear.push(k);
+    }
+    for (const k of toClear) localStorage.removeItem(k);
+    localStorage.setItem('labcharts-sync-hash-v2-migrated', '1');
+    if (toClear.length) dbg(`Cleared ${toClear.length} stale -sync-hash keys (one-time migration)`);
+  } catch (e) {}
+}
+
 async function onSyncReceived() {
   if (!evolu || !profileQuery || _pulling) {
     dbg('onSyncReceived skipped:', !evolu ? 'no evolu' : !profileQuery ? 'no query' : 'already pulling');
     return;
   }
   _pulling = true;
+  _onceClearStaleSyncHashes();
   updateSyncStatus({ pull: 'pulling' });
   try {
     // Apply remote tombstones FIRST — when another device deleted a profile,
