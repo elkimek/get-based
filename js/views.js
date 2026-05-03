@@ -1536,8 +1536,20 @@ function _renderChannelDetailPanel(channelKey) {
 // instead of forcing them to find the same pill on the Light page
 // after navigation. Already on Light? Just toggle in place.
 function _openChannelOnLightPage(channelKey) {
+  // Helper: scroll the expanded panel into view + briefly flash so the
+  // user notices when they're already on the Light page (no navigation
+  // landing-on-target cue) and the panel may be far below the fold.
+  const flashPanel = () => {
+    const panel = document.getElementById(`light-pill-detail-${channelKey}`);
+    if (!panel) return;
+    if (panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    panel.classList.add('light-channel-detail-flash');
+    setTimeout(() => panel.classList.remove('light-channel-detail-flash'), 1500);
+  };
   if (state.currentView === 'light') {
     _toggleChannelDetail(channelKey);
+    // Scroll + flash on the next frame after the panel renders.
+    requestAnimationFrame(() => requestAnimationFrame(flashPanel));
     return;
   }
   if (window.navigate) window.navigate('light');
@@ -1547,9 +1559,7 @@ function _openChannelOnLightPage(channelKey) {
   // race the toggle.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     _toggleChannelDetail(channelKey);
-    // Scroll the expanded panel into view so the user lands on it.
-    const panel = document.getElementById(`light-pill-detail-${channelKey}`);
-    if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    flashPanel();
   }));
 }
 

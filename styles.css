@@ -5325,6 +5325,14 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   padding: 16px 20px;
   display: flex; flex-direction: column; gap: 10px;
   outline: none;
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+/* Briefly outline the panel after expansion (deep-link from session
+   detail modal or another off-page surface) so the user notices what
+   just opened — the panel can be far below the fold. */
+.light-channel-detail.light-channel-detail-flash {
+  box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgba(79, 140, 255, 0.15);
+  border-color: var(--accent);
 }
 .light-channel-detail-head {
   display: flex; align-items: center; gap: 10px;
