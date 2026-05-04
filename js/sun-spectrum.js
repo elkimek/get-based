@@ -156,19 +156,37 @@ export function synthesizeDeviceSpectrum(device) {
   if (peaks.length === 0 || totalWm2 <= 0) {
     return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
   }
-  const perPeakWm2 = totalWm2 / peaks.length;
+  // Per-peak power split. Devices may declare `peakShares` (parallel
+  // to peakWavelengths, sums to 1) to weight power non-uniformly —
+  // critical for hybrid panels like a Chroma Trinity where UVB is ~5%
+  // of total power, NOT 1/8 of equal split. Without per-peak shares
+  // the equal-split heuristic over-attributes vitamin_d / pbm_red /
+  // etc. by ~10× whenever a device declares multiple peaks across
+  // very different bands.
+  const rawShares = Array.isArray(device.peakShares) && device.peakShares.length === peaks.length
+    ? device.peakShares.map(s => Math.max(0, Number(s) || 0))
+    : null;
+  let shares;
+  if (rawShares) {
+    const sum = rawShares.reduce((a, b) => a + b, 0);
+    shares = sum > 0 ? rawShares.map(s => s / sum) : peaks.map(() => 1 / peaks.length);
+  } else {
+    shares = peaks.map(() => 1 / peaks.length);
+  }
   const sigma = 12.7; // ~30 nm FWHM
   // Per-nm Gaussian: peak amplitude such that integral over wavelength
-  // equals perPeakWm2. Gaussian integrand factor 1/(sigma·√(2π)) keeps
-  // ∫ E(λ)dλ ≈ perPeakWm2 over the band.
+  // equals share × totalWm2. Gaussian integrand factor 1/(sigma·√(2π))
+  // keeps ∫ E(λ)dλ ≈ peakWm2 over the band.
   const norm = 1 / (sigma * Math.sqrt(2 * Math.PI));
   const irradiance = WAVELENGTHS.map(() => 0);
-  for (const peak of peaks) {
+  for (let p = 0; p < peaks.length; p++) {
+    const peak = peaks[p];
     if (!Number.isFinite(peak)) continue;
+    const peakWm2 = shares[p] * totalWm2;
     for (let i = 0; i < WAVELENGTHS.length; i++) {
       const nm = WAVELENGTHS[i];
       const g = Math.exp(-Math.pow(nm - peak, 2) / (2 * sigma * sigma)) * norm;
-      irradiance[i] += perPeakWm2 * g;
+      irradiance[i] += peakWm2 * g;
     }
   }
   return { wavelengths: WAVELENGTHS, irradiance };

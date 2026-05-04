@@ -17,7 +17,13 @@ import { state } from './state.js';
 
 export function buildSunContext({ tier = 'always' } = {}) {
   const sessions = state.importedData?.sunSessions || [];
-  if (sessions.length === 0) return '';
+  const deviceSessions = state.importedData?.deviceSessions || [];
+  // A user with only device sessions (e.g. winter PBM users, indoor
+  // SAD-lamp users, anyone in a high-latitude city for 6 months) still
+  // generates Light-lens signal the AI should see. Earlier this gate
+  // was `sessions.length === 0` — outdoor-only — which silently dropped
+  // device-only users from every always-tier prompt.
+  if (sessions.length === 0 && deviceSessions.length === 0) return '';
 
   let ctx = '[section:sunSessions]\n## Light & Sun lens\n\n';
   ctx += alwaysTierBlock(sessions);
@@ -102,6 +108,12 @@ function detectDeficits(totals30d) {
   }
   if ((totals30d.no_cv || 0) === 0) {
     out.push({ label: 'Channel 3 (NO/cardiovascular)', note: 'no UVA exposure logged in 30d — Liu/Oplander photolabile NO release pathway not engaged' });
+  }
+  if ((totals30d.pbm_red || 0) === 0) {
+    out.push({ label: 'Channel 7 (PBM red 660nm)', note: 'no narrowband red-light therapy logged in 30d — Hamblin PBM cytochrome-c-oxidase + ATP-cascade pathway not engaged from device sources' });
+  }
+  if ((totals30d.pbm_nir || 0) === 0) {
+    out.push({ label: 'Channel 8 (PBM NIR 810/850nm)', note: 'no narrowband near-IR therapy logged in 30d — deeper-tissue Hamblin PBM not engaged from device sources' });
   }
   return out;
 }

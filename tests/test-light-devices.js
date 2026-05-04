@@ -184,6 +184,46 @@ return (async function() {
   // Restore
   window._labState.importedData = orig;
 
+  // ─── peakShares: hybrid panels split power non-uniformly ─────────────
+  // A device with `peakShares: [0.05, 0.95]` for [297nm UVB, 660nm red]
+  // delivers ~5% of irradiance at 297 (UVB → vit-D action) and 95% at
+  // 660 (red → pbm_red). Without honoring shares the equal-split heuristic
+  // over-attributes vitamin_d ~10× on hybrid devices.
+  console.log('%c peakShares — hybrid power weighting ', 'font-weight:bold;color:#f59e0b');
+  if (typeof window.synthesizeDeviceSpectrum === 'function') {
+    const equalSplit = window.synthesizeDeviceSpectrum({
+      peakWavelengths: [297, 660],
+      mwPerCm2At15cm: 100,
+    });
+    const heavyRed = window.synthesizeDeviceSpectrum({
+      peakWavelengths: [297, 660],
+      mwPerCm2At15cm: 100,
+      peakShares: [0.05, 0.95],
+    });
+    // Find indices nearest to 297 nm and 660 nm
+    const idx297 = equalSplit.wavelengths.findIndex(nm => nm === 295);
+    const idx660 = equalSplit.wavelengths.findIndex(nm => nm === 660);
+    if (idx297 >= 0 && idx660 >= 0) {
+      const equal297 = equalSplit.irradiance[idx297];
+      const heavy297 = heavyRed.irradiance[idx297];
+      assert('peakShares=[0.05,0.95] cuts 297nm irradiance ~10× vs equal split',
+        heavy297 < equal297 * 0.20 && heavy297 > 0,
+        `equal=${equal297.toExponential(2)} heavy=${heavy297.toExponential(2)}`);
+      assert('peakShares=[0.05,0.95] amplifies 660nm irradiance ~1.9× vs equal split',
+        heavyRed.irradiance[idx660] > equalSplit.irradiance[idx660] * 1.4);
+      // Total integrated power approximately preserved. Exact equality
+      // doesn't hold here because the 297nm Gaussian's lower tail is
+      // truncated at the WAVELENGTHS array's 280nm floor (only ~1.3σ of
+      // headroom); shifting power from 297→660 recovers some of that
+      // truncated energy, so sumHeavy is slightly larger than sumEqual.
+      // 5% tolerance accommodates this without masking real bugs.
+      const sumEqual = equalSplit.irradiance.reduce((a, b) => a + b, 0);
+      const sumHeavy = heavyRed.irradiance.reduce((a, b) => a + b, 0);
+      assert('peakShares preserves total integrated power (within Gaussian-clip tolerance)',
+        Math.abs(sumEqual - sumHeavy) / sumEqual < 0.05);
+    }
+  }
+
   console.log(`%c Light Devices: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

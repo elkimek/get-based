@@ -52,9 +52,9 @@ This is computed from each session's CIE-erythemal-weighted dose vs your Fitzpat
 
 ## Light therapy devices
 
-Got a Joovv panel, a Verilux SAD lamp, a Sperti UVB lamp, a Lumie dawn simulator, or a full-spectrum bulb? Add it from the **My light devices** section on the Light & Sun page. We ship a 24-device preset library. Custom devices are also supported.
+Got a red-light therapy panel, a SAD lamp, a UVB lamp, a dawn simulator, or a full-spectrum bulb? Add it from the **My light devices** section on the Light & Sun page. We ship a 19-preset library (Chroma, EMR-Tek, Mitochondriak). For other brands (Joovv, Mito Red, Sperti, Verilux, Lumie, etc.) paste the spec sheet into the custom-device dialog and the AI extractor maps wavelength + irradiance into the same schema.
 
-Therapy device sessions feed the same channels as outdoor sun. A user with no outdoor time but a daily Joovv routine still sees the **Cellular repair** channel light up.
+Therapy device sessions feed the same per-channel dose totals as outdoor sun. A user with no outdoor time but a daily PBM routine still sees the **Cellular repair** channel light up — and the AI sees them too (the always-tier prompt now includes device-only users, and the rolling correlation engine includes the two PBM channels (660 nm red / 810-850 nm NIR) so device-heavy users get device × biomarker correlations surfaced).
 
 ## Light environment
 

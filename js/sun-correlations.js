@@ -90,7 +90,12 @@ export function computeSunCorrelations({ weeks = 12 } = {}) {
   const devSessions = state.importedData?.deviceSessions || [];
   if (sessions.length === 0 && devSessions.length === 0) return { pairs: [], computedAt: Date.now() };
   const series = weeklyChannelSeries(sessions, devSessions, weeks);
-  const channels = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar'];
+  // Include the two PBM channels (660 nm / 810-850 nm) — they're the
+  // only channels device-heavy users (Joovv, Mito Red, Chroma) populate
+  // meaningfully, and the correlation engine is the surface where
+  // "this PBM panel moved my HRV" can show up. Excluding them silenced
+  // the entire device-PBM × biomarker signal for device-only users.
+  const channels = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
 
   const pairs = [];
   for (const ch of channels) {

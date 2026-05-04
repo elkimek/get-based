@@ -124,12 +124,20 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   // Firewave Compact whose manufacturer rates output at 20 inches).
   // The schema field `mwPerCm2At15cm` is legacy-named but its value
   // is interpreted as "irradiance at recommendedDistanceCm" — keeping
-  // distFactor = 1 when the user logs at the default. Inverse-square
+  // raw distFactor = 1 when the user logs at the default. Inverse-square
   // is a coarse approximation for LED panels (near-field cosine for
   // large sources, focused beams for COBs); accurate enough for
   // relative-trend correlation but not radiometric reference.
+  //
+  // Cap the EFFECTIVE multiplier at 3× to bound the near-field error.
+  // Real LED panels plateau in near-field because the source is
+  // extended (cosine falloff dominates over inverse-square inside
+  // ~1× panel-width). Without the cap, a 5 cm Joovv session would
+  // multiply dose 9× over the 15 cm spec and the user would see
+  // "20× recommended dose" warnings that are model artifacts.
   const baseRangeCm = device.recommendedDistanceCm || 15;
-  const distFactor = (baseRangeCm / Math.max(distanceCm, 5)) ** 2;
+  const rawDistFactor = (baseRangeCm / Math.max(distanceCm, 5)) ** 2;
+  const distFactor = Math.min(rawDistFactor, 3.0);
 
   let doses = {};
   const synthesizeDeviceSpectrum = window.synthesizeDeviceSpectrum;
@@ -139,20 +147,29 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   const eyeMode = eyesProtected ? 'closed-eyes' : 'direct';
 
   if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
-    // Wavelength-correct path: synthesize spectrum → action-spectrum
-    // convolve → per-channel dose. Distance + area fold in via standard
-    // bodyExposureFraction × distFactor multipliers.
-    const spectrum = synthesizeDeviceSpectrum(device);
+    // Wavelength-correct path: synthesize spectrum scaled by distance
+    // factor → action-spectrum convolve → per-channel dose. Distance is
+    // applied to the SPECTRUM amplitude (not just bodyExposureFraction)
+    // so eye channels — which `computeChannelDoses` gates by
+    // `eyeMultiplier` rather than skin fraction — also pick up the
+    // distance scaling. Otherwise a SAD lamp at 25 cm vs 100 cm
+    // produces the same circadian dose, which is wrong.
+    const baseSpec = synthesizeDeviceSpectrum(device);
+    const spectrum = {
+      wavelengths: baseSpec.wavelengths,
+      irradiance: baseSpec.irradiance.map(v => v * distFactor),
+    };
     doses = computeChannelDoses({
       spectrum,
       durationMin,
-      bodyExposureFraction: area * distFactor,
+      bodyExposureFraction: area,
       eyeExposure: { mode: eyeMode, durationSec: seconds },
     });
   } else {
     // Lux-only fallback (SAD lamps without per-band irradiance / peaks).
+    // distFactor still applies — closer SAD lamp = brighter circadian dose.
     const lux = device.lux || 0;
-    if (!eyesProtected && lux > 0) doses.circadian = lux * seconds / 100;
+    if (!eyesProtected && lux > 0) doses.circadian = lux * distFactor * seconds / 100;
   }
 
   const session = {
