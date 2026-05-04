@@ -103,8 +103,8 @@ return (async function() {
   assert('Session has no endedAt (in progress)', getSessions()[0].endedAt === null);
   assert('getActiveSession finds the in-progress one',
     getActiveSession() && getActiveSession().id === id1);
-  assert('Body fraction matches preset (tshirt = 0.30)',
-    Math.abs(getSessions()[0].bodyExposure.fraction - 0.30) < 1e-9);
+  assert('Body fraction matches preset (tshirt = 0.20)',
+    Math.abs(getSessions()[0].bodyExposure.fraction - 0.20) < 1e-9);
   assert('Eye mode threaded through (sunglasses)',
     getSessions()[0].eyeExposure.mode === 'sunglasses');
 

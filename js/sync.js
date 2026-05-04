@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { showNotification, isDebugMode, escapeHTML } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
-import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS, pickTimestamp } from './data-merge.js';
+import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt } from './data-merge.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
@@ -1142,12 +1142,19 @@ async function parseSyncPayload(dataJson) {
 // Arrays subject to delta sync. Highest-velocity first — these drive the
 // fat-blob size that fills the quota. Adding to this list does NOT
 // require schema migration since the itemRow table is generic.
+// Dotted paths (e.g. `lightEnvironment.rooms`) are honored — getAt/setAt
+// from data-merge.js walk them. The Phase 2 cutover (which drops the blob
+// path entirely) requires nested-array surfaces ride the per-row planner;
+// otherwise wholesale-LWW silently regresses cross-device room/screen
+// edits to last-write-wins clobber.
 const DELTA_ARRAYS = [
   'sunSessions',         // 1–10/day, ~500 B each
   'lightDevices',        // rare add but per-device session logs are frequent
   'deviceSessions',
   'lightAudits',
   'lightMeasurements',
+  'lightEnvironment.rooms',   // nested array — needs per-row CRDT, not whole-object LWW
+  'lightEnvironment.screens', // same
   'entries',             // 1–4/month at lab cadence, ~2 KB each
   'notes',               // ad-hoc; user-driven cadence
   'supplements',         // editorial churn during routine tweaking
@@ -1225,7 +1232,12 @@ const DELTA_SCALARS = [
   'interpretiveLens', 'contextNotes',
   // Domain modules
   'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics',
-  'lightEnvironment', 'sunCorrelations', 'lifelightProfile', 'sunDefaults',
+  // `lightEnvironment` itself is NOT a scalar — its rooms/screens arrays
+  // ride the per-row CRDT path via DELTA_ARRAYS' nested-path entries
+  // above. Earlier draft included it here, which would have caused
+  // Phase 2 cutover to ship the whole object as one row and silently
+  // regress cross-device room/screen edits to wholesale-LWW.
+  'sunCorrelations', 'lifelightProfile', 'sunDefaults',
   // Wearable L2 derived state — wearableConnections is intentionally NOT
   // listed (refresh tokens stay per-device; see stripWearableCredentials).
   'wearableSummary', 'wearableCardOrder',
@@ -1690,7 +1702,15 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       _pullDeltaSnapshot.perArray[arrayName] = { live: liveByRawKey.size, tombstones: tombItemIds.size };
       continue;
     }
-    if (!Array.isArray(imported[arrayName])) imported[arrayName] = [];
+    // Read/write the target array — flat top-level for most surfaces,
+    // dotted-path walk via getAt/setAt for nested ones (e.g.
+    // `lightEnvironment.rooms`). Same code path either way so we don't
+    // bifurcate the merger.
+    const isNested = arrayName.includes('.');
+    const readArr = () => isNested ? getAt(imported, arrayName) : imported[arrayName];
+    const writeArr = (v) => isNested ? setAt(imported, arrayName, v) : (imported[arrayName] = v);
+    let curArr = readArr();
+    if (!Array.isArray(curArr)) { curArr = []; writeArr(curArr); }
     // Same itemId derivation push side used. For arrays without `.id`
     // (composite-keyed like changeHistory) this matches the synth-id
     // path so replace-or-insert finds the right slot instead of always
@@ -1733,18 +1753,19 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     // Apply tombstones (drop) + live (replace or insert). Both sides key
     // on itemIdFn so changeHistory finds existing entries by their
     // synthesized field|date id rather than appending duplicates.
-    imported[arrayName] = imported[arrayName].filter(it => !tombs.has(itemIdFn(it)));
+    let nextArr = curArr.filter(it => !tombs.has(itemIdFn(it)));
     const seen = new Map();
-    for (let i = 0; i < imported[arrayName].length; i++) {
-      const k = itemIdFn(imported[arrayName][i]);
+    for (let i = 0; i < nextArr.length; i++) {
+      const k = itemIdFn(nextArr[i]);
       if (k != null) seen.set(k, i);
     }
     for (const [itemId, entry] of liveById) {
       const item = entry.item;
       const idx = seen.get(itemId);
-      if (idx !== undefined) imported[arrayName][idx] = item;
-      else imported[arrayName].push(item);
+      if (idx !== undefined) nextArr[idx] = item;
+      else nextArr.push(item);
     }
+    writeArr(nextArr);
     // v1.7.12 audit fix: re-apply COMPOSITE_KEYED_ARRAYS cap after the
     // per-row overlay. mergeImportedData (the blob path) caps automatically,
     // but v4 cutover skips the blob merge entirely — without this re-cap,
@@ -1947,7 +1968,11 @@ export function getDeltaCutoverReadiness(profileId, importedData) {
   }
 
   for (const arrayName of DELTA_ARRAYS) {
-    const items = Array.isArray(importedData[arrayName]) ? importedData[arrayName] : [];
+    // Honor nested paths the same way the planner + merger do.
+    const raw = arrayName.includes('.')
+      ? getAt(importedData, arrayName)
+      : importedData[arrayName];
+    const items = Array.isArray(raw) ? raw : [];
     const rows = (rowsByName.get(arrayName) || []).filter(r => !r.isDeleted);
     classify(arrayName, items.length, rows.length);
     surfaces[arrayName].shape = 'array';
@@ -2022,7 +2047,13 @@ async function pushProfile(profileId, importedData, opts = {}) {
     let deltaOpCount = 0;
     if (importedData && typeof importedData === 'object') {
       for (const arrayName of DELTA_ARRAYS) {
-        const items = Array.isArray(importedData[arrayName]) ? importedData[arrayName] : [];
+        // arrayName may be a dotted path (`lightEnvironment.rooms`); the
+        // planner reads via getAt so flat and nested paths share the
+        // same code path.
+        const raw = arrayName.includes('.')
+          ? getAt(importedData, arrayName)
+          : importedData[arrayName];
+        const items = Array.isArray(raw) ? raw : [];
         try {
           const plan = await _planArrayDelta(profileId, arrayName, items);
           if (plan.ops.length > 0) {

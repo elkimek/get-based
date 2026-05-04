@@ -68,7 +68,7 @@ export const COMPOSITE_KEYED_ARRAYS = [
 // tie-break — a record with no explicit stamp must lose to one with
 // any explicit stamp (otherwise old un-stamped entries permanently
 // shadow newer cross-device edits).
-function pickTimestamp(rec) {
+export function pickTimestamp(rec) {
   if (!rec || typeof rec !== 'object') return 0;
   const t = rec.updatedAt
     ?? rec.endedAt
@@ -91,7 +91,9 @@ function hasExplicitTimestamp(rec) {
 }
 
 // Get/set helpers for the dotted path.
-function getAt(obj, path) {
+// Exported so sync.js can plan deltas at nested paths (e.g.
+// `lightEnvironment.rooms`) without re-implementing the walk.
+export function getAt(obj, path) {
   if (!obj) return undefined;
   const parts = path.split('.');
   let cur = obj;
@@ -101,7 +103,7 @@ function getAt(obj, path) {
   }
   return cur;
 }
-function setAt(obj, path, value) {
+export function setAt(obj, path, value) {
   const parts = path.split('.');
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {

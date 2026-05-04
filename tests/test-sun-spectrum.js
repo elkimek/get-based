@@ -520,7 +520,7 @@ return (async function() {
   assert('UVI 2.5 → ~half yield (linear ramp)',
     Math.abs(vitaminDIU(100, 'II', 2.5) - vitaminDIU(100, 'II', 4.0) * 0.5) < 1);
   assert('UVI 3 → full yield', vitaminDIU(100, 'II', 3.0) === vitaminDIU(100, 'II', 8.0));
-  assert('UVI 8 → full yield (above threshold)', vitaminDIU(100, 'II', 8.0) === 4000);
+  assert('UVI 8 → full yield (above threshold)', vitaminDIU(100, 'II', 8.0) === 6000);
   assert('UVI null → no gating (trust channel-au)',
     vitaminDIU(100, 'II', null) === vitaminDIU(100, 'II', 8.0));
   // Fitzpatrick scaling still applies on top of the gate
@@ -529,6 +529,119 @@ return (async function() {
   // Saturation cap still applies after gating
   assert('UVI 8, Type II, 1000 channel-au → 20k IU saturation cap',
     vitaminDIU(1000, 'II', 8.0) === 20000);
+
+  // ─── 18. rotatedSides multiplier (front+back integration) ──────────
+  // dminder convention: "100% naked" = both sides exposed over the
+  // session. Our default body fractions reflect single-position max
+  // (front-only or back-only), so the rotatedSides flag doubles the
+  // IU to acknowledge that fresh skin keeps synthesizing after the
+  // first side approaches per-area saturation.
+  console.log('%c 18. rotatedSides multiplier ', 'font-weight:bold;color:#f59e0b');
+  assert('rotatedSides=true doubles the IU yield',
+    vitaminDIU(100, 'II', 8.0, true) === 2 * vitaminDIU(100, 'II', 8.0, false));
+  assert('rotatedSides default (no arg) = false (single position)',
+    vitaminDIU(100, 'II', 8.0) === vitaminDIU(100, 'II', 8.0, false));
+  assert('rotatedSides multiplier respects the 20k saturation cap',
+    vitaminDIU(1000, 'II', 8.0, true) === 20000);
+  assert('UVI gate applies BEFORE the rotation multiplier',
+    vitaminDIU(100, 'II', 1.0, true) === 0);
+
+  // ─── 19. Vit-D regression fixtures (end-to-end against published refs) ──
+  // Locks the spectrum → channel-doses → vitaminDIU pipeline against
+  // published clinical & dminder cross-checks. Each row is (scenario →
+  // expected band) and exercises the WHOLE pipeline, not just the IU
+  // conversion constant — so a future reconstructSpectrum / channel-
+  // weighting / IU-constant tweak that drifts more than the band shows
+  // up here before users notice their old session numbers shifted.
+  //
+  // References:
+  //  • Holick 2008 NEJM 357:266 — 1 MED whole body Type II → ~10,000 IU
+  //    (linear up to 20k saturation).
+  //  • Bogh & Wulf 2010 J Invest Dermatol — 4 SED / 24% body / Type II
+  //    → ~1000 IU; we sit closer to the higher end of their band because
+  //    the simplified Bird-Riordan model trends 20-30% high vs TUV at
+  //    moderate zenith. Documented in vit-D constant comment block.
+  //  • dminder field cross-check (UVI 6, Type III, 0.5 front-only,
+  //    30 min) ≈ 3000-3500 IU; same scenario rotated ≈ 6000-7000 IU.
+  //  • NIWA / Lehmann 2013 / Webb 2018 — UVI < 2 → essentially no
+  //    synthesis (already covered by the threshold-gate block above;
+  //    this block adds the end-to-end variant with reconstructSpectrum).
+  console.log('%c 19. Vit-D regression fixtures (clinical) ', 'font-weight:bold;color:#f59e0b');
+
+  // Mid-day clear, zenith=30° — the canonical sweet spot. Implied UVI
+  // is computed from the SED so this row tracks both the spectrum
+  // model and the IU constant; if either drifts, the band catches it.
+  const _spec30 = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300, altitudeM: 0, cloudCover: 0 });
+  const _sed30 = erythemalSED({ spectrum: _spec30, durationMin: 30, bodyExposureFraction: 1 });
+  const _uvi30 = (_sed30 * 100 / (30 * 60)) / 0.025;
+
+  // FIXTURE 1 — Holick natural-sun anchor (Type II, full body, 30 min):
+  // 1 MED at noon ≈ 12-15 min for Type II, so 30 min ≈ 2 MED. Holick
+  // 1 MED ≈ 10k IU full body → 2 MED uncapped ≈ 20k (saturated). Our
+  // simplified model trends slightly low; band 4500-9000 captures the
+  // post-recalibration central while staying under saturation.
+  const fxFullBodyTypeII = computeChannelDoses({
+    spectrum: _spec30, durationMin: 30, bodyExposureFraction: 1, eyeExposure: null,
+  });
+  const iuFullBodyTypeII = vitaminDIU(fxFullBodyTypeII.vitamin_d, 'II', _uvi30);
+  assert('FX1 — 30 min · full body · Type II · noon → 4500-9000 IU (Holick anchor)',
+    iuFullBodyTypeII >= 4500 && iuFullBodyTypeII <= 9000,
+    `got ${iuFullBodyTypeII.toFixed(0)} IU at implied UVI ${_uvi30.toFixed(1)}`);
+
+  // FIXTURE 2 — User's morning session (Type III, 0.5 fraction
+  // front-only, 30 min, NOT rotated). Was the test case that drove the
+  // 40 → 60 calibration bump in 2026-05. Expected band 1300-3200 IU
+  // matches dminder's same-input output of ~3000 IU within the ±50%
+  // model uncertainty band.
+  const fxFrontTypeIII = computeChannelDoses({
+    spectrum: _spec30, durationMin: 30, bodyExposureFraction: 0.5, eyeExposure: null,
+  });
+  const iuFrontTypeIII = vitaminDIU(fxFrontTypeIII.vitamin_d, 'III', _uvi30, false);
+  assert('FX2 — 30 min · front-only (0.5) · Type III · noon · NOT rotated → 1300-3200 IU (dminder cross-check)',
+    iuFrontTypeIII >= 1300 && iuFrontTypeIII <= 3200,
+    `got ${iuFrontTypeIII.toFixed(0)} IU at implied UVI ${_uvi30.toFixed(1)}`);
+
+  // FIXTURE 3 — same as FX2 but rotatedSides=true. Should be exactly
+  // 2× FX2 (rotation multiplier is the only difference).
+  const iuFrontTypeIIIRot = vitaminDIU(fxFrontTypeIII.vitamin_d, 'III', _uvi30, true);
+  assert('FX3 — same as FX2 but rotated → exactly 2× FX2 IU',
+    Math.abs(iuFrontTypeIIIRot - 2 * iuFrontTypeIII) < 1,
+    `got ${iuFrontTypeIIIRot.toFixed(0)} vs expected ${(2 * iuFrontTypeIII).toFixed(0)}`);
+
+  // FIXTURE 4 — Type VI (deeply pigmented) is 30% of Type II yield at
+  // identical exposure. Locks the Fitzpatrick scaling table.
+  const iuFullBodyTypeVI = vitaminDIU(fxFullBodyTypeII.vitamin_d, 'VI', _uvi30);
+  assert('FX4 — Type VI yield = 30% of Type II at same channel-au',
+    Math.abs(iuFullBodyTypeVI - 0.30 * iuFullBodyTypeII) < 1,
+    `got VI=${iuFullBodyTypeVI.toFixed(0)} II=${iuFullBodyTypeII.toFixed(0)} ratio=${(iuFullBodyTypeVI / iuFullBodyTypeII).toFixed(3)}`);
+
+  // FIXTURE 5 — Low-sun (zenith=70°, implied UVI < 2): NIWA / Webb 2018
+  // says no meaningful synthesis. End-to-end through the whole pipeline.
+  // Already partially covered by the threshold-gate block, but this
+  // fixture exercises the spectrum reconstruction path too — a future
+  // Bird-Riordan tweak that boosted UVB at high zenith would bypass the
+  // gate via a higher implied UVI; this catches that.
+  const _spec70 = reconstructSpectrum({ zenithDeg: 70, ozoneDU: 300, altitudeM: 0, cloudCover: 0 });
+  const _sed70 = erythemalSED({ spectrum: _spec70, durationMin: 30, bodyExposureFraction: 1 });
+  const _uvi70 = (_sed70 * 100 / (30 * 60)) / 0.025;
+  const fxLowSun = computeChannelDoses({
+    spectrum: _spec70, durationMin: 30, bodyExposureFraction: 1, eyeExposure: null,
+  });
+  const iuLowSun = vitaminDIU(fxLowSun.vitamin_d, 'II', _uvi70);
+  assert('FX5 — 30 min · full body · Type II · zenith 70° (UVI < 2) → < 50 IU (NIWA/Webb)',
+    iuLowSun < 50,
+    `got ${iuLowSun.toFixed(0)} IU at implied UVI ${_uvi70.toFixed(2)}`);
+
+  // FIXTURE 6 — saturation cap is hit beyond ~6 MED equivalent. Using
+  // the FX1 channel-au scaled up (×4) which would otherwise produce
+  // ~25k IU; the cap clamps to 20k regardless of rotation/Fitzpatrick.
+  const _bigAu = fxFullBodyTypeII.vitamin_d * 4;
+  assert('FX6 — saturation cap clamps high-channel-au sessions to 20k IU',
+    vitaminDIU(_bigAu, 'II', _uvi30) === 20000,
+    `got ${vitaminDIU(_bigAu, 'II', _uvi30)} IU (expected 20000)`);
+  assert('FX6b — saturation cap holds even with rotatedSides=true',
+    vitaminDIU(_bigAu, 'II', _uvi30, true) === 20000,
+    `got ${vitaminDIU(_bigAu, 'II', _uvi30, true)} IU (expected 20000)`);
 
   // ─── Summary ────────────────────────────────────────────────────────
   console.log(`%c Sun Spectrum: ${pass} passed, ${fail} failed`,

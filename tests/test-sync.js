@@ -191,9 +191,9 @@ return (async function() {
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,10000}imported\[arrayName\]\s*=\s*imported\[arrayName\]\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,10000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
-    /idx\s*!==\s*undefined[\s\S]{0,200}imported\[arrayName\]\[idx\]\s*=\s*item/.test(syncSrc));
+    /idx\s*!==\s*undefined[\s\S]{0,200}nextArr\[idx\]\s*=\s*item/.test(syncSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads via capped variant',
     /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',
@@ -497,7 +497,7 @@ return (async function() {
   assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',
     /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',
-    /_mergeItemRowsIntoImported[\s\S]{0,9000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,1500}itemIdFn\(imported\[arrayName\]\[i\]\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,9000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,25000}itemIdFn\(nextArr\[i\]\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported verifies payload itemId matches row column',
     /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
 
@@ -544,7 +544,7 @@ return (async function() {
   assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
     /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
-    /for \(const \[rawKey, v\] of liveByRawKey\) imported\[arrayName\]\[rawKey\]\s*=\s*v/.test(syncSrc));
+    /for \(const \[rawKey, entry\] of liveByRawKey\) imported\[arrayName\]\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
 
   // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
   // result is allowlist-safe, original key recoverable on pull via
@@ -583,7 +583,7 @@ return (async function() {
   assert('_mergeItemRowsIntoImported routes map vs array by DELTA_MAPS membership',
     /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,4000}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
   assert('Map-shape merge writes to imported[arrayName][rawKey] (preserves original key)',
-    /imported\[arrayName\]\[rawKey\]\s*=\s*v/.test(syncSrc));
+    /imported\[arrayName\]\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
   assert('Map-shape merge deletes tombstoned keys from the object via synth-id reverse-lookup',
     /tombItemIds\.has\(synth\)[\s\S]{0,200}delete imported\[arrayName\]\[k\]/.test(syncSrc));
   assert('Map-shape merge verifies via keyIdFn(parsed.k) === row.itemId (defence-in-depth, synth-aware)',
@@ -616,8 +616,28 @@ return (async function() {
     /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,500}'menstrualCycle'/.test(syncSrc));
   assert('DELTA_SCALARS includes the 8 context cards',
     /'diagnoses'/.test(syncSrc) && /'diet'/.test(syncSrc) && /'exercise'/.test(syncSrc) && /'sleepRest'/.test(syncSrc) && /'lightCircadian'/.test(syncSrc) && /'stress'/.test(syncSrc) && /'loveLife'/.test(syncSrc) && /'environment'/.test(syncSrc));
-  assert('DELTA_SCALARS includes domain modules (genetics, biometrics, lightEnvironment)',
-    /'genetics'/.test(syncSrc) && /'biometrics'/.test(syncSrc) && /'lightEnvironment'/.test(syncSrc));
+  assert('DELTA_SCALARS includes domain modules (genetics, biometrics)',
+    /'genetics'/.test(syncSrc) && /'biometrics'/.test(syncSrc));
+  // lightEnvironment was promoted out of DELTA_SCALARS in v1.7.21:
+  // its rooms/screens are nested arrays that need per-row CRDT or
+  // cross-device edits silently regress to wholesale-LWW under the
+  // Phase 2 cutover (which drops the blob path entirely).
+  assert('lightEnvironment is NOT in DELTA_SCALARS (rooms/screens ride per-row CRDT)',
+    !/const DELTA_SCALARS\s*=\s*\[[\s\S]{0,1500}'lightEnvironment'/.test(syncSrc));
+  assert('DELTA_ARRAYS includes lightEnvironment.rooms (nested per-row CRDT)',
+    /const DELTA_ARRAYS\s*=\s*\[[\s\S]{0,2000}'lightEnvironment\.rooms'/.test(syncSrc));
+  assert('DELTA_ARRAYS includes lightEnvironment.screens (nested per-row CRDT)',
+    /const DELTA_ARRAYS\s*=\s*\[[\s\S]{0,2000}'lightEnvironment\.screens'/.test(syncSrc));
+  // Structural invariant: planner + readiness + merger all walk dotted
+  // paths via getAt/setAt. Without these, a future "simplify" refactor
+  // that reverts to flat-only access would silently re-introduce the
+  // wholesale-LWW regression on rooms/screens.
+  assert('pushProfile planner walks dotted DELTA_ARRAYS entries via getAt',
+    /pushProfile[\s\S]{0,4000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(syncSrc));
+  assert('getDeltaCutoverReadiness walks dotted DELTA_ARRAYS entries via getAt',
+    /getDeltaCutoverReadiness[\s\S]{0,2000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported writes nested arrays back via setAt',
+    /_mergeItemRowsIntoImported[\s\S]{0,9000}isNested\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}setAt\(imported,\s*arrayName,/.test(syncSrc));
   assert('DELTA_SCALARS includes free-form text fields',
     /'interpretiveLens'/.test(syncSrc) && /'contextNotes'/.test(syncSrc));
   assert('_planScalarDelta defined',
@@ -721,7 +741,7 @@ return (async function() {
   assert('Diagnose Copy text includes Phase 2 readiness section',
     /Phase 2 cutover readiness:/.test(syncSrc));
   assert('Diagnose modal renders cutover panel with blocker breakdown',
-    /<b>Phase 2 cutover readiness:<\/b>/.test(syncSrc) && /Surfaces with local data but no per-row push/.test(syncSrc));
+    /<b>Lean sync mode<\/b>/.test(syncSrc) && /haven't been re-pushed yet/.test(syncSrc));
 
   // Live: synthesize an importedData object and call the readiness check
   // through window.getDeltaCutoverReadiness with a known profile, verify
@@ -813,9 +833,9 @@ return (async function() {
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
     /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(syncSrc));
   assert('Cutover modal button gated when not ready (disabled attribute)',
-    /Enable Phase 2[\s\S]{0,200}disabled/.test(syncSrc));
-  assert('Cutover modal shows PHASE 2 ON badge when enabled',
-    /PHASE 2 ON/.test(syncSrc));
+    /confirmEnablePhase2[\s\S]{0,200}disabled/.test(syncSrc));
+  assert('Cutover modal shows lean-mode ON badge when enabled',
+    /cutoverBadge\s*=\s*cutoverEnabled[\s\S]{0,400}>ON</.test(syncSrc));
   assert('Cutover handlers exposed on window',
     /window[\s\S]{0,5500}confirmEnablePhase2,\s*\n\s*confirmDisablePhase2/.test(syncSrc));
 
@@ -1088,13 +1108,18 @@ return (async function() {
   assert('onSyncReceived logs malformed-importedData skip via _logSyncEvent',
     /malformed importedData shape, skipping row/.test(syncSrc));
 
-  // Peak-finder DST anchor — daily.time[0] preferred over offset+now
-  assert('peak-finder uses daily.time[0] as canonical "today" anchor (DST-safe)',
-    await fetchWithRetry('js/sun-uvdata.js').then(s =>
-      /typeof daily\.time\?\.\[0\]\s*===\s*'string'[\s\S]{0,200}todayPrefix\s*=\s*daily\.time\[0\]\.slice\(0,\s*10\)/.test(s)));
-  assert('peak-finder still has offset+now fallback when daily array missing',
+  // Peak-finder DST + past_days anchor — derive todayPrefix from
+  // utc_offset_seconds + Date.now(), then scan daily.time for the
+  // matching index (with past_days>0, daily.time[0] is NOT today).
+  assert('sun-uvdata derives todayPrefix from utc_offset_seconds + Date.now()',
     await fetchWithRetry('js/sun-uvdata.js').then(s =>
       /utc_offset_seconds[\s\S]{0,400}localNow[\s\S]{0,300}getUTCFullYear/.test(s)));
+  assert('sun-uvdata locates today via daily.time scan, not blind [0] index',
+    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+      /todayDailyIdx[\s\S]{0,400}daily\.time\[i\][\s\S]{0,200}startsWith\(todayPrefix\)/.test(s)));
+  assert('sun-uvdata reads sunrise/sunset/uvIndexMax via todayDailyIdx (not [0])',
+    await fetchWithRetry('js/sun-uvdata.js').then(s =>
+      /sunrise\s*=\s*Array\.isArray\(daily\.sunrise\)\s*&&\s*todayDailyIdx\s*>=\s*0\s*\?\s*daily\.sunrise\[todayDailyIdx\]/.test(s)));
 
   // RUNTIME PARSE-EQUIVALENCE: build a payload via buildSyncPayload
   // (push side), then parse it via parseSyncPayload (pull + diagnose).

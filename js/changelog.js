@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.21', date: '2026-05-04', title: 'Sync — Lean mode rename + lightEnvironment per-row CRDT, plus vit-D regression fixtures',
+    items: [
+      '<b>"Phase 2 cutover" → "Lean sync mode" in the Sync diagnose UI.</b> Same gating, same readiness check, friendlier name. The cutover button + readiness panel + ON badge all carry the new copy; the underlying flag stays per-profile, per-device opt-in.',
+      '<b>lightEnvironment.rooms / lightEnvironment.screens now ride per-row CRDT.</b> Both nested arrays were previously caught by the whole-blob LWW path under DELTA_SCALARS — meaning a phone editing one room and a desktop editing another within the same window would lose the older edit. The push planner, pull merger, and cutover-readiness check all now walk dotted DELTA_ARRAYS entries (<code>lightEnvironment.rooms</code>, <code>lightEnvironment.screens</code>) via getAt/setAt. Without this, the Lean Sync flip would have silently regressed both surfaces.',
+      '<b>Vit-D pipeline regression-locked against published references.</b> Six end-to-end fixtures (Holick 2008 NEJM, Bogh-Wulf 2010, dminder cross-checks, NIWA / Webb 2018, Fitzpatrick scaling table, saturation cap) plus dedicated coverage for the rotatedSides multiplier. A future spectrum-model or IU-constant tweak that drifts more than the band shows up here before users notice their old session numbers shifted.',
+      '<b>Body-fraction preset for "tshirt" corrected to 0.20.</b> Test fixture was pinning 0.30 — production preset table had already been re-anchored as part of the v1.7.17 honesty pass; the test was stale.',
+    ]
+  },
+  {
     version: '1.7.20', date: '2026-05-04', title: 'Audit fixes — sun correlations now actually work, chat-saved race closed, more confirms',
     items: [
       '<b>Sun-channel × biomarker correlations were silently empty.</b> Production code read `e.values?.[cat]?.[m]` against entries that store `e.markers["cat.m"]` — so the AI standard-tier correlation table never produced a row, even for users with months of bloodwork + sessions. Plus the target list used pre-schema names (vitamin_d_25oh, iron_metabolism, hs_crp). Both fixed; the calibration anchor I added in v1.7.19 had the same wrong path, also fixed.',
