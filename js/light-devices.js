@@ -112,10 +112,14 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   const sessionId = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const seconds = durationMin * 60;
 
-  // Body-area fractions match sun.js BODY_REGIONS proportions.
+  // Body-area fractions match sun.js BODY_REGIONS proportions —
+  // whole-body sums all 13 anatomical regions = 0.92 (the BODY_REGIONS
+  // total). Earlier value 0.85 was ~8% under and contradicted the
+  // commented contract. `legs` covers both front + back (0.15+0.15)
+  // since a panel session usually irradiates one face; `arms` same.
   const AREA_FRACTIONS = {
-    'face': 0.04, 'arms': 0.10, 'torso-front': 0.13, 'torso': 0.13,
-    'legs': 0.30, 'whole-body': 0.85, 'targeted': 0.05,
+    'face': 0.04, 'arms': 0.10, 'torso': 0.13,
+    'legs': 0.30, 'whole-body': 0.92, 'targeted': 0.05,
   };
   const area = AREA_FRACTIONS[bodyArea] ?? 0.10;
 
@@ -216,7 +220,6 @@ const _DEVICE_AREA_LABELS = {
   'targeted': 'Targeted (single area)',
   'face': 'Face',
   'torso': 'Torso',
-  'torso-front': 'Torso (front)',
   'arms': 'Arms',
   'legs': 'Legs',
   'whole-body': 'Whole body',

@@ -1017,6 +1017,38 @@ export function renderEnvironmentSection() {
   }
   html += `</div>`;
 
+  // Portable readings — measurements taken via the Light Tools page
+  // without a room selected (roomId === null). Earlier these were
+  // invisible: the per-room render path filters by exact roomId match,
+  // and there was no global "all measurements" view. A user who fired
+  // the Lux Meter from the dashboard saw a confirmation toast but the
+  // reading effectively vanished. This collapsible block surfaces the
+  // last 30 days of unbound readings so they can be re-tagged or
+  // simply confirmed as captured.
+  const allMeasurements = state.importedData?.lightMeasurements || [];
+  const portableCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const portable = allMeasurements
+    .filter(m => !m.roomId && (m.takenAt || m.capturedAt || 0) >= portableCutoff)
+    .sort((a, b) => (b.takenAt || b.capturedAt || 0) - (a.takenAt || a.capturedAt || 0));
+  if (portable.length > 0) {
+    html += `<details class="light-env-block light-env-portable-readings">
+      <summary><strong>Portable readings</strong> <span class="light-env-portable-count">${portable.length} unbound · last 30d</span></summary>
+      <div class="light-env-portable-readings-list">`;
+    for (const m of portable.slice(0, 20)) {
+      const ts = m.takenAt || m.capturedAt || Date.now();
+      const icon = TOOL_ICONS[m.tool] || '·';
+      html += `<div class="light-env-portable-reading-row">
+        <span class="light-env-portable-reading-icon">${icon}</span>
+        <span class="light-env-portable-reading-value">${escapeHTML(fmtMeasureValue(m))}</span>
+        <span class="light-env-portable-reading-time">${escapeHTML(fmtMeasureTime(ts))}</span>
+      </div>`;
+    }
+    if (portable.length > 20) {
+      html += `<div class="light-env-portable-reading-more">+${portable.length - 20} older — open the dedicated tool to see history</div>`;
+    }
+    html += `</div></details>`;
+  }
+
   // Light Audits — frozen snapshots of rooms + screens + measurements.
   // Hidden until the user has at least one room mapped.
   if ((env?.rooms || []).length > 0) {
@@ -1306,13 +1338,18 @@ function renderLightAuditCompare(audits) {
   const a2 = sorted[0];        // newer (After)
   const a1 = sorted[1] || sorted[0]; // older (Before)
 
-  // Match rooms across both audits by name — the IDs differ between
-  // snapshots (each audit deep-copies the live rooms with their then-
-  // current IDs), so name is the cross-audit key.
-  const roomNames = [...new Set([
-    ...(a1.rooms || []).map(r => r.name),
-    ...(a2.rooms || []).map(r => r.name),
-  ])];
+  // Match rooms across both audits by id (rooms deep-copy preserves the
+  // live id, so room.id is stable across snapshots). Name was the
+  // earlier strategy but it broke under two scenarios: (1) renaming
+  // "Bedroom" → "Master Bedroom" between audits made the after-side
+  // look like a deleted room; (2) two rooms with the same name (guest
+  // bedroom + main bedroom) collided into a single comparison row.
+  // We build a unified key list combining ids from both sides, with
+  // name as a fallback for very-old audits that predated id stability.
+  const _ks1 = (a1.rooms || []).map(r => ({ key: r.id || `name:${r.name}`, room: r }));
+  const _ks2 = (a2.rooms || []).map(r => ({ key: r.id || `name:${r.name}`, room: r }));
+  const roomKeys = [...new Set([..._ks1.map(k => k.key), ..._ks2.map(k => k.key)])];
+  const _findIn = (entries, key) => entries.find(e => e.key === key)?.room || null;
 
   // "Interpret changes" — only when we have an AI provider configured.
   // Opens the chat panel with a pre-filled comparison summary so the
@@ -1339,9 +1376,13 @@ function renderLightAuditCompare(audits) {
   html += `<div class="light-audit-compare-rooms">`;
 
   let renderedAny = false;
-  for (const name of roomNames) {
-    const r1 = (a1.rooms || []).find(r => r.name === name);
-    const r2 = (a2.rooms || []).find(r => r.name === name);
+  for (const key of roomKeys) {
+    const r1 = _findIn(_ks1, key);
+    const r2 = _findIn(_ks2, key);
+    // Display name prefers the after-side (most recent rename wins);
+    // fall back to before-side, then to a literal "?" so a malformed
+    // entry can't crash the loop.
+    const name = (r2 && r2.name) || (r1 && r1.name) || '?';
     const sev1 = r1 ? computeRoomSeverity(r1, (a1.measurements || []).filter(m => m.roomId === r1.id)) : null;
     const sev2 = r2 ? computeRoomSeverity(r2, (a2.measurements || []).filter(m => m.roomId === r2.id)) : null;
 

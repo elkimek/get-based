@@ -582,6 +582,22 @@ function shapeCamsResponse(json, isoTime, sourceLabel) {
     }
   }
   if (json._camsMeta) shaped._camsMeta = json._camsMeta;
+  // Server-computed daily peak UVI — `daily.uv_index_max_cams[0]` is
+  // produced by the relay running Bird-Riordan reconstruction over each
+  // hourly snapshot timestep with real CAMS ozone + AOD. More accurate
+  // than Open-Meteo's GFS-approximated `daily.uv_index_max[0]` at edge
+  // cases (low sun, broken cloud, ozone anomalies). Prefer the CAMS-fed
+  // value when present; fall through to Open-Meteo's daily peak (which
+  // shapeOpenMeteoResponse already wrote to `shaped.daily.uvIndexMax`)
+  // when the relay didn't compute one.
+  const daily = json?.daily;
+  if (daily && Array.isArray(daily.uv_index_max_cams) && Number.isFinite(daily.uv_index_max_cams[0])) {
+    shaped.daily = shaped.daily || {};
+    shaped.daily.uvIndexMax = daily.uv_index_max_cams[0];
+    if (Array.isArray(daily.uv_index_max_cams_at) && daily.uv_index_max_cams_at[0]) {
+      shaped.daily.peakAt = daily.uv_index_max_cams_at[0];
+    }
+  }
   shaped.confidence = UV_SOURCE_CONFIDENCE.cams;
   shaped.source = sourceLabel || 'cams';
   return shaped;

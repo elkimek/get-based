@@ -81,6 +81,17 @@ export function renderLightTodayStrip() {
       deviceBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()" title="Pick from your ${devicesArr.length} devices">🔴 Device <span aria-hidden="true">▼</span></button>`;
     }
   }
+  // Map-a-room CTA — when the user has zero rooms surveyed, surface
+  // a path to the indoor side of the Light & Sun module from the
+  // dashboard. Most users spend 8-14 h/day under indoor lights;
+  // without this CTA the dashboard never points them at the indoor
+  // tracker until they happen to navigate to Light & Sun manually.
+  const lightEnv = state.importedData?.lightEnvironment;
+  const hasRooms = lightEnv && Array.isArray(lightEnv.rooms) && lightEnv.rooms.length > 0;
+  const roomBtn = !hasRooms
+    ? `<button class="light-today-cta light-today-cta-secondary" onclick="window.navigate && window.navigate('light')" title="Map your rooms — most of your day is under indoor lights">🛋 Map a room</button>`
+    : '';
+
   let cta;
   if (active) {
     // mm:ss live counter; the active-session ticker updates this same
@@ -90,11 +101,11 @@ export function renderLightTodayStrip() {
     cta = `<div class="light-today-cta-group"><button class="light-today-cta light-today-cta-active" onclick="window.quickLogSunSession()" aria-label="Stop active sun session"><span aria-hidden="true">⏹ Stop session — </span><span data-live-elapsed-for="${active.id}" aria-live="off">${elapsed}</span></button></div>`;
   } else if (inSolarWindow) {
     const wlabel = solarWindowLabel();
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> ${wlabel} — log a session</button>${deviceBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> ${wlabel} — log a session</button>${deviceBtn}${roomBtn}</div>`;
   } else if (hasDevices) {
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Sun</button>${deviceBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Sun</button>${deviceBtn}${roomBtn}</div>`;
   } else {
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button></div>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>${roomBtn}</div>`;
   }
 
   // Qualitative pill summary of the 6 user-facing channels for the past 7 days.

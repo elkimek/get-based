@@ -6125,6 +6125,27 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 /* Light Environment — rooms + screens survey */
 .light-env-section { margin-top: 24px; }
 .light-env-block { margin-top: 16px; }
+.light-env-portable-readings > summary {
+  cursor: pointer; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--bg-card); border: 1px solid var(--border);
+  list-style: none;
+}
+.light-env-portable-readings > summary::-webkit-details-marker { display: none; }
+.light-env-portable-readings .light-env-portable-count {
+  color: var(--text-muted); font-size: 11px; margin-left: 6px;
+}
+.light-env-portable-readings-list {
+  margin-top: 8px; display: flex; flex-direction: column; gap: 4px;
+}
+.light-env-portable-reading-row {
+  display: grid; grid-template-columns: 24px 1fr auto; gap: 8px;
+  padding: 4px 12px; font-size: 12px; align-items: center;
+}
+.light-env-portable-reading-icon { font-size: 14px; }
+.light-env-portable-reading-time { color: var(--text-muted); font-size: 11px; }
+.light-env-portable-reading-more {
+  color: var(--text-muted); font-size: 11px; padding: 4px 12px;
+}
 .light-env-block-head {
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 10px;
