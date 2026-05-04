@@ -25,7 +25,16 @@ const CACHE_PREFIX = 'meteo:v2:';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const NETWORK_TIMEOUT_MS = 8000;
 
-// Confidence weights — AI uses these to discount correlations
+// Per-source BASELINE confidence — best-case under ideal conditions
+// (fresh snapshot, clear sky, sun high overhead, UVI well above the
+// threshold gate). The real confidence shown to the user is computed
+// from these via `computeUVConfidence()` below, which weights snapshot
+// age, cloud cover, solar elevation, and UVI band so a CAMS reading
+// at zenith=80° under heavy cloud isn't dishonestly reported as 95%.
+//
+// AI uses the COMPUTED value to discount correlations, not the static
+// number — so a stale-grid session at low sun gets correctly down-
+// weighted in the rolling correlation engine.
 export const UV_SOURCE_CONFIDENCE = {
   manual_meter: 1.0,    // user with calibrated UV meter
   manual_entry: 0.85,   // user-entered without meter
@@ -35,6 +44,73 @@ export const UV_SOURCE_CONFIDENCE = {
   open_meteo: 0.65,     // GFS approximation
   zenith_offline: 0.40, // offline clear-sky-only estimate
 };
+
+// Compute real-time UV-source confidence from the baseline source +
+// observable signals. Returns 0.05–0.99 (never 0 — we always have some
+// signal — and never 1.0 unless the user typed a meter reading).
+//
+// Multiplicative penalty stack:
+//   snapshotAgeSec > 24h    → ×0.50  (stale CAMS grid)
+//   snapshotAgeSec > 12h    → ×0.85
+//   snapshotAgeSec >  6h    → ×0.92
+//   cloudCover > 0.8        → ×0.75  (heavy cloud destroys UV math)
+//   cloudCover > 0.5        → ×0.92
+//   zenithDeg > 80°         → ×0.55  (very low sun, model breaks down)
+//   zenithDeg > 70°         → ×0.75
+//   zenithDeg > 60°         → ×0.92
+//   uvIndex < 0.5           → ×0.40  (essentially zero, model error dominant)
+//   uvIndex < 2.0           → ×0.70  (below threshold-gate ramp)
+//   isStale flag            → ×0.50  (server-side stale beacon)
+//
+// All penalties are independent — they reflect distinct uncertainty
+// sources. Each is calibrated against the existing vitaminDIURange()
+// per-zenith band so the two readouts stay in lockstep.
+export function computeUVConfidence(opts = {}) {
+  const {
+    source = 'open_meteo',
+    snapshotAgeSec = null,
+    cloudCover = null,        // 0-1 OR 0-100; we normalise
+    zenithDeg = null,
+    uvIndex = null,
+    isStale = false,
+    manualOverridden = false, // user typed a UVI override → trust it absolutely
+  } = opts;
+  if (manualOverridden || source === 'manual_meter') return 1.0;
+  let c = UV_SOURCE_CONFIDENCE[source] ?? 0.6;
+  // Normalise cloud cover (some atm payloads use percent).
+  let cc = cloudCover;
+  if (cc != null && cc > 1) cc = cc / 100;
+  // Snapshot age — only meaningful for sources that publish freshness.
+  if (Number.isFinite(snapshotAgeSec)) {
+    if (snapshotAgeSec > 86400) c *= 0.50;
+    else if (snapshotAgeSec > 43200) c *= 0.85;
+    else if (snapshotAgeSec > 21600) c *= 0.92;
+  }
+  // Cloud cover — composition data quality is independent of cloud,
+  // but the UVI we COMPUTE from atmosphere + clouds + sun-angle is
+  // less certain when clouds dominate.
+  if (Number.isFinite(cc)) {
+    if (cc > 0.8) c *= 0.75;
+    else if (cc > 0.5) c *= 0.92;
+  }
+  // Solar elevation — at zenith>80° (elevation<10°) the air-mass scaling
+  // amplifies any model error, exactly the same band where
+  // vitaminDIURange widens to ±45%.
+  if (Number.isFinite(zenithDeg)) {
+    if (zenithDeg > 80) c *= 0.55;
+    else if (zenithDeg > 70) c *= 0.75;
+    else if (zenithDeg > 60) c *= 0.92;
+  }
+  // UVI band — below the synthesis threshold the relative model error
+  // is huge even at high sun.
+  if (Number.isFinite(uvIndex)) {
+    if (uvIndex < 0.5) c *= 0.40;
+    else if (uvIndex < 2.0) c *= 0.70;
+  }
+  if (isStale) c *= 0.50;
+  // Floor + ceiling — never 0 (always some signal), never 1 unless meter.
+  return Math.max(0.05, Math.min(0.99, c));
+}
 
 // ─── Config ────────────────────────────────────────────────────────────
 
@@ -806,5 +882,6 @@ if (typeof window !== 'undefined') {
     getMeteoConfig,
     saveMeteoConfig,
     solarZenithAngle,
+    computeUVConfidence,
   });
 }

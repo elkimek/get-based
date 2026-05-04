@@ -251,6 +251,79 @@ return (async function() {
     assert(`UV_SOURCE_CONFIDENCE has key '${k}'`, typeof UV_SOURCE_CONFIDENCE[k] === 'number');
   }
 
+  // ─── 8. computeUVConfidence — real-time confidence under signals ─────
+  // The static UV_SOURCE_CONFIDENCE table is the BASELINE; the value
+  // shown to the user is computed from that baseline + observable
+  // signals (snapshot age, cloud cover, solar elevation, UVI band,
+  // server-side stale flag). These fixtures pin the multiplier
+  // calibration so a future refactor that changes the penalty stack
+  // can't silently make readouts dishonestly precise under bad
+  // conditions.
+  console.log('%c 8. Computed confidence ', 'font-weight:bold;color:#f59e0b');
+
+  const { computeUVConfidence } = await import('/js/sun-uvdata.js?bust=' + Date.now());
+  const approx = (a, b, tol = 0.005) => Math.abs(a - b) < tol;
+
+  // Best case — fresh CAMS, clear sky, sun overhead, UVI in sweet spot.
+  assert('CAMS · fresh · clear · noon · UVI 8 → 0.95 (no discounts)',
+    approx(computeUVConfidence({
+      source: 'cams', snapshotAgeSec: 1800, cloudCover: 0, zenithDeg: 30, uvIndex: 8,
+    }), 0.95));
+
+  // Stale grid (>24h) halves CAMS confidence.
+  assert('CAMS · 30h-stale · clear · noon · UVI 8 → 0.475',
+    approx(computeUVConfidence({
+      source: 'cams', snapshotAgeSec: 30 * 3600, cloudCover: 0, zenithDeg: 30, uvIndex: 8,
+    }), 0.475));
+
+  // Heavy cloud + low sun stacks two penalties on CAMS.
+  assert('CAMS · fresh · 90% cloud · zenith 82° · UVI 4 → ~0.39',
+    approx(computeUVConfidence({
+      source: 'cams', snapshotAgeSec: 600, cloudCover: 0.9, zenithDeg: 82, uvIndex: 4,
+    }), 0.95 * 0.75 * 0.55));
+
+  // Below-threshold UVI — model error dominates regardless of source.
+  assert('Open-Meteo · clear · noon · UVI 0.4 → 0.65 × 0.40 = 0.26',
+    approx(computeUVConfidence({
+      source: 'open_meteo', cloudCover: 0, zenithDeg: 30, uvIndex: 0.4,
+    }), 0.65 * 0.40));
+
+  // Manual-meter source always 1.0 (user typed a measured value).
+  assert('manual_meter ignores all penalties',
+    computeUVConfidence({
+      source: 'manual_meter', snapshotAgeSec: 999999, cloudCover: 1, zenithDeg: 89, uvIndex: 0,
+    }) === 1.0);
+
+  // Manual override flag locks to 1.0 on any source (user typed UVI).
+  assert('manualOverridden=true forces 1.0 on Open-Meteo',
+    computeUVConfidence({
+      source: 'open_meteo', uvIndex: 5, manualOverridden: true,
+    }) === 1.0);
+
+  // Floor at 0.05 — never returns 0 even under stacked worst-case.
+  assert('floor at 0.05 with all penalties stacked',
+    computeUVConfidence({
+      source: 'zenith_offline', snapshotAgeSec: 999999, cloudCover: 1.0, zenithDeg: 89, uvIndex: 0.1, isStale: true,
+    }) >= 0.05);
+
+  // Cloud cover normalisation — fraction OR percent both accepted.
+  assert('cloudCover=85 (percent) === cloudCover=0.85 (fraction)',
+    approx(
+      computeUVConfidence({ source: 'cams', snapshotAgeSec: 600, cloudCover: 85, zenithDeg: 30, uvIndex: 6 }),
+      computeUVConfidence({ source: 'cams', snapshotAgeSec: 600, cloudCover: 0.85, zenithDeg: 30, uvIndex: 6 }),
+    ));
+
+  // Server-side stale flag halves confidence (mirrors the >24h penalty).
+  assert('isStale=true × CAMS-fresh-clear-noon-UVI8 → 0.475',
+    approx(computeUVConfidence({
+      source: 'cams', snapshotAgeSec: 600, cloudCover: 0, zenithDeg: 30, uvIndex: 8, isStale: true,
+    }), 0.475));
+
+  // Cap at 0.99 — even baseline 1.0 source gets clamped (so user knows
+  // there's always *some* model uncertainty unless they typed a meter).
+  assert('non-meter source capped at 0.99',
+    computeUVConfidence({ source: 'selfhost', snapshotAgeSec: 0, cloudCover: 0, zenithDeg: 30, uvIndex: 8 }) <= 0.99);
+
   console.log(`%c Sun UV-Data: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

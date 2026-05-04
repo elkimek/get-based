@@ -425,7 +425,47 @@ function _inspectConditionsNow() {
       </div>
       <div class="sun-detail-section">
         <div class="sun-detail-section-label">Confidence</div>
-        <div class="sun-detail-section-value">${atm?.confidence != null ? Math.round(atm.confidence * 100) + '%' : '—'}</div>
+        <div class="sun-detail-section-value">${(() => {
+          // Computed real-time confidence — weights snapshot age, cloud
+          // cover, solar elevation, and UVI band so a low-sun heavy-cloud
+          // CAMS reading isn't dishonestly reported as 95%.
+          const computed = window.computeUVConfidence ? window.computeUVConfidence({
+            source: atm?.source,
+            snapshotAgeSec: atm?._camsMeta?.ageSec ?? null,
+            cloudCover: atm?.cloudCover ?? null,
+            zenithDeg: coords && atm?.fetchedAt && window.solarZenithAngle
+              ? window.solarZenithAngle(new Date(atm.fetchedAt), coords.lat, coords.lon)
+              : null,
+            uvIndex: atm?.uvIndex ?? null,
+            isStale: !!atm?._stale,
+            manualOverridden: !!atm?._uvOverridden,
+          }) : (atm?.confidence ?? null);
+          if (computed == null) return '—';
+          const pct = Math.round(computed * 100);
+          // Tooltip lists the active discounts so the user can see WHY
+          // confidence dropped — turns a single number into honest reasoning.
+          const factors = [];
+          if (atm?._uvOverridden) factors.push('manual UVI override');
+          else {
+            const age = atm?._camsMeta?.ageSec;
+            if (Number.isFinite(age)) {
+              if (age > 86400) factors.push(`stale grid (${Math.round(age/3600)}h old)`);
+              else if (age > 43200) factors.push(`grid ${Math.round(age/3600)}h old`);
+              else if (age > 21600) factors.push(`grid ${Math.round(age/3600)}h old`);
+            }
+            const cc = atm?.cloudCover;
+            const ccNorm = cc != null && cc > 1 ? cc / 100 : cc;
+            if (Number.isFinite(ccNorm)) {
+              if (ccNorm > 0.8) factors.push(`heavy cloud (${Math.round(ccNorm*100)}%)`);
+              else if (ccNorm > 0.5) factors.push(`moderate cloud (${Math.round(ccNorm*100)}%)`);
+            }
+            if (atm?._stale) factors.push('upstream marked stale');
+            const u = atm?.uvIndex;
+            if (Number.isFinite(u) && u < 2) factors.push(`low UVI (${u.toFixed(1)} — model band noisy below 2)`);
+          }
+          const tip = factors.length ? `Discounted by: ${factors.join('; ')}` : 'No active discounts; baseline source confidence.';
+          return `<span title="${escapeAttr(tip)}">${pct}%</span>`;
+        })()}</div>
       </div>
       ${warnings.length ? `<div class="sun-detail-section">
         <div class="sun-detail-section-label">Sanity warnings</div>
