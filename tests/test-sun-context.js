@@ -65,19 +65,21 @@ return (async function() {
   assert('Always tier names the lens "Light & Sun"',
     /Light & Sun lens/.test(always));
   assert('Always tier reports total session count',
-    /Total outdoor sessions logged: 2/.test(always));
+    /Outdoor sessions: 2/.test(always));
   assert('Always tier surfaces the active session warning',
     /ACTIVE SESSION in progress/.test(always));
   assert('Always tier surfaces 7-day per-channel totals header',
     /7-day per-channel dose totals/.test(always));
-  assert('Always tier surfaces 30-day totals header',
-    /30-day per-channel dose totals/.test(always));
+  // 30-day breakdown was dropped from always-tier in v1.7.18 (token compression).
+  // It still backs deficit detection internally; the surface moved to standard tier.
+  assert('Always tier omits 30-day totals header (compressed in v1.7.18)',
+    !/30-day per-channel dose totals/.test(always));
   assert('Always tier serializes Fitzpatrick III from sunDefaults',
     /Fitzpatrick III/.test(always));
   assert('Always tier mentions Ott baseline when ottScore set',
     /Ott malillumination baseline: 4/.test(always));
-  assert('Always tier reports MED fraction',
-    /Today's cumulative MED fraction/.test(always));
+  assert('Always tier reports MED',
+    /Today's cumulative MED:/.test(always));
 
   // Token budget — always tier should stay roughly under ~1400 chars
   // (~520 tok) for the canonical small-state user. Hard cap = 4000 chars
@@ -88,20 +90,24 @@ return (async function() {
   // ─── 3. Deficit detection ────────────────────────────────────────────
   console.log('%c 3. Active deficit citations ', 'font-weight:bold;color:#f59e0b');
 
-  // Session with vitamin_d but missing the other three deficit channels
-  reset({
-    sunSessions: [{
-      id: 'partial',
-      startedAt: recent,
-      endedAt: recent + 60 * 60000,
+  // 7 sessions to satisfy the v1.7.18 baseline-window gate (deficits only
+  // fire once the user has logged ≥7 events of any kind — otherwise we
+  // can't distinguish "user doesn't expose" from "user hasn't logged
+  // yet"). All carry only vitamin_d → circadian, nir_solar, no_cv all 0.
+  const partialSessions = [];
+  for (let i = 0; i < 7; i++) {
+    partialSessions.push({
+      id: `partial_${i}`,
+      startedAt: recent - i * 86400 * 1000,
+      endedAt: recent - i * 86400 * 1000 + 60 * 60000,
       durationMin: 60,
-      // doses include only vitamin_d → circadian, nir_solar, no_cv all 0
       doses: { vitamin_d: 200 },
       safety: { medFraction: 0.4, fitzpatrick: 'III' },
       atmosphere: { uvIndex: 7 },
       bodyExposure: { preset: 'tshirt', fraction: 0.30 },
-    }],
-  });
+    });
+  }
+  reset({ sunSessions: partialSessions });
   const def = buildSunContext({ tier: 'always' });
   assert('Deficit block surfaces the "Active light deficits" header',
     /Active light deficits/.test(def));
@@ -113,6 +119,23 @@ return (async function() {
     /Liu|Oplander|Opländer/.test(def));
   assert('Vit-D deficit absent when vitamin_d > 0',
     !/Channel 1 \(vit D\)/.test(def));
+
+  // Baseline-window gate (v1.7.18) — under 7 logged events the deficit
+  // block must NOT fire. Brand-new users get a measurement gap, not 6
+  // simultaneous false-positive deficits.
+  reset({
+    sunSessions: [{
+      id: 'lone',
+      startedAt: recent, endedAt: recent + 60 * 60000, durationMin: 60,
+      doses: { vitamin_d: 200 },
+      safety: { medFraction: 0.4, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 7 },
+      bodyExposure: { preset: 'tshirt', fraction: 0.30 },
+    }],
+  });
+  const sparse = buildSunContext({ tier: 'always' });
+  assert('Deficit block suppressed when fewer than 7 events logged',
+    !/Active light deficits/.test(sparse));
 
   // ─── 4. Standard tier (+1200 tok) ────────────────────────────────────
   console.log('%c 4. Standard tier extra block ', 'font-weight:bold;color:#f59e0b');

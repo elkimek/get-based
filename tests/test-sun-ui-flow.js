@@ -135,7 +135,7 @@ return (async function() {
     assert('Context section markers wrap the block',
       /\[section:sunSessions\][\s\S]*\[\/section:sunSessions\]/.test(ctx));
     assert('Context reports total session count of 1',
-      /Total outdoor sessions logged: 1/.test(ctx));
+      /Outdoor sessions: 1/.test(ctx));
   } else {
     assert('window.buildSunContext exists (AI wired)', false,
       'skipped — function missing');

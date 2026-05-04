@@ -73,24 +73,30 @@ function alwaysTierBlock(sessions) {
     }
   }
 
+  // Compact lifelight summary — counts only, no device-name listing (the AI
+  // doesn't need to know "Joovv Mini 3.0" by brand to reason about red-light
+  // dose; the channel totals already encode the bioactive signal). Active
+  // session + most-recent session lines drop when null. Verbose 30-day
+  // channel totals were dropped from always-tier output — they're computed
+  // for deficit detection but the 7-day totals are the recency-relevant
+  // signal in chat. Standard tier reintroduces the 30-day breakdown.
   let block = `### Lifelight summary
-- Total outdoor sessions logged: ${sessions.length}
-- Total device sessions logged: ${devSessions.length}
-- Light devices in library: ${devices.length}${devices.length ? ` (${devices.map(d => d.brand + ' ' + d.model).join(', ')})` : ''}${baselineLine}
-- Today's cumulative MED fraction: ${(medToday * 100).toFixed(0)}%${medToday > 1 ? ' (over personal MED — exposure risk)' : ''}
-${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})` : ''}
-${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)` : ''}
-
+- Outdoor sessions: ${sessions.length} · device sessions: ${devSessions.length} · devices in library: ${devices.length}${baselineLine}
+- Today's cumulative MED: ${(medToday * 100).toFixed(0)}%${medToday > 1 ? ' (over personal MED — exposure risk)' : ''}
+${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})\n` : ''}${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)\n` : ''}
 ### 7-day per-channel dose totals (channel-au, sun + devices combined)
 ${formatChannelTotals(totals7d)}
 
-### 30-day per-channel dose totals
-${formatChannelTotals(totals30d)}
-
 `;
 
-  // Deficit detection — flag channels at <10% of literature reference (rough heuristic)
-  const deficits = detectDeficits(totals30d);
+  // Deficit detection — flag channels at <10% of literature reference (rough
+  // heuristic). Gated behind a real baseline window so a brand-new user with
+  // zero exposure logs isn't told they have 6 simultaneous deficits — that's
+  // a measurement gap, not a signal. Once they've logged ≥7 events of any
+  // kind we have enough to distinguish "user doesn't expose" from "user
+  // hasn't logged yet."
+  const baselineCount = sessions.length + devSessions.length;
+  const deficits = baselineCount >= 7 ? detectDeficits(totals30d) : [];
   if (deficits.length > 0) {
     block += `### Active light deficits
 ${deficits.map(d => `- ${d.label}: ${d.note}`).join('\n')}
@@ -137,47 +143,33 @@ function lightEnvironmentBlock() {
     if (blueOff > 0) s += ` (${blueOff} without blue-blocker — direct retinal melatonin suppression)`;
     s += '\n';
   }
-  if (audits.length > 0) {
-    // `lightAudits` are explicit before/after snapshots saved by the
-    // user (e.g. "Pre-LED-swap" / "Post-LED-swap"). Tool 8 Eye-Level
-    // walkthroughs are NOT counted here — they're per-pause lux
-    // measurements bound to rooms via `lightMeasurements`. Two
-    // semantically different artifacts; keep them named distinctly so
-    // the AI doesn't confuse "I ran a walkthrough" with "I saved a
-    // before/after audit comparison."
-    s += `- Light audits saved: ${audits.length}`;
-    const last = audits[audits.length - 1];
-    if (last) s += ` (most recent: ${formatRelative(last.savedAt || last.createdAt || Date.now())})`;
-    s += '\n';
-  }
-  // Eye-Level walkthroughs (Tool 8) — separate from `lightAudits`.
+  // `lightAudits` = before/after snapshots; Tool 8 walkthroughs = per-pause
+  // lux measurements bound to rooms (`lightMeasurements` with tool='audit').
+  // Folded onto one line — the AI cares about presence, not the distinction.
   const eyeLevel = (state.importedData?.lightMeasurements || []).filter(m => m && m.tool === 'audit');
-  if (eyeLevel.length > 0) {
-    const lastEye = eyeLevel[eyeLevel.length - 1];
-    s += `- Eye-Level walkthroughs run: ${eyeLevel.length}`;
-    if (lastEye?.takenAt) s += ` (most recent: ${formatRelative(lastEye.takenAt)})`;
-    s += '\n';
+  if (audits.length > 0 || eyeLevel.length > 0) {
+    const parts = [];
+    if (audits.length > 0) parts.push(`${audits.length} before/after`);
+    if (eyeLevel.length > 0) parts.push(`${eyeLevel.length} eye-level`);
+    s += `- Light audits: ${parts.join(' · ')}\n`;
   }
-  // Indoor burden tier — rough qualitative score from 0 (negligible)
-  // to 4 (severe) computed from screen-after-sunset hours, dim-room
-  // hours, blue-blocker absence, and room count without daylight.
+  // Indoor burden tier + deficit axes — collapsed onto one line. Burden is
+  // the qualitative summary, d2/d3 are the components that drove it.
   if (typeof window.computeIndoorBurden === 'function') {
     try {
       const burden = window.computeIndoorBurden();
       if (burden && typeof burden === 'object') {
         const tierLabel = ['negligible', 'mild', 'moderate', 'high', 'severe'][burden.tier] || 'unknown';
-        s += `- Indoor light burden: ${tierLabel} (tier ${burden.tier}/4)`;
-        if (burden.note) s += ` — ${burden.note}`;
-        s += '\n';
-      }
-    } catch (e) {}
-  }
-  // Deficit axes — quantitative components that drove the burden tier.
-  if (typeof window.computeDeficitAxes === 'function') {
-    try {
-      const axes = window.computeDeficitAxes();
-      if (axes && (axes.d2 != null || axes.d3 != null)) {
-        s += `- Deficit axes: d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap vs solar) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue exposure)\n`;
+        let line = `- Indoor light burden: ${tierLabel} (tier ${burden.tier}/4)`;
+        if (typeof window.computeDeficitAxes === 'function') {
+          try {
+            const axes = window.computeDeficitAxes();
+            if (axes && (axes.d2 != null || axes.d3 != null)) {
+              line += ` · d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue)`;
+            }
+          } catch (e) {}
+        }
+        s += line + '\n';
       }
     } catch (e) {}
   }
@@ -345,7 +337,9 @@ function formatChannelTotals(totals) {
   const lines = [];
   for (const [k, label] of Object.entries(CHANNEL_LABELS)) {
     const v = totals[k] || 0;
-    lines.push(`- ${label}: ${v.toFixed(1)}`);
+    // Integer format above 10; one decimal below — small doses still resolve.
+    const fmt = v >= 10 ? Math.round(v).toString() : v.toFixed(1);
+    lines.push(`- ${label}: ${fmt}`);
   }
   return lines.join('\n');
 }

@@ -1116,6 +1116,76 @@ export function detectWearableTrendSlots(summary) {
   });
 }
 
+// Match a sun-context channel deficit to catalog devices that can fill it.
+// `channelKey` is one of the 8 channels (vitamin_d, circadian, nir_solar,
+// no_cv, pomc, violet_eye, pbm_red, pbm_nir). `presets` is the parsed
+// data/light-device-presets.json registry — its `presets[].channels` array
+// is the join key. Returns deduplicated catalog products (region-filtered)
+// that target the channel via `_internal.lightDevices`.
+//
+// Used by the Light & Sun page to surface a CTA when deficit detection
+// fires for a channel a device can address (especially pbm_red / pbm_nir,
+// where solar exposure can't realistically fill the gap).
+export function recommendDeviceProductsForChannelDeficit(catalog, channelKey, presets) {
+  if (!catalog?.products || !channelKey || !presets) return [];
+  const presetList = Array.isArray(presets) ? presets : (presets.presets || []);
+  if (!presetList.length) return [];
+  const slugs = new Set();
+  for (const p of presetList) {
+    if (!p?.catalogSlug) continue;
+    if (Array.isArray(p.channels) && p.channels.includes(channelKey)) {
+      slugs.add(p.catalogSlug);
+    }
+  }
+  if (!slugs.size) return [];
+  const products = catalog.products['_internal.lightDevices'];
+  if (!Array.isArray(products) || !products.length) return [];
+  const region = getUserRegion();
+  const chain = new Set(regionLookupChain(region));
+  const seen = new Set();
+  const out = [];
+  for (const product of products) {
+    if (!slugs.has(product.key)) continue;
+    if (!Array.isArray(product.regions) || !product.regions.some(r => chain.has(r))) continue;
+    if (seen.has(product.key)) continue;
+    seen.add(product.key);
+    out.push(product);
+  }
+  return out;
+}
+
+// Render a "Fill this channel" CTA card listing devices that target the
+// deficient channel. Returns '' when product recs are off, no presets/
+// catalog match, or no trusted URL resolves. The `humanLabel` is shown in
+// the card title (e.g. "Red 660 nm" rather than "pbm_red").
+export function renderChannelDeficitDeviceRecs(catalog, channelKey, presets, opts = {}) {
+  if (!isProductRecsEnabled()) return '';
+  const products = recommendDeviceProductsForChannelDeficit(catalog, channelKey, presets);
+  if (!products.length) return '';
+  const region = getUserRegion();
+  const humanLabel = escapeHTML(opts.label || channelKey);
+  // Cap at 3 to keep the card compact — the catalog is curated, not a
+  // marketplace. If the user wants more they can browse Light devices.
+  const rows = [];
+  for (const product of products.slice(0, 3)) {
+    const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
+    if (!_isTrustedAffiliateUrl(rawUrl, catalog)) continue;
+    const slug_ = _eventSlug(product.key || product.name || '');
+    const evtName = `light-deficit-rec-${slug_}`.slice(0, 50).replace(/-+$/, '');
+    const url = _addUTMParams(rawUrl, `light-deficit-${slug_}`, 'light-devices');
+    const name = escapeHTML(product.name || product.key);
+    const vendor = escapeHTML(product.vendor || product.brand || 'vendor');
+    const blurb = product.blurb ? escapeHTML(product.blurb) : '';
+    rows.push(`<a class="rec-product-link rec-light-deficit-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${name} on ${vendor}, opens in new tab"><strong>${name}</strong>${blurb ? ` — ${blurb}` : ''} <span class="rec-vendor">View on ${vendor} →</span></a>`);
+  }
+  if (!rows.length) return '';
+  return `<div class="rec-channel-deficit" role="region" aria-label="${humanLabel} channel device recommendations">
+    <div class="rec-channel-deficit-head">Fill the ${humanLabel} channel with a device</div>
+    <div class="rec-channel-deficit-list">${rows.join('')}</div>
+    <div class="rec-channel-deficit-foot">Affiliate links · <a href="#" onclick="event.preventDefault();window.openSettingsTab&&window.openSettingsTab('privacy')">turn off</a></div>
+  </div>`;
+}
+
 // ═══════════════════════════════════════════════
 // WINDOW EXPORTS
 // ═══════════════════════════════════════════════
@@ -1139,5 +1209,7 @@ Object.assign(window, {
   detectMitigationsInText,
   getLightDeviceProduct,
   renderLightDeviceAffiliateRow,
+  recommendDeviceProductsForChannelDeficit,
+  renderChannelDeficitDeviceRecs,
   copyCouponCode,
 });

@@ -1316,6 +1316,29 @@ function _refreshSurfaces() {
   setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
 }
 
+// First-fire jargon explainer for in-session toasts. Returns a one-line
+// definition the first time the user sees a piece of acronym-heavy copy
+// ("MED", "ICNIRP"), then '' on every subsequent fire so the running
+// session toasts stay terse. Persists per-key in localStorage so the
+// explanation isn't repeated across reloads. The dictionary is small and
+// scoped to the toasts that actually use jargon — we don't preface every
+// notification.
+const _JARGON_DEFINITIONS = {
+  med: 'MED = the smallest UV dose that turns your skin slightly pink (Fitzpatrick-tuned). ',
+  icnirp: 'ICNIRP = the body that publishes safe daily UV exposure limits for the eye. ',
+};
+function _jargonPrefix(key) {
+  if (typeof localStorage === 'undefined') return '';
+  const def = _JARGON_DEFINITIONS[key];
+  if (!def) return '';
+  const flag = `gb_jargon_seen_${key}`;
+  try {
+    if (localStorage.getItem(flag)) return '';
+    localStorage.setItem(flag, '1');
+  } catch (e) { return ''; }
+  return def;
+}
+
 // ─── Live in-progress session ticker ───────────────────────────────────
 //
 // While a session is active we want the on-screen card to feel alive:
@@ -1775,10 +1798,10 @@ function _tickActiveCards() {
       const cur = _getLiveState(sess.id) || {};
       if (med >= 1.0 && !cur.alertedOver) {
         _setLiveState(sess.id, { alertedOver: true });
-        showNotification('Burn threshold reached. Move to shade or cover up. Hydrate, no more direct sun today — damage from here is cumulative.', 'error', 10000);
+        showNotification(_jargonPrefix('med') + 'Burn threshold reached. Move to shade or cover up. Hydrate, no more direct sun today — damage from here is cumulative.', 'error', 10000);
       } else if (med >= 0.7 && !cur.alerted70) {
         _setLiveState(sess.id, { alerted70: true });
-        showNotification('70% of your burn dose. Best move: head into shade for ~10 min, then decide. If you stay, watch for skin warmth or pinkness.', 'warning', 8000);
+        showNotification(_jargonPrefix('med') + '70% of your burn dose. Best move: head into shade for ~10 min, then decide. If you stay, watch for skin warmth or pinkness.', 'warning', 8000);
       }
     }
 
@@ -1793,10 +1816,10 @@ function _tickActiveCards() {
       const cur = _getLiveState(sess.id) || {};
       if (ruv >= 30 && !cur.alertedRetinalOver) {
         _setLiveState(sess.id, { alertedRetinalOver: true });
-        showNotification('Eye UV at the ICNIRP daily exposure limit. Put on UV-blocking sunglasses now — symptoms (gritty eyes, sensitivity to light) appear 6-12 hours after exposure.', 'error', 10000);
+        showNotification(_jargonPrefix('icnirp') + 'Eye UV at the ICNIRP daily exposure limit. Put on UV-blocking sunglasses now — symptoms (gritty eyes, sensitivity to light) appear 6-12 hours after exposure.', 'error', 10000);
       } else if (ruv >= 15 && !cur.alertedRetinal500) {
         _setLiveState(sess.id, { alertedRetinal500: true });
-        showNotification('Eyes at half the daily ICNIRP UV limit — sunglasses or look-down breaks recommended. Cumulative eye exposure causes pterygium and cataract over years.', 'warning', 8000);
+        showNotification(_jargonPrefix('icnirp') + 'Eyes at half the daily ICNIRP UV limit — sunglasses or look-down breaks recommended. Cumulative eye exposure causes pterygium and cataract over years.', 'warning', 8000);
       }
     }
 

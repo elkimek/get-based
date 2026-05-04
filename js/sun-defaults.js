@@ -111,17 +111,31 @@ export const EYEWEAR_OPTIONS = [
 //      pupillary-light reflex modulate skin/mood/hormone responses.
 //  10. Total outdoor time: Stein et al. — <30min/day outdoor correlates
 //      with myopia, low vit D, blunted circadian amplitude.
+// Each question carries a `why` sub-label rendered below the checkbox so the
+// user learns the photobiology rather than just self-reporting. Kept short
+// (one clause) — a teaching surface, not a citation block. Detailed
+// citations stay in the comment above for auditability.
 export const OTT_QUESTIONS = [
-  { key: 'morning-light-deficit',    text: 'Do you get less than 5 minutes of outdoor daylight within an hour of waking?' },
-  { key: 'glass-mediated-daytime',   text: 'Do you spend most of your daytime hours behind window glass (office, home, car)?' },
-  { key: 'dim-workspace',            text: 'Is your daytime workspace below office-bright (under ~500 lux at eye-level)?' },
-  { key: 'cool-led-evening',         text: 'Are most of your indoor lights after sunset cool / daylight-white (4000K+)?' },
-  { key: 'evening-screens',          text: 'Do you regularly use bright screens (phone, laptop, TV) in the 2 hours before bed?' },
-  { key: 'bright-after-sunset',      text: 'Do you keep overhead room lights on at full brightness after sunset?' },
-  { key: 'sleep-not-dark',           text: 'Is your bedroom not fully dark while you sleep (LED indicators, streetlight, partner\'s screen)?' },
-  { key: 'sunscreen-blocks-uvb',     text: 'Do you apply sunscreen on most sun-exposed days, including brief outdoor time?' },
-  { key: 'sunglasses-outside',       text: 'Do you wear sunglasses outdoors more often than not?' },
-  { key: 'low-outdoor-time',         text: 'Is your total outdoor time under 30 minutes on a typical day?' },
+  { key: 'morning-light-deficit',    text: 'Do you get less than 5 minutes of outdoor daylight within an hour of waking?',
+    why: 'Morning daylight at the eye sets your central body clock — without it, sleep timing drifts.' },
+  { key: 'glass-mediated-daytime',   text: 'Do you spend most of your daytime hours behind window glass (office, home, car)?',
+    why: 'Window glass blocks UVB almost entirely — no vitamin D, no nitric-oxide release through the skin.' },
+  { key: 'dim-workspace',            text: 'Is your daytime workspace below office-bright (under ~500 lux at eye-level)?',
+    why: 'Dim daytime light fails to reinforce the wake signal — the contrast with night collapses.' },
+  { key: 'cool-led-evening',         text: 'Are most of your indoor lights after sunset cool / daylight-white (4000K+)?',
+    why: 'Cool / blue-rich light after sunset suppresses melatonin even at modest indoor intensities.' },
+  { key: 'evening-screens',          text: 'Do you regularly use bright screens (phone, laptop, TV) in the 2 hours before bed?',
+    why: 'Backlit screen reading before bed delays melatonin onset by ~90 minutes (Chang et al. AJCN 2015).' },
+  { key: 'bright-after-sunset',      text: 'Do you keep overhead room lights on at full brightness after sunset?',
+    why: 'Overhead light after sunset shifts your circadian phase and shortens deep sleep.' },
+  { key: 'sleep-not-dark',           text: 'Is your bedroom not fully dark while you sleep (LED indicators, streetlight, partner\'s screen)?',
+    why: 'Even <5 lux at the pillow degrades overnight insulin sensitivity (Cain et al. JCSM 2020).' },
+  { key: 'sunscreen-blocks-uvb',     text: 'Do you apply sunscreen on most sun-exposed days, including brief outdoor time?',
+    why: 'Chemical sunscreen above ~SPF 8 blocks the UVB wavelengths required for vitamin D synthesis.' },
+  { key: 'sunglasses-outside',       text: 'Do you wear sunglasses outdoors more often than not?',
+    why: 'Sunglasses block the eye-mediated α-MSH cascade — your skin and mood lose a key signal.' },
+  { key: 'low-outdoor-time',         text: 'Is your total outdoor time under 30 minutes on a typical day?',
+    why: 'Under 30 min/day outdoors correlates with low vitamin D, myopia, and a blunted circadian amplitude.' },
 ];
 
 // ─── Public API ────────────────────────────────────────────────────────
@@ -375,7 +389,7 @@ export function renderSetupCard() {
       <summary>Tune your light score (optional, ~1 min) <span class="light-setup-ott-summary-score" id="ott-summary-score">${(typeof d.ottScore === 'number') ? `· ${10 - d.ottScore}/10 aligned · ${ottScoreToLabel(d.ottScore).label}` : ''}</span></summary>
       <p class="light-setup-body" style="margin:8px 0">10 yes/no questions, each grounded in current photobiology. <strong>"Yes" always = a gap</strong> — morning light skipped, glass-mediated days, dark sleep missed, etc. Higher alignment score = better-aligned circadian + UV environment.</p>
       <div class="light-setup-ott-questions">
-        ${OTT_QUESTIONS.map(q => `<label class="light-setup-ott-q"><input type="checkbox" data-ott="${escapeAttr(q.key)}"${(d.ott && d.ott[q.key]) ? ' checked' : ''} oninput="window._updateOttRunningScore && window._updateOttRunningScore()"> ${escapeHTML(q.text)}</label>`).join('')}
+        ${OTT_QUESTIONS.map(q => `<label class="light-setup-ott-q"><input type="checkbox" data-ott="${escapeAttr(q.key)}"${(d.ott && d.ott[q.key]) ? ' checked' : ''} oninput="window._updateOttRunningScore && window._updateOttRunningScore()"><span class="light-setup-ott-q-body"><span class="light-setup-ott-q-text">${escapeHTML(q.text)}</span>${q.why ? `<span class="light-setup-ott-q-why">${escapeHTML(q.why)}</span>` : ''}</span></label>`).join('')}
       </div>
       <div class="light-setup-ott-running" id="ott-running-score">
         <span class="light-setup-ott-running-pos">Alignment: <strong id="ott-running-aligned">${10 - (d.ott ? Object.values(d.ott).filter(v => v).length : 0)}/10</strong></span>

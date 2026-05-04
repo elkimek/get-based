@@ -5,6 +5,16 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.18', date: '2026-05-04', title: 'Light & Sun honesty pass — fewer false signals to the AI, more teaching to the user',
+    items: [
+      '<b>Deficit detection no longer lies to the AI about brand-new users.</b> The "Active light deficits" block (visible to the chat assistant in every prompt) used to fire 6 simultaneous "no exposure logged in 30d" claims for users with zero sessions — measurement gap dressed up as biological signal. Now gated behind ≥7 logged events of any kind so the deficit list only fires once we have a baseline to read against.',
+      '<b>Per-Ott "why" sub-labels.</b> Each of the 10 light-environment audit questions now carries a one-line photobiology explainer below the prompt — "Window glass blocks UVB almost entirely — no vitamin D, no nitric-oxide release through the skin," "Even <5 lux at the pillow degrades overnight insulin sensitivity," etc. Teaches the model behind the question instead of just collecting yes/no.',
+      '<b>First-fire jargon explainer for MED + ICNIRP toasts.</b> The first time a session fires a 70%-MED warning or an ICNIRP eye-UV alert, the toast now opens with a one-line definition ("MED = the smallest UV dose that turns your skin slightly pink"). Subsequent fires stay terse. Persisted in localStorage so the explainer doesn\'t repeat across reloads.',
+      '<b>Channel-deficit device CTA.</b> When you\'ve logged ≥7 events but a device-fillable channel is still empty over 30 days (red 660 nm or near-IR 810/850 nm — solar exposure can\'t realistically fill those), the Light & Sun page now surfaces a "Fill the {channel} with a device" card pulling matching panels from the affiliate catalog. Region-filtered, capped at 3 products per channel, gated by the same Settings → Privacy product-recs toggle as the supplement and EMF surfaces.',
+      '<b>~115 tokens per chat saved.</b> The always-tier sun context blob was carrying redundant 30-day channel totals (already captured by deficit detection internally), the full device-name list ("Joovv Mini 3.0, EMR-Tek..."), and a separately-counted Eye-Level walkthroughs line. Compressed to integer-formatted channel values, presence-only device count, and a single Light-audits line that folds before/after snapshots and walkthroughs together.',
+    ]
+  },
+  {
     version: '1.7.17', date: '2026-05-04', title: 'CAMS atmosphere relay live + Light & Sun polish',
     items: [
       '<b>CAMS relay is live.</b> The new <code>getbased-uvdata</code> companion repo ships KNMI-validated total column ozone (DU), aerosol optical depth, and PM2.5 / PM10 from the same satellite-assimilated source Open-Meteo wraps for AQI. The Sun data source picker on the Light & Sun page now defaults to "Best accuracy" — CAMS for atmospheric composition + Open-Meteo for clouds and temperature, automatically merged. Pick "Open-Meteo only" or "Self-hosted" if you prefer.',

@@ -5889,7 +5889,12 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   display: flex; gap: 8px; align-items: flex-start;
   cursor: pointer;
 }
-.light-setup-ott-q input { margin-top: 3px; }
+.light-setup-ott-q input { margin-top: 3px; flex-shrink: 0; }
+.light-setup-ott-q-body { display: flex; flex-direction: column; gap: 2px; }
+.light-setup-ott-q-why {
+  font-size: 11px; color: var(--text-muted);
+  font-style: italic; line-height: 1.4;
+}
 
 /* Coords hint shown below the channel pills on the Light page empty state */
 .light-intro-hint {
@@ -6077,6 +6082,37 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   text-decoration: none;
 }
 .rec-light-device-link:hover { text-decoration: underline; }
+
+/* Channel-deficit device recommendation card. Surfaced on the Light & Sun
+   page when the user has ≥7 sessions logged but a device-fillable channel
+   (pbm_red / pbm_nir) is empty over 30 days. Compact, region-filtered,
+   capped at 3 products per channel. */
+.rec-channel-deficit {
+  margin: 16px 0; padding: 12px 14px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.rec-channel-deficit-head {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.rec-channel-deficit-list { display: flex; flex-direction: column; gap: 6px; }
+.rec-light-deficit-link {
+  display: block; padding: 8px 10px;
+  font-size: 12px; color: var(--text-primary);
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-xs); text-decoration: none;
+}
+.rec-light-deficit-link:hover { border-color: var(--accent); }
+.rec-light-deficit-link strong { color: var(--accent); margin-right: 4px; }
+.rec-light-deficit-link .rec-vendor {
+  display: inline-block; margin-left: 6px;
+  color: var(--text-secondary); font-size: 11px;
+}
+.rec-channel-deficit-foot {
+  margin-top: 8px; font-size: 11px; color: var(--text-secondary);
+}
+.rec-channel-deficit-foot a { color: var(--text-secondary); }
 
 /* Unified sessions list — sun + device sessions interleaved
    chronologically. Row shape mirrors the sun-only list with an extra

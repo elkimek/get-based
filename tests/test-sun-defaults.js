@@ -66,6 +66,12 @@ return (async function() {
   assert('OTT_QUESTIONS keys are unique', ottKeys.size === OTT_QUESTIONS.length);
   for (const q of OTT_QUESTIONS) {
     assert(`OTT question '${q.key}' has prompt text`, typeof q.text === 'string' && q.text.length > 10);
+    // v1.7.18: every question carries a one-line "why" sub-label that
+    // teaches the photobiology behind the question. The setup card
+    // renders it under the prompt so users learn the model rather than
+    // just self-reporting.
+    assert(`OTT question '${q.key}' carries a 'why' explainer`,
+      typeof q.why === 'string' && q.why.length > 20);
   }
   // Spot-check the canonical keys we documented in source
   const requiredOttKeys = [

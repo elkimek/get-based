@@ -1084,6 +1084,7 @@ function _openDevicePicker(devices) {
 
 if (typeof window !== 'undefined') {
   Object.assign(window, {
+    loadLightDevicePresets: loadPresets,
     getDevices,
     getDeviceSessions,
     addDeviceFromPreset,

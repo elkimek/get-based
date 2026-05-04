@@ -300,6 +300,58 @@ return (async function() {
       `got ${p.catalogSlug}`);
   }
 
+  // ─── Channel-deficit device recommendations (v1.7.18) ─────────────────
+  // recommendDeviceProductsForChannelDeficit joins channel keys to catalog
+  // products via preset.catalogSlug. Used by Light & Sun page to surface
+  // a CTA when the user has 7+ logged events but a device-fillable
+  // channel (pbm_red / pbm_nir) is empty over 30 days.
+  assert('recommendDeviceProductsForChannelDeficit on window',
+    typeof window.recommendDeviceProductsForChannelDeficit === 'function');
+  assert('renderChannelDeficitDeviceRecs on window',
+    typeof window.renderChannelDeficitDeviceRecs === 'function');
+
+  const presetStubs = [
+    { id: 'mitochondriak-maxi-uvb', brand: 'Mitochondriak', model: 'Maxi UVB',
+      catalogSlug: 'mitochondriak-maxi-uvb', channels: ['vitamin_d', 'no_cv'] },
+    { id: 'pbm-only', brand: 'Mitochondriak', model: 'PBM-only',
+      catalogSlug: 'mitochondriak-maxi-uvb', channels: ['pbm_red', 'pbm_nir'] },
+    { id: 'no-slug', brand: 'X', model: 'Y', channels: ['pbm_red'] },
+  ];
+
+  const pbmRedHits = window.recommendDeviceProductsForChannelDeficit(
+    stubCatalog, 'pbm_red', presetStubs);
+  assert('recommendDeviceProductsForChannelDeficit: pbm_red → matching product',
+    Array.isArray(pbmRedHits) && pbmRedHits.length === 1 &&
+    pbmRedHits[0].key === 'mitochondriak-maxi-uvb');
+
+  const novelChannel = window.recommendDeviceProductsForChannelDeficit(
+    stubCatalog, 'imaginary_channel', presetStubs);
+  assert('recommendDeviceProductsForChannelDeficit: unknown channel → []',
+    Array.isArray(novelChannel) && novelChannel.length === 0);
+
+  const noPresets = window.recommendDeviceProductsForChannelDeficit(
+    stubCatalog, 'pbm_red', []);
+  assert('recommendDeviceProductsForChannelDeficit: empty presets → []',
+    Array.isArray(noPresets) && noPresets.length === 0);
+
+  // renderChannelDeficitDeviceRecs respects the toggle.
+  window.setProductRecsEnabled(true);
+  const card = window.renderChannelDeficitDeviceRecs(
+    stubCatalog, 'pbm_red', presetStubs, { label: 'red 660 nm (PBM)' });
+  assert('renderChannelDeficitDeviceRecs: builds card with channel label',
+    card.includes('rec-channel-deficit') && card.includes('red 660 nm (PBM)'));
+  assert('renderChannelDeficitDeviceRecs: stamps light-devices campaign',
+    card.includes('utm_campaign=light-devices'));
+  assert('renderChannelDeficitDeviceRecs: Umami event uses light-deficit-rec prefix',
+    /data-umami-event="light-deficit-rec-/.test(card));
+
+  window.setProductRecsEnabled(false);
+  const offCard = window.renderChannelDeficitDeviceRecs(
+    stubCatalog, 'pbm_red', presetStubs, { label: 'red 660 nm (PBM)' });
+  assert('renderChannelDeficitDeviceRecs: toggle off → empty string',
+    offCard === '');
+  window.setProductRecsEnabled(true);
+
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════

@@ -1319,6 +1319,17 @@ export function showLight(_data) {
     // Suggestion (channel-agnostic, reads merged totals)
     html += renderSuggestion(combined7d);
 
+    // Channel-deficit device recommendations — async slot. Surfaces a
+    // CTA card with matching catalog devices when (a) the user has a
+    // real baseline (≥7 logs) and (b) a device-fillable channel is
+    // empty over 30 days. PBM red/NIR are the cleanest cases — solar
+    // exposure can't realistically fill those, so a panel is the
+    // right answer. Catalog + presets are async-loaded; the slot
+    // stays empty if recs are off, region filters everything out, or
+    // the catalog isn't reachable.
+    const deficitRecSlotId = `light-deficit-rec-slot-${Date.now()}`;
+    html += `<div id="${deficitRecSlotId}"></div>`;
+
     // "How we estimate" — single explainer covering MED / IU / channels /
     // uncertainty. One-stop glossary so we don't litter every readout with
     // a tooltip. Collapsed by default.
@@ -1351,6 +1362,35 @@ export function showLight(_data) {
   html += `<div id="${placeholderId}"></div>`;
 
   main.innerHTML = html;
+
+  // Populate the channel-deficit device-rec slot. Same baseline gate as
+  // sun-context.js: ≥7 logged events of any kind. Device-fillable
+  // channels only — sun-derived deficits (vit_d, circadian, etc.) get
+  // suggested actions via renderSuggestion above; we don't try to sell
+  // a panel as a sun substitute.
+  if (totalSessions >= 7 && typeof window.renderChannelDeficitDeviceRecs === 'function'
+      && typeof window.loadCatalog === 'function'
+      && typeof window.loadLightDevicePresets === 'function') {
+    const slot = document.getElementById('' + deficitRecSlotId);
+    if (slot) {
+      const DEVICE_CHANNELS = [
+        { key: 'pbm_red', label: 'red 660 nm (PBM)' },
+        { key: 'pbm_nir', label: 'near-IR 810/850 nm (PBM)' },
+      ];
+      const empty = DEVICE_CHANNELS.filter(c => (combined30d[c.key] || 0) === 0);
+      if (empty.length) {
+        Promise.all([window.loadCatalog(), window.loadLightDevicePresets()])
+          .then(([catalog, presetData]) => {
+            if (!catalog || !presetData?.presets) return;
+            const blocks = empty
+              .map(c => window.renderChannelDeficitDeviceRecs(catalog, c.key, presetData.presets, { label: c.label }))
+              .filter(Boolean);
+            if (blocks.length && slot.isConnected) slot.innerHTML = blocks.join('');
+          })
+          .catch(() => { /* recs are best-effort */ });
+      }
+    }
+  }
 
   if (typeof window.renderDevicesSection === 'function') {
     Promise.resolve(window.renderDevicesSection()).then((devHtml) => {
