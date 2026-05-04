@@ -98,21 +98,37 @@ function summarizeChange(field, prev, curr) {
 // ═══════════════════════════════════════════════
 // LAB CONTEXT
 // ═══════════════════════════════════════════════
-export function buildLabContext({ skipGroupFilter } = {}) {
+// Detect Light & Sun-relevant intent in the user's current message so
+// the context layer can escalate buildSunContext from always to standard
+// tier (adds 30-day session table + biomarker correlations, +1200 tok).
+// Conservative regex — only triggers on words that genuinely route the
+// answer through sun/light reasoning. False positives waste tokens but
+// don't degrade quality; false negatives leave the model under-informed.
+const _SUN_INTENT_RE = /\b(sun|sunlight|sunrise|sunset|sunburn|sunbath|tan(?:ning)?|UV(?:[BA])?|UVI|vitamin\s?d|25-?oh-?d|circadian|melaton(?:in|ic)|sleep|jet ?lag|seasonal|winter|sad|red[- ]light|nir|infrared|pbm|photobiomod|fitzpatrick|burn|melatonin|cortisol|light\s+(?:therap|exposure|environment|burden)|sad lamp|dawn simul|blue light|junk light)\b/i;
+
+export function _detectSunIntent(message) {
+  if (typeof message !== 'string' || !message) return false;
+  return _SUN_INTENT_RE.test(message);
+}
+
+export function buildLabContext({ skipGroupFilter, userMessage } = {}) {
   // skipGroupFilter: true → include all specialty groups regardless of AI toggle
   // Used by sync/push so the relay always receives complete data
-  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '');
+  // userMessage: the current user prompt — used to detect sun-related intent
+  // and escalate buildSunContext to standard tier.
+  const sunTier = _detectSunIntent(userMessage) ? 'standard' : 'always';
+  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + ':sun=' + sunTier;
   if (_labContextCache.fingerprint === fp && _labContextCache.context) {
     if (isDebugMode()) console.log('[AI] Lab context cache hit');
     return _labContextCache.context;
   }
   if (isDebugMode()) console.log('[AI] Lab context cache miss — rebuilding');
-  const ctx = _buildLabContextInner({ skipGroupFilter });
+  const ctx = _buildLabContextInner({ skipGroupFilter, sunTier });
   _labContextCache = { fingerprint: fp, context: ctx };
   return ctx;
 }
 
-function _buildLabContextInner({ skipGroupFilter } = {}) {
+function _buildLabContextInner({ skipGroupFilter, sunTier = 'always' } = {}) {
   const data = getActiveData();
   const hasLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -676,12 +692,15 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
     ctx += `[section:contextNotes]\n## Additional Context Notes\n${ctxNotes.trim()}\n[/section:contextNotes]\n\n`;
   }
 
-  // ── 19. Light & Sun lens (always tier — ~520 tokens when sessions exist) ──
-  // Present in every chat once the user has logged any sun sessions. Standard
-  // and deep tiers are surfaced via tool calls or explicit chat-side flags.
+  // ── 19. Light & Sun lens (tier picked by sun-intent detection) ──
+  // `sunTier` is 'always' by default, escalates to 'standard' when the
+  // current user message mentions sun / light / sleep / vitamin D / etc.
+  // Standard adds the 30-day session table + biomarker correlations
+  // (+1200 tok) so the model can reason temporally instead of replying
+  // from 7-day rolling totals only.
   if (typeof window !== 'undefined' && typeof window.buildSunContext === 'function') {
     try {
-      ctx += window.buildSunContext({ tier: 'always' });
+      ctx += window.buildSunContext({ tier: sunTier });
     } catch (e) { /* sun context is best-effort */ }
   }
 

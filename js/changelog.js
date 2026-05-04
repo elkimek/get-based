@@ -5,6 +5,18 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.19', date: '2026-05-04', title: 'Light & Sun second pass — calibration loop, agent API, intent-aware tier escalation',
+    items: [
+      '<b>Standard tier now auto-escalates on intent.</b> When you ask anything sun / light / sleep / vitamin D / circadian / winter / PBM-related, the chat assistant\'s context expands from the always-tier blob (~520 tok) to standard tier (+1200 tok) — adds the last 30 sessions as a table plus computed biomarker correlations. Other prompts stay on the cheap always-tier. Was dead code before; the +1200 budget was allocated but never spent.',
+      '<b>Agent-callable API for sun sessions.</b> New <code>getSunSessionsSlice({days, fields})</code> and <code>getSunSessionDetail(id)</code> functions on window. MCP / Žofka / any local lens can now ask for what they need (cap 90d, projectable to date / channels / safety / atmosphere / body / eyes / location), instead of every prompt carrying full session detail. Body-region and location fields are off by default — privacy-by-default applies even on tools you authored locally.',
+      '<b>Calibration anchor in always-tier.</b> Most recent 25-OH-D bloodwork (ng/mL + nmol/L) plus 7d sleep score with baseline + trend, surfaced as a single line. The AI was previously running blind on its own modeled vit-D estimates; now it can sanity-check "you log 600 IU/day modeled and your last 25-OH-D was 28" without a tool call. Only fires when the data exists.',
+      '<b>Burden tier carries inline rubric.</b> "Indoor light burden: high (tier 3/4)" is meaningless without the scale; now reads "(0=well-aligned, 4=severe across screens/sleep/daylight)" so the model doesn\'t have to guess.',
+      '<b>Tool-warning surface uses room names.</b> "after-sunset CCT 4200K · in living-room" is actionable. The previous "roomId=room_a4b2c8" wasn\'t. Names are no more sensitive than the rest of the always-tier — the user typed them.',
+      '<b>Runtime token-budget guard.</b> Soft cap at 2500 chars / hard cap at 4000 on the always-tier blob. Stepwise drops calibration → trims warnings to 3 → drops deficit-axes → drops the entire indoor-environment block under hard pressure. Defensive code; today\'s realistic always-tier sits comfortably under the soft cap, but future surface additions can\'t bloat every chat.',
+      '<b>Deep tier retired as a prompt block.</b> Per-session detail is the wrong shape for an always-on tier — it\'s a tool response. Deep-tier code path now collapses to standard, and the same data is reachable via the slice API for chat tool-calls and agent consumers alike.',
+    ]
+  },
+  {
     version: '1.7.18', date: '2026-05-04', title: 'Light & Sun honesty pass — fewer false signals to the AI, more teaching to the user',
     items: [
       '<b>Deficit detection no longer lies to the AI about brand-new users.</b> The "Active light deficits" block (visible to the chat assistant in every prompt) used to fire 6 simultaneous "no exposure logged in 30d" claims for users with zero sessions — measurement gap dressed up as biological signal. Now gated behind ≥7 logged events of any kind so the deficit list only fires once we have a baseline to read against.',

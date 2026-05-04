@@ -2047,7 +2047,7 @@ export async function sendChatMessage() {
   const webSearchEnabled = getChatWebSearchEnabled() && supportsWebSearch();
 
   try {
-    let labContext = buildLabContext();
+    let labContext = buildLabContext({ userMessage: text });
     let _lensResultForMsg = null;
     if (hasLens()) {
       const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
@@ -2449,7 +2449,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       container.appendChild(typingEl);
       container.scrollTop = container.scrollHeight;
 
-      let labContext = buildLabContext();
+      let labContext = buildLabContext({ userMessage: msgText });
       let _lensResultForMsg = null;
       if (hasLens()) {
         const lensResult = await queryLensMulti(msgText, { signal: _chatAbortController.signal });

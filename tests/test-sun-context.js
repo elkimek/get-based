@@ -166,26 +166,41 @@ return (async function() {
     (standard.match(/\| s_\d/g) || []).length === 0 && // ids aren't in the row
     (standard.match(/\|\s*\d{4}-\d{2}-\d{2}/g) || []).length === 5);
 
-  // ─── 5. Deep tier (+2500 tok) ────────────────────────────────────────
-  console.log('%c 5. Deep tier per-session detail ', 'font-weight:bold;color:#f59e0b');
+  // ─── 5. Per-session detail moved to tool-call API (v1.7.19) ─────────
+  // The former `deep` prompt block is gone — per-session detail is the
+  // wrong shape for an always-on prompt and now lives in the
+  // getSunSessionsSlice / getSunSessionDetail helpers, callable by both
+  // chat tool-calls and MCP/agent consumers.
+  console.log('%c 5. Tool-call slice + detail APIs ', 'font-weight:bold;color:#f59e0b');
 
-  const deep = buildSunContext({ tier: 'deep' });
-  assert('Deep tier strictly longer than standard tier',
-    deep.length > standard.length);
-  assert('Deep tier surfaces "Detailed session records" header',
-    /Detailed session records/.test(deep));
-  assert('Deep tier renders per-session "Session <id>" markers',
-    /#### Session s_/.test(deep));
-  assert('Deep tier surfaces per-session Window / Body / Eyes / Channels / Safety',
-    /Window:/.test(deep) && /Body:/.test(deep) && /Eyes:/.test(deep) &&
-    /Channels:/.test(deep) && /Safety:/.test(deep));
+  const { getSunSessionsSlice, getSunSessionDetail } = ctxMod;
+  assert('getSunSessionsSlice exported', typeof getSunSessionsSlice === 'function');
+  assert('getSunSessionDetail exported', typeof getSunSessionDetail === 'function');
 
-  // ─── 6. Privacy: location rounding ───────────────────────────────────
-  console.log('%c 6. Privacy-aware location rounding ', 'font-weight:bold;color:#f59e0b');
+  // Default slice — last 30 days, default field set
+  const slice = getSunSessionsSlice();
+  assert('Slice returns array', Array.isArray(slice));
+  assert('Slice length matches recent ended sessions',
+    slice.length === sessions.length);
+  assert('Default slice carries date / channels / safety / atmosphere',
+    slice[0].date && slice[0].channels && slice[0].safety && slice[0].atmosphere);
+  assert('Default slice withholds body / location (privacy-by-default)',
+    slice[0].body === undefined && slice[0].location === undefined);
+  assert('Slice ordered most-recent-first',
+    slice.length < 2 || slice[0].date >= slice[1].date);
 
-  // Stub a privacyRounding config so the deep tier rounds to 0.1° (~11 km)
-  const origGetMeteoConfig = window.getMeteoConfig;
-  window.getMeteoConfig = () => ({ privacyRounding: 0.1 });
+  // Days cap
+  const longSlice = getSunSessionsSlice({ days: 365 });
+  assert('Slice caps days at 90', longSlice.length <= 90);
+
+  // Field opt-in
+  const richSlice = getSunSessionsSlice({ fields: ['date', 'body', 'location'] });
+  if (richSlice.length > 0) {
+    assert('Slice with fields=[body] surfaces body block',
+      richSlice[0].body !== undefined);
+  }
+
+  // Single-session detail
   reset({
     sunSessions: [{
       id: 'locked',
@@ -194,19 +209,32 @@ return (async function() {
       doses: { vitamin_d: 50 },
       safety: { medFraction: 0.1, fitzpatrick: 'III' },
       atmosphere: { uvIndex: 5 },
-      bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+      bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: ['face', 'hands'] },
     }],
   });
-  const deepLoc = buildSunContext({ tier: 'deep' });
-  // 0.1° rounding → 50.1, 14.4 (one decimal)
-  assert('Deep tier rounds lat to 1 decimal at 0.1° privacy',
-    /Location: 50\.1, 14\.4/.test(deepLoc), 'expected "Location: 50.1, 14.4"');
+  const detail = getSunSessionDetail('locked');
+  assert('getSunSessionDetail: known id → projected session',
+    detail && detail.id === 'locked');
+  assert('getSunSessionDetail surfaces all fields when caller asks by id',
+    detail.date && detail.body && detail.atmosphere && detail.safety);
+  assert('getSunSessionDetail body block carries regions array',
+    Array.isArray(detail.body.regions) && detail.body.regions.includes('face'));
+  assert('getSunSessionDetail unknown id → null',
+    getSunSessionDetail('does-not-exist') === null);
 
-  // 0.01° (sharper) → two decimals
+  // ─── 6. Privacy: location rounding (slice + detail honor config) ────
+  console.log('%c 6. Privacy-aware location rounding ', 'font-weight:bold;color:#f59e0b');
+
+  const origGetMeteoConfig = window.getMeteoConfig;
+  window.getMeteoConfig = () => ({ privacyRounding: 0.1 });
+  const detailCoarse = getSunSessionDetail('locked');
+  assert('Detail rounds lat to 0.1° privacy',
+    detailCoarse.location.lat === 50.1 && detailCoarse.location.lon === 14.4);
+
   window.getMeteoConfig = () => ({ privacyRounding: 0.01 });
-  const deepLocSharp = buildSunContext({ tier: 'deep' });
-  assert('Deep tier rounds lat to 2 decimals at 0.01° privacy',
-    /Location: 50\.07, 14\.44/.test(deepLocSharp));
+  const detailSharp = getSunSessionDetail('locked');
+  assert('Detail rounds lat to 0.01° privacy',
+    detailSharp.location.lat === 50.07 && detailSharp.location.lon === 14.44);
 
   // restore
   if (origGetMeteoConfig) window.getMeteoConfig = origGetMeteoConfig;
@@ -224,12 +252,142 @@ return (async function() {
       bodyExposure: { preset: 'face_hands', fraction: 0.05 },
     }],
   });
+  // 'deep' tier collapses to 'standard' since the deep prompt block was
+  // retired in v1.7.19 — the section markers should still wrap cleanly.
   for (const tier of ['always', 'standard', 'deep']) {
     const out = buildSunContext({ tier });
     assert(`${tier} tier wraps in matching section markers`,
       out.startsWith('[section:sunSessions]') &&
       out.endsWith('[/section:sunSessions]\n\n'));
   }
+
+  // ─── 8. Calibration anchor (v1.7.19) ─────────────────────────────────
+  console.log('%c 8. Calibration anchor ', 'font-weight:bold;color:#f59e0b');
+
+  reset({
+    sunSessions: [{
+      id: 'cal', startedAt: recent, endedAt: recent + 60000, durationMin: 1,
+      doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+    }],
+    entries: [
+      { date: '2026-04-01', vitamins: { vitaminD: 75 } },  // older
+      { date: '2026-04-15', vitamins: { vitaminD: 90 } },  // most recent → 36 ng/mL
+    ],
+    wearableSummary: {
+      metrics: {
+        sleep_score: { latest: 78, baseline: 82, rolling: { d7: 76 }, trend30d: 'declining' },
+      },
+    },
+  });
+  const cal = buildSunContext({ tier: 'always' });
+  assert('Calibration block surfaces "Calibration anchor" header',
+    /Calibration anchor/.test(cal));
+  assert('Calibration shows latest 25-OH-D in ng/mL + nmol/L',
+    /25-OH-D 36 ng\/mL \(90 nmol\/L\)/.test(cal));
+  assert('Calibration shows 7d sleep score with baseline + trend',
+    /7d sleep score 76 \(baseline 82, declining\)/.test(cal));
+
+  // No calibration data → no header
+  reset({
+    sunSessions: [{
+      id: 'cal2', startedAt: recent, endedAt: recent + 60000, durationMin: 1,
+      doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+    }],
+  });
+  const noCal = buildSunContext({ tier: 'always' });
+  assert('No bloodwork + no wearable → no calibration block',
+    !/Calibration anchor/.test(noCal));
+
+  // ─── 9. Burden-tier rubric inline ────────────────────────────────────
+  console.log('%c 9. Burden tier inline rubric ', 'font-weight:bold;color:#f59e0b');
+
+  // Set up env data so lightEnvironmentBlock fires.
+  reset({
+    sunSessions: [{
+      id: 'b', startedAt: recent, endedAt: recent + 60000, durationMin: 1,
+      doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+    }],
+    lightEnvironment: {
+      rooms: [{ id: 'r1', name: 'kitchen' }],
+      screens: [],
+    },
+  });
+  // Stub the burden helper.
+  window.computeIndoorBurden = () => ({ tier: 3, note: 'high' });
+  const withRubric = buildSunContext({ tier: 'always' });
+  assert('Burden line names the qualitative tier',
+    /tier 3\/4/.test(withRubric));
+  assert('Burden line carries inline 0=well-aligned … 4=severe rubric',
+    /0=well-aligned, 4=severe/.test(withRubric));
+  delete window.computeIndoorBurden;
+
+  // ─── 10. Room-name resolution in tool warnings ───────────────────────
+  console.log('%c 10. Tool warning roomId → name ', 'font-weight:bold;color:#f59e0b');
+
+  reset({
+    sunSessions: [{
+      id: 'w', startedAt: recent, endedAt: recent + 60000, durationMin: 1,
+      doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+    }],
+    lightEnvironment: {
+      rooms: [{ id: 'room_kitchen', name: 'kitchen' }],
+      screens: [],
+    },
+    lightMeasurements: [
+      { tool: 'flicker', value: 3, takenAt: Date.now() - 86400000, roomId: 'room_kitchen' },
+    ],
+  });
+  const withWarning = buildSunContext({ tier: 'always' });
+  assert('Warnings name the room rather than expose the opaque roomId',
+    /in kitchen/.test(withWarning) && !/roomId=room_kitchen/.test(withWarning));
+
+  // ─── 11. Sun-intent detection (lab-context.js) ───────────────────────
+  console.log('%c 11. Sun-intent regex ', 'font-weight:bold;color:#f59e0b');
+
+  const { _detectSunIntent } = await import('/js/lab-context.js?bust=' + Date.now());
+  assert('Detects "vitamin D" intent', _detectSunIntent('How is my vitamin D?'));
+  assert('Detects "circadian" intent', _detectSunIntent('Talk circadian rhythm'));
+  assert('Detects "sleep" intent', _detectSunIntent('My sleep is bad'));
+  assert('Detects "PBM" intent', _detectSunIntent('Should I do PBM?'));
+  assert('Detects "winter" intent', _detectSunIntent('Winter blues'));
+  assert('Skips unrelated chat', !_detectSunIntent('What is my HbA1c?'));
+  assert('Skips empty / null', !_detectSunIntent('') && !_detectSunIntent(null));
+
+  // ─── 12. Token-budget guard ──────────────────────────────────────────
+  console.log('%c 12. Soft + hard budget caps ', 'font-weight:bold;color:#f59e0b');
+
+  // Inflate the always-tier with a fat warnings array + calibration.
+  // Each warning is ~60 chars; 200 of them blow past 2500.
+  const fatMeasurements = [];
+  for (let i = 0; i < 200; i++) {
+    fatMeasurements.push({
+      tool: 'flicker', value: 3, takenAt: Date.now() - i * 86400000,
+      roomId: 'room_kitchen',
+    });
+  }
+  reset({
+    sunSessions: [{
+      id: 'fat', startedAt: recent, endedAt: recent + 60000, durationMin: 1,
+      doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+    }],
+    entries: [{ date: '2026-04-15', vitamins: { vitaminD: 90 } }],
+    lightEnvironment: { rooms: [{ id: 'room_kitchen', name: 'kitchen' }], screens: [] },
+    lightMeasurements: fatMeasurements,
+  });
+  const fat = buildSunContext({ tier: 'always' });
+  assert('Always tier under hard cap (4000 chars) even when stuffed',
+    fat.length < 4000, `len=${fat.length}`);
+
+  // Realistic always-tier with all surfaces populated should also fit
+  // comfortably under the soft cap (~2500). If a future feature tips
+  // typical users past that line the tier-shaping should be revisited.
+  assert('Realistic max-state always-tier under soft cap (2500 chars)',
+    fat.length < 2500, `len=${fat.length}`);
 
   // Restore
   window._labState.importedData = orig;
