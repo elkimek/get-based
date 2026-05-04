@@ -64,8 +64,9 @@ export async function addRoom(name) {
   // beats opening the room to a lonely empty number field.
   const presetHours = defaultHoursForName(name);
 
+  const id = `room_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   env.rooms.push({
-    id: `room_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    id,
     name: name || 'Room',
     primarySource: homeLight || 'unknown',
     cct: null,
@@ -79,6 +80,11 @@ export async function addRoom(name) {
     notes: '',
   });
   await saveImportedData();
+  // Return the new room's id so cross-module callers (Tool 8 Eye-Level
+  // Audit auto-create-room path) can chain `await addRoom(label)` →
+  // `saveMeasurement('lux', value, { roomId })` without having to grep
+  // env.rooms[length-1] to find what they just created.
+  return id;
 }
 
 // Pick the next default room name based on which common names haven't been
@@ -590,6 +596,10 @@ function fmtMeasureValue(m) {
   if (m.tool === 'darkness') return (m.value < 1 ? m.value.toFixed(2) : Math.round(m.value)) + ' lux (sleep)';
   if (m.tool === 'spectrum') return String(m.value);
   if (m.tool === 'glass-transmission') return Math.round((m.value || 0) * 100) + '% transmits';
+  if (m.tool === 'audit') {
+    const n = Number.isFinite(m.value) ? m.value : (m?.extra?.rooms?.length || 0);
+    return `${n} room snapshot${n === 1 ? '' : 's'}`;
+  }
   return String(m.value);
 }
 
@@ -604,6 +614,7 @@ function fmtMeasureTime(ts) {
 
 const TOOL_ICONS = {
   lux: '📏', flicker: '⚡', cct: '🎨', darkness: '🌙', spectrum: '🔬', 'glass-transmission': '🪟',
+  audit: '👁',
 };
 
 // Per-day "in use today / skipped today" toggle. Auto-resets at

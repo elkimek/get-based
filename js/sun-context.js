@@ -138,9 +138,24 @@ function lightEnvironmentBlock() {
     s += '\n';
   }
   if (audits.length > 0) {
-    s += `- Light audits captured: ${audits.length}`;
+    // `lightAudits` are explicit before/after snapshots saved by the
+    // user (e.g. "Pre-LED-swap" / "Post-LED-swap"). Tool 8 Eye-Level
+    // walkthroughs are NOT counted here — they're per-pause lux
+    // measurements bound to rooms via `lightMeasurements`. Two
+    // semantically different artifacts; keep them named distinctly so
+    // the AI doesn't confuse "I ran a walkthrough" with "I saved a
+    // before/after audit comparison."
+    s += `- Light audits saved: ${audits.length}`;
     const last = audits[audits.length - 1];
     if (last) s += ` (most recent: ${formatRelative(last.savedAt || last.createdAt || Date.now())})`;
+    s += '\n';
+  }
+  // Eye-Level walkthroughs (Tool 8) — separate from `lightAudits`.
+  const eyeLevel = (state.importedData?.lightMeasurements || []).filter(m => m && m.tool === 'audit');
+  if (eyeLevel.length > 0) {
+    const lastEye = eyeLevel[eyeLevel.length - 1];
+    s += `- Eye-Level walkthroughs run: ${eyeLevel.length}`;
+    if (lastEye?.takenAt) s += ` (most recent: ${formatRelative(lastEye.takenAt)})`;
     s += '\n';
   }
   // Indoor burden tier — rough qualitative score from 0 (negligible)
@@ -165,6 +180,35 @@ function lightEnvironmentBlock() {
         s += `- Deficit axes: d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap vs solar) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue exposure)\n`;
       }
     } catch (e) {}
+  }
+  // Concrete tool measurements that warrant the AI's attention. We
+  // surface only the warning-level readings — the user has 8 tools
+  // and might log dozens of measurements, dumping all of them would
+  // bloat the prompt. Thresholds match the on-device severity dots:
+  //   • flicker score ≥ 2 (visible PWM, modulation > 30%)
+  //   • sleep darkness > 1 lux at the pillow (above the WHO bedroom
+  //     dark-enough threshold for full melatonin secretion)
+  //   • after-sunset CCT > 3500K (still cool/blue when ought-to-be-warm)
+  //   • measurements older than 90 days are skipped — context drift
+  const measurements = state.importedData?.lightMeasurements || [];
+  const ninetyDaysAgo = Date.now() - 90 * 86400 * 1000;
+  const recent = measurements.filter(m => (m.takenAt || 0) >= ninetyDaysAgo);
+  const warnings = [];
+  for (const m of recent) {
+    if (m.tool === 'flicker' && Number.isFinite(m.value) && m.value >= 2) {
+      warnings.push(`flicker score ${m.value} (visible PWM)${m.roomId ? ` · roomId=${m.roomId}` : ''}`);
+    } else if (m.tool === 'darkness' && Number.isFinite(m.value) && m.value > 1) {
+      warnings.push(`bedroom too bright at the pillow (${m.value.toFixed(1)} lux; WHO threshold for full melatonin = <1 lux)${m.roomId ? ` · roomId=${m.roomId}` : ''}`);
+    } else if (m.tool === 'cct' && Number.isFinite(m.value) && m.value > 3500) {
+      const h = m.takenAt ? new Date(m.takenAt).getHours() : null;
+      // Only flag CCT readings taken after sunset (rough proxy: hour ≥ 19).
+      if (h != null && h >= 19) {
+        warnings.push(`after-sunset CCT ${m.value}K (>3500K = still cool/blue when sun has set)${m.roomId ? ` · roomId=${m.roomId}` : ''}`);
+      }
+    }
+  }
+  if (warnings.length > 0) {
+    s += `- Active light-tool warnings: ${warnings.slice(0, 6).join('; ')}${warnings.length > 6 ? `; +${warnings.length - 6} more` : ''}\n`;
   }
   return s + '\n';
 }

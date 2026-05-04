@@ -364,6 +364,52 @@ return (async function() {
     window._labState.importedData = beforeCtx;
   }
 
+  // ─── addRoom returns the new room's id ──────────────────────────────
+  // Tool 8 Eye-Level Audit chains addRoom → saveMeasurement; without
+  // a return value the binding silently fails and pause-detected lux
+  // never reaches the room cards.
+  console.log('%c addRoom return value ', 'font-weight:bold;color:#f59e0b');
+  window._labState.importedData = { lightEnvironment: { rooms: [], screens: [] } };
+  const newId = await addRoom('Office');
+  assert('addRoom returns the created room id (string starting with room_)',
+    typeof newId === 'string' && newId.startsWith('room_'),
+    `got ${typeof newId} ${newId}`);
+  assert('addRoom-returned id matches the new room in env.rooms',
+    window._labState.importedData.lightEnvironment.rooms.find(r => r.id === newId)?.name === 'Office');
+
+  // ─── AI context surfaces tool-measurement warnings ─────────────────
+  if (typeof window.buildSunContext === 'function') {
+    console.log('%c AI context — tool warnings ', 'font-weight:bold;color:#f59e0b');
+    const beforeCtx = window._labState.importedData;
+    window._labState.importedData = {
+      sunSessions: [],
+      deviceSessions: [],
+      lightEnvironment: { rooms: [{ id: 'r1', name: 'Bedroom' }], screens: [] },
+      lightAudits: [],
+      lightMeasurements: [
+        { id: 'm-flicker', tool: 'flicker', value: 3, takenAt: Date.now(), roomId: 'r1' },
+        { id: 'm-darkness', tool: 'darkness', value: 8.5, takenAt: Date.now(), roomId: 'r1' },
+        // CCT after-sunset hour — set takenAt to 22:00 UTC today
+        { id: 'm-cct', tool: 'cct', value: 4500, takenAt: (() => { const d = new Date(); d.setHours(22, 0, 0, 0); return d.getTime(); })(), roomId: 'r1' },
+        // CCT before sunset (12:00) — should NOT trigger the warning
+        { id: 'm-cct-day', tool: 'cct', value: 5500, takenAt: (() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d.getTime(); })(), roomId: 'r1' },
+      ],
+    };
+    const ctx = window.buildSunContext({ tier: 'always' });
+    assert('AI sees flicker score ≥ 2 warning',
+      /flicker score 3/.test(ctx));
+    assert('AI sees bedroom-too-bright warning (>1 lux at the pillow)',
+      /bedroom too bright/.test(ctx) || /melatonin/.test(ctx));
+    assert('AI sees after-sunset CCT > 3500K warning',
+      /after-sunset CCT 4500K/.test(ctx));
+    assert('AI does NOT flag CCT readings taken before sunset',
+      !/CCT 5500K/.test(ctx));
+    window._labState.importedData = beforeCtx;
+  }
+
+  // Restore
+  window._labState.importedData = orig;
+
   console.log(`%c Light Environment: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

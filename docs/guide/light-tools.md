@@ -92,7 +92,9 @@ One-tap session log for sunrise / sunset. The most circadian-effective outdoor t
 
 ## Tool 8 — Eye-level audit
 
-A 10-minute room walkthrough that populates the entire Light Environment in one pass. The camera streams at 4 fps, detects when you've paused in a room (5 s of stillness), captures a snapshot at eye level, and writes a Light measurement keyed to the room. Walk through every room you spend time in, tap "I'm in {room}" each time, and end the session — every room gets a lux + CCT + Ott reading without you taking 7 separate measurements.
+A 10-minute room walkthrough that populates rooms in the Light Environment in one pass. The camera streams at 4 fps, detects when you've paused in a room (5 s of stillness), and captures a lux reading at eye level. Walk through every room, label each pause with the room name on the after-walk panel, and tap **Done** — labelled pauses are saved as `tool='lux'` measurements bound to a matching room (auto-creating one when no match exists). Unlabelled pauses are kept inside the bulk audit record so you can review them later.
+
+Tool 8 captures **lux only** (not CCT or full spectrum) — the goal is fast room-coverage, not depth. For richer single-room data (CCT, flicker, sleep darkness) open the dedicated tool from the room card after the walkthrough lands.
 
 ## Calibration (lux meter)
 

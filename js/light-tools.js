@@ -356,6 +356,18 @@ export async function openLuxMeter(opts = {}) {
         currentLux = sensor.illuminance;
         renderLux(currentLux);
       });
+      // The Generic Sensor spec throws SecurityError ASYNCHRONOUSLY via
+      // sensor.onerror when permission is denied (Chromium-Android with
+      // ALS permission off, browsers in Permissions-Policy=(),
+      // privacy-mode iframes). Without this listener the sensor object
+      // exists, start() succeeds, but `reading` events never fire and
+      // the user sees a spinning "—" forever. Catch the async error
+      // and fall back to the camera path same as a synchronous throw.
+      sensor.addEventListener('error', () => {
+        try { sensor.stop(); } catch (e) {}
+        _luxState.sensor = null;
+        sourceLine.innerHTML = '<b>Ambient light sensor blocked</b> by browser permissions. Close this dialog and reopen — the Lux Meter will retry with the camera fallback.';
+      });
       sensor.start();
       _luxState.sensor = sensor;
       usingALS = true;
@@ -363,7 +375,7 @@ export async function openLuxMeter(opts = {}) {
       // ALS is the authoritative source — no calibration needed.
       if (calibrationPanel) calibrationPanel.style.display = 'none';
     } catch (e) {
-      // Fall through to camera path
+      // Synchronous construction error — fall through to camera path
     }
   }
 
@@ -679,8 +691,19 @@ export async function openDarknessMeter(opts = {}) {
       const lumas = [];      // mean per sample
       const peaks = [];      // single-pixel max per sample
       const t0 = performance.now();
+      let cancelled = false;
       while (performance.now() - t0 < 30000 && _darkState.running) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // The camera stream may have been stopped by _closeDark() while
+        // we were sleeping in setTimeout. drawImage on a closed stream
+        // throws InvalidStateError; catch it explicitly so the loop
+        // exits cleanly instead of silently failing inside an unhandled
+        // rejection (which would leave the dialog stuck at "—" forever).
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } catch (e) {
+          cancelled = true;
+          break;
+        }
         const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
         let sum = 0, max = 0;
         for (let i = 0; i < data.length; i += 4) {
@@ -691,6 +714,12 @@ export async function openDarknessMeter(opts = {}) {
         lumas.push(sum / (data.length / 4));
         peaks.push(max);
         await new Promise(r => setTimeout(r, 200));
+      }
+      // User cancelled — bail out before computing summary stats so
+      // the close button feels responsive and the result variable
+      // stays null (the save handler gates on result presence).
+      if (cancelled || !_darkState.running) {
+        return;
       }
       const meanLuma = lumas.reduce((a, b) => a + b, 0) / Math.max(1, lumas.length);
       // 95th-percentile peak across the 30s window — rejects single-frame
