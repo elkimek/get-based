@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.22', date: '2026-05-04', title: 'Sync — self-serve relay storage compact + real storage probe (no more SSH runbook)',
+    items: [
+      '<b>Compact storage is now a button, not a runbook.</b> When you hit the per-account relay storage cap, the Sync diagnose modal now has a Compact storage button that drops the older Evolu message log on the relay directly — no maintainer round-trip, no SSH access required. Every device re-establishes its CRDT state on the next push (a few seconds). Replaces the old "I just compacted" self-report flow that only made sense for someone with shell access to the relay VM.',
+      '<b>The storage indicator is the relay\'s real number, not a local estimate.</b> A new Refresh button in the same panel probes the relay for the actual storedBytes — replaces what was previously a cumulative-bytes counter that drifted out of sync the moment compaction or relay-side cleanup ran. Works with any relay running getbased-relay 1.2.0 or later (older relays fall back to the local estimate, no breakage).',
+      '<b>How the auth works.</b> Both endpoints (POST /self/compact-owner, GET /self/owner-storage) are HMAC-SHA256-signed with your own writeKey — the same Evolu secret the client already uses for pushes. No admin token leaves the relay VM, and one user can never act on another user\'s owner. 5-minute timestamp window for replay defence; uniform 401 on any auth failure to avoid an owner-existence oracle.',
+      '<b>Self-host story unchanged.</b> Same Caddyfile pattern as the relay WebSocket — see relay README for the routing snippet. Operators who prefer to keep the runbook can disable /self/* with SELF_ENABLED=0 on the relay.',
+    ]
+  },
+  {
     version: '1.7.21', date: '2026-05-04', title: 'Sync — Lean mode rename + lightEnvironment per-row CRDT, plus vit-D regression fixtures',
     items: [
       '<b>"Phase 2 cutover" → "Lean sync mode" in the Sync diagnose UI.</b> Same gating, same readiness check, friendlier name. The cutover button + readiness panel + ON badge all carry the new copy; the underlying flag stays per-profile, per-device opt-in.',

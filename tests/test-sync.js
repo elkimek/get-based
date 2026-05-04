@@ -126,8 +126,25 @@ return (async function() {
     /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncSrc));
   assert('Quota indicator visible on popover (green/amber/red dot)',
     /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncSrc));
-  assert('Sync diagnose modal has "I just compacted" reset button',
-    /confirmResetRelayQuota\(this\)/.test(syncSrc));
+  // v1.7.21: "I just compacted" runbook button replaced by the real
+  // self-serve compact via /self/compact-owner — HMAC-signed with the
+  // owner's writeKey so any user can unwedge themselves at the cap
+  // without SSH access. Refresh probes /self/owner-storage to replace
+  // the local estimate with the relay's authoritative value.
+  assert('Sync diagnose modal wires the self-serve Compact storage button',
+    /confirmCompactRelay\(this\)/.test(syncSrc));
+  assert('Sync diagnose modal wires the Refresh-from-relay button',
+    /refreshRelayStorage\(this\)/.test(syncSrc));
+  assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
+    /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncSrc));
+  assert('fetchOwnerStorageFromRelay GETs /self/owner-storage with signed query',
+    /fetchOwnerStorageFromRelay[\s\S]{0,800}\/self\/owner-storage\?ownerId=/.test(syncSrc));
+  assert('_signSelfRequest uses HMAC-SHA256 over context:ownerId:timestamp',
+    /_signSelfRequest[\s\S]{0,1000}\$\{context\}:\$\{ownerId\}:\$\{timestamp\}[\s\S]{0,400}name:\s*'HMAC',\s*hash:\s*'SHA-256'/.test(syncSrc));
+  assert('_signSelfRequest signs with the owner writeKey (not mnemonic)',
+    /_signSelfRequest[\s\S]{0,800}_appOwner\.writeKey/.test(syncSrc));
+  assert('_getSelfBaseUrl swaps wss → https and ws → http',
+    /_getSelfBaseUrl[\s\S]{0,400}wss:[\s\S]{0,100}https:[\s\S]{0,200}ws:[\s\S]{0,100}http:/.test(syncSrc));
   assert('Cap is 50 MB (RELAY_OWNER_QUOTA_BYTES)',
     /RELAY_OWNER_QUOTA_BYTES = 50 \* 1024 \* 1024/.test(syncSrc));
 
@@ -1044,8 +1061,11 @@ return (async function() {
   // P2: warned-marker key now owner-scoped
   assert('_maybeWarnQuotaThreshold uses owner-scoped warned key',
     /_maybeWarnQuotaThreshold[\s\S]{0,800}labcharts-\$\{owner\}-relay-quota-warned/.test(syncSrc));
-  assert('_doResetRelayQuota clears owner-scoped warned key alongside legacy',
-    /_doResetRelayQuota[\s\S]{0,800}labcharts-\$\{owner\}-relay-quota-warned/.test(syncSrc));
+  // v1.7.21: the owner-scoped warned-key clear moved into
+  // compactOwnerSelfServe (the new self-serve compact path) — same
+  // invariant, different home.
+  assert('compactOwnerSelfServe clears owner-scoped warned key alongside legacy',
+    /compactOwnerSelfServe[\s\S]{0,1500}labcharts-\$\{ownerId\}-relay-quota-warned/.test(syncSrc));
 
   // Live: synthesize a gzip-bomb payload and verify parseSyncPayload caps it
   if (typeof window !== 'undefined' && typeof CompressionStream !== 'undefined') {

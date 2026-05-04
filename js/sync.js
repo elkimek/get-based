@@ -1788,19 +1788,20 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
 }
 
 // ═══════════════════════════════════════════════
-// RELAY QUOTA ESTIMATE (client-side, no relay endpoint needed)
+// RELAY QUOTA ESTIMATE (client-side, with optional real probe)
 // ═══════════════════════════════════════════════
 //
 // The relay caps each owner at 50 MB of evolu_message rows; once that
 // fills, writes are silently rejected and clients see "push committed"
-// with no actual durable write. We can't ask the relay for our own
-// owner's storedBytes without a writeKey-signed admin endpoint we don't
-// yet have, so this tracks the cumulative bytes-pushed locally as a
-// best-available estimate. Resets only on user action ("I just compacted")
-// or when sync identity changes (different ownerId via mnemonic restore).
-// Estimate is within ~10% of the relay's actual count under typical use
-// — close enough to warn the user before the wall, not so loose that
-// it cries wolf.
+// with no actual durable write. The cumulative-bytes counter below is
+// the always-available fallback; getbased-relay 1.2.0+ exposes a real
+// probe at GET /self/owner-storage that returns the relay's
+// authoritative storedBytes (signed with the client's own writeKey, no
+// admin token involved). When that probe succeeds we mirror its result
+// into the same localStorage key so the rest of the UI stays
+// synchronous — see _maybeRefreshFromRelay below. The counter still
+// drives the UI when the probe is unreachable (older relay, offline,
+// CORS misroute), so the wedge-warning never goes blind.
 
 const RELAY_OWNER_QUOTA_BYTES = 50 * 1024 * 1024;
 function _ownerStorageKey() {
@@ -1835,14 +1836,141 @@ export function resetRelayQuotaEstimate() {
   try { localStorage.removeItem(_ownerStorageKey()); return true; } catch { return false; }
 }
 
-// Self-host operator gate. Intentionally has NO UI toggle — set manually
-// from the DevTools console (`localStorage.setItem('labcharts-relay-admin','1')`)
-// by someone who actually has SSH access to the relay VM. Debug mode alone
-// isn't enough because anyone can flip it from Settings → Privacy and then
-// be tempted by an "I just compacted" button without having compacted
-// anything, silently muting the early-warning indicator.
-function isRelayAdmin() {
-  try { return localStorage.getItem('labcharts-relay-admin') === '1'; } catch { return false; }
+// Set the cached estimate to a known absolute value. Used by the relay
+// probe so the rest of the UI stays synchronous (no awaiting a network
+// roundtrip on every render).
+function _setRelayQuotaBytes(bytes) {
+  if (!_appOwner?.id || !Number.isFinite(bytes) || bytes < 0) return;
+  try { localStorage.setItem(_ownerStorageKey(), String(Math.round(bytes))); } catch {}
+}
+
+// ─── Relay self-service (writeKey-HMAC-authed) ─────────────
+//
+// Mirrors the /self/* endpoints introduced in getbased-relay 1.2.0.
+// Each request is HMAC-SHA256 signed with the user's own writeKey
+// (the same Evolu secret the client already holds for pushes), so no
+// admin token leaves the relay VM and one user can't ever act on
+// another user's owner. See packages/getbased-relay/src/lib/self-server.ts.
+
+// Derive the HTTP base URL for /self/* from the wss:// relay URL.
+// Production: wss://sync.getbased.health → https://sync.getbased.health
+// (Caddy routes /self/* to localhost:4003 alongside the WebSocket relay
+// at the root path.) Self-hosters who can't terminate TLS leave it as
+// http://; localhost dev uses ws://localhost:4000 → http://localhost:4003.
+function _getSelfBaseUrl() {
+  const wss = getSyncRelay();
+  if (typeof wss !== 'string' || !wss) return null;
+  try {
+    const u = new URL(wss);
+    if (u.protocol === 'wss:') u.protocol = 'https:';
+    else if (u.protocol === 'ws:') u.protocol = 'http:';
+    else return null;
+    // Strip path + query — relay URL might carry a /ping suffix from
+    // probe code. /self/* always lives at the root.
+    u.pathname = '';
+    u.search = '';
+    u.hash = '';
+    // Localhost dev: relay listens on 4000, self on 4003. In hosted
+    // (Caddy) deployments both ride the same hostname/port via path
+    // routing, so leave the port alone there.
+    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
+      u.port = '4003';
+    }
+    return u.toString().replace(/\/$/, '');
+  } catch { return null; }
+}
+
+// Sign {context}:{ownerId}:{timestamp} with the owner's writeKey. Returns
+// {ownerId, timestamp, signature} in the exact shape /self/* expects.
+// Throws if no owner / writeKey is loaded — caller catches.
+async function _signSelfRequest(context) {
+  if (!_appOwner?.id || !_appOwner?.writeKey) {
+    throw new Error('owner_not_ready');
+  }
+  if (!globalThis.crypto?.subtle?.importKey) {
+    throw new Error('subtle_crypto_unavailable');
+  }
+  const ownerId = String(_appOwner.id);
+  const timestamp = Date.now();
+  const message = `${context}:${ownerId}:${timestamp}`;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    _appOwner.writeKey,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  const sig = Array.from(new Uint8Array(sigBuf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  return { ownerId, timestamp, signature: sig };
+}
+
+// Fetch the relay's authoritative storedBytes for our owner. On
+// success, mirrors the value into the local quota cache so the
+// synchronous getRelayQuotaEstimate() reflects ground truth. Returns
+// {storedBytes, quotaBytes} or null on any failure.
+export async function fetchOwnerStorageFromRelay() {
+  const base = _getSelfBaseUrl();
+  if (!base) return null;
+  try {
+    const { ownerId, timestamp, signature } = await _signSelfRequest('storage');
+    const url = `${base}/self/owner-storage?ownerId=${encodeURIComponent(ownerId)}&timestamp=${timestamp}&signature=${signature}`;
+    // 5s timeout — old relay (404), unreachable, or CORS-misrouted
+    // shouldn't block the diagnose modal from rendering.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    const body = await r.json();
+    if (!body || typeof body.storedBytes !== 'number') return null;
+    _setRelayQuotaBytes(body.storedBytes);
+    return { storedBytes: body.storedBytes, quotaBytes: body.quotaBytes ?? null };
+  } catch { return null; }
+}
+
+// Hit POST /self/compact-owner — drops every evolu_message row for our
+// owner and zeroes the relay's stored-bytes counter. The local cache
+// is reset on success to match. Throws on any non-200 with a sanitized
+// message so the caller can surface it; never re-throws raw network
+// detail (might leak relay path / IP).
+export async function compactOwnerSelfServe() {
+  const base = _getSelfBaseUrl();
+  if (!base) throw new Error('No relay configured');
+  const { ownerId, timestamp, signature } = await _signSelfRequest('compact');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  let r;
+  try {
+    r = await fetch(`${base}/self/compact-owner`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerId, timestamp, signature }),
+      signal: ctrl.signal,
+    });
+  } finally { clearTimeout(timer); }
+  if (!r.ok) {
+    let detail = '';
+    try { const body = await r.json(); detail = body?.error ? ` (${body.error})` : ''; } catch {}
+    throw new Error(`Relay returned ${r.status}${detail}`);
+  }
+  const body = await r.json();
+  // Reset local counter to whatever the relay reports as afterStoredBytes
+  // (typically 0). On parse trouble fall back to clearing the key
+  // outright — the relay state is the truth.
+  if (typeof body?.afterStoredBytes === 'number') {
+    _setRelayQuotaBytes(body.afterStoredBytes);
+  } else {
+    resetRelayQuotaEstimate();
+  }
+  // Clear "already toasted" markers so future thresholds re-warn.
+  try { localStorage.removeItem('labcharts-relay-quota-warned'); } catch {}
+  try {
+    localStorage.removeItem(`labcharts-${ownerId}-relay-quota-warned`);
+  } catch {}
+  return body;
 }
 
 // ═══════════════════════════════════════════════
@@ -3169,26 +3297,24 @@ export async function showSyncDiagnose() {
         const mb = (q.bytes / (1024 * 1024)).toFixed(2);
         const capMb = (q.cap / (1024 * 1024)).toFixed(0);
         const color = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--green)';
-        const admin = isRelayAdmin();
         const note = q.level === 'red'
-          ? (admin
-            ? 'Storage almost full — pushes will start silently rejecting at the cap. Compact via SSH (see Hermes / runbook) and click "I just compacted" below.'
-            : 'Storage near the limit. Pushes may slow down or fail soon — let the maintainer know.')
+          ? 'Storage almost full — pushes will start silently rejecting at the cap. Use Compact storage to drop the older Evolu message log; clients re-establish their state on the next push.'
           : q.level === 'amber'
           ? 'Approaching the per-account storage cap. No action needed yet — keeps trimming on its own as data ages.'
           : 'Healthy.';
-        // "I just compacted" is a relay-admin self-report — only useful for
-        // someone who can SSH to the relay and run /compact-owner. Gated on
-        // isRelayAdmin (a hidden localStorage flag — no UI toggle) rather
-        // than debug mode, so a curious user who flips debug doesn't get a
-        // button that silently mutes the early-warning indicator.
-        const adminBtn = admin
-          ? `<button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmResetRelayQuota(this)" title="Resets the local cumulative-bytes counter — use after running /compact-owner on the relay so the indicator matches reality.">I just compacted</button>`
-          : '';
+        // Real self-serve compact via /self/compact-owner (HMAC-authed
+        // with the user's own writeKey — no admin token, no SSH, no
+        // round-trip to the maintainer). Always shown so any user can
+        // unwedge themselves at the cap, not just operators with relay
+        // access. Refresh hits /self/owner-storage to replace the local
+        // estimate with the relay's authoritative storedBytes.
+        const buttons = `
+          <button class="ctx-btn-option" style="font-size:11px" onclick="window.refreshRelayStorage(this)" title="Probe the relay for the actual storedBytes for this owner — replaces the local estimate.">Refresh</button>
+          <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmCompactRelay(this)" title="Drops every Evolu message row for this owner on the relay and resets storedBytes to 0. Devices re-establish their state on the next push.">Compact storage</button>`;
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;flex-wrap:wrap">
             <b>Relay storage:</b>
-            ${adminBtn}
+            <div style="display:flex;gap:6px">${buttons}</div>
           </div>
           <div style="margin-bottom:4px"><span style="color:${color};font-weight:600">${mb} / ${capMb} MB · ${q.pct}%</span></div>
           <div style="height:8px;border-radius:4px;background:var(--surface);overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${q.pct}%;background:${color}"></div></div>
@@ -3334,44 +3460,73 @@ async function copySyncDiagnose(btn) {
   }
 }
 
-// "I just compacted" — resets the local cumulative-bytes counter so the
-// quota indicator drops back to 0 / 50 MB. Confirms via showConfirmDialog
-// (project policy: no native window.confirm, which doesn't render in PWA
-// + sandboxed contexts).
-function confirmResetRelayQuota(btn) {
+// "Compact storage" — calls POST /self/compact-owner on the relay,
+// HMAC-signed with the user's own writeKey. Drops every Evolu message
+// row for this owner and zeroes storedBytes; devices re-establish their
+// state on the next push. Replaces the old "I just compacted" runbook
+// flow that required SSH access and a manual local-counter reset.
+function confirmCompactRelay(btn) {
   const q = getRelayQuotaEstimate();
   const mb = q ? (q.bytes / 1024 / 1024).toFixed(1) : '?';
-  const message = `Reset the local relay-storage counter to 0? Current estimate: ${mb} MB. Only click this if you've just run /compact-owner on the relay — the relay's actual storage is unaffected by this button.`;
+  const message = `Compact this owner's storage on the relay (currently ~${mb} MB)? Drops the Evolu message log; every device re-establishes its CRDT state on the next push (a few seconds). Your local data is untouched.`;
+  const doCompact = async () => {
+    if (btn) { btn.disabled = true; btn.textContent = 'Compacting…'; }
+    try {
+      const result = await compactOwnerSelfServe();
+      const after = typeof result?.afterStoredBytes === 'number'
+        ? `${(result.afterStoredBytes / (1024 * 1024)).toFixed(2)} MB`
+        : '0 MB';
+      showNotification(`Relay storage compacted · ${result?.deletedMessages ?? '?'} rows dropped · ${after}`, 'success');
+      if (btn) {
+        const overlay = btn.closest?.('.modal-overlay');
+        if (overlay) overlay.remove();
+      }
+      if (document.getElementById('sync-popover')) {
+        toggleSyncDetail(); toggleSyncDetail();
+      }
+    } catch (e) {
+      showNotification(`Compact failed: ${e?.message || e}`, 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Compact storage'; }
+    }
+  };
   if (typeof window.showConfirmDialog === 'function') {
-    window.showConfirmDialog(message, () => _doResetRelayQuota(btn));
+    window.showConfirmDialog(message, doCompact);
   } else {
-    // Fallback when the dialog helper isn't loaded yet (very early init);
-    // straight reset rather than blocking the user.
-    _doResetRelayQuota(btn);
+    doCompact();
   }
 }
 
-function _doResetRelayQuota(btn) {
-  if (resetRelayQuotaEstimate()) {
-    try { showNotification('Relay-storage counter reset to 0', 'success'); } catch {}
-    // Bust the cached "already toasted" markers so future thresholds
-    // re-warn even if the user pre-emptively reset before crossing back.
-    // Both owner-scoped (v1.7.14+) and the legacy global key are cleared
-    // for full re-arm regardless of which version wrote them.
-    try { localStorage.removeItem('labcharts-relay-quota-warned'); } catch {}
-    try {
-      const owner = _appOwner?.id ? String(_appOwner.id) : 'unknown';
-      localStorage.removeItem(`labcharts-${owner}-relay-quota-warned`);
-    } catch {}
-    if (btn) {
-      const overlay = btn.closest?.('.modal-overlay');
-      if (overlay) overlay.remove();
+// "Refresh" — probe /self/owner-storage for the relay's authoritative
+// storedBytes for this owner. Mirrors into the local cache so the
+// indicator is accurate, not an estimate. Useful after the maintainer
+// or another device has compacted.
+async function refreshRelayStorage(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+  try {
+    const result = await fetchOwnerStorageFromRelay();
+    if (!result) {
+      showNotification('Could not reach relay storage probe (older relay or offline?)', 'error');
+      return;
     }
+    showNotification(`Relay reports ${(result.storedBytes / (1024 * 1024)).toFixed(2)} MB`, 'success');
     if (document.getElementById('sync-popover')) {
       toggleSyncDetail(); toggleSyncDetail();
     }
-  } else {
-    try { showNotification('Could not reset counter (sync not initialized?)', 'error'); } catch {}
+    if (btn) {
+      const overlay = btn.closest?.('.modal-overlay');
+      if (overlay) {
+        // Re-render the modal in place — close and reopen via the same
+        // entrypoint so all sections (including the now-fresh quota
+        // tile) re-derive from the updated cache.
+        overlay.remove();
+        if (typeof window.showSyncDiagnose === 'function') window.showSyncDiagnose();
+      }
+    }
+  } catch (e) {
+    showNotification(`Refresh failed: ${e?.message || e}`, 'error');
+  } finally {
+    if (btn && !btn.closest?.('.modal-overlay')?.parentElement) return;
+    if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
   }
 }
 
@@ -3596,7 +3751,10 @@ Object.assign(window, {
   toggleSyncDetail,
   copySyncEvents,
   copySyncDiagnose,
-  confirmResetRelayQuota,
+  confirmCompactRelay,
+  refreshRelayStorage,
+  fetchOwnerStorageFromRelay,
+  compactOwnerSelfServe,
   getRelayQuotaEstimate,
   resetRelayQuotaEstimate,
   getDeltaTelemetry,
