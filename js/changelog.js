@@ -5,12 +5,20 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.23', date: '2026-05-04', title: 'Sync — production-readiness pass on self-serve compact (rate limit, log coalesce, self-host override)',
+    items: [
+      '<b>Relay-side hardening (paired with getbased-relay v1.2.1).</b> The /self/* endpoints now have per-IP rate limits — 10 compact/min and 60 storage/min — that return 429 with Retry-After when burned, so a captured-and-replayed signature can\'t thrash the relay\'s WAL lock indefinitely. Repeated unauthorized requests with the same (ownerId, IP, reason) are coalesced into a single log line per minute so a flood can\'t fill docker logs.',
+      '<b>Self-host escape hatch.</b> If you run your own relay and skip the reverse proxy (no Caddy / nginx terminating TLS), set <code>localStorage[\'labcharts-self-url\'] = \'https://your-relay.example.com:4003\'</code> in the browser console. The client checks the override first; otherwise it derives the URL from the relay address (works for the standard hosted setup where Caddy path-routes /self/* onto the same WebSocket hostname).',
+      '<b>End-to-end verification.</b> 18 relay tests now pass — 12 unit + 6 integration that boot the relay in-process, sign requests with a synthetic writeKey, and assert the compact transaction actually empties the rows + zeroes storedBytes. Lab-charts side has 7 new structural assertions covering button wiring, signing path, URL derivation, and override.',
+    ]
+  },
+  {
     version: '1.7.22', date: '2026-05-04', title: 'Sync — self-serve relay storage compact + real storage probe (no more SSH runbook)',
     items: [
       '<b>Compact storage is now a button, not a runbook.</b> When you hit the per-account relay storage cap, the Sync diagnose modal now has a Compact storage button that drops the older Evolu message log on the relay directly — no maintainer round-trip, no SSH access required. Every device re-establishes its CRDT state on the next push (a few seconds). Replaces the old "I just compacted" self-report flow that only made sense for someone with shell access to the relay VM.',
       '<b>The storage indicator is the relay\'s real number, not a local estimate.</b> A new Refresh button in the same panel probes the relay for the actual storedBytes — replaces what was previously a cumulative-bytes counter that drifted out of sync the moment compaction or relay-side cleanup ran. Works with any relay running getbased-relay 1.2.0 or later (older relays fall back to the local estimate, no breakage).',
       '<b>How the auth works.</b> Both endpoints (POST /self/compact-owner, GET /self/owner-storage) are HMAC-SHA256-signed with your own writeKey — the same Evolu secret the client already uses for pushes. No admin token leaves the relay VM, and one user can never act on another user\'s owner. 5-minute timestamp window for replay defence; uniform 401 on any auth failure to avoid an owner-existence oracle.',
-      '<b>Self-host story unchanged.</b> Same Caddyfile pattern as the relay WebSocket — see relay README for the routing snippet. Operators who prefer to keep the runbook can disable /self/* with SELF_ENABLED=0 on the relay.',
+      '<b>Self-host story unchanged.</b> Same Caddyfile pattern as the relay WebSocket — see relay README for the routing snippet. Operators who prefer to keep the runbook can disable /self/* with SELF_ENABLED=0 on the relay. For self-hosters who skip the reverse proxy and expose port 4003 directly, set <code>localStorage[\'labcharts-self-url\'] = \'https://your-relay.example.com:4003\'</code> in the browser console — the client tries that override first, falls back to deriving from the relay URL otherwise.',
     ]
   },
   {

@@ -144,7 +144,9 @@ return (async function() {
   assert('_signSelfRequest signs with the owner writeKey (not mnemonic)',
     /_signSelfRequest[\s\S]{0,800}_appOwner\.writeKey/.test(syncSrc));
   assert('_getSelfBaseUrl swaps wss → https and ws → http',
-    /_getSelfBaseUrl[\s\S]{0,400}wss:[\s\S]{0,100}https:[\s\S]{0,200}ws:[\s\S]{0,100}http:/.test(syncSrc));
+    /_getSelfBaseUrl[\s\S]{0,800}wss:[\s\S]{0,100}https:[\s\S]{0,200}ws:[\s\S]{0,100}http:/.test(syncSrc));
+  assert('_getSelfBaseUrl honors labcharts-self-url localStorage override (self-host escape hatch)',
+    /SELF_URL_OVERRIDE_KEY\s*=\s*'labcharts-self-url'[\s\S]{0,800}_getSelfBaseUrl[\s\S]{0,400}getItem\(SELF_URL_OVERRIDE_KEY\)[\s\S]{0,200}\^https\?:/.test(syncSrc));
   assert('Cap is 50 MB (RELAY_OWNER_QUOTA_BYTES)',
     /RELAY_OWNER_QUOTA_BYTES = 50 \* 1024 \* 1024/.test(syncSrc));
 

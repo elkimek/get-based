@@ -1857,7 +1857,25 @@ function _setRelayQuotaBytes(bytes) {
 // (Caddy routes /self/* to localhost:4003 alongside the WebSocket relay
 // at the root path.) Self-hosters who can't terminate TLS leave it as
 // http://; localhost dev uses ws://localhost:4000 → http://localhost:4003.
+//
+// A self-hoster who runs the relay on its native port (e.g.
+// `wss://relay.example.com:4000`) without a reverse proxy CAN'T have
+// /self/* path-routed onto the WebSocket port — they have to expose
+// 4003 separately. The localStorage override below lets them point
+// the client at the right URL without us trying to autodetect the
+// shape of every possible self-host topology.
+const SELF_URL_OVERRIDE_KEY = 'labcharts-self-url';
 function _getSelfBaseUrl() {
+  // Manual override — wins over autoderivation. Useful when the relay
+  // and self-service ports live on different hostnames or ports
+  // (e.g. self-host with no reverse proxy, or `self.example.com` on
+  // a dedicated subdomain).
+  try {
+    const override = localStorage.getItem(SELF_URL_OVERRIDE_KEY);
+    if (override && /^https?:\/\//i.test(override)) {
+      return override.replace(/\/+$/, '');
+    }
+  } catch {}
   const wss = getSyncRelay();
   if (typeof wss !== 'string' || !wss) return null;
   try {
