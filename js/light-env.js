@@ -108,6 +108,25 @@ export async function deleteRoom(id) {
   const env = getEnvironment();
   recordTombstone(state.importedData, 'lightEnvironment.rooms', id);
   env.rooms = (env.rooms || []).filter(r => r.id !== id);
+  // Null out roomId on every measurement + screen that pointed at the
+  // deleted room. Without this they keep their stale roomId — invisible
+  // to the room-bound `getMeasurementsForRoom` query (which filters by
+  // exact match) but resurrectable if the user adds a new room with a
+  // colliding id (vanishingly rare but real). Confirm-dialog copy
+  // promises measurements stay accessible — make that promise true by
+  // unlinking them so they appear in unfiltered "all measurements"
+  // queries and can be re-associated to a different room.
+  const measurements = state.importedData?.lightMeasurements;
+  if (Array.isArray(measurements)) {
+    for (const m of measurements) {
+      if (m && m.roomId === id) m.roomId = null;
+    }
+  }
+  if (Array.isArray(env.screens)) {
+    for (const sc of env.screens) {
+      if (sc && sc.roomId === id) sc.roomId = null;
+    }
+  }
   await saveImportedData();
 }
 
@@ -122,7 +141,6 @@ export async function addScreen(device, roomId = null) {
     eveningUseAfterSunset: null,
     blueBlockerEnabled: false,
     flickerScore: null,
-    brightness: 'medium',
   });
   await saveImportedData();
 }
@@ -1662,10 +1680,16 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     computeLightDeficitAxes: computeDeficitAxes,
+    computeDeficitAxes,
     computeRoomSeverity,
     computeScreenStatus,
     computeIndoorBurden,
     getScreensForRoom,
+    // Rooms accessor + adder so cross-module callers (Tool 8 Eye-Level
+    // Audit, recommendations engine, AI helpers) don't have to dig
+    // into state.importedData.lightEnvironment directly.
+    getRooms: () => (state.importedData?.lightEnvironment?.rooms) || [],
+    addRoom,
     isLightEnvActiveToday: isActiveToday,
     setLightEnvTodayActive: async (kind, id, active) => {
       await setTodayActive(kind, id, active);

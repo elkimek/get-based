@@ -18,12 +18,19 @@ import { state } from './state.js';
 export function buildSunContext({ tier = 'always' } = {}) {
   const sessions = state.importedData?.sunSessions || [];
   const deviceSessions = state.importedData?.deviceSessions || [];
-  // A user with only device sessions (e.g. winter PBM users, indoor
-  // SAD-lamp users, anyone in a high-latitude city for 6 months) still
-  // generates Light-lens signal the AI should see. Earlier this gate
-  // was `sessions.length === 0` — outdoor-only — which silently dropped
-  // device-only users from every always-tier prompt.
-  if (sessions.length === 0 && deviceSessions.length === 0) return '';
+  // A user with only device sessions (winter PBM users, indoor SAD-
+  // lamp users, anyone in a high-latitude city for 6 months) — OR a
+  // user with only an indoor light environment surveyed (rooms /
+  // screens / audits but no outdoor exposure logged) — still generates
+  // Light-lens signal the AI should see. Earlier this gate was just
+  // `sessions.length === 0` which silently dropped both classes from
+  // every always-tier prompt.
+  const env = state.importedData?.lightEnvironment;
+  const audits = state.importedData?.lightAudits || [];
+  const hasEnv = (env && Array.isArray(env.rooms) && env.rooms.length > 0)
+    || (env && Array.isArray(env.screens) && env.screens.length > 0)
+    || audits.length > 0;
+  if (sessions.length === 0 && deviceSessions.length === 0 && !hasEnv) return '';
 
   let ctx = '[section:sunSessions]\n## Light & Sun lens\n\n';
   ctx += alwaysTierBlock(sessions);
@@ -91,7 +98,75 @@ ${deficits.map(d => `- ${d.label}: ${d.note}`).join('\n')}
 `;
   }
 
+  // Indoor light environment — rooms, screens, audits. Most users
+  // spend 8-14 h/day under indoor lights, so the AI needs the picture
+  // to make sense of circadian / sleep / mood signals. Without this
+  // block the prompt only saw outdoor + device exposure and was blind
+  // to the dominant share of the user's daily light budget.
+  block += lightEnvironmentBlock();
+
   return block;
+}
+
+// Indoor light environment summary — rooms, screens, light audits,
+// computed indoor burden. Returns empty string when nothing is logged
+// so the prompt stays compact for users who haven't set this up.
+function lightEnvironmentBlock() {
+  const env = state.importedData?.lightEnvironment;
+  const audits = state.importedData?.lightAudits || [];
+  const rooms = (env && Array.isArray(env.rooms)) ? env.rooms : [];
+  const screens = (env && Array.isArray(env.screens)) ? env.screens : [];
+  if (rooms.length === 0 && screens.length === 0 && audits.length === 0) return '';
+
+  let s = `### Indoor light environment\n`;
+  if (rooms.length > 0) {
+    s += `- Rooms tracked: ${rooms.length}`;
+    const eveningRooms = rooms.filter(r => r.eveningUseAfterSunset || (r.eveningHoursAfterSunset || 0) > 0);
+    if (eveningRooms.length > 0) {
+      s += `; ${eveningRooms.length} used after sunset`;
+    }
+    const blueBlocked = rooms.filter(r => r.blueBlocker).length;
+    if (blueBlocked > 0) s += `; ${blueBlocked} with blue-blocker`;
+    s += '\n';
+  }
+  if (screens.length > 0) {
+    const evening = screens.filter(sc => sc.eveningUseAfterSunset).length;
+    const blueOff = screens.filter(sc => sc.eveningUseAfterSunset && !sc.blueBlocker).length;
+    s += `- Screens tracked: ${screens.length}`;
+    if (evening > 0) s += `; ${evening} used after sunset`;
+    if (blueOff > 0) s += ` (${blueOff} without blue-blocker — direct retinal melatonin suppression)`;
+    s += '\n';
+  }
+  if (audits.length > 0) {
+    s += `- Light audits captured: ${audits.length}`;
+    const last = audits[audits.length - 1];
+    if (last) s += ` (most recent: ${formatRelative(last.savedAt || last.createdAt || Date.now())})`;
+    s += '\n';
+  }
+  // Indoor burden tier — rough qualitative score from 0 (negligible)
+  // to 4 (severe) computed from screen-after-sunset hours, dim-room
+  // hours, blue-blocker absence, and room count without daylight.
+  if (typeof window.computeIndoorBurden === 'function') {
+    try {
+      const burden = window.computeIndoorBurden();
+      if (burden && typeof burden === 'object') {
+        const tierLabel = ['negligible', 'mild', 'moderate', 'high', 'severe'][burden.tier] || 'unknown';
+        s += `- Indoor light burden: ${tierLabel} (tier ${burden.tier}/4)`;
+        if (burden.note) s += ` — ${burden.note}`;
+        s += '\n';
+      }
+    } catch (e) {}
+  }
+  // Deficit axes — quantitative components that drove the burden tier.
+  if (typeof window.computeDeficitAxes === 'function') {
+    try {
+      const axes = window.computeDeficitAxes();
+      if (axes && (axes.d2 != null || axes.d3 != null)) {
+        s += `- Deficit axes: d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap vs solar) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue exposure)\n`;
+      }
+    } catch (e) {}
+  }
+  return s + '\n';
 }
 
 function detectDeficits(totals30d) {

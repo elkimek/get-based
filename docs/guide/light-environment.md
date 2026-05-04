@@ -37,9 +37,9 @@ These complement the episodic Sun Sessions log. A user who walks 15 min outside 
 
 ## What it shows up as
 
-- **Burn-risk banner** on the Light & Sun page picks up the deficit signals when they're severe
-- **AI chat context** — `[section:sunSessions]` always-tier ships the summary; standard tier ships the room/screen detail when relevant
-- **Recommendation triggers** *(v1.7.x)* — flicker > 1 in any room or LED-only home will surface flicker-free bulbs and full-spectrum alternatives from the catalog
+- **Indoor burden tier** on the Light & Sun page (negligible / mild / moderate / high / severe), computed from screens-after-sunset hours, blue-blocker absence, dim-room hours, and number of rooms without daylight access
+- **AI chat context** — the always-tier prompt includes room count, screen count (with after-sunset / no-blue-blocker counts), light-audit count, indoor burden tier, and the d2 / d3 deficit axes. The AI can reason about your full day, not just outdoor exposure
+- **Light Audit comparison** — capture before / after snapshots when you change something (LED swap, dimmer install, blackout curtains added) and see the per-room delta side-by-side
 
 ## Re-survey discipline
 

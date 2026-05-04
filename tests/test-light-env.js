@@ -300,8 +300,69 @@ return (async function() {
   assert('deleteLightAudit removes from list',
     !getLightAudits().some(a => a.id === audit.id));
 
+  // ─── deleteRoom orphan cleanup ─────────────────────────────────────
+  // Earlier deleteRoom dropped the room but left measurements + screens
+  // pointing at the dead id. Now those references null out so the
+  // measurements stay accessible (per the confirm-dialog promise) and
+  // can be re-associated with a new room.
+  console.log('%c deleteRoom orphan cleanup ', 'font-weight:bold;color:#f59e0b');
+  window._labState.importedData = {
+    lightEnvironment: {
+      rooms: [{ id: 'r-orphan', name: 'Bedroom' }],
+      screens: [{ id: 's-orphan', device: 'phone', roomId: 'r-orphan' }],
+    },
+    lightMeasurements: [
+      { id: 'm-orphan-1', roomId: 'r-orphan', tool: 'lux', value: 50, takenAt: Date.now() },
+      { id: 'm-orphan-2', roomId: 'other-room', tool: 'lux', value: 200, takenAt: Date.now() },
+    ],
+  };
+  await deleteRoom('r-orphan');
+  const measurementsAfter = window._labState.importedData.lightMeasurements;
+  const screensAfter = window._labState.importedData.lightEnvironment.screens;
+  assert('deleteRoom nulls roomId on linked measurements',
+    measurementsAfter.find(m => m.id === 'm-orphan-1').roomId === null);
+  assert('deleteRoom leaves measurements pointing at OTHER rooms untouched',
+    measurementsAfter.find(m => m.id === 'm-orphan-2').roomId === 'other-room');
+  assert('deleteRoom nulls roomId on linked screens',
+    screensAfter.find(s => s.id === 's-orphan').roomId === null);
+
   // Restore
   window._labState.importedData = orig;
+
+  // ─── lightEnvironmentBlock surfaces in AI context ──────────────────
+  console.log('%c AI context — light environment block ', 'font-weight:bold;color:#f59e0b');
+  if (typeof window.buildSunContext === 'function') {
+    const beforeCtx = window._labState.importedData;
+    window._labState.importedData = {
+      sunSessions: [],
+      deviceSessions: [],
+      lightEnvironment: {
+        rooms: [
+          { id: 'r1', name: 'Bedroom', eveningUseAfterSunset: true, blueBlocker: false },
+          { id: 'r2', name: 'Office', eveningHoursAfterSunset: 4, blueBlocker: true },
+        ],
+        screens: [
+          { id: 's1', device: 'phone', eveningUseAfterSunset: true, blueBlocker: false },
+        ],
+      },
+      lightAudits: [{ id: 'a1', label: 'Pre', savedAt: Date.now() }],
+    };
+    // Even with zero outdoor sessions and zero device sessions, an
+    // active light environment should still produce AI context — the
+    // earlier gate dropped device-only AND environment-only users.
+    const ctx = window.buildSunContext({ tier: 'always' });
+    assert('AI context rendered for environment-only users (rooms/screens/audits with 0 sessions)',
+      typeof ctx === 'string' && ctx.length > 0);
+    assert('AI context mentions Indoor light environment section',
+      ctx.includes('Indoor light environment'));
+    assert('AI context counts rooms (2)',
+      /Rooms tracked: 2/.test(ctx));
+    assert('AI context counts screens (1)',
+      /Screens tracked: 1/.test(ctx));
+    assert('AI context surfaces no-blue-blocker after-sunset screens',
+      /without blue-blocker/.test(ctx));
+    window._labState.importedData = beforeCtx;
+  }
 
   console.log(`%c Light Environment: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
