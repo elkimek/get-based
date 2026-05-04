@@ -5,6 +5,20 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.17', date: '2026-05-04', title: 'CAMS atmosphere relay live + Light & Sun polish',
+    items: [
+      '<b>CAMS relay is live.</b> The new <code>getbased-uvdata</code> companion repo ships KNMI-validated total column ozone (DU), aerosol optical depth, and PM2.5 / PM10 from the same satellite-assimilated source Open-Meteo wraps for AQI. The Sun data source picker on the Light & Sun page now defaults to "Best accuracy" — CAMS for atmospheric composition + Open-Meteo for clouds and temperature, automatically merged. Pick "Open-Meteo only" or "Self-hosted" if you prefer.',
+      '<b>UV source confidence is now computed, not hardcoded.</b> The static 95% / 65% per-source numbers were misleading at low sun under heavy cloud — exactly the conditions where you most need to know the data is uncertain. Confidence now weights snapshot age, cloud cover, sun elevation, UVI band, and stale-grid flag. A reading at sunset under heavy cloud honestly drops to ~40%, even from CAMS. Hover the readout to see which discounts are active.',
+      '<b>Vit-D model recalibrated.</b> The body-fraction presets used to claim "Sunbathing = 0.90" — anatomically impossible, since you can\'t have both sides exposed at once. New presets cap at single-position max (Sunbathing = 0.50 = front-only). New 🔄 Flip mid-session button doubles vitamin D yield to acknowledge that fresh skin keeps synthesizing after the first side approaches saturation. The IU constant was bumped 40 → 60 to match dminder + NIWA at UVI 5–7. Existing sessions will read ~1.5× higher than before.',
+      '<b>Active session pinned to the top of the Light & Sun page</b> with a Live badge above the Stop button — the live timer, channel chips, and Pause / Flip / Sunscreen / Ozone controls are the first thing you see when a session is running.',
+      '<b>Eye-UV math no longer phantom-accumulates before sunrise.</b> Retinal UV is now gated on sun elevation ≥ 5° (matches the "UV-A on" sun-arc marker). A 30-min eyes-direct session at 6 am pre-sunrise no longer falsely reports 4.8 J/m² actinic dose.',
+      '<b>Sun-arc fix.</b> The sunrise / sunset / UVI-peak markers were silently picking 2-day-old values because Open-Meteo\'s <code>daily.sunrise[0]</code> with <code>past_days=2</code> means day-before-yesterday. Now indexes by today\'s date string. The "now" indicator (⏵) lands in the right slot on the timeline.',
+      '<b>Stop session freezes the timer immediately.</b> A cross-device race could leave the visible counter ticking on both phone and desktop after Stop. Now the timer DOM is blanked synchronously before the network round trip, regardless of sync state.',
+      '<b>5-day forecast horizon.</b> CAMS pull now spans 120 hours instead of 24. App can render UVI / ozone / atmosphere up to 5 days ahead.',
+      '<b>Picker simplification.</b> Removed the confusing "CAMS only" mode (it broke clouds/temp because CAMS is composition-only). Four honest options now: Default / Open-Meteo only / Self-hosted / Manual. Legacy <code>cams</code> and <code>noaa</code> stored configs auto-migrate to Default.',
+    ]
+  },
+  {
     version: '1.7.16', date: '2026-05-03', title: 'Sync — concurrent-push snapshot clobber fix',
     items: [
       '<b>Stale onComplete can no longer clobber a fresher push\'s snapshot.</b> The 60-second <code>_syncing</code> in-flight guard plus delayed <code>onComplete</code> writing meant push A planned at T=0 could have its <code>onComplete</code> fire at T=70s — AFTER push B started at T=65s and already wrote its snapshot. A\'s late <code>onComplete</code> would clobber B\'s fresher view, and the next push would diff against A\'s stale state, silently skipping items B had already added.',

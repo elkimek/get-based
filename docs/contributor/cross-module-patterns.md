@@ -161,4 +161,4 @@ This prevents redundant pipeline runs when multiple views refresh simultaneously
 if (isDebugMode()) console.warn('PII diff:', replacements);
 ```
 
-Toggle in Settings → Privacy → Debug Mode.
+Toggle in Settings → Display → "Verbose console logging" (moved from Privacy in v1.7.x — debug mode also reveals diagnostic UI in the sync popover + Push-efficiency / Lean-sync-mode panels in the Diagnose modal, not a privacy posture).

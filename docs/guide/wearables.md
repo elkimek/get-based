@@ -1,6 +1,6 @@
 # Wearable Integrations
 
-getbased connects to five wearable / device platforms today and also treats your own **manual entries** as a first-class source. Everything surfaces on one dashboard strip alongside your blood-work data. (WHOOP and Ultrahuman support is built but hidden from the connect list while we validate partner credentials — see [Beta status](#beta-status).)
+getbased connects to seven wearable / device platforms (five live, two gated on partner credentials) and also treats your own **manual entries** as a first-class source. Everything surfaces on one dashboard strip alongside your blood-work data. The five live integrations are **Oura, Withings, Polar, Fitbit, and Apple Health** (file import). WHOOP and Ultrahuman are fully implemented but hidden from the connect list until we validate partner credentials — see [Beta status](#beta-status).
 
 ## What you get
 

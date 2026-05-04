@@ -6,8 +6,8 @@
 
 - **🩸 Labs** — biomarkers, ranges, trends, biological age across 287+ markers
 - **🧬 Genome** — 47 curated SNPs, APOE haplotype, 39 mtDNA haplogroups, DNA-aware insights
-- **⌚ Body** — wearables (Oura, Fitbit, Withings, Polar, Apple Health), biometrics, recovery, cycle
-- **☀ Light** — sun exposure, photobiology devices, indoor light environment *(coming in v1.7)*
+- **⌚ Body** — wearables (Oura, Fitbit, Withings, Polar, Apple Health, plus WHOOP + Ultrahuman gated on partner credentials), biometrics, recovery, cycle
+- **☀ Light** — sun exposure with CAMS-fed atmospheric data, photobiology devices, indoor light environment, 8 measurement tools
 - **🧠 Insight** — AI chat, custom knowledge base, correlations, recommendations
 
 **[Live app](https://app.getbased.health)** · **[Documentation](https://getbased.health/docs)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**

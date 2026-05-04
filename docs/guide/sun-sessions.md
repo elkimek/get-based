@@ -62,7 +62,7 @@ Most users spend 8–14 hours/day under indoor lights. The **Light environment**
 
 ## Light tools (on-device)
 
-Seven measurement utilities, all running fully in your browser:
+Eight measurement utilities, all running fully in your browser:
 
 - **📏 Lux Meter** — uses your phone's ambient-light sensor when available, camera-based estimate otherwise
 - **⚡ Flicker Detector** — your camera at 240 fps catches LED PWM banding; we compute a 0–3 risk score
@@ -71,6 +71,7 @@ Seven measurement utilities, all running fully in your browser:
 - **🪟 Glass Transmission** — measure inside and outside, see how much your window blocks
 - **🌙 Sleep Darkness** — long-exposure read at the pillow, tells you if the bedroom is dark enough for full melatonin
 - **🌅 Golden hour log** — one-tap session entry for sunrise / sunset
+- **👁 Eye-level audit** — continuous capture as you walk through your home; one tap per room populates the entire Light Environment
 
 Camera frames never leave your device.
 
@@ -85,7 +86,12 @@ Camera frames never leave your device.
 
 - Lat/lon defaults to your **country** from your profile — no automatic geolocation prompt at session start
 - Optional one-time precise-location upgrade is stored locally in this device's profile; never synced
-- UV/ozone data fetches via Open-Meteo by default; CAMS-via-proxy + self-hosted `getbased-uvdata` paths land in v1.7.x for users who want zero third-party telemetry
+- UV/ozone data — pick your **Sun data source** on the Light & Sun page itself. Four options:
+  - **Default** — CAMS atmospheric forecast (real KNMI-validated total column ozone + AOD + PM₂.₅/PM₁₀) merged with Open-Meteo for clouds, temperature, and a baseline UVI
+  - **Open-Meteo only** — skip CAMS entirely; one fewer upstream sees your lat/lon
+  - **Self-hosted** — run your own `getbased-uvdata` server (the CAMS relay code is open source) and point the app at it; lat/lon never leaves your infrastructure
+  - **Manual / UV meter** — type the UV index per session; no network calls at all
+- **Source confidence** is computed per request: snapshot age, cloud cover, sun elevation, UVI band, and stale flag all discount the displayed percentage. A reading at low sun under heavy cloud honestly drops to ~40%, even from CAMS — no false precision
 - All measurements (lux, flicker, CCT, etc.) live in `importedData.lightMeasurements` on this device
 - Camera frames and sensor readings are processed in-browser and discarded — they never reach a server
 
@@ -96,9 +102,18 @@ Camera frames never leave your device.
 - **Burn-risk model is conservative** and uses a 1.5× hard cap with explicit override warnings. We never recommend exceeding your personal threshold.
 - **No medical advice.** This is measurement, not prescription. Consult a healthcare professional for any concern.
 
+## In-session controls
+
+When a session is running, the Light & Sun page pins a **Live** card at the top with these controls:
+
+- **⏸ Pause** — freezes dose accrual during a shade break (timer keeps ticking; toggle to resume)
+- **🔄 Flip** — tap when you turn over front↔back. The body-fraction picker is anatomically capped at single-position max (~0.50 for "fully naked"); flipping doubles the vit-D yield to acknowledge that fresh skin keeps synthesizing after the first side approaches saturation. Same convention dminder uses for "100% naked = both sides over the session"
+- **🧴 Sunscreen** — log a mid-session reapplication; commits the slice computed under the OLD SPF, then continues with the new value
+- **🛰 Ozone** — manual override of the total-column DU figure if you have a meter or local advisory
+
+Detailed sessions also support a **per-region silhouette picker** — toggle individual anatomical regions for targeted-UV protocols (face only, abdomen only, etc.).
+
 ## What's coming
 
 - **Spectral overlay on biomarker charts** — see channel × marker visually, not just in chat
-- **Self-hosted UV data** via the `getbased-uvdata` companion repo (CAMS-mirror with one-line install)
-- **Eye-level audit** — 10-min walkthrough that populates the entire Light Environment in one pass
-- **Per-anatomical-region body silhouette picker** — log targeted UV (face only, abdomen only, etc.) for users running specific protocols
+- **Phase-2 air-quality fields from CAMS** — NO₂ / SO₂ / CO / surface ozone via the regional CAMS-Europe dataset (currently sourced from Open-Meteo's AQI endpoint, which already wraps CAMS for these)

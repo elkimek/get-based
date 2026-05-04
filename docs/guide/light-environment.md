@@ -45,8 +45,11 @@ These complement the episodic Sun Sessions log. A user who walks 15 min outside 
 
 The survey is meant to reflect your usual week, not your perfect week. Re-open it once per quarter or after a move. The deficit signals smooth out over rolling windows; one week of vacation won't skew it.
 
+## Eye-level audit (Tool 8)
+
+The Light Environment survey fills out fastest via the **Eye-level audit** tool — a 10-min camera walkthrough that captures lux + CCT per room as you stop in each one. See [Light tools](light-tools.md#tool-8--eye-level-audit).
+
 ## Coming next
 
-- **Eye-level audit** — 10-min walkthrough with continuous lux + flicker recording, fills out the entire survey in one pass
 - **Smart-bulb integration** — read-only Hue / Lutron / Apple Home auto-detect of CCT and on-time per room
 - **Per-room daylight ratio** — derived from window size + glass-transmission test results

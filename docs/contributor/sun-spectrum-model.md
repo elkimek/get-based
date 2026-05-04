@@ -145,11 +145,11 @@ Only counts when `eyeExposure.mode === 'direct'`. Sums irradiance for λ ≤ 400
 | Channel | Daily target (channel-au) |
 |---|---|
 | vitamin_d | 300 |
-| pomc | 800 |
-| no_cv | 100 |
-| violet_eye | 6000 |
+| pomc | 80 |
+| no_cv | 5000 |
+| violet_eye | 8000 |
 | circadian | 20000 |
-| nir_solar | 100000 |
+| nir_solar | 30000 |
 | pbm_red | 8000 |
 | pbm_nir | 10000 |
 
@@ -175,22 +175,24 @@ Targets are deliberately rough. They're not normative — they're a translation 
 6. Update `js/sun-correlations.js` if the channel should be biomarker-correlated
 7. Update `tests/test-sun-spectrum.js` — assert the channel is in `SUN_CHANNELS` and has non-zero dose at noon
 
-## Self-host UV data path
+## UV data source
 
 `js/sun-uvdata.js` resolves the active UV data provider via `providerOrder(cfg)`:
 
 | `cfg.mode` | Order |
 |---|---|
-| `auto` (default) | selfhost (if URL set) → Open-Meteo → offline zenith |
+| `auto` (default) | selfhost (if URL set) → CAMS hosted relay → Open-Meteo → offline zenith |
 | `selfhost` | selfhost → Open-Meteo |
-| `cams` | CAMS proxy → Open-Meteo |
-| `noaa` | NOAA NWS → Open-Meteo |
 | `open-meteo` | Open-Meteo only |
 | `manual` | none (always returns null, manual entry required) |
 
-CAMS direct is a placeholder for the v1.7.x CAMS-via-proxy implementation. NOAA NWS doesn't allow browser CORS so it's reserved for self-hosters proxying through their own server.
+Legacy `cams` and `noaa` modes (from earlier v1.7.x dev iterations) auto-migrate to `auto` on load via `getMeteoConfig()` so users with stored configs from a pre-shipping build don't get stuck.
 
-The companion repo `getbased-uvdata` (TBD) ships a docker-compose template with CAMS sync + Open-Meteo fallback bundled. Self-hosters point Settings → Privacy → Sun Data Source → Self-hosted server at their endpoint.
+**CAMS hosted relay** is the [`getbased-uvdata`](https://github.com/elkimek/getbased-uvdata) companion repo deployed at `uvdata.getbased.health`, fronted by Caddy. The browser sends `POST /api/proxy {meteo: 'cams', latitude, longitude, time}`; the Vercel proxy injects a bearer from `UVDATA_BEARER` and forwards to the relay. The relay pulls CAMS atmospheric composition forecasts on a 6h schedule (CDS-API), indexes the grid in memory, and serves Open-Meteo-shaped JSON with `hourly.ozone_du`, `hourly.aod`, `hourly.pm2_5`, `hourly.pm10`, plus Open-Meteo's clouds/temp/UVI baseline merged in. Self-hosters run the same Docker image and point Settings → Light & Sun → Sun data source → Self-hosted at their URL.
+
+We deliberately don't pull CAMS-McRad surface UV — that product is queue-based with pre-registered locations, structurally incompatible with synchronous per-coord serving. The `/spectrum` endpoint on the relay runs Bird-Riordan reconstruction server-side fed by real CAMS atmosphere, which collapses the model uncertainty band from ±20–45% to ±10–15% in the UV sweet-spot.
+
+**Source confidence** is computed at read time via `computeUVConfidence({source, snapshotAgeSec, cloudCover, zenithDeg, uvIndex, isStale, manualOverridden})` — no longer a static per-source number. Stale grid (>24 h) halves the confidence; heavy cloud (>0.8), low sun (zenith >80°), and below-threshold UVI (<2) each multiplicatively discount further. Manual UV-meter readings lock to 1.0; everything else caps at 0.99.
 
 ## Validation
 

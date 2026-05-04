@@ -90,9 +90,13 @@ If you're not sleeping well and you score high, your room is the first thing to 
 
 One-tap session log for sunrise / sunset. The most circadian-effective outdoor time most users get. Auto-labels the window (Sunrise / Sunset / Golden hour) by current hour. Pre-fills face+hands exposure with direct eye exposure for ~15 min.
 
+## Tool 8 — Eye-level audit
+
+A 10-minute room walkthrough that populates the entire Light Environment in one pass. The camera streams at 4 fps, detects when you've paused in a room (5 s of stillness), captures a snapshot at eye level, and writes a Light measurement keyed to the room. Walk through every room you spend time in, tap "I'm in {room}" each time, and end the session — every room gets a lux + CCT + Ott reading without you taking 7 separate measurements.
+
 ## Calibration (lux meter)
 
-A printable grey-card PDF + calibration walk-through ships in v1.7.x. For now, the camera fallback's accuracy is good enough for relative comparisons (room A vs room B, today vs last week) but treat absolute lux readings as ±30% estimates unless you've replaced the localStorage `labcharts-lux-calibration` factor with a known reference.
+The camera fallback's accuracy is good enough for relative comparisons (room A vs room B, today vs last week) but treat absolute lux readings as ±30% estimates unless you've replaced the localStorage `labcharts-lux-calibration` factor with a known reference (a real lux meter, a phone with a calibrated AmbientLightSensor, or a grey-card test against a published illuminance value).
 
 ## Privacy
 
