@@ -1119,6 +1119,16 @@ export function showLight(_data) {
     <p>Track your light exposure. See how it shapes your sleep, hormones, and lab results.</p>
   </div>`;
 
+  // Active sun session card — pinned at the very top of the page so the
+  // live timer + channel chips + Pause/Flip/Sunscreen controls are the
+  // first thing the user sees when a session is running. Renders above
+  // Conditions / Setup / Stop CTA. Filtered out of the historical
+  // sessions list further down so the same row doesn't render twice.
+  const _activeSunSess = (window.getActiveSession && window.getActiveSession()) || null;
+  if (_activeSunSess && typeof window.renderSunSessionRow === 'function') {
+    html += `<div class="light-active-session-pinned" aria-label="Active sun session">${window.renderSunSessionRow(_activeSunSess)}</div>`;
+  }
+
   // Always-visible "Conditions now" panel — UVI / ozone / AQI / sun angle.
   // Tells the user whether right now is a good time to go out, even before
   // they have any session history.
@@ -1139,6 +1149,7 @@ export function showLight(_data) {
   if (typeof window.renderSunSetupCard === 'function') {
     html += window.renderSunSetupCard();
   }
+
 
   // Quick-log CTA row — primary action. Adaptive: a winter user with a
   // therapy panel sees "Start a device session" alongside (or instead of)
@@ -1256,8 +1267,15 @@ export function showLight(_data) {
     </details>`;
 
     // Unified sessions list — sun + device merged chronologically.
-    html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
-    html += renderUnifiedSessionsList();
+    // Active sun session is pinned at top of page; this list shows
+    // historical (ended) ones. Skip the section header when empty so
+    // a freshly-started session doesn't render an orphan "Sessions"
+    // heading with no rows under it.
+    const _unifiedHtml = renderUnifiedSessionsList();
+    if (_unifiedHtml) {
+      html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
+      html += _unifiedHtml;
+    }
   }
 
   // Devices, environment, tools — auto-collapsed when empty per v1.7.0a UX review
@@ -2039,11 +2057,23 @@ function _toggleChannelDetail(channelKey) {
 // they have a simpler shape (no per-channel chips on the device-side
 // — those would be the SAME chips on every row, not informative).
 function renderUnifiedSessionsList() {
-  const sunSessions = (window.getSessions && window.getSessions()) || [];
+  // Active sun session is pinned at the top of the page (showLight
+  // renders it before the quicklog row), so filter it out of the
+  // historical-sessions list to avoid the same row appearing twice.
+  const sunSessions = ((window.getSessions && window.getSessions()) || []).filter(s => !!s.endedAt);
   const devSessions = (window.getDeviceSessions && window.getDeviceSessions()) || [];
-  // Pure-sun path defers to the original list (no merge needed).
+  // Pure-sun path: render only ended sessions (active is pinned above).
+  // When the only session is the active one, return empty so we don't
+  // emit a "Sessions" header with nothing under it.
   if (devSessions.length === 0) {
-    return (window.renderSessionsList && window.renderSessionsList()) || '';
+    if (sunSessions.length === 0) return '';
+    let html = `<div class="sun-sessions-list">`;
+    if (typeof window.renderSunSessionRow === 'function') {
+      const sorted = sunSessions.slice().sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+      for (const s of sorted) html += window.renderSunSessionRow(s);
+    }
+    html += `</div>`;
+    return html;
   }
   const rows = [];
   for (const s of sunSessions) rows.push({ kind: 'sun', startedAt: s.startedAt || 0, sess: s });

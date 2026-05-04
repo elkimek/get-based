@@ -874,6 +874,46 @@ const server = http.createServer((req, res) => {
           return;
         }
 
+        // CAMS atmosphere relay → getbased-uvdata. Mirrors the
+        // handleCamsRelay block in api/proxy.js so localhost dev can
+        // exercise the same flow against a real upstream. Reads
+        // UVDATA_UPSTREAM + UVDATA_BEARER from process.env (typically
+        // .env.local sourced before `node dev-server.js`).
+        if (payload.meteo === 'cams') {
+          const upstream = (process.env.UVDATA_UPSTREAM || '').replace(/\/+$/, '');
+          if (!upstream) {
+            res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+            res.end(JSON.stringify({
+              error: 'CAMS relay not configured locally. Set UVDATA_UPSTREAM (and UVDATA_BEARER) in your shell env before `node dev-server.js`.',
+            }));
+            return;
+          }
+          const lat = Number(payload.latitude);
+          const lon = Number(payload.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+            res.end(JSON.stringify({ error: 'Invalid latitude/longitude' }));
+            return;
+          }
+          const time = typeof payload.time === 'string' ? payload.time : '';
+          const qs = new URLSearchParams({ latitude: String(lat), longitude: String(lon) });
+          if (time) qs.set('time', time);
+          const upstreamUrl = `${upstream}/uv?${qs.toString()}`;
+          const upstreamHeaders = { 'Accept': 'application/json' };
+          if (process.env.UVDATA_BEARER) upstreamHeaders['Authorization'] = `Bearer ${process.env.UVDATA_BEARER}`;
+          const camsReq = https.request(upstreamUrl, { method: 'GET', headers: upstreamHeaders }, (camsRes) => {
+            const ct = camsRes.headers['content-type'] || 'application/json';
+            res.writeHead(camsRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+            camsRes.pipe(res);
+          });
+          camsReq.on('error', (e) => {
+            res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+            res.end(JSON.stringify({ error: 'CAMS upstream unreachable: ' + e.message }));
+          });
+          camsReq.end();
+          return;
+        }
+
         const { url: targetUrl, headers: fwdHeaders, body: fwdBody, method: upMethod } = payload;
         if (!targetUrl) { res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) }); res.end('{"error":"missing url"}'); return; }
         if (!_isAllowedProxyUrl(targetUrl)) {

@@ -5312,6 +5312,29 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-today-cta-secondary:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); border-color: var(--accent); }
 
+/* Pinned active sun-session row — sits at the very top of the Light &
+   Sun page when a session is running, above Conditions / Setup / the
+   Stop CTA. Heavier visual treatment than ordinary rows so the live
+   readout reads as the page's focal point. */
+.light-active-session-pinned {
+  margin: 4px 0 14px;
+}
+.light-active-session-pinned .sun-session {
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--card));
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.light-active-session-pinned .sun-session::before {
+  content: 'Live';
+  position: absolute;
+  top: -10px; left: 14px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px;
+  background: var(--accent); color: #fff;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.light-active-session-pinned .sun-session { position: relative; }
+
 /* Light & Sun page — quick-log row + section headings */
 .light-quicklog-row {
   margin: 12px 0 8px;

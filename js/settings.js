@@ -103,6 +103,18 @@ export function openSettingsModal(tab) {
             </label>
           </div>
         </div>
+        <div class="settings-section">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <label class="settings-label" style="margin-bottom:2px">Verbose console logging</label>
+              <div style="font-size:11px;color:var(--text-muted)">Adds detailed log output and reveals diagnostic UI in the sync popover. No data leaves your device.</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} onchange="setDebugMode(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="settings-group-title">Resources</div>
@@ -325,13 +337,6 @@ export function renderPrivacySection() {
         <span class="toggle-slider"></span>
       </label>
     </div>
-    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:8px">
-      <span style="font-size:13px">Verbose console logging<br><span style="font-size:11px;color:var(--text-muted)">Adds detailed log output across the app — useful for debugging or filing issues. No data leaves your device.</span></span>
-      <label class="toggle-switch" style="margin-top:2px">
-        <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} onchange="setDebugMode(this.checked)">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
   </div>
 
   <div class="local-ai-settings" style="margin-top:16px">
@@ -371,9 +376,10 @@ export function renderSunDataSourceSettings() {
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">☀ Sun data source</h4>
     <div class="ai-provider-desc" style="margin-bottom:10px">Where the Light &amp; Sun lens fetches UV / ozone / atmosphere data. Lat/lon defaults to your country (no automatic geolocation). Manual entry always works.</div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      ${_renderMeteoModeOption('auto', 'getbased default (Open-Meteo)', 'Public CC-BY 4.0 dataset. lat/lon goes to api.open-meteo.com. Standard CDN telemetry only — no logged user data.')}
-      ${_renderMeteoModeOption('selfhost', 'Self-hosted server', 'Use your own getbased-uvdata server. Lat/lon never leaves your infrastructure. Set URL + bearer below.')}
-      ${_renderMeteoModeOption('manual', 'UV meter / manual entry', 'Type the UV index per session — most accurate when you own a UV meter (Solarmeter 6.5R, Hocoma, EMR-Tek). Sessions log a meter-confidence reading instead of a model estimate. Also: no network calls at all.')}
+      ${_renderMeteoModeOption('auto', 'Default — best accuracy', 'Real ozone + aerosols from CAMS, clouds + temperature from Open-Meteo, automatically merged. Falls back to Open-Meteo only if CAMS is unreachable. Pick this unless you have a specific reason not to.')}
+      ${_renderMeteoModeOption('open-meteo', 'Open-Meteo only', 'Skip CAMS. Slightly noisier UV math (no real ozone DU), but only one upstream sees your lat/lon. Faster too.')}
+      ${_renderMeteoModeOption('selfhost', 'Self-hosted server', 'You run your own getbased-uvdata box. Lat/lon never leaves your infrastructure. Paste the URL + bearer below.')}
+      ${_renderMeteoModeOption('manual', 'UV meter / manual entry', 'Type the UV index yourself per session — most accurate if you own a UV meter (Solarmeter 6.5R, Hocoma, EMR-Tek). No network calls at all.')}
     </div>
     <div id="meteo-selfhost-fields" style="margin-top:10px;${cfg.mode === 'selfhost' ? '' : 'display:none'}">
       <label style="font-size:12px;color:var(--text-muted)">Server URL</label>

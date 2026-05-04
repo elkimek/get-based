@@ -551,7 +551,13 @@ export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive = false
 // IU the actual yield plateaus regardless of further exposure. We cap
 // the displayed value to keep the UI honest about that ceiling.
 const VITD_FITZPATRICK_SCALE = { I: 1.0, II: 1.0, III: 0.85, IV: 0.65, V: 0.45, VI: 0.30 };
-const VITD_IU_PER_CHANNEL_AU = 40;
+// Bumped 40 → 60 in 2026-05 after a user (UVI 6 / 42 min / Type III /
+// front-only) measured ~2000 IU against dminder's ~6000 IU at the same
+// inputs. The earlier 40 was over-corrected from a high-zenith UVB
+// over-estimation fix; in the UVI 5–7 sweet spot it under-reports by
+// ~3×. 60 brings us into the NIWA / dminder reference band without
+// breaking the low-UVI gate (still 0 below UVI 2).
+const VITD_IU_PER_CHANNEL_AU = 60;
 const VITD_SATURATION_IU = 20000;
 
 // UVI threshold gate. Webb 2018, Lehmann 2013, McKenzie 2009 (NIWA):
@@ -575,11 +581,17 @@ function _uviThresholdMultiplier(uvi) {
   return uvi - 2.0;
 }
 
-export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null) {
+// `rotatedSides` doubles the yield to acknowledge that flipping front↔back
+// during the session lets fresh skin restart vit-D synthesis after the
+// previous side approaches per-area saturation. Matches dminder's
+// "100% naked over the session = both sides exposed" convention. The
+// global VITD_SATURATION_IU cap still applies on top.
+export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
   const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
   const uviMult = _uviThresholdMultiplier(uvi);
-  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult;
+  const rotMult = rotatedSides ? 2.0 : 1.0;
+  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult * rotMult;
   return Math.min(raw, VITD_SATURATION_IU);
 }
 
@@ -603,8 +615,8 @@ export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null) {
 // model is much more accurate than at sunrise/sunset.
 //
 // Returns { central, low, high } in IU.
-export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = null, zenith = null) {
-  const central = vitaminDIU(channelAu, fitzpatrick, uvi);
+export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false) {
+  const central = vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides);
   if (central === 0) return { central: 0, low: 0, high: 0 };
   // Per-zenith model uncertainty (multipliers for low/high band):
   //   high noon (z ≤ 35°)    → ±20%   (model in its sweet spot)
@@ -656,10 +668,27 @@ export function circadianMelanopicLux(channelAu, durationMin) {
 // Returns J/m² actinic UV at the eye. ICNIRP daily exposure limit is
 // 30 J/m². Photokeratitis symptoms appear above ~50 J/m². Alert
 // thresholds in sun.js use 15 J/m² (warning) and 30 J/m² (over limit).
-export function retinalUVdose({ spectrum, eyeExposure }) {
+//
+// `zenithDeg` (optional) gates the dose at very low solar elevation —
+// below ~5° (zenith > 85°) UV-A doesn't meaningfully reach the ground
+// (same threshold the firstUVA / lastUVA "biological dawn/dusk" markers
+// use in views.js). The Bird-Riordan reconstruction we feed in still
+// emits some weighted UV at high zenith, so without this gate a
+// 30-min eyes-direct session at 6 am pre-sunrise would falsely
+// accumulate 4-5 J/m² actinic UV. Linear ramp 85° → 80° avoids a
+// hard cliff — full yield once the sun is more than 10° above the
+// horizon. Pass `null` (or omit) to skip the gate.
+export function retinalUVdose({ spectrum, eyeExposure, zenithDeg = null }) {
   if (!spectrum || !eyeExposure) return 0;
   const mode = eyeExposure.mode || 'indoor';
   if (mode !== 'direct') return 0;
+  let elevationGate = 1.0;
+  if (Number.isFinite(zenithDeg)) {
+    const elevation = 90 - zenithDeg;
+    if (elevation <= 5) elevationGate = 0;
+    else if (elevation < 10) elevationGate = (elevation - 5) / 5; // 0→1 over 5°-10°
+  }
+  if (elevationGate === 0) return 0;
   const seconds = (eyeExposure.durationSec || 0);
   const dlambda = 5;
   let actinic_irradiance = 0;
@@ -670,7 +699,7 @@ export function retinalUVdose({ spectrum, eyeExposure }) {
     if (w <= 0) continue;
     actinic_irradiance += spectrum.irradiance[i] * w * dlambda;
   }
-  return actinic_irradiance * seconds;
+  return actinic_irradiance * seconds * elevationGate;
 }
 
 // ─── Public exports ────────────────────────────────────────────────────

@@ -67,12 +67,17 @@ export const BODY_REGIONS = [
   { key: 'soles-of-feet',  label: 'Soles of feet',     fraction: 0.02 },
 ];
 
-// Standard quick-presets for the speed log
+// Standard quick-presets for the speed log. Fractions reflect a SINGLE
+// position (front-only OR back-only at any one moment) — capped at the
+// anatomical max of ~0.55. Use the in-session "🔄 Flip" button (or the
+// `rotatedSides` toggle in the start dialog) to log that you exposed
+// both sides over the session; that doubles the effective body dose
+// the same way dminder's "100% naked" assumes alternating sides.
 export const EXPOSURE_PRESETS = [
   { key: 'face_hands', label: 'Face + hands',         fraction: 0.05 },
-  { key: 'tshirt',     label: 'T-shirt + shorts',     fraction: 0.30 },
-  { key: 'swimwear',   label: 'Swimwear',             fraction: 0.65 },
-  { key: 'sunbathing', label: 'Sunbathing',           fraction: 0.90 },
+  { key: 'tshirt',     label: 'T-shirt + shorts',     fraction: 0.20 },
+  { key: 'swimwear',   label: 'Swimwear',             fraction: 0.45 },
+  { key: 'sunbathing', label: 'Sunbathing',           fraction: 0.50 },
 ];
 
 export const EYE_MODES = [
@@ -169,7 +174,7 @@ const VITD_SAT_FLAG = 19000;
 // clinical threshold (Webb 2018: no meaningful vit D below UVI ~2-3).
 // Pass these from `sess.safety.fitzpatrick` and `sess.atmosphere.uvIndex`
 // respectively; fallback to 'III' / null.
-export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null) {
+export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (channelKey === 'vitamin_d') {
     // Single approximate value — uncertainty lives in the tooltip.
@@ -177,8 +182,8 @@ export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatric
     // power users open the row tooltip for the model band + biological
     // variance breakdown.
     const central = window.vitaminDIU
-      ? window.vitaminDIU(channelAu, fitzpatrick, uvi)
-      : channelAu * 40;
+      ? window.vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides)
+      : channelAu * 60 * (rotatedSides ? 2 : 1);
     if (central === 0) return 'below UVI threshold';
     if (central < 30) return 'minimal';
     const fmt = (n) => {
@@ -250,7 +255,7 @@ export const SURFACE_OPTIONS = [
 // Accepts either an `exposurePreset` (legacy 4-preset coarse buckets) or a
 // `regions` array (anatomical-region picker output). Regions take priority
 // when both are supplied — fraction is computed by summing region fractions.
-export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location, posture = 'standing', surfaceAlbedo = 'grass' } = {}) {
+export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location, posture = 'standing', surfaceAlbedo = 'grass', rotatedSides = false } = {}) {
   const id = `sun_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
   let preset, fraction, regionsArr;
@@ -277,7 +282,12 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
     startedAt: Date.now(),
     endedAt: null,
     location: location || null,
-    bodyExposure: { preset: preset.key, fraction, regions: regionsArr, sunscreenSPF: null, glassBetween },
+    // rotatedSides=true means the user flipped front↔back during the
+    // session (or alternated). Doubles the effective body fraction in the
+    // vit-D IU calc to match dminder's "100% naked = both sides over the
+    // session" convention. Set at session start, OR mid-session via the
+    // 🔄 Flip button (calls flipSidesMidSession).
+    bodyExposure: { preset: preset.key, fraction, regions: regionsArr, sunscreenSPF: null, glassBetween, rotatedSides: !!rotatedSides },
     eyeExposure: { mode: eyeMode, lensTint, durationSec: null }, // durationSec assigned at stop
     posture,                  // body orientation multiplier — see _POSTURE_MULTIPLIERS
     surfaceAlbedo,            // ground reflectance multiplier — see _SURFACE_ALBEDO
@@ -301,6 +311,16 @@ export async function stopSession(id) {
     sess.eyeExposure.durationSec = Math.round(durationMin * 60);
   }
   _clearLiveState(id);
+  // Freeze every live-elapsed element for this session immediately so the
+  // dashboard CTA / cards visibly stop ticking even before _refreshSurfaces
+  // re-renders (network-stalled awaits, backgrounded tab, sync-driven stops
+  // from another device — all paths converge here).
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll(`[data-live-elapsed-for="${CSS.escape(id)}"]`).forEach(el => {
+      el.removeAttribute('data-live-elapsed-for');
+      el.textContent = _formatElapsed(sess.endedAt - sess.startedAt);
+    });
+  }
   await saveImportedData();
   return sess;
 }
@@ -313,7 +333,7 @@ export async function logCompletedSession(payload) {
     startedAt: payload.startedAt || Date.now(),
     endedAt: payload.endedAt || Date.now(),
     location: payload.location || null,
-    bodyExposure: payload.bodyExposure || { preset: 'face_hands', fraction: 0.05, regions: [], sunscreenSPF: null, glassBetween: false },
+    bodyExposure: payload.bodyExposure || { preset: 'face_hands', fraction: 0.05, regions: [], sunscreenSPF: null, glassBetween: false, rotatedSides: false },
     eyeExposure: payload.eyeExposure || { mode: 'indoor', lensTint: 'clear', durationSec: 0 },
     atmosphere: payload.atmosphere || null,
     doses: payload.doses || null,
@@ -379,6 +399,25 @@ export async function pauseSunSession(id) {
 export async function resumeSunSession(id) {
   await resumeSession(id);
   showNotification('Session resumed — fresh atmosphere snapshot on the next tick.', 'success', 3500);
+  _refreshSurfaces();
+}
+
+// Mid-session "I just flipped" hook. Sets rotatedSides=true on the
+// session record so the vit-D IU readout doubles (matches dminder's
+// "100% naked = both sides over the session" convention). Idempotent —
+// tapping again on an already-rotated session is a no-op so users
+// don't accidentally over-multiply.
+export async function flipSidesMidSession(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return;
+  if (!sess.bodyExposure) sess.bodyExposure = {};
+  if (sess.bodyExposure.rotatedSides) {
+    showNotification('Already logged as rotated — IU readout already accounts for both sides.', 'success', 3500);
+    return;
+  }
+  sess.bodyExposure.rotatedSides = true;
+  await saveImportedData();
+  showNotification('Logged as rotated — vit-D IU now reflects both sides exposed over the session.', 'success', 3500);
   _refreshSurfaces();
 }
 
@@ -641,7 +680,7 @@ export async function hydrateSession(id, { lat, lon } = {}) {
     sess.safety = {
       sed,
       medFraction: fractionOfMED({ sed, fitzpatrick, medScale }),
-      retinalUV: retinalUVdose({ spectrum, eyeExposure: sess.eyeExposure }),
+      retinalUV: retinalUVdose({ spectrum, eyeExposure: sess.eyeExposure, zenithDeg: zenith }),
       fitzpatrick,
       photosensitiveMedTier: psmTier,
       // Legacy boolean kept for backward compat with consumers that
@@ -800,7 +839,7 @@ export function rollingVitaminDIU(days = 7) {
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
-        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi);
+        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
       }
       continue;
     }
@@ -808,7 +847,7 @@ export function rollingVitaminDIU(days = 7) {
     if (sess.endedAt < cutoff) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
-    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi);
+    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
   }
   return total;
 }
@@ -828,7 +867,7 @@ export function cumulativeVitaminDIUToday() {
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
-        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi);
+        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
       }
       continue;
     }
@@ -836,7 +875,7 @@ export function cumulativeVitaminDIUToday() {
     if (sess.endedAt < dayStart) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
-    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi);
+    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
   }
   return total;
 }
@@ -1088,6 +1127,11 @@ export async function openStartSunSessionDialog() {
           Behind glass (window / car / sunroom)
         </label>
         <p class="sun-detailed-glass-hint">Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through. We zero the burn dose accordingly.</p>
+        <label class="ctx-label sun-detailed-glass" style="margin-top:8px">
+          <input type="checkbox" id="start-rotated" />
+          Plan to flip front ↔ back during the session
+        </label>
+        <p class="sun-detailed-glass-hint">Tick if you'll alternate sides — doubles the vitamin D estimate to reflect that fresh skin keeps synthesizing after the first side approaches saturation. You can also tap 🔄 Flip mid-session.</p>
       </details>
 
       <div class="modal-actions" style="margin-top:18px">
@@ -1137,6 +1181,7 @@ export async function openStartSunSessionDialog() {
     const glassBetween = overlay.querySelector('#start-glass').checked;
     const posture = overlay.querySelector('#start-posture').value || 'standing';
     const surfaceAlbedo = overlay.querySelector('#start-surface').value || 'grass';
+    const rotatedSides = !!overlay.querySelector('#start-rotated')?.checked;
     const regions = Array.from(selected);
     if (regions.length === 0) {
       hint.textContent = 'Tap at least one region before starting — what part of you is uncovered?';
@@ -1147,7 +1192,7 @@ export async function openStartSunSessionDialog() {
     // Stash coords on the new session so the ticker can compute doses
     // immediately without re-resolving location every tick.
     const coords = getSunCoords();
-    const id = await startSession({ regions, eyeMode, lensTint, glassBetween, posture, surfaceAlbedo, location: coords });
+    const id = await startSession({ regions, eyeMode, lensTint, glassBetween, posture, surfaceAlbedo, rotatedSides, location: coords });
     overlay.remove();
     showNotification(`Outdoor session started · ${regions.length} region${regions.length === 1 ? '' : 's'} exposed`);
     const psmTierActive = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
@@ -1224,7 +1269,7 @@ function _plainStopSummary(sess, dur) {
   const uvi = sess.atmosphere?.uvIndex;
   const vitDAu = sess.doses?.vitamin_d || 0;
   if (vitDAu > 0 && window.vitaminDIU) {
-    const iu = window.vitaminDIU(vitDAu, fitz, uvi);
+    const iu = window.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
     if (iu >= 100) {
       const lo = Math.round(iu * 0.6 / 50) * 50;
       const hi = Math.round(iu * 1.5 / 50) * 50;
@@ -1480,9 +1525,20 @@ function _rateAtInstant(sess, instantMs) {
     bodyExposureFraction: effFraction,
     bodyModifiers,
   });
-  // Retinal UV per minute — only nonzero when eye mode is 'direct'.
-  // Integrates 280-400 nm spectrum × 1 minute (60 s) for a J/m² rate.
-  const retinalUVPerMin = (sess.eyeExposure?.mode === 'direct') ? _retinalUVPerMin(spectrum) : 0;
+  // Retinal UV per minute — only nonzero when eye mode is 'direct' AND
+  // the sun is above the ~5° elevation threshold (zenith ≤ 85°). Same
+  // gate retinalUVdose() applies to hydrated sessions; without it the
+  // live ticker accrues phantom J/m² before "UV-A on" (Bird-Riordan
+  // emits non-zero weighted UV at high zenith that doesn't physically
+  // reach the eye). Linear ramp 85° → 80° matches the firstUVA window.
+  let retinalUVPerMin = 0;
+  if (sess.eyeExposure?.mode === 'direct') {
+    const elev = 90 - zenith;
+    let gate = 1.0;
+    if (elev <= 5) gate = 0;
+    else if (elev < 10) gate = (elev - 5) / 5;
+    retinalUVPerMin = _retinalUVPerMin(spectrum) * gate;
+  }
   return { rate, sedPerMin, retinalUVPerMin };
 }
 
@@ -1637,7 +1693,8 @@ function _renderActiveCardBody(sess) {
     const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
     // Live ticker uses the central estimate (the chip's already small;
     // a range there gets too noisy). Detail modal surfaces the band.
-    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz, uvi) : live.doses.vitamin_d * 40;
+    const rotated = !!sess.bodyExposure?.rotatedSides;
+    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated) : live.doses.vitamin_d * 60 * (rotated ? 2 : 1);
     const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
     if (iu >= 50) {
       const iuLabel = iu >= 10000 ? '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
@@ -1972,8 +2029,13 @@ export function renderSunSessionRow(sess) {
     const isPaused = !!sess.paused;
     const pauseLabel = isPaused ? '▶ Resume' : '⏸ Pause';
     const pauseAction = isPaused ? `window.resumeSunSession('${escapeAttr(sess.id)}')` : `window.pauseSunSession('${escapeAttr(sess.id)}')`;
+    const isRotated = !!sess.bodyExposure?.rotatedSides;
+    const flipBtn = isRotated
+      ? `<button class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides.">🔄 Rotated ✓</button>`
+      : `<button class="sun-session-ctl" onclick="event.stopPropagation();window.flipSidesMidSession('${escapeAttr(sess.id)}')" title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure.">🔄 Flip</button>`;
     activeControls = `<div class="sun-session-active-controls" onclick="event.stopPropagation()">
       <button class="sun-session-ctl" onclick="event.stopPropagation();${pauseAction}" title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}">${pauseLabel}</button>
+      ${flipBtn}
       <button class="sun-session-ctl" onclick="event.stopPropagation();window.applySunscreenMidSession('${escapeAttr(sess.id)}')" title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF">🧴 Sunscreen</button>
       <button class="sun-session-ctl" onclick="event.stopPropagation();window.setOzoneOverrideMidSession()" title="Calibrate ozone column from a meter / weather station">🛰 Ozone</button>
     </div>`;
@@ -2083,7 +2145,7 @@ export function openSunSessionDetail(id) {
     const tlabel = tierLabel(t);
     const target = meta.dailyTarget || 0;
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith);
+    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides);
     const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
     return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
@@ -2209,7 +2271,7 @@ export function openSunSessionDetail(id) {
       <div class="sun-detail-grid">
         <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
         <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
-        ${sess.doses?.vitamin_d ? `<div title="Approximate vitamin D₃ synthesis. Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session. Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith))}</strong></div>` : ''}
+        ${sess.doses?.vitamin_d ? `<div title="Approximate vitamin D₃ synthesis. Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session.${sess.bodyExposure?.rotatedSides ? ' Doubled because both sides were exposed (rotated during session).' : ' Assumes you stayed on one side — tap the 🔄 Flip control during the session if you flipped front↔back.'} Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides))}</strong></div>` : ''}
       </div>
 
       <div class="sun-detail-section">
@@ -2279,7 +2341,7 @@ function _sessionChipValue(channelKey, channelAu, sess) {
   const uvi = sess?.atmosphere?.uvIndex ?? null;
   const dur = sess?.durationMin || 0;
   if (channelKey === 'vitamin_d' && typeof window.vitaminDIU === 'function') {
-    const iu = window.vitaminDIU(channelAu, fitz, uvi);
+    const iu = window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides);
     if (iu < 30) return '';
     if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU`;
     return `~${Math.round(iu / 10) * 10} IU`;
@@ -2781,6 +2843,7 @@ if (typeof window !== 'undefined') {
     pauseSession, resumeSession,
     pauseSunSession, resumeSunSession,
     applySunscreenMidSession,
+    flipSidesMidSession,
     setOzoneOverrideMidSession,
     _forgotStopPrompt,
     logCompletedSession,

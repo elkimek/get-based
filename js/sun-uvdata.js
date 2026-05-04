@@ -18,7 +18,10 @@
 // privacy posture.
 
 const STORAGE_KEY = 'labcharts-meteo-config';
-const CACHE_PREFIX = 'meteo:';
+// v2: invalidates old entries that baked sunrise/sunset/uvIndexMax from
+// daily.sunrise[0] (which was 2-day-old data under past_days=2). Bump
+// again any time the cached payload shape changes meaning.
+const CACHE_PREFIX = 'meteo:v2:';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const NETWORK_TIMEOUT_MS = 8000;
 
@@ -39,7 +42,17 @@ export function getMeteoConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultConfig();
-    return Object.assign(defaultConfig(), JSON.parse(raw));
+    const cfg = Object.assign(defaultConfig(), JSON.parse(raw));
+    // Migration: pre-v1.7.x configs may carry `mode: 'cams'` or
+    // `mode: 'noaa'` — both removed from the picker as confusing/
+    // unhelpful (cams-only breaks clouds/temp; NOAA blocks CORS).
+    // Quietly map both to 'auto' so the user sees the default
+    // behaviour instead of a non-rendering invalid mode.
+    if (cfg.mode === 'cams' || cfg.mode === 'noaa') {
+      cfg.mode = 'auto';
+      try { saveMeteoConfig(cfg); } catch {}
+    }
+    return cfg;
   } catch (e) {
     return defaultConfig();
   }
@@ -52,7 +65,12 @@ export function saveMeteoConfig(cfg) {
 
 function defaultConfig() {
   return {
-    mode: 'auto',          // 'auto' | 'cams' | 'noaa' | 'open-meteo' | 'selfhost' | 'manual'
+    // 'auto'       — CAMS for ozone/aerosols + Open-Meteo for clouds/temp (best)
+    // 'open-meteo' — Open-Meteo only, skip CAMS (privacy from CDS-API)
+    // 'selfhost'   — user-run getbased-uvdata server (full privacy)
+    // 'manual'     — UV-meter only, no network
+    // Legacy values 'cams' and 'noaa' migrate to 'auto' on load (see getMeteoConfig).
+    mode: 'auto',
     selfhostUrl: '',       // user's getbased-uvdata server URL
     selfhostBearer: '',    // optional bearer token for selfhost
     privacyRounding: 0.1,  // round lat/lon to this precision (deg) before network calls
@@ -245,11 +263,17 @@ const PROVIDERS = {
     name: 'cams',
     available: () => true,
     fetch: async ({ lat, lon, isoTime }) => {
-      // CAMS is proxied via Vercel Edge to keep API keys server-side.
-      // Endpoint TBD — placeholder structure matches CAMS ADS response shape.
-      // For v1.7.0a we route CAMS through api/proxy.js with a server-injected key.
-      const url = `/api/proxy?meteo=cams&latitude=${lat}&longitude=${lon}`;
-      const json = await fetchJson(url, {});
+      // Hosted CAMS relay → /api/proxy POSTs to the maintainer's
+      // getbased-uvdata instance, which fronts the CDS-API and merges
+      // Open-Meteo's hourly clouds/temp/UVI into the response. The
+      // bearer for getbased-uvdata is injected server-side so the
+      // token never reaches the browser. Self-hosters bypass this and
+      // use the `selfhost` provider directly.
+      const json = await fetchJson('/api/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meteo: 'cams', latitude: lat, longitude: lon, time: isoTime }),
+      });
       return shapeCamsResponse(json, isoTime, 'cams');
     },
   },
@@ -299,19 +323,25 @@ const PROVIDERS = {
 };
 
 function providerOrder(cfg) {
-  // Until the CAMS-via-proxy endpoint and the getbased-uvdata companion repo
-  // ship, CAMS is a configured-only path (selfhost or explicit 'cams' mode).
-  // NOAA NWS doesn't allow browser CORS, so it's also explicit-only and only
-  // useful for non-browser callers.
+  // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only
+  // useful for non-browser callers. CAMS now runs through the
+  // getbased-uvdata relay (api/proxy?meteo=cams) — the deploy decides
+  // whether the upstream is wired by setting UVDATA_UPSTREAM env; when
+  // it isn't, CAMS returns 503 and the auto-fallback chain reaches
+  // Open-Meteo so the user still gets data.
   if (cfg.mode === 'manual') return [];
   if (cfg.mode === 'selfhost') return cfg.selfhostUrl ? [PROVIDERS.selfhost, PROVIDERS.openMeteo] : [PROVIDERS.openMeteo];
   if (cfg.mode === 'cams') return [PROVIDERS.cams, PROVIDERS.openMeteo];
   if (cfg.mode === 'noaa') return [PROVIDERS.noaa, PROVIDERS.openMeteo];
   if (cfg.mode === 'open-meteo') return [PROVIDERS.openMeteo];
-  // 'auto' — selfhost (if configured) → Open-Meteo. CAMS + NOAA are
-  // explicitly opt-in until their ingestion paths are real.
+  // 'auto' — selfhost (if configured) → CAMS hosted relay → Open-Meteo.
+  // CAMS goes ahead of Open-Meteo because the deploy controls whether
+  // the upstream is reachable; if it isn't, it 503s fast and the chain
+  // moves on. Per-coord CAMS calls are server-side cached by the
+  // getbased-uvdata grid index, so the cost is one HTTPS round trip.
   const order = [];
   if (cfg.selfhostUrl) order.push(PROVIDERS.selfhost);
+  order.push(PROVIDERS.cams);
   order.push(PROVIDERS.openMeteo);
   return order;
 }
@@ -358,39 +388,48 @@ function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
     ? { pm25, pm10, aod, no2, surfaceOzoneUgM3: surfaceOzone, european_aqi }
     : null;
 
-  // Daily sun-events + peak UVI (today). Open-Meteo's `daily` arrays
-  // (sunrise/sunset/uv_index_max) are single-element with forecast_days=1.
-  // The hourly array now spans 3 calendar days because we request
-  // past_days=2 (needed to hydrate past sessions) — so the peak-finder
-  // MUST filter to today's calendar date in the location's timezone,
-  // otherwise it picks the absolute max across all 72 hours and pegs
-  // peakAt to a past or future moment that breaks the sun-arc sort.
+  // Daily sun-events + peak UVI (today). With past_days=2 +
+  // forecast_days=1 the `daily` arrays span 3 calendar days
+  // (day-before-yesterday, yesterday, today) — so we MUST locate today's
+  // index via `daily.time` instead of blindly indexing [0], otherwise
+  // sunrise/sunset/uvIndexMax come from 2 days ago and the sun-arc
+  // events sort wrong (the now-marker ends up past the stale sunset
+  // even though the user is mid-morning today).
   const daily = fcJson.daily || {};
-  const sunrise = Array.isArray(daily.sunrise) ? daily.sunrise[0] : null;
-  const sunset = Array.isArray(daily.sunset) ? daily.sunset[0] : null;
-  const uvIndexMax = Array.isArray(daily.uv_index_max) ? daily.uv_index_max[0] : null;
   // Today's local date string in the LOCATION's timezone. Prefer the
-  // canonical anchor from `daily.time[0]` (Open-Meteo's authoritative
-  // "today" for the requested location, immune to DST edge cases) and
-  // only fall back to `utc_offset_seconds + Date.now()` derivation
-  // when the daily array is missing. v1.7.15 audit fix: the previous
-  // derivation drifted at DST boundaries — opening the app at 23:55
-  // local time the day before a DST jump computed yesterday's date
-  // for the next morning's hourly entries because `getUTCDate()` on
-  // an offset-shifted Date doesn't track DST transitions.
+  // canonical anchor from `daily.time[i]` once we identify today, and
+  // fall back to `utc_offset_seconds + Date.now()` for the prefix
+  // we'll match against. v1.7.15 audit fix: the previous derivation
+  // drifted at DST boundaries — opening the app at 23:55 local time
+  // the day before a DST jump computed yesterday's date for the next
+  // morning's hourly entries because `getUTCDate()` on an offset-
+  // shifted Date doesn't track DST transitions.
   let todayPrefix = null;
-  if (typeof daily.time?.[0] === 'string' && /^\d{4}-\d{2}-\d{2}/.test(daily.time[0])) {
-    todayPrefix = daily.time[0].slice(0, 10);
-  } else {
-    try {
-      const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0) * 1000;
-      const localNow = new Date(Date.now() + offsetMs);
-      const y = localNow.getUTCFullYear();
-      const m = String(localNow.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(localNow.getUTCDate()).padStart(2, '0');
-      todayPrefix = `${y}-${m}-${d}`;
-    } catch (e) {}
+  try {
+    const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0) * 1000;
+    const localNow = new Date(Date.now() + offsetMs);
+    const y = localNow.getUTCFullYear();
+    const m = String(localNow.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(localNow.getUTCDate()).padStart(2, '0');
+    todayPrefix = `${y}-${m}-${d}`;
+  } catch (e) {}
+  let todayDailyIdx = -1;
+  if (Array.isArray(daily.time) && todayPrefix) {
+    for (let i = 0; i < daily.time.length; i++) {
+      const t = daily.time[i];
+      if (typeof t === 'string' && t.startsWith(todayPrefix)) { todayDailyIdx = i; break; }
+    }
   }
+  // Last-resort fallback: assume Open-Meteo packed today as the LAST
+  // entry (consistent with past_days=N + forecast_days=1) so we don't
+  // silently regress to the day-before-yesterday bug if `daily.time`
+  // is missing or formatted unexpectedly.
+  if (todayDailyIdx < 0 && Array.isArray(daily.sunrise) && daily.sunrise.length > 0) {
+    todayDailyIdx = daily.sunrise.length - 1;
+  }
+  const sunrise = Array.isArray(daily.sunrise) && todayDailyIdx >= 0 ? daily.sunrise[todayDailyIdx] : null;
+  const sunset = Array.isArray(daily.sunset) && todayDailyIdx >= 0 ? daily.sunset[todayDailyIdx] : null;
+  const uvIndexMax = Array.isArray(daily.uv_index_max) && todayDailyIdx >= 0 ? daily.uv_index_max[todayDailyIdx] : null;
   let peakAt = null;
   if (uvIndexMax != null && Array.isArray(fcJson.hourly?.uv_index) && Array.isArray(fcJson.hourly.time)) {
     let bestI = -1, bestV = -Infinity;
@@ -440,11 +479,36 @@ function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
 }
 
 function shapeCamsResponse(json, isoTime, sourceLabel) {
-  // Placeholder shape — CAMS ADS responses are reshaped by api/proxy.js
-  // to match the Open-Meteo hourly format for client uniformity. CAMS does
-  // include atmospheric ozone + AQ in the same response so we pass it as
-  // both args (ie reusing the same JSON for the air-quality lookup).
-  return shapeOpenMeteoResponse(json, json, isoTime, sourceLabel);
+  // getbased-uvdata returns an Open-Meteo-shaped envelope (with optional
+  // Open-Meteo merge) PLUS two extra hourly arrays (`ozone_du`, `aod`)
+  // and a `_camsMeta` block. Run the standard Open-Meteo shaper first so
+  // we inherit nearestHourIndex / unit conversions / sanity checks, then
+  // overlay the CAMS extras: real DU ozone (vs Open-Meteo's missing or
+  // tropospheric-only field) and the snapshot freshness metadata.
+  if (!json) return null;
+  const aqEnvelope = json.airQuality || json;
+  const shaped = shapeOpenMeteoResponse(json, aqEnvelope, isoTime, sourceLabel);
+  if (!shaped) return null;
+  // Overlay CAMS DU. shapeOpenMeteoResponse picked an hourly index based
+  // on isoTime; replicate that to slice the same array slot here.
+  const fcOffsetS = Number.isFinite(json?.utc_offset_seconds) ? json.utc_offset_seconds : 0;
+  const idx = Array.isArray(json?.hourly?.time)
+    ? nearestHourIndex(json.hourly.time, isoTime, fcOffsetS) : -1;
+  if (idx >= 0 && Array.isArray(json?.hourly?.ozone_du)) {
+    const du = json.hourly.ozone_du[idx];
+    if (Number.isFinite(du)) shaped.ozoneDU = du;
+  }
+  if (idx >= 0 && Array.isArray(json?.hourly?.aod)) {
+    const aod = json.hourly.aod[idx];
+    if (Number.isFinite(aod)) {
+      shaped.airQuality = shaped.airQuality || {};
+      shaped.airQuality.aod = aod;
+    }
+  }
+  if (json._camsMeta) shaped._camsMeta = json._camsMeta;
+  shaped.confidence = UV_SOURCE_CONFIDENCE.cams;
+  shaped.source = sourceLabel || 'cams';
+  return shaped;
 }
 
 function shapeNoaaResponse(json, isoTime) {
@@ -583,6 +647,20 @@ function readStaleCache(rLat, rLon) {
     return best;
   } catch (e) { return null; }
 }
+
+// One-time sweep of pre-v2 cache entries on first import. Idempotent —
+// the marker key is only written once, so subsequent loads are no-ops.
+try {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v2-purged')) {
+    const stale = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v2:')) stale.push(k);
+    }
+    for (const k of stale) localStorage.removeItem(k);
+    localStorage.setItem('meteo-cache-v2-purged', '1');
+  }
+} catch {}
 
 function writeCache(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); }
