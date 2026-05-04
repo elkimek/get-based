@@ -224,6 +224,70 @@ return (async function() {
     }
   }
 
+  // ─── Distance scaling on logDeviceSession e2e ──────────────────────
+  // The previous Light Devices commit fixed distance handling for eye
+  // channels by folding distFactor into the spectrum amplitude. This
+  // test pins the end-to-end behaviour: SAME duration + SAME body area,
+  // closer distance = proportionally higher channel-au, capped at 3×
+  // (near-field plateau).
+  console.log('%c Distance scaling on logDeviceSession e2e ', 'font-weight:bold;color:#f59e0b');
+  if (typeof window.logDeviceSession === 'function') {
+    const distDevice = {
+      id: 'D-dist', brand: 'Test', model: 'PBM',
+      peakWavelengths: [660], mwPerCm2At15cm: 50,
+      recommendedDistanceCm: 30, peakShares: [1.0],
+    };
+    window._labState.importedData = { lightDevices: [distDevice], deviceSessions: [] };
+    await window.logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 30, bodyArea: 'torso', eyesProtected: true });
+    await window.logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
+    await window.logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 5, bodyArea: 'torso', eyesProtected: true });
+    const sess = window._labState.importedData.deviceSessions;
+    const at30 = sess[0]?.doses?.pbm_red || 0;
+    const at15 = sess[1]?.doses?.pbm_red || 0;
+    const at5  = sess[2]?.doses?.pbm_red || 0;
+    // Naive inverse-square at 15 cm vs 30 cm spec: (30/15)² = 4.0×.
+    // The 3.0× clamp activates whenever the raw factor exceeds 3, so
+    // BOTH 15 cm AND 5 cm sessions land at the cap. The test verifies
+    // the cap bites, not the inverse-square slope itself.
+    assert('Distance scaling: closer-than-spec sessions clamp at 3× cap',
+      at30 > 0 && Math.abs(at15 / at30 - 3.0) < 0.2,
+      `15cm ratio=${at30 > 0 ? (at15/at30).toFixed(2) : 'n/a'} (expected ≈3.0, clamp active)`);
+    assert('Distance scaling: 5 cm (naive 36×) also clamps to ~3×',
+      at30 > 0 && Math.abs(at5 / at30 - 3.0) < 0.2,
+      `5cm ratio=${at30 > 0 ? (at5/at30).toFixed(2) : 'n/a'} (expected ≈3.0, same cap)`);
+  }
+  window._labState.importedData = orig;
+
+  // ─── deleteDevice + orphaned-session render ────────────────────────
+  // Sessions logged on a device deleted later must remain renderable
+  // (the user's history shouldn't vanish), surfacing a "Removed device"
+  // label rather than a stale brand reference. Pin the contract.
+  console.log('%c deleteDevice + orphan session contract ', 'font-weight:bold;color:#f59e0b');
+  if (typeof window.logDeviceSession === 'function' && typeof window.deleteDevice === 'function') {
+    const ephemeral = {
+      id: 'D-ephemeral', brand: 'Test', model: 'Ephemeral',
+      peakWavelengths: [660], mwPerCm2At15cm: 50,
+      recommendedDistanceCm: 15, peakShares: [1.0],
+    };
+    window._labState.importedData = { lightDevices: [ephemeral], deviceSessions: [] };
+    await window.logDeviceSession({ deviceId: 'D-ephemeral', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
+    const sessId = window._labState.importedData.deviceSessions[0]?.id;
+    assert('logDeviceSession persists session with deviceId reference',
+      sessId && window._labState.importedData.deviceSessions[0].deviceId === 'D-ephemeral');
+    // Now delete the device.
+    await window.deleteDevice('D-ephemeral');
+    const stillThere = window._labState.importedData.deviceSessions[0];
+    assert('Sessions persist after parent device is deleted (no auto-purge)',
+      stillThere && stillThere.id === sessId);
+    assert('Session retains its dangling deviceId for historical reference',
+      stillThere.deviceId === 'D-ephemeral');
+    // Tombstone recorded so cross-device sync drops the device on peers.
+    const tombs = window._labState.importedData?._deleted?.lightDevices || [];
+    assert('deleteDevice records tombstone for cross-device sync',
+      tombs.includes('D-ephemeral'));
+    window._labState.importedData = orig;
+  }
+
   console.log(`%c Light Devices: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

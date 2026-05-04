@@ -1098,6 +1098,7 @@ export async function openGlassTransmission(opts = {}) {
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Two readings: one through the glass, one outside (or in front of the same window without it). We compute the ratio.</p>
+      <p class="modal-body-hint" style="color:var(--orange);background:rgba(255,160,80,0.08);border-left:3px solid var(--orange);padding:8px 10px;border-radius:4px;font-size:11px;margin-bottom:8px">⚠ Aim at the same patch of sky / light source for both readings. North-window through the glass vs. east-window without it measures scene difference, not glass transmission.</p>
       <div class="glass-step" id="glass-step-inside">
         <span>Step 1: <strong>through the glass</strong></span>
         <button class="import-btn import-btn-secondary" id="glass-measure-inside">Measure inside</button>
