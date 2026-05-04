@@ -3834,24 +3834,26 @@ export function deleteMarkerValue(id, date) {
   if (!state.importedData.entries) return;
   const entry = state.importedData.entries.find(e => e.date === date);
   if (!entry || entry.markers[dotKey] === undefined) return;
-  delete entry.markers[dotKey];
-  // Clean up provenance and manual tracking
-  if (entry.markerSources) delete entry.markerSources[dotKey];
-  if (state.importedData.manualValues) delete state.importedData.manualValues[dotKey + ':' + date];
-  // Clean up insulin dual-mapping
-  if (dotKey === 'hormones.insulin') { delete entry.markers['diabetes.insulin_d']; if (entry.markerSources) delete entry.markerSources['diabetes.insulin_d']; recalculateHOMAIR(entry); }
-  // Remove entry entirely if no markers left
-  if (Object.keys(entry.markers).length === 0) {
-    state.importedData.entries = state.importedData.entries.filter(e => e.date !== date);
-  }
-  saveImportedData();
-  window.buildSidebar();
-  updateHeaderDates();
-  // Re-open the detail modal to show updated values
-  const activeNav = document.querySelector(".nav-item.active");
-  navigate(activeNav ? activeNav.dataset.category : "dashboard");
-  showDetailModal(id);
-  showNotification(`Removed value from ${date}`, 'info');
+  showConfirmDialog(`Delete this value (${date})? This can't be undone.`, () => {
+    delete entry.markers[dotKey];
+    // Clean up provenance and manual tracking
+    if (entry.markerSources) delete entry.markerSources[dotKey];
+    if (state.importedData.manualValues) delete state.importedData.manualValues[dotKey + ':' + date];
+    // Clean up insulin dual-mapping
+    if (dotKey === 'hormones.insulin') { delete entry.markers['diabetes.insulin_d']; if (entry.markerSources) delete entry.markerSources['diabetes.insulin_d']; recalculateHOMAIR(entry); }
+    // Remove entry entirely if no markers left
+    if (Object.keys(entry.markers).length === 0) {
+      state.importedData.entries = state.importedData.entries.filter(e => e.date !== date);
+    }
+    saveImportedData();
+    window.buildSidebar();
+    updateHeaderDates();
+    // Re-open the detail modal to show updated values
+    const activeNav = document.querySelector(".nav-item.active");
+    navigate(activeNav ? activeNav.dataset.category : "dashboard");
+    showDetailModal(id);
+    showNotification(`Removed value from ${date}`, 'info');
+  });
 }
 
 export function deleteCustomMarker(id) {

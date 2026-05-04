@@ -168,20 +168,22 @@ ${deficits.map(d => `- ${d.label}: ${d.note}`).join('\n')}
   return block;
 }
 
-// Pull the most recent 25-OH-D bloodwork value (preferring `vitamins.vitaminD`
-// from the schema) plus the wearable-summary sleep_score rolling state.
+// Pull the most recent 25-OH-D bloodwork value (vitamins.vitaminD per
+// the schema) plus the wearable-summary sleep_score rolling state.
 // Returns '' when neither is present so users on day 1 don't get a noisy
 // "no calibration available" line in every prompt.
 function calibrationLine() {
-  // Latest 25-OH-D — search entries for the most recent non-null value.
-  // We can't import getActiveData (would tangle modules), so walk
-  // importedData directly. Schema path: entries[].vitamins.vitaminD.
+  // Latest 25-OH-D — entries store markers as a flat object keyed by
+  // `category.markerKey`, NOT nested by category. Earlier draft used
+  // `e?.vitamins?.vitaminD` which never resolved against real data —
+  // the calibration block silently failed for every user with bloodwork
+  // logged. Same bug class sun-correlations.js carried until v1.7.20.
   let vitD = null;
   let vitDDate = null;
   const entries = state.importedData?.entries || [];
   for (let i = entries.length - 1; i >= 0; i--) {
     const e = entries[i];
-    const v = e?.vitamins?.vitaminD;
+    const v = e?.markers?.['vitamins.vitaminD'];
     if (typeof v === 'number' && isFinite(v) && v > 0) {
       vitD = v;
       vitDDate = e.date || null;

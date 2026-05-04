@@ -36,7 +36,10 @@ return (async function() {
     const d = new Date(now - weekOffset * W - 86400 * 1000);
     return {
       date: d.toISOString().slice(0, 10),
-      values: { vitamins: { vitamin_d_25oh: vitamin_d } },
+      // Entries use a flat dotted-key map, NOT nested. v1.7.20 fixed the
+      // implementation; the test fixture was using the same wrong shape
+      // (`values.vitamins.vitamin_d_25oh`) so both broke in lockstep.
+      markers: { 'vitamins.vitaminD': vitamin_d },
     };
   }
 
@@ -85,7 +88,7 @@ return (async function() {
     ],
   };
   const strong = computeSunCorrelations({ weeks: 12 });
-  const vdPair = strong.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitamin_d_25oh');
+  const vdPair = strong.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitaminD');
   assert('vitamin_d × 25-OH vitamin D pair surfaces', !!vdPair);
   assert('Pearson r ≈ +1 for monotonic positive series',
     vdPair && vdPair.r > 0.95, `r=${vdPair?.r?.toFixed(4)}`);
@@ -111,7 +114,7 @@ return (async function() {
     ],
   };
   const neg = computeSunCorrelations({ weeks: 12 });
-  const negPair = neg.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitamin_d_25oh');
+  const negPair = neg.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitaminD');
   assert('Inverse series → r < 0', negPair && negPair.r < -0.9, `r=${negPair?.r?.toFixed(4)}`);
 
   // ─── 5. Constant series → no correlation (skip) ──────────────────────
@@ -129,7 +132,7 @@ return (async function() {
     entries: [entry(0,60),entry(1,55),entry(2,70),entry(3,50),entry(4,65)],
   };
   const flat = computeSunCorrelations({ weeks: 12 });
-  const flatVD = flat.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitamin_d_25oh');
+  const flatVD = flat.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitaminD');
   assert('Constant channel series → pair skipped (denominator 0)', !flatVD);
 
   // ─── 6. Device sessions accumulate alongside sun sessions ─────────────
@@ -147,7 +150,7 @@ return (async function() {
     entries: [entry(0,80),entry(1,60),entry(2,50),entry(3,35)],
   };
   const merged = computeSunCorrelations({ weeks: 12 });
-  const mPair = merged.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitamin_d_25oh');
+  const mPair = merged.pairs.find(p => p.channel === 'vitamin_d' && p.biomarkerKey === 'vitamins.vitaminD');
   assert('Combined sun+device sessions correlate with biomarker',
     mPair && mPair.r > 0.9, `r=${mPair?.r?.toFixed(4)}`);
 
@@ -202,7 +205,7 @@ return (async function() {
     assert('Pair r is numeric', typeof sample.r === 'number' && !Number.isNaN(sample.r));
     assert('Pair r in [-1, 1]', sample.r >= -1 && sample.r <= 1);
     assert('Pair n >= 4 (engine\'s minimum overlap)', sample.n >= 4);
-    assert('biomarkerKey shape: <category>.<marker>', /^[a-z_]+\.[a-z0-9_]+$/.test(sample.biomarkerKey));
+    assert('biomarkerKey shape: <category>.<marker>', /^[a-z_]+\.[A-Za-z0-9_]+$/.test(sample.biomarkerKey));
   }
 
   // Restore

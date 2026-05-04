@@ -118,7 +118,19 @@ export function getMeteoConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultConfig();
-    const cfg = Object.assign(defaultConfig(), JSON.parse(raw));
+    const parsed = JSON.parse(raw);
+    // Strip __proto__ / constructor / prototype keys before assignment —
+    // a localStorage value bearing `{"__proto__": {...}}` would create
+    // an own __proto__ property on parsed, which Object.assign then
+    // writes onto our config object (not global Object.prototype, but
+    // enough to spoof e.g. cfg.privacyRounding=0). Defence-in-depth
+    // against same-origin attackers reaching localStorage.
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      delete parsed.__proto__;
+      delete parsed.constructor;
+      delete parsed.prototype;
+    }
+    const cfg = Object.assign(defaultConfig(), parsed);
     // Migration: pre-v1.7.x configs may carry `mode: 'cams'` or
     // `mode: 'noaa'` — both removed from the picker as confusing/
     // unhelpful (cams-only breaks clouds/temp; NOAA blocks CORS).

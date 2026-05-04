@@ -727,7 +727,7 @@ export function showImportPreview(parseResult) {
   const importDisabled = !date ? ' disabled style="opacity:0.5;cursor:not-allowed"' : '';
   html += `<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
     <button class="import-btn import-btn-secondary" onclick="closeImportModal()">${cancelLabel}</button>
-    <button class="import-btn import-btn-primary" id="import-confirm-btn" onclick="confirmImport()"${importDisabled}>Import ${importCount} Markers</button></div>`;
+    <button class="import-btn import-btn-primary" id="import-confirm-btn" onclick="confirmImport()"${importDisabled}>Import ${importCount} Marker${importCount !== 1 ? 's' : ''}</button></div>`;
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   window._pendingImport = parseResult;
   modal.innerHTML = html;
@@ -746,7 +746,7 @@ export function mapUnmatchedMarker(selectEl) {
   // Update import count on button
   const importCount = result.markers.filter(m => m.matched || (!m.matched && m.suggestedKey)).length;
   const btn = document.getElementById('import-confirm-btn');
-  if (btn) btn.textContent = `Import ${importCount} Markers`;
+  if (btn) btn.textContent = `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
   // Update row status cell
   const row = selectEl.closest('tr');
   if (row) {

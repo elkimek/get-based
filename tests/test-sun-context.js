@@ -271,8 +271,8 @@ return (async function() {
       atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
     }],
     entries: [
-      { date: '2026-04-01', vitamins: { vitaminD: 75 } },  // older
-      { date: '2026-04-15', vitamins: { vitaminD: 90 } },  // most recent → 36 ng/mL
+      { date: '2026-04-01', markers: { 'vitamins.vitaminD': 75 } },  // older
+      { date: '2026-04-15', markers: { 'vitamins.vitaminD': 90 } },  // most recent → 36 ng/mL
     ],
     wearableSummary: {
       metrics: {
@@ -299,6 +299,40 @@ return (async function() {
   const noCal = buildSunContext({ tier: 'always' });
   assert('No bloodwork + no wearable → no calibration block',
     !/Calibration anchor/.test(noCal));
+
+  // Single-source paths — vit-D-only and sleep-only must each render
+  // their lone surviving anchor (P0 from test audit; was uncovered).
+  reset({
+    sunSessions: [{
+      id: 'cal3', startedAt: recent, endedAt: recent + 60000, durationMin: 1,
+      doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+    }],
+    entries: [{ date: '2026-04-15', markers: { 'vitamins.vitaminD': 90 } }],
+  });
+  const calVitOnly = buildSunContext({ tier: 'always' });
+  assert('Vit-D bloodwork without wearable → calibration shows vit-D',
+    /Calibration anchor/.test(calVitOnly) && /25-OH-D/.test(calVitOnly) && !/sleep score/.test(calVitOnly));
+
+  reset({
+    sunSessions: [{
+      id: 'cal4', startedAt: recent, endedAt: recent + 60000, durationMin: 1,
+      doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
+    }],
+    wearableSummary: {
+      metrics: { sleep_score: { latest: 78, baseline: 82, rolling: { d7: 76 }, trend30d: 'declining' } },
+    },
+  });
+  const calSleepOnly = buildSunContext({ tier: 'always' });
+  assert('Sleep score without bloodwork → calibration shows sleep alone',
+    /Calibration anchor/.test(calSleepOnly) && /sleep score 76/.test(calSleepOnly) && !/25-OH-D/.test(calSleepOnly));
+
+  // Note: calibration line previously read entries with e.values?.[cat]?.[m]
+  // (wrong shape — entries store e.markers["cat.m"]). Test now uses the
+  // correct shape; a regression to the old path would silence vit-D in
+  // every prompt for every user with bloodwork logged. The fix above
+  // for sun-context.js followed the same lesson.
 
   // ─── 9. Burden-tier rubric inline ────────────────────────────────────
   console.log('%c 9. Burden tier inline rubric ', 'font-weight:bold;color:#f59e0b');
@@ -375,7 +409,7 @@ return (async function() {
       doses: { vitamin_d: 100 }, safety: { medFraction: 0.1, fitzpatrick: 'III' },
       atmosphere: { uvIndex: 5 }, bodyExposure: { preset: 'face_hands', fraction: 0.05 },
     }],
-    entries: [{ date: '2026-04-15', vitamins: { vitaminD: 90 } }],
+    entries: [{ date: '2026-04-15', markers: { 'vitamins.vitaminD': 90 } }],
     lightEnvironment: { rooms: [{ id: 'room_kitchen', name: 'kitchen' }], screens: [] },
     lightMeasurements: fatMeasurements,
   });

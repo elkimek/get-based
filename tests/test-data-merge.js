@@ -13,7 +13,34 @@ return (async function() {
   console.log('%c Data Merge Tests ', 'background:#f59e0b;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
   const mod = await import('/js/data-merge.js?bust=' + Date.now());
-  const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHasRowsRemoteLacks } = mod;
+  const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHasRowsRemoteLacks, pickTimestamp } = mod;
+
+  // ─── pickTimestamp precedence (v1.7.20) ───────────────────────────────
+  // Direct test for the field-precedence walk used by every cross-device
+  // merge. Earlier coverage was indirect (asserted via unionById behavior
+  // — a regression that swapped two precedence steps could pass the
+  // "higher updatedAt wins" test depending on which step grabbed first).
+  console.log('%c 0. pickTimestamp field precedence ', 'font-weight:bold;color:#f59e0b');
+  assert('null record → 0', pickTimestamp(null) === 0);
+  assert('non-object record → 0', pickTimestamp('hello') === 0);
+  assert('updatedAt wins over endedAt',
+    pickTimestamp({ updatedAt: 100, endedAt: 200 }) === 100);
+  assert('endedAt wins when updatedAt missing',
+    pickTimestamp({ endedAt: 200, startedAt: 50 }) === 200);
+  assert('startedAt wins when later siblings missing',
+    pickTimestamp({ startedAt: 50, capturedAt: 30 }) === 50);
+  assert('capturedAt > loggedAt > createdAt > at chain',
+    pickTimestamp({ capturedAt: 40 }) === 40 &&
+    pickTimestamp({ loggedAt: 30 }) === 30 &&
+    pickTimestamp({ createdAt: 20 }) === 20 &&
+    pickTimestamp({ at: 10 }) === 10);
+  assert('falls back to Date.parse(date) when no numeric field',
+    pickTimestamp({ date: '2026-04-15' }) === Date.parse('2026-04-15'));
+  assert('returns 0 on totally bare record', pickTimestamp({}) === 0);
+  assert('non-finite numeric field falls through to date parse',
+    pickTimestamp({ updatedAt: NaN, date: '2026-04-15' }) === Date.parse('2026-04-15'));
+  assert('zero updatedAt is honored (epoch — not falsy fallthrough)',
+    pickTimestamp({ updatedAt: 0, endedAt: 200 }) === 0);
 
   // ─── 1. Coverage of known arrays ──────────────────────────────────────
   console.log('%c 1. ID_KEYED_ARRAYS coverage ', 'font-weight:bold;color:#f59e0b');

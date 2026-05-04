@@ -5,6 +5,18 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.20', date: '2026-05-04', title: 'Audit fixes — sun correlations now actually work, chat-saved race closed, more confirms',
+    items: [
+      '<b>Sun-channel × biomarker correlations were silently empty.</b> Production code read `e.values?.[cat]?.[m]` against entries that store `e.markers["cat.m"]` — so the AI standard-tier correlation table never produced a row, even for users with months of bloodwork + sessions. Plus the target list used pre-schema names (vitamin_d_25oh, iron_metabolism, hs_crp). Both fixed; the calibration anchor I added in v1.7.19 had the same wrong path, also fixed.',
+      '<b>Chat-saved profile-switch race.</b> Single module-scoped debounce timer captured profile + data at FIRE time, not QUEUE time — switching profiles within the 10s chat-streaming window pushed the new profile\'s data with the new profile\'s id, silently dropping original-profile chat changes. Now per-profile keyed Map mirroring the data-saved path.',
+      '<b>chatSummaries + wearablePrimaryOverride were invisible to Phase 2 sync cutover.</b> Both top-level fields had no entry in DELTA_ARRAYS / DELTA_MAPS — Phase 2 (which drops the blob) would have stopped syncing them silently and the cutover-readiness gate would still report READY. Now wired (chatSummaries id-keyed, wearablePrimaryOverride map-keyed by metricId). Phase 2 is still gated; this is a pre-flight fix.',
+      '<b>Destructive actions now confirm consistently.</b> deleteMarkerValue (× on a value chip), deleteNote (Delete in note editor), deleteDeviceSession (× on session row), and chat Clear all now go through showConfirmDialog. Sun sessions and thread delete were already confirmed; partial adoption is closed.',
+      '<b>UV-data config now strips __proto__/constructor before Object.assign.</b> Defence-in-depth against a same-origin attacker reaching localStorage — a tampered raw value with `{"__proto__": {…}}` could spoof config fields like privacyRounding=0.',
+      '<b>Copy nits.</b> "Import 1 Markers" → "Import 1 Marker"; feedback modal now lists Custom API as a 6th provider (was missing).',
+      '<b>Test backfill.</b> pickTimestamp direct precedence test (the 7-field walk that drives every cross-device merge); calibration anchor single-source paths (vit-D-only, sleep-only); plus the test-sun-correlations fixtures now use the correct entry shape (they were broken in lockstep with the production bug above, so the test never caught it).',
+    ]
+  },
+  {
     version: '1.7.19', date: '2026-05-04', title: 'Light & Sun second pass — calibration loop, agent API, intent-aware tier escalation',
     items: [
       '<b>Standard tier now auto-escalates on intent.</b> When you ask anything sun / light / sleep / vitamin D / circadian / winter / PBM-related, the chat assistant\'s context expands from the always-tier blob (~520 tok) to standard tier (+1200 tok) — adds the last 30 sessions as a table plus computed biomarker correlations. Other prompts stay on the cheap always-tier. Was dead code before; the +1200 budget was allocated but never spent.',

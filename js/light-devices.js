@@ -18,7 +18,7 @@
 //   importedData.deviceSessions[] — session log
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
 import { CHANNEL_DISPLAY } from './sun.js';
@@ -1093,9 +1093,11 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     logDeviceSession,
-    deleteDeviceSession: async (id) => {
-      await deleteDeviceSession(id);
-      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    deleteDeviceSession: (id) => {
+      showConfirmDialog("Delete this device session? This can't be undone.", async () => {
+        await deleteDeviceSession(id);
+        if (window.navigate && state.currentView === 'light') window.navigate('light');
+      });
     },
     rollingDeviceTotals,
     renderDevicesSection,

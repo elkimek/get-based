@@ -1,6 +1,6 @@
 // notes.js — Standalone note editor
 import { state } from './state.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 
 export function openNoteEditor(date, existingIdx) {
@@ -53,12 +53,14 @@ export function saveNote(idx) {
 
 export function deleteNote(idx) {
   if (!state.importedData.notes) return;
-  state.importedData.notes.splice(idx, 1);
-  saveImportedData();
-  window.closeModal();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
-  showNotification('Note deleted', 'info');
+  showConfirmDialog("Delete this note? This can't be undone.", () => {
+    state.importedData.notes.splice(idx, 1);
+    saveImportedData();
+    window.closeModal();
+    const activeNav = document.querySelector(".nav-item.active");
+    window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+    showNotification('Note deleted', 'info');
+  });
 }
 
 Object.assign(window, { openNoteEditor, saveNote, deleteNote });

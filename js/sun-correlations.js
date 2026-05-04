@@ -9,15 +9,22 @@
 import { state } from './state.js';
 import { getSessions } from './sun.js';
 
+// Schema keys for the biomarkers most coupled to light exposure. Keys must
+// match `category.markerKey` exactly as stored on entries — see js/schema.js.
+// Earlier draft used pre-schema labels (`vitamin_d_25oh`, `iron_metabolism`,
+// `proteins_inflammation`, `hs_crp`) that never resolved to anything in
+// state.importedData.entries — the correlation engine had been silently
+// returning an empty pairs array since shipping. Fixed in v1.7.20.
 const TARGET_BIOMARKERS = [
-  // Lab markers worth correlating against light channels
-  { cat: 'vitamins',          key: 'vitamin_d_25oh',  label: '25-OH vitamin D' },
-  { cat: 'hormones',          key: 'testosterone',    label: 'Testosterone' },
-  { cat: 'hormones',          key: 'estradiol',       label: 'Estradiol' },
-  { cat: 'hormones',          key: 'cortisol',        label: 'Morning cortisol' },
-  { cat: 'hormones',          key: 'shbg',            label: 'SHBG' },
-  { cat: 'iron_metabolism',   key: 'ferritin',        label: 'Ferritin' },
-  { cat: 'proteins_inflammation', key: 'hs_crp',      label: 'hs-CRP' },
+  { cat: 'vitamins', key: 'vitaminD',     label: '25-OH vitamin D' },
+  { cat: 'hormones', key: 'testosterone', label: 'Testosterone' },
+  { cat: 'hormones', key: 'estradiol',    label: 'Estradiol' },
+  { cat: 'hormones', key: 'shbg',         label: 'SHBG' },
+  { cat: 'hormones', key: 'dheaS',        label: 'DHEA-S' },
+  { cat: 'iron',     key: 'ferritin',     label: 'Ferritin' },
+  { cat: 'proteins', key: 'hsCRP',        label: 'hs-CRP' },
+  { cat: 'thyroid',  key: 'tsh',          label: 'TSH' },
+  { cat: 'thyroid',  key: 'ft3',          label: 'Free T3' },
 ];
 
 // Pearson correlation
@@ -63,9 +70,13 @@ function weeklyChannelSeries(sessions, deviceSessions, weeks = 12) {
   return series;
 }
 
-// Pull weekly biomarker values from importedData.entries
+// Pull weekly biomarker values from importedData.entries. Entries store
+// markers as a flat object keyed by `category.markerKey` (single dotted
+// string), not nested by category — earlier draft read e.values?.[cat]?.[m]
+// which never resolved.
 function weeklyBiomarkerValues(catKey, mKey, weeks = 12) {
   const entries = state.importedData?.entries || [];
+  const flatKey = `${catKey}.${mKey}`;
   const now = Date.now();
   const values = [];
   for (let w = weeks - 1; w >= 0; w--) {
@@ -75,8 +86,8 @@ function weeklyBiomarkerValues(catKey, mKey, weeks = 12) {
     for (const e of entries) {
       const t = new Date(e.date).getTime();
       if (!Number.isFinite(t) || t < startMs || t >= endMs) continue;
-      const v = e.values?.[catKey]?.[mKey];
-      if (typeof v === 'number' && !Number.isNaN(v)) { sum += v; count++; }
+      const v = e.markers?.[flatKey];
+      if (typeof v === 'number' && Number.isFinite(v)) { sum += v; count++; }
     }
     values.push(count > 0 ? sum / count : null);
   }
@@ -134,8 +145,12 @@ export function getSunCorrelations() {
   }
   const value = computeSunCorrelations();
   _cache = { key, value, computedAt: Date.now() };
-  // Persist last result so AI sees it across page loads
-  if (state.importedData) state.importedData.sunCorrelations = value;
+  // The in-memory _cache covers the session lifetime. The previous code
+  // also wrote `state.importedData.sunCorrelations = value` without
+  // calling saveImportedData, so the persisted blob diverged from the
+  // computed value and never sync'd to peers. Drop the half-persistence;
+  // sun-context.js standard tier still calls getSunCorrelations() on
+  // demand and the cache covers cross-page reads within a session.
   return value;
 }
 

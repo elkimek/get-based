@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { showNotification, isDebugMode, escapeHTML } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
-import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS } from './data-merge.js';
+import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS, pickTimestamp } from './data-merge.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
@@ -1153,6 +1153,7 @@ const DELTA_ARRAYS = [
   'supplements',         // editorial churn during routine tweaking
   'healthGoals',
   'changeHistory',       // composite-keyed (field|date), capped at 200, append+update only
+  'chatSummaries',       // per-thread AI-generated summaries, keyed by threadId; 1–50 entries/profile
 ];
 
 // Per-array overrides for arrays that don't fit the default
@@ -1202,6 +1203,7 @@ const DELTA_MAPS = [
   'categoryLabels',      // user-renamed category labels, keyed by category key
   'categoryIcons',       // user-picked category icons, keyed by category key
   'markerLabels',        // user-renamed marker labels, keyed by `category.markerKey`
+  'wearablePrimaryOverride', // per-metric primary-source override, keyed by canonical metricId
 ];
 
 // Singleton-shape importedData fields (scalars — null/object/string defaults
@@ -1645,7 +1647,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       // raw key in the current map even when the row only carries the
       // synth itemId (synth-id maps don't preserve the original key on
       // the row itself — it's only in the payload).
-      const liveByRawKey = new Map();
+      const liveByRawKey = new Map(); // rawKey → { v, syncedAt }
       const tombItemIds = new Set();
       for (const row of arrRows) {
         if (row.isDeleted) { tombItemIds.add(row.itemId); continue; }
@@ -1661,7 +1663,15 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
           // k and verify it matches the row column. Catches a relay
           // swapping payloads between rows even for synth-id maps.
           if (keyIdFn(parsed.k) !== row.itemId) continue;
-          liveByRawKey.set(parsed.k, parsed.v);
+          // Iteration-order tiebreak hardening (mirrors the array path):
+          // when two devices race a same-key edit, prefer the row with the
+          // newer relay-stamped syncedAt over whichever happened to come
+          // last in the unordered SQLite scan.
+          const sa = String(row.syncedAt || '');
+          const cur = liveByRawKey.get(parsed.k);
+          if (!cur || sa >= cur.syncedAt) {
+            liveByRawKey.set(parsed.k, { v: parsed.v, syncedAt: sa });
+          }
         } catch {}
       }
       // Apply tombstones: walk current map keys, drop any whose synth
@@ -1676,7 +1686,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       }
       // Apply live entries under their ORIGINAL key (preserves the `:`
       // for manualValues etc — consumers read the raw key, not the synth).
-      for (const [rawKey, v] of liveByRawKey) imported[arrayName][rawKey] = v;
+      for (const [rawKey, entry] of liveByRawKey) imported[arrayName][rawKey] = entry.v;
       _pullDeltaSnapshot.perArray[arrayName] = { live: liveByRawKey.size, tombstones: tombItemIds.size };
       continue;
     }
@@ -1691,7 +1701,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     const rawItemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
     const itemIdFn = (it) => { const id = rawItemIdFn(it); return _isAllowlistSafeId(id) ? id : null; };
     const tombs = new Set();
-    const liveById = new Map();
+    const liveById = new Map(); // itemId → { item, ts, syncedAt }
     for (const row of arrRows) {
       if (row.isDeleted) { tombs.add(row.itemId); continue; }
       try {
@@ -1704,7 +1714,19 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
         // Verify the payload's derived itemId matches the row column —
         // catches a compromised relay swapping payloads between rows.
         if (item && typeof item === 'object' && itemIdFn(item) === row.itemId) {
-          liveById.set(row.itemId, item);
+          // When a cross-device race produces multiple itemRow rows for the
+          // same itemId (each device wrote its own row before seeing the
+          // other), iteration-order winners can silently undo a stop / edit
+          // — e.g. a freshly-stopped sun session loses to a still-active
+          // copy from another device. Pick the higher embedded timestamp
+          // first (mirrors data-merge.js unionById), syncedAt as secondary
+          // tiebreak so two rows with identical embedded ts don't ping-pong.
+          const ts = pickTimestamp(item);
+          const sa = String(row.syncedAt || '');
+          const cur = liveById.get(row.itemId);
+          if (!cur || ts > cur.ts || (ts === cur.ts && sa > cur.syncedAt)) {
+            liveById.set(row.itemId, { item, ts, syncedAt: sa });
+          }
         }
       } catch {}
     }
@@ -1717,7 +1739,8 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       const k = itemIdFn(imported[arrayName][i]);
       if (k != null) seen.set(k, i);
     }
-    for (const [itemId, item] of liveById) {
+    for (const [itemId, entry] of liveById) {
+      const item = entry.item;
       const idx = seen.get(itemId);
       if (idx !== undefined) imported[arrayName][idx] = item;
       else imported[arrayName].push(item);
@@ -1789,6 +1812,16 @@ export function getRelayQuotaEstimate() {
 export function resetRelayQuotaEstimate() {
   if (!_appOwner?.id) return false;
   try { localStorage.removeItem(_ownerStorageKey()); return true; } catch { return false; }
+}
+
+// Self-host operator gate. Intentionally has NO UI toggle — set manually
+// from the DevTools console (`localStorage.setItem('labcharts-relay-admin','1')`)
+// by someone who actually has SSH access to the relay VM. Debug mode alone
+// isn't enough because anyone can flip it from Settings → Privacy and then
+// be tempted by an "I just compacted" button without having compacted
+// anything, silently muting the early-warning indicator.
+function isRelayAdmin() {
+  try { return localStorage.getItem('labcharts-relay-admin') === '1'; } catch { return false; }
 }
 
 // ═══════════════════════════════════════════════
@@ -2855,20 +2888,31 @@ export function onDataSaved() {
   pushContextToGateway();
 }
 
-// Called from chat.js when threads/messages change
-let _chatSyncTimer = null;
+// Called from chat.js when threads/messages change. Per-profile keyed
+// timers — earlier draft used a single module-scoped timer that captured
+// state.currentProfile + state.importedData at FIRE TIME. Switching
+// profile within the 10s window pushed the new profile's data with the
+// new profile's id, silently dropping the original profile's chat
+// changes. Mirrors the same pattern as onDataSaved's _debounceTimers.
+const _chatSyncTimers = new Map();
 export function onChatSaved() {
   if (!_syncEnabled || !evolu) return;
-  clearTimeout(_chatSyncTimer);
-  _chatSyncTimer = setTimeout(() => {
-    const profileId = state.currentProfile;
-    const data = state.importedData;
+  // Capture the active profile + data at QUEUE time so a mid-window
+  // profile switch doesn't repoint the push.
+  const profileId = state.currentProfile;
+  const data = state.importedData;
+  if (!profileId) return;
+  const prev = _chatSyncTimers.get(profileId);
+  if (prev) clearTimeout(prev);
+  const timer = setTimeout(() => {
+    _chatSyncTimers.delete(profileId);
     if (_syncing) {
       setTimeout(() => pushProfile(profileId, data), 1000);
     } else {
       pushProfile(profileId, data);
     }
   }, 10000); // 10s debounce — chat saves are frequent during streaming
+  _chatSyncTimers.set(profileId, timer);
 }
 
 // ═══════════════════════════════════════════════
@@ -3001,15 +3045,16 @@ export function toggleSyncDetail() {
   pop = document.createElement('div');
   pop.id = 'sync-popover';
   pop.className = 'sync-popover';
-  // Last few sync events — visible without USB-debugging the console.
-  // Useful when phone vs desktop disagree on what's on the relay.
-  const events = getRecentSyncEvents().slice(-6).reverse();
+  // Recent sync events list — debug-only. Useful when phone vs desktop
+  // disagree on what's on the relay; meaningless to a regular user.
+  const debugMode = isDebugMode();
+  const events = debugMode ? getRecentSyncEvents().slice(-6).reverse() : [];
   const eventColor = { push: 'var(--accent)', pull: 'var(--green)', skip: 'var(--text-muted)', rebroadcast: 'var(--orange)' };
   const eventsHtml = events.length ? `
     <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <span style="font-weight:600;color:var(--text-secondary);flex:1">Recent activity</span>
-        ${(typeof window !== 'undefined' && window.isDebugMode && window.isDebugMode()) ? `<button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" onclick="window.copySyncEvents(this)" title="Copy events to clipboard (debug mode only)">Copy</button>` : ''}
+        <button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" onclick="window.copySyncEvents(this)" title="Copy events to clipboard">Copy</button>
       </div>
       ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
     </div>` : '';
@@ -3026,22 +3071,24 @@ export function toggleSyncDetail() {
   }
   pop.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:8px;height:8px;border-radius:50%;background:${relayDot};display:inline-block"></span><span style="font-size:13px">${relayLabel}</span></div>
-    <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:8px;word-break:break-all">${escapeHTML(relayUrl)}</div>
+    ${debugMode ? `<div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:8px;word-break:break-all">${escapeHTML(relayUrl)}</div>` : ''}
     <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
       <div>Push: ${pushLabel}</div>
       <div>Pull: ${pullLabel}</div>
       ${quotaLine}
     </div>
-    ${errorLine}
+    ${debugMode ? errorLine : ''}
     ${eventsHtml}
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="ctx-btn-option" style="font-size:12px" onclick="syncNow();toggleSyncDetail()">Sync now</button>
-      <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" onclick="forceResendCurrentProfile();toggleSyncDetail()" title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
-      <button class="ctx-btn-option" style="font-size:12px" onclick="cleanStorage().then(()=>toggleSyncDetail())" title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
-      <button class="ctx-btn-option" style="font-size:12px" onclick="checkRelayConnection().then(ok=>showNotification(ok?'Relay reachable':'Relay UNREACHABLE',ok?'success':'error'))">Test relay</button>
-      <button class="ctx-btn-option" style="font-size:12px;${stuckPush ? 'color:var(--red);border-color:var(--red)' : ''}" onclick="window.location.reload()" title="Reloads the page to re-init the sync worker.">Reload</button>
-      <button class="ctx-btn-option" style="font-size:12px" onclick="showSyncDiagnose()">Diagnose</button>
+      ${stuckPush ? `<button class="ctx-btn-option" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="window.location.reload()" title="Reloads the page to re-init the sync worker.">Reload</button>` : ''}
       <button class="ctx-btn-option" style="font-size:12px" onclick="toggleSyncDetail();openSettingsModal('data')">Settings</button>
+      ${isDebugMode() ? `
+        <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" onclick="forceResendCurrentProfile();toggleSyncDetail()" title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
+        <button class="ctx-btn-option" style="font-size:12px" onclick="cleanStorage().then(()=>toggleSyncDetail())" title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
+        <button class="ctx-btn-option" style="font-size:12px" onclick="checkRelayConnection().then(ok=>showNotification(ok?'Relay reachable':'Relay UNREACHABLE',ok?'success':'error'))">Test relay</button>
+        <button class="ctx-btn-option" style="font-size:12px" onclick="showSyncDiagnose()">Diagnose</button>
+      ` : ''}
     </div>`;
   btn.parentElement.style.position = 'relative';
   btn.parentElement.appendChild(pop);
@@ -3091,15 +3138,26 @@ export async function showSyncDiagnose() {
         const mb = (q.bytes / (1024 * 1024)).toFixed(2);
         const capMb = (q.cap / (1024 * 1024)).toFixed(0);
         const color = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--green)';
+        const admin = isRelayAdmin();
         const note = q.level === 'red'
-          ? 'Storage almost full — pushes will start silently rejecting at the cap. Compact via SSH (see Hermes / runbook) and click "I just compacted" below.'
+          ? (admin
+            ? 'Storage almost full — pushes will start silently rejecting at the cap. Compact via SSH (see Hermes / runbook) and click "I just compacted" below.'
+            : 'Storage near the limit. Pushes may slow down or fail soon — let the maintainer know.')
           : q.level === 'amber'
-          ? 'Approaching the relay\'s per-owner cap. Plan to compact in the next few days.'
-          : 'Healthy. Each push adds to this counter; resets on compaction.';
+          ? 'Approaching the per-account storage cap. No action needed yet — keeps trimming on its own as data ages.'
+          : 'Healthy.';
+        // "I just compacted" is a relay-admin self-report — only useful for
+        // someone who can SSH to the relay and run /compact-owner. Gated on
+        // isRelayAdmin (a hidden localStorage flag — no UI toggle) rather
+        // than debug mode, so a curious user who flips debug doesn't get a
+        // button that silently mutes the early-warning indicator.
+        const adminBtn = admin
+          ? `<button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmResetRelayQuota(this)" title="Resets the local cumulative-bytes counter — use after running /compact-owner on the relay so the indicator matches reality.">I just compacted</button>`
+          : '';
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <b>Relay storage (estimate, this device):</b>
-            <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmResetRelayQuota(this)" title="Resets the local cumulative-bytes counter — use after running /compact-owner on the relay so the indicator matches reality.">I just compacted</button>
+            <b>Relay storage:</b>
+            ${adminBtn}
           </div>
           <div style="margin-bottom:4px"><span style="color:${color};font-weight:600">${mb} / ${capMb} MB · ${q.pct}%</span></div>
           <div style="height:8px;border-radius:4px;background:var(--surface);overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${q.pct}%;background:${color}"></div></div>
@@ -3107,6 +3165,7 @@ export async function showSyncDiagnose() {
         </div>`;
       })()}
       ${(() => {
+        if (!isDebugMode()) return '';
         const t = d.deltaTelemetry;
         if (!t || t.summary.count === 0) return '';
         const s = t.summary;
@@ -3131,15 +3190,15 @@ export async function showSyncDiagnose() {
             <div style="margin-top:4px">Compare across devices — diverging counts mean relay replication isn't propagating per-row state evenly.</div>
           </div>`;
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <b>Phase 1 dual-write health (last ${s.count} pushes):</b>
-            <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmResetDeltaTelemetry(this)" title="Resets the local last-N-push log. Useful when starting a fresh measurement window.">Reset window</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">
+            <b>Push efficiency <span style="font-weight:normal;color:var(--text-muted);font-size:11px">(last ${s.count} pushes — lower % = leaner sync)</span></b>
+            <button class="ctx-btn-option" style="font-size:11px;flex-shrink:0" onclick="window.confirmResetDeltaTelemetry(this)" title="Clears just the recent-push log shown here. Your data and relay state aren't touched.">Reset</button>
           </div>
           <div style="margin-bottom:4px">
-            <span style="color:${ratioColor};font-weight:600">delta:blob ratio ${pct}%</span>
-            <span style="color:var(--text-muted);font-size:11px"> · blob ${s.totalBlobBytes}b · delta ${s.totalDeltaBytes}b · ops ${s.totalOps}</span>
+            <span style="color:${ratioColor};font-weight:600">${pct}%</span>
+            <span style="color:var(--text-muted);font-size:11px"> · ${s.totalBlobBytes}b full · ${s.totalDeltaBytes}b deltas · ${s.totalOps} row ops</span>
           </div>
-          <div style="color:var(--text-muted);font-size:11px;margin-bottom:8px">${healthy ? 'Healthy — Phase 2 cutover is safe once this stays &lt;5% across devices for 2 weeks.' : 'Still high — keep baking. Per-row datapath isn\'t carrying enough of the state yet.'}</div>
+          <div style="color:var(--text-muted);font-size:11px;margin-bottom:8px">${healthy ? 'Looking good — sync is mostly riding the lightweight per-row path.' : 'Still hefty — most state is going as a full blob. Will trim down as more changes flow through.'}</div>
           <table style="width:100%;border-collapse:collapse;font-size:11px">
             <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:3px 6px">when</th><th style="padding:3px 6px;text-align:right">blob</th><th style="padding:3px 6px;text-align:right">delta</th><th style="padding:3px 6px;text-align:right">ops</th><th style="padding:3px 6px">arrays(ins/upd/tom)</th></tr></thead>
             <tbody>${recentRows}</tbody>
@@ -3148,20 +3207,24 @@ export async function showSyncDiagnose() {
         </div>`;
       })()}
       ${(() => {
+        if (!isDebugMode()) return '';
         const r = d.cutoverReadiness;
         if (!r) return '';
         const blockers = Object.entries(r.surfaces).filter(([, v]) => v.status === 'missing-rows');
         const okCount = Object.values(r.surfaces).filter(v => v.status === 'ok').length;
         const noDataCount = Object.values(r.surfaces).filter(v => v.status === 'no-data').length;
         const headerColor = r.ready ? 'var(--green)' : 'var(--orange)';
-        const headerLabel = r.ready ? 'READY ✓' : `BLOCKED — ${r.blockerCount} surface(s)`;
+        const headerLabel = r.ready ? 'Ready ✓' : `${r.blockerCount} item${r.blockerCount === 1 ? '' : 's'} pending`;
         const blockerHtml = blockers.length === 0 ? '' : `
           <div style="margin-top:6px;padding:8px;background:var(--surface);border-left:3px solid var(--orange);border-radius:4px">
-            <div style="color:var(--orange);font-weight:600;margin-bottom:4px;font-size:12px">⚠ Surfaces with local data but no per-row push:</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+              <div style="color:var(--orange);font-weight:600;font-size:12px">These bits of data haven't been re-pushed yet:</div>
+              <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmBackfillBlockers(this)" title="Forces a fresh push so each pending item ships as new. Safe — no data loss.">Push now</button>
+            </div>
             <table style="width:100%;font-size:11px">
               ${blockers.map(([name, v]) => `<tr><td style="font-family:monospace;padding:2px 6px">${escapeHTML(name)}</td><td style="padding:2px 6px;color:var(--text-muted)">${v.shape}</td><td style="padding:2px 6px;text-align:right">local=${v.localCount} rows=${v.rowCount}</td></tr>`).join('')}
             </table>
-            <div style="color:var(--text-muted);font-size:10px;margin-top:4px">Phase 2 (drop blob writes) would silently lose these surfaces. Trigger a save on each blocker, then re-check.</div>
+            <div style="color:var(--text-muted);font-size:10px;margin-top:4px">Tap <b>Push now</b> to take care of all of them at once.</div>
           </div>`;
         const cutoverEnabled = isPhase2CutoverEnabled(state.currentProfile);
         // Cutover toggle: disabled when not READY (prevents accidental flip
@@ -3169,23 +3232,23 @@ export async function showSyncDiagnose() {
         // button reads "Disable Phase 2" as an escape hatch — the user can
         // always revert to dual-write.
         const buttonHtml = cutoverEnabled
-          ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--orange);border-color:var(--orange)" onclick="window.confirmDisablePhase2(this)" title="Re-enables fat-blob writes alongside per-row deltas. Always allowed (escape hatch) — use if a Phase 2 device sees missing data on a peer.">Disable Phase 2</button>`
+          ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--orange);border-color:var(--orange)" onclick="window.confirmDisablePhase2(this)" title="Switches back to full-blob sync. Use this if a peer device shows missing data.">Disable</button>`
           : (r.ready
-            ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--green);border-color:var(--green)" onclick="window.confirmEnablePhase2(this)" title="Drops the fat-blob from outbound pushes. Per-row CRDT deltas become the only carrier. Reversible via the Disable button.">Enable Phase 2</button>`
-            : `<button class="ctx-btn-option" style="font-size:11px;opacity:0.5;cursor:not-allowed" disabled title="Resolve the blockers below before enabling Phase 2. Trigger a save on each surface that has local data but no per-row push.">Enable Phase 2</button>`);
+            ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--green);border-color:var(--green)" onclick="window.confirmEnablePhase2(this)" title="Switch this device to lean sync (per-row deltas only). Reversible.">Enable</button>`
+            : `<button class="ctx-btn-option" style="font-size:11px;opacity:0.5;cursor:not-allowed" disabled title="Push the pending items below first.">Enable</button>`);
         const cutoverBadge = cutoverEnabled
-          ? `<span style="color:var(--green);font-size:10px;font-weight:600;padding:2px 6px;border:1px solid var(--green);border-radius:3px;margin-left:6px">PHASE 2 ON</span>`
+          ? `<span style="color:var(--green);font-size:10px;font-weight:600;padding:2px 6px;border:1px solid var(--green);border-radius:3px;margin-left:6px">ON</span>`
           : '';
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">
-            <div><b>Phase 2 cutover readiness:</b>${cutoverBadge}</div>
-            <div style="display:flex;align-items:center;gap:8px">
+            <div><b>Lean sync mode</b>${cutoverBadge}<div style="font-weight:normal;color:var(--text-muted);font-size:11px;margin-top:2px">drops the full-blob backup once everything is reliably moving as per-row deltas — saves bandwidth + relay storage</div></div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
               <span style="color:${headerColor};font-weight:600">${headerLabel}</span>
               ${buttonHtml}
             </div>
           </div>
-          <div style="color:var(--text-muted);font-size:11px">${r.surfaceCount} surfaces tracked · ${okCount} ok · ${noDataCount} no-data · ${blockers.length} blocker${blockers.length === 1 ? '' : 's'}</div>
-          <div style="color:var(--text-muted);font-size:11px;margin-top:4px">When this reads READY across both devices for ≥2 weeks <i>and</i> the dual-write ratio above sits &lt;5%, Phase 2 (drop the fat-blob writes entirely) is safe to ship.</div>
+          <div style="color:var(--text-muted);font-size:11px">${okCount} of ${r.surfaceCount} synced · ${noDataCount} empty${blockers.length > 0 ? ` · ${blockers.length} pending` : ''}</div>
+          <div style="color:var(--text-muted);font-size:11px;margin-top:4px">Wait for <b>Ready</b> on both devices and let the efficiency above settle below ~5% before flipping. Reversible per device any time.</div>
           ${blockerHtml}
         </div>`;
       })()}
@@ -3288,7 +3351,7 @@ function _doResetRelayQuota(btn) {
 function confirmResetDeltaTelemetry(btn) {
   const t = state.currentProfile ? getDeltaTelemetry(state.currentProfile) : null;
   const n = t?.summary?.count || 0;
-  const message = `Reset the Phase 1 dual-write telemetry window? This drops the ${n} recent push entries used to compute the delta:blob ratio. Per-array snapshots and on-the-relay state are unaffected.`;
+  const message = `Reset the push-efficiency log? Drops the ${n} recent push entries used to compute the percentage. Your data and relay state aren't touched.`;
   const doReset = () => {
     if (state.currentProfile && resetDeltaTelemetry(state.currentProfile)) {
       try { showNotification('Telemetry window reset', 'success'); } catch {}
@@ -3317,7 +3380,7 @@ function confirmEnablePhase2(btn) {
     try { showNotification('Phase 2 not ready — resolve blockers first', 'error'); } catch {}
     return;
   }
-  const message = `Enable Phase 2 sync cutover for this profile on this device?\n\nFrom now on, outbound pushes will NOT include the full importedData blob — only per-row CRDT deltas + the small profile/AI/chat envelope. Other devices on Phase 2 see no change. Devices still on v1.7.x dual-write also see no change (they keep their existing data and pull per-row updates as normal).\n\nReversible via the Disable button at any time.`;
+  const message = `Switch this device to lean sync mode?\n\nFrom now on, this device will only push per-row deltas instead of the full data blob. Other devices keep working normally.\n\nReversible any time via Disable.`;
   const doEnable = () => {
     const result = enablePhase2Cutover(state.currentProfile);
     if (result.ok) {
@@ -3335,9 +3398,48 @@ function confirmEnablePhase2(btn) {
   else doEnable();
 }
 
+// "Backfill blockers" — wipes the per-array snapshot for every surface
+// flagged 'missing-rows' so the next push emits inserts for every local
+// item from scratch (instead of diffing against a snapshot that thinks
+// they were already shipped — the usual reason rowCount is stuck at 0
+// despite localCount > 0). Then forces a push.
+function confirmBackfillBlockers(btn) {
+  if (!state.currentProfile) return;
+  const profileId = state.currentProfile;
+  const r = getDeltaCutoverReadiness(profileId);
+  const blockers = Object.entries(r?.surfaces || {}).filter(([, v]) => v.status === 'missing-rows').map(([n]) => n);
+  if (blockers.length === 0) {
+    try { showNotification('No blockers to backfill', 'success'); } catch {}
+    return;
+  }
+  const message = `Force a push for ${blockers.length} item${blockers.length === 1 ? '' : 's'} that haven't synced as deltas yet?\n\n${blockers.join(', ')}\n\nSafe — this just re-sends data that should already be on the relay.`;
+  const doBackfill = async () => {
+    let cleared = 0;
+    for (const name of blockers) {
+      try {
+        localStorage.removeItem(_deltaSnapshotKey(profileId, name));
+        localStorage.removeItem(`${_deltaSnapshotKey(profileId, name)}-meta`);
+        cleared++;
+      } catch {}
+    }
+    try { await pushProfile(profileId, state.importedData, { force: true }); } catch (e) {
+      try { showNotification(`Backfill push failed: ${e?.message || e}`, 'error'); } catch {}
+      return;
+    }
+    try { showNotification(`Backfilled ${cleared} surface${cleared === 1 ? '' : 's'} — re-open Diagnose to verify`, 'success'); } catch {}
+    _logSyncEvent('backfill', `Backfilled ${cleared} surface(s) for ${profileId.slice(0, 8)}: ${blockers.join(',')}`);
+    if (btn) {
+      const overlay = btn.closest?.('.modal-overlay');
+      if (overlay) overlay.remove();
+    }
+  };
+  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doBackfill);
+  else doBackfill();
+}
+
 function confirmDisablePhase2(btn) {
   if (!state.currentProfile) return;
-  const message = `Disable Phase 2 sync cutover for this profile on this device?\n\nReverts to dual-write — outbound pushes will again include the full importedData blob alongside per-row deltas. Use this if you see missing data on a peer device that hasn't received the per-row updates.\n\nNo data loss either way.`;
+  const message = `Switch this device back to full-blob sync?\n\nPushes will include the full data blob again as a safety net. Use this if a peer device is missing data after going lean.\n\nNo data loss either way.`;
   const doDisable = () => {
     if (disablePhase2Cutover(state.currentProfile)) {
       try { showNotification('Phase 2 disabled — back to dual-write', 'success'); } catch {}
@@ -3475,4 +3577,5 @@ Object.assign(window, {
   disablePhase2Cutover,
   confirmEnablePhase2,
   confirmDisablePhase2,
+  confirmBackfillBlockers,
 });
