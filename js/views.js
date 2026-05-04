@@ -474,7 +474,7 @@ function _inspectConditionsNow() {
 
       <div class="sun-detail-section">
         <div class="sun-detail-section-label">Raw payload</div>
-        <pre style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:11px;color:var(--text-primary);overflow:auto;max-height:200px">${atm ? escapeHTML(JSON.stringify(atm, null, 2)) : 'No cached response.'}</pre>
+        <pre tabindex="0" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:11px;color:var(--text-primary);overflow:auto;max-height:200px;overscroll-behavior:contain;white-space:pre-wrap;word-break:break-word">${atm ? escapeHTML(JSON.stringify(atm, null, 2)) : 'No cached response.'}</pre>
       </div>
 
       <div class="sun-detail-section">
@@ -491,6 +491,23 @@ function _inspectConditionsNow() {
   if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  // Manually drive scroll + halt propagation on the Raw payload <pre>.
+  // CSS-only `overflow:auto`/`overscroll-behavior:contain` couldn't beat
+  // the modal's own scroll container — wheel deltas were being claimed
+  // by the modal before the pre saw them. Explicitly handling the
+  // wheel event here forces the pre to scroll first and prevents the
+  // event from bubbling to the modal regardless of the pre's scroll
+  // boundary.
+  const rawPre = overlay.querySelector('.sun-detail-section pre');
+  if (rawPre) {
+    rawPre.addEventListener('wheel', (e) => {
+      const before = rawPre.scrollTop;
+      rawPre.scrollTop = before + e.deltaY;
+      // Stop the modal from also scrolling on the same wheel tick.
+      e.stopPropagation();
+      e.preventDefault();
+    }, { passive: false });
+  }
 }
 
 // Wipe localStorage `meteo:` keys so the next fetch hits the provider
