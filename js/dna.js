@@ -183,10 +183,18 @@ function createWorker() {
 let _snpTable = null;
 let _snpTablePromise = null;
 
-function loadSNPTable() {
-  if (_snpTable) return Promise.resolve(_snpTable);
+function loadSNPTable({ forceFresh = false } = {}) {
+  // Page-lifetime cache short-circuit. Bypass with forceFresh=true so a
+  // re-import after a catalog version bump always sees the latest entries
+  // — without the bypass, the parser walks an old allowlist and silently
+  // drops any rsIDs that were added to the catalog since the page loaded.
+  if (_snpTable && !forceFresh) return Promise.resolve(_snpTable);
+  if (forceFresh) {
+    _snpTable = null;
+    _snpTablePromise = null;
+  }
   if (!_snpTablePromise) {
-    _snpTablePromise = fetch('data/snp-health.json')
+    _snpTablePromise = fetch('data/snp-health.json', forceFresh ? { cache: 'no-store' } : undefined)
       .then(r => r.json())
       .then(data => { _snpTable = data; window._snpTableCache = data; return data; })
       .catch(err => { _snpTablePromise = null; if (window.isDebugMode?.()) console.error('Failed to load SNP table:', err); throw err; });
@@ -199,7 +207,12 @@ export function ensureSNPTable() { if (state.importedData?.genetics) loadSNPTabl
 
 // Returns { matches: { rsid: { genotype, gene, variant, effect, note } }, source, totalLines, coverage }
 export async function parseDNAFile(file) {
-  const snpTable = await loadSNPTable();
+  // Force-fresh on every parse so a re-import after the catalog grew
+  // (e.g. new SNP added to data/snp-health.json since this page loaded)
+  // always sees the latest allowlist. The cache hit is fine for everything
+  // else (rendering, re-rendering, dashboard tooltips); the import path
+  // is the one place a stale cache silently drops valid SNPs.
+  const snpTable = await loadSNPTable({ forceFresh: true });
   const snpIds = Object.keys(snpTable).filter(k => k.startsWith('rs'));
 
   // Detect format from first chunk
