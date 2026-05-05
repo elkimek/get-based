@@ -1265,6 +1265,14 @@ export function showLight(_data) {
     <span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>${totalSessions === 0 ? 'No sessions yet' : `${totalSessions} total light session${totalSessions !== 1 ? 's' : ''}`}</span>
   </div>`;
 
+  // Slot id for the async-populated channel-deficit device recommendation
+  // panel. Declared at top scope so the post-render population block can
+  // reference it even when the page rendered without the parent
+  // sessions-list section (e.g. all sessions deleted, but device sessions
+  // push totalSessions ≥ 7 anyway). Stays null when the assignment branch
+  // didn't run; the population block guards on truthiness.
+  let deficitRecSlotId = null;
+
   // Combine sun + device totals so channels reflect every light source
   const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
   const devTotals30d = (window.rollingDeviceTotals && window.rollingDeviceTotals(30)) || {};
@@ -1343,7 +1351,7 @@ export function showLight(_data) {
     // right answer. Catalog + presets are async-loaded; the slot
     // stays empty if recs are off, region filters everything out, or
     // the catalog isn't reachable.
-    const deficitRecSlotId = `light-deficit-rec-slot-${Date.now()}`;
+    deficitRecSlotId = `light-deficit-rec-slot-${Date.now()}`;
     html += `<div id="${deficitRecSlotId}"></div>`;
 
     // "How we estimate" — single explainer covering MED / IU / channels /
@@ -1384,10 +1392,10 @@ export function showLight(_data) {
   // channels only — sun-derived deficits (vit_d, circadian, etc.) get
   // suggested actions via renderSuggestion above; we don't try to sell
   // a panel as a sun substitute.
-  if (totalSessions >= 7 && typeof window.renderChannelDeficitDeviceRecs === 'function'
+  if (deficitRecSlotId && totalSessions >= 7 && typeof window.renderChannelDeficitDeviceRecs === 'function'
       && typeof window.loadCatalog === 'function'
       && typeof window.loadLightDevicePresets === 'function') {
-    const slot = document.getElementById('' + deficitRecSlotId);
+    const slot = document.getElementById(deficitRecSlotId);
     if (slot) {
       const DEVICE_CHANNELS = [
         { key: 'pbm_red', label: 'red 660 nm (PBM)' },

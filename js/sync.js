@@ -1755,7 +1755,21 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
     const rawItemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
     const itemIdFn = (it) => { const id = rawItemIdFn(it); return _isAllowlistSafeId(id) ? id : null; };
+    // Seed the tombstone set with the local blob's `_deleted[path]` list
+    // BEFORE walking relay rows. The blob and per-row datapaths run in
+    // parallel under Phase 1 dual-write, and a peer that hadn't pulled
+    // our delete yet may push the row back as live — without this seed,
+    // a deleted-here-then-pushed-back-by-peer item resurrects locally
+    // because the relay row carries isDeleted=0 and the per-row merge
+    // re-inserts it. Trust local user intent: if the deletion is in the
+    // blob, the item stays dropped on this device until our own
+    // tombstone push lands and the peer applies it.
     const tombs = new Set();
+    try {
+      const localDel = imported && imported._deleted;
+      const localList = localDel && Array.isArray(localDel[arrayName]) ? localDel[arrayName] : null;
+      if (localList) for (const id of localList) if (typeof id === 'string') tombs.add(id);
+    } catch {}
     const liveById = new Map(); // itemId → { item, ts, syncedAt }
     for (const row of arrRows) {
       if (row.isDeleted) { tombs.add(row.itemId); continue; }
@@ -1795,6 +1809,10 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       if (k != null) seen.set(k, i);
     }
     for (const [itemId, entry] of liveById) {
+      // Honour blob tombstones seeded above — a peer that pushed the row
+      // back as live before pulling our delete would otherwise resurrect
+      // it here via nextArr.push.
+      if (tombs.has(itemId)) continue;
       const item = entry.item;
       const idx = seen.get(itemId);
       if (idx !== undefined) nextArr[idx] = item;

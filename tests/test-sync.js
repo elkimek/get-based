@@ -210,7 +210,14 @@ return (async function() {
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,10000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
+  // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
+  // pre-populate the row-side tombs Set, otherwise a peer pushing the
+  // row back as live (before pulling our delete) re-inserts it locally.
+  assert('_mergeItemRowsIntoImported seeds tombs from local blob _deleted before walking rows',
+    /imported\.\s*_deleted[\s\S]{0,200}\[arrayName\][\s\S]{0,200}tombs\.add/.test(syncSrc));
+  assert('_mergeItemRowsIntoImported skips inserting items that match a blob-tombstoned itemId',
+    /tombs\.has\(itemId\)\)\s*continue/.test(syncSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
     /idx\s*!==\s*undefined[\s\S]{0,200}nextArr\[idx\]\s*=\s*item/.test(syncSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads via capped variant',
