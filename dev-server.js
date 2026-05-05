@@ -440,7 +440,14 @@ const server = http.createServer((req, res) => {
 
   // Same-origin guard for proxy/API endpoints. Blocks SSRF via forged
   // Origin/Referer from browser tabs on malicious sites. See #119.
-  if ((pathname.startsWith('/api/') || pathname === '/proxy') && !isSameOrigin(req)) {
+  // /api/commit is read-only (returns public git HEAD sha + branch) and
+  // the SW relies on it to derive a per-commit cache key. Phone tabs
+  // served via tailscale carry an Origin header that doesn't match the
+  // localhost allowlist, so without this passthrough the SW falls back
+  // to a sha-less cache key and the bundle never updates on the phone.
+  if ((pathname.startsWith('/api/') || pathname === '/proxy')
+      && pathname !== '/api/commit'
+      && !isSameOrigin(req)) {
     res.writeHead(403); res.end('Forbidden'); return;
   }
   // Hard loopback gate when bound to 0.0.0.0 (LAN-exposed for phone
@@ -449,8 +456,19 @@ const server = http.createServer((req, res) => {
   // git-status, proxy, fetch-page, check-url) write to disk / fetch
   // arbitrary URLs — none are needed for phone-testing the app's UX,
   // so refusing them outright on LAN is the safe default.
+  //
+  // EXCEPT /api/commit — read-only, returns the git HEAD sha + branch
+  // (data already public in any git clone of the repo). The service
+  // worker uses it to derive a per-commit cache key (`labcharts-v…-sha8`),
+  // and without it the SW falls back to a sha-less key that NEVER
+  // changes across commits on LAN-tested devices. That bug pinned phones
+  // to whatever bundle they first cached, so phone testing silently
+  // missed every code change after the initial visit. Allowlist it
+  // explicitly here.
+  const LAN_SAFE_API_PATHS = new Set(['/api/commit']);
   if (HOST === '0.0.0.0'
       && (pathname.startsWith('/api/') || pathname === '/proxy')
+      && !LAN_SAFE_API_PATHS.has(pathname)
       && !_isLoopbackSocket(req)) {
     res.writeHead(403); res.end('Forbidden — /api/* disabled for non-loopback peers when HOST=0.0.0.0'); return;
   }
