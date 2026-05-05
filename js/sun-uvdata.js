@@ -833,6 +833,27 @@ function writeCache(key, value) {
   }
 }
 
+// Wipe every meteo:v2:* entry from localStorage. Wired into the user-
+// triggered "Refresh" button so a device that latched onto a degraded
+// provider (e.g. cached an Open-Meteo-only response while CAMS was
+// unreachable during a relay-side outage) can force a clean fetch
+// without rebooting the tab. Also clears the readStaleCache fallback —
+// otherwise a TTL'd entry would still resurrect after the next failed
+// fetch. Returns the number of keys removed.
+export function purgeMeteoCache() {
+  let removed = 0;
+  try {
+    if (typeof localStorage === 'undefined') return 0;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(CACHE_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) { try { localStorage.removeItem(k); removed++; } catch {} }
+  } catch {}
+  return removed;
+}
+
 async function fetchJson(url, opts = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), NETWORK_TIMEOUT_MS);
@@ -963,6 +984,7 @@ if (typeof window !== 'undefined') {
     interpolateAtmosphere,
     getMeteoConfig,
     saveMeteoConfig,
+    purgeMeteoCache,
     solarZenithAngle,
     computeUVConfidence,
   });

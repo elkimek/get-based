@@ -359,8 +359,15 @@ async function _refreshConditions(slotId, variant, opts = {}) {
 
 // User-triggered: force a re-fetch of conditions, bypassing all caches.
 // Re-renders every conditions-now slot on the page (dashboard + Light page
-// can both have one mounted at the same time).
+// can both have one mounted at the same time). Also wipes the localStorage
+// meteo:v2:* cache so a device that latched onto a degraded provider
+// (e.g. an Open-Meteo-only response cached while CAMS was unreachable
+// during a relay-side outage) can recover without tab-killing — the
+// next fetch hits the provider chain fresh.
 function _refreshConditionsNow() {
+  if (typeof window.purgeMeteoCache === 'function') {
+    try { window.purgeMeteoCache(); } catch {}
+  }
   document.querySelectorAll('.conditions-now').forEach(el => {
     const id = el.id;
     const variant = el.dataset.variant || 'full';
