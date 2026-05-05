@@ -377,8 +377,9 @@ function standardTierBlock(sessions) {
     // parroting them in prose. The conversion functions live in
     // sun-spectrum.js with citations; same path as the dashboard.
     const vitDAu = sess.doses?.vitamin_d;
+    const _genetics = state.importedData?.genetics || null;
     const vitD = (vitDAu != null && Number.isFinite(vitDAu) && typeof window.vitaminDIU === 'function')
-      ? Math.round(window.vitaminDIU(vitDAu, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, !!sess.bodyExposure?.rotatedSides))
+      ? Math.round(window.vitaminDIU(vitDAu, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, !!sess.bodyExposure?.rotatedSides, _genetics))
       : '?';
     const circAu = sess.doses?.circadian;
     let circ = '?';
@@ -581,11 +582,12 @@ function formatChannelTotals(totals) {
   const deviceSessions = (state.importedData?.deviceSessions || []).filter(s => s.endedAt && s.endedAt >= cutoff);
 
   let totalIU = 0;
+  const _gx = state.importedData?.genetics || null;
   for (const s of sunSessions) {
     const au = s.doses?.vitamin_d;
     if (!Number.isFinite(au) || au <= 0) continue;
     if (typeof window.vitaminDIU === 'function') {
-      totalIU += window.vitaminDIU(au, s.safety?.fitzpatrick || 'III', s.atmosphere?.uvIndex, !!s.bodyExposure?.rotatedSides);
+      totalIU += window.vitaminDIU(au, s.safety?.fitzpatrick || 'III', s.atmosphere?.uvIndex, !!s.bodyExposure?.rotatedSides, _gx);
     } else {
       totalIU += au * 60;
     }

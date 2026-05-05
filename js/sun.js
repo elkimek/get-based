@@ -198,7 +198,7 @@ export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatric
     // power users open the row tooltip for the model band + biological
     // variance breakdown.
     const central = window.vitaminDIU
-      ? window.vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides)
+      ? window.vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null)
       : channelAu * 60 * (rotatedSides ? 2 : 1);
     if (central === 0) return 'below UVI threshold';
     if (central < 30) return 'minimal';
@@ -464,6 +464,95 @@ export async function applySunscreenMidSession(id) {
   await saveImportedData();
   showNotification(`SPF updated to ${spf || 'none'} — next dose-rate sample uses the new value.`, 'success', 3500);
   _refreshSurfaces();
+}
+
+// Mid-session "I just dressed / undressed" hook. Commits the slice
+// computed under the OLD body regions (so the dose accrued so far at
+// the previous coverage is preserved), opens a body-region picker
+// pre-checked to what's currently selected, then on confirm updates
+// the session record. The next tick re-snapshots the rate using the
+// new bodyExposure.fraction. Mirrors applySunscreenMidSession's
+// commit-then-mutate pattern.
+//
+// Use case: started shirtless, decided to put a t-shirt back on after
+// 20 min — without this, the saved IU pretends the user kept the
+// original coverage for the whole session. Same for device sessions
+// where you start aimed at the torso and end aimed at the legs.
+export async function changeCoverageMidSession(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return;
+
+  const currentRegions = new Set(sess.bodyExposure?.regions || []);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.innerHTML = `<div class="modal sun-start-modal" role="dialog" aria-label="Change coverage">
+    <div class="modal-header">
+      <h3>Update coverage mid-session</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Tap each body region that's uncovered <strong>now</strong>. The dose accrued under the previous coverage stays — the change applies from this moment forward.</p>
+      <div class="sun-silhouette-wrap" id="sun-coverage-silhouette-slot">${renderBodySilhouette(currentRegions)}</div>
+      <div class="sun-silhouette-hint" id="sun-coverage-hint"></div>
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-primary" id="coverage-confirm">Apply coverage</button>
+      </div>
+    </div>
+  </div>`;
+  _wireBackdropClose(overlay);
+  document.body.appendChild(overlay);
+  trapModalFocus(overlay);
+
+  const selected = new Set(currentRegions);
+  const slot = overlay.querySelector('#sun-coverage-silhouette-slot');
+  const hint = overlay.querySelector('#sun-coverage-hint');
+  const updateHint = () => {
+    const fraction = Array.from(selected).reduce((sum, key) => {
+      const r = BODY_REGIONS.find(b => b.key === key);
+      return sum + (r?.fraction || 0);
+    }, 0);
+    if (selected.size === 0) {
+      hint.textContent = 'No regions exposed — fully clothed for the rest of the session.';
+    } else {
+      const labels = Array.from(selected).map(k => BODY_REGIONS.find(b => b.key === k)?.label || k).join(', ');
+      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
+    }
+  };
+  bindBodySilhouette(slot, selected, updateHint);
+  updateHint();
+
+  overlay.querySelector('#coverage-confirm').addEventListener('click', async () => {
+    const regions = Array.from(selected);
+    // Recompute fraction sum for the new selection. Floor at 0 — fully
+    // clothed is a valid intermediate state (e.g. user puts on a coat
+    // and walks to the next outdoor patch). Future ticks accrue zero
+    // until the next coverage change re-exposes skin.
+    const fraction = regions.reduce((sum, key) => {
+      const r = BODY_REGIONS.find(b => b.key === key);
+      return sum + (r?.fraction || 0);
+    }, 0);
+
+    // Commit the slice computed under the OLD regions so the historical
+    // dose stays accurate. Same plumbing applySunscreenMidSession uses.
+    _commitCurrentSlice(sess);
+    if (!sess.bodyExposure) sess.bodyExposure = {};
+    sess.bodyExposure.regions = regions;
+    sess.bodyExposure.fraction = fraction;
+    sess.bodyExposure.preset = regions.length === 0 ? 'face_hands' : 'detailed';
+    // Force a fresh rate snapshot on the next tick so the new fraction
+    // takes effect immediately rather than carrying stale rate forward.
+    _setLiveState(id, { ratePerMin: null });
+    await saveImportedData();
+    overlay.remove();
+    showNotification(
+      regions.length === 0
+        ? 'Coverage updated: fully clothed — dose accrual paused until you uncover skin again.'
+        : `Coverage updated: ${(fraction * 100).toFixed(0)}% body — next tick re-samples at the new fraction.`,
+      'success', 3500
+    );
+    _refreshSurfaces();
+  });
 }
 
 // Quick ozone-DU override surfaced from the active card — saves to
@@ -859,6 +948,7 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
 export function rollingVitaminDIU(days = 7) {
   if (typeof window.vitaminDIU !== 'function') return 0;
   const cutoff = Date.now() - days * 86400 * 1000;
+  const genetics = state.importedData?.genetics || null;
   let total = 0;
   for (const sess of getSessions()) {
     if (!sess.endedAt) {
@@ -867,7 +957,7 @@ export function rollingVitaminDIU(days = 7) {
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
-        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
+        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
       }
       continue;
     }
@@ -875,7 +965,7 @@ export function rollingVitaminDIU(days = 7) {
     if (sess.endedAt < cutoff) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
-    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
+    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
   }
   return total;
 }
@@ -2088,6 +2178,7 @@ export function renderSunSessionRow(sess) {
       <button class="sun-session-ctl sun-session-ctl-stop" onclick="event.stopPropagation();window.quickLogSunSession()" title="Stop and save the current session">⏹ Stop &amp; save</button>
       <button class="sun-session-ctl" onclick="event.stopPropagation();${pauseAction}" title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}">${pauseLabel}</button>
       ${flipBtn}
+      <button class="sun-session-ctl" onclick="event.stopPropagation();window.changeCoverageMidSession('${escapeAttr(sess.id)}')" title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward">👕 Coverage</button>
       <button class="sun-session-ctl" onclick="event.stopPropagation();window.applySunscreenMidSession('${escapeAttr(sess.id)}')" title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF">🧴 Sunscreen</button>
       <button class="sun-session-ctl" onclick="event.stopPropagation();window.setOzoneOverrideMidSession()" title="Calibrate ozone column from a meter / weather station">🛰 Ozone</button>
     </div>`;
@@ -2323,7 +2414,15 @@ export function openSunSessionDetail(id) {
       <div class="sun-detail-grid">
         <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
         <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
-        ${sess.doses?.vitamin_d ? `<div title="Approximate vitamin D₃ synthesis. Holick 2008 + Bogh & Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session.${sess.bodyExposure?.rotatedSides ? ' Doubled because both sides were exposed (rotated during session).' : ' Assumes you stayed on one side — tap the 🔄 Flip control during the session if you flipped front↔back.'} Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides))}</strong></div>` : ''}
+        ${sess.doses?.vitamin_d ? (() => {
+          const geneInfo = (typeof window.geneticVitaminDMultiplier === 'function')
+            ? window.geneticVitaminDMultiplier(state.importedData?.genetics)
+            : { mult: 1.0, contributors: [] };
+          const geneNote = geneInfo.contributors.length > 0
+            ? ` Genetics applied (${(geneInfo.mult * 100 - 100).toFixed(0)}% net): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype} ×${c.multiplier.toFixed(2)}`).join(', ')}.`
+            : '';
+          return `<div title="Approximate vitamin D₃ synthesis (effective serum response). Holick 2008 + Bogh &amp; Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session.${sess.bodyExposure?.rotatedSides ? ' Doubled because both sides were exposed (rotated during session).' : ' Assumes you stayed on one side — tap the 🔄 Flip control during the session if you flipped front↔back.'}${geneNote} Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides))}</strong></div>`;
+        })() : ''}
       </div>
 
       <div class="sun-detail-section">
@@ -2908,6 +3007,7 @@ if (typeof window !== 'undefined') {
     pauseSession, resumeSession,
     pauseSunSession, resumeSunSession,
     applySunscreenMidSession,
+    changeCoverageMidSession,
     flipSidesMidSession,
     setOzoneOverrideMidSession,
     _forgotStopPrompt,

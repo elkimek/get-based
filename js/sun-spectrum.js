@@ -599,17 +599,95 @@ function _uviThresholdMultiplier(uvi) {
   return uvi - 2.0;
 }
 
+// Genetic effect-size table for the vit-D pathway. Effect sizes are
+// the median post-test 25(OH)D delta per literature; we apply them as
+// a multiplier on the synthesis-IU output as a coarse but useful
+// approximation of "how much of the modeled synthesis ends up
+// circulating" for a user with these variants.
+//
+// Strictly speaking these affect different physiological steps —
+// VDBP carrier capacity, 25-hydroxylation, 1α-hydroxylation, receptor
+// affinity — not skin synthesis itself. Reporting them as a single
+// IU multiplier conflates "produced at the keratinocyte" with
+// "available in serum 25-OH-D." The honest framing in the UI is
+// "effective serum response per modeled UV dose" rather than "skin
+// synthesized." See the tooltip in sun.js for the user-facing copy.
+//
+// Effect sizes derived from rs2282679 / rs10741657 / rs10877012 /
+// rs2228570 / rs12785878 — anchored to published 25(OH)D deltas
+// (Wang 2010, Ahn 2010, Jolliffe 2018, Bu 2010, Slater 2017).
+// References live in data/snp-health.json under each rsID.
+const _VITD_GENETIC_EFFECTS = {
+  // GC VDBP — most replicated vit-D SNP. TT carries ~4-8 nmol/L
+  // lower 25(OH)D vs GG (Wang 2010). Coded as a 15% knockdown.
+  rs2282679: { GG: 1.0,  GT: 0.95, TG: 0.95, TT: 0.85 },
+  // CYP2R1 25-hydroxylase — converts cholecalciferol to 25(OH)D in
+  // liver. GG ~6-7 nmol/L lower 25(OH)D (Wang 2010). 12% knockdown.
+  rs10741657: { AA: 1.0,  AG: 0.95, GA: 0.95, GG: 0.88 },
+  // CYP27B1 1α-hydroxylase — converts 25(OH)D → calcitriol. The TT
+  // variant raises CYP27B1 expression and can compensate for low
+  // serum 25(OH)D by accelerating activation (Bu 2010). Modest +5/+10%.
+  rs10877012: { GG: 1.0,  GT: 1.05, TG: 1.05, TT: 1.10 },
+  // VDR FokI — receptor isoform length affects DNA binding. Jolliffe
+  // 2018 meta-analysis: little measurable effect on serum 25(OH)D;
+  // small downstream effect on bone outcomes. Tiny knockdown.
+  rs2228570: { GG: 1.0,  AG: 0.98, GA: 0.98, AA: 0.95 },
+  // DHCR7 — 7-dehydrocholesterol reductase converts 7DHC (the
+  // precursor) into cholesterol. Variants that elevate DHCR7 deplete
+  // the skin substrate available for UVB-driven vit-D synthesis.
+  // Slater 2017 reports ~3-5 nmol/L lower 25(OH)D for the high-DHCR7
+  // allele. Conservative 5/8% knockdown.
+  rs12785878: { TT: 1.0,  GT: 0.95, TG: 0.95, GG: 0.92 },
+  // CYP24A1 — 24-hydroxylase, vit-D catabolism. T allele increases
+  // clearance of 25(OH)D and 1,25(OH)2D → less in serum for the same
+  // UV dose (Wang 2010, Ahn 2010). ~3-4 nmol/L lower 25(OH)D for TT.
+  rs6013897:  { AA: 1.0,  AT: 0.97, TA: 0.97, TT: 0.92 },
+};
+
+// Walk the user's genetics and return a compound multiplier for
+// modeled vit-D synthesis IU + the list of contributing variants for
+// audit. Returns { mult: 1.0, contributors: [] } when genetics
+// is unavailable, so existing callers degrade gracefully. Callers
+// that want to surface "why" should read `contributors`.
+export function geneticVitaminDMultiplier(genetics) {
+  if (!genetics || typeof genetics !== 'object') return { mult: 1.0, contributors: [] };
+  const snps = genetics.snps;
+  if (!snps || typeof snps !== 'object') return { mult: 1.0, contributors: [] };
+  let mult = 1.0;
+  const contributors = [];
+  for (const [rsId, table] of Object.entries(_VITD_GENETIC_EFFECTS)) {
+    const entry = snps[rsId];
+    if (!entry) continue;
+    const gt = typeof entry === 'string' ? entry : entry.genotype;
+    if (!gt) continue;
+    const m = table[gt];
+    if (m == null || m === 1.0) continue;
+    mult *= m;
+    contributors.push({ rsId, gene: entry.gene || rsId, genotype: gt, multiplier: m });
+  }
+  return { mult, contributors };
+}
+
 // `rotatedSides` doubles the yield to acknowledge that flipping front↔back
 // during the session lets fresh skin restart vit-D synthesis after the
 // previous side approaches per-area saturation. Matches dminder's
 // "100% naked over the session = both sides exposed" convention. The
 // global VITD_SATURATION_IU cap still applies on top.
-export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false) {
+//
+// `genetics` (optional) — the profile's genetics blob (see
+// state.importedData.genetics). When supplied, applies a compound
+// multiplier from `geneticVitaminDMultiplier`. When omitted/null, no
+// genetic adjustment — existing callers see the prior behaviour and
+// no-genotype users see no change. Pass explicitly from the call
+// site since `state` is module-scoped (not on window) and importing
+// it from here would create a circular dependency.
+export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
   const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
   const uviMult = _uviThresholdMultiplier(uvi);
   const rotMult = rotatedSides ? 2.0 : 1.0;
-  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult * rotMult;
+  const geneMult = geneticVitaminDMultiplier(genetics).mult;
+  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult * rotMult * geneMult;
   return Math.min(raw, VITD_SATURATION_IU);
 }
 
@@ -734,6 +812,7 @@ if (typeof window !== 'undefined') {
     fractionOfMED,
     vitaminDIU,
     vitaminDIURange,
+    geneticVitaminDMultiplier,
     pbmJoulesPerCm2,
     circadianMelanopicLux,
     retinalUVdose,
