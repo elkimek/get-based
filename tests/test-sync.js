@@ -523,7 +523,7 @@ return (async function() {
   assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',
     /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',
-    /_mergeItemRowsIntoImported[\s\S]{0,9000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,25000}itemIdFn\(nextArr\[i\]\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,12000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,25000}itemIdFn\(nextArr\[i\]\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported verifies payload itemId matches row column',
     /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
 

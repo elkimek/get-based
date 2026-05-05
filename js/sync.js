@@ -935,7 +935,7 @@ async function buildSyncPayload(profileId, importedData) {
   // refresh token. Wearable summary (the L2 dashboard data) still syncs; the
   // tokens stay local. Users connect each wearable per-device — see the note
   // in the Settings → Integrations panel.
-  const safeImported = stripWearableCredentials(importedData);
+  const safeImported = stripGeneticsSnpsFromBlob(stripWearableCredentials(importedData));
   // Phase 2: when cutover is enabled (readiness-gated), drop importedData
   // from the blob. Per-row deltas carry every field. The blob still
   // ships the small profile/aiSettings/chatData/displayPrefs envelope
@@ -1040,6 +1040,19 @@ function stripWearableCredentials(importedData) {
   if (!importedData?.wearableConnections) return importedData;
   const { wearableConnections, ...rest } = importedData;
   return rest;
+}
+
+// Strip `genetics.snps` from the legacy blob payload so the only carrier
+// for SNP membership is the per-key `genetics.snps` DELTA_MAPS path.
+// Without this, mergeImportedData on pull treats genetics as a remote-
+// wins scalar and replays whatever snps blob was on the relay — which
+// can stomp a fresh local re-import. The per-row map merger that runs
+// after blob merge re-applies the relay's individual rsID rows; that's
+// the source of truth.
+function stripGeneticsSnpsFromBlob(importedData) {
+  if (!importedData?.genetics || typeof importedData.genetics !== 'object') return importedData;
+  const { snps, ...geneticsMetadata } = importedData.genetics;
+  return { ...importedData, genetics: geneticsMetadata };
 }
 
 // 5 MB cap. Pre-cap was 50 MB which let a pathological deeply-nested JSON
@@ -1508,11 +1521,35 @@ async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   // Tombstones: keys present in prev snapshot but not in current map.
   // Same conservative guard as the array path — only emit if a row
   // actually exists for that itemId, and isn't already tombstoned.
-  for (const prevId of Object.keys(prev)) {
-    if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
-    const row = rowByItemId.get(prevId);
-    if (!row || row.isDeleted) continue;
-    ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+  //
+  // Tombstone-storm guard: if the map went from N>=20 keys to <50% of
+  // that, refuse to emit tombstones for this push. A drop that large
+  // is almost always a transient state issue (mid-import, mid-pull-
+  // merge, in-progress reset) rather than the user genuinely deleting
+  // half their map. Letting it through would propagate a wipe to
+  // peers via the relay. Concrete instance this guards against:
+  // genetics.snps had 43 keys, a pull-merge race momentarily set it
+  // to 0, the next save's planner emitted 43 tombstones, every other
+  // device pulled the wipe and lost their genetics.snps.
+  // The user can still genuinely empty a map — they just have to do
+  // it in two steps (or via explicit clear-data flows that bypass the
+  // planner). Logged at info so debug mode shows when it fires.
+  const prevCount = Object.keys(prev).length;
+  const nextCount = Object.keys(next).length;
+  const wouldEmitMassiveTombstone = prevCount >= 20 && nextCount < prevCount * 0.5;
+  if (wouldEmitMassiveTombstone) {
+    try {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn(`[sync] _planKeyedMapDelta refused tombstone storm for ${mapName}: prev=${prevCount} next=${nextCount}. Likely transient state during pull-merge — push deferred.`);
+      }
+    } catch {}
+  } else {
+    for (const prevId of Object.keys(prev)) {
+      if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
+      const row = rowByItemId.get(prevId);
+      if (!row || row.isDeleted) continue;
+      ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+    }
   }
 
   return { ops, next, plannedAt };
