@@ -324,6 +324,57 @@ return (async function() {
   assert('non-meter source capped at 0.99',
     computeUVConfidence({ source: 'selfhost', snapshotAgeSec: 0, cloudCover: 0, zenithDeg: 30, uvIndex: 8 }) <= 0.99);
 
+  // ─── 9. getMeteoConfig — selfhost-with-empty-URL sanity fallback ─────
+  // Regression: a config with mode=selfhost but selfhostUrl='' silently
+  // fell through to Open-Meteo every request. Picker still showed
+  // "selfhost"; user expected CAMS. Now: getMeteoConfig returns mode
+  // 'auto' in-memory while leaving the persisted record alone, so
+  // either filling in the URL or switching the mode in the picker
+  // resumes the user's intent. Persisted record stays untouched so
+  // the picker still reflects what the user clicked.
+  console.log('%c 9. selfhost-empty-URL sanity fallback ', 'font-weight:bold;color:#f59e0b');
+
+  const STORAGE_KEY = 'labcharts-meteo-config';
+  const _saved = localStorage.getItem(STORAGE_KEY);
+  try {
+    // Empty URL — the trap.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      mode: 'selfhost', selfhostUrl: '', selfhostBearer: '', privacyRounding: 0.1,
+    }));
+    const cfg1 = getMeteoConfig();
+    assert('mode=selfhost + empty URL → in-memory mode flips to auto',
+      cfg1.mode === 'auto', `got mode=${cfg1.mode}`);
+    assert('persisted record stays untouched (picker still shows selfhost)',
+      JSON.parse(localStorage.getItem(STORAGE_KEY)).mode === 'selfhost');
+
+    // Whitespace-only URL is also a trap — same fallback.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      mode: 'selfhost', selfhostUrl: '   ', selfhostBearer: '', privacyRounding: 0.1,
+    }));
+    const cfg2 = getMeteoConfig();
+    assert('mode=selfhost + whitespace-only URL → fallback fires',
+      cfg2.mode === 'auto', `got mode=${cfg2.mode}`);
+
+    // Real URL — normal selfhost path stays intact.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      mode: 'selfhost', selfhostUrl: 'https://uvdata.example.com', selfhostBearer: '', privacyRounding: 0.1,
+    }));
+    const cfg3 = getMeteoConfig();
+    assert('mode=selfhost + non-empty URL → mode stays selfhost',
+      cfg3.mode === 'selfhost', `got mode=${cfg3.mode}`);
+
+    // Other modes don't trigger the fallback regardless of URL value.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      mode: 'auto', selfhostUrl: '', selfhostBearer: '', privacyRounding: 0.1,
+    }));
+    const cfg4 = getMeteoConfig();
+    assert('mode=auto + empty URL stays auto (fallback is selfhost-scoped)',
+      cfg4.mode === 'auto');
+  } finally {
+    if (_saved === null) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, _saved);
+  }
+
   console.log(`%c Sun UV-Data: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

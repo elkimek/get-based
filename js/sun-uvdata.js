@@ -140,6 +140,25 @@ export function getMeteoConfig() {
       cfg.mode = 'auto';
       try { saveMeteoConfig(cfg); } catch {}
     }
+    // Sanity: `mode: 'selfhost'` with an empty `selfhostUrl` is a config
+    // trap — the selfhost path silently falls through to Open-Meteo every
+    // request, the user gets the default provider but the picker still
+    // claims selfhost (which they explicitly set, expecting CAMS-quality
+    // data). Caught in the wild after a partial-save dropped the URL but
+    // kept the mode flip. Treat as in-memory `auto` so the app behaves
+    // sensibly (CAMS via /api/proxy + Open-Meteo merge), warn so debug
+    // mode surfaces the misconfiguration, and leave the persisted record
+    // alone so the picker still shows what the user clicked — they can
+    // either paste the URL to activate selfhost or switch the mode back
+    // to 'auto' explicitly.
+    if (cfg.mode === 'selfhost' && (!cfg.selfhostUrl || cfg.selfhostUrl.trim() === '')) {
+      try {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('[meteo] mode=selfhost with empty selfhostUrl — falling back to auto for this session. Set the URL in Light & Sun → Sun data source, or switch mode to auto explicitly.');
+        }
+      } catch {}
+      cfg.mode = 'auto';
+    }
     return cfg;
   } catch (e) {
     return defaultConfig();
