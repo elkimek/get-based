@@ -544,6 +544,85 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
+  // 14a-1b. DELTA_ARRAY_CONFIG — Phase 2 cutover blockers (entries / supplements / healthGoals)
+  // ═══════════════════════════════════════
+  // Pre-fix: these three surfaces were declared in DELTA_ARRAYS but
+  // their items had no `.id` field, so the default itemIdFn returned
+  // null and every item was silently filtered out of the planner.
+  // Result: rows=0 even when local has data → Phase 2 readiness BLOCKED.
+  // Fix: explicit itemIdFn per surface, deterministic from content so
+  // two devices migrating identical pre-existing data independently
+  // derive matching ids (no cross-device duplication).
+  console.log('%c 14a-1b. Cutover-blocker itemIdFns ', 'font-weight:bold;color:#f59e0b');
+
+  assert('entries listed in DELTA_ARRAYS',
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'entries'/.test(syncSrc));
+  assert('supplements listed in DELTA_ARRAYS',
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'supplements'/.test(syncSrc));
+  assert('healthGoals listed in DELTA_ARRAYS',
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'healthGoals'/.test(syncSrc));
+
+  assert('DELTA_ARRAY_CONFIG.entries defines itemIdFn (uses date as natural key)',
+    /entries:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,300}it\.date/.test(syncSrc));
+  assert('DELTA_ARRAY_CONFIG.supplements defines itemIdFn (content hash)',
+    /supplements:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2/.test(syncSrc));
+  assert('DELTA_ARRAY_CONFIG.healthGoals defines itemIdFn (text hash)',
+    /healthGoals:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2\(it\.text\)/.test(syncSrc));
+
+  // Live: round-trip the three itemIdFns to verify determinism + uniqueness
+  if (typeof window !== 'undefined') {
+    function djb2(str) {
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+      return (h >>> 0).toString(36);
+    }
+    function isAllowlistSafe(id) {
+      return typeof id === 'string' && id.length > 0 && /^[a-zA-Z0-9_.-]+$/.test(id);
+    }
+
+    const entriesFn = (it) => (it && typeof it.date === 'string' && isAllowlistSafe(it.date)) ? it.date : null;
+    const e1 = { date: '2026-05-04', markers: { 'biochemistry.glucose': 5.4 } };
+    assert('entries itemIdFn returns date for valid entry', entriesFn(e1) === '2026-05-04');
+    assert('entries itemId is allowlist-safe', isAllowlistSafe(entriesFn(e1)));
+    assert('entries itemIdFn null on missing date', entriesFn({ markers: {} }) === null);
+    assert('entries itemId is stable (same date → same id)',
+      entriesFn(e1) === entriesFn({ ...e1, markers: { 'biochemistry.sodium': 140 } }));
+
+    const suppFn = (it) => {
+      if (!it || typeof it !== 'object') return null;
+      const sig = `${it.name || ''}|${it.startDate || ''}|${it.type || ''}`;
+      return sig === '||' ? null : `s_${djb2(sig)}`;
+    };
+    const s1 = { name: 'Vitamin D', startDate: '2026-01-01', type: 'supplement', dosage: '5000 IU' };
+    const s2 = { ...s1, dosage: '2000 IU' };  // dosage edit
+    const s3 = { ...s1, startDate: '2026-02-01' };  // different start date
+    const id1 = suppFn(s1);
+    assert('supplements itemId is non-null for valid entry', typeof id1 === 'string' && id1.length > 2);
+    assert('supplements itemId is allowlist-safe', isAllowlistSafe(id1));
+    assert('supplements itemId stable across dosage edit (same name/startDate/type)',
+      suppFn(s2) === id1);
+    assert('supplements itemId differs when startDate differs',
+      suppFn(s3) !== id1);
+    assert('supplements itemIdFn null on empty struct',
+      suppFn({ name: '', startDate: '', type: '' }) === null);
+
+    const goalFn = (it) => {
+      if (!it || typeof it !== 'object' || !it.text) return null;
+      return `g_${djb2(it.text)}`;
+    };
+    const g1 = { text: 'Lower hs-CRP under 1.0', severity: 'major' };
+    const g2 = { ...g1, severity: 'critical' };  // severity edit
+    const g3 = { text: 'Improve sleep quality', severity: 'major' };
+    const gid = goalFn(g1);
+    assert('healthGoals itemId non-null + allowlist-safe', typeof gid === 'string' && isAllowlistSafe(gid));
+    assert('healthGoals itemId stable across severity edit (text unchanged)',
+      goalFn(g2) === gid);
+    assert('healthGoals itemId differs when text differs',
+      goalFn(g3) !== gid);
+    assert('healthGoals itemIdFn null on missing text', goalFn({ severity: 'major' }) === null);
+  }
+
+  // ═══════════════════════════════════════
   // 14a-2. DELTA_MAPS — keyed-map shape (markerNotes)
   // ═══════════════════════════════════════
   console.log('%c 14a-2. Delta Maps (keyed-object shape) ', 'font-weight:bold;color:#f59e0b');

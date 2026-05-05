@@ -1193,6 +1193,41 @@ const DELTA_ARRAY_CONFIG = {
     },
     noTombstones: true,
   },
+  // Lab entries — `{date, markers, ...}` with no `.id`. The import path
+  // already enforces date-uniqueness (import-dedup filter on `date`), so
+  // `date` is the natural composite-free key. `YYYY-MM-DD` matches the
+  // allowlist regex directly. Without this, every entry produced by
+  // PDF-import / JSON-import / manual entry was silently filtered out
+  // of the per-row planner because the default itemIdFn requires
+  // `it.id` as a string.
+  entries: {
+    itemIdFn: (it) => (it && typeof it.date === 'string' && _isAllowlistSafeId(it.date)) ? it.date : null,
+  },
+  // Supplements — `{name, dosage, type, startDate, endDate}` with no `.id`.
+  // Use content hash over (name + startDate + type) so the same supplement
+  // on the same start date with the same type lands on the same itemId
+  // across devices. Different devices migrating identical pre-existing data
+  // independently derive the same id — critical for preventing cross-device
+  // duplication. Editing dosage / endDate flips the hash → tombstone old +
+  // insert new, which presents as "delete + insert" cross-device. Acceptable
+  // for this surface's append-mostly cadence (1-2 edits/year per supplement).
+  supplements: {
+    itemIdFn: (it) => {
+      if (!it || typeof it !== 'object') return null;
+      const sig = `${it.name || ''}|${it.startDate || ''}|${it.type || ''}`;
+      return sig === '||' ? null : `s_${_djb2(sig)}`;
+    },
+  },
+  // Health goals — `{text, severity}` with no `.id`. Hash the user-typed
+  // text — different goals have different texts; identical texts dedupe
+  // by design (a user adding the same goal twice would expect one row).
+  // Severity changes hash, but severity is rarely edited post-creation.
+  healthGoals: {
+    itemIdFn: (it) => {
+      if (!it || typeof it !== 'object' || !it.text) return null;
+      return `g_${_djb2(it.text)}`;
+    },
+  },
 };
 
 // Importance-scoped maps subject to delta sync. Parallel to DELTA_ARRAYS
