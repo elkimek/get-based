@@ -7844,6 +7844,21 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 .sun-session-ctl:hover { background: var(--bg-card); border-color: var(--accent); color: var(--accent); }
 
+/* Stop button — primary emphasis so it reads as the canonical action
+   on the active-session card, not just another optional control. */
+.sun-session-ctl-stop {
+  background: var(--accent);
+  color: var(--bg-primary, #fff);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.sun-session-ctl-stop:hover {
+  background: var(--accent-strong, var(--accent));
+  border-color: var(--accent-strong, var(--accent));
+  color: var(--bg-primary, #fff);
+  filter: brightness(1.05);
+}
+
 .sun-session-paused {
   display: inline-flex; align-items: center;
   padding: 2px 8px; border-radius: 999px;

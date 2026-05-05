@@ -68,8 +68,8 @@ return (async function() {
     /Outdoor sessions: 2/.test(always));
   assert('Always tier surfaces the active session warning',
     /ACTIVE SESSION in progress/.test(always));
-  assert('Always tier surfaces 7-day per-channel totals header',
-    /7-day per-channel dose totals/.test(always));
+  assert('Always tier surfaces 7-day rollup header',
+    /7-day rollup \(sun \+ devices combined; tier vs typical weekly target\)/.test(always));
   // 30-day breakdown was dropped from always-tier in v1.7.18 (token compression).
   // It still backs deficit detection internally; the surface moved to standard tier.
   assert('Always tier omits 30-day totals header (compressed in v1.7.18)',
@@ -159,8 +159,8 @@ return (async function() {
   const standard = buildSunContext({ tier: 'standard' });
   assert('Standard tier strictly longer than always tier',
     standard.length > buildSunContext({ tier: 'always' }).length);
-  assert('Standard tier surfaces session table header (Date | Min | Body% …)',
-    /\| Date \| Min \| Body% \| Eyes \| UV \| MED% \| Vit-D \| Circ \|/.test(standard));
+  assert('Standard tier surfaces session table header (Date | Min | Body% … | UV peak | MED% | Vit-D (IU) | Circadian (lux·h))',
+    /\| Date \| Min \| Body% \| Eyes \| UV peak \| MED% \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
   // 5 sessions = 5 table rows
   assert('Standard tier renders one row per session',
     (standard.match(/\| s_\d/g) || []).length === 0 && // ids aren't in the row
@@ -349,13 +349,15 @@ return (async function() {
       screens: [],
     },
   });
-  // Stub the burden helper.
-  window.computeIndoorBurden = () => ({ tier: 3, note: 'high' });
+  // Stub the burden helper. Helper returns 3 tiers (0=Light/1=Moderate/
+  // 2=Heavy load); the AI line surfaces the helper's label verbatim so
+  // it matches the page UI rather than inventing a parallel scale.
+  window.computeIndoorBurden = () => ({ tier: 2, label: 'Heavy load', note: 'high' });
   const withRubric = buildSunContext({ tier: 'always' });
   assert('Burden line names the qualitative tier',
-    /tier 3\/4/.test(withRubric));
-  assert('Burden line carries inline 0=well-aligned … 4=severe rubric',
-    /0=well-aligned, 4=severe/.test(withRubric));
+    /tier 2\/2/.test(withRubric) && /Heavy load/.test(withRubric));
+  assert('Burden line carries inline 0=light … 2=heavy rubric',
+    /0=light, 2=heavy/.test(withRubric));
   delete window.computeIndoorBurden;
 
   // ─── 10. Room-name resolution in tool warnings ───────────────────────

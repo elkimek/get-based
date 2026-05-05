@@ -148,6 +148,22 @@ export function channelTier(value, channelKey) {
   return 4;                     // strong
 }
 
+// Tier classifier for 7-day rollups. The dashboard "what your light does"
+// pills, the AI 7-day rollup, and the per-channel drill-down all surface a
+// 7-day exposure total — same data, but they were all calling channelTier()
+// with a daily target, so the same number scored "moderate" against daily
+// and "low" against weekly. Use this where the value is a multi-day rollup;
+// use channelTier where the value is a single day or a single session.
+export function weeklyChannelTier(value, channelKey) {
+  const target = (CHANNEL_DISPLAY[channelKey]?.dailyTarget ?? 1000) * 7;
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const ratio = value / target;
+  if (ratio < 0.20) return 1;
+  if (ratio < 0.55) return 2;
+  if (ratio < 1.00) return 3;
+  return 4;
+}
+
 const TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
 const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○', '●●●●'];
 
@@ -590,7 +606,19 @@ const _hydrateInFlight = new Map();
 //      the vit-D channel read "below UVI threshold" for sessions that
 //      were actually fine. URL now requests past_days=2; existing
 //      sessions stamped at v4 re-hydrate to pick up correct atm.
-export const SUN_ENGINE_VERSION = 5;
+//   6: 2026-05-05 — fix shapeOpenMeteoResponse anchoring `todayPrefix`
+//      on Date.now() instead of the session midpoint. Real-time logs
+//      worked, but retro-logged + pre-dawn sessions pinned daily.peakAt
+//      and the peak-finder scan to the wrong day in `past_days=2`. Some
+//      v5 sessions also persisted a single-day hourly array (24 entries
+//      instead of 72) when Open-Meteo returned just today's slice; bump
+//      forces rehydrate so those replay against the corrected anchor.
+//   7: 2026-05-05 — widen past_days from 2 to 7 in the Open-Meteo URL
+//      so retro-logged sessions up to a week old hydrate against the
+//      actual session day rather than snapping to today's 00:00 hour.
+//      Bump forces v6 sessions older than 2d to replay against the
+//      wider window.
+export const SUN_ENGINE_VERSION = 7;
 
 // Override the fetched atmosphere with user-set values (manual UVI, manual
 // cloud cover, manual ozone) when present in sunDefaults. Set null to clear.
@@ -2057,6 +2085,7 @@ export function renderSunSessionRow(sess) {
       ? `<button class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides.">🔄 Rotated ✓</button>`
       : `<button class="sun-session-ctl" onclick="event.stopPropagation();window.flipSidesMidSession('${escapeAttr(sess.id)}')" title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure.">🔄 Flip</button>`;
     activeControls = `<div class="sun-session-active-controls" onclick="event.stopPropagation()">
+      <button class="sun-session-ctl sun-session-ctl-stop" onclick="event.stopPropagation();window.quickLogSunSession()" title="Stop and save the current session">⏹ Stop &amp; save</button>
       <button class="sun-session-ctl" onclick="event.stopPropagation();${pauseAction}" title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}">${pauseLabel}</button>
       ${flipBtn}
       <button class="sun-session-ctl" onclick="event.stopPropagation();window.applySunscreenMidSession('${escapeAttr(sess.id)}')" title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF">🧴 Sunscreen</button>
@@ -2569,7 +2598,12 @@ export function renderBodySilhouette(selected, opts = {}) {
       const isSel = selected.has(region);
       const label = (BODY_REGIONS.find(r => r.key === region)?.label) || region;
       const cls = `sun-silhouette-region${isSel ? ' selected' : ''}`;
-      return `<path d="${d}" data-region="${region}" data-view="${viewKey}" class="${cls}" role="button" tabindex="0" aria-pressed="${isSel}" aria-label="${escapeAttr(label + ' (' + viewKey + ')')}"><title>${label}${isSel ? ' (selected)' : ''}</title></path>`;
+      // Avoid "Arms (front) (front)" — label already encodes the side
+      // for split regions; only append (viewKey) for ambiguous regions
+      // that exist on both views (face / thyroid / abdomen / etc).
+      const labelHasSide = /\((front|back)\)/.test(label);
+      const aria = labelHasSide ? label : `${label} (${viewKey})`;
+      return `<path d="${d}" data-region="${region}" data-view="${viewKey}" class="${cls}" role="button" tabindex="0" aria-pressed="${isSel}" aria-label="${escapeAttr(aria)}"><title>${label}${isSel ? ' (selected)' : ''}</title></path>`;
     }).join('');
 
   const renderLandmarks = (paths) =>
@@ -2804,9 +2838,17 @@ export function openDetailedSessionDialog() {
     const start = endedAt - durationMin * 60 * 1000;
     const posture = overlay.querySelector('#det-posture')?.value || 'standing';
     const surfaceAlbedo = overlay.querySelector('#det-surface')?.value || 'grass';
+    // Resolve coordinates so hydrateSession has somewhere to fetch
+    // atmosphere from. Without this the past-session save records the
+    // session but `useLat == null` short-circuits hydration → channels
+    // and safety stay null forever and the detail modal opens to a
+    // mostly-empty card. quickLogSunSession resolves coords before
+    // calling startSession; the after-the-fact path needs the same step.
+    const location = getSunCoords();
     const sessId = await logCompletedSession({
       startedAt: start,
       endedAt,
+      location,
       bodyExposure: { preset: regions.length === 0 ? 'face_hands' : 'detailed', fraction: Math.max(0.05, fraction), regions, sunscreenSPF: spf, glassBetween: glass },
       eyeExposure: { mode: eyeModeVal, lensTint: lensTintVal, durationSec: durationMin * 60 },
       posture, surfaceAlbedo,
@@ -2904,6 +2946,7 @@ if (typeof window !== 'undefined') {
     LENS_TINTS,
     CHANNEL_DISPLAY,
     channelTier,
+    weeklyChannelTier,
     tierLabel,
     formatChannelUnit,
     tierDots,

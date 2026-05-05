@@ -103,7 +103,7 @@ export function renderLightTodayStrip() {
     const wlabel = solarWindowLabel();
     cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> ${wlabel} — log a session</button>${deviceBtn}${roomBtn}</div>`;
   } else if (hasDevices) {
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Sun</button>${deviceBtn}${roomBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Log sun</button>${deviceBtn}${roomBtn}</div>`;
   } else {
     cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>${roomBtn}</div>`;
   }
@@ -112,7 +112,10 @@ export function renderLightTodayStrip() {
   // Numbers are kept off the dashboard — only "none / low / moderate / good /
   // strong" tiers + dots. Hover for science.
   const ch = window.CHANNEL_DISPLAY || {};
-  const tier = window.channelTier || (() => 0);
+  // Dashboard strip pills represent a 7-day rolling total; classify with
+  // the weekly tier so the strip agrees with the Light page pills + the
+  // AI rollup on the same data.
+  const tier = window.weeklyChannelTier || (() => 0);
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   // Combine sun + device contributions so a user with a Joovv panel and no
   // outdoor sessions still sees PBM channels light up.
@@ -1236,13 +1239,25 @@ export function showLight(_data) {
   const sunActive = !!(window.getActiveSession && window.getActiveSession());
   let ctaButtons = '';
   if (sunActive) {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">⏹</span> Stop &amp; save current session</button>`;
+    // While a sun session is active, the Stop control lives inside the
+    // pinned active-session card at the top (next to Pause / Flip /
+    // Sunscreen / Ozone). Don't render a second, far-away Stop here —
+    // earlier the row contained "⏹ Stop & save current session" 600+
+    // pixels below the running banner, so users hunted for it past the
+    // entire setup card and channel pills. Surface device/past-log
+    // affordances instead since those still apply during a running sun
+    // session.
+    if (hasDevices) {
+      ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()"><span aria-hidden="true">🔴 </span>Start a device session</button>`;
+    } else {
+      ctaButtons = `<button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()"><span aria-hidden="true">+ </span>Add a light device</button>`;
+    }
   } else if (hasDevices) {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Start a sun session</button>
-      <button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()"><span aria-hidden="true">🔴</span> Start a device session</button>`;
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀ </span>Start a sun session</button>
+      <button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()"><span aria-hidden="true">🔴 </span>Start a device session</button>`;
   } else {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Start a sun session</button>
-      <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()"><span aria-hidden="true">+</span> Add a light device</button>`;
+    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀ </span>Start a sun session</button>
+      <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()"><span aria-hidden="true">+ </span>Add a light device</button>`;
   }
   html += `<div class="light-quicklog-row">
     ${ctaButtons}
@@ -1271,7 +1286,8 @@ export function showLight(_data) {
   //   • At least one channel has a meaningful tier → invite drill-down
   //     with realistic copy
   const channelKeysOrdered = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  const litChannels = channelKeysOrdered.filter(k => (window.channelTier ? window.channelTier(combined7d[k] || 0, k) : 0) > 0).length;
+  const _wkTier = window.weeklyChannelTier || window.channelTier || (() => 0);
+  const litChannels = channelKeysOrdered.filter(k => _wkTier(combined7d[k] || 0, k) > 0).length;
   let lead;
   if (isEmpty) {
     lead = "Sun isn't just vitamin D. Each pill is a different biological effect of light — they fill as you log sessions outdoors or with a therapy device. Tap any pill to see how to fill it.";
@@ -1515,16 +1531,31 @@ function _channelDayCount(channelKey) {
 // states.
 function renderChannelPills(totals7d, totals30d) {
   const ch = window.CHANNEL_DISPLAY || {};
-  const tier = window.channelTier || (() => 0);
+  // Tier classifiers: weekly for v7 (the canonical "this week" headline),
+  // and a 30-day equivalent for v30 by scaling the threshold band to the
+  // longer window. Mixing daily-target classification on a multi-day total
+  // double-counts and wrecks the trend arrow (t30 ALWAYS scored higher
+  // than t7 because totals scale with window even when the daily rate is
+  // identical, so the trend read "down" on every flat pattern).
   const tlabel = window.tierLabel || (() => 'none');
+  const tier7 = window.weeklyChannelTier || ((v, k) => 0);
+  const tier30 = (v, k) => {
+    const target = ((ch[k] && ch[k].dailyTarget) || 1000) * 30;
+    if (!Number.isFinite(v) || v <= 0) return 0;
+    const r = v / target;
+    if (r < 0.20) return 1;
+    if (r < 0.55) return 2;
+    if (r < 1.00) return 3;
+    return 4;
+  };
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   let html = `<div class="light-pills-row light-pills-interactive">`;
   for (const k of order) {
     const meta = ch[k] || {};
     const v7 = totals7d[k] || 0;
     const v30 = totals30d[k] || 0;
-    const t7 = tier(v7, k);
-    const t30 = tier(v30, k);
+    const t7 = tier7(v7, k);
+    const t30 = tier30(v30, k);
     const trendDir = t7 > t30 ? 'up' : t7 < t30 ? 'down' : 'flat';
     const dc = _channelDayCount(k);
     const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week.`;
@@ -2034,7 +2065,9 @@ function _channelNextMove(channelKey, t7, totalCurrent, devices, atm) {
 function _renderChannelDetailPanel(channelKey) {
   const ch = window.CHANNEL_DISPLAY || {};
   const meta = ch[channelKey] || {};
-  const tier = window.channelTier || (() => 0);
+  // Drill-down hero stat is a 7-day total — classify against the weekly
+  // target so the badge agrees with the pill (and the AI rollup).
+  const tier = window.weeklyChannelTier || (() => 0);
   const tlabel = window.tierLabel || (() => 'none');
   const sunTot7 = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
   const devTot7 = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
@@ -2222,7 +2255,10 @@ function renderUnifiedSessionsList() {
 
 // One-line action suggestion based on the lowest-tier channel.
 function renderSuggestion(totals7d) {
-  const tier = window.channelTier || (() => 0);
+  // Suggestion picks the lowest-tier channel from a 7-day total, so use
+  // the weekly classifier — otherwise it nudges every channel as "low"
+  // because each one is being compared to a daily target.
+  const tier = window.weeklyChannelTier || (() => 0);
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   const SUGGESTIONS = {
     vitamin_d:  'Get 10–15 minutes of midday sun on bare skin if your latitude allows — UVB drops sharply after 2 pm.',

@@ -1209,12 +1209,14 @@ return (async function() {
   assert('onSyncReceived logs malformed-importedData skip via _logSyncEvent',
     /malformed importedData shape, skipping row/.test(syncSrc));
 
-  // Peak-finder DST + past_days anchor — derive todayPrefix from
-  // utc_offset_seconds + Date.now(), then scan daily.time for the
-  // matching index (with past_days>0, daily.time[0] is NOT today).
-  assert('sun-uvdata derives todayPrefix from utc_offset_seconds + Date.now()',
+  // Peak-finder DST + past_days anchor — derive todayPrefix from the
+  // SESSION's local day (isoTime + utc_offset_seconds), then scan
+  // daily.time for the matching index. Anchoring on Date.now() instead
+  // of isoTime caused retro-logged + pre-dawn sessions to pin to the
+  // wrong day in past_days windows (engine bump 5 → 6).
+  assert('sun-uvdata derives todayPrefix from utc_offset_seconds + isoTime',
     await fetchWithRetry('js/sun-uvdata.js').then(s =>
-      /utc_offset_seconds[\s\S]{0,400}localNow[\s\S]{0,300}getUTCFullYear/.test(s)));
+      /utc_offset_seconds[\s\S]{0,400}isoTime[\s\S]{0,300}getUTCFullYear/.test(s)));
   assert('sun-uvdata locates today via daily.time scan, not blind [0] index',
     await fetchWithRetry('js/sun-uvdata.js').then(s =>
       /todayDailyIdx[\s\S]{0,400}daily\.time\[i\][\s\S]{0,200}startsWith\(todayPrefix\)/.test(s)));

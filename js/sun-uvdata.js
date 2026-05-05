@@ -18,6 +18,7 @@
 // privacy posture.
 
 const STORAGE_KEY = 'labcharts-meteo-config';
+let _warnedAboutEmptySelfhost = false;
 // v2: invalidates old entries that baked sunrise/sunset/uvIndexMax from
 // daily.sunrise[0] (which was 2-day-old data under past_days=2). Bump
 // again any time the cached payload shape changes meaning.
@@ -152,11 +153,17 @@ export function getMeteoConfig() {
     // either paste the URL to activate selfhost or switch the mode back
     // to 'auto' explicitly.
     if (cfg.mode === 'selfhost' && (!cfg.selfhostUrl || cfg.selfhostUrl.trim() === '')) {
-      try {
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn('[meteo] mode=selfhost with empty selfhostUrl — falling back to auto for this session. Set the URL in Light & Sun → Sun data source, or switch mode to auto explicitly.');
-        }
-      } catch {}
+      // Warn ONCE per session — every fetchAtmosphere call routes through
+      // here, so a chatty user who never set the URL was getting 10+
+      // identical lines on every page render.
+      if (!_warnedAboutEmptySelfhost) {
+        try {
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[meteo] mode=selfhost with empty selfhostUrl — falling back to auto for this session. Set the URL in Light & Sun → Sun data source, or switch mode to auto explicitly.');
+          }
+        } catch {}
+        _warnedAboutEmptySelfhost = true;
+      }
       cfg.mode = 'auto';
     }
     return cfg;
@@ -214,10 +221,40 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   const order = providerOrder(cfg);
 
   let lastError = null;
-  for (const provider of order) {
+  for (let i = 0; i < order.length; i++) {
+    const provider = order[i];
     try {
       const result = await provider.fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
       if (result) {
+        // CAMS sometimes returns a structurally valid response with
+        // sparse hourly fields (uvIndex/cloudCover/temperatureC all null
+        // — only DU and AQI populated). The "Conditions now" widget then
+        // renders a dash for UV even though Open-Meteo would have served
+        // a real number. When that happens AND we have a downstream
+        // provider, fetch it too and merge the missing primary fields,
+        // keeping CAMS's superior DU/AOD overlay.
+        const sparseUv = result.uvIndex == null && result.cloudCover == null;
+        const hasFallback = i + 1 < order.length;
+        if (sparseUv && hasFallback) {
+          for (let j = i + 1; j < order.length; j++) {
+            try {
+              const fallback = await order[j].fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
+              if (fallback && fallback.uvIndex != null) {
+                const merged = Object.assign({}, fallback, {
+                  // Preserve CAMS strengths over Open-Meteo where present.
+                  ozoneDU: result.ozoneDU ?? fallback.ozoneDU,
+                  airQuality: result.airQuality || fallback.airQuality,
+                  // Annotate the merge for the inspector.
+                  source: `${result.source}+${fallback.source}`,
+                  confidence: Math.min(result.confidence ?? 1, fallback.confidence ?? 1),
+                  fetchedAt: Date.now(),
+                });
+                writeCache(cacheKey, merged);
+                return merged;
+              }
+            } catch (e) { /* fall through to next */ }
+          }
+        }
         writeCache(cacheKey, result);
         return result;
       }
@@ -402,16 +439,16 @@ const PROVIDERS = {
       // hourly UVI across the day (for peak-finder). Open-Meteo's forecast
       // endpoint does not return total-column ozone (despite older docs);
       // ozone lives on the air-quality endpoint as `ozone` (µg/m³, NOT DU).
-      // past_days=2 covers hydrating yesterday + day-before sessions; without
-      // it the hourly arrays only carry today, so nearestHourIndex() snaps
-      // any past timestamp to today's first available hour (00:00 → UVI 0)
-      // and the persisted atmosphere reads as a midnight session.
-      const fcUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=uv_index,uv_index_clear_sky,cloud_cover,temperature_2m&daily=sunrise,sunset,uv_index_max&timezone=auto&past_days=2&forecast_days=1`;
+      // past_days=7 covers a typical week of retro-logging; without it
+      // hydrating a session 3+ days old snaps to today's first available
+      // hour (UVI 0) and the persisted atmosphere reads as wrong-day data.
+      // Sessions older than 7 days fall through `_validateAtmCovers` below.
+      const fcUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=uv_index,uv_index_clear_sky,cloud_cover,temperature_2m&daily=sunrise,sunset,uv_index_max&timezone=auto&past_days=7&forecast_days=1`;
       // Air-quality API — PM2.5, PM10, AOD, NO2, total-column ozone (DU
       // conversion handled in shape function — ~2.144 µg/m³ ≈ 1 DU at
       // standard atmosphere). Same past_days widening so hydrating past
       // sessions gets matching air-quality samples.
-      const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,nitrogen_dioxide,aerosol_optical_depth,ozone&current=pm2_5,pm10,european_aqi&past_days=2`;
+      const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,nitrogen_dioxide,aerosol_optical_depth,ozone&current=pm2_5,pm10,european_aqi&past_days=7`;
       // Fire both in parallel; tolerate AQ failure (stratospheric ozone is
       // nice-to-have, not critical for sunburn-dose math).
       const [fcJson, aqJson] = await Promise.allSettled([
@@ -503,21 +540,19 @@ function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
   // events sort wrong (the now-marker ends up past the stale sunset
   // even though the user is mid-morning today).
   const daily = fcJson.daily || {};
-  // Today's local date string in the LOCATION's timezone. Prefer the
-  // canonical anchor from `daily.time[i]` once we identify today, and
-  // fall back to `utc_offset_seconds + Date.now()` for the prefix
-  // we'll match against. v1.7.15 audit fix: the previous derivation
-  // drifted at DST boundaries — opening the app at 23:55 local time
-  // the day before a DST jump computed yesterday's date for the next
-  // morning's hourly entries because `getUTCDate()` on an offset-
-  // shifted Date doesn't track DST transitions.
+  // Date prefix for the SESSION's local day, not wall-clock now. Anchoring
+  // on isoTime (the session midpoint) means a retro-logged or pre-dawn
+  // session pins to the day it actually happened — not "today" at fetch
+  // time. The `daily` and `peakAt` resolutions below need the right day
+  // or they pin to the wrong slice of past_days=2 + forecast_days=1.
   let todayPrefix = null;
   try {
     const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0) * 1000;
-    const localNow = new Date(Date.now() + offsetMs);
-    const y = localNow.getUTCFullYear();
-    const m = String(localNow.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(localNow.getUTCDate()).padStart(2, '0');
+    const anchorMs = isoTime ? Date.parse(isoTime) : Date.now();
+    const local = new Date((Number.isFinite(anchorMs) ? anchorMs : Date.now()) + offsetMs);
+    const y = local.getUTCFullYear();
+    const m = String(local.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(local.getUTCDate()).padStart(2, '0');
     todayPrefix = `${y}-${m}-${d}`;
   } catch (e) {}
   let todayDailyIdx = -1;
