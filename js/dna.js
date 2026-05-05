@@ -745,7 +745,13 @@ function confirmDNAImport() {
     window.updateChatNudge();
   }
 
-  // Refresh dashboard
+  // Refresh sidebar (genetics nav count) AND dashboard. Without the
+  // explicit buildSidebar call, the nav-count stays at the pre-import
+  // value because navigate() only re-renders main content, not nav.
+  // Symptom that surfaced this: after re-importing on the same device
+  // the dashboard correctly showed "43 SNPs" while the sidebar still
+  // said "🧬 Genetics 40".
+  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   if (window.navigate) window.navigate('dashboard');
 }
 
