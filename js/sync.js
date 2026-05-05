@@ -1671,7 +1671,26 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       if (tombstoned && tombstonedAt >= chosenAt) {
         imported[arrayName] = null;
       } else if (chosen) {
-        imported[arrayName] = chosen.v;
+        // Preserve nested fields owned by a DELTA_MAPS dotted path —
+        // the scalar payload is metadata-only by contract, so a remote
+        // scalar must not blow away the local map. The dotted-path
+        // map merger that runs after this loop is authoritative for
+        // those fields. Concrete instance: `genetics.snps` is a
+        // DELTA_MAPS entry; the `genetics` scalar row carries source/
+        // importDate/coverage/mtdna only. Restoring snps here keeps
+        // the per-row layer's prior state intact for the moment until
+        // the map branch below runs and re-applies the relay's rows.
+        if (arrayName === 'genetics'
+            && imported.genetics && typeof imported.genetics === 'object'
+            && imported.genetics.snps && typeof imported.genetics.snps === 'object') {
+          const localSnps = imported.genetics.snps;
+          imported.genetics = chosen.v;
+          if (imported.genetics && typeof imported.genetics === 'object') {
+            imported.genetics.snps = localSnps;
+          }
+        } else {
+          imported[arrayName] = chosen.v;
+        }
       }
       _pullDeltaSnapshot.perArray[arrayName] = { live, tombstones: tombs };
       continue;
@@ -2309,7 +2328,17 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // silently stop syncing all 18 scalar fields. Same plan/apply
       // contract so telemetry + cap watchdog cover them uniformly.
       for (const scalarName of DELTA_SCALARS) {
-        const value = importedData[scalarName];
+        let value = importedData[scalarName];
+        // Strip nested fields that ride a DELTA_MAPS dotted path so the
+        // scalar carries only metadata, not a stale copy of the per-key
+        // map. Without this, the relay's `genetics` scalar row keeps
+        // re-applying the old whole-snps blob on every pull, beating
+        // the per-row genetics.snps merge that's actually the source
+        // of truth for SNP membership.
+        if (scalarName === 'genetics' && value && typeof value === 'object' && !Array.isArray(value)) {
+          const { snps, ...metadata } = value;
+          value = metadata;
+        }
         try {
           const plan = await _planScalarDelta(profileId, scalarName, value);
           if (plan.ops.length > 0) {
