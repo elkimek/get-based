@@ -423,6 +423,23 @@ function _isLoopbackSocket(req) {
   return ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1';
 }
 
+// Canonical same-origin check using the request's own Host header.
+// A browser only sets Origin equal to Host on same-page fetches; a
+// cross-site request always carries the requester's origin instead.
+// So Origin === scheme://Host means the request was issued by the same
+// page the dev server is hosting — exactly the meaning of "same-origin"
+// for security purposes. Used as an escape hatch for tailscale-served
+// phone tabs where the host the user typed isn't in the static
+// ALLOWED_ORIGINS allowlist.
+function _isHostOriginMatch(req) {
+  const host = req.headers.host;
+  const origin = req.headers.origin;
+  if (!host || !origin) return false;
+  // Two valid forms: http://<host> and https://<host>. tailscale serve
+  // terminates TLS so phone tabs use https; localhost dev uses http.
+  return origin === `http://${host}` || origin === `https://${host}`;
+}
+
 // Reflect the request's allowlisted origin instead of emitting `*`. Mismatch
 // between `isSameOrigin` (allowlist) and the response header (wildcard) is
 // only safe today because the guard runs first; reflecting keeps the two
@@ -440,14 +457,22 @@ const server = http.createServer((req, res) => {
 
   // Same-origin guard for proxy/API endpoints. Blocks SSRF via forged
   // Origin/Referer from browser tabs on malicious sites. See #119.
-  // /api/commit is read-only (returns public git HEAD sha + branch) and
-  // the SW relies on it to derive a per-commit cache key. Phone tabs
-  // served via tailscale carry an Origin header that doesn't match the
-  // localhost allowlist, so without this passthrough the SW falls back
-  // to a sha-less cache key and the bundle never updates on the phone.
+  //
+  // Two escape hatches:
+  // - /api/commit always passes (read-only, returns public git HEAD sha;
+  //   the SW relies on it to derive a per-commit cache key).
+  // - Cross-origin Origins still pass IF they exactly match the request's
+  //   own `Host` header. This is the canonical same-origin definition: the
+  //   browser only sets Origin = Host on a same-page fetch, never on a
+  //   cross-site request. tailscale-served phone tabs naturally pass —
+  //   Host = `mickey.tailnet.ts.net:port`, Origin = `http(s)://mickey.tailnet.ts.net:port`.
+  //   A malicious site can't forge this: when evil.com fetches our /api/proxy,
+  //   the browser sends Host = `localhost:8000` (the target) and Origin =
+  //   `https://evil.com` (the requester) — mismatch.
   if ((pathname.startsWith('/api/') || pathname === '/proxy')
       && pathname !== '/api/commit'
-      && !isSameOrigin(req)) {
+      && !isSameOrigin(req)
+      && !_isHostOriginMatch(req)) {
     res.writeHead(403); res.end('Forbidden'); return;
   }
   // Hard loopback gate when bound to 0.0.0.0 (LAN-exposed for phone
