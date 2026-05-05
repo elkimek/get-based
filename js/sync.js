@@ -1246,6 +1246,15 @@ const DELTA_MAPS = [
   'categoryIcons',       // user-picked category icons, keyed by category key
   'markerLabels',        // user-renamed marker labels, keyed by `category.markerKey`
   'wearablePrimaryOverride', // per-metric primary-source override, keyed by canonical metricId
+  // Dotted path: genetics.snps was DELTA_SCALARS via the parent `genetics`
+  // object until 2026-05. Whole-blob LWW meant two devices each importing
+  // a fresh raw DNA file in overlapping windows would lose one side's
+  // additions — Brave wrote 43 SNPs, Chrome (open all day, kept saving)
+  // overwrote the relay row with its stale 40-SNP blob. Per-key CRDT
+  // here means each rsID is independently last-write-wins, so cross-
+  // device adds compose instead of compete. The rest of `genetics`
+  // (source, importDate, coverage, mtdna) stays in DELTA_SCALARS.
+  'genetics.snps',
 ];
 
 // Singleton-shape importedData fields (scalars — null/object/string defaults
@@ -1673,12 +1682,21 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     // what the payload claims (defence-in-depth against a relay swapping
     // payloads between rows).
     if (_DELTA_MAPS_SET.has(arrayName)) {
-      if (!imported[arrayName] || typeof imported[arrayName] !== 'object' || Array.isArray(imported[arrayName])) {
+      // Dotted-path support — same getAt/setAt walk as the array path.
+      // Required for entries like `genetics.snps` so per-key CRDT lands
+      // in the nested object instead of clobbering it as a top-level
+      // sibling. Defaults to flat for the common case.
+      const isNestedMap = arrayName.includes('.');
+      const readMap = () => isNestedMap ? getAt(imported, arrayName) : imported[arrayName];
+      const writeMap = (v) => isNestedMap ? setAt(imported, arrayName, v) : (imported[arrayName] = v);
+      let curMap = readMap();
+      if (!curMap || typeof curMap !== 'object' || Array.isArray(curMap)) {
         // Object.create(null) (no Object.prototype chain) so a relay-
         // controlled key like '__proto__' that somehow slipped past the
         // _isAllowlistSafeId checks below would be a regular property
         // write, not a prototype-pollution sink. Defence-in-depth.
-        imported[arrayName] = Object.create(null);
+        curMap = Object.create(null);
+        writeMap(curMap);
       }
       // Same keyIdFn as push so synth-id maps verify correctly. Default
       // (identity-with-allowlist) collapses to `parsed.k === row.itemId`
@@ -1725,15 +1743,15 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       // itemId is in the tombstone set. Skips entries that just happened
       // to be re-inserted in this batch (liveByRawKey wins via overwrite).
       if (tombItemIds.size > 0) {
-        for (const k of Object.keys(imported[arrayName])) {
+        for (const k of Object.keys(curMap)) {
           if (liveByRawKey.has(k)) continue;
           const synth = keyIdFn(k);
-          if (synth && tombItemIds.has(synth)) delete imported[arrayName][k];
+          if (synth && tombItemIds.has(synth)) delete curMap[k];
         }
       }
       // Apply live entries under their ORIGINAL key (preserves the `:`
       // for manualValues etc — consumers read the raw key, not the synth).
-      for (const [rawKey, entry] of liveByRawKey) imported[arrayName][rawKey] = entry.v;
+      for (const [rawKey, entry] of liveByRawKey) curMap[rawKey] = entry.v;
       _pullDeltaSnapshot.perArray[arrayName] = { live: liveByRawKey.size, tombstones: tombItemIds.size };
       continue;
     }
@@ -2177,7 +2195,12 @@ export function getDeltaCutoverReadiness(profileId, importedData) {
     surfaces[arrayName].shape = 'array';
   }
   for (const mapName of DELTA_MAPS) {
-    const obj = importedData[mapName];
+    // Dotted-path entries (e.g. `genetics.snps`) walk via getAt so the
+    // readiness check counts the nested map, not a flat top-level
+    // sibling that doesn't exist. Without this, the gate would always
+    // report `localCount=0` for nested maps and silently pass even
+    // when the cutover would drop genuine data.
+    const obj = mapName.includes('.') ? getAt(importedData, mapName) : importedData[mapName];
     const localCount = (obj && typeof obj === 'object' && !Array.isArray(obj)) ? Object.keys(obj).length : 0;
     const rows = (rowsByName.get(mapName) || []).filter(r => !r.isDeleted);
     classify(mapName, localCount, rows.length);
@@ -2268,7 +2291,9 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // telemetry + the diagnose UI render them uniformly with the array
       // arrays.
       for (const mapName of DELTA_MAPS) {
-        const obj = importedData[mapName];
+        // Dotted-path support (e.g. `genetics.snps`) — same getAt walk
+        // as the array planner. Flat names hit the obvious top-level.
+        const obj = mapName.includes('.') ? getAt(importedData, mapName) : importedData[mapName];
         try {
           const plan = await _planKeyedMapDelta(profileId, mapName, obj);
           if (plan.ops.length > 0) {

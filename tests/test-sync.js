@@ -649,7 +649,7 @@ return (async function() {
   assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
     /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
-    /for \(const \[rawKey, entry\] of liveByRawKey\) imported\[arrayName\]\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
+    /for \(const \[rawKey, entry\] of liveByRawKey\) curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
 
   // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
   // result is allowlist-safe, original key recoverable on pull via
@@ -687,10 +687,18 @@ return (async function() {
     /_planKeyedMapDelta\(profileId,\s*mapName,\s*obj\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported routes map vs array by DELTA_MAPS membership',
     /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,4000}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
-  assert('Map-shape merge writes to imported[arrayName][rawKey] (preserves original key)',
-    /imported\[arrayName\]\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
-  assert('Map-shape merge deletes tombstoned keys from the object via synth-id reverse-lookup',
-    /tombItemIds\.has\(synth\)[\s\S]{0,200}delete imported\[arrayName\]\[k\]/.test(syncSrc));
+  assert('Map-shape merge writes to the resolved map container (preserves original key, dotted-path-safe)',
+    /curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
+  assert('Map-shape merge deletes tombstoned keys from the resolved map via synth-id reverse-lookup',
+    /tombItemIds\.has\(synth\)[\s\S]{0,200}delete curMap\[k\]/.test(syncSrc));
+  // Dotted-path support — required for genetics.snps and any other
+  // nested map registered in DELTA_MAPS. Without isNestedMap → getAt
+  // walk, per-key writes would land at a flat top-level sibling and
+  // miss the nested structure entirely.
+  assert('Map-shape merge resolves dotted-path entries via getAt/setAt',
+    /isNestedMap\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}getAt\(imported,\s*arrayName\)/.test(syncSrc));
+  assert('genetics.snps registered as a per-key DELTA_MAP (not whole-blob LWW)',
+    /'genetics\.snps'/.test(syncSrc));
   assert('Map-shape merge verifies via keyIdFn(parsed.k) === row.itemId (defence-in-depth, synth-aware)',
     /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
 
@@ -1002,7 +1010,7 @@ return (async function() {
   assert('Array-shape pull wraps itemIdFn with _isAllowlistSafeId guard',
     /rawItemIdFn[\s\S]{0,200}itemIdFn\s*=\s*\(it\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(syncSrc));
   assert('Fresh map container uses Object.create(null) defence',
-    /imported\[arrayName\]\s*=\s*Object\.create\(null\)/.test(syncSrc));
+    /curMap\s*=\s*Object\.create\(null\)/.test(syncSrc));
 
   // Resurrect-after-tombstone fix
   assert('_planArrayDelta resurrects tombstoned row by clearing isDeleted',
