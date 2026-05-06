@@ -8240,33 +8240,83 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 
 /* Compact AI verdict chip for the DASHBOARD Light Today strip. Sits
    under the head row, above the Conditions Now block. Same cached
-   verdict as the Light & Sun page hero — single AI call serves both. */
+   verdict as the Light & Sun page hero — single AI call serves both.
+   Tap-to-expand inline so the full detail is reachable on touch
+   devices (no hover-tooltip dependency). */
 .light-today-dash-ai {
-  display: flex; align-items: center; gap: 8px;
+  display: block;
   margin: 6px 0 10px 0;
-  padding: 6px 10px;
   border-radius: 6px;
   background: var(--bg-elev-1, rgba(255,255,255,0.03));
   border-left: 3px solid var(--text-muted);
   font-size: 12.5px;
-  text-decoration: none;
   color: var(--text-primary);
-  cursor: pointer;
   transition: background 0.15s, border-left-color 0.15s;
 }
-.light-today-dash-ai:hover { background: var(--bg-elev-2, rgba(255,255,255,0.05)); }
 .light-today-dash-ai-green  { border-left-color: var(--green); }
 .light-today-dash-ai-yellow { border-left-color: var(--yellow); }
 .light-today-dash-ai-red    { border-left-color: var(--red); }
+/* Inner row — tappable everywhere on the chip. */
+.light-today-dash-ai-row {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.light-today-dash-ai-row:hover { background: var(--bg-elev-2, rgba(255,255,255,0.05)); }
+.light-today-dash-ai-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .light-today-dash-ai-tip {
   flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.light-today-dash-ai-expanded .light-today-dash-ai-tip {
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+.light-today-dash-ai-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  transition: transform 0.15s;
+}
+.light-today-dash-ai-body {
+  padding: 0 10px 10px 30px; /* align with tip text, leave room for dot */
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border);
+  margin-top: 0;
+}
+.light-today-dash-ai-body p {
+  margin: 8px 0 6px 0;
+}
+.light-today-dash-ai-link {
+  display: inline-block;
+  font-size: 11.5px;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 0;
+}
+.light-today-dash-ai-link:hover { text-decoration: underline; }
+/* CTA + analyzing variants — single-line button shape. */
 .light-today-dash-ai-cta {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
   background: transparent;
   border: 1px dashed var(--border);
   border-left: 1px dashed var(--border);
+  border-radius: 6px;
   color: var(--accent);
+  font: inherit; font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  margin: 6px 0 10px 0;
 }
 .light-today-dash-ai-cta:hover {
   border-color: var(--accent);

@@ -385,8 +385,18 @@ export function renderLightTodayHero() {
 
 // Compact verdict line for the DASHBOARD's Light Today strip. Reuses
 // the same cached verdict as the Light & Sun page hero — runs the AI
-// once per day, both surfaces display it. The dashboard variant is
-// terser (one-line tip + dot + click-through) to fit the dense strip.
+// once per day, both surfaces display it. Tap-to-expand inline so the
+// detail is reachable on every device (the previous title-tooltip-only
+// design was hover-only and invisible on touch). When expanded, shows
+// the full detail + a deep-link to the Light & Sun page hero.
+let _dashChipExpanded = false;
+if (typeof window !== 'undefined') {
+  window._toggleLightTodayDashChip = () => {
+    _dashChipExpanded = !_dashChipExpanded;
+    if (window._refreshSunSurfaces) window._refreshSunSurfaces();
+  };
+}
+
 export function renderLightTodayDashboardChip() {
   if (!hasAIProvider()) return '';
   const today = new Date();
@@ -401,19 +411,27 @@ export function renderLightTodayDashboardChip() {
   }
   if (status === 'ok' && cached?.dot) {
     const dot = cached.dot;
-    return `<a class="light-today-dash-ai light-today-dash-ai-${dot}" href="#" onclick="event.preventDefault();window.navigate && window.navigate('light')" title="${escapeHTML(cached.detail || '')}">
-      <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
-      <span class="light-today-dash-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip || '')}</span>
-    </a>`;
+    const expanded = _dashChipExpanded;
+    const chevron = expanded ? '▾' : '▸';
+    return `<div class="light-today-dash-ai light-today-dash-ai-${dot}${expanded ? ' light-today-dash-ai-expanded' : ''}">
+      <button class="light-today-dash-ai-row" onclick="window._toggleLightTodayDashChip()" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Collapse' : 'Expand'} today's AI verdict">
+        <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
+        <span class="light-today-dash-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip || '')}</span>
+        <span class="light-today-dash-ai-chevron" aria-hidden="true">${chevron}</span>
+      </button>
+      ${expanded && cached.detail ? `<div class="light-today-dash-ai-body">
+        <p>${escapeHTML(cached.detail)}</p>
+        <a href="#" class="light-today-dash-ai-link" onclick="event.preventDefault();window.navigate && window.navigate('light')">Open Light &amp; Sun →</a>
+      </div>` : ''}
+    </div>`;
   }
   if (status === 'error') {
-    return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()" title="Retry today's verdict">
+    return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span class="light-today-dash-ai-tip">AI verdict failed — retry</span>
     </button>`;
   }
-  // Idle — never analyzed today
-  return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()" title="Run an AI synthesis of today's sun + devices + environment">
+  return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()">
     <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
     <span class="light-today-dash-ai-tip">✨ Get today's AI verdict</span>
   </button>`;
