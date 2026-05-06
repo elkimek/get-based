@@ -8261,14 +8261,15 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   border-style: solid;
 }
 
-/* Compact AI verdict chip for the DASHBOARD Light Today strip. Sits
-   under the head row, above the Conditions Now block. Same cached
-   verdict as the Light & Sun page hero — single AI call serves both.
-   Tap-to-expand inline so the full detail is reachable on touch
-   devices (no hover-tooltip dependency). */
+/* AI verdict block for the DASHBOARD Light Today strip. Sits under
+   the head row, above the Conditions Now block. Same cached verdict
+   as the Light & Sun page hero — single AI call serves both. Renders
+   tip + full detail + Open Light & Sun link by default (no collapse,
+   no hover-tooltip dependency — works on every device). */
 .light-today-dash-ai {
   display: block;
   margin: 6px 0 10px 0;
+  padding: 8px 12px;
   border-radius: 6px;
   background: var(--bg-elev-1, rgba(255,255,255,0.03));
   border-left: 3px solid var(--text-muted);
@@ -8279,44 +8280,35 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .light-today-dash-ai-green  { border-left-color: var(--green); }
 .light-today-dash-ai-yellow { border-left-color: var(--yellow); }
 .light-today-dash-ai-red    { border-left-color: var(--red); }
-/* Inner row — tappable everywhere on the chip. */
+/* Tip row — dot + tip + refresh button. Tip wraps fully (no ellipsis)
+   since the block isn't collapsed. */
 .light-today-dash-ai-row {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%;
-  padding: 6px 10px;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
+  display: flex; align-items: flex-start; gap: 8px;
 }
-.light-today-dash-ai-row:hover { background: var(--bg-elev-2, rgba(255,255,255,0.05)); }
-.light-today-dash-ai-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.light-today-dash-ai-row .sun-session-ai-dot {
+  margin-top: 4px; /* align with first line of tip text */
+  flex-shrink: 0;
+}
 .light-today-dash-ai-tip {
   flex: 1; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 500;
+  line-height: 1.45;
 }
-.light-today-dash-ai-expanded .light-today-dash-ai-tip {
-  white-space: normal; overflow: visible; text-overflow: clip;
-}
-.light-today-dash-ai-chevron {
+.light-today-dash-ai-row .sun-session-ai-refresh {
   flex-shrink: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-  transition: transform 0.15s;
 }
+/* Detail body — full paragraph + deep-link to the Light & Sun hero. */
 .light-today-dash-ai-body {
-  padding: 0 10px 10px 30px; /* align with tip text, leave room for dot */
+  margin-top: 8px;
+  padding-top: 8px;
+  padding-left: 18px; /* align with tip text, leave dot column free */
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-muted);
   border-top: 1px dashed var(--border);
-  margin-top: 0;
 }
 .light-today-dash-ai-body p {
-  margin: 8px 0 6px 0;
+  margin: 0 0 6px 0;
 }
 .light-today-dash-ai-link {
   display: inline-block;
@@ -8326,7 +8318,8 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   padding: 2px 0;
 }
 .light-today-dash-ai-link:hover { text-decoration: underline; }
-/* CTA + analyzing variants — single-line button shape. */
+/* CTA + analyzing variants — single-line button shape (no body
+   yet because verdict hasn't run). */
 .light-today-dash-ai-cta {
   display: flex; align-items: center; gap: 8px;
   width: 100%;
