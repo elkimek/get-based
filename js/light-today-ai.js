@@ -443,3 +443,20 @@ Object.assign(window, {
   renderLightTodayDashboardChip,
   computeLightTrends,
 });
+
+// Cross-page live-update — when a verdict completes elsewhere (e.g. an
+// auto-fire on the Light & Sun page while the user is reading the
+// dashboard), re-render the dashboard chip in place without rebuilding
+// the whole dashboard view. Surgical replace of the chip's outerHTML.
+// No-op when the user isn't on the dashboard.
+if (typeof window !== 'undefined') {
+  window.addEventListener('labcharts-ai-verdict-updated', () => {
+    if (state.currentView !== 'dashboard') return;
+    const existing = document.querySelector('.light-today-strip .light-today-dash-ai');
+    if (!existing) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderLightTodayDashboardChip().trim();
+    const fresh = wrapper.firstChild;
+    if (fresh) existing.replaceWith(fresh);
+  });
+}

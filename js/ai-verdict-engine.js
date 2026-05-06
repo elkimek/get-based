@@ -21,6 +21,39 @@ import { hasAIProvider, callClaudeAPI } from './api.js';
 import { saveImportedData } from './data.js';
 import { pushCurrentProfile, isSyncEnabled } from './sync.js';
 
+// Cross-device LWW behaviour (load-bearing for anyone debugging "verdict
+// mismatch on phone vs desktop"):
+//
+// When two devices analyze the same target concurrently (e.g. desktop
+// auto-fires the daily hero on first visit at 09:00:00, phone hits ↻
+// at 09:00:01), both writes sync via the per-row CRDT. The relay
+// resolves with last-write-wins on `syncedAt` — whichever push lands
+// later overwrites the other. The "loser" verdict is silently dropped
+// on the next pull.
+//
+// This is acceptable because: (a) verdicts are deterministic-ish (same
+// data → similar verdict, modulo LLM phrasing variance), (b) the user
+// owns both devices, so winning-vs-losing arbitrarily is fine, (c)
+// the fingerprint cache prevents most concurrent re-analyses anyway —
+// only a force-refresh-while-other-device-is-also-analyzing hits this
+// race in practice.
+//
+// If a future feature needs deterministic conflict resolution (e.g.
+// preserving the "best" verdict by length / model / timestamp), this
+// engine would need a per-device tiebreaker layer. Current design
+// accepts the race.
+
+// Global feature flag — set window.DISABLE_AI_VERDICTS = true at any
+// time (DevTools console, settings UI, conditional ?disableAI=1 query
+// param wired into a future settings hook) to short-circuit ALL
+// analyses across all consumers. Useful for: (a) on-call disabling
+// the engine without a deploy if a regression in the engine itself is
+// discovered, (b) users who want to keep the AI provider configured
+// for chat / lens but pause the per-row verdicts.
+function _engineDisabled() {
+  return typeof window !== 'undefined' && window.DISABLE_AI_VERDICTS === true;
+}
+
 // djb2 hash exposed because every consumer needs it for fingerprinting.
 export function hashString(str) {
   let h = 5381;
@@ -99,6 +132,16 @@ export function createAIVerdict(cfg) {
     } else if (typeof window !== 'undefined' && window._refreshSunSurfaces) {
       try { window._refreshSunSurfaces(); } catch (_) {}
     }
+    // Broadcast a custom event so surfaces NOT covered by
+    // _refreshSunSurfaces (e.g. the dashboard Light Today chip when
+    // the user is on the dashboard during an auto-fire) can react
+    // without a full navigate-rebuild. Listeners self-filter by view
+    // and only re-render their own slice.
+    if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+      try {
+        window.dispatchEvent(new CustomEvent('labcharts-ai-verdict-updated'));
+      } catch (_) {}
+    }
   }
 
   function isAnalyzing(id) {
@@ -126,24 +169,23 @@ export function createAIVerdict(cfg) {
 
   async function analyze(target, opts = {}) {
     if (!target) return null;
-    if (!hasAIProvider()) return null;
-    if (!canAnalyze(target)) return null;
+    if (_engineDisabled()) return null;
     const id = getId(target);
     if (!id) return null;
     if (inflight.has(id)) return null;
     const fingerprint = getFingerprint(target);
     const cached = getAIAnalysis(target);
-    // Cache-hit on EITHER auto OR force when the fingerprint is stable
-    // and the cached verdict is good. Force used to skip this check —
-    // which meant a manual refresh on an unchanged target would re-run
-    // the API for a verdict that should be identical, AND would write
-    // a row with a new generatedAt, churning the per-row CRDT (extra
-    // ~800B push to peers for nothing). Force still bypasses the cache
-    // when the user genuinely wants a re-roll on changed data, since
-    // the fingerprint will differ in that case.
+    // Cache-hit returns immediately, BEFORE provider / canAnalyze gates.
+    // Reading a cached verdict requires no API call and no feature gate
+    // — a user who removed their AI provider should still see the
+    // verdicts they generated earlier. Cache-hit applies on both auto
+    // and force calls; force still bypasses on fingerprint change.
     if (cached?.fingerprint === fingerprint && cached?.dot && cached?.status === 'ok') {
       return cached;
     }
+    // No cache-hit — gate fresh analyses on provider + canAnalyze.
+    if (!hasAIProvider()) return null;
+    if (!canAnalyze(target)) return null;
     inflight.add(id);
     _refresh();
     try {
