@@ -1007,6 +1007,7 @@ export function confirmMtDNAImport() {
   saveImportedData();
   closeMtDNAPreview();
   showNotification(`Haplogroup ${pending.resolved.haplogroup} imported`, 'success');
+  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   if (window.navigate) window.navigate('dashboard');
 }
 
@@ -1014,6 +1015,7 @@ export function deleteMtDNAData() {
   if (state.importedData.genetics) {
     delete state.importedData.genetics.mtdna;
     saveImportedData();
+    if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
     if (window.navigate) window.navigate('dashboard');
     showNotification('mtDNA haplogroup removed', 'info');
   }
@@ -1053,6 +1055,7 @@ export async function setManualHaplogroup(haplogroup) {
   };
   saveImportedData();
   showNotification(`Haplogroup ${hg} saved${coupling ? ' — ' + coupling.shortLabel : ''}`, 'success');
+  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   if (window.navigate) window.navigate('dashboard');
 }
 
@@ -1095,5 +1098,5 @@ Object.assign(window, {
   _buildGeneticsContext: buildGeneticsContext,
   _getRelevantSNPs: getRelevantSNPs,
   _getState: () => state,
-  _saveAndRefresh: () => { saveImportedData(); if (window.navigate) window.navigate('dashboard'); },
+  _saveAndRefresh: () => { saveImportedData(); if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {} if (window.navigate) window.navigate('dashboard'); },
 });
