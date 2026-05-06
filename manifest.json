@@ -1,8 +1,10 @@
 {
+  "id": "/app",
   "name": "getbased — Blood Work Dashboard",
   "short_name": "getbased",
   "description": "Track biomarker trends over time with AI-powered lab report import",
-  "start_url": "/",
+  "start_url": "/app",
+  "scope": "/app",
   "display": "standalone",
   "background_color": "#0f1117",
   "theme_color": "#1a1d27",
