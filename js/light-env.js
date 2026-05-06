@@ -1066,12 +1066,19 @@ export function renderEnvironmentSection() {
   // indicator, instead of the raw "8.2 hr/day · 4.2 hr/day" numbers
   // which read as abstract without context.
   const burden = computeIndoorBurden();
+  // The interp paragraph is delegated to the burden-AI module when an AI
+  // provider is configured + the user has any rooms/screens mapped — it
+  // returns a richer, personalized read of the burden mix and falls
+  // through to the heuristic copy otherwise.
+  const interpHTML = (typeof window !== 'undefined' && window.renderBurdenInterp)
+    ? window.renderBurdenInterp(burden)
+    : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
   html += `<div class="light-env-summary light-env-summary-${burden.color}">
     <div class="light-env-summary-head">
       <span class="light-env-summary-tier">${escapeHTML(burden.label)}</span>
       ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
     </div>
-    <p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>
+    ${interpHTML}
   </div>`;
 
   html += `</div>`;

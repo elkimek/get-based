@@ -2304,36 +2304,41 @@ function _toggleChannelDetail(channelKey) {
 // device, or both kinds of sessions. Device rows render inline since
 // they have a simpler shape (no per-channel chips on the device-side
 // — those would be the SAME chips on every row, not informative).
+// Default cap on the historical sessions list. Without this, a year of
+// daily sessions becomes a 365-row scroll — useful information drowns
+// in chronology. Cap at 10 most recent and offer a single toggle to
+// expand to the full history. Module-scoped flag persists for the tab
+// session (resets on reload) — small enough to be ergonomic, opinionated
+// enough to keep the page tight by default.
+const SESSIONS_DEFAULT_CAP = 10;
+let _showAllSessions = false;
+
 function renderUnifiedSessionsList() {
   // Active sun session is pinned at the top of the page (showLight
   // renders it before the quicklog row), so filter it out of the
   // historical-sessions list to avoid the same row appearing twice.
   const sunSessions = ((window.getSessions && window.getSessions()) || []).filter(s => !!s.endedAt);
   const devSessions = (window.getDeviceSessions && window.getDeviceSessions()) || [];
-  // Pure-sun path: render only ended sessions (active is pinned above).
-  // When the only session is the active one, return empty so we don't
-  // emit a "Sessions" header with nothing under it.
-  if (devSessions.length === 0) {
-    if (sunSessions.length === 0) return '';
-    let html = `<div class="sun-sessions-list">`;
-    if (typeof window.renderSunSessionRow === 'function') {
-      const sorted = sunSessions.slice().sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
-      for (const s of sorted) html += window.renderSunSessionRow(s);
-    }
-    html += `</div>`;
-    return html;
-  }
+
+  // Build the unified, sorted row list once — regardless of whether we
+  // have only sun, only devices, or both. Lets the cap + toggle apply
+  // uniformly across all three shapes.
   const rows = [];
   for (const s of sunSessions) rows.push({ kind: 'sun', startedAt: s.startedAt || 0, sess: s });
   for (const s of devSessions) rows.push({ kind: 'device', startedAt: s.startedAt || 0, sess: s });
+  if (rows.length === 0) return '';
   rows.sort((a, b) => b.startedAt - a.startedAt);
+
+  const totalCount = rows.length;
+  const visibleRows = _showAllSessions ? rows : rows.slice(0, SESSIONS_DEFAULT_CAP);
+  const hiddenCount = totalCount - visibleRows.length;
 
   const devices = (window.getDevices && window.getDevices()) || [];
   const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
   const renderSunRow = window.renderSunSessionRow;
 
-  let html = `<div class="sun-sessions-list light-sessions-list-unified">`;
-  for (const row of rows) {
+  let html = `<div class="sun-sessions-list${devSessions.length ? ' light-sessions-list-unified' : ''}">`;
+  for (const row of visibleRows) {
     if (row.kind === 'sun' && renderSunRow) {
       html += renderSunRow(row.sess);
     } else if (row.kind === 'device') {
@@ -2358,7 +2363,21 @@ function renderUnifiedSessionsList() {
     }
   }
   html += `</div>`;
+  // Toggle row — only render when there's something to expand/collapse.
+  if (hiddenCount > 0) {
+    html += `<button class="light-sessions-show-more" onclick="window._toggleAllSessions()">Show ${hiddenCount} older session${hiddenCount === 1 ? '' : 's'}</button>`;
+  } else if (_showAllSessions && totalCount > SESSIONS_DEFAULT_CAP) {
+    html += `<button class="light-sessions-show-more" onclick="window._toggleAllSessions()">Show only the ${SESSIONS_DEFAULT_CAP} most recent</button>`;
+  }
   return html;
+}
+
+// Exposed for the inline onclick on the show-more toggle.
+if (typeof window !== 'undefined') {
+  window._toggleAllSessions = () => {
+    _showAllSessions = !_showAllSessions;
+    if (window.navigate && state.currentView === 'light') window.navigate('light');
+  };
 }
 
 // One-line action suggestion based on the lowest-tier channel.

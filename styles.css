@@ -8189,6 +8189,55 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   vertical-align: middle;
 }
 
+/* Indoor-burden AI verdict — replaces the static heuristic interp at
+   the bottom of the Light Environment block when an AI verdict has
+   been generated. */
+.light-env-summary-ai {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 6px;
+  font-size: 13px; line-height: 1.5;
+}
+.light-env-summary-ai-green  { color: var(--green); }
+.light-env-summary-ai-yellow { color: var(--yellow); }
+.light-env-summary-ai-red    { color: var(--red); }
+.light-env-summary-ai-tip { flex: 1; min-width: 0; }
+.light-env-summary-ai-detail {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: normal;
+}
+.light-env-summary-ai-cta {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--accent); cursor: pointer;
+  font-size: 11.5px; padding: 3px 10px; border-radius: 6px;
+  white-space: nowrap;
+}
+.light-env-summary-ai-cta:hover { border-color: var(--accent); }
+
+/* "Show N older sessions" / "Show only the 10 most recent" toggle —
+   sits below the unified sessions list to keep the historical scroll
+   bounded. Default cap is 10 (SESSIONS_DEFAULT_CAP in views.js). */
+.light-sessions-show-more {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.light-sessions-show-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
 /* Detail-modal block — richer, two-line layout. */
 .sun-detail-ai {
   margin-bottom: 14px; padding: 12px 14px;
