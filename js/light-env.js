@@ -1184,6 +1184,7 @@ function renderLightAuditCard(a, expanded) {
   let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}">
     <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" onclick="window.toggleLightAudit('${escapeAttr(a.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightAudit('${escapeAttr(a.id)}')}">
       <div class="light-audit-info">
+        ${typeof window !== 'undefined' && window.renderAuditAIDot ? window.renderAuditAIDot(a) : ''}
         <span class="light-audit-date">${escapeHTML(fmtAuditDate(a.date))}</span>
         ${a.label ? `<span class="light-audit-label">${escapeHTML(a.label)}</span>` : ''}
         <span class="light-audit-meta">${roomsCount} room${roomsCount === 1 ? '' : 's'} · ${measCount} measurement${measCount === 1 ? '' : 's'}</span>
@@ -1227,7 +1228,8 @@ function renderLightAuditDetail(a) {
         <span class="light-audit-meta-field-text">Label</span>
         <input type="text" class="ctx-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" aria-label="Audit label" onchange="window.updateLightAuditField('${auditIdAttr}','label',this.value)">
       </label>
-    </div>`;
+    </div>
+    ${typeof window !== 'undefined' && window.renderAuditAIBlock ? window.renderAuditAIBlock(a) : ''}`;
 
   if (!(a.rooms || []).length) {
     html += `<p class="light-audit-empty">No rooms in this audit's snapshot.</p>`;
