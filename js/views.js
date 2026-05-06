@@ -26,12 +26,19 @@ function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
 
 export function navigate(category, data) {
   // Detect "re-render in place" (callsite is requesting a refresh of the
-  // current view, not a real navigation). When that's the case, preserve
-  // scroll position around the rebuild so interactions inside long pages
-  // (Light Environment rooms, especially) don't bounce the user back to
-  // the top on every chip click / AI refresh / room expand.
+  // current view, not a real navigation). On in-place re-renders we use
+  // ELEMENT-ANCHOR scroll preservation, not pixel-based: capture the
+  // viewport-top of the clicked element (or the closest stable container
+  // with a data-id), then after the rebuild scroll so that same element
+  // lands at the same viewport position. Pixel-based preservation breaks
+  // when the new layout has different content heights above the user's
+  // viewport — they'd see a jump even though scrollY was technically
+  // preserved.
   const sameView = category === state.currentView;
-  const preservedScrollY = sameView && typeof window !== 'undefined' ? (window.scrollY || 0) : 0;
+  let anchor = null;
+  if (sameView && typeof document !== 'undefined') {
+    anchor = _captureScrollAnchor();
+  }
   document.querySelectorAll(".nav-item").forEach(el => {
     el.classList.toggle("active", el.dataset.category === category);
   });
@@ -45,19 +52,75 @@ export function navigate(category, data) {
   else if (category === "light") showLight(data);
   else showCategory(category, data);
   state.currentView = category;
-  // Restore scroll for in-place re-renders. Synchronous + 50 ms re-apply
-  // so an async render path (chart paint, deferred stylesheet) that
-  // happens after this returns can't reset scroll behind our back.
-  if (sameView && preservedScrollY > 0 && typeof window !== 'undefined') {
-    const apply = () => {
-      try { window.scrollTo({ top: preservedScrollY, behavior: 'instant' }); } catch (_) {
-        try { window.scrollTo(0, preservedScrollY); } catch (__) {}
+
+  if (anchor) {
+    // Force synchronous layout so getBoundingClientRect is accurate.
+    void document.body.offsetHeight;
+    _restoreScrollAnchor(anchor);
+    // Re-apply on next frame and the frame after, in case post-layout
+    // async paths (chart paint, image decoding) shift content.
+    requestAnimationFrame(() => {
+      _restoreScrollAnchor(anchor);
+      requestAnimationFrame(() => _restoreScrollAnchor(anchor));
+    });
+  }
+}
+
+// Capture identity + viewport position of the most reasonable scroll
+// anchor for the current interaction. Priority:
+//   1. The currently focused element (usually the button the user just
+//      clicked) — walks up to a parent with data-id or [data-screen-id]
+//      so the marker survives an innerHTML wipe of #main-content.
+//   2. Failing that, the first element with data-id that's visible in
+//      the viewport — keeps the on-screen content stable even when the
+//      navigation wasn't user-initiated (e.g. async refresh).
+function _captureScrollAnchor() {
+  let el = document.activeElement;
+  // Walk up looking for a stable selector
+  while (el && el !== document.body && el !== document.documentElement) {
+    const sel = _stableSelectorFor(el);
+    if (sel) {
+      const rect = el.getBoundingClientRect();
+      // Skip if the anchor is off-screen — would still work but
+      // intent-wise we want a viewport-visible anchor.
+      if (rect.bottom > 0 && rect.top < window.innerHeight) {
+        return { selector: sel, viewportTop: rect.top };
       }
-    };
-    apply();
-    setTimeout(() => {
-      if (Math.abs(window.scrollY - preservedScrollY) > 4) apply();
-    }, 50);
+    }
+    el = el.parentElement;
+  }
+  // Fallback: pick the first stably-identifiable element currently in
+  // viewport. This covers async re-renders (AI refresh, sync pull) where
+  // there's no focused click target.
+  const candidates = document.querySelectorAll('[data-id], [data-screen-id], [data-room-id]');
+  for (const c of candidates) {
+    const rect = c.getBoundingClientRect();
+    if (rect.top >= 0 && rect.top < window.innerHeight) {
+      const sel = _stableSelectorFor(c);
+      if (sel) return { selector: sel, viewportTop: rect.top };
+    }
+  }
+  return null;
+}
+
+function _stableSelectorFor(el) {
+  if (!el || !el.dataset) return null;
+  if (el.dataset.id) return `[data-id="${CSS.escape(el.dataset.id)}"]`;
+  if (el.dataset.screenId) return `[data-screen-id="${CSS.escape(el.dataset.screenId)}"]`;
+  if (el.dataset.roomId) return `[data-room-id="${CSS.escape(el.dataset.roomId)}"]`;
+  return null;
+}
+
+function _restoreScrollAnchor(anchor) {
+  if (!anchor) return;
+  const el = document.querySelector(anchor.selector);
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const delta = rect.top - anchor.viewportTop;
+  if (Math.abs(delta) > 1) {
+    try { window.scrollBy({ top: delta, behavior: 'instant' }); } catch (_) {
+      try { window.scrollBy(0, delta); } catch (__) {}
+    }
   }
 }
 
