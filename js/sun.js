@@ -1428,10 +1428,32 @@ function _topChannel(sess) {
 
 // Re-render dashboard sidebar + current view after a session change so the
 // Light Today strip + sidebar entry appear / update without a manual reload.
+//
+// Captures + restores window scroll position around the navigate() call —
+// without this, every interaction inside a Light Environment room (toggling
+// expand, picking a chip, refreshing an AI verdict) bounces the user back
+// to the top of the page since navigate() rebuilds the entire main element.
+// The restore is double-applied: synchronous after navigate() (covers same-
+// frame layout) and once more after a tick (covers async render paths that
+// finish after navigate() returns — e.g. async chart paint).
 function _refreshSurfaces() {
+  const scrollY = (typeof window !== 'undefined' && window.scrollY) || 0;
   if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   const view = state.currentView || 'dashboard';
   if (window.navigate) try { window.navigate(view); } catch (e) {}
+  if (typeof window !== 'undefined' && scrollY > 0) {
+    try { window.scrollTo({ top: scrollY, behavior: 'instant' }); } catch (e) {
+      try { window.scrollTo(0, scrollY); } catch (_) {}
+    }
+    // Re-apply on next tick in case any async render undid it.
+    setTimeout(() => {
+      if (Math.abs(window.scrollY - scrollY) > 4) {
+        try { window.scrollTo({ top: scrollY, behavior: 'instant' }); } catch (e) {
+          try { window.scrollTo(0, scrollY); } catch (_) {}
+        }
+      }
+    }, 50);
+  }
   // After re-render the active-session card is a fresh DOM node — make sure
   // the ticker is alive so it patches the new card on the next interval.
   setTimeout(() => _resumeActiveTickerIfNeeded(), 100);

@@ -25,6 +25,13 @@ function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
 // ═══════════════════════════════════════════════
 
 export function navigate(category, data) {
+  // Detect "re-render in place" (callsite is requesting a refresh of the
+  // current view, not a real navigation). When that's the case, preserve
+  // scroll position around the rebuild so interactions inside long pages
+  // (Light Environment rooms, especially) don't bounce the user back to
+  // the top on every chip click / AI refresh / room expand.
+  const sameView = category === state.currentView;
+  const preservedScrollY = sameView && typeof window !== 'undefined' ? (window.scrollY || 0) : 0;
   document.querySelectorAll(".nav-item").forEach(el => {
     el.classList.toggle("active", el.dataset.category === category);
   });
@@ -38,6 +45,20 @@ export function navigate(category, data) {
   else if (category === "light") showLight(data);
   else showCategory(category, data);
   state.currentView = category;
+  // Restore scroll for in-place re-renders. Synchronous + 50 ms re-apply
+  // so an async render path (chart paint, deferred stylesheet) that
+  // happens after this returns can't reset scroll behind our back.
+  if (sameView && preservedScrollY > 0 && typeof window !== 'undefined') {
+    const apply = () => {
+      try { window.scrollTo({ top: preservedScrollY, behavior: 'instant' }); } catch (_) {
+        try { window.scrollTo(0, preservedScrollY); } catch (__) {}
+      }
+    };
+    apply();
+    setTimeout(() => {
+      if (Math.abs(window.scrollY - preservedScrollY) > 4) apply();
+    }, 50);
+  }
 }
 
 // ═══════════════════════════════════════════════
