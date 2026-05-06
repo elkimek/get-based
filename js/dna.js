@@ -3,7 +3,7 @@
 // Runs the heavy parsing in a Web Worker (inline blob) to keep UI responsive
 
 import { state } from './state.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, hashString, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 
 // ═══════════════════════════════════════════════
@@ -205,6 +205,16 @@ function loadSNPTable({ forceFresh = false } = {}) {
 // Eagerly load SNP table when genetics data exists (e.g. after JSON import)
 export function ensureSNPTable() { if (state.importedData?.genetics) loadSNPTable(); }
 
+// Catalog signature: { size, hash } over the sorted rsID list. Stamped on
+// genetics at import time and re-computed at render time so the genetics
+// card can flag "catalog grew since your import — re-import to include
+// new SNPs". Hash catches swap/replace cases that a raw size compare misses.
+function _catalogSignature(snpTable) {
+  if (!snpTable) return null;
+  const rsids = Object.keys(snpTable).filter(k => k.startsWith('rs')).sort();
+  return { size: rsids.length, hash: hashString(rsids.join(',')) };
+}
+
 // Returns { matches: { rsid: { genotype, gene, variant, effect, note } }, source, totalLines, coverage }
 export async function parseDNAFile(file) {
   // Force-fresh on every parse so a re-import after the catalog grew
@@ -310,6 +320,7 @@ export function saveGeneticsData(profileData, parseResult) {
     coverage: parseResult.coverage,
     effects: { significant, moderate, normal },
     snps: {},
+    catalogVersion: _catalogSignature(_snpTable),
   };
   for (const [rsid, data] of Object.entries(parseResult.matches)) {
     profileData.genetics.snps[rsid] = {
@@ -325,6 +336,27 @@ export function saveGeneticsData(profileData, parseResult) {
 
 export function deleteGeneticsData(profileData) {
   delete profileData.genetics;
+}
+
+// Returns a one-line user-facing hint or null. "May" wording — the user's
+// raw file may not actually contain the new rsIDs, so we don't promise
+// anything specific.
+function _geneticsStalenessHint(genetics) {
+  if (!_snpTable || !genetics) return null;
+  const current = _catalogSignature(_snpTable);
+  if (!current) return null;
+  const stored = genetics.catalogVersion;
+  if (stored && stored.hash === current.hash) return null;
+  if (stored && current.size > stored.size) {
+    const delta = current.size - stored.size;
+    return `${delta} new SNP${delta === 1 ? '' : 's'} added to the catalog since your import — re-importing may include them.`;
+  }
+  if (stored) {
+    return `Catalog has been updated since your import — re-importing may refresh your matches.`;
+  }
+  // Legacy import (pre-catalog-tracking): we can't tell precisely, but the
+  // current catalog may include SNPs the user is missing.
+  return `Re-importing may include any SNPs added to the catalog since your last import.`;
 }
 
 // ═══════════════════════════════════════════════
@@ -553,6 +585,11 @@ export function renderGeneticsSection() {
       html += `<button class="genetics-show-all" onclick="toggleGeneticsExpand(this)">${totalFindings - INITIAL_LIMIT} more findings</button>`;
     }
     html += `</div>`;
+  }
+
+  const _staleHint = _geneticsStalenessHint(genetics);
+  if (_staleHint) {
+    html += `<div class="genetics-stale-hint">${escapeHTML(_staleHint)}</div>`;
   }
 
   html += `<div class="genetics-actions">

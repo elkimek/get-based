@@ -3607,6 +3607,7 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .genetics-findings.expanded .genetics-finding-row.genetics-extra { display: grid; }
 .genetics-show-all { background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 6px 0 0; }
 .genetics-show-all:hover { color: var(--accent); }
+.genetics-stale-hint { font-size: 12px; color: var(--text-secondary); background: rgba(234, 179, 8, 0.06); border-left: 3px solid var(--yellow); padding: 6px 10px; border-radius: var(--radius-sm); margin-top: 12px; }
 .genetics-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 4px; }
 .genetics-action-link { font-size: 11px; color: var(--text-muted); cursor: pointer; opacity: 0.6; }
 .genetics-action-link:hover { opacity: 1; color: var(--text-secondary); }
