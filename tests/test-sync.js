@@ -686,7 +686,7 @@ return (async function() {
   assert('pushProfile uses _planKeyedMapDelta for map shapes',
     /_planKeyedMapDelta\(profileId,\s*mapName,\s*obj\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported routes map vs array by DELTA_MAPS membership',
-    /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,4000}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
+    /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,6000}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
   assert('Map-shape merge writes to the resolved map container (preserves original key, dotted-path-safe)',
     /curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
   assert('Map-shape merge deletes tombstoned keys from the resolved map via synth-id reverse-lookup',
@@ -750,7 +750,7 @@ return (async function() {
   assert('getDeltaCutoverReadiness walks dotted DELTA_ARRAYS entries via getAt',
     /getDeltaCutoverReadiness[\s\S]{0,2000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(syncSrc));
   assert('_mergeItemRowsIntoImported writes nested arrays back via setAt',
-    /_mergeItemRowsIntoImported[\s\S]{0,9000}isNested\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}setAt\(imported,\s*arrayName,/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,12000}isNested\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}setAt\(imported,\s*arrayName,/.test(syncSrc));
   assert('DELTA_SCALARS includes free-form text fields',
     /'interpretiveLens'/.test(syncSrc) && /'contextNotes'/.test(syncSrc));
   assert('_planScalarDelta defined',
@@ -772,7 +772,7 @@ return (async function() {
   assert('Pull-side scalar branch ignores foreign rows in the same slot (defence-in-depth)',
     /row\.itemId\s*!==\s*arrayName[\s\S]{0,80}continue/.test(syncSrc));
   assert('Pull-side scalar tombstone wins LWW only when at-or-newer than live',
-    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,200}imported\[arrayName\]\s*=\s*null/.test(syncSrc));
+    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,1500}imported\[arrayName\]\s*=\s*null/.test(syncSrc));
   assert('Pull-side scalar live row writes imported[arrayName] = chosen.v',
     /imported\[arrayName\]\s*=\s*chosen\.v/.test(syncSrc));
 
@@ -1477,6 +1477,25 @@ return (async function() {
   // re-injects local snps before assigning back to importedData.
   assert('Pull-side genetics scalar merge preserves local .snps map',
     /arrayName\s*===\s*'genetics'[\s\S]{0,800}localSnps\s*=\s*imported\.genetics\.snps[\s\S]{0,400}imported\.genetics\.snps\s*=\s*localSnps/.test(syncSrc));
+
+  // Pull-side TOMBSTONE branch must mirror the live branch's snps-preserve.
+  // Without this, byArray iteration order (relay-row-ordering-dependent)
+  // determines whether snps survive a stale scalar tombstone. Concrete
+  // failure: device deletes genetics → re-imports → snps tombstones blocked
+  // by storm guard but scalar tombstone propagates → peer's pull picks
+  // tombstone-as-newest-syncedAt → wipes imported.genetics → snps gone
+  // despite live rows in the per-row layer.
+  assert('Pull-side genetics scalar TOMBSTONE branch preserves .snps when present',
+    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,1500}arrayName\s*===\s*'genetics'[\s\S]{0,500}imported\.genetics\s*=\s*\{\s*snps:\s*imported\.genetics\.snps\s*\}/.test(syncSrc));
+
+  // Sidebar rebuild after every pull — conditional nav items (Genetics,
+  // Wearables, etc.) gate on data presence, and per-row CRDT deltas can
+  // populate scalars/maps that localHasRowsRemoteLacks() misses (it only
+  // diffs id-keyed arrays in the blob). Without this the user must
+  // refresh the page to see a Genetics nav entry land from a peer's DNA
+  // import. Lives in onSyncReceived's active-profile post-merge block.
+  assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
+    /profileId\s*===\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,200}remoteBroughtNewRows/.test(syncSrc));
 
   // Live: simulate the strip helper inline and prove shape preservation
   if (typeof window !== 'undefined') {

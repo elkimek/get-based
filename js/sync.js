@@ -1701,7 +1701,27 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       // overwrites when its syncedAt is at-or-newer than the chosen
       // live row (otherwise an old delete would obliterate a fresh edit).
       if (tombstoned && tombstonedAt >= chosenAt) {
-        imported[arrayName] = null;
+        // Symmetric snps preservation — the live branch below restores
+        // imported.genetics.snps when the map merge ran first; the
+        // tombstone branch needs the same guard or `genetics.snps` rows
+        // get silently wiped whenever the per-row map merger happens to
+        // run before this scalar branch (byArray iteration order is
+        // determined by relay row ordering, so it's racy). Concrete
+        // failure mode: device imports DNA, deletes it, re-imports —
+        // the in-flight delete tombstone has a later syncedAt than the
+        // re-import scalar update on a peer, the peer's map branch
+        // populates 41 snps under imported.genetics, then this scalar
+        // branch wipes imported.genetics = null. End state: peer shows
+        // null genetics despite 41 live snps rows on the relay. This
+        // guard keeps the per-row layer's snps independent.
+        if (arrayName === 'genetics'
+            && imported.genetics && typeof imported.genetics === 'object'
+            && imported.genetics.snps && typeof imported.genetics.snps === 'object'
+            && Object.keys(imported.genetics.snps).length > 0) {
+          imported.genetics = { snps: imported.genetics.snps };
+        } else {
+          imported[arrayName] = null;
+        }
       } else if (chosen) {
         // Preserve nested fields owned by a DELTA_MAPS dotted path —
         // the scalar payload is metadata-only by contract, so a remote
@@ -3098,6 +3118,15 @@ async function onSyncReceived() {
           // into the session log dialog) doesn't get wiped on every pull.
           const activeNav = document.querySelector('.nav-item.active');
           const cat = activeNav?.dataset?.category || 'dashboard';
+          // Sidebar nav items are conditional on data presence (e.g. the
+          // Genetics entry only renders when state.importedData.genetics
+          // exists). Per-row CRDT deltas can populate scalars/maps that
+          // localHasRowsRemoteLacks() doesn't see — it only diffs id-keyed
+          // arrays in the blob. Always rebuild the sidebar after a pull so
+          // those entries appear/disappear without waiting for the next
+          // local action. Cheap (~1ms) and doesn't disturb in-progress
+          // forms in the main pane.
+          if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
           if (!remoteBroughtNewRows) {
             // Remote brought nothing new (local was already a superset or
             // identical for every id-keyed array). Profile-field / chat /
