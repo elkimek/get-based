@@ -258,7 +258,6 @@ const engine = createAIVerdict({
   getAllTargets: getSessions,
 });
 
-export const isAnalyzing = engine.isAnalyzing;
 export const analyzeSunSessionAI = engine.analyze;
 export const refreshSessionAIAnalysis = engine.refresh;
 export const maybeAnalyzeSessionAfterFinish = engine.maybeAfterFinish;

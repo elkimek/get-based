@@ -50,8 +50,12 @@
   --green-bg: rgba(5,150,105,0.12);
   --red: #dc2626;
   --red-bg: rgba(220,38,38,0.1);
-  --yellow: #d97706;
-  --yellow-bg: rgba(217,119,6,0.1);
+  /* Light-theme yellow darkened from #d97706 (amber-600, ~4.0:1 on
+     light bg — fails WCAG AA 4.5:1) to #b45309 (amber-700, ~5.7:1).
+     Used for tip text on yellow verdicts; the dot/border still reads
+     warm-amber but body copy is now legible for low-vision users. */
+  --yellow: #b45309;
+  --yellow-bg: rgba(180,83,9,0.1);
   --ref-band: rgba(59,124,245,0.06);
   --ref-border: rgba(59,124,245,0.2);
   --chart-grid: rgba(0,0,0,0.08);
@@ -6703,7 +6707,10 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   .light-env-room-disclosure,
   .light-env-screen-card,
   .light-ott-badge.tier-changed,
-  .conditions-now-source.just-refreshed {
+  .conditions-now-source.just-refreshed,
+  /* AI verdict shimmer dot — explicit suppression for vestibular
+     sensitivity. Static gray dot reads as "loading" without animation. */
+  .sun-session-ai-dot-shimmer {
     transition: none !important;
     animation: none !important;
     transform: none !important;
@@ -7755,6 +7762,16 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   .sun-silhouette-region:focus-visible {
     stroke-opacity: 1;
   }
+  /* AI verdict refresh + dismiss + CTA buttons — meet 44×44 minimum
+     hit target on touch devices. Visual size unchanged on hover; the
+     extra touch area is the padding boost. */
+  .sun-session-ai-refresh,
+  .tool-aiming-guide-dismiss,
+  .sun-session-ai-cta {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
 }
 .sun-silhouette-label {
   font-size: 11px;
@@ -8187,6 +8204,12 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   width: 9px; height: 9px;
   margin-right: 4px;
   vertical-align: middle;
+}
+/* On very narrow screens the audit card header is already cramped
+   (date + label + delete + chevron). Drop the verdict dot from the
+   header — it's still rendered in the expanded detail body. */
+@media (max-width: 375px) {
+  .light-audit-ai-dot { display: none; }
 }
 
 /* Indoor-burden AI verdict — replaces the static heuristic interp at

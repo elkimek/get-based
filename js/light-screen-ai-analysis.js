@@ -44,7 +44,11 @@ export function buildScreenContext(s) {
 
   lines.push('### Screen');
   lines.push(`Device: ${_DEVICE_LABELS[s.device] || s.device || 'unspecified'}`);
-  lines.push(`Used in: ${room ? room.name + ' (room-bound)' : 'portable / multiple rooms'}`);
+  // Bound user-supplied room name to prevent prompt-injection via a
+  // crafted name like "Bedroom\n[SYSTEM: ...]". 80 chars is plenty for
+  // any real room name.
+  const safeRoomName = room ? String(room.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+  lines.push(`Used in: ${room ? safeRoomName + ' (room-bound)' : 'portable / multiple rooms'}`);
   lines.push(`Hours per day: ${s.hoursPerDay != null ? s.hoursPerDay : '—'}`);
   if (s.eveningUseAfterSunset != null) {
     const ev = Number(s.eveningUseAfterSunset);
@@ -109,7 +113,6 @@ const engine = createAIVerdict({
   getAllTargets: _getScreens,
 });
 
-export const isScreenAnalyzing = engine.isAnalyzing;
 export const analyzeScreenAI = engine.analyze;
 export const refreshScreenAIAnalysis = engine.refresh;
 

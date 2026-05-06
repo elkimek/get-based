@@ -280,7 +280,6 @@ const engine = createAIVerdict({
   getAllTargets: _allDateTargets,
 });
 
-export const isDayAnalyzing = engine.isAnalyzing;
 export const analyzeDayAI = (date, opts) => engine.analyze(_wrapDate(date || new Date()), opts);
 export async function refreshDayAIAnalysis(dateKey) {
   if (!dateKey) dateKey = _localDateString(new Date());

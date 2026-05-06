@@ -63,6 +63,12 @@ function _formatNumber(n, digits = 1) {
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
+// Bound user-controlled free-text in prompt context (audit label, room
+// names) to prevent prompt-injection via crafted strings + token bloat.
+function _safeText(s, max = 80) {
+  return String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
 function _latestInAudit(audit, tool, roomId) {
   return (audit?.measurements || [])
     .filter(m => m.tool === tool && m.roomId === roomId)
@@ -73,7 +79,7 @@ export function buildAuditContext(a) {
   if (!a) return '';
   const lines = [];
   lines.push(`### Light environment audit`);
-  lines.push(`Date: ${a.date}${a.label ? ` (${a.label})` : ''}`);
+  lines.push(`Date: ${a.date}${a.label ? ` (${_safeText(a.label, 100)})` : ''}`);
   lines.push(`Snapshot taken on: ${new Date(a.createdAt || Date.now()).toISOString().slice(0, 10)}`);
 
   const rooms = a.rooms || [];
@@ -86,7 +92,7 @@ export function buildAuditContext(a) {
     lines.push('');
     lines.push('### Rooms');
     for (const r of rooms) {
-      const roomLines = [`- ${r.name || '(unnamed)'}`];
+      const roomLines = [`- ${_safeText(r.name) || '(unnamed)'}`];
       if (r.primarySource) roomLines.push(`  Primary source: ${_SOURCE_LABELS[r.primarySource] || r.primarySource}`);
       if (r.hoursOccupiedPerDay != null) roomLines.push(`  Hours occupied: ${r.hoursOccupiedPerDay}/day`);
       const eveHrs = r.eveningHoursAfterSunset != null
@@ -202,7 +208,6 @@ const engine = createAIVerdict({
   getAllTargets: _getAudits,
 });
 
-export const isAuditAnalyzing = engine.isAnalyzing;
 export const analyzeAuditAI = engine.analyze;
 export const refreshAuditAIAnalysis = engine.refresh;
 export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;

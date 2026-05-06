@@ -76,7 +76,8 @@ export function buildBurdenContext() {
     lines.push('### Rooms active today');
     for (const r of rooms) {
       const ev = r.eveningHoursAfterSunset != null ? Number(r.eveningHoursAfterSunset) : (r.eveningUseAfterSunset ? 2 : 0);
-      lines.push(`- ${r.name}: source=${_SOURCE_LABELS[r.primarySource] || r.primarySource || 'unknown'}, occupied ${r.hoursOccupiedPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}`);
+      const safeName = String(r.name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      lines.push(`- ${safeName}: source=${_SOURCE_LABELS[r.primarySource] || r.primarySource || 'unknown'}, occupied ${r.hoursOccupiedPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}`);
     }
   }
 
@@ -156,7 +157,6 @@ const engine = createAIVerdict({
   getAllTargets: () => (_getEnv() ? [SINGLETON] : []),
 });
 
-export const isBurdenAnalyzing = () => engine.isAnalyzing('default');
 export const analyzeBurdenAI = (opts) => engine.analyze(SINGLETON, opts);
 export const refreshBurdenAIAnalysis = () => engine.refresh('default');
 

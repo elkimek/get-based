@@ -157,7 +157,8 @@ export function buildMeasurementContext(m) {
     lines.push(`Captured: ${d.toLocaleString()} (${timeOfDay})`);
   }
   const room = getRoomNameFor(m);
-  if (room) lines.push(`Room: ${room}`);
+  // Bound user-supplied room name to prevent prompt-injection.
+  if (room) lines.push(`Room: ${String(room).replace(/\s+/g, ' ').trim().slice(0, 80)}`);
   const goals = state.importedData?.healthGoals?.goals || '';
   const sleep = state.importedData?.sleepRest;
   if (goals) lines.push(`User goals: ${String(goals).slice(0, 200)}`);
@@ -202,7 +203,6 @@ const engine = createAIVerdict({
   getAllTargets: getMeasurements,
 });
 
-export const isMeasurementAnalyzing = engine.isAnalyzing;
 export const analyzeMeasurementAI = engine.analyze;
 export const refreshMeasurementAIAnalysis = engine.refresh;
 export const maybeAnalyzeMeasurementAfterSave = engine.maybeAfterFinish;
@@ -214,11 +214,11 @@ export function renderMeasurementAIInline(m) {
   if (m.tool === 'audit') return ''; // aggregate row carries no per-tool verdict
   const status = engine.getStatus(m);
   const a = m.aiAnalysis;
-  const refreshBtn = `<button class="sun-session-ai-refresh" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')" title="Re-run interpretation" aria-label="Re-run AI interpretation">↻</button>`;
+  const refreshBtn = `<button class="sun-session-ai-refresh" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
   if (status === 'analyzing') {
     return `<div class="light-env-reading-ai">
       <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip">Interpreting…</span>
+      <span class="sun-session-ai-tip">Analyzing…</span>
     </div>`;
   }
   if (status === 'ok') {
@@ -232,13 +232,13 @@ export function renderMeasurementAIInline(m) {
   if (status === 'error') {
     return `<div class="light-env-reading-ai sun-session-ai-error">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip">Interpretation failed</span>
+      <span class="sun-session-ai-tip">Analysis failed</span>
       ${refreshBtn}
     </div>`;
   }
   return `<div class="light-env-reading-ai sun-session-ai-idle">
     <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <button class="sun-session-ai-cta" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')">Interpret</button>
+    <button class="sun-session-ai-cta" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')">Analyze</button>
   </div>`;
 }
 

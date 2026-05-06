@@ -188,7 +188,6 @@ const engine = createAIVerdict({
   getAllTargets: getDeviceSessions,
 });
 
-export const isDeviceSessionAnalyzing = engine.isAnalyzing;
 export const analyzeDeviceSessionAI = engine.analyze;
 export const refreshDeviceSessionAIAnalysis = engine.refresh;
 export const maybeAnalyzeDeviceSessionAfterFinish = engine.maybeAfterFinish;

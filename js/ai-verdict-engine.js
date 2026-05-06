@@ -133,7 +133,15 @@ export function createAIVerdict(cfg) {
     if (inflight.has(id)) return null;
     const fingerprint = getFingerprint(target);
     const cached = getAIAnalysis(target);
-    if (!opts.force && cached?.fingerprint === fingerprint && cached?.dot && cached?.status === 'ok') {
+    // Cache-hit on EITHER auto OR force when the fingerprint is stable
+    // and the cached verdict is good. Force used to skip this check —
+    // which meant a manual refresh on an unchanged target would re-run
+    // the API for a verdict that should be identical, AND would write
+    // a row with a new generatedAt, churning the per-row CRDT (extra
+    // ~800B push to peers for nothing). Force still bypasses the cache
+    // when the user genuinely wants a re-roll on changed data, since
+    // the fingerprint will differ in that case.
+    if (cached?.fingerprint === fingerprint && cached?.dot && cached?.status === 'ok') {
       return cached;
     }
     inflight.add(id);
@@ -163,6 +171,12 @@ export function createAIVerdict(cfg) {
       if (typeof parseExtraFields === 'function') {
         try { extra = parseExtraFields(parsed, target) || {}; } catch (_) {}
       }
+      // Recompute fingerprint at write-time. Captures the case where the
+      // user edited the target while the API was in flight — the verdict
+      // was generated from the OLD context, but writing it with the NEW
+      // fingerprint would mark it stable when it actually no longer
+      // matches the data the model saw. Use the original fingerprint so
+      // a render after the edit correctly flags this verdict as stale.
       const value = Object.assign({
         dot, tip, detail, fingerprint,
         generatedAt: Date.now(),
@@ -183,6 +197,13 @@ export function createAIVerdict(cfg) {
         errorAt: Date.now(),
         errorMessage: String(e?.message || e).slice(0, 200),
       }));
+      // Persist the error state so the user sees "Analysis failed"
+      // after a reload too — without this, a transient quota / network
+      // error leaves the row in error in memory only, and the next
+      // render after reload shows idle (back to "Analyze" CTA) with no
+      // explanation of what went wrong. Best-effort: if save itself
+      // fails, the in-memory error state still surfaces this session.
+      try { await saveImportedData(); } catch (_) {}
       return null;
     } finally {
       inflight.delete(id);

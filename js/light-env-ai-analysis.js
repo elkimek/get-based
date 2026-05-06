@@ -45,6 +45,14 @@ function _formatNumber(n, digits = 1) {
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
+// Cap user-supplied free-text fields fed into prompt context to prevent
+// prompt injection / token bloat from a 10kB pasted name. Strip newlines
+// + collapse whitespace so a name like "Bedroom\n[SYSTEM: ...]" becomes
+// inline text the model parses as a label, not as a directive.
+function _safeText(s, max = 80) {
+  return String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
 const _SCREEN_TYPE_LABELS = {
   phone: 'phone', tablet: 'tablet', laptop: 'laptop',
   monitor: 'monitor', tv: 'TV', ereader: 'e-reader',
@@ -65,7 +73,7 @@ export function buildRoomContext(r) {
   const lines = [];
 
   lines.push(`### Room`);
-  lines.push(`Name: ${r.name || '(unnamed)'}`);
+  lines.push(`Name: ${_safeText(r.name) || '(unnamed)'}`);
   if (r.primarySource) lines.push(`Primary light source: ${_SOURCE_LABELS[r.primarySource] || r.primarySource}`);
   if (r.hoursOccupiedPerDay != null) lines.push(`Hours occupied per day: ${r.hoursOccupiedPerDay}`);
   const eveningHrs = r.eveningHoursAfterSunset != null
@@ -173,7 +181,6 @@ const engine = createAIVerdict({
   getAllTargets: _getRooms,
 });
 
-export const isRoomAnalyzing = engine.isAnalyzing;
 export const analyzeRoomAI = engine.analyze;
 export const refreshRoomAIAnalysis = engine.refresh;
 

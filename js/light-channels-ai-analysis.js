@@ -155,7 +155,6 @@ const engine = createAIVerdict({
   getAllTargets: () => (state.importedData ? [SINGLETON] : []),
 });
 
-export const isChannelMixAnalyzing = () => engine.isAnalyzing('default');
 export const analyzeChannelMixAI = (opts) => engine.analyze(SINGLETON, opts);
 export const refreshChannelMixAI = () => engine.refresh('default');
 

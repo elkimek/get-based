@@ -171,7 +171,6 @@ const engine = createAIVerdict({
   getAllTargets: () => (_getDefaults() ? [SINGLETON_TARGET] : []),
 });
 
-export const isOnboardingAnalyzing = () => engine.isAnalyzing('default');
 export const analyzeOnboardingAI = (opts) => engine.analyze(SINGLETON_TARGET, opts);
 export const refreshOnboardingAIAnalysis = () => engine.refresh('default');
 export function maybeAnalyzeOnboardingAfterSave() {
