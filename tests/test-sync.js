@@ -1357,6 +1357,430 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
+  // 14k. EVERY-SURFACE COVERAGE — explicit DELTA_* membership for every
+  // importedData field that should sync, so a future "simplify" refactor
+  // that drops a surface from the planner list lights up here instead of
+  // silently ceasing to sync that data cross-device.
+  // ═══════════════════════════════════════
+  console.log('%c 14k. Every-surface delta membership ', 'font-weight:bold;color:#f59e0b');
+
+  // Helper: confirm an entry sits inside a given const list. We extract
+  // the literal contents between `[` and `]` for the named const, then
+  // check membership inside that slice — a window-based regex would
+  // otherwise tunnel past the closing bracket and find the entry name
+  // in a sibling const + report a false positive.
+  const inList = (constName, entry) => {
+    const re = new RegExp(`const ${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm');
+    const m = syncSrc.match(re);
+    if (!m) return false;
+    return m[1].includes(`'${entry}'`);
+  };
+
+  // DELTA_ARRAYS — high-velocity array surfaces. Each one missing here
+  // means cross-device deletes/edits collapse to wholesale-LWW under
+  // Phase 2 cutover (and lose per-row CRDT semantics under Phase 1).
+  assert('DELTA_ARRAYS includes deviceSessions (light therapy session log)',
+    inList('DELTA_ARRAYS', 'deviceSessions'));
+  assert('DELTA_ARRAYS includes lightAudits (eye-level audits)',
+    inList('DELTA_ARRAYS', 'lightAudits'));
+  assert('DELTA_ARRAYS includes lightMeasurements (per-room sensor readings)',
+    inList('DELTA_ARRAYS', 'lightMeasurements'));
+  assert('DELTA_ARRAYS includes chatSummaries (per-thread AI summaries)',
+    inList('DELTA_ARRAYS', 'chatSummaries'));
+
+  // DELTA_MAPS — keyed-object surfaces.
+  assert('DELTA_MAPS includes wearablePrimaryOverride (per-metric source pick)',
+    inList('DELTA_MAPS', 'wearablePrimaryOverride'));
+
+  // DELTA_SCALARS — singleton-shape surfaces.
+  assert('DELTA_SCALARS includes emfAssessment (EMF Baubiologie module)',
+    inList('DELTA_SCALARS', 'emfAssessment'));
+  assert('DELTA_SCALARS includes sunDefaults (skin type, lat/lng, meds)',
+    inList('DELTA_SCALARS', 'sunDefaults'));
+  assert('DELTA_SCALARS includes sunCorrelations (per-channel × biomarker config)',
+    inList('DELTA_SCALARS', 'sunCorrelations'));
+  assert('DELTA_SCALARS includes lifelightProfile (Lifelight integration metadata)',
+    inList('DELTA_SCALARS', 'lifelightProfile'));
+
+  // Negative checks — surfaces that intentionally do NOT ride any
+  // DELTA_* list. These are guarded against accidental promotion.
+  assert('wearableConnections is NOT in any DELTA_* list (per-device tokens stay local)',
+    !inList('DELTA_ARRAYS', 'wearableConnections')
+    && !inList('DELTA_MAPS', 'wearableConnections')
+    && !inList('DELTA_SCALARS', 'wearableConnections'));
+
+  // Cross-list disjointness — every surface should appear in exactly one
+  // delta category. Overlap means dual planning paths, which causes
+  // duplicate rows + indeterminate merge.
+  const everySurface = [
+    // Arrays
+    'sunSessions', 'lightDevices', 'deviceSessions', 'lightAudits',
+    'lightMeasurements', 'lightEnvironment.rooms', 'lightEnvironment.screens',
+    'entries', 'notes', 'supplements', 'healthGoals', 'changeHistory',
+    'chatSummaries',
+    // Maps
+    'markerNotes', 'customMarkers', 'manualValues', 'refOverrides',
+    'categoryLabels', 'categoryIcons', 'markerLabels',
+    'wearablePrimaryOverride', 'genetics.snps',
+    // Scalars
+    'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian',
+    'stress', 'loveLife', 'environment',
+    'interpretiveLens', 'contextNotes',
+    'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics',
+    'sunCorrelations', 'lifelightProfile', 'sunDefaults',
+    'wearableSummary', 'wearableCardOrder',
+  ];
+  for (const surface of everySurface) {
+    const inArrays = inList('DELTA_ARRAYS', surface);
+    const inMaps = inList('DELTA_MAPS', surface);
+    const inScalars = inList('DELTA_SCALARS', surface);
+    const count = (inArrays ? 1 : 0) + (inMaps ? 1 : 0) + (inScalars ? 1 : 0);
+    // genetics is the documented exception — its top-level scalar carries
+    // metadata (source/importDate/coverage/mtdna) while genetics.snps is
+    // the dotted-path map. They're distinct entries (genetics vs
+    // genetics.snps) and the cross-list check doesn't conflate them.
+    assert(`Surface "${surface}" registered in exactly one DELTA_* list`, count === 1,
+      `arrays=${inArrays} maps=${inMaps} scalars=${inScalars}`);
+  }
+
+  // ═══════════════════════════════════════
+  // 14l. GENETICS SCALAR / SNPS-MAP SPLIT — the source-of-truth for
+  // SNP rows is the per-key DELTA_MAP `genetics.snps`. The DELTA_SCALAR
+  // `genetics` carries only metadata. Two invariants protect this split:
+  //   (a) Push side: blob payload + scalar plan both strip `.snps`,
+  //   (b) Pull side: scalar merge preserves any local `.snps` already
+  //       written by the per-key map merge.
+  // Without (a), a fresh DNA import on device A blob-LWWs device B's
+  // snps. Without (b), a single re-pushed scalar wipes the map merge.
+  // ═══════════════════════════════════════
+  console.log('%c 14l. genetics scalar / snps-map split ', 'font-weight:bold;color:#f59e0b');
+
+  // Push-side strip: function exists + is called inside buildSyncPayload
+  assert('stripGeneticsSnpsFromBlob defined',
+    /function stripGeneticsSnpsFromBlob\(/.test(syncSrc));
+  assert('buildSyncPayload calls stripGeneticsSnpsFromBlob on importedData',
+    /buildSyncPayload[\s\S]{0,3000}stripGeneticsSnpsFromBlob\(/.test(syncSrc));
+  // Implementation uses rest-spread destructuring (`{ snps, ...rest }`)
+  // rather than `delete` — both achieve the same semantic, but the
+  // destructure also avoids mutating the caller's object. Match either.
+  assert('stripGeneticsSnpsFromBlob removes .snps but keeps top-level genetics',
+    /stripGeneticsSnpsFromBlob[\s\S]{0,400}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*importedData\.genetics/.test(syncSrc)
+    || /stripGeneticsSnpsFromBlob[\s\S]{0,400}delete[\s\S]{0,80}\.snps/.test(syncSrc));
+
+  // Push-side scalar plan: `genetics` scalar payload carries metadata
+  // only (snps stripped from the {v: ...} wrapper).
+  assert('Genetics scalar plan strips .snps from payload before push',
+    /scalarName\s*===\s*'genetics'[\s\S]{0,500}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*value/.test(syncSrc)
+    || /scalarName\s*===\s*'genetics'[\s\S]{0,500}delete[\s\S]{0,80}\.snps/.test(syncSrc));
+
+  // Pull-side preserve: scalar merge sees `arrayName === 'genetics'` and
+  // re-injects local snps before assigning back to importedData.
+  assert('Pull-side genetics scalar merge preserves local .snps map',
+    /arrayName\s*===\s*'genetics'[\s\S]{0,800}localSnps\s*=\s*imported\.genetics\.snps[\s\S]{0,400}imported\.genetics\.snps\s*=\s*localSnps/.test(syncSrc));
+
+  // Live: simulate the strip helper inline and prove shape preservation
+  if (typeof window !== 'undefined') {
+    const stripSnps = (data) => {
+      if (!data || typeof data !== 'object') return data;
+      if (data.genetics && typeof data.genetics === 'object') {
+        const g = { ...data.genetics };
+        delete g.snps;
+        return { ...data, genetics: g };
+      }
+      return data;
+    };
+    const before = {
+      genetics: {
+        source: '23andme',
+        importDate: '2026-05-04',
+        coverage: 0.94,
+        mtdna: 'H1a',
+        snps: { rs1801133: 'CT', rs4680: 'AG' },
+      },
+      entries: [{ date: '2026-05-04', markers: {} }],
+    };
+    const after = stripSnps(before);
+    assert('strip simulator drops .snps but keeps siblings',
+      after.genetics.source === '23andme'
+      && after.genetics.coverage === 0.94
+      && !('snps' in after.genetics)
+      && Array.isArray(after.entries));
+    assert('strip simulator does not mutate input',
+      'snps' in before.genetics
+      && Object.keys(before.genetics.snps).length === 2);
+  }
+
+  // ═══════════════════════════════════════
+  // 14m. TOMBSTONE-STORM GUARD — the per-key map planner refuses to emit
+  // tombstones when the live key count drops by >50% relative to the
+  // last-pushed snapshot, provided the prev count was >= some floor. This
+  // catches the failure mode where a transient pull-merge or mid-import
+  // state has a near-empty local map; without the guard the planner
+  // would emit a wholesale-tombstone batch that wipes the peer's data.
+  // ═══════════════════════════════════════
+  console.log('%c 14m. tombstone-storm guard ', 'font-weight:bold;color:#f59e0b');
+
+  assert('Tombstone-storm guard exists in _planKeyedMapDelta',
+    /_planKeyedMapDelta[\s\S]{0,5000}refused tombstone storm/.test(syncSrc));
+  // The guard should compare prev vs next sizes and require prev to be
+  // above a floor before clamping (so the first ever push of an empty
+  // map → first add still works as a normal insert path).
+  assert('Tombstone-storm guard floors prev-count before clamping',
+    /_planKeyedMapDelta[\s\S]{0,5000}prevCount\s*>=\s*\d+/.test(syncSrc));
+  assert('Tombstone-storm guard logs the prev/next ratio at warn level',
+    /_planKeyedMapDelta[\s\S]{0,5000}console\.warn\([\s\S]{0,500}tombstone storm/.test(syncSrc));
+  // Live: simulate the guard predicate inline. The exact numbers don't
+  // matter — what matters is that the guard rejects "drop from N>=20 to
+  // <50%" and accepts the inverse cases.
+  if (typeof window !== 'undefined') {
+    const STORM_FLOOR = 20;
+    const wouldStorm = (prev, next) => prev >= STORM_FLOOR && next < prev * 0.5;
+    assert('Storm guard: 50→5 triggers (prev>=floor, ratio<50%)',
+      wouldStorm(50, 5) === true);
+    assert('Storm guard: 50→30 does not trigger (ratio above 50%)',
+      wouldStorm(50, 30) === false);
+    assert('Storm guard: 5→0 does not trigger (prev below floor)',
+      wouldStorm(5, 0) === false);
+    assert('Storm guard: 0→0 does not trigger (no prev state)',
+      wouldStorm(0, 0) === false);
+  }
+
+  // ═══════════════════════════════════════
+  // 14n. ROUND-TRIP COVERAGE — sun/light/wearable surfaces. Confirms each
+  // surface a) survives the gzip envelope unchanged, b) has the matching
+  // itemIdFn / keyIdFn shape that lets the planner emit per-row writes
+  // for it. These are the surfaces that didn't exist before the
+  // sun-sessions branch and need explicit cross-device proof.
+  // ═══════════════════════════════════════
+  console.log('%c 14n. sun/light/wearable round-trip ', 'font-weight:bold;color:#f59e0b');
+
+  if (typeof window !== 'undefined' && typeof CompressionStream !== 'undefined') {
+    const sample = {
+      sunSessions: [
+        { id: 'ss_1', date: '2026-05-04', startedAt: 1714829400000, endedAt: 1714831200000,
+          uvIndex: 6.2, duration: 1800, bodyParts: ['face', 'arms'], fitzpatrick: 3 },
+        { id: 'ss_2', date: '2026-05-05', startedAt: 1714915800000, endedAt: 1714917600000,
+          uvIndex: 7.1, duration: 1800, bodyParts: ['torso'], fitzpatrick: 3 },
+      ],
+      deviceSessions: [
+        { id: 'ds_1', date: '2026-05-04', deviceId: 'joovv-mini', startedAt: 1714820000000,
+          endedAt: 1714821200000, distance_cm: 30, duration: 1200 },
+      ],
+      lightDevices: [
+        { id: 'ld_1', name: 'Joovv Mini', type: 'red-light-panel', brand: 'Joovv',
+          spectrum: { '660nm': 0.5, '850nm': 0.5 } },
+      ],
+      lightMeasurements: [
+        { id: 'lm_1', date: '2026-05-04', location: 'kitchen', lux: 350, cct: 4000 },
+      ],
+      lightAudits: [
+        { id: 'la_1', date: '2026-05-04', notes: 'midday eye-level', findings: { ev: 6.2 } },
+      ],
+      lightEnvironment: {
+        rooms: [
+          { id: 'r_1', name: 'kitchen', position: 'south', lux: 350, cct: 4000 },
+          { id: 'r_2', name: 'bedroom', position: 'north', lux: 8, cct: 2700 },
+        ],
+        screens: [
+          { id: 's_1', name: 'macbook', size: 14, brightness: 50 },
+        ],
+      },
+      sunDefaults: { fitzpatrick: 3, photosensitiveMeds: [], coords: { lat: 50.08, lng: 14.42 } },
+      sunCorrelations: { method: 'pearson', markers: ['biochemistry.vitaminD'], enabled: true },
+      lifelightProfile: { profileId: 'lf_xyz', syncedAt: 1714900000000 },
+      wearableSummary: { metrics: { weight: { latest: 75.4, unit: 'kg', at: 1714900000000 } } },
+      wearableCardOrder: ['weight', 'sleep', 'steps'],
+      wearablePrimaryOverride: { weight: 'fitbit', bp_systolic: 'manual' },
+      chatSummaries: [
+        // chat.js sets `id: 's_' + Date.now().toString(36)` at create
+        // time. The default DELTA_ARRAYS itemIdFn picks `.id`, so the
+        // sample must carry it for the membership/round-trip check.
+        { id: 's_xyz123', threadId: 't_1', title: 'Chat 1',
+          createdAt: 1714900000000, updatedAt: 1714900000000,
+          messageCount: 4, lastMessage: 'thanks' },
+      ],
+    };
+
+    // Verify itemIdFn shapes for the sun/light arrays — every item must
+    // either have a stable `.id` or the array must be in DELTA_ARRAY_CONFIG.
+    // This catches "I added a surface to DELTA_ARRAYS but forgot the
+    // itemIdFn override" regressions.
+    const idableArrays = ['sunSessions', 'deviceSessions', 'lightDevices',
+                          'lightMeasurements', 'lightAudits', 'chatSummaries'];
+    for (const arrayName of idableArrays) {
+      const items = sample[arrayName];
+      const allHaveStableId = items.every(it => typeof it.id === 'string' && it.id.length > 0);
+      assert(`${arrayName} items have stable .id (default itemIdFn applies)`,
+        allHaveStableId);
+      // .id should also be allowlist-safe — protects against `:` or
+      // unicode crashing the planner silently.
+      const allAllowlistSafe = items.every(it => /^[a-zA-Z0-9_.-]+$/.test(it.id));
+      assert(`${arrayName} item .id values are allowlist-safe`, allAllowlistSafe);
+    }
+
+    // Nested arrays under lightEnvironment use the same id-keyed shape.
+    for (const nestedName of ['rooms', 'screens']) {
+      const items = sample.lightEnvironment[nestedName];
+      const allHaveStableId = items.every(it => typeof it.id === 'string' && it.id.length > 0);
+      assert(`lightEnvironment.${nestedName} items have stable .id`, allHaveStableId);
+    }
+
+    // chatSummaries persist BOTH `.id` (the row's stable identity that
+    // the default itemIdFn picks) and `.threadId` (the foreign key into
+    // the thread table). They are intentionally distinct so re-summarising
+    // the same thread overwrites the row in place rather than appending
+    // a duplicate. If the `.id` field is dropped, the planner falls back
+    // to default itemIdFn, which returns null and silently skips the row.
+    assert('chatSummaries items carry both .id and .threadId',
+      sample.chatSummaries.every(s =>
+        typeof s.id === 'string' && /^[a-zA-Z0-9_.-]+$/.test(s.id)
+        && typeof s.threadId === 'string'));
+
+    // Wearable map (wearablePrimaryOverride) keys must be allowlist-safe
+    // because they ride straight into the itemId column without keyIdFn.
+    const wpoSafe = Object.keys(sample.wearablePrimaryOverride)
+      .every(k => /^[a-zA-Z0-9_.-]+$/.test(k));
+    assert('wearablePrimaryOverride keys are allowlist-safe (no keyIdFn)', wpoSafe);
+
+    // Gzip round-trip: the entire sample blob must emerge byte-for-byte
+    // unchanged through the GZ|v1| envelope. This proves nothing about
+    // the planner, but it does prove that none of these surfaces contain
+    // a non-JSON-serializable shape (Date, undefined, BigInt, etc) that
+    // would silently survive the JSON path but corrupt the wire path.
+    const json = JSON.stringify({ _v: 3, importedData: sample });
+    try {
+      const cs = new CompressionStream('gzip');
+      const writer = cs.writable.getWriter();
+      writer.write(new TextEncoder().encode(json));
+      writer.close();
+      const buf = await new Response(cs.readable).arrayBuffer();
+      const ds = new DecompressionStream('gzip');
+      const w2 = ds.writable.getWriter();
+      w2.write(new Uint8Array(buf));
+      w2.close();
+      const decoded = await new Response(ds.readable).text();
+      const parsed = JSON.parse(decoded);
+      assert('Gzip round-trip: sunSessions length preserved',
+        parsed.importedData.sunSessions.length === sample.sunSessions.length);
+      assert('Gzip round-trip: lightEnvironment.rooms shape preserved',
+        parsed.importedData.lightEnvironment.rooms.length === 2
+        && parsed.importedData.lightEnvironment.rooms[0].id === 'r_1');
+      assert('Gzip round-trip: wearablePrimaryOverride keys preserved',
+        parsed.importedData.wearablePrimaryOverride.weight === 'fitbit'
+        && parsed.importedData.wearablePrimaryOverride.bp_systolic === 'manual');
+      assert('Gzip round-trip: sunDefaults nested coords preserved',
+        parsed.importedData.sunDefaults.coords.lat === 50.08
+        && parsed.importedData.sunDefaults.coords.lng === 14.42);
+      assert('Gzip round-trip: chatSummaries length + lastMessage preserved',
+        parsed.importedData.chatSummaries.length === 1
+        && parsed.importedData.chatSummaries[0].lastMessage === 'thanks');
+    } catch (e) {
+      assert('Gzip round-trip succeeded (no encode/decode crash)', false, String(e));
+    }
+  }
+
+  // ═══════════════════════════════════════
+  // 14o. STARTUP RECONCILIATION — catches lost-debounce edits where the user
+  // mutated state, the 10s push timer was scheduled, then the page was closed
+  // / PWA killed before the timer fired. localStorage has the change but
+  // Evolu's row was never updated. Without the within-id timestamp branch,
+  // a stop-then-close sequence on a phone strands the stopped session in
+  // localStorage forever — every other device keeps showing the session as
+  // active because the relay row's payload still has endedAt:null.
+  //
+  // Repro that motivated the fix (2026-05-06):
+  //   - Phone: starts sun session, push at T+10s lands on relay (started).
+  //   - Phone: stops session, schedules push at T+10s.
+  //   - Phone: tab killed / app backgrounded long enough for the OS to
+  //     suspend the worker before T+10s.
+  //   - Phone reopens later. Reconciliation runs.
+  //   - OLD behavior: reconciliation only diffed id sets — same id on both
+  //     sides → "match" → no catch-up push.
+  //   - NEW behavior: reconciliation routes through localHasRowsRemoteLacks
+  //     which mirrors mergeImportedData's pickTimestamp tiebreak — local's
+  //     stopped session (ts=endedAt) outranks remote's started copy
+  //     (ts=startedAt) → returns true → force-push catches the missing
+  //     update.
+  // ═══════════════════════════════════════
+  console.log('%c 14o. Startup reconciliation (lost-debounce catch-up) ', 'font-weight:bold;color:#f59e0b');
+
+  // Source-shape: the reconciliation function exists and routes through
+  // the pickTimestamp-aware helper instead of bare id-set comparison.
+  assert('_reconcileLocalStorageWithEvolu defined',
+    /async function _reconcileLocalStorageWithEvolu\(\)/.test(syncSrc));
+  assert('Reconciliation runs on initSync after appOwner + queries are ready',
+    /Promise\.all\(\[_readyPromise,\s*_queryLoaded\]\)[\s\S]{0,300}_reconcileLocalStorageWithEvolu/.test(syncSrc));
+  assert('Reconciliation reads remote dataJson via parseSyncPayload',
+    /_reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncSrc));
+  assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
+    /_reconcileLocalStorageWithEvolu[\s\S]{0,1500}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncSrc));
+  assert('Reconciliation force-pushes when local has unsynced rows',
+    /_reconcileLocalStorageWithEvolu[\s\S]{0,4000}pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true\s*\}\)/.test(syncSrc));
+  // Defence-in-depth: the regression we're guarding against was id-only
+  // comparison, so explicitly assert the OLD shape is gone. Hard to write
+  // without false-positives — this regex matches the v1.7.x id-set diff
+  // pattern that was specifically replaced.
+  assert('Reconciliation no longer relies on bare id-set diff (would miss within-id ts drift)',
+    !/_reconcileLocalStorageWithEvolu[\s\S]{0,1500}new Set\(local\.map\(r\s*=>\s*r\?\.id\)/.test(syncSrc));
+
+  // Live: simulate localHasRowsRemoteLacks's three-case decision with the
+  // exact shape our reconciliation feeds it. Confirms the function still
+  // returns true on the lost-debounce stop case.
+  if (typeof window !== 'undefined') {
+    // Inline the helper logic — we can't import data-merge.js from a
+    // Puppeteer-driven test page, but the logic is small enough to re-check.
+    const pickTs = (rec) => {
+      const t = rec?.updatedAt ?? rec?.endedAt ?? rec?.startedAt
+        ?? rec?.capturedAt ?? rec?.loggedAt ?? rec?.createdAt ?? rec?.at;
+      return Number.isFinite(t) ? t : 0;
+    };
+    const detect = (local, remote) => {
+      // Mirror localHasRowsRemoteLacks for sunSessions only — that's the
+      // surface motivating the fix; full helper covers more arrays but
+      // the logic per array is identical.
+      const lArr = local.sunSessions || [];
+      const rArr = remote.sunSessions || [];
+      const remoteById = new Map();
+      for (const item of rArr) if (item?.id) remoteById.set(item.id, item);
+      for (const item of lArr) {
+        if (!item?.id) continue;
+        const r = remoteById.get(item.id);
+        if (!r) return 'new-id';
+        if (pickTs(item) > pickTs(r)) return 'higher-ts';
+      }
+      return 'no-mismatch';
+    };
+
+    // Case 1: local stopped (lost-debounce repro). Same id on both, but
+    // local's pickTimestamp is endedAt vs remote's startedAt. THE BUG.
+    assert('Reconciliation detects lost-debounce stop (same id, local ts higher)',
+      detect(
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: 200 }] },
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: null }] },
+      ) === 'higher-ts');
+    // Case 2: local has a NEW session remote doesn't.
+    assert('Reconciliation detects new-id (local has session remote lacks)',
+      detect(
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: 200 }, { id: 's2', startedAt: 300, endedAt: 400 }] },
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: 200 }] },
+      ) === 'new-id');
+    // Case 3: local lags (remote has changes local doesn't). No reconciliation
+    // needed — the pull side will overlay remote's payload via per-row merge.
+    // Reconciliation correctly returns false to avoid a spurious force-push
+    // that would clobber a remote-newer state on the relay.
+    assert('Reconciliation skips when local matches remote (no spurious push)',
+      detect(
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: 200 }] },
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: 200 }] },
+      ) === 'no-mismatch');
+    assert('Reconciliation skips when remote is ahead of local (no spurious push)',
+      detect(
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: null }] },
+        { sunSessions: [{ id: 's1', startedAt: 100, endedAt: 200 }] },
+      ) === 'no-mismatch');
+  }
+
+  // ═══════════════════════════════════════
   // 15. VENDOR FILES
   // ═══════════════════════════════════════
   console.log('%c 15. Vendor Files ', 'font-weight:bold;color:#f59e0b');

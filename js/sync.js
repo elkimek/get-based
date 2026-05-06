@@ -501,12 +501,18 @@ export async function initSync() {
 }
 
 // Compare state.importedData (loaded from localStorage on page-load) with
-// the Evolu DB row's dataJson for the active profile. If localStorage has
-// strictly more data than the row (id-set superset across the major
-// id-keyed arrays — sunSessions, deviceSessions, lightDevices, lightAudits,
-// lightMeasurements, entries, notes, supplements, healthGoals — or just a
-// different sunSession/audit count), trigger a forced push so the wedge
-// auto-recovers without the user needing to tap Force Resend.
+// the Evolu DB row's dataJson for the active profile. If local has unsynced
+// changes — either new ids the remote lacks OR same-id rows where the local
+// copy has a strictly higher pickTimestamp (the canonical signal data-merge.js
+// uses to pick a winner) — trigger a forced push so the divergence catches up
+// without the user needing to tap Force Resend.
+//
+// The within-id timestamp branch is what catches the "phone stopped a session
+// then closed before the 10s debounce push fired" failure mode: ids match on
+// both sides but local has the stopped session (endedAt set, ts=endedAt) while
+// remote still has the active session (endedAt=null, ts=startedAt). Without it
+// the stop sits in localStorage indefinitely until some other edit triggers
+// onDataSaved.
 async function _reconcileLocalStorageWithEvolu() {
   if (!evolu || !_syncEnabled || !state.currentProfile || !state.importedData) return;
   const rows = evolu.getQueryRows(profileQuery);
@@ -525,30 +531,19 @@ async function _reconcileLocalStorageWithEvolu() {
   }
   if (!remoteImported) return;
 
-  // Compare id-keyed arrays. We don't need a perfect deep-diff — just any
-  // signal that local has rows the remote row's dataJson lacks. Same
-  // shape used elsewhere by the rebroadcast logic (localHasRowsRemoteLacks).
-  const ID_ARRAYS = ['entries', 'notes', 'supplements', 'healthGoals', 'sunSessions',
-    'deviceSessions', 'lightDevices', 'lightAudits', 'lightMeasurements'];
-  let mismatch = null;
-  for (const key of ID_ARRAYS) {
-    const local = Array.isArray(state.importedData[key]) ? state.importedData[key] : [];
-    const remote = Array.isArray(remoteImported[key]) ? remoteImported[key] : [];
-    if (local.length === 0 && remote.length === 0) continue;
-    const localIds = new Set(local.map(r => r?.id).filter(Boolean));
-    const remoteIds = new Set(remote.map(r => r?.id).filter(Boolean));
-    // Local has at least one id remote doesn't
-    for (const id of localIds) {
-      if (!remoteIds.has(id)) { mismatch = { key, missingId: id, localCount: local.length, remoteCount: remote.length }; break; }
-    }
-    if (mismatch) break;
-  }
-  if (!mismatch) {
+  // Reuse the rebroadcast helper — same semantic ("local has anything remote
+  // doesn't reflect"), same id-keyed array list, same pickTimestamp tiebreak.
+  // Returns true on (a) new local ids, (b) same-id with lTs>rTs, (c) tombstones
+  // local has remote lacks. Without (b) the start-then-stop-then-close sequence
+  // strands the stop on the phone forever — relay row keeps endedAt=null and
+  // every other device shows the session as still running.
+  const localHasUnsynced = localHasRowsRemoteLacks(state.importedData, remoteImported);
+  if (!localHasUnsynced) {
     dbg('Startup reconciliation: localStorage and Evolu row match — nothing to do');
     return;
   }
-  dbg('Startup reconciliation: localStorage has rows Evolu row lacks', mismatch);
-  _logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} — local has unsynced ${mismatch.key} (${mismatch.localCount} vs row ${mismatch.remoteCount})`);
+  dbg('Startup reconciliation: localStorage has unsynced rows (new ids or higher-ts same-id) vs Evolu row');
+  _logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} — local has unsynced rows (lost-debounce catch-up)`);
   // Force-push so the next watchdog cycle can't lose us a clearly-needed
   // catch-up. Bypasses the _syncing guard if it was wedged from a prior
   // session — the same wedge that caused the divergence in the first place.
