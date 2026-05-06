@@ -350,9 +350,46 @@ export function renderLightTodayHero() {
   </div>`;
 }
 
+// Compact verdict line for the DASHBOARD's Light Today strip. Reuses
+// the same cached verdict as the Light & Sun page hero — runs the AI
+// once per day, both surfaces display it. The dashboard variant is
+// terser (one-line tip + dot + click-through) to fit the dense strip.
+export function renderLightTodayDashboardChip() {
+  if (!hasAIProvider()) return '';
+  const today = new Date();
+  const target = _wrapDate(today);
+  const status = engine.getStatus(target);
+  const cached = _getDailyVerdicts()[target.key];
+  if (status === 'analyzing') {
+    return `<div class="light-today-dash-ai">
+      <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
+      <span class="light-today-dash-ai-tip">Analyzing today's light…</span>
+    </div>`;
+  }
+  if (status === 'ok' && cached?.dot) {
+    const dot = cached.dot;
+    return `<a class="light-today-dash-ai light-today-dash-ai-${dot}" href="#" onclick="event.preventDefault();window.navigate && window.navigate('light')" title="${escapeHTML(cached.detail || '')}">
+      <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
+      <span class="light-today-dash-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip || '')}</span>
+    </a>`;
+  }
+  if (status === 'error') {
+    return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()" title="Retry today's verdict">
+      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
+      <span class="light-today-dash-ai-tip">AI verdict failed — retry</span>
+    </button>`;
+  }
+  // Idle — never analyzed today
+  return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()" title="Run an AI synthesis of today's sun + devices + environment">
+    <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
+    <span class="light-today-dash-ai-tip">✨ Get today's AI verdict</span>
+  </button>`;
+}
+
 Object.assign(window, {
   refreshDayAIAnalysis,
   analyzeDayAI,
   renderLightTodayHero,
+  renderLightTodayDashboardChip,
   computeLightTrends,
 });

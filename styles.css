@@ -8238,6 +8238,42 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   border-style: solid;
 }
 
+/* Compact AI verdict chip for the DASHBOARD Light Today strip. Sits
+   under the head row, above the Conditions Now block. Same cached
+   verdict as the Light & Sun page hero — single AI call serves both. */
+.light-today-dash-ai {
+  display: flex; align-items: center; gap: 8px;
+  margin: 6px 0 10px 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  border-left: 3px solid var(--text-muted);
+  font-size: 12.5px;
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s, border-left-color 0.15s;
+}
+.light-today-dash-ai:hover { background: var(--bg-elev-2, rgba(255,255,255,0.05)); }
+.light-today-dash-ai-green  { border-left-color: var(--green); }
+.light-today-dash-ai-yellow { border-left-color: var(--yellow); }
+.light-today-dash-ai-red    { border-left-color: var(--red); }
+.light-today-dash-ai-tip {
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.light-today-dash-ai-cta {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-left: 1px dashed var(--border);
+  color: var(--accent);
+}
+.light-today-dash-ai-cta:hover {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  border-style: solid;
+}
+
 /* Detail-modal block — richer, two-line layout. */
 .sun-detail-ai {
   margin-bottom: 14px; padding: 12px 14px;

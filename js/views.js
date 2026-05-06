@@ -292,6 +292,7 @@ export function renderLightTodayStrip() {
       ${altChip}
       <a href="#" class="light-today-link" onclick="event.preventDefault();window.navigate('light')">Open Light &amp; Sun →</a>
     </div>
+    ${typeof window !== 'undefined' && window.renderLightTodayDashboardChip ? window.renderLightTodayDashboardChip() : ''}
     ${renderConditionsNow({ variant: 'compact' })}
     <div class="light-pills-row">
       ${pills}
