@@ -37,6 +37,7 @@ import './light-tools.js';
 import './light-tools-ai-analysis.js';
 import './light-env.js';
 import './light-env-ai-analysis.js';
+import './light-screen-ai-analysis.js';
 import './sun-defaults.js';
 import './sun-onboarding-ai.js';
 import './sun-correlations.js';

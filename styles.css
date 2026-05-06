@@ -8156,6 +8156,20 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   font-style: italic;
 }
 
+/* Per-screen AI verdict block — sits at the bottom of an expanded screen card. */
+.light-env-screen-ai {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.light-env-screen-ai-head {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.light-env-screen-ai .sun-detail-ai { margin-bottom: 0; }
+
 /* Detail-modal block — richer, two-line layout. */
 .sun-detail-ai {
   margin-bottom: 14px; padding: 12px 14px;

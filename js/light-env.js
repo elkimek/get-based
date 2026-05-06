@@ -763,6 +763,7 @@ function renderScreenExpandedBody(s, rooms) {
       <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
       Blue blocker (glasses, f.lux, Night Shift, amber tint) — zeroes the circadian penalty
     </label>
+    ${typeof window !== 'undefined' && window.renderScreenAIBlock ? window.renderScreenAIBlock(s) : ''}
   </div>`;
 }
 
