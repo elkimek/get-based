@@ -46,6 +46,9 @@ export async function saveMeasurement(tool, value, opts = {}) {
   };
   getMeasurements().push(entry);
   await saveImportedData();
+  if (typeof window !== 'undefined' && window.maybeAnalyzeMeasurementAfterSave) {
+    try { window.maybeAnalyzeMeasurementAfterSave(entry); } catch (_) {}
+  }
   // Spectrum tool result auto-fills the room's primarySource when the
   // user hasn't picked one yet — saves a redundant question, since
   // the classifier knows warm vs cool vs fluorescent. Only fires when

@@ -7972,6 +7972,172 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 .sun-session-med.warn { background: var(--orange-bg); color: var(--orange); }
 .sun-session-med.over { background: var(--red-bg); color: var(--red); }
+
+/* Per-session AI verdict (inline in row + richer block in detail modal). */
+.sun-session-ai {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.sun-session-ai-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  display: inline-block; transition: background 0.3s, box-shadow 0.3s;
+}
+.sun-session-ai-dot-gray { background: var(--text-muted); opacity: 0.45; }
+.sun-session-ai-dot-green { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
+.sun-session-ai-dot-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
+.sun-session-ai-dot-red { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
+.sun-session-ai-dot-shimmer {
+  background: linear-gradient(90deg, var(--text-muted) 25%, var(--border) 50%, var(--text-muted) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite;
+}
+.sun-session-ai-tip {
+  flex: 1; min-width: 0;
+  color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sun-session-ai-tip-green { color: var(--green); }
+.sun-session-ai-tip-yellow { color: var(--yellow); }
+.sun-session-ai-tip-red { color: var(--red); }
+.sun-session-ai-prefix { margin-right: 2px; opacity: 0.85; }
+.sun-session-ai-refresh {
+  background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 13px; line-height: 1;
+  padding: 2px 6px; border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.sun-session-ai-refresh:hover { color: var(--accent); background: var(--bg-elev-1, rgba(255,255,255,0.03)); }
+.sun-session-ai-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Idle "Analyze this session" CTA — passive prompt for sessions that
+   haven't been auto-analyzed yet (created before this feature, or
+   imported from another device). */
+.sun-session-ai-idle .sun-session-ai-cta {
+  background: transparent; border: none;
+  color: var(--accent); cursor: pointer;
+  font-size: 12px; padding: 0;
+  text-align: left;
+  flex: 1; min-width: 0;
+}
+.sun-session-ai-idle .sun-session-ai-cta:hover { text-decoration: underline; }
+.sun-session-ai-idle .sun-session-ai-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.sun-detail-ai-idle {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-muted);
+}
+.sun-detail-ai-idle .sun-session-ai-refresh {
+  color: var(--accent);
+  font-size: 12px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+/* Compact AI verdict line for Light Tools measurement readings —
+   sits directly under the value row in the room detail panel. */
+.light-env-reading-ai {
+  display: flex; align-items: center; gap: 6px;
+  margin: 4px 0 8px 22px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.light-env-reading-ai .sun-session-ai-tip {
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.light-env-reading-ai .sun-session-ai-cta {
+  background: transparent; border: none;
+  color: var(--accent); cursor: pointer;
+  font-size: 11.5px; padding: 0; text-align: left;
+}
+.light-env-reading-ai .sun-session-ai-cta:hover { text-decoration: underline; }
+
+/* Light Today hero — AI verdict at the top of Light & Sun page. */
+.light-today-hero {
+  margin: 0 0 18px 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  border: 1px solid var(--border);
+}
+.light-today-hero-green  { border-left: 3px solid var(--green); }
+.light-today-hero-yellow { border-left: 3px solid var(--yellow); }
+.light-today-hero-red    { border-left: 3px solid var(--red); }
+.light-today-hero-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.light-today-hero-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  flex: 1;
+}
+.light-today-hero .sun-detail-ai {
+  margin-bottom: 0; padding: 10px 12px;
+}
+.light-today-trends {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.light-today-trend {
+  display: inline-flex; align-items: center;
+  font-size: 11.5px; padding: 3px 8px;
+  border-radius: 10px;
+  background: var(--bg-elev-2, rgba(255,255,255,0.05));
+  color: var(--text-muted);
+}
+
+/* Onboarding completion AI block — appears below the saved-summary chips. */
+.light-setup-ai-block {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  border: 1px solid var(--border);
+}
+.light-setup-ai-block-green  { border-left: 3px solid var(--green); }
+.light-setup-ai-block-yellow { border-left: 3px solid var(--yellow); }
+.light-setup-ai-block-red    { border-left: 3px solid var(--red); }
+.light-setup-ai-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.light-setup-ai-head-label { flex: 1; }
+.light-setup-ai-actions {
+  margin: 8px 0 0; padding-left: 18px;
+  font-size: 13px; line-height: 1.5;
+  color: var(--text-primary);
+}
+.light-setup-ai-actions li { margin: 2px 0; }
+
+/* Detail-modal block — richer, two-line layout. */
+.sun-detail-ai {
+  margin-bottom: 14px; padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  border-left: 3px solid var(--text-muted);
+}
+.sun-detail-ai-green  { border-left-color: var(--green); }
+.sun-detail-ai-yellow { border-left-color: var(--yellow); }
+.sun-detail-ai-red    { border-left-color: var(--red); }
+.sun-detail-ai-head {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 600;
+  color: var(--text-primary);
+}
+.sun-detail-ai-tip { flex: 1; min-width: 0; }
+.sun-detail-ai-body {
+  margin-top: 6px;
+  font-size: 13px; line-height: 1.5;
+  color: var(--text-muted);
+}
+.sun-detail-ai-loading,
+.sun-detail-ai-error {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-muted);
+}
 .sun-session-delete {
   background: transparent; border: none; color: var(--text-muted);
   font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px;

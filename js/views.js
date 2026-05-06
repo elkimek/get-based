@@ -1197,6 +1197,14 @@ export function showLight(_data) {
     <p>Track your light exposure. See how it shapes your sleep, hormones, and lab results.</p>
   </div>`;
 
+  // AI hero verdict — synthesizes today's full picture (sun + devices +
+  // environment + trends) into one read. Sits above active-session and
+  // conditions so the user gets the "how am I doing?" answer before the
+  // raw inputs.
+  if (typeof window !== 'undefined' && window.renderLightTodayHero) {
+    try { html += window.renderLightTodayHero(); } catch (_) {}
+  }
+
   // Active sun session card — pinned at the very top of the page so the
   // live timer + channel chips + Pause/Flip/Sunscreen controls are the
   // first thing the user sees when a session is running. Renders above
@@ -2261,6 +2269,7 @@ function renderUnifiedSessionsList() {
           <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
         </div>
         <div class="sun-session-meta">${escapeHTML(meta)}</div>
+        ${window.renderDeviceSessionAIInline ? window.renderDeviceSessionAIInline(sess) : ''}
       </div>`;
     }
   }

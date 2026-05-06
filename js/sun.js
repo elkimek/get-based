@@ -16,6 +16,7 @@ import { getProfileLocation } from './profile.js';
 import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
 import { recordTombstone } from './data-merge.js';
 import { MALE_BODY_PATH, FEMALE_BODY_PATH, SILHOUETTE_NATIVE } from './silhouette-paths.js';
+import { maybeAnalyzeSessionAfterFinish, renderSessionAIInline, renderSessionAIDetail } from './sun-ai-analysis.js';
 
 // ─── Anatomical regions (for body silhouette picker) ───────────────────
 // 11 regions per the design — each carries optional research notes for AI.
@@ -338,6 +339,7 @@ export async function stopSession(id) {
     });
   }
   await saveImportedData();
+  maybeAnalyzeSessionAfterFinish(sess);
   return sess;
 }
 
@@ -359,6 +361,7 @@ export async function logCompletedSession(payload) {
   if (!session.durationMin) session.durationMin = Math.max(0, (session.endedAt - session.startedAt) / 60000);
   getSessions().push(session);
   await saveImportedData();
+  maybeAnalyzeSessionAfterFinish(session);
   return id;
 }
 
@@ -2204,6 +2207,7 @@ export function renderSunSessionRow(sess) {
     ${forgotBanner}
     ${activeControls}
     ${channelChips}
+    ${renderSessionAIInline(sess)}
   </div>`;
 }
 
@@ -2411,6 +2415,7 @@ export function openSunSessionDetail(id) {
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
+      ${renderSessionAIDetail(sess)}
       <div class="sun-detail-grid">
         <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
         <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
@@ -3000,6 +3005,10 @@ async function editSunSessionDuration(id) {
 
 if (typeof window !== 'undefined') {
   window.SUN_ENGINE_VERSION = SUN_ENGINE_VERSION;
+  // Exposed so sun-ai-analysis.js can request a re-render after an async
+  // analyzeSunSessionAI() completes — keeps that module from importing
+  // sun.js's internal _refreshSurfaces directly (would be a back-edge).
+  window._refreshSunSurfaces = _refreshSurfaces;
   Object.assign(window, {
     quickLogSunSession,
     startSession,

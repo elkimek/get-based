@@ -197,6 +197,9 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   device.lastSession = { durationMin, distanceCm, bodyArea, eyesProtected };
   device.updatedAt = Date.now();
   await saveImportedData();
+  if (window.maybeAnalyzeDeviceSessionAfterFinish) {
+    try { window.maybeAnalyzeDeviceSessionAfterFinish(session); } catch (_) {}
+  }
   return session;
 }
 
@@ -275,6 +278,7 @@ export function openDeviceSessionDetail(id) {
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
+      ${window.renderDeviceSessionAIDetail ? window.renderDeviceSessionAIDetail(sess) : ''}
       <div class="sun-detail-summary">
         <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
         <div><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>

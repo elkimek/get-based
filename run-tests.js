@@ -73,6 +73,7 @@ const TEST_FILES = [
   'tests/test-sun-defaults.js',
   'tests/test-sun.js',
   'tests/test-sun-context.js',
+  'tests/test-sun-ai-analysis.js',
   'tests/test-light-env.js',
   'tests/test-light-tools.js',
   'tests/test-light-devices.js',

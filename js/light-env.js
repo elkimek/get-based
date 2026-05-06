@@ -880,11 +880,17 @@ function renderRoomExpandedBody(r, measurements, sev) {
         <span class="light-env-reading-icon">${icon}</span>
         <span class="light-env-reading-value">${escapeHTML(fmtMeasureValue(m))}</span>
         <span class="light-env-reading-time">${escapeHTML(fmtMeasureTime(m.capturedAt))}</span>
-      </div>`;
+      </div>${typeof window !== 'undefined' && window.renderMeasurementAIInline ? window.renderMeasurementAIInline(m) : ''}`;
     }
     html += `</div>`;
   }
   html += `</div></div>`;
+
+  // AI verdict block (between Measure and Screens) — synthesizes the room
+  // signals into a single circadian-friendliness verdict.
+  if (typeof window !== 'undefined' && window.renderRoomAIBlock) {
+    html += window.renderRoomAIBlock(r);
+  }
 
   // Step 3: screens used here. Step head + empty-state copy customize
   // per room because the dominant device differs sharply (bedroom →

@@ -303,6 +303,7 @@ function renderSavedSummary() {
       </div>
       ${ottChip}
     </div>
+    ${typeof window !== 'undefined' && window.renderOnboardingAIBlock ? window.renderOnboardingAIBlock() : ''}
   </div>`;
 }
 
@@ -469,6 +470,9 @@ async function saveSunSetup() {
   await saveImportedData();
   _setupForceOpen = false;
   showNotification(`Setup saved · light burden ${ottScore}/10`);
+  if (typeof window !== 'undefined' && window.maybeAnalyzeOnboardingAfterSave) {
+    try { window.maybeAnalyzeOnboardingAfterSave(); } catch (_) {}
+  }
   if (window.navigate) window.navigate('light');
 }
 
