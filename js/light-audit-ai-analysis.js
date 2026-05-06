@@ -205,6 +205,7 @@ const engine = createAIVerdict({
 export const isAuditAnalyzing = engine.isAnalyzing;
 export const analyzeAuditAI = engine.analyze;
 export const refreshAuditAIAnalysis = engine.refresh;
+export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
 
 // ─── Render ────────────────────────────────────────────────────────────
 
@@ -270,6 +271,7 @@ export function renderAuditAIDot(a) {
 Object.assign(window, {
   refreshAuditAIAnalysis,
   analyzeAuditAI,
+  maybeAnalyzeAuditAfterSave,
   renderAuditAIBlock,
   renderAuditAIDot,
 });

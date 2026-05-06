@@ -289,12 +289,45 @@ export async function refreshDayAIAnalysis(dateKey) {
 
 // ─── Render ────────────────────────────────────────────────────────────
 
+// Track auto-fired keys per session so we don't repeatedly fire if the
+// engine bails for any reason (no AI provider mid-init, no light data
+// yet, transient network issues that resolve to error). After a manual
+// retry resets the cached state to ok / new fingerprint, the auto path
+// stays disabled for the rest of this tab session — manual ↻ stays the
+// way to re-fire.
+const _autoFiredKeys = new Set();
+
 export function renderLightTodayHero() {
   if (!hasAIProvider()) return '';
   const today = new Date();
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
   const cached = _getDailyVerdicts()[target.key];
+
+  // Auto-fire on first idle render of the day. Skip if we've already
+  // tried in this tab session (prevents tight-loop refire on transient
+  // errors), if there's any cached verdict including error (manual retry
+  // is the recovery path), or if there's no light activity worth
+  // analyzing (no sessions + no measurements + no devices). The engine
+  // itself dedupes via _inflight so concurrent calls are fine, but the
+  // autoFired guard keeps log noise + telemetry counts honest.
+  if (status === 'idle' && !cached && !_autoFiredKeys.has(target.key)) {
+    const hasLightActivity = (() => {
+      const sun = (state.importedData?.sunSessions || []).some(s => s.endedAt);
+      const dev = (state.importedData?.deviceSessions || []).some(s => s.endedAt);
+      const meas = (state.importedData?.lightMeasurements || []).length > 0;
+      return sun || dev || meas;
+    })();
+    if (hasLightActivity) {
+      _autoFiredKeys.add(target.key);
+      // Defer to next tick so the caller's render completes (and the
+      // shimmer state has time to mount) before the engine flips back
+      // to analyzing + triggers a re-render. Keeps the first paint
+      // showing idle CTA briefly, then a smooth flip to shimmer rather
+      // than a synchronous double-flip mid-render.
+      setTimeout(() => engine.analyze(target).catch(() => {}), 0);
+    }
+  }
   const trends = computeLightTrends(today);
   const trendBar = trends.signals.length
     ? `<div class="light-today-trends">${trends.signals.slice(0, 2).map(s => `<span class="light-today-trend">⚡ ${escapeHTML(s)}</span>`).join('')}</div>`

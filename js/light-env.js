@@ -1134,6 +1134,14 @@ export async function saveLightAudit(label = '') {
   };
   audits.push(audit);
   await saveImportedData();
+  // Audits are explicit checkpoint events — saving one is the user
+  // saying "freeze my environment as it is now." Auto-fire the AI
+  // verdict so the snapshot is interpretable from the moment it lands,
+  // same way session-stop and onboarding-save do. Manual ↻ on the card
+  // re-rolls. Best-effort, no-throw — sync push handles propagation.
+  if (typeof window !== 'undefined' && window.maybeAnalyzeAuditAfterSave) {
+    try { window.maybeAnalyzeAuditAfterSave(audit); } catch (_) {}
+  }
   return audit;
 }
 
