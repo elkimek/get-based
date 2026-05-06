@@ -54,6 +54,33 @@ function _engineDisabled() {
   return typeof window !== 'undefined' && window.DISABLE_AI_VERDICTS === true;
 }
 
+// Map raw API / parse errors to user-readable text. Without this the
+// catch block surfaces things like "Failed to execute 'json' on 'Response':
+// Unexpected token 'h', \"this is not\"..." into the verdict UI, which is
+// horrendous UX. Patterns ordered most-specific first; falls through
+// to a clean generic.
+function _normalizeErrorMessage(e) {
+  const raw = String(e?.message || e || '').slice(0, 500);
+  if (/timed out/i.test(raw)) return 'Analysis took too long — try again';
+  if (/no json in response|json\.parse|json' on 'response|unexpected token/i.test(raw)) {
+    return 'AI sent an unexpected response — try again';
+  }
+  if (/429|rate limit|too many requests/i.test(raw)) {
+    return 'Provider rate-limit — wait a moment + retry';
+  }
+  if (/401|403|unauthorized|forbidden|api key/i.test(raw)) {
+    return 'Provider rejected the request — check Settings → AI';
+  }
+  if (/cannot reach|network|failed to fetch|err_network|offline/i.test(raw)) {
+    return 'Network issue — try again when online';
+  }
+  if (/quotaexceeded|quota|insufficient/i.test(raw)) {
+    return 'Provider quota / credit issue — top up or switch provider';
+  }
+  // Fallback: short generic. Don't expose internals.
+  return 'Analysis failed — try again later';
+}
+
 // djb2 hash exposed because every consumer needs it for fingerprinting.
 export function hashString(str) {
   let h = 5381;
@@ -237,7 +264,7 @@ export function createAIVerdict(cfg) {
       setAIAnalysis(target, Object.assign({}, prev, {
         status: 'error',
         errorAt: Date.now(),
-        errorMessage: String(e?.message || e).slice(0, 200),
+        errorMessage: _normalizeErrorMessage(e),
       }));
       // Persist the error state so the user sees "Analysis failed"
       // after a reload too — without this, a transient quota / network

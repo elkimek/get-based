@@ -74,7 +74,16 @@ export default defineConfig({
           text: 'AI Features',
           items: [
             { text: 'AI Chat', link: '/guide/ai-chat' },
+            { text: 'AI Verdicts', link: '/guide/ai-verdicts' },
             { text: 'Biological Age', link: '/guide/phenoage' }
+          ]
+        },
+        {
+          text: 'Light & Sun',
+          items: [
+            { text: 'Sun Sessions', link: '/guide/sun-sessions' },
+            { text: 'Light Environment', link: '/guide/light-environment' },
+            { text: 'Light Tools', link: '/guide/light-tools' }
           ]
         },
         {

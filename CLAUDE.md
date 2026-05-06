@@ -94,6 +94,20 @@ Slide-out panel with streaming. 2+custom personalities, stop/discuss buttons, co
 
 Six backends: PPQ, Routstr, OpenRouter, Venice, Local AI (Ollama/LM Studio/Jan), Custom. `callClaudeAPI(opts)` routes to active provider. `hasAIProvider()` gates all AI features. Venice E2EE: ECDH + AES-256-GCM, per-chunk streaming decryption, 30-min TTL. See `api.js`, `provider-panels.js`, `cashu-wallet.js`.
 
+### AI Verdict Engine
+
+Shared `js/ai-verdict-engine.js` `createAIVerdict(cfg)` factory powers 11 per-row / per-day AI verdict surfaces across **Light & Sun**. Engine owns: in-memory in-flight tracker (analyzing state never persists), 60s API watchdog, fingerprint cache (skip re-fire when target unchanged — applies to both auto + force calls; `cached.fingerprint === fingerprint` is checked BEFORE the provider gate so cached verdicts read without AI), JSON parse + dot validation against `[green,yellow,red,gray]`, save+immediate-`pushCurrentProfile()` (skip 10s onDataSaved debounce), one-time orphan-purge for legacy `status:'analyzing'`, custom-event broadcast (`labcharts-ai-verdict-updated`), global feature flag (`window.DISABLE_AI_VERDICTS = true` short-circuits all analyses).
+
+Per-feature modules: `sun-ai-analysis.js`, `light-device-ai-analysis.js`, `light-tools-ai-analysis.js`, `light-env-ai-analysis.js`, `light-screen-ai-analysis.js`, `light-audit-ai-analysis.js`, `light-burden-ai-analysis.js`, `light-channels-ai-analysis.js`, `light-today-ai.js`, `sun-onboarding-ai.js`. Each is ~150-250 lines: feature-specific config (getTarget/getId/getAIAnalysis/setAIAnalysis adapters, fingerprint, buildContext) + system prompt + render functions.
+
+Shared prompt block in `js/lighting-hardware-caveats.js` — load-bearing instruction set imported by every surface that recommends fixtures. Without this the model recommends "dimmable LEDs" as the cure for measured flicker (dimmable LEDs ARE the #1 source of household PWM flicker). De-branded — uses categories only ("DC-dimmable LED", "high-frequency PWM ≥2 kHz") + explicit "NEVER name a brand or product" instruction.
+
+Storage: per-row CRDT for row-level (sun session, device, room, screen, audit, measurement); singleton fields for aggregates (`lightDailyVerdicts[date]`, `lightEnvironment.burdenAI`, `channelMixAI`, `sunDefaults.aiAnalysis`). Auto-fire on completion events (session stop, save, finish), manual on edit-flurry / aggregates.
+
+Element-anchor scroll preservation (`navigate()` in `views.js`) restores the focused element's viewport-top after a rebuild — replaces an earlier pixel-based attempt that broke when content above the viewport changed height. Force layout via `void document.body.offsetHeight` before reading rect, RAF re-apply for two frames.
+
+User docs: `docs/guide/ai-verdicts.md`. Architecture memo: `memory/project_ai_verdict_arc_2026_05_06.md`.
+
 ### Desktop app
 
 **Retired in v1.21.0.** The getbased Electron shell was removed. Users who want local hardware-accelerated RAG self-host any server speaking the External server protocol and wire it into Settings → Knowledge Base → External server. See `memory/project_electron_retirement.md` for the full rationale.
