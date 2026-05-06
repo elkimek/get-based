@@ -1440,8 +1440,17 @@ export function showLight(_data) {
       </div>`;
     }
 
-    // Suggestion (channel-agnostic, reads merged totals)
-    html += renderSuggestion(combined7d);
+    // Suggestion (channel-agnostic, reads merged totals).
+    // Wrapped by the channel-mix AI verdict — when AI is available the
+    // AI verdict replaces the hardcoded per-channel string with a
+    // multi-channel synthesis. Static suggestion stays as the fallback
+    // so users without AI still see something useful, and as the
+    // baseline content under the "Get AI synthesis" CTA before the
+    // user has clicked it.
+    const _staticSuggestion = renderSuggestion(combined7d);
+    html += (typeof window !== 'undefined' && window.renderChannelMixVerdict)
+      ? window.renderChannelMixVerdict(_staticSuggestion)
+      : _staticSuggestion;
 
     // Channel-deficit device recommendations — async slot. Surfaces a
     // CTA card with matching catalog devices when (a) the user has a

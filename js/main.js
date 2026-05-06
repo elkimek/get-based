@@ -40,6 +40,7 @@ import './light-env-ai-analysis.js';
 import './light-screen-ai-analysis.js';
 import './light-audit-ai-analysis.js';
 import './light-burden-ai-analysis.js';
+import './light-channels-ai-analysis.js';
 import './sun-defaults.js';
 import './sun-onboarding-ai.js';
 import './sun-correlations.js';
