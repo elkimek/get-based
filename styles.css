@@ -8112,6 +8112,50 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 .light-setup-ai-actions li { margin: 2px 0; }
 
+/* Per-tool aiming guide — "where to aim the camera" callout at the top
+   of each Light Tool capture modal. Tool-specific text + dismissible
+   per-tool (localStorage flag) so users who've internalized the
+   guidance don't have to dismiss every open. */
+.tool-aiming-guide {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.tool-aiming-guide-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--accent);
+}
+.tool-aiming-guide-icon { font-size: 14px; }
+.tool-aiming-guide-mode { flex: 1; min-width: 0; }
+.tool-aiming-guide-dismiss {
+  background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 16px; line-height: 1; padding: 0 4px;
+  flex-shrink: 0;
+}
+.tool-aiming-guide-dismiss:hover { color: var(--text-primary); }
+.tool-aiming-guide-body {
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.tool-aiming-guide-body b { color: var(--text-primary); font-weight: 600; }
+.tool-aiming-guide-webcam {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Detail-modal block — richer, two-line layout. */
 .sun-detail-ai {
   margin-bottom: 14px; padding: 12px 14px;

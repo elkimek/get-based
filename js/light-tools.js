@@ -31,6 +31,83 @@ export function getMeasurements() {
   return state.importedData.lightMeasurements;
 }
 
+// Per-tool "where to aim the camera" guide. Spelt out because the
+// difference between "what hits you" tools (lux, sleep darkness, eye-
+// level audit) and "what the source emits" tools (flicker, CCT,
+// spectrum, glass transmission) is the difference between a useful
+// reading and a misleading one — and there's no way to recover from a
+// fixed user-facing webcam (skin tones bias spectrum classifier toward
+// "warm LED" regardless of actual ceiling source; PWM stripes attenuate
+// when reflected; "bedroom" measurements done from a desk webcam are
+// actually office measurements with a bedroom label).
+const _AIMING_GUIDES = {
+  lux: {
+    mode: 'FROM your position',
+    body: 'Hold the camera at <b>eye height</b>, facing the room as you\'d normally sit, work, or read. The reading captures light reaching your eye, not the bulb\'s raw output.',
+    webcam: 'A laptop / monitor webcam pointed at you is acceptable for this — it sees roughly the same light field hitting your face.',
+  },
+  flicker: {
+    mode: 'AT the source',
+    body: 'Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. PWM stripes are subtle when reflected off walls or skin.',
+    webcam: '⚠ A user-facing webcam under-reads flicker — modulation amplitude attenuates when bouncing off your face. Use a phone for a real read.',
+  },
+  cct: {
+    mode: 'AT the source',
+    body: 'Point the camera <b>directly at the fixture or a white wall lit by it</b> from ~30–50 cm. White paper or a grey card under the source also works.',
+    webcam: '⚠ A user-facing webcam reads warm — skin tones in the frame skew the integration. Cool sources can under-read by 1000–2000 K.',
+  },
+  spectrum: {
+    mode: 'AT the source',
+    body: 'Point the camera <b>directly at the bulb or LED panel</b> so it dominates the frame. The classifier reads the RGB profile of whatever it sees.',
+    webcam: '⚠ A user-facing webcam will almost always classify "warm LED" because skin + clothing fills the frame, regardless of the actual ceiling source. Use a phone.',
+  },
+  darkness: {
+    mode: 'FROM your sleeping position',
+    body: 'Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Capture the actual light hitting your closed eyelids during sleep, with the room lit as you\'ll sleep (door cracked, hallway light on, alarm clock visible — whatever\'s normal).',
+    webcam: '⚠ A monitor webcam in a different room can\'t measure your bedroom darkness. This one needs to be physically on the bed.',
+  },
+  'glass-transmission': {
+    mode: 'TWO-STEP — same direction both times',
+    body: 'Step 1: hold the camera <b>against the closed window</b> (looking out at the sky / scene). Step 2: same direction, but with the window open or stepping outside, so only the glass changes between readings.',
+    webcam: 'Webcam can\'t do this — it can\'t physically move outside.',
+  },
+  audit: {
+    mode: 'FROM your position, at eye height',
+    body: 'Hold the phone <b>at eye height, facing forward</b> while you walk through each room. The pause-detection captures the lighting where you actually look — not the floor or ceiling.',
+    webcam: 'Walking with a phone is the whole point — a fixed webcam misses the inter-room comparison this tool exists to provide.',
+  },
+};
+
+// Returns a small expandable info card for the tool modal. Persists per-
+// tool dismissal in localStorage so users who've internalized the
+// guidance don't have to dismiss it on every open.
+export function aimingGuideHTML(toolKey) {
+  const g = _AIMING_GUIDES[toolKey];
+  if (!g) return '';
+  const dismissed = (typeof localStorage !== 'undefined' && localStorage.getItem(`labcharts-aim-guide-${toolKey}`) === 'dismissed');
+  // Hide entirely once dismissed — re-enable via a small "?" affordance
+  // up by the modal title (added below per tool).
+  if (dismissed) return '';
+  return `<div class="tool-aiming-guide" data-tool="${escapeHTML(toolKey)}">
+    <div class="tool-aiming-guide-head">
+      <span class="tool-aiming-guide-icon">📐</span>
+      <span class="tool-aiming-guide-mode">${escapeHTML(g.mode)}</span>
+      <button type="button" class="tool-aiming-guide-dismiss" onclick="window._dismissAimingGuide && window._dismissAimingGuide('${escapeHTML(toolKey)}')" aria-label="Dismiss aiming guide">×</button>
+    </div>
+    <div class="tool-aiming-guide-body">${g.body}</div>
+    ${g.webcam ? `<div class="tool-aiming-guide-webcam">${g.webcam}</div>` : ''}
+  </div>`;
+}
+
+if (typeof window !== 'undefined') {
+  window._dismissAimingGuide = (toolKey) => {
+    try { localStorage.setItem(`labcharts-aim-guide-${toolKey}`, 'dismissed'); } catch (_) {}
+    // Hide the currently-rendered guide without re-rendering the whole modal.
+    const el = document.querySelector(`.tool-aiming-guide[data-tool="${toolKey}"]`);
+    if (el) el.style.display = 'none';
+  };
+}
+
 export async function saveMeasurement(tool, value, opts = {}) {
   const id = `lm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const entry = {
@@ -298,6 +375,7 @@ export async function openLuxMeter(opts = {}) {
       <button class="modal-close" onclick="window._closeLuxMeter()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
+      ${aimingGuideHTML('lux')}
       <p class="modal-body-hint" id="lux-source-line">Initializing…</p>
       <div class="lux-dial">
         <div class="lux-dial-value" id="lux-value">—</div>
@@ -505,7 +583,8 @@ export async function openFlickerDetector(opts = {}) {
       <button class="modal-close" onclick="window._closeFlicker()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Aim your phone camera at the light you want to test. Banding stripes indicate PWM flicker.</p>
+      ${aimingGuideHTML('flicker')}
+      <p class="modal-body-hint">Banding stripes indicate PWM flicker.</p>
       <video id="flicker-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:240px"></video>
       <div class="flicker-result" id="flicker-result">Hold camera on a light for 5 seconds…</div>
       <div class="modal-actions" style="margin-top:18px">
@@ -653,7 +732,8 @@ export async function openDarknessMeter(opts = {}) {
       <button class="modal-close" onclick="window._closeDark()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Place your phone face-up where your eyes will be. Lights as you'll sleep.</p>
+      ${aimingGuideHTML('darkness')}
+      <p class="modal-body-hint">Lights as you'll actually sleep — door cracked, hallway light on, etc.</p>
       <div class="dark-status" id="dark-status">Press Start when ready.</div>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="window._closeDark()">Cancel</button>
@@ -810,7 +890,8 @@ export async function openCCTMeter(opts = {}) {
       <button class="modal-close" onclick="window._closeCCT()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Aim your camera at a white wall, paper, or grey card. Reading updates live.</p>
+      ${aimingGuideHTML('cct')}
+      <p class="modal-body-hint">Reading updates live.</p>
       <video id="cct-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
       <div class="cct-result">
         <div class="cct-value" id="cct-value">— K</div>
@@ -958,7 +1039,8 @@ export async function openSpectrumClassifier(opts = {}) {
       <button class="modal-close" onclick="window._closeSpec()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Aim at the light source. We classify by RGB pattern and flicker.</p>
+      ${aimingGuideHTML('spectrum')}
+      <p class="modal-body-hint">We classify by RGB pattern and flicker.</p>
       <video id="spec-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
       <div class="spec-result" id="spec-result">Reading…</div>
       <div class="modal-actions" style="margin-top:14px">
@@ -1100,7 +1182,7 @@ export async function openGlassTransmission(opts = {}) {
       <button class="modal-close" onclick="window._closeGlass()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Two readings: one through the glass, one outside (or in front of the same window without it). We compute the ratio.</p>
+      ${aimingGuideHTML('glass-transmission')}
       <p class="modal-body-hint" style="color:var(--orange);background:rgba(255,160,80,0.08);border-left:3px solid var(--orange);padding:8px 10px;border-radius:4px;font-size:11px;margin-bottom:8px">⚠ Aim at the same patch of sky / light source for both readings. North-window through the glass vs. east-window without it measures scene difference, not glass transmission.</p>
       <div class="glass-step" id="glass-step-inside">
         <span>Step 1: <strong>through the glass</strong></span>
@@ -1322,7 +1404,8 @@ export async function openEyeLevelAudit() {
       <button class="modal-close" onclick="window._closeAudit()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <p class="modal-body-hint">Walk through your home holding the phone at eye level. Pause briefly in each room (~5–10 seconds). Press Done when finished — we'll surface a per-room mini-report.</p>
+      ${aimingGuideHTML('audit')}
+      <p class="modal-body-hint">Pause briefly in each room (~5–10 seconds). Press Done when finished — we'll surface a per-room mini-report.</p>
       <div class="audit-status" id="audit-status" aria-live="polite" aria-atomic="true">Press Start when ready.</div>
       <ol class="audit-room-list" id="audit-room-list" style="margin-top:12px;list-style:decimal inside;color:var(--text-secondary)"></ol>
       <div class="modal-actions" style="margin-top:18px">
