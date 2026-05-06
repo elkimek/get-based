@@ -10,6 +10,7 @@ import { escapeHTML } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { CHANNEL_DISPLAY, formatChannelUnit, channelTier, tierLabel } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 
 function _localDateString(d) {
   const yyyy = d.getFullYear();
@@ -245,8 +246,10 @@ const SYSTEM_PROMPT = [
   'Trend signals (days since last sunrise, weekly vit-D under target, dropping activity) deserve mention when relevant.',
   'Non-obvious patterns to flag: midday session followed by sleep room with measurable light; sunrise sessions logged only on weekends; long device sessions without paired sunlight; evening device sessions on a SAD lamp doing the OPPOSITE of what the user wants.',
   '',
+  ...LIGHTING_HARDWARE_CAVEATS,
+  '',
   'tip: one sentence, max 18 words. The single highest-leverage observation or fix for this day. Direct.',
-  'detail: 2–4 sentences. Synthesize: what worked + what didn\'t + the highest-leverage tomorrow-action. Reference specific numbers.',
+  'detail: 2–4 sentences. Synthesize: what worked + what didn\'t + the highest-leverage tomorrow-action. Reference specific numbers. Recommendations involving fixtures or dimming MUST honor the hardware caveats above.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');

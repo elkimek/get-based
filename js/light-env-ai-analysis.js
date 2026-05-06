@@ -9,6 +9,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
 function _getMeasurementsForRoom(roomId) {
@@ -152,8 +153,10 @@ const SYSTEM_PROMPT = [
   '  • Flicker score 2+ correlates with eyestrain + headaches in sensitive populations regardless of brightness.',
   '  • A high evening-hours-after-sunset count amplifies the cost of a hostile spectrum in that room — flag harder when the user spends multiple evening hours there.',
   '',
+  ...LIGHTING_HARDWARE_CAVEATS,
+  '',
   'tip: one sentence, max 16 words. Pick the SINGLE most-leveraged fix, with concrete action language.',
-  'detail: 2–3 sentences. List up to 2 specific issues + the corresponding biology, then the highest-priority fix.',
+  'detail: 2–3 sentences. List up to 2 specific issues + the corresponding biology, then the highest-priority fix. If the room\'s flicker score is 1+, the recommendation MUST NOT introduce a dimmer; cite the hardware caveats above.',
   '',
   'No "you should" — be observational and direct. No emoji.',
 ].join('\n');

@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 
 function _formatNumber(n, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
@@ -178,8 +179,10 @@ const SYSTEM_PROMPT = [
   'glass transmission: standard window blocks ~98% UVB, transmits ~70-85% UVA + visible. Note that no UVB passes through standard glass even at 90% visible transmission.',
   'audit (multi-room): look for room-to-room variation. Bedroom + living-room being near-identical lux suggests over-lit bedrooms or under-lit living spaces.',
   '',
+  ...LIGHTING_HARDWARE_CAVEATS,
+  '',
   'tip: one sentence, max 14 words. Reference specific number + concrete action when relevant.',
-  'detail: 1–2 sentences. Cite the threshold or biology that drove the verdict. No restating the data verbatim.',
+  'detail: 1–2 sentences. Cite the threshold or biology that drove the verdict. No restating the data verbatim. If the measurement flags flicker (score 1+) or PWM, the recommendation MUST honor the hardware caveats above — never suggest a generic "dimmable LED" or "dim it" as a fix.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');

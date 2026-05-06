@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 
 function _getDefaults() { return state.importedData?.sunDefaults || null; }
 
@@ -133,9 +134,11 @@ const SYSTEM_PROMPT = [
   '',
   'Weigh signals together — a Fitzpatrick I user with sunglasses-always at high latitude has a vitamin-D risk that a Fitzpatrick V user at low latitude doesn\'t. Photosensitizing meds shrink the safe-dose window dramatically (severe = 4× faster burn). Cool LEDs in evening + sleep-room not dark is a stacked melatonin attack.',
   '',
+  ...LIGHTING_HARDWARE_CAVEATS,
+  '',
   'tip: one sentence, max 18 words. The single highest-leverage starting habit. Direct.',
   'detail: 2–3 sentences. Acknowledge the user\'s starting state, name the 1–2 biggest opportunities, and bridge to actions. Reference numbers when given.',
-  'actions: array of 3 short concrete first-week actions, each ≤14 words. Imperative voice ("Walk outside within 10 min of waking"). Specific, not generic.',
+  'actions: array of 3 short concrete first-week actions, each ≤14 words. Imperative voice ("Walk outside within 10 min of waking"). Specific, not generic. Any action involving fixtures or dimming MUST honor the hardware caveats above.',
   '',
   'No "you should" — observational + imperative actions. No emoji.',
 ].join('\n');
