@@ -3867,7 +3867,10 @@ export function showDetailModal(id, opts = {}) {
       });
   }
   setTimeout(() => {
-    if (document.getElementById("chart-modal")) createLineChart("modal", marker, data.dateLabels, data.dates, data.phaseLabels);
+    if (document.getElementById("chart-modal")) {
+      if (state.chartInstances["modal"]) { state.chartInstances["modal"].destroy(); delete state.chartInstances["modal"]; }
+      createLineChart("modal", marker, data.dateLabels, data.dates, data.phaseLabels);
+    }
   }, 50);
   // Display marker description (sync for schema markers, async fetch for custom)
   const descEl = document.getElementById('marker-desc');
