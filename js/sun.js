@@ -60,20 +60,25 @@ export function _normalizePSMTier(raw) {
 // realistic photobiology (e.g. sunbathing face-up exposes only front).
 // Fractions sum to ~1.0 across the whole body when fully selected.
 export const BODY_REGIONS = [
-  { key: 'face',           label: 'Face',              fraction: 0.04 },
-  { key: 'thyroid-throat', label: 'Thyroid / throat',  fraction: 0.01 },
-  { key: 'breast-chest',   label: 'Breast / chest',    fraction: 0.06 },
-  { key: 'arms-front',     label: 'Arms (front)',      fraction: 0.05 },
-  { key: 'arms-back',      label: 'Arms (back)',       fraction: 0.05 },
-  { key: 'torso-front',    label: 'Torso (front)',     fraction: 0.13 },
-  { key: 'torso-back',     label: 'Torso (back)',      fraction: 0.13 },
-  { key: 'abdomen',        label: 'Abdomen',           fraction: 0.07 },
-  { key: 'genitals',       label: 'Genitals',          fraction: 0.01 },
-  { key: 'glutes',         label: 'Glutes',            fraction: 0.05 },
-  { key: 'legs-front',     label: 'Legs (front)',      fraction: 0.15 },
-  { key: 'legs-back',      label: 'Legs (back)',       fraction: 0.15 },
-  { key: 'feet-front',     label: 'Feet (front)',      fraction: 0.01 },
-  { key: 'feet-back',      label: 'Feet (back)',       fraction: 0.01 },
+  // `face` / `thyroid-throat` are kept as front-side keys (no `-front`
+  // suffix) for backward-compat with sessions saved before the back-side
+  // split. New back-side keys are explicit `*-back`.
+  { key: 'face',                label: 'Face',                  fraction: 0.04 },
+  { key: 'face-back',           label: 'Face (back)',           fraction: 0.02 },
+  { key: 'thyroid-throat',      label: 'Thyroid / throat',      fraction: 0.01 },
+  { key: 'thyroid-throat-back', label: 'Nape (back of neck)',   fraction: 0.01 },
+  { key: 'breast-chest',        label: 'Breast / chest',        fraction: 0.06 },
+  { key: 'arms-front',          label: 'Arms (front)',          fraction: 0.05 },
+  { key: 'arms-back',           label: 'Arms (back)',           fraction: 0.05 },
+  { key: 'torso-front',         label: 'Torso (front)',         fraction: 0.13 },
+  { key: 'torso-back',          label: 'Torso (back)',          fraction: 0.13 },
+  { key: 'abdomen',             label: 'Abdomen',               fraction: 0.07 },
+  { key: 'genitals',            label: 'Genitals',              fraction: 0.01 },
+  { key: 'glutes',              label: 'Glutes',                fraction: 0.05 },
+  { key: 'legs-front',          label: 'Legs (front)',          fraction: 0.15 },
+  { key: 'legs-back',           label: 'Legs (back)',           fraction: 0.15 },
+  { key: 'feet-front',          label: 'Feet (front)',          fraction: 0.01 },
+  { key: 'feet-back',           label: 'Feet (back)',           fraction: 0.01 },
 ];
 
 // Standard quick-presets for the speed log. Fractions reflect a SINGLE
@@ -2715,11 +2720,13 @@ function _silhouetteRegionPaths(sex) {
     'feet-front':     feetPath,
   };
   const back = {
-    'arms-back':      armsPath,
-    'torso-back':     rect(shoulderL, yShldrTop, shoulderR, yPubicTop),
-    'glutes':         rect(hipL, yPubicTop, hipR, yCrotch),
-    'legs-back':      legsPath,
-    'feet-back':      feetPath,
+    'face-back':           rect(40, yHairTop, 60, yChinTop),
+    'thyroid-throat-back': rect(waistL + 4, yChinTop, waistR - 4, yShldrTop),
+    'arms-back':           armsPath,
+    'torso-back':          rect(shoulderL, yShldrTop, shoulderR, yPubicTop),
+    'glutes':              rect(hipL, yPubicTop, hipR, yCrotch),
+    'legs-back':           legsPath,
+    'feet-back':           feetPath,
   };
   return { front, back };
 }
@@ -2786,8 +2793,10 @@ const STOCK_IMG = {
 // Region color palette — MUST match scripts/gen-regionmap.py exactly.
 // One unique RGB triple per region key; transparent means "no region".
 const REGION_COLOR_RGB = {
-  'face':           [255,   0,   0],
-  'thyroid-throat': [  0, 255,   0],
+  'face':                [255,   0,   0],
+  'face-back':           [192,   0,  64],
+  'thyroid-throat':      [  0, 255,   0],
+  'thyroid-throat-back': [  0, 192,  64],
   'breast-chest':   [  0,   0, 255],
   'arms-front':     [255, 255,   0],
   'torso-front':    [255,   0, 255],
@@ -2850,8 +2859,8 @@ function _paintRegionMapCell(data, out, W, H, key, cell) {
       return bodyLeft + e <= x && x <= bodyRight - e;
     };
     let bandPaint;
-    if      (py < L.yChinTop)  bandPaint = () => 'face';
-    else if (py < L.yShldrTop) bandPaint = () => 'thyroid-throat';
+    if      (py < L.yChinTop)  bandPaint = () => isFront ? 'face' : 'face-back';
+    else if (py < L.yShldrTop) bandPaint = () => isFront ? 'thyroid-throat' : 'thyroid-throat-back';
     else if (py < L.yChestTop) bandPaint = (x) => inC(x, 0.40) ? (isFront ? 'breast-chest' : 'torso-back') : (isFront ? 'arms-front' : 'arms-back');
     else if (py < L.yChestBot) bandPaint = (x) => inC(x, 0.11) ? (isFront ? 'breast-chest' : 'torso-back') : (isFront ? 'arms-front' : 'arms-back');
     else if (py < L.yNavel)    bandPaint = isFront ? (x) => inC(x, 0.11) ? 'torso-front' : 'arms-front'

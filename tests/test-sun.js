@@ -34,7 +34,7 @@ return (async function() {
   // ─── 1. Constant shape ───────────────────────────────────────────────
   console.log('%c 1. Constants + display metadata ', 'font-weight:bold;color:#f59e0b');
 
-  assert('BODY_REGIONS is non-empty array', Array.isArray(BODY_REGIONS) && BODY_REGIONS.length === 14);
+  assert('BODY_REGIONS is non-empty array', Array.isArray(BODY_REGIONS) && BODY_REGIONS.length === 16);
   const fracSum = BODY_REGIONS.reduce((s, r) => s + r.fraction, 0);
   // Sums to ~0.92 — the missing 8% (head, back-of-arms detail, etc.) is
   // intentional. The assertion guards against any single region drifting
