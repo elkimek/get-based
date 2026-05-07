@@ -159,8 +159,8 @@ return (async function() {
   const standard = buildSunContext({ tier: 'standard' });
   assert('Standard tier strictly longer than always tier',
     standard.length > buildSunContext({ tier: 'always' }).length);
-  assert('Standard tier surfaces session table header (Date | Min | Body% … | UV peak | MED% | Vit-D (IU) | Circadian (lux·h))',
-    /\| Date \| Min \| Body% \| Eyes \| UV peak \| MED% \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
+  assert('Standard tier surfaces session table header (Date | Min | Body% | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h))',
+    /\| Date \| Min \| Body% \| Regions \| Eyes \| UV peak \| MED% \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
   // 5 sessions = 5 table rows
   assert('Standard tier renders one row per session',
     (standard.match(/\| s_\d/g) || []).length === 0 && // ids aren't in the row
@@ -182,10 +182,10 @@ return (async function() {
   assert('Slice returns array', Array.isArray(slice));
   assert('Slice length matches recent ended sessions',
     slice.length === sessions.length);
-  assert('Default slice carries date / channels / safety / atmosphere',
-    slice[0].date && slice[0].channels && slice[0].safety && slice[0].atmosphere);
-  assert('Default slice withholds body / location (privacy-by-default)',
-    slice[0].body === undefined && slice[0].location === undefined);
+  assert('Default slice carries date / channels / safety / atmosphere / body',
+    slice[0].date && slice[0].channels && slice[0].safety && slice[0].atmosphere && slice[0].body);
+  assert('Default slice withholds location (privacy-by-default — sub-11km coords stay opt-in)',
+    slice[0].location === undefined);
   assert('Slice ordered most-recent-first',
     slice.length < 2 || slice[0].date >= slice[1].date);
 

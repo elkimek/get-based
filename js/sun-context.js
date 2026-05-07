@@ -356,13 +356,14 @@ function standardTierBlock(sessions) {
   if (recent.length === 0) return '';
 
   let block = `### Last ${recent.length} sessions (most recent first)
-| Date | Min | Body% | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h) |
-|------|-----|-------|------|---------|------|------------|--------------------|
+| Date | Min | Body% | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h) |
+|------|-----|-------|---------|------|---------|------|------------|--------------------|
 `;
   for (const sess of recent.slice().reverse()) {
     const date = new Date(sess.startedAt).toISOString().slice(0, 10);
     const dur = Math.round(sess.durationMin || 0);
     const bodyPct = sess.bodyExposure ? Math.round((sess.bodyExposure.fraction || 0) * 100) : 0;
+    const regionsStr = _formatRegions(sess.bodyExposure);
     const eyes = sess.eyeExposure?.mode || '?';
     // UV column reflects the session window, not the start-hour stamp.
     // start-hour was misleading: an early-morning logged session showed
@@ -388,7 +389,7 @@ function standardTierBlock(sessions) {
       const luxH = lux * ((sess.durationMin || 0) / 60);
       circ = luxH >= 1000 ? Math.round(luxH / 100) * 100 : Math.round(luxH);
     }
-    block += `| ${date} | ${dur} | ${bodyPct}% | ${eyes} | ${uvFmt} | ${med} | ${vitD} | ${circ} |\n`;
+    block += `| ${date} | ${dur} | ${bodyPct}% | ${regionsStr} | ${eyes} | ${uvFmt} | ${med} | ${vitD} | ${circ} |\n`;
   }
   block += '\n';
 
@@ -407,6 +408,22 @@ ${formatCorrelations(corr.pairs)}
   return block;
 }
 
+// Compact representation of bodyExposure for the standard-tier session
+// table. Quick presets render as their key (face_hands / tshirt /
+// swimwear / sunbathing); detailed logs render the actual region keys
+// joined with '+' so the AI can see specific anatomical areas (e.g.
+// `genitals+breast-chest+legs-front`). `(both)` suffix denotes
+// rotatedSides — both anterior and posterior were exposed during the
+// session via the in-session 🔄 Flip control.
+function _formatRegions(bodyExposure) {
+  if (!bodyExposure) return '?';
+  const preset = bodyExposure.preset;
+  const regions = Array.isArray(bodyExposure.regions) ? bodyExposure.regions : [];
+  const rot = bodyExposure.rotatedSides ? ' (both)' : '';
+  if (regions.length === 0) return (preset && preset !== 'detailed') ? `${preset}${rot}` : `—${rot}`;
+  return regions.join('+') + rot;
+}
+
 // ─── Tool-call APIs (replaces former deep-tier prompt block) ──────────
 //
 // Per-session detail belongs in a tool response, not a prompt. These
@@ -414,14 +431,16 @@ ${formatCorrelations(corr.pairs)}
 // the MCP/agent path — the agent can pull the same data without us
 // inflating every prompt with sessions it might not need.
 
-const _SLICE_DEFAULT_FIELDS = ['date', 'duration', 'channels', 'safety', 'atmosphere'];
+const _SLICE_DEFAULT_FIELDS = ['date', 'duration', 'channels', 'safety', 'atmosphere', 'body'];
 const _SLICE_ALL_FIELDS = ['date', 'duration', 'channels', 'safety', 'atmosphere', 'body', 'eyes', 'location', 'notes'];
 
 // Project a sun session to a canonical, cap-bounded shape. `fields`
 // gates each section so callers (especially the agent) can ask for
-// just the columns they need. `body` and `location` carry potentially
-// sensitive detail — body-region picks, sub-11km coords — and stay
-// off by default.
+// just the columns they need. `body` is in the default set — specific
+// anatomical regions (face vs. genitals vs. legs) materially change
+// vit-D yield, photoaging risk, and surface-area math, so the AI needs
+// it to give grounded answers. `location` (sub-11km coords) still
+// stays off by default.
 function _projectSession(sess, fields) {
   const out = {};
   if (fields.includes('date') && sess.startedAt) {
