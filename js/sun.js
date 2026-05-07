@@ -3148,12 +3148,24 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
   // Kick off region map preload, re-render once it's available so the
   // selection overlay can appear (first render before load shows figures
   // only — subsequent toggles after load get the canvas-tinted overlay).
+  // Guard the rerender so it only fires while this binding's rootEl is
+  // still in the DOM — otherwise stale modal closures keep ticking after
+  // close and the listener leak previously caused an overlay ping-pong
+  // between concurrent selection sets (cache trample → ~10 Hz blob churn).
+  const _alive = () => rootEl.isConnected;
   if (STOCK_FIGURE_PROTOTYPE && !_regionMapData) {
-    _loadRegionMap().then(() => rerender()).catch(() => {});
+    _loadRegionMap().then(() => { if (_alive()) rerender(); }).catch(() => {});
   }
   // The blob-encoded overlay arrives async; rerender once ready so the
-  // tint appears on the figure.
-  const _onOverlayReady = () => rerender();
+  // tint appears on the figure. Listener is removed when rootEl
+  // disconnects (modal close) so closures don't leak across opens.
+  const _onOverlayReady = () => {
+    if (!_alive()) {
+      window.removeEventListener('sun-overlay-ready', _onOverlayReady);
+      return;
+    }
+    rerender();
+  };
   window.addEventListener('sun-overlay-ready', _onOverlayReady);
 
   // Map a click on the SVG to a region key via the region map. Falls
