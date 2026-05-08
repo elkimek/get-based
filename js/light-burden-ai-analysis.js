@@ -7,10 +7,12 @@
 // room + screen + occupancy mix.
 //
 // Storage: singleton at state.importedData.lightEnvironment.burdenAI.
-// Trigger: manual — burden state changes on every chip edit during
-// initial setup, and auto-fire would burn API calls on every keystroke.
-// Engine fingerprint includes d2/d3 tier so a cached verdict serves
-// indefinitely as long as the user's environment shape doesn't change.
+// Trigger: auto-fire on render when the user has data + no cached
+// verdict (or the cached verdict's fingerprint is stale). Engine
+// fingerprint coarsens to d2/d3 tier + per-room/screen shape so a
+// cached verdict serves indefinitely as long as the environment
+// shape doesn't change at the bucket boundary. The _autoFiredKey
+// guard keeps tight-loop refire from happening on transient errors.
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
@@ -162,6 +164,12 @@ export const refreshBurdenAIAnalysis = () => engine.refresh('default');
 
 // ─── Render ────────────────────────────────────────────────────────────
 
+// Track auto-fired keys for the SINGLETON burden target — once we've
+// fired in this tab session we don't refire on every render even if
+// the engine errored or the cache is stale. Manual ↻ refresh stays the
+// recovery path, matching the light-today auto-fire pattern.
+const _autoFiredKeys = new Set();
+
 // The render integrates with the existing burden summary. Returns the
 // HTML for the interp paragraph + AI affordance row (CTA / refresh /
 // state). Caller is renderEnvironment() in light-env.js, which now
@@ -182,7 +190,19 @@ export function renderBurdenInterp(burden) {
   const cachedFingerprint = a?.fingerprint;
   const stale = cachedFingerprint && cachedFingerprint !== currentFingerprint;
 
-  if (status === 'analyzing') {
+  // Auto-fire on first render when there's something to analyze AND
+  // we don't have a fresh cached verdict. Same pattern as
+  // renderLightTodayHero: deferred to next tick so the caller's render
+  // completes (and the shimmer state has time to mount) before the
+  // engine flips back to analyzing. _autoFiredKeys guards against
+  // refire on transient errors.
+  const _autoKey = currentFingerprint;
+  if ((status === 'idle' || stale) && !_autoFiredKeys.has(_autoKey)) {
+    _autoFiredKeys.add(_autoKey);
+    setTimeout(() => engine.analyze(SINGLETON).catch(() => {}), 0);
+  }
+
+  if (status === 'analyzing' || stale) {
     return `<div class="light-env-summary-ai">
       <div class="sun-detail-ai sun-detail-ai-loading">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>

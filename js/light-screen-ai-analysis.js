@@ -118,11 +118,29 @@ export const refreshScreenAIAnalysis = engine.refresh;
 
 // ─── Render ────────────────────────────────────────────────────────────
 
+// Track auto-fired screen IDs per session — same gate as the room
+// auto-fire path; prevents tight-loop refire on transient errors.
+const _autoFiredScreenKeys = new Set();
+
 export function renderScreenAIBlock(s) {
   if (!hasAIProvider() || !s) return '';
   const status = engine.getStatus(s);
   const a = s.aiAnalysis;
-  if (status === 'analyzing') {
+  const currentFingerprint = getScreenFingerprint(s);
+  const cachedFingerprint = a?.fingerprint;
+  const stale = !!(cachedFingerprint && cachedFingerprint !== currentFingerprint);
+
+  // Auto-fire when the user has set a device (the only mandatory field
+  // — defaults to 'phone') AND we don't have a fresh cached verdict.
+  // The hours/blue-blocker fields can be defaulted; the `device` field
+  // gates a meaningful verdict.
+  const _autoKey = `${s.id}:${currentFingerprint}`;
+  if (s.device && (status === 'idle' || stale) && !_autoFiredScreenKeys.has(_autoKey)) {
+    _autoFiredScreenKeys.add(_autoKey);
+    setTimeout(() => engine.analyze(s).catch(() => {}), 0);
+  }
+
+  if (status === 'analyzing' || stale) {
     return `<div class="light-env-screen-ai">
       <div class="light-env-screen-ai-head">⚡ AI verdict</div>
       <div class="sun-detail-ai sun-detail-ai-loading">

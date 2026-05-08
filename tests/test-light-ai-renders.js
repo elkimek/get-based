@@ -133,7 +133,11 @@ return (async function () {
     assert('room block renders idle CTA + AI verdict step header',
       idle.includes('AI verdict') && idle.includes('Analyze room'));
 
-    r.aiAnalysis = okVerdict('red');
+    // Fingerprint must match the room's current shape — post-2026-05-08
+    // renderRoomAIBlock detects stale verdicts and surfaces a shimmer
+    // for re-analysis, so a placeholder 'fp' won't render the red dot.
+    const realRoomFp = mod.getRoomFingerprint ? mod.getRoomFingerprint(r) : 'fp';
+    r.aiAnalysis = { ...okVerdict('red'), fingerprint: realRoomFp };
     const ok = mod.renderRoomAIBlock(r);
     assert('room block renders red dot + step header',
       ok.includes('sun-session-ai-dot-red') && ok.includes('AI verdict'));
@@ -216,7 +220,9 @@ return (async function () {
     assert('screen block renders "Analyze screen" CTA',
       idle.includes('Analyze screen'));
 
-    s.aiAnalysis = okVerdict('red');
+    // Match real fingerprint to bypass the post-2026-05-08 stale check.
+    const realScreenFp = mod.getScreenFingerprint ? mod.getScreenFingerprint(s) : 'fp';
+    s.aiAnalysis = { ...okVerdict('red'), fingerprint: realScreenFp };
     const ok = mod.renderScreenAIBlock(s);
     assert('screen block renders red dot for hostile pattern',
       ok.includes('sun-session-ai-dot-red'));

@@ -191,12 +191,31 @@ export const refreshRoomAIAnalysis = engine.refresh;
 
 // ─── Render ────────────────────────────────────────────────────────────
 
+// Track auto-fired room IDs per session — same gate the light-today
+// hero uses, prevents tight-loop refire on transient errors.
+const _autoFiredRoomKeys = new Set();
+
 export function renderRoomAIBlock(r) {
   if (!hasAIProvider() || !r) return '';
   const status = engine.getStatus(r);
   const a = r.aiAnalysis;
+  const currentFingerprint = getRoomFingerprint(r);
+  const cachedFingerprint = a?.fingerprint;
+  const stale = !!(cachedFingerprint && cachedFingerprint !== currentFingerprint);
   const head = `<div class="light-env-room-step-head"><span class="light-env-room-step-num">⚡</span> AI verdict</div>`;
-  if (status === 'analyzing') {
+
+  // Auto-fire on first render when the room has enough data to analyze
+  // (a primarySource set OR at least one measurement) AND we don't have
+  // a fresh cached verdict. Empty rooms skip auto-fire so the user doesn't
+  // burn API calls on a freshly-added blank room they're still editing.
+  const _hasData = !!(r.primarySource || _getMeasurementsForRoom(r.id).length);
+  const _autoKey = `${r.id}:${currentFingerprint}`;
+  if (_hasData && (status === 'idle' || stale) && !_autoFiredRoomKeys.has(_autoKey)) {
+    _autoFiredRoomKeys.add(_autoKey);
+    setTimeout(() => engine.analyze(r).catch(() => {}), 0);
+  }
+
+  if (status === 'analyzing' || stale) {
     return `<div class="light-env-room-step light-env-room-ai">
       ${head}
       <div class="light-env-room-step-body">

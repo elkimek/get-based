@@ -160,6 +160,10 @@ export const refreshChannelMixAI = () => engine.refresh('default');
 
 // ─── Render ────────────────────────────────────────────────────────────
 
+// Track auto-fired channel-mix keys per session — same gate as the
+// other auto-fire surfaces; prevents tight-loop refire.
+const _autoFiredChannelKeys = new Set();
+
 // Drop-in replacement for renderSuggestion. Returns a verdict block when
 // AI is available + has been triggered; otherwise falls through to the
 // static suggestion (caller still gets non-empty HTML for the empty
@@ -169,9 +173,25 @@ export function renderChannelMixVerdict(staticFallback) {
   const status = engine.getStatus(SINGLETON);
   const a = _getMix();
   const currentFp = getChannelMixFingerprint();
-  const stale = a?.fingerprint && a.fingerprint !== currentFp;
+  const stale = !!(a?.fingerprint && a.fingerprint !== currentFp);
 
-  if (status === 'analyzing') {
+  // Auto-fire on first render when there's actual signal in the mix —
+  // gated on rolling totals having any non-zero channel so a brand-new
+  // user without sessions doesn't burn an API call on an all-zero mix.
+  const _hasSignal = (() => {
+    try {
+      const t = (typeof window !== 'undefined' && window.rollingChannelTotals)
+        ? window.rollingChannelTotals(7) : {};
+      return Object.values(t).some(v => v > 0);
+    } catch (_) { return false; }
+  })();
+  const _autoKey = currentFp;
+  if (_hasSignal && (status === 'idle' || stale) && !_autoFiredChannelKeys.has(_autoKey)) {
+    _autoFiredChannelKeys.add(_autoKey);
+    setTimeout(() => engine.analyze(SINGLETON).catch(() => {}), 0);
+  }
+
+  if (status === 'analyzing' || stale) {
     return `<div class="light-channel-mix-ai">
       <div class="sun-detail-ai sun-detail-ai-loading">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
