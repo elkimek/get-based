@@ -54,6 +54,7 @@ import './cashu-wallet.js';
 import './nostr-discovery.js';
 import './feedback.js';
 import './tour.js';
+import './touch-tooltip.js';
 import { maybeShowChangelog } from './changelog.js';
 import { buildSidebar, renderProfileDropdown } from './nav.js';
 import './client-list.js';

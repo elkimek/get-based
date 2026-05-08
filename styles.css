@@ -7922,12 +7922,33 @@ svg.sun-silhouette text.sun-silhouette-label {
 /* Narrow viewports: collapse secondary-action labels so the controls
    fit one row instead of overflowing into a "+3 more" wrap. The icon
    carries the action; title attr serves the tooltip. Primary buttons
-   keep their text — they're the canonical actions. */
-@media (max-width: 600px) {
+   keep their text — they're the canonical actions.
+   But: on touch devices `title` tooltips don't fire (no hover event),
+   so keep labels visible there even at narrow widths. The label IS
+   the discoverability on mobile. */
+@media (max-width: 600px) and (hover: hover) {
   .sun-session-ctl-secondary .sun-session-ctl-label { display: none; }
   .sun-session-ctl-secondary .sun-session-ctl { padding: 4px 8px; }
 }
 .sun-session-ctl:hover { background: var(--bg-card); border-color: var(--accent); color: var(--accent); }
+
+/* Touch-tooltip overlay (js/touch-tooltip.js) — surfaced via long-press
+   on touch devices since `title` attributes don't fire there. Sized
+   for legibility at finger-distance, clamped to viewport in JS. */
+.touch-tooltip {
+  position: fixed; z-index: 10000;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 12px;
+  background: var(--bg-elevated, #1f2330); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; line-height: 1.4;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0; transform: translateY(4px);
+  transition: opacity 0.12s, transform 0.12s;
+  pointer-events: none; /* never blocks subsequent taps */
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.touch-tooltip-show { opacity: 1; transform: translateY(0); }
 
 /* Stop button — primary emphasis so it reads as the canonical action
    on the active-session card, not just another optional control. */
