@@ -619,5 +619,5 @@ function _skinFaceKeydown(e, idx) {
   if (next == null) return;
   e.preventDefault();
   const target = document.querySelector(`.ctx-skin-face[data-idx="${next}"]`);
-  if (target) try { target.focus(); } catch (err) {}
+  if (target) target.focus();
 }

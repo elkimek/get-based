@@ -778,12 +778,18 @@ export function importDataJSON(file) {
         await _importChatData(state.currentProfile, json.chat);
         if (window.loadChatThreads) window.loadChatThreads();
       }
+      // Demo-load completion: clear the loading sentinel (dashboard
+      // empty-state renderer keys off this flag while data is en route).
+      if (window._demoLoadingProfileId === state.currentProfile) {
+        delete window._demoLoadingProfileId;
+      }
       window.buildSidebar();
       window.updateHeaderDates();
       window.navigate('dashboard');
       const profileMsg = json.profile?.name ? ` into "${json.profile.name}"` : '';
       showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${profileMsg}`, 'success');
     } catch (err) {
+      delete window._demoLoadingProfileId;
       showNotification('Error parsing JSON: ' + err.message, 'error');
     }
   };
@@ -1043,10 +1049,16 @@ export async function loadDemoData(sex = 'male') {
         await encryptedRemoveItem('labcharts-default-imported');
       }
     }
+    // Mark the loading window so the dashboard renderer shows a
+    // "Loading demo data…" placeholder instead of the empty Welcome
+    // hero during the 2-3s gap between switchProfile and
+    // importDataJSON-finish. Cleared by the import completion path.
+    window._demoLoadingProfileId = profileId;
     switchProfile(profileId);
     localStorage.setItem(profileStorageKey(profileId, 'onboarded'), 'profile-set');
     importDataJSON(new File([blob], file, { type: 'application/json' }));
   } catch (err) {
+    delete window._demoLoadingProfileId;
     showNotification('Could not load demo data: ' + err.message, 'error');
   }
 }

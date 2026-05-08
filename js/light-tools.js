@@ -1617,7 +1617,7 @@ export function renderLightTools() {
       <div class="light-tools-grid">
         ${card("window.openFlickerDetector()", '⚡', 'Flicker Detector', 'Is this light flickering? Sees PWM up to 25 kHz via rolling-shutter banding.')}
         ${card("window.openDarknessMeter()", '🌙', 'Sleep Darkness', 'Is your bedroom dark enough for melatonin? Measures mean + peak lux at the pillow.')}
-        ${card("window.openGlassTransmission()", '🪟', 'Window check', 'How much visible light does this glass cut? Two readings, side-by-side.')}
+        ${card("window.openGlassTransmission()", '🪟', 'Window check', 'Measure your glass transmission with two readings (with + without), side-by-side. The in-session "behind glass" toggle uses a generic curve — measure here for accuracy.')}
       </div>
     </div>
 

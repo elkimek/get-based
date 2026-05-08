@@ -127,13 +127,15 @@ return (async function() {
   // ─── 7. Repeated mount/unmount cycles do not accumulate listeners ────
   // Spy on add/removeEventListener for 'sun-overlay-ready'. With the
   // listener-leak fix, each bindBodySilhouette() call registers exactly
-  // one listener, and on the next dispatch after rootEl detaches that
-  // listener removes itself. So after binding 20 transient pickers and
-  // detaching all of them, dispatching once should drain all 20 stale
-  // listeners (20 adds → 20 removes). Counting events directly avoids
-  // the timing flakes that come from MutationObserver-based assertions
-  // in a live page where region-map loads + blob encodes dispatch their
-  // own 'sun-overlay-ready' events asynchronously.
+  // one listener, and after rootEl detaches that listener is removed
+  // via two paths: (1) MutationObserver on the parent fires eagerly at
+  // detach time; (2) the lazy path inside `_onOverlayReady` calls
+  // removeEventListener if `_alive()` returns false at dispatch time.
+  // Both paths run because removeEventListener is idempotent. The
+  // invariant we assert is the real one: no LEAK — every add has at
+  // least one matching remove. Counting events directly avoids timing
+  // flakes from region-map loads + blob encodes dispatching their own
+  // 'sun-overlay-ready' events asynchronously.
   let adds = 0, removes = 0;
   const origAdd = window.addEventListener.bind(window);
   const origRemove = window.removeEventListener.bind(window);
@@ -164,8 +166,8 @@ return (async function() {
 
   assert('20 transient pickers register exactly 20 sun-overlay-ready listeners',
     adds === 20, `adds=${adds}`);
-  assert('All 20 leaked listeners self-remove on next dispatch',
-    removes === 20, `removes=${removes}`);
+  assert('No leaked listeners — every add has at least one matching remove',
+    removes >= adds, `adds=${adds} removes=${removes}`);
 
   // Cleanup
   host.remove();

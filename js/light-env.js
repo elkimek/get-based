@@ -11,6 +11,14 @@
 //                eveningUseAfterSunset, flickerScore, ... }],
 //     screens: [{ device, hoursPerDay, eveningUseAfterSunset, ... }],
 //   }
+//
+// FIXME(legacy): `eveningUseAfterSunset` is the v1.5-era binary —
+// chip-pickers now write `eveningHoursAfterSunset` (numeric). Both
+// fields are dual-written here for backcompat. Removal requires a
+// full consumer sweep across light-{audit,burden,env,screen}-ai-analysis.js
+// + sun-context.js + 7 test asserts + a migration that converts older
+// synced clients' boolean → numeric on read. Out-of-scope for the
+// audit branch; landed as separate cleanup PR.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';

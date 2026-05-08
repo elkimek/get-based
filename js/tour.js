@@ -37,8 +37,21 @@ function isTourCompleted(storageKey) {
   return localStorage.getItem(storageKey) === 'completed';
 }
 
+function _isActiveProfileDemo() {
+  try {
+    const profiles = JSON.parse(localStorage.getItem('labcharts-profiles') || '[]');
+    const activeId = localStorage.getItem('labcharts-active-profile');
+    const active = profiles.find(p => p.id === activeId);
+    return Array.isArray(active?.tags) && active.tags.includes('demo');
+  } catch (_) { return false; }
+}
+
 function runTour(steps, storageKey, auto) {
   if (auto && isTourCompleted(storageKey)) return;
+  // Demo profiles are exploration sandboxes — re-firing the welcome
+  // tour every time the user picks a different demo is noise. Manual
+  // tour invocation (auto=false) still works on demo profiles.
+  if (auto && _isActiveProfileDemo()) return;
 
   // Filter out steps whose target element is missing (except null/center steps)
   const filteredSteps = steps.filter(s => s.target === null || document.querySelector(s.target));

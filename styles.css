@@ -162,6 +162,10 @@ body {
   padding: 1px 7px; border-radius: 10px; color: var(--red); font-weight: 600;
   box-shadow: 0 0 6px rgba(248, 113, 113, 0.15);
 }
+.nav-item .nav-count {
+  margin-left: auto; font-size: 11px; background: var(--bg-card);
+  padding: 1px 7px; border-radius: 10px; color: var(--text-muted);
+}
 .sidebar-group-header {
   display: flex; align-items: center; gap: 8px; padding: 8px 20px; margin-top: 8px;
   cursor: pointer; font-size: 11px; font-weight: 600; text-transform: uppercase;
@@ -7893,8 +7897,18 @@ svg.sun-silhouette text.sun-silhouette-label {
 /* Active-session inline controls — Pause/Resume + Sunscreen + Ozone.
    Compact pill row beneath the meta line on active session cards. */
 .sun-session-active-controls {
-  display: flex; flex-wrap: wrap; gap: 6px;
+  display: flex; flex-wrap: wrap; gap: 8px 12px;
   margin: 8px 0 4px;
+}
+/* Primary actions (Stop, Pause) read first; secondary cluster is
+   visually grouped by a subtle separator gap so the row doesn't read
+   as 6 equal-weight controls. */
+.sun-session-ctl-primary,
+.sun-session-ctl-secondary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.sun-session-ctl-secondary {
+  padding-left: 8px; border-left: 1px solid var(--border);
 }
 .sun-session-ctl {
   padding: 4px 10px; font-size: 11px;
@@ -7902,6 +7916,14 @@ svg.sun-silhouette text.sun-silhouette-label {
   border: 1px solid var(--border); border-radius: 999px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+}
+/* Narrow viewports: collapse secondary-action labels so the controls
+   fit one row instead of overflowing into a "+3 more" wrap. The icon
+   carries the action; title attr serves the tooltip. Primary buttons
+   keep their text — they're the canonical actions. */
+@media (max-width: 600px) {
+  .sun-session-ctl-secondary .sun-session-ctl-label { display: none; }
+  .sun-session-ctl-secondary .sun-session-ctl { padding: 4px 8px; }
 }
 .sun-session-ctl:hover { background: var(--bg-card); border-color: var(--accent); color: var(--accent); }
 

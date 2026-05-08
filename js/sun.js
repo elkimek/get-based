@@ -883,32 +883,33 @@ export async function hydrateSession(id, { lat, lon } = {}) {
 // the computed values incompatibly (Rayleigh formula, channel action
 // spectra, MED thresholds, fitzpatrick mapping) should bump the
 // constant so users on the old data get a fresh recompute on reload.
-let _rehydrateInFlight = false;
+// Pre-2026-05-08: gated by a global `_rehydrateInFlight` boolean which
+// rejected the second caller outright. Now relies on per-session
+// `_hydrateInFlight` (declared above near hydrateSession) so two
+// batches arriving concurrently (e.g., dashboard + light page on cold
+// load) share work — each id rehydrates at most once but both callers
+// get the promise back.
 export async function rehydrateStaleSessions() {
-  if (_rehydrateInFlight) return { skipped: 'in flight' };
-  _rehydrateInFlight = true;
-  try {
-    const sessions = getSessions();
-    const stale = sessions.filter(s =>
-      s.endedAt &&
-      s.location?.lat != null &&
-      (s.engineVersion ?? 0) < SUN_ENGINE_VERSION
-    );
-    if (stale.length === 0) return { rehydrated: 0 };
-    // Serialize so we don't fan out N concurrent atmosphere fetches.
-    let ok = 0;
-    for (const s of stale) {
-      try {
-        const result = await hydrateSession(s.id, { lat: s.location.lat, lon: s.location.lon });
-        if (result) ok++;
-      } catch (e) {
-        if (window.console && console.warn) console.warn('rehydrateStaleSessions:', s.id, e?.message || e);
-      }
+  const sessions = getSessions();
+  const stale = sessions.filter(s =>
+    s.endedAt &&
+    s.location?.lat != null &&
+    (s.engineVersion ?? 0) < SUN_ENGINE_VERSION
+  );
+  if (stale.length === 0) return { rehydrated: 0 };
+  // Serialize so we don't fan out N concurrent atmosphere fetches.
+  // hydrateSession itself dedups by id, so two batches in parallel
+  // don't double-fetch the same session.
+  let ok = 0;
+  for (const s of stale) {
+    try {
+      const result = await hydrateSession(s.id, { lat: s.location.lat, lon: s.location.lon });
+      if (result) ok++;
+    } catch (e) {
+      if (window.console && console.warn) console.warn('rehydrateStaleSessions:', s.id, e?.message || e);
     }
-    return { rehydrated: ok, ofTotal: stale.length };
-  } finally {
-    _rehydrateInFlight = false;
   }
+  return { rehydrated: ok, ofTotal: stale.length };
 }
 
 // ─── Lifelight aggregates ──────────────────────────────────────────────
@@ -1299,7 +1300,7 @@ export async function openStartSunSessionDialog() {
           <input type="checkbox" id="start-glass"${defaultGlass ? ' checked' : ''} />
           Behind glass (window / car / sunroom)
         </label>
-        <p class="sun-detailed-glass-hint">Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through. We zero the burn dose accordingly.</p>
+        <p class="sun-detailed-glass-hint">Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through. We zero the burn dose accordingly. (Want to measure YOUR glass's transmission? Light tools → Window check.)</p>
         <label class="ctx-label sun-detailed-glass" style="margin-top:8px">
           <input type="checkbox" id="start-rotated" />
           Plan to flip front ↔ back during the session
@@ -1943,7 +1944,13 @@ function _renderActiveCardBody(sess) {
 // for the elements that exist; no full re-render. Every 5 seconds also
 // refreshes the page-level channel grid + dashboard strip so the live
 // accumulated doses propagate beyond the session card itself.
+//
+// _lastChannelRefreshAt is a wall-time gate so pause/resume of the
+// ticker doesn't desync the cadence — pre-2026-05-08 used a global mod
+// counter (_tickCount % 5) which counted ticks regardless of whether
+// they fired.
 let _tickCount = 0;
+let _lastChannelRefreshAt = 0;
 function _tickActiveCards() {
   const sessions = getSessions().filter(s => !s.endedAt);
   if (sessions.length === 0) {
@@ -2109,8 +2116,13 @@ function _tickActiveCards() {
   // Every 5s, refresh the surrounding "Channels this week" grid + Light
   // Today dashboard strip. They read rollingChannelTotals which now mixes
   // in the live partial doses, so re-rendering them shows accumulated UV-D
-  // / circadian / NIR rising in real time.
-  if (_tickCount % 5 === 0) _refreshLiveChannelSurfaces();
+  // / circadian / NIR rising in real time. Wall-time gate: 5000ms since
+  // last refresh, robust to ticker pause/resume.
+  const now = Date.now();
+  if (now - _lastChannelRefreshAt >= 5000) {
+    _lastChannelRefreshAt = now;
+    _refreshLiveChannelSurfaces();
+  }
 }
 
 // Re-render the channel grid + dashboard strip without forcing a full
@@ -2285,15 +2297,19 @@ export function renderSunSessionRow(sess) {
     const pauseAction = isPaused ? `window.resumeSunSession('${escapeAttr(sess.id)}')` : `window.pauseSunSession('${escapeAttr(sess.id)}')`;
     const isRotated = !!sess.bodyExposure?.rotatedSides;
     const flipBtn = isRotated
-      ? `<button class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides.">🔄 Rotated ✓</button>`
-      : `<button class="sun-session-ctl" onclick="event.stopPropagation();window.flipSidesMidSession('${escapeAttr(sess.id)}')" title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure.">🔄 Flip</button>`;
+      ? `<button class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides." aria-label="Rotated"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Rotated ✓</span></button>`
+      : `<button class="sun-session-ctl" onclick="event.stopPropagation();window.flipSidesMidSession('${escapeAttr(sess.id)}')" title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure." aria-label="Flip front-back"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Flip</span></button>`;
     activeControls = `<div class="sun-session-active-controls" onclick="event.stopPropagation()">
-      <button class="sun-session-ctl sun-session-ctl-stop" onclick="event.stopPropagation();window.quickLogSunSession()" title="Stop and save the current session">⏹ Stop &amp; save</button>
-      <button class="sun-session-ctl" onclick="event.stopPropagation();${pauseAction}" title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}">${pauseLabel}</button>
-      ${flipBtn}
-      <button class="sun-session-ctl" onclick="event.stopPropagation();window.changeCoverageMidSession('${escapeAttr(sess.id)}')" title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward">👕 Coverage</button>
-      <button class="sun-session-ctl" onclick="event.stopPropagation();window.applySunscreenMidSession('${escapeAttr(sess.id)}')" title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF">🧴 Sunscreen</button>
-      <button class="sun-session-ctl" onclick="event.stopPropagation();window.setOzoneOverrideMidSession()" title="Calibrate ozone column from a meter / weather station">🛰 Ozone</button>
+      <div class="sun-session-ctl-primary">
+        <button class="sun-session-ctl sun-session-ctl-stop" onclick="event.stopPropagation();window.quickLogSunSession()" title="Stop and save the current session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
+        <button class="sun-session-ctl" onclick="event.stopPropagation();${pauseAction}" title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}" aria-label="${isPaused ? 'Resume' : 'Pause'} session"><span aria-hidden="true">${isPaused ? '▶' : '⏸'}</span> <span class="sun-session-ctl-label">${isPaused ? 'Resume' : 'Pause'}</span></button>
+      </div>
+      <div class="sun-session-ctl-secondary">
+        ${flipBtn}
+        <button class="sun-session-ctl" onclick="event.stopPropagation();window.changeCoverageMidSession('${escapeAttr(sess.id)}')" title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward" aria-label="Change coverage"><span aria-hidden="true">👕</span> <span class="sun-session-ctl-label">Coverage</span></button>
+        <button class="sun-session-ctl" onclick="event.stopPropagation();window.applySunscreenMidSession('${escapeAttr(sess.id)}')" title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF" aria-label="Reapply sunscreen"><span aria-hidden="true">🧴</span> <span class="sun-session-ctl-label">Sunscreen</span></button>
+        <button class="sun-session-ctl" onclick="event.stopPropagation();window.setOzoneOverrideMidSession()" title="Calibrate ozone column from a meter / weather station" aria-label="Override ozone"><span aria-hidden="true">🛰</span> <span class="sun-session-ctl-label">Ozone</span></button>
+      </div>
     </div>`;
   }
   const pausedBadge = isActive && sess.paused ? `<span class="sun-session-paused" title="Dose accrual paused — elapsed time still ticks but channel + burn totals stay frozen.">⏸ paused</span>` : '';
@@ -3253,8 +3269,12 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
     _loadRegionMap().then(() => { if (_alive()) rerender(); }).catch(() => {});
   }
   // The blob-encoded overlay arrives async; rerender once ready so the
-  // tint appears on the figure. Listener is removed when rootEl
-  // disconnects (modal close) so closures don't leak across opens.
+  // tint appears on the figure. Listener is removed both lazily (next
+  // dispatch after rootEl detaches) AND eagerly via a MutationObserver
+  // on the parent — so cleanup happens at modal-close time even if no
+  // overlay-ready event fires before the next open. The lazy path is
+  // kept as a fallback for cases where the parent observer loses track
+  // (e.g., rootEl moved to a new parent).
   const _onOverlayReady = () => {
     if (!_alive()) {
       window.removeEventListener('sun-overlay-ready', _onOverlayReady);
@@ -3263,6 +3283,20 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
     rerender();
   };
   window.addEventListener('sun-overlay-ready', _onOverlayReady);
+  if (typeof document !== 'undefined' && document.body && typeof MutationObserver === 'function') {
+    // Subtree observation — modal-close typically removes a grandparent
+    // overlay (rootEl's immediate parent stays attached to it), so we
+    // need to watch the whole document for childList changes and check
+    // connectivity on every fire. The callback is short — short-circuit
+    // when still connected.
+    const detachObs = new MutationObserver(() => {
+      if (!rootEl.isConnected) {
+        window.removeEventListener('sun-overlay-ready', _onOverlayReady);
+        detachObs.disconnect();
+      }
+    });
+    detachObs.observe(document.body, { childList: true, subtree: true });
+  }
 
   // Map a click on the SVG to a region key via the region map. Falls
   // back to per-region path detection if the map hasn't loaded yet.
@@ -3522,11 +3556,12 @@ async function editSunSessionDuration(id) {
 function _resetSunModuleState() {
   if (_activeTicker) { clearInterval(_activeTicker); _activeTicker = null; }
   _tickCount = 0;
+  _lastChannelRefreshAt = 0;
   _overlayCache = { key: '', url: '' };
   _overlayPending = false;
   // _regionMapData decode is expensive (canvas + getImageData on a full
   // figure SVG) and the result is profile-agnostic, so we keep it warm.
-  _rehydrateInFlight = false;
+  _hydrateInFlight.clear();
 }
 
 if (typeof window !== 'undefined') {

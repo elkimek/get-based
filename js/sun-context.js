@@ -12,6 +12,7 @@
 // shape for that data — it doesn't belong in every prompt.
 
 import { state } from './state.js';
+import { getSunCorrelations } from './sun-correlations.js';
 
 // ═══════════════════════════════════════════════
 // BODY REGIONS IN AI CONTEXT (per-profile, default OFF)
@@ -425,8 +426,8 @@ function standardTierBlock(sessions) {
 
   // Correlation table — computed on demand by sun-correlations.js
   let corr = state.importedData?.sunCorrelations;
-  if ((!corr || !corr.pairs) && typeof window.getSunCorrelations === 'function') {
-    try { corr = window.getSunCorrelations(); } catch (e) {
+  if (!corr || !corr.pairs) {
+    try { corr = getSunCorrelations(); } catch (e) {
       if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] getSunCorrelations failed', e);
     }
   }

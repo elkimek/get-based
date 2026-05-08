@@ -361,8 +361,13 @@ export function renderConditionsNow(opts = {}) {
 async function _refreshConditions(slotId, variant, opts = {}) {
   const slot = document.getElementById(slotId);
   if (!slot) return;
+  // Clear aria-busy on every exit path — the slot was created with
+  // aria-busy="true" so screen readers don't announce intermediate
+  // values. Whatever path resolves first must clear it.
+  const _resolveBusy = () => slot.setAttribute('aria-busy', 'false');
   const coords = (window.getSunCoords && window.getSunCoords()) || null;
   if (!coords) {
+    _resolveBusy();
     slot.innerHTML = `<div class="conditions-now-msg">Set a country in your profile to see current sun conditions.</div>`;
     return;
   }
@@ -372,6 +377,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
   const now = Date.now();
   const key = _coordKey(coords);
   if (!opts.force && _conditionsCache && _conditionsCache.coordKey === key && (now - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
+    _resolveBusy();
     slot.innerHTML = _renderConditionsHTML(_conditionsCache.atm, coords, variant);
     return;
   }
@@ -2442,6 +2448,18 @@ export function showDashboard(data) {
   // Show/hide import FAB based on whether dashboard has data
   const importFab = document.getElementById('import-fab');
   if (importFab) importFab.classList.toggle('hidden', !hasData);
+
+  // ── Demo-load in flight: short-lived placeholder while
+  //    importDataJSON parses the demo blob (typically 2–3s). Without
+  //    this the empty Welcome hero flashes for the duration. The flag
+  //    is set in loadDemoData() and cleared on import success/failure.
+  if (!hasData && window._demoLoadingProfileId === state.currentProfile) {
+    main.innerHTML = `<div class="welcome-hero" aria-busy="true" role="status" aria-live="polite">
+      <h2>Loading demo data…</h2>
+      <p class="welcome-hero-subtitle">Setting up the demo profile — this takes a few seconds the first time.</p>
+    </div>`;
+    return;
+  }
 
   // ── Empty state: welcome hero + collapsed context ──
   if (!hasData) {
