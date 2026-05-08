@@ -98,46 +98,37 @@ function summarizeChange(field, prev, curr) {
 // ═══════════════════════════════════════════════
 // LAB CONTEXT
 // ═══════════════════════════════════════════════
-// Detect Light & Sun-relevant intent in the user's current message so
-// the context layer can escalate buildSunContext from always to standard
-// tier (adds 30-day session table + biomarker correlations, +1200 tok).
-// Conservative regex — only triggers on words that genuinely route the
-// answer through sun/light reasoning. False positives waste tokens but
-// don't degrade quality; false negatives leave the model under-informed.
-// Triggers + caveats:
-// - "sunbath" needed an optional "ing" because "sunbathing" has no word
-//   boundary between "sunbath" and "ing", so /\bsunbath\b/ failed to
-//   match the user's natural phrasing.
-// - Coverage / clothing-language ("naked", "dressed", "swimwear", etc.)
-//   is sun-intent because the user's question routes through the
-//   standard-tier session table's "Skin exposed" column. Without these
-//   triggers the AI gets the always-tier blob only and loses the
-//   per-session body-fraction column.
-const _SUN_INTENT_RE = /\b(sun|sunlight|sunrise|sunset|sunburn|sunbath(?:ing)?|tan(?:ning)?|UV(?:[BA])?|UVI|vitamin\s?d|25-?oh-?d|circadian|melaton(?:in|ic)|sleep|jet ?lag|seasonal|winter|sad|red[- ]light|nir|infrared|pbm|photobiomod|fitzpatrick|burn|melatonin|cortisol|light\s+(?:therap|exposure|environment|burden)|sad lamp|dawn simul|blue light|junk light|naked|nude|nudity|clothing|dressed|skin\s+exposed|swimwear|swimsuit|bikini|shorts|t-?shirt|bare\s+skin)\b/i;
+// Pre-2026-05-08 a regex (_SUN_INTENT_RE) detected sun/light keywords
+// in the user message and escalated buildSunContext from 'always' to
+// 'standard' tier (adding the 30-day session table + correlations,
+// ~1200 tok). The intent was token-budget conservation, but the regex
+// produced silent failures whenever the user's natural phrasing didn't
+// match the keyword set ("sunbathing" missed, "naked" missed,
+// "swimwear" missed) — and the rest of the app uses a much simpler
+// pattern: include the section when the data exists, full stop. Diet,
+// Exercise, Sleep, Diagnoses, Supplements, Biometrics, every context
+// card — all unconditional if-data-exists includes. Sun was the
+// outlier. Removed the intent-detector; buildSunContext always runs
+// at 'standard' tier, and itself returns '' when there's no data, so
+// users without sessions pay zero tokens and users with sessions get
+// the full session table on every turn — same shape as every other
+// section in this file.
 
-export function _detectSunIntent(message) {
-  if (typeof message !== 'string' || !message) return false;
-  return _SUN_INTENT_RE.test(message);
-}
-
-export function buildLabContext({ skipGroupFilter, userMessage } = {}) {
+export function buildLabContext({ skipGroupFilter } = {}) {
   // skipGroupFilter: true → include all specialty groups regardless of AI toggle
   // Used by sync/push so the relay always receives complete data
-  // userMessage: the current user prompt — used to detect sun-related intent
-  // and escalate buildSunContext to standard tier.
-  const sunTier = _detectSunIntent(userMessage) ? 'standard' : 'always';
-  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + ':sun=' + sunTier;
+  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '');
   if (_labContextCache.fingerprint === fp && _labContextCache.context) {
     if (isDebugMode()) console.log('[AI] Lab context cache hit');
     return _labContextCache.context;
   }
   if (isDebugMode()) console.log('[AI] Lab context cache miss — rebuilding');
-  const ctx = _buildLabContextInner({ skipGroupFilter, sunTier });
+  const ctx = _buildLabContextInner({ skipGroupFilter });
   _labContextCache = { fingerprint: fp, context: ctx };
   return ctx;
 }
 
-function _buildLabContextInner({ skipGroupFilter, sunTier = 'always' } = {}) {
+function _buildLabContextInner({ skipGroupFilter } = {}) {
   const data = getActiveData();
   const hasLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -701,15 +692,15 @@ function _buildLabContextInner({ skipGroupFilter, sunTier = 'always' } = {}) {
     ctx += `[section:contextNotes]\n## Additional Context Notes\n${ctxNotes.trim()}\n[/section:contextNotes]\n\n`;
   }
 
-  // ── 19. Light & Sun lens (tier picked by sun-intent detection) ──
-  // `sunTier` is 'always' by default, escalates to 'standard' when the
-  // current user message mentions sun / light / sleep / vitamin D / etc.
-  // Standard adds the 30-day session table + biomarker correlations
-  // (+1200 tok) so the model can reason temporally instead of replying
-  // from 7-day rolling totals only.
+  // ── 19. Light & Sun lens — full standard tier when user has data ──
+  // buildSunContext returns '' when there's nothing to show, so a
+  // user without sessions pays zero tokens. Users with sessions get
+  // the 30-day session table + biomarker correlations on every turn,
+  // matching the pattern the rest of this file uses for every other
+  // section (include if-data-exists, no keyword gating).
   if (typeof window !== 'undefined' && typeof window.buildSunContext === 'function') {
     try {
-      ctx += window.buildSunContext({ tier: sunTier });
+      ctx += window.buildSunContext({ tier: 'standard' });
     } catch (e) { /* sun context is best-effort */ }
   }
 

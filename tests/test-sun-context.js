@@ -398,24 +398,28 @@ return (async function() {
   assert('Warnings name the room rather than expose the opaque roomId',
     /in kitchen/.test(withWarning) && !/roomId=room_kitchen/.test(withWarning));
 
-  // ─── 11. Sun-intent detection (lab-context.js) ───────────────────────
-  console.log('%c 11. Sun-intent regex ', 'font-weight:bold;color:#f59e0b');
+  // ─── 11. Lab context always includes sun standard tier when sessions exist ───
+  // The keyword-based intent detector was removed 2026-05-08; lab-context
+  // now mirrors every other section's "if-data-exists" pattern. Verify
+  // by checking that buildLabContext output contains the standard-tier
+  // session table whenever sun sessions are present.
+  console.log('%c 11. Sun standard-tier always included when data exists ', 'font-weight:bold;color:#f59e0b');
 
-  const { _detectSunIntent } = await import('/js/lab-context.js?bust=' + Date.now());
-  assert('Detects "vitamin D" intent', _detectSunIntent('How is my vitamin D?'));
-  assert('Detects "circadian" intent', _detectSunIntent('Talk circadian rhythm'));
-  assert('Detects "sleep" intent', _detectSunIntent('My sleep is bad'));
-  assert('Detects "PBM" intent', _detectSunIntent('Should I do PBM?'));
-  assert('Detects "winter" intent', _detectSunIntent('Winter blues'));
-  assert('Skips unrelated chat', !_detectSunIntent('What is my HbA1c?'));
-  assert('Skips empty / null', !_detectSunIntent('') && !_detectSunIntent(null));
-  // Regression — pre-fix the regex required \b after "sunbath" so
-  // "sunbathing" missed entirely and the user's natural phrasing
-  // failed to escalate. Coverage-language was also entirely absent.
-  assert('Detects "sunbathing" (not just "sunbath")', _detectSunIntent('How naked was I when I was sunbathing?'));
-  assert('Detects "naked" coverage-language',         _detectSunIntent('How naked was I last weekend?'));
-  assert('Detects "swimwear" coverage-language',      _detectSunIntent('Was I in swimwear?'));
-  assert('Detects "dressed" coverage-language',       _detectSunIntent('How dressed was I yesterday?'));
+  if (typeof window.buildLabContext === 'function') {
+    const labCtx = window.buildLabContext({});
+    const sessions = window.getSessions ? window.getSessions().filter(s => s.endedAt) : [];
+    if (sessions.length > 0) {
+      assert('Lab context always carries [section:sun] when sessions exist',
+        /\[section:sun\][\s\S]*\[\/section:sun\]/.test(labCtx));
+      assert('Lab context always includes the 30-day session table (standard tier) when sessions exist',
+        /Skin exposed/.test(labCtx));
+    } else {
+      assert('Lab context skips [section:sun] when no sessions',
+        !/\[section:sun\]/.test(labCtx));
+    }
+  } else {
+    assert('window.buildLabContext exists', false, 'skipped — function missing');
+  }
 
   // ─── 12. Token-budget guard ──────────────────────────────────────────
   console.log('%c 12. Soft + hard budget caps ', 'font-weight:bold;color:#f59e0b');
