@@ -38,7 +38,7 @@ After ~5 seconds of capture, you get:
 - An **estimated PWM frequency** in Hz (via zero-crossing on the detrended intensity signal)
 - A plain-English label ("Flicker-free" / "Mild, likely OK for most" / "Visible flicker — eye-strain risk" / "Heavy flicker — replace this light")
 
-Risk thresholds map to **IEEE PAR1789** recommendations.
+Risk thresholds map to **IEEE Std 1789-2015** recommended-practice thresholds for LED current modulation.
 
 ## Tool 3 — Color Temp
 
@@ -60,7 +60,7 @@ Single-tap classifier. RGB ratio + flicker variance signature → one of five ca
 - **Warm LED (2700–3000K)** — slight red lift, near-flicker-free
 - **Daylight or full-spectrum** — balanced RGB
 
-Confidence is shown alongside the result. The full ML classifier library lands in v1.1.
+Confidence is shown alongside the result.
 
 ## Tool 5 — Glass Transmission
 

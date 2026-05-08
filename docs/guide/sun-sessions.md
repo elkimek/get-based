@@ -10,10 +10,10 @@ Sun isn't just vitamin D. Different parts of sunlight do different things — se
 | **Mood & hormones** | Sun on skin triggers a hormone cascade — α-MSH (the tan signal), β-endorphin (mood), ACTH (stress response). Part of why sun feels good. | UVB + UVA |
 | **Cardiovascular** | UVA from skin releases nitric oxide — supports blood-vessel function, lowers blood pressure, improves circulation, dampens inflammation. | UVA 315–400 nm |
 | **Outdoor eye light** | Outdoor 360–400 nm hits sensors in eye and skin. Linked to eye health and dopamine release — the difference between "outside" and "window light" even when both feel bright. | Violet 360–400 nm |
-| **Body clock** | Bright light at the eye sets your circadian rhythm — earlier bedtime, faster wake-up, deeper sleep. Strongest effect in the first 2 hours after sunrise. | Blue ~480 nm |
+| **Body clock** | Bright light at the eye sets your circadian rhythm — earlier bedtime, faster wake-up, deeper sleep. Strongest effect in the first 2 hours after sunrise. | Blue ~490 nm (melanopic peak) |
 | **Cellular repair** | Solar 600–1400 nm penetrates deep into tissue and reaches mitochondria. Supports recovery, raises local melatonin in cells, reduces inflammation. The half of sunlight that windows block. | Red + IR-A 600–1400 nm |
 
-Each channel is qualitative — **none / low / moderate / good / strong** — based on how your weekly dose compares to a literature-rough daily target. We deliberately don't show raw numbers; the AI sees them but you don't have to.
+Each channel is qualitative — **none / low / moderate / good / strong** — based on how your accumulated dose compares to a literature-rough target. The dashboard "Light Today" strip scores against the daily target; the "Your light, by what it does" section scores the 7-day rollup against a 7×daily target so a weekly view doesn't get unfairly downgraded. We deliberately don't show raw numbers; the AI sees them but you don't have to.
 
 ## Logging a session
 
@@ -78,7 +78,7 @@ Camera frames never leave your device.
 ## Where the data flows
 
 - **AI chat** — every chat carries a Light & Sun summary: your active deficits, your devices, your week's per-channel exposure (sun + devices combined), and your skin's daily sunburn budget. Once you have ≥4 weeks of overlapping sessions and labs, channel-by-biomarker correlations join the standard tier.
-- **Detail-modal overlays** *(coming in v1.7.x)* — toggle a sun-channel layer on biomarker detail charts to see the dose-vs-marker relationship visually.
+- **Detail-modal overlays** *(in development)* — toggle a sun-channel layer on biomarker detail charts to see the dose-vs-marker relationship visually.
 - **Wearables strip** — sun and wearables sit side-by-side on the dashboard; the AI sees both.
 - **Genetics** — your DNA-aware AI prompts already factor in VDR, MC1R, CYP2R1, GC, NPAS2, CRY2, PER3 polymorphisms when relevant.
 
@@ -97,7 +97,7 @@ Camera frames never leave your device.
 
 ## Honest caveats
 
-- **Channel doses are proxies, not measurements.** We integrate published action spectra (CIE 174:2006 erythemal + vitamin D, CIE S 026:2018 melanopic, CCO from Karu/Hamblin, etc.) over a clear-sky-reconstructed solar spectrum. Real-world variance is ±25% relative.
+- **Channel doses are proxies, not measurements.** We integrate published action spectra (CIE 174:2006 previtamin-D3, CIE S 007 / ISO 17166 erythemal (McKinlay-Diffey 1987), CIE S 026:2018 melanopic, cytochrome-c-oxidase bands from Karu/Hamblin, etc.) over a clear-sky-reconstructed solar spectrum (Bird-Riordan 1986). Real-world variance is ±25% relative.
 - **Lux meter is calibrated approximately.** AmbientLightSensor readings are accurate; camera-based readings have a one-time calibration multiplier in localStorage and label themselves as "estimate" in AI confidence.
 - **Burn-risk model is conservative** and uses a 1.5× hard cap with explicit override warnings. We never recommend exceeding your personal threshold.
 - **No medical advice.** This is measurement, not prescription. Consult a healthcare professional for any concern.
@@ -107,7 +107,7 @@ Camera frames never leave your device.
 When a session is running, the Light & Sun page pins a **Live** card at the top with these controls:
 
 - **⏸ Pause** — freezes dose accrual during a shade break (timer keeps ticking; toggle to resume)
-- **🔄 Flip** — tap when you turn over front↔back. The body-fraction picker is anatomically capped at single-position max (~0.50 for "fully naked"); flipping doubles the vit-D yield to acknowledge that fresh skin keeps synthesizing after the first side approaches saturation. Same convention dminder uses for "100% naked = both sides over the session"
+- **🔄 Flip** — tap when you turn over front↔back. The region picker is anatomically scoped to a single side at a time (selecting every region is ~50% of total skin since front + back are exclusive); flipping doubles the vit-D yield to acknowledge that fresh skin keeps synthesizing after the first side approaches saturation. Same convention dminder uses for "both sides over the session"
 - **🧴 Sunscreen** — log a mid-session reapplication; commits the slice computed under the OLD SPF, then continues with the new value
 - **🛰 Ozone** — manual override of the total-column DU figure if you have a meter or local advisory
 
