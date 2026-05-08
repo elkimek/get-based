@@ -153,15 +153,32 @@ function alwaysTierBlock(sessions) {
     }
   }
 
-  // Compact lifelight summary — counts only, no device-name listing (the AI
-  // doesn't need to know "Joovv Mini 3.0" by brand to reason about red-light
-  // dose; the channel totals already encode the bioactive signal). Active
-  // session + most-recent session lines drop when null. Verbose 30-day
-  // channel totals were dropped from always-tier output — they're computed
-  // for deficit detection but the 7-day totals are the recency-relevant
-  // signal in chat. Standard tier reintroduces the 30-day breakdown.
+  // Compact lifelight summary — counts + device-library listing. Pre-2026-
+  // 05-08 we elided device names ("AI doesn't need to know Joovv Mini 3.0
+  // by brand") which was wrong: the agent legitimately needs to know what
+  // hardware the user owns to recommend "use your existing X on the chest"
+  // or check spectral compatibility. Each device renders as a one-liner
+  // with the fields that matter: brand + model + type + peak wavelengths
+  // + irradiance @ reference distance. Lux is included for SAD lamps that
+  // declare lux instead of mW/cm².
+  const deviceListLine = devices.length > 0
+    ? '\n' + devices.map(d => {
+        const peaks = Array.isArray(d.peakWavelengths) && d.peakWavelengths.length
+          ? d.peakWavelengths.join('/') + 'nm' : 'no peaks declared';
+        const irr = d.mwPerCm2At15cm
+          ? `${d.mwPerCm2At15cm} mW/cm² @ ${d.recommendedDistanceCm || 15}cm`
+          : (d.lux ? `${d.lux.toLocaleString()} lux` : 'no irradiance declared');
+        return `  - ${d.brand || '?'} ${d.model || '?'} (${d.type || 'device'}, ${peaks}, ${irr})`;
+      }).join('\n')
+    : '';
+
+  // Active session + most-recent session lines drop when null. Verbose
+  // 30-day channel totals were dropped from always-tier output — they're
+  // computed for deficit detection but the 7-day totals are the
+  // recency-relevant signal in chat. Standard tier reintroduces the
+  // 30-day breakdown.
   let block = `### Lifelight summary
-- Outdoor sessions: ${sessions.length} · device sessions: ${devSessions.length} · devices in library: ${devices.length}${baselineLine}
+- Outdoor sessions: ${sessions.length} · device sessions: ${devSessions.length} · devices in library: ${devices.length}${baselineLine}${deviceListLine}
 - Today's cumulative MED: ${(medToday * 100).toFixed(0)}%${medToday > 1 ? ' (over personal MED — exposure risk)' : ''}
 ${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})\n` : ''}${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)\n` : ''}
 ### 7-day rollup (sun + devices combined; tier vs typical weekly target)
