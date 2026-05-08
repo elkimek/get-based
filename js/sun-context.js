@@ -73,18 +73,23 @@ export function buildSunContext({ tier = 'always' } = {}) {
 
   ctx += '[/section:sun]\n\n';
 
-  // Runtime token-budget guard. The always-tier in the canonical case is
-  // ~1400 chars (~520 tok). A heavy user with full env + many warnings +
-  // calibration line + several active deficits can push toward 3000+.
-  // We escalate trimming in two stages:
-  //   • soft cap (2500 chars) → drop the calibration line and trim the
-  //     warnings list to the first 3 entries
-  //   • hard cap (4000 chars) → also drop the indoor-environment block's
-  //     deficit-axes detail and the burden-axes line
-  // Standard tier is allowed past the soft cap (it's keyword-triggered
-  // and the user explicitly asked for sun context); only the hard cap
-  // applies there.
-  const SOFT = 2500, HARD = 4000;
+  // Runtime token-budget guard. Always-tier canonical case is ~1400
+  // chars (~520 tok). A heavy user with full env + many warnings +
+  // calibration line + per-room audit before/after annotations + active
+  // deficits can push toward 3500+. Bumped SOFT 2500 → 3500 in 2026-05
+  // after Žofka caught calibration + indoor env getting silently
+  // dropped on a real load — those were the two highest-signal blocks.
+  // Trim priority reordered (least-load-bearing first):
+  //   1. trailing audit before/after detail (kept the most-recent audit
+  //      only — older deltas are nice-to-have)
+  //   2. active warnings overflow (already summarized)
+  //   3. deficit-axes detail (d2/d3 numbers — burden tier survives)
+  //   4. older audits past the most recent
+  //   5. indoor-environment block (HARD cap only — multi-hour daily
+  //      exposure block, surrender last)
+  //   6. calibration anchor (HARD cap only — single line, anchors AI
+  //      estimates to bloodwork; drop after indoor env, never before)
+  const SOFT = 3500, HARD = 5500;
   if (tier === 'always' && ctx.length > SOFT) {
     ctx = _trimToBudget(ctx, SOFT);
   }
@@ -94,19 +99,35 @@ export function buildSunContext({ tier = 'always' } = {}) {
   return ctx;
 }
 
-// Stepwise drop sections until the blob fits the budget. Order is least-
-// loss first: calibration anchor → warnings overflow → deficit-axes →
-// indoor environment as a whole. Each drop replaces a section in-place
-// rather than re-serializing — cheap, idempotent, and the section
-// markers are stable matchers.
+// Stepwise drop sections until the blob fits the budget. Reordered
+// 2026-05-08 — calibration anchor + indoor env are the highest-signal
+// blocks; they used to drop FIRST which was backwards. Now they survive
+// the soft cap; only the hard cap touches them, and indoor env goes
+// before calibration (calibration is single-line, indoor env is bulk).
 function _trimToBudget(ctx, budget, aggressive = false) {
   if (ctx.length <= budget) return ctx;
 
-  // 1. Drop the calibration anchor block.
-  ctx = ctx.replace(/\n### Calibration anchor[\s\S]*?(?=\n###|\n\[\/section)/, '');
+  // 1. Trim per-room audit before/after detail beyond the most-recent
+  // audit. The "(was: ... on YYYY-MM-DD)" tags are valuable for the
+  // newest audit (did the mitigation help?), low marginal value for
+  // older audits where the agent can already see chronological dates.
+  // Match the second-and-onward audit blocks via the "  - YYYY-..."
+  // pattern; first occurrence keeps its before/after annotations.
+  ctx = ctx.replace(/( \(was: [^)]+ on [^)]+\))/g, (m, _full, offset, str) => {
+    // Find the audit block this annotation belongs to. Walk backwards
+    // to the nearest "  - " line — that's its parent audit. The first
+    // such audit in the section keeps its tags; subsequent ones lose them.
+    const head = str.slice(0, offset);
+    const lastAuditStart = head.lastIndexOf('\n  - ');
+    if (lastAuditStart < 0) return m;
+    const sectionStart = head.indexOf('### Indoor light environment');
+    if (sectionStart < 0) return m;
+    const auditsBefore = (head.slice(sectionStart, lastAuditStart).match(/\n  - /g) || []).length;
+    return auditsBefore === 0 ? m : '';
+  });
   if (ctx.length <= budget) return ctx;
 
-  // 2. Trim "Active light-tool warnings" list to first 3 (was 6).
+  // 2. Trim "Active light-tool warnings" list to first 3.
   ctx = ctx.replace(/(- Active light-tool warnings: )([^\n]*)/, (_, head, list) => {
     const items = list.split('; ').filter(s => !/^\+\d+ more$/.test(s));
     const kept = items.slice(0, 3);
@@ -119,9 +140,22 @@ function _trimToBudget(ctx, budget, aggressive = false) {
   ctx = ctx.replace(/( · d2=[\d.]+ \(intensity gap\) · d3=[\d.]+ \(after-sunset blue\))/, '');
   if (ctx.length <= budget) return ctx;
 
+  // 4. Drop older audits past the most recent — keep one full audit
+  // block, drop the rest. Same logic as step 1 but at the audit level.
+  ctx = ctx.replace(/(### Light audits[^\n]*\n(?:[^\n]*\n)*?  - [^\n]*\n(?:    · [^\n]*\n)*)([\s\S]*?)(?=\n[A-Z]|\n\[|\n###|$)/, (m, kept, rest) => {
+    return kept;
+  });
+  if (ctx.length <= budget) return ctx;
+
   if (aggressive) {
-    // 4. Hard-cap fallback: drop the entire indoor-environment block.
+    // 5. Hard-cap fallback: drop the indoor-environment block (rooms +
+    // screens + audits + burden + warnings — the whole multi-hour
+    // exposure block). Indoor env goes BEFORE calibration because it's
+    // bulk and calibration is single-line bloodwork-grounding.
     ctx = ctx.replace(/\n### Indoor light environment[\s\S]*?(?=\n###|\n\[\/section)/, '');
+    if (ctx.length <= budget) return ctx;
+    // 6. Last resort: drop the calibration anchor.
+    ctx = ctx.replace(/\n### Calibration anchor[\s\S]*?(?=\n###|\n\[\/section)/, '');
   }
   return ctx;
 }
