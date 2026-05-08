@@ -325,11 +325,42 @@ function lightEnvironmentBlock() {
     if (audits.length > 0) parts.push(`${audits.length} before/after`);
     if (eyeLevel.length > 0) parts.push(`${eyeLevel.length} eye-level`);
     s += `- Light audits: ${parts.join(' · ')}\n`;
-    // List audit dates so the agent can reference specific snapshots.
-    for (const a of audits.slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''))) {
+    // List audit dates + per-room measurement aggregate so the agent
+    // can compute deltas between audits ("Office went from 240 lux at
+    // 2700K to 580 lux at 4100K"). Cap at 5 most-recent audits to
+    // bound the token budget; per-audit, show one line per room with
+    // its tool readings (latest per tool when there are duplicates).
+    const recentAudits = audits.slice().sort((x, y) => (y.date || '').localeCompare(x.date || '')).slice(0, 5);
+    for (const a of recentAudits) {
       const lbl = a.label || `Audit`;
       const dot = a.aiAnalysis?.dot ? ` · ${a.aiAnalysis.dot} verdict` : '';
       s += `  - ${a.date || '?'}: ${lbl} (${(a.rooms || []).length} rooms, ${(a.measurements || []).length} measurements)${dot}\n`;
+      // Per-room measurement summary inside this audit. Group readings
+      // by roomId, take the latest per tool, render as a one-liner.
+      const auditRooms = a.rooms || [];
+      const auditMeas = a.measurements || [];
+      const roomById = Object.fromEntries(auditRooms.map(r => [r.id, r]));
+      const byRoom = {};
+      for (const m of auditMeas) {
+        if (!m.roomId) continue;
+        const r = byRoom[m.roomId] = byRoom[m.roomId] || {};
+        // Keep the latest reading per tool — multiple readings of the
+        // same tool within a single audit window mean the user re-took it.
+        if (!r[m.tool] || (m.capturedAt || 0) > (r[m.tool].capturedAt || 0)) r[m.tool] = m;
+      }
+      for (const [roomId, byTool] of Object.entries(byRoom)) {
+        const room = roomById[roomId];
+        if (!room) continue;
+        const fragments = [];
+        if (byTool.lux) fragments.push(`${Math.round(byTool.lux.value)} lux`);
+        if (byTool.cct) fragments.push(`${Math.round(byTool.cct.value)}K`);
+        if (byTool.flicker) fragments.push(`flicker ${Math.round(byTool.flicker.value)}`);
+        if (byTool.darkness) fragments.push(`darkness ${Number(byTool.darkness.value).toFixed(1)} lux`);
+        if (byTool.spectrum) fragments.push(`spectrum: ${byTool.spectrum.value || byTool.spectrum.extra?.label || '?'}`);
+        if (fragments.length) {
+          s += `    · ${room.name || 'Room'}: ${fragments.join(', ')}\n`;
+        }
+      }
     }
   }
   // Indoor burden tier + deficit axes — collapsed onto one line. Burden is
