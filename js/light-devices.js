@@ -1132,10 +1132,12 @@ export async function openDeviceSessionDialog(deviceId) {
   // sessions that only have a broad bodyArea string, expand it to the
   // matching region keys so the silhouette pre-selects sensibly.
   const BROAD_TO_REGIONS = {
-    face: ['face'],
+    face:  ['face'],
     torso: ['breast-chest', 'torso-front', 'abdomen'],
-    arms: ['arms-front', 'arms-back'],
-    legs: ['legs-front', 'legs-back'],
+    arms:  ['arms-front', 'arms-back'],
+    legs:  ['legs-front', 'legs-back'],
+    // Legacy keys preserved for backcompat reads (last.bodyArea may
+    // still be 'whole-body' or 'targeted' from pre-toggle sessions).
     'whole-body': (BODY_REGIONS || []).map(r => r.key),
     targeted: ['breast-chest'],
   };
@@ -1183,11 +1185,11 @@ export async function openDeviceSessionDialog(deviceId) {
       })()}
       <div class="ctx-label" style="display:block">
         <span>Body area treated</span>
-        <div class="ctx-btn-group dev-session-quickpick" role="group" aria-label="Quick-pick presets" style="margin:6px 0 10px">
-          <button type="button" class="ctx-btn-option" data-preset="face">Face only</button>
+        <div class="ctx-btn-group dev-session-quickpick" role="group" aria-label="Body-zone toggles" style="margin:6px 0 10px">
+          <button type="button" class="ctx-btn-option" data-preset="face">Face</button>
           <button type="button" class="ctx-btn-option" data-preset="torso">Torso</button>
+          <button type="button" class="ctx-btn-option" data-preset="arms">Arms</button>
           <button type="button" class="ctx-btn-option" data-preset="legs">Legs</button>
-          <button type="button" class="ctx-btn-option" data-preset="whole-body">Whole body</button>
         </div>
         <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${(typeof window !== 'undefined' && window.renderBodySilhouette) ? window.renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
         <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
@@ -1235,24 +1237,24 @@ export async function openDeviceSessionDialog(deviceId) {
   }
   _updateAreaHint(selectedRegions);
 
-  // Quick-pick presets — bulk-toggle to a sensible region set so the
-  // user doesn't have to tap 13 individual regions for "whole body."
-  // Active state highlights the preset whose region set matches the
-  // current selection exactly, so the user can tell which preset
-  // produced the current state at a glance.
+  // Body-zone toggles — each preset adds OR removes its regions from
+  // the current selection. Active = every region in the zone is
+  // currently selected. Multiple zones can be active simultaneously,
+  // which removes the need for a "Whole body" preset (no panel actually
+  // covers all 16 regions; user toggles the zones they want).
   function _updatePresetActive() {
-    const cur = Array.from(selectedRegions).slice().sort().join(',');
     for (const btn of overlay.querySelectorAll('.dev-session-quickpick .ctx-btn-option')) {
-      const presetSet = (BROAD_TO_REGIONS[btn.dataset.preset] || []).slice().sort().join(',');
-      btn.classList.toggle('active', presetSet === cur);
+      const regions = BROAD_TO_REGIONS[btn.dataset.preset] || [];
+      const allOn = regions.length > 0 && regions.every(r => selectedRegions.has(r));
+      btn.classList.toggle('active', allOn);
     }
   }
   for (const presetBtn of overlay.querySelectorAll('.dev-session-quickpick .ctx-btn-option')) {
     presetBtn.addEventListener('click', () => {
-      const preset = presetBtn.dataset.preset;
-      const regions = BROAD_TO_REGIONS[preset] || [];
-      selectedRegions.clear();
-      for (const r of regions) selectedRegions.add(r);
+      const regions = BROAD_TO_REGIONS[presetBtn.dataset.preset] || [];
+      const allOn = regions.length > 0 && regions.every(r => selectedRegions.has(r));
+      if (allOn) for (const r of regions) selectedRegions.delete(r);
+      else for (const r of regions) selectedRegions.add(r);
       if (_silhouetteSlot && typeof window !== 'undefined' && window.renderBodySilhouette) {
         _silhouetteSlot.innerHTML = window.renderBodySilhouette(selectedRegions);
       }

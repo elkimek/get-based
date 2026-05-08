@@ -1266,11 +1266,11 @@ export async function openStartSunSessionDialog() {
     <div class="modal-body">
       <div id="sun-start-uvi-banner" class="sun-start-uvi-banner" hidden></div>
       <p class="modal-body-hint">Tap each body region that's uncovered right now, or pick a preset. The session begins as soon as you hit Start.</p>
-      <div class="ctx-btn-group sun-start-quickpick" role="group" aria-label="Body-area presets" style="margin:6px 0 10px">
-        <button type="button" class="ctx-btn-option" data-sun-preset="face">Face only</button>
+      <div class="ctx-btn-group sun-start-quickpick" role="group" aria-label="Body-zone toggles" style="margin:6px 0 10px">
+        <button type="button" class="ctx-btn-option" data-sun-preset="face">Face</button>
         <button type="button" class="ctx-btn-option" data-sun-preset="torso">Torso</button>
+        <button type="button" class="ctx-btn-option" data-sun-preset="arms">Arms</button>
         <button type="button" class="ctx-btn-option" data-sun-preset="legs">Legs</button>
-        <button type="button" class="ctx-btn-option" data-sun-preset="whole-body">Whole body</button>
       </div>
       <div class="sun-silhouette-wrap" id="sun-start-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
       <div class="sun-silhouette-hint" id="sun-start-hint">Tap any body region to toggle whether it's uncovered, or pick a preset above.</div>
@@ -1339,30 +1339,31 @@ export async function openStartSunSessionDialog() {
       hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
     }
   };
-  // Body-area presets that bulk-toggle a sensible region set. Same
-  // shape as the PBM dialog's quick-pick row (light-devices.js:
-  // BROAD_TO_REGIONS) so the user's mental model is consistent across
-  // sun + device-therapy logging. Picking a preset replaces the
-  // current selection; users can fine-tune by tapping individual
-  // regions afterward.
+  // Body-zone toggles — same model as the PBM dialog. Each zone adds
+  // OR removes its regions; "active" = all of the zone's regions are
+  // currently selected; multiple zones can be active simultaneously.
+  // No "Whole body" preset because outdoor full-body exposure is rare
+  // (something always covers something — face is the only place hair
+  // doesn't, etc.) and users can just tap multiple zones.
   const SUN_BODY_PRESETS = {
-    face:         ['face'],
-    torso:        ['breast-chest', 'torso-front', 'abdomen'],
-    legs:         ['legs-front', 'legs-back'],
-    'whole-body': BODY_REGIONS.map(r => r.key),
+    face:  ['face'],
+    torso: ['breast-chest', 'torso-front', 'abdomen'],
+    arms:  ['arms-front', 'arms-back'],
+    legs:  ['legs-front', 'legs-back'],
   };
   function _updateSunPresetActive() {
-    const cur = Array.from(selected).slice().sort().join(',');
     for (const btn of overlay.querySelectorAll('.sun-start-quickpick .ctx-btn-option')) {
-      const presetSet = (SUN_BODY_PRESETS[btn.dataset.sunPreset] || []).slice().sort().join(',');
-      btn.classList.toggle('active', presetSet === cur);
+      const regions = SUN_BODY_PRESETS[btn.dataset.sunPreset] || [];
+      const allOn = regions.length > 0 && regions.every(r => selected.has(r));
+      btn.classList.toggle('active', allOn);
     }
   }
   for (const presetBtn of overlay.querySelectorAll('.sun-start-quickpick .ctx-btn-option')) {
     presetBtn.addEventListener('click', () => {
       const regions = SUN_BODY_PRESETS[presetBtn.dataset.sunPreset] || [];
-      selected.clear();
-      for (const r of regions) selected.add(r);
+      const allOn = regions.length > 0 && regions.every(r => selected.has(r));
+      if (allOn) for (const r of regions) selected.delete(r);
+      else for (const r of regions) selected.add(r);
       slot.innerHTML = renderBodySilhouette(selected);
       updateHint();
       _updateSunPresetActive();
