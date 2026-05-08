@@ -767,10 +767,15 @@ function renderScreenExpandedBody(s, rooms) {
       <span class="light-env-picker-label">Time after sunset</span>
       <div class="light-env-chip-row">${eveChips}</div>
     </div>
-    <label class="light-env-evening light-env-screen-blocker">
-      <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
-      Blue blocker (glasses, f.lux, Night Shift, amber tint) — zeroes the circadian penalty
-    </label>
+    <div class="light-env-screen-blocker" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
+      <span style="flex:1;min-width:0;font-size:13px;color:var(--text-secondary)">Blue blocker active
+        <span style="display:block;font-size:11px;color:var(--text-muted);margin-top:2px">Glasses, f.lux, Night Shift, amber tint — zeroes the circadian penalty.</span>
+      </span>
+      <label class="toggle-switch">
+        <input type="checkbox"${s.blueBlockerEnabled ? ' checked' : ''} onchange="window.updateLightEnvScreenAndRender('${escapeAttr(s.id)}', { blueBlockerEnabled: this.checked })" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
     ${typeof window !== 'undefined' && window.renderScreenAIBlock ? window.renderScreenAIBlock(s) : ''}
   </div>`;
 }
@@ -1074,20 +1079,15 @@ export function renderEnvironmentSection() {
     html += `</div></details>`;
   }
 
-  // Light Audits — frozen snapshots of rooms + screens + measurements.
-  // Hidden until the user has at least one room mapped.
-  if ((env?.rooms || []).length > 0) {
-    html += renderLightAuditsBlock();
-  }
-
-  // Deficit summary — interpretive plain-English copy with tier
-  // indicator, instead of the raw "8.2 hr/day · 4.2 hr/day" numbers
-  // which read as abstract without context.
+  // Whole-environment burden summary — interpretive plain-English copy
+  // with tier indicator. Pre-2026-05-08 this rendered BELOW the Light
+  // Audits block, which made the "MODERATE LOAD" verdict look like a
+  // per-audit detail. Now positioned above audits so it reads as the
+  // headline rollup for the whole environment, with audits as the
+  // historical-snapshot tool below.
+  // Delegated to the burden-AI module when an AI provider is configured;
+  // falls through to heuristic copy otherwise.
   const burden = computeIndoorBurden();
-  // The interp paragraph is delegated to the burden-AI module when an AI
-  // provider is configured + the user has any rooms/screens mapped — it
-  // returns a richer, personalized read of the burden mix and falls
-  // through to the heuristic copy otherwise.
   const interpHTML = (typeof window !== 'undefined' && window.renderBurdenInterp)
     ? window.renderBurdenInterp(burden)
     : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
@@ -1098,6 +1098,12 @@ export function renderEnvironmentSection() {
     </div>
     ${interpHTML}
   </div>`;
+
+  // Light Audits — frozen snapshots of rooms + screens + measurements.
+  // Hidden until the user has at least one room mapped.
+  if ((env?.rooms || []).length > 0) {
+    html += renderLightAuditsBlock();
+  }
 
   html += `</div>`;
   return html;
@@ -1525,7 +1531,7 @@ function renderLightAuditsBlock() {
       <strong>Light audits</strong>
       <div class="light-audit-actions">
         ${compareBtn}
-        <button class="import-btn import-btn-secondary" onclick="window.saveLightAuditFromUI()">+ Save audit</button>
+        <button class="import-btn import-btn-secondary" onclick="window.saveLightAuditFromUI()" title="Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.">+ Save audit</button>
       </div>
     </div>`;
 

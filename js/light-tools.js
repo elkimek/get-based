@@ -1588,14 +1588,16 @@ export function renderLightTools() {
   const recent7 = all.filter(m => (m.capturedAt || 0) >= cutoff7d).length;
 
   // Tool groups — quick reach, full measurement, walkthrough/log.
-  // Spectrum gets primary-action treatment as the "start here" tool —
-  // same logic as inside rooms (auto-detects warm / cool / fluorescent
-  // in 10s, so it's the highest-value first measurement for someone
-  // who doesn't know their bulb specs).
+  // The Spectrum card still gets primary-action visual treatment via
+  // .light-tool-card-primary (subtle accent border) since it's the
+  // single highest-value first measurement for users without bulb
+  // specs. The "start here" badge was dropped because the other tools
+  // had no inverse hierarchy ("come here second / third"), so the
+  // implied sequencing was misleading.
   const card = (handler, icon, name, desc, opts = {}) => `
     <button class="light-tool-card${opts.primary ? ' light-tool-card-primary' : ''}" onclick="${handler}">
       <div class="light-tool-icon">${icon}</div>
-      <div class="light-tool-name">${name}${opts.primary ? ` <span class="light-tool-pill-hint">start here</span>` : ''}</div>
+      <div class="light-tool-name">${name}</div>
       <div class="light-tool-desc">${desc}</div>
     </button>`;
 
