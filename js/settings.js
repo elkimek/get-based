@@ -1141,6 +1141,7 @@ export function renderDataEntriesSection() {
     html += `<div class="imported-entry">
       <span class="ie-info"><span class="ie-date">${d}</span><span class="ie-count">${cnt} markers</span>${fileLabel}${sourceLabel}</span>
       <div class="ie-actions">
+        <button class="ie-edit" onclick="renameImportedEntryDate('${entry.date}').then(refreshDataEntriesSection)" title="Edit collection date">Edit date</button>
         <button class="ie-remove" onclick="removeImportedEntry('${entry.date}');refreshDataEntriesSection()">Remove</button>
       </div>
     </div>`;

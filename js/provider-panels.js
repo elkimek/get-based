@@ -1534,7 +1534,7 @@ function _buildNodeActions(nodeUrl, hasKey, active) {
   const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
   const _activePill = 'font-size:11px;padding:3px 10px';
   const btns = [];
-  if (nodeUrl) btns.push({ id: 'deposit', label: 'Deposit', fn: "connectRoutstrNode('" + nodeUrl.replace(/'/g, "\\'") + "')" });
+  if (nodeUrl) btns.push({ id: 'deposit', label: 'Deposit', fn: "connectRoutstrNode('" + nodeUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "')" });
   if (hasKey && nodeUrl) btns.push({ id: 'withdraw', label: 'Withdraw', fn: 'doRoutstrNodeWithdraw()' });
   btns.push({ id: 'browse', label: 'Browse', fn: 'showRoutstrNodePicker()' });
   return btns.map(b => {

@@ -777,11 +777,13 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
 .imported-entry .ie-date { color: var(--text-primary); font-weight: 500; }
 .imported-entry .ie-count { color: var(--text-muted); margin-left: 8px; }
 .imported-entry .ie-actions { display: flex; align-items: center; gap: 4px; }
-.imported-entry .ie-remove {
+.imported-entry .ie-remove,
+.imported-entry .ie-edit {
   background: none; border: none; color: var(--text-muted); cursor: pointer;
   font-size: 12px; padding: 4px 10px; border-radius: 4px; transition: all 0.15s; font-family: inherit;
 }
 .imported-entry .ie-remove:hover { color: var(--red); background: var(--red-bg); }
+.imported-entry .ie-edit:hover { color: var(--text-primary); background: var(--bg-hover); }
 /* Standalone note row */
 /* Note cards (dashboard) */
 .notes-section { margin-bottom: 20px; }

@@ -347,13 +347,15 @@ export function openClientForm(profileId) {
           <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="0.1" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" oninput="window._clUpdateBMI()">
           <input type="hidden" id="cl-height-unit" value="${heightUnit}">
         </div>
-        <div class="cl-form-col">
+        ${p ? `<div class="cl-form-col">
           <label style="font-size:11px;color:var(--text-muted)">BMI</label>
           <div class="mc-auto-value" id="cl-bmi-display"></div>
-        </div>
+        </div>` : ''}
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
-        <a href="#" onclick="window._clGoToHealthMetrics(event)" style="color:var(--text-muted);text-decoration:underline">Log weight, blood pressure &amp; pulse on the dashboard &rarr;</a>
+        ${p
+          ? '<a href="#" onclick="window._clGoToHealthMetrics(event)" style="color:var(--text-muted);text-decoration:underline">Log weight, blood pressure &amp; pulse on the dashboard &rarr;</a>'
+          : 'Log weight, blood pressure &amp; pulse on the dashboard after creating the client.'}
       </div>
     </div>
     <div class="cl-form-row">
@@ -396,13 +398,10 @@ export function openClientForm(profileId) {
   });
 }
 
-// Close the Edit Client modal and navigate to the dashboard — the anchor in
-// the Height & BMI row tells the user weight/BP/pulse live there now.
 function _clGoToHealthMetrics(event) {
   if (event) event.preventDefault();
   if (window.closeClientList) window.closeClientList();
   if (window.navigate) window.navigate('dashboard');
-  // Scroll to the wearable strip so the user lands on the metric cards.
   requestAnimationFrame(() => {
     document.getElementById('wearable-strip')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });

@@ -155,6 +155,12 @@ const DEFAULT_LIBRARY_NAME = 'My Library';
 // list) manage _libraries metadata + OPFS subdirectories.
 
 self.addEventListener('message', async (e) => {
+  // Same-origin guard. Browsers only deliver messages to a Worker from
+  // its spawning origin, but the codepaths here (file ingest, library
+  // delete) are destructive enough that an explicit check is cheap
+  // defense-in-depth against future regressions / weird embed contexts.
+  // Same-origin postMessage to a dedicated Worker yields e.origin === ''.
+  if (e.origin && e.origin !== self.location.origin) return;
   const msg = e.data || {};
   try {
     switch (msg.type) {

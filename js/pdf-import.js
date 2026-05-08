@@ -3,12 +3,13 @@
 import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, UNIT_CONVERSIONS, calculateCost, formatCost, trackUsage } from './schema.js';
 import { IMPORT_STEPS } from './constants.js';
-import { escapeHTML, showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
+import { escapeHTML, showNotification, isDebugMode, isPIIReviewEnabled, hashString, showPromptDialog } from './utils.js';
 import { saveImportedData, recalculateHOMAIR } from './data.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, setAIProvider, setVeniceModel, setOpenRouterModel, getOllamaMainModel, setOllamaMainModel, getVeniceModelDisplay, getOpenRouterModelDisplay, getActiveModelId, getActiveModelDisplay, getOllamaPIIModel, setCustomApiModel, setPpqModel, setRoutstrModel } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { detectProduct, normalizeWithAdapter, getAdapterByTestType } from './adapters.js';
 import { getPdfDocument } from './pdfjs-loader.js';
+import { getProfileLocation, getActiveProfileId } from './profile.js';
 
 
 // ═══════════════════════════════════════════════
@@ -398,6 +399,10 @@ export function tryParseJSON(str) {
 
 export async function parseLabPDFWithAI(pdfText, fileName, onProgress) {
   const markerRef = buildMarkerReference();
+  const country = (getProfileLocation(getActiveProfileId())?.country || '').trim();
+  const dateHint = country
+    ? `   IMPORTANT — the user's region is ${country}. Disambiguate ambiguous numeric dates like "12/7/2025" using the format common to that region (US, Philippines = MM/DD/YYYY; UK, EU, India, Australia, most of Canada = DD/MM/YYYY). Do not assume MM/DD by default.`
+    : `   IMPORTANT — for ambiguous numeric dates like "12/7/2025", look for context (other dates, a printed format like "DD/MM/YYYY" in the report header, or month names elsewhere) before deciding. Do not assume MM/DD by default — most of the world uses DD/MM/YYYY.`;
   const system = `You are a lab report data extraction assistant. You extract biomarker results from lab report text and map them to a known set of marker keys.
 
 Here is the complete list of known markers with their keys, expected units, and reference ranges:
@@ -405,6 +410,7 @@ ${JSON.stringify(markerRef)}
 
 Your task:
 1. Find the sample collection date in the text. Return it as YYYY-MM-DD. Look for dates near keywords like "collection", "collected", "date", "odběr", "datum", or similar in any language.
+${dateHint}
 2. For each biomarker result found in the text, extract:
    - rawName: the test name exactly as it appears in the PDF
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
@@ -953,6 +959,53 @@ export function removeImportedEntry(date) {
   showNotification(`Removed imported data from ${date}`, "info");
 }
 
+export async function renameImportedEntryDate(oldDate) {
+  const entries = state.importedData?.entries;
+  const entry = entries?.find(e => e.date === oldDate);
+  if (!entry) return;
+  const newDate = await showPromptDialog(
+    `Edit collection date (was ${oldDate})`,
+    { defaultValue: oldDate, inputType: 'date', okLabel: 'Save' }
+  );
+  if (!newDate || newDate === oldDate) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+    showNotification('Date must be YYYY-MM-DD', 'error');
+    return;
+  }
+  // Format-only regex accepts logically invalid dates (Feb 30, month 13).
+  // Round-trip through Date to reject those — `<input type="date">` already
+  // guards in modern browsers, but free-text fallbacks and programmatic
+  // values can still slip through.
+  const parsed = new Date(newDate + 'T00:00:00');
+  if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== newDate) {
+    showNotification('That date doesn\'t exist on the calendar.', 'error');
+    return;
+  }
+  if (entries.some(e => e.date === newDate)) {
+    showNotification(`Another entry already exists on ${newDate} — remove it first, then try again.`, 'error', 5000);
+    return;
+  }
+  entry.date = newDate;
+  // manualValues are keyed `markerKey:date` — remap to keep manual-vs-imported provenance correct
+  const manualValues = state.importedData.manualValues;
+  if (manualValues) {
+    const suffixOld = ':' + oldDate;
+    const suffixNew = ':' + newDate;
+    for (const k of Object.keys(manualValues)) {
+      if (k.endsWith(suffixOld)) {
+        manualValues[k.slice(0, -suffixOld.length) + suffixNew] = manualValues[k];
+        delete manualValues[k];
+      }
+    }
+  }
+  saveImportedData();
+  window.buildSidebar();
+  window.updateHeaderDates();
+  const activeNav = document.querySelector(".nav-item.active");
+  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  showNotification(`Date changed from ${oldDate} to ${newDate}`, 'success');
+}
+
 // ═══════════════════════════════════════════════
 // DROP ZONE
 // ═══════════════════════════════════════════════
@@ -1133,6 +1186,10 @@ export async function extractPDFImages(file, maxPages = 8) {
 
 export async function parseLabPDFWithAIImages(images, fileName, onProgress) {
   const markerRef = buildMarkerReference();
+  const country = (getProfileLocation(getActiveProfileId())?.country || '').trim();
+  const dateHint = country
+    ? `   IMPORTANT — the user's region is ${country}. Disambiguate ambiguous numeric dates like "12/7/2025" using the format common to that region (US, Philippines = MM/DD/YYYY; UK, EU, India, Australia, most of Canada = DD/MM/YYYY). Do not assume MM/DD by default.`
+    : `   IMPORTANT — for ambiguous numeric dates like "12/7/2025", look for context (other dates, a printed format like "DD/MM/YYYY" in the report header, or month names elsewhere) before deciding. Do not assume MM/DD by default — most of the world uses DD/MM/YYYY.`;
   // Same system prompt as text-based parsing
   const system = `You are a lab report data extraction assistant. You extract biomarker results from lab report images and map them to a known set of marker keys.
 
@@ -1141,6 +1198,7 @@ ${JSON.stringify(markerRef)}
 
 Your task:
 1. Read the lab report page images carefully. Find the sample collection date. Return it as YYYY-MM-DD.
+${dateHint}
 2. For each biomarker result found, extract:
    - rawName: the test name exactly as it appears
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
@@ -1814,6 +1872,7 @@ Object.assign(window, {
   closeImportModal,
   confirmImport,
   removeImportedEntry,
+  renameImportedEntryDate,
   setupDropZone,
   showImportProgress,
   hideImportProgress,

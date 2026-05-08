@@ -204,7 +204,7 @@ export function showConfirmDialog(message, onConfirm) {
 /// nature makes it awkward inside async flows. This helper reuses the
 /// confirm-dialog CSS so both dialogs look consistent; resolves to the
 /// trimmed string on OK, or null on Cancel / Esc / backdrop-click.
-export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', cancelLabel = 'Cancel', placeholder = '' } = {}) {
+export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', cancelLabel = 'Cancel', placeholder = '', inputType = 'text' } = {}) {
   return new Promise((resolve) => {
     let overlay = document.getElementById('prompt-dialog-overlay');
     if (!overlay) {
@@ -215,7 +215,7 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
     }
     overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Prompt">
       <p class="confirm-message">${escapeHTML(message)}</p>
-      <input type="text" id="prompt-dialog-input" class="api-key-input"
+      <input type="${escapeAttr(inputType)}" id="prompt-dialog-input" class="api-key-input"
              value="${escapeAttr(defaultValue)}"
              placeholder="${escapeAttr(placeholder)}"
              style="width:100%;margin:8px 0 14px;box-sizing:border-box"

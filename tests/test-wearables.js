@@ -1430,7 +1430,8 @@ return (async function() {
     /aria-label="\$\{escapeHTML\(ariaText\)\}"/.test(wearablesSrcP2) &&
     /Delete\s+\$\{metricLabel\.toLowerCase\(\)\}\s+reading\s+from/.test(wearablesSrcP2));
   assert('Strip-header role="button" carries an aria-label distinct from the live source list',
-    /aria-label="\$\{collapsed\s*\?\s*'Expand wearables strip'\s*:\s*'Collapse wearables strip'\}"/.test(wearablesSrcP2));
+    /'(Expand|Collapse) wearables strip'/.test(wearablesSrcP2)
+    && /aria-label="\$\{ariaLabel\}"/.test(wearablesSrcP2));
 
   // (Niche-disclosure copy assertion was here. The disclosure was removed in
   // v1.30.1 — see the matching "STRIP_NICHE_METRICS / disclosure / nicheDeferred

@@ -26,6 +26,20 @@ const CHANGELOG = [
     ]
   },
   {
+    version: '1.5.4', date: '2026-05-07', title: 'Bugfixes & improvements',
+    items: [
+      '<b>Don\'t want wearables?</b> Settings → Wearables → "Wearable integrations" toggles them off. The strip stays for your manual weight, BP, and pulse entries.',
+      '<b>Edit a misread import date.</b> Settings → Data → "Edit date" on any imported entry — useful when the AI guessed wrong on an ambiguous numeric date like "12/7/2025".',
+      '<b>Region-aware date parsing.</b> Set your country in the client editor and the PDF importer disambiguates DD/MM vs MM/DD correctly for new imports.',
+    ]
+  },
+  {
+    version: '1.5.2', date: '2026-05-02', title: 'Bugfixes & improvements',
+    items: [
+      'Internal hardening pass — small fixes across input sanitization and worker isolation.',
+    ]
+  },
+  {
     version: '1.5.1', date: '2026-04-29', title: 'Bugfixes & improvements',
     items: [
       '<b>Genetics rows in the marker detail modal no longer duplicate.</b> When a SNP carried both a raw finding and an actionable hint pointing at the same marker, the same gene rendered twice with the same study link. Now collapses to a single row.',
