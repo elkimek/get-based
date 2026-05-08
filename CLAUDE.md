@@ -106,7 +106,7 @@ Storage: per-row CRDT for row-level (sun session, device, room, screen, audit, m
 
 Element-anchor scroll preservation (`navigate()` in `views.js`) restores the focused element's viewport-top after a rebuild — replaces an earlier pixel-based attempt that broke when content above the viewport changed height. Force layout via `void document.body.offsetHeight` before reading rect, RAF re-apply for two frames.
 
-User docs: `docs/guide/ai-verdicts.md`. Architecture memo: `memory/project_ai_verdict_arc_2026_05_06.md`.
+User docs: `docs/guide/ai-overview.md` (canonical map of AI vs deterministic surfaces, retitled 2026-05-08 from `ai-verdicts.md` when scope expanded beyond Light & Sun). Architecture memo: `memory/project_ai_verdict_arc_2026_05_06.md`.
 
 ### Desktop app
 

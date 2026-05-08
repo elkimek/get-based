@@ -74,7 +74,7 @@ export default defineConfig({
           text: 'AI Features',
           items: [
             { text: 'AI Chat', link: '/guide/ai-chat' },
-            { text: 'AI Verdicts', link: '/guide/ai-verdicts' },
+            { text: 'AI Overview — What\'s AI-powered', link: '/guide/ai-overview' },
             { text: 'Biological Age', link: '/guide/phenoage' }
           ]
         },
