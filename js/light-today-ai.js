@@ -188,12 +188,18 @@ export function buildDayContext(target) {
     lines.push('');
     lines.push('### Last 7 days context');
     if (vit7 != null) lines.push(`Cumulative vit-D synthesized from sun: ~${Math.round(vit7)} IU`);
+    // Channels surface as tier labels only — the raw scores
+    // (melanopic-lux-min, J/cm², etc.) aren't user-meaningful, and
+    // when the AI quoted them verbatim the verdict read like
+    // "outdoor eye light (774465)". Tier labels (none/low/moderate/
+    // good/strong) carry the same comparative signal without the
+    // numeric noise.
     const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
     for (const k of channelOrder) {
       const v = merged7[k] || 0;
       if (v <= 0) continue;
       const tier = channelTier(v, k);
-      lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${tierLabel(tier)} (${Math.round(v)})`);
+      lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${tierLabel(tier)}`);
     }
   }
 
@@ -222,10 +228,14 @@ export function buildDayContext(target) {
   return lines.join('\n');
 }
 
+// Bumped 2026-05-08: prompt now strips raw channel scores; existing
+// cached verdicts contain user-hostile numbers like "(1202696)" and
+// need to refresh against the tightened prompt.
+const _dayFingerprintSalt = 'v2-tier-labels';
 function getDayFingerprint(target) {
   const targetDate = target?.date || new Date();
   const { sun, dev, measurements } = _collectWindowData(targetDate);
-  const parts = [_localDateString(targetDate), sun.length, dev.length, measurements.length];
+  const parts = [_dayFingerprintSalt, _localDateString(targetDate), sun.length, dev.length, measurements.length];
   for (const s of sun) parts.push(s.id, s.endedAt || 0, Math.round((s.safety?.medFraction || 0) * 100));
   for (const s of dev) parts.push(s.id, s.endedAt || 0);
   for (const m of measurements) parts.push(m.id);
@@ -249,7 +259,8 @@ const SYSTEM_PROMPT = [
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
   'tip: one sentence, max 18 words. The single highest-leverage observation or fix for this day. Direct.',
-  'detail: 2–4 sentences. Synthesize: what worked + what didn\'t + the highest-leverage tomorrow-action. Reference specific numbers. Recommendations involving fixtures or dimming MUST honor the hardware caveats above.',
+  'detail: 2–4 sentences. Synthesize: what worked + what didn\'t + the highest-leverage tomorrow-action. Recommendations involving fixtures or dimming MUST honor the hardware caveats above.',
+  'NUMBER DISCIPLINE: only quote numbers when they carry user-meaningful units that appear verbatim in the context block — vit-D IU, minutes outdoors, %MED, lux, °elevation. Channel weekly totals are reported as tier labels (none/low/moderate/good/strong); refer to them by tier ("strong body clock this week"), never as raw scores ("body clock 1202696"). Do not invent units that aren\'t in the context.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');
