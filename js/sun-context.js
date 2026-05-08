@@ -400,16 +400,21 @@ function lightEnvironmentBlock() {
     for (const a of recentAudits) {
       const lbl = a.label || `Audit`;
       const dot = a.aiAnalysis?.dot ? ` · ${a.aiAnalysis.dot} verdict` : '';
-      s += `  - ${a.date || '?'}: ${lbl} (${(a.rooms || []).length} rooms, ${(a.measurements || []).length} measurements)${dot}\n`;
+      // Find the prior audit (most-recent before this one) for delta
+      // computation. Walk auditsByDateAsc backwards from before this audit.
+      const thisIdx = auditsByDateAsc.findIndex(x => x.id === a.id);
+      const priorAudit = thisIdx > 0 ? auditsByDateAsc[thisIdx - 1] : null;
+      // When this is the FIRST audit, surface that explicitly so the
+      // agent reads "no prior to compare against" rather than "before
+      // snapshot is missing." Žofka audit 2026-05-08 read the absent
+      // (was: ...) tags as a missing feature; the absence is the data.
+      const baselineTag = priorAudit ? '' : ' · baseline — no prior audit to compare';
+      s += `  - ${a.date || '?'}: ${lbl} (${(a.rooms || []).length} rooms, ${(a.measurements || []).length} measurements)${dot}${baselineTag}\n`;
       // Per-room measurement summary inside this audit. Group readings
       // by roomId, take the latest per tool, render as a one-liner.
       const auditRooms = a.rooms || [];
       const roomById = Object.fromEntries(auditRooms.map(r => [r.id, r]));
       const byRoom = _measByAudit(a);
-      // Find the prior audit (most-recent before this one) for delta
-      // computation. Walk auditsByDateAsc backwards from before this audit.
-      const thisIdx = auditsByDateAsc.findIndex(x => x.id === a.id);
-      const priorAudit = thisIdx > 0 ? auditsByDateAsc[thisIdx - 1] : null;
       const priorByRoom = priorAudit ? _measByAudit(priorAudit) : {};
       for (const [roomId, byTool] of Object.entries(byRoom)) {
         const room = roomById[roomId];
@@ -600,7 +605,27 @@ Rows where UV peak is 0.0 AND MED% is 0 AND Vit-D is 0 represent sessions logged
     // the Holick 2007 daily saturation cap kicking in. Per-row "capped
     // from X" tag (below) makes that visible inline when raw > cap.
     block += `Vit-D IU formula: vit_d channel-au × 60 (IU/au calibration vs Holick 2008 NEJM + Bogh 2010 JID) × Fitzpatrick scale (I/II=1.0, III=0.85, IV=0.65, V=0.45, VI=0.30) × UVI gate (=1.0 for devices since the device IS the UVB source; ramps 0→1.0 between UVI 2.0–3.0 for outdoor sun) × rotated-sides (×2 if both anatomical sides logged) × genetic VDR/CYP multiplier. Per-day total capped at 20,000 IU per Holick 2007 photoisomerization plateau (pre-D3 reverts to lumisterol/tachysterol above this); rollup applies cap per local day, not per session. "(capped from X)" annotation on a row means raw computed yield was X but display clamped at 20,000.\n`;
-    block += `Inputs for this session table: device Fitzpatrick=${_fitzForDevice} (from sunDefaults; devices don't store per-session Fitzpatrick), UVI=null (atmospheric gate bypassed), rotatedSides=false (devices track skin% via bodyAreas).\n\n`;
+    // Surface the actual computed genetic multiplier + contributing
+    // variants so the agent doesn't have to infer it from the formula.
+    // Žofka audit 2026-05-08 caught this: the formula line mentions
+    // "× genetic VDR/CYP multiplier" but the per-user applied value
+    // was opaque. Now: "geneticMult=0.79 (×0.85 rs2282679 TT VDBP, ×0.88
+    // rs10741657 GG CYP2R1, …)" so the row math is fully reconstructible.
+    let geneticInput = 'geneticMult=1.00 (no genetics loaded)';
+    if (typeof window.geneticVitaminDMultiplier === 'function') {
+      try {
+        const g = window.geneticVitaminDMultiplier(_genetics);
+        if (g && Number.isFinite(g.mult)) {
+          if (Array.isArray(g.contributors) && g.contributors.length > 0) {
+            const parts = g.contributors.map(c => `×${c.multiplier.toFixed(2)} ${c.rsId} ${c.genotype} ${c.gene}`);
+            geneticInput = `geneticMult=${g.mult.toFixed(2)} (${parts.join(', ')})`;
+          } else {
+            geneticInput = `geneticMult=${g.mult.toFixed(2)} (no relevant variants in profile)`;
+          }
+        }
+      } catch (_) {}
+    }
+    block += `Inputs for this session table: device Fitzpatrick=${_fitzForDevice} (from sunDefaults; devices don't store per-session Fitzpatrick), UVI=null (atmospheric gate bypassed), rotatedSides=false (devices track skin% via bodyAreas), ${geneticInput}.\n\n`;
     block += `| Date | Min | Device | Distance | Skin exposed | Eyes | Vit-D (IU) | Red 660nm (J/cm²) | NIR 810/850 (J/cm²) |\n`;
     block += `|------|-----|--------|----------|--------------|------|------------|-------------------|----------------------|\n`;
     for (const s of allDevSessions.slice().reverse()) {
