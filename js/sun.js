@@ -1265,9 +1265,15 @@ export async function openStartSunSessionDialog() {
     </div>
     <div class="modal-body">
       <div id="sun-start-uvi-banner" class="sun-start-uvi-banner" hidden></div>
-      <p class="modal-body-hint">Tap each body region that's uncovered right now. The session begins as soon as you hit Start.</p>
+      <p class="modal-body-hint">Tap each body region that's uncovered right now, or pick a preset. The session begins as soon as you hit Start.</p>
+      <div class="ctx-btn-group sun-start-quickpick" role="group" aria-label="Outdoor exposure presets" style="margin:6px 0 10px">
+        <button type="button" class="ctx-btn-option" data-sun-preset="errand">🚶 Errand / walk</button>
+        <button type="button" class="ctx-btn-option" data-sun-preset="tshirt">👕 T-shirt + shorts</button>
+        <button type="button" class="ctx-btn-option" data-sun-preset="swimwear">🩱 Swimwear / beach</button>
+        <button type="button" class="ctx-btn-option" data-sun-preset="sunbathing">🛋 Sunbathing</button>
+      </div>
       <div class="sun-silhouette-wrap" id="sun-start-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
-      <div class="sun-silhouette-hint" id="sun-start-hint">Tap any body region to toggle whether it's uncovered.</div>
+      <div class="sun-silhouette-hint" id="sun-start-hint">Tap any body region to toggle whether it's uncovered, or pick a preset above.</div>
 
       <details class="sun-start-details">
         <summary>Posture, surface, eyewear, sunscreen, glass — change defaults</summary>
@@ -1333,8 +1339,41 @@ export async function openStartSunSessionDialog() {
       hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
     }
   };
-  bindBodySilhouette(slot, selected, updateHint);
+  // Outdoor-activity presets that bulk-toggle a sensible region set.
+  // Maps to roughly the same fractions as the legacy EXPOSURE_PRESETS
+  // (face_hands / tshirt / swimwear / sunbathing) but expressed as
+  // anatomical regions so the silhouette renders the selection state.
+  // Picking a preset replaces the current selection; users can fine-
+  // tune by tapping individual regions afterward.
+  const SUN_OUTDOOR_PRESETS = {
+    errand:     ['face'],
+    tshirt:     ['face', 'arms-front', 'arms-back', 'legs-front', 'legs-back'],
+    swimwear:   ['face', 'arms-front', 'arms-back', 'legs-front', 'legs-back', 'breast-chest', 'torso-front', 'abdomen'],
+    sunbathing: ['face', 'arms-front', 'arms-back', 'legs-front', 'legs-back', 'breast-chest', 'torso-front', 'torso-back', 'abdomen', 'glutes'],
+  };
+  function _updateSunPresetActive() {
+    const cur = Array.from(selected).slice().sort().join(',');
+    for (const btn of overlay.querySelectorAll('.sun-start-quickpick .ctx-btn-option')) {
+      const presetSet = (SUN_OUTDOOR_PRESETS[btn.dataset.sunPreset] || []).slice().sort().join(',');
+      btn.classList.toggle('active', presetSet === cur);
+    }
+  }
+  for (const presetBtn of overlay.querySelectorAll('.sun-start-quickpick .ctx-btn-option')) {
+    presetBtn.addEventListener('click', () => {
+      const regions = SUN_OUTDOOR_PRESETS[presetBtn.dataset.sunPreset] || [];
+      selected.clear();
+      for (const r of regions) selected.add(r);
+      slot.innerHTML = renderBodySilhouette(selected);
+      updateHint();
+      _updateSunPresetActive();
+    });
+  }
+  bindBodySilhouette(slot, selected, (set) => {
+    updateHint();
+    _updateSunPresetActive();
+  });
   updateHint();
+  _updateSunPresetActive();
 
   // Resolve the UVI lookup; render the pre-flight banner if conditions
   // warrant it. Async — the dialog is already shown so we don't block.

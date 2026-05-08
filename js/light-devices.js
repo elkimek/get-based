@@ -1183,11 +1183,11 @@ export async function openDeviceSessionDialog(deviceId) {
       })()}
       <div class="ctx-label" style="display:block">
         <span>Body area treated</span>
-        <div class="dev-session-quickpick" role="group" aria-label="Quick-pick presets">
-          <button type="button" class="dev-session-preset" data-preset="face">Face only</button>
-          <button type="button" class="dev-session-preset" data-preset="torso">Torso</button>
-          <button type="button" class="dev-session-preset" data-preset="legs">Legs</button>
-          <button type="button" class="dev-session-preset" data-preset="whole-body">Whole body</button>
+        <div class="ctx-btn-group dev-session-quickpick" role="group" aria-label="Quick-pick presets" style="margin:6px 0 10px">
+          <button type="button" class="ctx-btn-option" data-preset="face">Face only</button>
+          <button type="button" class="ctx-btn-option" data-preset="torso">Torso</button>
+          <button type="button" class="ctx-btn-option" data-preset="legs">Legs</button>
+          <button type="button" class="ctx-btn-option" data-preset="whole-body">Whole body</button>
         </div>
         <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${(typeof window !== 'undefined' && window.renderBodySilhouette) ? window.renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
         <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
@@ -1228,13 +1228,26 @@ export async function openDeviceSessionDialog(deviceId) {
     _hint.textContent = `${set.size} region${set.size === 1 ? '' : 's'} (~${Math.round(frac * 100)}% of skin) — ${labels}${more}`;
   }
   if (_silhouetteSlot && typeof window !== 'undefined' && window.bindBodySilhouette) {
-    window.bindBodySilhouette(_silhouetteSlot, selectedRegions, _updateAreaHint);
+    window.bindBodySilhouette(_silhouetteSlot, selectedRegions, (set) => {
+      _updateAreaHint(set);
+      _updatePresetActive();
+    });
   }
   _updateAreaHint(selectedRegions);
 
   // Quick-pick presets — bulk-toggle to a sensible region set so the
   // user doesn't have to tap 13 individual regions for "whole body."
-  for (const presetBtn of overlay.querySelectorAll('.dev-session-preset')) {
+  // Active state highlights the preset whose region set matches the
+  // current selection exactly, so the user can tell which preset
+  // produced the current state at a glance.
+  function _updatePresetActive() {
+    const cur = Array.from(selectedRegions).slice().sort().join(',');
+    for (const btn of overlay.querySelectorAll('.dev-session-quickpick .ctx-btn-option')) {
+      const presetSet = (BROAD_TO_REGIONS[btn.dataset.preset] || []).slice().sort().join(',');
+      btn.classList.toggle('active', presetSet === cur);
+    }
+  }
+  for (const presetBtn of overlay.querySelectorAll('.dev-session-quickpick .ctx-btn-option')) {
     presetBtn.addEventListener('click', () => {
       const preset = presetBtn.dataset.preset;
       const regions = BROAD_TO_REGIONS[preset] || [];
@@ -1244,8 +1257,10 @@ export async function openDeviceSessionDialog(deviceId) {
         _silhouetteSlot.innerHTML = window.renderBodySilhouette(selectedRegions);
       }
       _updateAreaHint(selectedRegions);
+      _updatePresetActive();
     });
   }
+  _updatePresetActive();
 
   // Per-field unit toggle: cm ↔ in. Lets a US user briefly type a cm
   // value (or vice versa) without mental math when their global unit
