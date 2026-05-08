@@ -397,21 +397,31 @@ function lightEnvironmentBlock() {
       }
       return out;
     };
+    // Render a single metric as either "X→Y (+Δ)" when prior+current
+    // are both present, "Y" when only current, or "" when missing. Used
+    // by the per-room delta renderer below. Round to a clean unit per
+    // tool — lux to whole numbers, CCT to whole K, flicker to integer,
+    // darkness to 1 decimal, spectrum as label.
+    const _formatMetric = (cur, prior, fmtVal, fmtDelta) => {
+      const c = cur != null ? fmtVal(cur) : null;
+      const p = prior != null ? fmtVal(prior) : null;
+      if (c == null) return null;
+      if (p == null) return c;
+      const delta = fmtDelta ? fmtDelta(cur, prior) : null;
+      return delta ? `${p}→${c} (${delta})` : `${p}→${c}`;
+    };
     for (const a of recentAudits) {
       const lbl = a.label || `Audit`;
       const dot = a.aiAnalysis?.dot ? ` · ${a.aiAnalysis.dot} verdict` : '';
-      // Find the prior audit (most-recent before this one) for delta
-      // computation. Walk auditsByDateAsc backwards from before this audit.
       const thisIdx = auditsByDateAsc.findIndex(x => x.id === a.id);
       const priorAudit = thisIdx > 0 ? auditsByDateAsc[thisIdx - 1] : null;
-      // When this is the FIRST audit, surface that explicitly so the
-      // agent reads "no prior to compare against" rather than "before
-      // snapshot is missing." Žofka audit 2026-05-08 read the absent
-      // (was: ...) tags as a missing feature; the absence is the data.
-      const baselineTag = priorAudit ? '' : ' · baseline — no prior audit to compare';
-      s += `  - ${a.date || '?'}: ${lbl} (${(a.rooms || []).length} rooms, ${(a.measurements || []).length} measurements)${dot}${baselineTag}\n`;
-      // Per-room measurement summary inside this audit. Group readings
-      // by roomId, take the latest per tool, render as a one-liner.
+      // Audit-header tag: "baseline" for the first audit, "delta vs
+      // <prior date>" for subsequent ones — gives the agent an explicit
+      // signal up-front whether this audit has a comparison or not.
+      const headerTag = priorAudit
+        ? ` · delta vs ${priorAudit.date || '?'}`
+        : ' · baseline — no prior audit to compare';
+      s += `  - ${a.date || '?'}: ${lbl} (${(a.rooms || []).length} rooms, ${(a.measurements || []).length} measurements)${dot}${headerTag}\n`;
       const auditRooms = a.rooms || [];
       const roomById = Object.fromEntries(auditRooms.map(r => [r.id, r]));
       const byRoom = _measByAudit(a);
@@ -419,27 +429,39 @@ function lightEnvironmentBlock() {
       for (const [roomId, byTool] of Object.entries(byRoom)) {
         const room = roomById[roomId];
         if (!room) continue;
-        const fragments = [];
-        if (byTool.lux) fragments.push(`${Math.round(byTool.lux.value)} lux`);
-        if (byTool.cct) fragments.push(`${Math.round(byTool.cct.value)}K`);
-        if (byTool.flicker) fragments.push(`flicker ${Math.round(byTool.flicker.value)}`);
-        if (byTool.darkness) fragments.push(`darkness ${Number(byTool.darkness.value).toFixed(1)} lux`);
-        if (byTool.spectrum) fragments.push(`spectrum: ${byTool.spectrum.value || byTool.spectrum.extra?.label || '?'}`);
-        if (fragments.length) {
-          // Append the prior-audit reading inline as "(was: 240 lux,
-          // 2700K)" — agent-readable delta context. Only emits when
-          // we actually have a prior reading for the same room/tool.
-          const prior = priorByRoom[roomId];
-          const priorFrags = [];
-          if (prior?.lux && byTool.lux) priorFrags.push(`${Math.round(prior.lux.value)} lux`);
-          if (prior?.cct && byTool.cct) priorFrags.push(`${Math.round(prior.cct.value)}K`);
-          if (prior?.flicker && byTool.flicker) priorFrags.push(`flicker ${Math.round(prior.flicker.value)}`);
-          if (prior?.darkness && byTool.darkness) priorFrags.push(`darkness ${Number(prior.darkness.value).toFixed(1)} lux`);
-          const priorTag = priorFrags.length
-            ? ` (was: ${priorFrags.join(', ')} on ${priorAudit.date || '?'})`
-            : '';
-          s += `    · ${room.name || 'Room'}: ${fragments.join(', ')}${priorTag}\n`;
+        const prior = priorByRoom[roomId] || {};
+        // Per-metric structured before→after with delta. When this
+        // audit is the baseline (no prior), prior is empty and the
+        // metric collapses to just the current value. When a metric
+        // is new in this audit (prior didn't measure it), it shows as
+        // "(new) Y". When both exist, "X→Y (+Δ)".
+        const lux = _formatMetric(
+          byTool.lux?.value, prior.lux?.value,
+          v => `${Math.round(v)} lux`,
+          (c, p) => { const d = Math.round(c - p); return (d > 0 ? '+' : '') + d + ' lux'; });
+        const cct = _formatMetric(
+          byTool.cct?.value, prior.cct?.value,
+          v => `${Math.round(v)}K`,
+          (c, p) => { const d = Math.round(c - p); return (d > 0 ? '+' : '') + d + 'K'; });
+        const flicker = _formatMetric(
+          byTool.flicker?.value, prior.flicker?.value,
+          v => `flicker ${Math.round(v)}`,
+          (c, p) => { const d = Math.round(c - p); return (d > 0 ? '+' : '') + d; });
+        const darkness = _formatMetric(
+          byTool.darkness?.value, prior.darkness?.value,
+          v => `darkness ${Number(v).toFixed(1)} lux`,
+          (c, p) => { const d = Number((c - p).toFixed(1)); return (d > 0 ? '+' : '') + d + ' lux'; });
+        // Spectrum is a label, not a numeric — just show the prior
+        // and current label when both differ ("incandescent→Daylight"),
+        // else just the current label. No delta column.
+        let spectrum = null;
+        if (byTool.spectrum) {
+          const cur = byTool.spectrum.value || byTool.spectrum.extra?.label || '?';
+          const pr = prior.spectrum ? (prior.spectrum.value || prior.spectrum.extra?.label || '?') : null;
+          spectrum = pr && pr !== cur ? `spectrum ${pr}→${cur}` : `spectrum: ${cur}`;
         }
+        const parts = [lux, cct, flicker, darkness, spectrum].filter(Boolean);
+        if (parts.length) s += `    · ${room.name || 'Room'}: ${parts.join(', ')}\n`;
       }
     }
   }
