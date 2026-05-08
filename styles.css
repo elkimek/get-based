@@ -949,7 +949,18 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   background: transparent; color: var(--text-secondary); font-size: 12px;
   cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap;
 }
-.ctx-btn-option:hover { border-color: var(--accent); color: var(--accent); }
+.ctx-btn-option:not(.active):hover { border-color: var(--accent); color: var(--accent); }
+.ctx-btn-option.active:hover { filter: brightness(1.05); }
+/* Focus rings — non-active uses the accent (matches hover); active
+   gets a contrasting white-translucent ring on top of its blue
+   background instead of a blue-on-blue stack the browser default
+   produced. */
+.ctx-btn-option:not(.active):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.ctx-btn-option.active:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6); outline-offset: 2px;
+}
 /* Skin-type slider — emoji row + range input share the same inner span.
    Each emoji is absolute-positioned at its slider-value percentage:
      I=0%, II=20%, III=40%, IV=60%, V=80%, VI=100%
