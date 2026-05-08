@@ -36,9 +36,14 @@ const _SOURCE_LABELS = {
   daylight: 'mostly daylight (windows)',
 };
 
+// Bumped 2026-05-08: synthesis priorities now use Brown 2022 melanopic-
+// EDI thresholds; older cached verdicts used a 100-lux daytime / >1
+// photopic-lux night anchor and need to refresh.
+const _auditFingerprintSalt = 'v2-brown2022-medi';
 export function getAuditFingerprint(a) {
   if (!a) return '';
   const parts = [
+    _auditFingerprintSalt,
     a.id || '',
     a.date || '',
     a.label || '',
@@ -177,9 +182,9 @@ const SYSTEM_PROMPT = [
   '  gray = not enough data (snapshot has no measurements)',
   '',
   'Synthesis priorities (rank issues by these when picking the verdict + tip):',
-  '  1. Sleep-room contamination: any sleep-room reading >1 lux at night, cool CCT in evening hours, phone bound to a sleep room. This dominates everything else for most users.',
+  '  1. Sleep-room contamination: any sleep-room reading meaningfully above the Brown 2022 melanopic-EDI thresholds (<1 m-EDI lux during sleep, <10 in the hour before bed; >1 photopic lux at night is a useful working proxy). Cool CCT in evening hours, phone bound to a sleep room. This dominates everything else for most users.',
   '  2. Severe flicker (score 2+) anywhere the user spends >2 evening hours.',
-  '  3. Daytime rooms <100 lux at the eye — under-lit entrainment is a slow-burn issue but real.',
+  '  3. Daytime rooms below ~250 m-EDI lux at the eye (Brown 2022 consensus; ≈ 500 photopic lux for typical mixed-spectrum sources, easier in daylit rooms) — under-lit entrainment is a slow-burn issue but real.',
   '  4. Evening cool LED (>4000K) + high evening occupancy in living spaces.',
   '  5. Phone-in-bed without blue blocker — single largest junk-light vector for most users.',
   '',

@@ -19,11 +19,16 @@ function _getScreensForRoom(roomId) {
   return (state.importedData?.lightEnvironment?.screens || []).filter(s => s.roomId === roomId);
 }
 
+// Bumped 2026-05-08: prompt biology priors tightened to Brown 2022
+// melanopic-EDI thresholds. Existing cached verdicts may carry the
+// older 100-lux daytime / >1-photopic-lux night anchors — invalidate.
+const _roomFingerprintSalt = 'v2-brown2022-medi';
 export function getRoomFingerprint(r) {
   if (!r) return '';
   const measurements = _getMeasurementsForRoom(r.id);
   const screens = _getScreensForRoom(r.id);
   const parts = [
+    _roomFingerprintSalt,
     r.name || '',
     r.primarySource || '',
     r.hoursOccupiedPerDay || 0,
@@ -155,8 +160,8 @@ const SYSTEM_PROMPT = [
   '  gray = not enough data to judge (room has only a name)',
   '',
   'Biology priors:',
-  '  • Sleep rooms: >1 lux during sleep meaningfully suppresses melatonin (Cho 2013, Burgess 2017). Cool-toned (>4000K) light within 2 hours of bedtime delays sleep onset. Phone in bed is the largest junk-light vector for most users.',
-  '  • Daytime rooms: need >100 lux at the eye for SCN entrainment, ideally >1000 lux for alertness. <50 lux daytime is flat-out under-lit.',
+  '  • Sleep rooms: per Brown TM 2022 (PLOS Biol 20:e3001571) the modern melanopic-EDI consensus is <1 melanopic lux during sleep, <10 in the hour before bed. Even ~40 photopic lux from a bedside lamp or TV measurably impairs sleep architecture (Cho 2013, Sleep Med 14:1422). Cool-toned (>4000K) light within 2 hours of bedtime delays sleep onset; phone in bed is the largest junk-light vector for most users.',
+  '  • Daytime rooms: per Brown 2022, target ≥250 melanopic-EDI lux at the eye during the day. With typical mixed-spectrum indoor lighting that\'s roughly ≥500 photopic lux; bright daylit / north-window setups hit it more easily. Below ~50 photopic lux for hours at a stretch is flat-out under-lit regardless of source.',
   '  • Evening living spaces: warm (≤2700K) + dim (≤200 lux) is melatonin-friendly; bright cool overhead lights with TV blue light is not.',
   '  • Flicker score 2+ correlates with eyestrain + headaches in sensitive populations regardless of brightness.',
   '  • A high evening-hours-after-sunset count amplifies the cost of a hostile spectrum in that room — flag harder when the user spends multiple evening hours there.',
