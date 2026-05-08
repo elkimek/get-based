@@ -475,7 +475,7 @@ export async function openLuxMeter(opts = {}) {
       _luxState.video = video;
       const canvas = document.createElement('canvas');
       canvas.width = 64; canvas.height = 48;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const tick = () => {
         if (!_luxState.running) return;
         try {
@@ -632,7 +632,7 @@ export async function openFlickerDetector(opts = {}) {
     // Use 64x48 capture so we have enough rows to see banding cleanly.
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 48;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const frameSamples = [];
     const bandingSamples = [];
     const startTime = performance.now();
@@ -770,7 +770,7 @@ export async function openDarknessMeter(opts = {}) {
       const lock = await lockCameraForMeasurement(stream, { longExposure: true });
       const canvas = document.createElement('canvas');
       canvas.width = 32; canvas.height = 24;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const lumas = [];      // mean per sample
       const peaks = [];      // single-pixel max per sample
       const t0 = performance.now();
@@ -935,7 +935,7 @@ export async function openCCTMeter(opts = {}) {
     // PWM-dimmed lights whose CCT shifts during the PWM cycle.
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 48;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const bandingPeaks = [];
     const tick = () => {
       if (!_cctState.running) return;
@@ -1078,7 +1078,7 @@ export async function openSpectrumClassifier(opts = {}) {
     // frame-luma variance (which can't see anything above fps/2).
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 48;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const bandingPeaks = [];   // recent banding ratios — peak across last second wins
     const tick = () => {
       if (!_specState.running) return;
@@ -1222,7 +1222,7 @@ export async function openGlassTransmission(opts = {}) {
       _lastGlassLock = lock;
       const canvas = document.createElement('canvas');
       canvas.width = 32; canvas.height = 24;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       // Sample over 1s
       const samples = [];
       for (let i = 0; i < 8; i++) {
@@ -1473,7 +1473,7 @@ export async function openEyeLevelAudit() {
         }
         const canvas = document.createElement('canvas');
         canvas.width = 32; canvas.height = 24;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         let lastSampleLuma = null;
         let pauseStart = null;
         const tick = async () => {
