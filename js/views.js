@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { CORRELATION_PRESETS, CHIP_COLORS, trackUsage } from './schema.js';
-import { escapeHTML, getStatus, getRangePosition, formatValue, getTrend, showNotification, showConfirmDialog, hasCardContent } from './utils.js';
+import { escapeHTML, getStatus, getRangePosition, formatValue, getTrend, showNotification, showConfirmDialog, hasCardContent, formatDate } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, getFocusCardFingerprint, saveImportedData, recalculateHOMAIR, updateHeaderDates, renderDateRangeFilter, renderChartLayersDropdown, convertDisplayToSI } from './data.js';
 import { profileStorageKey } from './profile.js';

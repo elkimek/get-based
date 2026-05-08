@@ -18,7 +18,7 @@
 //   importedData.deviceSessions[] — session log
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, formatDate } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
 import { CHANNEL_DISPLAY } from './sun.js';
@@ -248,7 +248,6 @@ export function openDeviceSessionDetail(id) {
   const channelTier = window.channelTier || (() => 0);
   const tierLabel = window.tierLabel || (() => 'none');
   const formatChannelUnit = window.formatChannelUnit || (() => '');
-  const formatDate = window.formatDate || ((s) => s);
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
 
   const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
