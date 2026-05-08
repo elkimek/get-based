@@ -423,7 +423,6 @@ export function renderLightTodayDashboardChip() {
       </div>
       ${cached.detail ? `<div class="light-today-dash-ai-body">
         <p>${escapeHTML(cached.detail)}</p>
-        <a href="#" class="light-today-dash-ai-link" onclick="event.preventDefault();window.navigate && window.navigate('light')">Open Light &amp; Sun →</a>
       </div>` : ''}
     </div>`;
   }

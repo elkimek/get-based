@@ -357,6 +357,19 @@ export function renderConditionsNow(opts = {}) {
     }, 5 * 60 * 1000);
     _conditionsIntervals.set(slotId, handle);
   }
+  // Cache hit fast path — when the user navigates between dashboard
+  // and Light & Sun within the 5min cache window, render the cached
+  // conditions block directly instead of the loading placeholder.
+  // Without this, every navigation away-and-back flashed the
+  // "Loading current conditions…" spinner before the cache resolved
+  // ~50ms later, which the user perceived as "conditions not persistent."
+  try {
+    const coords = (typeof window !== 'undefined' && window.getSunCoords && window.getSunCoords()) || null;
+    if (coords && _conditionsCache && _conditionsCache.coordKey === _coordKey(coords)
+        && (Date.now() - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
+      return `<div class="conditions-now conditions-now-${variant}" id="${slotId}" data-variant="${variant}" aria-busy="false">${_renderConditionsHTML(_conditionsCache.atm, coords, variant)}</div>`;
+    }
+  } catch (_) {}
   // No aria-live on the wrapper — auto-refresh would re-announce the whole
   // strip every cycle. Only user-triggered refresh announces, via a separate
   // sr-only live region populated in _refreshConditions(opts.force).
