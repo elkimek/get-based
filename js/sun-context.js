@@ -798,6 +798,24 @@ function formatChannelTotals(totals) {
       totalIU += au * 60;
     }
   }
+  // UVB device sessions (Sperti, Mitochondriak Maxi UVB, etc.) — same
+  // pathway as rollingVitaminDIU in sun.js. Without this branch, a 20k
+  // IU device session shows up correctly in the dashboard rollup but
+  // doesn't reach the AI context, so the agent sees a sun-only IU
+  // figure that's 10× off when devices dominate. uvi=null because the
+  // device IS the UVB source (no atmospheric gate). rotatedSides=false
+  // because device sessions track skin% on bodyExposure.regions, not
+  // a rotated-sides flag.
+  const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  for (const s of deviceSessions) {
+    const au = s.doses?.vitamin_d;
+    if (!Number.isFinite(au) || au <= 0) continue;
+    if (typeof window.vitaminDIU === 'function') {
+      totalIU += window.vitaminDIU(au, _fitzForDevice, null, false, _gx);
+    } else {
+      totalIU += au * 60;
+    }
+  }
 
   let totalLuxHours = 0;
   for (const s of [...sunSessions, ...deviceSessions]) {
