@@ -409,6 +409,13 @@ return (async function() {
   assert('Detects "winter" intent', _detectSunIntent('Winter blues'));
   assert('Skips unrelated chat', !_detectSunIntent('What is my HbA1c?'));
   assert('Skips empty / null', !_detectSunIntent('') && !_detectSunIntent(null));
+  // Regression — pre-fix the regex required \b after "sunbath" so
+  // "sunbathing" missed entirely and the user's natural phrasing
+  // failed to escalate. Coverage-language was also entirely absent.
+  assert('Detects "sunbathing" (not just "sunbath")', _detectSunIntent('How naked was I when I was sunbathing?'));
+  assert('Detects "naked" coverage-language',         _detectSunIntent('How naked was I last weekend?'));
+  assert('Detects "swimwear" coverage-language',      _detectSunIntent('Was I in swimwear?'));
+  assert('Detects "dressed" coverage-language',       _detectSunIntent('How dressed was I yesterday?'));
 
   // ─── 12. Token-budget guard ──────────────────────────────────────────
   console.log('%c 12. Soft + hard budget caps ', 'font-weight:bold;color:#f59e0b');

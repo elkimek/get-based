@@ -104,7 +104,16 @@ function summarizeChange(field, prev, curr) {
 // Conservative regex — only triggers on words that genuinely route the
 // answer through sun/light reasoning. False positives waste tokens but
 // don't degrade quality; false negatives leave the model under-informed.
-const _SUN_INTENT_RE = /\b(sun|sunlight|sunrise|sunset|sunburn|sunbath|tan(?:ning)?|UV(?:[BA])?|UVI|vitamin\s?d|25-?oh-?d|circadian|melaton(?:in|ic)|sleep|jet ?lag|seasonal|winter|sad|red[- ]light|nir|infrared|pbm|photobiomod|fitzpatrick|burn|melatonin|cortisol|light\s+(?:therap|exposure|environment|burden)|sad lamp|dawn simul|blue light|junk light)\b/i;
+// Triggers + caveats:
+// - "sunbath" needed an optional "ing" because "sunbathing" has no word
+//   boundary between "sunbath" and "ing", so /\bsunbath\b/ failed to
+//   match the user's natural phrasing.
+// - Coverage / clothing-language ("naked", "dressed", "swimwear", etc.)
+//   is sun-intent because the user's question routes through the
+//   standard-tier session table's "Skin exposed" column. Without these
+//   triggers the AI gets the always-tier blob only and loses the
+//   per-session body-fraction column.
+const _SUN_INTENT_RE = /\b(sun|sunlight|sunrise|sunset|sunburn|sunbath(?:ing)?|tan(?:ning)?|UV(?:[BA])?|UVI|vitamin\s?d|25-?oh-?d|circadian|melaton(?:in|ic)|sleep|jet ?lag|seasonal|winter|sad|red[- ]light|nir|infrared|pbm|photobiomod|fitzpatrick|burn|melatonin|cortisol|light\s+(?:therap|exposure|environment|burden)|sad lamp|dawn simul|blue light|junk light|naked|nude|nudity|clothing|dressed|skin\s+exposed|swimwear|swimsuit|bikini|shorts|t-?shirt|bare\s+skin)\b/i;
 
 export function _detectSunIntent(message) {
   if (typeof message !== 'string' || !message) return false;
