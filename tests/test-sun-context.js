@@ -58,10 +58,10 @@ return (async function() {
 
   const always = buildSunContext({ tier: 'always' });
   assert('Always tier returns non-empty string', always.length > 0);
-  assert('Always tier opens with [section:sunSessions] marker',
-    always.startsWith('[section:sunSessions]'));
-  assert('Always tier closes with [/section:sunSessions]',
-    always.endsWith('[/section:sunSessions]\n\n'));
+  assert('Always tier opens with [section:sun] marker (matches getbased_section("sun") agent API)',
+    always.startsWith('[section:sun]'));
+  assert('Always tier closes with [/section:sun]',
+    always.endsWith('[/section:sun]\n\n'));
   assert('Always tier names the lens "Light & Sun"',
     /Light & Sun lens/.test(always));
   assert('Always tier reports total session count',
@@ -272,8 +272,8 @@ return (async function() {
   for (const tier of ['always', 'standard', 'deep']) {
     const out = buildSunContext({ tier });
     assert(`${tier} tier wraps in matching section markers`,
-      out.startsWith('[section:sunSessions]') &&
-      out.endsWith('[/section:sunSessions]\n\n'));
+      out.startsWith('[section:sun]') &&
+      out.endsWith('[/section:sun]\n\n'));
   }
 
   // ─── 8. Calibration anchor (v1.7.19) ─────────────────────────────────

@@ -59,14 +59,19 @@ export function buildSunContext({ tier = 'always' } = {}) {
     || audits.length > 0;
   if (sessions.length === 0 && deviceSessions.length === 0 && !hasEnv) return '';
 
-  let ctx = '[section:sunSessions]\n## Light & Sun lens\n\n';
+  // Section marker is 'sun' (not 'sunSessions') so agent callers can
+  // pull this block via getbased_section('sun') matching the documented
+  // API in docs/guide/agent-access.md. The block actually contains sun
+  // sessions + light environment + device sessions + audits — 'sun' is
+  // the umbrella key for the whole Light & Sun lens.
+  let ctx = '[section:sun]\n## Light & Sun lens\n\n';
   ctx += alwaysTierBlock(sessions);
 
   if (tier === 'standard' || tier === 'deep') {
     ctx += standardTierBlock(sessions);
   }
 
-  ctx += '[/section:sunSessions]\n\n';
+  ctx += '[/section:sun]\n\n';
 
   // Runtime token-budget guard. The always-tier in the canonical case is
   // ~1400 chars (~520 tok). A heavy user with full env + many warnings +

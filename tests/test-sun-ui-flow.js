@@ -139,7 +139,7 @@ return (async function() {
     const ctx = window.buildSunContext({ tier: 'always' });
     assert('buildSunContext non-empty after a session is logged', ctx.length > 0);
     assert('Context section markers wrap the block',
-      /\[section:sunSessions\][\s\S]*\[\/section:sunSessions\]/.test(ctx));
+      /\[section:sun\][\s\S]*\[\/section:sun\]/.test(ctx));
     assert('Context reports total session count of 1',
       /Outdoor sessions: 1/.test(ctx));
   } else {
@@ -153,7 +153,7 @@ return (async function() {
   if (typeof window.buildLabContext === 'function') {
     const labCtx = window.buildLabContext({ scope: 'full' });
     assert('Full lab context includes the sun section',
-      typeof labCtx === 'string' && /sunSessions/.test(labCtx),
+      typeof labCtx === 'string' && /\[section:sun\]/.test(labCtx),
       `len=${typeof labCtx === 'string' ? labCtx.length : 'not-a-string'}`);
   } else {
     // buildLabContext is the public AI feed; the section must be wired
