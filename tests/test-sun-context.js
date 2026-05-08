@@ -68,8 +68,8 @@ return (async function() {
     /Outdoor sessions: 2/.test(always));
   assert('Always tier surfaces the active session warning',
     /ACTIVE SESSION in progress/.test(always));
-  assert('Always tier surfaces 7-day rollup header',
-    /7-day rollup \(sun \+ devices combined; tier vs typical weekly target\)/.test(always));
+  assert('Always tier surfaces 7-day rollup header with tier-dot legend',
+    /7-day rollup \(sun \+ devices combined;.*hit weekly target.*moderate.*low.*none/.test(always));
   // 30-day breakdown was dropped from always-tier in v1.7.18 (token compression).
   // It still backs deficit detection internally; the surface moved to standard tier.
   assert('Always tier omits 30-day totals header (compressed in v1.7.18)',
@@ -159,8 +159,8 @@ return (async function() {
   const standard = buildSunContext({ tier: 'standard' });
   assert('Standard tier strictly longer than always tier',
     standard.length > buildSunContext({ tier: 'always' }).length);
-  assert('Standard tier surfaces session table header (with "Skin exposed" coverage column)',
-    /\| Date \| Min \| Skin exposed \| Regions \| Eyes \| UV peak \| MED% \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
+  assert('Standard tier surfaces session table header with units (UVI, MED%)',
+    /\| Date \| Min \| Skin% \| Regions \| Eyes \| UV peak \(UVI\) \| MED% \(of personal daily MED\) \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
   // Coverage glossary preamble dropped 2026-05-08 round 5: matches the
   // raw-data style of buildLabContext / wearables sections — no inline
   // pedagogy, agent uses its own training data + the column header.
@@ -415,7 +415,7 @@ return (async function() {
       assert('Lab context always carries [section:sun] when sessions exist',
         /\[section:sun\][\s\S]*\[\/section:sun\]/.test(labCtx));
       assert('Lab context always includes the 30-day session table (standard tier) when sessions exist',
-        /Skin exposed/.test(labCtx));
+        /UV peak \(UVI\)/.test(labCtx));
     } else {
       assert('Lab context skips [section:sun] when no sessions',
         !/\[section:sun\]/.test(labCtx));

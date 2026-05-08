@@ -238,9 +238,9 @@ function alwaysTierBlock(sessions) {
   // 30-day breakdown.
   let block = `### Lifelight summary
 - Outdoor sessions: ${sessions.length} · device sessions: ${devSessions.length} · devices in library: ${devices.length}${baselineLine}${deviceListLine}
-- Today's cumulative MED: ${(medToday * 100).toFixed(0)}%${medToday > 1 ? ' (over personal MED — exposure risk)' : ''}
+- Today's cumulative MED: ${(medToday * 100).toFixed(0)}% (% of personal daily Min Erythemal Dose)${medToday > 1 ? ' (over MED — exposure risk)' : ''}
 ${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})\n` : ''}${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)\n` : ''}
-### 7-day rollup (sun + devices combined; tier vs typical weekly target)
+### 7-day rollup (sun + devices combined; ●●●●=hit weekly target, ●●●○=good, ●●○○=moderate, ●○○○=low, ○○○○=none)
 ${formatChannelTotals(totals7d)}
 
 `;
@@ -353,7 +353,7 @@ function lightEnvironmentBlock() {
       const hrs = r.hoursOccupiedPerDay ? `${r.hoursOccupiedPerDay}h/day` : '';
       const evHr = (r.eveningHoursAfterSunset || (r.eveningUseAfterSunset ? 1 : 0));
       const evening = evHr ? `${evHr}h after sunset` : '';
-      const severity = r.aiAnalysis?.dot ? ` · ${r.aiAnalysis.dot} verdict` : '';
+      const severity = r.aiAnalysis?.dot ? ` · AI verdict: ${r.aiAnalysis.dot}` : '';
       const parts = [src, hrs, evening].filter(Boolean).join(', ');
       s += `  - ${r.name || 'Room'} (${parts})${severity}\n`;
     }
@@ -420,7 +420,7 @@ function lightEnvironmentBlock() {
     };
     for (const a of recentAudits) {
       const lbl = a.label || `Audit`;
-      const dot = a.aiAnalysis?.dot ? ` · ${a.aiAnalysis.dot} verdict` : '';
+      const dot = a.aiAnalysis?.dot ? ` · AI verdict: ${a.aiAnalysis.dot}` : '';
       const thisIdx = auditsByDateAsc.findIndex(x => x.id === a.id);
       const priorAudit = thisIdx > 0 ? auditsByDateAsc[thisIdx - 1] : null;
       // Audit-header tag: "baseline" for the first audit, "delta vs
@@ -489,7 +489,7 @@ function lightEnvironmentBlock() {
           try {
             const axes = window.computeDeficitAxes();
             if (axes && (axes.d2 != null || axes.d3 != null)) {
-              line += ` · d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue)`;
+              line += ` · d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap, 0=no gap, 5+=severe) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue, 0=clean, 3+=heavy)`;
             }
           } catch (e) {
             if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] computeDeficitAxes failed', e);
@@ -577,8 +577,8 @@ function standardTierBlock(sessions) {
   if (recent.length === 0) return '';
 
   let block = `### Last ${recent.length} sessions (most recent first)
-| Date | Min | Skin exposed | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h) |
-|------|-----|--------------|---------|------|---------|------|------------|--------------------|
+| Date | Min | Skin% | Regions | Eyes | UV peak (UVI) | MED% (of personal daily MED) | Vit-D (IU) | Circadian (lux·h) |
+|------|-----|-------|---------|------|---------------|-----------------------------|------------|--------------------|
 `;
   for (const sess of recent.slice().reverse()) {
     const date = new Date(sess.startedAt).toISOString().slice(0, 10);
@@ -670,14 +670,9 @@ function standardTierBlock(sessions) {
       // the biological ceiling. Falls back to '—' when the device emits
       // no UVB (red/NIR-only panels) so the column doesn't look broken.
       const vitDAu = s.doses?.vitamin_d;
-      let vitD = '—';
-      if (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIUPerSession === 'function') {
-        const capped = Math.round(window.vitaminDIUPerSession(vitDAu, _fitzForDevice, null, false, _genetics, bodyFrac));
-        const raw = (typeof window.vitaminDIURaw === 'function')
-          ? Math.round(window.vitaminDIURaw(vitDAu, _fitzForDevice, null, false, _genetics))
-          : capped;
-        vitD = (raw > capped) ? `${capped} (capped from ~${raw.toLocaleString()})` : `${capped}`;
-      }
+      const vitD = (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIUPerSession === 'function')
+        ? Math.round(window.vitaminDIUPerSession(vitDAu, _fitzForDevice, null, false, _genetics, bodyFrac))
+        : '—';
       const red = s.doses?.pbm_red != null ? (s.doses.pbm_red / 1000).toFixed(2) : '?';
       const nir = s.doses?.pbm_nir != null ? (s.doses.pbm_nir / 1000).toFixed(2) : '?';
       block += `| ${date} | ${dur} | ${devName} | ${dist} | ${bodyPct} | ${eyes} | ${vitD} | ${red} | ${nir} |\n`;
