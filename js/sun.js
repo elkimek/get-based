@@ -2132,7 +2132,11 @@ function _refreshLiveChannelSurfaces() {
   if (state.currentView === 'light' && window.renderLightChannelsLive) {
     try { window.renderLightChannelsLive(); } catch (e) {}
   }
-  // Dashboard: redraw the Light Today strip element only
+  // Dashboard: redraw the Light Today strip in place. Replacing the
+  // element via replaceWith() forced a full layout + paint every 5s
+  // during an active session — visible as a blink. Swapping innerHTML
+  // on the SAME element keeps its identity (and any event listeners
+  // bound to it) so the browser only repaints children.
   if (state.currentView === 'dashboard' && window.renderLightTodayStrip) {
     const strip = document.querySelector('.light-today-strip');
     if (strip) {
@@ -2140,7 +2144,17 @@ function _refreshLiveChannelSurfaces() {
       if (html) {
         const wrap = document.createElement('div');
         wrap.innerHTML = html;
-        if (wrap.firstElementChild) strip.replaceWith(wrap.firstElementChild);
+        const fresh = wrap.firstElementChild;
+        if (fresh) {
+          // Fresh root may carry updated attrs (class hints, data-*);
+          // copy any that changed to keep them in sync without a full
+          // element swap.
+          for (const attr of fresh.getAttributeNames()) {
+            const newVal = fresh.getAttribute(attr);
+            if (strip.getAttribute(attr) !== newVal) strip.setAttribute(attr, newVal);
+          }
+          if (strip.innerHTML !== fresh.innerHTML) strip.innerHTML = fresh.innerHTML;
+        }
       }
     }
   }
