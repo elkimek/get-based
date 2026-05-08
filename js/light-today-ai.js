@@ -232,7 +232,7 @@ export function buildDayContext(target) {
 // cached verdicts contain user-hostile numbers like "(1202696)" and
 // need to refresh against the tightened prompt.
 const _dayFingerprintSalt = 'v2-tier-labels';
-function getDayFingerprint(target) {
+export function getDayFingerprint(target) {
   const targetDate = target?.date || new Date();
   const { sun, dev, measurements } = _collectWindowData(targetDate);
   const parts = [_dayFingerprintSalt, _localDateString(targetDate), sun.length, dev.length, measurements.length];
@@ -321,7 +321,14 @@ export function renderLightTodayHero() {
   // analyzing (no sessions + no measurements + no devices). The engine
   // itself dedupes via _inflight so concurrent calls are fine, but the
   // autoFired guard keeps log noise + telemetry counts honest.
-  if (status === 'idle' && !cached && !_autoFiredKeys.has(target.key)) {
+  // Auto-fire on first idle render OR when the cached verdict is stale
+  // against the current fingerprint (e.g. _dayFingerprintSalt was bumped
+  // because the prompt logic changed and the old verdict's wording
+  // doesn't match the new constraints). engine.analyze() is fingerprint-
+  // aware so it will short-circuit if the cache is actually fresh.
+  const _currentFp = getDayFingerprint(target);
+  const _stale = !!(cached?.fingerprint && cached.fingerprint !== _currentFp);
+  if ((status === 'idle' || _stale) && !_autoFiredKeys.has(target.key)) {
     const hasLightActivity = (() => {
       const sun = (state.importedData?.sunSessions || []).some(s => s.endedAt);
       const dev = (state.importedData?.deviceSessions || []).some(s => s.endedAt);
@@ -343,7 +350,7 @@ export function renderLightTodayHero() {
     ? `<div class="light-today-trends">${trends.signals.slice(0, 2).map(s => `<span class="light-today-trend">⚡ ${escapeHTML(s)}</span>`).join('')}</div>`
     : '';
 
-  if (status === 'analyzing') {
+  if (status === 'analyzing' || _stale) {
     return `<div class="light-today-hero">
       <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
       <div class="sun-detail-ai sun-detail-ai-loading">
@@ -405,7 +412,26 @@ export function renderLightTodayDashboardChip() {
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
   const cached = _getDailyVerdicts()[target.key];
-  if (status === 'analyzing') {
+  // Stale-verdict auto-fire — same logic as renderLightTodayHero. The
+  // dashboard is what the user sees first, so triggering re-analysis
+  // here means a stale cached verdict (e.g. one from before the
+  // _dayFingerprintSalt bump) doesn't sit forever waiting for the user
+  // to navigate to /light.
+  const _currentFp = getDayFingerprint(target);
+  const _stale = !!(cached?.fingerprint && cached.fingerprint !== _currentFp);
+  if ((status === 'idle' || _stale) && !_autoFiredKeys.has(target.key)) {
+    const hasLightActivity = (() => {
+      const sun = (state.importedData?.sunSessions || []).some(s => s.endedAt);
+      const dev = (state.importedData?.deviceSessions || []).some(s => s.endedAt);
+      const meas = (state.importedData?.lightMeasurements || []).length > 0;
+      return sun || dev || meas;
+    })();
+    if (hasLightActivity) {
+      _autoFiredKeys.add(target.key);
+      setTimeout(() => engine.analyze(target).catch(() => {}), 0);
+    }
+  }
+  if (status === 'analyzing' || _stale) {
     return `<div class="light-today-dash-ai">
       <div class="light-today-dash-ai-row">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>

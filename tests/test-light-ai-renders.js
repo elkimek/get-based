@@ -178,11 +178,18 @@ return (async function () {
     assert('hero renders with "Today\'s light" header',
       idle.includes("Today's light"));
 
-    // Add a session so auto-fire gating allows analysis
+    // Add a session so auto-fire gating allows analysis. Use the REAL
+    // current-day fingerprint on the cached verdict — post-2026-05-08
+    // the renderers detect fingerprint mismatch and surface a shimmer
+    // for re-analysis, so a placeholder 'fp' fingerprint would (correctly)
+    // not render the green dot.
     reset({ sunSessions: [{ id: 'sx', endedAt: Date.now() - 60000, durationMin: 20 }] });
     const today = new Date().toISOString().slice(0, 10);
     const verdicts = window._labState.importedData.lightDailyVerdicts = {};
-    verdicts[today] = okVerdict('green');
+    const realFp = mod.getDayFingerprint
+      ? mod.getDayFingerprint({ key: today, date: new Date(), isLightTodayTarget: true })
+      : 'fp';
+    verdicts[today] = { ...okVerdict('green'), fingerprint: realFp };
     const ok = mod.renderLightTodayHero();
     assert('hero renders green dot when verdict cached',
       ok.includes('sun-session-ai-dot-green'));
