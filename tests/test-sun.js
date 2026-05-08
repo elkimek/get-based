@@ -34,17 +34,34 @@ return (async function() {
   // ─── 1. Constant shape ───────────────────────────────────────────────
   console.log('%c 1. Constants + display metadata ', 'font-weight:bold;color:#f59e0b');
 
-  assert('BODY_REGIONS is non-empty array', Array.isArray(BODY_REGIONS) && BODY_REGIONS.length === 16);
+  // length >= 16 + content spot-check, so adding a new region (e.g.
+  // "ankles") doesn't fail this assert as long as the canonical keys
+  // are still present.
+  const REGION_KEYS = BODY_REGIONS.map(r => r.key);
+  const REQUIRED_REGIONS = ['face', 'breast-chest', 'arms-front', 'arms-back', 'torso-front', 'torso-back', 'legs-front', 'legs-back', 'feet-front', 'feet-back'];
+  assert('BODY_REGIONS is non-empty array',
+    Array.isArray(BODY_REGIONS) && BODY_REGIONS.length >= 16,
+    `length=${BODY_REGIONS.length}`);
+  const missingRegions = REQUIRED_REGIONS.filter(k => !REGION_KEYS.includes(k));
+  assert('BODY_REGIONS contains the canonical region keys',
+    missingRegions.length === 0, `missing: ${missingRegions.join(',')}`);
   const fracSum = BODY_REGIONS.reduce((s, r) => s + r.fraction, 0);
-  // Sums to ~0.92 — the missing 8% (head, back-of-arms detail, etc.) is
-  // intentional. The assertion guards against any single region drifting
-  // wildly large/small or the table being half-deleted.
+  // Sums to ~0.95 — the missing ~0.05 is scalp + anatomical seams
+  // (clavicle / shoulder transitions). Assertion guards against any
+  // single region drifting wildly or the table being half-deleted.
   assert('BODY_REGIONS fractions sum within 0.85–1.05 (sane full-body coverage)',
     fracSum > 0.85 && fracSum < 1.05, `sum=${fracSum.toFixed(3)}`);
 
+  // Same loosening for EXPOSURE_PRESETS — new presets ("athletic"?) won't
+  // break this; canonical 4 must remain.
+  const PRESET_KEYS = EXPOSURE_PRESETS.map(p => p.key);
+  const REQUIRED_PRESETS = ['face_hands', 'tshirt', 'swimwear', 'sunbathing'];
+  const missingPresets = REQUIRED_PRESETS.filter(k => !PRESET_KEYS.includes(k));
   assert('EXPOSURE_PRESETS contains face_hands / tshirt / swimwear / sunbathing',
-    EXPOSURE_PRESETS.length === 4 &&
-    EXPOSURE_PRESETS.every(p => typeof p.fraction === 'number'));
+    EXPOSURE_PRESETS.length >= 4 &&
+    missingPresets.length === 0 &&
+    EXPOSURE_PRESETS.every(p => typeof p.fraction === 'number'),
+    missingPresets.length ? `missing: ${missingPresets.join(',')}` : '');
 
   assert('EYE_MODES includes "direct" + "sunglasses" + "indoor"',
     EYE_MODES.some(e => e.key === 'direct') &&

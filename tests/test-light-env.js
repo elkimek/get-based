@@ -42,9 +42,16 @@ return (async function() {
     PRIMARY_SOURCES.some(s => s.key === 'led-warm') &&
     PRIMARY_SOURCES.some(s => s.key === 'fluorescent'));
 
+  // Loosened: at least 5 entries, canonical keys present. Adding e-reader
+  // / wearable display would be safe and shouldn't break this test.
+  const REQUIRED_DEVICES = ['phone', 'laptop', 'monitor', 'tablet', 'tv'];
+  const deviceKeys = SCREEN_DEVICES.map(d => d.key);
+  const missingDevices = REQUIRED_DEVICES.filter(k => !deviceKeys.includes(k));
   assert('SCREEN_DEVICES has phone / laptop / monitor / tablet / tv',
-    SCREEN_DEVICES.length === 5 &&
-    SCREEN_DEVICES.every(d => typeof d.label === 'string'));
+    SCREEN_DEVICES.length >= 5 &&
+    missingDevices.length === 0 &&
+    SCREEN_DEVICES.every(d => typeof d.label === 'string'),
+    missingDevices.length ? `missing: ${missingDevices.join(',')}` : '');
 
   // ─── 2. getEnvironment lazy init ─────────────────────────────────────
   console.log('%c 2. getEnvironment lazy init ', 'font-weight:bold;color:#f59e0b');

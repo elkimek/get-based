@@ -3607,6 +3607,15 @@ if (typeof window !== 'undefined') {
     openSunSessionDetail,
     renderBodySilhouette,
     bindBodySilhouette,
+    // Test-only: region-map internals exposed for assertion in
+    // tests/test-silhouette-region-map.js. Not for app code — the
+    // public API for click→region resolution is the silhouette
+    // picker's click handler in bindBodySilhouette.
+    _testLoadRegionMap: _loadRegionMap,
+    _testRegionAtSource: _regionAtSource,
+    _testRegionColorRGB: REGION_COLOR_RGB,
+    _testStockImg: STOCK_IMG,
+    _testRegionBandLandmarks: _REGION_BAND_LANDMARKS,
     trapModalFocus,
     _wireBackdropClose,
     _resumeActiveTickerIfNeeded,

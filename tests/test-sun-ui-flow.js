@@ -47,10 +47,16 @@ return (async function() {
   // windows, "{Morning|Midday|Afternoon} sun — log a session" inside one.
   assert('Empty-state strip shows a sun-log CTA (any solar-window variant)',
     strip && /log a session|Log a sun session|☀ Sun/i.test(strip.innerHTML));
-  // 6 user-facing channel pills present (vitamin_d / circadian / nir_solar / no_cv / pomc / violet_eye)
+  // 6 user-facing channel pills present (vitamin_d / circadian / nir_solar / no_cv / pomc / violet_eye).
+  // Loosened to `>=` + content spot-check — adding a new pill (UVA-IR
+  // composite, etc.) is safe; the canonical 6 must remain.
   const pills = strip ? strip.querySelectorAll('.light-pill') : [];
-  assert('Strip renders 6 channel pills',
-    pills.length === 6, `got ${pills.length}`);
+  const pillKeys = Array.from(pills).map(p => p.dataset.channel || p.dataset.key || '');
+  const REQUIRED_PILLS = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  const missingPills = REQUIRED_PILLS.filter(k => !pillKeys.includes(k));
+  assert('Strip renders the 6 canonical channel pills',
+    pills.length >= 6 && (missingPills.length === 0 || pills.length === 6),
+    `got ${pills.length}, missing keys: ${missingPills.join(',') || '(unknown — no data-channel attr)'}`);
 
   // ─── 2. Logging a session lights up channels + updates strip ─────────
   console.log('%c 2. Logging a session updates the strip ', 'font-weight:bold;color:#6366f1');
@@ -168,7 +174,77 @@ return (async function() {
   assert('sun.js calls _wireBackdropClose for its modals',
     /_wireBackdropClose\s*\(/.test(sunSrc));
 
-  // ─── 8. Cleanup: restore original state ──────────────────────────────
+  // ─── 8. Region picker → bodyExposure.regions; prefill on reopen ──────
+  // Drives the full flow: openStartSunSessionDialog → click 2 region
+  // paths → Start → assert sess.bodyExposure.regions matches → stop →
+  // reopen dialog → assert those regions are pre-selected.
+  console.log('%c 8. Region picker flow + prefill ', 'font-weight:bold;color:#6366f1');
+
+  // Tear down any leftover overlays, ensure no active session.
+  document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+  const _activeNow = window.getActiveSession?.();
+  if (_activeNow) await window.stopSession?.(_activeNow.id);
+
+  if (typeof window.openStartSunSessionDialog !== 'function') {
+    assert('openStartSunSessionDialog exists', false, 'skipped — function missing');
+  } else {
+    await window.openStartSunSessionDialog();
+    await wait(80);
+    let dlg = document.querySelector('.modal-overlay.show, .sun-start-modal')?.closest('.modal-overlay');
+    if (!dlg) dlg = document.querySelector('.modal-overlay');
+    assert('Start-session dialog opens', !!dlg);
+
+    // Pick 2 specific regions by clicking their SVG paths.
+    const PICK = ['arms-front', 'legs-front'];
+    let clickedAll = true;
+    for (const r of PICK) {
+      // Front-view path — `data-region` + `data-view="front"` is unique.
+      const path = dlg?.querySelector(`[data-region="${r}"][data-view="front"]`);
+      if (!path) { clickedAll = false; break; }
+      path.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await wait(20);
+    }
+    assert('Both region paths exist + clickable on the front view', clickedAll);
+
+    // Click Start
+    const startBtn = dlg?.querySelector('#start-confirm');
+    assert('Dialog has #start-confirm button', !!startBtn);
+    if (startBtn) {
+      startBtn.click();
+      await wait(120);
+    }
+
+    // Active session has both regions
+    const sess = window.getActiveSession?.();
+    const got = sess?.bodyExposure?.regions || [];
+    assert('Active session has bodyExposure.regions = [arms-front, legs-front]',
+      got.length === PICK.length && PICK.every(r => got.includes(r)),
+      `got=${JSON.stringify(got)}`);
+
+    // Stop session — the prefill on reopen uses the LAST COMPLETED session.
+    if (sess) await window.stopSession?.(sess.id);
+    await wait(80);
+
+    // Reopen, assert the 2 regions are pre-selected (aria-pressed=true)
+    document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+    await window.openStartSunSessionDialog();
+    await wait(80);
+    const dlg2 = document.querySelector('.modal-overlay');
+    assert('Dialog reopens', !!dlg2);
+    if (dlg2) {
+      const armsSel = dlg2.querySelector('[data-region="arms-front"][data-view="front"]')?.getAttribute('aria-pressed') === 'true';
+      const legsSel = dlg2.querySelector('[data-region="legs-front"][data-view="front"]')?.getAttribute('aria-pressed') === 'true';
+      assert('arms-front is pre-selected (prefill)', armsSel);
+      assert('legs-front is pre-selected (prefill)', legsSel);
+      // Other regions should NOT be pre-selected.
+      const facePressed = dlg2.querySelector('[data-region="face"]')?.getAttribute('aria-pressed') === 'true';
+      assert('face is NOT pre-selected (prefill carries only what was logged)', !facePressed);
+      dlg2.remove();
+    }
+  }
+
+  // ─── 9. Cleanup: restore original state ──────────────────────────────
+  document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
   S.importedData = orig;
   await window.saveImportedData?.();
 

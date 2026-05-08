@@ -97,10 +97,14 @@ return (async function() {
   // ─── 3. Channel dose calculation ────────────────────────────────────
   console.log('%c 3. Channel dose calculation ', 'font-weight:bold;color:#f59e0b');
 
-  assert('SUN_CHANNELS has 8 entries', SUN_CHANNELS.length === 8);
+  // Loosened from `=== 8` to `>=` — adding a new channel (e.g. UVA-IR)
+  // is a safe extension; the canonical 8 must still be present.
   const expectedKeys = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
+  assert('SUN_CHANNELS contains at least 8 entries',
+    SUN_CHANNELS.length >= 8, `length=${SUN_CHANNELS.length}`);
   assert('SUN_CHANNELS keys match design',
-    expectedKeys.every(k => SUN_CHANNELS.find(ch => ch.key === k)));
+    expectedKeys.every(k => SUN_CHANNELS.find(ch => ch.key === k)),
+    `missing: ${expectedKeys.filter(k => !SUN_CHANNELS.find(ch => ch.key === k)).join(',')}`);
 
   const fullExposure = computeChannelDoses({
     spectrum: noon,

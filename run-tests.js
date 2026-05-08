@@ -80,6 +80,7 @@ const TEST_FILES = [
   'tests/test-light-tools.js',
   'tests/test-light-devices.js',
   'tests/test-silhouette-picker.js',
+  'tests/test-silhouette-region-map.js',
   'tests/test-lighting-hardware-caveats.js',
   'tests/test-sun-ui-flow.js',
   'tests/test-data-merge.js',

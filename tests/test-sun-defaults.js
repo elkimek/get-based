@@ -31,8 +31,9 @@ return (async function() {
   // ─── 1. Fitzpatrick options shape ─────────────────────────────────────
   console.log('%c 1. Fitzpatrick options ', 'font-weight:bold;color:#f59e0b');
 
-  assert('FITZPATRICK_OPTIONS has 6 entries (I-VI)',
-    FITZPATRICK_OPTIONS.length === 6);
+  // Loosened: at least 6 entries; the I–VI keys must all be present.
+  assert('FITZPATRICK_OPTIONS has at least 6 entries (I–VI)',
+    FITZPATRICK_OPTIONS.length >= 6, `length=${FITZPATRICK_OPTIONS.length}`);
   const expectedKeys = ['I','II','III','IV','V','VI'];
   for (let i = 0; i < expectedKeys.length; i++) {
     assert(`Option ${i} key === '${expectedKeys[i]}'`, FITZPATRICK_OPTIONS[i].key === expectedKeys[i]);
@@ -60,8 +61,11 @@ return (async function() {
   // ─── 3. OTT_QUESTIONS ─────────────────────────────────────────────────
   console.log('%c 3. OTT 10-question audit shape ', 'font-weight:bold;color:#f59e0b');
 
-  assert('OTT_QUESTIONS has exactly 10 items (per audit definition)',
-    OTT_QUESTIONS.length === 10);
+  // Loosened from `=== 10` to `>=` — adding a new audit question is a
+  // safe extension. The required keys spot-check below ensures the
+  // canonical 10 are still present.
+  assert('OTT_QUESTIONS has at least 10 items (per audit definition)',
+    OTT_QUESTIONS.length >= 10, `length=${OTT_QUESTIONS.length}`);
   const ottKeys = new Set(OTT_QUESTIONS.map(q => q.key));
   assert('OTT_QUESTIONS keys are unique', ottKeys.size === OTT_QUESTIONS.length);
   for (const q of OTT_QUESTIONS) {
