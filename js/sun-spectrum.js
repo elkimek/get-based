@@ -172,23 +172,34 @@ function _peakSigmaForWavelength(nm) {
   return 12.7;
 }
 
-// Type-aware heuristic peakShares for devices that declare peakWavelengths
-// but no explicit peakShares. Pre-2026-05-08 the fallback was equal-N
-// split: a Maxi UVB with 9 declared peaks gave each band 11% of total
-// power, including the 295 nm UVB peak — wrong because the panel's rated
-// 120 mW/cm² is dominated by red/NIR diodes, not UVB.
+// Heuristic peakShares for devices that declare peakWavelengths but no
+// explicit peakShares.
 //
-// `type` tells us which mode the rated irradiance reflects:
-//   • uvb / uva  → UV-side dominant (UV+blue bands carry the bulk)
-//   • pbm / pbm-targeted → red+NIR dominant (PBM panel)
-//   • sad / dawn → blue-rich white (SAD therapy)
-//   • combined / unknown → roughly equal across present bands
+// Two distinct device classes need different defaults:
 //
-// Per-band weights then get evenly distributed across the peaks present
-// in that band (e.g. 4 NIR peaks share the NIR band's allotted weight).
-// User-imported devices via AI extraction inherit this heuristic
-// automatically — they get type-aware shares without the prompt needing
-// to extract per-band power, which most spec sheets don't publish.
+//   1. PURE UV/UVB device (only UV+blue peaks declared, no red/NIR) —
+//      narrowband phototherapy tube or dedicated UV LED. The rated
+//      mW/cm² IS the UV output. UV bands carry essentially all the
+//      power.
+//
+//   2. HYBRID panel (UV+blue AND red/NIR peaks declared) — devices like
+//      Mitochondriak Maxi UVB, Chroma Trinity. The rated mW/cm² is the
+//      FULL-PANEL output across all diodes. UV LEDs are expensive +
+//      low-efficiency, so manufacturers fit only a few; UVB is
+//      typically <10% of total panel power, the rest is red/NIR.
+//      Žofka audit 2026-05-08 round 6 caught this: a 30% UVB share for
+//      type='uvb' hybrid panels saturated the per-session cap on every
+//      duration, hiding any duration response.
+//
+// Detection: presence of UV peaks AND red/NIR peaks → hybrid; otherwise
+// fall back to type-only classification.
+//
+// Per-band weights then distribute evenly across peaks present in that
+// band (e.g. 4 NIR peaks share the NIR allotment). User-imported devices
+// via AI extraction inherit this heuristic automatically — they get
+// physics-correct shares from `type` + peak-wavelength layout alone,
+// without the AI prompt needing to extract per-band power (which most
+// spec sheets don't publish).
 function _heuristicPeakShares(peaks, deviceType) {
   const bandOf = (nm) => {
     if (nm < 320) return 'uvb';
@@ -198,9 +209,21 @@ function _heuristicPeakShares(peaks, deviceType) {
     return 'nir';
   };
   const t = String(deviceType || '').toLowerCase();
+  const bands = peaks.map(bandOf);
+  const hasUv = bands.some(b => b === 'uvb' || b === 'uva');
+  const hasRedNir = bands.some(b => b === 'red' || b === 'nir');
+  const isHybrid = hasUv && hasRedNir;
+
   let bandWeights;
-  if (t === 'uvb' || t === 'uva') {
-    bandWeights = { uvb: 0.30, uva: 0.30, blue: 0.20, red: 0.10, nir: 0.10 };
+  if (isHybrid) {
+    // Hybrid panel: UV diodes are the minority of total panel power.
+    // Real-world ratios for panels like Mitochondriak Maxi UVB / Chroma
+    // Trinity hover around UVB 5% / UVA 5% / blue 5% / red 35% / nir 50%.
+    bandWeights = { uvb: 0.05, uva: 0.05, blue: 0.05, red: 0.35, nir: 0.50 };
+  } else if (t === 'uvb' || t === 'uva') {
+    // Pure UV/UVB device (no red/NIR peaks): rated power is the UV
+    // output; UV+blue bands carry essentially all of it.
+    bandWeights = { uvb: 0.40, uva: 0.40, blue: 0.20, red: 0.0, nir: 0.0 };
   } else if (t === 'pbm' || t === 'pbm-targeted') {
     bandWeights = { uvb: 0.02, uva: 0.03, blue: 0.05, red: 0.40, nir: 0.50 };
   } else if (t === 'sad' || t === 'dawn') {
@@ -208,7 +231,6 @@ function _heuristicPeakShares(peaks, deviceType) {
   } else {
     bandWeights = { uvb: 0.20, uva: 0.20, blue: 0.20, red: 0.20, nir: 0.20 };
   }
-  const bands = peaks.map(bandOf);
   const bandCount = {};
   for (const b of bands) bandCount[b] = (bandCount[b] || 0) + 1;
   const raw = bands.map((b, i) => (bandWeights[b] || 0) / (bandCount[b] || 1));

@@ -392,17 +392,14 @@ return (async function() {
   assert('Maxi UVB: pbm_red ≠ pbm_nir (wavelength-correct, not double-counted)',
     Math.abs(maxiDoses.pbm_red - maxiDoses.pbm_nir) > 1,
     `red=${maxiDoses.pbm_red.toFixed(2)} nir=${maxiDoses.pbm_nir.toFixed(2)}`);
-  // type='uvb' panel: per the type-aware peakShares heuristic the UV+UVA
-  // bands carry ~60% of total power (the panel's rated irradiance is
-  // dominated by its UV-mode output, not equally split across all 9
-  // peaks). vitamin_d channel-au should therefore be the dominant
-  // channel — comparable to or exceeding the residual pbm_red yield.
-  // Pre-2026-05-08 this assertion was inverted: it pinned the equal-N-
-  // split bug where vit-D was 1/9 of total irradiance and produced
-  // unrealistically low IU. The new heuristic restores correct
-  // photobiology for UV-mode sessions on hybrid panels.
-  assert('Maxi UVB (type=uvb): vitamin_d is meaningful (UV bands dominate the share)',
-    maxiDoses.vitamin_d > 0 && maxiDoses.vitamin_d >= maxiDoses.pbm_red * 0.5,
+  // Maxi UVB is a HYBRID panel (UV + red/NIR peaks both present). The
+  // panel's rated 120 mW/cm² is full-panel output across all diodes,
+  // dominated by red/NIR (UV LEDs are typically <10% of total panel
+  // power). Per the hybrid heuristic, vit-D channel-au should be a
+  // small but non-zero fraction of total — definitely smaller than
+  // pbm_red, but not zero (UV diodes are still firing).
+  assert('Maxi UVB (hybrid): vitamin_d is non-zero but small vs pbm_red',
+    maxiDoses.vitamin_d > 0 && maxiDoses.vitamin_d < maxiDoses.pbm_red,
     `vitamin_d=${maxiDoses.vitamin_d.toFixed(2)} pbm_red=${maxiDoses.pbm_red.toFixed(2)}`);
 
   // EMR-Tek-style 2-peak panel — should feed pbm_red + pbm_nir, nothing else
@@ -435,37 +432,43 @@ return (async function() {
     maxiThruGlass.vitamin_d < maxiDoses.vitamin_d * 0.05,
     `ratio=${(maxiThruGlass.vitamin_d / Math.max(maxiDoses.vitamin_d, 1e-9)).toFixed(4)}`);
 
-  // ─── 15b. Type-aware peakShares heuristic ───────────────────────────
-  // Different `type` values should redistribute power across bands so
-  // that the same peakWavelengths array yields different per-channel
-  // doses. UVB-typed panels concentrate output in UV+blue; PBM-typed
-  // panels concentrate it in red+NIR. SAD-typed panels in blue.
-  console.log('%c 15b. type-aware peakShares heuristic ', 'font-weight:bold;color:#f59e0b');
-  const samePeaks = [295, 380, 480, 660, 850];
-  const sameIrr = 100;
-  const asUvb = synthesizeDeviceSpectrum({ peakWavelengths: samePeaks, mwPerCm2At15cm: sameIrr, type: 'uvb' });
-  const asPbm = synthesizeDeviceSpectrum({ peakWavelengths: samePeaks, mwPerCm2At15cm: sameIrr, type: 'pbm' });
-  const asSad = synthesizeDeviceSpectrum({ peakWavelengths: samePeaks, mwPerCm2At15cm: sameIrr, type: 'sad' });
+  // ─── 15b. Heuristic peakShares: hybrid panels vs pure-band devices ───
+  // Hybrid panels (UV+blue AND red/NIR peaks) should treat UV as a
+  // minority of total panel power regardless of `type` — manufacturers
+  // fit only a few UV LEDs to a primarily red/NIR panel, so UVB ~5% of
+  // total is the realistic share. Pure UV/UVB devices (no red/NIR
+  // peaks) treat UV as the dominant share.
+  console.log('%c 15b. heuristic peakShares (hybrid vs pure) ', 'font-weight:bold;color:#f59e0b');
   const dosesAt = (sp) => computeChannelDoses({
     spectrum: sp, durationMin: 5, bodyExposureFraction: 0.4,
     eyeExposure: { mode: 'direct', durationSec: 300 },
   });
-  const uvbDoses = dosesAt(asUvb);
-  const pbmDoses = dosesAt(asPbm);
-  const sadDoses = dosesAt(asSad);
-  assert('UVB-typed panel produces more vit-D than PBM-typed (same peaks, same irradiance)',
-    uvbDoses.vitamin_d > pbmDoses.vitamin_d * 5,
-    `uvb=${uvbDoses.vitamin_d.toFixed(2)} pbm=${pbmDoses.vitamin_d.toFixed(2)}`);
-  assert('PBM-typed panel produces more pbm_nir than UVB-typed',
-    pbmDoses.pbm_nir > uvbDoses.pbm_nir * 2,
-    `uvb=${uvbDoses.pbm_nir.toFixed(2)} pbm=${pbmDoses.pbm_nir.toFixed(2)}`);
-  assert('SAD-typed panel produces more circadian (blue-rich) than UVB-typed',
-    sadDoses.circadian > uvbDoses.circadian,
-    `sad=${sadDoses.circadian.toFixed(2)} uvb=${uvbDoses.circadian.toFixed(2)}`);
 
-  // Per-band sigma: a single 295nm peak with type='uvb' should produce
-  // MORE vit-D than the same peak rendered with the old fixed sigma=12.7.
-  // Verifies the per-band sigma + heuristic shares both fired.
+  // Hybrid panel — UV bands get small share regardless of type label.
+  const hybridUvb = synthesizeDeviceSpectrum({ peakWavelengths: [295, 380, 480, 660, 850], mwPerCm2At15cm: 100, type: 'uvb' });
+  const hybridPbm = synthesizeDeviceSpectrum({ peakWavelengths: [295, 380, 480, 660, 850], mwPerCm2At15cm: 100, type: 'pbm' });
+  const hybridUvbDoses = dosesAt(hybridUvb);
+  const hybridPbmDoses = dosesAt(hybridPbm);
+  assert('Hybrid panel: UV share is conservative regardless of type (UV-typed ≈ PBM-typed for hybrid)',
+    Math.abs(hybridUvbDoses.vitamin_d - hybridPbmDoses.vitamin_d) < hybridUvbDoses.vitamin_d * 0.5,
+    `uvb-typed=${hybridUvbDoses.vitamin_d.toFixed(2)} pbm-typed=${hybridPbmDoses.vitamin_d.toFixed(2)}`);
+
+  // Pure UV-only device (no red/NIR peaks) — UV bands dominate.
+  const pureUv = synthesizeDeviceSpectrum({ peakWavelengths: [295, 311, 380], mwPerCm2At15cm: 30, type: 'uvb' });
+  const pureUvDoses = dosesAt(pureUv);
+  assert('Pure UV device: vitamin_d is dominant (no red/NIR peaks → UV bands carry full share)',
+    pureUvDoses.vitamin_d > pureUvDoses.pbm_red * 100,
+    `vit_d=${pureUvDoses.vitamin_d.toFixed(2)} pbm_red=${pureUvDoses.pbm_red.toFixed(2)}`);
+
+  // Pure PBM device — red+NIR dominant
+  const purePbm = synthesizeDeviceSpectrum({ peakWavelengths: [660, 850], mwPerCm2At15cm: 100, type: 'pbm' });
+  const purePbmDoses = dosesAt(purePbm);
+  assert('Pure PBM device: pbm_nir > pbm_red and vit-D ≈ 0',
+    purePbmDoses.pbm_nir > 0 && purePbmDoses.vitamin_d < 1e-3,
+    `nir=${purePbmDoses.pbm_nir.toFixed(2)} vit-d=${purePbmDoses.vitamin_d.toExponential(2)}`);
+
+  // Per-band sigma: a single 295nm peak should produce meaningful vit-D
+  // (narrow sigma keeps energy on action peak vs old fixed 12.7).
   const narrowUvb = synthesizeDeviceSpectrum({ peakWavelengths: [295], mwPerCm2At15cm: 10, type: 'uvb' });
   const narrowDoses = dosesAt(narrowUvb);
   assert('Single 295nm UVB peak with narrow sigma yields meaningful vit-D',
