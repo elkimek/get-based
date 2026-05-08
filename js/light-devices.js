@@ -1185,14 +1185,11 @@ export async function openDeviceSessionDialog(deviceId) {
       })()}
       <div class="ctx-label" style="display:block">
         <span>Body area treated</span>
-        <div class="ctx-btn-group dev-session-quickpick" role="group" aria-label="Body-zone toggles" style="margin:6px 0 10px">
-          <button type="button" class="ctx-btn-option" data-preset="face">Face</button>
-          <button type="button" class="ctx-btn-option" data-preset="torso">Torso</button>
-          <button type="button" class="ctx-btn-option" data-preset="arms">Arms</button>
-          <button type="button" class="ctx-btn-option" data-preset="legs">Legs</button>
-        </div>
         <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${(typeof window !== 'undefined' && window.renderBodySilhouette) ? window.renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
-        <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
+        <div class="sun-silhouette-hint-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
+          <button type="button" class="ctx-btn-option" id="dev-session-clear" style="padding:2px 10px;font-size:11px">Clear</button>
+        </div>
       </div>
       <label class="ctx-label">
         <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''} />
@@ -1232,37 +1229,23 @@ export async function openDeviceSessionDialog(deviceId) {
   if (_silhouetteSlot && typeof window !== 'undefined' && window.bindBodySilhouette) {
     window.bindBodySilhouette(_silhouetteSlot, selectedRegions, (set) => {
       _updateAreaHint(set);
-      _updatePresetActive();
     });
   }
   _updateAreaHint(selectedRegions);
 
-  // Body-zone toggles — each preset adds OR removes its regions from
-  // the current selection. Active = every region in the zone is
-  // currently selected. Multiple zones can be active simultaneously,
-  // which removes the need for a "Whole body" preset (no panel actually
-  // covers all 16 regions; user toggles the zones they want).
-  function _updatePresetActive() {
-    for (const btn of overlay.querySelectorAll('.dev-session-quickpick .ctx-btn-option')) {
-      const regions = BROAD_TO_REGIONS[btn.dataset.preset] || [];
-      const allOn = regions.length > 0 && regions.every(r => selectedRegions.has(r));
-      btn.classList.toggle('active', allOn);
+  // Clear — single bulk-deselect affordance. The silhouette itself is
+  // the picker; pre-2026-05-08 also had a 4-zone toggle row but it was
+  // a redundant abstraction (every operation duplicated a silhouette
+  // tap, and active-state drift on individual taps was confusing).
+  // Real logs show 1-3 region picks, not whole-zone bulk operations,
+  // so this single Clear button covers the only genuine shortcut.
+  overlay.querySelector('#dev-session-clear')?.addEventListener('click', () => {
+    selectedRegions.clear();
+    if (_silhouetteSlot && typeof window !== 'undefined' && window.renderBodySilhouette) {
+      _silhouetteSlot.innerHTML = window.renderBodySilhouette(selectedRegions);
     }
-  }
-  for (const presetBtn of overlay.querySelectorAll('.dev-session-quickpick .ctx-btn-option')) {
-    presetBtn.addEventListener('click', () => {
-      const regions = BROAD_TO_REGIONS[presetBtn.dataset.preset] || [];
-      const allOn = regions.length > 0 && regions.every(r => selectedRegions.has(r));
-      if (allOn) for (const r of regions) selectedRegions.delete(r);
-      else for (const r of regions) selectedRegions.add(r);
-      if (_silhouetteSlot && typeof window !== 'undefined' && window.renderBodySilhouette) {
-        _silhouetteSlot.innerHTML = window.renderBodySilhouette(selectedRegions);
-      }
-      _updateAreaHint(selectedRegions);
-      _updatePresetActive();
-    });
-  }
-  _updatePresetActive();
+    _updateAreaHint(selectedRegions);
+  });
 
   // Per-field unit toggle: cm ↔ in. Lets a US user briefly type a cm
   // value (or vice versa) without mental math when their global unit
