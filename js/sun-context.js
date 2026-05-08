@@ -662,17 +662,27 @@ function standardTierBlock(sessions) {
         }
       }
       const eyes = s.eyesProtected ? 'protected' : 'uncovered';
-      // Vit-D IU + cap-detection: compute raw uncapped IU and capped IU
-      // separately so we can append "(capped from N)" inline when the
-      // saturation ceiling fired. Agent-readable transparency: instead
-      // of a flat "20000" the row reads "20000 (capped from ~23,940)"
-      // — the agent knows the device math actually produced more than
-      // the biological ceiling. Falls back to '—' when the device emits
-      // no UVB (red/NIR-only panels) so the column doesn't look broken.
+      // Vit-D IU. Conditional `(geneticMult=0.72)` tag fires only when
+      // the user has loaded genetics that move the multiplier away from
+      // 1.0 — agent gets a compact provenance hint without baseline-
+      // user bloat. Same shape as the `· AI verdict: red` flag pattern:
+      // terse non-default annotation, full breakdown lives in the
+      // session detail modal.
       const vitDAu = s.doses?.vitamin_d;
-      const vitD = (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIUPerSession === 'function')
-        ? Math.round(window.vitaminDIUPerSession(vitDAu, _fitzForDevice, null, false, _genetics, bodyFrac))
-        : '—';
+      let vitD = '—';
+      if (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIUPerSession === 'function') {
+        const iu = Math.round(window.vitaminDIUPerSession(vitDAu, _fitzForDevice, null, false, _genetics, bodyFrac));
+        let geneTag = '';
+        if (typeof window.geneticVitaminDMultiplier === 'function') {
+          try {
+            const g = window.geneticVitaminDMultiplier(_genetics);
+            if (g && Number.isFinite(g.mult) && Math.abs(g.mult - 1.0) > 0.01) {
+              geneTag = ` (geneticMult=${g.mult.toFixed(2)})`;
+            }
+          } catch (_) {}
+        }
+        vitD = `${iu}${geneTag}`;
+      }
       const red = s.doses?.pbm_red != null ? (s.doses.pbm_red / 1000).toFixed(2) : '?';
       const nir = s.doses?.pbm_nir != null ? (s.doses.pbm_nir / 1000).toFixed(2) : '?';
       block += `| ${date} | ${dur} | ${devName} | ${dist} | ${bodyPct} | ${eyes} | ${vitD} | ${red} | ${nir} |\n`;
