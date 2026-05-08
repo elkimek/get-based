@@ -331,6 +331,108 @@ export async function stopDeviceSession(id) {
   return sess;
 }
 
+// Patch a finished session in place — accepts any subset of editable
+// fields. Recomputes doses if duration / distance / regions / eyes
+// changed, since those all feed the dose math. Mirrors sun.js
+// updateSession but without the active-session branch (device sessions
+// don't have the sun-style mid-session controls — once stopped, they
+// stay stopped). Bumps updatedAt so sync sees the change.
+export async function updateDeviceSession(id, patch = {}) {
+  const sessions = getDeviceSessions();
+  const sess = sessions.find(s => s.id === id);
+  if (!sess) return null;
+  const editable = ['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'notes'];
+  let needsRecompute = false;
+  for (const k of editable) {
+    if (k in patch && patch[k] !== sess[k]) {
+      // Array deep-compare for bodyAreas — patch comes in as a fresh
+      // array; we want to detect content change, not just identity.
+      if (k === 'bodyAreas') {
+        const before = JSON.stringify((sess.bodyAreas || []).slice().sort());
+        const after = JSON.stringify((patch.bodyAreas || []).slice().sort());
+        if (before === after) continue;
+      }
+      sess[k] = patch[k];
+      if (['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected'].includes(k)) needsRecompute = true;
+    }
+  }
+  // Re-derive endedAt + dose if duration changed (otherwise the saved
+  // record keeps its original end-stamp + doses, which would drift from
+  // the new duration).
+  if (needsRecompute && sess.endedAt && Number.isFinite(sess.durationMin)) {
+    sess.endedAt = sess.startedAt + sess.durationMin * 60 * 1000;
+    const device = getDevices().find(d => d.id === sess.deviceId);
+    if (device) {
+      const seconds = sess.durationMin * 60;
+      const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
+      const AREA_FRACTIONS = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
+      let area;
+      if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+        area = sess.bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0) || 0.05;
+      } else {
+        area = AREA_FRACTIONS[sess.bodyArea] ?? 0.10;
+      }
+      const baseRangeCm = device.recommendedDistanceCm || 15;
+      const distFactor = Math.min((baseRangeCm / Math.max(sess.distanceCm || 15, 5)) ** 2, 3.0);
+      const eyeMode = sess.eyesProtected ? 'closed-eyes' : 'direct';
+      const synthesizeDeviceSpectrum = window.synthesizeDeviceSpectrum;
+      const computeChannelDoses = window.computeChannelDoses;
+      const hasPeaks = Array.isArray(device.peakWavelengths) && device.peakWavelengths.length > 0;
+      const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
+      let doses = {};
+      if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
+        const baseSpec = synthesizeDeviceSpectrum(device);
+        const spectrum = {
+          wavelengths: baseSpec.wavelengths,
+          irradiance: baseSpec.irradiance.map(v => v * distFactor),
+        };
+        doses = computeChannelDoses({
+          spectrum, durationMin: sess.durationMin, bodyExposureFraction: area,
+          eyeExposure: { mode: eyeMode, durationSec: seconds },
+        });
+      } else {
+        const lux = device.lux || 0;
+        if (!sess.eyesProtected && lux > 0) doses.circadian = lux * distFactor * seconds / 100;
+      }
+      sess.doses = doses;
+    }
+  }
+  sess.updatedAt = Date.now();
+  await saveImportedData();
+  if (window.maybeAnalyzeDeviceSessionAfterFinish) {
+    try { window.maybeAnalyzeDeviceSessionAfterFinish(sess); } catch (_) {}
+  }
+  return sess;
+}
+
+// User-facing edit-duration entry point — same shape as
+// editSunSessionDuration. Prompts for new minutes, validates, calls
+// updateDeviceSession (which recomputes doses + endedAt), re-renders.
+export async function editDeviceSessionDuration(id) {
+  const sess = getDeviceSessions().find(s => s.id === id);
+  if (!sess) {
+    showNotification('Session not found', 'error');
+    return;
+  }
+  const current = Math.max(0, Math.round(sess.durationMin || 0));
+  const raw = await window.showPromptDialog?.('New duration (in minutes)', {
+    defaultValue: String(current),
+    okLabel: 'Save',
+    placeholder: 'e.g. 12',
+  });
+  if (raw === null || raw === undefined) return;
+  const parsed = parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 600) {
+    showNotification('Enter a duration between 0 and 600 minutes.', 'error');
+    return;
+  }
+  const next = Math.round(parsed);
+  if (next === current) return;
+  await updateDeviceSession(id, { durationMin: next });
+  showNotification(`Session duration set to ${next} min. Doses recomputed.`, 'success');
+  if (window.navigate && state.currentView === 'light') window.navigate('light');
+}
+
 export async function deleteDeviceSession(id) {
   const sessions = getDeviceSessions();
   const idx = sessions.findIndex(s => s.id === id);
@@ -460,6 +562,7 @@ export function openDeviceSessionDetail(id) {
 
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editDeviceSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when you forgot to stop the timer or stopped late.">Edit duration</button>
         <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')">Delete</button>
       </div>
     </div>
@@ -1414,6 +1517,8 @@ if (typeof window !== 'undefined') {
     logDeviceSession,
     startDeviceSession,
     stopDeviceSession,
+    updateDeviceSession,
+    editDeviceSessionDuration,
     getActiveDeviceSession,
     renderActiveDeviceSessionCard,
     ensureActiveDeviceTicker,
