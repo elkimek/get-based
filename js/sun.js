@@ -1299,16 +1299,22 @@ export async function openStartSunSessionDialog() {
             </select>
           </label>
         </div>
-        <label class="ctx-label sun-detailed-glass" style="margin-top:8px">
-          <input type="checkbox" id="start-glass"${defaultGlass ? ' checked' : ''} />
-          Behind glass (window / car / sunroom)
-        </label>
+        <div class="ctx-label sun-detailed-glass" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="flex:1;min-width:0">Behind glass (window / car / sunroom)</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="start-glass"${defaultGlass ? ' checked' : ''} />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
         <p class="sun-detailed-glass-hint">Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through. We zero the burn dose accordingly. (Want to measure YOUR glass's transmission? Light tools → Window check.)</p>
-        <label class="ctx-label sun-detailed-glass" style="margin-top:8px">
-          <input type="checkbox" id="start-rotated" />
-          Plan to flip front ↔ back during the session
-        </label>
-        <p class="sun-detailed-glass-hint">Tick if you'll alternate sides — doubles the vitamin D estimate to reflect that fresh skin keeps synthesizing after the first side approaches saturation. You can also tap 🔄 Flip mid-session.</p>
+        <div class="ctx-label sun-detailed-glass" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="flex:1;min-width:0">Plan to flip front ↔ back during the session</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="start-rotated" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <p class="sun-detailed-glass-hint">Toggle on if you'll alternate sides — doubles the vitamin D estimate to reflect that fresh skin keeps synthesizing after the first side approaches saturation. You can also tap 🔄 Flip mid-session.</p>
       </details>
 
       <div class="modal-actions" style="margin-top:18px">
@@ -3427,10 +3433,13 @@ export function openDetailedSessionDialog() {
         <label class="ctx-label">Sunscreen SPF
           <input type="number" id="det-spf" class="ctx-input" min="0" max="100" placeholder="none" />
         </label>
-        <label class="ctx-label sun-detailed-glass" style="margin-top:24px">
-          <input type="checkbox" id="det-glass" />
-          Behind glass (window / car / sunroom)
-        </label>
+        <div class="ctx-label sun-detailed-glass" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="flex:1;min-width:0">Behind glass (window / car / sunroom)</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="det-glass" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <div class="sun-detailed-row">

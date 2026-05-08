@@ -1191,10 +1191,13 @@ export async function openDeviceSessionDialog(deviceId) {
           <button type="button" class="ctx-btn-option" id="dev-session-clear" style="padding:2px 10px;font-size:11px">Clear</button>
         </div>
       </div>
-      <label class="ctx-label">
-        <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''} />
-        Eyes protected (goggles or closed)
-      </label>
+      <div class="ctx-label" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span style="flex:1;min-width:0">Eyes protected (goggles or closed)</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''} />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <p class="modal-body-hint" style="margin-top:8px">Save now to log a finished session, or Start to run a live timer (matches the sun-session pattern — handy when you want to walk away and come back).</p>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
