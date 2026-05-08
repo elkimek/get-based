@@ -76,8 +76,8 @@ return (async function() {
     !/30-day per-channel dose totals/.test(always));
   assert('Always tier serializes Fitzpatrick III from sunDefaults',
     /Fitzpatrick III/.test(always));
-  assert('Always tier mentions Ott self-survey when ottScore set',
-    /Ott self-survey burden: 4\/10/.test(always));
+  assert('Always tier mentions Ott self-survey alignment when ottScore set',
+    /Ott self-survey alignment: 6\/10/.test(always));
   assert('Always tier flags Ott as self-reported (not data-derived)',
     /self-reported/.test(always));
   assert('Always tier reports MED',

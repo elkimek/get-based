@@ -190,15 +190,17 @@ function alwaysTierBlock(sessions) {
     // can sanity-check that against context cards if 0 contradicts
     // other lifestyle data; that's not the context block's job.
     if (typeof sunDefaults.ottScore === 'number') {
-      // Ott score is SELF-REPORTED, not derived from logged data. 0 means
-      // the user answered "no" to all 10 burden questions — including
-      // ones that may contradict their actual screens/rooms/sessions
-      // (e.g. answered "no, I don't spend most daytime behind glass" but
-      // logs 8h/day office monitor). Frame it as self-report so the AI
-      // knows to cross-check against the rest of the context (screens
-      // block, rooms block, outdoor sessions) rather than trusting the
-      // survey figure as ground truth.
-      baselineLine += ` Ott self-survey burden: ${sunDefaults.ottScore}/10 (self-reported; 0 = answered "no" to all 10 lifestyle burden questions, 10 = "yes" to all). Cross-check against logged screens/rooms/outdoor sessions — the survey can disagree with the data.`;
+      // Reframed 2026-05-08 as ALIGNMENT (higher = better) instead of
+      // BURDEN (higher = worse). Matches the dashboard convention
+      // (`${10 - ottScore}/10 aligned`) and human intuition (10/10 = good).
+      // Storage stays burden-coded — `ottScore` is still N-checked-yes
+      // out of 10 — but the AI sees it presented as "10 - N aligned" so
+      // the directionality is unambiguous. Žofka audit 2026-05-08 caught
+      // ambiguity in the burden phrasing ("0/10 burden" reads as either
+      // "0 burden = great" or "0 alignment = terrible" depending on the
+      // reader's prior).
+      const aligned = 10 - sunDefaults.ottScore;
+      baselineLine += ` Ott self-survey alignment: ${aligned}/10 (self-reported; counts how many of 10 light-burden lifestyle factors the user said NO to; 10 = aligned, no factors flagged; 0 = all 10 flagged). Cross-check against logged screens/rooms/outdoor sessions — the survey can disagree with the data.`;
     }
   }
 
@@ -589,7 +591,16 @@ Rows where UV peak is 0.0 AND MED% is 0 AND Vit-D is 0 represent sessions logged
   if (allDevSessions.length > 0) {
     const deviceById = Object.fromEntries((state.importedData?.lightDevices || []).map(d => [d.id, d]));
     const _genetics = state.importedData?.genetics || null;
+    const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
     block += `### Last ${allDevSessions.length} device-therapy sessions (PBM panels, SAD lamps, dawn simulators, UVB)\n`;
+    // Vit-D IU formula explainer — surfaces the calculation path so the
+    // agent can sanity-check the column instead of treating it as a
+    // black-box number. Žofka audit 2026-05-08 flagged the 20,000 IU
+    // device value as opaque ("real or placeholder?") — answer: it's
+    // the Holick 2007 daily saturation cap kicking in. Per-row "capped
+    // from X" tag (below) makes that visible inline when raw > cap.
+    block += `Vit-D IU formula: vit_d channel-au × 60 (IU/au calibration vs Holick 2008 NEJM + Bogh 2010 JID) × Fitzpatrick scale (I/II=1.0, III=0.85, IV=0.65, V=0.45, VI=0.30) × UVI gate (=1.0 for devices since the device IS the UVB source; ramps 0→1.0 between UVI 2.0–3.0 for outdoor sun) × rotated-sides (×2 if both anatomical sides logged) × genetic VDR/CYP multiplier. Per-day total capped at 20,000 IU per Holick 2007 photoisomerization plateau (pre-D3 reverts to lumisterol/tachysterol above this); rollup applies cap per local day, not per session. "(capped from X)" annotation on a row means raw computed yield was X but display clamped at 20,000.\n`;
+    block += `Inputs for this session table: device Fitzpatrick=${_fitzForDevice} (from sunDefaults; devices don't store per-session Fitzpatrick), UVI=null (atmospheric gate bypassed), rotatedSides=false (devices track skin% via bodyAreas).\n\n`;
     block += `| Date | Min | Device | Distance | Skin exposed | Eyes | Vit-D (IU) | Red 660nm (J/cm²) | NIR 810/850 (J/cm²) |\n`;
     block += `|------|-----|--------|----------|--------------|------|------------|-------------------|----------------------|\n`;
     for (const s of allDevSessions.slice().reverse()) {
@@ -613,16 +624,22 @@ Rows where UV peak is 0.0 AND MED% is 0 AND Vit-D is 0 represent sessions logged
         bodyPct = f != null ? `${Math.round(f * 100)}%` : s.bodyArea;
       }
       const eyes = s.eyesProtected ? 'protected' : 'uncovered';
-      // UVB devices (Sperti, Mitochondriak Maxi UVB, etc.) emit 290–315nm
-      // and produce a real vitamin_d channel-au value through the spectrum
-      // synthesis path. Convert to IU equivalent — uvi=null bypasses the
-      // outdoor-UVI threshold gate (the device IS the UVB source, no
-      // atmospheric UV needed). Falls back to '—' when the device emits
+      // Vit-D IU + cap-detection: compute raw uncapped IU and capped IU
+      // separately so we can append "(capped from N)" inline when the
+      // saturation ceiling fired. Agent-readable transparency: instead
+      // of a flat "20000" the row reads "20000 (capped from ~23,940)"
+      // — the agent knows the device math actually produced more than
+      // the biological ceiling. Falls back to '—' when the device emits
       // no UVB (red/NIR-only panels) so the column doesn't look broken.
       const vitDAu = s.doses?.vitamin_d;
-      const vitD = (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIU === 'function')
-        ? Math.round(window.vitaminDIU(vitDAu, 'III', null, false, _genetics))
-        : '—';
+      let vitD = '—';
+      if (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIU === 'function') {
+        const capped = Math.round(window.vitaminDIU(vitDAu, _fitzForDevice, null, false, _genetics));
+        const raw = (typeof window.vitaminDIURaw === 'function')
+          ? Math.round(window.vitaminDIURaw(vitDAu, _fitzForDevice, null, false, _genetics))
+          : capped;
+        vitD = (raw > capped) ? `${capped} (capped from ~${raw.toLocaleString()})` : `${capped}`;
+      }
       const red = s.doses?.pbm_red != null ? (s.doses.pbm_red / 1000).toFixed(2) : '?';
       const nir = s.doses?.pbm_nir != null ? (s.doses.pbm_nir / 1000).toFixed(2) : '?';
       block += `| ${date} | ${dur} | ${devName} | ${dist} | ${bodyPct} | ${eyes} | ${vitD} | ${red} | ${nir} |\n`;
