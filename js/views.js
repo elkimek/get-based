@@ -1300,6 +1300,7 @@ export function showLight(_data) {
   // page loaded — without this, hard-reload while outside leaves the card
   // static until you explicitly tap something else.
   if (window._resumeActiveTickerIfNeeded) try { window._resumeActiveTickerIfNeeded(); } catch (e) {}
+  if (window.ensureActiveDeviceTicker) try { window.ensureActiveDeviceTicker(); } catch (e) {}
   const main = document.getElementById("main-content");
   const sessions = (window.getSessions && window.getSessions()) || [];
   const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
@@ -1327,6 +1328,15 @@ export function showLight(_data) {
   const _activeSunSess = (window.getActiveSession && window.getActiveSession()) || null;
   if (_activeSunSess && typeof window.renderSunSessionRow === 'function') {
     html += `<div class="light-active-session-pinned" aria-label="Active sun session">${window.renderSunSessionRow(_activeSunSess)}</div>`;
+  }
+  // Same pattern for active device-therapy sessions (PBM panels, SAD
+  // lamps, dawn simulators). Pinned above the conditions panel so the
+  // stop button is always one tap away.
+  if (typeof window.renderActiveDeviceSessionCard === 'function') {
+    const _activeDevHtml = window.renderActiveDeviceSessionCard();
+    if (_activeDevHtml) {
+      html += `<div class="light-active-session-pinned" aria-label="Active device session">${_activeDevHtml}</div>`;
+    }
   }
 
   // Always-visible "Conditions now" panel — UVI / ozone / AQI / sun angle.
@@ -2357,7 +2367,9 @@ function renderUnifiedSessionsList() {
   // renders it before the quicklog row), so filter it out of the
   // historical-sessions list to avoid the same row appearing twice.
   const sunSessions = ((window.getSessions && window.getSessions()) || []).filter(s => !!s.endedAt);
-  const devSessions = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  // Active device sessions are pinned above (renderActiveDeviceSessionCard);
+  // filter them out here so the same row doesn't render twice.
+  const devSessions = ((window.getDeviceSessions && window.getDeviceSessions()) || []).filter(s => !!s.endedAt);
 
   // Build the unified, sorted row list once — regardless of whether we
   // have only sun, only devices, or both. Lets the cap + toggle apply
@@ -2464,6 +2476,7 @@ export function showDashboard(data) {
   // page loaded — keeps the dashboard Light Today strip ticking after a
   // hard reload mid-session.
   if (window._resumeActiveTickerIfNeeded) try { window._resumeActiveTickerIfNeeded(); } catch (e) {}
+  if (window.ensureActiveDeviceTicker) try { window.ensureActiveDeviceTicker(); } catch (e) {}
   if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
   const hasData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);

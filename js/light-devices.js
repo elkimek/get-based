@@ -21,7 +21,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, formatDate } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
-import { CHANNEL_DISPLAY } from './sun.js';
+import { CHANNEL_DISPLAY, BODY_REGIONS } from './sun.js';
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 
@@ -118,22 +118,33 @@ export async function deleteDevice(id) {
 // instead of `mwPerCm2At15cm` (Verilux, Carex, Lumie, etc.) — those don't
 // have a meaningful peak-wavelengths spectrum and only feed the circadian
 // channel via lux-seconds.
-export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', eyesProtected = true, notes = '' }) {
+export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '' }) {
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
   const sessionId = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const seconds = durationMin * 60;
 
-  // Body-area fractions match sun.js BODY_REGIONS proportions —
-  // whole-body sums all 13 anatomical regions = 0.92 (the BODY_REGIONS
-  // total). Earlier value 0.85 was ~8% under and contradicted the
-  // commented contract. `legs` covers both front + back (0.15+0.15)
-  // since a panel session usually irradiates one face; `arms` same.
+  // Two paths:
+  //   bodyAreas[] — precise per-region picker (BODY_REGIONS keys, e.g.
+  //                 ['torso-front','arms-front']). Fraction is summed
+  //                 from BODY_REGIONS[].fraction so it matches sun
+  //                 sessions' accounting exactly.
+  //   bodyArea    — legacy broad-zone string (face/torso/arms/legs/
+  //                 whole-body/targeted). Pre-2026-05-08 sessions only
+  //                 carry this field; we keep the lookup table for
+  //                 backwards-compat reads.
   const AREA_FRACTIONS = {
     'face': 0.04, 'arms': 0.10, 'torso': 0.13,
     'legs': 0.30, 'whole-body': 0.92, 'targeted': 0.05,
   };
-  const area = AREA_FRACTIONS[bodyArea] ?? 0.10;
+  let area;
+  if (Array.isArray(bodyAreas) && bodyAreas.length > 0) {
+    const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
+    area = bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0);
+    if (area <= 0) area = 0.05;  // belt-and-suspenders for unknown keys
+  } else {
+    area = AREA_FRACTIONS[bodyArea] ?? 0.10;
+  }
 
   // Distance-square correction. Base range is the device's vendor
   // reference distance (15 cm typical; 50 cm for COB devices like the
@@ -196,6 +207,9 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
     durationMin,
     distanceCm,
     bodyArea,
+    // bodyAreas[] is the new precise-region field; bodyArea remains as
+    // a denormalized "broad zone" hint for legacy readers + listing rows.
+    bodyAreas: Array.isArray(bodyAreas) ? bodyAreas.slice() : null,
     eyesProtected,
     doses,
     notes,
@@ -206,13 +220,115 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   // (most users do the same duration / distance / body area each
   // session — re-typing every time is friction). Notes intentionally
   // excluded — they're session-specific, shouldn't leak forward.
-  device.lastSession = { durationMin, distanceCm, bodyArea, eyesProtected };
+  device.lastSession = { durationMin, distanceCm, bodyArea, bodyAreas: session.bodyAreas, eyesProtected };
   device.updatedAt = Date.now();
   await saveImportedData();
   if (window.maybeAnalyzeDeviceSessionAfterFinish) {
     try { window.maybeAnalyzeDeviceSessionAfterFinish(session); } catch (_) {}
   }
   return session;
+}
+
+// ─── Live device-session timer ─────────────────────────────────────────
+//
+// Mirrors the sun.js start/stop pattern: startDeviceSession() stages an
+// active record with a start timestamp + selected regions; the dashboard
+// + /light surfaces show a live elapsed counter; stopDeviceSession()
+// finalizes it through logDeviceSession's dose math so the saved record
+// is identical in shape to an after-the-fact log.
+
+export function getActiveDeviceSession() {
+  return getDeviceSessions().find(s => !s.endedAt) || null;
+}
+
+export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true } = {}) {
+  // Reject a second active timer — one session at a time keeps the
+  // active-card UI unambiguous and matches sun-session semantics.
+  if (getActiveDeviceSession()) return null;
+  const device = getDevices().find(d => d.id === deviceId);
+  if (!device) return null;
+  const id = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const sess = {
+    id,
+    deviceId,
+    startedAt: Date.now(),
+    endedAt: null,
+    durationMin: 0,
+    distanceCm,
+    bodyArea,
+    bodyAreas: Array.isArray(bodyAreas) ? bodyAreas.slice() : null,
+    eyesProtected,
+    doses: {},
+    notes: '',
+  };
+  getDeviceSessions().push(sess);
+  await saveImportedData();
+  return id;
+}
+
+// Stop the active device session. Computes doses through the same
+// `logDeviceSession` math by replaying the recorded params, then
+// finalizes endedAt + durationMin on the existing record.
+export async function stopDeviceSession(id) {
+  const sessions = getDeviceSessions();
+  const sess = id ? sessions.find(s => s.id === id) : getActiveDeviceSession();
+  if (!sess || sess.endedAt) return null;
+  const endedAt = Date.now();
+  const durationMin = Math.max(0, (endedAt - sess.startedAt) / 60000);
+  // Inline-compute doses using the same path as logDeviceSession but
+  // without inserting a new record — we mutate the existing active
+  // session in-place. Cheaper than synthesizing a new one and rewriting
+  // the array.
+  const device = getDevices().find(d => d.id === sess.deviceId);
+  if (device && durationMin > 0) {
+    const seconds = durationMin * 60;
+    const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
+    const AREA_FRACTIONS = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
+    let area;
+    if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+      area = sess.bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0) || 0.05;
+    } else {
+      area = AREA_FRACTIONS[sess.bodyArea] ?? 0.10;
+    }
+    const baseRangeCm = device.recommendedDistanceCm || 15;
+    const distFactor = Math.min((baseRangeCm / Math.max(sess.distanceCm || 15, 5)) ** 2, 3.0);
+    const eyeMode = sess.eyesProtected ? 'closed-eyes' : 'direct';
+    const synthesizeDeviceSpectrum = window.synthesizeDeviceSpectrum;
+    const computeChannelDoses = window.computeChannelDoses;
+    const hasPeaks = Array.isArray(device.peakWavelengths) && device.peakWavelengths.length > 0;
+    const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
+    let doses = {};
+    if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
+      const baseSpec = synthesizeDeviceSpectrum(device);
+      const spectrum = {
+        wavelengths: baseSpec.wavelengths,
+        irradiance: baseSpec.irradiance.map(v => v * distFactor),
+      };
+      doses = computeChannelDoses({
+        spectrum, durationMin, bodyExposureFraction: area,
+        eyeExposure: { mode: eyeMode, durationSec: seconds },
+      });
+    } else {
+      const lux = device.lux || 0;
+      if (!sess.eyesProtected && lux > 0) doses.circadian = lux * distFactor * seconds / 100;
+    }
+    sess.doses = doses;
+  }
+  sess.endedAt = endedAt;
+  sess.durationMin = durationMin;
+  if (device) {
+    device.lastSession = {
+      durationMin, distanceCm: sess.distanceCm,
+      bodyArea: sess.bodyArea, bodyAreas: sess.bodyAreas,
+      eyesProtected: sess.eyesProtected,
+    };
+    device.updatedAt = Date.now();
+  }
+  await saveImportedData();
+  if (window.maybeAnalyzeDeviceSessionAfterFinish) {
+    try { window.maybeAnalyzeDeviceSessionAfterFinish(sess); } catch (_) {}
+  }
+  return sess;
 }
 
 export async function deleteDeviceSession(id) {
@@ -260,7 +376,19 @@ export function openDeviceSessionDetail(id) {
     ? `${device.mwPerCm2At15cm} mW/cm² @ ${device?.recommendedDistanceCm || 15} cm`
     : (device?.lux ? `${device.lux.toLocaleString()} lux` : '—');
   const distanceStr = sess.distanceCm ? `${sess.distanceCm} cm` : '—';
-  const areaLabel = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '—';
+  // Prefer the precise bodyAreas[] list when present (sessions from
+  // 2026-05-08+); fall back to the legacy broad-zone string for older
+  // sessions that pre-date the per-region picker.
+  let areaLabel;
+  if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+    const labelByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.label]));
+    const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
+    const totalFrac = sess.bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0);
+    const labels = sess.bodyAreas.map(k => labelByKey[k] || k).join(', ');
+    areaLabel = `${labels} (~${Math.round(totalFrac * 100)}% of skin)`;
+  } else {
+    areaLabel = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '—';
+  }
   const eyesLabel = sess.eyesProtected ? 'Protected (closed / blocked)' : 'Uncovered';
 
   const channelRows = sess.doses ? channelOrder
@@ -351,6 +479,77 @@ export function rollingDeviceTotals(days = 7) {
     }
   }
   return totals;
+}
+
+// ─── Active device-session card + 1Hz ticker ─────────────────────────
+//
+// When a live PBM session is running, render a stopwatch-style card
+// near the top of the /light page. The elapsed-time element carries a
+// `data-live-elapsed-for="<sessionId>"` attribute that the ticker
+// below patches every second — same pattern sun.js uses, so the two
+// surfaces feel consistent.
+
+function _formatElapsedMs(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export function renderActiveDeviceSessionCard() {
+  const sess = getActiveDeviceSession();
+  if (!sess) return '';
+  const device = getDevices().find(d => d.id === sess.deviceId);
+  const devName = device ? `${device.brand} ${device.model}` : 'Removed device';
+  const labelByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.label]));
+  const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
+  let areaLine;
+  if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+    const totalFrac = sess.bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0);
+    const labels = sess.bodyAreas.map(k => labelByKey[k] || k).slice(0, 3).join(', ');
+    const more = sess.bodyAreas.length > 3 ? ` +${sess.bodyAreas.length - 3} more` : '';
+    areaLine = `${labels}${more} · ~${Math.round(totalFrac * 100)}% skin`;
+  } else {
+    areaLine = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '';
+  }
+  const distLine = sess.distanceCm ? `${sess.distanceCm} cm` : '';
+  const eyesLine = sess.eyesProtected ? 'eyes protected' : 'eyes uncovered';
+  const elapsedText = _formatElapsedMs(Date.now() - sess.startedAt);
+  return `<section class="sun-session sun-session-active light-session-device" data-id="${escapeAttr(sess.id)}">
+    <div class="sun-session-head">
+      <span class="light-session-icon" aria-hidden="true">🔴</span>
+      <span class="sun-session-date">Active · ${escapeHTML(devName)}</span>
+      <span class="sun-session-duration" data-live-elapsed-for="${escapeAttr(sess.id)}" aria-live="off">${escapeHTML(elapsedText)}</span>
+      <span class="sun-session-paused" title="Live device-therapy session">LIVE</span>
+    </div>
+    <div class="sun-session-meta">${escapeHTML(distLine)}${distLine && areaLine ? ' · ' : ''}${escapeHTML(areaLine)}${areaLine ? ' · ' : ''}${escapeHTML(eyesLine)}</div>
+    <div class="sun-session-active-controls" onclick="event.stopPropagation()">
+      <div class="sun-session-ctl-primary">
+        <button class="sun-session-ctl sun-session-ctl-stop" onclick="event.stopPropagation();window.stopDeviceSessionAndNotify('${escapeAttr(sess.id)}')" title="Stop and save the session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
+      </div>
+    </div>
+  </section>`;
+}
+
+let _devActiveTicker = null;
+function _tickActiveDeviceSession() {
+  const sess = getActiveDeviceSession();
+  if (!sess) {
+    if (_devActiveTicker) { clearInterval(_devActiveTicker); _devActiveTicker = null; }
+    return;
+  }
+  if (typeof document === 'undefined') return;
+  const elapsedText = _formatElapsedMs(Date.now() - sess.startedAt);
+  document.querySelectorAll(`[data-live-elapsed-for="${CSS.escape(sess.id)}"]`).forEach(el => {
+    if (el.textContent !== elapsedText) el.textContent = elapsedText;
+  });
+}
+
+export function ensureActiveDeviceTicker() {
+  if (_devActiveTicker) return;
+  if (!getActiveDeviceSession()) return;
+  _tickActiveDeviceSession();
+  _devActiveTicker = setInterval(_tickActiveDeviceSession, 1000);
 }
 
 // ─── UI: device list rendered into the Light & Sun page ───────────────
@@ -928,13 +1127,26 @@ export async function openDeviceSessionDialog(deviceId) {
   const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm > 0
     ? last.distanceCm
     : (device.recommendedDistanceCm || 15);
-  const defaultBodyArea = last.bodyArea || 'torso';
   const defaultEyesProtected = last.eyesProtected !== false;
-  const BODY_AREA_OPTIONS = [
-    ['targeted', 'Targeted (single area)'], ['face', 'Face'],
-    ['torso', 'Torso'], ['arms', 'Arms'], ['legs', 'Legs'],
-    ['whole-body', 'Whole body'],
-  ];
+  // bodyAreas[] is the new precise per-region field. For legacy
+  // sessions that only have a broad bodyArea string, expand it to the
+  // matching region keys so the silhouette pre-selects sensibly.
+  const BROAD_TO_REGIONS = {
+    face: ['face'],
+    torso: ['breast-chest', 'torso-front', 'abdomen'],
+    arms: ['arms-front', 'arms-back'],
+    legs: ['legs-front', 'legs-back'],
+    'whole-body': (BODY_REGIONS || []).map(r => r.key),
+    targeted: ['breast-chest'],
+  };
+  let defaultRegions;
+  if (Array.isArray(last.bodyAreas) && last.bodyAreas.length > 0) {
+    defaultRegions = last.bodyAreas.slice();
+  } else if (last.bodyArea && BROAD_TO_REGIONS[last.bodyArea]) {
+    defaultRegions = BROAD_TO_REGIONS[last.bodyArea].slice();
+  } else {
+    defaultRegions = ['breast-chest'];  // sensible single-region default
+  }
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Log device session">
@@ -969,22 +1181,71 @@ export async function openDeviceSessionDialog(deviceId) {
           <span class="dev-session-hint">Vendor reference: ${fmt(refCm, 'cm')} cm (${fmt(refCm, 'in')} in).${overrideHint} The dose math uses inverse-square scaling around this point — close ranges magnify errors fast.</span>
         </label>`;
       })()}
-      <label class="ctx-label">Body area
-        <select id="dev-session-area" class="ctx-select">
-          ${BODY_AREA_OPTIONS.map(([v, l]) => `<option value="${v}"${v === defaultBodyArea ? ' selected' : ''}>${escapeHTML(l)}</option>`).join('')}
-        </select>
-      </label>
+      <div class="ctx-label" style="display:block">
+        <span>Body area treated</span>
+        <div class="dev-session-quickpick" role="group" aria-label="Quick-pick presets">
+          <button type="button" class="dev-session-preset" data-preset="face">Face only</button>
+          <button type="button" class="dev-session-preset" data-preset="torso">Torso</button>
+          <button type="button" class="dev-session-preset" data-preset="legs">Legs</button>
+          <button type="button" class="dev-session-preset" data-preset="whole-body">Whole body</button>
+        </div>
+        <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${(typeof window !== 'undefined' && window.renderBodySilhouette) ? window.renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
+        <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
+      </div>
       <label class="ctx-label">
         <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''} />
         Eyes protected (goggles or closed)
       </label>
+      <p class="modal-body-hint" style="margin-top:8px">Save now to log a finished session, or Start to run a live timer (matches the sun-session pattern — handy when you want to walk away and come back).</p>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-secondary" id="dev-session-start">Start timer</button>
         <button class="import-btn import-btn-primary" id="dev-session-save">Save session</button>
       </div>
     </div>
   </div>`;
   _wireModal(overlay);
+
+  // Silhouette wiring — pre-selected regions plus an updateHint
+  // callback that recomputes the % skin coverage shown under the
+  // figure. Pre-2026-05-08 this was a 6-option dropdown ('torso',
+  // 'whole-body', etc.); now it's the same 16-region picker as sun
+  // sessions for consistency with the user's mental model.
+  const selectedRegions = new Set(defaultRegions);
+  const _fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
+  const _labelByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.label]));
+  const _silhouetteSlot = overlay.querySelector('#dev-session-silhouette-slot');
+  const _hint = overlay.querySelector('#dev-session-area-hint');
+  function _updateAreaHint(set) {
+    if (!_hint) return;
+    if (set.size === 0) {
+      _hint.textContent = 'Pick at least one region — what does the panel reach?';
+      return;
+    }
+    const frac = Array.from(set).reduce((s, k) => s + (_fracByKey[k] || 0), 0);
+    const labels = Array.from(set).map(k => _labelByKey[k] || k).slice(0, 4).join(', ');
+    const more = set.size > 4 ? ` +${set.size - 4} more` : '';
+    _hint.textContent = `${set.size} region${set.size === 1 ? '' : 's'} (~${Math.round(frac * 100)}% of skin) — ${labels}${more}`;
+  }
+  if (_silhouetteSlot && typeof window !== 'undefined' && window.bindBodySilhouette) {
+    window.bindBodySilhouette(_silhouetteSlot, selectedRegions, _updateAreaHint);
+  }
+  _updateAreaHint(selectedRegions);
+
+  // Quick-pick presets — bulk-toggle to a sensible region set so the
+  // user doesn't have to tap 13 individual regions for "whole body."
+  for (const presetBtn of overlay.querySelectorAll('.dev-session-preset')) {
+    presetBtn.addEventListener('click', () => {
+      const preset = presetBtn.dataset.preset;
+      const regions = BROAD_TO_REGIONS[preset] || [];
+      selectedRegions.clear();
+      for (const r of regions) selectedRegions.add(r);
+      if (_silhouetteSlot && typeof window !== 'undefined' && window.renderBodySilhouette) {
+        _silhouetteSlot.innerHTML = window.renderBodySilhouette(selectedRegions);
+      }
+      _updateAreaHint(selectedRegions);
+    });
+  }
 
   // Per-field unit toggle: cm ↔ in. Lets a US user briefly type a cm
   // value (or vice versa) without mental math when their global unit
@@ -1022,11 +1283,61 @@ export async function openDeviceSessionDialog(deviceId) {
     const distanceCm = Number.isFinite(distVal)
       ? (distUnit === 'in' ? distVal * 2.54 : distVal)
       : (device.recommendedDistanceCm || 15);
-    const bodyArea = overlay.querySelector('#dev-session-area').value || 'targeted';
+    const bodyAreas = Array.from(selectedRegions);
+    if (bodyAreas.length === 0) {
+      _updateAreaHint(selectedRegions);
+      _hint?.classList.add('sun-silhouette-hint-error');
+      setTimeout(() => _hint?.classList.remove('sun-silhouette-hint-error'), 2500);
+      return;
+    }
+    // Denormalized broad-zone hint kept for legacy listing rows that
+    // haven't been migrated to bodyAreas yet. Pick the simplest match
+    // for the chosen region set.
+    let bodyArea = 'targeted';
+    if (bodyAreas.length >= (BODY_REGIONS || []).length - 2) bodyArea = 'whole-body';
+    else if (bodyAreas.every(r => r.startsWith('legs') || r.startsWith('feet'))) bodyArea = 'legs';
+    else if (bodyAreas.every(r => r.startsWith('arms'))) bodyArea = 'arms';
+    else if (bodyAreas.every(r => /face|thyroid/.test(r))) bodyArea = 'face';
+    else if (bodyAreas.every(r => /chest|torso|abdomen|breast/.test(r))) bodyArea = 'torso';
     const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
-    await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, eyesProtected });
+    await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected });
     overlay.remove();
     showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
+    if (window.navigate && state.currentView === 'light') window.navigate('light');
+  });
+
+  // Start-timer path — same shared form, but begins a live session
+  // instead of logging a finished one. Reuses every input EXCEPT
+  // duration (irrelevant — duration accumulates from startedAt).
+  overlay.querySelector('#dev-session-start').addEventListener('click', async () => {
+    if (getActiveDeviceSession()) {
+      showNotification('Another device session is already running. Stop it first.', 'error');
+      return;
+    }
+    const distInput = overlay.querySelector('#dev-session-distance');
+    const distVal = parseFloat(distInput.value);
+    const distUnit = distInput.dataset.unit || 'cm';
+    const distanceCm = Number.isFinite(distVal)
+      ? (distUnit === 'in' ? distVal * 2.54 : distVal)
+      : (device.recommendedDistanceCm || 15);
+    const bodyAreas = Array.from(selectedRegions);
+    if (bodyAreas.length === 0) {
+      _updateAreaHint(selectedRegions);
+      _hint?.classList.add('sun-silhouette-hint-error');
+      setTimeout(() => _hint?.classList.remove('sun-silhouette-hint-error'), 2500);
+      return;
+    }
+    let bodyArea = 'targeted';
+    if (bodyAreas.length >= (BODY_REGIONS || []).length - 2) bodyArea = 'whole-body';
+    else if (bodyAreas.every(r => r.startsWith('legs') || r.startsWith('feet'))) bodyArea = 'legs';
+    else if (bodyAreas.every(r => r.startsWith('arms'))) bodyArea = 'arms';
+    else if (bodyAreas.every(r => /face|thyroid/.test(r))) bodyArea = 'face';
+    else if (bodyAreas.every(r => /chest|torso|abdomen|breast/.test(r))) bodyArea = 'torso';
+    const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
+    await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected });
+    overlay.remove();
+    showNotification(`Live ${escapeHTML(device.brand)} session started — tap Stop & save when finished.`);
+    ensureActiveDeviceTicker();
     if (window.navigate && state.currentView === 'light') window.navigate('light');
   });
 }
@@ -1098,6 +1409,20 @@ if (typeof window !== 'undefined') {
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
     logDeviceSession,
+    startDeviceSession,
+    stopDeviceSession,
+    getActiveDeviceSession,
+    renderActiveDeviceSessionCard,
+    ensureActiveDeviceTicker,
+    stopDeviceSessionAndNotify: async (id) => {
+      const sess = await stopDeviceSession(id);
+      if (sess) {
+        const device = getDevices().find(d => d.id === sess.deviceId);
+        const dur = Math.round(sess.durationMin || 0);
+        showNotification(`Saved · ${dur} min ${device ? device.brand + ' ' + device.model : 'device'} session.`);
+      }
+      if (window.navigate && state.currentView === 'light') window.navigate('light');
+    },
     deleteDeviceSession: (id) => {
       showConfirmDialog("Delete this device session? This can't be undone.", async () => {
         await deleteDeviceSession(id);
