@@ -1812,7 +1812,7 @@ const CHANNEL_CITATIONS = {
     ],
   },
   violet_eye: {
-    spectrum: 'Violet 360-400 nm at the eye → ipRGC + dopamine release',
+    spectrum: 'Violet 360-400 nm at the eye → OPN5/neuropsin + retinal dopamine release (cone-mediated). Distinct from the ipRGC/melanopic 490-nm circadian pathway.',
     refs: [
       { cite: 'Torii H et al. (2017). "Violet light exposure can be a preventive strategy against myopia progression." EBioMedicine 15:210',
         href: 'https://pubmed.ncbi.nlm.nih.gov/28063778/',

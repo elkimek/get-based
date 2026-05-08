@@ -43,14 +43,14 @@ Each channel has a closed-form action spectrum function returning a 0–1 weight
 
 | Channel | Function | Reference | Peak | Bandwidth |
 |---|---|---|---|---|
-| `vitamin_d` | `vitaminDAt(nm)` | CIE 174:2006 (MacLaughlin 1982) | 297 nm | ~252–330 nm |
-| `pomc` | `erythemalAt(nm)` | CIE 174:2006 / McKinlay-Diffey 1987 | 297 nm | ~250–400 nm |
+| `vitamin_d` | `vitaminDAt(nm)` | CIE 174:2006 previtamin-D3 (MacLaughlin 1982) | 297 nm | ~252–330 nm |
+| `pomc` | `erythemalAt(nm)` | CIE S 007 / ISO 17166:1999 (McKinlay-Diffey 1987) | 297 nm | ~250–400 nm |
 | `no_cv` | `noReleaseAt(nm)` | Liu 2014 / Oplander 2009 | 345 nm | 300–410 nm Gaussian |
-| `violet_eye` | `opn5At(nm)` | Buhr 2019 — dual-peak | 380, 471 nm | 320–540 nm |
-| `circadian` | `melanopicAt(nm)` | CIE S 026:2018 | 490 nm | 380–720 nm Gaussian |
-| `nir_solar` | `nirSolarAt(nm)` | Wunsch optical tissue window | 900 nm | 600–1400 nm |
-| `pbm_red` | `pbmRedAt(nm)` | Karu 1999 / Hamblin 2018 | 660 nm | 600–700 nm |
-| `pbm_nir` | `pbmNirAt(nm)` | Karu 1999 / Hamblin 2018 | 850 nm | 700–1100 nm |
+| `violet_eye` | `opn5At(nm)` | OPN5/neuropsin — Buhr 2019, Yoshikawa 2019 | 380 nm + 471 nm | 320–540 nm |
+| `circadian` | `melanopicAt(nm)` | CIE S 026:2018 (ipRGC / melanopsin) | 490 nm | 380–720 nm Gaussian |
+| `nir_solar` | `nirSolarAt(nm)` | Optical tissue window (Jacques 2013) | 900 nm | 600–1400 nm |
+| `pbm_red` | `pbmRedAt(nm)` | Karu 2010 / Hamblin 2018 (cytochrome c oxidase band) | 660 nm | 600–700 nm |
+| `pbm_nir` | `pbmNirAt(nm)` | Karu 2010 / Hamblin 2018 (cytochrome c oxidase band) | 850 nm | 700–1100 nm |
 
 The CCO action spectrum (`ccoAt`) in the file is an unused helper that sums Karu's four absorption bands; PBM channels use the simpler narrowband Gaussians for cleaner therapy-device dose math.
 
@@ -157,11 +157,14 @@ These map to the qualitative tier function:
 
 ```javascript
 ratio = dose / dailyTarget
-ratio < 0.20 → 'low'
-ratio < 0.55 → 'moderate'
-ratio < 1.00 → 'good'
-ratio ≥ 1.00 → 'strong'
+dose ≤ 0      → 'none'      // tier 0
+ratio < 0.20  → 'low'       // tier 1
+ratio < 0.55  → 'moderate'  // tier 2
+ratio < 1.00  → 'good'      // tier 3
+ratio ≥ 1.00  → 'strong'    // tier 4
 ```
+
+`weeklyChannelTier()` uses the same ratios but multiplies the daily target by 7 — keeps a 7-day rollup from being scored against a 1-day expectation (a value that scores "moderate" against daily would otherwise score "low" against weekly).
 
 Targets are deliberately rough. They're not normative — they're a translation layer so the UI doesn't show channel-au integers. The AI sees raw dose; users see tiers.
 
@@ -196,7 +199,7 @@ We deliberately don't pull CAMS-McRad surface UV — that product is queue-based
 
 ## Validation
 
-`tests/test-sun-spectrum.js` covers 35 assertions:
+`tests/test-sun-spectrum.js` covers ~120 assertions:
 - Spectrum shape (wavelength array, 5nm grid, 280–2500 nm bounds, non-negative irradiance)
 - Sun-below-horizon → all-zero spectrum
 - Atmospheric attenuation (zenith / ozone / cloud / altitude) — directional checks
