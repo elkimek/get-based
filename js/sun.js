@@ -137,9 +137,10 @@ export const LENS_TINTS = [
 // will see 30-100% on most days.
 export const CHANNEL_DISPLAY = {
   vitamin_d:  { icon: '☀',  label: 'Vitamin D',          dailyTarget:    300, what: 'UVB on bare skin makes vitamin D. Stops increasing around the point your skin starts to redden — longer is not better.' },
-  // POMC uses CIE-erythemal action spectrum (UVB-heavy) — accumulates
-  // ~4× slower per minute than vit-D. ~30 min noon at face+hands ≈ 60
-  // channel-au. Target 80 = strong daily UVA-UVB exposure.
+  // POMC uses the McKinlay-Diffey erythemal action spectrum (CIE S 007 /
+  // ISO 17166:1999, UVB-heavy) — accumulates ~4× slower per minute than
+  // vit-D. ~30 min noon at face+hands ≈ 60 channel-au. Target 80 = strong
+  // daily UVA-UVB exposure.
   pomc:       { icon: '⚡',  label: 'Mood & hormones',    dailyTarget:     80, what: 'Sun on skin triggers a hormone cascade — α-MSH (the tan signal), β-endorphin (mood), ACTH (stress response). Part of why sun feels good.' },
   // NO/cardiovascular uses UVA action spectrum (Liu/Oplander 2014).
   // BP-reducing dose ~30 min midday on 30-50% body ≈ 5000 channel-au.

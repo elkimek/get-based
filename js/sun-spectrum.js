@@ -11,10 +11,13 @@
 // against published action-spectrum weightings.
 //
 // References:
-//   Bird & Riordan 1986 — "Simple solar spectral model" SOLPOS
-//   CIE 174:2006 — erythemal + vit-D action spectra
-//   CIE S 026:2018 — melanopic photopic
-//   Karu 1999 / Hamblin 2018 — CCO action spectrum
+//   Bird & Riordan 1986 — "Simple solar spectral model" (SPCTRAL2 / SOLPOS),
+//                         J Appl Meteorol 25:87. NREL clear-sky model.
+//   CIE 174:2006 — previtamin-D3 action spectrum (vit-D channel only)
+//   CIE S 007 / ISO 17166:1999 — erythemal action spectrum (McKinlay-Diffey 1987)
+//   CIE S 026:2018 — α-opic action spectra incl. melanopic; K_mel,v ≈ 614 lx/(W/m²)
+//   Bass-Paur 1985 — ozone absorption cross-section (legacy WMO dataset)
+//   Karu 2010 / Hamblin 2018 — CCO red/NIR mechanism (no formal action spectrum)
 //   Liu 2014 — UVA NO release peak ~330-360nm
 //
 // This is a coarse spectral model — explicitly an estimate, not measurement.
@@ -29,7 +32,8 @@ const WAVELENGTHS = (() => {
 // ─── Action spectra (relative, 0-1) ────────────────────────────────────
 // Tabulated at 5nm resolution to match WAVELENGTHS array.
 
-// CIE erythemal (McKinlay-Diffey) — peaks at 297nm, drops sharply
+// Erythemal action spectrum — McKinlay-Diffey 1987 (CIE Journal 6:17),
+// codified as CIE S 007 / ISO 17166:1999. Peaks at 297nm, drops sharply.
 function erythemalAt(nm) {
   if (nm < 250) return 0;
   if (nm <= 298) return 1.0;
@@ -38,10 +42,10 @@ function erythemalAt(nm) {
   return 0;
 }
 
-// CIE vitamin D action spectrum — peaks at 297nm, narrower window than erythemal
+// CIE 174:2006 previtamin-D3 action spectrum — peaks at 297nm, narrower window than erythemal
 function vitaminDAt(nm) {
   if (nm < 252 || nm > 330) return 0;
-  // Smoothed approximation of CIE 174:2006 table
+  // Smoothed approximation of the CIE 174:2006 tabulated action spectrum
   if (nm <= 297) return Math.pow(10, -0.25 * (297 - nm));
   if (nm <= 330) return Math.pow(10, -0.13 * (nm - 297));
   return 0;
