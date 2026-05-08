@@ -286,6 +286,18 @@ function lightEnvironmentBlock() {
     const blueBlocked = rooms.filter(r => r.blueBlocker).length;
     if (blueBlocked > 0) s += `; ${blueBlocked} with blue-blocker`;
     s += '\n';
+    // Per-room one-liner: name, primary source, hours/day, severity.
+    // Lets the agent answer "which room is the worst?" instead of just
+    // knowing the burden tier rolled up across all rooms.
+    for (const r of rooms) {
+      const src = r.primarySource || 'unknown source';
+      const hrs = r.hoursOccupiedPerDay ? `${r.hoursOccupiedPerDay}h/day` : '';
+      const evHr = (r.eveningHoursAfterSunset || (r.eveningUseAfterSunset ? 1 : 0));
+      const evening = evHr ? `${evHr}h after sunset` : '';
+      const severity = r.aiAnalysis?.dot ? ` · ${r.aiAnalysis.dot} verdict` : '';
+      const parts = [src, hrs, evening].filter(Boolean).join(', ');
+      s += `  - ${r.name || 'Room'} (${parts})${severity}\n`;
+    }
   }
   if (screens.length > 0) {
     const evening = screens.filter(sc => sc.eveningUseAfterSunset).length;
@@ -294,6 +306,15 @@ function lightEnvironmentBlock() {
     if (evening > 0) s += `; ${evening} used after sunset`;
     if (blueOff > 0) s += ` (${blueOff} without blue-blocker — direct retinal melatonin suppression)`;
     s += '\n';
+    // Per-screen one-liner: device type, hours, evening use, blocker status.
+    for (const sc of screens) {
+      const hours = sc.hoursPerDay ? `${sc.hoursPerDay}h/day` : '';
+      const eveHr = sc.eveningUseAfterSunset || 0;
+      const eve = eveHr > 0 ? `${eveHr}h after sunset` : 'daytime only';
+      const blocker = sc.blueBlockerEnabled ? '✓ blocker' : '✗ no blocker';
+      const parts = [hours, eve, blocker].filter(Boolean).join(', ');
+      s += `  - ${sc.device || 'screen'} (${parts})\n`;
+    }
   }
   // `lightAudits` = before/after snapshots; Tool 8 walkthroughs = per-pause
   // lux measurements bound to rooms (`lightMeasurements` with tool='audit').
@@ -304,6 +325,12 @@ function lightEnvironmentBlock() {
     if (audits.length > 0) parts.push(`${audits.length} before/after`);
     if (eyeLevel.length > 0) parts.push(`${eyeLevel.length} eye-level`);
     s += `- Light audits: ${parts.join(' · ')}\n`;
+    // List audit dates so the agent can reference specific snapshots.
+    for (const a of audits.slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''))) {
+      const lbl = a.label || `Audit`;
+      const dot = a.aiAnalysis?.dot ? ` · ${a.aiAnalysis.dot} verdict` : '';
+      s += `  - ${a.date || '?'}: ${lbl} (${(a.rooms || []).length} rooms, ${(a.measurements || []).length} measurements)${dot}\n`;
+    }
   }
   // Indoor burden tier + deficit axes — collapsed onto one line. Burden is
   // the qualitative summary, d2/d3 are the components that drove it.
@@ -446,6 +473,46 @@ The "Skin exposed" column is the fraction of total skin uncovered (clothing-leve
     block += `| ${date} | ${dur} | ${bodyPct}% | ${regionsStr} | ${eyes} | ${uvFmt} | ${med} | ${vitD} | ${circ} |\n`;
   }
   block += '\n';
+
+  // PBM / device sessions — surfaced as their own table so the agent can
+  // see WHEN device-therapy sessions happened, not just an aggregate count.
+  // Skin exposed + body areas honor the same privacy gate as outdoor
+  // sessions (regions stripped when the toggle is off).
+  const allDevSessions = (state.importedData?.deviceSessions || [])
+    .filter(s => s.endedAt)
+    .slice(-30);
+  if (allDevSessions.length > 0) {
+    const deviceById = Object.fromEntries((state.importedData?.lightDevices || []).map(d => [d.id, d]));
+    block += `### Last ${allDevSessions.length} device-therapy sessions (PBM panels, SAD lamps, dawn simulators)\n`;
+    block += `| Date | Min | Device | Distance | Skin exposed | Eyes | Red 660nm (J/cm²) | NIR 810/850 (J/cm²) |\n`;
+    block += `|------|-----|--------|----------|--------------|------|-------------------|----------------------|\n`;
+    for (const s of allDevSessions.slice().reverse()) {
+      const date = new Date(s.startedAt).toISOString().slice(0, 10);
+      const dur = Math.round(s.durationMin || 0);
+      const dev = deviceById[s.deviceId];
+      const devName = dev ? `${dev.brand || '?'} ${dev.model || ''}`.trim() : 'removed device';
+      const dist = s.distanceCm ? `${Math.round(s.distanceCm)} cm` : '?';
+      // Skin exposed: from bodyAreas if precise (post-2026-05-08), else
+      // from legacy bodyArea broad-zone string.
+      let bodyPct = '?';
+      if (Array.isArray(s.bodyAreas) && s.bodyAreas.length > 0) {
+        const fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
+          ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
+          : {};
+        const total = s.bodyAreas.reduce((acc, k) => acc + (fracByKey[k] || 0), 0);
+        bodyPct = `${Math.round(total * 100)}%`;
+      } else if (s.bodyArea) {
+        const broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
+        const f = broadFracs[s.bodyArea];
+        bodyPct = f != null ? `${Math.round(f * 100)}%` : s.bodyArea;
+      }
+      const eyes = s.eyesProtected ? 'protected' : 'uncovered';
+      const red = s.doses?.pbm_red != null ? (s.doses.pbm_red / 1000).toFixed(2) : '?';
+      const nir = s.doses?.pbm_nir != null ? (s.doses.pbm_nir / 1000).toFixed(2) : '?';
+      block += `| ${date} | ${dur} | ${devName} | ${dist} | ${bodyPct} | ${eyes} | ${red} | ${nir} |\n`;
+    }
+    block += '\n';
+  }
 
   // Correlation table — computed on demand by sun-correlations.js
   let corr = state.importedData?.sunCorrelations;
