@@ -104,8 +104,8 @@ return (async function () {
 
     withProvider();
     const idle = mod.renderMeasurementAIInline(m);
-    assert('measurement render idle CTA says "Analyze" (not "Interpret")',
-      idle.includes('Analyze') && !idle.includes('Interpret'));
+    assert('measurement render idle CTA says "Get AI verdict" (not "Interpret")',
+      idle.includes('Get AI verdict') && !idle.includes('Interpret'));
 
     // Audit-aggregate row → returns '' (skipped by design)
     const auditMeas = { id: 'm2', tool: 'audit', value: 3 };

@@ -238,7 +238,7 @@ export function renderMeasurementAIInline(m) {
   }
   return `<div class="light-env-reading-ai sun-session-ai-idle">
     <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <button class="sun-session-ai-cta" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')">Analyze</button>
+    <button class="sun-session-ai-cta" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')" title="Run an AI verdict on this measurement — flags significant issues and suggests fixes">Get AI verdict</button>
   </div>`;
 }
 

@@ -430,7 +430,7 @@ function renderSourcePicker(r) {
     <span class="light-env-picker-label">Light source</span>
     <div class="light-env-chip-row">${chips}</div>
     <details class="light-env-picker-more"${showFullDropdown ? ' open' : ''}>
-      <summary>More options…</summary>
+      <summary>More source types…</summary>
       <select class="ctx-select" onchange="window.updateLightEnvRoomAndRender('${escapeAttr(r.id)}', { primarySource: this.value })" aria-label="Primary light source">
         ${PRIMARY_SOURCES.map(s => `<option value="${escapeAttr(s.key)}"${r.primarySource === s.key ? ' selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
       </select>
@@ -448,7 +448,7 @@ function renderHoursPicker(r) {
     <span class="light-env-picker-label">Time you spend here</span>
     <div class="light-env-chip-row">${chips}</div>
     <details class="light-env-picker-more">
-      <summary>More precise…</summary>
+      <summary>Set exact hours…</summary>
       <input type="number" min="0" max="24" step="0.5" class="ctx-input" placeholder="hr/day" value="${r.hoursOccupiedPerDay ?? ''}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { hoursOccupiedPerDay: parseFloat(this.value) || 0 })" aria-label="Hours per day" />
     </details>
   </div>`;
@@ -834,7 +834,7 @@ function renderRoomDisclosure(r, expanded) {
         ${eveningOn ? `<span class="light-env-room-signal">evening</span>` : ''}
       </span>`}
       <span class="light-env-room-disclosure-spacer"></span>
-      ${_renderTodayToggle('room', r.id, activeToday)}
+      ${expanded ? '' : _renderTodayToggle('room', r.id, activeToday)}
       ${expanded ? `<button class="light-env-overflow" onclick="event.stopPropagation();window.deleteLightEnvRoomConfirm('${escapeAttr(r.id)}')" title="Delete room" aria-label="Delete room">⋯</button>` : ''}
       <span class="light-env-room-disclosure-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>
     </div>`;
@@ -853,6 +853,9 @@ function renderRoomExpandedBody(r, measurements, sev) {
     if (!latestByTool.has(m.tool)) latestByTool.set(m.tool, m);
   }
 
+  // activeToday is recomputed here so the in-body toggle reflects the
+  // same per-day flag the collapsed-row toggle would use.
+  const _activeToday = isActiveToday(r);
   let html = `<div class="light-env-room-disclosure-body">
 
     <div class="light-env-room-step">
@@ -862,6 +865,12 @@ function renderRoomExpandedBody(r, measurements, sev) {
         <label class="ctx-label">Room name
           <input type="text" class="ctx-input light-env-room-name-input" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
         </label>
+        <div class="light-env-room-today-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
+          <span style="flex:1;min-width:0;font-size:13px;color:var(--text-secondary)">Counts toward today's exposure
+            <span style="display:block;font-size:11px;color:var(--text-muted);margin-top:2px">Skip if you didn't actually use the room today (vacation, sick day). Resets to "in use" tomorrow.</span>
+          </span>
+          ${_renderTodayToggle('room', r.id, _activeToday)}
+        </div>
         ${renderSourcePicker(r)}
         ${renderHoursPicker(r)}
         ${renderEveningPicker(r)}
@@ -870,9 +879,10 @@ function renderRoomExpandedBody(r, measurements, sev) {
 
     <div class="light-env-room-step">
       <div class="light-env-room-step-head"><span class="light-env-room-step-num">2</span> Measure (optional)</div>
+      <p class="light-env-room-step-sub">Pick whichever you have time for — even one helps the AI grade this room better.</p>
       <div class="light-env-room-step-body">
         <div class="light-env-room-tools">
-          <button class="light-env-tool-pill light-env-tool-pill-primary" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum (recommended start — auto-detects warm/cool/fluorescent)">🔬 Spectrum <span class="light-env-tool-pill-hint">start here</span></button>
+          <button class="light-env-tool-pill" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum (auto-detects warm/cool/fluorescent)">🔬 Spectrum</button>
           <button class="light-env-tool-pill" onclick="window.openLuxMeter && window.openLuxMeter({ roomId: '${escapeAttr(r.id)}' })" title="Measure lux">📏 Lux</button>
           <button class="light-env-tool-pill" onclick="window.openFlickerDetector && window.openFlickerDetector({ roomId: '${escapeAttr(r.id)}' })" title="Test for flicker">⚡ Flicker</button>
           <button class="light-env-tool-pill" onclick="window.openCCTMeter && window.openCCTMeter({ roomId: '${escapeAttr(r.id)}' })" title="Color temperature">🎨 CCT</button>
@@ -987,7 +997,7 @@ export function renderEnvironmentSection() {
     </div>`;
   if (rooms.length === 0) {
     html += `<div class="light-env-empty light-env-empty-cta">
-      <p><strong>Map your bedroom first.</strong> We grade it for melatonin-friendly darkness, flicker, cool-LED contamination, and evening-blue exposure — and feed that grade into your circadian channel.</p>
+      <p><strong>Map your bedroom first.</strong> Sleep-room contamination is the highest-leverage signal in the modern light-environment literature (Brown TM 2022) — even ~1 lux of melanopic-EDI light at night measurably suppresses melatonin. We grade it for melatonin-friendly darkness, flicker, cool-LED contamination, and evening-blue exposure — and feed that grade into your circadian channel.</p>
       ${renderRoomQuickPicks(rooms)}
     </div>`;
   } else {
@@ -1047,7 +1057,7 @@ export function renderEnvironmentSection() {
     .sort((a, b) => (b.takenAt || b.capturedAt || 0) - (a.takenAt || a.capturedAt || 0));
   if (portable.length > 0) {
     html += `<details class="light-env-block light-env-portable-readings">
-      <summary><strong>Portable readings</strong> <span class="light-env-portable-count">${portable.length} unbound · last 30d</span></summary>
+      <summary><strong>Portable readings</strong> <span class="light-env-portable-count">${portable.length} not matched to a room · last 30d</span></summary>
       <div class="light-env-portable-readings-list">`;
     for (const m of portable.slice(0, 20)) {
       const ts = m.takenAt || m.capturedAt || Date.now();
