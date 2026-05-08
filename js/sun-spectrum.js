@@ -686,14 +686,29 @@ export function geneticVitaminDMultiplier(genetics) {
 // site since `state` is module-scoped (not on window) and importing
 // it from here would create a circular dependency.
 export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null) {
+  return Math.min(vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics), VITD_SATURATION_IU);
+}
+
+// Uncapped per-session IU. The 20,000 IU plateau is a DAILY biological
+// ceiling (Holick 2007: above ~20k IU/day pre-vit-D photoisomerizes back
+// to lumisterol/tachysterol). Capping per-session was wrong for multi-
+// session rollups: two same-day 10-min UVB device sessions each capped
+// at 20k summed to 40k in the 7-day total, blowing past the biological
+// ceiling. Rollups should use this raw helper, group by local date, cap
+// each day at VITD_SATURATION_IU, then sum the capped days.
+//
+// Single-session render paths still call vitaminDIU() (capped) — for
+// one session the cap is the right ceiling.
+export function vitaminDIURaw(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
   const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
   const uviMult = _uviThresholdMultiplier(uvi);
   const rotMult = rotatedSides ? 2.0 : 1.0;
   const geneMult = geneticVitaminDMultiplier(genetics).mult;
-  const raw = channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult * rotMult * geneMult;
-  return Math.min(raw, VITD_SATURATION_IU);
+  return channelAu * VITD_IU_PER_CHANNEL_AU * skinScale * uviMult * rotMult * geneMult;
 }
+
+export const VITD_DAILY_SATURATION_IU = VITD_SATURATION_IU;
 
 // Uncertainty band on the vitamin D estimate. Honest framing has two
 // independent components:
@@ -815,6 +830,8 @@ if (typeof window !== 'undefined') {
     erythemalSED,
     fractionOfMED,
     vitaminDIU,
+    vitaminDIURaw,
+    VITD_DAILY_SATURATION_IU,
     vitaminDIURange,
     geneticVitaminDMultiplier,
     pbmJoulesPerCm2,

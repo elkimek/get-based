@@ -156,7 +156,15 @@ function alwaysTierBlock(sessions) {
     // can sanity-check that against context cards if 0 contradicts
     // other lifestyle data; that's not the context block's job.
     if (typeof sunDefaults.ottScore === 'number') {
-      baselineLine += ` Ott malillumination baseline: ${sunDefaults.ottScore}/10 (higher = more indoor / glass-mediated / artificial-light-dominated lifestyle).`;
+      // Ott score is SELF-REPORTED, not derived from logged data. 0 means
+      // the user answered "no" to all 10 burden questions — including
+      // ones that may contradict their actual screens/rooms/sessions
+      // (e.g. answered "no, I don't spend most daytime behind glass" but
+      // logs 8h/day office monitor). Frame it as self-report so the AI
+      // knows to cross-check against the rest of the context (screens
+      // block, rooms block, outdoor sessions) rather than trusting the
+      // survey figure as ground truth.
+      baselineLine += ` Ott self-survey burden: ${sunDefaults.ottScore}/10 (self-reported; 0 = answered "no" to all 10 lifestyle burden questions, 10 = "yes" to all). Cross-check against logged screens/rooms/outdoor sessions — the survey can disagree with the data.`;
     }
   }
 
@@ -338,6 +346,21 @@ function lightEnvironmentBlock() {
     // bound the token budget; per-audit, show one line per room with
     // its tool readings (latest per tool when there are duplicates).
     const recentAudits = audits.slice().sort((x, y) => (y.date || '').localeCompare(x.date || '')).slice(0, 5);
+    // Build a reverse map: for each audit, what was the immediately
+    // PRIOR audit's reading for the same room? That's the "before"
+    // snapshot — without it the agent only sees the post-audit state
+    // (5027 lux, 6014K) and can't compute a delta. With it, the line
+    // reads "5027 lux, 6014K (was 240 lux, 2700K → +4787 lux, +3314K)".
+    const auditsByDateAsc = audits.slice().sort((x, y) => (x.date || '').localeCompare(y.date || ''));
+    const _measByAudit = audit => {
+      const out = {};
+      for (const m of (audit.measurements || [])) {
+        if (!m.roomId) continue;
+        const r = out[m.roomId] = out[m.roomId] || {};
+        if (!r[m.tool] || (m.capturedAt || 0) > (r[m.tool].capturedAt || 0)) r[m.tool] = m;
+      }
+      return out;
+    };
     for (const a of recentAudits) {
       const lbl = a.label || `Audit`;
       const dot = a.aiAnalysis?.dot ? ` · ${a.aiAnalysis.dot} verdict` : '';
@@ -345,16 +368,13 @@ function lightEnvironmentBlock() {
       // Per-room measurement summary inside this audit. Group readings
       // by roomId, take the latest per tool, render as a one-liner.
       const auditRooms = a.rooms || [];
-      const auditMeas = a.measurements || [];
       const roomById = Object.fromEntries(auditRooms.map(r => [r.id, r]));
-      const byRoom = {};
-      for (const m of auditMeas) {
-        if (!m.roomId) continue;
-        const r = byRoom[m.roomId] = byRoom[m.roomId] || {};
-        // Keep the latest reading per tool — multiple readings of the
-        // same tool within a single audit window mean the user re-took it.
-        if (!r[m.tool] || (m.capturedAt || 0) > (r[m.tool].capturedAt || 0)) r[m.tool] = m;
-      }
+      const byRoom = _measByAudit(a);
+      // Find the prior audit (most-recent before this one) for delta
+      // computation. Walk auditsByDateAsc backwards from before this audit.
+      const thisIdx = auditsByDateAsc.findIndex(x => x.id === a.id);
+      const priorAudit = thisIdx > 0 ? auditsByDateAsc[thisIdx - 1] : null;
+      const priorByRoom = priorAudit ? _measByAudit(priorAudit) : {};
       for (const [roomId, byTool] of Object.entries(byRoom)) {
         const room = roomById[roomId];
         if (!room) continue;
@@ -365,7 +385,19 @@ function lightEnvironmentBlock() {
         if (byTool.darkness) fragments.push(`darkness ${Number(byTool.darkness.value).toFixed(1)} lux`);
         if (byTool.spectrum) fragments.push(`spectrum: ${byTool.spectrum.value || byTool.spectrum.extra?.label || '?'}`);
         if (fragments.length) {
-          s += `    · ${room.name || 'Room'}: ${fragments.join(', ')}\n`;
+          // Append the prior-audit reading inline as "(was: 240 lux,
+          // 2700K)" — agent-readable delta context. Only emits when
+          // we actually have a prior reading for the same room/tool.
+          const prior = priorByRoom[roomId];
+          const priorFrags = [];
+          if (prior?.lux && byTool.lux) priorFrags.push(`${Math.round(prior.lux.value)} lux`);
+          if (prior?.cct && byTool.cct) priorFrags.push(`${Math.round(prior.cct.value)}K`);
+          if (prior?.flicker && byTool.flicker) priorFrags.push(`flicker ${Math.round(prior.flicker.value)}`);
+          if (prior?.darkness && byTool.darkness) priorFrags.push(`darkness ${Number(prior.darkness.value).toFixed(1)} lux`);
+          const priorTag = priorFrags.length
+            ? ` (was: ${priorFrags.join(', ')} on ${priorAudit.date || '?'})`
+            : '';
+          s += `    · ${room.name || 'Room'}: ${fragments.join(', ')}${priorTag}\n`;
         }
       }
     }
@@ -474,7 +506,8 @@ function standardTierBlock(sessions) {
   if (recent.length === 0) return '';
 
   let block = `### Last ${recent.length} sessions (most recent first)
-The "Skin exposed" column is the fraction of total skin uncovered (clothing-level proxy): ~5%=face/hands only, ~20%=t-shirt+shorts, ~45%=swimwear/beach, ~50%+=mostly bare / sunbathing. Treat questions like "how naked was I" or "how dressed" as asking about this column.
+The "Skin exposed" column is the fraction of total skin uncovered (Wallace rule of nines + Lund-Browder; clothing-level proxy): ~5%=face/hands, ~20%=t-shirt+shorts, ~45%=swimwear/beach, ~50%=fully bare standing facing one way (anterior OR posterior — single position max ~50% BSA). Front+back combined caps at ~95% (the underlying region table sums to 0.95; missing 5% is scalp + clavicle seams). Sessions logged with both sides exposed should also have rotatedSides=true. Treat questions like "how naked was I" or "how dressed" as asking about this column.
+Rows where UV peak is 0.0 AND MED% is 0 AND Vit-D is 0 represent sessions logged outside the UVB window — pre-sunrise, post-sunset, or under cloud cover thick enough to block 290–315nm. The duration + body exposure are real (skin contact / circadian eye light still apply); only the UV-driven channels are null. Treat these as "the user was outdoors but UVB-relevant photobiology was off."
 | Date | Min | Skin exposed | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h) |
 |------|-----|--------------|---------|------|---------|------|------------|--------------------|
 `;
@@ -787,35 +820,43 @@ function formatChannelTotals(totals) {
   const sunSessions = (state.importedData?.sunSessions || []).filter(s => s.endedAt && s.endedAt >= cutoff);
   const deviceSessions = (state.importedData?.deviceSessions || []).filter(s => s.endedAt && s.endedAt >= cutoff);
 
-  let totalIU = 0;
+  // Daily-cap rollup: group raw per-session yield by local day, cap each
+  // day at the biological saturation ceiling, sum the capped days.
+  // Mirrors rollingVitaminDIU in sun.js — both functions are user-visible
+  // 7-day totals and must agree.
   const _gx = state.importedData?.genetics || null;
+  const _raw = (typeof window !== 'undefined' && typeof window.vitaminDIURaw === 'function') ? window.vitaminDIURaw : null;
+  const _cap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
+  const _localDayKey = (ts) => {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const _dayTotals = {};
+  const _add = (key, iu) => { _dayTotals[key] = (_dayTotals[key] || 0) + iu; };
   for (const s of sunSessions) {
     const au = s.doses?.vitamin_d;
     if (!Number.isFinite(au) || au <= 0) continue;
-    if (typeof window.vitaminDIU === 'function') {
-      totalIU += window.vitaminDIU(au, s.safety?.fitzpatrick || 'III', s.atmosphere?.uvIndex, !!s.bodyExposure?.rotatedSides, _gx);
+    if (_raw) {
+      _add(_localDayKey(s.endedAt), _raw(au, s.safety?.fitzpatrick || 'III', s.atmosphere?.uvIndex, !!s.bodyExposure?.rotatedSides, _gx));
     } else {
-      totalIU += au * 60;
+      _add(_localDayKey(s.endedAt), au * 60);
     }
   }
-  // UVB device sessions (Sperti, Mitochondriak Maxi UVB, etc.) — same
-  // pathway as rollingVitaminDIU in sun.js. Without this branch, a 20k
-  // IU device session shows up correctly in the dashboard rollup but
-  // doesn't reach the AI context, so the agent sees a sun-only IU
-  // figure that's 10× off when devices dominate. uvi=null because the
-  // device IS the UVB source (no atmospheric gate). rotatedSides=false
-  // because device sessions track skin% on bodyExposure.regions, not
-  // a rotated-sides flag.
+  // UVB device sessions (Sperti, Mitochondriak Maxi UVB, etc.). uvi=null
+  // because the device IS the UVB source (no atmospheric gate);
+  // rotatedSides=false because devices track skin% on bodyExposure.regions.
   const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
   for (const s of deviceSessions) {
     const au = s.doses?.vitamin_d;
     if (!Number.isFinite(au) || au <= 0) continue;
-    if (typeof window.vitaminDIU === 'function') {
-      totalIU += window.vitaminDIU(au, _fitzForDevice, null, false, _gx);
+    if (_raw) {
+      _add(_localDayKey(s.endedAt), _raw(au, _fitzForDevice, null, false, _gx));
     } else {
-      totalIU += au * 60;
+      _add(_localDayKey(s.endedAt), au * 60);
     }
   }
+  let totalIU = 0;
+  for (const iu of Object.values(_dayTotals)) totalIU += Math.min(iu, _cap);
 
   let totalLuxHours = 0;
   for (const s of [...sunSessions, ...deviceSessions]) {

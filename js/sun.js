@@ -1003,10 +1003,23 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
 // hydrateSession). Active sessions contribute their live channel-au
 // converted via the same per-session vitaminDIU path.
 export function rollingVitaminDIU(days = 7) {
-  if (typeof window.vitaminDIU !== 'function') return 0;
+  // Group raw per-session yield by local date, then clamp each day at
+  // the biological saturation ceiling (Holick 2007: ~20k IU/day pre-D3
+  // photoisomerization plateau). Pre-cap-per-day fix, two same-day UVB
+  // device sessions each capped at 20k summed to 40k — blowing past the
+  // biological ceiling. Per-session render paths still use vitaminDIU
+  // (capped) for the single-session ceiling.
+  const raw = (typeof window !== 'undefined' && typeof window.vitaminDIURaw === 'function') ? window.vitaminDIURaw : null;
+  if (!raw) return 0;
+  const cap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
   const cutoff = Date.now() - days * 86400 * 1000;
   const genetics = state.importedData?.genetics || null;
-  let total = 0;
+  const _localDayKey = (ts) => {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const dayTotals = {};
+  const _add = (key, iu) => { dayTotals[key] = (dayTotals[key] || 0) + iu; };
   for (const sess of getSessions()) {
     if (!sess.endedAt) {
       if ((sess.startedAt || 0) < cutoff) continue;
@@ -1014,7 +1027,7 @@ export function rollingVitaminDIU(days = 7) {
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
-        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
+        _add(_localDayKey(sess.startedAt), raw(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics));
       }
       continue;
     }
@@ -1022,19 +1035,19 @@ export function rollingVitaminDIU(days = 7) {
     if (sess.endedAt < cutoff) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
-    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
+    _add(_localDayKey(sess.endedAt), raw(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics));
   }
-  // Include UVB device sessions (Sperti, Mitochondriak Maxi UVB, etc.).
-  // Pre-2026-05-08 the rollup was sun-only — meant the IU figure stayed
-  // flat while the channel-tier flipped after a UVB-device session, an
-  // inconsistency Žofka caught on 2026-05-08. Device sessions pass uvi=null
-  // because the device IS the UVB source (no atmospheric UV gate).
+  // UVB device sessions (Sperti, Mitochondriak Maxi UVB, etc.). Devices
+  // pass uvi=null because the device IS the UVB source (no atmospheric
+  // gate).
   const fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
   for (const sess of (state.importedData?.deviceSessions || [])) {
     if (!sess.endedAt || sess.endedAt < cutoff) continue;
     if (!sess.doses?.vitamin_d) continue;
-    total += window.vitaminDIU(sess.doses.vitamin_d, fitzForDevice, null, false, genetics);
+    _add(_localDayKey(sess.endedAt), raw(sess.doses.vitamin_d, fitzForDevice, null, false, genetics));
   }
+  let total = 0;
+  for (const iu of Object.values(dayTotals)) total += Math.min(iu, cap);
   return total;
 }
 
@@ -1042,9 +1055,17 @@ export function rollingVitaminDIU(days = 7) {
 // Mirrors rollingVitaminDIU logic but bounds by local midnight instead of
 // a rolling-N-day cutoff. Used by the vit-D budget cross-check.
 export function cumulativeVitaminDIUToday() {
-  if (typeof window.vitaminDIU !== 'function') return 0;
+  // Today = one local day: sum raw per-session yield (sun + devices),
+  // then cap once at the daily saturation ceiling. Pre-2026-05-08 the
+  // function used per-session capped vitaminDIU and missed device
+  // sessions entirely — so a UVB device + outdoor combo today could
+  // exceed 20k while still appearing "below cap" on each call site.
+  const raw = (typeof window !== 'undefined' && typeof window.vitaminDIURaw === 'function') ? window.vitaminDIURaw : null;
+  if (!raw) return 0;
+  const cap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const genetics = state.importedData?.genetics || null;
   let total = 0;
   for (const sess of getSessions()) {
     if (!sess.endedAt) {
@@ -1053,7 +1074,7 @@ export function cumulativeVitaminDIUToday() {
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
-        total += window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
+        total += raw(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
       }
       continue;
     }
@@ -1061,9 +1082,15 @@ export function cumulativeVitaminDIUToday() {
     if (sess.endedAt < dayStart) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
-    total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
+    total += raw(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
   }
-  return total;
+  const fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  for (const sess of (state.importedData?.deviceSessions || [])) {
+    if (!sess.endedAt || sess.endedAt < dayStart) continue;
+    if (!sess.doses?.vitamin_d) continue;
+    total += raw(sess.doses.vitamin_d, fitzForDevice, null, false, genetics);
+  }
+  return Math.min(total, cap);
 }
 
 // Today's vitamin D from active supplements. Walks importedData.supplements
