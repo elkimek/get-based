@@ -322,6 +322,10 @@ export function renderLightTodayStrip() {
 // near-by points share a cache entry, but cross-country swaps don't.
 let _conditionsCache = null; // { coordKey, atm, fetchedAt }
 let _conditionsFetchInFlight = false;
+// Per-slot 5min refresh intervals — keyed by deterministic slotId
+// ('cond-now-compact' / 'cond-now-full'). Survives strip re-renders
+// so a single interval handles auto-refresh for the slot's lifetime.
+const _conditionsIntervals = new Map();
 
 function _coordKey(coords) {
   if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) return null;
@@ -332,21 +336,27 @@ function _coordKey(coords) {
 
 export function renderConditionsNow(opts = {}) {
   const variant = opts.variant || 'full'; // 'full' (Light page) | 'compact' (dashboard)
-  const slotId = opts.slotId || `cond-now-${Date.now()}`;
-  // Initial fetch shortly after mount.
-  setTimeout(() => _refreshConditions(slotId, variant), 50);
-  // Auto-refresh every 5 min so the strip reflects current conditions
-  // without a manual ↻ tap. Self-clears when the slot leaves the DOM
-  // (page navigation, slot re-render). Underlying fetchAtmosphere has its
-  // own 1-hour cache key bucketed per clock hour, so most ticks within a
-  // single hour serve cache; only the hour-rollover triggers a network hit.
-  const handle = setInterval(() => {
-    if (!document.getElementById(slotId)) {
-      clearInterval(handle);
-      return;
-    }
-    _refreshConditions(slotId, variant);
-  }, 5 * 60 * 1000);
+  // Deterministic slotId per variant — pre-2026-05-08 used Date.now()
+  // which made the rendered HTML differ on every call, so any caller
+  // doing a string-diff (Light Today strip 5s ticker) saw the strip
+  // "always different" and re-swapped innerHTML, tearing this slot
+  // down + restarting its loading spinner = visible blink.
+  const slotId = opts.slotId || `cond-now-${variant}`;
+  // Schedule the initial fetch + 5min auto-refresh interval only the
+  // first time this slot is rendered — subsequent renders (e.g. from
+  // _refreshLiveChannelSurfaces) just reuse the existing interval.
+  if (!_conditionsIntervals.has(slotId)) {
+    setTimeout(() => _refreshConditions(slotId, variant), 50);
+    const handle = setInterval(() => {
+      if (!document.getElementById(slotId)) {
+        clearInterval(handle);
+        _conditionsIntervals.delete(slotId);
+        return;
+      }
+      _refreshConditions(slotId, variant);
+    }, 5 * 60 * 1000);
+    _conditionsIntervals.set(slotId, handle);
+  }
   // No aria-live on the wrapper — auto-refresh would re-announce the whole
   // strip every cycle. Only user-triggered refresh announces, via a separate
   // sr-only live region populated in _refreshConditions(opts.force).
