@@ -202,7 +202,10 @@ export function renderBurdenInterp(burden) {
     setTimeout(() => engine.analyze(SINGLETON).catch(() => {}), 0);
   }
 
-  if (status === 'analyzing' || stale) {
+  // Stale-shimmer only on top of an OK cached verdict — error case
+  // must surface the retry CTA, not the shimmer (otherwise an errored
+  // analyze locks the row in permanent "Analyzing your burden mix…").
+  if (status === 'analyzing' || (stale && status === 'ok')) {
     return `<div class="light-env-summary-ai">
       <div class="sun-detail-ai sun-detail-ai-loading">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>

@@ -215,7 +215,12 @@ export function renderRoomAIBlock(r) {
     setTimeout(() => engine.analyze(r).catch(() => {}), 0);
   }
 
-  if (status === 'analyzing' || stale) {
+  // Stale-shimmer only on top of an OK cached verdict — for an errored
+  // verdict we want the error UI (with retry CTA) to surface, not the
+  // shimmer, so the user has a way out. Pre-2026-05-08 the order was
+  // (status === 'analyzing' || stale) which trapped errored-stale
+  // verdicts in a permanent "Analyzing this room…" loop.
+  if (status === 'analyzing' || (stale && status === 'ok')) {
     return `<div class="light-env-room-step light-env-room-ai">
       ${head}
       <div class="light-env-room-step-body">

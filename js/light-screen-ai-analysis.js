@@ -140,7 +140,9 @@ export function renderScreenAIBlock(s) {
     setTimeout(() => engine.analyze(s).catch(() => {}), 0);
   }
 
-  if (status === 'analyzing' || stale) {
+  // Same stale-shimmer-only-on-ok rule as light-env-ai-analysis: error
+  // verdicts must surface their retry CTA, not the shimmer.
+  if (status === 'analyzing' || (stale && status === 'ok')) {
     return `<div class="light-env-screen-ai">
       <div class="light-env-screen-ai-head">⚡ AI verdict</div>
       <div class="sun-detail-ai sun-detail-ai-loading">
