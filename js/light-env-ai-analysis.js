@@ -215,12 +215,12 @@ export function renderRoomAIBlock(r) {
     setTimeout(() => engine.analyze(r).catch(() => {}), 0);
   }
 
-  // Stale-shimmer only on top of an OK cached verdict — for an errored
-  // verdict we want the error UI (with retry CTA) to surface, not the
-  // shimmer, so the user has a way out. Pre-2026-05-08 the order was
-  // (status === 'analyzing' || stale) which trapped errored-stale
-  // verdicts in a permanent "Analyzing this room…" loop.
-  if (status === 'analyzing' || (stale && status === 'ok')) {
+  // Shimmer ONLY while a request is genuinely in flight. Stale-ok used
+  // to shimmer too, but that hid the ↻ button — leaving the user with
+  // no way to retry while the auto-fire was queued/racing. Now stale-ok
+  // falls through to the ok branch (with ↻); the auto-fire above
+  // updates the verdict underneath when it resolves.
+  if (status === 'analyzing') {
     return `<div class="light-env-room-step light-env-room-ai">
       ${head}
       <div class="light-env-room-step-body">

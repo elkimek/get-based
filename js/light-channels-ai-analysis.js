@@ -191,9 +191,10 @@ export function renderChannelMixVerdict(staticFallback) {
     setTimeout(() => engine.analyze(SINGLETON).catch(() => {}), 0);
   }
 
-  // Stale-shimmer only on top of an OK cached verdict — error case
-  // must surface the retry CTA, not the shimmer.
-  if (status === 'analyzing' || (stale && status === 'ok')) {
+  // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
+  // through to the bottom CTA branch ("Refresh AI verdict (your mix
+  // changed)").
+  if (status === 'analyzing') {
     return `<div class="light-channel-mix-ai">
       <div class="sun-detail-ai sun-detail-ai-loading">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>

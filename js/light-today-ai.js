@@ -350,9 +350,10 @@ export function renderLightTodayHero() {
     ? `<div class="light-today-trends">${trends.signals.slice(0, 2).map(s => `<span class="light-today-trend">⚡ ${escapeHTML(s)}</span>`).join('')}</div>`
     : '';
 
-  // Stale-shimmer only on top of an OK cached verdict — error case
-  // must surface the retry CTA, not the shimmer.
-  if (status === 'analyzing' || (_stale && status === 'ok')) {
+  // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
+  // through to the ok branch so the ↻ button stays reachable; auto-fire
+  // updates the verdict underneath.
+  if (status === 'analyzing') {
     return `<div class="light-today-hero">
       <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
       <div class="sun-detail-ai sun-detail-ai-loading">
@@ -433,9 +434,10 @@ export function renderLightTodayDashboardChip() {
       setTimeout(() => engine.analyze(target).catch(() => {}), 0);
     }
   }
-  // Stale-shimmer only on top of an OK cached verdict — error case
-  // must surface the retry CTA, not the shimmer.
-  if (status === 'analyzing' || (_stale && status === 'ok')) {
+  // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
+  // through to the ok branch so the ↻ button stays reachable; auto-fire
+  // updates the verdict underneath.
+  if (status === 'analyzing') {
     return `<div class="light-today-dash-ai">
       <div class="light-today-dash-ai-row">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
