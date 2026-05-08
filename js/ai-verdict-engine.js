@@ -210,12 +210,17 @@ export function createAIVerdict(cfg) {
     if (cached?.fingerprint === fingerprint && cached?.dot && cached?.status === 'ok') {
       return cached;
     }
-    // No cache-hit — gate fresh analyses on provider + canAnalyze.
-    if (!hasAIProvider()) return null;
-    if (!canAnalyze(target)) return null;
+    // Cache miss — claim the inflight slot BEFORE the provider/canAnalyze
+    // gates so two near-simultaneous callers can't both fall through to
+    // the API call. Any future change that makes hasAIProvider or
+    // canAnalyze yield (e.g. token-validation round-trip) would otherwise
+    // open a window for duplicate API calls. The finally clause releases
+    // the slot on every exit path, including the gate-fail returns below.
     inflight.add(id);
     _refresh();
     try {
+      if (!hasAIProvider()) return null;
+      if (!canAnalyze(target)) return null;
       const ctx = buildContext(target);
       const apiCall = callClaudeAPI({
         system: systemPrompt,

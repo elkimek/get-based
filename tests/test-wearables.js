@@ -1689,7 +1689,9 @@ return (async function() {
 
   // P0-2/3/4: delta-honesty rules
   assert('formatDelta accepts metricId so steps can suppress',
-    /function formatDelta\(latest,\s*baseline,\s*metricId\)/.test(wearablesSrc2));
+    /function formatDelta\(latest,\s*baseline,\s*metricId(?:,\s*canon)?\)/.test(wearablesSrc2));
+  assert('formatDelta renders absolute Δ for delta-style metrics (avoids 1100% on near-zero baselines)',
+    /isDeltaStyleMetric\(canon\)/.test(wearablesSrc2));
   assert('formatDelta suppresses delta on steps',
     /metricId\s*===\s*'steps'\)\s*return\s*''/.test(wearablesSrc2));
   assert('formatDelta suppresses delta when latest is 0 vs non-trivial baseline',

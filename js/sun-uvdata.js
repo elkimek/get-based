@@ -800,10 +800,19 @@ function readStaleCache(rLat, rLon) {
       try {
         const obj = JSON.parse(localStorage.getItem(k));
         if (obj && obj.fetchedAt && (!best || obj.fetchedAt > best.fetchedAt)) best = obj;
-      } catch (e) {}
+      } catch (e) {
+        if (typeof window !== 'undefined' && window.isDebugMode && window.isDebugMode()) {
+          console.warn('[sun-uvdata] readStaleCache parse failed', k, e?.name || e);
+        }
+      }
     }
     return best;
-  } catch (e) { return null; }
+  } catch (e) {
+    if (typeof window !== 'undefined' && window.isDebugMode && window.isDebugMode()) {
+      console.warn('[sun-uvdata] readStaleCache scan failed', e?.name || e);
+    }
+    return null;
+  }
 }
 
 // One-time sweep of pre-v2 cache entries on first import. Idempotent —
@@ -818,7 +827,11 @@ try {
     for (const k of stale) localStorage.removeItem(k);
     localStorage.setItem('meteo-cache-v2-purged', '1');
   }
-} catch {}
+} catch (e) {
+  if (typeof window !== 'undefined' && window.isDebugMode && window.isDebugMode()) {
+    console.warn('[sun-uvdata] pre-v2 cache sweep failed', e?.name || e);
+  }
+}
 
 function writeCache(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); }
@@ -850,7 +863,11 @@ export function purgeMeteoCache() {
       if (k && k.startsWith(CACHE_PREFIX)) keys.push(k);
     }
     for (const k of keys) { try { localStorage.removeItem(k); removed++; } catch {} }
-  } catch {}
+  } catch (e) {
+    if (typeof window !== 'undefined' && window.isDebugMode && window.isDebugMode()) {
+      console.warn('[sun-uvdata] purgeMeteoCache failed', e?.name || e);
+    }
+  }
   return removed;
 }
 

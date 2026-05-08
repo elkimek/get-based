@@ -164,6 +164,16 @@ export function openSettingsModal(tab) {
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--text-secondary)">Share body regions in Sun &amp; Light context</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Off by default. When on, specific anatomical regions you logged (face, chest, genitals…) are included in chat context and agent slices. Off keeps coverage fraction + preset names but strips the per-region anatomy.</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="ai-ctx-body-regions-toggle" ${window.isBodyRegionsInAIContext?.() ? 'checked' : ''} onchange="window.setBodyRegionsInAIContext(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <div class="settings-group-title">AI Usage</div>

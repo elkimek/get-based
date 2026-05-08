@@ -362,7 +362,7 @@ export function renderSetupCard() {
     <div class="light-setup-step">
       <label class="ctx-label">Home lighting</label>
       <p class="light-setup-step-why">Shapes your indoor melanopic dose — what the AI sees for the half of your day spent inside.</p>
-      <select id="setup-homelight" class="ctx-select">
+      <select id="setup-homelight" class="ctx-select" onchange="window._refreshSetupProgress && window._refreshSetupProgress()">
         <option value="">Choose what's mostly true at home</option>
         ${HOME_LIGHT_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.homeLight === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
       </select>
@@ -371,7 +371,7 @@ export function renderSetupCard() {
     <div class="light-setup-step">
       <label class="ctx-label">Eyewear outside</label>
       <p class="light-setup-step-why">Eye exposure to UV / 360–400 nm violet drives circadian + α-MSH / dopamine signals.</p>
-      <select id="setup-eyewear" class="ctx-select">
+      <select id="setup-eyewear" class="ctx-select" onchange="window._refreshSetupProgress && window._refreshSetupProgress()">
         <option value="">Choose what you wear most often outside</option>
         ${EYEWEAR_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.eyewear === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
       </select>
@@ -536,6 +536,33 @@ function _updateSetupSkinSlider(val) {
     range.dataset.set = '1';
     range.setAttribute('aria-valuetext', valid ? `${skinLabel} — ${descriptor}` : 'not set');
   }
+  _refreshSetupProgress();
+}
+
+// Recompute the "X/4 done" progress hint from the live DOM state. Called
+// from each input's onchange/oninput so the counter advances on click,
+// not on Save — pre-fix the user clicked a skin face and got no
+// feedback that they'd just made progress.
+function _refreshSetupProgress() {
+  const card = document.querySelector('.light-setup-card');
+  if (!card) return;
+  const skinFilled = card.querySelector('#setup-skin-range')?.dataset.set === '1';
+  const homeFilled = !!card.querySelector('#setup-homelight')?.value;
+  const eyewearFilled = !!card.querySelector('#setup-eyewear')?.value;
+  // Location: best-effort read; getSunCoords may return a country-band fallback
+  // that counts toward "filled" the same way the initial render does.
+  let locFilled = false;
+  try {
+    const d = getSunDefaults() || {};
+    locFilled = !!(d.coords?.lat && d.coords?.lon)
+      || !!(window.getSunCoords && window.getSunCoords()?.source === 'country-band');
+  } catch (_) {}
+  const filled = [skinFilled, homeFilled, eyewearFilled, locFilled].filter(Boolean).length;
+  const progress = card.querySelector('.light-setup-progress');
+  if (progress) {
+    progress.textContent = `${filled}/4 done`;
+    progress.setAttribute('aria-label', `${filled} of 4 questions done`);
+  }
 }
 
 // Skip-for-now — marks the setup as completed without filled answers.
@@ -560,6 +587,7 @@ if (typeof window !== 'undefined') {
     _sunHomeLightOptions: HOME_LIGHT_OPTIONS,
     _sunEyewearOptions: EYEWEAR_OPTIONS,
     _updateSetupSkinSlider,
+    _refreshSetupProgress,
     _updateOttRunningScore,
     _skinTypeToFitzpatrick: skinTypeToFitzpatrick,
     _skinFaceKeydown,

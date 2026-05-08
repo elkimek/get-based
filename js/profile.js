@@ -491,6 +491,12 @@ export function switchProfile(profileId) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   showNotification(`Switched to ${p ? p.name : 'profile'}`, 'info');
+  // Modules with per-profile module-singleton state (sun.js region map cache,
+  // overlay cache, tick counters, in-flight rehydrate flag) listen for this
+  // event so their caches don't bleed across profiles after a switch.
+  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+    try { window.dispatchEvent(new CustomEvent('labcharts-profile-switched', { detail: { profileId } })); } catch (_) {}
+  }
   // Push updated context to messenger gateway so bots see the new profile
   import('./sync.js').then(m => m.pushContextToGateway()).catch(() => {});
 }

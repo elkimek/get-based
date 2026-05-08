@@ -137,7 +137,15 @@ function deltaClassFor(latest, baseline, worseWhen) {
   return worse ? 'delta-bad' : 'delta-good';
 }
 
-function formatDelta(latest, baseline, metricId) {
+// Delta-style metrics (e.g. body_temp_delta — Oura/Whoop temperature deviation
+// from the user's nightly norm) already encode a Δ; their baseline naturally
+// hovers near zero, so percentages blow up (baseline=-0.05, latest=0.5 →
+// "↓ 1100%"). For these we render the absolute change in unit instead.
+function isDeltaStyleMetric(canon) {
+  return canon?.sub === 'Δ';
+}
+
+function formatDelta(latest, baseline, metricId, canon) {
   // Zero baseline happens when the metric is 0 across the window (e.g. activity
   // score on a ring that wasn't worn) — suppress the delta entirely rather than
   // rendering "→ —" which reads as "we measured something."
@@ -151,6 +159,12 @@ function formatDelta(latest, baseline, metricId) {
   // Suppress when current is 0 and baseline is non-trivial.
   if (latest === 0 && Math.abs(baseline) > 0.5) return '';
   if (latest == null || !isFinite(latest)) return '';
+  if (isDeltaStyleMetric(canon)) {
+    const diff = latest - baseline;
+    const arrow = diff > 0.005 ? '↑' : diff < -0.005 ? '↓' : '→';
+    const unit = canon?.unit ? canon.unit : '';
+    return `${arrow} ${Math.abs(diff).toFixed(2)}${unit}`;
+  }
   const pct = ((latest - baseline) / baseline) * 100;
   const arrow = pct > 0.5 ? '↑' : pct < -0.5 ? '↓' : '→';
   return `${arrow} ${Math.abs(pct).toFixed(0)}%`;
@@ -253,7 +267,7 @@ function shortDate(iso) {
 
 function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate) {
   const deltaCls = deltaClassFor(metric.latest, metric.baseline, canon.worseWhen);
-  const deltaText = formatDelta(metric.latest, metric.baseline, metricId);
+  const deltaText = formatDelta(metric.latest, metric.baseline, metricId, canon);
   // Space-prefix the sub so screen readers hear "HRV RMSSD" not "HRVRMSSD".
   // Visual spacing is still margin-left via .wearable-metric-sub CSS.
   const subLabel = canon.sub ? ` <span class="wearable-metric-sub">${escapeHTML(canon.sub)}</span>` : '';
@@ -436,6 +450,21 @@ export function renderWearableStrip() {
   const isMock = localStorage.getItem('wearables-mock-off') !== '1' &&
     /* mock flag: summary === MOCK_SUMMARY — avoid import cycle by comparing a sentinel */
     summary === MOCK_SUMMARY;
+  // Demo profiles loaded via loadDemoData (Demo Alex / Demo Sarah) carry
+  // a `demo` tag. Sarah's data lands in real summary slots because it
+  // loads from data/demo-female.json — without this branch she'd render
+  // identical to a real wearables strip, hiding the "this is a sample"
+  // signal that Alex (whose summary === MOCK_SUMMARY) gets for free.
+  const isDemoProfile = (() => {
+    try {
+      const profilesRaw = localStorage.getItem('labcharts-profiles');
+      if (!profilesRaw) return false;
+      const profiles = JSON.parse(profilesRaw);
+      const active = profiles.find(p => p.id === state.currentProfile);
+      return Array.isArray(active?.tags) && active.tags.includes('demo');
+    } catch (_) { return false; }
+  })();
+  const showDemoPill = isMock || isDemoProfile;
 
   // Originally a footer caveat listed SDNN / pNN50 / HF/LF as "deep HRV"
   // metrics that need a chest strap. Real users found that confusing —
@@ -453,7 +482,7 @@ export function renderWearableStrip() {
       <div class="wearable-strip-title">
         <span class="wearable-strip-icon" aria-hidden="true">⌬</span>
         <span>Wearables: <span class="wearable-source-label">${escapeHTML(sourceLabel)}${coverageLabel}</span></span>
-        ${isMock ? '<button type="button" class="wearable-strip-demo-pill" onclick="event.stopPropagation();window.openSettingsModal(\'wearables\')" title="This is a sample. Connect your own wearable to see real data here.">demo data — connect yours</button>' : ''}
+        ${showDemoPill ? '<button type="button" class="wearable-strip-demo-pill" onclick="event.stopPropagation();window.openSettingsModal(\'wearables\')" title="This is a sample. Connect your own wearable to see real data here.">demo data — connect yours</button>' : ''}
         ${reorderMode ? '<span class="wearable-strip-reorder-pill">⇄ Reorder mode — use ◀ ▶ on each card</span>' : ''}
       </div>
       <div class="wearable-strip-meta">
@@ -730,12 +759,23 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [])
 
   // Same delta-suppression rules as the strip card so the modal header doesn't
   // flash "↓ 100%" on a stress-zero day or "↓ 87%" on an in-progress steps day.
+  // Delta-style metrics (sub === 'Δ', e.g. body_temp_delta) render absolute
+  // change in unit — percentages blow up against a near-zero baseline.
   const suppressDelta = !m.baseline || !isFinite(m.baseline)
                      || metricId === 'steps'
                      || (m.latest === 0 && Math.abs(m.baseline) > 0.5);
-  const deltaPct = suppressDelta ? null : ((m.latest - m.baseline) / m.baseline * 100);
-  const deltaStr = deltaPct == null ? null
-                 : (deltaPct > 0.5 ? '↑' : deltaPct < -0.5 ? '↓' : '→') + ' ' + Math.abs(deltaPct).toFixed(0) + '%';
+  let deltaStr = null;
+  if (!suppressDelta && m.latest != null && isFinite(m.latest)) {
+    if (isDeltaStyleMetric(canon)) {
+      const diff = m.latest - m.baseline;
+      const arrow = diff > 0.005 ? '↑' : diff < -0.005 ? '↓' : '→';
+      deltaStr = `${arrow} ${Math.abs(diff).toFixed(2)}${unit}`;
+    } else {
+      const deltaPct = (m.latest - m.baseline) / m.baseline * 100;
+      const arrow = deltaPct > 0.5 ? '↑' : deltaPct < -0.5 ? '↓' : '→';
+      deltaStr = `${arrow} ${Math.abs(deltaPct).toFixed(0)}%`;
+    }
+  }
 
   // Daytime companion: when the user is looking at an overnight HRV or RHR
   // card, surface the matching daytime aggregate as an extra stat so they can

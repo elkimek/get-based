@@ -212,13 +212,28 @@ return (async function() {
       bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: ['face', 'hands'] },
     }],
   });
+  // Default consent state: body-regions opt-in is off → body block emits
+  // preset/fraction/sunscreen but regions[] is stripped to [].
+  ctxMod.setBodyRegionsInAIContext(false);
   const detail = getSunSessionDetail('locked');
   assert('getSunSessionDetail: known id → projected session',
     detail && detail.id === 'locked');
-  assert('getSunSessionDetail surfaces all fields when caller asks by id',
+  assert('getSunSessionDetail surfaces non-region fields when caller asks by id',
     detail.date && detail.body && detail.atmosphere && detail.safety);
-  assert('getSunSessionDetail body block carries regions array',
-    Array.isArray(detail.body.regions) && detail.body.regions.includes('face'));
+  assert('getSunSessionDetail body block carries preset + fraction even when regions opt-in is off',
+    detail.body.preset === 'face_hands' && detail.body.fraction === 0.05);
+  assert('getSunSessionDetail strips regions array by default (privacy opt-in off)',
+    Array.isArray(detail.body.regions) && detail.body.regions.length === 0);
+
+  // With consent flag on, the regions array surfaces.
+  ctxMod.setBodyRegionsInAIContext(true);
+  const detailWithRegions = getSunSessionDetail('locked');
+  assert('getSunSessionDetail body block carries regions array when consent toggle is on',
+    Array.isArray(detailWithRegions.body.regions)
+    && detailWithRegions.body.regions.includes('face'));
+  // Restore default-off for the rest of the suite.
+  ctxMod.setBodyRegionsInAIContext(false);
+
   assert('getSunSessionDetail unknown id → null',
     getSunSessionDetail('does-not-exist') === null);
 

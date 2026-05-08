@@ -29,6 +29,18 @@ import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } f
 let _PRESETS = null;
 let _PRESET_TYPES = null;
 
+// Standard modal-mount pattern shared by every modal opener in this file:
+// wire backdrop-click close, append, then trap focus. The window.* refs
+// come from sun.js so we can't import them at top-level (back-edge);
+// guarding each call with typeof keeps this safe to invoke if the user
+// hits a device modal before sun.js finished its first load tick.
+function _wireModal(overlay) {
+  if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (_) {}
+  document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (_) {}
+}
+
 async function loadPresets() {
   if (_PRESETS) return { presets: _PRESETS, types: _PRESET_TYPES };
   try {
@@ -325,9 +337,7 @@ export function openDeviceSessionDetail(id) {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  _wireModal(overlay);
 }
 
 // Rolling totals — same shape as sun.rollingChannelTotals so the AI context
@@ -548,9 +558,7 @@ export async function openAddDeviceDialog() {
       <button type="button" class="import-btn import-btn-secondary" id="add-device-custom" style="width:100%;margin-top:8px">+ Custom device (paste link or scan photo)</button>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  _wireModal(overlay);
 
   overlay.querySelector('#add-device-custom').addEventListener('click', () => {
     overlay.remove();
@@ -654,9 +662,7 @@ export async function openCustomDeviceDialog() {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  _wireModal(overlay);
 
   // Per-field unit toggle on the Vendor reference distance input —
   // same in-place conversion as the session dialog. data-target picks
@@ -979,9 +985,7 @@ export async function openDeviceSessionDialog(deviceId) {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  _wireModal(overlay);
 
   // Per-field unit toggle: cm ↔ in. Lets a US user briefly type a cm
   // value (or vice versa) without mental math when their global unit
@@ -1068,9 +1072,7 @@ function _openDevicePicker(devices) {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  _wireModal(overlay);
   // Backdrop-click closes — browse-style modal, no user-entered data.
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();

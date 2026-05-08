@@ -144,6 +144,12 @@ One line per metric. Primary source in parens. `→` separates daily values, old
 
 **Toggle re-pushes immediately**, so the agent sees the new (or removed) section the next time it queries — no 5-second debounce wait.
 
+### Sun & Light sessions (body regions opt-in)
+
+If you log Sun & Light sessions, the agent can pull them via `getbased_section('sun')` and the underlying `getSunSessionsSlice` slice API. The default field set includes session date, duration, channel doses, atmosphere, eye-exposure mode, and a body summary (preset, total coverage fraction, sunscreen SPF, glass-between flag).
+
+**The specific anatomical `regions` array (e.g. `['breast-chest', 'genitals', 'legs-front']`) is opt-in.** It stays out of both the chat context and the agent slice unless you turn on **Settings → AI → AI Context → "Share body regions in Sun & Light context"**. With that toggle off, the agent sees that you exposed roughly 45% of your body to the sun for 30 minutes, but not which 45%. Location coordinates are also opt-in (off by default; honor `privacyRounding` when on).
+
 ## Security
 
 Agent Access is designed to share the minimum needed for a bot to be useful:

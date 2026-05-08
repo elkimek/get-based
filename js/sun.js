@@ -58,16 +58,18 @@ export function _normalizePSMTier(raw) {
 // Anatomical regions for the silhouette picker. Limbs split into front/back
 // so front-of-legs and back-of-legs are independent — matters for
 // realistic photobiology (e.g. sunbathing face-up exposes only front).
-// Fractions sum to ~1.0 across the whole body when fully selected.
+// Fractions sum to ~0.95 — the missing ~0.05 is scalp + anatomical seams
+// (clavicle / shoulder transitions) that the picker doesn't expose as
+// individually selectable regions.
 export const BODY_REGIONS = [
   // `face` / `thyroid-throat` are kept as front-side keys (no `-front`
   // suffix) for backward-compat with sessions saved before the back-side
   // split. New back-side keys are explicit `*-back`.
   { key: 'face',                label: 'Face',                  fraction: 0.04 },
-  { key: 'face-back',           label: 'Face (back)',           fraction: 0.02 },
+  { key: 'face-back',           label: 'Back of head',          fraction: 0.02 },
   { key: 'thyroid-throat',      label: 'Thyroid / throat',      fraction: 0.01 },
-  { key: 'thyroid-throat-back', label: 'Nape (back of neck)',   fraction: 0.01 },
-  { key: 'breast-chest',        label: 'Breast / chest',        fraction: 0.06 },
+  { key: 'thyroid-throat-back', label: 'Nape',                  fraction: 0.01 },
+  { key: 'breast-chest',        label: 'Upper chest',           fraction: 0.06 },
   { key: 'arms-front',          label: 'Arms (front)',          fraction: 0.05 },
   { key: 'arms-back',           label: 'Arms (back)',           fraction: 0.05 },
   { key: 'torso-front',         label: 'Torso (front)',         fraction: 0.13 },
@@ -87,6 +89,16 @@ export const BODY_REGIONS = [
 // `rotatedSides` toggle in the start dialog) to log that you exposed
 // both sides over the session; that doubles the effective body dose
 // the same way dminder's "100% naked" assumes alternating sides.
+//
+// Cite: fractions derive from the Wallace rule of nines + Lund-Browder
+// (1944) chart, then halved (anterior face only). Face + hands ≈ 4.5%
+// face + 2.5% hands = 7% total body, ~5% projected to one side.
+// T-shirt + shorts exposes face/hands/forearms/lower legs ≈ 20%.
+// Swimwear exposes everything except briefs (~45% one side per Holick
+// 2007's "10% body surface = ~2 cm² per kg of pre-vit-D substrate").
+// Sunbathing tops out at ~50% one side per the dminder convention.
+// AI verdict math for synthesis ("you got 1500 IU because 20% of your
+// skin saw 15 min of UVI 7") is rooted in these fractions.
 export const EXPOSURE_PRESETS = [
   { key: 'face_hands', label: 'Face + hands',         fraction: 0.05 },
   { key: 'tshirt',     label: 'T-shirt + shorts',     fraction: 0.20 },
@@ -187,6 +199,16 @@ export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
 // of the 20,000 cap baked into vitaminDIU (Holick photoisomerization
 // plateau). Surface "saturated" copy at that point rather than the
 // uncertainty band — the cap dominates so the band collapses anyway.
+//
+// Cite: Holick 2008 ("Vitamin D status: measurement, interpretation,
+// and clinical application" Ann. Epidemiol. 19:73) — pre-vitamin D₃
+// peaks at ~10-15% of total cutaneous 7-DHC then degrades to
+// lumisterol/tachysterol on continued UV. MacLaughlin et al. 1982
+// (Science 216:1001) puts the peak conversion ~10-25 minutes of
+// equatorial summer noon sun at 20% body surface, which is the
+// 20,000 IU/session ceiling we cap to. AI verdicts that nudge "you've
+// hit your synthesis ceiling — covering up doesn't reduce it now"
+// hinge on this threshold.
 const VITD_SAT_FLAG = 19000;
 
 // Render a channel dose in its natural real-world unit when the
@@ -204,22 +226,35 @@ const VITD_SAT_FLAG = 19000;
 // clinical threshold (Webb 2018: no meaningful vit D below UVI ~2-3).
 // Pass these from `sess.safety.fitzpatrick` and `sess.atmosphere.uvIndex`
 // respectively; fallback to 'III' / null.
+// Sessions shorter than this don't generate channel verdicts. At 60-sec
+// (the demo case that triggered the v1.7.21 audit) the per-second peak
+// recovered from `channelAu / seconds` is mathematically valid but
+// experientially meaningless: a brief glance at a bright lamp on the way
+// to a meeting becomes "Body clock ~99.3k M-EDI lux." The session log
+// still shows the duration + atmosphere; channels just stay quiet.
+const TOO_SHORT_FOR_CHANNEL_VERDICT_MIN = 2;
+
 export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
+  if (durationMin > 0 && durationMin < TOO_SHORT_FOR_CHANNEL_VERDICT_MIN) {
+    return 'session too short';
+  }
   if (channelKey === 'vitamin_d') {
     // Single approximate value — uncertainty lives in the tooltip.
     // "~1100 IU" is more readable than "700-1800 IU" for normal users;
     // power users open the row tooltip for the model band + biological
-    // variance breakdown.
+    // variance breakdown. Always numeric (not "minimal" for small values)
+    // so the per-channel-dose row doesn't mix conventions across the
+    // table — qualitative tier label is already in its own column.
     const central = window.vitaminDIU
       ? window.vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null)
       : channelAu * 60 * (rotatedSides ? 2 : 1);
     if (central === 0) return 'below UVI threshold';
-    if (central < 30) return 'minimal';
     const fmt = (n) => {
       if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
       if (n >= 1000) return Math.round(n / 100) * 100;
-      return Math.round(n / 10) * 10;
+      if (n >= 100) return Math.round(n / 10) * 10;
+      return Math.round(n);
     };
     if (central >= VITD_SAT_FLAG) return `~${fmt(central)} IU (saturated)`;
     return `~${fmt(central)} IU`;
@@ -1715,6 +1750,13 @@ function _rateAtInstant(sess, instantMs) {
 // reception (~1.4× baseline standing). Lying-prone same for back. Sitting
 // is between standing and lying. These are rough — proper modeling would
 // require per-region cosine weighting based on actual body geometry.
+//
+// Cite: Diffey 1991 ("Solar UV exposure of the body" Phys. Med. Biol.
+// 36:299) reports posture-weighted body-form factors of ~0.95 for
+// standing, ~0.85 for sitting, and ~1.3-1.5 for supine at solar noon.
+// Webb et al. 2011 (Br. J. Dermatol.) replicates the supine 1.4× boost
+// in field measurements. The AI verdict for "I sunbathed lying down on
+// the beach" rides on this multiplier — values are rounded conservatively.
 const _POSTURE_MULTIPLIERS = {
   standing:    1.0,
   sitting:     0.85,
@@ -1981,6 +2023,18 @@ function _tickActiveCards() {
       }
     }
 
+    // DOM patches are only meaningful when the user can actually see the
+    // result. Bail when the tab is hidden (browser will pause rAF anyway,
+    // but the 1s setInterval keeps firing) or when none of the views that
+    // host live-session UI are active. Heat/UV alerts above still ran —
+    // they're toast notifications that don't depend on visible cards.
+    if (document.hidden) continue;
+    if (state.currentView !== 'light'
+        && state.currentView !== 'dashboard'
+        && !document.querySelector('.modal-overlay [data-id], .modal-overlay [data-live-elapsed-for]')) {
+      continue;
+    }
+
     // Update any "live elapsed" text node on the page — dashboard Light
     // Today CTA uses [data-live-elapsed-for] so the timer ticks every
     // second from anywhere in the app.
@@ -1993,18 +2047,38 @@ function _tickActiveCards() {
     if (!cards.length) continue;
 
     const body = _renderActiveCardBody(sess);
+
+    // Patch a chip in place rather than `outerHTML = …` so the node
+    // identity survives the tick. outerHTML rebuild discards focus +
+    // any inflight tooltip/a11y state every second; that breaks
+    // keyboard nav on the active card and makes screen readers
+    // re-announce the chip every second. textContent + className +
+    // title patches keep the existing element and only touch the
+    // attributes that actually changed.
+    const patchChip = (el, html) => {
+      if (!html) { el.remove(); return; }
+      const tmpl = document.createElement('template');
+      tmpl.innerHTML = html.trim();
+      const fresh = tmpl.content.firstElementChild;
+      if (!fresh) return;
+      if (el.className !== fresh.className) el.className = fresh.className;
+      const newTitle = fresh.getAttribute('title') || '';
+      if (el.getAttribute('title') !== newTitle) el.setAttribute('title', newTitle);
+      const newText = fresh.textContent;
+      if (el.textContent !== newText) el.textContent = newText;
+    };
     cards.forEach(card => {
       const durEl = card.querySelector('.sun-session-duration');
       if (durEl) durEl.textContent = body.elapsed;
       const medEl = card.querySelector('.sun-session-med');
-      if (medEl) medEl.outerHTML = body.medStr || '';
+      if (medEl) patchChip(medEl, body.medStr);
       else if (body.medStr) {
         // Insert med chip into the head row if it doesn't exist yet
         const head = card.querySelector('.sun-session-head .sun-session-duration');
         if (head) head.insertAdjacentHTML('afterend', body.medStr);
       }
       const vitdEl = card.querySelector('.sun-session-vitd');
-      if (vitdEl) vitdEl.outerHTML = body.vitaminDStr || '';
+      if (vitdEl) patchChip(vitdEl, body.vitaminDStr);
       else if (body.vitaminDStr) {
         // Insert vit-D chip after med chip (or after duration if no med yet)
         const after = card.querySelector('.sun-session-med') || card.querySelector('.sun-session-duration');
@@ -2012,18 +2086,21 @@ function _tickActiveCards() {
       }
       // Heat chip — replace if present, insert in head row if not.
       const heatEl = card.querySelector('.sun-session-heat');
-      if (heatEl) heatEl.outerHTML = body.heatStr || '';
+      if (heatEl) patchChip(heatEl, body.heatStr);
       else if (body.heatStr) {
         const after = card.querySelector('.sun-session-vitd') || card.querySelector('.sun-session-med') || card.querySelector('.sun-session-duration');
         if (after) after.insertAdjacentHTML('afterend', body.heatStr);
       }
       // Retinal-UV chip — same pattern.
       const retinalEl = card.querySelector('.sun-session-retinal');
-      if (retinalEl) retinalEl.outerHTML = body.retinalStr || '';
+      if (retinalEl) patchChip(retinalEl, body.retinalStr);
       else if (body.retinalStr) {
         const after = card.querySelector('.sun-session-heat') || card.querySelector('.sun-session-vitd') || card.querySelector('.sun-session-med') || card.querySelector('.sun-session-duration');
         if (after) after.insertAdjacentHTML('afterend', body.retinalStr);
       }
+      // Channel chips: outerHTML still appropriate here — the channel
+      // wrapper rebuilds its child chip nodes (different rendered chips
+      // when tier rankings change), and the user can't focus inside it.
       const oldChips = card.querySelector('.sun-channel-chips');
       if (oldChips) oldChips.outerHTML = body.channelChips || '';
       else if (body.channelChips) card.insertAdjacentHTML('beforeend', body.channelChips);
@@ -2088,6 +2165,15 @@ async function _hydrateFromProfileCoords(id) {
 
 // Country band → centroid lat (0=tropical, 4=subarctic). Used as the lat
 // fallback when a country lacks an explicit COUNTRY_CENTROIDS entry.
+//
+// Bands follow the Holick UV-availability scheme (Holick 2007 NEJM,
+// "Vitamin D Deficiency"): tropical 0-23.5°, subtropical 23.5-35°,
+// temperate 35-50°, cold-temperate 50-60°, subarctic 60°+. Centroid
+// values picked at band-midpoint, capped at 65° because cutaneous
+// vit-D synthesis below 5° solar elevation is negligible (Webb 2018).
+// Drives the lat-only fallback for synthesis math when a country lacks
+// a precise centroid; the AI verdict for "should I be supplementing in
+// winter?" depends on this lat resolving correctly.
 const BAND_CENTROID_LAT = [15, 32, 45, 55, 65];
 
 export function getSunCoords() {
@@ -2520,6 +2606,10 @@ function _sessionChipValue(channelKey, channelAu, sess) {
   const fitz = sess?.safety?.fitzpatrick || 'III';
   const uvi = sess?.atmosphere?.uvIndex ?? null;
   const dur = sess?.durationMin || 0;
+  // Mirror formatChannelUnit's too-short gate: short sessions get the
+  // icon + label only, no spurious value. Keeps the chip readable
+  // without misleading numbers.
+  if (dur > 0 && dur < TOO_SHORT_FOR_CHANNEL_VERDICT_MIN) return '';
   if (channelKey === 'vitamin_d' && typeof window.vitaminDIU === 'function') {
     const iu = window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides);
     if (iu < 30) return '';
@@ -2752,11 +2842,17 @@ function _silhouetteBody(sex, view) {
 }
 
 
-// PROTOTYPE FLAG — when true, renders a stock-illustration figure as the
-// figure backdrop instead of the parametric Klimt-fresco silhouette. Flip
-// to false to revert. The asset is `er.svg` at the project root: a true
-// vector 6-figure (F/M × front/side/back) illustration converted from a
-// licensed Shutterstock EPS, background-stripped.
+// Backdrop renderer flag. When true, renders the licensed stock-illustration
+// figure (`er.svg` — vector 6-figure F/M × front/side/back, background-
+// stripped from a Shutterstock EPS) instead of the parametric Klimt-fresco
+// silhouette in `silhouette-paths.js`.
+//
+// Kept as a flag rather than deleted because the parametric path is the
+// fallback if the licensed asset ever needs to be pulled (license dispute,
+// runtime fetch failure, or future fork wanting a fully-self-contained
+// build). It's not a prototype anymore — it's the production renderer with
+// a tested escape hatch. ~660 LoC of dead-on-paper-but-load-bearing code in
+// silhouette-paths.js is the price of keeping that escape hatch warm.
 const STOCK_FIGURE_PROTOTYPE = true;
 
 // Source SVG grid (viewBox 3082.45 × 4890.47, 3 cols × 2 rows:
@@ -3418,12 +3514,28 @@ async function editSunSessionDuration(id) {
   if (window.navigate && state.currentView === 'light') window.navigate('light');
 }
 
+// Reset all sun.js module-singleton state. Called on profile switch so
+// caches/timers from profile A don't bleed into profile B (e.g. region-
+// map decoded canvas data is profile-agnostic but the overlay cache key
+// is built from the previous profile's selection set; the active-card
+// ticker keeps running with the prior profile's session list).
+function _resetSunModuleState() {
+  if (_activeTicker) { clearInterval(_activeTicker); _activeTicker = null; }
+  _tickCount = 0;
+  _overlayCache = { key: '', url: '' };
+  _overlayPending = false;
+  // _regionMapData decode is expensive (canvas + getImageData on a full
+  // figure SVG) and the result is profile-agnostic, so we keep it warm.
+  _rehydrateInFlight = false;
+}
+
 if (typeof window !== 'undefined') {
   window.SUN_ENGINE_VERSION = SUN_ENGINE_VERSION;
   // Exposed so sun-ai-analysis.js can request a re-render after an async
   // analyzeSunSessionAI() completes — keeps that module from importing
   // sun.js's internal _refreshSurfaces directly (would be a back-edge).
   window._refreshSunSurfaces = _refreshSurfaces;
+  window.addEventListener('labcharts-profile-switched', _resetSunModuleState);
   Object.assign(window, {
     quickLogSunSession,
     startSession,

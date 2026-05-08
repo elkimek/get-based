@@ -13,6 +13,32 @@
 
 import { state } from './state.js';
 
+// ═══════════════════════════════════════════════
+// BODY REGIONS IN AI CONTEXT (per-profile, default OFF)
+// ═══════════════════════════════════════════════
+// Specific anatomical regions (face, breast-chest, genitals…) are the
+// most personally-identifying detail in a sun session. Sending them to a
+// non-E2EE AI provider (PPQ / Routstr / OpenRouter / Custom) without an
+// explicit consent gate would mean every chat that includes the standard-
+// tier session table — and every agent slice over getSunSessionsSlice() —
+// silently exfiltrates `regions: ['breast-chest','genitals',…]`.
+//
+// Default OFF. The chat session table renders preset names or a "—" when
+// disabled; agent slices project body summary (preset, fraction, sunscreen,
+// glassBetween) WITHOUT the regions array. Per-profile so each profile
+// keeps its own consent state — your "main" profile may opt in, a "Test"
+// profile stays off.
+function _bodyRegionsCtxKey() {
+  const pid = localStorage.getItem('labcharts-active-profile') || 'default';
+  return `labcharts-${pid}-ai-include-body-regions`;
+}
+export function isBodyRegionsInAIContext() {
+  return localStorage.getItem(_bodyRegionsCtxKey()) === 'on';
+}
+export function setBodyRegionsInAIContext(on) {
+  localStorage.setItem(_bodyRegionsCtxKey(), on ? 'on' : 'off');
+}
+
 // ─── Public API ────────────────────────────────────────────────────────
 
 export function buildSunContext({ tier = 'always' } = {}) {
@@ -274,11 +300,15 @@ function lightEnvironmentBlock() {
             if (axes && (axes.d2 != null || axes.d3 != null)) {
               line += ` · d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue)`;
             }
-          } catch (e) {}
+          } catch (e) {
+            if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] computeDeficitAxes failed', e);
+          }
         }
         s += line + '\n';
       }
-    } catch (e) {}
+    } catch (e) {
+      if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] indoor-burden line build failed', e);
+    }
   }
   // Concrete tool measurements that warrant the AI's attention. We
   // surface only the warning-level readings — the user has 8 tools
@@ -396,7 +426,9 @@ function standardTierBlock(sessions) {
   // Correlation table — computed on demand by sun-correlations.js
   let corr = state.importedData?.sunCorrelations;
   if ((!corr || !corr.pairs) && typeof window.getSunCorrelations === 'function') {
-    try { corr = window.getSunCorrelations(); } catch (e) {}
+    try { corr = window.getSunCorrelations(); } catch (e) {
+      if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] getSunCorrelations failed', e);
+    }
   }
   if (corr && corr.pairs) {
     block += `### Sun-channel × biomarker correlations (computed from your data)
@@ -415,12 +447,19 @@ ${formatCorrelations(corr.pairs)}
 // `genitals+breast-chest+legs-front`). `(both)` suffix denotes
 // rotatedSides — both anterior and posterior were exposed during the
 // session via the in-session 🔄 Flip control.
+//
+// Body regions are gated on the per-profile consent flag
+// (isBodyRegionsInAIContext, default OFF). When disabled the column
+// renders preset/dash only — preserving total-fraction signal at the
+// row's `bodyPct` column without exfiltrating anatomy.
 function _formatRegions(bodyExposure) {
   if (!bodyExposure) return '?';
   const preset = bodyExposure.preset;
   const regions = Array.isArray(bodyExposure.regions) ? bodyExposure.regions : [];
   const rot = bodyExposure.rotatedSides ? ' (both)' : '';
-  if (regions.length === 0) return (preset && preset !== 'detailed') ? `${preset}${rot}` : `—${rot}`;
+  if (regions.length === 0 || !isBodyRegionsInAIContext()) {
+    return (preset && preset !== 'detailed') ? `${preset}${rot}` : `—${rot}`;
+  }
   return regions.join('+') + rot;
 }
 
@@ -436,11 +475,12 @@ const _SLICE_ALL_FIELDS = ['date', 'duration', 'channels', 'safety', 'atmosphere
 
 // Project a sun session to a canonical, cap-bounded shape. `fields`
 // gates each section so callers (especially the agent) can ask for
-// just the columns they need. `body` is in the default set — specific
-// anatomical regions (face vs. genitals vs. legs) materially change
-// vit-D yield, photoaging risk, and surface-area math, so the AI needs
-// it to give grounded answers. `location` (sub-11km coords) still
-// stays off by default.
+// just the columns they need. `body` is in the default set so the AI
+// can reason about coverage fraction + sunscreen + glass-between without
+// the user opting in — but the specific anatomical `regions` array is
+// stripped from the projected body unless the per-profile consent flag
+// (isBodyRegionsInAIContext) is set, even when `body` is requested.
+// `location` (sub-11km coords) still stays off by default.
 function _projectSession(sess, fields) {
   const out = {};
   if (fields.includes('date') && sess.startedAt) {
@@ -477,10 +517,14 @@ function _projectSession(sess, fields) {
   }
   if (fields.includes('body') && sess.bodyExposure) {
     const b = sess.bodyExposure;
+    // Gate the regions[] array on the per-profile consent flag — preset +
+    // fraction + sunscreen still flow so the AI can reason about coverage,
+    // but the specific anatomy stays local until the user opts in.
+    const includeRegions = isBodyRegionsInAIContext();
     out.body = {
       preset: b.preset || null,
       fraction: b.fraction != null ? +b.fraction.toFixed(2) : null,
-      regions: Array.isArray(b.regions) ? b.regions.slice() : [],
+      regions: includeRegions && Array.isArray(b.regions) ? b.regions.slice() : [],
       sunscreenSPF: b.sunscreenSPF || null,
       glassBetween: !!b.glassBetween,
     };
@@ -496,7 +540,9 @@ function _projectSession(sess, fields) {
   if (fields.includes('location') && sess.location) {
     // Honor the user's network privacyRounding setting; default to 0.01°.
     let p = 0.01;
-    try { p = (window.getMeteoConfig && window.getMeteoConfig().privacyRounding) || 0.01; } catch (e) {}
+    try { p = (window.getMeteoConfig && window.getMeteoConfig().privacyRounding) || 0.01; } catch (e) {
+      if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] getMeteoConfig failed', e);
+    }
     const f = 1 / p;
     out.location = {
       lat: Math.round(sess.location.lat * f) / f,
@@ -511,8 +557,9 @@ function _projectSession(sess, fields) {
 
 // Agent-callable. Returns a JSON-serialisable array of recent sun
 // sessions, projected to the requested fields, capped at `days` (max 90).
-// Default field set excludes body-regions and location — those carry the
-// most personally-identifying detail and should be opted in explicitly.
+// Default field set includes body summary (preset/fraction/sunscreen) but
+// strips the regions[] array unless the per-profile consent flag is set
+// (isBodyRegionsInAIContext). Location stays off by default.
 export function getSunSessionsSlice({ days = 30, fields, includeActive = false } = {}) {
   const sessions = state.importedData?.sunSessions || [];
   if (sessions.length === 0) return [];
@@ -725,5 +772,11 @@ function formatRelative(ts) {
 }
 
 if (typeof window !== 'undefined') {
-  Object.assign(window, { buildSunContext, getSunSessionsSlice, getSunSessionDetail });
+  Object.assign(window, {
+    buildSunContext,
+    getSunSessionsSlice,
+    getSunSessionDetail,
+    isBodyRegionsInAIContext,
+    setBodyRegionsInAIContext,
+  });
 }
