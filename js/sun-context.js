@@ -208,8 +208,7 @@ function alwaysTierBlock(sessions) {
       // ambiguity in the burden phrasing ("0/10 burden" reads as either
       // "0 burden = great" or "0 alignment = terrible" depending on the
       // reader's prior).
-      const aligned = 10 - sunDefaults.ottScore;
-      baselineLine += ` Ott self-survey alignment: ${aligned}/10 (self-reported; counts how many of 10 light-burden lifestyle factors the user said NO to; 10 = aligned, no factors flagged; 0 = all 10 flagged). Cross-check against logged screens/rooms/outdoor sessions — the survey can disagree with the data.`;
+      baselineLine += ` Ott self-survey: ${10 - sunDefaults.ottScore}/10 aligned.`;
     }
   }
 
@@ -578,8 +577,6 @@ function standardTierBlock(sessions) {
   if (recent.length === 0) return '';
 
   let block = `### Last ${recent.length} sessions (most recent first)
-The "Skin exposed" column is the fraction of total skin uncovered (Wallace rule of nines + Lund-Browder; clothing-level proxy): ~5%=face/hands, ~20%=t-shirt+shorts, ~45%=swimwear/beach, ~50%=fully bare standing facing one way (anterior OR posterior — single position max ~50% BSA). Front+back combined caps at ~95% (the underlying region table sums to 0.95; missing 5% is scalp + clavicle seams). Sessions logged with both sides exposed should also have rotatedSides=true. Treat questions like "how naked was I" or "how dressed" as asking about this column.
-Rows where UV peak is 0.0 AND MED% is 0 AND Vit-D is 0 represent sessions logged outside the UVB window — pre-sunrise, post-sunset, or under cloud cover thick enough to block 290–315nm. The duration + body exposure are real (skin contact / circadian eye light still apply); only the UV-driven channels are null. Treat these as "the user was outdoors but UVB-relevant photobiology was off."
 | Date | Min | Skin exposed | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h) |
 |------|-----|--------------|---------|------|---------|------|------------|--------------------|
 `;
@@ -632,35 +629,7 @@ Rows where UV peak is 0.0 AND MED% is 0 AND Vit-D is 0 represent sessions logged
     const deviceById = Object.fromEntries((state.importedData?.lightDevices || []).map(d => [d.id, d]));
     const _genetics = state.importedData?.genetics || null;
     const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
-    block += `### Last ${allDevSessions.length} device-therapy sessions (PBM panels, SAD lamps, dawn simulators, UVB)\n`;
-    // Vit-D IU formula explainer — surfaces the calculation path so the
-    // agent can sanity-check the column instead of treating it as a
-    // black-box number. Žofka audit 2026-05-08 flagged the 20,000 IU
-    // device value as opaque ("real or placeholder?") — answer: it's
-    // the Holick 2007 daily saturation cap kicking in. Per-row "capped
-    // from X" tag (below) makes that visible inline when raw > cap.
-    block += `Vit-D IU formula: vit_d channel-au × 60 (IU/au calibration vs Holick 2008 NEJM + Bogh 2010 JID) × Fitzpatrick scale (I/II=1.0, III=0.85, IV=0.65, V=0.45, VI=0.30) × UVI gate (=1.0 for devices since the device IS the UVB source; ramps 0→1.0 between UVI 2.0–3.0 for outdoor sun) × rotated-sides (×2 if both anatomical sides logged) × genetic VDR/CYP multiplier. Two ceilings layer on top: (1) per-session cap = body_fraction × 30,000 IU — local skin-patch saturation per Holick 2008 ("1 MED full-body ≈ 10,000 IU"; once a region hits ~1 MED of UVB, additional UVB on that region produces no more IU). (2) per-day cap = 20,000 IU — Holick 2007 photoisomerization plateau (pre-D3 reverts to lumisterol/tachysterol above this). Per-session cap binds for high-output device sessions; daily cap binds for very long full-body summer sun. "(capped from X)" annotation on a row means raw computed yield was X but display clamped at the binding ceiling.\n`;
-    // Surface the actual computed genetic multiplier + contributing
-    // variants so the agent doesn't have to infer it from the formula.
-    // Žofka audit 2026-05-08 caught this: the formula line mentions
-    // "× genetic VDR/CYP multiplier" but the per-user applied value
-    // was opaque. Now: "geneticMult=0.79 (×0.85 rs2282679 TT VDBP, ×0.88
-    // rs10741657 GG CYP2R1, …)" so the row math is fully reconstructible.
-    let geneticInput = 'geneticMult=1.00 (no genetics loaded)';
-    if (typeof window.geneticVitaminDMultiplier === 'function') {
-      try {
-        const g = window.geneticVitaminDMultiplier(_genetics);
-        if (g && Number.isFinite(g.mult)) {
-          if (Array.isArray(g.contributors) && g.contributors.length > 0) {
-            const parts = g.contributors.map(c => `×${c.multiplier.toFixed(2)} ${c.rsId} ${c.genotype} ${c.gene}`);
-            geneticInput = `geneticMult=${g.mult.toFixed(2)} (${parts.join(', ')})`;
-          } else {
-            geneticInput = `geneticMult=${g.mult.toFixed(2)} (no relevant variants in profile)`;
-          }
-        }
-      } catch (_) {}
-    }
-    block += `Inputs for this session table: device Fitzpatrick=${_fitzForDevice} (from sunDefaults; devices don't store per-session Fitzpatrick), UVI=null (atmospheric gate bypassed), rotatedSides=false (devices track skin% via bodyAreas), ${geneticInput}.\n\n`;
+    block += `### Last ${allDevSessions.length} device-therapy sessions\n`;
     block += `| Date | Min | Device | Distance | Skin exposed | Eyes | Vit-D (IU) | Red 660nm (J/cm²) | NIR 810/850 (J/cm²) |\n`;
     block += `|------|-----|--------|----------|--------------|------|------------|-------------------|----------------------|\n`;
     for (const s of allDevSessions.slice().reverse()) {

@@ -76,10 +76,8 @@ return (async function() {
     !/30-day per-channel dose totals/.test(always));
   assert('Always tier serializes Fitzpatrick III from sunDefaults',
     /Fitzpatrick III/.test(always));
-  assert('Always tier mentions Ott self-survey alignment when ottScore set',
-    /Ott self-survey alignment: 6\/10/.test(always));
-  assert('Always tier flags Ott as self-reported (not data-derived)',
-    /self-reported/.test(always));
+  assert('Always tier surfaces Ott self-survey score when ottScore set',
+    /Ott self-survey: 6\/10 aligned/.test(always));
   assert('Always tier reports MED',
     /Today's cumulative MED:/.test(always));
 
@@ -163,8 +161,11 @@ return (async function() {
     standard.length > buildSunContext({ tier: 'always' }).length);
   assert('Standard tier surfaces session table header (with "Skin exposed" coverage column)',
     /\| Date \| Min \| Skin exposed \| Regions \| Eyes \| UV peak \| MED% \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
-  assert('Standard tier table includes coverage glossary (so AI maps "naked" / "dressed" → fraction)',
-    /Skin exposed.*column.*fraction.*skin uncovered/i.test(standard));
+  // Coverage glossary preamble dropped 2026-05-08 round 5: matches the
+  // raw-data style of buildLabContext / wearables sections — no inline
+  // pedagogy, agent uses its own training data + the column header.
+  assert('Standard tier table omits prose glossary (raw-data style)',
+    !/Wallace rule of nines/i.test(standard));
   // 5 sessions = 5 table rows
   assert('Standard tier renders one row per session',
     (standard.match(/\| s_\d/g) || []).length === 0 && // ids aren't in the row
@@ -511,10 +512,14 @@ return (async function() {
     /### Indoor light environment/.test(populatedStandard), `len=${populatedStandard.length}`);
   assert('Populated standard tier keeps the audit baseline annotation',
     /baseline — no prior audit to compare/.test(populatedStandard));
-  assert('Populated standard tier keeps the device-IU formula explainer',
-    /Vit-D IU formula:/.test(populatedStandard));
+  assert('Populated standard tier keeps device-therapy table',
+    /### Last \d+ device-therapy sessions/.test(populatedStandard));
   assert('Populated standard tier keeps calibration anchor',
     /### Calibration anchor/.test(populatedStandard));
+  assert('Populated standard tier omits prose preambles (skin glossary)',
+    !/Wallace rule of nines \+ Lund-Browder/.test(populatedStandard));
+  assert('Populated standard tier omits Vit-D formula explainer prose',
+    !/Vit-D IU formula:/.test(populatedStandard));
   assert('Populated standard tier under hard cap (8500 chars)',
     populatedStandard.length < 8500, `len=${populatedStandard.length}`);
 
