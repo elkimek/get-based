@@ -1003,15 +1003,17 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
 // hydrateSession). Active sessions contribute their live channel-au
 // converted via the same per-session vitaminDIU path.
 export function rollingVitaminDIU(days = 7) {
-  // Group raw per-session yield by local date, then clamp each day at
-  // the biological saturation ceiling (Holick 2007: ~20k IU/day pre-D3
-  // photoisomerization plateau). Pre-cap-per-day fix, two same-day UVB
-  // device sessions each capped at 20k summed to 40k — blowing past the
-  // biological ceiling. Per-session render paths still use vitaminDIU
-  // (capped) for the single-session ceiling.
-  const raw = (typeof window !== 'undefined' && typeof window.vitaminDIURaw === 'function') ? window.vitaminDIURaw : null;
-  if (!raw) return 0;
-  const cap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
+  // Three caps layer in sequence (added 2026-05-08):
+  //   1. Per-session: body_fraction × 30k (local skin-patch saturation)
+  //   2. Per-day: 20k (Holick 2007 photoisomerization plateau)
+  //   3. Sum capped days across the window
+  // Pre-2026-05-08, only daily-cap was applied — a 1-min Maxi UVB
+  // session at 37% body produced 250k raw → 20k clamped. With
+  // per-session cap, that session is bounded at 11k (=0.37 × 30k),
+  // so two such sessions on different days roll up to 22k correctly.
+  const perSession = (typeof window !== 'undefined' && typeof window.vitaminDIUPerSession === 'function') ? window.vitaminDIUPerSession : null;
+  if (!perSession) return 0;
+  const dailyCap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
   const cutoff = Date.now() - days * 86400 * 1000;
   const genetics = state.importedData?.genetics || null;
   const _localDayKey = (ts) => {
@@ -1027,7 +1029,8 @@ export function rollingVitaminDIU(days = 7) {
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
-        _add(_localDayKey(sess.startedAt), raw(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics));
+        const bodyFrac = sess.bodyExposure?.fraction;
+        _add(_localDayKey(sess.startedAt), perSession(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics, bodyFrac));
       }
       continue;
     }
@@ -1035,19 +1038,30 @@ export function rollingVitaminDIU(days = 7) {
     if (sess.endedAt < cutoff) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
-    _add(_localDayKey(sess.endedAt), raw(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics));
+    const bodyFrac = sess.bodyExposure?.fraction;
+    _add(_localDayKey(sess.endedAt), perSession(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics, bodyFrac));
   }
-  // UVB device sessions (Sperti, Mitochondriak Maxi UVB, etc.). Devices
-  // pass uvi=null because the device IS the UVB source (no atmospheric
-  // gate).
+  // UVB device sessions. Devices pass uvi=null because the device IS
+  // the UVB source (no atmospheric gate). Body fraction comes from
+  // bodyAreas (precise) or legacy bodyArea broad-zone.
   const fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  const fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
+    ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
+    : {};
+  const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
   for (const sess of (state.importedData?.deviceSessions || [])) {
     if (!sess.endedAt || sess.endedAt < cutoff) continue;
     if (!sess.doses?.vitamin_d) continue;
-    _add(_localDayKey(sess.endedAt), raw(sess.doses.vitamin_d, fitzForDevice, null, false, genetics));
+    let bodyFrac = null;
+    if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+      bodyFrac = sess.bodyAreas.reduce((acc, k) => acc + (fracByKey[k] || 0), 0);
+    } else if (sess.bodyArea) {
+      bodyFrac = _broadFracs[sess.bodyArea] ?? null;
+    }
+    _add(_localDayKey(sess.endedAt), perSession(sess.doses.vitamin_d, fitzForDevice, null, false, genetics, bodyFrac));
   }
   let total = 0;
-  for (const iu of Object.values(dayTotals)) total += Math.min(iu, cap);
+  for (const iu of Object.values(dayTotals)) total += Math.min(iu, dailyCap);
   return total;
 }
 
@@ -1055,13 +1069,11 @@ export function rollingVitaminDIU(days = 7) {
 // Mirrors rollingVitaminDIU logic but bounds by local midnight instead of
 // a rolling-N-day cutoff. Used by the vit-D budget cross-check.
 export function cumulativeVitaminDIUToday() {
-  // Today = one local day: sum raw per-session yield (sun + devices),
-  // then cap once at the daily saturation ceiling. Pre-2026-05-08 the
-  // function used per-session capped vitaminDIU and missed device
-  // sessions entirely — so a UVB device + outdoor combo today could
-  // exceed 20k while still appearing "below cap" on each call site.
-  const raw = (typeof window !== 'undefined' && typeof window.vitaminDIURaw === 'function') ? window.vitaminDIURaw : null;
-  if (!raw) return 0;
+  // Today = one local day. Each session contributes its per-session-
+  // capped IU (Holick 2008 MED-saturation per skin patch); the daily
+  // cap (Holick 2007 photoisomerization plateau) clamps the sum.
+  const perSession = (typeof window !== 'undefined' && typeof window.vitaminDIUPerSession === 'function') ? window.vitaminDIUPerSession : null;
+  if (!perSession) return 0;
   const cap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -1074,7 +1086,8 @@ export function cumulativeVitaminDIUToday() {
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
-        total += raw(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
+        const bodyFrac = sess.bodyExposure?.fraction;
+        total += perSession(live.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics, bodyFrac);
       }
       continue;
     }
@@ -1082,13 +1095,24 @@ export function cumulativeVitaminDIUToday() {
     if (sess.endedAt < dayStart) continue;
     const fitz = sess.safety?.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
-    total += raw(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
+    const bodyFrac = sess.bodyExposure?.fraction;
+    total += perSession(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics, bodyFrac);
   }
   const fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  const fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
+    ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
+    : {};
+  const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
   for (const sess of (state.importedData?.deviceSessions || [])) {
     if (!sess.endedAt || sess.endedAt < dayStart) continue;
     if (!sess.doses?.vitamin_d) continue;
-    total += raw(sess.doses.vitamin_d, fitzForDevice, null, false, genetics);
+    let bodyFrac = null;
+    if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+      bodyFrac = sess.bodyAreas.reduce((acc, k) => acc + (fracByKey[k] || 0), 0);
+    } else if (sess.bodyArea) {
+      bodyFrac = _broadFracs[sess.bodyArea] ?? null;
+    }
+    total += perSession(sess.doses.vitamin_d, fitzForDevice, null, false, genetics, bodyFrac);
   }
   return Math.min(total, cap);
 }

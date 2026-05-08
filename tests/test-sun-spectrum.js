@@ -550,6 +550,26 @@ return (async function() {
   assert('UVI gate applies BEFORE the rotation multiplier',
     vitaminDIU(100, 'II', 1.0, true) === 0);
 
+  // ─── 18b. Per-session body-fraction cap (Holick 2008 MED-saturation) ──
+  // High-output UVB devices were saturating the daily 20k cap on every
+  // session regardless of duration — duration changes invisible in the
+  // IU column. Per-session cap = body_fraction × 30k limits each
+  // session to its local skin-patch saturation ceiling.
+  console.log('%c 18b. per-session body-fraction cap ', 'font-weight:bold;color:#f59e0b');
+  const { vitaminDIUPerSession, vitaminDIURaw } = window;
+  assert('per-session cap fires for 37% body before daily 20k cap',
+    vitaminDIUPerSession(10000, 'II', 8.0, false, null, 0.37) === Math.round(0.37 * 30000));
+  assert('per-session cap fires for 100% body at the daily ceiling',
+    vitaminDIUPerSession(10000, 'II', 8.0, false, null, 1.0) === 20000);
+  assert('per-session cap with bodyFraction=null falls back to daily cap',
+    vitaminDIUPerSession(10000, 'II', 8.0, false, null, null) === 20000);
+  assert('per-session cap below ceiling is the raw value',
+    vitaminDIUPerSession(10, 'II', 8.0, false, null, 0.37) === Math.round(vitaminDIURaw(10, 'II', 8.0, false, null)));
+  assert('per-session cap respects UVI gate (low UVI → 0 regardless of body fraction)',
+    vitaminDIUPerSession(10000, 'II', 1.0, false, null, 1.0) === 0);
+  assert('per-session cap scales linearly with body fraction',
+    vitaminDIUPerSession(10000, 'II', 8.0, false, null, 0.50) === 2 * vitaminDIUPerSession(10000, 'II', 8.0, false, null, 0.25));
+
   // ─── 19. Vit-D regression fixtures (end-to-end against published refs) ──
   // Locks the spectrum → channel-doses → vitaminDIU pipeline against
   // published clinical & dminder cross-checks. Each row is (scenario →

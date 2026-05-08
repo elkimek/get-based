@@ -581,6 +581,17 @@ const VITD_FITZPATRICK_SCALE = { I: 1.0, II: 1.0, III: 0.85, IV: 0.65, V: 0.45, 
 // breaking the low-UVI gate (still 0 below UVI 2).
 const VITD_IU_PER_CHANNEL_AU = 60;
 const VITD_SATURATION_IU = 20000;
+// Per-session ceiling per 100% body — derived from Holick 2008 NEJM
+// "1 MED full-body ≈ 10,000 IU." Once a skin patch absorbs ~1 MED of
+// UVB (~250 J/m² erythemal-weighted), pre-D3 reaches its 10–15%
+// conversion plateau locally and additional UVB on the same patch
+// produces no more IU. The 30,000 ceiling per 100%-body is intentionally
+// generous — calibrated so a fully-bare Type II skin sun-bather can
+// approach the daily 20k cap, while a 37%-body UVB device session is
+// limited to ~11k regardless of how aggressive the panel is. Real
+// biology lands closer to 15k per 100%-body for Type II skin; we use
+// 30k to avoid under-attributing yield for sub-saturating sessions.
+const VITD_PER_SESSION_BODYFRAC_CAP_IU = 30000;
 
 // UVI threshold gate. Webb 2018, Lehmann 2013, McKenzie 2009 (NIWA):
 // no meaningful vit D synthesis below UVI ~2-3 because the 295-300 nm
@@ -687,6 +698,33 @@ export function geneticVitaminDMultiplier(genetics) {
 // it from here would create a circular dependency.
 export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null) {
   return Math.min(vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics), VITD_SATURATION_IU);
+}
+
+// Per-session IU with body-fraction-scaled saturation cap layered on
+// top of the daily ceiling. Use this for ANY per-session display +
+// for rollup contributions (group → daily-cap → sum). Vit-D synthesis
+// saturates locally at the skin patch — once a region absorbs ~1 MED
+// of UVB, additional UVB on the SAME region produces no more IU. The
+// model previously had no per-session cap, so a 1-min Maxi UVB session
+// at 120 mW/cm² × 295nm × 37% body produced ~250k IU raw and clamped
+// at the daily 20k — making duration changes invisible in the IU
+// column for any high-output device session. Per-session cap fixes
+// that without changing the daily integration ceiling.
+//
+// `bodyFraction` (0–1) — exposed skin fraction for THIS session.
+// Required for the per-session cap to fire; absent/zero falls back to
+// the daily cap (legacy behavior).
+export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = null, rotatedSides = false, genetics = null, bodyFraction = null) {
+  const raw = vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics);
+  if (raw <= 0) return 0;
+  const perSessionCap = (Number.isFinite(bodyFraction) && bodyFraction > 0)
+    ? bodyFraction * VITD_PER_SESSION_BODYFRAC_CAP_IU
+    : VITD_SATURATION_IU;
+  // Both caps fire — daily ceiling is still hard biology, per-session
+  // is the local skin-patch saturation. Per-session is the binding
+  // cap for high-output devices; daily is the binding cap for very
+  // long full-body summer sun.
+  return Math.min(raw, perSessionCap, VITD_SATURATION_IU);
 }
 
 // Uncapped per-session IU. The 20,000 IU plateau is a DAILY biological
@@ -831,7 +869,9 @@ if (typeof window !== 'undefined') {
     fractionOfMED,
     vitaminDIU,
     vitaminDIURaw,
+    vitaminDIUPerSession,
     VITD_DAILY_SATURATION_IU,
+    VITD_PER_SESSION_BODYFRAC_CAP_IU,
     vitaminDIURange,
     geneticVitaminDMultiplier,
     pbmJoulesPerCm2,
