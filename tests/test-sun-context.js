@@ -159,8 +159,10 @@ return (async function() {
   const standard = buildSunContext({ tier: 'standard' });
   assert('Standard tier strictly longer than always tier',
     standard.length > buildSunContext({ tier: 'always' }).length);
-  assert('Standard tier surfaces session table header (Date | Min | Body% | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h))',
-    /\| Date \| Min \| Body% \| Regions \| Eyes \| UV peak \| MED% \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
+  assert('Standard tier surfaces session table header (with "Skin exposed" coverage column)',
+    /\| Date \| Min \| Skin exposed \| Regions \| Eyes \| UV peak \| MED% \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
+  assert('Standard tier table includes coverage glossary (so AI maps "naked" / "dressed" → fraction)',
+    /Skin exposed.*column.*fraction.*skin uncovered/i.test(standard));
   // 5 sessions = 5 table rows
   assert('Standard tier renders one row per session',
     (standard.match(/\| s_\d/g) || []).length === 0 && // ids aren't in the row

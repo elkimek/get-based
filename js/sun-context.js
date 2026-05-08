@@ -392,8 +392,9 @@ function standardTierBlock(sessions) {
   if (recent.length === 0) return '';
 
   let block = `### Last ${recent.length} sessions (most recent first)
-| Date | Min | Body% | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h) |
-|------|-----|-------|---------|------|---------|------|------------|--------------------|
+The "Skin exposed" column is the fraction of total skin uncovered (clothing-level proxy): ~5%=face/hands only, ~20%=t-shirt+shorts, ~45%=swimwear/beach, ~50%+=mostly bare / sunbathing. Treat questions like "how naked was I" or "how dressed" as asking about this column.
+| Date | Min | Skin exposed | Regions | Eyes | UV peak | MED% | Vit-D (IU) | Circadian (lux·h) |
+|------|-----|--------------|---------|------|---------|------|------------|--------------------|
 `;
   for (const sess of recent.slice().reverse()) {
     const date = new Date(sess.startedAt).toISOString().slice(0, 10);
