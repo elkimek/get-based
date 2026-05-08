@@ -520,10 +520,10 @@ export function openDeviceSessionDetail(id) {
     </div>
     <div class="modal-body">
       ${window.renderDeviceSessionAIDetail ? window.renderDeviceSessionAIDetail(sess) : ''}
-      <div class="sun-detail-summary">
-        <div><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
-        <div><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
-        <div><span>Body area</span><strong>${escapeHTML(areaLabel)}</strong></div>
+      <div class="sun-detail-grid">
+        <div title="Total session duration. Edit via the action row below if the timer ran past the actual session."><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
+        <div title="Distance from the panel's emitting surface to your skin. Inverse-square law applies — the model corrects irradiance by (recommendedDistanceCm / actualDistance)²."><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
+        <div title="Exposed skin regions and aggregate fraction of total body surface area (Wallace rule of nines). Drives per-session vit-D synthesis cap (body_fraction × 30,000 IU per Holick 2008 MED-saturation)."><span>Body area</span><strong>${escapeHTML(areaLabel)}</strong></div>
       </div>
 
       <div class="sun-detail-section">
@@ -561,9 +561,8 @@ export function openDeviceSessionDetail(id) {
       ` : ''}
 
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editDeviceSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when you forgot to stop the timer or stopped late.">Edit duration</button>
-        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')">Delete</button>
+        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')">Delete session</button>
       </div>
     </div>
   </div>`;

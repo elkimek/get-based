@@ -446,14 +446,77 @@ return (async function() {
     lightMeasurements: fatMeasurements,
   });
   const fat = buildSunContext({ tier: 'always' });
-  assert('Always tier under hard cap (4000 chars) even when stuffed',
-    fat.length < 4000, `len=${fat.length}`);
+  assert('Always tier under hard cap (8500 chars) even when stuffed',
+    fat.length < 8500, `len=${fat.length}`);
 
-  // Realistic always-tier with all surfaces populated should also fit
-  // comfortably under the soft cap (~2500). If a future feature tips
-  // typical users past that line the tier-shaping should be revisited.
-  assert('Realistic max-state always-tier under soft cap (2500 chars)',
-    fat.length < 2500, `len=${fat.length}`);
+  // Realistic always-tier with all surfaces populated should fit under
+  // the bumped soft cap (~3500). HARD is generous (8500) but SOFT is
+  // where most users land — exceeding it triggers the trim cascade.
+  assert('Realistic max-state always-tier under soft cap (3500 chars)',
+    fat.length < 3500, `len=${fat.length}`);
+
+  // ─── 13. Standard-tier regression — indoor env must survive ──────────
+  // Žofka audit 2026-05-08 round 4: a populated user with ~5 device
+  // sessions + indoor env + calibration triggered the aggressive trim,
+  // which dropped the entire ### Indoor light environment section.
+  // This pins the symptom: standard-tier output for a populated user
+  // must keep BOTH the indoor env block and calibration anchor.
+  console.log('%c 13. Standard-tier indoor env survives populated load ', 'font-weight:bold;color:#f59e0b');
+
+  const populatedDevSessions = [];
+  for (let i = 0; i < 5; i++) {
+    populatedDevSessions.push({
+      id: `dev_${i}`,
+      startedAt: recent - i * 3600000,
+      endedAt: recent - i * 3600000 + 600000,
+      durationMin: 10,
+      deviceId: 'd1',
+      distanceCm: 15,
+      bodyAreas: ['breast-chest', 'torso-front', 'abdomen', 'arms-front'],
+      eyesProtected: false,
+      doses: { vitamin_d: 4000, pbm_red: 5000, pbm_nir: 3000 },
+    });
+  }
+  reset({
+    sunSessions: [{
+      id: 'sun1', startedAt: recent, endedAt: recent + 1200000, durationMin: 20,
+      doses: { vitamin_d: 200, circadian: 100 }, safety: { medFraction: 0.3, fitzpatrick: 'III' },
+      atmosphere: { uvIndex: 6 }, bodyExposure: { preset: 'tshirt', fraction: 0.20 },
+    }],
+    deviceSessions: populatedDevSessions,
+    lightDevices: [{ id: 'd1', brand: 'Mitochondriak', model: 'Maxi UVB', type: 'uvb', peakWavelengths: [295] }],
+    sunDefaults: { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'none' },
+    entries: [{ date: '2026-04-15', markers: { 'vitamins.vitaminD': 23 } }],
+    lightEnvironment: {
+      rooms: [{ id: 'r1', name: 'Office', primarySource: 'led-cool' }],
+      screens: [
+        { id: 's1', device: 'monitor', hoursPerDay: 8, eveningUseAfterSunset: 0, blueBlockerEnabled: true, roomId: 'r1' },
+        { id: 's2', device: 'phone', hoursPerDay: 2, eveningUseAfterSunset: 0, blueBlockerEnabled: true },
+      ],
+    },
+    lightAudits: [{
+      id: 'a1', date: '2026-05-02', label: 'Audit 1',
+      rooms: [{ id: 'r1', name: 'Office' }],
+      measurements: [
+        { roomId: 'r1', tool: 'lux', value: 5027, capturedAt: Date.now() },
+        { roomId: 'r1', tool: 'cct', value: 6014, capturedAt: Date.now() },
+        { roomId: 'r1', tool: 'flicker', value: 0, capturedAt: Date.now() },
+        { roomId: 'r1', tool: 'spectrum', value: 'Daylight or full-spectrum', capturedAt: Date.now() },
+      ],
+      createdAt: Date.now(),
+    }],
+  });
+  const populatedStandard = buildSunContext({ tier: 'standard' });
+  assert('Populated standard tier keeps ### Indoor light environment',
+    /### Indoor light environment/.test(populatedStandard), `len=${populatedStandard.length}`);
+  assert('Populated standard tier keeps the audit baseline annotation',
+    /baseline — no prior audit to compare/.test(populatedStandard));
+  assert('Populated standard tier keeps the device-IU formula explainer',
+    /Vit-D IU formula:/.test(populatedStandard));
+  assert('Populated standard tier keeps calibration anchor',
+    /### Calibration anchor/.test(populatedStandard));
+  assert('Populated standard tier under hard cap (8500 chars)',
+    populatedStandard.length < 8500, `len=${populatedStandard.length}`);
 
   // Restore
   window._labState.importedData = orig;

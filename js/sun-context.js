@@ -89,7 +89,16 @@ export function buildSunContext({ tier = 'always' } = {}) {
   //      exposure block, surrender last)
   //   6. calibration anchor (HARD cap only — single line, anchors AI
   //      estimates to bloodwork; drop after indoor env, never before)
-  const SOFT = 3500, HARD = 5500;
+  // HARD bumped 5500 → 8500 in 2026-05-08 (round 4): standard tier
+  // grew with the device-IU formula explainer + genetic-mult inputs +
+  // per-session cap docs (each ~500 chars). A populated user with
+  // ~5 device sessions + indoor env + calibration could exceed 5500
+  // and trigger the aggressive trim, which dropped indoor env entirely.
+  // Indoor env (8-14 h/day exposure block) and device-table formula
+  // transparency are both keep-at-all-costs. With 1M context we can
+  // afford 8.5k chars for [section:sun]; the cap mainly prevents
+  // runaway prompts under unexpected data shapes.
+  const SOFT = 3500, HARD = 8500;
   if (tier === 'always' && ctx.length > SOFT) {
     ctx = _trimToBudget(ctx, SOFT);
   }
