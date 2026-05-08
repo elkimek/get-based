@@ -1024,6 +1024,17 @@ export function rollingVitaminDIU(days = 7) {
     const uvi = sess.atmosphere?.uvIndex ?? null;
     total += window.vitaminDIU(sess.doses.vitamin_d, fitz, uvi, !!sess.bodyExposure?.rotatedSides, genetics);
   }
+  // Include UVB device sessions (Sperti, Mitochondriak Maxi UVB, etc.).
+  // Pre-2026-05-08 the rollup was sun-only — meant the IU figure stayed
+  // flat while the channel-tier flipped after a UVB-device session, an
+  // inconsistency Žofka caught on 2026-05-08. Device sessions pass uvi=null
+  // because the device IS the UVB source (no atmospheric UV gate).
+  const fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  for (const sess of (state.importedData?.deviceSessions || [])) {
+    if (!sess.endedAt || sess.endedAt < cutoff) continue;
+    if (!sess.doses?.vitamin_d) continue;
+    total += window.vitaminDIU(sess.doses.vitamin_d, fitzForDevice, null, false, genetics);
+  }
   return total;
 }
 

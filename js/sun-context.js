@@ -148,6 +148,13 @@ function alwaysTierBlock(sessions) {
   let baselineLine = '';
   if (sunDefaults.fitzpatrick) {
     baselineLine = `\n- Skin type Fitzpatrick ${sunDefaults.fitzpatrick}; home lighting: ${sunDefaults.homeLight || 'unknown'}; eyewear: ${sunDefaults.eyewear || 'unknown'}.`;
+    // The Ott score is a 10-question YES/NO survey. ottScore is only
+    // set if the user actually saved survey answers — absence means
+    // "not surveyed", presence (including 0) means "answered and that's
+    // the score". A 0 with the survey taken is a real signal: the user
+    // genuinely answered no to every malillumination factor. The AI
+    // can sanity-check that against context cards if 0 contradicts
+    // other lifestyle data; that's not the context block's job.
     if (typeof sunDefaults.ottScore === 'number') {
       baselineLine += ` Ott malillumination baseline: ${sunDefaults.ottScore}/10 (higher = more indoor / glass-mediated / artificial-light-dominated lifestyle).`;
     }
@@ -514,9 +521,10 @@ The "Skin exposed" column is the fraction of total skin uncovered (clothing-leve
     .slice(-30);
   if (allDevSessions.length > 0) {
     const deviceById = Object.fromEntries((state.importedData?.lightDevices || []).map(d => [d.id, d]));
-    block += `### Last ${allDevSessions.length} device-therapy sessions (PBM panels, SAD lamps, dawn simulators)\n`;
-    block += `| Date | Min | Device | Distance | Skin exposed | Eyes | Red 660nm (J/cm²) | NIR 810/850 (J/cm²) |\n`;
-    block += `|------|-----|--------|----------|--------------|------|-------------------|----------------------|\n`;
+    const _genetics = state.importedData?.genetics || null;
+    block += `### Last ${allDevSessions.length} device-therapy sessions (PBM panels, SAD lamps, dawn simulators, UVB)\n`;
+    block += `| Date | Min | Device | Distance | Skin exposed | Eyes | Vit-D (IU) | Red 660nm (J/cm²) | NIR 810/850 (J/cm²) |\n`;
+    block += `|------|-----|--------|----------|--------------|------|------------|-------------------|----------------------|\n`;
     for (const s of allDevSessions.slice().reverse()) {
       const date = new Date(s.startedAt).toISOString().slice(0, 10);
       const dur = Math.round(s.durationMin || 0);
@@ -538,9 +546,19 @@ The "Skin exposed" column is the fraction of total skin uncovered (clothing-leve
         bodyPct = f != null ? `${Math.round(f * 100)}%` : s.bodyArea;
       }
       const eyes = s.eyesProtected ? 'protected' : 'uncovered';
+      // UVB devices (Sperti, Mitochondriak Maxi UVB, etc.) emit 290–315nm
+      // and produce a real vitamin_d channel-au value through the spectrum
+      // synthesis path. Convert to IU equivalent — uvi=null bypasses the
+      // outdoor-UVI threshold gate (the device IS the UVB source, no
+      // atmospheric UV needed). Falls back to '—' when the device emits
+      // no UVB (red/NIR-only panels) so the column doesn't look broken.
+      const vitDAu = s.doses?.vitamin_d;
+      const vitD = (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIU === 'function')
+        ? Math.round(window.vitaminDIU(vitDAu, 'III', null, false, _genetics))
+        : '—';
       const red = s.doses?.pbm_red != null ? (s.doses.pbm_red / 1000).toFixed(2) : '?';
       const nir = s.doses?.pbm_nir != null ? (s.doses.pbm_nir / 1000).toFixed(2) : '?';
-      block += `| ${date} | ${dur} | ${devName} | ${dist} | ${bodyPct} | ${eyes} | ${red} | ${nir} |\n`;
+      block += `| ${date} | ${dur} | ${devName} | ${dist} | ${bodyPct} | ${eyes} | ${vitD} | ${red} | ${nir} |\n`;
     }
     block += '\n';
   }
