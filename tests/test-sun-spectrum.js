@@ -392,11 +392,17 @@ return (async function() {
   assert('Maxi UVB: pbm_red ≠ pbm_nir (wavelength-correct, not double-counted)',
     Math.abs(maxiDoses.pbm_red - maxiDoses.pbm_nir) > 1,
     `red=${maxiDoses.pbm_red.toFixed(2)} nir=${maxiDoses.pbm_nir.toFixed(2)}`);
-  // vitamin_d should be much smaller than pbm_red, because UVB is only
-  // 1 of 9 peaks and the device spreads its irradiance across all bands.
-  // Old heuristic would give vitamin_d = 0.5 × full_irradiance ≈ pbm_red.
-  assert('Maxi UVB: vitamin_d much less than pbm_red (UVB is 1 of 9 peaks)',
-    maxiDoses.vitamin_d < maxiDoses.pbm_red * 0.5,
+  // type='uvb' panel: per the type-aware peakShares heuristic the UV+UVA
+  // bands carry ~60% of total power (the panel's rated irradiance is
+  // dominated by its UV-mode output, not equally split across all 9
+  // peaks). vitamin_d channel-au should therefore be the dominant
+  // channel — comparable to or exceeding the residual pbm_red yield.
+  // Pre-2026-05-08 this assertion was inverted: it pinned the equal-N-
+  // split bug where vit-D was 1/9 of total irradiance and produced
+  // unrealistically low IU. The new heuristic restores correct
+  // photobiology for UV-mode sessions on hybrid panels.
+  assert('Maxi UVB (type=uvb): vitamin_d is meaningful (UV bands dominate the share)',
+    maxiDoses.vitamin_d > 0 && maxiDoses.vitamin_d >= maxiDoses.pbm_red * 0.5,
     `vitamin_d=${maxiDoses.vitamin_d.toFixed(2)} pbm_red=${maxiDoses.pbm_red.toFixed(2)}`);
 
   // EMR-Tek-style 2-peak panel — should feed pbm_red + pbm_nir, nothing else
@@ -428,6 +434,53 @@ return (async function() {
   assert('Device session through glass: vitamin_d crashes',
     maxiThruGlass.vitamin_d < maxiDoses.vitamin_d * 0.05,
     `ratio=${(maxiThruGlass.vitamin_d / Math.max(maxiDoses.vitamin_d, 1e-9)).toFixed(4)}`);
+
+  // ─── 15b. Type-aware peakShares heuristic ───────────────────────────
+  // Different `type` values should redistribute power across bands so
+  // that the same peakWavelengths array yields different per-channel
+  // doses. UVB-typed panels concentrate output in UV+blue; PBM-typed
+  // panels concentrate it in red+NIR. SAD-typed panels in blue.
+  console.log('%c 15b. type-aware peakShares heuristic ', 'font-weight:bold;color:#f59e0b');
+  const samePeaks = [295, 380, 480, 660, 850];
+  const sameIrr = 100;
+  const asUvb = synthesizeDeviceSpectrum({ peakWavelengths: samePeaks, mwPerCm2At15cm: sameIrr, type: 'uvb' });
+  const asPbm = synthesizeDeviceSpectrum({ peakWavelengths: samePeaks, mwPerCm2At15cm: sameIrr, type: 'pbm' });
+  const asSad = synthesizeDeviceSpectrum({ peakWavelengths: samePeaks, mwPerCm2At15cm: sameIrr, type: 'sad' });
+  const dosesAt = (sp) => computeChannelDoses({
+    spectrum: sp, durationMin: 5, bodyExposureFraction: 0.4,
+    eyeExposure: { mode: 'direct', durationSec: 300 },
+  });
+  const uvbDoses = dosesAt(asUvb);
+  const pbmDoses = dosesAt(asPbm);
+  const sadDoses = dosesAt(asSad);
+  assert('UVB-typed panel produces more vit-D than PBM-typed (same peaks, same irradiance)',
+    uvbDoses.vitamin_d > pbmDoses.vitamin_d * 5,
+    `uvb=${uvbDoses.vitamin_d.toFixed(2)} pbm=${pbmDoses.vitamin_d.toFixed(2)}`);
+  assert('PBM-typed panel produces more pbm_nir than UVB-typed',
+    pbmDoses.pbm_nir > uvbDoses.pbm_nir * 2,
+    `uvb=${uvbDoses.pbm_nir.toFixed(2)} pbm=${pbmDoses.pbm_nir.toFixed(2)}`);
+  assert('SAD-typed panel produces more circadian (blue-rich) than UVB-typed',
+    sadDoses.circadian > uvbDoses.circadian,
+    `sad=${sadDoses.circadian.toFixed(2)} uvb=${uvbDoses.circadian.toFixed(2)}`);
+
+  // Per-band sigma: a single 295nm peak with type='uvb' should produce
+  // MORE vit-D than the same peak rendered with the old fixed sigma=12.7.
+  // Verifies the per-band sigma + heuristic shares both fired.
+  const narrowUvb = synthesizeDeviceSpectrum({ peakWavelengths: [295], mwPerCm2At15cm: 10, type: 'uvb' });
+  const narrowDoses = dosesAt(narrowUvb);
+  assert('Single 295nm UVB peak with narrow sigma yields meaningful vit-D',
+    narrowDoses.vitamin_d > 0,
+    `vitamin_d=${narrowDoses.vitamin_d.toFixed(2)}`);
+
+  // Explicit peakShares override the heuristic.
+  const overridden = synthesizeDeviceSpectrum({
+    peakWavelengths: [295, 660], mwPerCm2At15cm: 100, type: 'uvb',
+    peakShares: [0.05, 0.95],  // user knows the real split
+  });
+  const overrideDoses = dosesAt(overridden);
+  assert('Explicit peakShares override the type-aware heuristic',
+    overrideDoses.pbm_red > overrideDoses.vitamin_d,
+    `vit-d=${overrideDoses.vitamin_d.toFixed(2)} pbm_red=${overrideDoses.pbm_red.toFixed(2)}`);
 
   // ─── 16. Absolute magnitudes (regression guard) ─────────────────────
   // Pre-existing tests checked monotonicity (more ozone → less UVB) but

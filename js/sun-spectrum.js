@@ -152,6 +152,70 @@ export function glassTransmission(nm) {
 // laser sources (e.g. Pulse torch, Sperti UVB tubes) are slightly wider
 // in this approximation than reality — acceptable for relative-trend
 // correlation; not a radiometric reference.
+// Per-band Gaussian sigma for LED/tube emission. Pre-2026-05-08 a single
+// 12.7 sigma (~30 nm FWHM) was applied to every peak. That's correct for
+// red/NIR LEDs (typical FWHM 25–35 nm) but ~3× too wide for UVB/UVA LEDs
+// (typical FWHM 8–12 nm). Wider σ spreads device output away from the
+// action-spectrum peak and under-attributes the channel dose — Žofka
+// audit 2026-05-08 caught this on a 295nm UVB session that produced
+// ~3× less Vit-D IU than back-of-envelope biology predicted.
+//
+// Bandwidths sourced from typical commercial LED bin widths:
+//   UVB 280–320 nm  → ~10 nm FWHM (σ 4.3)
+//   UVA 320–410 nm  → ~14 nm FWHM (σ 5.9)
+//   Blue/violet 410–500 nm → ~20 nm FWHM (σ 8.5)
+//   Red/NIR 500+ nm → ~30 nm FWHM (σ 12.7)
+function _peakSigmaForWavelength(nm) {
+  if (nm < 320) return 4.3;
+  if (nm < 410) return 5.9;
+  if (nm < 500) return 8.5;
+  return 12.7;
+}
+
+// Type-aware heuristic peakShares for devices that declare peakWavelengths
+// but no explicit peakShares. Pre-2026-05-08 the fallback was equal-N
+// split: a Maxi UVB with 9 declared peaks gave each band 11% of total
+// power, including the 295 nm UVB peak — wrong because the panel's rated
+// 120 mW/cm² is dominated by red/NIR diodes, not UVB.
+//
+// `type` tells us which mode the rated irradiance reflects:
+//   • uvb / uva  → UV-side dominant (UV+blue bands carry the bulk)
+//   • pbm / pbm-targeted → red+NIR dominant (PBM panel)
+//   • sad / dawn → blue-rich white (SAD therapy)
+//   • combined / unknown → roughly equal across present bands
+//
+// Per-band weights then get evenly distributed across the peaks present
+// in that band (e.g. 4 NIR peaks share the NIR band's allotted weight).
+// User-imported devices via AI extraction inherit this heuristic
+// automatically — they get type-aware shares without the prompt needing
+// to extract per-band power, which most spec sheets don't publish.
+function _heuristicPeakShares(peaks, deviceType) {
+  const bandOf = (nm) => {
+    if (nm < 320) return 'uvb';
+    if (nm < 410) return 'uva';
+    if (nm < 500) return 'blue';
+    if (nm < 700) return 'red';
+    return 'nir';
+  };
+  const t = String(deviceType || '').toLowerCase();
+  let bandWeights;
+  if (t === 'uvb' || t === 'uva') {
+    bandWeights = { uvb: 0.30, uva: 0.30, blue: 0.20, red: 0.10, nir: 0.10 };
+  } else if (t === 'pbm' || t === 'pbm-targeted') {
+    bandWeights = { uvb: 0.02, uva: 0.03, blue: 0.05, red: 0.40, nir: 0.50 };
+  } else if (t === 'sad' || t === 'dawn') {
+    bandWeights = { uvb: 0.0, uva: 0.05, blue: 0.45, red: 0.30, nir: 0.20 };
+  } else {
+    bandWeights = { uvb: 0.20, uva: 0.20, blue: 0.20, red: 0.20, nir: 0.20 };
+  }
+  const bands = peaks.map(bandOf);
+  const bandCount = {};
+  for (const b of bands) bandCount[b] = (bandCount[b] || 0) + 1;
+  const raw = bands.map((b, i) => (bandWeights[b] || 0) / (bandCount[b] || 1));
+  const sum = raw.reduce((a, b) => a + b, 0);
+  return sum > 0 ? raw.map(w => w / sum) : peaks.map(() => 1 / peaks.length);
+}
+
 export function synthesizeDeviceSpectrum(device) {
   if (!device) return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
   const peaks = Array.isArray(device.peakWavelengths) ? device.peakWavelengths : [];
@@ -160,33 +224,32 @@ export function synthesizeDeviceSpectrum(device) {
   if (peaks.length === 0 || totalWm2 <= 0) {
     return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
   }
-  // Per-peak power split. Devices may declare `peakShares` (parallel
-  // to peakWavelengths, sums to 1) to weight power non-uniformly —
-  // critical for hybrid panels like a Chroma Trinity where UVB is ~5%
-  // of total power, NOT 1/8 of equal split. Without per-peak shares
-  // the equal-split heuristic over-attributes vitamin_d / pbm_red /
-  // etc. by ~10× whenever a device declares multiple peaks across
-  // very different bands.
+  // Per-peak power split. Devices may declare `peakShares` (parallel to
+  // peakWavelengths, sums to 1). When omitted, fall back to a type-aware
+  // heuristic — never equal-N split, which silently understated UVB
+  // channel-au by ~10× on hybrid red+UV panels and overstated red+NIR
+  // on UVB-mode-dominant panels.
   const rawShares = Array.isArray(device.peakShares) && device.peakShares.length === peaks.length
     ? device.peakShares.map(s => Math.max(0, Number(s) || 0))
     : null;
   let shares;
   if (rawShares) {
     const sum = rawShares.reduce((a, b) => a + b, 0);
-    shares = sum > 0 ? rawShares.map(s => s / sum) : peaks.map(() => 1 / peaks.length);
+    shares = sum > 0 ? rawShares.map(s => s / sum) : _heuristicPeakShares(peaks, device.type);
   } else {
-    shares = peaks.map(() => 1 / peaks.length);
+    shares = _heuristicPeakShares(peaks, device.type);
   }
-  const sigma = 12.7; // ~30 nm FWHM
-  // Per-nm Gaussian: peak amplitude such that integral over wavelength
+  // Per-peak Gaussian: peak amplitude such that integral over wavelength
   // equals share × totalWm2. Gaussian integrand factor 1/(sigma·√(2π))
-  // keeps ∫ E(λ)dλ ≈ peakWm2 over the band.
-  const norm = 1 / (sigma * Math.sqrt(2 * Math.PI));
+  // keeps ∫ E(λ)dλ ≈ peakWm2 over the band. Sigma is per-band so UVB/UVA
+  // peaks aren't artificially smeared with the red/NIR FWHM.
   const irradiance = WAVELENGTHS.map(() => 0);
   for (let p = 0; p < peaks.length; p++) {
     const peak = peaks[p];
     if (!Number.isFinite(peak)) continue;
     const peakWm2 = shares[p] * totalWm2;
+    const sigma = _peakSigmaForWavelength(peak);
+    const norm = 1 / (sigma * Math.sqrt(2 * Math.PI));
     for (let i = 0; i < WAVELENGTHS.length; i++) {
       const nm = WAVELENGTHS[i];
       const g = Math.exp(-Math.pow(nm - peak, 2) / (2 * sigma * sigma)) * norm;
