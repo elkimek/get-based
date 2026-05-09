@@ -749,8 +749,99 @@ function attachMockAIVerdicts(data, sex) {
   );
 }
 
+// ─── Biomarker trend fixes ────────────────────────────────────────────
+//
+// Coherence audit caught two P0 narrative failures in the original demo:
+//   • Sarah supposedly started iron in Aug 2025 with goal "ferritin 50+",
+//     but ferritin DECLINED through Dec 2025 (28→22→18) and barely
+//     recovered by Jan 2026 (25). Notes claim "two months of high-dose
+//     iron working" — directly contradicted by the labs.
+//   • Alex's stated goal is "Reverse insulin resistance — HOMA-IR < 2.0"
+//     and 2025-11 notes claim "reduced refined carbs + zone 2 cardio";
+//     yet HOMA-IR climbed 1.11 → 3.47, insulin doubled, HbA1c rose.
+//     Narrative says one thing, labs say the opposite.
+//
+// Override the trajectory so labs match the goals + supplements + notes.
+function fixBiomarkerTrends(data, sex) {
+  const setOn = (date, key, value) => {
+    const e = (data.entries || []).find(x => x.date === date && x.markers && key in x.markers);
+    if (e) e.markers[key] = value;
+  };
+  if (sex === 'F') {
+    // Iron story — supp started 2025-08-10. The 2025-08-05 draw is 5 days
+    // BEFORE supp, so values still drifting. Then improvement begins.
+    setOn('2025-04-10', 'iron.ferritin',          28);
+    setOn('2025-08-05', 'iron.ferritin',          24);
+    setOn('2025-12-15', 'iron.ferritin',          35);
+    setOn('2026-01-25', 'iron.ferritin',          42);
+    setOn('2025-04-10', 'iron.iron',              12.5);
+    setOn('2025-08-05', 'iron.iron',              11.0);
+    setOn('2025-12-15', 'iron.iron',              16.5);
+    setOn('2026-01-25', 'iron.iron',              19.0);
+    setOn('2025-04-10', 'iron.transferrinSat',    18);
+    setOn('2025-08-05', 'iron.transferrinSat',    16);
+    setOn('2025-12-15', 'iron.transferrinSat',    24);
+    setOn('2026-01-25', 'iron.transferrinSat',    28);
+    setOn('2025-04-10', 'hematology.hemoglobin',  128);
+    setOn('2025-08-05', 'hematology.hemoglobin',  126);
+    setOn('2025-12-15', 'hematology.hemoglobin',  134);
+    setOn('2026-01-25', 'hematology.hemoglobin',  138);
+    setOn('2025-04-10', 'hematology.hematocrit',  0.385);
+    setOn('2025-08-05', 'hematology.hematocrit',  0.378);
+    setOn('2025-12-15', 'hematology.hematocrit',  0.402);
+    setOn('2026-01-25', 'hematology.hematocrit',  0.413);
+  } else {
+    // Metabolic story — intervention claimed in 2025-11 notes (zone 2
+    // cardio + reduced refined carbs). Pre-intervention drift, then
+    // measurable improvement.
+    setOn('2025-03-15', 'diabetes.homaIR',  1.11);
+    setOn('2025-07-20', 'diabetes.homaIR',  1.40);
+    setOn('2025-11-10', 'diabetes.homaIR',  1.05);
+    setOn('2026-02-01', 'diabetes.homaIR',  0.85);
+    setOn('2025-03-15', 'diabetes.insulin_d', 5.2);
+    setOn('2025-07-20', 'diabetes.insulin_d', 6.5);
+    setOn('2025-11-10', 'diabetes.insulin_d', 4.8);
+    setOn('2026-02-01', 'diabetes.insulin_d', 3.9);
+    setOn('2025-03-15', 'diabetes.hba1c',  31);
+    setOn('2025-07-20', 'diabetes.hba1c',  33);
+    setOn('2025-11-10', 'diabetes.hba1c',  31);
+    setOn('2026-02-01', 'diabetes.hba1c',  29);
+    setOn('2025-03-15', 'biochemistry.glucose', 4.8);
+    setOn('2025-07-20', 'biochemistry.glucose', 5.1);
+    setOn('2025-11-10', 'biochemistry.glucose', 4.9);
+    setOn('2026-02-01', 'biochemistry.glucose', 4.7);
+    // Homocysteine — goal <10. Move B-complex supp earlier so labs
+    // reflect the intervention working.
+    setOn('2025-03-15', 'coagulation.homocysteine', 11.5);
+    setOn('2025-07-20', 'coagulation.homocysteine', 13.0);
+    setOn('2025-11-10', 'coagulation.homocysteine', 10.5);
+    setOn('2026-02-01', 'coagulation.homocysteine', 9.2);
+    // Free testosterone — keep mild age-decline rather than 38% collapse.
+    setOn('2025-03-15', 'hormones.freeTestosterone', 68.2);
+    setOn('2025-07-20', 'hormones.freeTestosterone', 64.5);
+    setOn('2025-11-10', 'hormones.freeTestosterone', 66.8);
+    setOn('2026-02-01', 'hormones.freeTestosterone', 65.4);
+    // Pull B-complex start earlier so the homocysteine trend reflects it.
+    if (Array.isArray(data.supplements)) {
+      const bComp = data.supplements.find(s =>
+        /B[\s\-]?complex|methylated B/i.test(s.name || ''));
+      if (bComp) bComp.startDate = '2025-08-10';
+    }
+  }
+}
+
+// ─── EMF assessment interpretation ────────────────────────────────────
+function attachEMFInterpretation(data, sex) {
+  const a = data.emfAssessment?.assessments?.[0];
+  if (!a || a.interpretation) return;
+  a.interpretation = sex === 'F'
+    ? "## Sleep room is the priority\n\n- **Bedroom AC magnetic field** measured high — likely from external wiring or transformer adjacent to the room. Highest-leverage finding because it accumulates 8h/night of exposure.\n  - **Mitigation:** Baubiologie measurement; sleeping head-position relocation; correction from the utility if persistent.\n- **WiFi router** placement could be improved — 4–5 m distance from sleeping/working areas drops exposure ~16× via inverse-square. Alternative: hardwire ethernet + disable WiFi at night via timer.\n- **Phone at bedside** — power off or airplane mode at night eliminates near-field exposure. Removing the phone from the room is even better.\n\nLower priority:\n- Office RF baseline acceptable.\n- Living-area dirty electricity moderate; consider Stetzer filters on heaviest-load circuits."
+    : "## Office is the lever\n\n- **Office desk AC electric field** measured high — likely ungrounded desk lamp or PC tower. Drives 8h/day during work.\n  - **Mitigation:** ground the desk circuit, replace ungrounded LED desk lamps with grounded units, route monitor + tower cables behind a metal shield, work with grounded mat/keyboard.\n- **Bedroom WiFi router** at 1.5 m head distance is too close — relocate + hardwire critical devices. Alternative: WiFi timer 7 am–10 pm only.\n- **Living-area dirty electricity** moderate — Stetzer/Greenwave filters on heaviest-load circuits.\n\nLower priority:\n- Bedroom magnetic field: low, no action needed.\n- Cellular signal weak (≈ –100 dBm); phone increases its own output to compensate. Speakerphone + airplane mode at night.";
+  a.interpretedAt = NOW_MS - 5 * DAY_MS;
+}
+
 function alreadyUpgraded(data) {
-  if (data.demoUpgradedAt === '2026-05-09-v8') return true;
+  if (data.demoUpgradedAt === '2026-05-09-v9') return true;
   return false;
 }
 
@@ -791,15 +882,23 @@ function upgrade(data, sex) {
   Object.assign(data, buildCategoryDisplayOverrides());
   data.wearableCardOrder = ['weight', 'pulse', 'bp', 'sleep', 'hrv', 'activity'];
 
-  // 4. Pre-populate AI verdicts on every per-row surface so the demo
+  // 4. Coherence fixes — biomarker trajectories must match the goals +
+  //    supplements + lifestyle notes the demo ships. Earlier draft had
+  //    Sarah's ferritin DECLINE while supposedly on iron supp, and Alex's
+  //    HOMA-IR DOUBLE while supposedly doing zone-2 cardio + carb cuts —
+  //    both contradicted the explicit health goals + intervention notes.
+  fixBiomarkerTrends(data, sex);
+  attachEMFInterpretation(data, sex);
+
+  // 5. Pre-populate AI verdicts on every per-row surface so the demo
   //    shows the AI-verdict feature in its populated state instead of
   //    25+ "Get AI verdict" CTAs that either do nothing (no provider)
   //    or burn tokens to regenerate the demo.
   attachMockAIVerdicts(data, sex);
 
-  // 5. Bump version + mark.
+  // 6. Bump version + mark.
   data.version = 3;
-  data.demoUpgradedAt = '2026-05-09-v8';
+  data.demoUpgradedAt = '2026-05-09-v9';
   data.exportedAt = NOW_ISO;
 
   return true;
