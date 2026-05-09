@@ -575,6 +575,12 @@ return (async function() {
     /supplements:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2/.test(syncSrc));
   assert('DELTA_ARRAY_CONFIG.healthGoals defines itemIdFn (text hash)',
     /healthGoals:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2\(it\.text\)/.test(syncSrc));
+  // Notes — `{date, text}` with no `.id`. Without an itemIdFn override,
+  // the planner emits zero rows (default itemIdFn requires `it.id`) and
+  // Phase 2 cutover refuses to flip on any profile with saved notes.
+  // Greptile re-review #175 caught this.
+  assert('DELTA_ARRAY_CONFIG.notes defines itemIdFn (date+text hash)',
+    /notes:\s*\{[\s\S]{0,500}itemIdFn:[\s\S]{0,500}_djb2/.test(syncSrc));
 
   // Live: round-trip the three itemIdFns to verify determinism + uniqueness
   if (typeof window !== 'undefined') {
@@ -627,6 +633,23 @@ return (async function() {
     assert('healthGoals itemId differs when text differs',
       goalFn(g3) !== gid);
     assert('healthGoals itemIdFn null on missing text', goalFn({ severity: 'major' }) === null);
+
+    const notesFn = (it) => {
+      if (!it || typeof it !== 'object') return null;
+      const sig = `${it.date || ''}|${it.text || ''}`;
+      return sig === '|' ? null : `n_${djb2(sig)}`;
+    };
+    const n1 = { date: '2026-05-09', text: 'Fasting blood draw before this entry' };
+    const n2 = { ...n1, text: 'Edited note text' };
+    const n3 = { date: '2026-05-10', text: n1.text };
+    const nid = notesFn(n1);
+    assert('notes itemId non-null + allowlist-safe', typeof nid === 'string' && isAllowlistSafe(nid));
+    assert('notes itemId differs on text edit (tombstone-old + insert-new pattern)',
+      notesFn(n2) !== nid);
+    assert('notes itemId differs when date differs but text is identical',
+      notesFn(n3) !== nid);
+    assert('notes itemIdFn null on empty struct',
+      notesFn({ date: '', text: '' }) === null);
   }
 
   // ═══════════════════════════════════════

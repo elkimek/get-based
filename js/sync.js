@@ -1294,6 +1294,21 @@ const DELTA_ARRAY_CONFIG = {
       return `g_${_djb2(it.text)}`;
     },
   },
+  // Notes — `{date, text}` with no `.id` (saveNote in js/notes.js). Without
+  // this override the default itemIdFn requires `it.id`, returns null for
+  // every note, and the planner emits zero rows. That's both an empty
+  // delta AND a permanent Phase 2 cutover blocker (getDeltaCutoverReadiness
+  // sees rowCount=0 vs localCount>0 and refuses to flip). Hash (date,text)
+  // — same content-hash pattern as supplements/healthGoals. Note edits
+  // tombstone the old hash + insert a new one (acceptable for the rare
+  // edit cadence on this surface; Greptile re-review #175).
+  notes: {
+    itemIdFn: (it) => {
+      if (!it || typeof it !== 'object') return null;
+      const sig = `${it.date || ''}|${it.text || ''}`;
+      return sig === '|' ? null : `n_${_djb2(sig)}`;
+    },
+  },
 };
 
 // Importance-scoped maps subject to delta sync. Parallel to DELTA_ARRAYS
