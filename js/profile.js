@@ -497,9 +497,16 @@ export function deleteProfile(profileId, onComplete) {
   });
 }
 
-export function switchProfile(profileId) {
+export async function switchProfile(profileId) {
   if (profileId === state.currentProfile) return;
-  loadProfile(profileId);
+  // loadProfile is async (encryptedGetItem awaits IDB / OPFS). Earlier
+  // draft fired-and-forgot it, leaving switchProfile resolving before
+  // state.importedData was actually populated — callers like loadDemoData
+  // could then race the import against the still-running profile load
+  // and end up with the demo data saved to the WRONG profile id, or
+  // overwritten when the (delayed) loadProfile finally read the empty
+  // localStorage row for the new profile.
+  await loadProfile(profileId);
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   showNotification(`Switched to ${p ? p.name : 'profile'}`, 'info');

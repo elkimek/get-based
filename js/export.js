@@ -1110,7 +1110,12 @@ export async function loadDemoData(sex = 'male') {
     // hero during the 2-3s gap between switchProfile and
     // importDataJSON-finish. Cleared by the import completion path.
     window._demoLoadingProfileId = profileId;
-    switchProfile(profileId);
+    // Await switchProfile fully — it's now async, and racing it against
+    // importDataJSON used to leave state.currentProfile pointing at the
+    // OLD profile when FileReader fired, causing the demo to land in
+    // the wrong profile and the dashboard to render stale until the
+    // user manually refreshed.
+    await switchProfile(profileId);
     localStorage.setItem(profileStorageKey(profileId, 'onboarded'), 'profile-set');
     importDataJSON(new File([blob], file, { type: 'application/json' }));
   } catch (err) {

@@ -503,8 +503,18 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   }
   const chartLabels = useTimeScale ? rawDates : dates;
   const xScale = useTimeScale
-    ? { type: 'time', time: { tooltipFormat: 'MMM d, yyyy', displayFormats: { day: 'MMM d, yyyy', month: 'MMM yyyy', year: 'yyyy' } }, ticks: { source: 'labels', color: tc.tickColor, font: { size: 11 }, maxTicksLimit: 8 }, grid: { display: false } }
-    : { ticks: { color: tc.tickColor, font: { size: 11 } }, grid: { display: false } };
+    ? { type: 'time',
+        time: { tooltipFormat: 'MMM d, yyyy', displayFormats: { day: 'MMM d, yyyy', month: 'MMM yyyy', year: 'yyyy' } },
+        // `source: 'labels'` forces a tick at every datapoint, which
+        // collides at "Dec 2025 / Jan 2026" zoom levels — adjacent
+        // datapoints render labels that overlap. Letting Chart.js
+        // auto-pick tick positions (default `source: 'auto'`) means it
+        // picks the LARGER of day/month/year that fits the available
+        // width; with autoSkip + a tighter cap the labels stay legible
+        // and the day-precision is still in the tooltip on hover.
+        ticks: { color: tc.tickColor, font: { size: 11 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 },
+        grid: { display: false } }
+    : { ticks: { color: tc.tickColor, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } };
   state.chartInstances[id] = new Chart(canvas, {
     type: "line",
     data: { labels: chartLabels, datasets },
