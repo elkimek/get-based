@@ -3504,7 +3504,12 @@ export function openDetailedSessionDialog() {
   // string; build it manually so we don't rely on the browser's locale guess.
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
-  const localNow = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const fmtLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const localNow = fmtLocal(now);
+  // Started-at defaults to now − 15 min so the most-common quick-log
+  // ("I just had a 15-min session") works with zero edits. Users
+  // logging older sessions adjust both timestamps.
+  const localStartDefault = fmtLocal(new Date(now.getTime() - 15 * 60 * 1000));
 
   // Region picker as a checkable chip grid — clearer than a tap-target SVG
   // silhouette per the v1.7.0a UX review. Each chip shows the region label
@@ -3523,13 +3528,14 @@ export function openDetailedSessionDialog() {
       <div class="sun-silhouette-hint" id="sun-silhouette-hint">Tap any body region to toggle whether it was uncovered.</div>
 
       <div class="sun-detailed-row">
+        <label class="ctx-label">Started at
+          <input type="datetime-local" id="det-started-at" class="ctx-input" value="${escapeAttr(localStartDefault)}" max="${escapeAttr(localNow)}" />
+        </label>
         <label class="ctx-label">Ended at
           <input type="datetime-local" id="det-ended-at" class="ctx-input" value="${escapeAttr(localNow)}" max="${escapeAttr(localNow)}" />
         </label>
-        <label class="ctx-label">Duration (min)
-          <input type="number" id="det-duration" class="ctx-input" min="1" max="240" value="15" />
-        </label>
       </div>
+      <div class="sun-silhouette-hint" id="det-duration-hint" style="margin-top:-6px">Duration: 15 min</div>
 
       <div class="sun-detailed-row">
         <label class="ctx-label">Sunscreen SPF
@@ -3603,18 +3609,57 @@ export function openDetailedSessionDialog() {
   bindBodySilhouette(slot, selected, updateHint);
   updateHint();
 
+  // Live "Duration: N min" hint derived from the two timestamps. Doubles
+  // as a validation channel — surfaces "Ended must be after Started"
+  // and "over 4 hours" right under the inputs without a separate error
+  // field. Clamps display only; save handler does the final validation.
+  const startEl = overlay.querySelector('#det-started-at');
+  const endEl = overlay.querySelector('#det-ended-at');
+  const hintEl = overlay.querySelector('#det-duration-hint');
+  const updateDurationHint = () => {
+    if (!startEl || !endEl || !hintEl) return;
+    const sMs = new Date(startEl.value).getTime();
+    const eMs = new Date(endEl.value).getTime();
+    if (!Number.isFinite(sMs) || !Number.isFinite(eMs)) {
+      hintEl.textContent = 'Duration: —';
+      return;
+    }
+    const min = Math.round((eMs - sMs) / 60000);
+    if (min <= 0) hintEl.textContent = `Ended must be after Started (currently ${min} min)`;
+    else if (min > 240) hintEl.textContent = `Duration: ${min} min — over 4 hours, double-check the times`;
+    else hintEl.textContent = `Duration: ${min} min`;
+  };
+  startEl?.addEventListener('input', updateDurationHint);
+  endEl?.addEventListener('input', updateDurationHint);
+  updateDurationHint();
+
   overlay.querySelector('#det-save').addEventListener('click', async () => {
-    const durationMin = parseInt(overlay.querySelector('#det-duration').value, 10) || 15;
     const eyeModeVal = overlay.querySelector('#det-eye-mode').value || 'direct';
     const lensTintVal = overlay.querySelector('#det-lens-tint').value || 'clear';
     const spf = parseInt(overlay.querySelector('#det-spf').value, 10) || null;
     const glass = overlay.querySelector('#det-glass').checked;
     const notes = overlay.querySelector('#det-notes').value || '';
 
-    // Resolve "Ended at" — falls back to now if the user cleared the field.
+    // Resolve the two timestamps. Both fields default to a sensible
+    // 15-min window ending now, so the empty-field fallback never fires
+    // in practice — but we guard anyway in case a user clears one.
+    const startedAtRaw = overlay.querySelector('#det-started-at').value;
     const endedAtRaw = overlay.querySelector('#det-ended-at').value;
-    const endedMs = endedAtRaw ? new Date(endedAtRaw).getTime() : Date.now();
-    const endedAt = Number.isFinite(endedMs) ? Math.min(endedMs, Date.now()) : Date.now();
+    const endedMsRaw = endedAtRaw ? new Date(endedAtRaw).getTime() : Date.now();
+    const startedMsRaw = startedAtRaw
+      ? new Date(startedAtRaw).getTime()
+      : (endedMsRaw - 15 * 60 * 1000);
+    if (!Number.isFinite(startedMsRaw) || !Number.isFinite(endedMsRaw)) {
+      showNotification('Invalid Started at / Ended at — check the times', 'error');
+      return;
+    }
+    if (startedMsRaw >= endedMsRaw) {
+      showNotification('Ended at must be after Started at', 'error');
+      return;
+    }
+    const endedAt = Math.min(endedMsRaw, Date.now());
+    const start = Math.min(startedMsRaw, endedAt - 60 * 1000);
+    const durationMin = Math.max(1, Math.round((endedAt - start) / 60000));
 
     // Compute exposure fraction from selected regions
     const regions = Array.from(selected);
@@ -3622,8 +3667,6 @@ export function openDetailedSessionDialog() {
       const r = BODY_REGIONS.find(b => b.key === key);
       return sum + (r?.fraction || 0);
     }, 0);
-
-    const start = endedAt - durationMin * 60 * 1000;
     const posture = overlay.querySelector('#det-posture')?.value || 'standing';
     const surfaceAlbedo = overlay.querySelector('#det-surface')?.value || 'grass';
     // Resolve coordinates so hydrateSession has somewhere to fetch
