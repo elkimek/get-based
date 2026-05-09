@@ -106,13 +106,20 @@ export const EXPOSURE_PRESETS = [
   { key: 'sunbathing', label: 'Sunbathing',           fraction: 0.50 },
 ];
 
+// `label` is the row-meta display; `pickerLabel` is what the dropdown
+// option shows (where the safety nudge belongs). Earlier the row-meta
+// rendered "Eyes uncovered (do not look at sun)" verbatim, which read
+// as if the user had been told off — the parenthetical was correct in
+// the picker (where it informs the choice) but jarring on a static
+// summary line. Row meta now shows just "Eyes uncovered ⚠" so the
+// safety state is conveyed by the icon, not a redundant warning string.
 export const EYE_MODES = [
-  { key: 'direct',         label: 'Eyes uncovered (do not look at sun)' },
-  { key: 'sunglasses',     label: 'Sunglasses' },
-  { key: 'clear-glasses',  label: 'Clear glasses' },
-  { key: 'closed-eyes',    label: 'Closed eyes' },
-  { key: 'glass-window',   label: 'Through window glass' },
-  { key: 'indoor',         label: 'Not eye-exposed' },
+  { key: 'direct',         label: 'Eyes uncovered',     pickerLabel: 'Eyes uncovered — never look directly at the sun', warn: true },
+  { key: 'sunglasses',     label: 'Sunglasses',         pickerLabel: 'Sunglasses' },
+  { key: 'clear-glasses',  label: 'Clear glasses',      pickerLabel: 'Clear glasses' },
+  { key: 'closed-eyes',    label: 'Closed eyes',        pickerLabel: 'Closed eyes' },
+  { key: 'glass-window',   label: 'Through window glass', pickerLabel: 'Through window glass' },
+  { key: 'indoor',         label: 'Not eye-exposed',    pickerLabel: 'Not eye-exposed' },
 ];
 
 export const LENS_TINTS = [
@@ -1353,7 +1360,7 @@ export async function openStartSunSessionDialog() {
         <div class="sun-detailed-row" style="margin-top:10px">
           <label class="ctx-label">Eyes
             <select id="start-eye-mode" class="ctx-select">
-              ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === defaultEye ? ' selected' : ''}>${escapeHTML(e.label)}</option>`).join('')}
+              ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === defaultEye ? ' selected' : ''}>${escapeHTML(e.pickerLabel || e.label)}</option>`).join('')}
             </select>
           </label>
           <label class="ctx-label">Lens tint
@@ -2464,7 +2471,7 @@ export function renderSunSessionRow(sess) {
       <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
     </div>
     <div class="sun-session-meta">
-      ${escapeHTML(_summarizeBodyExposure(sess))} · ${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
+      ${escapeHTML(_summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
     </div>
     ${forgotBanner}
     ${activeControls}
@@ -3553,7 +3560,7 @@ export function openDetailedSessionDialog() {
       <div class="sun-detailed-row">
         <label class="ctx-label">Eyes
           <select id="det-eye-mode" class="ctx-select">
-            ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === eyeMode ? ' selected' : ''}>${escapeHTML(e.label)}</option>`).join('')}
+            ${EYE_MODES.map(e => `<option value="${escapeAttr(e.key)}"${e.key === eyeMode ? ' selected' : ''}>${escapeHTML(e.pickerLabel || e.label)}</option>`).join('')}
           </select>
         </label>
         <label class="ctx-label">Lens tint

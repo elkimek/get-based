@@ -1597,7 +1597,7 @@ export function renderLightTools() {
   const card = (handler, icon, name, desc, opts = {}) => `
     <button class="light-tool-card${opts.primary ? ' light-tool-card-primary' : ''}" onclick="${handler}">
       <div class="light-tool-icon">${icon}</div>
-      <div class="light-tool-name">${name}</div>
+      <div class="light-tool-name">${name}${opts.primary ? '<span class="light-tool-pill-hint" title="Recommended starting point">Start here</span>' : ''}</div>
       <div class="light-tool-desc">${desc}</div>
     </button>`;
 

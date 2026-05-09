@@ -1238,9 +1238,11 @@ function renderLightAuditCard(a, expanded) {
   let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}">
     <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" onclick="window.toggleLightAudit('${escapeAttr(a.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightAudit('${escapeAttr(a.id)}')}">
       <div class="light-audit-info">
-        ${typeof window !== 'undefined' && window.renderAuditAIDot ? window.renderAuditAIDot(a) : ''}
-        <span class="light-audit-date">${escapeHTML(fmtAuditDate(a.date))}</span>
-        ${a.label ? `<span class="light-audit-label">${escapeHTML(a.label)}</span>` : ''}
+        <div class="light-audit-info-top">
+          ${typeof window !== 'undefined' && window.renderAuditAIDot ? window.renderAuditAIDot(a) : ''}
+          <span class="light-audit-date">${escapeHTML(fmtAuditDate(a.date))}</span>
+          ${a.label ? `<span class="light-audit-label">${escapeHTML(a.label)}</span>` : ''}
+        </div>
         <span class="light-audit-meta">${roomsCount} room${roomsCount === 1 ? '' : 's'} · ${measCount} measurement${measCount === 1 ? '' : 's'}</span>
       </div>
       <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label)}"><span class="sr-only">${escapeHTML(sev.label)}</span></span>
