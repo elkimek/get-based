@@ -513,28 +513,56 @@ function buildManualValues(sex) {
 function buildCustomMarkers() {
   // Two specialty markers added by the user — showcase the custom-marker
   // pipeline that handles markers outside the standard MARKER_SCHEMA.
+  // Schema fields mirror what `data.js` reads when building categories:
+  // `name`, `unit`, `refMin`, `refMax`, `categoryLabel`, `icon`, `group`.
   return {
     'specialty.glycanAge': {
-      key: 'specialty.glycanAge',
-      label: 'GlycanAge',
+      name: 'GlycanAge',
       unit: 'years',
+      refMin: null, refMax: null,
+      categoryLabel: 'Specialty',
+      icon: '🔖',
       group: 'Aging biomarkers',
-      refLow: null, refHigh: null,
-      optimalLow: null, optimalHigh: 4,
-      notes: 'Imported from GlycanAge plasma N-glycan panel.',
       addedAt: NOW_MS - 90 * DAY_MS,
     },
     'specialty.urinaryIodine': {
-      key: 'specialty.urinaryIodine',
-      label: 'Urinary iodine',
+      name: 'Urinary iodine',
       unit: 'µg/L',
+      refMin: 100, refMax: 200,
+      categoryLabel: 'Specialty',
+      icon: '🔖',
       group: 'Trace minerals',
-      refLow: 100, refHigh: 200,
-      optimalLow: 150, optimalHigh: 250,
-      notes: 'Single-spot urinary iodine — proxy for thyroid status.',
       addedAt: NOW_MS - 90 * DAY_MS,
     },
   };
+}
+
+// Inject 4 datapoints for each custom marker into the comprehensive
+// entries — without these the sidebar group entries don't appear since
+// the data pipeline gates them on at-least-one-value-present.
+function seedCustomMarkerValues(data, sex) {
+  // Pick the 4 most recent comprehensive entries (those with >50 markers).
+  const targets = data.entries
+    .filter(e => Object.keys(e.markers || {}).length > 50)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-4);
+  if (targets.length < 4) return;
+  // GlycanAge: starts at +5 over chrono age, drops -2 over the year as
+  // the user works on it. Female: chrono ~33 in 2026, GlycanAge 38→36.
+  // Male: chrono ~38, GlycanAge 43→40.
+  const glycan = sex === 'F' ? [38, 37.2, 36.5, 36.0] : [43, 42, 41, 40];
+  // Urinary iodine: gradually rising into optimal band as supplementation kicks in.
+  const iodine = sex === 'F' ? [88, 110, 145, 175] : [95, 130, 160, 195];
+  for (let i = 0; i < targets.length; i++) {
+    const e = targets[i];
+    e.markers['specialty.glycanAge']      = glycan[i];
+    e.markers['specialty.urinaryIodine']  = iodine[i];
+    if (e.markerSources) {
+      const at = Date.parse(e.date + 'T08:00:00.000Z');
+      e.markerSources['specialty.glycanAge']     = { file: 'GlycanAge plasma test.pdf', at };
+      e.markerSources['specialty.urinaryIodine'] = { file: 'Urinary iodine spot test.pdf', at };
+    }
+  }
 }
 
 function buildRefOverrides() {
@@ -557,7 +585,11 @@ function buildCategoryDisplayOverrides() {
 // ─── 4. Apply ─────────────────────────────────────────────────────────
 
 function alreadyUpgraded(data) {
-  return data.demoUpgradedAt === '2026-05-09' || data.version === 3;
+  // v3 marker means base upgrade applied; bumping to v3.1 retroactively
+  // adds the custom-marker datapoints (skipped in v3 by mistake — without
+  // them the sidebar groups don't surface).
+  if (data.demoUpgradedAt === '2026-05-09-v3') return true;
+  return false;
 }
 
 function upgrade(data, sex) {
@@ -592,13 +624,14 @@ function upgrade(data, sex) {
   // 3. Showcase fields.
   data.manualValues = buildManualValues(sex);
   Object.assign(data.customMarkers, buildCustomMarkers());
+  seedCustomMarkerValues(data, sex);
   data.refOverrides = buildRefOverrides();
   Object.assign(data, buildCategoryDisplayOverrides());
   data.wearableCardOrder = ['weight', 'pulse', 'bp', 'sleep', 'hrv', 'activity'];
 
   // 4. Bump version + mark.
   data.version = 3;
-  data.demoUpgradedAt = '2026-05-09';
+  data.demoUpgradedAt = '2026-05-09-v3';
   data.exportedAt = NOW_ISO;
 
   return true;

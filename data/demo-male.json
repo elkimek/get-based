@@ -396,7 +396,9 @@
         "biochemistry.gfrCystatin": 1.8,
         "hormones.progesterone": 0.3,
         "hormones.dht": 1.54,
-        "thyroid.t4total": 99.3
+        "thyroid.t4total": 99.3,
+        "specialty.glycanAge": 43,
+        "specialty.urinaryIodine": 95
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -662,6 +664,14 @@
         "thyroid.t4total": {
           "file": "Backfill 2024 historical lab record.pdf",
           "at": 1742025600000
+        },
+        "specialty.glycanAge": {
+          "file": "GlycanAge plasma test.pdf",
+          "at": 1742025600000
+        },
+        "specialty.urinaryIodine": {
+          "file": "Urinary iodine spot test.pdf",
+          "at": 1742025600000
         }
       }
     },
@@ -819,7 +829,9 @@
         "differential.basophils": 0.05,
         "differential.neutrophilsPct": 0.59,
         "differential.lymphocytesPct": 0.298,
-        "differential.monocytesPct": 0.074
+        "differential.monocytesPct": 0.074,
+        "specialty.glycanAge": 42,
+        "specialty.urinaryIodine": 130
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1101,6 +1113,14 @@
         "differential.monocytesPct": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1753012800000
+        },
+        "specialty.glycanAge": {
+          "file": "GlycanAge plasma test.pdf",
+          "at": 1752998400000
+        },
+        "specialty.urinaryIodine": {
+          "file": "Urinary iodine spot test.pdf",
+          "at": 1752998400000
         }
       }
     },
@@ -1181,7 +1201,9 @@
         "differential.neutrophilsPct": 0.58,
         "differential.lymphocytesPct": 0.311,
         "differential.monocytesPct": 0.071,
-        "boneMetabolism.osteocalcin": 22.5
+        "boneMetabolism.osteocalcin": 22.5,
+        "specialty.glycanAge": 41,
+        "specialty.urinaryIodine": 160
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1483,6 +1505,14 @@
         "boneMetabolism.osteocalcin": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1762776000000
+        },
+        "specialty.glycanAge": {
+          "file": "GlycanAge plasma test.pdf",
+          "at": 1762761600000
+        },
+        "specialty.urinaryIodine": {
+          "file": "Urinary iodine spot test.pdf",
+          "at": 1762761600000
         }
       }
     },
@@ -1651,7 +1681,9 @@
         "differential.neutrophilsPct": 0.568,
         "differential.lymphocytesPct": 0.312,
         "differential.monocytesPct": 0.08,
-        "boneMetabolism.osteocalcin": 21
+        "boneMetabolism.osteocalcin": 21,
+        "specialty.glycanAge": 40,
+        "specialty.urinaryIodine": 195
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1977,6 +2009,14 @@
         "boneMetabolism.osteocalcin": {
           "file": "Winter 2025 Panel.pdf",
           "at": 1769947200000
+        },
+        "specialty.glycanAge": {
+          "file": "GlycanAge plasma test.pdf",
+          "at": 1769932800000
+        },
+        "specialty.urinaryIodine": {
+          "file": "Urinary iodine spot test.pdf",
+          "at": 1769932800000
         }
       }
     }
@@ -2443,27 +2483,23 @@
   },
   "customMarkers": {
     "specialty.glycanAge": {
-      "key": "specialty.glycanAge",
-      "label": "GlycanAge",
+      "name": "GlycanAge",
       "unit": "years",
+      "refMin": null,
+      "refMax": null,
+      "categoryLabel": "Specialty",
+      "icon": "🔖",
       "group": "Aging biomarkers",
-      "refLow": null,
-      "refHigh": null,
-      "optimalLow": null,
-      "optimalHigh": 4,
-      "notes": "Imported from GlycanAge plasma N-glycan panel.",
       "addedAt": 1770539400000
     },
     "specialty.urinaryIodine": {
-      "key": "specialty.urinaryIodine",
-      "label": "Urinary iodine",
+      "name": "Urinary iodine",
       "unit": "µg/L",
+      "refMin": 100,
+      "refMax": 200,
+      "categoryLabel": "Specialty",
+      "icon": "🔖",
       "group": "Trace minerals",
-      "refLow": 100,
-      "refHigh": 200,
-      "optimalLow": 150,
-      "optimalHigh": 250,
-      "notes": "Single-spot urinary iodine — proxy for thyroid status.",
       "addedAt": 1770539400000
     }
   },
@@ -3005,7 +3041,7 @@
         "uvIndex": 5.8,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 53.279288164938805,
+        "sunElevationDeg": 56.05127878124654,
         "airMass": 1.2,
         "snapshotAt": 1774953000000,
         "source": "auto",
@@ -3062,7 +3098,7 @@
         "uvIndex": 5.4,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.433542925456024,
+        "sunElevationDeg": 56.15316614699458,
         "airMass": 1.2,
         "snapshotAt": 1775638800000,
         "source": "auto",
@@ -3122,7 +3158,7 @@
         "uvIndex": 6.5,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 53.57332077791413,
+        "sunElevationDeg": 57.13925295362114,
         "airMass": 1.2,
         "snapshotAt": 1776250800000,
         "source": "auto",
@@ -3235,7 +3271,7 @@
         "uvIndex": 6.2,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.82079812056724,
+        "sunElevationDeg": 52.6003130238645,
         "airMass": 1.2,
         "snapshotAt": 1777377600000,
         "source": "auto",
@@ -3292,7 +3328,7 @@
         "uvIndex": 6,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.25124603560286,
+        "sunElevationDeg": 54.04684105793402,
         "airMass": 1.2,
         "snapshotAt": 1777802400000,
         "source": "auto",
@@ -4046,5 +4082,5 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09"
+  "demoUpgradedAt": "2026-05-09-v3"
 }
