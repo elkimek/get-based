@@ -423,6 +423,109 @@ return (async function() {
   assert('Window has loadDemoData', typeof window.loadDemoData === 'function');
 
   // ═══════════════════════════════════════
+  // 15. Demo round-trip — importDataJSON preserves Light & Sun stack
+  //
+  // Regression for f48638f: importDataJSON was authored before the Light &
+  // Sun lens existed and silently dropped sunSessions / deviceSessions /
+  // lightDevices / lightEnvironment / lightAudits / lightMeasurements /
+  // sunDefaults / sunCorrelations / lifelightProfile / lightDailyVerdicts.
+  // The demo file itself was correct; the import path ate everything past
+  // manualValues. The test below loads the demo through the real import
+  // function and asserts every Light & Sun field landed.
+  // ═══════════════════════════════════════
+  console.log('%c 15. Demo round-trip through importDataJSON ', 'font-weight:bold;color:#f59e0b');
+
+  {
+    // Snapshot then nuke state.importedData so the import has a clean slate.
+    const snapshot = JSON.parse(JSON.stringify(S.importedData || {}));
+    const origSex = S.profileSex;
+    const origDob = S.profileDob;
+    S.importedData = { entries: [], notes: [], supplements: [], healthGoals: [],
+      diagnoses: null, diet: null, exercise: null, sleepRest: null,
+      lightCircadian: null, stress: null, loveLife: null, environment: null,
+      interpretiveLens: '', contextNotes: '', menstrualCycle: null,
+      emfAssessment: null, customMarkers: {}, changeHistory: [],
+      genetics: null, biometrics: null, manualValues: {},
+      sunSessions: [], deviceSessions: [], lightDevices: [],
+      lightEnvironment: null, lightMeasurements: [], lightAudits: [],
+      sunCorrelations: null, lifelightProfile: null, sunDefaults: null };
+    try {
+      const demo = await fetch('data/demo-female.json').then(r => r.json());
+      const expectedSun       = demo.sunSessions?.length || 0;
+      const expectedDevSess   = demo.deviceSessions?.length || 0;
+      const expectedDevices   = demo.lightDevices?.length || 0;
+      const expectedRooms     = demo.lightEnvironment?.rooms?.length || 0;
+      const expectedScreens   = demo.lightEnvironment?.screens?.length || 0;
+      const expectedAudits    = demo.lightAudits?.length || 0;
+      const expectedMeas      = demo.lightMeasurements?.length || 0;
+      const expectedVerdicts  = Object.keys(demo.lightDailyVerdicts || {}).length;
+      const expectedSunCoords = demo.sunDefaults?.coords;
+
+      assert('demo source has Light & Sun stack populated',
+        expectedSun > 0 && expectedDevices > 0 && expectedRooms > 0,
+        `sun=${expectedSun}, devices=${expectedDevices}, rooms=${expectedRooms}`);
+
+      // importDataJSON consumes a File object via FileReader. Synthesize one.
+      const blob = new Blob([JSON.stringify(demo)], { type: 'application/json' });
+      const file = new File([blob], 'demo-female.json', { type: 'application/json' });
+      window.importDataJSON(file);
+
+      // FileReader is async — poll the imported state up to 5s for the
+      // first Light & Sun field to land.
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline && (S.importedData?.sunSessions || []).length === 0) {
+        await wait(50);
+      }
+
+      const got = S.importedData || {};
+      assert('sunSessions imported',     (got.sunSessions || []).length === expectedSun,
+        `got ${(got.sunSessions || []).length}, expected ${expectedSun}`);
+      assert('deviceSessions imported',  (got.deviceSessions || []).length === expectedDevSess,
+        `got ${(got.deviceSessions || []).length}, expected ${expectedDevSess}`);
+      assert('lightDevices imported',    (got.lightDevices || []).length === expectedDevices,
+        `got ${(got.lightDevices || []).length}, expected ${expectedDevices}`);
+      assert('lightEnvironment.rooms imported',
+        (got.lightEnvironment?.rooms || []).length === expectedRooms,
+        `got ${(got.lightEnvironment?.rooms || []).length}, expected ${expectedRooms}`);
+      assert('lightEnvironment.screens imported',
+        (got.lightEnvironment?.screens || []).length === expectedScreens,
+        `got ${(got.lightEnvironment?.screens || []).length}, expected ${expectedScreens}`);
+      assert('lightAudits imported',     (got.lightAudits || []).length === expectedAudits,
+        `got ${(got.lightAudits || []).length}, expected ${expectedAudits}`);
+      assert('lightMeasurements imported', (got.lightMeasurements || []).length === expectedMeas,
+        `got ${(got.lightMeasurements || []).length}, expected ${expectedMeas}`);
+      assert('lightDailyVerdicts imported',
+        Object.keys(got.lightDailyVerdicts || {}).length === expectedVerdicts,
+        `got ${Object.keys(got.lightDailyVerdicts || {}).length}, expected ${expectedVerdicts}`);
+      assert('sunDefaults.coords survived (lat)',
+        got.sunDefaults?.coords?.lat === expectedSunCoords?.lat,
+        `got ${got.sunDefaults?.coords?.lat}, expected ${expectedSunCoords?.lat}`);
+      assert('sunDefaults.completedAt survived',
+        got.sunDefaults?.completedAt === demo.sunDefaults?.completedAt);
+      assert('sunCorrelations imported',
+        !!got.sunCorrelations && got.sunCorrelations.weeksAnalyzed === demo.sunCorrelations?.weeksAnalyzed);
+      assert('lifelightProfile imported',
+        got.lifelightProfile?.chronotype === demo.lifelightProfile?.chronotype);
+
+      // id-keyed dedup — re-importing the same demo shouldn't double sun
+      // sessions. This is the merge contract for repeat imports.
+      const beforeRepeat = (S.importedData?.sunSessions || []).length;
+      const file2 = new File([new Blob([JSON.stringify(demo)], { type: 'application/json' })],
+        'demo-female.json', { type: 'application/json' });
+      window.importDataJSON(file2);
+      await wait(800);
+      assert('re-importing same demo does NOT duplicate sunSessions',
+        (S.importedData?.sunSessions || []).length === beforeRepeat,
+        `before=${beforeRepeat}, after=${(S.importedData?.sunSessions || []).length}`);
+    } finally {
+      // Restore prior state so subsequent tests aren't disturbed.
+      S.importedData = snapshot;
+      S.profileSex = origSex;
+      S.profileDob = origDob;
+    }
+  }
+
+  // ═══════════════════════════════════════
   // Summary
   // ═══════════════════════════════════════
   console.log(`\n%c Export/Import: ${pass} passed, ${fail} failed `,
