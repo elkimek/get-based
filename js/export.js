@@ -531,8 +531,23 @@ export function importDataJSON(file) {
       for (const entry of json.entries) {
         if (!entry.date || !entry.markers) continue;
         if (!state.importedData.entries) state.importedData.entries = [];
-        state.importedData.entries = state.importedData.entries.filter(ex => ex.date !== entry.date);
-        state.importedData.entries.push(entry);
+        // Earlier draft did `filter(ex => ex.date !== entry.date)` — same-
+        // date entries clobbered each other. The demos legitimately ship
+        // two entries per date (comprehensive panel + specialty add-on
+        // like an OmegaQuant fatty-acid run on the same draw day) and the
+        // second entry was silently dropped, losing every fatty-acid /
+        // specialty marker on import. Merge markers + markerSources
+        // instead so all data lands; later entries win on key conflicts.
+        const existing = state.importedData.entries.find(ex => ex.date === entry.date);
+        if (existing) {
+          Object.assign(existing.markers || (existing.markers = {}), entry.markers);
+          if (entry.markerSources) {
+            Object.assign(existing.markerSources || (existing.markerSources = {}), entry.markerSources);
+          }
+          if (entry.file && !existing.file) existing.file = entry.file;
+        } else {
+          state.importedData.entries.push(entry);
+        }
         count++;
       }
       if (count === 0 && (!json.notes || json.notes.length === 0)) { showNotification('No valid entries found in JSON', 'error'); return; }

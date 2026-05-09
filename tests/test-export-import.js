@@ -507,6 +507,21 @@ return (async function() {
       assert('lifelightProfile imported',
         got.lifelightProfile?.chronotype === demo.lifelightProfile?.chronotype);
 
+      // Same-date entries — demo ships TWO entries on 2025-08-05 and
+      // 2026-01-25 each (comprehensive panel + specialty add-on like an
+      // OmegaQuant run on the same draw day). Earlier draft of the
+      // import dedup-by-date silently dropped the second entry, losing
+      // every fatty-acid / specialty marker. Verify both panels'
+      // markers end up on the surviving merged entry.
+      const aug2025 = (got.entries || []).find(e => e.date === '2025-08-05');
+      assert('2025-08-05 entry survived merge',
+        !!aug2025 && Object.keys(aug2025.markers || {}).length > 0);
+      assert('2025-08-05 entry has comprehensive markers',
+        !!aug2025?.markers?.['biochemistry.glucose']);
+      assert('2025-08-05 entry has specialty (fatty acid) markers',
+        !!aug2025?.markers?.['fattyAcids.epaC20_5'],
+        'specialty add-on was dropped on import — same-date merge failed');
+
       // id-keyed dedup — re-importing the same demo shouldn't double sun
       // sessions. This is the merge contract for repeat imports.
       const beforeRepeat = (S.importedData?.sunSessions || []).length;
