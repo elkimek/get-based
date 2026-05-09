@@ -2886,9 +2886,10 @@
     "timeOutdoorsMin": 35,
     "indoorJobLightConditions": "office_led",
     "photosensitiveMeds": "none",
-    "location": {
+    "coords": {
       "lat": 50.0755,
       "lon": 14.4378,
+      "source": "profile-precise",
       "label": "Prague, CZ"
     },
     "completedAt": 1773131400000,
@@ -3041,7 +3042,7 @@
         "uvIndex": 5.8,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.05127878124654,
+        "sunElevationDeg": 53.74497888160696,
         "airMass": 1.2,
         "snapshotAt": 1774953000000,
         "source": "auto",
@@ -3098,7 +3099,7 @@
         "uvIndex": 5.4,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.15316614699458,
+        "sunElevationDeg": 55.049768508471836,
         "airMass": 1.2,
         "snapshotAt": 1775638800000,
         "source": "auto",
@@ -3158,7 +3159,7 @@
         "uvIndex": 6.5,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 57.13925295362114,
+        "sunElevationDeg": 55.332142813598054,
         "airMass": 1.2,
         "snapshotAt": 1776250800000,
         "source": "auto",
@@ -3271,7 +3272,7 @@
         "uvIndex": 6.2,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 52.6003130238645,
+        "sunElevationDeg": 53.27757311114406,
         "airMass": 1.2,
         "snapshotAt": 1777377600000,
         "source": "auto",
@@ -3328,7 +3329,7 @@
         "uvIndex": 6,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.04684105793402,
+        "sunElevationDeg": 54.31053037402395,
         "airMass": 1.2,
         "snapshotAt": 1777802400000,
         "source": "auto",
@@ -4082,5 +4083,5 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v3"
+  "demoUpgradedAt": "2026-05-09-v4"
 }

@@ -140,7 +140,11 @@ function buildSunDefaults(sex) {
     timeOutdoorsMin: 35,
     indoorJobLightConditions: 'office_led',
     photosensitiveMeds: 'none',
-    location: { lat: 50.0755, lon: 14.4378, label: 'Prague, CZ' },
+    // `coords` is what getSunCoords() in sun.js:2329 reads — earlier
+    // draft used `location` (matches session-level shape) which got
+    // ignored, leaving the conditions strip empty on the demo because
+    // no profile country was set either.
+    coords: { lat: 50.0755, lon: 14.4378, source: 'profile-precise', label: 'Prague, CZ' },
     completedAt: NOW_MS - 60 * DAY_MS,
     ottScore: sex === 'F' ? 6 : 5,
     ottAnswers: sex === 'F'
@@ -585,10 +589,7 @@ function buildCategoryDisplayOverrides() {
 // ─── 4. Apply ─────────────────────────────────────────────────────────
 
 function alreadyUpgraded(data) {
-  // v3 marker means base upgrade applied; bumping to v3.1 retroactively
-  // adds the custom-marker datapoints (skipped in v3 by mistake — without
-  // them the sidebar groups don't surface).
-  if (data.demoUpgradedAt === '2026-05-09-v3') return true;
+  if (data.demoUpgradedAt === '2026-05-09-v4') return true;
   return false;
 }
 
@@ -631,7 +632,7 @@ function upgrade(data, sex) {
 
   // 4. Bump version + mark.
   data.version = 3;
-  data.demoUpgradedAt = '2026-05-09-v3';
+  data.demoUpgradedAt = '2026-05-09-v4';
   data.exportedAt = NOW_ISO;
 
   return true;

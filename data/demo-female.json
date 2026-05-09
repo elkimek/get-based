@@ -2850,9 +2850,10 @@
     "timeOutdoorsMin": 35,
     "indoorJobLightConditions": "office_led",
     "photosensitiveMeds": "none",
-    "location": {
+    "coords": {
       "lat": 50.0755,
       "lon": 14.4378,
+      "source": "profile-precise",
       "label": "Prague, CZ"
     },
     "completedAt": 1773131400000,
@@ -3005,7 +3006,7 @@
         "uvIndex": 5.2,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 53.833993242399615,
+        "sunElevationDeg": 55.31178560784916,
         "airMass": 1.2,
         "snapshotAt": 1774697400000,
         "source": "auto",
@@ -3062,7 +3063,7 @@
         "uvIndex": 6.1,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 55.90820821344402,
+        "sunElevationDeg": 56.874412804733616,
         "airMass": 1.2,
         "snapshotAt": 1775214000000,
         "source": "auto",
@@ -3177,7 +3178,7 @@
         "uvIndex": 6.4,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 57.38316599461701,
+        "sunElevationDeg": 54.995398036675496,
         "airMass": 1.2,
         "snapshotAt": 1776506400000,
         "source": "auto",
@@ -3232,7 +3233,7 @@
         "uvIndex": 5.9,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 53.827639872881626,
+        "sunElevationDeg": 54.77622856547243,
         "airMass": 1.2,
         "snapshotAt": 1777109400000,
         "source": "auto",
@@ -3290,7 +3291,7 @@
         "uvIndex": 6.8,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.48562852186446,
+        "sunElevationDeg": 56.39146733206352,
         "airMass": 1.2,
         "snapshotAt": 1777548600000,
         "source": "auto",
@@ -3402,7 +3403,7 @@
         "uvIndex": 6,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.524084155351254,
+        "sunElevationDeg": 52.78459891013727,
         "airMass": 1.2,
         "snapshotAt": 1778236200000,
         "source": "auto",
@@ -4101,5 +4102,5 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v3"
+  "demoUpgradedAt": "2026-05-09-v4"
 }
