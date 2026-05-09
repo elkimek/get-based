@@ -123,7 +123,8 @@ export const refreshScreenAIAnalysis = engine.refresh;
 const _autoFiredScreenKeys = new Set();
 
 export function renderScreenAIBlock(s) {
-  if (!hasAIProvider() || !s) return '';
+  if (!s) return '';
+  if (!hasAIProvider() && !(s.aiAnalysis?.status === 'ok' && s.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(s);
   const a = s.aiAnalysis;
   const currentFingerprint = getScreenFingerprint(s);

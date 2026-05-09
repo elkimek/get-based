@@ -210,8 +210,9 @@ export const maybeAnalyzeMeasurementAfterSave = engine.maybeAfterFinish;
 // ─── Render ────────────────────────────────────────────────────────────
 
 export function renderMeasurementAIInline(m) {
-  if (!hasAIProvider() || !m) return '';
+  if (!m) return '';
   if (m.tool === 'audit') return ''; // aggregate row carries no per-tool verdict
+  if (!hasAIProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(m);
   const a = m.aiAnalysis;
   const refreshBtn = `<button class="sun-session-ai-refresh" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;

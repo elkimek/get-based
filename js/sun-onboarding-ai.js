@@ -180,9 +180,9 @@ export function maybeAnalyzeOnboardingAfterSave() {
 // ─── Render ────────────────────────────────────────────────────────────
 
 export function renderOnboardingAIBlock() {
-  if (!hasAIProvider()) return '';
   const d = _getDefaults();
   if (!d || !d.completedAt) return '';
+  if (!hasAIProvider() && !(d.aiAnalysis?.status === 'ok' && d.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(SINGLETON_TARGET);
   const a = d.aiAnalysis;
   if (status === 'analyzing') {

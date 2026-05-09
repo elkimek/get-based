@@ -196,7 +196,8 @@ export const refreshRoomAIAnalysis = engine.refresh;
 const _autoFiredRoomKeys = new Set();
 
 export function renderRoomAIBlock(r) {
-  if (!hasAIProvider() || !r) return '';
+  if (!r) return '';
+  if (!hasAIProvider() && !(r.aiAnalysis?.status === 'ok' && r.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(r);
   const a = r.aiAnalysis;
   const currentFingerprint = getRoomFingerprint(r);

@@ -14,7 +14,7 @@
 // auto-fire would be wasteful.
 
 import { state } from './state.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 
@@ -169,7 +169,24 @@ const _autoFiredChannelKeys = new Set();
 // static suggestion (caller still gets non-empty HTML for the empty
 // case, so the layout doesn't shift when AI isn't configured).
 export function renderChannelMixVerdict(staticFallback) {
-  if (!hasAIProvider()) return staticFallback || '';
+  if (!hasAIProvider()) {
+    // Pre-populated demo or cross-device synced cached verdict still
+    // renders even without a provider — only fresh analyses are gated.
+    const cached = _getMix();
+    if (cached?.status === 'ok' && cached?.dot && cached?.tip) {
+      const dot = cached.dot;
+      return `<div class="light-channel-mix-ai">
+        <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
+          <div class="sun-detail-ai-head">
+            <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
+            <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip)}</span>
+          </div>
+          ${cached.detail ? `<div class="sun-detail-ai-body">${escapeHTML(cached.detail)}</div>` : ''}
+        </div>
+      </div>`;
+    }
+    return staticFallback || '';
+  }
   const status = engine.getStatus(SINGLETON);
   const a = _getMix();
   const currentFp = getChannelMixFingerprint();

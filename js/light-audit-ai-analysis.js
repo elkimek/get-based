@@ -223,7 +223,8 @@ export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
 // audit" once per snapshot — the verdict is then frozen with the audit
 // (via aiAnalysis.fingerprint) and won't re-fire on subsequent renders.
 export function renderAuditAIBlock(a) {
-  if (!hasAIProvider() || !a) return '';
+  if (!a) return '';
+  if (!hasAIProvider() && !(a.aiAnalysis?.status === 'ok' && a.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(a);
   const verdict = a.aiAnalysis;
   if (status === 'analyzing') {
@@ -273,7 +274,9 @@ export function renderAuditAIBlock(a) {
 // Compact dot for the audit card header (collapsed view) — gives users
 // an at-a-glance read across multiple audits without expanding each.
 export function renderAuditAIDot(a) {
-  if (!hasAIProvider() || !a?.aiAnalysis?.dot) return '';
+  // Dot is purely a cached-verdict indicator — render whenever the
+  // verdict is present, regardless of provider state.
+  if (!a?.aiAnalysis?.dot) return '';
   const dot = a.aiAnalysis.dot;
   return `<span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)} light-audit-ai-dot" title="AI verdict: ${escapeAttr(a.aiAnalysis.tip || '')}" aria-hidden="true"></span>`;
 }

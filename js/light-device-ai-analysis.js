@@ -236,7 +236,8 @@ export const maybeAnalyzeDeviceSessionAfterFinish = engine.maybeAfterFinish;
 // ─── Render ────────────────────────────────────────────────────────────
 
 export function renderDeviceSessionAIInline(sess) {
-  if (!hasAIProvider() || !sess?.endedAt) return '';
+  if (!sess?.endedAt) return '';
+  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   const refreshBtn = `<button class="sun-session-ai-refresh" onclick="event.stopPropagation();window.refreshDeviceSessionAIAnalysis('${escapeAttr(sess.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
@@ -269,7 +270,8 @@ export function renderDeviceSessionAIInline(sess) {
 }
 
 export function renderDeviceSessionAIDetail(sess) {
-  if (!hasAIProvider() || !sess?.endedAt) return '';
+  if (!sess?.endedAt) return '';
+  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   if (status === 'analyzing') {

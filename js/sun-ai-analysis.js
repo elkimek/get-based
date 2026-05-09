@@ -265,7 +265,12 @@ export const maybeAnalyzeSessionAfterFinish = engine.maybeAfterFinish;
 // ─── Render helpers ────────────────────────────────────────────────────
 
 export function renderSessionAIInline(sess) {
-  if (!hasAIProvider() || !sess?.endedAt) return '';
+  if (!sess?.endedAt) return '';
+  // Render cached verdict even when no provider — pre-populated demos +
+  // cross-device-synced verdicts shouldn't disappear just because the
+  // current device hasn't configured an AI key. Provider-gate only the
+  // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
+  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   const refreshBtn = `<button class="sun-session-ai-refresh" onclick="event.stopPropagation();window.refreshSessionAIAnalysis('${escapeAttr(sess.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
@@ -298,7 +303,12 @@ export function renderSessionAIInline(sess) {
 }
 
 export function renderSessionAIDetail(sess) {
-  if (!hasAIProvider() || !sess?.endedAt) return '';
+  if (!sess?.endedAt) return '';
+  // Render cached verdict even when no provider — pre-populated demos +
+  // cross-device-synced verdicts shouldn't disappear just because the
+  // current device hasn't configured an AI key. Provider-gate only the
+  // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
+  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   if (status === 'analyzing') {

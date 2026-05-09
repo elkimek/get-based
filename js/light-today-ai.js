@@ -314,11 +314,13 @@ export async function refreshDayAIAnalysis(dateKey) {
 const _autoFiredKeys = new Set();
 
 export function renderLightTodayHero() {
-  if (!hasAIProvider()) return '';
   const today = new Date();
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
   const cached = _getDailyVerdicts()[target.key];
+  // No provider: still render a cached `ok` verdict (pre-populated demo
+  // or cross-device-synced from a device that has a key).
+  if (!hasAIProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
 
   // Auto-fire on first idle render of the day. Skip if we've already
   // tried in this tab session (prevents tight-loop refire on transient
@@ -416,11 +418,11 @@ export function renderLightTodayHero() {
 // hover-tooltip dependency, no collapse-by-default that hides the
 // content.
 export function renderLightTodayDashboardChip() {
-  if (!hasAIProvider()) return '';
   const today = new Date();
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
   const cached = _getDailyVerdicts()[target.key];
+  if (!hasAIProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
   // Stale-verdict auto-fire — same logic as renderLightTodayHero. The
   // dashboard is what the user sees first, so triggering re-analysis
   // here means a stale cached verdict (e.g. one from before the

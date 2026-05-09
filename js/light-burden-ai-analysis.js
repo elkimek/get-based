@@ -15,7 +15,7 @@
 // guard keeps tight-loop refire from happening on transient errors.
 
 import { state } from './state.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
@@ -177,10 +177,26 @@ const _autoFiredKeys = new Set();
 // directly. Falls through to the heuristic interp when no AI provider.
 export function renderBurdenInterp(burden) {
   const heuristic = burden?.interp || '';
+  const env = _getEnv();
+  // No provider: render a cached AI verdict if one exists (pre-populated
+  // demo, cross-device sync from a device that had a provider, etc.) —
+  // otherwise fall back to the static heuristic interp text.
   if (!hasAIProvider()) {
+    const cached = env?.burdenAI;
+    if (cached?.status === 'ok' && cached?.dot && cached?.tip) {
+      const dot = cached.dot;
+      return `<div class="light-env-summary-ai">
+        <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
+          <div class="sun-detail-ai-head">
+            <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
+            <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip)}</span>
+          </div>
+          ${cached.detail ? `<div class="sun-detail-ai-body">${escapeHTML(cached.detail)}</div>` : ''}
+        </div>
+      </div>`;
+    }
     return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
   }
-  const env = _getEnv();
   if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) {
     return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
   }
