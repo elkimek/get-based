@@ -165,16 +165,30 @@ export function renderLightTodayStrip() {
       deviceBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()" title="Pick from your ${devicesArr.length} devices">🔴 Device <span aria-hidden="true">▼</span></button>`;
     }
   }
-  // Map-a-room CTA — when the user has zero rooms surveyed, surface
-  // a path to the indoor side of the Light & Sun module from the
-  // dashboard. Most users spend 8-14 h/day under indoor lights;
-  // without this CTA the dashboard never points them at the indoor
-  // tracker until they happen to navigate to Light & Sun manually.
+  // Onboarding CTA — graduated by what's already filled in:
+  //   1. No Light setup yet (no skin type / location / Ott)  → "Set up Light & Sun"
+  //      The Light setup card is the FIRST thing on the Light page; without it
+  //      no other tracking math works correctly.
+  //   2. Setup done, no rooms                                → "Map a room"
+  //      Most users spend 8-14 h/day indoors — once setup is in, surface the
+  //      indoor environment as the natural next layer.
+  //   3. Both done                                            → no CTA
+  // Earlier draft only had the room CTA, which oversold the link target —
+  // clicking "Map a room" actually drops users at a page where Light setup
+  // is the dominant card. Naming it for what it actually leads to is more
+  // honest + improves the empty-state conversion path.
+  const sd = state.importedData?.sunDefaults;
+  const hasSetup = !!(sd && sd.completedAt && sd.fitzpatrick);
   const lightEnv = state.importedData?.lightEnvironment;
   const hasRooms = lightEnv && Array.isArray(lightEnv.rooms) && lightEnv.rooms.length > 0;
-  const roomBtn = !hasRooms
-    ? `<button class="light-today-cta light-today-cta-secondary" onclick="window.navigate && window.navigate('light')" title="Map your rooms — most of your day is under indoor lights">🛋 Map a room</button>`
-    : '';
+  let setupBtn = '';
+  if (!hasSetup) {
+    setupBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.navigate && window.navigate('light')" title="Skin type, location, indoor light, photosensitive meds — 30 seconds. Drives every Light & Sun calculation.">🌞 Set up Light & Sun</button>`;
+  } else if (!hasRooms) {
+    setupBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.navigate && window.navigate('light')" title="Map your rooms — most of your day is under indoor lights">🛋 Map a room</button>`;
+  }
+  // Keep the legacy roomBtn name so the template strings below don't change.
+  const roomBtn = setupBtn;
 
   let cta;
   if (active) {
