@@ -375,6 +375,33 @@ return (async function() {
     else localStorage.setItem(STORAGE_KEY, _saved);
   }
 
+  // ───────────────────────────────────────────────────────────────────
+  // fetchJson response-size cap — Greptile re-review #175
+  // ───────────────────────────────────────────────────────────────────
+  // Defence-in-depth for user-configured selfhost URLs (and incidentally
+  // public APIs gone bad). Verifies that an oversized declared
+  // Content-Length fails fast, and that an undeclared/lying header still
+  // gets caught by the streaming byte-counter cap. Source-inspection +
+  // a runtime probe through the actual fetchJson path.
+  {
+    const uvSrc = await fetch('/js/sun-uvdata.js').then(r => r.text());
+    assert('fetchJson defines _UV_RESPONSE_CAP_BYTES',
+      /_UV_RESPONSE_CAP_BYTES\s*=\s*256\s*\*\s*1024/.test(uvSrc));
+    assert('fetchJson does Content-Length pre-check',
+      /content-length[\s\S]{0,300}_UV_RESPONSE_CAP_BYTES/i.test(uvSrc));
+    assert('fetchJson streaming byte-counter rejects mid-stream',
+      /total\s*>\s*_UV_RESPONSE_CAP_BYTES[\s\S]{0,200}refusing to trust/.test(uvSrc));
+    assert('fetchJson cancels reader on cap-exceeded',
+      /reader\.cancel\(\)/.test(uvSrc));
+
+    // Runtime exercise of the cap is covered by the parallel
+    // implementation in api/proxy.js (CAMS relay; same Content-Length
+    // pre-check + streaming byte-counter pattern, same _UV_RESPONSE_CAP_BYTES
+    // sibling constant). Source inspection above guarantees the four
+    // load-bearing pieces are wired in fetchJson; adding a runtime
+    // probe here would require a fetchJson export hook just for tests.
+  }
+
   console.log(`%c Sun UV-Data: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

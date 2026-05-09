@@ -871,6 +871,17 @@ export function purgeMeteoCache() {
   return removed;
 }
 
+// Response-size cap — matches api/proxy.js's CAMS relay guard
+// (cc2e705). UV/atmosphere payloads are small JSON (hourly arrays for a
+// few days, typically 10–50 KB); 256 KB leaves generous headroom for
+// honest servers. Caps two distinct DoS surfaces:
+//   1. User-configured selfhost URL serving a malicious huge payload
+//      (Greptile re-review #175 caught this gap)
+//   2. Compromised/buggy public endpoint suddenly returning a huge body
+// Public-API paths are low risk in practice but still benefit from the
+// same defence-in-depth — a bad day at Open-Meteo shouldn't OOM the tab.
+const _UV_RESPONSE_CAP_BYTES = 256 * 1024;
+
 async function fetchJson(url, opts = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), NETWORK_TIMEOUT_MS);
@@ -880,7 +891,34 @@ async function fetchJson(url, opts = {}) {
     // useful only when debugging a specific provider.
     const res = await fetch(url, { ...opts, signal: ctrl.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    // Best-effort Content-Length pre-check — fast-fail when the server
+    // honestly declares a too-large body. Server can lie or omit; the
+    // streaming cap below is the actual guarantee.
+    const declared = parseInt(res.headers.get('content-length') || '', 10);
+    if (Number.isFinite(declared) && declared > _UV_RESPONSE_CAP_BYTES) {
+      throw new Error(`Response declared ${declared} bytes — refusing (cap ${_UV_RESPONSE_CAP_BYTES})`);
+    }
+    // Streaming byte-counter cap — rejects mid-stream as soon as the
+    // running total crosses the cap, before the full body buffers.
+    // Falls through to res.json() when streaming isn't available
+    // (older browsers / non-stream-capable response shapes).
+    const reader = res.body?.getReader?.();
+    if (!reader) return await res.json();
+    const decoder = new TextDecoder();
+    let total = 0;
+    let text = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > _UV_RESPONSE_CAP_BYTES) {
+        try { await reader.cancel(); } catch {}
+        throw new Error(`Response exceeds ${_UV_RESPONSE_CAP_BYTES} bytes — refusing to trust`);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return JSON.parse(text);
   } finally {
     clearTimeout(t);
   }
