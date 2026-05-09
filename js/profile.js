@@ -283,6 +283,18 @@ export function migrateProfileData(data) {
   if (data.sunCorrelations === undefined) data.sunCorrelations = null;
   if (data.lifelightProfile === undefined) data.lifelightProfile = null;
   if (data.sunDefaults === undefined) data.sunDefaults = null;
+  // Migration — sunDefaults.location → sunDefaults.coords. Earlier demo
+  // imports + a brief window of the v1.6.55 demo upgrade wrote the
+  // location under `.location`, but getSunCoords() (sun.js:2329) reads
+  // `.coords`. Self-heal so the conditions strip + session start dialog
+  // see the location without a re-import.
+  if (data.sunDefaults && data.sunDefaults.location && !data.sunDefaults.coords) {
+    const { lat, lon, label } = data.sunDefaults.location;
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      data.sunDefaults.coords = { lat, lon, source: 'profile-precise', ...(label ? { label } : {}) };
+    }
+    delete data.sunDefaults.location;
+  }
   return data;
 }
 
