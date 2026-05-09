@@ -74,6 +74,19 @@ return (async function() {
   assert('Client export includes markerNotes', exportSrc.includes('markerNotes: data.markerNotes'));
   assert('Client export includes changeHistory', exportSrc.includes('changeHistory: data.changeHistory'));
   assert('Client export includes chatSummaries', exportSrc.includes('chatSummaries: data.chatSummaries'));
+  // Light & Sun stack — earlier export schema dropped these silently;
+  // import learned them in v1.6.x but export hadn't followed suit.
+  assert('Client export includes sunSessions', exportSrc.includes('sunSessions: data.sunSessions'));
+  assert('Client export includes deviceSessions', exportSrc.includes('deviceSessions: data.deviceSessions'));
+  assert('Client export includes lightDevices', exportSrc.includes('lightDevices: data.lightDevices'));
+  assert('Client export includes lightAudits', exportSrc.includes('lightAudits: data.lightAudits'));
+  assert('Client export includes lightMeasurements', exportSrc.includes('lightMeasurements: data.lightMeasurements'));
+  assert('Client export includes lightEnvironment', exportSrc.includes('lightEnvironment: data.lightEnvironment'));
+  assert('Client export includes sunDefaults', exportSrc.includes('sunDefaults: data.sunDefaults'));
+  assert('Client export includes sunCorrelations', exportSrc.includes('sunCorrelations: data.sunCorrelations'));
+  assert('Client export includes lifelightProfile', exportSrc.includes('lifelightProfile: data.lifelightProfile'));
+  assert('Client export includes lightDailyVerdicts', exportSrc.includes('lightDailyVerdicts: data.lightDailyVerdicts'));
+  assert('Client export includes channelMixAI', exportSrc.includes('channelMixAI: data.channelMixAI'));
   assert('Client export has profile sex', exportSrc.includes('sex: p.sex'));
   assert('Client export has profile dob', exportSrc.includes('dob: p.dob'));
   assert('Client export has profile tags', exportSrc.includes('tags: p.tags'));
@@ -497,6 +510,78 @@ return (async function() {
       assert('lightDailyVerdicts imported',
         Object.keys(got.lightDailyVerdicts || {}).length === expectedVerdicts,
         `got ${Object.keys(got.lightDailyVerdicts || {}).length}, expected ${expectedVerdicts}`);
+      // channelMixAI singleton — without it, demo loads with no prefilled
+      // channel-mix verdict and the surface auto-fires a provider call.
+      assert('channelMixAI imported',
+        got.channelMixAI?.status === demo.channelMixAI?.status &&
+        got.channelMixAI?.dot === demo.channelMixAI?.dot,
+        `got status=${got.channelMixAI?.status} dot=${got.channelMixAI?.dot}, expected status=${demo.channelMixAI?.status} dot=${demo.channelMixAI?.dot}`);
+
+      // Focus card prefill — demo JSONs ship a hand-authored focusCard
+      // sibling. The loadDemoData path writes it to per-profile
+      // localStorage (importDataJSON deliberately does NOT touch
+      // focusCard — that prefill is demo-only by code path). The cache
+      // entry intentionally ships with no fingerprint; loadFocusCard
+      // treats that as a hand-authored prefill and never auto-refreshes
+      // against a live provider.
+      assert('demo JSON ships focusCard.text',
+        typeof demo.focusCard?.text === 'string' && demo.focusCard.text.length > 50,
+        `got ${typeof demo.focusCard?.text} (${demo.focusCard?.text?.length || 0} chars)`);
+      const viewsSrc = await fetch('/js/views.js').then(r => r.text());
+      assert('loadFocusCard early-returns when cache has no fingerprint (demo prefill marker)',
+        viewsSrc.includes('if (!cached.fingerprint) return;'),
+        'loadFocusCard must skip AI refresh when cached.fingerprint is missing');
+      const exportSrcLive = await fetch('/js/export.js').then(r => r.text());
+      assert('loadDemoData writes focusCard to localStorage (demo-only by code path)',
+        exportSrcLive.includes("profileStorageKey(profileId, 'focusCard')") &&
+        /demoJson\??\.focusCard\?\.text/.test(exportSrcLive),
+        'demo loader must prefill focus card cache from demo JSON');
+      // Slice out just the importDataJSON function body — checking the
+      // whole file would false-positive on clearAllData (which legitimately
+      // wipes the focusCard cache when the profile is deleted) and on the
+      // demo-loader's own comment that explicitly disclaims this guarantee.
+      const _importStart = exportSrcLive.indexOf('export function importDataJSON');
+      const _afterImport = exportSrcLive.indexOf('\nexport ', _importStart + 1);
+      const _importBody = _importStart >= 0 && _afterImport > _importStart
+        ? exportSrcLive.slice(_importStart, _afterImport)
+        : '';
+      assert('importDataJSON does NOT touch focusCard cache (so non-demo imports are unaffected)',
+        _importBody.length > 0 && !_importBody.includes('focusCard'),
+        'focus card prefill leaks into the regular JSON-import path');
+
+      // Context health dots prefill — demo JSONs ship dots+summaries for
+      // all 9 context cards. The demo loader awaits importDataJSON, then
+      // computes live fingerprints (via getCardFingerprint) against the
+      // freshly-imported state and writes the cache. Real users get
+      // standard AI-generated dots; demo prefill suppresses 9 calls on
+      // first dashboard render. No special branch in
+      // loadContextHealthDots — the prefilled fingerprints simply
+      // already match, so the existing fp === fp check renders cached.
+      assert('demo JSON ships contextHealth.dots for all 9 cards',
+        demo.contextHealth?.dots && Object.keys(demo.contextHealth.dots).length === 9,
+        `got ${Object.keys(demo.contextHealth?.dots || {}).length} cards`);
+      const _allDotKeys = ['healthGoals','diagnoses','diet','exercise','sleepRest','lightCircadian','stress','loveLife','environment'];
+      const _missingCards = _allDotKeys.filter(k => !demo.contextHealth?.dots?.[k]);
+      assert('all 9 context-card keys covered in demo prefill',
+        _missingCards.length === 0,
+        `missing: ${_missingCards.join(', ')}`);
+      assert('all 9 context-card summaries covered in demo prefill',
+        _allDotKeys.every(k => typeof demo.contextHealth?.summaries?.[k] === 'string'),
+        'every dot must have a paired summary');
+      assert('importDataJSON returns a Promise (awaitable)',
+        /return new Promise/.test(_importBody),
+        'demo loader needs to await importDataJSON before computing fingerprints');
+      assert('loadDemoData computes live fingerprints + writes contextHealth cache',
+        exportSrcLive.includes("profileStorageKey(profileId, 'contextHealth')") &&
+        /getCardFingerprint/.test(exportSrcLive),
+        'demo loader must seed the contextHealth localStorage cache');
+      const _loadDemoSection = exportSrcLive.split('export async function loadDemoData')[1] || '';
+      assert('contextHealth prefill is inside loadDemoData (demo-only by code path)',
+        _loadDemoSection.includes("profileStorageKey(profileId, 'contextHealth')"),
+        'prefill must live in loadDemoData, not in importDataJSON');
+      assert('importDataJSON does NOT touch contextHealth cache (so non-demo imports are unaffected)',
+        _importBody.length > 0 && !_importBody.includes('contextHealth'),
+        'context-health prefill leaks into the regular JSON-import path');
       assert('sunDefaults.coords survived (lat)',
         got.sunDefaults?.coords?.lat === expectedSunCoords?.lat,
         `got ${got.sunDefaults?.coords?.lat}, expected ${expectedSunCoords?.lat}`);

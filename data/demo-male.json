@@ -4271,12 +4271,39 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v9",
+  "demoUpgradedAt": "2026-05-09-v11",
   "channelMixAI": {
     "status": "ok",
     "dot": "yellow",
     "tip": "Strong PBM + circadian; vitamin-D channel light",
     "detail": "Weekly mix shows good narrowband red-light therapy coverage and morning circadian signal. Vitamin D channel sits at ~70% of weekly target — one more 25-min midday outdoor session would close the gap. NIR-solar matches solar exposure; cellular-repair channel is well covered. POMC + violet-eye good.",
     "generatedAt": 1778142600000
+  },
+  "focusCard": {
+    "text": "HOMA-IR 0.85 (Feb 2026) cleared the < 2.0 goal — down from 1.40 in Sep — and fasting insulin + HbA1c track the same direction, which is exactly the shape an 8-week zone-2 cardio run + reduced refined carbs should produce. Homocysteine 9.2 µmol/L is also below your < 10 goal six months into the B-complex, so both metabolic arcs are coherent right now. Free testosterone has drifted ~4% over the year (68.2 → 65.4 nmol/L) — within normal age-related variance, but worth re-checking on the next panel before treating it as a trend."
+  },
+  "contextHealth": {
+    "dots": {
+      "healthGoals": "green",
+      "diagnoses": "yellow",
+      "diet": "green",
+      "exercise": "green",
+      "sleepRest": "yellow",
+      "lightCircadian": "yellow",
+      "stress": "yellow",
+      "loveLife": "yellow",
+      "environment": "yellow"
+    },
+    "summaries": {
+      "healthGoals": "Lab-tied measurable targets — HOMA-IR cleared",
+      "diagnoses": "Insulin resistance reversed; family T2D history",
+      "diet": "Mediterranean + IF 16:8 fits IR-reversal goal",
+      "exercise": "Strength + zone-2 cardio drove HOMA-IR drop",
+      "sleepRest": "Onset + middle-of-night waking present",
+      "lightCircadian": "Outdoor < 1h limits vit-D synthesis",
+      "stress": "Startup pressure + financial stack",
+      "loveLife": "Mismatched libido worth open conversation",
+      "environment": "Smart meter + WiFi + RF density elevated"
+    }
   }
 }

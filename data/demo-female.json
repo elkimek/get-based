@@ -4297,12 +4297,39 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v9",
+  "demoUpgradedAt": "2026-05-09-v11",
   "channelMixAI": {
     "status": "ok",
     "dot": "yellow",
     "tip": "Strong PBM + circadian; vitamin-D channel light",
     "detail": "Weekly mix shows good narrowband red-light therapy coverage and morning circadian signal. Vitamin D channel sits at ~70% of weekly target — one more 25-min midday outdoor session would close the gap. NIR-solar matches solar exposure; cellular-repair channel is well covered. POMC + violet-eye good.",
     "generatedAt": 1778142600000
+  },
+  "focusCard": {
+    "text": "Ferritin 42 µg/L (Jan 2026) is up from 24 in Sep — Iron Bisglycinate is doing real work over the 4-month run, but still under the functional 50+ goal you set. Hemoglobin recovered to 138 g/L from a Sep low of 126, and transferrin saturation tracks the same shape, so the iron-status arc is consistent. TSH and free T4 remain in range, but worth watching given the Hashimoto's family history — a paired thyroid-antibody panel (TPOAb + TgAb) would be the cleanest next step before adjusting the iron protocol."
+  },
+  "contextHealth": {
+    "dots": {
+      "healthGoals": "green",
+      "diagnoses": "yellow",
+      "diet": "green",
+      "exercise": "green",
+      "sleepRest": "yellow",
+      "lightCircadian": "green",
+      "stress": "yellow",
+      "loveLife": "yellow",
+      "environment": "yellow"
+    },
+    "summaries": {
+      "healthGoals": "Specific lab-tied targets — ferritin 50+ tracking",
+      "diagnoses": "Iron + subclinical thyroid; Hashimoto's family history",
+      "diet": "Anti-inflammatory, dairy/seed-oil free supports thyroid",
+      "exercise": "Mixed cardio + strength + yoga; well-balanced",
+      "sleepRest": "Sleep onset issue worth addressing",
+      "lightCircadian": "Strong AM light + midday outdoor exposure",
+      "stress": "Health anxiety stacking on work deadlines",
+      "loveLife": "Hormonal shifts affecting libido — track with cycle",
+      "environment": "Urban EMF + WiFi load partially mitigated"
+    }
   }
 }

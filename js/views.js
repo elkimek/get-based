@@ -2909,6 +2909,12 @@ export async function loadFocusCard() {
   const fp = getFocusCardFingerprint();
   if (cached && cached.text) {
     el.innerHTML = `<span class="focus-card-text">${applyInlineMarkdown(cached.text)}</span>`;
+    // Hand-authored prefill (demo profiles only) ships without a
+    // fingerprint — never auto-refresh. The manual ↻ button still
+    // works because refreshFocusCard clears the cache entirely.
+    // Real users always have a fingerprint set by loadFocusCard's
+    // own write path below, so this branch never matches them.
+    if (!cached.fingerprint) return;
     if (cached.fingerprint === fp || !hasAIProvider()) return;
   }
   if (!hasAIProvider()) {

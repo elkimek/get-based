@@ -278,14 +278,23 @@ export function applyAISummary(key, text, color) {
   // Recommendations are shown in detail modal and chat, not on dashboard cards
 }
 
-export function getCardFingerprint(key) {
-  const labPart = (state.importedData.entries || []).map(e => {
+// Optional ctx allows callers to compute the fingerprint against an
+// explicit data object rather than the live `state` — used by the demo
+// loader to seed the contextHealth cache BEFORE importDataJSON runs, so
+// the dashboard render that fires inside importDataJSON's onload finds
+// matching fingerprints and skips AI calls. Default (no ctx) reads the
+// live state, which is what every render-time caller wants.
+export function getCardFingerprint(key, ctx) {
+  const data = ctx?.importedData || state.importedData;
+  const sex = ctx?.profileSex !== undefined ? ctx.profileSex : state.profileSex;
+  const dob = ctx?.profileDob !== undefined ? ctx.profileDob : state.profileDob;
+  const labPart = (data.entries || []).map(e => {
     const m = e.markers || {};
     return e.date + ':' + hashString(JSON.stringify(m));
   }).join(',');
-  const val = key === 'healthGoals' ? JSON.stringify(state.importedData.healthGoals || []) : JSON.stringify(state.importedData[key] || null);
-  const shared = (state.importedData.contextNotes || '') + '|' + (state.importedData.interpretiveLens || '');
-  return hashString(labPart + '|' + val + '|' + shared + '|' + (state.profileSex || '') + '|' + (state.profileDob || ''));
+  const val = key === 'healthGoals' ? JSON.stringify(data.healthGoals || []) : JSON.stringify(data[key] || null);
+  const shared = (data.contextNotes || '') + '|' + (data.interpretiveLens || '');
+  return hashString(labPart + '|' + val + '|' + shared + '|' + (sex || '') + '|' + (dob || ''));
 }
 
 export async function loadContextHealthDots() {

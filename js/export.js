@@ -439,7 +439,22 @@ export async function exportClientJSON(profileId, includeChat = false) {
     // Evolu sync uses (wearableConnections wholesale exclude).
     wearableSummary: data.wearableSummary || null,
     wearableCardOrder: data.wearableCardOrder || null,
-    wearablePrimaryOverride: data.wearablePrimaryOverride || null
+    wearablePrimaryOverride: data.wearablePrimaryOverride || null,
+    // Light & Sun stack — earlier export schema predated this lens and
+    // silently dropped everything on export. importDataJSON learned to
+    // restore these fields (v1.6.x); the export side has to ship them
+    // for the round-trip to actually work.
+    sunSessions: data.sunSessions || [],
+    deviceSessions: data.deviceSessions || [],
+    lightDevices: data.lightDevices || [],
+    lightAudits: data.lightAudits || [],
+    lightMeasurements: data.lightMeasurements || [],
+    lightEnvironment: data.lightEnvironment || null,
+    sunDefaults: data.sunDefaults || null,
+    sunCorrelations: data.sunCorrelations || null,
+    lifelightProfile: data.lifelightProfile || null,
+    lightDailyVerdicts: data.lightDailyVerdicts || null,
+    channelMixAI: data.channelMixAI || null
   };
   if (includeChat) {
     const chat = await _exportChatData(profileId);
@@ -503,10 +518,16 @@ export async function exportAllDataJSON() {
 }
 
 export function importDataJSON(file) {
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const json = JSON.parse(e.target.result);
+  // Returns a Promise that resolves when the FileReader pipeline finishes
+  // (success OR error). Existing fire-and-forget callers (`importDataJSON(file)`)
+  // ignore the return value and behave identically; the demo loader awaits
+  // it to compute fingerprints against the imported state.
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve();
+    reader.onload = async (e) => {
+      try {
+        const json = JSON.parse(e.target.result);
       // Database bundle — multi-profile import
       if (json.type === 'database' && Array.isArray(json.profiles)) {
         await _importDatabaseBundle(json);
@@ -776,6 +797,15 @@ export function importDataJSON(file) {
           }
         }
       }
+      // channelMixAI is the singleton AI verdict for "Your light, by what
+      // it does". Replace-on-import (matches lightEnvironment.burdenAI).
+      // Without this branch, a demo / round-trip import silently dropped
+      // the prefilled verdict — the channel-mix render then saw idle
+      // status and auto-fired a real provider call against a freshly
+      // loaded demo, defeating the no-API-on-demo guarantee.
+      if (json.channelMixAI && typeof json.channelMixAI === 'object') {
+        state.importedData.channelMixAI = json.channelMixAI;
+      }
       // Import change history (merge by field+date, imported snapshot wins on conflict)
       if (Array.isArray(json.changeHistory)) {
         if (!state.importedData.changeHistory) state.importedData.changeHistory = [];
@@ -862,9 +892,12 @@ export function importDataJSON(file) {
     } catch (err) {
       delete window._demoLoadingProfileId;
       showNotification('Error parsing JSON: ' + err.message, 'error');
+    } finally {
+      resolve();
     }
   };
   reader.readAsText(file);
+  });
 }
 
 async function _importDatabaseBundle(json) {
@@ -1132,6 +1165,73 @@ export async function loadDemoData(sex = 'male') {
     // user manually refreshed.
     await switchProfile(profileId);
     localStorage.setItem(profileStorageKey(profileId, 'onboarded'), 'profile-set');
+    // Prefill caches BEFORE the import runs. importDataJSON's onload
+    // ends with `navigate('dashboard')`, which immediately fires
+    // loadFocusCard + loadContextHealthDots. If we wrote these caches
+    // AFTER the import, those renders would beat us to the punch and
+    // fire 9+1 AI calls before our prefill landed. Both writes are
+    // demo-only by code path (regular importDataJSON does not touch
+    // either localStorage cache).
+    let demoJson = null;
+    try { demoJson = JSON.parse(await blob.text()); } catch (_) {}
+    if (demoJson?.focusCard?.text) {
+      // Focus card cache ships without a fingerprint — loadFocusCard
+      // treats that as a hand-authored prefill and never auto-refreshes
+      // against a live provider. Manual ↻ clears the cache.
+      localStorage.setItem(profileStorageKey(profileId, 'focusCard'),
+        JSON.stringify({ text: demoJson.focusCard.text }));
+    }
+    if (demoJson?.contextHealth?.dots) {
+      try {
+        const { getCardFingerprint } = await import('./context-cards.js');
+        // Compute fingerprints against the demo JSON directly — passing
+        // an explicit ctx so getCardFingerprint doesn't read the live
+        // state (which won't be populated until importDataJSON's onload
+        // runs). The fingerprint values match what loadContextHealthDots
+        // will compute post-import (same data, same sex/dob), so the
+        // standard fp-match path renders cached without firing AI.
+        //
+        // CRITICAL: importDataJSON applies two transforms before the
+        // dashboard renders, both of which influence the labPart hash:
+        //   (1) merge same-date entries (commit 42415b1 — demos ship two
+        //       entries per draw day for comprehensive + specialty
+        //       add-on panels)
+        //   (2) migrateProfileData (e.g. hematocrit fraction → percent
+        //       per v1.6.1 migration)
+        // Apply both to a deep-cloned demoJson here, otherwise every
+        // fingerprint mismatches and all 9 dots fall through to stale
+        // AI-fire on first dashboard render. Deep clone via
+        // structuredClone keeps the original demoJson reference clean
+        // for any downstream usage (currently none, but defensive).
+        const _ctxData = structuredClone(demoJson);
+        const _entryByDate = new Map();
+        for (const e of (_ctxData.entries || [])) {
+          const existing = _entryByDate.get(e.date);
+          if (existing) {
+            Object.assign(existing.markers || (existing.markers = {}), e.markers || {});
+          } else {
+            _entryByDate.set(e.date, e);
+          }
+        }
+        _ctxData.entries = Array.from(_entryByDate.values());
+        try { migrateProfileData(_ctxData); } catch (_) {}
+        const ctx = {
+          importedData: _ctxData,
+          profileSex: sex,
+          profileDob: dob,
+        };
+        const cacheKey = profileStorageKey(profileId, 'contextHealth');
+        const dots = {};
+        const summaries = {};
+        const fingerprints = {};
+        for (const k of Object.keys(demoJson.contextHealth.dots)) {
+          dots[k] = demoJson.contextHealth.dots[k];
+          summaries[k] = demoJson.contextHealth.summaries?.[k] || '';
+          try { fingerprints[k] = getCardFingerprint(k, ctx); } catch (_) {}
+        }
+        localStorage.setItem(cacheKey, JSON.stringify({ dots, summaries, fingerprints }));
+      } catch (_) { /* prefill is best-effort */ }
+    }
     importDataJSON(new File([blob], file, { type: 'application/json' }));
   } catch (err) {
     delete window._demoLoadingProfileId;
