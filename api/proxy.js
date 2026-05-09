@@ -544,7 +544,50 @@ async function handleCamsRelay(payload, req) {
   if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   try {
     const res = await fetch(url, { headers });
-    const body = await res.text();
+    // Cap upstream response so a misbehaving / compromised CAMS relay
+    // can't blow up the function's memory. Real CAMS UV payloads sit
+    // around 5-10 KB; 256 KB leaves generous headroom while bounding
+    // the worst case. Greptile PR #175 review caught this.
+    const MAX_UPSTREAM_BYTES = 256 * 1024;
+    const cl = parseInt(res.headers.get('content-length') || '0', 10);
+    if (Number.isFinite(cl) && cl > MAX_UPSTREAM_BYTES) {
+      return new Response(JSON.stringify({ error: 'CAMS response exceeds size cap' }), {
+        status: 502,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    // Even when Content-Length is absent or lying, read with a running
+    // byte counter and bail past the cap.
+    const reader = res.body?.getReader();
+    if (!reader) {
+      return new Response(JSON.stringify({ error: 'CAMS response had no body' }), {
+        status: 502,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_UPSTREAM_BYTES) {
+        try { await reader.cancel(); } catch (_) {}
+        return new Response(JSON.stringify({ error: 'CAMS response exceeds size cap' }), {
+          status: 502,
+          headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+        });
+      }
+      chunks.push(value);
+    }
+    const body = new TextDecoder().decode(
+      chunks.length === 1 ? chunks[0] : (() => {
+        const out = new Uint8Array(total);
+        let off = 0;
+        for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+        return out;
+      })()
+    );
     return new Response(body, {
       status: res.status,
       headers: {
