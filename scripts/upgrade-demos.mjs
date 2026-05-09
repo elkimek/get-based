@@ -599,8 +599,152 @@ function buildCategoryDisplayOverrides() {
 
 // ─── 4. Apply ─────────────────────────────────────────────────────────
 
+// Pre-populate every AI-verdict surface so the demo doesn't show
+// gray "Get AI verdict" CTAs on every row. Without provider, the
+// CTAs would do nothing on click; with provider, the user would
+// burn 25+ token-budgeted API calls just to see the demo. Both are
+// bad UX. Engine treats `status:'ok' + dot` as a renderable cached
+// verdict regardless of fingerprint — so synthetic 'demo-*' prints
+// just work; on user-driven ↻ refresh the engine fires fresh.
+function _verdict(dot, tip, detail, fingerprint, generatedAt) {
+  return { status: 'ok', dot, tip, detail, fingerprint, generatedAt };
+}
+
+function attachMockAIVerdicts(data, sex) {
+  const base = NOW_MS - 30 * DAY_MS;
+  // ── Sun sessions — coverage + safety summary
+  for (const sess of data.sunSessions || []) {
+    const frac = sess.bodyExposure?.fraction || 0;
+    const med = sess.safety?.medFraction || 0;
+    const glass = !!sess.bodyExposure?.glassBetween;
+    const eyes = sess.eyeExposure?.mode;
+    let dot, tip, detail;
+    if (glass) {
+      dot = 'gray';
+      tip = 'Glass between you and the sun — no UVB → no vitamin D';
+      detail = 'Window glass blocks ~95% of UVB. Other channels (NIR, circadian-eye) still flowed through. Move outside next time for the vit-D path.';
+    } else if (frac < 0.1 && eyes === 'direct') {
+      dot = 'yellow';
+      tip = 'Face-only exposure — circadian + eye good, vit-D minimal';
+      detail = `~${Math.round(frac * 100)}% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.`;
+    } else if (med >= 0.7) {
+      dot = 'yellow';
+      tip = `~${Math.round(med * 100)}% of MED — close to burn threshold`;
+      detail = `Body got ~${Math.round(med * 100)}% of the dose that triggers redness. You're at the upper end of the safe band; cap at 20-25 min next time at this UVI to keep buffer.`;
+    } else {
+      dot = 'green';
+      tip = `Solid ${sess.durationMin || 0}-min session, well within safe band`;
+      detail = `${Math.round(frac * 100)}% body fraction at UVI ${(sess.atmosphere?.uvIndex || 0).toFixed(1)}. Vit-D synthesis on track, ${Math.round(med * 100)}% MED leaves room for one more session today if you want.`;
+    }
+    sess.aiAnalysis = _verdict(dot, tip, detail, `demo-sun-${sess.id}`, sess.endedAt || base);
+  }
+  // ── Device sessions — eye protection + distance + dose
+  for (const sess of data.deviceSessions || []) {
+    const dev = (data.lightDevices || []).find(d => d.id === sess.deviceId);
+    const isUVB = dev?.type === 'uvb';
+    let dot, tip, detail;
+    if (isUVB && !sess.eyesProtected) {
+      dot = 'red';
+      tip = 'UVB device + uncovered eyes — never look at the panel';
+      detail = 'UVB on the cornea drives photokeratitis (welder\'s flash) within minutes. Always wear the included goggles or face away.';
+    } else if (sess.distanceCm > (dev?.recommendedDistanceCm || 60) * 1.4) {
+      dot = 'yellow';
+      tip = `Distance ${sess.distanceCm}cm exceeds device sweet spot`;
+      detail = `Inverse-square law — irradiance falls off fast past spec distance. At ${sess.distanceCm}cm vs ${dev?.recommendedDistanceCm || 60}cm spec, effective dose is ~${Math.round(((dev?.recommendedDistanceCm || 60) ** 2 / sess.distanceCm ** 2) * 100)}% of label.`;
+    } else {
+      dot = 'green';
+      tip = `${sess.durationMin}-min session at recommended distance, eyes ${sess.eyesProtected ? 'protected' : 'uncovered (OK at this wavelength)'}`;
+      detail = `Distance ${sess.distanceCm}cm sits in the device's optimal band. Doses tracked: ${Object.entries(sess.doses || {}).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${typeof v === 'number' ? v.toFixed(0) : v}`).join(', ')}.`;
+    }
+    sess.aiAnalysis = _verdict(dot, tip, detail, `demo-dev-${sess.id}`, sess.endedAt || base);
+  }
+  // ── Rooms — primary source + evening use
+  for (const r of (data.lightEnvironment?.rooms || [])) {
+    let dot, tip, detail;
+    const evening = r.eveningUseAfterSunset;
+    if (r.primarySource === 'led_cool' && evening) {
+      dot = 'red';
+      tip = 'Cool-white LED + evening use → suppresses melatonin';
+      detail = 'Blue-rich 4000K+ light after sunset blocks the natural melatonin rise. Either swap to <3000K bulbs for evening, or limit time in this room after dark.';
+    } else if (r.primarySource === 'led_warm' && evening) {
+      dot = 'green';
+      tip = 'Warm bedroom light + evening use — good evening config';
+      detail = `2700K amber bulbs + ${r.eveningHoursAfterSunset || ''} of post-sunset use. Melanopic load stays low, sleep onset uninterrupted.`;
+    } else if (r.primarySource === 'led_cool' && !evening) {
+      dot = 'green';
+      tip = 'Cool-white workspace, daytime-only — appropriate for office';
+      detail = `5000K + ${r.hoursOccupiedPerDay || 0}h/day during productive hours feeds the daytime alertness signal. Window-adjacent is even better — natural light dominates 9am-4pm.`;
+    } else {
+      dot = 'gray';
+      tip = `${r.hoursOccupiedPerDay || 0} h/day — light-burden moderate`;
+      detail = `Mixed/unknown lighting in a low-occupancy room is a low-impact lever. Focus on bedroom + workspace first.`;
+    }
+    r.aiAnalysis = _verdict(dot, tip, detail, `demo-room-${r.id}`, r.updatedAt || base);
+  }
+  // ── Screens — blue blocker + evening hours
+  for (const s of (data.lightEnvironment?.screens || [])) {
+    let dot, tip, detail;
+    if (s.blueBlockerEnabled && s.eveningUseAfterSunset === '<1hr') {
+      dot = 'green';
+      tip = 'Blue blocker + minimal evening use — well managed';
+      detail = `${s.device} with active blue-light filter + ${s.eveningUseAfterSunset} after sunset. This is the ideal screen profile.`;
+    } else if (!s.blueBlockerEnabled && /1-3hr|3\+hr/.test(s.eveningUseAfterSunset || '')) {
+      dot = 'yellow';
+      tip = `Unblocked ${s.device} + ${s.eveningUseAfterSunset} after sunset`;
+      detail = `Phone/tablet display peaks at ~440nm — same wavelength your circadian system reads as "morning sun". A schedule-based blue-blocker (Night Shift / f.lux) cuts the melatonin-suppression effect ~40% without changing your usage habits.`;
+    } else {
+      dot = 'gray';
+      tip = `Low-impact screen profile`;
+      detail = `${s.device} screen in this room — current usage pattern doesn't significantly load the circadian channel.`;
+    }
+    s.aiAnalysis = _verdict(dot, tip, detail, `demo-screen-${s.id}`, s.updatedAt || base);
+  }
+  // ── Light-tool measurements
+  for (const m of (data.lightMeasurements || [])) {
+    let dot, tip, detail;
+    if (m.tool === 'lux') {
+      if (m.value < 50) { dot = 'green'; tip = `${m.value} lux — sleep-spec dark`; detail = 'Below 50 lux is the ICNIRP-friendly sleep range. Melatonin uninhibited.'; }
+      else if (m.value < 500) { dot = 'yellow'; tip = `${m.value} lux — daytime-low for an office`; detail = 'Reasonable but below the 500-lux office baseline. Adding window-side time or a daytime-bright lamp would help alertness.'; }
+      else { dot = 'green'; tip = `${m.value} lux — strong daytime signal`; detail = 'Plenty of light for the circadian pathway during productive hours.'; }
+    } else if (m.tool === 'cct') {
+      if (m.value <= 3000) { dot = 'green'; tip = `${m.value}K — warm, evening-appropriate`; detail = 'Below 3000K means low blue content. Good for sleep prep.'; }
+      else if (m.value < 5000) { dot = 'yellow'; tip = `${m.value}K — neutral, room-by-room call`; detail = 'Mid-CCT works for daytime task lighting; in evening rooms it accelerates melatonin suppression.'; }
+      else { dot = 'gray'; tip = `${m.value}K — cool/daytime CCT`; detail = 'High blue content suits productive daytime hours, less so for evening rooms.'; }
+    } else if (m.tool === 'flicker') {
+      dot = m.value <= 1 ? 'green' : (m.value === 2 ? 'yellow' : 'red');
+      tip = `Flicker score ${m.value} — ${['pristine', 'mild', 'noticeable', 'severe'][m.value] || 'noticeable'}`;
+      detail = `${m.extra?.strobeHz ? `Detected at ${m.extra.strobeHz} Hz. ` : ''}Below 200 Hz is correlated with eye strain + headache susceptibility in flicker-sensitive subjects (Wilkins 2018).`;
+    } else if (m.tool === 'darkness') {
+      dot = m.value < 1 ? 'green' : (m.value < 5 ? 'yellow' : 'red');
+      tip = `${m.extra?.label || ''} mean ${m.value} lux at the pillow`;
+      detail = `Sleep darkness goal is <1 lux mean. Brief streetlight peaks (max ${m.extra?.max || ''} lux) are tolerable; constant exposure isn't.`;
+    } else if (m.tool === 'spectrum') {
+      dot = 'green';
+      tip = `${m.extra?.label || m.value}`;
+      detail = 'Warm-spectrum lighting in evening rooms minimizes melanopic load.';
+    } else { dot = 'gray'; tip = `${m.tool} measurement logged`; detail = ''; }
+    m.aiAnalysis = _verdict(dot, tip, detail, `demo-tool-${m.id}`, m.capturedAt || base);
+  }
+  // ── sunDefaults onboarding AI (guides first-time setup)
+  if (data.sunDefaults) {
+    data.sunDefaults.aiAnalysis = _verdict(
+      'green',
+      `Setup complete — ${data.sunDefaults.fitzpatrick} skin, ${data.sunDefaults.coords?.label || 'Prague'}, Ott score ${data.sunDefaults.ottScore}/10`,
+      `Skin type ${data.sunDefaults.fitzpatrick} drives the burn-threshold + vit-D yield curves. Prague (~50°N) means winter sun is too low for vit-D synthesis Nov-Feb; cap session length aggressively in summer noon. Ott score ${data.sunDefaults.ottScore}/10 suggests room for evening light-burden reduction.`,
+      'demo-onboarding-fp', NOW_MS - 60 * DAY_MS,
+    );
+  }
+  // ── channelMixAI (singleton, weekly profile summary)
+  data.channelMixAI = _verdict(
+    'yellow',
+    'Strong PBM + circadian; vitamin-D channel light',
+    'Weekly mix shows good narrowband red-light therapy coverage and morning circadian signal. Vitamin D channel sits at ~70% of weekly target — one more 25-min midday outdoor session would close the gap. NIR-solar matches solar exposure; cellular-repair channel is well covered. POMC + violet-eye good.',
+    'demo-channelmix-fp', NOW_MS - 2 * DAY_MS,
+  );
+}
+
 function alreadyUpgraded(data) {
-  if (data.demoUpgradedAt === '2026-05-09-v5') return true;
+  if (data.demoUpgradedAt === '2026-05-09-v6') return true;
   return false;
 }
 
@@ -641,9 +785,15 @@ function upgrade(data, sex) {
   Object.assign(data, buildCategoryDisplayOverrides());
   data.wearableCardOrder = ['weight', 'pulse', 'bp', 'sleep', 'hrv', 'activity'];
 
-  // 4. Bump version + mark.
+  // 4. Pre-populate AI verdicts on every per-row surface so the demo
+  //    shows the AI-verdict feature in its populated state instead of
+  //    25+ "Get AI verdict" CTAs that either do nothing (no provider)
+  //    or burn tokens to regenerate the demo.
+  attachMockAIVerdicts(data, sex);
+
+  // 5. Bump version + mark.
   data.version = 3;
-  data.demoUpgradedAt = '2026-05-09-v5';
+  data.demoUpgradedAt = '2026-05-09-v6';
   data.exportedAt = NOW_ISO;
 
   return true;

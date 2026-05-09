@@ -2869,6 +2869,14 @@
       "glasses_outdoor": 0,
       "blue_blocker": 1,
       "holiday_outside": 1
+    },
+    "aiAnalysis": {
+      "status": "ok",
+      "dot": "green",
+      "tip": "Setup complete — II skin, Prague, CZ, Ott score 6/10",
+      "detail": "Skin type II drives the burn-threshold + vit-D yield curves. Prague (~50°N) means winter sun is too low for vit-D synthesis Nov-Feb; cap session length aggressively in summer noon. Ott score 6/10 suggests room for evening light-burden reduction.",
+      "fingerprint": "demo-onboarding-fp",
+      "generatedAt": 1773131400000
     }
   },
   "lightDevices": [
@@ -3006,7 +3014,7 @@
         "uvIndex": 5.2,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 57.409797721417696,
+        "sunElevationDeg": 54.27006986507352,
         "airMass": 1.2,
         "snapshotAt": 1774697400000,
         "source": "auto",
@@ -3028,7 +3036,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 25-min session, well within safe band",
+        "detail": "32% body fraction at UVI 5.2. Vit-D synthesis on track, 21% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_42d",
+        "generatedAt": 1774698900000
+      }
     },
     {
       "id": "sun_demo_36d",
@@ -3063,7 +3079,7 @@
         "uvIndex": 6.1,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 55.18575959679988,
+        "sunElevationDeg": 53.38745930379497,
         "airMass": 1.2,
         "snapshotAt": 1775214000000,
         "source": "auto",
@@ -3085,7 +3101,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 18-min session, well within safe band",
+        "detail": "18% body fraction at UVI 6.1. Vit-D synthesis on track, 10% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_36d",
+        "generatedAt": 1775215080000
+      }
     },
     {
       "id": "sun_demo_28d",
@@ -3140,7 +3164,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Face-only exposure — circadian + eye good, vit-D minimal",
+        "detail": "~5% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.",
+        "fingerprint": "demo-sun-sun_demo_28d",
+        "generatedAt": 1775890320000
+      }
     },
     {
       "id": "sun_demo_21d",
@@ -3178,7 +3210,7 @@
         "uvIndex": 6.4,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 52.90342056720836,
+        "sunElevationDeg": 53.48926381549016,
         "airMass": 1.2,
         "snapshotAt": 1776506400000,
         "source": "auto",
@@ -3200,7 +3232,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 30-min session, well within safe band",
+        "detail": "45% body fraction at UVI 6.4. Vit-D synthesis on track, 43% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_21d",
+        "generatedAt": 1776508200000
+      }
     },
     {
       "id": "sun_demo_14d",
@@ -3233,7 +3273,7 @@
         "uvIndex": 5.9,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.839013765784806,
+        "sunElevationDeg": 54.99758385171144,
         "airMass": 1.2,
         "snapshotAt": 1777109400000,
         "source": "auto",
@@ -3255,7 +3295,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Glass between you and the sun — no UVB → no vitamin D",
+        "detail": "Window glass blocks ~95% of UVB. Other channels (NIR, circadian-eye) still flowed through. Move outside next time for the vit-D path.",
+        "fingerprint": "demo-sun-sun_demo_14d",
+        "generatedAt": 1777110120000
+      }
     },
     {
       "id": "sun_demo_9d",
@@ -3291,7 +3339,7 @@
         "uvIndex": 6.8,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.517511417225705,
+        "sunElevationDeg": 55.73264831856247,
         "airMass": 1.2,
         "snapshotAt": 1777548600000,
         "source": "auto",
@@ -3313,7 +3361,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 28-min session, well within safe band",
+        "detail": "32% body fraction at UVI 6.8. Vit-D synthesis on track, 30% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_9d",
+        "generatedAt": 1777550280000
+      }
     },
     {
       "id": "sun_demo_4d",
@@ -3368,7 +3424,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Face-only exposure — circadian + eye good, vit-D minimal",
+        "detail": "~5% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.",
+        "fingerprint": "demo-sun-sun_demo_4d",
+        "generatedAt": 1777960080000
+      }
     },
     {
       "id": "sun_demo_1d",
@@ -3403,7 +3467,7 @@
         "uvIndex": 6,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.25212995895763,
+        "sunElevationDeg": 54.962966228998525,
         "airMass": 1.2,
         "snapshotAt": 1778236200000,
         "source": "auto",
@@ -3425,7 +3489,15 @@
         "psm": "none",
         "skinTypeIdx": 1
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 22-min session, well within safe band",
+        "detail": "28% body fraction at UVI 6.0. Vit-D synthesis on track, 18% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_1d",
+        "generatedAt": 1778237520000
+      }
     }
   ],
   "deviceSessions": [
@@ -3449,7 +3521,15 @@
         "pbm_red": 1800,
         "pbm_nir": 2200
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "6-min session at recommended distance, eyes protected",
+        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=5800, nir_solar=800, pbm_red=1800, pbm_nir=2200.",
+        "fingerprint": "demo-dev-devsess_demo_38d",
+        "generatedAt": 1775018160000
+      }
     },
     {
       "id": "devsess_demo_31d",
@@ -3470,7 +3550,15 @@
         "pbm_nir": 3600,
         "circadian": 1200
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "12-min session at recommended distance, eyes uncovered (OK at this wavelength)",
+        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=4200, pbm_nir=3600, circadian=1200.",
+        "fingerprint": "demo-dev-devsess_demo_31d",
+        "generatedAt": 1775623320000
+      }
     },
     {
       "id": "devsess_demo_22d",
@@ -3491,7 +3579,15 @@
         "pbm_red": 1500,
         "pbm_nir": 1900
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "5-min session at recommended distance, eyes protected",
+        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=4800, nir_solar=700, pbm_red=1500, pbm_nir=1900.",
+        "fingerprint": "demo-dev-devsess_demo_22d",
+        "generatedAt": 1776400500000
+      }
     },
     {
       "id": "devsess_demo_15d",
@@ -3511,7 +3607,15 @@
         "pbm_red": 5400,
         "pbm_nir": 4500
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "15-min session at recommended distance, eyes uncovered (OK at this wavelength)",
+        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=5400, pbm_nir=4500.",
+        "fingerprint": "demo-dev-devsess_demo_15d",
+        "generatedAt": 1777005900000
+      }
     },
     {
       "id": "devsess_demo_8d",
@@ -3533,7 +3637,15 @@
         "pbm_red": 2100,
         "pbm_nir": 2600
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "7-min session at recommended distance, eyes protected",
+        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=6200, nir_solar=900, pbm_red=2100, pbm_nir=2600.",
+        "fingerprint": "demo-dev-devsess_demo_8d",
+        "generatedAt": 1777610220000
+      }
     },
     {
       "id": "devsess_demo_3d",
@@ -3553,7 +3665,15 @@
         "pbm_nir": 3000,
         "circadian": 950
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "10-min session at recommended distance, eyes uncovered (OK at this wavelength)",
+        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=3500, pbm_nir=3000, circadian=950.",
+        "fingerprint": "demo-dev-devsess_demo_3d",
+        "generatedAt": 1778042400000
+      }
     }
   ],
   "lightEnvironment": {
@@ -3568,7 +3688,15 @@
         "eveningHoursAfterSunset": "1-3hr",
         "eveningUseAfterSunset": true,
         "notes": "Switched to amber bulbs for evening + blackout curtains installed mid-March.",
-        "updatedAt": 1776587400000
+        "updatedAt": 1776587400000,
+        "aiAnalysis": {
+          "status": "ok",
+          "dot": "green",
+          "tip": "Warm bedroom light + evening use — good evening config",
+          "detail": "2700K amber bulbs + 1-3hr of post-sunset use. Melanopic load stays low, sleep onset uninterrupted.",
+          "fingerprint": "demo-room-room_demo_bedroom",
+          "generatedAt": 1776587400000
+        }
       },
       {
         "id": "room_demo_office",
@@ -3580,7 +3708,15 @@
         "eveningHoursAfterSunset": "<1hr",
         "eveningUseAfterSunset": false,
         "notes": "Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.",
-        "updatedAt": 1775032200000
+        "updatedAt": 1775032200000,
+        "aiAnalysis": {
+          "status": "ok",
+          "dot": "green",
+          "tip": "Cool-white workspace, daytime-only — appropriate for office",
+          "detail": "5000K + 7h/day during productive hours feeds the daytime alertness signal. Window-adjacent is even better — natural light dominates 9am-4pm.",
+          "fingerprint": "demo-room-room_demo_office",
+          "generatedAt": 1775032200000
+        }
       },
       {
         "id": "room_demo_kitchen",
@@ -3592,7 +3728,15 @@
         "eveningHoursAfterSunset": "1-3hr",
         "eveningUseAfterSunset": true,
         "notes": "",
-        "updatedAt": 1773995400000
+        "updatedAt": 1773995400000,
+        "aiAnalysis": {
+          "status": "ok",
+          "dot": "gray",
+          "tip": "3 h/day — light-burden moderate",
+          "detail": "Mixed/unknown lighting in a low-occupancy room is a low-impact lever. Focus on bedroom + workspace first.",
+          "fingerprint": "demo-room-room_demo_kitchen",
+          "generatedAt": 1773995400000
+        }
       }
     ],
     "screens": [
@@ -3604,7 +3748,15 @@
         "eveningUseAfterSunset": "<1hr",
         "blueBlockerEnabled": true,
         "flickerScore": 1,
-        "updatedAt": 1774427400000
+        "updatedAt": 1774427400000,
+        "aiAnalysis": {
+          "status": "ok",
+          "dot": "green",
+          "tip": "Blue blocker + minimal evening use — well managed",
+          "detail": "laptop with active blue-light filter + <1hr after sunset. This is the ideal screen profile.",
+          "fingerprint": "demo-screen-scr_demo_laptop",
+          "generatedAt": 1774427400000
+        }
       },
       {
         "id": "scr_demo_phone",
@@ -3614,7 +3766,15 @@
         "eveningUseAfterSunset": "1-3hr",
         "blueBlockerEnabled": false,
         "flickerScore": 1,
-        "updatedAt": 1774427400000
+        "updatedAt": 1774427400000,
+        "aiAnalysis": {
+          "status": "ok",
+          "dot": "yellow",
+          "tip": "Unblocked phone + 1-3hr after sunset",
+          "detail": "Phone/tablet display peaks at ~440nm — same wavelength your circadian system reads as \"morning sun\". A schedule-based blue-blocker (Night Shift / f.lux) cuts the melatonin-suppression effect ~40% without changing your usage habits.",
+          "fingerprint": "demo-screen-scr_demo_phone",
+          "generatedAt": 1774427400000
+        }
       }
     ],
     "burdenAI": {
@@ -3790,7 +3950,15 @@
       "extra": {
         "device": "phone-camera"
       },
-      "notes": "Daytime overhead LED, no daylight"
+      "notes": "Daytime overhead LED, no daylight",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "320 lux — daytime-low for an office",
+        "detail": "Reasonable but below the 500-lux office baseline. Adding window-side time or a daytime-bright lamp would help alertness.",
+        "fingerprint": "demo-tool-m_lux_1",
+        "generatedAt": 1775896200000
+      }
     },
     {
       "id": "m_lux_2",
@@ -3801,7 +3969,15 @@
       "extra": {
         "device": "phone-camera"
       },
-      "notes": "Window-adjacent at 11am, sunny"
+      "notes": "Window-adjacent at 11am, sunny",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "18000 lux — strong daytime signal",
+        "detail": "Plenty of light for the circadian pathway during productive hours.",
+        "fingerprint": "demo-tool-m_lux_2",
+        "generatedAt": 1776155400000
+      }
     },
     {
       "id": "m_lux_3",
@@ -3813,7 +3989,15 @@
         "device": "phone-camera",
         "label": "Light-tight"
       },
-      "notes": "Sleep darkness — post-blackout install"
+      "notes": "Sleep darkness — post-blackout install",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "6 lux — sleep-spec dark",
+        "detail": "Below 50 lux is the ICNIRP-friendly sleep range. Melatonin uninhibited.",
+        "fingerprint": "demo-tool-m_lux_3",
+        "generatedAt": 1776587400000
+      }
     },
     {
       "id": "m_cct_1",
@@ -3824,7 +4008,15 @@
       "extra": {
         "device": "phone-camera"
       },
-      "notes": "New amber bulb measured"
+      "notes": "New amber bulb measured",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "2700K — warm, evening-appropriate",
+        "detail": "Below 3000K means low blue content. Good for sleep prep.",
+        "fingerprint": "demo-tool-m_cct_1",
+        "generatedAt": 1776760200000
+      }
     },
     {
       "id": "m_cct_2",
@@ -3835,7 +4027,15 @@
       "extra": {
         "device": "phone-camera"
       },
-      "notes": "Office overhead LED"
+      "notes": "Office overhead LED",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "4900K — neutral, room-by-room call",
+        "detail": "Mid-CCT works for daytime task lighting; in evening rooms it accelerates melatonin suppression.",
+        "fingerprint": "demo-tool-m_cct_2",
+        "generatedAt": 1776933000000
+      }
     },
     {
       "id": "m_flick_1",
@@ -3847,7 +4047,15 @@
         "strobeHz": 240,
         "label": "Mild"
       },
-      "notes": "Detectable at 240 Hz, low severity"
+      "notes": "Detectable at 240 Hz, low severity",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Flicker score 1 — mild",
+        "detail": "Detected at 240 Hz. Below 200 Hz is correlated with eye strain + headache susceptibility in flicker-sensitive subjects (Wilkins 2018).",
+        "fingerprint": "demo-tool-m_flick_1",
+        "generatedAt": 1777019400000
+      }
     },
     {
       "id": "m_spec_1",
@@ -3858,7 +4066,15 @@
       "extra": {
         "label": "Warm — incandescent-like"
       },
-      "notes": ""
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Warm — incandescent-like",
+        "detail": "Warm-spectrum lighting in evening rooms minimizes melanopic load.",
+        "fingerprint": "demo-tool-m_spec_1",
+        "generatedAt": 1777192200000
+      }
     },
     {
       "id": "m_dark_1",
@@ -3871,7 +4087,15 @@
         "mean": 0.2,
         "max": 1.4
       },
-      "notes": "Mean 0.2 lux post-blackout, brief 1.4 peak from streetlight"
+      "notes": "Mean 0.2 lux post-blackout, brief 1.4 peak from streetlight",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Sleep-spec ✓ mean 0.2 lux at the pillow",
+        "detail": "Sleep darkness goal is <1 lux mean. Brief streetlight peaks (max 1.4 lux) are tolerable; constant exposure isn't.",
+        "fingerprint": "demo-tool-m_dark_1",
+        "generatedAt": 1777278600000
+      }
     }
   ],
   "sunCorrelations": {
@@ -4106,5 +4330,13 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v5"
+  "demoUpgradedAt": "2026-05-09-v6",
+  "channelMixAI": {
+    "status": "ok",
+    "dot": "yellow",
+    "tip": "Strong PBM + circadian; vitamin-D channel light",
+    "detail": "Weekly mix shows good narrowband red-light therapy coverage and morning circadian signal. Vitamin D channel sits at ~70% of weekly target — one more 25-min midday outdoor session would close the gap. NIR-solar matches solar exposure; cellular-repair channel is well covered. POMC + violet-eye good.",
+    "fingerprint": "demo-channelmix-fp",
+    "generatedAt": 1778142600000
+  }
 }
