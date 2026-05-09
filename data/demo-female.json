@@ -3006,7 +3006,7 @@
         "uvIndex": 5.2,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 55.31178560784916,
+        "sunElevationDeg": 57.409797721417696,
         "airMass": 1.2,
         "snapshotAt": 1774697400000,
         "source": "auto",
@@ -3015,12 +3015,12 @@
       "doses": {
         "vitamin_d": 92,
         "circadian": 2340,
-        "nir": 0.37,
-        "no_card": 0.87,
+        "nir_solar": 3.74,
+        "no_cv": 0.87,
         "pomc": 6.4,
-        "eye_violet": 78,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 78,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3063,7 +3063,7 @@
         "uvIndex": 6.1,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.874412804733616,
+        "sunElevationDeg": 55.18575959679988,
         "airMass": 1.2,
         "snapshotAt": 1775214000000,
         "source": "auto",
@@ -3072,12 +3072,12 @@
       "doses": {
         "vitamin_d": 70,
         "circadian": 1976,
-        "nir": 0.18,
-        "no_card": 0.42,
+        "nir_solar": 1.78,
+        "no_cv": 0.42,
         "pomc": 4.9,
-        "eye_violet": 66,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 66,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3127,12 +3127,12 @@
       "doses": {
         "vitamin_d": 4,
         "circadian": 713,
-        "nir": 0.02,
-        "no_card": 0.04,
+        "nir_solar": 0.18,
+        "no_cv": 0.04,
         "pomc": 0.3,
-        "eye_violet": 24,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 24,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3178,7 +3178,7 @@
         "uvIndex": 6.4,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.995398036675496,
+        "sunElevationDeg": 52.90342056720836,
         "airMass": 1.2,
         "snapshotAt": 1776506400000,
         "source": "auto",
@@ -3187,12 +3187,12 @@
       "doses": {
         "vitamin_d": 165,
         "circadian": 3456,
-        "nir": 0.78,
-        "no_card": 1.81,
+        "nir_solar": 7.78,
+        "no_cv": 1.81,
         "pomc": 11.5,
-        "eye_violet": 115,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 115,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3233,7 +3233,7 @@
         "uvIndex": 5.9,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.77622856547243,
+        "sunElevationDeg": 54.839013765784806,
         "airMass": 1.2,
         "snapshotAt": 1777109400000,
         "source": "auto",
@@ -3242,12 +3242,12 @@
       "doses": {
         "vitamin_d": 0,
         "circadian": 1274,
-        "nir": 0.03,
-        "no_card": 0.07,
+        "nir_solar": 0.32,
+        "no_cv": 0.07,
         "pomc": 0,
-        "eye_violet": 0,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 0,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3291,7 +3291,7 @@
         "uvIndex": 6.8,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 56.39146733206352,
+        "sunElevationDeg": 56.517511417225705,
         "airMass": 1.2,
         "snapshotAt": 1777548600000,
         "source": "auto",
@@ -3300,12 +3300,12 @@
       "doses": {
         "vitamin_d": 132,
         "circadian": 3427,
-        "nir": 0.55,
-        "no_card": 1.28,
+        "nir_solar": 5.48,
+        "no_cv": 1.28,
         "pomc": 9.2,
-        "eye_violet": 114,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 114,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3355,12 +3355,12 @@
       "doses": {
         "vitamin_d": 2,
         "circadian": 389,
-        "nir": 0.01,
-        "no_card": 0.02,
+        "nir_solar": 0.1,
+        "no_cv": 0.02,
         "pomc": 0.1,
-        "eye_violet": 13,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 13,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3403,7 +3403,7 @@
         "uvIndex": 6,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 52.78459891013727,
+        "sunElevationDeg": 56.25212995895763,
         "airMass": 1.2,
         "snapshotAt": 1778236200000,
         "source": "auto",
@@ -3412,12 +3412,12 @@
       "doses": {
         "vitamin_d": 88,
         "circadian": 2376,
-        "nir": 0.33,
-        "no_card": 0.78,
+        "nir_solar": 3.33,
+        "no_cv": 0.78,
         "pomc": 6.2,
-        "eye_violet": 79,
-        "red_660": 0,
-        "nir_pbm": 0
+        "violet_eye": 79,
+        "pbm_red": 0,
+        "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
@@ -3445,8 +3445,9 @@
       "mode": "full",
       "doses": {
         "vitamin_d": 5800,
-        "nir": 0.8,
-        "red_660": 0.5
+        "nir_solar": 800,
+        "pbm_red": 1800,
+        "pbm_nir": 2200
       },
       "notes": ""
     },
@@ -3465,8 +3466,8 @@
       "eyesProtected": false,
       "mode": null,
       "doses": {
-        "red_660": 1.6,
-        "nir_pbm": 1.4,
+        "pbm_red": 4200,
+        "pbm_nir": 3600,
         "circadian": 1200
       },
       "notes": ""
@@ -3486,7 +3487,9 @@
       "mode": "full",
       "doses": {
         "vitamin_d": 4800,
-        "nir": 0.7
+        "nir_solar": 700,
+        "pbm_red": 1500,
+        "pbm_nir": 1900
       },
       "notes": ""
     },
@@ -3505,8 +3508,8 @@
       "eyesProtected": false,
       "mode": null,
       "doses": {
-        "red_660": 2,
-        "nir_pbm": 1.7
+        "pbm_red": 5400,
+        "pbm_nir": 4500
       },
       "notes": ""
     },
@@ -3526,8 +3529,9 @@
       "mode": "full",
       "doses": {
         "vitamin_d": 6200,
-        "nir": 0.9,
-        "red_660": 0.6
+        "nir_solar": 900,
+        "pbm_red": 2100,
+        "pbm_nir": 2600
       },
       "notes": ""
     },
@@ -3545,8 +3549,8 @@
       "eyesProtected": false,
       "mode": null,
       "doses": {
-        "red_660": 1.3,
-        "nir_pbm": 1.1,
+        "pbm_red": 3500,
+        "pbm_nir": 3000,
         "circadian": 950
       },
       "notes": ""
@@ -4102,5 +4106,5 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v4"
+  "demoUpgradedAt": "2026-05-09-v5"
 }
