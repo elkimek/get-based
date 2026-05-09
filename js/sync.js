@@ -1309,6 +1309,22 @@ const DELTA_ARRAY_CONFIG = {
       return sig === '|' ? null : `n_${_djb2(sig)}`;
     },
   },
+  // chatSummaries — `{id, threadId, ...}` where `.id` is `s_<base36-timestamp>`
+  // (chat.js:778). Default itemIdFn would key by `.id`, which is timestamp-
+  // unique per device — so two devices summarising the same thread
+  // independently each create a row with a different itemId, and
+  // unionById in mergeImportedData keeps both as distinct objects (a
+  // duplicate that the threadId-based local replacement logic in
+  // chat.js:813 silently masks but never cleans up). Override to derive
+  // the itemId from threadId so concurrent same-thread summaries collapse
+  // to one row cross-device (LWW per the relay; whichever device's
+  // summary lands last wins). Greptile re-review #175 caught this.
+  chatSummaries: {
+    itemIdFn: (it) => {
+      if (!it || typeof it !== 'object' || !it.threadId) return null;
+      return `cs_${_djb2(String(it.threadId))}`;
+    },
+  },
 };
 
 // Importance-scoped maps subject to delta sync. Parallel to DELTA_ARRAYS

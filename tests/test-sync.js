@@ -581,6 +581,13 @@ return (async function() {
   // Greptile re-review #175 caught this.
   assert('DELTA_ARRAY_CONFIG.notes defines itemIdFn (date+text hash)',
     /notes:\s*\{[\s\S]{0,500}itemIdFn:[\s\S]{0,500}_djb2/.test(syncSrc));
+  // chatSummaries — `.id` is `s_<base36-timestamp>` (timestamp-unique per
+  // device), so two devices summarising the same thread independently
+  // create rows with different itemIds. Override keys by threadId so
+  // concurrent same-thread summaries collapse cross-device (LWW). Greptile
+  // re-review #175 caught this.
+  assert('DELTA_ARRAY_CONFIG.chatSummaries defines itemIdFn (threadId hash)',
+    /chatSummaries:\s*\{[\s\S]{0,500}itemIdFn:[\s\S]{0,500}it\.threadId[\s\S]{0,200}_djb2/.test(syncSrc));
 
   // Live: round-trip the three itemIdFns to verify determinism + uniqueness
   if (typeof window !== 'undefined') {
@@ -650,6 +657,26 @@ return (async function() {
       notesFn(n3) !== nid);
     assert('notes itemIdFn null on empty struct',
       notesFn({ date: '', text: '' }) === null);
+
+    const chatSumFn = (it) => {
+      if (!it || typeof it !== 'object' || !it.threadId) return null;
+      return `cs_${djb2(String(it.threadId))}`;
+    };
+    const cs1 = { id: 's_abc123', threadId: 't_xyz789', threadName: 'Lab analysis', content: 'TLDR…', createdAt: 1778000000000 };
+    const cs2 = { ...cs1, id: 's_def456', content: 'Different summary text' };  // device-2 concurrent summary
+    const cs3 = { ...cs1, threadId: 't_other', id: 's_zzz' };  // different thread
+    const csid = chatSumFn(cs1);
+    assert('chatSummaries itemId non-null + allowlist-safe',
+      typeof csid === 'string' && isAllowlistSafe(csid));
+    assert('chatSummaries itemId stable across device-2 concurrent summary (same threadId)',
+      chatSumFn(cs2) === csid,
+      `cs1=${csid} cs2=${chatSumFn(cs2)}`);
+    assert('chatSummaries itemId differs when threadId differs',
+      chatSumFn(cs3) !== csid);
+    assert('chatSummaries itemIdFn null on missing threadId',
+      chatSumFn({ id: 's_abc', content: 'orphan' }) === null);
+    assert('chatSummaries itemIdFn null on null/non-object',
+      chatSumFn(null) === null && chatSumFn('not-an-object') === null);
   }
 
   // ═══════════════════════════════════════
