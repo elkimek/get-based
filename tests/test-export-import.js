@@ -626,6 +626,102 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
+  // 16. Demo prefill — runtime end-to-end (zero AI calls)
+  // ═══════════════════════════════════════
+  // Source-inspection assertions above prove the prefill code is wired
+  // up. This block exercises it end-to-end: call loadDemoData('female'),
+  // wait for the dashboard to settle, then verify every prefill landed
+  // AND zero AI provider calls fired during the load. Catches:
+  //  • importDataJSON unit-conversion drift (e.g. hematocrit fraction →
+  //    percent migration shifting fingerprints — the bug that bit us
+  //    in the original f714591 build cycle)
+  //  • same-date entry merge logic going out of sync between the two
+  //    code paths
+  //  • someone re-introducing the "navigate fires loadContextHealthDots
+  //    before our cache lands" race
+  if (typeof window !== 'undefined' && typeof window.loadDemoData === 'function') {
+    console.log('%c 16. Demo prefill end-to-end (zero AI calls) ', 'font-weight:bold;color:#f59e0b');
+    const snapshot2 = JSON.parse(JSON.stringify(S.importedData || {}));
+    const origProfile = S.currentProfile;
+    const origFetch = window.fetch;
+    let aiCallCount = 0;
+    const aiCallUrls = [];
+    window.fetch = function(url, opts) {
+      const u = String(url || '');
+      // Match every commonly-used AI provider endpoint shape (incl.
+      // local Ollama on 11434). Mirror the regex used in the chrome
+      // verification harness so the test stays in sync with manual QA.
+      if (/\/api\/(generate|chat|completions)|api\.anthropic|openrouter|venice\.ai|ppq\.ai|11434|claude/i.test(u)) {
+        aiCallCount++;
+        aiCallUrls.push(u.slice(0, 80));
+      }
+      return origFetch.apply(this, arguments);
+    };
+    try {
+      await window.loadDemoData('female');
+      // Wait long enough for: import resolve → navigate('dashboard') →
+      // loadFocusCard + loadContextHealthDots fire-and-forget paths.
+      await wait(4000);
+      const profileId = S.currentProfile;
+      const profileName = window.getProfiles?.().find(p => p.id === profileId)?.name;
+      assert('Demo profile created with expected name',
+        profileName === 'Demo Sarah', `got "${profileName}"`);
+
+      // channelMixAI imported into state (via importDataJSON branch)
+      assert('state.importedData.channelMixAI populated after demo load',
+        S.importedData?.channelMixAI?.status === 'ok' && S.importedData.channelMixAI.dot,
+        `got ${JSON.stringify(S.importedData?.channelMixAI || {}).slice(0, 80)}`);
+
+      // focusCard cache written to localStorage (demo-only path)
+      const focusKey = `labcharts-${profileId}-focusCard`;
+      const focusRaw = localStorage.getItem(focusKey);
+      const focusCached = focusRaw ? JSON.parse(focusRaw) : null;
+      assert('focusCard cache prefilled with demo text',
+        typeof focusCached?.text === 'string' && focusCached.text.length > 50,
+        `got: ${focusCached?.text?.slice(0, 60)}`);
+      assert('focusCard prefill ships WITHOUT a fingerprint (loadFocusCard early-return marker)',
+        focusCached && !focusCached.fingerprint,
+        `unexpected fingerprint: ${focusCached?.fingerprint}`);
+
+      // contextHealth cache written with all 9 dots + matching fingerprints
+      const ctxKey = `labcharts-${profileId}-contextHealth`;
+      const ctxRaw = localStorage.getItem(ctxKey);
+      const ctxCached = ctxRaw ? JSON.parse(ctxRaw) : null;
+      const expectedKeys = ['healthGoals','diagnoses','diet','exercise','sleepRest','lightCircadian','stress','loveLife','environment'];
+      const cachedDotKeys = Object.keys(ctxCached?.dots || {});
+      assert('contextHealth cache has all 9 dot entries',
+        expectedKeys.every(k => cachedDotKeys.includes(k)),
+        `missing: ${expectedKeys.filter(k => !cachedDotKeys.includes(k)).join(', ')}`);
+      assert('contextHealth cache has all 9 summaries',
+        expectedKeys.every(k => typeof ctxCached?.summaries?.[k] === 'string'),
+        `missing summaries: ${expectedKeys.filter(k => typeof ctxCached?.summaries?.[k] !== 'string').join(', ')}`);
+      // Critical: cached fingerprints must match what loadContextHealthDots
+      // would compute against the live state. If migrateProfileData /
+      // same-date merge drifts, fingerprints diverge and dots fall through
+      // to AI fire on next render.
+      if (typeof window.getCardFingerprint === 'function') {
+        const liveFps = expectedKeys.map(k => ({k, live: window.getCardFingerprint(k), cached: ctxCached?.fingerprints?.[k]}));
+        const mismatched = liveFps.filter(x => x.live !== x.cached);
+        assert('All 9 cached fingerprints match live fingerprints (proves migration + merge applied correctly)',
+          mismatched.length === 0,
+          `mismatched: ${mismatched.map(x => x.k).join(', ')}`);
+      }
+
+      // Zero AI calls during the demo-load window
+      assert('Zero AI provider calls fired during demo load',
+        aiCallCount === 0,
+        `got ${aiCallCount} calls: ${aiCallUrls.join('; ')}`);
+    } finally {
+      window.fetch = origFetch;
+      // Restore prior state so subsequent tests aren't disturbed.
+      S.importedData = snapshot2;
+      S.currentProfile = origProfile;
+    }
+  } else {
+    assert('Demo prefill end-to-end test skipped — window.loadDemoData unavailable', true);
+  }
+
+  // ═══════════════════════════════════════
   // Summary
   // ═══════════════════════════════════════
   console.log(`\n%c Export/Import: ${pass} passed, ${fail} failed `,

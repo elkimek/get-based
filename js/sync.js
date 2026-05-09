@@ -1063,6 +1063,15 @@ async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRESSED_CAP
   return out;
 }
 
+// Test hook — exposes the cap helper for boundary regression tests.
+// Not a public API; consumers should never reach into this object.
+if (typeof window !== 'undefined') {
+  window._syncTestHooks = Object.assign(window._syncTestHooks || {}, {
+    gunzipCapped: _gunzipToStringCapped,
+    perRowCapBytes: _PER_ROW_DECOMPRESSED_CAP_BYTES,
+  });
+}
+
 function _bytesToBase64(bytes) {
   let s = '';
   // Chunked to avoid the call-stack-size cap on huge spreads (~100 KB+).
@@ -1312,6 +1321,12 @@ const DELTA_MAPS = [
   // device adds compose instead of compete. The rest of `genetics`
   // (source, importDate, coverage, mtdna) stays in DELTA_SCALARS.
   'genetics.snps',
+  // Light Today daily verdict — singleton-per-day map keyed by ISO date.
+  // Each device generates a verdict from its own state; the LAST one wins
+  // per date (acceptable: verdicts are deterministic-ish and the user
+  // owns both devices). Without this entry, Phase 2 cutover would silently
+  // drop every cached daily verdict on cross-device sync.
+  'lightDailyVerdicts',
 ];
 
 // Singleton-shape importedData fields (scalars — null/object/string defaults
@@ -1339,6 +1354,12 @@ const DELTA_SCALARS = [
   // Phase 2 cutover to ship the whole object as one row and silently
   // regress cross-device room/screen edits to wholesale-LWW.
   'sunCorrelations', 'lifelightProfile', 'sunDefaults',
+  // Channel-mix AI verdict — the "Your light, by what it does" synthesis
+  // that reasons across 6 biological light channels. Singleton object;
+  // last-write-wins across devices is fine for the same reason as
+  // lightDailyVerdicts. Earlier: shipped only via the legacy fat-blob
+  // path, so Phase 2 cutover (v: 4) would have silently dropped it.
+  'channelMixAI',
   // Wearable L2 derived state — wearableConnections is intentionally NOT
   // listed (refresh tokens stay per-device; see stripWearableCredentials).
   'wearableSummary', 'wearableCardOrder',

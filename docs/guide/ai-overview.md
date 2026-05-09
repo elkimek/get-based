@@ -82,7 +82,7 @@ If you want to keep your AI provider configured for the chat panel and Interpret
 window.DISABLE_AI_VERDICTS = true
 ```
 
-Run that in DevTools Console. All eleven surfaces will short-circuit until you remove the flag (or reload — the flag doesn't persist).
+Run that in DevTools Console. All ten surfaces will short-circuit until you remove the flag (or reload — the flag doesn't persist).
 
 ## AI elsewhere in the app
 

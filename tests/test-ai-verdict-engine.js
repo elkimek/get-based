@@ -518,6 +518,76 @@ return (async function () {
       store.get('clean-1')?.status === 'ok');
   }
 
+  // ─── 14. Error normalization for non-JSON response bodies ──────────
+  // Catches the case where the upstream returns an HTML error page
+  // (502 from a relay, captive-portal redirect, etc) instead of JSON.
+  // Without normalization the catch block surfaces raw "Unexpected token
+  // '<' in JSON at position 0" into the verdict UI, which is horrendous.
+  console.log('%c 14. Error normalization (non-JSON response bodies) ', 'font-weight:bold;color:#a855f7');
+
+  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+    const cases = [
+      { name: 'HTML 502 page', body: '<html><body><h1>502 Bad Gateway</h1></body></html>',
+        expectMsg: /unexpected response|try again/i },
+      { name: 'plain-text "service unavailable"', body: 'service unavailable',
+        expectMsg: /unexpected response|try again/i },
+      { name: 'empty body', body: '',
+        expectMsg: /unexpected response|try again|failed/i },
+    ];
+    for (const c of cases) {
+      const { engine, store } = makeMinimalEngine();
+      const origFetch = window.fetch;
+      window.fetch = () => Promise.resolve(new Response(c.body, {
+        headers: { 'Content-Type': 'text/html' },
+      }));
+      try {
+        await engine.analyze({ id: `nonjson-${c.name.replace(/\s+/g, '-')}` });
+        const stored = store.get(`nonjson-${c.name.replace(/\s+/g, '-')}`);
+        assert(`non-JSON response (${c.name}) normalizes to user-readable error`,
+          stored?.status === 'error' && c.expectMsg.test(stored.errorMessage || ''),
+          `status=${stored?.status} msg="${stored?.errorMessage}"`);
+      } finally {
+        window.fetch = origFetch;
+      }
+    }
+  } else {
+    assert('non-JSON error normalization test skipped — no AI provider in test env', true);
+  }
+
+  // ─── 15. DISABLE_AI_VERDICTS short-circuits maybeAfterFinish too ──
+  // The kill switch documented in the engine doc-block must apply to
+  // BOTH analyze() AND maybeAfterFinish() — otherwise auto-fire on
+  // session save would still burn provider calls after a user toggled
+  // the flag in DevTools. Verify by setting the flag, calling
+  // maybeAfterFinish, and asserting zero fetches.
+  console.log('%c 15. DISABLE_AI_VERDICTS gate covers maybeAfterFinish ', 'font-weight:bold;color:#a855f7');
+
+  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+    const { engine, store } = makeMinimalEngine({ autoFireRetryDelaysMs: [30] });
+    let calls = 0;
+    const origFetch = window.fetch;
+    window.fetch = () => { calls++; return Promise.resolve(new Response('{}')); };
+    const prevFlag = window.DISABLE_AI_VERDICTS;
+    window.DISABLE_AI_VERDICTS = true;
+    try {
+      engine.maybeAfterFinish({ id: 'kill-switch' });
+      await new Promise(r => setTimeout(r, 600));
+      const stored = store.get('kill-switch');
+      assert('DISABLE_AI_VERDICTS=true short-circuits maybeAfterFinish (zero fetches)',
+        calls === 0,
+        `unexpected ${calls} fetches with kill-switch on`);
+      assert('DISABLE_AI_VERDICTS=true does not write any verdict',
+        stored == null,
+        `unexpected stored verdict: ${JSON.stringify(stored)}`);
+    } finally {
+      window.fetch = origFetch;
+      if (prevFlag === undefined) delete window.DISABLE_AI_VERDICTS;
+      else window.DISABLE_AI_VERDICTS = prevFlag;
+    }
+  } else {
+    assert('DISABLE_AI_VERDICTS gate test skipped — no AI provider in test env', true);
+  }
+
   console.log(`%c Result: ${pass} passed, ${fail} failed `, fail === 0
     ? 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px'
     : 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
