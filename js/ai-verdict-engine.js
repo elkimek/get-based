@@ -93,6 +93,46 @@ const VALID_DOTS = ['green', 'yellow', 'red', 'gray'];
 const DEFAULT_TIMEOUT_MS = 60000;
 const PURGE_DELAY_MS = 1500;
 
+// ─── Global AI concurrency limiter ───────────────────────────────────
+// Saving a session triggers three engines (Light Today, Channel mix,
+// Session analysis) which all auto-fire concurrently. Most providers
+// (Venice, OpenRouter, PPQ) cap concurrent inference at 2 — the third
+// call would silently get rejected / rate-limited, making session
+// analysis appear to "fail more than the others" even though it's
+// just losing the race. Serializing calls here makes auto-fire reliable
+// without engine-specific staggering.
+//
+// Cap of 2 leaves room for 1 user-initiated foreground call to run
+// alongside 1 background auto-fire. Adjustable via `window._aiConcurrencyCap`
+// for testing or per-environment tuning.
+let _activeAICalls = 0;
+const _aiCallWaiters = [];
+function _aiCap() {
+  const w = (typeof window !== 'undefined' && Number.isFinite(window._aiConcurrencyCap))
+    ? window._aiConcurrencyCap : 2;
+  return Math.max(1, w);
+}
+function _acquireAISlot() {
+  if (_activeAICalls < _aiCap()) {
+    _activeAICalls++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => { _aiCallWaiters.push(resolve); });
+}
+function _releaseAISlot() {
+  _activeAICalls = Math.max(0, _activeAICalls - 1);
+  while (_activeAICalls < _aiCap() && _aiCallWaiters.length > 0) {
+    const next = _aiCallWaiters.shift();
+    _activeAICalls++;
+    try { next(); } catch (_) {}
+  }
+}
+// Diagnostic hook — useful for tests + manual debugging without
+// breaking encapsulation. Not a public API.
+if (typeof window !== 'undefined') {
+  window._aiSlotsDebug = () => ({ active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() });
+}
+
 /**
  * Create an AI verdict engine bound to a particular feature's data shape.
  *
@@ -137,6 +177,7 @@ export function createAIVerdict(cfg) {
     parseExtraFields,
     syncOnSave = true,
     timeoutMs = DEFAULT_TIMEOUT_MS,
+    autoFireRetryDelaysMs = [1000, 4000],
     onStateChange, // optional hook for re-rendering — defaults to window._refreshSunSurfaces
   } = cfg;
 
@@ -152,6 +193,14 @@ export function createAIVerdict(cfg) {
   // since the row's persisted aiAnalysis only carries `ok` or `error`
   // verdicts (never `analyzing`).
   const inflight = new Set();
+  // Separate tracker for the auto-fire retry sequence. Holds the id
+  // across the WHOLE sequence (initial call + backoffs + retries) so
+  // the UI keeps showing "Analyzing..." between attempts instead of
+  // flashing "Analysis failed" during the brief window between a
+  // failed attempt and the next retry. inflight tracks individual
+  // analyze() calls and is briefly empty between attempts; this set
+  // covers that gap.
+  const retrying = new Set();
 
   function _refresh() {
     if (typeof onStateChange === 'function') {
@@ -172,7 +221,7 @@ export function createAIVerdict(cfg) {
   }
 
   function isAnalyzing(id) {
-    return inflight.has(id);
+    return inflight.has(id) || retrying.has(id);
   }
 
   /**
@@ -184,7 +233,8 @@ export function createAIVerdict(cfg) {
    */
   function getStatus(target) {
     if (!target) return 'idle';
-    if (inflight.has(getId(target))) return 'analyzing';
+    const id = getId(target);
+    if (inflight.has(id) || retrying.has(id)) return 'analyzing';
     const a = getAIAnalysis(target);
     if (a?.status === 'ok' && a.dot) return 'ok';
     if (a?.status === 'error') return 'error';
@@ -218,9 +268,19 @@ export function createAIVerdict(cfg) {
     // the slot on every exit path, including the gate-fail returns below.
     inflight.add(id);
     _refresh();
+    let slotHeld = false;
     try {
       if (!hasAIProvider()) return null;
       if (!canAnalyze(target)) return null;
+      // Acquire a global concurrency slot so concurrent engine fires
+      // (Light Today + Channel mix + Session analysis on a save) don't
+      // exceed the provider's concurrent-request cap. Waits for a slot
+      // when the cap is full instead of racing into a 429. The wait is
+      // counted against the analyze() timeout via the Promise.race
+      // below, so this can't deadlock — a stuck queue still surfaces
+      // as "Analysis timed out".
+      await _acquireAISlot();
+      slotHeld = true;
       const ctx = buildContext(target);
       const apiCall = callClaudeAPI({
         system: systemPrompt,
@@ -280,6 +340,7 @@ export function createAIVerdict(cfg) {
       try { await saveImportedData(); } catch (_) {}
       return null;
     } finally {
+      if (slotHeld) _releaseAISlot();
       inflight.delete(id);
       _refresh();
     }
@@ -292,12 +353,52 @@ export function createAIVerdict(cfg) {
     return analyze(target, { force: true });
   }
 
+  // Auto-fire retry policy. We've observed that auto-fire after a save
+  // fails noticeably more often than manual refresh — likely a mix of
+  // first-call cold-start latency, occasional JSON-parse blips when the
+  // model adds a preamble, and provider-side rate-limit jitter. Manual
+  // refresh almost always succeeds on the second try, so we automate
+  // that retry. Default backoff steps (3s, 8s) cover the common transient
+  // patterns without spending an unbounded budget on permanent errors.
+  // Auth/quota errors are NOT retried — those are user-actionable and
+  // re-asking would just burn tokens until the underlying issue is fixed.
+  function _isRetryableError(msg) {
+    if (!msg) return true; // unknown errors are retryable; auth-style would be flagged below
+    const m = String(msg);
+    if (/Provider rejected|Provider quota|credit issue|check Settings/i.test(m)) return false;
+    return true; // timeout, parse blip, rate-limit, network — all worth a second look
+  }
+
   /** Fire-and-forget after a target finishes (e.g. session stop, measurement save). */
   function maybeAfterFinish(target) {
     if (!target) return;
     if (!hasAIProvider()) return;
     if (!shouldAutoFire(target)) return;
-    setTimeout(() => analyze(target).catch(() => {}), 0);
+    const id = getId(target);
+    if (retrying.has(id)) return; // already running
+    retrying.add(id);
+    _refresh();
+    setTimeout(async () => {
+      try {
+        try { await analyze(target); }
+        catch (_) { /* analyze writes its own error state */ }
+        const delays = Array.isArray(autoFireRetryDelaysMs) ? autoFireRetryDelaysMs : [];
+        for (let i = 0; i < delays.length; i++) {
+          const fresh = getTarget ? getTarget(id) : target;
+          const a = fresh ? getAIAnalysis(fresh) : null;
+          if (a?.status !== 'error') return; // success or moved on
+          if (!_isRetryableError(a.errorMessage)) return;
+          await new Promise(r => setTimeout(r, delays[i]));
+          const t = getTarget ? getTarget(id) : target;
+          if (!t) return;
+          try { await analyze(t, { force: true }); }
+          catch (_) {}
+        }
+      } finally {
+        retrying.delete(id);
+        _refresh();
+      }
+    }, 0);
   }
 
   /**

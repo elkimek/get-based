@@ -133,6 +133,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 1500); // give the engine modules time to settle
   }
 
+  // Round 7: backfill channelGroups / modes / coupling onto user devices
+  // that pre-date the schema additions. Without this, existing Maxi UVB
+  // / Trinity device records have no `modes` array, so the session-log
+  // dialog can't render the mode picker for them. Idempotent — re-runs
+  // are no-ops once devices carry the fields.
+  if (typeof window.hydrateDevicesFromPresets === 'function') {
+    window.hydrateDevicesFromPresets().then(dirty => {
+      if (dirty && window.console && console.log) console.log('[light] hydrated user devices from preset library');
+    }).catch(() => {});
+  }
+
   // Health Metrics unification (Commit 1/5): walk legacy importedData.biometrics
   // into the wearables IndexedDB with source: 'manual'. Idempotent — tagged in
   // the wearables meta store so it only runs once per profile. Old biometrics

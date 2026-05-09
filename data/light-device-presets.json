@@ -83,8 +83,19 @@
       "mwPerCm2At15cm": 120,
       "recommendedDistanceCm": 15,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "channelGroups": [
+        { "id": "uv-blue", "label": "UV + blue", "peaks": [295, 380, 480] },
+        { "id": "red-nir", "label": "Red + NIR",  "peaks": [630, 670, 760, 810, 830, 850] }
+      ],
+      "modes": [
+        { "id": "all-on",       "label": "Full spectrum (UV + red/NIR)", "groups": ["uv-blue", "red-nir"], "default": true },
+        { "id": "red-nir-only", "label": "Red/NIR only",                  "groups": ["red-nir"] }
+      ],
+      "coupling": [
+        { "if": "uv-blue", "requires": ["red-nir"], "reason": "Vendor design: UV must always run with red/NIR for repair coverage. UV-only mode is intentionally unavailable." }
+      ],
       "catalogSlug": "mitochondriak-maxi-uvb",
-      "notes": "Czech 90×30 cm broad-spectrum panel. UVB 295 nm + UVA 380 nm + blue 480 nm + red 630/670 nm + NIR 760/810/830/850 nm. Independent on/off for UV+blue vs red+NIR — touchscreen presets gate which channels fire per session. Half-body coverage."
+      "notes": "Czech 90×30 cm broad-spectrum panel. UVB 295 nm + UVA 380 nm + blue 480 nm + red 630/670 nm + NIR 760/810/830/850 nm. Touchscreen modes: full-spectrum (UV + red/NIR) or red/NIR only — UV cannot run without red/NIR by vendor design. Half-body coverage."
     },
     {
       "id": "chroma-trinity",
@@ -95,8 +106,19 @@
       "mwPerCm2At15cm": 200,
       "recommendedDistanceCm": 20,
       "channels": ["vitamin_d", "pomc", "no_cv", "violet_eye", "circadian", "pbm_red", "pbm_nir"],
+      "channelGroups": [
+        { "id": "ironforge", "label": "Ironforge (red + NIR)",                    "peaks": [630, 670, 760, 810, 850] },
+        { "id": "lux-vital", "label": "Lux Vital (cyan + violet + UVA + ext NIR)", "peaks": [385, 405, 485, 935, 1050] },
+        { "id": "d-light",   "label": "D-Light (UVB)",                              "peaks": [297] }
+      ],
+      "modes": [
+        { "id": "all-on",    "label": "All modes combined",          "groups": ["ironforge", "lux-vital", "d-light"], "default": true },
+        { "id": "ironforge", "label": "Ironforge only",              "groups": ["ironforge"] },
+        { "id": "lux-vital", "label": "Lux Vital only",              "groups": ["lux-vital"] },
+        { "id": "d-light",   "label": "D-Light only (UVB)",          "groups": ["d-light"] }
+      ],
       "catalogSlug": "chroma-trinity",
-      "notes": "Three modular modes — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Modes fire independently — adjust the dose if you only run one. Handheld, ~310 W combined. Vendor measures @ 8 inches (~20 cm)."
+      "notes": "Three modular modes that fire independently — Ironforge (red 630/670 + NIR 760/810/850), Lux Vital (cyan 485 + violet 405 + UVA 385 + extended NIR 935/1050), D-Light (narrowband UVB 297 nm). Pick the mode you actually ran for accurate dose accounting. Handheld, ~310 W combined. Vendor measures @ 8 inches (~20 cm)."
     },
     {
       "id": "chroma-ironforge",

@@ -294,6 +294,185 @@ return (async function() {
     window._labState.importedData = orig;
   }
 
+  // ─── Recompute on legacy + mode-aware sessions ─────────────────────
+  // Round 7 added channelGroups / modes / coupling to preset schemas
+  // and routed all 3 dose-computation call sites through
+  // effectiveDeviceForMode. The recompute path is the highest-risk
+  // surface because it touches sessions stored before Round 7 (no
+  // `mode` field). Assertions:
+  //   1. Legacy session with mode=undefined recomputes through the
+  //      device's default mode → identity for Maxi UVB all-on → doses
+  //      scale linearly with duration (within rounding).
+  //   2. Recompute populates sess.mode with the resolved default so
+  //      future edits stay deterministic.
+  //   3. Recompute on a moded session that changes mode (all-on →
+  //      red-nir-only) zeroes vitamin_d but preserves pbm_red.
+  //   4. Devices without `modes` (Pulse, Ironforge etc.) recompute
+  //      identically to pre-Round-7 — no behavior change.
+  console.log('%c Recompute path: legacy + mode-aware sessions ', 'font-weight:bold;color:#f59e0b');
+  if (typeof window.logDeviceSession === 'function' && typeof window.updateDeviceSession === 'function') {
+    // Maxi UVB shape with full mode schema
+    const maxiDevice = {
+      id: 'D-maxi-test', brand: 'Test', model: 'Maxi UVB',
+      type: 'uvb',
+      peakWavelengths: [295, 380, 480, 630, 670, 760, 810, 830, 850],
+      mwPerCm2At15cm: 120, recommendedDistanceCm: 15,
+      channels: ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'pbm_red', 'pbm_nir'],
+      channelGroups: [
+        { id: 'uv-blue', peaks: [295, 380, 480] },
+        { id: 'red-nir', peaks: [630, 670, 760, 810, 830, 850] },
+      ],
+      modes: [
+        { id: 'all-on',       groups: ['uv-blue', 'red-nir'], default: true },
+        { id: 'red-nir-only', groups: ['red-nir'] },
+      ],
+      coupling: [{ if: 'uv-blue', requires: ['red-nir'] }],
+    };
+    window._labState.importedData = { lightDevices: [maxiDevice], deviceSessions: [] };
+
+    // 1. Log session without explicit mode → resolves to default 'all-on'
+    await window.logDeviceSession({
+      deviceId: 'D-maxi-test', durationMin: 6, distanceCm: 60, bodyArea: 'torso', eyesProtected: true,
+    });
+    const sess0 = window._labState.importedData.deviceSessions[0];
+    const baseVitD = sess0?.doses?.vitamin_d || 0;
+    const basePbmRed = sess0?.doses?.pbm_red || 0;
+    assert('Recompute prep: fresh session resolves mode to all-on default',
+      sess0?.mode === 'all-on', `mode=${sess0?.mode}`);
+    assert('Recompute prep: all-on session has non-zero vitamin_d',
+      baseVitD > 0, `vitamin_d=${baseVitD.toFixed(2)}`);
+
+    // 2. Strip mode to simulate legacy session, then recompute
+    const legacyId = sess0.id;
+    delete sess0.mode;
+    await window.updateDeviceSession(legacyId, { durationMin: 12 });
+    const recomputed = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
+    assert('Legacy recompute: mode auto-fills to default after edit',
+      recomputed?.mode === 'all-on', `mode=${recomputed?.mode}`);
+    // Doses should ~2× the original (duration doubled, all-on identity).
+    // Tolerance 5% covers rounding + per-session-cap interaction.
+    const ratioVitD = baseVitD > 0 ? recomputed.doses.vitamin_d / baseVitD : 0;
+    const ratioPbm  = basePbmRed > 0 ? recomputed.doses.pbm_red / basePbmRed : 0;
+    assert('Legacy recompute: vitamin_d scales linearly with duration (no mode drift)',
+      Math.abs(ratioVitD - 2.0) < 0.1,
+      `ratio=${ratioVitD.toFixed(3)} (expected ≈2.0)`);
+    assert('Legacy recompute: pbm_red scales linearly with duration',
+      Math.abs(ratioPbm - 2.0) < 0.1,
+      `ratio=${ratioPbm.toFixed(3)}`);
+
+    // 3. Switch mode mid-edit → vitamin_d crashes, pbm_red preserved
+    await window.updateDeviceSession(legacyId, { mode: 'red-nir-only' });
+    const switched = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
+    assert('Mode switch (all-on → red-nir-only): mode persists',
+      switched?.mode === 'red-nir-only');
+    assert('Mode switch: vitamin_d ≈ 0 after switching off UV group',
+      (switched?.doses?.vitamin_d || 0) < 1e-3,
+      `vitamin_d=${(switched?.doses?.vitamin_d || 0).toExponential(2)}`);
+    // pbm_red preserved at ≥80% — red+NIR group still firing on 85% of
+    // panel power (hybrid weights 35+50%); the 15% lost was UV+blue.
+    const pbmAfterSwitch = switched?.doses?.pbm_red || 0;
+    assert('Mode switch: pbm_red preserved (red-NIR still firing)',
+      pbmAfterSwitch >= recomputed.doses.pbm_red * 0.8,
+      `before=${recomputed.doses.pbm_red.toFixed(2)} after=${pbmAfterSwitch.toFixed(2)}`);
+
+    // 4. Coupling enforcement: invalid mode silently falls back to default
+    await window.updateDeviceSession(legacyId, { mode: 'completely-fake-mode' });
+    const validated = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
+    assert('Mode validation: unknown mode-id falls back to default',
+      validated?.mode === 'all-on');
+
+    // 5. Non-moded device (no `modes` field) recomputes identically
+    const pbmDevice = {
+      id: 'D-pbm-test', brand: 'Test', model: 'PBM',
+      peakWavelengths: [660, 850], mwPerCm2At15cm: 100,
+      recommendedDistanceCm: 15, peakShares: [0.5, 0.5],
+    };
+    window._labState.importedData = { lightDevices: [pbmDevice], deviceSessions: [] };
+    await window.logDeviceSession({
+      deviceId: 'D-pbm-test', durationMin: 5, distanceCm: 15, bodyArea: 'torso', eyesProtected: true,
+    });
+    const pbmSess = window._labState.importedData.deviceSessions[0];
+    assert('Non-moded device: session.mode stays null',
+      pbmSess?.mode === null, `mode=${pbmSess?.mode}`);
+    const basePbmDose = pbmSess.doses.pbm_red;
+    await window.updateDeviceSession(pbmSess.id, { durationMin: 10 });
+    const pbmRecomputed = window._labState.importedData.deviceSessions.find(s => s.id === pbmSess.id);
+    assert('Non-moded device: recompute scales linearly (no mode drift)',
+      Math.abs(pbmRecomputed.doses.pbm_red / basePbmDose - 2.0) < 0.05,
+      `ratio=${(pbmRecomputed.doses.pbm_red / basePbmDose).toFixed(3)}`);
+    assert('Non-moded device: mode stays null after recompute',
+      pbmRecomputed?.mode === null);
+
+    window._labState.importedData = orig;
+  }
+
+  // ─── hydrateDevicesFromPresets — pre-Round-7 device backfill ──────
+  // Users who added Maxi UVB / Trinity before Round 7 have device
+  // records missing channelGroups / modes / coupling. The hydration
+  // migration runs at app boot and copies those fields from the preset
+  // library onto matching user devices. Idempotent — second run is a
+  // no-op since fields are now present.
+  console.log('%c hydrateDevicesFromPresets backfill ', 'font-weight:bold;color:#f59e0b');
+  if (typeof window.hydrateDevicesFromPresets === 'function' && typeof window.addDeviceFromPreset === 'function') {
+    window._labState.importedData = { lightDevices: [], deviceSessions: [] };
+    // Add a Maxi UVB then strip the Round-7 fields, simulating a device
+    // record persisted to localStorage before the schema additions.
+    await window.addDeviceFromPreset('mitochondriak-maxi-uvb');
+    const dev = window._labState.importedData.lightDevices[0];
+    delete dev.channelGroups;
+    delete dev.modes;
+    delete dev.coupling;
+    assert('Pre-hydration: legacy device record has no `modes`',
+      !Array.isArray(dev.modes));
+    const dirty = await window.hydrateDevicesFromPresets();
+    const hydrated = window._labState.importedData.lightDevices[0];
+    assert('hydrateDevicesFromPresets reports dirty when fields were missing',
+      dirty === true);
+    assert('Hydration backfills `modes` from preset',
+      Array.isArray(hydrated.modes) && hydrated.modes.some(m => m.id === 'all-on'));
+    assert('Hydration backfills `channelGroups`',
+      Array.isArray(hydrated.channelGroups) && hydrated.channelGroups.length >= 2);
+    assert('Hydration backfills `coupling`',
+      Array.isArray(hydrated.coupling) && hydrated.coupling.length >= 1);
+    // Second run is a no-op — fields already present.
+    const dirty2 = await window.hydrateDevicesFromPresets();
+    assert('hydrateDevicesFromPresets is idempotent (second run = no-op)',
+      dirty2 === false);
+    // Custom devices (no presetId) skip hydration even if they're missing fields.
+    window._labState.importedData.lightDevices.push({
+      id: 'D-custom-no-preset', brand: 'Custom', model: 'Test',
+      peakWavelengths: [660], mwPerCm2At15cm: 50,
+    });
+    await window.hydrateDevicesFromPresets();
+    const customDev = window._labState.importedData.lightDevices.find(d => d.id === 'D-custom-no-preset');
+    assert('Hydration skips custom (no-presetId) devices',
+      !customDev.modes && !customDev.channelGroups);
+    window._labState.importedData = orig;
+  }
+
+  // ─── addDeviceFromPreset copies Round-7 schema through ─────────────
+  // Future-proof: any newly added preset device should land with the
+  // mode schema already populated, so the user doesn't need to wait for
+  // the boot-time hydration migration to fire.
+  console.log('%c addDeviceFromPreset copies Round-7 schema ', 'font-weight:bold;color:#f59e0b');
+  if (typeof window.addDeviceFromPreset === 'function') {
+    window._labState.importedData = { lightDevices: [], deviceSessions: [] };
+    await window.addDeviceFromPreset('mitochondriak-maxi-uvb');
+    const fresh = window._labState.importedData.lightDevices[0];
+    assert('Fresh-add: device carries `modes` immediately',
+      Array.isArray(fresh.modes) && fresh.modes.length >= 2);
+    assert('Fresh-add: device carries `channelGroups` immediately',
+      Array.isArray(fresh.channelGroups));
+    assert('Fresh-add: device carries `coupling` immediately',
+      Array.isArray(fresh.coupling));
+    // Non-moded preset (Pulse) → fields stay null
+    await window.addDeviceFromPreset('mitochondriak-pulse');
+    const pulse = window._labState.importedData.lightDevices.find(d => d.presetId === 'mitochondriak-pulse');
+    assert('Fresh-add: non-moded preset (Pulse) has null modes',
+      pulse.modes === null);
+    window._labState.importedData = orig;
+  }
+
   console.log(`%c Light Devices: ${pass} passed, ${fail} failed `,
     `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
 })();

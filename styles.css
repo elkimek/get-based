@@ -6157,6 +6157,25 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-session-device .light-session-icon { color: var(--accent); }
 .light-session-sun .light-session-icon { color: var(--orange); }
 
+/* Mode chip — surfaces the touchscreen LED-group preset that fired
+   during the session. Default-mode rows render quietly so they don't
+   clutter the row; off-default modes get an accent so the user can
+   skim history for non-default sessions at a glance. */
+.light-session-mode-chip {
+  font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding: 2px 7px; border-radius: 9px;
+  border: 1px solid var(--border);
+  background: transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.light-session-mode-chip-accent {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
 /* Device picker (Light page CTA → "Start a device session" with 2+ devs) */
 .light-device-picker-list {
   display: flex; flex-direction: column; gap: 6px; margin-top: 8px;

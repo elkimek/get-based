@@ -2399,13 +2399,35 @@ function renderUnifiedSessionsList() {
       const date = formatDate(new Date(row.startedAt).toISOString().slice(0, 10));
       const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : '—';
       const meta = `${dur} @ ${sess.distanceCm}cm · ${sess.bodyArea || ''}${sess.eyesProtected ? ' · eyes protected' : ''}`;
-      const devAriaLabel = `Open ${date} device session details — ${devName}`;
+      // Mode badge — only on rows for devices that declare modes. The
+      // resolved mode answers "which LED groups fired" at a glance, key
+      // for hybrid panels (Maxi UVB, Trinity) where the same device can
+      // produce wildly different channel doses depending on the touchscreen
+      // preset chosen. Non-moded devices keep the legacy row layout.
+      let modeBadge = '';
+      let modeAria = '';
+      if (dev && Array.isArray(dev.modes) && dev.modes.length > 0) {
+        const resolvedMode = dev.modes.find(m => m.id === sess.mode)
+          || dev.modes.find(m => m.default)
+          || dev.modes[0];
+        if (resolvedMode) {
+          const label = resolvedMode.label || resolvedMode.id;
+          const isDefault = !!resolvedMode.default || dev.modes[0]?.id === resolvedMode.id;
+          // Default-mode rows use a quieter chip; off-default modes get
+          // an accent variant so the user can scan history for "when did
+          // I last run UV?" — the visually-louder rows are the answer.
+          modeBadge = `<span class="light-session-mode-chip${isDefault ? '' : ' light-session-mode-chip-accent'}" title="LED-group mode that fired during this session">${escapeHTML(label)}</span>`;
+          modeAria = ` mode ${label}`;
+        }
+      }
+      const devAriaLabel = `Open ${date} device session details — ${devName}${modeAria}`;
       html += `<div class="sun-session light-session-row light-session-device" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}" onclick="window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
         <div class="sun-session-head">
           <span class="light-session-icon" aria-hidden="true">🔴</span>
           <span class="sun-session-date">${escapeHTML(date)}</span>
           <span class="sun-session-duration">${escapeHTML(dur)}</span>
           <span class="light-session-kind">${escapeHTML(devName)}</span>
+          ${modeBadge}
           <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
         </div>
         <div class="sun-session-meta">${escapeHTML(meta)}</div>

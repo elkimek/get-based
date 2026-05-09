@@ -24,6 +24,7 @@ export function getDeviceSessionFingerprint(sess) {
     Math.round(sess.distanceCm || 0),
     sess.bodyArea || '',
     sess.eyesProtected ? 1 : 0,
+    sess.mode || '',
   ];
   if (sess.doses) {
     for (const k of Object.keys(sess.doses).sort()) {
@@ -98,6 +99,32 @@ export function buildDeviceSessionContext(sess) {
       lines.push(`Irradiance: ${device.mwPerCm2At15cm} mW/cm² at ${device.recommendedDistanceCm || 15} cm reference distance`);
     }
     if (device.lux) lines.push(`Eye-channel intensity: ${device.lux.toLocaleString()} lux`);
+    // Mode disclosure for hybrid panels (Maxi UVB / Trinity / etc.) where
+    // the user picks an LED-group preset on the touchscreen. Without
+    // this, the model sees a UVB-typed device with all-zero vit-D and
+    // calls the session a "miss" — when the user deliberately ran red/
+    // NIR-only mode, judging it as a PBM session is correct.
+    if (Array.isArray(device.modes) && device.modes.length > 0 && sess.mode) {
+      const resolved = device.modes.find(m => m.id === sess.mode);
+      if (resolved) {
+        const isDefault = !!resolved.default || device.modes[0]?.id === resolved.id;
+        const firingGroups = (resolved.groups || []).map(gid => {
+          const g = (device.channelGroups || []).find(cg => cg.id === gid);
+          return g ? (g.label || g.id) : gid;
+        }).join(', ');
+        const firingPeaks = new Set();
+        for (const gid of (resolved.groups || [])) {
+          const g = (device.channelGroups || []).find(cg => cg.id === gid);
+          if (g?.peaks) for (const p of g.peaks) firingPeaks.add(p);
+        }
+        const peaksList = Array.from(firingPeaks).sort((a, b) => a - b);
+        lines.push(`Mode: ${resolved.label || resolved.id}${isDefault ? ' (device default)' : ' (user-selected, off-default)'}`);
+        if (firingGroups) lines.push(`Firing LED groups: ${firingGroups}`);
+        if (peaksList.length && peaksList.length < (device.peakWavelengths?.length || 0)) {
+          lines.push(`Peaks actually firing this session: ${peaksList.map(w => w + ' nm').join(', ')} (subset of full panel)`);
+        }
+      }
+    }
   } else {
     lines.push('Device record removed (was deleted from the user\'s catalog).');
   }
@@ -167,6 +194,11 @@ const SYSTEM_PROMPT = [
   '  • Dawn simulator: gentle ramp, low total dose; circadian-only. Don\'t flag low-tier numbers; the value is the timing, not the dose.',
   '  • Full-spectrum bulb: daytime alertness; only meaningful at sustained durations (>30 min) and reasonable lux.',
   'Working distance matters: the dose model already applies an inverse-square correction capped at 3×; below 10 cm on a panel, mention that actual irradiance may be higher than the model captures.',
+  '',
+  'Mode (when the context lists a Mode line):',
+  '  • Hybrid panels like Mitochondriak Maxi UVB and Chroma Trinity have named touchscreen modes that gate which LED groups fire. The Mode line tells you what the user DELIBERATELY ran. A UVB-typed panel set to a red/NIR-only mode is a PBM session by intent — judge it as PBM, not as a broken UVB session. Zero vit-D in that case is expected, not a problem.',
+  '  • An off-default mode is a positive signal of intent. Reflect THE MODE THEY RAN, not the modes they could have run.',
+  '  • Use the mode + firing-peaks lines as the primary cue for which device-class biology applies — override the device.type label when the firing peaks contradict it.',
   '',
   'tip: one sentence, max 14 words. Reference specific numbers + device-class context. Direct, no preamble.',
   'detail: 1–2 sentences. Explain the why, naming dose / device-class fit / safety driver. No restating the data verbatim.',

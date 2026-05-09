@@ -243,6 +243,129 @@ return (async function() {
     }
   }
 
+  // ─── 8b. Mode picker UI in session log dialog ────────────────────────
+  // Round 7 added per-device LED-group modes (Maxi UVB UV-coupled-to-
+  // red/NIR, Trinity 4-mode, etc.). The session log dialog must render a
+  // mode dropdown when the device declares >1 valid mode, must omit it
+  // for single-mode devices, and must filter out coupling-violating
+  // modes (so e.g. Maxi UVB never offers a UV-only choice).
+  console.log('%c 8b. Mode picker UI on session log dialog ', 'font-weight:bold;color:#6366f1');
+  if (typeof window.openDeviceSessionDialog === 'function') {
+    document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+
+    // Inject a fresh moded device + a non-moded device into state so we
+    // don't depend on preset library timing. `mode` field is opt-in —
+    // omitting it means single-mode (legacy) device.
+    const modedDevice = {
+      id: 'D-test-moded', brand: 'Test', model: 'Maxi-shaped',
+      type: 'uvb',
+      peakWavelengths: [295, 380, 480, 630, 670, 850],
+      mwPerCm2At15cm: 100,
+      recommendedDistanceCm: 15,
+      channelGroups: [
+        { id: 'uv-blue', label: 'UV + blue', peaks: [295, 380, 480] },
+        { id: 'red-nir', label: 'Red + NIR',  peaks: [630, 670, 850] },
+      ],
+      modes: [
+        { id: 'all-on',       label: 'Full spectrum', groups: ['uv-blue', 'red-nir'], default: true },
+        { id: 'red-nir-only', label: 'Red/NIR only',  groups: ['red-nir'] },
+      ],
+      coupling: [{ if: 'uv-blue', requires: ['red-nir'] }],
+    };
+    const plainDevice = {
+      id: 'D-test-plain', brand: 'Test', model: 'Plain',
+      peakWavelengths: [660, 850], mwPerCm2At15cm: 50,
+      recommendedDistanceCm: 15,
+    };
+    S.importedData.lightDevices = [modedDevice, plainDevice];
+
+    // Moded device → picker present
+    await window.openDeviceSessionDialog('D-test-moded');
+    await wait(40);
+    const dlgModed = document.querySelector('.modal-overlay.show');
+    const picker = dlgModed?.querySelector('#dev-session-mode');
+    assert('Mode picker renders for device with multiple modes',
+      !!picker, picker ? `options=${picker.querySelectorAll('option').length}` : 'missing');
+    if (picker) {
+      const optionIds = Array.from(picker.querySelectorAll('option')).map(o => o.value);
+      assert('Mode picker offers all-on + red-nir-only',
+        optionIds.includes('all-on') && optionIds.includes('red-nir-only'));
+      // Coupling rule means a "uv-only" mode (if it existed) would be
+      // filtered out. Confirm no coupling-violating option leaked in.
+      assert('Mode picker filters coupling-violating modes',
+        !optionIds.includes('uv-only'));
+      assert('Mode picker pre-selects the default mode',
+        picker.value === 'all-on');
+    }
+    dlgModed?.remove();
+
+    // Non-moded device → picker absent
+    await window.openDeviceSessionDialog('D-test-plain');
+    await wait(40);
+    const dlgPlain = document.querySelector('.modal-overlay.show');
+    const noPicker = dlgPlain?.querySelector('#dev-session-mode');
+    assert('Mode picker absent for single-mode device',
+      !noPicker);
+    dlgPlain?.remove();
+  }
+
+  // ─── 8c. Mode badge on session list rows ─────────────────────────────
+  // Sessions on moded devices render a chip showing the LED-group mode
+  // that fired. Default-mode chips use the quiet style; off-default
+  // chips get the accent variant so the user can skim history for
+  // non-default sessions. Non-moded devices skip the chip entirely.
+  console.log('%c 8c. Mode badge on session list rows ', 'font-weight:bold;color:#6366f1');
+  if (typeof window.logDeviceSession === 'function') {
+    document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+    // Reuse the moded device from 8b but log three sessions: default
+    // mode, non-default mode, plus a session on the plain device.
+    const badgeModedDevice = {
+      id: 'D-badge-moded', brand: 'Test', model: 'Maxi-shaped',
+      type: 'uvb',
+      peakWavelengths: [295, 380, 480, 630, 670, 850],
+      mwPerCm2At15cm: 100, recommendedDistanceCm: 15,
+      channelGroups: [
+        { id: 'uv-blue', label: 'UV + blue', peaks: [295, 380, 480] },
+        { id: 'red-nir', label: 'Red + NIR',  peaks: [630, 670, 850] },
+      ],
+      modes: [
+        { id: 'all-on',       label: 'Full spectrum', groups: ['uv-blue', 'red-nir'], default: true },
+        { id: 'red-nir-only', label: 'Red/NIR only',  groups: ['red-nir'] },
+      ],
+    };
+    const badgePlainDevice = {
+      id: 'D-badge-plain', brand: 'Test', model: 'Plain',
+      peakWavelengths: [660, 850], mwPerCm2At15cm: 50,
+      recommendedDistanceCm: 15,
+    };
+    S.importedData.lightDevices = [badgeModedDevice, badgePlainDevice];
+    S.importedData.deviceSessions = [];
+    await window.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'all-on' });
+    await window.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'red-nir-only' });
+    await window.logDeviceSession({ deviceId: 'D-badge-plain', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
+
+    window.navigate?.('light');
+    await wait(80);
+    const rows = document.querySelectorAll('.light-session-device');
+    assert('3 device-session rows render after logging', rows.length >= 3);
+    const chipsPerRow = Array.from(rows).map(r => ({
+      chip: r.querySelector('.light-session-mode-chip'),
+      accent: !!r.querySelector('.light-session-mode-chip-accent'),
+      label: r.querySelector('.light-session-mode-chip')?.textContent || '',
+    }));
+    const modedRowsWithChip = chipsPerRow.filter(c => c.chip).length;
+    const accentRows = chipsPerRow.filter(c => c.accent).length;
+    assert('Mode chips render only on moded-device rows (2 of 3)',
+      modedRowsWithChip === 2,
+      `chips on ${modedRowsWithChip} of ${rows.length} rows`);
+    assert('Off-default mode gets the accent chip variant (1 of 2)',
+      accentRows === 1, `accents=${accentRows}`);
+    assert('Default-mode chip shows the mode label',
+      chipsPerRow.some(c => c.chip && !c.accent && /Full spectrum/.test(c.label)));
+    assert('Off-default chip shows the off-default mode label',
+      chipsPerRow.some(c => c.accent && /Red\/NIR only/.test(c.label)));
+  }
+
   // ─── 9. Cleanup: restore original state ──────────────────────────────
   document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
   S.importedData = orig;

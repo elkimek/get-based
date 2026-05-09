@@ -200,6 +200,15 @@ function _peakSigmaForWavelength(nm) {
 // physics-correct shares from `type` + peak-wavelength layout alone,
 // without the AI prompt needing to extract per-band power (which most
 // spec sheets don't publish).
+// Exported public alias of `_heuristicPeakShares` so that mode-aware
+// callers (light-devices.js) can compute the per-peak power split on
+// the FULL device first, then renormalize over the firing subset for
+// a partial-mode session. Keeping the underscore-prefixed internal
+// reference for backward compatibility within this module.
+export function heuristicPeakShares(peaks, deviceType) {
+  return _heuristicPeakShares(peaks, deviceType);
+}
+
 function _heuristicPeakShares(peaks, deviceType) {
   const bandOf = (nm) => {
     if (nm < 320) return 'uvb';
@@ -940,6 +949,94 @@ export function retinalUVdose({ spectrum, eyeExposure, zenithDeg = null }) {
   return actinic_irradiance * seconds * elevationGate;
 }
 
+// Mode-aware effective-device builder. Devices like Mitochondriak Maxi
+// UVB (UV+blue coupled to red/NIR) and Chroma Trinity (3 named modes —
+// Ironforge / Lux Vital / D-Light) gate which LED groups fire per
+// session via touchscreen / mode selection. Without this, every session
+// is implicitly "all groups firing" — wrong for any vendor mode that
+// fires a subset.
+//
+// Strategy:
+//   1. Compute peak shares on the FULL device (preserves hybrid
+//      detection: a hybrid panel firing only its red/NIR subset is
+//      still a "hybrid panel running ~85% of total power", not a
+//      pure-PBM device — the original 5/5/5/35/50 weights gave 85%
+//      to red+NIR, so partial-mode irradiance scales by that).
+//   2. Filter peakWavelengths + matching peakShares to the firing
+//      subset.
+//   3. Sum firing shares → that's the fraction of full-panel power
+//      this mode delivers; scale mwPerCm2At15cm by it.
+//   4. Renormalize firing shares so they sum to 1 (synthesize expects
+//      a normalized split within the firing peaks).
+//
+// Returned device is structurally identical to the input — synthesize
+// downstream stays mode-agnostic. mode='all-on' (or undefined modeId
+// on a device with no `modes`) returns the device unchanged: identity.
+//
+// Coupling rules (e.g. Maxi UVB UV-requires-redNIR) are NOT enforced
+// here — that's a session-creation concern. This builder honors
+// whatever modeId is passed.
+export function effectiveDeviceForMode(device, modeId) {
+  if (!device || !Array.isArray(device.peakWavelengths) || device.peakWavelengths.length === 0) return device;
+  if (!Array.isArray(device.modes) || device.modes.length === 0) return device;
+  const mode = device.modes.find(m => m.id === modeId)
+    || device.modes.find(m => m.default)
+    || device.modes[0];
+  if (!mode || !Array.isArray(mode.groups) || mode.groups.length === 0) return device;
+  if (!Array.isArray(device.channelGroups)) return device;
+  const firingPeakSet = new Set();
+  for (const groupId of mode.groups) {
+    const group = device.channelGroups.find(g => g.id === groupId);
+    if (!group || !Array.isArray(group.peaks)) continue;
+    for (const p of group.peaks) firingPeakSet.add(p);
+  }
+  const allPeaks = device.peakWavelengths;
+  const allShares = Array.isArray(device.peakShares) && device.peakShares.length === allPeaks.length
+    ? (() => { const s = device.peakShares.reduce((a, b) => a + b, 0); return s > 0 ? device.peakShares.map(x => x / s) : _heuristicPeakShares(allPeaks, device.type); })()
+    : _heuristicPeakShares(allPeaks, device.type);
+  const firingPeaks = [];
+  const firingSharesRaw = [];
+  for (let i = 0; i < allPeaks.length; i++) {
+    if (firingPeakSet.has(allPeaks[i])) {
+      firingPeaks.push(allPeaks[i]);
+      firingSharesRaw.push(allShares[i]);
+    }
+  }
+  if (firingPeaks.length === 0) return device;
+  const firingFraction = firingSharesRaw.reduce((a, b) => a + b, 0);
+  if (firingFraction <= 0) return device;
+  const firingShares = firingSharesRaw.map(s => s / firingFraction);
+  return {
+    ...device,
+    peakWavelengths: firingPeaks,
+    peakShares: firingShares,
+    mwPerCm2At15cm: (Number(device.mwPerCm2At15cm) || 0) * firingFraction,
+  };
+}
+
+// Validate a (device, modeId) pair against the device's coupling rules.
+// Returns { ok: true } when the mode satisfies all rules, otherwise
+// { ok: false, error: '<human-readable reason>' }. Devices without
+// `coupling` always pass.
+export function validateModeCoupling(device, modeId) {
+  if (!device || !Array.isArray(device.coupling) || device.coupling.length === 0) return { ok: true };
+  if (!Array.isArray(device.modes) || device.modes.length === 0) return { ok: true };
+  const mode = device.modes.find(m => m.id === modeId);
+  if (!mode || !Array.isArray(mode.groups)) return { ok: true };
+  const firing = new Set(mode.groups);
+  for (const rule of device.coupling) {
+    if (!rule || !rule.if || !Array.isArray(rule.requires)) continue;
+    if (!firing.has(rule.if)) continue;
+    for (const req of rule.requires) {
+      if (!firing.has(req)) {
+        const reason = rule.reason || `Group "${rule.if}" requires "${req}" to also be firing.`;
+        return { ok: false, error: reason };
+      }
+    }
+  }
+  return { ok: true };
+}
+
 // ─── Public exports ────────────────────────────────────────────────────
 
 export const SUN_CHANNELS = CHANNELS.map(({ id, key, label }) => ({ id, key, label }));
@@ -949,6 +1046,9 @@ if (typeof window !== 'undefined') {
   Object.assign(window, {
     reconstructSpectrum,
     synthesizeDeviceSpectrum,
+    effectiveDeviceForMode,
+    validateModeCoupling,
+    heuristicPeakShares,
     computeChannelDoses,
     erythemalSED,
     fractionOfMED,

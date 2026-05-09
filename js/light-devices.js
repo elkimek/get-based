@@ -85,6 +85,12 @@ export async function addDeviceFromPreset(presetId, overrides = {}) {
     lux: overrides.lux ?? preset.lux ?? null,
     recommendedDistanceCm: overrides.recommendedDistanceCm ?? preset.recommendedDistanceCm ?? 15,
     channels: overrides.channels || preset.channels || [],
+    // Round 7: copy the LED-group schema through so the session-log
+    // dialog can render the mode picker. Devices added pre-Round-7 are
+    // healed by hydrateDevicesFromPresets at boot.
+    channelGroups: Array.isArray(preset.channelGroups) ? preset.channelGroups : null,
+    modes: Array.isArray(preset.modes) ? preset.modes : null,
+    coupling: Array.isArray(preset.coupling) ? preset.coupling : null,
     catalogSlug: preset.catalogSlug || null,
     notes: overrides.notes || '',
     addedAt: Date.now(),
@@ -92,6 +98,38 @@ export async function addDeviceFromPreset(presetId, overrides = {}) {
   getDevices().push(device);
   await saveImportedData();
   return device;
+}
+
+// Backfill channelGroups / modes / coupling from the preset library onto
+// user devices that pre-date Round 7. Idempotent — devices already
+// carrying the field skip. Custom (non-preset) devices skip too. Run
+// once at boot so existing localStorage devices light up the mode picker
+// without requiring re-add.
+export async function hydrateDevicesFromPresets() {
+  const { presets } = await loadPresets();
+  if (!Array.isArray(presets) || presets.length === 0) return false;
+  if (!state.importedData) return false;
+  const devices = Array.isArray(state.importedData.lightDevices) ? state.importedData.lightDevices : [];
+  let dirty = false;
+  for (const dev of devices) {
+    if (!dev || !dev.presetId) continue;
+    const preset = presets.find(p => p.id === dev.presetId);
+    if (!preset) continue;
+    if (!Array.isArray(dev.channelGroups) && Array.isArray(preset.channelGroups)) {
+      dev.channelGroups = preset.channelGroups;
+      dirty = true;
+    }
+    if (!Array.isArray(dev.modes) && Array.isArray(preset.modes)) {
+      dev.modes = preset.modes;
+      dirty = true;
+    }
+    if (!Array.isArray(dev.coupling) && Array.isArray(preset.coupling)) {
+      dev.coupling = preset.coupling;
+      dirty = true;
+    }
+  }
+  if (dirty) await saveImportedData();
+  return dirty;
 }
 
 export async function deleteDevice(id) {
@@ -118,11 +156,26 @@ export async function deleteDevice(id) {
 // instead of `mwPerCm2At15cm` (Verilux, Carex, Lumie, etc.) — those don't
 // have a meaningful peak-wavelengths spectrum and only feed the circadian
 // channel via lux-seconds.
-export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '' }) {
+export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '', mode = null }) {
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
   const sessionId = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const seconds = durationMin * 60;
+  // Resolve mode for devices with named modes (Maxi UVB, Trinity, etc.).
+  // Devices without `modes` skip this — `mode` stays null and behaves
+  // as today (synthesize on full peakWavelengths). Coupling rules
+  // (e.g. Maxi UVB UV-requires-redNIR) are validated here; an invalid
+  // mode falls back to the default to avoid persisting bad state.
+  let resolvedMode = mode;
+  if (Array.isArray(device.modes) && device.modes.length > 0) {
+    const found = device.modes.find(m => m.id === mode);
+    const defaultMode = device.modes.find(m => m.default) || device.modes[0];
+    resolvedMode = found ? found.id : defaultMode.id;
+    if (window.validateModeCoupling) {
+      const validation = window.validateModeCoupling(device, resolvedMode);
+      if (!validation.ok) resolvedMode = defaultMode.id;
+    }
+  }
 
   // Two paths:
   //   bodyAreas[] — precise per-region picker (BODY_REGIONS keys, e.g.
@@ -181,7 +234,10 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
     // `eyeMultiplier` rather than skin fraction — also pick up the
     // distance scaling. Otherwise a SAD lamp at 25 cm vs 100 cm
     // produces the same circadian dose, which is wrong.
-    const baseSpec = synthesizeDeviceSpectrum(device);
+    const effectiveDevice = window.effectiveDeviceForMode
+      ? window.effectiveDeviceForMode(device, resolvedMode)
+      : device;
+    const baseSpec = synthesizeDeviceSpectrum(effectiveDevice);
     const spectrum = {
       wavelengths: baseSpec.wavelengths,
       irradiance: baseSpec.irradiance.map(v => v * distFactor),
@@ -211,6 +267,12 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
     // a denormalized "broad zone" hint for legacy readers + listing rows.
     bodyAreas: Array.isArray(bodyAreas) ? bodyAreas.slice() : null,
     eyesProtected,
+    // mode is the named touchscreen-preset id for devices with `modes`
+    // (Maxi UVB, Trinity, etc.); null for single-mode devices. Persisted
+    // so dose recomputation on edit reuses the same mode. Legacy
+    // sessions logged before Round 7 read back as null and route through
+    // the device's default mode in effectiveDeviceForMode.
+    mode: resolvedMode,
     doses,
     notes,
   };
@@ -220,7 +282,7 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   // (most users do the same duration / distance / body area each
   // session — re-typing every time is friction). Notes intentionally
   // excluded — they're session-specific, shouldn't leak forward.
-  device.lastSession = { durationMin, distanceCm, bodyArea, bodyAreas: session.bodyAreas, eyesProtected };
+  device.lastSession = { durationMin, distanceCm, bodyArea, bodyAreas: session.bodyAreas, eyesProtected, mode: resolvedMode };
   device.updatedAt = Date.now();
   await saveImportedData();
   if (window.maybeAnalyzeDeviceSessionAfterFinish) {
@@ -241,12 +303,22 @@ export function getActiveDeviceSession() {
   return getDeviceSessions().find(s => !s.endedAt) || null;
 }
 
-export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true } = {}) {
+export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true, mode = null } = {}) {
   // Reject a second active timer — one session at a time keeps the
   // active-card UI unambiguous and matches sun-session semantics.
   if (getActiveDeviceSession()) return null;
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
+  let resolvedMode = mode;
+  if (Array.isArray(device.modes) && device.modes.length > 0) {
+    const found = device.modes.find(m => m.id === mode);
+    const defaultMode = device.modes.find(m => m.default) || device.modes[0];
+    resolvedMode = found ? found.id : defaultMode.id;
+    if (window.validateModeCoupling) {
+      const validation = window.validateModeCoupling(device, resolvedMode);
+      if (!validation.ok) resolvedMode = defaultMode.id;
+    }
+  }
   const id = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const sess = {
     id,
@@ -258,6 +330,7 @@ export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas 
     bodyArea,
     bodyAreas: Array.isArray(bodyAreas) ? bodyAreas.slice() : null,
     eyesProtected,
+    mode: resolvedMode,
     doses: {},
     notes: '',
   };
@@ -299,7 +372,10 @@ export async function stopDeviceSession(id) {
     const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
     let doses = {};
     if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
-      const baseSpec = synthesizeDeviceSpectrum(device);
+      const effectiveDevice = window.effectiveDeviceForMode
+        ? window.effectiveDeviceForMode(device, sess.mode)
+        : device;
+      const baseSpec = synthesizeDeviceSpectrum(effectiveDevice);
       const spectrum = {
         wavelengths: baseSpec.wavelengths,
         irradiance: baseSpec.irradiance.map(v => v * distFactor),
@@ -321,6 +397,7 @@ export async function stopDeviceSession(id) {
       durationMin, distanceCm: sess.distanceCm,
       bodyArea: sess.bodyArea, bodyAreas: sess.bodyAreas,
       eyesProtected: sess.eyesProtected,
+      mode: sess.mode,
     };
     device.updatedAt = Date.now();
   }
@@ -341,7 +418,7 @@ export async function updateDeviceSession(id, patch = {}) {
   const sessions = getDeviceSessions();
   const sess = sessions.find(s => s.id === id);
   if (!sess) return null;
-  const editable = ['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'notes'];
+  const editable = ['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'notes', 'mode'];
   let needsRecompute = false;
   for (const k of editable) {
     if (k in patch && patch[k] !== sess[k]) {
@@ -351,6 +428,24 @@ export async function updateDeviceSession(id, patch = {}) {
         const before = JSON.stringify((sess.bodyAreas || []).slice().sort());
         const after = JSON.stringify((patch.bodyAreas || []).slice().sort());
         if (before === after) continue;
+      }
+      // mode patches go through coupling validation; bad input falls
+      // back to the device's default mode rather than persisting.
+      if (k === 'mode') {
+        const device = getDevices().find(d => d.id === sess.deviceId);
+        if (device && Array.isArray(device.modes) && device.modes.length > 0) {
+          const found = device.modes.find(m => m.id === patch.mode);
+          const defaultMode = device.modes.find(m => m.default) || device.modes[0];
+          let next = found ? found.id : defaultMode.id;
+          if (window.validateModeCoupling) {
+            const validation = window.validateModeCoupling(device, next);
+            if (!validation.ok) next = defaultMode.id;
+          }
+          if (next === sess.mode) continue;
+          sess.mode = next;
+          needsRecompute = true;
+          continue;
+        }
       }
       sess[k] = patch[k];
       if (['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected'].includes(k)) needsRecompute = true;
@@ -363,6 +458,15 @@ export async function updateDeviceSession(id, patch = {}) {
     sess.endedAt = sess.startedAt + sess.durationMin * 60 * 1000;
     const device = getDevices().find(d => d.id === sess.deviceId);
     if (device) {
+      // Legacy-session normalization: pre-Round-7 sessions have no
+      // `mode` field. effectiveDeviceForMode falls back to the device
+      // default, so the dose math is identical — but the saved record
+      // should also reflect the resolved mode so future reads + edits
+      // are deterministic. Devices without `modes` keep mode=null.
+      if ((sess.mode === undefined || sess.mode === null) && Array.isArray(device.modes) && device.modes.length > 0) {
+        const defaultMode = device.modes.find(m => m.default) || device.modes[0];
+        sess.mode = defaultMode.id;
+      }
       const seconds = sess.durationMin * 60;
       const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
       const AREA_FRACTIONS = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
@@ -381,7 +485,10 @@ export async function updateDeviceSession(id, patch = {}) {
       const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
       let doses = {};
       if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
-        const baseSpec = synthesizeDeviceSpectrum(device);
+        const effectiveDevice = window.effectiveDeviceForMode
+          ? window.effectiveDeviceForMode(device, sess.mode)
+          : device;
+        const baseSpec = synthesizeDeviceSpectrum(effectiveDevice);
         const spectrum = {
           wavelengths: baseSpec.wavelengths,
           irradiance: baseSpec.irradiance.map(v => v * distFactor),
@@ -403,6 +510,61 @@ export async function updateDeviceSession(id, patch = {}) {
     try { window.maybeAnalyzeDeviceSessionAfterFinish(sess); } catch (_) {}
   }
   return sess;
+}
+
+// User-facing edit-mode entry point. Mirrors editDeviceSessionDuration
+// but for the mode field — opens a small picker dialog filtered to
+// coupling-valid modes, persists the choice via updateDeviceSession
+// (which recomputes doses through effectiveDeviceForMode), re-renders.
+// Devices without `modes` (or with only one valid mode after coupling
+// filtering) skip the dialog and surface a notice instead.
+export async function editDeviceSessionMode(id) {
+  const sess = getDeviceSessions().find(s => s.id === id);
+  if (!sess) {
+    showNotification('Session not found', 'error');
+    return;
+  }
+  const device = getDevices().find(d => d.id === sess.deviceId);
+  if (!device || !Array.isArray(device.modes) || device.modes.length === 0) {
+    showNotification('This device has no selectable modes.', 'info');
+    return;
+  }
+  const validateMode = window.validateModeCoupling || (() => ({ ok: true }));
+  const validModes = device.modes.filter(m => validateMode(device, m.id).ok);
+  if (validModes.length < 2) {
+    showNotification('Only one mode is available for this device.', 'info');
+    return;
+  }
+  const currentMode = sess.mode || (device.modes.find(m => m.default) || device.modes[0])?.id;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Edit session mode">
+    <div class="modal-header">
+      <h3>Edit mode — ${escapeHTML(device.brand)} ${escapeHTML(device.model)}</h3>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-body-hint">Pick the LED-group mode that actually fired during this session. Doses will be recomputed on save.</p>
+      <label class="ctx-label">Mode
+        <select id="dev-edit-mode" class="ctx-select">
+          ${validModes.map(m => `<option value="${escapeAttr(m.id)}"${m.id === currentMode ? ' selected' : ''}>${escapeHTML(m.label || m.id)}</option>`).join('')}
+        </select>
+      </label>
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-primary" id="dev-edit-mode-save">Save</button>
+      </div>
+    </div>
+  </div>`;
+  _wireModal(overlay);
+  overlay.querySelector('#dev-edit-mode-save').addEventListener('click', async () => {
+    const next = overlay.querySelector('#dev-edit-mode').value;
+    overlay.remove();
+    if (next === sess.mode) return;
+    await updateDeviceSession(id, { mode: next });
+    showNotification('Mode updated. Doses recomputed.', 'success');
+    if (window.navigate && state.currentView === 'light') window.navigate('light');
+  });
 }
 
 // User-facing edit-duration entry point — same shape as
@@ -492,6 +654,19 @@ export function openDeviceSessionDetail(id) {
     areaLabel = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '—';
   }
   const eyesLabel = sess.eyesProtected ? 'Protected (closed / blocked)' : 'Uncovered';
+  // Mode label resolution — surface the human-readable label whenever
+  // the device declares modes. Legacy sessions (no `mode` field) and
+  // devices without a `modes` array both fall through to null.
+  let modeLabel = null;
+  let canEditMode = false;
+  if (device && Array.isArray(device.modes) && device.modes.length > 0) {
+    const resolved = device.modes.find(m => m.id === sess.mode)
+      || device.modes.find(m => m.default)
+      || device.modes[0];
+    modeLabel = resolved ? (resolved.label || resolved.id) : null;
+    const validateMode = window.validateModeCoupling || (() => ({ ok: true }));
+    canEditMode = device.modes.filter(m => validateMode(device, m.id).ok).length > 1;
+  }
 
   const channelRows = sess.doses ? channelOrder
     .filter(k => sess.doses[k] != null)
@@ -536,6 +711,13 @@ export function openDeviceSessionDetail(id) {
         <div class="sun-detail-section-value">${escapeHTML(eyesLabel)}</div>
       </div>
 
+      ${modeLabel ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Mode</div>
+          <div class="sun-detail-section-value" title="The vendor-defined LED-group preset that fired during this session. Affects channel-dose math.">${escapeHTML(modeLabel)}</div>
+        </div>
+      ` : ''}
+
       ${device ? `
         <div class="sun-detail-section">
           <div class="sun-detail-section-label">Device spec</div>
@@ -562,6 +744,7 @@ export function openDeviceSessionDetail(id) {
 
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editDeviceSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when you forgot to stop the timer or stopped late.">Edit duration</button>
+        ${canEditMode ? `<button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editDeviceSessionMode && window.editDeviceSessionMode('${escapeAttr(sess.id)}')" title="Change which LED-group mode the session ran in. Doses recompute on save.">Edit mode</button>` : ''}
         <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')">Delete session</button>
       </div>
     </div>
@@ -1079,6 +1262,9 @@ const _CUSTOM_DEVICE_PROMPT = `Extract light therapy device specs from this prod
   "mwPerCm2At15cm": number or null (the irradiance value; field is legacy-named — store the vendor's reading at whatever distance they publish),
   "recommendedDistanceCm": number or null (the distance at which the manufacturer measured the irradiance above — typically 15-30 cm; some COB devices recommend 50+ cm. Convert inches to cm: 6 in ≈ 15 cm, 12 in ≈ 30 cm, 20 in ≈ 50 cm),
   "lux": number or null (only for SAD / dawn lamps),
+  "channelGroups": null OR [{"id": "kebab-case-id", "label": "human label", "peaks": [subset of peakWavelengths]}, ...],
+  "modes": null OR [{"id": "kebab-case-id", "label": "human label", "groups": [groupIds], "default": true on the most common preset}, ...],
+  "coupling": null OR [{"if": "groupId", "requires": ["otherGroupId"], "reason": "vendor-stated reason — quote if possible"}],
   "notes": "short description"
 }
 
@@ -1091,7 +1277,12 @@ Type guide:
 - dawn-sim: dawn simulator / wake-up light
 - full-spectrum: full-spectrum bulb
 
-Use null for fields not found. No other text.`;
+channelGroups / modes / coupling guide (set ALL THREE to null if the product page describes a single-channel device with no mode-selector):
+- channelGroups: only fill in when the panel has independently-controllable LED groups (e.g. a touchscreen toggle for "UV" vs "red/NIR", or named modes like "Ironforge / Lux Vital / D-Light"). Each group lists which peakWavelengths are wired to its dimmer/switch.
+- modes: only fill in if the device has named touchscreen presets / mode buttons. Each mode lists which channelGroup ids fire when selected. Always include an "all-on" mode that fires every group, marked default:true unless the vendor states otherwise. If the vendor only describes one operating mode, set modes to null.
+- coupling: only fill in when the vendor explicitly states an LED group cannot run without another (e.g. "UV must run with red/NIR" — common safety design on hybrid UVB+red panels). Quote the rationale in "reason". Don't infer coupling from omission.
+
+Use null for fields not found. Do NOT invent modes the vendor doesn't describe. No other text.`;
 
 async function _fetchCustomDeviceFromURL(overlay) {
   const urlInput = overlay.querySelector('#custom-dev-url');
@@ -1194,6 +1385,26 @@ export async function addCustomDevice(spec) {
     'dawn-sim': ['circadian'],
     'full-spectrum': ['circadian'],
   };
+  // channelGroups / modes / coupling — only persisted when AI extraction
+  // (or manual entry) supplied a structurally complete set. Anything
+  // shaped wrong is dropped to null so the consumer (effectiveDeviceForMode)
+  // sees a clean schema and falls back to the all-peaks-fire identity path.
+  const channelGroups = Array.isArray(spec.channelGroups)
+    ? spec.channelGroups.filter(g => g && typeof g.id === 'string' && Array.isArray(g.peaks) && g.peaks.length > 0)
+    : null;
+  const validGroupIds = channelGroups ? new Set(channelGroups.map(g => g.id)) : null;
+  const modes = Array.isArray(spec.modes) && validGroupIds && validGroupIds.size > 0
+    ? spec.modes
+        .filter(m => m && typeof m.id === 'string' && Array.isArray(m.groups) && m.groups.length > 0)
+        .map(m => ({ ...m, groups: m.groups.filter(gid => validGroupIds.has(gid)) }))
+        .filter(m => m.groups.length > 0)
+    : null;
+  const coupling = Array.isArray(spec.coupling) && validGroupIds && validGroupIds.size > 0
+    ? spec.coupling.filter(r =>
+        r && typeof r.if === 'string' && validGroupIds.has(r.if)
+        && Array.isArray(r.requires) && r.requires.every(req => validGroupIds.has(req))
+      )
+    : null;
   const device = {
     id,
     presetId: null,
@@ -1205,6 +1416,9 @@ export async function addCustomDevice(spec) {
     lux: Number.isFinite(spec.lux) ? spec.lux : null,
     recommendedDistanceCm: Number.isFinite(spec.recommendedDistanceCm) && spec.recommendedDistanceCm > 0 ? spec.recommendedDistanceCm : 15,
     channels: TYPE_CHANNELS[spec.type] || ['pbm_red', 'pbm_nir'],
+    channelGroups: channelGroups && channelGroups.length > 0 ? channelGroups : null,
+    modes: modes && modes.length > 0 ? modes : null,
+    coupling: coupling && coupling.length > 0 ? coupling : null,
     catalogSlug: null,
     notes: spec.notes || '',
     addedAt: Date.now(),
@@ -1217,6 +1431,11 @@ export async function addCustomDevice(spec) {
 // ─── UI: log device session modal ──────────────────────────────────────
 
 export async function openDeviceSessionDialog(deviceId) {
+  // Lazy hydrate — covers the case where the boot-time migration was
+  // skipped (page opened mid-init, presets cache cold, etc.) so the
+  // dialog always renders with the latest preset schema. Idempotent;
+  // no-op once devices carry channelGroups / modes / coupling.
+  await hydrateDevicesFromPresets().catch(() => {});
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return;
   // Prefill from the user's last logged session on this device. First-
@@ -1251,6 +1470,21 @@ export async function openDeviceSessionDialog(deviceId) {
   } else {
     defaultRegions = ['breast-chest'];  // sensible single-region default
   }
+  // Mode picker — only renders for devices with multiple modes (Maxi UVB,
+  // Trinity, etc.). Coupling-violating modes are filtered out so users
+  // can't pick the device into an unsafe state from the dropdown
+  // (e.g. Maxi UVB has no UV-only entry; D-Light on Trinity stays
+  // available since Trinity has no coupling rules).
+  const showModePicker = Array.isArray(device.modes) && device.modes.length > 1;
+  const validateMode = window.validateModeCoupling || (() => ({ ok: true }));
+  const validModes = showModePicker
+    ? device.modes.filter(m => validateMode(device, m.id).ok)
+    : [];
+  let defaultMode = null;
+  if (showModePicker) {
+    const lastModeValid = last.mode && validModes.some(m => m.id === last.mode);
+    defaultMode = lastModeValid ? last.mode : (validModes.find(m => m.default) || validModes[0])?.id || null;
+  }
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Log device session">
@@ -1259,6 +1493,13 @@ export async function openDeviceSessionDialog(deviceId) {
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
+      ${showModePicker ? `
+        <label class="ctx-label">Mode
+          <select id="dev-session-mode" class="ctx-select" title="Which LED groups were firing for this session — picked from the device's vendor-defined modes. Affects channel-dose math (e.g. red/NIR-only mode contributes ~0 vit-D).">
+            ${validModes.map(m => `<option value="${escapeAttr(m.id)}"${m.id === defaultMode ? ' selected' : ''}>${escapeHTML(m.label || m.id)}</option>`).join('')}
+          </select>
+        </label>
+      ` : ''}
       <label class="ctx-label">Duration (minutes)
         <input type="number" id="dev-session-duration" class="ctx-input" min="1" max="120" value="${defaultDuration}" />
       </label>
@@ -1405,10 +1646,16 @@ export async function openDeviceSessionDialog(deviceId) {
     else if (bodyAreas.every(r => /face|thyroid/.test(r))) bodyArea = 'face';
     else if (bodyAreas.every(r => /chest|torso|abdomen|breast/.test(r))) bodyArea = 'torso';
     const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
-    await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected });
+    const mode = showModePicker ? overlay.querySelector('#dev-session-mode')?.value || null : null;
+    await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
     overlay.remove();
     showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
+    // Always land on /light after a save so the user sees the freshly-
+    // logged session (and its mode chip) in their history. Pre-Round-7
+    // this only re-rendered when already on /light; saving from the
+    // dashboard FAB used to leave the user on the dashboard with no
+    // visual feedback that the session had been recorded.
+    if (window.navigate) window.navigate('light');
   });
 
   // Start-timer path — same shared form, but begins a live session
@@ -1439,11 +1686,12 @@ export async function openDeviceSessionDialog(deviceId) {
     else if (bodyAreas.every(r => /face|thyroid/.test(r))) bodyArea = 'face';
     else if (bodyAreas.every(r => /chest|torso|abdomen|breast/.test(r))) bodyArea = 'torso';
     const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
-    await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected });
+    const mode = showModePicker ? overlay.querySelector('#dev-session-mode')?.value || null : null;
+    await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected, mode });
     overlay.remove();
     showNotification(`Live ${escapeHTML(device.brand)} session started — tap Stop & save when finished.`);
     ensureActiveDeviceTicker();
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
+    if (window.navigate) window.navigate('light');
   });
 }
 
@@ -1509,6 +1757,7 @@ if (typeof window !== 'undefined') {
     getDevices,
     getDeviceSessions,
     addDeviceFromPreset,
+    hydrateDevicesFromPresets,
     deleteLightDevice: async (id) => {
       await deleteDevice(id);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
@@ -1518,6 +1767,7 @@ if (typeof window !== 'undefined') {
     stopDeviceSession,
     updateDeviceSession,
     editDeviceSessionDuration,
+    editDeviceSessionMode,
     getActiveDeviceSession,
     renderActiveDeviceSessionCard,
     ensureActiveDeviceTicker,

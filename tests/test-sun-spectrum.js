@@ -432,6 +432,172 @@ return (async function() {
     maxiThruGlass.vitamin_d < maxiDoses.vitamin_d * 0.05,
     `ratio=${(maxiThruGlass.vitamin_d / Math.max(maxiDoses.vitamin_d, 1e-9)).toFixed(4)}`);
 
+  // ─── Round-7: mode-aware effective device (channel groups) ──────────
+  // Devices like Maxi UVB and Chroma Trinity gate which LED groups fire
+  // per session via touchscreen presets. effectiveDeviceForMode returns
+  // a derived device with the firing peakWavelengths + scaled mw, so
+  // synthesize/dose math stays mode-agnostic downstream.
+  console.log('%c 14b. mode-aware effective device ', 'font-weight:bold;color:#f59e0b');
+  const { effectiveDeviceForMode, validateModeCoupling } = window;
+  assert('effectiveDeviceForMode exposed on window', typeof effectiveDeviceForMode === 'function');
+  assert('validateModeCoupling exposed on window', typeof validateModeCoupling === 'function');
+
+  // Maxi UVB fixture matching the preset
+  const maxiUvbDevice = {
+    id: 'mitochondriak-maxi-uvb',
+    type: 'uvb',
+    peakWavelengths: [295, 380, 480, 630, 670, 760, 810, 830, 850],
+    mwPerCm2At15cm: 120,
+    channelGroups: [
+      { id: 'uv-blue', peaks: [295, 380, 480] },
+      { id: 'red-nir', peaks: [630, 670, 760, 810, 830, 850] },
+    ],
+    modes: [
+      { id: 'all-on',       groups: ['uv-blue', 'red-nir'], default: true },
+      { id: 'red-nir-only', groups: ['red-nir'] },
+    ],
+    coupling: [
+      { if: 'uv-blue', requires: ['red-nir'] },
+    ],
+  };
+
+  // Identity: device without modes returns unchanged
+  const noModeDevice = { peakWavelengths: [630, 850], mwPerCm2At15cm: 100 };
+  const noModeEff = effectiveDeviceForMode(noModeDevice, 'whatever');
+  assert('Device without modes: effectiveDeviceForMode returns identity',
+    noModeEff === noModeDevice);
+
+  // mode='all-on' on a moded device equals "all peaks fire" — peak set
+  // unchanged, mw unchanged (firingFraction sums to 1 over full panel).
+  const maxiAllOn = effectiveDeviceForMode(maxiUvbDevice, 'all-on');
+  assert('Maxi UVB all-on: peakWavelengths preserved',
+    maxiAllOn.peakWavelengths.length === maxiUvbDevice.peakWavelengths.length);
+  assert('Maxi UVB all-on: mw unchanged (firing fraction = 1.0)',
+    Math.abs(maxiAllOn.mwPerCm2At15cm - 120) < 0.01,
+    `mw=${maxiAllOn.mwPerCm2At15cm.toFixed(3)}`);
+
+  // mode='red-nir-only' drops UV peaks; mw scales by hybrid red+NIR
+  // share (35% + 50% = 85% of full panel).
+  const maxiRedOnly = effectiveDeviceForMode(maxiUvbDevice, 'red-nir-only');
+  assert('Maxi UVB red-only: UV peaks gone',
+    !maxiRedOnly.peakWavelengths.some(p => p < 500),
+    `peaks=${JSON.stringify(maxiRedOnly.peakWavelengths)}`);
+  assert('Maxi UVB red-only: red+NIR peaks preserved',
+    maxiRedOnly.peakWavelengths.length === 6);
+  assert('Maxi UVB red-only: mw ≈ 102 (0.85 × 120, hybrid red+NIR share)',
+    maxiRedOnly.mwPerCm2At15cm > 100 && maxiRedOnly.mwPerCm2At15cm < 104,
+    `mw=${maxiRedOnly.mwPerCm2At15cm.toFixed(2)}`);
+
+  // Doses on red-only mode: vitamin_d should crash (no UV firing); pbm
+  // channels should remain meaningful.
+  const maxiAllOnDoses = computeChannelDoses({
+    spectrum: synthesizeDeviceSpectrum(maxiAllOn),
+    durationMin: 6, bodyExposureFraction: 0.37,
+    eyeExposure: { mode: 'closed-eyes', durationSec: 360 },
+  });
+  const maxiRedOnlyDoses = computeChannelDoses({
+    spectrum: synthesizeDeviceSpectrum(maxiRedOnly),
+    durationMin: 6, bodyExposureFraction: 0.37,
+    eyeExposure: { mode: 'closed-eyes', durationSec: 360 },
+  });
+  assert('Maxi UVB red-only: vitamin_d ≈ 0 (no UVB firing)',
+    maxiRedOnlyDoses.vitamin_d < 1e-3,
+    `vitamin_d=${maxiRedOnlyDoses.vitamin_d.toExponential(2)}`);
+  assert('Maxi UVB red-only: pbm_red retained (≥80% of all-on red dose)',
+    maxiRedOnlyDoses.pbm_red >= maxiAllOnDoses.pbm_red * 0.8,
+    `red-only=${maxiRedOnlyDoses.pbm_red.toFixed(2)} vs all-on=${maxiAllOnDoses.pbm_red.toFixed(2)}`);
+
+  // Coupling validation: invalid mode (UV-only without red/NIR) rejected
+  const maxiUvOnlyHypothetical = {
+    ...maxiUvbDevice,
+    modes: [...maxiUvbDevice.modes, { id: 'uv-only', groups: ['uv-blue'] }],
+  };
+  const couplingCheck = validateModeCoupling(maxiUvOnlyHypothetical, 'uv-only');
+  assert('Coupling: Maxi UVB uv-only mode rejected (UV requires red/NIR)',
+    !couplingCheck.ok && typeof couplingCheck.error === 'string');
+  const couplingOK = validateModeCoupling(maxiUvOnlyHypothetical, 'all-on');
+  assert('Coupling: Maxi UVB all-on mode passes',
+    couplingOK.ok === true);
+  const noCouplingDevice = validateModeCoupling({ peakWavelengths: [660] }, 'anything');
+  assert('Coupling: device without coupling rules always passes',
+    noCouplingDevice.ok === true);
+
+  // Trinity-style 3-mode device (no coupling, modes fire independently)
+  const trinityDevice = {
+    id: 'chroma-trinity',
+    type: 'uvb',
+    peakWavelengths: [297, 385, 405, 485, 630, 670, 760, 810, 850, 935, 1050],
+    mwPerCm2At15cm: 200,
+    channelGroups: [
+      { id: 'ironforge', peaks: [630, 670, 760, 810, 850] },
+      { id: 'lux-vital', peaks: [385, 405, 485, 935, 1050] },
+      { id: 'd-light',   peaks: [297] },
+    ],
+    modes: [
+      { id: 'all-on',    groups: ['ironforge', 'lux-vital', 'd-light'], default: true },
+      { id: 'd-light',   groups: ['d-light'] },
+      { id: 'ironforge', groups: ['ironforge'] },
+    ],
+  };
+  const trinityDLight = effectiveDeviceForMode(trinityDevice, 'd-light');
+  assert('Trinity D-Light: only 297 nm fires',
+    trinityDLight.peakWavelengths.length === 1 && trinityDLight.peakWavelengths[0] === 297);
+  const trinityDLightDoses = computeChannelDoses({
+    spectrum: synthesizeDeviceSpectrum(trinityDLight),
+    durationMin: 5, bodyExposureFraction: 0.4,
+    eyeExposure: { mode: 'closed-eyes', durationSec: 300 },
+  });
+  assert('Trinity D-Light: vitamin_d > 0 (UVB peak fires)',
+    trinityDLightDoses.vitamin_d > 0);
+  assert('Trinity D-Light: pbm_red ≈ 0 (no red firing)',
+    trinityDLightDoses.pbm_red < 1e-3,
+    `pbm_red=${trinityDLightDoses.pbm_red.toExponential(2)}`);
+  const trinityIronforge = effectiveDeviceForMode(trinityDevice, 'ironforge');
+  const trinityIronDoses = computeChannelDoses({
+    spectrum: synthesizeDeviceSpectrum(trinityIronforge),
+    durationMin: 5, bodyExposureFraction: 0.4,
+    eyeExposure: { mode: 'closed-eyes', durationSec: 300 },
+  });
+  assert('Trinity Ironforge: vitamin_d ≈ 0 (no UV firing)',
+    trinityIronDoses.vitamin_d < 1e-3,
+    `vitamin_d=${trinityIronDoses.vitamin_d.toExponential(2)}`);
+  assert('Trinity Ironforge: pbm_red + pbm_nir > 0',
+    trinityIronDoses.pbm_red > 0 && trinityIronDoses.pbm_nir > 0);
+
+  // Legacy session (mode=undefined) routes through default mode →
+  // identity for Maxi UVB (default is all-on).
+  const maxiLegacy = effectiveDeviceForMode(maxiUvbDevice, undefined);
+  assert('Legacy session (mode=undefined): falls through to default mode',
+    maxiLegacy.peakWavelengths.length === maxiUvbDevice.peakWavelengths.length &&
+    Math.abs(maxiLegacy.mwPerCm2At15cm - 120) < 0.01);
+
+  // ─── Round-6 verification gate: Maxi UVB at 6min/60cm/37% body ──────
+  // Set 2026-05-08 EOD as the calibration anchor. After Round 6's hybrid-
+  // panel detection (UV diodes ~5% of total panel power), this exact
+  // session shape should land in the 3,000–7,000 IU range — duration
+  // visible (was cap-saturated pre-Round-6) and not under-attributed
+  // (was ~10 IU pre-Round-5). If this drifts, calibration broke.
+  const _gateBase = synthesizeDeviceSpectrum({
+    peakWavelengths: [295, 380, 480, 630, 670, 760, 810, 830, 850],
+    mwPerCm2At15cm: 120,
+  });
+  const _gateDistFactor = Math.min((15 / 60) ** 2, 3.0); // 0.0625
+  const _gateSpectrum = {
+    wavelengths: _gateBase.wavelengths,
+    irradiance: _gateBase.irradiance.map(v => v * _gateDistFactor),
+  };
+  const _gateDoses = computeChannelDoses({
+    spectrum: _gateSpectrum,
+    durationMin: 6,
+    bodyExposureFraction: 0.37,
+    eyeExposure: { mode: 'closed-eyes', durationSec: 360 },
+  });
+  const _gateIU = window.vitaminDIUPerSession(_gateDoses.vitamin_d, 'III', null, false, null, 0.37);
+  console.log(`Results: CALIBRATION-GATE Maxi UVB 6min/60cm/37% body → ${_gateIU.toFixed(0)} IU (channel-au=${_gateDoses.vitamin_d.toFixed(2)})`);
+  assert('CALIBRATION GATE: Maxi UVB 6min/60cm/37% lands in 3k–7k IU',
+    _gateIU >= 3000 && _gateIU <= 7000,
+    `actual=${_gateIU.toFixed(0)} IU (channel-au=${_gateDoses.vitamin_d.toFixed(2)})`);
+
   // ─── 15b. Heuristic peakShares: hybrid panels vs pure-band devices ───
   // Hybrid panels (UV+blue AND red/NIR peaks) should treat UV as a
   // minority of total panel power regardless of `type` — manufacturers

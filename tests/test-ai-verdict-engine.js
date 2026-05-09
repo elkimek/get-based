@@ -292,6 +292,199 @@ return (async function () {
     }
   }
 
+  // ─── 12b. maybeAfterFinish retries transient errors ────────────────
+  // Auto-fire after save was failing visibly more often than manual
+  // refresh — JSON-parse blips, rate-limit jitter, cold-start timeouts.
+  // Manual click usually succeeded on the second try; we now automate
+  // that retry. Auth/quota errors are NOT retried (user-actionable).
+  console.log('%c 12b. maybeAfterFinish retry on transient error ', 'font-weight:bold;color:#a855f7');
+
+  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+    // Helper that builds a fetch stub which fails the first N calls then succeeds.
+    function makeFlakyFetch(failCount, errorBody) {
+      let calls = 0;
+      const stub = () => {
+        calls++;
+        if (calls <= failCount) {
+          return Promise.resolve(new Response(
+            errorBody || 'Here is my analysis without JSON',
+            { headers: { 'Content-Type': 'text/plain' } }
+          ));
+        }
+        return Promise.resolve(new Response(
+          '{"choices":[{"message":{"content":"{\\"dot\\":\\"green\\",\\"tip\\":\\"recovered\\",\\"detail\\":\\"recovered after retry\\"}"}}]}',
+          { headers: { 'Content-Type': 'application/json' } }
+        ));
+      };
+      stub._getCalls = () => calls;
+      return stub;
+    }
+
+    // Fail-once-succeed-on-retry: verdict ends in 'ok' state with the
+    // retry-supplied content, not the first-call error.
+    {
+      const { engine, store } = makeMinimalEngine({ autoFireRetryDelaysMs: [50, 50] });
+      const stub = makeFlakyFetch(1);
+      const origFetch = window.fetch;
+      window.fetch = stub;
+      try {
+        engine.maybeAfterFinish({ id: 'flaky-1' });
+        // Wait long enough for: initial attempt → error → 50ms backoff → retry → success
+        await new Promise(r => setTimeout(r, 1500));
+        const stored = store.get('flaky-1');
+        assert('maybeAfterFinish retries on transient JSON-parse error',
+          stored?.status === 'ok' && stored?.tip === 'recovered',
+          `status=${stored?.status} tip=${stored?.tip} fetchCalls=${stub._getCalls()}`);
+        assert('Retry was actually attempted (≥2 fetch calls)',
+          stub._getCalls() >= 2);
+      } finally {
+        window.fetch = origFetch;
+      }
+    }
+
+    // Auth-style error → no retry. Verdict stays in error state and the
+    // fetch is called only once (no retry burns user's auth attempts).
+    {
+      const { engine, store } = makeMinimalEngine({ autoFireRetryDelaysMs: [50, 50] });
+      let calls = 0;
+      const origFetch = window.fetch;
+      window.fetch = () => {
+        calls++;
+        return Promise.resolve(new Response(
+          JSON.stringify({ error: { message: 'Unauthorized: invalid api key' } }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        ));
+      };
+      try {
+        engine.maybeAfterFinish({ id: 'auth-fail' });
+        await new Promise(r => setTimeout(r, 1500));
+        const stored = store.get('auth-fail');
+        assert('maybeAfterFinish does NOT retry on auth/quota errors',
+          stored?.status === 'error' && calls === 1,
+          `status=${stored?.status} fetchCalls=${calls} msg=${stored?.errorMessage}`);
+      } finally {
+        window.fetch = origFetch;
+      }
+    }
+
+    // All retries exhausted → final state is error. No infinite loop.
+    {
+      const { engine, store } = makeMinimalEngine({ autoFireRetryDelaysMs: [30, 30] });
+      let calls = 0;
+      const origFetch = window.fetch;
+      window.fetch = () => {
+        calls++;
+        return Promise.resolve(new Response(
+          'no JSON anywhere',
+          { headers: { 'Content-Type': 'text/plain' } }
+        ));
+      };
+      try {
+        engine.maybeAfterFinish({ id: 'exhaust' });
+        await new Promise(r => setTimeout(r, 1500));
+        const stored = store.get('exhaust');
+        assert('Exhausted retries: final state is error (no infinite loop)',
+          stored?.status === 'error');
+        assert('Exhausted retries: total calls = 1 initial + 2 retries = 3',
+          calls === 3, `actual fetchCalls=${calls}`);
+      } finally {
+        window.fetch = origFetch;
+      }
+    }
+
+    // Retry-in-progress: getStatus reports 'analyzing' throughout the
+    // entire retry sequence — between attempts (during backoff sleep)
+    // status MUST stay 'analyzing', not flip to 'error'. Without this,
+    // the UI flashes "Analysis failed" mid-retry which feels like a
+    // real failure.
+    {
+      const { engine } = makeMinimalEngine({ autoFireRetryDelaysMs: [200, 200] });
+      let calls = 0;
+      const origFetch = window.fetch;
+      // Always fail for this test — we want to observe the in-flight
+      // status during the long sequence, not the final outcome.
+      window.fetch = () => {
+        calls++;
+        return Promise.resolve(new Response('not json', { headers: { 'Content-Type': 'text/plain' } }));
+      };
+      const target = { id: 'sticky-analyzing' };
+      try {
+        engine.maybeAfterFinish(target);
+        // Sample status mid-sequence — during the 200ms backoff between
+        // initial attempt and first retry.
+        await new Promise(r => setTimeout(r, 100));
+        const midStatus = engine.getStatus(target);
+        assert('getStatus stays "analyzing" during backoff between retry attempts',
+          midStatus === 'analyzing', `mid-sequence status=${midStatus}`);
+        // Now wait for the full sequence to complete.
+        await new Promise(r => setTimeout(r, 1500));
+        const finalStatus = engine.getStatus(target);
+        assert('After all retries exhausted, status flips to error',
+          finalStatus === 'error', `final status=${finalStatus}`);
+      } finally {
+        window.fetch = origFetch;
+      }
+    }
+  } else {
+    assert('Retry tests skipped — no AI provider in test env', true);
+  }
+
+  // ─── 12c. Global concurrency cap — third concurrent call waits ─────
+  // Saving a session triggers 3 engines (Light Today, Channel mix,
+  // Session analysis). Without a global cap, all 3 hit the provider
+  // simultaneously — most providers cap at 2 concurrent calls and the
+  // 3rd silently fails. Cap of 2 means the 3rd call waits its turn.
+  console.log('%c 12c. Global AI concurrency cap ', 'font-weight:bold;color:#a855f7');
+
+  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+    const prevCap = window._aiConcurrencyCap;
+    window._aiConcurrencyCap = 2;
+    let inFlightObserved = 0;
+    let maxInFlight = 0;
+    const origFetch = window.fetch;
+    // Each fetch holds for 200ms so concurrency overlap is observable.
+    window.fetch = async (...args) => {
+      inFlightObserved++;
+      if (inFlightObserved > maxInFlight) maxInFlight = inFlightObserved;
+      try {
+        await new Promise(r => setTimeout(r, 200));
+        return new Response(
+          '{"choices":[{"message":{"content":"{\\"dot\\":\\"green\\",\\"tip\\":\\"ok\\",\\"detail\\":\\"ok\\"}"}}]}',
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      } finally {
+        inFlightObserved--;
+      }
+    };
+    try {
+      const e1 = makeMinimalEngine().engine;
+      const e2 = makeMinimalEngine().engine;
+      const e3 = makeMinimalEngine().engine;
+      // Fire 3 analyze calls concurrently across 3 different engines
+      const p = Promise.all([
+        e1.analyze({ id: 'a' }),
+        e2.analyze({ id: 'b' }),
+        e3.analyze({ id: 'c' }),
+      ]);
+      // Sample mid-flight — should see at most 2 fetches active concurrently
+      await new Promise(r => setTimeout(r, 100));
+      const slots = window._aiSlotsDebug?.();
+      assert('Concurrency cap holds: at most 2 concurrent fetches',
+        maxInFlight <= 2, `maxInFlight=${maxInFlight} slots=${JSON.stringify(slots)}`);
+      assert('Third concurrent call waits in queue',
+        slots?.waiting >= 1, `slots=${JSON.stringify(slots)}`);
+      await p;
+      assert('After all 3 finish: zero active, zero waiting',
+        window._aiSlotsDebug?.().active === 0 && window._aiSlotsDebug?.().waiting === 0);
+    } finally {
+      window.fetch = origFetch;
+      if (prevCap === undefined) delete window._aiConcurrencyCap;
+      else window._aiConcurrencyCap = prevCap;
+    }
+  } else {
+    assert('Concurrency cap test skipped — no AI provider in test env', true);
+  }
+
   // ─── 13. purgeOrphaned clears legacy analyzing state ───────────────
   console.log('%c 13. purgeOrphaned ', 'font-weight:bold;color:#a855f7');
 
