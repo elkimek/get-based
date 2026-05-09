@@ -159,7 +159,13 @@ export async function deleteDevice(id) {
 export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '', mode = null }) {
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
-  const sessionId = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  // Cryptographic randomness for session ids — Math.random() is enough
+  // for collision avoidance but CodeQL flags it as a security smell on
+  // any id-shaped string, and crypto.getRandomValues is available
+  // everywhere this code runs.
+  const _rb = new Uint8Array(3); crypto.getRandomValues(_rb);
+  const _suffix = Array.from(_rb, b => b.toString(16).padStart(2, '0')).join('').slice(0, 4);
+  const sessionId = `devsess_${Date.now().toString(36)}_${_suffix}`;
   const seconds = durationMin * 60;
   // Resolve mode for devices with named modes (Maxi UVB, Trinity, etc.).
   // Devices without `modes` skip this — `mode` stays null and behaves
@@ -1308,20 +1314,23 @@ async function _fetchCustomDeviceFromURL(overlay) {
       html = await res.text();
     }
     if (!html || html.length < 100) { showNotification('Could not fetch page content', 'error'); return; }
-    // Strip scripts / styles / nav / footer; keep paragraphs near
-    // device-relevant keywords + first 5kB so the prompt stays compact.
-    const ldMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
-    const ldText = ldMatches.map(m => m.replace(/<script[^>]*>|<\/script>/gi, '').trim()).join('\n');
-    const plainText = html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-      .replace(/<footer[\s\S]*?<\/footer>/gi, '')
-      .replace(/<header[\s\S]*?<\/header>/gi, '')
-      .replace(/<svg[\s\S]*?<\/svg>/gi, '')
-      .replace(/<!--[\s\S]*?-->/g, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s{2,}/g, ' ');
+    // Use DOMParser (not regex) to strip non-content nodes — regex strips
+    // can be evaded by `</script >`, `< script`, nested CDATA, etc., and
+    // CodeQL flags every variant. The browser's HTML parser handles all
+    // edge cases consistently. The extracted text is fed into a Claude
+    // prompt (NOT into the DOM), so even surviving fragments are inert,
+    // but parser-based extraction still beats regex on accuracy.
+    const _doc = new DOMParser().parseFromString(html, 'text/html');
+    const ldText = Array.from(_doc.querySelectorAll('script[type="application/ld+json"]'))
+      .map(s => (s.textContent || '').trim()).filter(Boolean).join('\n');
+    _doc.querySelectorAll('script, style, nav, footer, header, svg, noscript, template, iframe')
+      .forEach(n => n.remove());
+    // Strip HTML comments — DOMParser preserves them as Comment nodes.
+    const _walker = _doc.createTreeWalker(_doc, NodeFilter.SHOW_COMMENT);
+    const _comments = [];
+    let _c; while ((_c = _walker.nextNode())) _comments.push(_c);
+    for (const c of _comments) c.remove();
+    const plainText = (_doc.body?.textContent || '').replace(/\s{2,}/g, ' ');
     const kwPattern = /(.{0,300}(?:wavelength|spectrum|nm|red light|near.?infrared|UV[AB]?|irradiance|mW\/cm|lux|inches|distance|specifications?|specs).{0,500})/gi;
     const kwMatches = plainText.match(kwPattern) || [];
     const trimmed = (ldText + '\n' + kwMatches.join('\n') + '\n' + plainText.slice(0, 5000)).slice(0, 15000);

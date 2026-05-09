@@ -103,8 +103,17 @@ export function getAt(obj, path) {
   }
   return cur;
 }
+// Reject any path segment that would walk Object.prototype. setAt is only
+// called with allowlisted importedData paths, but defence-in-depth — a
+// future caller passing user input through here would otherwise enable
+// prototype pollution (the same class of bug `_isAllowlistSafeId` defends
+// against in sync.js). Mirrors that guard so both code paths agree.
+const _PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 export function setAt(obj, path, value) {
   const parts = path.split('.');
+  for (const p of parts) {
+    if (_PROTO_KEYS.has(p)) return;
+  }
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const p = parts[i];

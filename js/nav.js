@@ -11,7 +11,11 @@ import { getProfiles } from './profile.js';
 function _renderConditionalNavItem({ key, icon, label, navigate = 'dashboard', badge, scrollSelector, expandFn }) {
   let onclick;
   if (scrollSelector) {
-    const sel = scrollSelector.replace(/'/g, "\\'");
+    // Escape backslashes BEFORE quotes — otherwise a selector containing
+    // a literal `\'` would survive as `\\'` (backslash + quote) and break
+    // out of the JS string. CodeQL flags this even though scrollSelector
+    // is a hardcoded module constant, never user input.
+    const sel = scrollSelector.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const expand = expandFn ? `;const b=el.querySelector('${expandFn.selector || '.collapsed'}');if(b&&b.classList.contains('hidden'))window.${expandFn.name}&&window.${expandFn.name}()` : '';
     onclick = `window.navigate('${navigate}');setTimeout(()=>{const el=document.querySelector('${sel}');if(el){const y=el.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:y,behavior:'smooth'})${expand};}},100)`;
   } else if (navigate.startsWith('fn:')) {
