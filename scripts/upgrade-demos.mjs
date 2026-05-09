@@ -401,7 +401,6 @@ function buildLightEnvironment(sex) {
       dot: 'yellow',
       tip: 'Indoor light load is moderate — bedroom evening use is the main lever.',
       detail: 'Daytime exposure is good (window-side office, kitchen mixed). Evening bedroom is the weak spot: 1–3hr screen + warm-LED is ok for sleep but 1+ unblocked hr of phone reduces melatonin onset by ~30 min on average. Consider blue-blockers on phone after 9pm OR cutting evening phone use to <1hr.',
-      fingerprint: 'demo-burden-fp-v1',
       generatedAt: NOW_MS - 4 * DAY_MS,
     },
   };
@@ -425,7 +424,6 @@ function buildLightAudits(env) {
       dot: 'red',
       tip: 'Cool-white bedroom overhead is the main melatonin suppressor.',
       detail: '4000K bedroom lighting at evening use breaks the sleep-onset signal. Pair this with 1–3hr unblocked phone time and you get measurable phase delay. Highest-leverage fix is bulb swap to <2700K + blackout for the sleep window.',
-      fingerprint: 'demo-audit-before-fp',
       generatedAt: Date.parse('2026-03-20T08:30:00Z'),
     },
   };
@@ -443,7 +441,6 @@ function buildLightAudits(env) {
       dot: 'green',
       tip: 'Bedroom melatonin signal restored. Evening phone is now the next lever.',
       detail: 'Amber bedroom lighting + blackout brings the bedroom into the green band for melanopic-EDI. Remaining lever is evening phone use (1–3hr unblocked) — adding a screen-level blue-block schedule would close the loop.',
-      fingerprint: 'demo-audit-after-fp',
       generatedAt: Date.parse('2026-04-25T08:30:00Z'),
     },
   };
@@ -498,7 +495,6 @@ function buildLightDailyVerdicts(sunSessions, deviceSessions) {
       detail: dot === 'green'
         ? `${date}: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.`
         : `${date}: Vit-D total ~${1500 + i * 500} IU, below 4k weekly pace. Circadian + NIR on target. One more 15-min midday session tomorrow closes the gap.`,
-      fingerprint: `demo-daily-verdict-${date}`,
       generatedAt: NOW_MS - i * DAY_MS,
     };
     i++;
@@ -611,10 +607,13 @@ function buildCategoryDisplayOverrides() {
 // CTAs would do nothing on click; with provider, the user would
 // burn 25+ token-budgeted API calls just to see the demo. Both are
 // bad UX. Engine treats `status:'ok' + dot` as a renderable cached
-// verdict regardless of fingerprint — so synthetic 'demo-*' prints
-// just work; on user-driven ↻ refresh the engine fires fresh.
-function _verdict(dot, tip, detail, fingerprint, generatedAt) {
-  return { status: 'ok', dot, tip, detail, fingerprint, generatedAt };
+// verdict regardless of fingerprint — so omitting fingerprint works
+// for display AND prevents auto-fire (renders that detect a stale
+// fingerprint trigger fresh analysis; no fingerprint → not stale →
+// no auto-fire). On user-driven ↻ refresh the engine fires fresh
+// against the real provider.
+function _verdict(dot, tip, detail, _ignoredFp, generatedAt) {
+  return { status: 'ok', dot, tip, detail, generatedAt };
 }
 
 function attachMockAIVerdicts(data, sex) {
@@ -751,7 +750,7 @@ function attachMockAIVerdicts(data, sex) {
 }
 
 function alreadyUpgraded(data) {
-  if (data.demoUpgradedAt === '2026-05-09-v7') return true;
+  if (data.demoUpgradedAt === '2026-05-09-v8') return true;
   return false;
 }
 
@@ -800,7 +799,7 @@ function upgrade(data, sex) {
 
   // 5. Bump version + mark.
   data.version = 3;
-  data.demoUpgradedAt = '2026-05-09-v7';
+  data.demoUpgradedAt = '2026-05-09-v8';
   data.exportedAt = NOW_ISO;
 
   return true;
