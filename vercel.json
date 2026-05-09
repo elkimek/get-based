@@ -18,6 +18,7 @@
     { "src": "^/guide/(.*)", "status": 301, "headers": { "Location": "/docs/guide/$1" } },
     { "src": "^/docs/?$", "dest": "/dist-docs/index.html" },
     { "src": "^/docs/(.+)\\.(.+)$", "dest": "/dist-docs/$1.$2" },
-    { "src": "^/docs/(.+?)/?$", "dest": "/dist-docs/$1.html" }
+    { "src": "^/docs/(.+?)/?$", "dest": "/dist-docs/$1.html" },
+    { "src": "^/app/?$", "dest": "/index.html" }
   ]
 }
