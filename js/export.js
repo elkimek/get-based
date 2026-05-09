@@ -705,6 +705,62 @@ export function importDataJSON(file) {
         if (!state.importedData.manualValues) state.importedData.manualValues = {};
         Object.assign(state.importedData.manualValues, json.manualValues);
       }
+      // Import Light & Sun stack (added v1.6.x; was missing from importDataJSON
+      // entirely so demo + JSON imports silently dropped sun sessions, devices,
+      // rooms, audits, measurements, sunDefaults, lightDailyVerdicts). Merge
+      // semantics chosen to match other arrays here: id-keyed dedup for arrays,
+      // first-write-wins for singletons so an in-progress profile keeps its
+      // own setup over a re-import that lacks it.
+      function _mergeArrayById(field) {
+        if (!Array.isArray(json[field])) return;
+        if (!Array.isArray(state.importedData[field])) state.importedData[field] = [];
+        const known = new Set(state.importedData[field].map(x => x?.id).filter(Boolean));
+        for (const item of json[field]) {
+          if (!item || typeof item !== 'object') continue;
+          if (item.id && known.has(item.id)) continue;
+          state.importedData[field].push(item);
+          if (item.id) known.add(item.id);
+        }
+      }
+      _mergeArrayById('sunSessions');
+      _mergeArrayById('deviceSessions');
+      _mergeArrayById('lightDevices');
+      _mergeArrayById('lightAudits');
+      _mergeArrayById('lightMeasurements');
+      // lightEnvironment is an object with `rooms` + `screens` + `burdenAI`.
+      // Merge rooms/screens by id like the arrays above; burdenAI is a
+      // singleton AI verdict — replace.
+      if (json.lightEnvironment && typeof json.lightEnvironment === 'object') {
+        if (!state.importedData.lightEnvironment) state.importedData.lightEnvironment = { rooms: [], screens: [] };
+        for (const sub of ['rooms', 'screens']) {
+          if (!Array.isArray(json.lightEnvironment[sub])) continue;
+          if (!Array.isArray(state.importedData.lightEnvironment[sub])) state.importedData.lightEnvironment[sub] = [];
+          const known = new Set(state.importedData.lightEnvironment[sub].map(x => x?.id).filter(Boolean));
+          for (const item of json.lightEnvironment[sub]) {
+            if (!item || typeof item !== 'object') continue;
+            if (item.id && known.has(item.id)) continue;
+            state.importedData.lightEnvironment[sub].push(item);
+            if (item.id) known.add(item.id);
+          }
+        }
+        if (json.lightEnvironment.burdenAI) state.importedData.lightEnvironment.burdenAI = json.lightEnvironment.burdenAI;
+      }
+      // Singletons — first-write-wins; re-importing a demo over an in-progress
+      // profile keeps the user's own Light setup answers + correlations.
+      for (const sk of ['sunDefaults', 'sunCorrelations', 'lifelightProfile']) {
+        if (json[sk] && typeof json[sk] === 'object' && !state.importedData[sk]) {
+          state.importedData[sk] = json[sk];
+        }
+      }
+      // lightDailyVerdicts is a map keyed by ISO date — merge per-key.
+      if (json.lightDailyVerdicts && typeof json.lightDailyVerdicts === 'object') {
+        if (!state.importedData.lightDailyVerdicts) state.importedData.lightDailyVerdicts = {};
+        for (const [date, verdict] of Object.entries(json.lightDailyVerdicts)) {
+          if (!state.importedData.lightDailyVerdicts[date]) {
+            state.importedData.lightDailyVerdicts[date] = verdict;
+          }
+        }
+      }
       // Import change history (merge by field+date, imported snapshot wins on conflict)
       if (Array.isArray(json.changeHistory)) {
         if (!state.importedData.changeHistory) state.importedData.changeHistory = [];
