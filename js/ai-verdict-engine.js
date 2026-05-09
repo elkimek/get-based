@@ -271,31 +271,36 @@ export function createAIVerdict(cfg) {
     inflight.add(id);
     _refresh();
     let slotHeld = false;
+    let abandoned = false;
+    // Single watchdog covering BOTH the slot wait AND the API call.
+    // Earlier draft only raced the API call against the timeout — a
+    // saturated concurrency queue could then keep this analyze() pending
+    // for (cap × timeoutMs) before even reaching the API, blowing past
+    // the documented "Analysis timed out after Xs" guarantee. Greptile
+    // PR #175 review caught this.
+    const watchdog = new Promise((_, rej) => setTimeout(() => {
+      abandoned = true;
+      rej(new Error(`Analysis timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs));
     try {
       if (!hasAIProvider()) return null;
       if (!canAnalyze(target)) return null;
-      // Acquire a global concurrency slot so concurrent engine fires
-      // (Light Today + Channel mix + Session analysis on a save) don't
-      // exceed the provider's concurrent-request cap. Waits for a slot
-      // when the cap is full instead of racing into a 429. The wait is
-      // counted against the analyze() timeout via the Promise.race
-      // below, so this can't deadlock — a stuck queue still surfaces
-      // as "Analysis timed out".
-      await _acquireAISlot();
-      slotHeld = true;
+      // Race slot acquisition against the watchdog. If the watchdog wins,
+      // _acquireAISlot's promise eventually resolves anyway when a slot
+      // frees — at that point we observe `abandoned` and release the
+      // slot we just claimed (instead of leaking it to nobody).
+      const acquire = _acquireAISlot().then(() => {
+        if (abandoned) _releaseAISlot();
+        else slotHeld = true;
+      });
+      await Promise.race([acquire, watchdog]);
       const ctx = buildContext(target);
       const apiCall = callClaudeAPI({
         system: systemPrompt,
         messages: [{ role: 'user', content: ctx }],
         maxTokens,
       });
-      const result = await Promise.race([
-        apiCall,
-        new Promise((_, rej) => setTimeout(
-          () => rej(new Error(`Analysis timed out after ${Math.round(timeoutMs / 1000)}s`)),
-          timeoutMs
-        )),
-      ]);
+      const result = await Promise.race([apiCall, watchdog]);
       const text = (result && typeof result === 'object') ? (result.text || '') : (typeof result === 'string' ? result : '');
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('No JSON in response');
@@ -327,21 +332,36 @@ export function createAIVerdict(cfg) {
       }
       return value;
     } catch (e) {
-      const prev = getAIAnalysis(target) || {};
-      setAIAnalysis(target, Object.assign({}, prev, {
-        status: 'error',
-        errorAt: Date.now(),
-        errorMessage: _normalizeErrorMessage(e),
-      }));
-      // Persist the error state so the user sees "Analysis failed"
-      // after a reload too — without this, a transient quota / network
-      // error leaves the row in error in memory only, and the next
-      // render after reload shows idle (back to "Analyze" CTA) with no
-      // explanation of what went wrong. Best-effort: if save itself
-      // fails, the in-memory error state still surfaces this session.
+      const prev = getAIAnalysis(target);
+      const errSidecar = {
+        lastErrorAt: Date.now(),
+        lastErrorMessage: _normalizeErrorMessage(e),
+      };
+      // Don't destroy a previously-valid `ok` verdict on a transient
+      // network / quota / parse failure — Greptile PR #175 review caught
+      // this. The user pressed Refresh on a working verdict; if the
+      // refresh fails the right behaviour is to keep showing the old
+      // verdict and surface the error in a sidecar field, not to wipe
+      // the dot/tip/detail that previously informed them.
+      // No-prev (or prior already-error) — write a fresh error state so
+      // the row shows "Analysis failed" instead of the idle CTA.
+      if (prev?.status === 'ok' && prev?.dot) {
+        setAIAnalysis(target, Object.assign({}, prev, errSidecar));
+      } else {
+        setAIAnalysis(target, Object.assign({}, prev || {}, errSidecar, {
+          status: 'error',
+          errorAt: errSidecar.lastErrorAt,
+          errorMessage: errSidecar.lastErrorMessage,
+        }));
+      }
+      // Persist so the error survives a reload too — best-effort.
       try { await saveImportedData(); } catch (_) {}
       return null;
     } finally {
+      // If watchdog won and we never acquired the slot, the .then above
+      // handles release once the slot eventually frees. Don't double-
+      // release here.
+      abandoned = true;
       if (slotHeld) _releaseAISlot();
       inflight.delete(id);
       _refresh();
