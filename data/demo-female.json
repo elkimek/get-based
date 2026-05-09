@@ -2981,9 +2981,9 @@
   ],
   "sunSessions": [
     {
-      "id": "sun_demo_42d",
-      "startedAt": 1774697400000,
-      "endedAt": 1774698900000,
+      "id": "sun_demo_0d",
+      "startedAt": 1778322600000,
+      "endedAt": 1778324100000,
       "durationMin": 25,
       "location": {
         "lat": 50.0755,
@@ -3001,7 +3001,7 @@
         ],
         "sunscreenSPF": null,
         "glassBetween": false,
-        "rotatedSides": true
+        "rotatedSides": false
       },
       "eyeExposure": {
         "mode": "direct",
@@ -3011,28 +3011,28 @@
       "posture": "standing",
       "surfaceAlbedo": "grass",
       "atmosphere": {
-        "uvIndex": 5.2,
+        "uvIndex": 5.8,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.27006986507352,
+        "sunElevationDeg": 53.35509864603796,
         "airMass": 1.2,
-        "snapshotAt": 1774697400000,
+        "snapshotAt": 1778322600000,
         "source": "auto",
         "confidence": 0.85
       },
       "doses": {
-        "vitamin_d": 92,
-        "circadian": 2340,
-        "nir_solar": 3.74,
-        "no_cv": 0.87,
-        "pomc": 6.4,
-        "violet_eye": 78,
+        "vitamin_d": 105,
+        "pomc": 42,
+        "no_cv": 1160,
+        "violet_eye": 6750,
+        "circadian": 16750,
+        "nir_solar": 13328,
         "pbm_red": 0,
         "pbm_nir": 0
       },
       "safety": {
         "fitzpatrick": "II",
-        "medFraction": 0.21,
+        "medFraction": 0.23,
         "psm": "none",
         "skinTypeIdx": 1
       },
@@ -3041,80 +3041,15 @@
         "status": "ok",
         "dot": "green",
         "tip": "Solid 25-min session, well within safe band",
-        "detail": "32% body fraction at UVI 5.2. Vit-D synthesis on track, 21% MED leaves room for one more session today if you want.",
-        "fingerprint": "demo-sun-sun_demo_42d",
-        "generatedAt": 1774698900000
+        "detail": "32% body fraction at UVI 5.8. Vit-D synthesis on track, 23% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_0d",
+        "generatedAt": 1778324100000
       }
     },
     {
-      "id": "sun_demo_36d",
-      "startedAt": 1775214000000,
-      "endedAt": 1775215080000,
-      "durationMin": 18,
-      "location": {
-        "lat": 50.0755,
-        "lon": 14.4378,
-        "label": "Prague, CZ"
-      },
-      "bodyExposure": {
-        "preset": "arms_chest",
-        "fraction": 0.18,
-        "regions": [
-          "face",
-          "arms-front",
-          "torso-front"
-        ],
-        "sunscreenSPF": null,
-        "glassBetween": false,
-        "rotatedSides": false
-      },
-      "eyeExposure": {
-        "mode": "direct",
-        "lensTint": "clear",
-        "durationSec": 1080
-      },
-      "posture": "standing",
-      "surfaceAlbedo": "grass",
-      "atmosphere": {
-        "uvIndex": 6.1,
-        "cloudCover": 0.1,
-        "ozoneDU": 320,
-        "sunElevationDeg": 53.38745930379497,
-        "airMass": 1.2,
-        "snapshotAt": 1775214000000,
-        "source": "auto",
-        "confidence": 0.85
-      },
-      "doses": {
-        "vitamin_d": 70,
-        "circadian": 1976,
-        "nir_solar": 1.78,
-        "no_cv": 0.42,
-        "pomc": 4.9,
-        "violet_eye": 66,
-        "pbm_red": 0,
-        "pbm_nir": 0
-      },
-      "safety": {
-        "fitzpatrick": "II",
-        "medFraction": 0.1,
-        "psm": "none",
-        "skinTypeIdx": 1
-      },
-      "notes": "",
-      "aiAnalysis": {
-        "status": "ok",
-        "dot": "green",
-        "tip": "Solid 18-min session, well within safe band",
-        "detail": "18% body fraction at UVI 6.1. Vit-D synthesis on track, 10% MED leaves room for one more session today if you want.",
-        "fingerprint": "demo-sun-sun_demo_36d",
-        "generatedAt": 1775215080000
-      }
-    },
-    {
-      "id": "sun_demo_28d",
-      "startedAt": 1775889000000,
-      "endedAt": 1775890320000,
+      "id": "sun_demo_1d",
+      "startedAt": 1778220000000,
+      "endedAt": 1778221320000,
       "durationMin": 22,
       "location": {
         "lat": 50.0755,
@@ -3139,22 +3074,22 @@
       "posture": "standing",
       "surfaceAlbedo": "grass",
       "atmosphere": {
-        "uvIndex": 1.8,
+        "uvIndex": 1.5,
         "cloudCover": 0.4,
         "ozoneDU": 320,
         "sunElevationDeg": 22,
         "airMass": 2.5,
-        "snapshotAt": 1775889000000,
+        "snapshotAt": 1778220000000,
         "source": "auto",
         "confidence": 0.85
       },
       "doses": {
-        "vitamin_d": 4,
-        "circadian": 713,
-        "nir_solar": 0.18,
-        "no_cv": 0.04,
-        "pomc": 0.3,
-        "violet_eye": 24,
+        "vitamin_d": 3,
+        "pomc": 1,
+        "no_cv": 41,
+        "violet_eye": 5940,
+        "circadian": 14740,
+        "nir_solar": 1833,
         "pbm_red": 0,
         "pbm_nir": 0
       },
@@ -3170,14 +3105,14 @@
         "dot": "yellow",
         "tip": "Face-only exposure — circadian + eye good, vit-D minimal",
         "detail": "~5% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.",
-        "fingerprint": "demo-sun-sun_demo_28d",
-        "generatedAt": 1775890320000
+        "fingerprint": "demo-sun-sun_demo_1d",
+        "generatedAt": 1778221320000
       }
     },
     {
-      "id": "sun_demo_21d",
-      "startedAt": 1776506400000,
-      "endedAt": 1776508200000,
+      "id": "sun_demo_2d",
+      "startedAt": 1778148000000,
+      "endedAt": 1778149800000,
       "durationMin": 30,
       "location": {
         "lat": 50.0755,
@@ -3210,19 +3145,19 @@
         "uvIndex": 6.4,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 53.48926381549016,
+        "sunElevationDeg": 53.84354061737414,
         "airMass": 1.2,
-        "snapshotAt": 1776506400000,
+        "snapshotAt": 1778148000000,
         "source": "auto",
         "confidence": 0.85
       },
       "doses": {
         "vitamin_d": 165,
-        "circadian": 3456,
-        "nir_solar": 7.78,
-        "no_cv": 1.81,
-        "pomc": 11.5,
-        "violet_eye": 115,
+        "pomc": 66,
+        "no_cv": 2160,
+        "violet_eye": 8100,
+        "circadian": 20100,
+        "nir_solar": 22491,
         "pbm_red": 0,
         "pbm_nir": 0
       },
@@ -3238,8 +3173,267 @@
         "dot": "green",
         "tip": "Solid 30-min session, well within safe band",
         "detail": "45% body fraction at UVI 6.4. Vit-D synthesis on track, 43% MED leaves room for one more session today if you want.",
-        "fingerprint": "demo-sun-sun_demo_21d",
-        "generatedAt": 1776508200000
+        "fingerprint": "demo-sun-sun_demo_2d",
+        "generatedAt": 1778149800000
+      }
+    },
+    {
+      "id": "sun_demo_3d",
+      "startedAt": 1778067000000,
+      "endedAt": 1778068200000,
+      "durationMin": 20,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "arms_chest",
+        "fraction": 0.18,
+        "regions": [
+          "face",
+          "arms-front",
+          "torso-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1200
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 4.5,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 54.29193926206172,
+        "airMass": 1.2,
+        "snapshotAt": 1778067000000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 60,
+        "pomc": 24,
+        "no_cv": 405,
+        "violet_eye": 5400,
+        "circadian": 13400,
+        "nir_solar": 5998,
+        "pbm_red": 0,
+        "pbm_nir": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.08,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 20-min session, well within safe band",
+        "detail": "18% body fraction at UVI 4.5. Vit-D synthesis on track, 8% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_3d",
+        "generatedAt": 1778068200000
+      }
+    },
+    {
+      "id": "sun_demo_4d",
+      "startedAt": 1777959000000,
+      "endedAt": 1777959720000,
+      "durationMin": 12,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "face_hands",
+        "fraction": 0.05,
+        "regions": [
+          "face"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 720
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 1.2,
+        "cloudCover": 0.4,
+        "ozoneDU": 320,
+        "sunElevationDeg": 22,
+        "airMass": 2.5,
+        "snapshotAt": 1777959000000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 2,
+        "pomc": 1,
+        "no_cv": 18,
+        "violet_eye": 3240,
+        "circadian": 8040,
+        "nir_solar": 1000,
+        "pbm_red": 0,
+        "pbm_nir": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Face-only exposure — circadian + eye good, vit-D minimal",
+        "detail": "~5% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.",
+        "fingerprint": "demo-sun-sun_demo_4d",
+        "generatedAt": 1777959720000
+      }
+    },
+    {
+      "id": "sun_demo_6d",
+      "startedAt": 1777804200000,
+      "endedAt": 1777805880000,
+      "durationMin": 28,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "arms_chest",
+        "fraction": 0.32,
+        "regions": [
+          "face",
+          "arms-front",
+          "torso-front",
+          "legs-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": true
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1680
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 6.2,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 53.37014329612812,
+        "airMass": 1.2,
+        "snapshotAt": 1777804200000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 130,
+        "pomc": 52,
+        "no_cv": 1389,
+        "violet_eye": 7560,
+        "circadian": 18760,
+        "nir_solar": 14927,
+        "pbm_red": 0,
+        "pbm_nir": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.28,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 28-min session, well within safe band",
+        "detail": "32% body fraction at UVI 6.2. Vit-D synthesis on track, 28% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_6d",
+        "generatedAt": 1777805880000
+      }
+    },
+    {
+      "id": "sun_demo_9d",
+      "startedAt": 1777546800000,
+      "endedAt": 1777547880000,
+      "durationMin": 18,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "arms_chest",
+        "fraction": 0.18,
+        "regions": [
+          "face",
+          "arms-front",
+          "torso-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1080
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 6.1,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 53.53605166595958,
+        "airMass": 1.2,
+        "snapshotAt": 1777546800000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 70,
+        "pomc": 28,
+        "no_cv": 494,
+        "violet_eye": 4860,
+        "circadian": 12060,
+        "nir_solar": 5398,
+        "pbm_red": 0,
+        "pbm_nir": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.1,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Solid 18-min session, well within safe band",
+        "detail": "18% body fraction at UVI 6.1. Vit-D synthesis on track, 10% MED leaves room for one more session today if you want.",
+        "fingerprint": "demo-sun-sun_demo_9d",
+        "generatedAt": 1777547880000
       }
     },
     {
@@ -3273,7 +3467,7 @@
         "uvIndex": 5.9,
         "cloudCover": 0.1,
         "ozoneDU": 320,
-        "sunElevationDeg": 54.99758385171144,
+        "sunElevationDeg": 53.56185387786789,
         "airMass": 1.2,
         "snapshotAt": 1777109400000,
         "source": "auto",
@@ -3281,11 +3475,11 @@
       },
       "doses": {
         "vitamin_d": 0,
-        "circadian": 1274,
-        "nir_solar": 0.32,
-        "no_cv": 0.07,
         "pomc": 0,
+        "no_cv": 0,
         "violet_eye": 0,
+        "circadian": 0,
+        "nir_solar": 0,
         "pbm_red": 0,
         "pbm_nir": 0
       },
@@ -3304,238 +3498,14 @@
         "fingerprint": "demo-sun-sun_demo_14d",
         "generatedAt": 1777110120000
       }
-    },
-    {
-      "id": "sun_demo_9d",
-      "startedAt": 1777548600000,
-      "endedAt": 1777550280000,
-      "durationMin": 28,
-      "location": {
-        "lat": 50.0755,
-        "lon": 14.4378,
-        "label": "Prague, CZ"
-      },
-      "bodyExposure": {
-        "preset": "arms_chest",
-        "fraction": 0.32,
-        "regions": [
-          "face",
-          "arms-front",
-          "torso-front",
-          "legs-front"
-        ],
-        "sunscreenSPF": null,
-        "glassBetween": false,
-        "rotatedSides": true
-      },
-      "eyeExposure": {
-        "mode": "direct",
-        "lensTint": "clear",
-        "durationSec": 1680
-      },
-      "posture": "standing",
-      "surfaceAlbedo": "grass",
-      "atmosphere": {
-        "uvIndex": 6.8,
-        "cloudCover": 0.1,
-        "ozoneDU": 320,
-        "sunElevationDeg": 55.73264831856247,
-        "airMass": 1.2,
-        "snapshotAt": 1777548600000,
-        "source": "auto",
-        "confidence": 0.85
-      },
-      "doses": {
-        "vitamin_d": 132,
-        "circadian": 3427,
-        "nir_solar": 5.48,
-        "no_cv": 1.28,
-        "pomc": 9.2,
-        "violet_eye": 114,
-        "pbm_red": 0,
-        "pbm_nir": 0
-      },
-      "safety": {
-        "fitzpatrick": "II",
-        "medFraction": 0.3,
-        "psm": "none",
-        "skinTypeIdx": 1
-      },
-      "notes": "",
-      "aiAnalysis": {
-        "status": "ok",
-        "dot": "green",
-        "tip": "Solid 28-min session, well within safe band",
-        "detail": "32% body fraction at UVI 6.8. Vit-D synthesis on track, 30% MED leaves room for one more session today if you want.",
-        "fingerprint": "demo-sun-sun_demo_9d",
-        "generatedAt": 1777550280000
-      }
-    },
-    {
-      "id": "sun_demo_4d",
-      "startedAt": 1777959000000,
-      "endedAt": 1777960080000,
-      "durationMin": 18,
-      "location": {
-        "lat": 50.0755,
-        "lon": 14.4378,
-        "label": "Prague, CZ"
-      },
-      "bodyExposure": {
-        "preset": "face_hands",
-        "fraction": 0.05,
-        "regions": [
-          "face"
-        ],
-        "sunscreenSPF": null,
-        "glassBetween": false,
-        "rotatedSides": false
-      },
-      "eyeExposure": {
-        "mode": "direct",
-        "lensTint": "clear",
-        "durationSec": 1080
-      },
-      "posture": "standing",
-      "surfaceAlbedo": "grass",
-      "atmosphere": {
-        "uvIndex": 1.2,
-        "cloudCover": 0.4,
-        "ozoneDU": 320,
-        "sunElevationDeg": 22,
-        "airMass": 2.5,
-        "snapshotAt": 1777959000000,
-        "source": "auto",
-        "confidence": 0.85
-      },
-      "doses": {
-        "vitamin_d": 2,
-        "circadian": 389,
-        "nir_solar": 0.1,
-        "no_cv": 0.02,
-        "pomc": 0.1,
-        "violet_eye": 13,
-        "pbm_red": 0,
-        "pbm_nir": 0
-      },
-      "safety": {
-        "fitzpatrick": "II",
-        "medFraction": 0.01,
-        "psm": "none",
-        "skinTypeIdx": 1
-      },
-      "notes": "",
-      "aiAnalysis": {
-        "status": "ok",
-        "dot": "yellow",
-        "tip": "Face-only exposure — circadian + eye good, vit-D minimal",
-        "detail": "~5% of skin exposed. Strong morning circadian + violet-eye signals at the eye, but vit-D synthesis stays low under 10% body fraction. If vit-D is a goal, a single mid-day arms-out session covers more ground than four face-only ones.",
-        "fingerprint": "demo-sun-sun_demo_4d",
-        "generatedAt": 1777960080000
-      }
-    },
-    {
-      "id": "sun_demo_1d",
-      "startedAt": 1778236200000,
-      "endedAt": 1778237520000,
-      "durationMin": 22,
-      "location": {
-        "lat": 50.0755,
-        "lon": 14.4378,
-        "label": "Prague, CZ"
-      },
-      "bodyExposure": {
-        "preset": "arms_chest",
-        "fraction": 0.28,
-        "regions": [
-          "face",
-          "arms-front",
-          "torso-front"
-        ],
-        "sunscreenSPF": null,
-        "glassBetween": false,
-        "rotatedSides": false
-      },
-      "eyeExposure": {
-        "mode": "direct",
-        "lensTint": "clear",
-        "durationSec": 1320
-      },
-      "posture": "standing",
-      "surfaceAlbedo": "grass",
-      "atmosphere": {
-        "uvIndex": 6,
-        "cloudCover": 0.1,
-        "ozoneDU": 320,
-        "sunElevationDeg": 54.962966228998525,
-        "airMass": 1.2,
-        "snapshotAt": 1778236200000,
-        "source": "auto",
-        "confidence": 0.85
-      },
-      "doses": {
-        "vitamin_d": 88,
-        "circadian": 2376,
-        "nir_solar": 3.33,
-        "no_cv": 0.78,
-        "pomc": 6.2,
-        "violet_eye": 79,
-        "pbm_red": 0,
-        "pbm_nir": 0
-      },
-      "safety": {
-        "fitzpatrick": "II",
-        "medFraction": 0.18,
-        "psm": "none",
-        "skinTypeIdx": 1
-      },
-      "notes": "",
-      "aiAnalysis": {
-        "status": "ok",
-        "dot": "green",
-        "tip": "Solid 22-min session, well within safe band",
-        "detail": "28% body fraction at UVI 6.0. Vit-D synthesis on track, 18% MED leaves room for one more session today if you want.",
-        "fingerprint": "demo-sun-sun_demo_1d",
-        "generatedAt": 1778237520000
-      }
     }
   ],
   "deviceSessions": [
     {
-      "id": "devsess_demo_38d",
-      "deviceId": "dev_demo_uvb",
-      "startedAt": 1775017800000,
-      "endedAt": 1775018160000,
-      "durationMin": 6,
-      "distanceCm": 60,
-      "bodyArea": "torso-front",
-      "bodyAreas": [
-        "torso-front",
-        "arms-front"
-      ],
-      "eyesProtected": true,
-      "mode": "full",
-      "doses": {
-        "vitamin_d": 5800,
-        "nir_solar": 800,
-        "pbm_red": 1800,
-        "pbm_nir": 2200
-      },
-      "notes": "",
-      "aiAnalysis": {
-        "status": "ok",
-        "dot": "green",
-        "tip": "6-min session at recommended distance, eyes protected",
-        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=5800, nir_solar=800, pbm_red=1800, pbm_nir=2200.",
-        "fingerprint": "demo-dev-devsess_demo_38d",
-        "generatedAt": 1775018160000
-      }
-    },
-    {
-      "id": "devsess_demo_31d",
+      "id": "devsess_demo_0d",
       "deviceId": "dev_demo_redlight",
-      "startedAt": 1775622600000,
-      "endedAt": 1775623320000,
+      "startedAt": 1778301000000,
+      "endedAt": 1778301720000,
       "durationMin": 12,
       "distanceCm": 25,
       "bodyArea": "face",
@@ -3546,54 +3516,55 @@
       "eyesProtected": false,
       "mode": null,
       "doses": {
-        "pbm_red": 4200,
-        "pbm_nir": 3600,
-        "circadian": 1200
+        "pbm_red": 6500,
+        "pbm_nir": 8200,
+        "circadian": 1100
       },
       "notes": "",
       "aiAnalysis": {
         "status": "ok",
         "dot": "green",
         "tip": "12-min session at recommended distance, eyes uncovered (OK at this wavelength)",
-        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=4200, pbm_nir=3600, circadian=1200.",
-        "fingerprint": "demo-dev-devsess_demo_31d",
-        "generatedAt": 1775623320000
+        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=6500, pbm_nir=8200, circadian=1100.",
+        "fingerprint": "demo-dev-devsess_demo_0d",
+        "generatedAt": 1778301720000
       }
     },
     {
-      "id": "devsess_demo_22d",
+      "id": "devsess_demo_2d",
       "deviceId": "dev_demo_uvb",
-      "startedAt": 1776400200000,
-      "endedAt": 1776400500000,
-      "durationMin": 5,
+      "startedAt": 1778128200000,
+      "endedAt": 1778128560000,
+      "durationMin": 6,
       "distanceCm": 60,
       "bodyArea": "torso-front",
       "bodyAreas": [
-        "torso-front"
+        "torso-front",
+        "arms-front"
       ],
       "eyesProtected": true,
       "mode": "full",
       "doses": {
-        "vitamin_d": 4800,
-        "nir_solar": 700,
+        "vitamin_d": 105,
+        "nir_solar": 600,
         "pbm_red": 1500,
-        "pbm_nir": 1900
+        "pbm_nir": 2000
       },
       "notes": "",
       "aiAnalysis": {
         "status": "ok",
         "dot": "green",
-        "tip": "5-min session at recommended distance, eyes protected",
-        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=4800, nir_solar=700, pbm_red=1500, pbm_nir=1900.",
-        "fingerprint": "demo-dev-devsess_demo_22d",
-        "generatedAt": 1776400500000
+        "tip": "6-min session at recommended distance, eyes protected",
+        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=105, nir_solar=600, pbm_red=1500, pbm_nir=2000.",
+        "fingerprint": "demo-dev-devsess_demo_2d",
+        "generatedAt": 1778128560000
       }
     },
     {
-      "id": "devsess_demo_15d",
+      "id": "devsess_demo_4d",
       "deviceId": "dev_demo_redlight",
-      "startedAt": 1777005000000,
-      "endedAt": 1777005900000,
+      "startedAt": 1777955400000,
+      "endedAt": 1777956300000,
       "durationMin": 15,
       "distanceCm": 25,
       "bodyArea": "torso-back",
@@ -3604,24 +3575,24 @@
       "eyesProtected": false,
       "mode": null,
       "doses": {
-        "pbm_red": 5400,
-        "pbm_nir": 4500
+        "pbm_red": 8200,
+        "pbm_nir": 10500
       },
       "notes": "",
       "aiAnalysis": {
         "status": "ok",
         "dot": "green",
         "tip": "15-min session at recommended distance, eyes uncovered (OK at this wavelength)",
-        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=5400, pbm_nir=4500.",
-        "fingerprint": "demo-dev-devsess_demo_15d",
-        "generatedAt": 1777005900000
+        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=8200, pbm_nir=10500.",
+        "fingerprint": "demo-dev-devsess_demo_4d",
+        "generatedAt": 1777956300000
       }
     },
     {
-      "id": "devsess_demo_8d",
+      "id": "devsess_demo_5d",
       "deviceId": "dev_demo_uvb",
-      "startedAt": 1777609800000,
-      "endedAt": 1777610220000,
+      "startedAt": 1777869000000,
+      "endedAt": 1777869420000,
       "durationMin": 7,
       "distanceCm": 60,
       "bodyArea": "torso-front",
@@ -3632,26 +3603,26 @@
       "eyesProtected": true,
       "mode": "full",
       "doses": {
-        "vitamin_d": 6200,
-        "nir_solar": 900,
-        "pbm_red": 2100,
-        "pbm_nir": 2600
+        "vitamin_d": 125,
+        "nir_solar": 700,
+        "pbm_red": 1800,
+        "pbm_nir": 2300
       },
       "notes": "",
       "aiAnalysis": {
         "status": "ok",
         "dot": "green",
         "tip": "7-min session at recommended distance, eyes protected",
-        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=6200, nir_solar=900, pbm_red=2100, pbm_nir=2600.",
-        "fingerprint": "demo-dev-devsess_demo_8d",
-        "generatedAt": 1777610220000
+        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=125, nir_solar=700, pbm_red=1800, pbm_nir=2300.",
+        "fingerprint": "demo-dev-devsess_demo_5d",
+        "generatedAt": 1777869420000
       }
     },
     {
-      "id": "devsess_demo_3d",
+      "id": "devsess_demo_8d",
       "deviceId": "dev_demo_redlight",
-      "startedAt": 1778041800000,
-      "endedAt": 1778042400000,
+      "startedAt": 1777609800000,
+      "endedAt": 1777610400000,
       "durationMin": 10,
       "distanceCm": 25,
       "bodyArea": "face",
@@ -3661,18 +3632,47 @@
       "eyesProtected": false,
       "mode": null,
       "doses": {
-        "pbm_red": 3500,
-        "pbm_nir": 3000,
-        "circadian": 950
+        "pbm_red": 5200,
+        "pbm_nir": 6800,
+        "circadian": 900
       },
       "notes": "",
       "aiAnalysis": {
         "status": "ok",
         "dot": "green",
         "tip": "10-min session at recommended distance, eyes uncovered (OK at this wavelength)",
-        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=3500, pbm_nir=3000, circadian=950.",
-        "fingerprint": "demo-dev-devsess_demo_3d",
-        "generatedAt": 1778042400000
+        "detail": "Distance 25cm sits in the device's optimal band. Doses tracked: pbm_red=5200, pbm_nir=6800, circadian=900.",
+        "fingerprint": "demo-dev-devsess_demo_8d",
+        "generatedAt": 1777610400000
+      }
+    },
+    {
+      "id": "devsess_demo_11d",
+      "deviceId": "dev_demo_uvb",
+      "startedAt": 1777350600000,
+      "endedAt": 1777350900000,
+      "durationMin": 5,
+      "distanceCm": 60,
+      "bodyArea": "torso-front",
+      "bodyAreas": [
+        "torso-front"
+      ],
+      "eyesProtected": true,
+      "mode": "full",
+      "doses": {
+        "vitamin_d": 88,
+        "nir_solar": 500,
+        "pbm_red": 1200,
+        "pbm_nir": 1700
+      },
+      "notes": "",
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "5-min session at recommended distance, eyes protected",
+        "detail": "Distance 60cm sits in the device's optimal band. Doses tracked: vitamin_d=88, nir_solar=500, pbm_red=1200, pbm_nir=1700.",
+        "fingerprint": "demo-dev-devsess_demo_11d",
+        "generatedAt": 1777350900000
       }
     }
   ],
@@ -4133,36 +4133,36 @@
     ]
   },
   "lightDailyVerdicts": {
-    "2026-05-08": {
+    "2026-05-09": {
       "status": "ok",
       "dot": "green",
       "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
-      "detail": "2026-05-08: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
-      "fingerprint": "demo-daily-verdict-2026-05-08",
+      "detail": "2026-05-09: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "fingerprint": "demo-daily-verdict-2026-05-09",
       "generatedAt": 1778315400000
     },
-    "2026-05-06": {
+    "2026-05-08": {
       "status": "ok",
       "dot": "yellow",
       "tip": "Vit-D channel light, but circadian + NIR were good. Add 10 min midday tomorrow.",
-      "detail": "2026-05-06: Vit-D total ~2000 IU, below 4k weekly pace. Circadian + NIR on target. One more 15-min midday session tomorrow closes the gap.",
-      "fingerprint": "demo-daily-verdict-2026-05-06",
+      "detail": "2026-05-08: Vit-D total ~2000 IU, below 4k weekly pace. Circadian + NIR on target. One more 15-min midday session tomorrow closes the gap.",
+      "fingerprint": "demo-daily-verdict-2026-05-08",
       "generatedAt": 1778229000000
     },
-    "2026-05-05": {
+    "2026-05-07": {
       "status": "ok",
       "dot": "green",
       "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
-      "detail": "2026-05-05: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
-      "fingerprint": "demo-daily-verdict-2026-05-05",
+      "detail": "2026-05-07: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "fingerprint": "demo-daily-verdict-2026-05-07",
       "generatedAt": 1778142600000
     },
-    "2026-05-01": {
+    "2026-05-06": {
       "status": "ok",
       "dot": "green",
       "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
-      "detail": "2026-05-01: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
-      "fingerprint": "demo-daily-verdict-2026-05-01",
+      "detail": "2026-05-06: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "fingerprint": "demo-daily-verdict-2026-05-06",
       "generatedAt": 1778056200000
     }
   },
@@ -4330,7 +4330,7 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v6",
+  "demoUpgradedAt": "2026-05-09-v7",
   "channelMixAI": {
     "status": "ok",
     "dot": "yellow",

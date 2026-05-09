@@ -196,30 +196,32 @@ function buildLightDevices(sex) {
 }
 
 function buildSunSessions(sex) {
-  // ~8 sessions over the last 6 weeks. Mix of midday + morning, varying
-  // body coverage, durations 8–35 min. Data shape mirrors logCompletedSession
-  // output (sun.js:398).
+  // Compressed schedule — 6 sessions in last 7 days + 2 historical for
+  // trend continuity. Earlier draft spread 8 sessions over 42 days, so
+  // the rolling 7-day channel rollup only saw 2 sessions and every
+  // pill stayed at tier 1 ("low") with totals ~1-3% of weekly target.
+  // Active-user demos should land in tier 2-3 territory (20-100% of
+  // weekly target) so the channel pills + AI rollup look populated.
   const sessions = [];
   const loc = { lat: 50.0755, lon: 14.4378, label: 'Prague, CZ' };
   const fitz = sex === 'F' ? 'II' : 'III';
-  // Each entry: { daysAgo, hour, durationMin, fraction, regions, glass, rotated, uvi, vitDChannelAu, eyeMode }
   const plan = sex === 'F' ? [
-    { daysAgo: 42, hour: 12.5, durationMin: 25, fraction: 0.32, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: true,  uvi: 5.2, vitDAu: 92,  eyeMode: 'direct' },
-    { daysAgo: 36, hour: 13.0, durationMin: 18, fraction: 0.18, regions: ['face','arms-front','torso-front'],             glass: false, rotated: false, uvi: 6.1, vitDAu: 70,  eyeMode: 'direct' },
-    { daysAgo: 28, hour: 8.5,  durationMin: 22, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 1.8, vitDAu: 4,   eyeMode: 'direct' },
-    { daysAgo: 21, hour: 12.0, durationMin: 30, fraction: 0.45, regions: ['face','arms-front','arms-back','torso-front','torso-back','legs-front'], glass: false, rotated: true,  uvi: 6.4, vitDAu: 165, eyeMode: 'direct' },
+    { daysAgo: 0,  hour: 12.5, durationMin: 25, fraction: 0.32, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: false, uvi: 5.8, vitDAu: 105, eyeMode: 'direct' },
+    { daysAgo: 1,  hour: 8.0,  durationMin: 22, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 1.5, vitDAu: 3,   eyeMode: 'direct' },
+    { daysAgo: 2,  hour: 12.0, durationMin: 30, fraction: 0.45, regions: ['face','arms-front','arms-back','torso-front','torso-back','legs-front'], glass: false, rotated: true,  uvi: 6.4, vitDAu: 165, eyeMode: 'direct' },
+    { daysAgo: 3,  hour: 13.5, durationMin: 20, fraction: 0.18, regions: ['face','arms-front','torso-front'],              glass: false, rotated: false, uvi: 4.5, vitDAu: 60,  eyeMode: 'direct' },
+    { daysAgo: 4,  hour: 7.5,  durationMin: 12, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 1.2, vitDAu: 2,   eyeMode: 'direct' },
+    { daysAgo: 6,  hour: 12.5, durationMin: 28, fraction: 0.32, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: true,  uvi: 6.2, vitDAu: 130, eyeMode: 'direct' },
+    { daysAgo: 9,  hour: 13.0, durationMin: 18, fraction: 0.18, regions: ['face','arms-front','torso-front'],              glass: false, rotated: false, uvi: 6.1, vitDAu: 70,  eyeMode: 'direct' },
     { daysAgo: 14, hour: 11.5, durationMin: 12, fraction: 0.05, regions: ['face'],                                         glass: true,  rotated: false, uvi: 5.9, vitDAu: 0,   eyeMode: 'indoor' },
-    { daysAgo: 9,  hour: 13.5, durationMin: 28, fraction: 0.32, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: true,  uvi: 6.8, vitDAu: 132, eyeMode: 'direct' },
-    { daysAgo: 4,  hour: 7.5,  durationMin: 18, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 1.2, vitDAu: 2,   eyeMode: 'direct' },
-    { daysAgo: 1,  hour: 12.5, durationMin: 22, fraction: 0.28, regions: ['face','arms-front','torso-front'],              glass: false, rotated: false, uvi: 6.0, vitDAu: 88,  eyeMode: 'direct' },
   ] : [
-    { daysAgo: 39, hour: 12.5, durationMin: 30, fraction: 0.35, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: true,  uvi: 5.8, vitDAu: 110, eyeMode: 'direct' },
-    { daysAgo: 31, hour: 11.0, durationMin: 20, fraction: 0.18, regions: ['face','arms-front','torso-front'],              glass: false, rotated: false, uvi: 5.4, vitDAu: 62,  eyeMode: 'direct' },
-    { daysAgo: 24, hour: 13.0, durationMin: 35, fraction: 0.45, regions: ['face','arms-front','arms-back','torso-front','torso-back','legs-front'], glass: false, rotated: true,  uvi: 6.5, vitDAu: 178, eyeMode: 'direct' },
-    { daysAgo: 17, hour: 8.0,  durationMin: 25, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 1.5, vitDAu: 3,   eyeMode: 'direct' },
-    { daysAgo: 11, hour: 14.0, durationMin: 28, fraction: 0.32, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: true,  uvi: 6.2, vitDAu: 130, eyeMode: 'direct' },
-    { daysAgo: 6,  hour: 12.0, durationMin: 22, fraction: 0.28, regions: ['face','arms-front','torso-front'],              glass: false, rotated: false, uvi: 6.0, vitDAu: 92,  eyeMode: 'direct' },
-    { daysAgo: 2,  hour: 7.0,  durationMin: 15, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 0.8, vitDAu: 1,   eyeMode: 'direct' },
+    { daysAgo: 0,  hour: 12.5, durationMin: 30, fraction: 0.35, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: true,  uvi: 5.8, vitDAu: 115, eyeMode: 'direct' },
+    { daysAgo: 1,  hour: 7.0,  durationMin: 15, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 0.8, vitDAu: 1,   eyeMode: 'direct' },
+    { daysAgo: 2,  hour: 13.0, durationMin: 35, fraction: 0.45, regions: ['face','arms-front','arms-back','torso-front','torso-back','legs-front'], glass: false, rotated: true,  uvi: 6.5, vitDAu: 178, eyeMode: 'direct' },
+    { daysAgo: 4,  hour: 12.0, durationMin: 25, fraction: 0.32, regions: ['face','arms-front','torso-front','legs-front'], glass: false, rotated: false, uvi: 6.2, vitDAu: 110, eyeMode: 'direct' },
+    { daysAgo: 5,  hour: 8.5,  durationMin: 18, fraction: 0.05, regions: ['face'],                                         glass: false, rotated: false, uvi: 1.5, vitDAu: 3,   eyeMode: 'direct' },
+    { daysAgo: 6,  hour: 14.0, durationMin: 22, fraction: 0.28, regions: ['face','arms-front','torso-front'],              glass: false, rotated: false, uvi: 6.0, vitDAu: 92,  eyeMode: 'direct' },
+    { daysAgo: 11, hour: 11.0, durationMin: 20, fraction: 0.18, regions: ['face','arms-front','torso-front'],              glass: false, rotated: false, uvi: 5.4, vitDAu: 62,  eyeMode: 'direct' },
   ];
   for (const p of plan) {
     const startedAt = NOW_MS - p.daysAgo * DAY_MS;
@@ -230,23 +232,22 @@ function buildSunSessions(sex) {
     // Approximate doses across the 6 + 2 channels — scaled by fraction +
     // duration. Realistic-ish, matches what the spectrum engine would
     // compute given these UVI / body fraction inputs.
-    // Canonical channel keys (CHANNEL_DISPLAY in sun.js:138):
-    //   vitamin_d / pomc / no_cv / violet_eye / circadian / nir_solar /
-    //   pbm_red / pbm_nir. Earlier draft used `nir`, `no_card`, `eye_violet`,
-    //   `red_660`, `nir_pbm` — none of those match the channel rollup, so
-    //   the demo's PBM channels rendered as empty + the page surfaced
-    //   "Fill the red 660 nm (PBM) channel with a device" upsell cards
-    //   even though the demo had two PBM-capable devices logged.
-    const expScale = p.fraction * (p.durationMin / 20);
+    // Channel-au magnitudes calibrated against the docstring targets in
+    // sun.js:138 (e.g. "30 min direct outdoor = ~20000 channel-au" for
+    // circadian, "60 min @ 30% body = ~30000" for nir_solar). Eye
+    // channels gate on eyeMode=direct; skin channels gate on body
+    // fraction. Glass between blocks all skin channels except glass-pass
+    // visible (~0 for vit-D / no_cv / pomc).
+    const eyeFactor = p.eyeMode === 'direct' ? 1 : (p.eyeMode === 'glass-window' ? 0.4 : 0);
     const doses = {
-      vitamin_d:    p.glass ? 0 : Math.round(p.vitDAu * 10) / 10,
-      circadian:    Math.round(p.uvi * p.durationMin * 18),
-      nir_solar:    Math.round(p.uvi * 0.18 * expScale * 1000) / 100,
-      no_cv:        Math.round(p.uvi * 0.42 * expScale * 100) / 100,
-      pomc:         Math.round(p.vitDAu * 0.7) / 10,
-      violet_eye:   p.eyeMode === 'direct' ? Math.round(p.uvi * p.durationMin * 0.6) : 0,
-      pbm_red:      0,
-      pbm_nir:      0,
+      vitamin_d:  p.glass ? 0 : Math.round(p.vitDAu),
+      pomc:       p.glass ? 0 : Math.round(p.vitDAu * 0.4),
+      no_cv:      p.glass ? 0 : Math.round(p.durationMin * p.fraction * p.uvi * 25),
+      violet_eye: Math.round(p.durationMin * 270 * eyeFactor),
+      circadian:  Math.round(p.durationMin * 670 * eyeFactor),
+      nir_solar:  p.glass ? 0 : Math.round(p.durationMin * p.fraction * 1666),
+      pbm_red:    0,
+      pbm_nir:    0,
     };
     const med = Math.min(1.6, p.fraction * (p.uvi / 8) * (p.durationMin / 25));
     sessions.push({
@@ -293,17 +294,23 @@ function buildDeviceSessions(devices) {
   // 6 device sessions over the last ~5 weeks across both devices.
   const uvb = devices.find(d => d.type === 'uvb');
   const red = devices.find(d => d.type === 'combined');
-  // PBM device doses use the same canonical keys as solar (CHANNEL_DISPLAY
-  // in sun.js:138). Daily targets per channel: vitamin_d 300, pbm_red 8000,
-  // pbm_nir 10000 — values below sized so a 7-day total of these sessions
-  // hits roughly 60-90% of weekly target without overshooting.
+  // Compressed schedule — 4 sessions in last 7 days + 2 in days 8-14
+  // for trend continuity. Dose magnitudes calibrated against the
+  // CHANNEL_DISPLAY daily targets in sun.js:138:
+  //  • UVB Maxi (full mode) at 60cm/6min/torso-front:
+  //    vit_d ~100 channel-au (= ~6000 IU after fitz scaling),
+  //    pbm_red 1500 (red diodes contribute), pbm_nir 2000.
+  //  • Chroma D60 Solar at 25cm/12min/torso-target:
+  //    pbm_red 6500, pbm_nir 8400 (full daily target in one session).
+  // 7-day rollup: pbm_red ~28000 (tier 3 = good), pbm_nir ~35000
+  // (tier 3), vit_d gets supplemented by the 2 UVB sessions.
   const plan = [
-    { daysAgo: 38, deviceId: uvb.id, mode: 'full', durationMin: 6,  distanceCm: 60, bodyArea: 'torso-front', bodyAreas: ['torso-front', 'arms-front'], eyesProtected: true,  doses: { vitamin_d: 5800, nir_solar: 800, pbm_red: 1800, pbm_nir: 2200 } },
-    { daysAgo: 31, deviceId: red.id, mode: null,   durationMin: 12, distanceCm: 25, bodyArea: 'face',         bodyAreas: ['face', 'thyroid-throat'],   eyesProtected: false, doses: { pbm_red: 4200, pbm_nir: 3600, circadian: 1200 } },
-    { daysAgo: 22, deviceId: uvb.id, mode: 'full', durationMin: 5,  distanceCm: 60, bodyArea: 'torso-front', bodyAreas: ['torso-front'],              eyesProtected: true,  doses: { vitamin_d: 4800, nir_solar: 700, pbm_red: 1500, pbm_nir: 1900 } },
-    { daysAgo: 15, deviceId: red.id, mode: null,   durationMin: 15, distanceCm: 25, bodyArea: 'torso-back',  bodyAreas: ['torso-back', 'glutes'],     eyesProtected: false, doses: { pbm_red: 5400, pbm_nir: 4500 } },
-    { daysAgo: 8,  deviceId: uvb.id, mode: 'full', durationMin: 7,  distanceCm: 60, bodyArea: 'torso-front', bodyAreas: ['torso-front', 'arms-front'], eyesProtected: true,  doses: { vitamin_d: 6200, nir_solar: 900, pbm_red: 2100, pbm_nir: 2600 } },
-    { daysAgo: 3,  deviceId: red.id, mode: null,   durationMin: 10, distanceCm: 25, bodyArea: 'face',         bodyAreas: ['face'],                     eyesProtected: false, doses: { pbm_red: 3500, pbm_nir: 3000, circadian: 950 } },
+    { daysAgo: 0,  deviceId: red.id, mode: null,   durationMin: 12, distanceCm: 25, bodyArea: 'face',         bodyAreas: ['face', 'thyroid-throat'],   eyesProtected: false, doses: { pbm_red: 6500, pbm_nir: 8200, circadian: 1100 } },
+    { daysAgo: 2,  deviceId: uvb.id, mode: 'full', durationMin: 6,  distanceCm: 60, bodyArea: 'torso-front', bodyAreas: ['torso-front', 'arms-front'], eyesProtected: true,  doses: { vitamin_d: 105, nir_solar: 600, pbm_red: 1500, pbm_nir: 2000 } },
+    { daysAgo: 4,  deviceId: red.id, mode: null,   durationMin: 15, distanceCm: 25, bodyArea: 'torso-back',  bodyAreas: ['torso-back', 'glutes'],     eyesProtected: false, doses: { pbm_red: 8200, pbm_nir: 10500 } },
+    { daysAgo: 5,  deviceId: uvb.id, mode: 'full', durationMin: 7,  distanceCm: 60, bodyArea: 'torso-front', bodyAreas: ['torso-front', 'arms-front'], eyesProtected: true,  doses: { vitamin_d: 125, nir_solar: 700, pbm_red: 1800, pbm_nir: 2300 } },
+    { daysAgo: 8,  deviceId: red.id, mode: null,   durationMin: 10, distanceCm: 25, bodyArea: 'face',         bodyAreas: ['face'],                     eyesProtected: false, doses: { pbm_red: 5200, pbm_nir: 6800, circadian: 900 } },
+    { daysAgo: 11, deviceId: uvb.id, mode: 'full', durationMin: 5,  distanceCm: 60, bodyArea: 'torso-front', bodyAreas: ['torso-front'],              eyesProtected: true,  doses: { vitamin_d: 88,  nir_solar: 500, pbm_red: 1200, pbm_nir: 1700 } },
   ];
   return plan.map(p => {
     const startedAt = NOW_MS - p.daysAgo * DAY_MS - 4 * HOUR_MS;
@@ -744,7 +751,7 @@ function attachMockAIVerdicts(data, sex) {
 }
 
 function alreadyUpgraded(data) {
-  if (data.demoUpgradedAt === '2026-05-09-v6') return true;
+  if (data.demoUpgradedAt === '2026-05-09-v7') return true;
   return false;
 }
 
@@ -793,7 +800,7 @@ function upgrade(data, sex) {
 
   // 5. Bump version + mark.
   data.version = 3;
-  data.demoUpgradedAt = '2026-05-09-v6';
+  data.demoUpgradedAt = '2026-05-09-v7';
   data.exportedAt = NOW_ISO;
 
   return true;
