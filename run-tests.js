@@ -84,7 +84,8 @@ const TEST_FILES = [
   'tests/test-lighting-hardware-caveats.js',
   'tests/test-sun-ui-flow.js',
   'tests/test-data-merge.js',
-  'tests/test-blob-storage.js'
+  'tests/test-blob-storage.js',
+  'tests/test-audit-fixes.js'
 ];
 
 const PORT = process.env.PORT || 8000;
