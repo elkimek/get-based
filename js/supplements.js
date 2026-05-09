@@ -25,12 +25,24 @@ export function renderSupplementsSection() {
     let allDates = [];
     for (const s of supps) {
       for (const p of getSupplementPeriods(s)) {
-        allDates.push(p.start);
+        if (p.start) allDates.push(p.start);
         allDates.push(p.end || today);
       }
     }
     if (state.importedData.entries) {
-      for (const e of state.importedData.entries) allDates.push(e.date);
+      for (const e of state.importedData.entries) {
+        if (e.date) allDates.push(e.date);
+      }
+    }
+    // Drop empty / unparseable dates before sort — a supplement with
+    // startDate:"" ("under discussion, not started yet") would otherwise
+    // sort to position 0 and yield NaN in the toISOString below, crashing
+    // the whole dashboard render.
+    allDates = allDates.filter(d => d && !isNaN(new Date(d + 'T00:00:00').getTime()));
+    if (allDates.length === 0) {
+      // Edge case: every supplement is start-less and no entries yet.
+      // Anchor to today so the timeline still renders something.
+      allDates.push(today);
     }
     allDates.sort();
     const minDate = allDates[0];

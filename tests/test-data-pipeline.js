@@ -88,7 +88,19 @@ return (async function() {
   console.log('%c 3. Date Alignment ', 'font-weight:bold;color:#f59e0b');
 
   const numDates = data.dates.length;
-  assert('demo data has 4 regular dates', numDates === 4, `got ${numDates}`);
+  // Demo has at least 4 dates (the originals) — exact count is allowed
+  // to grow as the demo expands, but the floor matters because the chart
+  // needs ≥4 to render a meaningful trend line.
+  assert('demo data has at least 4 dates', numDates >= 4, `got ${numDates}`);
+
+  // Index of the original 2025-03-15 spring panel — the entries we'll
+  // assert specific values against were authored against this date.
+  // Older 2024-* dates are backfill-only (carry the historical specialty
+  // panels) and don't have the comprehensive markers asserted below.
+  const ANCHOR_DATE = '2025-03-15';
+  const anchorIdx = data.dates.indexOf(ANCHOR_DATE);
+  assert(`demo includes the ${ANCHOR_DATE} spring panel`, anchorIdx >= 0,
+    `dates: ${data.dates.join(',')}`);
 
   // Check values alignment for multiple markers
   const markersToCheck = [
@@ -111,7 +123,8 @@ return (async function() {
   // Check that glucose has actual values from demo (not all null)
   const glucoseNonNull = glucose.values.filter(v => v !== null);
   assert('glucose has non-null values from demo data', glucoseNonNull.length > 0, `all null`);
-  assert('glucose first value is 4.8 (from demo)', glucose.values[0] === 4.8, `got ${glucose.values[0]}`);
+  assert(`glucose @ ${ANCHOR_DATE} is 4.8 (from demo)`,
+    glucose.values[anchorIdx] === 4.8, `got ${glucose.values[anchorIdx]}`);
 
   // ═══════════════════════════════════════════════
   // 4. Unit conversion — SI to US
@@ -123,10 +136,14 @@ return (async function() {
   const usData = window.getActiveData();
 
   // Glucose: 4.8 mmol/L * 18.018 = 86.4864 -> toPrecision(4) = 86.49
+  // Index dynamically against the anchor date — earlier backfilled
+  // dates (2024-*) carry sampled values that don't match these magic
+  // numbers, so values[0] would be wrong.
+  const usIdx = usData.dates.indexOf(ANCHOR_DATE);
   const gUS = usData.categories.biochemistry.markers.glucose;
   assert('glucose US unit is mg/dl', gUS.unit === 'mg/dl', `got "${gUS.unit}"`);
-  assert('glucose US value[0] ~86.49', Math.abs(gUS.values[0] - 86.49) < 0.01,
-    `got ${gUS.values[0]}, expected ~86.49`);
+  assert(`glucose US @ ${ANCHOR_DATE} ~86.49`, Math.abs(gUS.values[usIdx] - 86.49) < 0.01,
+    `got ${gUS.values[usIdx]}, expected ~86.49`);
   assert('glucose US refMin ~74.05', Math.abs(gUS.refMin - 74.05) < 0.1,
     `got ${gUS.refMin}, expected ~74.05`);
   assert('glucose US refMax ~100.9', Math.abs(gUS.refMax - 100.9) < 0.1,
@@ -135,13 +152,14 @@ return (async function() {
   // Cholesterol: 4.8 mmol/L * 38.67 = 185.616 -> toPrecision(4) = 185.6
   const cUS = usData.categories.lipids.markers.cholesterol;
   assert('cholesterol US unit is mg/dl', cUS.unit === 'mg/dl', `got "${cUS.unit}"`);
-  assert('cholesterol US value[0] ~185.6', Math.abs(cUS.values[0] - 185.6) < 0.1,
-    `got ${cUS.values[0]}, expected ~185.6`);
+  assert(`cholesterol US @ ${ANCHOR_DATE} ~185.6`, Math.abs(cUS.values[usIdx] - 185.6) < 0.1,
+    `got ${cUS.values[usIdx]}, expected ~185.6`);
 
   // HbA1c: 31.0 mmol/mol -> (31.0/10.929) + 2.15 = 4.9865 -> toFixed(1) = 5.0
   const hUS = usData.categories.diabetes.markers.hba1c;
   assert('hba1c US unit is %', hUS.unit === '%', `got "${hUS.unit}"`);
-  assert('hba1c US value[0] = 5.0', hUS.values[0] === 5, `got ${hUS.values[0]}, expected 5.0`);
+  assert(`hba1c US @ ${ANCHOR_DATE} = 5.0`, hUS.values[usIdx] === 5,
+    `got ${hUS.values[usIdx]}, expected 5.0`);
 
   // Hemoglobin: factor 0.1, stored as g/L -> g/dL
   const hbUS = usData.categories.hematology.markers.hemoglobin;
@@ -338,15 +356,20 @@ return (async function() {
   assert('calculatedRatios category exists', !!ratios);
 
   if (ratios) {
+    // Index of the original first comprehensive entry — ratios are
+    // computed from urea/creat/sodium/etc. which only exist from
+    // 2025-03-15 onwards (backfilled 2024-* entries are specialty-only).
+    const ratioIdx = data.dates.indexOf(ANCHOR_DATE);
+
     // BUN/Creatinine Ratio
     const bunCr = ratios.markers.bunCreatRatio;
     assert('bunCreatRatio marker exists', !!bunCr);
     if (bunCr) {
       assert('bunCreatRatio has values', Array.isArray(bunCr.values));
-      // First entry: urea=5.9, creat=82 -> (5.9*2.801)/(82*0.01131) = 17.8
-      const firstBunCr = bunCr.values[0];
-      assert('bunCreatRatio first value ~17.8', firstBunCr !== null && Math.abs(firstBunCr - 17.8) < 0.1,
-        `got ${firstBunCr}, expected ~17.8`);
+      // 2025-03-15 entry: urea=5.9, creat=82 -> (5.9*2.801)/(82*0.01131) = 17.8
+      const v = bunCr.values[ratioIdx];
+      assert(`bunCreatRatio @ ${ANCHOR_DATE} ~17.8`, v !== null && Math.abs(v - 17.8) < 0.1,
+        `got ${v}, expected ~17.8`);
     }
 
     // Free Water Deficit
@@ -354,20 +377,20 @@ return (async function() {
     assert('freeWaterDeficit marker exists', !!fwd);
     if (fwd) {
       assert('freeWaterDeficit has values', Array.isArray(fwd.values));
-      // First entry: sodium=141, weight=83.2kg (latest from biometrics), male factor=0.6
-      // TBW = 83.2 * 0.6 = 49.92, FWD = 49.92 * (141/140 - 1) = 0.36
-      const firstFwd = fwd.values[0];
-      assert('freeWaterDeficit first value ~0.36', firstFwd !== null && Math.abs(firstFwd - 0.36) < 0.05,
-        `got ${firstFwd}, expected ~0.36`);
+      // 2025-03-15 entry: sodium=141, weight=83.2kg (latest from biometrics),
+      // male factor=0.6 -> TBW=49.92, FWD = 49.92 * (141/140 - 1) = 0.36
+      const v = fwd.values[ratioIdx];
+      assert(`freeWaterDeficit @ ${ANCHOR_DATE} ~0.36`, v !== null && Math.abs(v - 0.36) < 0.05,
+        `got ${v}, expected ~0.36`);
     }
 
-    // TG/HDL ratio
+    // TG/HDL ratio — pin to the anchor entry where TG and HDL both exist.
     const tgHdl = ratios.markers.tgHdlRatio;
     assert('tgHdlRatio marker exists', !!tgHdl);
     if (tgHdl) {
       assert('tgHdlRatio has values', Array.isArray(tgHdl.values));
-      const firstTgHdl = tgHdl.values[0];
-      assert('tgHdlRatio first value is not null', firstTgHdl !== null, `got ${firstTgHdl}`);
+      const v = tgHdl.values[ratioIdx];
+      assert(`tgHdlRatio @ ${ANCHOR_DATE} is not null`, v !== null, `got ${v}`);
     }
 
     // LDL/HDL ratio
@@ -378,8 +401,8 @@ return (async function() {
     const deRitis = ratios.markers.deRitisRatio;
     assert('deRitisRatio marker exists', !!deRitis);
     if (deRitis) {
-      const firstDeRitis = deRitis.values[0];
-      assert('deRitisRatio first value is not null', firstDeRitis !== null, `got ${firstDeRitis}`);
+      const v = deRitis.values[ratioIdx];
+      assert(`deRitisRatio @ ${ANCHOR_DATE} is not null`, v !== null, `got ${v}`);
     }
 
     // Biological age markers exist

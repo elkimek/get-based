@@ -1,7 +1,318 @@
 {
-  "version": 2,
-  "exportedAt": "2026-02-18T00:00:00.000Z",
+  "version": 3,
+  "exportedAt": "2026-05-09T08:30:00.000Z",
   "entries": [
+    {
+      "date": "2024-04-15",
+      "file": null,
+      "markers": {
+        "hormones.calcitonin": 2.28,
+        "vitamins.vitaminA": 1.67,
+        "biochemistry.cystatinC": 0.63,
+        "hormones.igf1": 160,
+        "electrolytes.magnesiumRBC": 2.06,
+        "vitamins.vitaminD3": 64.6,
+        "boneMetabolism.osteocalcin": 28.3,
+        "biochemistry.gfrCystatin": 2.18,
+        "hormones.freeTestosterone": 5.02,
+        "hormones.dht": 0.44,
+        "thyroid.t4total": 87,
+        "fattyAcids.palmiticC16": 27.8,
+        "fattyAcids.stearicC18": 13.9,
+        "fattyAcids.oleicC18_1": 23.9,
+        "fattyAcids.linoleicC18_2": 17.5,
+        "fattyAcids.glaC18_3": 0.21,
+        "fattyAcids.arachidonicC20_4": 7.33,
+        "fattyAcids.dglaC20_3": 1.1,
+        "fattyAcids.alaC18_3": 0.85,
+        "fattyAcids.epaC20_5": 2.99,
+        "fattyAcids.dpaC22_5": 2.05,
+        "fattyAcids.dhaC22_6": 4.23,
+        "fattyAcids.omega3Index": 7.05,
+        "fattyAcids.omega6to3Ratio": 2.38,
+        "fattyAcids.membraneFluidity": 5.24,
+        "fattyAcids.mentalResilience": 0.73
+      },
+      "markerSources": {
+        "hormones.calcitonin": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "vitamins.vitaminA": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "biochemistry.cystatinC": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "hormones.igf1": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "electrolytes.magnesiumRBC": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "vitamins.vitaminD3": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "boneMetabolism.osteocalcin": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "biochemistry.gfrCystatin": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "hormones.freeTestosterone": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "hormones.dht": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "thyroid.t4total": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.palmiticC16": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.stearicC18": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.oleicC18_1": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.linoleicC18_2": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.glaC18_3": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.arachidonicC20_4": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.dglaC20_3": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.alaC18_3": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.epaC20_5": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.dpaC22_5": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.dhaC22_6": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.omega3Index": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.omega6to3Ratio": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.membraneFluidity": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        },
+        "fattyAcids.mentalResilience": {
+          "file": "2024-Q2 specialty + comprehensive panel.pdf",
+          "at": 1713168000000
+        }
+      }
+    },
+    {
+      "date": "2024-12-08",
+      "file": null,
+      "markers": {
+        "hormones.calcitonin": 2.21,
+        "electrolytes.copper": 18.9,
+        "electrolytes.zinc": 11.6,
+        "lipids.apoAI": 1.58,
+        "lipids.apoB": 0.69,
+        "proteins.ceruloplasmin": 0.25,
+        "thyroid.t3total": 1.8,
+        "vitamins.vitaminA": 1.68,
+        "hematology.pdw": 12.7,
+        "biochemistry.cystatinC": 0.65,
+        "hormones.igf1": 164,
+        "electrolytes.magnesiumRBC": 2.04,
+        "vitamins.vitaminD3": 66.8,
+        "boneMetabolism.osteocalcin": 27.3,
+        "biochemistry.gfrCystatin": 2.17,
+        "hormones.freeTestosterone": 4.93,
+        "hormones.dht": 0.45,
+        "thyroid.t4total": 85,
+        "fattyAcids.palmiticC16": 28.1,
+        "fattyAcids.stearicC18": 13.4,
+        "fattyAcids.oleicC18_1": 23.2,
+        "fattyAcids.linoleicC18_2": 18.1,
+        "fattyAcids.glaC18_3": 0.2,
+        "fattyAcids.arachidonicC20_4": 7.14,
+        "fattyAcids.dglaC20_3": 1.09,
+        "fattyAcids.alaC18_3": 0.83,
+        "fattyAcids.epaC20_5": 3.06,
+        "fattyAcids.dpaC22_5": 2.01,
+        "fattyAcids.dhaC22_6": 4.08,
+        "fattyAcids.omega3Index": 7.03,
+        "fattyAcids.omega6to3Ratio": 2.43,
+        "fattyAcids.membraneFluidity": 5.08,
+        "fattyAcids.mentalResilience": 0.74
+      },
+      "markerSources": {
+        "hormones.calcitonin": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "electrolytes.copper": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "electrolytes.zinc": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "lipids.apoAI": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "lipids.apoB": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "proteins.ceruloplasmin": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "thyroid.t3total": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "vitamins.vitaminA": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "hematology.pdw": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "biochemistry.cystatinC": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "hormones.igf1": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "electrolytes.magnesiumRBC": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "vitamins.vitaminD3": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "boneMetabolism.osteocalcin": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "biochemistry.gfrCystatin": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "hormones.freeTestosterone": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "hormones.dht": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "thyroid.t4total": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.palmiticC16": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.stearicC18": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.oleicC18_1": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.linoleicC18_2": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.glaC18_3": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.arachidonicC20_4": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.dglaC20_3": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.alaC18_3": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.epaC20_5": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.dpaC22_5": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.dhaC22_6": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.omega3Index": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.omega6to3Ratio": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.membraneFluidity": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        },
+        "fattyAcids.mentalResilience": {
+          "file": "2024-Q4 follow-up + specialty panel.pdf",
+          "at": 1733644800000
+        }
+      }
+    },
     {
       "date": "2025-04-10",
       "markers": {
@@ -18,11 +329,11 @@
         "biochemistry.ldh": 2.5,
         "biochemistry.creatineKinase": 1.2,
         "hormones.testosterone": 1.15,
-        "hormones.shbg": 62.0,
+        "hormones.shbg": 62,
         "hormones.dheaS": 5.8,
-        "hormones.estradiol": 285.0,
+        "hormones.estradiol": 285,
         "hormones.progesterone": 0.35,
-        "hormones.insulin": 6.0,
+        "hormones.insulin": 6,
         "hormones.lh": 4.8,
         "hormones.fsh": 6.2,
         "hormones.prolactin": 12.5,
@@ -49,9 +360,9 @@
         "thyroid.tsh": 2.1,
         "thyroid.ft4": 16.5,
         "thyroid.ft3": 4.8,
-        "vitamins.vitaminD": 48.0,
-        "diabetes.hba1c": 29.0,
-        "diabetes.insulin_d": 6.0,
+        "vitamins.vitaminD": 48,
+        "diabetes.hba1c": 29,
+        "diabetes.insulin_d": 6,
         "diabetes.homaIR": 1.2,
         "coagulation.homocysteine": 7.2,
         "hematology.wbc": 5.4,
@@ -71,7 +382,12 @@
         "differential.basophils": 0.05,
         "differential.neutrophilsPct": 0.574,
         "differential.lymphocytesPct": 0.319,
-        "differential.monocytesPct": 0.07
+        "differential.monocytesPct": 0.07,
+        "hormones.calcitonin": 2.25,
+        "biochemistry.gfrCystatin": 2.17,
+        "hormones.freeTestosterone": 4.98,
+        "hormones.dht": 0.44,
+        "thyroid.t4total": 86
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -341,6 +657,26 @@
         "differential.monocytesPct": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1744286400000
+        },
+        "hormones.calcitonin": {
+          "file": "Backfill 2024 historical lab record.pdf",
+          "at": 1744272000000
+        },
+        "biochemistry.gfrCystatin": {
+          "file": "Backfill 2024 historical lab record.pdf",
+          "at": 1744272000000
+        },
+        "hormones.freeTestosterone": {
+          "file": "Backfill 2024 historical lab record.pdf",
+          "at": 1744272000000
+        },
+        "hormones.dht": {
+          "file": "Backfill 2024 historical lab record.pdf",
+          "at": 1744272000000
+        },
+        "thyroid.t4total": {
+          "file": "Backfill 2024 historical lab record.pdf",
+          "at": 1744272000000
         }
       }
     },
@@ -348,7 +684,7 @@
       "date": "2025-08-05",
       "markers": {
         "biochemistry.glucose": 4.6,
-        "biochemistry.urea": 5.0,
+        "biochemistry.urea": 5,
         "biochemistry.creatinine": 55,
         "biochemistry.egfr": 1.9,
         "biochemistry.uricAcid": 218,
@@ -362,7 +698,7 @@
         "hormones.testosterone": 1.08,
         "hormones.shbg": 58.5,
         "hormones.dheaS": 5.5,
-        "hormones.estradiol": 310.0,
+        "hormones.estradiol": 310,
         "hormones.progesterone": 12.5,
         "hormones.insulin": 5.5,
         "hormones.lh": 2.8,
@@ -370,7 +706,7 @@
         "hormones.prolactin": 14.2,
         "hormones.calcitonin": 2.1,
         "electrolytes.sodium": 141,
-        "electrolytes.potassium": 4.0,
+        "electrolytes.potassium": 4,
         "electrolytes.chloride": 105,
         "electrolytes.calciumTotal": 2.42,
         "electrolytes.phosphorus": 1.15,
@@ -391,16 +727,16 @@
         "iron.tibc": 58.2,
         "iron.transferrinSat": 17.5,
         "proteins.hsCRP": 0.55,
-        "proteins.totalProtein": 71.0,
+        "proteins.totalProtein": 71,
         "proteins.albumin": 44.2,
         "proteins.ceruloplasmin": 0.25,
         "thyroid.tsh": 2.8,
         "thyroid.ft4": 15.2,
         "thyroid.ft3": 4.5,
         "thyroid.t3total": 1.85,
-        "vitamins.vitaminD": 55.0,
+        "vitamins.vitaminD": 55,
         "vitamins.vitaminA": 1.62,
-        "diabetes.hba1c": 30.0,
+        "diabetes.hba1c": 30,
         "diabetes.insulin_d": 5.5,
         "diabetes.homaIR": 1.12,
         "coagulation.homocysteine": 7.5,
@@ -732,6 +1068,88 @@
       }
     },
     {
+      "date": "2025-08-05",
+      "markers": {
+        "fattyAcids.palmiticC16": 29.2,
+        "fattyAcids.stearicC18": 13,
+        "fattyAcids.oleicC18_1": 21.8,
+        "fattyAcids.linoleicC18_2": 19.5,
+        "fattyAcids.glaC18_3": 0.18,
+        "fattyAcids.arachidonicC20_4": 7.2,
+        "fattyAcids.dglaC20_3": 1.05,
+        "fattyAcids.alaC18_3": 0.75,
+        "fattyAcids.epaC20_5": 2.8,
+        "fattyAcids.dpaC22_5": 1.82,
+        "fattyAcids.dhaC22_6": 3.5,
+        "fattyAcids.omega3Index": 6.3,
+        "fattyAcids.omega6to3Ratio": 2.8,
+        "fattyAcids.membraneFluidity": 5.2,
+        "fattyAcids.mentalResilience": 0.72
+      },
+      "markerSources": {
+        "fattyAcids.palmiticC16": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.stearicC18": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.oleicC18_1": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.linoleicC18_2": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.glaC18_3": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.arachidonicC20_4": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.dglaC20_3": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.alaC18_3": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.epaC20_5": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.dpaC22_5": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.dhaC22_6": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.omega3Index": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.omega6to3Ratio": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.membraneFluidity": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        },
+        "fattyAcids.mentalResilience": {
+          "file": "Early 2026 Panel.pdf",
+          "at": 1754395200000
+        }
+      }
+    },
+    {
       "date": "2025-12-15",
       "markers": {
         "biochemistry.glucose": 4.7,
@@ -748,15 +1166,15 @@
         "biochemistry.creatineKinase": 0.95,
         "biochemistry.cystatinC": 0.68,
         "hormones.testosterone": 1.22,
-        "hormones.shbg": 65.0,
+        "hormones.shbg": 65,
         "hormones.dheaS": 5.9,
-        "hormones.estradiol": 195.0,
+        "hormones.estradiol": 195,
         "hormones.progesterone": 0.28,
         "hormones.insulin": 6.2,
         "hormones.lh": 5.4,
         "hormones.fsh": 7.8,
         "hormones.prolactin": 11.8,
-        "hormones.igf1": 172.0,
+        "hormones.igf1": 172,
         "electrolytes.sodium": 139,
         "electrolytes.potassium": 4.2,
         "electrolytes.chloride": 103,
@@ -778,7 +1196,7 @@
         "iron.ferritin": 18,
         "iron.transferrin": 3.5,
         "iron.tibc": 60.5,
-        "iron.transferrinSat": 14.0,
+        "iron.transferrinSat": 14,
         "proteins.hsCRP": 0.62,
         "proteins.totalProtein": 69.8,
         "proteins.albumin": 43.5,
@@ -787,9 +1205,9 @@
         "thyroid.ft4": 13.8,
         "thyroid.ft3": 4.2,
         "thyroid.t3total": 1.72,
-        "vitamins.vitaminD": 72.0,
-        "vitamins.vitaminD3": 62.0,
-        "diabetes.hba1c": 30.0,
+        "vitamins.vitaminD": 72,
+        "vitamins.vitaminD3": 62,
+        "diabetes.hba1c": 30,
         "diabetes.insulin_d": 6.2,
         "diabetes.homaIR": 1.29,
         "coagulation.homocysteine": 6.8,
@@ -803,7 +1221,7 @@
         "hematology.rdwcv": 14.2,
         "hematology.platelets": 280,
         "hematology.mpv": 9.5,
-        "hematology.pdw": 13.0,
+        "hematology.pdw": 13,
         "differential.neutrophils": 3.2,
         "differential.lymphocytes": 1.8,
         "differential.monocytes": 0.38,
@@ -812,7 +1230,7 @@
         "differential.neutrophilsPct": 0.571,
         "differential.lymphocytesPct": 0.321,
         "differential.monocytesPct": 0.068,
-        "boneMetabolism.osteocalcin": 25.0
+        "boneMetabolism.osteocalcin": 25
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -1141,7 +1559,7 @@
         "biochemistry.creatinine": 54,
         "biochemistry.egfr": 1.95,
         "biochemistry.uricAcid": 210,
-        "biochemistry.bilirubinTotal": 7.0,
+        "biochemistry.bilirubinTotal": 7,
         "biochemistry.ast": 0.23,
         "biochemistry.alt": 0.26,
         "biochemistry.alp": 0.9,
@@ -1154,13 +1572,13 @@
         "hormones.freeTestosterone": 4.8,
         "hormones.shbg": 60.5,
         "hormones.dheaS": 6.1,
-        "hormones.estradiol": 425.0,
+        "hormones.estradiol": 425,
         "hormones.progesterone": 0.42,
         "hormones.insulin": 5.8,
         "hormones.lh": 8.2,
         "hormones.fsh": 9.5,
-        "hormones.prolactin": 13.0,
-        "hormones.igf1": 168.0,
+        "hormones.prolactin": 13,
+        "hormones.igf1": 168,
         "hormones.dht": 0.45,
         "electrolytes.sodium": 140,
         "electrolytes.potassium": 4.1,
@@ -1179,7 +1597,7 @@
         "lipids.cholHdlRatio": 2.5,
         "lipids.apoAI": 1.58,
         "lipids.apoB": 0.65,
-        "iron.iron": 14.0,
+        "iron.iron": 14,
         "iron.ferritin": 25,
         "iron.transferrin": 3.3,
         "iron.tibc": 56.8,
@@ -1190,13 +1608,13 @@
         "proteins.ceruloplasmin": 0.23,
         "thyroid.tsh": 3.8,
         "thyroid.ft4": 12.5,
-        "thyroid.ft3": 4.0,
-        "thyroid.t4total": 82.0,
+        "thyroid.ft3": 4,
+        "thyroid.t4total": 82,
         "thyroid.t3total": 1.58,
-        "vitamins.vitaminD": 88.0,
-        "vitamins.vitaminD3": 78.0,
+        "vitamins.vitaminD": 88,
+        "vitamins.vitaminD3": 78,
         "vitamins.vitaminA": 1.75,
-        "diabetes.hba1c": 28.0,
+        "diabetes.hba1c": 28,
         "diabetes.insulin_d": 5.8,
         "diabetes.homaIR": 1.16,
         "coagulation.homocysteine": 6.5,
@@ -1561,91 +1979,9 @@
       }
     },
     {
-      "date": "2025-08-05",
-      "markers": {
-        "fattyAcids.palmiticC16": 29.2,
-        "fattyAcids.stearicC18": 13.0,
-        "fattyAcids.oleicC18_1": 21.8,
-        "fattyAcids.linoleicC18_2": 19.5,
-        "fattyAcids.glaC18_3": 0.18,
-        "fattyAcids.arachidonicC20_4": 7.2,
-        "fattyAcids.dglaC20_3": 1.05,
-        "fattyAcids.alaC18_3": 0.75,
-        "fattyAcids.epaC20_5": 2.8,
-        "fattyAcids.dpaC22_5": 1.82,
-        "fattyAcids.dhaC22_6": 3.5,
-        "fattyAcids.omega3Index": 6.3,
-        "fattyAcids.omega6to3Ratio": 2.8,
-        "fattyAcids.membraneFluidity": 5.2,
-        "fattyAcids.mentalResilience": 0.72
-      },
-      "markerSources": {
-        "fattyAcids.palmiticC16": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.stearicC18": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.oleicC18_1": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.linoleicC18_2": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.glaC18_3": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.arachidonicC20_4": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.dglaC20_3": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.alaC18_3": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.epaC20_5": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.dpaC22_5": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.dhaC22_6": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.omega3Index": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.omega6to3Ratio": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.membraneFluidity": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        },
-        "fattyAcids.mentalResilience": {
-          "file": "Early 2026 Panel.pdf",
-          "at": 1754395200000
-        }
-      }
-    },
-    {
       "date": "2026-01-25",
       "markers": {
-        "fattyAcids.palmiticC16": 28.0,
+        "fattyAcids.palmiticC16": 28,
         "fattyAcids.stearicC18": 12.5,
         "fattyAcids.oleicC18_1": 22.5,
         "fattyAcids.linoleicC18_2": 18.2,
@@ -2117,7 +2453,32 @@
       }
     ]
   },
-  "customMarkers": {},
+  "customMarkers": {
+    "specialty.glycanAge": {
+      "key": "specialty.glycanAge",
+      "label": "GlycanAge",
+      "unit": "years",
+      "group": "Aging biomarkers",
+      "refLow": null,
+      "refHigh": null,
+      "optimalLow": null,
+      "optimalHigh": 4,
+      "notes": "Imported from GlycanAge plasma N-glycan panel.",
+      "addedAt": 1770539400000
+    },
+    "specialty.urinaryIodine": {
+      "key": "specialty.urinaryIodine",
+      "label": "Urinary iodine",
+      "unit": "µg/L",
+      "group": "Trace minerals",
+      "refLow": 100,
+      "refHigh": 200,
+      "optimalLow": 150,
+      "optimalHigh": 250,
+      "notes": "Single-spot urinary iodine — proxy for thyroid status.",
+      "addedAt": 1770539400000
+    }
+  },
   "biometrics": {
     "weight": [
       {
@@ -2279,52 +2640,1430 @@
     "metrics": {
       "hrv_rmssd": {
         "primarySource": "oura",
-        "latest": 36, "latestDate": "2026-04-22",
-        "baseline": 51, "baselineP25": 42, "baselineP75": 62,
-        "rolling": { "d7": 36, "d30": 44, "d90": 51 },
+        "latest": 36,
+        "latestDate": "2026-04-22",
+        "baseline": 51,
+        "baselineP25": 42,
+        "baselineP75": 62,
+        "rolling": {
+          "d7": 36,
+          "d30": 44,
+          "d90": 51
+        },
         "trend30d": "declining",
-        "weekly": [54, 53, 55, 52, 53, 51, 49, 47, 44, 41, 38, 36]
+        "weekly": [
+          54,
+          53,
+          55,
+          52,
+          53,
+          51,
+          49,
+          47,
+          44,
+          41,
+          38,
+          36
+        ]
       },
       "rhr": {
         "primarySource": "oura",
-        "latest": 64, "latestDate": "2026-04-22",
-        "baseline": 58, "baselineP25": 56, "baselineP75": 61,
-        "rolling": { "d7": 64, "d30": 60, "d90": 58 },
+        "latest": 64,
+        "latestDate": "2026-04-22",
+        "baseline": 58,
+        "baselineP25": 56,
+        "baselineP75": 61,
+        "rolling": {
+          "d7": 64,
+          "d30": 60,
+          "d90": 58
+        },
         "trend30d": "rising",
-        "weekly": [57, 58, 57, 58, 58, 59, 60, 61, 62, 63, 63, 64]
+        "weekly": [
+          57,
+          58,
+          57,
+          58,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          63,
+          64
+        ]
       },
       "sleep_score": {
         "primarySource": "oura",
-        "latest": 72, "latestDate": "2026-04-22",
-        "baseline": 81, "baselineP25": 75, "baselineP75": 86,
-        "rolling": { "d7": 72, "d30": 78, "d90": 81 },
+        "latest": 72,
+        "latestDate": "2026-04-22",
+        "baseline": 81,
+        "baselineP25": 75,
+        "baselineP75": 86,
+        "rolling": {
+          "d7": 72,
+          "d30": 78,
+          "d90": 81
+        },
         "trend30d": "declining",
-        "weekly": [83, 84, 82, 85, 83, 82, 80, 78, 76, 74, 73, 72]
+        "weekly": [
+          83,
+          84,
+          82,
+          85,
+          83,
+          82,
+          80,
+          78,
+          76,
+          74,
+          73,
+          72
+        ]
       },
       "readiness_score": {
         "primarySource": "oura",
-        "latest": 68, "latestDate": "2026-04-22",
-        "baseline": 80, "baselineP25": 75, "baselineP75": 87,
-        "rolling": { "d7": 68, "d30": 76, "d90": 80 },
+        "latest": 68,
+        "latestDate": "2026-04-22",
+        "baseline": 80,
+        "baselineP25": 75,
+        "baselineP75": 87,
+        "rolling": {
+          "d7": 68,
+          "d30": 76,
+          "d90": 80
+        },
         "trend30d": "declining",
-        "weekly": [82, 84, 81, 83, 82, 81, 79, 76, 73, 71, 69, 68]
+        "weekly": [
+          82,
+          84,
+          81,
+          83,
+          82,
+          81,
+          79,
+          76,
+          73,
+          71,
+          69,
+          68
+        ]
       },
       "body_temp_delta": {
         "primarySource": "oura",
-        "latest": 0.5, "latestDate": "2026-04-22",
-        "baseline": -0.05, "baselineP25": -0.2, "baselineP75": 0.15,
-        "rolling": { "d7": 0.4, "d30": 0.1, "d90": -0.05 },
+        "latest": 0.5,
+        "latestDate": "2026-04-22",
+        "baseline": -0.05,
+        "baselineP25": -0.2,
+        "baselineP75": 0.15,
+        "rolling": {
+          "d7": 0.4,
+          "d30": 0.1,
+          "d90": -0.05
+        },
         "trend30d": "rising",
-        "weekly": [-0.1, 0, -0.1, 0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.4, 0.5, 0.5]
+        "weekly": [
+          -0.1,
+          0,
+          -0.1,
+          0.1,
+          0,
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.4,
+          0.5,
+          0.5
+        ]
       },
       "steps": {
         "primarySource": "oura",
-        "latest": 4200, "latestDate": "2026-04-22",
-        "baseline": 7800, "baselineP25": 6200, "baselineP75": 9400,
-        "rolling": { "d7": 4500, "d30": 6900, "d90": 7800 },
+        "latest": 4200,
+        "latestDate": "2026-04-22",
+        "baseline": 7800,
+        "baselineP25": 6200,
+        "baselineP75": 9400,
+        "rolling": {
+          "d7": 4500,
+          "d30": 6900,
+          "d90": 7800
+        },
         "trend30d": "declining",
-        "weekly": [8200, 8500, 7900, 8800, 8100, 7600, 7000, 6400, 5500, 4800, 4400, 4200]
+        "weekly": [
+          8200,
+          8500,
+          7900,
+          8800,
+          8100,
+          7600,
+          7000,
+          6400,
+          5500,
+          4800,
+          4400,
+          4200
+        ]
       }
     }
-  }
+  },
+  "sunDefaults": {
+    "fitzpatrick": "II",
+    "eyeColor": "blue",
+    "timeOutdoorsMin": 35,
+    "indoorJobLightConditions": "office_led",
+    "photosensitiveMeds": "none",
+    "location": {
+      "lat": 50.0755,
+      "lon": 14.4378,
+      "label": "Prague, CZ"
+    },
+    "completedAt": 1773131400000,
+    "ottScore": 6,
+    "ottAnswers": {
+      "time_outside": 2,
+      "daylight_room": 3,
+      "screen_evening": 1,
+      "blackout_sleep": 2,
+      "sunlight_morning": 0,
+      "sunset_visible": 1,
+      "midday_outside": 1,
+      "glasses_outdoor": 0,
+      "blue_blocker": 1,
+      "holiday_outside": 1
+    }
+  },
+  "lightDevices": [
+    {
+      "id": "dev_demo_uvb",
+      "brand": "Mitochondriak",
+      "model": "Maxi UVB",
+      "type": "uvb",
+      "peakWavelengths": [
+        295,
+        380,
+        480,
+        630,
+        670,
+        760,
+        810,
+        830,
+        850
+      ],
+      "mwPerCm2At15cm": 65,
+      "recommendedDistanceCm": 60,
+      "lux": 12000,
+      "addedAt": 1773131400000,
+      "modes": [
+        {
+          "id": "full",
+          "label": "Full spectrum",
+          "default": true,
+          "groups": [
+            "uvb",
+            "visible",
+            "nir"
+          ]
+        },
+        {
+          "id": "uv",
+          "label": "UV only",
+          "default": false,
+          "groups": [
+            "uvb"
+          ]
+        },
+        {
+          "id": "nir",
+          "label": "NIR only",
+          "default": false,
+          "groups": [
+            "nir"
+          ]
+        }
+      ],
+      "channelGroups": [
+        {
+          "id": "uvb",
+          "label": "UVB diodes",
+          "peaks": [
+            295,
+            380
+          ]
+        },
+        {
+          "id": "visible",
+          "label": "Visible",
+          "peaks": [
+            480,
+            630,
+            670
+          ]
+        },
+        {
+          "id": "nir",
+          "label": "Near-IR",
+          "peaks": [
+            760,
+            810,
+            830,
+            850
+          ]
+        }
+      ],
+      "notes": "Anchor device — calibrated against dminder app. Use full mode 5×/wk midday."
+    },
+    {
+      "id": "dev_demo_redlight",
+      "brand": "Chroma",
+      "model": "D60 Solar",
+      "type": "combined",
+      "peakWavelengths": [
+        630,
+        670,
+        760,
+        810,
+        830,
+        850
+      ],
+      "mwPerCm2At15cm": 110,
+      "recommendedDistanceCm": 30,
+      "lux": 4500,
+      "addedAt": 1774341000000,
+      "notes": "Bedside — used post-workout for recovery + on workdays as eye-channel anchor."
+    }
+  ],
+  "sunSessions": [
+    {
+      "id": "sun_demo_42d",
+      "startedAt": 1774697400000,
+      "endedAt": 1774698900000,
+      "durationMin": 25,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "arms_chest",
+        "fraction": 0.32,
+        "regions": [
+          "face",
+          "arms-front",
+          "torso-front",
+          "legs-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": true
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1500
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 5.2,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 56.14288087760358,
+        "airMass": 1.2,
+        "snapshotAt": 1774697400000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 92,
+        "circadian": 2340,
+        "nir": 0.37,
+        "no_card": 0.87,
+        "pomc": 6.4,
+        "eye_violet": 78,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.21,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "sun_demo_36d",
+      "startedAt": 1775214000000,
+      "endedAt": 1775215080000,
+      "durationMin": 18,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "arms_chest",
+        "fraction": 0.18,
+        "regions": [
+          "face",
+          "arms-front",
+          "torso-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1080
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 6.1,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 56.28814582796577,
+        "airMass": 1.2,
+        "snapshotAt": 1775214000000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 70,
+        "circadian": 1976,
+        "nir": 0.18,
+        "no_card": 0.42,
+        "pomc": 4.9,
+        "eye_violet": 66,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.1,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "sun_demo_28d",
+      "startedAt": 1775889000000,
+      "endedAt": 1775890320000,
+      "durationMin": 22,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "face_hands",
+        "fraction": 0.05,
+        "regions": [
+          "face"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1320
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 1.8,
+        "cloudCover": 0.4,
+        "ozoneDU": 320,
+        "sunElevationDeg": 22,
+        "airMass": 2.5,
+        "snapshotAt": 1775889000000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 4,
+        "circadian": 713,
+        "nir": 0.02,
+        "no_card": 0.04,
+        "pomc": 0.3,
+        "eye_violet": 24,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.01,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "sun_demo_21d",
+      "startedAt": 1776506400000,
+      "endedAt": 1776508200000,
+      "durationMin": 30,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "full_torso",
+        "fraction": 0.45,
+        "regions": [
+          "face",
+          "arms-front",
+          "arms-back",
+          "torso-front",
+          "torso-back",
+          "legs-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": true
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1800
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 6.4,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 56.98254860691688,
+        "airMass": 1.2,
+        "snapshotAt": 1776506400000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 165,
+        "circadian": 3456,
+        "nir": 0.78,
+        "no_card": 1.81,
+        "pomc": 11.5,
+        "eye_violet": 115,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.43,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "sun_demo_14d",
+      "startedAt": 1777109400000,
+      "endedAt": 1777110120000,
+      "durationMin": 12,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "face_hands",
+        "fraction": 0.05,
+        "regions": [
+          "face"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": true,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "indoor",
+        "lensTint": "clear",
+        "durationSec": 720
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 5.9,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 55.22547584020786,
+        "airMass": 1.2,
+        "snapshotAt": 1777109400000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 0,
+        "circadian": 1274,
+        "nir": 0.03,
+        "no_card": 0.07,
+        "pomc": 0,
+        "eye_violet": 0,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.02,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "sun_demo_9d",
+      "startedAt": 1777548600000,
+      "endedAt": 1777550280000,
+      "durationMin": 28,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "arms_chest",
+        "fraction": 0.32,
+        "regions": [
+          "face",
+          "arms-front",
+          "torso-front",
+          "legs-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": true
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1680
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 6.8,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 54.057082016244955,
+        "airMass": 1.2,
+        "snapshotAt": 1777548600000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 132,
+        "circadian": 3427,
+        "nir": 0.55,
+        "no_card": 1.28,
+        "pomc": 9.2,
+        "eye_violet": 114,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.3,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "sun_demo_4d",
+      "startedAt": 1777959000000,
+      "endedAt": 1777960080000,
+      "durationMin": 18,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "face_hands",
+        "fraction": 0.05,
+        "regions": [
+          "face"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1080
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 1.2,
+        "cloudCover": 0.4,
+        "ozoneDU": 320,
+        "sunElevationDeg": 22,
+        "airMass": 2.5,
+        "snapshotAt": 1777959000000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 2,
+        "circadian": 389,
+        "nir": 0.01,
+        "no_card": 0.02,
+        "pomc": 0.1,
+        "eye_violet": 13,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.01,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "sun_demo_1d",
+      "startedAt": 1778236200000,
+      "endedAt": 1778237520000,
+      "durationMin": 22,
+      "location": {
+        "lat": 50.0755,
+        "lon": 14.4378,
+        "label": "Prague, CZ"
+      },
+      "bodyExposure": {
+        "preset": "arms_chest",
+        "fraction": 0.28,
+        "regions": [
+          "face",
+          "arms-front",
+          "torso-front"
+        ],
+        "sunscreenSPF": null,
+        "glassBetween": false,
+        "rotatedSides": false
+      },
+      "eyeExposure": {
+        "mode": "direct",
+        "lensTint": "clear",
+        "durationSec": 1320
+      },
+      "posture": "standing",
+      "surfaceAlbedo": "grass",
+      "atmosphere": {
+        "uvIndex": 6,
+        "cloudCover": 0.1,
+        "ozoneDU": 320,
+        "sunElevationDeg": 57.4633200331027,
+        "airMass": 1.2,
+        "snapshotAt": 1778236200000,
+        "source": "auto",
+        "confidence": 0.85
+      },
+      "doses": {
+        "vitamin_d": 88,
+        "circadian": 2376,
+        "nir": 0.33,
+        "no_card": 0.78,
+        "pomc": 6.2,
+        "eye_violet": 79,
+        "red_660": 0,
+        "nir_pbm": 0
+      },
+      "safety": {
+        "fitzpatrick": "II",
+        "medFraction": 0.18,
+        "psm": "none",
+        "skinTypeIdx": 1
+      },
+      "notes": ""
+    }
+  ],
+  "deviceSessions": [
+    {
+      "id": "devsess_demo_38d",
+      "deviceId": "dev_demo_uvb",
+      "startedAt": 1775017800000,
+      "endedAt": 1775018160000,
+      "durationMin": 6,
+      "distanceCm": 60,
+      "bodyArea": "torso-front",
+      "bodyAreas": [
+        "torso-front",
+        "arms-front"
+      ],
+      "eyesProtected": true,
+      "mode": "full",
+      "doses": {
+        "vitamin_d": 5800,
+        "nir": 0.8,
+        "red_660": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "devsess_demo_31d",
+      "deviceId": "dev_demo_redlight",
+      "startedAt": 1775622600000,
+      "endedAt": 1775623320000,
+      "durationMin": 12,
+      "distanceCm": 25,
+      "bodyArea": "face",
+      "bodyAreas": [
+        "face",
+        "thyroid-throat"
+      ],
+      "eyesProtected": false,
+      "mode": null,
+      "doses": {
+        "red_660": 1.6,
+        "nir_pbm": 1.4,
+        "circadian": 1200
+      },
+      "notes": ""
+    },
+    {
+      "id": "devsess_demo_22d",
+      "deviceId": "dev_demo_uvb",
+      "startedAt": 1776400200000,
+      "endedAt": 1776400500000,
+      "durationMin": 5,
+      "distanceCm": 60,
+      "bodyArea": "torso-front",
+      "bodyAreas": [
+        "torso-front"
+      ],
+      "eyesProtected": true,
+      "mode": "full",
+      "doses": {
+        "vitamin_d": 4800,
+        "nir": 0.7
+      },
+      "notes": ""
+    },
+    {
+      "id": "devsess_demo_15d",
+      "deviceId": "dev_demo_redlight",
+      "startedAt": 1777005000000,
+      "endedAt": 1777005900000,
+      "durationMin": 15,
+      "distanceCm": 25,
+      "bodyArea": "torso-back",
+      "bodyAreas": [
+        "torso-back",
+        "glutes"
+      ],
+      "eyesProtected": false,
+      "mode": null,
+      "doses": {
+        "red_660": 2,
+        "nir_pbm": 1.7
+      },
+      "notes": ""
+    },
+    {
+      "id": "devsess_demo_8d",
+      "deviceId": "dev_demo_uvb",
+      "startedAt": 1777609800000,
+      "endedAt": 1777610220000,
+      "durationMin": 7,
+      "distanceCm": 60,
+      "bodyArea": "torso-front",
+      "bodyAreas": [
+        "torso-front",
+        "arms-front"
+      ],
+      "eyesProtected": true,
+      "mode": "full",
+      "doses": {
+        "vitamin_d": 6200,
+        "nir": 0.9,
+        "red_660": 0.6
+      },
+      "notes": ""
+    },
+    {
+      "id": "devsess_demo_3d",
+      "deviceId": "dev_demo_redlight",
+      "startedAt": 1778041800000,
+      "endedAt": 1778042400000,
+      "durationMin": 10,
+      "distanceCm": 25,
+      "bodyArea": "face",
+      "bodyAreas": [
+        "face"
+      ],
+      "eyesProtected": false,
+      "mode": null,
+      "doses": {
+        "red_660": 1.3,
+        "nir_pbm": 1.1,
+        "circadian": 950
+      },
+      "notes": ""
+    }
+  ],
+  "lightEnvironment": {
+    "rooms": [
+      {
+        "id": "room_demo_bedroom",
+        "name": "Bedroom",
+        "primarySource": "led_warm",
+        "cct": 2700,
+        "flickerScore": 1,
+        "hoursOccupiedPerDay": 9,
+        "eveningHoursAfterSunset": "1-3hr",
+        "eveningUseAfterSunset": true,
+        "notes": "Switched to amber bulbs for evening + blackout curtains installed mid-March.",
+        "updatedAt": 1776587400000
+      },
+      {
+        "id": "room_demo_office",
+        "name": "Office",
+        "primarySource": "led_cool",
+        "cct": 5000,
+        "flickerScore": 2,
+        "hoursOccupiedPerDay": 7,
+        "eveningHoursAfterSunset": "<1hr",
+        "eveningUseAfterSunset": false,
+        "notes": "Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.",
+        "updatedAt": 1775032200000
+      },
+      {
+        "id": "room_demo_kitchen",
+        "name": "Kitchen",
+        "primarySource": "mixed",
+        "cct": 3500,
+        "flickerScore": 0,
+        "hoursOccupiedPerDay": 3,
+        "eveningHoursAfterSunset": "1-3hr",
+        "eveningUseAfterSunset": true,
+        "notes": "",
+        "updatedAt": 1773995400000
+      }
+    ],
+    "screens": [
+      {
+        "id": "scr_demo_laptop",
+        "device": "laptop",
+        "roomId": "room_demo_office",
+        "hoursPerDay": "6+hr",
+        "eveningUseAfterSunset": "<1hr",
+        "blueBlockerEnabled": true,
+        "flickerScore": 1,
+        "updatedAt": 1774427400000
+      },
+      {
+        "id": "scr_demo_phone",
+        "device": "phone",
+        "roomId": "room_demo_bedroom",
+        "hoursPerDay": "3-6hr",
+        "eveningUseAfterSunset": "1-3hr",
+        "blueBlockerEnabled": false,
+        "flickerScore": 1,
+        "updatedAt": 1774427400000
+      }
+    ],
+    "burdenAI": {
+      "status": "ok",
+      "dot": "yellow",
+      "tip": "Indoor light load is moderate — bedroom evening use is the main lever.",
+      "detail": "Daytime exposure is good (window-side office, kitchen mixed). Evening bedroom is the weak spot: 1–3hr screen + warm-LED is ok for sleep but 1+ unblocked hr of phone reduces melatonin onset by ~30 min on average. Consider blue-blockers on phone after 9pm OR cutting evening phone use to <1hr.",
+      "fingerprint": "demo-burden-fp-v1",
+      "generatedAt": 1777969800000
+    }
+  },
+  "lightAudits": [
+    {
+      "id": "la_demo_before",
+      "date": "2026-03-20",
+      "label": "Baseline — pre-bedroom upgrade",
+      "notes": "Before swapping bedroom bulbs to amber + installing blackout curtains.",
+      "rooms": [
+        {
+          "id": "room_demo_bedroom",
+          "name": "Bedroom",
+          "primarySource": "led_cool",
+          "cct": 4000,
+          "flickerScore": 2,
+          "hoursOccupiedPerDay": 9,
+          "eveningHoursAfterSunset": "1-3hr",
+          "eveningUseAfterSunset": true,
+          "notes": "Cool-white overhead LED",
+          "updatedAt": 1773993600000
+        },
+        {
+          "id": "room_demo_office",
+          "name": "Office",
+          "primarySource": "led_cool",
+          "cct": 5000,
+          "flickerScore": 2,
+          "hoursOccupiedPerDay": 7,
+          "eveningHoursAfterSunset": "<1hr",
+          "eveningUseAfterSunset": false,
+          "notes": "Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.",
+          "updatedAt": 1775032200000
+        },
+        {
+          "id": "room_demo_kitchen",
+          "name": "Kitchen",
+          "primarySource": "mixed",
+          "cct": 3500,
+          "flickerScore": 0,
+          "hoursOccupiedPerDay": 3,
+          "eveningHoursAfterSunset": "1-3hr",
+          "eveningUseAfterSunset": true,
+          "notes": "",
+          "updatedAt": 1773995400000
+        }
+      ],
+      "screens": [
+        {
+          "id": "scr_demo_laptop",
+          "device": "laptop",
+          "roomId": "room_demo_office",
+          "hoursPerDay": "6+hr",
+          "eveningUseAfterSunset": "<1hr",
+          "blueBlockerEnabled": true,
+          "flickerScore": 1,
+          "updatedAt": 1774427400000
+        },
+        {
+          "id": "scr_demo_phone",
+          "device": "phone",
+          "roomId": "room_demo_bedroom",
+          "hoursPerDay": "3-6hr",
+          "eveningUseAfterSunset": "1-3hr",
+          "blueBlockerEnabled": false,
+          "flickerScore": 1,
+          "updatedAt": 1774427400000
+        }
+      ],
+      "measurements": [],
+      "createdAt": 1773993600000,
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Cool-white bedroom overhead is the main melatonin suppressor.",
+        "detail": "4000K bedroom lighting at evening use breaks the sleep-onset signal. Pair this with 1–3hr unblocked phone time and you get measurable phase delay. Highest-leverage fix is bulb swap to <2700K + blackout for the sleep window.",
+        "fingerprint": "demo-audit-before-fp",
+        "generatedAt": 1773995400000
+      }
+    },
+    {
+      "id": "la_demo_after",
+      "date": "2026-04-25",
+      "label": "After — amber bulbs + blackout",
+      "notes": "Swapped bedroom to 2700K amber + blackout curtains for sleep window.",
+      "rooms": [
+        {
+          "id": "room_demo_bedroom",
+          "name": "Bedroom",
+          "primarySource": "led_warm",
+          "cct": 2700,
+          "flickerScore": 1,
+          "hoursOccupiedPerDay": 9,
+          "eveningHoursAfterSunset": "1-3hr",
+          "eveningUseAfterSunset": true,
+          "notes": "Switched to amber bulbs for evening + blackout curtains installed mid-March.",
+          "updatedAt": 1776587400000
+        },
+        {
+          "id": "room_demo_office",
+          "name": "Office",
+          "primarySource": "led_cool",
+          "cct": 5000,
+          "flickerScore": 2,
+          "hoursOccupiedPerDay": 7,
+          "eveningHoursAfterSunset": "<1hr",
+          "eveningUseAfterSunset": false,
+          "notes": "Window-side desk; natural daylight 9am–4pm. Overhead LED only on cloudy days.",
+          "updatedAt": 1775032200000
+        },
+        {
+          "id": "room_demo_kitchen",
+          "name": "Kitchen",
+          "primarySource": "mixed",
+          "cct": 3500,
+          "flickerScore": 0,
+          "hoursOccupiedPerDay": 3,
+          "eveningHoursAfterSunset": "1-3hr",
+          "eveningUseAfterSunset": true,
+          "notes": "",
+          "updatedAt": 1773995400000
+        }
+      ],
+      "screens": [
+        {
+          "id": "scr_demo_laptop",
+          "device": "laptop",
+          "roomId": "room_demo_office",
+          "hoursPerDay": "6+hr",
+          "eveningUseAfterSunset": "<1hr",
+          "blueBlockerEnabled": true,
+          "flickerScore": 1,
+          "updatedAt": 1774427400000
+        },
+        {
+          "id": "scr_demo_phone",
+          "device": "phone",
+          "roomId": "room_demo_bedroom",
+          "hoursPerDay": "3-6hr",
+          "eveningUseAfterSunset": "1-3hr",
+          "blueBlockerEnabled": false,
+          "flickerScore": 1,
+          "updatedAt": 1774427400000
+        }
+      ],
+      "measurements": [],
+      "createdAt": 1777104000000,
+      "aiAnalysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Bedroom melatonin signal restored. Evening phone is now the next lever.",
+        "detail": "Amber bedroom lighting + blackout brings the bedroom into the green band for melanopic-EDI. Remaining lever is evening phone use (1–3hr unblocked) — adding a screen-level blue-block schedule would close the loop.",
+        "fingerprint": "demo-audit-after-fp",
+        "generatedAt": 1777105800000
+      }
+    }
+  ],
+  "lightMeasurements": [
+    {
+      "id": "m_lux_1",
+      "tool": "lux",
+      "value": 320,
+      "roomId": "room_demo_office",
+      "capturedAt": 1775896200000,
+      "extra": {
+        "device": "phone-camera"
+      },
+      "notes": "Daytime overhead LED, no daylight"
+    },
+    {
+      "id": "m_lux_2",
+      "tool": "lux",
+      "value": 18000,
+      "roomId": "room_demo_office",
+      "capturedAt": 1776155400000,
+      "extra": {
+        "device": "phone-camera"
+      },
+      "notes": "Window-adjacent at 11am, sunny"
+    },
+    {
+      "id": "m_lux_3",
+      "tool": "lux",
+      "value": 6,
+      "roomId": "room_demo_bedroom",
+      "capturedAt": 1776587400000,
+      "extra": {
+        "device": "phone-camera",
+        "label": "Light-tight"
+      },
+      "notes": "Sleep darkness — post-blackout install"
+    },
+    {
+      "id": "m_cct_1",
+      "tool": "cct",
+      "value": 2700,
+      "roomId": "room_demo_bedroom",
+      "capturedAt": 1776760200000,
+      "extra": {
+        "device": "phone-camera"
+      },
+      "notes": "New amber bulb measured"
+    },
+    {
+      "id": "m_cct_2",
+      "tool": "cct",
+      "value": 4900,
+      "roomId": "room_demo_office",
+      "capturedAt": 1776933000000,
+      "extra": {
+        "device": "phone-camera"
+      },
+      "notes": "Office overhead LED"
+    },
+    {
+      "id": "m_flick_1",
+      "tool": "flicker",
+      "value": 1,
+      "roomId": "room_demo_office",
+      "capturedAt": 1777019400000,
+      "extra": {
+        "strobeHz": 240,
+        "label": "Mild"
+      },
+      "notes": "Detectable at 240 Hz, low severity"
+    },
+    {
+      "id": "m_spec_1",
+      "tool": "spectrum",
+      "value": "warm-incandescent",
+      "roomId": "room_demo_bedroom",
+      "capturedAt": 1777192200000,
+      "extra": {
+        "label": "Warm — incandescent-like"
+      },
+      "notes": ""
+    },
+    {
+      "id": "m_dark_1",
+      "tool": "darkness",
+      "value": 0.2,
+      "roomId": "room_demo_bedroom",
+      "capturedAt": 1777278600000,
+      "extra": {
+        "label": "Sleep-spec ✓",
+        "mean": 0.2,
+        "max": 1.4
+      },
+      "notes": "Mean 0.2 lux post-blackout, brief 1.4 peak from streetlight"
+    }
+  ],
+  "sunCorrelations": {
+    "computedAt": 1778056200000,
+    "weeksAnalyzed": 12,
+    "pairs": [
+      {
+        "channel": "vitamin_d",
+        "marker": "vitamins.vitaminD",
+        "r": 0.71,
+        "n": 6,
+        "pValue": 0.045
+      },
+      {
+        "channel": "circadian",
+        "marker": "thyroid.tsh",
+        "r": -0.42,
+        "n": 6,
+        "pValue": 0.18
+      },
+      {
+        "channel": "no_card",
+        "marker": "lipids.triglycerides",
+        "r": -0.35,
+        "n": 6,
+        "pValue": 0.24
+      },
+      {
+        "channel": "red_660",
+        "marker": "proteins.hsCRP",
+        "r": -0.51,
+        "n": 5,
+        "pValue": 0.16
+      }
+    ]
+  },
+  "lightDailyVerdicts": {
+    "2026-05-08": {
+      "status": "ok",
+      "dot": "green",
+      "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
+      "detail": "2026-05-08: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "fingerprint": "demo-daily-verdict-2026-05-08",
+      "generatedAt": 1778315400000
+    },
+    "2026-05-06": {
+      "status": "ok",
+      "dot": "yellow",
+      "tip": "Vit-D channel light, but circadian + NIR were good. Add 10 min midday tomorrow.",
+      "detail": "2026-05-06: Vit-D total ~2000 IU, below 4k weekly pace. Circadian + NIR on target. One more 15-min midday session tomorrow closes the gap.",
+      "fingerprint": "demo-daily-verdict-2026-05-06",
+      "generatedAt": 1778229000000
+    },
+    "2026-05-05": {
+      "status": "ok",
+      "dot": "green",
+      "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
+      "detail": "2026-05-05: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "fingerprint": "demo-daily-verdict-2026-05-05",
+      "generatedAt": 1778142600000
+    },
+    "2026-05-01": {
+      "status": "ok",
+      "dot": "green",
+      "tip": "Solid coverage across vitamin D + circadian channels; no overdose.",
+      "detail": "2026-05-01: Sun + device sessions delivered targeted UVB without burn risk; eye-channel violet within target. Maintain.",
+      "fingerprint": "demo-daily-verdict-2026-05-01",
+      "generatedAt": 1778056200000
+    }
+  },
+  "lifelightProfile": {
+    "chronotype": "moderate-evening",
+    "sleepWindow": {
+      "start": "23:00",
+      "end": "07:00"
+    },
+    "morningSunCommit": "15min outdoor face within 30min of waking",
+    "updatedAt": 1775723400000
+  },
+  "manualValues": {
+    "weight:manual:2026-05-09": {
+      "value": 64.5,
+      "unit": "kg",
+      "date": "2026-05-09",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "weight:manual:2026-05-02": {
+      "value": 64.3,
+      "unit": "kg",
+      "date": "2026-05-02",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "weight:manual:2026-04-25": {
+      "value": 64.1,
+      "unit": "kg",
+      "date": "2026-04-25",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "weight:manual:2026-04-18": {
+      "value": 64,
+      "unit": "kg",
+      "date": "2026-04-18",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "weight:manual:2026-04-11": {
+      "value": 63.8,
+      "unit": "kg",
+      "date": "2026-04-11",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "weight:manual:2026-04-04": {
+      "value": 63.6,
+      "unit": "kg",
+      "date": "2026-04-04",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "weight:manual:2026-03-28": {
+      "value": 63.4,
+      "unit": "kg",
+      "date": "2026-03-28",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "weight:manual:2026-03-21": {
+      "value": 63.2,
+      "unit": "kg",
+      "date": "2026-03-21",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "pulse:manual:2026-04-04": {
+      "value": 66,
+      "unit": "bpm",
+      "date": "2026-04-04",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "pulse:manual:2026-04-18": {
+      "value": 64,
+      "unit": "bpm",
+      "date": "2026-04-18",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "pulse:manual:2026-04-29": {
+      "value": 62,
+      "unit": "bpm",
+      "date": "2026-04-29",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "pulse:manual:2026-05-06": {
+      "value": 61,
+      "unit": "bpm",
+      "date": "2026-05-06",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "bp:manual:2026-03-28": {
+      "value": {
+        "sys": 118,
+        "dia": 76
+      },
+      "unit": "mmHg",
+      "date": "2026-03-28",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "bp:manual:2026-04-11": {
+      "value": {
+        "sys": 116,
+        "dia": 74
+      },
+      "unit": "mmHg",
+      "date": "2026-04-11",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "bp:manual:2026-04-25": {
+      "value": {
+        "sys": 114,
+        "dia": 72
+      },
+      "unit": "mmHg",
+      "date": "2026-04-25",
+      "source": "manual",
+      "tag": "morning"
+    },
+    "bp:manual:2026-05-05": {
+      "value": {
+        "sys": 113,
+        "dia": 71
+      },
+      "unit": "mmHg",
+      "date": "2026-05-05",
+      "source": "manual",
+      "tag": "morning"
+    }
+  },
+  "refOverrides": {
+    "iron.ferritin": {
+      "low": 50,
+      "high": 150,
+      "source": "functional medicine target — Wright/Cohen"
+    },
+    "vitamins.vitaminD": {
+      "low": 50,
+      "high": 80,
+      "source": "GrassrootsHealth optimal window"
+    }
+  },
+  "categoryLabels": {
+    "vitamins": "Vitamins & Minerals"
+  },
+  "categoryIcons": {
+    "vitamins": "☀️"
+  },
+  "markerLabels": {
+    "iron.ferritin": "Ferritin (functional)"
+  },
+  "wearableCardOrder": [
+    "weight",
+    "pulse",
+    "bp",
+    "sleep",
+    "hrv",
+    "activity"
+  ],
+  "demoUpgradedAt": "2026-05-09"
 }
