@@ -4297,12 +4297,12 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v11",
+  "demoUpgradedAt": "2026-05-09-v12",
   "channelMixAI": {
     "status": "ok",
     "dot": "yellow",
-    "tip": "Strong PBM + circadian; vitamin-D channel light",
-    "detail": "Weekly mix shows good narrowband red-light therapy coverage and morning circadian signal. Vitamin D channel sits at ~70% of weekly target — one more 25-min midday outdoor session would close the gap. NIR-solar matches solar exposure; cellular-repair channel is well covered. POMC + violet-eye good.",
+    "tip": "Strong red-light + morning circadian; vitamin-D channel a bit light",
+    "detail": "Weekly mix shows good red-light therapy coverage and morning circadian signal. Vitamin D channel sits at ~70% of weekly target — one more 25-min midday outdoor session would close the gap. Near-infrared from solar tracks your outdoor time; cellular-repair channel is well covered. Mood and outdoor-eye channels good.",
     "generatedAt": 1778142600000
   },
   "focusCard": {

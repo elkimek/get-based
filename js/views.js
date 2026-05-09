@@ -1361,7 +1361,7 @@ export function showLight(_data) {
       <span class="light-conditions-now-title">Conditions now</span>
       <span class="light-conditions-now-actions">
         <button type="button" class="conditions-now-refresh" aria-label="Refresh conditions data — bypasses cache" onclick="window._refreshConditionsNow && window._refreshConditionsNow()" title="Force a fresh fetch (bypasses cache)">↻ Refresh</button>
-        <button type="button" class="conditions-now-inspect" aria-label="Inspect raw conditions response, source, cache, and sanity check" onclick="window._inspectConditionsNow && window._inspectConditionsNow()" title="See raw response, source, cache, sanity check">Inspect</button>
+        <button type="button" class="conditions-now-inspect" aria-label="Show raw conditions response, source, cache, and sanity check" onclick="window._inspectConditionsNow && window._inspectConditionsNow()" title="See raw response, source, cache, sanity check">Show details</button>
       </span>
     </div>
     ${renderConditionsNow({ variant: 'full' })}
@@ -1415,7 +1415,7 @@ export function showLight(_data) {
   html += `<div class="light-quicklog-row">
     ${ctaButtons}
     <button class="import-btn import-btn-secondary" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">Log a past session</button>
-    <span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>${totalSessions === 0 ? 'No sessions yet' : `${totalSessions} total light session${totalSessions !== 1 ? 's' : ''}`}</span>
+    ${totalSessions === 0 ? `<span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>No sessions yet</span>` : ''}
   </div>`;
 
   // Slot id for the async-populated channel-deficit device recommendation
@@ -1516,21 +1516,6 @@ export function showLight(_data) {
     deficitRecSlotId = `light-deficit-rec-slot-${Date.now()}`;
     html += `<div id="${deficitRecSlotId}"></div>`;
 
-    // "How we estimate" — single explainer covering MED / IU / channels /
-    // uncertainty. One-stop glossary so we don't litter every readout with
-    // a tooltip. Collapsed by default.
-    html += `<details class="light-explainer">
-      <summary>How we estimate vitamin D, burn risk &amp; channels</summary>
-      <div class="light-explainer-body">
-        <p><strong>Burn dose (% MED).</strong> 1 MED = "minimal erythemal dose," the smallest UV dose that turns your skin slightly pink. Set per Fitzpatrick skin type (Type I = 200 J/m² CIE-erythemal, Type VI = 1000 J/m²). 100% means a sunburn is starting; 70% means stop or cover up soon. Yesterday's dose carries forward — when yesterday + today exceeds 100% the banner flags a back-to-back risk, even if today alone is under threshold.</p>
-        <p><strong>Vitamin D in IU.</strong> Bogh &amp; Wulf 2010 + Holick 2007. Roughly 60 IU per unit of vit-D-action-spectrum-weighted UVB at sea-level zenith (calibrated against dminder + NIWA at UVI 5–7), scaled by your Fitzpatrick type (melanin lowers it). Saturates at the tens-of-thousands-of-IU level per session — at high doses the skin photoisomerizes excess previtamin D back to inert tachysterol/lumisterol. <strong>Below UVI 2 there's no meaningful synthesis</strong> (Webb 2018, ramps in linearly between UVI 2 and 3) — winter mornings, low sun, behind glass all yield zero.</p>
-        <p><strong>The ±50% range.</strong> Estimate is "central × 0.6 to × 1.5" because (a) the spectral reconstruction model is accurate to ~20–25% at noon and degrades off-noon, (b) skin response varies per person ~30%, (c) actual exposed area can differ 10–20% from your selected regions. Treat the band as honest — the central number alone is false precision.</p>
-        <p><strong>Channels.</strong> Sun does six things you can see on this page, each with its own action spectrum: vitamin D synthesis (UVB 290-315nm), circadian/melanopic (peak ~490nm at the eye), cardiovascular NO release (UVA-violet 320-440nm), POMC/α-MSH mood-hormones (UVA + UVB on keratinocytes), violet-eye dopamine (360-400nm at the eye), and NIR cellular repair (660-850nm). Sun and therapy panels both feed these channels by wavelength. PBM panels also drive two device-only channels — narrowband red 660nm and near-IR 810/850nm — surfaced on the device card rather than the solar pill row.</p>
-        <p><strong>Atmosphere data.</strong> Open-Meteo by default — UV index, cloud cover, AQI, plus a fixed 300 DU stratospheric ozone (Open-Meteo's free tier only exposes ground-level pollution ozone). Each session captures one atmosphere snapshot at start and reuses it; the global fetch cache is 1 hour, the dashboard "Conditions now" strip auto-refreshes every 5 minutes. For higher fidelity, switch to a self-hosted CAMS-mirrored source via the <strong>Sun data source</strong> panel below. All math runs on-device — your location is rounded to 0.1° (~11 km) before any network call unless you change the privacy slider.</p>
-        <p><strong>Want the math?</strong> See <a href="/docs/contributor/sun-spectrum-model" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
-      </div>
-    </details>`;
-
     // Unified sessions list — sun + device merged chronologically.
     // Active sun session is pinned at top of page; this list shows
     // historical (ended) ones. Skip the section header when empty so
@@ -1538,7 +1523,11 @@ export function showLight(_data) {
     // heading with no rows under it.
     const _unifiedHtml = renderUnifiedSessionsList();
     if (_unifiedHtml) {
-      html += `<div class="category-header" style="margin-top:24px"><h3>Sessions</h3></div>`;
+      // Header carries the count so the user gets a quick "do I have a
+      // history yet?" answer alongside the section name. Replaces the
+      // earlier orphan tally that sat above the CTAs.
+      const _countLabel = totalSessions === 0 ? '' : ` (${totalSessions})`;
+      html += `<div class="category-header" style="margin-top:24px"><h3>Recent sessions${_countLabel}</h3></div>`;
       html += _unifiedHtml;
     }
   }
@@ -1591,13 +1580,29 @@ export function showLight(_data) {
         aux += measurements.length > 0
           ? ((window.renderLightTools && window.renderLightTools()) || '')
           : renderCollapsedSubsection('Light tools', '🛠 Open light tools', 'window._expandLightToolsSection && window._expandLightToolsSection()', 'Eight on-device measurement tools — lux, flicker, color temp, glass transmission, sleep darkness, more. Camera frames stay on your phone.', 'light-tools-section-collapsed');
+        // "How we estimate" — single explainer covering MED / IU / channels
+        // / uncertainty. Lives at the bottom of the page (alongside the Sun
+        // data source disclosure) rather than mid-page so it doesn't break
+        // the flow between channel mix and Sessions for users who already
+        // know the math. Collapsed by default.
+        aux += `<details class="light-explainer" style="margin-top:24px">
+          <summary>How we estimate vitamin D, burn risk &amp; channels</summary>
+          <div class="light-explainer-body">
+            <p><strong>Burn dose (% MED).</strong> 1 MED = "minimal erythemal dose," the smallest UV dose that turns your skin slightly pink. Set per Fitzpatrick skin type (Type I = 200 J/m² CIE-erythemal, Type VI = 1000 J/m²). 100% means a sunburn is starting; 70% means stop or cover up soon. Yesterday's dose carries forward — when yesterday + today exceeds 100% the banner flags a back-to-back risk, even if today alone is under threshold.</p>
+            <p><strong>Vitamin D in IU.</strong> Bogh &amp; Wulf 2010 + Holick 2007. Roughly 60 IU per unit of vit-D-action-spectrum-weighted UVB at sea-level zenith (calibrated against dminder + NIWA at UVI 5–7), scaled by your Fitzpatrick type (melanin lowers it). Saturates at the tens-of-thousands-of-IU level per session — at high doses the skin photoisomerizes excess previtamin D back to inert tachysterol/lumisterol. <strong>Below UVI 2 there's no meaningful synthesis</strong> (Webb 2018, ramps in linearly between UVI 2 and 3) — winter mornings, low sun, behind glass all yield zero.</p>
+            <p><strong>The ±50% range.</strong> Estimate is "central × 0.6 to × 1.5" because (a) the spectral reconstruction model is accurate to ~20–25% at noon and degrades off-noon, (b) skin response varies per person ~30%, (c) actual exposed area can differ 10–20% from your selected regions. Treat the band as honest — the central number alone is false precision.</p>
+            <p><strong>Channels.</strong> Sun does six things you can see on this page, each with its own action spectrum: vitamin D synthesis (UVB 290-315nm), circadian/melanopic (peak ~490nm at the eye), cardiovascular nitric-oxide release (UVA-violet 320-440nm), mood/α-MSH on the skin (UVA + UVB on keratinocytes), violet-eye dopamine (360-400nm at the eye), and near-infrared cellular repair (660-850nm). Sun and therapy panels both feed these channels by wavelength. Therapy panels also drive two device-only channels — narrowband red 660nm and near-infrared 810/850nm — surfaced on the device card rather than the solar pill row.</p>
+            <p><strong>Atmosphere data.</strong> Open-Meteo by default — UV index, cloud cover, AQI, plus a fixed 300 DU stratospheric ozone (Open-Meteo's free tier only exposes ground-level pollution ozone). Each session captures one atmosphere snapshot at start and reuses it; the global fetch cache is 1 hour, the dashboard "Conditions now" strip auto-refreshes every 5 minutes. For higher fidelity, switch to a self-hosted CAMS-mirrored source via the <strong>Sun data source</strong> panel below. All math runs on-device — your location is rounded to 0.1° (~11 km) before any network call unless you change the privacy slider.</p>
+            <p><strong>Want the math?</strong> See <a href="/docs/contributor/sun-spectrum-model" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
+          </div>
+        </details>`;
         // Sun data source — collapsed by default. Most users stay on the
         // Open-Meteo default; the panel matters when self-hosting CAMS or
         // disabling network calls entirely. Lives here (per-feature config)
         // rather than Settings → Privacy.
         if (typeof window.renderSunDataSourceSettings === 'function') {
           aux += `<details class="light-data-source-details" style="margin-top:24px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0">
-            <summary style="padding:12px 16px;cursor:pointer;font-size:13px;color:var(--text-secondary);user-select:none">⚙ Sun data source &amp; privacy</summary>
+            <summary style="padding:12px 16px;cursor:pointer;font-size:13px;color:var(--text-secondary);user-select:none">⚙ Sun data source</summary>
             <div style="padding:0 16px 16px 16px">${window.renderSunDataSourceSettings()}</div>
           </details>`;
         }
@@ -1690,7 +1695,11 @@ function _channelDayCount(channelKey) {
   const floor = target * threshold;
   let n = 0;
   for (const d of days) if ((d.sun + d.device) >= floor) n++;
-  return { txt: n === 0 ? '—' : `${n}d`, n };
+  // "4/7" reads as a fraction at a glance — much clearer than "4d",
+  // which users were parsing as "4 days ago" instead of "4 of 7 days
+  // this week hit target". Tooltip + sr-only label still say it the
+  // long way for accessibility.
+  return { txt: n === 0 ? '—' : `${n}/7`, n };
 }
 
 // Unified channel pill row — same vocabulary as the dashboard strip,

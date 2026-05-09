@@ -133,6 +133,13 @@ const SYSTEM_PROMPT = [
   'tip: one sentence, max 18 words. The single multi-channel action.',
   'detail: 2–3 sentences. Acknowledge what\'s working (cite specific channels), name the gap with biology, give the concrete cross-channel fix. Reference 25-OH-D if present.',
   '',
+  'NEVER use jargon acronyms in the user-facing tip or detail. Specifically:',
+  '  • Write "red-light therapy" or "near-infrared light" — NOT "PBM" or "photobiomodulation"',
+  '  • Write "circadian" — NOT "SCN" or "melanopic" alone',
+  '  • Write "mood/α-MSH" only if you also explain it in plain language; otherwise just write "mood"',
+  '  • Write "cardiovascular nitric oxide" or "blood-vessel" — NOT "NO" alone',
+  'The internal channel keys (vit-D, circadian, no_cv, pomc, etc) are for YOUR reasoning — translate to plain English in the output.',
+  '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 

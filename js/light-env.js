@@ -864,7 +864,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
   let html = `<div class="light-env-room-disclosure-body">
 
     <div class="light-env-room-step">
-      <div class="light-env-room-step-head"><span class="light-env-room-step-num">1</span> About this room</div>
+      <div class="light-env-room-step-head">About this room</div>
       <p class="light-env-room-step-sub">This shapes how the AI weights your day-vs-evening light. The more you fill in, the more accurate the read.</p>
       <div class="light-env-room-step-body">
         <label class="ctx-label">Room name
@@ -883,7 +883,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
     </div>
 
     <div class="light-env-room-step">
-      <div class="light-env-room-step-head"><span class="light-env-room-step-num">2</span> Measure (optional)</div>
+      <div class="light-env-room-step-head">Measure (optional)</div>
       <p class="light-env-room-step-sub">Pick whichever you have time for — even one helps the AI grade this room better.</p>
       <div class="light-env-room-step-body">
         <div class="light-env-room-tools">
@@ -949,7 +949,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
   const pickLabels = { phone: '📱 Phone', laptop: '💻 Laptop', monitor: '🖥 Monitor', tablet: '📲 Tablet', tv: '📺 TV' };
 
   html += `<div class="light-env-room-step">
-    <div class="light-env-room-step-head"><span class="light-env-room-step-num">3</span> ${escapeHTML(stepHead)}</div>
+    <div class="light-env-room-step-head">${escapeHTML(stepHead)}</div>
     <div class="light-env-room-step-body">`;
   if (screensHere.length === 0) {
     html += `<p class="light-env-room-empty">${escapeHTML(emptyCopy)}</p>`;
@@ -1091,9 +1091,24 @@ export function renderEnvironmentSection() {
   const interpHTML = (typeof window !== 'undefined' && window.renderBurdenInterp)
     ? window.renderBurdenInterp(burden)
     : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
-  html += `<div class="light-env-summary light-env-summary-${burden.color}">
+  // Reconcile the banner label with the AI verdict's dot when one exists.
+  // The deterministic computeIndoorBurden() tier crosses to "Heavy" at
+  // d2 > 8 hr — but the AI looks at the broader picture (sleep-room
+  // contamination, evening blue, room-by-room context) and may legitimately
+  // call it "moderate". Showing "HEAVY LOAD" as a header above an AI body
+  // that says "moderate" was contradictory copy. When the AI verdict is
+  // present + ok, drive the banner label/color from its dot so header +
+  // body agree. Gray / missing AI → fall through to the deterministic
+  // tier (this preserves behaviour for users without an AI provider).
+  const _aiVerdict = getEnvironment()?.burdenAI || null;
+  const _aiOk = _aiVerdict?.status === 'ok' && ['green','yellow','red'].includes(_aiVerdict?.dot);
+  const _bannerColor = _aiOk ? _aiVerdict.dot : burden.color;
+  const _bannerLabel = _aiOk
+    ? ({ green: 'Light load', yellow: 'Moderate load', red: 'Heavy load' }[_aiVerdict.dot])
+    : burden.label;
+  html += `<div class="light-env-summary light-env-summary-${_bannerColor}">
     <div class="light-env-summary-head">
-      <span class="light-env-summary-tier">${escapeHTML(burden.label)}</span>
+      <span class="light-env-summary-tier">${escapeHTML(_bannerLabel)}</span>
       ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
     </div>
     ${interpHTML}

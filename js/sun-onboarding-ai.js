@@ -123,7 +123,7 @@ export function buildOnboardingContext() {
 }
 
 const SYSTEM_PROMPT = [
-  'You synthesize a user\'s Light & Sun setup answers into a personalized starting plan.',
+  'You synthesize a user\'s Light & Sun setup answers into a brief contextual read of how their skin type + location + lighting environment shape what matters most for them. The output frames the user\'s situation rather than prescribing a step-by-step plan.',
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string","actions":["string","string","string"]}.',
   '',
   'dot:',
@@ -187,7 +187,7 @@ export function renderOnboardingAIBlock() {
   const a = d.aiAnalysis;
   if (status === 'analyzing') {
     return `<div class="light-setup-ai-block">
-      <div class="light-setup-ai-head">Personalized starting plan</div>
+      <div class="light-setup-ai-head">Your light context</div>
       <div class="sun-detail-ai sun-detail-ai-loading">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
         <span>Synthesizing your setup…</span>
@@ -201,7 +201,7 @@ export function renderOnboardingAIBlock() {
       : '';
     return `<div class="light-setup-ai-block light-setup-ai-block-${dot}">
       <div class="light-setup-ai-head">
-        <span class="light-setup-ai-head-label">Personalized starting plan</span>
+        <span class="light-setup-ai-head-label">Your light context</span>
         <button class="sun-session-ai-refresh" onclick="window.refreshOnboardingAIAnalysis()" title="Re-run analysis" aria-label="Re-run">↻</button>
       </div>
       <div class="sun-detail-ai sun-detail-ai-${dot}">
@@ -217,7 +217,7 @@ export function renderOnboardingAIBlock() {
   if (status === 'error') {
     const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
     return `<div class="light-setup-ai-block">
-      <div class="light-setup-ai-head">Personalized starting plan</div>
+      <div class="light-setup-ai-head">Your light context</div>
       <div class="sun-detail-ai sun-detail-ai-error">
         <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
         <span>${escapeHTML(msg)}</span>
@@ -226,10 +226,10 @@ export function renderOnboardingAIBlock() {
     </div>`;
   }
   return `<div class="light-setup-ai-block">
-    <div class="light-setup-ai-head">Personalized starting plan</div>
+    <div class="light-setup-ai-head">Your light context</div>
     <div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span>Get a starting plan tailored to your skin type, lighting environment, and goals.</span>
+      <span>Get a contextual read on your skin type, lighting environment, and goals.</span>
       <button class="sun-session-ai-refresh" onclick="window.refreshOnboardingAIAnalysis()">Generate plan</button>
     </div>
   </div>`;

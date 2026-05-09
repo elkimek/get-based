@@ -921,7 +921,7 @@ export async function renderDevicesSection() {
       </div>` : ''}
       <div class="light-device-stats">${escapeHTML(statsLine)}</div>
       <div class="light-device-actions">
-        <button class="import-btn import-btn-primary light-device-log" onclick="window.openDeviceSessionDialog('${escapeAttr(dev.id)}')">▶ Log session</button>
+        <button class="import-btn import-btn-secondary light-device-log" onclick="window.openDeviceSessionDialog('${escapeAttr(dev.id)}')">▶ Log session</button>
         ${affRow}
       </div>
     </div>`;

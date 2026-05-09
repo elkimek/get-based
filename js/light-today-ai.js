@@ -80,11 +80,13 @@ export function computeLightTrends(targetDate = new Date()) {
     const elev = 90 - window.solarZenithAngle(new Date(s.startedAt), s.location.lat, s.location.lon);
     return elev < 6 && elev > -6 && (s.endedAt - s.startedAt) > 5 * 60000;
   }).sort((a, b) => b.endedAt - a.endedAt);
+  // Only flag sunrise gaps when the user has previously logged at least
+  // one — a "no sunrise sessions ever" signal is just behaviour-reflective
+  // noise (many users don't do sunrise sessions deliberately) and was
+  // contradicting otherwise-green verdicts in the Today's Light hero.
   if (sunriseSessions.length) {
     const daysSince = Math.floor((targetTs - sunriseSessions[0].endedAt) / 86400000);
     if (daysSince >= 3) out.signals.push(`${daysSince} days since last sunrise session (last on ${new Date(sunriseSessions[0].endedAt).toISOString().slice(0, 10)})`);
-  } else if (sessions.length > 0) {
-    out.signals.push('No sunrise sessions logged in available history');
   }
   const cutoff7 = targetTs - 7 * 86400000;
   const cutoff14 = targetTs - 14 * 86400000;
@@ -373,6 +375,12 @@ export function renderLightTodayHero() {
   }
   if (status === 'ok') {
     const dot = cached.dot;
+    // Trend bar repeats deterministic flags the verdict has already
+    // incorporated — when the verdict is green, suppress it to avoid
+    // the "✓ Solid coverage" + "⚡ days since…" contradiction surfaced
+    // in the v1.6.x UX review. Yellow / red verdicts keep the trend
+    // bar as supporting context.
+    const _showTrendBar = dot !== 'green';
     return `<div class="light-today-hero light-today-hero-${dot}">
       <div class="light-today-hero-head">
         <span class="light-today-hero-label">Today's light</span>
@@ -385,7 +393,7 @@ export function renderLightTodayHero() {
         </div>
         ${cached.detail ? `<div class="sun-detail-ai-body">${escapeHTML(cached.detail)}</div>` : ''}
       </div>
-      ${trendBar}
+      ${_showTrendBar ? trendBar : ''}
     </div>`;
   }
   if (status === 'error') {

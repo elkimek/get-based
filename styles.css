@@ -5998,8 +5998,10 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-device-typeline {
   font-size: 11px; color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  /* Removed uppercase + tracking — the line carries technical detail
+     (wavelength range, irradiance) that reads as shouty jargon when
+     uppercased. Sentence-case + normal spacing is much more legible
+     to non-experts and still scans as a secondary spec line. */
 }
 .light-device-delete {
   background: transparent; border: none;

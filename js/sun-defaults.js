@@ -274,7 +274,7 @@ function renderSavedSummary() {
     <div class="light-setup-summary-head">
       <span class="light-setup-summary-headline">
         <span class="light-setup-summary-tick">✓</span>
-        Light setup saved
+        Your light setup
       </span>
       <button class="import-btn import-btn-secondary light-setup-summary-edit" onclick="window.reopenSunSetup && window.reopenSunSetup()">Edit</button>
     </div>
