@@ -235,7 +235,7 @@ export async function exportEncryptedBackup() {
 
 export function importEncryptedBackup(file) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const backup = JSON.parse(e.target.result);
       if (backup.format !== 'labcharts-backup' || !backup.profileList) {
@@ -246,50 +246,44 @@ export function importEncryptedBackup(file) {
       const profileCount = backup.profiles ? backup.profiles.length : 0;
       const encMsg = backup.encrypted ? ' This backup is encrypted \u2014 you\'ll need the same passphrase.' : '';
 
-      showConfirmDialog(
-        `Restore backup from ${new Date(backup.createdAt).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`,
-        () => {
-          if (backup.encrypted && backup.encryptionSalt) {
-            localStorage.setItem('labcharts-encryption-enabled', 'true');
-            localStorage.setItem('labcharts-encryption-salt', backup.encryptionSalt);
-          } else {
-            localStorage.removeItem('labcharts-encryption-enabled');
-            localStorage.removeItem('labcharts-encryption-salt');
-          }
-
-          if (backup.settings && typeof backup.settings === 'object') {
-            for (const [k, v] of Object.entries(backup.settings)) {
-              localStorage.setItem(k, v);
-            }
-          }
-
-          localStorage.setItem('labcharts-profiles', backup.profileList);
-
-          // Restore each profile's keys. Big-blob keys (`-imported`)
-          // route to IndexedDB; everything else stays in localStorage.
-          // writeRawStoredItem is async because of the IDB path \u2014 wrap
-          // the whole restore in a Promise.all chain so the wearable
-          // restore + reload only fires after all profile keys are
-          // actually written.
-          const writeAll = (async () => {
-            if (backup.profiles) {
-              for (const p of backup.profiles) {
-                for (const [suffix, value] of Object.entries(p.keys)) {
-                  const key = `labcharts-${p.profileId}-${suffix}`;
-                  await writeRawStoredItem(key, value);
-                }
-              }
-            }
-          })();
-
-          writeAll
-            .then(() => restoreWearableIDB(backup.wearableIDB))
-            .finally(() => {
-              showNotification('Backup restored \u2014 reloading...', 'success');
-              setTimeout(() => location.reload(), 1000);
-            });
+      if (await showConfirmDialog(
+        `Restore backup from ${new Date(backup.createdAt).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
+      )) {
+        if (backup.encrypted && backup.encryptionSalt) {
+          localStorage.setItem('labcharts-encryption-enabled', 'true');
+          localStorage.setItem('labcharts-encryption-salt', backup.encryptionSalt);
+        } else {
+          localStorage.removeItem('labcharts-encryption-enabled');
+          localStorage.removeItem('labcharts-encryption-salt');
         }
-      );
+
+        if (backup.settings && typeof backup.settings === 'object') {
+          for (const [k, v] of Object.entries(backup.settings)) {
+            localStorage.setItem(k, v);
+          }
+        }
+
+        localStorage.setItem('labcharts-profiles', backup.profileList);
+
+        // Restore each profile's keys. Big-blob keys (`-imported`)
+        // route to IndexedDB; everything else stays in localStorage.
+        // writeRawStoredItem is async because of the IDB path \u2014 await
+        // each so the wearable restore + reload only fires after all
+        // profile keys are actually written.
+        if (backup.profiles) {
+          for (const p of backup.profiles) {
+            for (const [suffix, value] of Object.entries(p.keys)) {
+              const key = `labcharts-${p.profileId}-${suffix}`;
+              await writeRawStoredItem(key, value);
+            }
+          }
+        }
+
+        restoreWearableIDB(backup.wearableIDB).finally(() => {
+          showNotification('Backup restored \u2014 reloading...', 'success');
+          setTimeout(() => location.reload(), 1000);
+        });
+      }
     } catch (err) {
       showNotification('Error reading backup: ' + err.message, 'error');
     }
@@ -404,38 +398,37 @@ export async function restoreAutoBackup(id) {
   }
   const backup = record.snapshot;
 
-  showConfirmDialog(
-    `Restore auto-backup from ${new Date(backup.createdAt).toLocaleString()}? This will overwrite all current data.`,
-    () => {
-      if (backup.encrypted && backup.encryptionSalt) {
-        localStorage.setItem('labcharts-encryption-enabled', 'true');
-        localStorage.setItem('labcharts-encryption-salt', backup.encryptionSalt);
-      } else {
-        localStorage.removeItem('labcharts-encryption-enabled');
-        localStorage.removeItem('labcharts-encryption-salt');
-      }
-      if (backup.settings && typeof backup.settings === 'object') {
-        for (const [k, v] of Object.entries(backup.settings)) {
-          localStorage.setItem(k, v);
-        }
-      }
-      localStorage.setItem('labcharts-profiles', backup.profileList);
-      if (backup.profiles) {
-        for (const p of backup.profiles) {
-          for (const [suffix, value] of Object.entries(p.keys)) {
-            localStorage.setItem(`labcharts-${p.profileId}-${suffix}`, value);
-          }
-        }
-      }
-      // Wearable L1 IDB rows live outside localStorage \u2014 restore them
-      // separately so the strip's detail-modal chart history is preserved
-      // along with everything else.
-      restoreWearableIDB(backup.wearableIDB).finally(() => {
-        showNotification('Backup restored \u2014 reloading...', 'success');
-        setTimeout(() => location.reload(), 1000);
-      });
+  if (await showConfirmDialog(
+    `Restore auto-backup from ${new Date(backup.createdAt).toLocaleString()}? This will overwrite all current data.`
+  )) {
+    if (backup.encrypted && backup.encryptionSalt) {
+      localStorage.setItem('labcharts-encryption-enabled', 'true');
+      localStorage.setItem('labcharts-encryption-salt', backup.encryptionSalt);
+    } else {
+      localStorage.removeItem('labcharts-encryption-enabled');
+      localStorage.removeItem('labcharts-encryption-salt');
     }
-  );
+    if (backup.settings && typeof backup.settings === 'object') {
+      for (const [k, v] of Object.entries(backup.settings)) {
+        localStorage.setItem(k, v);
+      }
+    }
+    localStorage.setItem('labcharts-profiles', backup.profileList);
+    if (backup.profiles) {
+      for (const p of backup.profiles) {
+        for (const [suffix, value] of Object.entries(p.keys)) {
+          localStorage.setItem(`labcharts-${p.profileId}-${suffix}`, value);
+        }
+      }
+    }
+    // Wearable L1 IDB rows live outside localStorage \u2014 restore them
+    // separately so the strip's detail-modal chart history is preserved
+    // along with everything else.
+    restoreWearableIDB(backup.wearableIDB).finally(() => {
+      showNotification('Backup restored \u2014 reloading...', 'success');
+      setTimeout(() => location.reload(), 1000);
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -537,15 +530,15 @@ export async function reauthorizeFolderBackup() {
   }
 }
 
-export function removeFolderBackup() {
-  showConfirmDialog('Stop backing up to this folder?', async () => {
+export async function removeFolderBackup() {
+  if (await showConfirmDialog('Stop backing up to this folder?')) {
     _folderHandle = null;
     _folderPermissionLost = false;
     await clearFolderHandle();
     localStorage.removeItem('labcharts-folder-backup-last');
     showNotification('Folder backup removed', 'info');
     refreshFolderBackupUI();
-  });
+  }
 }
 
 export function getFolderBackupState() {

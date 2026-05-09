@@ -1642,7 +1642,7 @@ return (async function() {
   // dispatched as a fire-and-forget dynamic import — guard the call site.
   const profileSrc = await fetch('/js/profile.js').then(r => r.text());
   assert('deleteProfile dispatches deleteWearablesDB(profileId) for the deleted profile',
-    /export function deleteProfile[\s\S]*?deleteWearablesDB\(profileId\)/.test(profileSrc));
+    /export (?:async )?function deleteProfile[\s\S]*?deleteWearablesDB\(profileId\)/.test(profileSrc));
 
   // P0-B: auto-backup carries wearable L1 rows. buildFullBackupSnapshot
   // exists, populates `wearableIDB`, and is called from auto-backup +

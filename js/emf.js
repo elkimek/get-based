@@ -412,8 +412,8 @@ export function removeEMFRoom(assessmentId, roomIdx) {
   renderEMFEditor(document.getElementById('detail-modal'));
 }
 
-export function deleteEMFAssessment(id) {
-  showConfirmDialog('Delete this EMF assessment? This cannot be undone.', () => {
+export async function deleteEMFAssessment(id) {
+  if (await showConfirmDialog('Delete this EMF assessment? This cannot be undone.')) {
     const assessments = ensureAssessments();
     const idx = assessments.findIndex(x => x.id === id);
     if (idx === -1) return;
@@ -423,7 +423,7 @@ export function deleteEMFAssessment(id) {
     saveImportedData();
     renderEMFEditor(document.getElementById('detail-modal'));
     showNotification('Assessment deleted', 'info');
-  });
+  }
 }
 
 export function updateEMFField(assessmentId, field, value) {

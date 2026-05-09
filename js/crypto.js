@@ -703,7 +703,7 @@ async function _walkWearableIDB(mode) {
 }
 
 export async function disableEncryption() {
-  showConfirmDialog('Disable encryption? Your data will be stored in plaintext.', async () => {
+  if (await showConfirmDialog('Disable encryption? Your data will be stored in plaintext.')) {
     try {
       // CRITICAL ORDER: walk wearable IDB BEFORE clearing _sessionKey, so
       // rows can decrypt under the current key. Then localStorage walk,
@@ -722,7 +722,7 @@ export async function disableEncryption() {
     } catch (err) {
       showNotification('Failed to disable encryption: ' + err.message, 'error');
     }
-  });
+  }
 }
 
 export async function changePassphrase() {

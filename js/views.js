@@ -4134,7 +4134,7 @@ export function deleteMarkerValue(id, date) {
   });
 }
 
-export function deleteCustomMarker(id) {
+export async function deleteCustomMarker(id) {
   const dotKey = id.replace('_', '.');
   const catKey = dotKey.split('.')[0];
   const def = state.importedData?.customMarkers?.[dotKey];
@@ -4145,7 +4145,7 @@ export function deleteCustomMarker(id) {
   const msg = isLastInCat
     ? `Delete "${def.name}" and the entire "${def.categoryLabel || catKey}" category? This cannot be undone.`
     : `Delete "${def.name}" and all its values? This cannot be undone.`;
-  showConfirmDialog(msg, () => {
+  if (await showConfirmDialog(msg)) {
     // Determine which keys to delete — just this marker, or all in category
     const keysToDelete = isLastInCat ? siblingsInCat : [dotKey];
     for (const key of keysToDelete) {
@@ -4176,7 +4176,7 @@ export function deleteCustomMarker(id) {
     updateHeaderDates();
     navigate('dashboard');
     showNotification(`Deleted "${def.name}"${isLastInCat && siblingsInCat.length > 1 ? ` and ${siblingsInCat.length - 1} other marker(s)` : ''}`, 'info');
-  });
+  }
 }
 
 export function editMarkerValue(id, date, currentValue, event) {

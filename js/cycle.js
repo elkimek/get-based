@@ -438,8 +438,8 @@ export function saveMenstrualCycle() {
   setTimeout(() => { if (window.startCycleTour) window.startCycleTour(true); }, 600);
 }
 
-export function clearMenstrualCycle() {
-  showConfirmDialog('Clear all menstrual cycle data? This cannot be undone.', () => {
+export async function clearMenstrualCycle() {
+  if (await showConfirmDialog('Clear all menstrual cycle data? This cannot be undone.')) {
     state.importedData.menstrualCycle = null;
     window.recordChange('menstrualCycle');
     saveImportedData();
@@ -447,7 +447,7 @@ export function clearMenstrualCycle() {
     const activeNav = document.querySelector(".nav-item.active");
     window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
     showNotification('Menstrual cycle data cleared', 'info');
-  });
+  }
 }
 
 function _toggleCycleEditorFields() {

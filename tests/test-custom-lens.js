@@ -389,10 +389,10 @@ return (async function() {
   assert('styles include active state', cssSrc.includes('.chat-lens-indicator.active'));
   assert('styles include error state', cssSrc.includes('.chat-lens-indicator.error'));
 
-  // ─── 19. BUG 1 regression: handleRemoveLens uses callback form ───
-  console.log('\n19. handleRemoveLens callback form');
-  assert('handleRemoveLens is not async (uses callback)', !/async function handleRemoveLens/.test(lensSrc));
-  assert('handleRemoveLens passes callback to showConfirmDialog', /showConfirmDialog\([^)]+,\s*async\s*\(\)\s*=>/.test(lensSrc));
+  // ─── 19. BUG 1 regression: handleRemoveLens uses promise-based showConfirmDialog ───
+  console.log('\n19. handleRemoveLens promise form');
+  assert('handleRemoveLens is async (uses promise-based showConfirmDialog)', /async function handleRemoveLens/.test(lensSrc));
+  assert('handleRemoveLens awaits showConfirmDialog', /await\s+showConfirmDialog\(/.test(lensSrc.split('async function handleRemoveLens')[1] || ''));
 
   // ─── 20. BUG 2 regression: testLensConnection works when disabled ───
   console.log('\n20. testLensConnection disabled-toggle flow');

@@ -1057,12 +1057,12 @@ async function _importDatabaseBundle(json) {
   showNotification(`Imported ${total} profile${total !== 1 ? 's' : ''} (${created} new, ${merged} merged)`, 'success');
 }
 
-export function clearAllData() {
+export async function clearAllData() {
   const profiles = getProfiles();
   const msg = profiles.length > 1
     ? `Clear ALL data across ${profiles.length} profiles? This cannot be undone.`
     : 'Are you sure you want to clear all imported data? This cannot be undone.';
-  showConfirmDialog(msg, async () => {
+  if (await showConfirmDialog(msg)) {
     // Wipe storage for every profile
     for (const p of profiles) {
       const id = p.id;
@@ -1118,7 +1118,7 @@ export function clearAllData() {
     window.renderProfileButton();
     window.navigate('dashboard');
     showNotification('All data cleared', 'info');
-  });
+  }
 }
 
 export async function loadDemoData(sex = 'male') {

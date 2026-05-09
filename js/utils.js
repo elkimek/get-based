@@ -177,25 +177,27 @@ export function showNotification(message, type, duration) {
   }, duration || 3000);
 }
 
-export function showConfirmDialog(message, onConfirm) {
-  let overlay = document.getElementById("confirm-dialog-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "confirm-dialog-overlay";
-    overlay.className = "confirm-overlay";
-    document.body.appendChild(overlay);
-  }
-  overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-label="Confirmation">
+export function showConfirmDialog(message) {
+  return new Promise((resolve) => {
+    let overlay = document.getElementById("confirm-dialog-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "confirm-dialog-overlay";
+      overlay.className = "confirm-overlay";
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-label="Confirmation">
     <p class="confirm-message">${escapeHTML(message)}</p>
     <div class="confirm-actions">
       <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
       <button class="confirm-btn confirm-btn-danger" id="confirm-ok">Confirm</button>
     </div></div>`;
-  overlay.classList.add("show");
-  document.getElementById("confirm-ok").onclick = () => { overlay.classList.remove("show"); onConfirm(); };
-  document.getElementById("confirm-cancel").onclick = () => { overlay.classList.remove("show"); };
-  overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
-  document.getElementById("confirm-cancel").focus();
+    overlay.classList.add("show");
+    document.getElementById("confirm-ok").onclick = () => { overlay.classList.remove("show"); resolve(true); };
+    document.getElementById("confirm-cancel").onclick = () => { overlay.classList.remove("show"); resolve(false); };
+    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
+    document.getElementById("confirm-cancel").focus();
+  });
 }
 
 /// Promise-based replacement for `window.prompt()`. Browsers block the

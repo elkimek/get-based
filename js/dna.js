@@ -1102,11 +1102,11 @@ export { HAPLOGROUP_LIST };
 /// card matches the rest of the app's modal styling and respects the
 /// PWA / file:// contexts where the native window.confirm prompt
 /// would feel out of place.
-function confirmDeleteDNA() {
-  window.showConfirmDialog('Delete genetic data? This cannot be undone.', () => {
+async function confirmDeleteDNA() {
+  if (await window.showConfirmDialog('Delete genetic data? This cannot be undone.')) {
     deleteGeneticsData(window._getState().importedData);
     window._saveAndRefresh();
-  });
+  }
 }
 
 // ═══════════════════════════════════════════════

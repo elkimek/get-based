@@ -1800,13 +1800,9 @@ export async function handleImageFile(file) {
   // PII warning — images cannot be scrubbed
   const provider = getAIProvider();
   if (provider !== 'ollama') {
-    const confirmed = await new Promise(resolve => {
-      showConfirmDialog(
-        'This image will be sent directly to the AI provider. Personal details visible in the image cannot be scrubbed before upload. Continue?',
-        () => resolve(true), () => resolve(false)
-      );
-    });
-    if (!confirmed) return;
+    if (!await showConfirmDialog(
+      'This image will be sent directly to the AI provider. Personal details visible in the image cannot be scrubbed before upload. Continue?'
+    )) return;
   }
   const _startProfileId = state.currentProfile;
   try {

@@ -1188,7 +1188,7 @@ function resetCurrentProfileUsage() {
 // Disable confirmation for the PII review toggle. On→off shows a one-time
 // warning so users don't silently lose visibility into what's leaving their
 // device. On→on (re-enabling) and the initial setup are silent.
-export function confirmDisablePIIReview(checkbox) {
+export async function confirmDisablePIIReview(checkbox) {
   if (checkbox.checked) {
     setPIIReviewEnabled(true);
     return;
@@ -1201,14 +1201,13 @@ export function confirmDisablePIIReview(checkbox) {
   }
   // Restore the toggle while the dialog is open; commit only on confirm
   checkbox.checked = true;
-  showConfirmDialog(
-    "Turn off the obfuscation review?\n\nWith this off, getbased's PII detector runs but you won't see the result before it's sent to the AI provider. Recommended only after you've verified the obfuscation works on your data.",
-    () => {
-      localStorage.setItem('labcharts-pii-review-disable-ack', '1');
-      setPIIReviewEnabled(false);
-      checkbox.checked = false;
-    }
-  );
+  if (await showConfirmDialog(
+    "Turn off the obfuscation review?\n\nWith this off, getbased's PII detector runs but you won't see the result before it's sent to the AI provider. Recommended only after you've verified the obfuscation works on your data."
+  )) {
+    localStorage.setItem('labcharts-pii-review-disable-ack', '1');
+    setPIIReviewEnabled(false);
+    checkbox.checked = false;
+  }
 }
 
 Object.assign(window, {

@@ -71,7 +71,7 @@ return (async function() {
   console.log('%c 2. Confirm Dialog Delete ', 'font-weight:bold;color:#f59e0b');
   delBtn.click();
   await new Promise(r => setTimeout(r, 200));
-  // showConfirmDialog (callback-style) renders #confirm-ok / #confirm-cancel.
+  // showConfirmDialog (promise-based) renders #confirm-ok / #confirm-cancel.
   // Assert the dialog appeared (not as a no-op TypeError swallowed silently).
   const confirmOk = document.getElementById('confirm-ok');
   assert('Confirm dialog renders an OK button on entry-delete click',

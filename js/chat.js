@@ -546,11 +546,11 @@ export function editCustomPersonality(id) {
   updatePersonalityBar();
 }
 
-export function deleteCustomPersonality(id) {
+export async function deleteCustomPersonality(id) {
   const customs = getCustomPersonalities();
   const cp = customs.find(p => p.id === id);
   const name = cp ? cp.name : 'personality';
-  showConfirmDialog(`Delete "${name}"? This cannot be undone.`, () => {
+  if (await showConfirmDialog(`Delete "${name}"? This cannot be undone.`)) {
     const updated = customs.filter(p => p.id !== id);
     saveCustomPersonalities(updated);
     if (state.currentChatPersonality === id) {
@@ -561,7 +561,7 @@ export function deleteCustomPersonality(id) {
     updatePersonalityBar();
     updateChatHeaderTitle();
     renderChatMessages();
-  });
+  }
 }
 
 export async function generateCustomPersonality() {

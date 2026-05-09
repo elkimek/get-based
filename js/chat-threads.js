@@ -153,8 +153,8 @@ export async function switchToThread(threadId) {
   renderThreadList();
 }
 
-export function deleteThread(threadId) {
-  showConfirmDialog('Delete this conversation? This cannot be undone.', () => {
+export async function deleteThread(threadId) {
+  if (await showConfirmDialog('Delete this conversation? This cannot be undone.')) {
     invalidateThreadContentCache();
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
@@ -178,7 +178,7 @@ export function deleteThread(threadId) {
     }
     renderThreadList();
     showNotification('Conversation deleted', 'info');
-  });
+  }
 }
 
 export function renameThread(threadId, newName) {

@@ -1135,9 +1135,9 @@ async function _handleLocalLensIngest(fileList) {
   }
 }
 
-export function handleLocalLensDeleteDoc(source) {
+export async function handleLocalLensDeleteDoc(source) {
   if (!source) return;
-  showConfirmDialog(`Remove "${source}" from your knowledge base?`, async () => {
+  if (await showConfirmDialog(`Remove "${source}" from your knowledge base?`)) {
     try {
       const lens = await _getLocalLens();
       const deleted = await lens.deleteDocument(source);
@@ -1146,11 +1146,11 @@ export function handleLocalLensDeleteDoc(source) {
     } catch (e) {
       showNotification(`Couldn't delete that document: ${e?.message || e}.`, 'error');
     }
-  });
+  }
 }
 
-export function handleLocalLensClear() {
-  showConfirmDialog('Clear every document from your knowledge base? This can\'t be undone.', async () => {
+export async function handleLocalLensClear() {
+  if (await showConfirmDialog('Clear every document from your knowledge base? This can\'t be undone.')) {
     try {
       const lens = await _getLocalLens();
       await lens.clear();
@@ -1160,7 +1160,7 @@ export function handleLocalLensClear() {
     } catch (e) {
       showNotification(`Couldn't clear the knowledge base: ${e?.message || e}.`, 'error');
     }
-  });
+  }
 }
 
 // ── Library management handlers ────────────────────────────────
@@ -1426,8 +1426,8 @@ export async function handleLibraryRename() {
   }
 }
 
-export function handleLibraryDelete() {
-  showConfirmDialog('Delete the active library? Every document in it will be removed. This can\'t be undone.', async () => {
+export async function handleLibraryDelete() {
+  if (await showConfirmDialog('Delete the active library? Every document in it will be removed. This can\'t be undone.')) {
     try {
       const { libraries, activeId } = await _libList();
       if (!activeId) return;
@@ -1448,7 +1448,7 @@ export function handleLibraryDelete() {
     } catch (e) {
       showNotification(`Couldn't delete library: ${e?.message || e}.`, 'error');
     }
-  });
+  }
 }
 
 export function handleToggleLens(checked) {
@@ -1462,13 +1462,13 @@ export function handleClearLensCache() {
   showNotification('Lens cache cleared', 'info');
 }
 
-export function handleRemoveLens() {
+export async function handleRemoveLens() {
   const cfg = getLensConfig();
   const isBrowser = cfg.backend === 'in-browser';
   const prompt = isBrowser
     ? 'Remove Knowledge Source? This also deletes every document you indexed in the browser. This can\'t be undone.'
     : 'Remove Knowledge Source? Your server URL and API key will be deleted.';
-  showConfirmDialog(prompt, async () => {
+  if (await showConfirmDialog(prompt)) {
     await removeLens();
     if (isBrowser) {
       try {
@@ -1484,7 +1484,7 @@ export function handleRemoveLens() {
       : 'Knowledge Source removed.',
       'info',
     );
-  });
+  }
 }
 
 Object.assign(window, {

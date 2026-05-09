@@ -1906,7 +1906,7 @@ export async function handleRemovePpqKey() {
   const msg = hasFunds
     ? `This account has $${parseFloat(balance).toFixed(2)} remaining. Removing this key will permanently lose access to those funds unless you\u2019ve saved the key elsewhere.\n\nRemove PPQ key?`
     : 'Remove PPQ key? Make sure you\u2019ve saved it if you want to reuse this account later.';
-  showConfirmDialog(msg, function() {
+  if (await showConfirmDialog(msg)) {
     localStorage.removeItem('labcharts-ppq-key');
     updateKeyCache('labcharts-ppq-key', null);
     localStorage.removeItem('labcharts-ppq-models');
@@ -1916,7 +1916,7 @@ export async function handleRemovePpqKey() {
     localStorage.removeItem('labcharts-ppq-credit-id');
     showNotification('PPQ key removed', 'info');
     window.openSettingsModal?.();
-  });
+  }
 }
 
 export function renderPpqModelDropdown(models) {

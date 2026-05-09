@@ -442,10 +442,10 @@ export function touchProfileTimestamp(profileId) {
   if (p) { p.lastUpdated = Date.now(); saveProfiles(profiles); }
 }
 
-export function deleteProfile(profileId, onComplete) {
+export async function deleteProfile(profileId, onComplete) {
   const profiles = getProfiles();
   if (profiles.length <= 1) { showNotification("Cannot delete the last profile", "error"); return; }
-  window.showConfirmDialog('Delete this profile and all its data? This cannot be undone.', async () => {
+  if (await window.showConfirmDialog('Delete this profile and all its data? This cannot be undone.')) {
     const updated = profiles.filter(p => p.id !== profileId);
     saveProfiles(updated);
     // The `-imported` blob lives in IndexedDB now → encryptedRemoveItem
@@ -494,7 +494,7 @@ export function deleteProfile(profileId, onComplete) {
     }
     showNotification('Profile deleted', 'info');
     if (onComplete) onComplete();
-  });
+  }
 }
 
 export async function switchProfile(profileId) {

@@ -281,18 +281,14 @@ return (async function() {
     assert('deleteManualEntryFromDetail closes modal when last reading is removed',
       /closeModal/.test(delFn));
 
-    // showConfirmDialog is callback-style: (message, onConfirm). Earlier code
-    // mistakenly called it with a 4-arg promise-style signature, which made
-    // the second string land as `onConfirm` — clicking Confirm threw
-    // `TypeError: onConfirm is not a function` and the await never resolved,
-    // so the delete silently no-op'd. Pin both call sites to the callback shape.
+    // showConfirmDialog is promise-based (returns Promise<boolean>). The v1.24.1
+    // regression (537bec4) was caused by a 4-arg call where the body string
+    // landed in the onConfirm slot. Both call sites now use await showConfirmDialog().
     const handleDisconnectFn = wearablesSrc.match(/async function handleManualDisconnect[\s\S]*?\n\}\s*\n/)?.[0] || '';
-    assert('deleteManualEntryFromDetail uses callback-style showConfirmDialog (not 4-arg promise)',
-      /showConfirmDialog\([^,]+,\s*async\s*\(\s*\)\s*=>/.test(delFn) &&
-      !/await\s+window\.showConfirmDialog/.test(delFn));
-    assert('handleManualDisconnect uses callback-style showConfirmDialog',
-      /showConfirmDialog\(\s*[\s\S]*?,\s*async\s*\(\s*\)\s*=>/.test(handleDisconnectFn) &&
-      !/await\s+window\.showConfirmDialog/.test(handleDisconnectFn));
+    assert('deleteManualEntryFromDetail uses promise-style showConfirmDialog',
+      /await\s+window\.showConfirmDialog\(/.test(delFn));
+    assert('handleManualDisconnect uses promise-style showConfirmDialog',
+      /await\s+window\.showConfirmDialog\(/.test(handleDisconnectFn));
 
   } finally {
     // Restore live profile
