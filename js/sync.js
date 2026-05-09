@@ -735,8 +735,10 @@ function _syncDiag() {
     }
   }
   info.localTimestamps = tsList;
-  console.table?.(info.evoluRows);
-  console.log('[sync] Diagnostics:', JSON.stringify(info, null, 2));
+  if (isDebugMode()) {
+    console.table?.(info.evoluRows);
+    console.log('[sync] Diagnostics:', JSON.stringify(info, null, 2));
+  }
   return info;
 }
 
@@ -871,7 +873,11 @@ async function collectChatData(profileId) {
     for (const t of threads) {
       const msgKey = `labcharts-${profileId}-chat-t_${t.id}`;
       const msgRaw = await encryptedGetItem(msgKey) || localStorage.getItem(msgKey);
-      if (msgRaw) messages[t.id] = JSON.parse(msgRaw);
+      if (!msgRaw) continue;
+      // Per-thread try/catch — a single corrupted thread payload must NOT
+      // nuke the entire chat-data collection (the outer try/catch returns
+      // null, silently dropping every other thread on the way out).
+      try { messages[t.id] = JSON.parse(msgRaw); } catch (_) {}
     }
     // Custom personalities
     const customRaw = localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`);
@@ -3264,9 +3270,9 @@ export function onDataSaved() {
       const timer = setTimeout(() => {
         _debounceTimers.delete(profileId);
         if (_syncing) {
-          setTimeout(() => pushProfile(profileId, data), 1000);
+          setTimeout(() => { pushProfile(profileId, data).catch(() => {}); }, 1000);
         } else {
-          pushProfile(profileId, data);
+          pushProfile(profileId, data).catch(() => {});
         }
       }, 10_000);
       _debounceTimers.set(profileId, timer);
@@ -3295,9 +3301,9 @@ export function onChatSaved() {
   const timer = setTimeout(() => {
     _chatSyncTimers.delete(profileId);
     if (_syncing) {
-      setTimeout(() => pushProfile(profileId, data), 1000);
+      setTimeout(() => { pushProfile(profileId, data).catch(() => {}); }, 1000);
     } else {
-      pushProfile(profileId, data);
+      pushProfile(profileId, data).catch(() => {});
     }
   }, 10000); // 10s debounce — chat saves are frequent during streaming
   _chatSyncTimers.set(profileId, timer);

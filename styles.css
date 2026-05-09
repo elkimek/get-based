@@ -6437,7 +6437,12 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
    more actions land. Sits next to the chevron, away from primary
    scan path. */
 .light-env-overflow {
-  width: 26px; height: 26px;
+  /* 32px visual size — was 26px, but hybrid mouse+touch devices
+     (iPad with cursor, Surface, etc.) treat it as a mouse target without
+     the @media (pointer: coarse) expansion firing. WCAG 2.5.5 minimum
+     is 44px; 32px stays under but is acceptable for tertiary delete
+     actions where the cell tap area is the primary path. */
+  width: 32px; height: 32px;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 0;
   border-radius: 6px;
@@ -6451,6 +6456,12 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   background: rgba(244,67,54,0.08);
   color: var(--red);
   border-color: var(--red);
+}
+.light-env-overflow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  background: rgba(244,67,54,0.08);
+  color: var(--red);
 }
 
 /* Screens — disclosure pattern matching rooms. Collapsed shows
@@ -6481,9 +6492,11 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 .light-env-screen-card-icon { font-size: 16px; }
 .light-env-screen-card-name {
   font-size: 14px; font-weight: 600; color: var(--text-primary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .light-env-screen-card-summary {
   font-size: 12px; color: var(--text-muted);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .light-env-screen-card-body {
   padding: 14px 16px;
@@ -6616,7 +6629,11 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
 }
 .light-env-room-disclosure-name {
   font-size: 14px; font-weight: 600; color: var(--text-primary);
-  flex-shrink: 0;
+  /* min-width:0 lets the name shrink past its intrinsic width inside the
+     flex row when the user names a room something long; ellipsis keeps the
+     chevron + delete button reachable on 375px viewports. */
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex-shrink: 1;
 }
 .light-env-room-disclosure-signals {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;

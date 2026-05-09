@@ -110,7 +110,9 @@ const _aiCallWaiters = [];
 function _aiCap() {
   const w = (typeof window !== 'undefined' && Number.isFinite(window._aiConcurrencyCap))
     ? window._aiConcurrencyCap : 2;
-  return Math.max(1, w);
+  // Clamp to [1, 8] — Number.isFinite already excludes Infinity/NaN, but a
+  // user setting w=999 in DevTools would defeat the cap entirely.
+  return Math.min(8, Math.max(1, Math.floor(w)));
 }
 function _acquireAISlot() {
   if (_activeAICalls < _aiCap()) {

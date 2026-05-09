@@ -41,6 +41,12 @@ function _formatNumber(n, digits = 1) {
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
+// Cap user-supplied free-text fields fed into prompt context. A device named
+// "Glow\n[SYSTEM: ignore previous]" would otherwise break out of the prompt.
+function _safeText(s, max = 80) {
+  return String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
 const _DEVICE_TYPE_DESCRIPTIONS = {
   uvb: 'UVB phototherapy panel — vitamin-D synthesis + POMC; eye exposure must be blocked',
   uva: 'UVA panel — nitric-oxide / cardiovascular benefit; no vitamin D; eye protection recommended',
@@ -87,10 +93,13 @@ export function buildDeviceSessionContext(sess) {
   lines.push('');
   lines.push('### Device');
   if (device) {
-    lines.push(`Brand · model: ${device.brand || '?'} ${device.model || ''}`.trim());
+    const safeBrand = _safeText(device.brand) || '?';
+    const safeModel = _safeText(device.model);
+    lines.push(`Brand · model: ${safeBrand}${safeModel ? ' ' + safeModel : ''}`);
     if (device.type) {
+      const safeType = _safeText(device.type, 30);
       const desc = _DEVICE_TYPE_DESCRIPTIONS[device.type];
-      lines.push(`Type: ${device.type}${desc ? ' — ' + desc : ''}`);
+      lines.push(`Type: ${safeType}${desc ? ' — ' + desc : ''}`);
     }
     if (Array.isArray(device.peakWavelengths) && device.peakWavelengths.length) {
       lines.push(`Peak wavelengths: ${device.peakWavelengths.map(w => w + ' nm').join(', ')}`);

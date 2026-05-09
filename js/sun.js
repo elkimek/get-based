@@ -1428,7 +1428,7 @@ export async function openStartSunSessionDialog() {
       banner.innerHTML = html;
       banner.hidden = false;
     }
-  });
+  }).catch(() => {});
 
   overlay.querySelector('#start-confirm').addEventListener('click', async () => {
     const eyeMode = overlay.querySelector('#start-eye-mode').value || 'direct';
@@ -1488,8 +1488,27 @@ export function _wireBackdropClose(overlay, closeFn) {
 }
 
 // Single export so sun.js / views.js / light-tools.js share one helper.
+// Owns three concerns for any overlay-style modal:
+//   1. Auto-focus the first focusable element after first paint.
+//   2. Restore focus on teardown (any path — `.remove()`, parent rebuild,
+//      Escape close, backdrop click).
+//   3. Lock body scroll while the overlay is mounted so the page behind
+//      doesn't scroll under the modal on touch / wheel input.
+//   4. Bind Escape-to-close so keyboard users can dismiss without mousing.
+//
+// Stacks correctly with nested overlays via a refcount on the body lock —
+// only the outermost teardown restores `body.style.overflow`.
+let _modalScrollLockCount = 0;
+let _modalPriorOverflow = '';
 export function trapModalFocus(overlay) {
   const previouslyFocused = document.activeElement;
+  // Body scroll lock — refcount so nested modals don't unlock the outer.
+  if (_modalScrollLockCount === 0) {
+    _modalPriorOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
+  _modalScrollLockCount++;
+  let teardown = false;
   // Defer until after the browser paints — innerHTML may be set right
   // after appendChild, and querySelector before paint can race.
   setTimeout(() => {
@@ -1498,10 +1517,30 @@ export function trapModalFocus(overlay) {
     );
     if (focusables.length > 0) try { focusables[0].focus(); } catch (e) {}
   }, 30);
-  // Restore focus on overlay removal. MutationObserver lets us catch any
-  // teardown path (overlay.remove(), parent rebuild, escape handler).
+  // Escape-to-close. Bound to document so it works regardless of where
+  // focus actually landed (e.g. focus traps that escaped the overlay).
+  const onKeydown = (e) => {
+    if (e.key === 'Escape' && document.body.contains(overlay)) {
+      e.preventDefault();
+      // Prefer overlay's own .remove() so any close() callback the modal
+      // wired (state cleanup, save-prompt, etc.) gets a chance to run via
+      // the MutationObserver below, rather than us bypassing it.
+      try { overlay.remove(); } catch (_) {}
+    }
+  };
+  document.addEventListener('keydown', onKeydown);
+  // Restore focus + release scroll-lock on overlay removal. MutationObserver
+  // catches every teardown path — .remove(), parent rebuild, Escape close.
   const restore = () => {
-    if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+    if (teardown) return;
+    teardown = true;
+    document.removeEventListener('keydown', onKeydown);
+    _modalScrollLockCount = Math.max(0, _modalScrollLockCount - 1);
+    if (_modalScrollLockCount === 0) {
+      document.body.style.overflow = _modalPriorOverflow;
+    }
+    if (previouslyFocused && typeof previouslyFocused.focus === 'function'
+        && document.contains(previouslyFocused)) {
       try { previouslyFocused.focus(); } catch (e) {}
     }
   };
