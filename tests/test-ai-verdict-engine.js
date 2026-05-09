@@ -127,24 +127,43 @@ return (async function () {
     }
   }
 
-  // ─── 6. Force-refresh STILL hits cache when fingerprint matches ────
-  console.log('%c 6. Force + cache hit (CRDT-churn fix) ', 'font-weight:bold;color:#a855f7');
+  // ─── 6. Force-refresh BYPASSES cache even when fingerprint matches ─
+  // Earlier draft kept the cache hit on force=true to avoid CRDT-churn
+  // from cross-device sync, but the ↻ button is an explicit user signal
+  // ("re-analyze, even if data hasn't changed") and a silent no-op was
+  // a worse UX than the occasional extra API call. Greptile PR #175
+  // review caught this. Force is only set by the public refresh() entry,
+  // never by auto-fire — so CRDT-churn is bounded by user clicks.
+  console.log('%c 6. Force-refresh bypasses cache ', 'font-weight:bold;color:#a855f7');
 
   {
     const { engine, store } = makeMinimalEngine();
     const cachedAt = Date.now() - 60000;
     store.set('x', { dot: 'green', tip: 'cached', detail: 'cached', fingerprint: 'fp_x', status: 'ok', generatedAt: cachedAt });
+    // Provider gate: hasAIProvider returns true on `ollama` (optimistic
+    // — errors caught at call time). Without setting a provider, analyze()
+    // short-circuits at the gate and never reaches fetch.
+    const origProvider = localStorage.getItem('labcharts-ai-provider');
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
     let apiCalled = false;
     const origFetch = window.fetch;
-    window.fetch = (...args) => { apiCalled = true; return origFetch(...args); };
+    window.fetch = async () => {
+      apiCalled = true;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"dot":"yellow","tip":"refreshed","detail":"refreshed-detail"}' } }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
     try {
       const result = await engine.analyze({ id: 'x' }, { force: true });
-      assert('force-refresh returns cached verdict when fingerprint stable',
-        result?.generatedAt === cachedAt);
-      assert('force-refresh did NOT call fetch when fingerprint stable (CRDT-churn fix)',
-        !apiCalled);
+      assert('force-refresh DID call fetch even with fingerprint match',
+        apiCalled);
+      assert('force-refresh returned the fresh verdict, not the cached one',
+        result?.tip === 'refreshed' && result?.generatedAt !== cachedAt,
+        `tip=${result?.tip}, gen diff=${(result?.generatedAt || 0) - cachedAt}`);
     } finally {
       window.fetch = origFetch;
+      if (origProvider == null) localStorage.removeItem('labcharts-ai-provider');
+      else localStorage.setItem('labcharts-ai-provider', origProvider);
     }
   }
 

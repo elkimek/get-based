@@ -257,9 +257,11 @@ export function createAIVerdict(cfg) {
     // Cache-hit returns immediately, BEFORE provider / canAnalyze gates.
     // Reading a cached verdict requires no API call and no feature gate
     // — a user who removed their AI provider should still see the
-    // verdicts they generated earlier. Cache-hit applies on both auto
-    // and force calls; force still bypasses on fingerprint change.
-    if (cached?.fingerprint === fingerprint && cached?.dot && cached?.status === 'ok') {
+    // verdicts they generated earlier. `opts.force` (set by refresh())
+    // bypasses the cache so the ↻ button delivers a fresh API call even
+    // when the underlying data fingerprint hasn't changed — without
+    // this the button is a silent no-op (Greptile PR #175 review).
+    if (cached?.fingerprint === fingerprint && cached?.dot && cached?.status === 'ok' && !opts.force) {
       return cached;
     }
     // Cache miss — claim the inflight slot BEFORE the provider/canAnalyze
@@ -380,8 +382,9 @@ export function createAIVerdict(cfg) {
   // first-call cold-start latency, occasional JSON-parse blips when the
   // model adds a preamble, and provider-side rate-limit jitter. Manual
   // refresh almost always succeeds on the second try, so we automate
-  // that retry. Default backoff steps (3s, 8s) cover the common transient
-  // patterns without spending an unbounded budget on permanent errors.
+  // that retry. Default backoff steps (1s, 4s — see autoFireRetryDelaysMs
+  // above) cover the common transient patterns without spending an
+  // unbounded budget on permanent errors.
   // Auth/quota errors are NOT retried — those are user-actionable and
   // re-asking would just burn tokens until the underlying issue is fixed.
   function _isRetryableError(msg) {
