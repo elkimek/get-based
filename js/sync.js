@@ -1027,11 +1027,6 @@ async function _gzipString(str) {
   return new Uint8Array(buf);
 }
 
-async function _gunzipToString(bytes) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return await new Response(stream).text();
-}
-
 // v1.7.12 audit fix: decompression-bomb defence for per-row payloads.
 // A relay-controlled itemRow.payload could be a tiny gzip envelope
 // (~few KB) that decompresses to hundreds of MB — gzip ratios above
@@ -1384,6 +1379,14 @@ const DELTA_SCALARS = [
   // above. Earlier draft included it here, which would have caused
   // Phase 2 cutover to ship the whole object as one row and silently
   // regress cross-device room/screen edits to wholesale-LWW.
+  // BUT: `lightEnvironment.burdenAI` IS a singleton AI verdict (one per
+  // user, not per-room) and needs its own scalar slot. Dotted-path
+  // entries are honored by _planScalarDelta + _mergeItemRowsIntoImported
+  // via getAt/setAt — same pattern as DELTA_MAPS' `genetics.snps`.
+  // Without this entry, Phase 2 cutover (v: 4) silently wipes burdenAI
+  // on every cross-device pull (the per-row overlay rebuilds the
+  // lightEnvironment object from rooms+screens only).
+  'lightEnvironment.burdenAI',
   'sunCorrelations', 'lifelightProfile', 'sunDefaults',
   // Channel-mix AI verdict — the "Your light, by what it does" synthesis
   // that reasons across 6 biological light channels. Singleton object;
@@ -1543,12 +1546,35 @@ async function _planArrayDelta(profileId, arrayName, items) {
   // Skipped entirely for arrays flagged noTombstones — capped lists where
   // local eviction is expected and a tombstone would destroy data on a
   // peer whose window happens to still include the item.
+  //
+  // Tombstone-storm guard (mirrors _planKeyedMapDelta): if the array went
+  // from N>=20 items to <50% of that in a single push, refuse to emit
+  // tombstones. A drop that large is almost always a transient state
+  // issue (mid-import, mid-pull-merge, in-progress reset) rather than
+  // the user genuinely deleting half their data. Letting it through
+  // would propagate a wipe to peers via the relay. Concrete cases this
+  // protects: sunSessions / deviceSessions / lightAudits / lightMeasurements
+  // / entries — all user-owned, append-mostly, and rarely halve in normal
+  // use. Logged at warn so debug mode surfaces when it fires; the user
+  // can still genuinely empty an array (do it in two steps or via
+  // explicit clear-data flows that bypass the planner).
   if (!cfg.noTombstones) {
-    for (const prevId of Object.keys(prev)) {
-      if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
-      const row = rowByItemId.get(prevId);
-      if (!row || row.isDeleted) continue;
-      ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+    const prevCount = Object.keys(prev).length;
+    const nextCount = Object.keys(next).length;
+    const wouldEmitMassiveTombstone = prevCount >= 20 && nextCount < prevCount * 0.5;
+    if (wouldEmitMassiveTombstone) {
+      try {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn(`[sync] _planArrayDelta refused tombstone storm for ${arrayName}: prev=${prevCount} next=${nextCount}. Likely transient state during pull-merge — push deferred.`);
+        }
+      } catch {}
+    } else {
+      for (const prevId of Object.keys(prev)) {
+        if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
+        const row = rowByItemId.get(prevId);
+        if (!row || row.isDeleted) continue;
+        ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+      }
     }
   }
 
@@ -1801,6 +1827,7 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       // Latest write wins between live + tombstone — tombstone only
       // overwrites when its syncedAt is at-or-newer than the chosen
       // live row (otherwise an old delete would obliterate a fresh edit).
+      const isNestedScalar = arrayName.includes('.');
       if (tombstoned && tombstonedAt >= chosenAt) {
         // Symmetric snps preservation — the live branch below restores
         // imported.genetics.snps when the map merge ran first; the
@@ -1820,6 +1847,11 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
             && imported.genetics.snps && typeof imported.genetics.snps === 'object'
             && Object.keys(imported.genetics.snps).length > 0) {
           imported.genetics = { snps: imported.genetics.snps };
+        } else if (isNestedScalar) {
+          // Dotted-path scalar tombstone clears just the leaf, not the
+          // parent — sibling fields (e.g. lightEnvironment.rooms) keep
+          // riding their own DELTA_ARRAYS path independently.
+          setAt(imported, arrayName, null);
         } else {
           imported[arrayName] = null;
         }
@@ -1841,6 +1873,9 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
           if (imported.genetics && typeof imported.genetics === 'object') {
             imported.genetics.snps = localSnps;
           }
+        } else if (isNestedScalar) {
+          // Dotted-path scalar write — only the leaf, not the parent.
+          setAt(imported, arrayName, chosen.v);
         } else {
           imported[arrayName] = chosen.v;
         }
@@ -1923,7 +1958,18 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
       }
       // Apply live entries under their ORIGINAL key (preserves the `:`
       // for manualValues etc — consumers read the raw key, not the synth).
-      for (const [rawKey, entry] of liveByRawKey) curMap[rawKey] = entry.v;
+      // Defence-in-depth: even though the synth itemId path validates via
+      // _isAllowlistSafeId, the raw `parsed.k` is what we WRITE to curMap.
+      // For synth-id maps like manualValues, keyIdFn('__proto__') returns
+      // '____proto____' (doubling-escape) which IS allowlist-safe, so a
+      // hostile relay row could carry parsed.k='__proto__' through every
+      // earlier check and reach this write. Reject at the assignment site
+      // — the cost is one Set.has per live entry; the win is closing a
+      // prototype-pollution sink on imported.manualValues.
+      for (const [rawKey, entry] of liveByRawKey) {
+        if (_PROTO_POLLUTION_KEYS.has(rawKey)) continue;
+        curMap[rawKey] = entry.v;
+      }
       _pullDeltaSnapshot.perArray[arrayName] = { live: liveByRawKey.size, tombstones: tombItemIds.size };
       continue;
     }
@@ -1993,7 +2039,26 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
     // on itemIdFn so changeHistory finds existing entries by their
     // synthesized field|date id rather than appending duplicates.
     let nextArr = curArr.filter(it => !tombs.has(itemIdFn(it)));
+    // Dedup `nextArr` by itemIdFn BEFORE the liveById overlay. The blob
+    // LWW merge can leave two items collapsing to the same synth itemId
+    // (e.g. two chatSummaries on the same threadId carried from a peer).
+    // The earlier code's `seen` Map only retained the LAST position, so
+    // liveById would overwrite that slot but the EARLIER duplicate stayed
+    // in nextArr untouched. End state: one stale duplicate per cross-
+    // device race that the next push then re-emits as state truth. Keep
+    // the FIRST occurrence and drop the rest — the live overlay below
+    // will replace it with the relay-authoritative version anyway.
     const seen = new Map();
+    nextArr = nextArr.filter((it, i) => {
+      const k = itemIdFn(it);
+      if (k == null) return true; // unkeyed items kept (legacy/no-id case)
+      if (seen.has(k)) return false; // drop duplicate
+      seen.set(k, i);
+      return true;
+    });
+    // Re-index after the dedup filter so seen.get(itemId) maps to the
+    // correct position in the trimmed nextArr.
+    seen.clear();
     for (let i = 0; i < nextArr.length; i++) {
       const k = itemIdFn(nextArr[i]);
       if (k != null) seen.set(k, i);
@@ -2379,7 +2444,11 @@ export function getDeltaCutoverReadiness(profileId, importedData) {
     surfaces[mapName].shape = 'map';
   }
   for (const scalarName of DELTA_SCALARS) {
-    const v = importedData[scalarName];
+    // Dotted-path scalars walk via getAt so nested entries
+    // (e.g. `lightEnvironment.burdenAI`) report local-presence accurately.
+    const v = scalarName.includes('.')
+      ? getAt(importedData, scalarName)
+      : importedData[scalarName];
     const hasValue = v !== null && v !== undefined && !(typeof v === 'string' && v.length === 0);
     const rows = (rowsByName.get(scalarName) || []).filter(r => !r.isDeleted);
     classify(scalarName, hasValue ? 1 : 0, rows.length);
@@ -2421,6 +2490,32 @@ async function pushProfile(profileId, importedData, opts = {}) {
   _syncing = true;
   _syncingSince = Date.now();
   updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
+  // Post-enable schema-drift detection. enablePhase2Cutover gates ON
+  // readiness AT FLIP TIME, but if a future commit adds a new write site
+  // OUTSIDE DELTA_ARRAYS/MAPS/SCALARS (the exact failure mode of the
+  // burdenAI bug fixed alongside this change), v4 silently drops it: the
+  // blob is suppressed, no per-row planner exists for the new field, and
+  // peers pulling v4 see no rows. This re-runs the readiness check on
+  // every push when cutover is on; on drift, auto-disable cutover (so
+  // the next push reverts to v3 dual-write and the data flows again),
+  // log the event for the diagnose modal, and reload the cutover flag
+  // for the rest of this push so it ships v3 too. Cost: one walk of 37
+  // surfaces, ~1-3 ms — paid only when cutover is on.
+  if (isPhase2CutoverEnabled(profileId) && importedData && typeof importedData === 'object') {
+    try {
+      const driftCheck = getDeltaCutoverReadiness(profileId);
+      if (driftCheck && !driftCheck.ready) {
+        const blockerNames = Object.entries(driftCheck.surfaces || {})
+          .filter(([, v]) => v && v.status === 'missing-rows')
+          .map(([k]) => k)
+          .slice(0, 3)
+          .join(', ');
+        console.warn(`[sync] Phase 2 cutover drift detected — auto-disabling. ${driftCheck.blockerCount} surface(s) lack per-row push history (e.g. ${blockerNames || 'unknown'}). This push will revert to v3 dual-write.`);
+        disablePhase2Cutover(profileId);
+        _logSyncEvent('skip', `Cutover drift: ${driftCheck.blockerCount} surface(s) missing per-row history — auto-reverted to dual-write (${blockerNames || 'unknown'})`);
+      }
+    } catch (e) { /* readiness check failures are non-fatal */ }
+  }
   try {
     const dataJson = await buildSyncPayload(profileId, importedData);
     const syncedAt = new Date().toISOString();
@@ -2481,7 +2576,12 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // silently stop syncing all 18 scalar fields. Same plan/apply
       // contract so telemetry + cap watchdog cover them uniformly.
       for (const scalarName of DELTA_SCALARS) {
-        let value = importedData[scalarName];
+        // Dotted-path scalars (e.g. `lightEnvironment.burdenAI`) read via
+        // getAt so a nested singleton can ride the scalar planner without
+        // colliding with its sibling arrays/maps on the same parent.
+        let value = scalarName.includes('.')
+          ? getAt(importedData, scalarName)
+          : importedData[scalarName];
         // Strip nested fields that ride a DELTA_MAPS dotted path so the
         // scalar carries only metadata, not a stale copy of the per-key
         // map. Without this, the relay's `genetics` scalar row keeps

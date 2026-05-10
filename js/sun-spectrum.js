@@ -335,6 +335,15 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
   if (zenithDeg == null || zenithDeg >= 90) {
     return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
   }
+  // Defensive clamps — malformed atmospheric inputs (NaN cloudCover, zero
+  // ozone, negative altitude) should degrade gracefully, not propagate
+  // through the multiplicative chain as Infinity / over-amplified beam.
+  // Audit P2 from the 2026-05-10 review.
+  if (!Number.isFinite(zenithDeg) || zenithDeg < 0) zenithDeg = 0;
+  if (!Number.isFinite(ozoneDU) || ozoneDU < 50) ozoneDU = 50; // real-world floor ~200 DU; 50 is lower bound for sanity
+  if (!Number.isFinite(cloudCover)) cloudCover = 0;
+  cloudCover = Math.max(0, Math.min(1, cloudCover));
+  if (!Number.isFinite(altitudeM)) altitudeM = 0;
   const cosZ = Math.cos(zenithDeg * Math.PI / 180);
   const airMass = 1 / Math.max(cosZ, 0.001);
   const altScale = Math.exp(-altitudeM / 8000); // pressure scaling

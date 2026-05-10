@@ -674,6 +674,15 @@ export function openDeviceSessionDetail(id) {
     canEditMode = device.modes.filter(m => validateMode(device, m.id).ok).length > 1;
   }
 
+  // Body-fraction for the per-session vit-D cap (Audit P1 #8). Computed
+  // once outside the channel loop — bodyAreas is the schema, BODY_REGIONS
+  // carries the per-region area weights. Falls back to null (legacy
+  // daily-cap behavior) when bodyAreas is unset.
+  let _sessBodyFrac = null;
+  if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+    const _fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
+    _sessBodyFrac = sess.bodyAreas.reduce((s, k) => s + (_fracByKey[k] || 0), 0) || null;
+  }
   const channelRows = sess.doses ? channelOrder
     .filter(k => sess.doses[k] != null)
     .map(k => {
@@ -681,7 +690,7 @@ export function openDeviceSessionDetail(id) {
       const v = sess.doses[k] || 0;
       const t = channelTier(v, k);
       const tlabel = tierLabel(t);
-      const unitText = formatChannelUnit(k, v, sess.durationMin || 0, 'III', null);
+      const unitText = formatChannelUnit(k, v, sess.durationMin || 0, 'III', null, null, false, _sessBodyFrac);
       const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
       return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
         <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>

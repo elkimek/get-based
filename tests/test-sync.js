@@ -707,7 +707,9 @@ return (async function() {
   assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
     /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
-    /for \(const \[rawKey, entry\] of liveByRawKey\) curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
+    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,500}curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
+  assert('Map-shape pull guards rawKey against proto-pollution at write site',
+    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,400}_PROTO_POLLUTION_KEYS\.has\(rawKey\)[\s\S]{0,100}curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
 
   // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
   // result is allowlist-safe, original key recoverable on pull via
@@ -830,7 +832,11 @@ return (async function() {
   assert('Pull-side scalar branch ignores foreign rows in the same slot (defence-in-depth)',
     /row\.itemId\s*!==\s*arrayName[\s\S]{0,80}continue/.test(syncSrc));
   assert('Pull-side scalar tombstone wins LWW only when at-or-newer than live',
-    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,1500}imported\[arrayName\]\s*=\s*null/.test(syncSrc));
+    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,2500}imported\[arrayName\]\s*=\s*null/.test(syncSrc));
+  assert('Dotted-path scalar tombstone clears just the leaf via setAt',
+    /isNestedScalar[\s\S]{0,400}setAt\(imported,\s*arrayName,\s*null\)/.test(syncSrc));
+  assert('Dotted-path scalar live row writes via setAt',
+    /isNestedScalar[\s\S]{0,800}setAt\(imported,\s*arrayName,\s*chosen\.v\)/.test(syncSrc));
   assert('Pull-side scalar live row writes imported[arrayName] = chosen.v',
     /imported\[arrayName\]\s*=\s*chosen\.v/.test(syncSrc));
 
@@ -1088,9 +1094,11 @@ return (async function() {
   assert('DELTA_MAPS includes markerLabels',
     /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'markerLabels'/.test(syncSrc));
   assert('DELTA_SCALARS includes wearableSummary (Phase 2 scope fix)',
-    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,1500}'wearableSummary'/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'wearableSummary'/.test(syncSrc));
   assert('DELTA_SCALARS includes wearableCardOrder',
-    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,1500}'wearableCardOrder'/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'wearableCardOrder'/.test(syncSrc));
+  assert('DELTA_SCALARS includes lightEnvironment.burdenAI (dotted-path scalar)',
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'lightEnvironment\.burdenAI'/.test(syncSrc));
 
   // Snapshot rotation on owner change
   assert('disableSync clears delta snapshots',
@@ -1125,8 +1133,14 @@ return (async function() {
     /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncSrc));
   assert('All 3 per-row gunzip sites use the capped variant',
     (syncSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length === 3);
-  assert('Blob path still uses uncapped _gunzipToString (has its own 5MB cap)',
-    /async function _gunzipToString\(bytes\)/.test(syncSrc));
+  // Blob path also routes through _gunzipToStringCapped, with the
+  // 5 MB MAX_SYNC_PAYLOAD_BYTES cap — a single capped helper is the
+  // only gunzip entry point post-2026-05-10 audit (the bare
+  // _gunzipToString wrapper was deleted as dead).
+  assert('Blob path uses _gunzipToStringCapped with MAX_SYNC_PAYLOAD_BYTES',
+    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncSrc));
+  assert('Dead _gunzipToString wrapper removed (only capped variant remains)',
+    !/async function _gunzipToString\(bytes\)/.test(syncSrc));
 
   // Runtime boundary test for the gunzip cap. Crafts a payload that
   // gunzips to (cap - 1) bytes and asserts it passes; then a payload
@@ -1532,13 +1546,14 @@ return (async function() {
     // Maps
     'markerNotes', 'customMarkers', 'manualValues', 'refOverrides',
     'categoryLabels', 'categoryIcons', 'markerLabels',
-    'wearablePrimaryOverride', 'genetics.snps',
+    'wearablePrimaryOverride', 'genetics.snps', 'lightDailyVerdicts',
     // Scalars
     'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian',
     'stress', 'loveLife', 'environment',
     'interpretiveLens', 'contextNotes',
     'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics',
     'sunCorrelations', 'lifelightProfile', 'sunDefaults',
+    'channelMixAI', 'lightEnvironment.burdenAI',
     'wearableSummary', 'wearableCardOrder',
   ];
   for (const surface of everySurface) {

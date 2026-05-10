@@ -944,10 +944,28 @@ const server = http.createServer((req, res) => {
           const upstreamUrl = `${upstream}/uv?${qs.toString()}`;
           const upstreamHeaders = { 'Accept': 'application/json' };
           if (process.env.UVDATA_BEARER) upstreamHeaders['Authorization'] = `Bearer ${process.env.UVDATA_BEARER}`;
+          // Mirror the 256 KB streaming cap from api/proxy.js (Greptile P2
+          // closeout `5869341`). A misbehaving upstream that streams an
+          // unbounded body would otherwise OOM the dev server.
+          const CAMS_RESPONSE_CAP_BYTES = 256 * 1024;
           const camsReq = https.request(upstreamUrl, { method: 'GET', headers: upstreamHeaders }, (camsRes) => {
             const ct = camsRes.headers['content-type'] || 'application/json';
             res.writeHead(camsRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
-            camsRes.pipe(res);
+            let bytesPiped = 0;
+            let aborted = false;
+            camsRes.on('data', (chunk) => {
+              if (aborted) return;
+              bytesPiped += chunk.length;
+              if (bytesPiped > CAMS_RESPONSE_CAP_BYTES) {
+                aborted = true;
+                try { camsRes.destroy(); } catch (_) {}
+                try { res.end(); } catch (_) {}
+                return;
+              }
+              try { res.write(chunk); } catch (_) {}
+            });
+            camsRes.on('end', () => { if (!aborted) try { res.end(); } catch (_) {} });
+            camsRes.on('error', () => { if (!aborted) try { res.end(); } catch (_) {} });
           });
           camsReq.on('error', (e) => {
             res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });

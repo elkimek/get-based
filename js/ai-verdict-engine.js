@@ -274,16 +274,27 @@ export function createAIVerdict(cfg) {
     _refresh();
     let slotHeld = false;
     let abandoned = false;
+    // AbortController plumbed into callClaudeAPI so the underlying fetch
+    // is cancelled when the watchdog wins — without it the request keeps
+    // running until the provider responds, wasting tokens / quota and
+    // letting a slow-responding provider tie up upstream concurrency
+    // even after the user has moved on. Audit P2 from the 2026-05-10
+    // review.
+    const aborter = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    let watchdogTimer = null;
     // Single watchdog covering BOTH the slot wait AND the API call.
     // Earlier draft only raced the API call against the timeout — a
     // saturated concurrency queue could then keep this analyze() pending
     // for (cap × timeoutMs) before even reaching the API, blowing past
     // the documented "Analysis timed out after Xs" guarantee. Greptile
     // PR #175 review caught this.
-    const watchdog = new Promise((_, rej) => setTimeout(() => {
-      abandoned = true;
-      rej(new Error(`Analysis timed out after ${Math.round(timeoutMs / 1000)}s`));
-    }, timeoutMs));
+    const watchdog = new Promise((_, rej) => {
+      watchdogTimer = setTimeout(() => {
+        abandoned = true;
+        try { aborter?.abort(); } catch (_) {}
+        rej(new Error(`Analysis timed out after ${Math.round(timeoutMs / 1000)}s`));
+      }, timeoutMs);
+    });
     try {
       if (!hasAIProvider()) return null;
       if (!canAnalyze(target)) return null;
@@ -301,6 +312,7 @@ export function createAIVerdict(cfg) {
         system: systemPrompt,
         messages: [{ role: 'user', content: ctx }],
         maxTokens,
+        signal: aborter?.signal,
       });
       const result = await Promise.race([apiCall, watchdog]);
       const text = (result && typeof result === 'object') ? (result.text || '') : (typeof result === 'string' ? result : '');
@@ -364,6 +376,7 @@ export function createAIVerdict(cfg) {
       // handles release once the slot eventually frees. Don't double-
       // release here.
       abandoned = true;
+      if (watchdogTimer) { try { clearTimeout(watchdogTimer); } catch (_) {} }
       if (slotHeld) _releaseAISlot();
       inflight.delete(id);
       _refresh();

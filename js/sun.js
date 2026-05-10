@@ -242,7 +242,7 @@ const VITD_SAT_FLAG = 19000;
 // still shows the duration + atmosphere; channels just stay quiet.
 const TOO_SHORT_FOR_CHANNEL_VERDICT_MIN = 2;
 
-export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false) {
+export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false, bodyFraction = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (durationMin > 0 && durationMin < TOO_SHORT_FOR_CHANNEL_VERDICT_MIN) {
     return 'session too short';
@@ -254,9 +254,19 @@ export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatric
     // variance breakdown. Always numeric (not "minimal" for small values)
     // so the per-channel-dose row doesn't mix conventions across the
     // table — qualitative tier label is already in its own column.
-    const central = window.vitaminDIU
-      ? window.vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null)
-      : channelAu * 60 * (rotatedSides ? 2 : 1);
+    //
+    // Per-session render uses vitaminDIUPerSession when bodyFraction is
+    // available — the local skin-patch saturation cap (bodyFrac × 30k)
+    // binds before the daily 20k photoisomerization ceiling on high-
+    // output device sessions. Fall back to vitaminDIU when bodyFraction
+    // is unknown (legacy callers, rollup paths). Audit P1 #8 fix.
+    const useSessionCap = Number.isFinite(bodyFraction) && bodyFraction > 0
+      && typeof window.vitaminDIUPerSession === 'function';
+    const central = useSessionCap
+      ? window.vitaminDIUPerSession(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null, bodyFraction)
+      : (window.vitaminDIU
+        ? window.vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null)
+        : channelAu * 60 * (rotatedSides ? 2 : 1));
     if (central === 0) return 'below UVI threshold';
     const fmt = (n) => {
       if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
@@ -579,7 +589,11 @@ export async function changeCoverageMidSession(id) {
       hint.textContent = 'No regions exposed — fully clothed for the rest of the session.';
     } else {
       const labels = Array.from(selected).map(k => BODY_REGIONS.find(b => b.key === k)?.label || k).join(', ');
-      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
+      // Body-fraction sums to 0.95 across all 16 regions (scalp + anatomical
+      // seams aren't individually selectable). "Full body" reads cleaner
+      // than "95% of skin" once the user is at-or-near the picker ceiling.
+      const pctLabel = fraction >= 0.94 ? 'full body' : `${(fraction * 100).toFixed(0)}% of skin`;
+      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${pctLabel}) — ${labels}`;
     }
   };
   bindBodySilhouette(slot, selected, updateHint);
@@ -1409,7 +1423,9 @@ export async function openStartSunSessionDialog() {
       hint.textContent = 'Tap any body region to toggle whether it\'s uncovered.';
     } else {
       const labels = Array.from(selected).map(k => BODY_REGIONS.find(b => b.key === k)?.label || k).join(', ');
-      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
+      // See note in the speed-log handler above re: 0.95 ceiling.
+      const pctLabel = fraction >= 0.94 ? 'full body' : `${(fraction * 100).toFixed(0)}% of skin`;
+      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${pctLabel}) — ${labels}`;
     }
   };
   // Clear — single bulk-deselect affordance. The silhouette itself is
@@ -1570,7 +1586,14 @@ function _plainStopSummary(sess, dur) {
   const uvi = sess.atmosphere?.uvIndex;
   const vitDAu = sess.doses?.vitamin_d || 0;
   if (vitDAu > 0 && window.vitaminDIU) {
-    const iu = window.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
+    // Per-session cap (bodyFrac × 30k) when bodyFraction is known —
+    // avoids over-stating high-output device sessions whose raw IU
+    // would clamp at the 20k daily ceiling instead of the local
+    // skin-patch saturation (Audit P1 #8).
+    const bf = sess.bodyExposure?.fraction;
+    const iu = (Number.isFinite(bf) && bf > 0 && typeof window.vitaminDIUPerSession === 'function')
+      ? window.vitaminDIUPerSession(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
+      : window.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides);
     if (iu >= 100) {
       const lo = Math.round(iu * 0.6 / 50) * 50;
       const hi = Math.round(iu * 1.5 / 50) * 50;
@@ -2032,7 +2055,12 @@ function _renderActiveCardBody(sess) {
     // Live ticker uses the central estimate (the chip's already small;
     // a range there gets too noisy). Detail modal surfaces the band.
     const rotated = !!sess.bodyExposure?.rotatedSides;
-    const iu = window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated) : live.doses.vitamin_d * 60 * (rotated ? 2 : 1);
+    // Live ticker prefers per-session cap when bodyFraction is set,
+    // mirroring the detail-modal rendering (Audit P1 #8).
+    const bf = sess.bodyExposure?.fraction;
+    const iu = (Number.isFinite(bf) && bf > 0 && typeof window.vitaminDIUPerSession === 'function')
+      ? window.vitaminDIUPerSession(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null, bf)
+      : (window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated) : live.doses.vitamin_d * 60 * (rotated ? 2 : 1));
     const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
     if (iu >= 50) {
       const iuLabel = iu >= 10000 ? '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
@@ -2561,7 +2589,7 @@ export function openSunSessionDetail(id) {
     const tlabel = tierLabel(t);
     const target = meta.dailyTarget || 0;
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides);
+    const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null);
     const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
     return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
@@ -2695,7 +2723,7 @@ export function openSunSessionDetail(id) {
           const geneNote = geneInfo.contributors.length > 0
             ? ` Genetics applied (${(geneInfo.mult * 100 - 100).toFixed(0)}% net): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype} ×${c.multiplier.toFixed(2)}`).join(', ')}.`
             : '';
-          return `<div title="Approximate vitamin D₃ synthesis (effective serum response). Holick 2008 + Bogh &amp; Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session.${sess.bodyExposure?.rotatedSides ? ' Doubled because both sides were exposed (rotated during session).' : ' Assumes you stayed on one side — tap the 🔄 Flip control during the session if you flipped front↔back.'}${geneNote} Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides))}</strong></div>`;
+          return `<div title="Approximate vitamin D₃ synthesis (effective serum response). Holick 2008 + Bogh &amp; Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session.${sess.bodyExposure?.rotatedSides ? ' Doubled because both sides were exposed (rotated during session).' : ' Assumes you stayed on one side — tap the 🔄 Flip control during the session if you flipped front↔back.'}${geneNote} Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null))}</strong></div>`;
         })() : ''}
       </div>
 
@@ -2770,7 +2798,13 @@ function _sessionChipValue(channelKey, channelAu, sess) {
   // without misleading numbers.
   if (dur > 0 && dur < TOO_SHORT_FOR_CHANNEL_VERDICT_MIN) return '';
   if (channelKey === 'vitamin_d' && typeof window.vitaminDIU === 'function') {
-    const iu = window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides);
+    // Session chip uses per-session cap when bodyFraction is set
+    // (Audit P1 #8). Falls back to daily-cap helper for legacy chip
+    // contexts where bodyFraction wasn't recorded.
+    const bf = sess?.bodyExposure?.fraction;
+    const iu = (Number.isFinite(bf) && bf > 0 && typeof window.vitaminDIUPerSession === 'function')
+      ? window.vitaminDIUPerSession(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
+      : window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides);
     if (iu < 30) return '';
     if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU`;
     return `~${Math.round(iu / 10) * 10} IU`;

@@ -147,12 +147,21 @@ export function buildDeviceSessionContext(sess) {
   if (sess.doses) {
     const fitz = sd.fitzpatrick || lc.skinType?.match(/^(I{1,3}|IV|VI?)/)?.[1] || 'III';
     const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
+    // Body-fraction for the per-session vit-D cap (Audit P1 #8). Device
+    // session schema stores bodyAreas[]; BODY_REGIONS provides the per-
+    // region weights. Falls back to null on missing data.
+    let _bf = null;
+    if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0
+        && typeof window !== 'undefined' && Array.isArray(window.BODY_REGIONS)) {
+      const _fbk = Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]));
+      _bf = sess.bodyAreas.reduce((s, k) => s + (_fbk[k] || 0), 0) || null;
+    }
     const parts = [];
     for (const k of channelOrder) {
       const v = sess.doses[k];
       if (v == null || v === 0) continue;
       const meta = CHANNEL_DISPLAY[k] || { label: k };
-      let display = formatChannelUnit(k, v, sess.durationMin || 0, fitz, null, null, false);
+      let display = formatChannelUnit(k, v, sess.durationMin || 0, fitz, null, null, false, _bf);
       if (!display) {
         const t = channelTier(v, k);
         const tlabel = tierLabel(t);

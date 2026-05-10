@@ -131,7 +131,7 @@ export function buildDayContext(target) {
       const durMin = Math.round(s.durationMin || 0);
       const med = s.safety?.medFraction != null ? Math.round(s.safety.medFraction * 100) + '% MED' : '';
       const vitDStr = s.doses?.vitamin_d
-        ? formatChannelUnit('vitamin_d', s.doses.vitamin_d, durMin, fitz, s.atmosphere?.uvIndex, null, !!s.bodyExposure?.rotatedSides)
+        ? formatChannelUnit('vitamin_d', s.doses.vitamin_d, durMin, fitz, s.atmosphere?.uvIndex, null, !!s.bodyExposure?.rotatedSides, s.bodyExposure?.fraction || null)
         : '';
       let elevPhase = '';
       try {

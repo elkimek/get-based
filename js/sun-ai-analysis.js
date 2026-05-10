@@ -172,7 +172,7 @@ export function buildSingleSessionContext(sess) {
       const v = sess.doses?.[k];
       if (v == null || v === 0) continue;
       const meta = CHANNEL_DISPLAY[k] || { label: k };
-      let display = formatChannelUnit(k, v, dur, fitz, uvi, zenith, rotated);
+      let display = formatChannelUnit(k, v, dur, fitz, uvi, zenith, rotated, sess.bodyExposure?.fraction || null);
       if (!display) {
         const t = channelTier(v, k);
         const tlabel = tierLabel(t);

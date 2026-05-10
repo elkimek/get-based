@@ -1,4 +1,18 @@
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
+import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
+//
+// Storage: meteo config (mode, selfhostUrl, selfhostBearer, privacyRounding)
+// is encrypted at rest via crypto.js's encryptedSetItem / encryptedGetItem.
+// `selfhostBearer` is sensitive — same threat-model class as the AI provider
+// keys. The key `labcharts-meteo-config` is in `SENSITIVE_PATTERNS` (crypto.js)
+// so encryptedSetItem auto-encrypts when the user has encryption enabled.
+//
+// To preserve the existing synchronous getMeteoConfig() API (sun-context.js,
+// settings.js, the Sun-data-source picker all call it from sync paths),
+// the decrypted config is cached in module state, refreshed at startup
+// via initMeteoConfigCache(), and re-refreshed on encryption-state changes
+// (disableEncryption / passphrase change). Cache miss falls back to a raw
+// localStorage read which is correct for users without encryption enabled.
 //
 // Provider priority (each falls through on error):
 //   1. User-configured self-host (CAMS-mirrored or own data)
@@ -19,6 +33,11 @@
 
 const STORAGE_KEY = 'labcharts-meteo-config';
 let _warnedAboutEmptySelfhost = false;
+// Sync-friendly decrypted-config cache. Populated by initMeteoConfigCache()
+// on startup + after every saveMeteoConfig(). Lets the rest of the app
+// keep calling getMeteoConfig() synchronously even though the at-rest
+// representation is AES-GCM-encrypted via encryptedGetItem.
+let _meteoConfigCache = null;
 // v2: invalidates old entries that baked sunrise/sunset/uvIndexMax from
 // daily.sunrise[0] (which was 2-day-old data under past_days=2). Bump
 // again any time the cached payload shape changes meaning.
@@ -115,66 +134,146 @@ export function computeUVConfidence(opts = {}) {
 
 // ─── Config ────────────────────────────────────────────────────────────
 
-export function getMeteoConfig() {
+// Build a sanitized config from a parsed JSON value. Allowlist-style — only
+// the four known fields, type-checked. Defence-in-depth against a stored
+// value bearing `{"__proto__": {...}}` from spoofing config: building a
+// fresh defaultConfig() and assigning known keys means a hostile parsed
+// value can't reach Object.prototype.
+function _buildConfigFromParsed(parsed) {
+  const cfg = defaultConfig();
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    if (typeof parsed.mode === 'string') cfg.mode = parsed.mode;
+    if (typeof parsed.selfhostUrl === 'string') cfg.selfhostUrl = parsed.selfhostUrl;
+    if (typeof parsed.selfhostBearer === 'string') cfg.selfhostBearer = parsed.selfhostBearer;
+    if (Number.isFinite(parsed.privacyRounding)) cfg.privacyRounding = parsed.privacyRounding;
+  }
+  return cfg;
+}
+
+// Apply runtime migrations + selfhost-empty-URL sanity. Returns a possibly-
+// new config plus a flag indicating whether the persisted record needs
+// rewriting (legacy `cams`/`noaa` mode → `auto`).
+function _applyConfigRuntimeFixups(cfg) {
+  let needsPersist = false;
+  // Migration: pre-v1.7.x configs may carry `mode: 'cams'` or `mode: 'noaa'`
+  // — both removed from the picker as confusing / unhelpful (cams-only
+  // breaks clouds/temp; NOAA blocks CORS). Map to 'auto' silently.
+  if (cfg.mode === 'cams' || cfg.mode === 'noaa') {
+    cfg.mode = 'auto';
+    needsPersist = true;
+  }
+  // Sanity: `mode: 'selfhost'` with an empty `selfhostUrl` is a config
+  // trap — the selfhost path falls through to Open-Meteo every request,
+  // user expected CAMS quality. Treat as in-memory `auto` for sensible
+  // behaviour, warn once per session, leave the persisted record alone
+  // (the picker still shows what the user clicked).
+  if (cfg.mode === 'selfhost' && (!cfg.selfhostUrl || cfg.selfhostUrl.trim() === '')) {
+    if (!_warnedAboutEmptySelfhost) {
+      try {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('[meteo] mode=selfhost with empty selfhostUrl — falling back to auto for this session. Set the URL in Light & Sun → Sun data source, or switch mode to auto explicitly.');
+        }
+      } catch {}
+      _warnedAboutEmptySelfhost = true;
+    }
+    cfg.mode = 'auto';
+  }
+  return { cfg, needsPersist };
+}
+
+// Async loader — decrypts via crypto.js's encryptedGetItem (which routes
+// through the session key when encryption is enabled, falls through to
+// raw localStorage otherwise). Called at startup from main.js's init
+// sequence, and after encryption-state changes. Migration of pre-encrypt
+// plaintext configs is automatic: encryptedGetItem returns the plaintext
+// on first read, then saveMeteoConfig's encryptedSetItem writes it back
+// in the new envelope.
+export async function initMeteoConfigCache() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultConfig();
+    const raw = await encryptedGetItem(STORAGE_KEY);
+    if (!raw) {
+      _meteoConfigCache = defaultConfig();
+      return;
+    }
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { _meteoConfigCache = defaultConfig(); return; }
+    const cfg = _buildConfigFromParsed(parsed);
+    const { needsPersist } = _applyConfigRuntimeFixups(cfg);
+    _meteoConfigCache = cfg;
+    if (needsPersist) {
+      // Persist via saveMeteoConfig so legacy plaintext lands in the
+      // encrypted envelope on its first migration save.
+      saveMeteoConfig(cfg);
+    }
+  } catch (e) {
+    _meteoConfigCache = defaultConfig();
+  }
+}
+
+export function getMeteoConfig() {
+  // Read localStorage every call so direct writes (tests, cross-tab)
+  // are observed without cache invalidation gymnastics. Only the
+  // encrypted-envelope path needs the cache (decryption is async; the
+  // cache holds the post-startup decrypted form so this function can
+  // stay synchronous).
+  let raw;
+  try { raw = localStorage.getItem(STORAGE_KEY); } catch { raw = null; }
+  if (!raw) return defaultConfig();
+  // Encrypted envelope — return the decrypted form from the cache that
+  // initMeteoConfigCache populated at startup. If the cache is empty
+  // (race window or test env), fall back to defaults rather than treat
+  // ciphertext as JSON.
+  if (typeof raw === 'string' && raw.startsWith('v1:')) {
+    if (_meteoConfigCache) {
+      const { cfg } = _applyConfigRuntimeFixups(Object.assign({}, _meteoConfigCache));
+      return cfg;
+    }
+    return defaultConfig();
+  }
+  // Plaintext path — parse inline, apply runtime fixups, persist if a
+  // legacy mode was migrated. Tests that use raw localStorage.setItem
+  // exercise this branch directly.
+  try {
     const parsed = JSON.parse(raw);
-    // Strip __proto__ / constructor / prototype keys before assignment —
-    // a localStorage value bearing `{"__proto__": {...}}` would create
-    // an own __proto__ property on parsed, which Object.assign then
-    // writes onto our config object (not global Object.prototype, but
-    // enough to spoof e.g. cfg.privacyRounding=0). Defence-in-depth
-    // against same-origin attackers reaching localStorage.
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      delete parsed.__proto__;
-      delete parsed.constructor;
-      delete parsed.prototype;
+    const cfg = _buildConfigFromParsed(parsed);
+    const { cfg: out, needsPersist } = _applyConfigRuntimeFixups(cfg);
+    if (needsPersist) {
+      try { saveMeteoConfig(out); } catch {}
     }
-    const cfg = Object.assign(defaultConfig(), parsed);
-    // Migration: pre-v1.7.x configs may carry `mode: 'cams'` or
-    // `mode: 'noaa'` — both removed from the picker as confusing/
-    // unhelpful (cams-only breaks clouds/temp; NOAA blocks CORS).
-    // Quietly map both to 'auto' so the user sees the default
-    // behaviour instead of a non-rendering invalid mode.
-    if (cfg.mode === 'cams' || cfg.mode === 'noaa') {
-      cfg.mode = 'auto';
-      try { saveMeteoConfig(cfg); } catch {}
-    }
-    // Sanity: `mode: 'selfhost'` with an empty `selfhostUrl` is a config
-    // trap — the selfhost path silently falls through to Open-Meteo every
-    // request, the user gets the default provider but the picker still
-    // claims selfhost (which they explicitly set, expecting CAMS-quality
-    // data). Caught in the wild after a partial-save dropped the URL but
-    // kept the mode flip. Treat as in-memory `auto` so the app behaves
-    // sensibly (CAMS via /api/proxy + Open-Meteo merge), warn so debug
-    // mode surfaces the misconfiguration, and leave the persisted record
-    // alone so the picker still shows what the user clicked — they can
-    // either paste the URL to activate selfhost or switch the mode back
-    // to 'auto' explicitly.
-    if (cfg.mode === 'selfhost' && (!cfg.selfhostUrl || cfg.selfhostUrl.trim() === '')) {
-      // Warn ONCE per session — every fetchAtmosphere call routes through
-      // here, so a chatty user who never set the URL was getting 10+
-      // identical lines on every page render.
-      if (!_warnedAboutEmptySelfhost) {
-        try {
-          if (typeof console !== 'undefined' && console.warn) {
-            console.warn('[meteo] mode=selfhost with empty selfhostUrl — falling back to auto for this session. Set the URL in Light & Sun → Sun data source, or switch mode to auto explicitly.');
-          }
-        } catch {}
-        _warnedAboutEmptySelfhost = true;
-      }
-      cfg.mode = 'auto';
-    }
-    return cfg;
+    return out;
   } catch (e) {
     return defaultConfig();
   }
 }
 
 export function saveMeteoConfig(cfg) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); }
-  catch (e) {}
+  // Cache update first — keeps the synchronous getMeteoConfig contract
+  // working immediately. Read sequence: getMeteoConfig hits localStorage,
+  // sees the value below, parses inline. Cache only matters as a fallback
+  // for the encrypted-envelope branch where parsing inline would fail.
+  _meteoConfigCache = _buildConfigFromParsed(cfg);
+  const json = JSON.stringify(cfg);
+  // Sync plaintext write when encryption is OFF — getMeteoConfig
+  // observes the new value immediately on next read (covers tests + the
+  // common no-encryption case). When encryption is ON, skip the sync
+  // plaintext write so we don't briefly expose the bearer on disk; reads
+  // in the gap fall back to the in-memory cache populated above.
+  let encryptionOn = false;
+  try { encryptionOn = getEncryptionEnabled(); } catch {}
+  if (!encryptionOn) {
+    try { localStorage.setItem(STORAGE_KEY, json); } catch {}
+    return;
+  }
+  // Encryption ON — async write through encryptedSetItem so the bearer
+  // is encrypted at rest. Fire-and-forget; existing callers don't await.
+  (async () => {
+    try {
+      await encryptedSetItem(STORAGE_KEY, json);
+    } catch (_) {
+      // Last-resort fallback so a crypto.js failure doesn't lose the save
+      try { localStorage.setItem(STORAGE_KEY, json); } catch {}
+    }
+  })();
 }
 
 function defaultConfig() {
@@ -328,19 +427,31 @@ function _isValidSelfhostUrl(raw, withBearer = false) {
   // rebinding to a LAN/metadata IP fails at the TLS layer (rebound
   // host won't have a cert for the original domain).
   if (withBearer && u.protocol !== 'https:') return false;
-  const host = u.hostname.toLowerCase();
+  // URL.hostname strips brackets in some runtimes and keeps them in others.
+  // Normalize so the IPv6 checks below see the bare address either way.
+  const rawHost = u.hostname.toLowerCase();
+  const host = (rawHost.startsWith('[') && rawHost.endsWith(']')) ? rawHost.slice(1, -1) : rawHost;
   // Block IP-literal forms targeting internal hosts. Hostnames go through
   // DNS at fetch time — those can still resolve to private IPs, but with
   // the bearer-requires-HTTPS rule above, a rebound request fails TLS
   // before the bearer leaves the device. Catching the obvious cases is
   // still what matters for non-bearer configs and for refusing ambiguous
   // pastes outright.
-  if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') return false;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return false;
   if (host === '0.0.0.0') return false;
+  if (host.endsWith('.local') || host.endsWith('.localhost')) return false;
+  if (host === '168.63.129.16') return false;                   // Azure metadata
   // RFC1918 + link-local + cloud-metadata IP literals
   const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (ipv4) {
-    const o = ipv4.slice(1, 5).map(Number);
+    const octets = ipv4.slice(1, 5);
+    // Reject leading-zero octets (0255 octal territory) — strictness
+    // mirrors api/proxy.js _isBlockedHost.
+    for (const o of octets) {
+      if (o.length > 1 && o[0] === '0') return false;
+      if (+o > 255) return false;
+    }
+    const o = octets.map(Number);
     if (o[0] === 10) return false;                              // 10.0.0.0/8
     if (o[0] === 127) return false;                             // 127.0.0.0/8
     if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return false; // 172.16.0.0/12
@@ -348,8 +459,36 @@ function _isValidSelfhostUrl(raw, withBearer = false) {
     if (o[0] === 169 && o[1] === 254) return false;             // link-local (incl. cloud-metadata 169.254.169.254)
     if (o[0] === 100 && o[1] >= 64 && o[1] <= 127) return false; // 100.64.0.0/10 carrier-grade NAT
     if (o[0] >= 224) return false;                              // multicast / reserved
+    if (o[0] === 0) return false;                               // 0.0.0.0/8
   }
-  if (host.startsWith('[fe80:')) return false; // IPv6 link-local literal
+  // IPv6 literal handling — covers gaps closed by api/proxy.js _isBlockedHost
+  // but not previously enforced here. Any host containing ':' is IPv6.
+  // Without these, a no-bearer self-host config could SSRF private IPv6 LAN
+  // addresses (Audit P1 #3 from the 2026-05-10 review).
+  if (host.includes(':')) {
+    if (host === '::' || host === '0:0:0:0:0:0:0:0') return false;
+    if (/^fc[0-9a-f]{2}:/.test(host) || /^fd[0-9a-f]{2}:/.test(host)) return false; // fc00::/7 ULA
+    if (/^fe[89ab][0-9a-f]:/.test(host)) return false;          // fe80::/10 link-local
+    // IPv4-embedded forms — ::ffff:127.0.0.1, ::a.b.c.d, ::ffff:0:a.b.c.d
+    const v4Embed = host.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (v4Embed) return _isValidSelfhostUrl(`${u.protocol}//${v4Embed[1]}${u.pathname || ''}`, withBearer);
+    // IPv4-mapped hex form ::ffff:7f00:0001 — translate the last 32 bits
+    if (host.startsWith('::ffff:')) {
+      const tail = host.slice(7);
+      const hex = tail.replace(/:/g, '');
+      if (/^[0-9a-f]{1,8}$/.test(hex)) {
+        const padded = hex.padStart(8, '0');
+        const a = parseInt(padded.slice(0, 2), 16);
+        const b = parseInt(padded.slice(2, 4), 16);
+        const c = parseInt(padded.slice(4, 6), 16);
+        const d = parseInt(padded.slice(6, 8), 16);
+        return _isValidSelfhostUrl(`${u.protocol}//${a}.${b}.${c}.${d}${u.pathname || ''}`, withBearer);
+      }
+    }
+    // Unknown / private IPv6 ranges we haven't enumerated — allow only
+    // globally-routable (2000::/3) IPv6 through. Anything else is rejected.
+    if (!/^[23][0-9a-f]{3}:/.test(host)) return false;
+  }
   return true;
 }
 
