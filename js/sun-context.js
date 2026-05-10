@@ -581,127 +581,162 @@ function detectDeficits(totals30d) {
   return out;
 }
 
-// ─── Tier: standard (+1200 tok) ────────────────────────────────────────
+// ─── Tier: standard ────────────────────────────────────────────────────
+//
+// Pre-2026-05-10: emitted per-session tables for outdoor sun (last 30) +
+// device-therapy (last 30) — ~1,000–2,000 chars per chat turn for active
+// users, mostly unused (the AI rarely cited a specific session by date,
+// it leaned on the always-tier rollup). Wearables solved the same
+// problem with `summary.metrics[mid].weekly` arrays + last-5 anomalies
+// from changeHistory; sun was the outlier paying tokens for per-event
+// detail every chat.
+//
+// Now: weekly trend (last 6w per channel) for the shape signal — same
+// pattern as `buildWearableContext`'s "Weekly trend (last 6w)" block.
+// Per-session forensics moves to the existing tool-call APIs
+// (`getSunSessionDetail(id)`, `getSunSessionsSlice(opts)`); the AI
+// reaches them when the user asks about a specific session, instead of
+// loading every session into every prompt. Net savings on a typical
+// active user: ~1,200–1,500 chars (~300–375 tok) per chat turn.
 
 function standardTierBlock(sessions) {
-  const recent = sessions.filter(s => s.endedAt).slice(-30);
-  if (recent.length === 0) return '';
-
-  let block = `### Last ${recent.length} sessions (most recent first)
-| Date | Min | Skin% | Regions | Eyes | UV peak (UVI) | MED% (of personal daily MED) | Vit-D (IU) | Circadian (lux·h) |
-|------|-----|-------|---------|------|---------------|-----------------------------|------------|--------------------|
-`;
-  for (const sess of recent.slice().reverse()) {
-    const date = new Date(sess.startedAt).toISOString().slice(0, 10);
-    const dur = Math.round(sess.durationMin || 0);
-    const bodyPct = sess.bodyExposure ? Math.round((sess.bodyExposure.fraction || 0) * 100) : 0;
-    const regionsStr = _formatRegions(sess.bodyExposure);
-    const eyes = sess.eyeExposure?.mode || '?';
-    // UV column reflects the session window, not the start-hour stamp.
-    // start-hour was misleading: an early-morning logged session showed
-    // UV 0 even when its MED% was non-zero because the integrator scanned
-    // a different slice of the hourly array than the stamp sampled.
-    const uv = _sessionPeakUV(sess);
-    const uvFmt = uv != null ? uv.toFixed(1) : '?';
-    const med = sess.safety?.medFraction != null ? `${(sess.safety.medFraction * 100).toFixed(0)}` : '?';
-    // Vit-D and circadian render in user-meaningful units (IU equivalent
-    // and melanopic lux-hours) — the raw channel-au numbers the chat
-    // previously rendered ("412,248.5") are opaque and the AI was
-    // parroting them in prose. The conversion functions live in
-    // sun-spectrum.js with citations; same path as the dashboard.
-    const vitDAu = sess.doses?.vitamin_d;
-    const _genetics = state.importedData?.genetics || null;
-    // Per-session cap with body-fraction scaling (Holick 2008: 1 MED
-    // full-body ≈ 10k IU). vitaminDIUPerSession applies both per-session
-    // and daily ceilings; vitaminDIU (legacy) applied only the daily.
-    const _bodyFrac = sess.bodyExposure?.fraction;
-    const vitD = (vitDAu != null && Number.isFinite(vitDAu) && typeof window.vitaminDIUPerSession === 'function')
-      ? Math.round(window.vitaminDIUPerSession(vitDAu, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, !!sess.bodyExposure?.rotatedSides, _genetics, _bodyFrac))
-      : '?';
-    const circAu = sess.doses?.circadian;
-    let circ = '?';
-    if (circAu != null && Number.isFinite(circAu) && (sess.durationMin || 0) > 0 && typeof window.circadianMelanopicLux === 'function') {
-      const lux = window.circadianMelanopicLux(circAu, sess.durationMin);
-      const luxH = lux * ((sess.durationMin || 0) / 60);
-      circ = luxH >= 1000 ? Math.round(luxH / 100) * 100 : Math.round(luxH);
-    }
-    block += `| ${date} | ${dur} | ${bodyPct}% | ${regionsStr} | ${eyes} | ${uvFmt} | ${med} | ${vitD} | ${circ} |\n`;
-  }
-  block += '\n';
-
-  // PBM / device sessions — surfaced as their own table so the agent can
-  // see WHEN device-therapy sessions happened, not just an aggregate count.
-  // Skin exposed + body areas honor the same privacy gate as outdoor
-  // sessions (regions stripped when the toggle is off).
-  const allDevSessions = (state.importedData?.deviceSessions || [])
-    .filter(s => s.endedAt)
-    .slice(-30);
-  if (allDevSessions.length > 0) {
-    const deviceById = Object.fromEntries((state.importedData?.lightDevices || []).map(d => [d.id, d]));
-    const _genetics = state.importedData?.genetics || null;
-    const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
-    block += `### Last ${allDevSessions.length} device-therapy sessions\n`;
-    block += `| Date | Min | Device | Distance | Skin exposed | Eyes | Vit-D (IU) | Red 660nm (J/cm²) | NIR 810/850 (J/cm²) |\n`;
-    block += `|------|-----|--------|----------|--------------|------|------------|-------------------|----------------------|\n`;
-    for (const s of allDevSessions.slice().reverse()) {
-      const date = new Date(s.startedAt).toISOString().slice(0, 10);
-      const dur = Math.round(s.durationMin || 0);
-      const dev = deviceById[s.deviceId];
-      const devName = dev ? `${_safeText(dev.brand) || '?'} ${_safeText(dev.model)}`.trim() : 'removed device';
-      const dist = s.distanceCm ? `${Math.round(s.distanceCm)} cm` : '?';
-      // Skin exposed: from bodyAreas if precise (post-2026-05-08), else
-      // from legacy bodyArea broad-zone string. Keep both the display
-      // string AND the underlying fraction — the per-session vit-D cap
-      // needs the fraction to apply Holick's MED-saturation ceiling.
-      let bodyPct = '?';
-      let bodyFrac = null;
-      if (Array.isArray(s.bodyAreas) && s.bodyAreas.length > 0) {
-        const fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
-          ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
-          : {};
-        const total = s.bodyAreas.reduce((acc, k) => acc + (fracByKey[k] || 0), 0);
-        bodyFrac = total;
-        bodyPct = `${Math.round(total * 100)}%`;
-      } else if (s.bodyArea) {
-        const broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
-        const f = broadFracs[s.bodyArea];
-        if (f != null) {
-          bodyFrac = f;
-          bodyPct = `${Math.round(f * 100)}%`;
-        } else {
-          bodyPct = s.bodyArea;
-        }
-      }
-      const eyes = s.eyesProtected ? 'protected' : 'uncovered';
-      // Vit-D IU. Conditional `(geneticMult=0.72)` tag fires only when
-      // the user has loaded genetics that move the multiplier away from
-      // 1.0 — agent gets a compact provenance hint without baseline-
-      // user bloat. Same shape as the `· AI verdict: red` flag pattern:
-      // terse non-default annotation, full breakdown lives in the
-      // session detail modal.
-      const vitDAu = s.doses?.vitamin_d;
-      let vitD = '—';
-      if (vitDAu != null && Number.isFinite(vitDAu) && vitDAu > 0 && typeof window.vitaminDIUPerSession === 'function') {
-        const iu = Math.round(window.vitaminDIUPerSession(vitDAu, _fitzForDevice, null, false, _genetics, bodyFrac));
-        let geneTag = '';
-        if (typeof window.geneticVitaminDMultiplier === 'function') {
-          try {
-            const g = window.geneticVitaminDMultiplier(_genetics);
-            if (g && Number.isFinite(g.mult) && Math.abs(g.mult - 1.0) > 0.01) {
-              geneTag = ` (geneticMult=${g.mult.toFixed(2)})`;
-            }
-          } catch (_) {}
-        }
-        vitD = `${iu}${geneTag}`;
-      }
-      const red = s.doses?.pbm_red != null ? (s.doses.pbm_red / 1000).toFixed(2) : '?';
-      const nir = s.doses?.pbm_nir != null ? (s.doses.pbm_nir / 1000).toFixed(2) : '?';
-      block += `| ${date} | ${dur} | ${devName} | ${dist} | ${bodyPct} | ${eyes} | ${vitD} | ${red} | ${nir} |\n`;
-    }
-    block += '\n';
+  const sun = sessions.filter(s => s.endedAt);
+  const dev = (state.importedData?.deviceSessions || []).filter(s => s.endedAt);
+  if (sun.length === 0 && dev.length === 0) {
+    // No session history — just the correlation table if any (rare).
+    return _correlationsBlock();
   }
 
-  // Correlation table — computed on demand by sun-correlations.js
+  // 6-week trend per channel. Bucket by 7-day windows ending now;
+  // bucket[5] = last 7d, bucket[0] = 35–42d ago. Sum channel-au across
+  // both sun + device sessions per bucket so the AI sees the combined
+  // shape, then convert to user-facing units (IU / lux·h / J/cm²).
+  const WEEKS = 6;
+  const now = Date.now();
+  const all = [...sun, ...dev];
+  const channels = ['vitamin_d', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir', 'no_cv', 'pomc'];
+  const buckets = Object.fromEntries(channels.map(k => [k, new Array(WEEKS).fill(0)]));
+  // Same per-session cap path the always-tier 7d rollup uses, so the
+  // weekly trend integrates correctly for high-output device sessions
+  // (without this, raw channel-au sums to nonsense for vit-D).
+  const _genetics = state.importedData?.genetics || null;
+  const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  const _perSession = (typeof window !== 'undefined' && typeof window.vitaminDIUPerSession === 'function') ? window.vitaminDIUPerSession : null;
+  const _fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
+    ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
+    : {};
+  const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
+  const _devBodyFrac = (s) => {
+    if (Array.isArray(s.bodyAreas) && s.bodyAreas.length > 0) {
+      return s.bodyAreas.reduce((acc, k) => acc + (_fracByKey[k] || 0), 0) || null;
+    }
+    return s.bodyArea ? (_broadFracs[s.bodyArea] ?? null) : null;
+  };
+  for (const s of all) {
+    const weekIdx = Math.floor((now - s.endedAt) / (7 * 86400 * 1000));
+    if (weekIdx < 0 || weekIdx >= WEEKS) continue;
+    const slot = WEEKS - 1 - weekIdx;
+    const isSun = !!s.location || s.atmosphere || s.bodyExposure;
+    const fitz = isSun ? (s.safety?.fitzpatrick || 'III') : _fitzForDevice;
+    const uvi = isSun ? s.atmosphere?.uvIndex : null;
+    const rotated = !!s.bodyExposure?.rotatedSides;
+    const bf = isSun ? s.bodyExposure?.fraction : _devBodyFrac(s);
+    for (const k of channels) {
+      const au = s.doses?.[k];
+      if (!Number.isFinite(au) || au <= 0) continue;
+      // Vit-D goes through the cap; everything else is raw channel-au
+      // (correctly, per sun-spectrum.js — only vit-D has biological
+      // saturation; circadian / NIR / PBM / NO / POMC accumulate
+      // linearly in their respective windows).
+      if (k === 'vitamin_d' && _perSession) {
+        buckets[k][slot] += _perSession(au, fitz, uvi, rotated, _genetics, bf);
+      } else {
+        buckets[k][slot] += au;
+      }
+    }
+  }
+
+  // Render: only emit channels with non-zero buckets so empty channels
+  // don't bloat the block. Format depends on channel: IU for vit-D,
+  // lux·h for circadian, J/cm² for the three PBM-band channels, raw
+  // channel-au for no_cv and pomc (no canonical SI unit — the AI sees
+  // the trend shape, not magnitude).
+  const fmtIUCompact = (n) => n >= 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
+    : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
+  const fmtJ = (n) => n >= 10 ? `${Math.round(n)}` : n >= 1 ? n.toFixed(1) : n.toFixed(2);
+  const _luxHFromAu = (k, weeklyAu) => {
+    // circadian channel-au needs duration to convert; bucket totals are
+    // au-aggregates not lux-h. Approximation: use the always-tier helper
+    // pattern but on a representative 1-hour basis. The AI cares about
+    // shape week-to-week, not absolute lux-h here (always-tier already
+    // shows the absolute 7d total).
+    if (typeof window.circadianMelanopicLux === 'function') {
+      return Math.round(window.circadianMelanopicLux(weeklyAu, 60) * 1); // 60-min basis
+    }
+    return Math.round(weeklyAu);
+  };
+  const labels = {
+    vitamin_d: 'Vit-D (IU)',
+    circadian: 'Body clock (lux·h)',
+    nir_solar: 'Cellular repair (J/cm²)',
+    pbm_red: 'Red 660nm (J/cm²)',
+    pbm_nir: 'NIR 810/850 (J/cm²)',
+    no_cv: 'Cardiovascular (au)',
+    pomc: 'Mood/hormones (au)',
+  };
+  const lines = [];
+  for (const k of channels) {
+    const b = buckets[k];
+    if (b.every(v => v === 0)) continue;
+    let formatted;
+    if (k === 'vitamin_d') {
+      formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
+    } else if (k === 'circadian') {
+      formatted = b.map(v => v > 0 ? fmtIUCompact(_luxHFromAu(k, v)) : '0').join('→');
+    } else if (k === 'nir_solar' || k === 'pbm_red' || k === 'pbm_nir') {
+      formatted = b.map(v => {
+        if (v <= 0) return '0';
+        const j = typeof window.pbmJoulesPerCm2 === 'function' ? window.pbmJoulesPerCm2(v) : v / 10000;
+        return fmtJ(j);
+      }).join('→');
+    } else {
+      // no_cv / pomc — raw channel-au, compact
+      formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
+    }
+    lines.push(`  ${labels[k]}: ${formatted}`);
+  }
+
+  let block = '';
+  if (lines.length > 0) {
+    // Header parallels buildWearableContext's "Weekly trend (last 6w)"
+    // exactly so an agent reading both sections sees the same shape
+    // language for both lenses.
+    block += `### Weekly trend (last 6w, oldest→newest)\n${lines.join('\n')}\n\n`;
+  }
+
+  // Session counts — the only per-event detail the always-on payload
+  // carries. Wearables doesn't have an event-count analog (each metric
+  // is sampled continuously); for sun, the session count is the rate
+  // signal the AI uses for cadence reasoning ("you logged 2 sessions
+  // this week vs 5 the prior week"). One line, both kinds.
+  const _last7d = now - 7 * 86400 * 1000;
+  const _prior7d = now - 14 * 86400 * 1000;
+  const sun7 = sun.filter(s => s.endedAt >= _last7d).length;
+  const sunPrev7 = sun.filter(s => s.endedAt >= _prior7d && s.endedAt < _last7d).length;
+  const dev7 = dev.filter(s => s.endedAt >= _last7d).length;
+  const devPrev7 = dev.filter(s => s.endedAt >= _prior7d && s.endedAt < _last7d).length;
+  if (sun7 + dev7 + sunPrev7 + devPrev7 > 0) {
+    block += `### Session cadence\n- Last 7d: ${sun7} outdoor + ${dev7} device (prior 7d: ${sunPrev7} outdoor + ${devPrev7} device)\n- Per-session detail: agent can call \`getSunSessionsSlice({days: 30})\` or \`getSunSessionDetail(id)\` for forensics\n\n`;
+  }
+
+  block += _correlationsBlock();
+  return block;
+}
+
+// Correlation table is already aggregate (per-channel × per-biomarker
+// Pearson over 12-week rolling windows). Kept as-is — it's the highest-
+// signal block for cross-lens reasoning and it's already lean.
+function _correlationsBlock() {
   let corr = state.importedData?.sunCorrelations;
   if (!corr || !corr.pairs) {
     try { corr = getSunCorrelations(); } catch (e) {
@@ -709,13 +744,9 @@ function standardTierBlock(sessions) {
     }
   }
   if (corr && corr.pairs) {
-    block += `### Sun-channel × biomarker correlations (computed from your data)
-${formatCorrelations(corr.pairs)}
-
-`;
+    return `### Sun-channel × biomarker correlations (computed from your data)\n${formatCorrelations(corr.pairs)}\n\n`;
   }
-
-  return block;
+  return '';
 }
 
 // Compact representation of bodyExposure for the standard-tier session
@@ -726,21 +757,6 @@ ${formatCorrelations(corr.pairs)}
 // rotatedSides — both anterior and posterior were exposed during the
 // session via the in-session 🔄 Flip control.
 //
-// Body regions are gated on the per-profile consent flag
-// (isBodyRegionsInAIContext, default OFF). When disabled the column
-// renders preset/dash only — preserving total-fraction signal at the
-// row's `bodyPct` column without exfiltrating anatomy.
-function _formatRegions(bodyExposure) {
-  if (!bodyExposure) return '?';
-  const preset = bodyExposure.preset;
-  const regions = Array.isArray(bodyExposure.regions) ? bodyExposure.regions : [];
-  const rot = bodyExposure.rotatedSides ? ' (both)' : '';
-  if (regions.length === 0 || !isBodyRegionsInAIContext()) {
-    return (preset && preset !== 'detailed') ? `${preset}${rot}` : `—${rot}`;
-  }
-  return regions.join('+') + rot;
-}
-
 // ─── Tool-call APIs (replaces former deep-tier prompt block) ──────────
 //
 // Per-session detail belongs in a tool response, not a prompt. These
@@ -1035,36 +1051,6 @@ function formatCorrelations(pairs) {
     lines.push(`| ${CHANNEL_LABELS[p.channel] || p.channel} | ${p.biomarker} | ${p.r.toFixed(2)} | ${p.n} | ${p.lag || 0}d |`);
   }
   return lines.join('\n');
-}
-
-// Peak UV during the session window. Walks the persisted hourly array
-// and picks the max within [startedAt, endedAt]. Falls back to the
-// stored start-hour stamp when hourly isn't present (older records,
-// manual atmosphere entries). Returns null when nothing usable exists.
-function _sessionPeakUV(sess) {
-  const atm = sess.atmosphere;
-  if (!atm) return null;
-  const start = sess.startedAt, end = sess.endedAt || sess.startedAt;
-  const hourly = atm.hourly;
-  if (hourly && Array.isArray(hourly.time) && Array.isArray(hourly.uv_index)) {
-    const offsetS = Number.isFinite(hourly.utcOffsetSeconds) ? hourly.utcOffsetSeconds : 0;
-    let peak = -Infinity;
-    for (let i = 0; i < hourly.time.length; i++) {
-      const t = hourly.time[i];
-      if (typeof t !== 'string') continue;
-      // Hourly times are local-clock at the location; reverse the offset
-      // to compare against epoch-ms session bounds.
-      const ms = Date.parse(t.length === 16 ? t + 'Z' : t);
-      if (!Number.isFinite(ms)) continue;
-      const epoch = ms - offsetS * 1000;
-      if (epoch < start - 30 * 60 * 1000) continue;
-      if (epoch > end + 30 * 60 * 1000) continue;
-      const v = hourly.uv_index[i];
-      if (Number.isFinite(v) && v > peak) peak = v;
-    }
-    if (peak > -Infinity) return peak;
-  }
-  return Number.isFinite(atm.uvIndex) ? atm.uvIndex : null;
 }
 
 function mergeTotalsCtx(a, b) {

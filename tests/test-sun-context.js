@@ -159,17 +159,22 @@ return (async function() {
   const standard = buildSunContext({ tier: 'standard' });
   assert('Standard tier strictly longer than always tier',
     standard.length > buildSunContext({ tier: 'always' }).length);
-  assert('Standard tier surfaces session table header with units (UVI, MED%)',
-    /\| Date \| Min \| Skin% \| Regions \| Eyes \| UV peak \(UVI\) \| MED% \(of personal daily MED\) \| Vit-D \(IU\) \| Circadian \(lux·h\) \|/.test(standard));
-  // Coverage glossary preamble dropped 2026-05-08 round 5: matches the
-  // raw-data style of buildLabContext / wearables sections — no inline
-  // pedagogy, agent uses its own training data + the column header.
+  // Pre-2026-05-10 standard tier emitted per-session tables (~30 rows ×
+  // ~120 chars). New shape (matches buildWearableContext): per-channel
+  // 6-week trend lines instead of per-event detail. Per-session forensics
+  // moved to the getSunSessionsSlice / getSunSessionDetail tool-call APIs.
+  assert('Standard tier emits "Weekly trend (last 6w" header (wearables-style)',
+    /### Weekly trend \(last 6w/.test(standard));
+  assert('Standard tier emits at least one channel weekly-trend line',
+    /(Vit-D|Body clock|Cellular repair|Cardiovascular|Mood\/hormones)/.test(standard));
+  assert('Standard tier emits "Session cadence" line (last 7d vs prior 7d)',
+    /### Session cadence/.test(standard));
+  assert('Standard tier no longer renders per-session sun table',
+    !/\| Date \| Min \| Skin% \| Regions \|/.test(standard));
+  assert('Standard tier no longer renders per-session device-therapy table',
+    !/\| Date \| Min \| Device \| Distance \|/.test(standard));
   assert('Standard tier table omits prose glossary (raw-data style)',
     !/Wallace rule of nines/i.test(standard));
-  // 5 sessions = 5 table rows
-  assert('Standard tier renders one row per session',
-    (standard.match(/\| s_\d/g) || []).length === 0 && // ids aren't in the row
-    (standard.match(/\|\s*\d{4}-\d{2}-\d{2}/g) || []).length === 5);
 
   // ─── 5. Per-session detail moved to tool-call API (v1.7.19) ─────────
   // The former `deep` prompt block is gone — per-session detail is the
@@ -414,8 +419,8 @@ return (async function() {
     if (sessions.length > 0) {
       assert('Lab context always carries [section:sun] when sessions exist',
         /\[section:sun\][\s\S]*\[\/section:sun\]/.test(labCtx));
-      assert('Lab context always includes the 30-day session table (standard tier) when sessions exist',
-        /UV peak \(UVI\)/.test(labCtx));
+      assert('Lab context always includes weekly-trend (standard tier) when sessions exist',
+        /### Weekly trend \(last 6w/.test(labCtx));
     } else {
       assert('Lab context skips [section:sun] when no sessions',
         !/\[section:sun\]/.test(labCtx));
@@ -512,8 +517,16 @@ return (async function() {
     /### Indoor light environment/.test(populatedStandard), `len=${populatedStandard.length}`);
   assert('Populated standard tier keeps the audit baseline annotation',
     /baseline — no prior audit to compare/.test(populatedStandard));
-  assert('Populated standard tier keeps device-therapy table',
-    /### Last \d+ device-therapy sessions/.test(populatedStandard));
+  assert('Populated standard tier emits weekly-trend (per-channel last 6w shape)',
+    /### Weekly trend \(last 6w/.test(populatedStandard));
+  assert('Populated standard tier emits session cadence line',
+    /### Session cadence/.test(populatedStandard));
+  assert('Populated standard tier points to tool calls for per-session forensics',
+    /getSunSessionsSlice|getSunSessionDetail/.test(populatedStandard));
+  assert('Populated standard tier omits per-session sun table (shape match w/ wearables)',
+    !/Last \d+ sessions \(most recent first\)/.test(populatedStandard));
+  assert('Populated standard tier omits per-session device-therapy table (shape match w/ wearables)',
+    !/Last \d+ device-therapy sessions/.test(populatedStandard));
   assert('Populated standard tier keeps calibration anchor',
     /### Calibration anchor/.test(populatedStandard));
   assert('Populated standard tier omits prose preambles (skin glossary)',
