@@ -3,8 +3,8 @@
 // Reconstructs solar spectral irradiance at the user's location/time using a
 // Bird-Riordan-style clear-sky model with cloud + altitude + ozone correction.
 // Convolves the reconstructed spectrum through 8 biological action spectra
-// (CIE erythemal, CIE vit-D, CIE melanopic, OPN3, OPN5, CCO red, CCO NIR, NO release)
-// to produce per-channel doses.
+// (CIE erythemal, CIE vit-D, CIE melanopic, OPN5, CCO red, CCO NIR, NO release,
+// POMC) to produce per-channel doses.
 //
 // Reference frame: 280-2500nm, sampled at 5nm resolution (89 bands).
 // Output channels see Bird-Riordan reconstructed irradiance (W/m²/nm) integrated
