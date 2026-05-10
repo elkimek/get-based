@@ -509,9 +509,20 @@ function ozoneAbsorption(nm) {
       }
     }
   }
-  // Chappuis band (visible weak absorption ~600 nm)
-  if (nm < 700) return 0.4 * Math.exp(-Math.pow((nm - 600) / 60, 2));
-  return 0.01;
+  // Chappuis band (visible weak absorption ~600 nm) and Wulf bands beyond.
+  // The cross-section anchors come from Burrows et al. 1999 / Voigt et al.
+  // 2001: σ_chappuis(600 nm) ≈ 5e-21 cm²/molecule, dropping to ~1e-23 by
+  // 700 nm. Multiplied by O3_AVOGADRO_DU so the result lives in the same
+  // unit space as the UV path — without this scaling, the function
+  // returned 0.4 at 600 nm vs 1.08e-3 at 350 nm, a ~370× discontinuity
+  // at the boundary that suppressed CCO-red/NIR sun-session channel
+  // estimates by ~10% (Greptile audit 2026-05-10). Vitamin-D and
+  // erythemal channels are unaffected (UV bands only). Calibration anchor
+  // (Maxi UVB 6,366 IU) is UV-driven and stands.
+  const SIGMA_CHAPPUIS_PEAK = 5e-21;  // cm²/molecule at 600 nm
+  const SIGMA_WULF = 1e-23;           // cm²/molecule beyond 700 nm (very weak)
+  if (nm < 700) return SIGMA_CHAPPUIS_PEAK * O3_AVOGADRO_DU * Math.exp(-Math.pow((nm - 600) / 60, 2));
+  return SIGMA_WULF * O3_AVOGADRO_DU;
 }
 
 // ─── Channel dose calculation ──────────────────────────────────────────

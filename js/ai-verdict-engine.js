@@ -183,6 +183,7 @@ export function createAIVerdict(cfg) {
     onStateChange, // optional hook for re-rendering — defaults to window._refreshSunSurfaces
   } = cfg;
 
+  if (typeof getTarget !== 'function') throw new Error('createAIVerdict: getTarget required');
   if (typeof getId !== 'function') throw new Error('createAIVerdict: getId required');
   if (typeof getAIAnalysis !== 'function') throw new Error('createAIVerdict: getAIAnalysis required');
   if (typeof setAIAnalysis !== 'function') throw new Error('createAIVerdict: setAIAnalysis required');
