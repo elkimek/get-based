@@ -5,6 +5,12 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.1', date: '2026-05-10', title: 'Bugfixes & improvements',
+    items: [
+      '<b>PDF image import:</b> clicking Cancel on the AI-provider privacy warning aborts cleanly now (was hanging).',
+    ]
+  },
+  {
     version: '1.6.0', date: '2026-05-04', title: '☀ Light & Sun — the lens for everything sunlight does to you',
     items: [
       '<b>☀ Light & Sun lens.</b> Sunlight does a lot more than make vitamin D. Track your exposure across six biological channels — Vitamin D, Body clock, Cardiovascular, Mood & hormones, Cellular repair, and Outdoor eye light — and correlate them with your labs and wearable data over time. One-tap session logging: tap when you go outside, tap again when you come back. Plain-English summary on stop with computed vit-D yield and burn-dose status.',
