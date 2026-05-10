@@ -1710,12 +1710,12 @@ if (typeof window !== 'undefined') {
     // Confirm-dialog wrapped delete — reachable from the expanded
     // room's footer. The bare delete handler stays in case anything
     // else wires it up without confirmation.
-    deleteLightEnvRoomConfirm: (id) => {
-      showConfirmDialog('Delete this room? Measurements stay but lose their room link.', async () => {
+    deleteLightEnvRoomConfirm: async (id) => {
+      if (await showConfirmDialog('Delete this room? Measurements stay but lose their room link.')) {
         await deleteRoom(id);
         if (readActiveRoomId() === id) writeActiveRoomId(null);
         if (window.navigate && state.currentView === 'light') window.navigate('light');
-      });
+      }
     },
     setActiveLightEnvRoom: (id) => {
       writeActiveRoomId(id);
@@ -1758,12 +1758,12 @@ if (typeof window !== 'undefined') {
       await deleteScreen(id);
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
-    deleteLightEnvScreenConfirm: (id) => {
-      showConfirmDialog('Delete this screen?', async () => {
+    deleteLightEnvScreenConfirm: async (id) => {
+      if (await showConfirmDialog('Delete this screen?')) {
         await deleteScreen(id);
         if (_expandedScreenId === id) _expandedScreenId = null;
         if (window.navigate && state.currentView === 'light') window.navigate('light');
-      });
+      }
     },
     // Disclosure toggle for screen cards — same event-target gating as
     // the room toggle so clicks on inner controls don't double-fire.
@@ -1844,12 +1844,12 @@ if (typeof window !== 'undefined') {
     updateLightAuditField: async (id, field, value) => {
       await updateLightAudit(id, { [field]: value });
     },
-    deleteLightAuditConfirm: (id) => {
-      showConfirmDialog('Delete this audit? This cannot be undone.', async () => {
+    deleteLightAuditConfirm: async (id) => {
+      if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
         await deleteLightAudit(id);
         if (_expandedAuditId === id) _expandedAuditId = null;
         if (window.navigate && state.currentView === 'light') window.navigate('light');
-      });
+      }
     },
     // "Interpret changes" — pre-fills the chat panel with a comparison
     // summary so the AI can reason about what shifted and what to try

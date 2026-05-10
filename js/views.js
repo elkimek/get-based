@@ -4107,12 +4107,12 @@ export function saveCustomMarker() {
   setTimeout(() => openManualEntryForm(id), 100);
 }
 
-export function deleteMarkerValue(id, date) {
+export async function deleteMarkerValue(id, date) {
   const dotKey = id.replace('_', '.');
   if (!state.importedData.entries) return;
   const entry = state.importedData.entries.find(e => e.date === date);
   if (!entry || entry.markers[dotKey] === undefined) return;
-  showConfirmDialog(`Delete this value (${date})? This can't be undone.`, () => {
+  if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
     delete entry.markers[dotKey];
     // Clean up provenance and manual tracking
     if (entry.markerSources) delete entry.markerSources[dotKey];
@@ -4131,7 +4131,7 @@ export function deleteMarkerValue(id, date) {
     navigate(activeNav ? activeNav.dataset.category : "dashboard");
     showDetailModal(id);
     showNotification(`Removed value from ${date}`, 'info');
-  });
+  }
 }
 
 export async function deleteCustomMarker(id) {

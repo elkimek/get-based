@@ -51,16 +51,16 @@ export function saveNote(idx) {
   showNotification('Note saved', 'success');
 }
 
-export function deleteNote(idx) {
+export async function deleteNote(idx) {
   if (!state.importedData.notes) return;
-  showConfirmDialog("Delete this note? This can't be undone.", () => {
+  if (await showConfirmDialog("Delete this note? This can't be undone.")) {
     state.importedData.notes.splice(idx, 1);
     saveImportedData();
     window.closeModal();
     const activeNav = document.querySelector(".nav-item.active");
     window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
     showNotification('Note deleted', 'info');
-  });
+  }
 }
 
 Object.assign(window, { openNoteEditor, saveNote, deleteNote });

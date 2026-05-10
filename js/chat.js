@@ -977,9 +977,9 @@ ${html}
   w.print();
 }
 
-export function clearChatHistory() {
+export async function clearChatHistory() {
   // Sister "delete thread" confirms; this one used to wipe immediately.
-  showConfirmDialog("Clear all messages in this conversation? This can't be undone.", () => {
+  if (await showConfirmDialog("Clear all messages in this conversation? This can't be undone.")) {
     state.chatHistory = [];
     if (state.currentThreadId) {
       localStorage.removeItem(getChatThreadKey(state.currentThreadId));
@@ -1006,7 +1006,7 @@ export function clearChatHistory() {
     updateChatHeaderTitle();
     updateDiscussButton();
     showNotification('Chat history cleared', 'info');
-  });
+  }
 }
 
 // ═══════════════════════════════════════════════

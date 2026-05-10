@@ -1798,11 +1798,11 @@ if (typeof window !== 'undefined') {
       }
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
-    deleteDeviceSession: (id) => {
-      showConfirmDialog("Delete this device session? This can't be undone.", async () => {
+    deleteDeviceSession: async (id) => {
+      if (await showConfirmDialog("Delete this device session? This can't be undone.")) {
         await deleteDeviceSession(id);
         if (window.navigate && state.currentView === 'light') window.navigate('light');
-      });
+      }
     },
     rollingDeviceTotals,
     renderDevicesSection,

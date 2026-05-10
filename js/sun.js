@@ -674,15 +674,14 @@ export async function _forgotStopPrompt(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
   const hours = ((Date.now() - sess.startedAt) / 3600000).toFixed(1);
-  showConfirmDialog(
-    `End this session that's been running ${hours} hours? Best-guess end time: now. The recorded duration will still reflect this — please trim it from the session detail if you ended earlier.`,
-    async () => {
-      await stopSession(sess.id);
-      await _hydrateFromProfileCoords(sess.id);
-      _refreshSurfaces();
-      showNotification('Session ended. Open the session detail to adjust the duration if needed.', 'success', 4500);
-    }
-  );
+  if (await showConfirmDialog(
+    `End this session that's been running ${hours} hours? Best-guess end time: now. The recorded duration will still reflect this — please trim it from the session detail if you ended earlier.`
+  )) {
+    await stopSession(sess.id);
+    await _hydrateFromProfileCoords(sess.id);
+    _refreshSurfaces();
+    showNotification('Session ended. Open the session detail to adjust the duration if needed.', 'success', 4500);
+  }
 }
 
 // Edit fields on a saved session. Bumps `updatedAt` so the cross-device
@@ -3735,10 +3734,10 @@ export function openDetailedSessionDialog() {
 
 // Delete from window for inline onclick
 async function deleteSunSession(id) {
-  showConfirmDialog('Delete this sun session?', async () => {
+  if (await showConfirmDialog('Delete this sun session?')) {
     await deleteSession(id);
     _refreshSurfaces();
-  });
+  }
 }
 
 // ─── Window export ─────────────────────────────────────────────────────

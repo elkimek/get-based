@@ -3852,34 +3852,34 @@ async function copySyncDiagnose(btn) {
 // row for this owner and zeroes storedBytes; devices re-establish their
 // state on the next push. Replaces the old "I just compacted" runbook
 // flow that required SSH access and a manual local-counter reset.
-function confirmCompactRelay(btn) {
+async function confirmCompactRelay(btn) {
   const q = getRelayQuotaEstimate();
   const mb = q ? (q.bytes / 1024 / 1024).toFixed(1) : '?';
   const message = `Compact this owner's storage on the relay (currently ~${mb} MB)? Drops the Evolu message log; every device re-establishes its CRDT state on the next push (a few seconds). Your local data is untouched.`;
-  const doCompact = async () => {
-    if (btn) { btn.disabled = true; btn.textContent = 'Compacting…'; }
-    try {
-      const result = await compactOwnerSelfServe();
-      const after = typeof result?.afterStoredBytes === 'number'
-        ? `${(result.afterStoredBytes / (1024 * 1024)).toFixed(2)} MB`
-        : '0 MB';
-      showNotification(`Relay storage compacted · ${result?.deletedMessages ?? '?'} rows dropped · ${after}`, 'success');
-      if (btn) {
-        const overlay = btn.closest?.('.modal-overlay');
-        if (overlay) overlay.remove();
-      }
-      if (document.getElementById('sync-popover')) {
-        toggleSyncDetail(); toggleSyncDetail();
-      }
-    } catch (e) {
-      showNotification(`Compact failed: ${e?.message || e}`, 'error');
-      if (btn) { btn.disabled = false; btn.textContent = 'Compact storage'; }
+  // Helper unavailable (utils.js failed to load) → proceed without
+  // confirmation rather than dead-end the user. Safety net mirrors the
+  // pattern in the four sibling confirm* helpers below.
+  const proceed = (typeof window.showConfirmDialog === 'function')
+    ? await window.showConfirmDialog(message)
+    : true;
+  if (!proceed) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Compacting…'; }
+  try {
+    const result = await compactOwnerSelfServe();
+    const after = typeof result?.afterStoredBytes === 'number'
+      ? `${(result.afterStoredBytes / (1024 * 1024)).toFixed(2)} MB`
+      : '0 MB';
+    showNotification(`Relay storage compacted · ${result?.deletedMessages ?? '?'} rows dropped · ${after}`, 'success');
+    if (btn) {
+      const overlay = btn.closest?.('.modal-overlay');
+      if (overlay) overlay.remove();
     }
-  };
-  if (typeof window.showConfirmDialog === 'function') {
-    window.showConfirmDialog(message, doCompact);
-  } else {
-    doCompact();
+    if (document.getElementById('sync-popover')) {
+      toggleSyncDetail(); toggleSyncDetail();
+    }
+  } catch (e) {
+    showNotification(`Compact failed: ${e?.message || e}`, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Compact storage'; }
   }
 }
 
@@ -3921,23 +3921,23 @@ async function refreshRelayStorage(btn) {
 // can start a fresh measurement window (e.g. after a backfill push that
 // would skew the ratio for days). Confirms via the same dialog helper
 // as the relay-quota reset.
-function confirmResetDeltaTelemetry(btn) {
+async function confirmResetDeltaTelemetry(btn) {
   const t = state.currentProfile ? getDeltaTelemetry(state.currentProfile) : null;
   const n = t?.summary?.count || 0;
   const message = `Reset the push-efficiency log? Drops the ${n} recent push entries used to compute the percentage. Your data and relay state aren't touched.`;
-  const doReset = () => {
-    if (state.currentProfile && resetDeltaTelemetry(state.currentProfile)) {
-      try { showNotification('Telemetry window reset', 'success'); } catch {}
-      if (btn) {
-        const overlay = btn.closest?.('.modal-overlay');
-        if (overlay) overlay.remove();
-      }
-    } else {
-      try { showNotification('Could not reset telemetry (no active profile?)', 'error'); } catch {}
+  const proceed = (typeof window.showConfirmDialog === 'function')
+    ? await window.showConfirmDialog(message)
+    : true;
+  if (!proceed) return;
+  if (state.currentProfile && resetDeltaTelemetry(state.currentProfile)) {
+    try { showNotification('Telemetry window reset', 'success'); } catch {}
+    if (btn) {
+      const overlay = btn.closest?.('.modal-overlay');
+      if (overlay) overlay.remove();
     }
-  };
-  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doReset);
-  else doReset();
+  } else {
+    try { showNotification('Could not reset telemetry (no active profile?)', 'error'); } catch {}
+  }
 }
 
 // "Enable Phase 2" — flips the fat-blob off for this profile on this
@@ -3946,7 +3946,7 @@ function confirmResetDeltaTelemetry(btn) {
 // defence-in-depth in case the modal HTML was tampered with). Uses
 // showConfirmDialog because this is a meaningful behaviour change with
 // a (deliberate) impact on what other devices see when pulling.
-function confirmEnablePhase2(btn) {
+async function confirmEnablePhase2(btn) {
   if (!state.currentProfile) return;
   const r = getDeltaCutoverReadiness(state.currentProfile);
   if (!r?.ready) {
@@ -3954,21 +3954,21 @@ function confirmEnablePhase2(btn) {
     return;
   }
   const message = `Switch this device to lean sync mode?\n\nFrom now on, this device will only push per-row deltas instead of the full data blob. Other devices keep working normally.\n\nReversible any time via Disable.`;
-  const doEnable = () => {
-    const result = enablePhase2Cutover(state.currentProfile);
-    if (result.ok) {
-      try { showNotification('Phase 2 enabled — next push will use per-row only', 'success'); } catch {}
-      _logSyncEvent('cutover', `Phase 2 enabled for ${state.currentProfile.slice(0, 8)}`);
-      if (btn) {
-        const overlay = btn.closest?.('.modal-overlay');
-        if (overlay) overlay.remove();
-      }
-    } else {
-      try { showNotification(`Could not enable Phase 2 (${result.reason})`, 'error'); } catch {}
+  const proceed = (typeof window.showConfirmDialog === 'function')
+    ? await window.showConfirmDialog(message)
+    : true;
+  if (!proceed) return;
+  const result = enablePhase2Cutover(state.currentProfile);
+  if (result.ok) {
+    try { showNotification('Phase 2 enabled — next push will use per-row only', 'success'); } catch {}
+    _logSyncEvent('cutover', `Phase 2 enabled for ${state.currentProfile.slice(0, 8)}`);
+    if (btn) {
+      const overlay = btn.closest?.('.modal-overlay');
+      if (overlay) overlay.remove();
     }
-  };
-  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doEnable);
-  else doEnable();
+  } else {
+    try { showNotification(`Could not enable Phase 2 (${result.reason})`, 'error'); } catch {}
+  }
 }
 
 // "Backfill blockers" — wipes the per-array snapshot for every surface
@@ -3976,7 +3976,7 @@ function confirmEnablePhase2(btn) {
 // item from scratch (instead of diffing against a snapshot that thinks
 // they were already shipped — the usual reason rowCount is stuck at 0
 // despite localCount > 0). Then forces a push.
-function confirmBackfillBlockers(btn) {
+async function confirmBackfillBlockers(btn) {
   if (!state.currentProfile) return;
   const profileId = state.currentProfile;
   const r = getDeltaCutoverReadiness(profileId);
@@ -3986,47 +3986,47 @@ function confirmBackfillBlockers(btn) {
     return;
   }
   const message = `Force a push for ${blockers.length} item${blockers.length === 1 ? '' : 's'} that haven't synced as deltas yet?\n\n${blockers.join(', ')}\n\nSafe — this just re-sends data that should already be on the relay.`;
-  const doBackfill = async () => {
-    let cleared = 0;
-    for (const name of blockers) {
-      try {
-        localStorage.removeItem(_deltaSnapshotKey(profileId, name));
-        localStorage.removeItem(`${_deltaSnapshotKey(profileId, name)}-meta`);
-        cleared++;
-      } catch {}
-    }
-    try { await pushProfile(profileId, state.importedData, { force: true }); } catch (e) {
-      try { showNotification(`Backfill push failed: ${e?.message || e}`, 'error'); } catch {}
-      return;
-    }
-    try { showNotification(`Backfilled ${cleared} surface${cleared === 1 ? '' : 's'} — re-open Diagnose to verify`, 'success'); } catch {}
-    _logSyncEvent('backfill', `Backfilled ${cleared} surface(s) for ${profileId.slice(0, 8)}: ${blockers.join(',')}`);
+  const proceed = (typeof window.showConfirmDialog === 'function')
+    ? await window.showConfirmDialog(message)
+    : true;
+  if (!proceed) return;
+  let cleared = 0;
+  for (const name of blockers) {
+    try {
+      localStorage.removeItem(_deltaSnapshotKey(profileId, name));
+      localStorage.removeItem(`${_deltaSnapshotKey(profileId, name)}-meta`);
+      cleared++;
+    } catch {}
+  }
+  try { await pushProfile(profileId, state.importedData, { force: true }); } catch (e) {
+    try { showNotification(`Backfill push failed: ${e?.message || e}`, 'error'); } catch {}
+    return;
+  }
+  try { showNotification(`Backfilled ${cleared} surface${cleared === 1 ? '' : 's'} — re-open Diagnose to verify`, 'success'); } catch {}
+  _logSyncEvent('backfill', `Backfilled ${cleared} surface(s) for ${profileId.slice(0, 8)}: ${blockers.join(',')}`);
+  if (btn) {
+    const overlay = btn.closest?.('.modal-overlay');
+    if (overlay) overlay.remove();
+  }
+}
+
+async function confirmDisablePhase2(btn) {
+  if (!state.currentProfile) return;
+  const message = `Switch this device back to full-blob sync?\n\nPushes will include the full data blob again as a safety net. Use this if a peer device is missing data after going lean.\n\nNo data loss either way.`;
+  const proceed = (typeof window.showConfirmDialog === 'function')
+    ? await window.showConfirmDialog(message)
+    : true;
+  if (!proceed) return;
+  if (disablePhase2Cutover(state.currentProfile)) {
+    try { showNotification('Phase 2 disabled — back to dual-write', 'success'); } catch {}
+    _logSyncEvent('cutover', `Phase 2 disabled for ${state.currentProfile.slice(0, 8)}`);
     if (btn) {
       const overlay = btn.closest?.('.modal-overlay');
       if (overlay) overlay.remove();
     }
-  };
-  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doBackfill);
-  else doBackfill();
-}
-
-function confirmDisablePhase2(btn) {
-  if (!state.currentProfile) return;
-  const message = `Switch this device back to full-blob sync?\n\nPushes will include the full data blob again as a safety net. Use this if a peer device is missing data after going lean.\n\nNo data loss either way.`;
-  const doDisable = () => {
-    if (disablePhase2Cutover(state.currentProfile)) {
-      try { showNotification('Phase 2 disabled — back to dual-write', 'success'); } catch {}
-      _logSyncEvent('cutover', `Phase 2 disabled for ${state.currentProfile.slice(0, 8)}`);
-      if (btn) {
-        const overlay = btn.closest?.('.modal-overlay');
-        if (overlay) overlay.remove();
-      }
-    } else {
-      try { showNotification('Could not disable Phase 2', 'error'); } catch {}
-    }
-  };
-  if (typeof window.showConfirmDialog === 'function') window.showConfirmDialog(message, doDisable);
-  else doDisable();
+  } else {
+    try { showNotification('Could not disable Phase 2', 'error'); } catch {}
+  }
 }
 
 // Toast users when they cross the 80% / 95% threshold the first time.
