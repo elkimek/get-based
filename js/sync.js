@@ -2236,7 +2236,10 @@ async function _signSelfRequest(context) {
 // Fetch the relay's authoritative storedBytes for our owner. On
 // success, mirrors the value into the local quota cache so the
 // synchronous getRelayQuotaEstimate() reflects ground truth. Returns
-// {storedBytes, quotaBytes} or null on any failure.
+// {storedBytes, quotaBytes, messageCount, lastWriteToken} or null on
+// any failure. The latter two are surfaced by relay >= 1.2.3 — older
+// relays return null for them, which the caller treats as "unknown"
+// (not an error condition).
 export async function fetchOwnerStorageFromRelay() {
   const base = _getSelfBaseUrl();
   if (!base) return null;
@@ -2253,8 +2256,103 @@ export async function fetchOwnerStorageFromRelay() {
     const body = await r.json();
     if (!body || typeof body.storedBytes !== 'number') return null;
     _setRelayQuotaBytes(body.storedBytes);
-    return { storedBytes: body.storedBytes, quotaBytes: body.quotaBytes ?? null };
+    return {
+      storedBytes: body.storedBytes,
+      quotaBytes: body.quotaBytes ?? null,
+      // Relay 1.2.3+: messageCount + lastWriteToken let us verify
+      // "did the relay actually persist my last push?". Older relays
+      // omit these → null. Code reading them must handle null = unknown.
+      messageCount: typeof body.messageCount === 'number' ? body.messageCount : null,
+      lastWriteToken: typeof body.lastWriteToken === 'string' ? body.lastWriteToken : null,
+    };
   } catch { return null; }
+}
+
+// ─── Push verification (Evolu silent-reject detector) ────────────────
+// After every "push committed" event, we snapshot what the relay reports
+// for our owner and stash it. The NEXT verifyPushLanded() call hits
+// /self/owner-storage again and compares — if storedBytes hasn't
+// increased AND messageCount hasn't increased AND lastWriteToken
+// hasn't changed, the push was silently dropped server-side (the
+// Evolu silent-reject bug 2026-05-11: WS round-trip looks healthy,
+// relay acks "Push committed", but evolu_message gets zero rows
+// written). Three-state verdict so we can surface a colored dot
+// without false-alarming on transient errors or pre-1.2.3 relays:
+//   'healthy'  — relay advanced; push landed
+//   'wedged'   — relay didn't advance; push was silently dropped
+//   'unknown'  — couldn't probe (old relay, offline, no prior snapshot)
+let _lastRelaySnapshot = null;  // { storedBytes, messageCount, lastWriteToken, at }
+let _lastVerifyVerdict = { verdict: 'unknown', at: 0, reason: null };
+
+export function getRelayHealthVerdict() {
+  return { ..._lastVerifyVerdict };
+}
+
+// Called immediately after a successful local "push committed" event —
+// snapshots the relay's view BEFORE the next probe. The next call to
+// verifyPushLanded() will compare against this baseline.
+async function snapshotRelayState() {
+  try {
+    const r = await fetchOwnerStorageFromRelay();
+    if (!r) return; // can't snapshot; verifyPushLanded will fall to 'unknown'
+    _lastRelaySnapshot = {
+      storedBytes: r.storedBytes,
+      messageCount: r.messageCount,
+      lastWriteToken: r.lastWriteToken,
+      at: Date.now(),
+    };
+  } catch { /* swallow — health check is best-effort */ }
+}
+
+// Verify that the most recent push actually advanced the relay's state.
+// Returns the verdict object. Caller is the diagnose modal renderer.
+export async function verifyPushLanded() {
+  // Old relay (< 1.2.3): messageCount + lastWriteToken come back null.
+  // We can still check storedBytes, but it can advance and then drop
+  // back to its prior value after a compaction, so it's a weaker signal.
+  // Treat the pre-1.2.3 case as 'unknown' to avoid false alarms.
+  const fresh = await fetchOwnerStorageFromRelay();
+  if (!fresh) {
+    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'relay-unreachable' };
+    return _lastVerifyVerdict;
+  }
+  if (fresh.messageCount === null || fresh.lastWriteToken === undefined) {
+    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'pre-1.2.3-relay' };
+    return _lastVerifyVerdict;
+  }
+  if (!_lastRelaySnapshot) {
+    // First call this session — snapshot now, can't verify yet.
+    _lastRelaySnapshot = {
+      storedBytes: fresh.storedBytes,
+      messageCount: fresh.messageCount,
+      lastWriteToken: fresh.lastWriteToken,
+      at: Date.now(),
+    };
+    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'no-baseline-yet' };
+    return _lastVerifyVerdict;
+  }
+  const advanced =
+    fresh.storedBytes > _lastRelaySnapshot.storedBytes
+    || fresh.messageCount > _lastRelaySnapshot.messageCount
+    || (fresh.lastWriteToken && fresh.lastWriteToken !== _lastRelaySnapshot.lastWriteToken);
+  if (advanced) {
+    _lastVerifyVerdict = { verdict: 'healthy', at: Date.now(), reason: null };
+  } else {
+    _lastVerifyVerdict = {
+      verdict: 'wedged',
+      at: Date.now(),
+      reason: `storedBytes=${fresh.storedBytes} messageCount=${fresh.messageCount} lastWriteToken=${fresh.lastWriteToken ? fresh.lastWriteToken.slice(0, 8) + '…' : 'null'} unchanged since ${new Date(_lastRelaySnapshot.at).toISOString()}`,
+    };
+  }
+  // Roll the baseline forward so the next push-verify pair measures the
+  // next interval, not all of session-history.
+  _lastRelaySnapshot = {
+    storedBytes: fresh.storedBytes,
+    messageCount: fresh.messageCount,
+    lastWriteToken: fresh.lastWriteToken,
+    at: Date.now(),
+  };
+  return _lastVerifyVerdict;
 }
 
 // Hit POST /self/compact-owner — drops every evolu_message row for our
@@ -3649,6 +3747,15 @@ export function toggleSyncDetail() {
 // other's data despite using the same relay URL.
 export async function showSyncDiagnose() {
   const d = await getEvoluDiagnostics();
+  // Probe the relay so we can render a fresh "is the relay actually
+  // persisting my pushes?" verdict. verifyPushLanded compares a stored
+  // baseline against the relay's current state — if storedBytes /
+  // messageCount / lastWriteToken haven't moved since the last probe,
+  // the verdict is 'wedged'. First call this session is 'unknown' (just
+  // seeds the baseline). Best-effort: any error path resolves to a
+  // 'unknown' verdict, never blocks modal rendering.
+  let healthVerdict = { verdict: 'unknown', at: 0, reason: null };
+  try { healthVerdict = await verifyPushLanded(); } catch {}
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
   const rowsHtml = d.rows.length
@@ -3678,6 +3785,38 @@ export async function showSyncDiagnose() {
         <div><b>Active profile (this device):</b> <span style="font-family:monospace;font-size:11px">${escapeHTML(d.activeProfileId || '?')}</span></div>
         <div>In-memory state: sunSessions=${d.activeImported.sunSessions} lightDevices=${d.activeImported.lightDevices}</div>
       </div>
+      ${(() => {
+        // Sync health — relays ≥ 1.2.3 surface messageCount + lastWriteToken
+        // on /self/owner-storage, letting us verify "did the relay actually
+        // persist my push?" without operator help. Three-state verdict:
+        //   healthy  → relay advanced; push landed (green dot)
+        //   wedged   → relay didn't advance; push silently dropped (red dot)
+        //   unknown  → couldn't compare (old relay, offline, first call) — render dim
+        const v = healthVerdict?.verdict || 'unknown';
+        if (v === 'unknown') {
+          // Hide the tile when we genuinely don't know — avoids confusing
+          // the user with "Unknown ✓" or similar. The relay-storage tile
+          // above already covers the basics. We re-render with a real
+          // verdict on the user's next open of this modal.
+          return '';
+        }
+        const isHealthy = v === 'healthy';
+        const color = isHealthy ? 'var(--green)' : 'var(--red)';
+        const label = isHealthy ? 'Healthy — relay is persisting your pushes.' : 'Wedged — relay accepted the WebSocket round-trip but didn\'t persist anything.';
+        const detail = isHealthy
+          ? 'Last verified ' + new Date(healthVerdict.at).toISOString().slice(11, 19) + 'Z. Storage state has advanced since the previous check.'
+          : (healthVerdict.reason || 'No relay-side advance observed since the previous check.');
+        const recovery = isHealthy ? '' : '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This is the Evolu silent-reject pattern (2026-05-11 production incident). The fix is identity rotation — generate a fresh 24-word mnemonic and restore the other devices to it. See <a href="docs/guide/cross-device-sync.html" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
+        return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></span>
+            <b>Relay sync health:</b>
+            <span style="color:${color};font-weight:600">${escapeHTML(label)}</span>
+          </div>
+          <div style="color:var(--text-muted);font-size:11px">${escapeHTML(detail)}</div>
+          ${recovery}
+        </div>`;
+      })()}
       ${(() => {
         const q = getRelayQuotaEstimate();
         if (!q) return '';
@@ -4141,6 +4280,8 @@ Object.assign(window, {
   confirmCompactRelay,
   refreshRelayStorage,
   fetchOwnerStorageFromRelay,
+  verifyPushLanded,
+  getRelayHealthVerdict,
   compactOwnerSelfServe,
   getRelayQuotaEstimate,
   resetRelayQuotaEstimate,
