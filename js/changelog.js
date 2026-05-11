@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.6.2', date: '2026-05-11', title: 'Sync diagnostics & recovery',
+    items: [
+      '<b>Sync health verdict in Settings → Data → Sync → Diagnose.</b> After every push, the modal probes your relay and shows a colored dot: green when your data actually landed, red when the relay accepted the round-trip but didn\'t persist anything (a real production bug we hit and worked around the hard way on 2026-05-11). Silent failures are now loud failures.',
+      '<b>One-click "Rotate identity" recovery.</b> When the dot goes red, click the new button — fresh 24-word mnemonic, QR for other devices to scan, save-confirmation checkbox, apply. Closes the loop from detection to fix without any SSH or manual paste-of-the-old-mnemonic dance. The recovery flow we used during the incident, now self-serve.',
+      '<b>Marker detail chart no longer leaks.</b> Re-opening a marker modal without closing it first used to orphan the previous Chart.js instance — invisible, but listeners and memory piled up. The cleanup that already ran at modal close + correlation render now runs on re-open too.',
+    ]
+  },
+  {
     version: '1.6.1', date: '2026-05-10', title: 'Bugfixes & improvements',
     items: [
       '<b>PDF image import:</b> clicking Cancel on the AI-provider privacy warning aborts cleanly now (was hanging).',
