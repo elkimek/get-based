@@ -181,6 +181,10 @@ export function createAIVerdict(cfg) {
     timeoutMs = DEFAULT_TIMEOUT_MS,
     autoFireRetryDelaysMs = [1000, 4000],
     onStateChange, // optional hook for re-rendering — defaults to window._refreshSunSurfaces
+    getScrollAnchor, // optional (target) => '<css-selector>' — pinned through the
+                     // post-verdict rebuild so the user stays on the row whose
+                     // verdict just landed instead of the auto-pick heuristic
+                     // grabbing something else (e.g. session list above).
   } = cfg;
 
   if (typeof getTarget !== 'function') throw new Error('createAIVerdict: getTarget required');
@@ -205,11 +209,35 @@ export function createAIVerdict(cfg) {
   // covers that gap.
   const retrying = new Set();
 
-  function _refresh() {
+  function _refresh(target) {
+    // Derive the scroll anchor for THIS verdict's target before the
+    // rebuild — if the engine config knows what visual row the verdict
+    // belongs to (e.g. a roomId for measurement verdicts), the rebuild
+    // can pin the page to that row instead of falling back to the
+    // navigate() auto-pick (which sometimes lands on a session card
+    // higher up in the DOM and yanks the page).
+    //
+    // Default: `[data-id="<target.id>"]`. Every engine renders its row
+    // with `data-id` matching `getId(target)`, so this works without
+    // explicit config. Engines whose verdict belongs to a DIFFERENT
+    // DOM element (e.g. measurement verdicts anchored to the room, not
+    // the measurement chip) can override via `getScrollAnchor(target)`.
+    let anchor = null;
+    if (target) {
+      if (typeof getScrollAnchor === 'function') {
+        try { anchor = getScrollAnchor(target) || null; } catch (_) {}
+      }
+      if (!anchor) {
+        const tid = getId ? getId(target) : null;
+        if (tid && typeof tid === 'string') {
+          anchor = `[data-id="${tid.replace(/"/g, '\\"')}"]`;
+        }
+      }
+    }
     if (typeof onStateChange === 'function') {
-      try { onStateChange(); } catch (_) {}
+      try { onStateChange(anchor); } catch (_) {}
     } else if (typeof window !== 'undefined' && window._refreshSunSurfaces) {
-      try { window._refreshSunSurfaces(); } catch (_) {}
+      try { window._refreshSunSurfaces(anchor); } catch (_) {}
     }
     // Broadcast a custom event so surfaces NOT covered by
     // _refreshSunSurfaces (e.g. the dashboard Light Today chip when
@@ -272,7 +300,7 @@ export function createAIVerdict(cfg) {
     // open a window for duplicate API calls. The finally clause releases
     // the slot on every exit path, including the gate-fail returns below.
     inflight.add(id);
-    _refresh();
+    _refresh(target);
     let slotHeld = false;
     let abandoned = false;
     // AbortController plumbed into callClaudeAPI so the underlying fetch
@@ -380,7 +408,7 @@ export function createAIVerdict(cfg) {
       if (watchdogTimer) { try { clearTimeout(watchdogTimer); } catch (_) {} }
       if (slotHeld) _releaseAISlot();
       inflight.delete(id);
-      _refresh();
+      _refresh(target);
     }
   }
 
@@ -416,7 +444,7 @@ export function createAIVerdict(cfg) {
     const id = getId(target);
     if (retrying.has(id)) return; // already running
     retrying.add(id);
-    _refresh();
+    _refresh(target);
     setTimeout(async () => {
       try {
         try { await analyze(target); }
@@ -435,7 +463,10 @@ export function createAIVerdict(cfg) {
         }
       } finally {
         retrying.delete(id);
-        _refresh();
+        // Use the latest version of the target so the scroll-anchor
+        // lookup reflects the row's current shape (it gained an
+        // aiAnalysis field during this run).
+        _refresh(getTarget ? getTarget(id) : target);
       }
     }, 0);
   }

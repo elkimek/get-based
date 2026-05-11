@@ -1721,10 +1721,15 @@ function _topChannel(sess) {
 // preservation here too, but pixel-based broke when content above the
 // viewport changed height during rebuild — superseded by the navigate()
 // path which handles all callers uniformly.
-function _refreshSurfaces() {
+function _refreshSurfaces(scrollAnchor) {
   if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   const view = state.currentView || 'dashboard';
-  if (window.navigate) try { window.navigate(view); } catch (e) {}
+  // Forward an optional explicit scroll anchor (passed from the AI
+  // verdict engine when it knows which row's verdict just landed)
+  // so the rebuild pins the page to that row instead of falling back
+  // to navigate's auto-pick.
+  const navOpts = scrollAnchor ? { scrollAnchor } : undefined;
+  if (window.navigate) try { window.navigate(view, navOpts); } catch (e) {}
   // After re-render the active-session card is a fresh DOM node — make sure
   // the ticker is alive so it patches the new card on the next interval.
   setTimeout(() => _resumeActiveTickerIfNeeded(), 100);

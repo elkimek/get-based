@@ -201,6 +201,10 @@ const engine = createAIVerdict({
   // on their own (saveMeasurement fires once per pause).
   shouldAutoFire: (m) => m?.tool !== 'audit',
   getAllTargets: getMeasurements,
+  // Anchor the post-verdict rebuild to the row's room so the user
+  // stays put when the verdict lands. Portable readings (no roomId)
+  // have no specific anchor — let the auto-pick handle them.
+  getScrollAnchor: (m) => m?.roomId ? `[data-id="${String(m.roomId).replace(/"/g, '\\"')}"]` : null,
 });
 
 export const analyzeMeasurementAI = engine.analyze;
