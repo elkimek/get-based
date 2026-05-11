@@ -3231,7 +3231,13 @@ function _renderSelectionOverlay(selected, onReady) {
   if (!_regionMapData || !selected || selected.size === 0) return null;
   const key = _selectedKey(selected);
   if (key === _overlayCache.key) return _overlayCache.url;
-  if (_overlayPending) return null;
+  // When a fresh overlay is mid-encode (or just-finished but still
+  // queued), return the PREVIOUS cached URL instead of null. The caller
+  // can paint the SVG with the stale overlay immediately — previously-
+  // selected regions stay visible during the ~100-200 ms PNG encode on
+  // the new selection set. Without this we tear down the overlay on
+  // every tap and the user perceives all selections briefly clearing.
+  if (_overlayPending) return _overlayCache.url || null;
   const selectedInts = new Set();
   for (const reg of selected) {
     const col = REGION_COLOR_RGB[reg];
@@ -3266,7 +3272,11 @@ function _renderSelectionOverlay(selected, onReady) {
     _overlayCache = { key, url: URL.createObjectURL(blob) };
     if (onReady) onReady(_overlayCache.url);
   }, 'image/png');
-  return null;
+  // Same idea as the _overlayPending branch above: return the previous
+  // URL so the SVG renders with stale selections until the new blob is
+  // ready. Without this the just-tapped region's previously-selected
+  // neighbors briefly disappear.
+  return _overlayCache.url || null;
 }
 
 // Render the two-view silhouette picker as an SVG. `selected` is a Set of
