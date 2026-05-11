@@ -429,6 +429,7 @@ export async function openLuxMeter(opts = {}) {
   // When ALS is available the calibration panel hides — there's nothing to
   // calibrate, the sensor reading is authoritative.
   let usingALS = false;
+  let usingManualEntry = false;
   const calibrationPanel = overlay.querySelector('#lux-calibration-panel');
   if ('AmbientLightSensor' in window) {
     try {
@@ -499,7 +500,39 @@ export async function openLuxMeter(opts = {}) {
       };
       requestAnimationFrame(tick);
     } catch (e) {
-      sourceLine.textContent = 'Camera access denied. Manual lux entry only.';
+      usingManualEntry = true;
+      sourceLine.innerHTML = '<b>Camera access denied.</b> Enter a lux value manually below — read it from a real meter, a second phone with an ambient-light sensor, or pick the closest zone from the scale.';
+      // Camera path is unavailable — replace the live dial with a numeric
+      // input so the user can still save a reading. Calibration panel is
+      // irrelevant without a camera feed, hide it.
+      const dial = overlay.querySelector('.lux-dial');
+      if (dial) {
+        dial.innerHTML = `
+          <div style="display:flex;align-items:baseline;justify-content:center;gap:8px;padding:8px 0">
+            <input type="number" id="lux-manual-input" class="ctx-input" min="0" max="200000" step="1" placeholder="e.g. 400" inputmode="numeric" style="width:140px;font-size:20px;text-align:center;padding:8px 10px" />
+            <span style="color:var(--text-muted);font-size:14px">lux</span>
+          </div>
+          <div class="lux-dial-zone" id="lux-zone" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:4px">—</div>`;
+        const manualInput = overlay.querySelector('#lux-manual-input');
+        const newZoneEl = overlay.querySelector('#lux-zone');
+        if (manualInput) {
+          manualInput.addEventListener('input', () => {
+            const v = parseFloat(manualInput.value);
+            if (Number.isFinite(v) && v >= 0) {
+              currentLux = v;
+              const z = luxZone(v);
+              if (newZoneEl) {
+                newZoneEl.textContent = z.label;
+                newZoneEl.style.color = z.color;
+              }
+            } else {
+              currentLux = null;
+              if (newZoneEl) { newZoneEl.textContent = '—'; newZoneEl.style.color = ''; }
+            }
+          });
+        }
+      }
+      if (calibrationPanel) calibrationPanel.style.display = 'none';
     }
   }
 
@@ -550,10 +583,15 @@ export async function openLuxMeter(opts = {}) {
   }
 
   overlay.querySelector('#lux-save').addEventListener('click', async () => {
-    if (currentLux == null) return;
+    if (currentLux == null) {
+      if (usingManualEntry) showNotification('Enter a lux value first.', 'error');
+      return;
+    }
+    const source = usingALS ? 'AmbientLightSensor' : usingManualEntry ? 'manual-entry' : 'camera-estimate';
+    const confidence = usingALS ? 0.85 : usingManualEntry ? 0.9 : 0.55;
     await saveMeasurement('lux', currentLux, {
-      confidence: usingALS ? 0.85 : 0.55,
-      extra: { source: usingALS ? 'AmbientLightSensor' : 'camera-estimate', calibrationFactor: _luxState.calibration },
+      confidence,
+      extra: { source, calibrationFactor: _luxState.calibration },
       roomId,
     });
     showNotification(`Lux reading saved: ${Math.round(currentLux)}`);
@@ -1106,11 +1144,39 @@ export async function openSpectrumClassifier(opts = {}) {
     };
     requestAnimationFrame(tick);
   } catch (e) {
-    resultEl.textContent = 'Camera denied.';
+    // Replace the dead video preview with a permission-request CTA so the
+    // user can either retry the prompt or open browser site-settings.
+    // Without the camera there's no signal to classify — manual pick from
+    // the four spectrum types is the only fallback.
+    if (video) video.style.display = 'none';
+    resultEl.innerHTML = `
+      <div style="padding:14px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);">
+        <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px">Camera access denied</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">This tool reads the bulb's RGB profile to classify the source. To re-enable, open your browser's site settings and allow camera access for this page, then reopen the tool.</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Or pick the closest match manually:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button class="ctx-btn-option" data-spec-manual="Warm LED (2700–3000K)">Warm LED</button>
+          <button class="ctx-btn-option" data-spec-manual="Cool LED (4000K+)">Cool LED</button>
+          <button class="ctx-btn-option" data-spec-manual="Fluorescent">Fluorescent</button>
+          <button class="ctx-btn-option" data-spec-manual="Incandescent / halogen">Incandescent</button>
+          <button class="ctx-btn-option" data-spec-manual="Daylight">Daylight</button>
+        </div>
+      </div>`;
+    overlay.querySelectorAll('[data-spec-manual]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const label = btn.getAttribute('data-spec-manual');
+        result = { label, confidence: 0.7, reason: 'manual selection (camera denied)', melanopic: null, circadian: 'unknown' };
+        overlay.querySelectorAll('[data-spec-manual]').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+    });
   }
 
   overlay.querySelector('#spec-save').addEventListener('click', async () => {
-    if (!result) return;
+    if (!result) {
+      showNotification('Pick a light type first (or grant camera access).', 'error');
+      return;
+    }
     await saveMeasurement('spectrum', result.label, { confidence: result.confidence, extra: result, roomId });
     showNotification(`Light type saved: ${result.label}`);
     window._closeSpec();

@@ -114,7 +114,7 @@ export const EXPOSURE_PRESETS = [
 // summary line. Row meta now shows just "Eyes uncovered ⚠" so the
 // safety state is conveyed by the icon, not a redundant warning string.
 export const EYE_MODES = [
-  { key: 'direct',         label: 'Eyes uncovered',     pickerLabel: 'Eyes uncovered — never look directly at the sun', warn: true },
+  { key: 'direct',         label: 'Eyes uncovered',     pickerLabel: 'Eyes uncovered (never stare at sun)', warn: true },
   { key: 'sunglasses',     label: 'Sunglasses',         pickerLabel: 'Sunglasses' },
   { key: 'clear-glasses',  label: 'Clear glasses',      pickerLabel: 'Clear glasses' },
   { key: 'closed-eyes',    label: 'Closed eyes',        pickerLabel: 'Closed eyes' },

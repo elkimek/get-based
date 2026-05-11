@@ -752,7 +752,7 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   // If clouds are actively suppressing UVI, surface the clear-sky alternate
   const cloudChip = cloudWord
     ? (uviClear != null && uvi != null && uviClear > uvi + 0.5
-       ? `${cloudWord} · UVI ${uviClear.toFixed(1)} clear sky`
+       ? `${cloudWord} · clear-sky max UVI ${uviClear.toFixed(1)}`
        : cloudWord)
     : '';
   // Surface-ozone WHO bucket
@@ -832,8 +832,8 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   const nowEvent = { icon: '⏵', label: nowSubLabel, ts: nowTs, isNow: true };
   // Insert "now" at the right chronological position
   const eventsWithNow = [...events, nowEvent].sort((a, b) => a.ts - b.ts);
-  const sunEventsLine = events.length ? `<div class="conditions-now-events-wrap" title="${escapeAttr('Today\'s sun arc — left to right is the timeline through your day. Events left of the highlighted now-marker have passed; events to the right are upcoming.')}">
-    <div class="conditions-now-events-caption">Today's sun arc</div>
+  const sunEventsLine = events.length ? `<div class="conditions-now-events-wrap" title="${escapeAttr('Today\'s sun timeline — left to right is the timeline through your day. Events left of the highlighted now-marker have passed; events to the right are upcoming.')}">
+    <div class="conditions-now-events-caption">Today's sun timeline</div>
     <div class="conditions-now-events">
       ${eventsWithNow.map(e => `<span class="conditions-now-event${e.peak ? ' conditions-now-event-peak' : ''}${e.uvaEvent ? ' conditions-now-event-uva' : ''}${e.isNow ? ' conditions-now-event-now' : ''}${e.ts < nowTs ? ' conditions-now-event-past' : ''}"${e.tooltip ? ` title="${escapeAttr(e.tooltip)}"` : ''}><span class="conditions-now-event-icon">${e.icon}</span>${escapeHTML(e.label)}</span>`).join('')}
     </div>
@@ -912,7 +912,7 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
     <div class="conditions-now-cell ${aqAgg ? `conditions-aq-${aqAgg.cls}` : ''}" title="${escapeAttr('Air quality is the worst-of category across PM2.5, PM10, and NO₂ — so a high traffic-pollutant level (NO₂) won\'t hide behind clean PM. EAQI uses the same multi-pollutant logic.')}">
       <div class="conditions-now-label">Air quality</div>
       <div class="conditions-now-value conditions-now-value-aq">${aqAgg ? escapeHTML(aqAgg.label) : '—'}</div>
-      <div class="conditions-now-sub">${aqAgg ? (aqAgg.why ? `worst: ${aqAgg.why} ${aqAgg.why === 'PM2.5' && aqPm25 != null ? aqPm25 + ' µg/m³' : ''}` : 'worst-of multi-pollutant') : ''}</div>
+      <div class="conditions-now-sub">${aqAgg ? (aqAgg.why === 'EAQI' ? 'EU air quality index' : (aqAgg.why ? `worst pollutant: ${aqAgg.why} ${aqAgg.why === 'PM2.5' && aqPm25 != null ? aqPm25 + ' µg/m³' : ''}` : 'worst-of multi-pollutant')) : ''}</div>
     </div>
   </div>
   ${sunEventsLine}
@@ -1698,8 +1698,10 @@ function _channelDayCount(channelKey) {
   // "4/7" reads as a fraction at a glance — much clearer than "4d",
   // which users were parsing as "4 days ago" instead of "4 of 7 days
   // this week hit target". Tooltip + sr-only label still say it the
-  // long way for accessibility.
-  return { txt: n === 0 ? '—' : `${n}/7`, n };
+  // long way for accessibility. Zero-hit channels show "0/7" too so
+  // the format stays consistent across pills instead of an em-dash
+  // (which read as "no data" instead of "zero days hit").
+  return { txt: `${n}/7`, n };
 }
 
 // Unified channel pill row — same vocabulary as the dashboard strip,

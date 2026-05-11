@@ -397,6 +397,11 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
 }
 .modal-close:hover { color: var(--text-primary); }
 .modal h3 { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+/* Reserve room for the absolutely-positioned close button so long titles
+   (e.g. "Log session — Mitochondriak Maxi UVB") don't run under it
+   when they wrap on narrow viewports. */
+.modal-header { position: relative; padding-right: 40px; }
+.modal-header h3 { margin-bottom: 4px; }
 /* Changelog */
 .changelog-entry { margin-bottom: 20px; }
 .changelog-entry + .changelog-entry { padding-top: 20px; border-top: 1px solid var(--border); }
@@ -527,7 +532,10 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
     display: none; cursor: pointer;
   }
   .sidebar-backdrop.show { display: block; }
-  .main { max-width: 100%; padding: 20px; margin-left: 0; }
+  /* Reserve room at the bottom of <main> for the fixed FAB stack
+     (chat 48px at bottom:16, import 40px at bottom:72) so the last
+     content card isn't permanently overlapped by the FABs. */
+  .main { max-width: 100%; padding: 20px; margin-left: 0; padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
   .charts-grid { grid-template-columns: 1fr; }
   .charts-grid-4col { grid-template-columns: repeat(2, 1fr); }
 }
@@ -3923,7 +3931,7 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   .header { padding: 10px 12px; gap: 6px; }
   .header h1 { font-size: 17px; }
   .header-info { gap: 6px; }
-  .main { padding: 14px 12px; }
+  .main { padding: 14px 12px; padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
   .category-header h2 { font-size: 20px; }
   .drop-zone { padding: 20px 16px; }
   .drop-zone-icon { font-size: 24px; }
@@ -3954,7 +3962,7 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   .header { padding: 8px 10px; }
   .header h1 { font-size: 16px; }
   .header-info { gap: 6px; }
-  .main { padding: 10px 8px; }
+  .main { padding: 10px 8px; padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
   .modal { padding: 16px 12px; max-width: 98vw; }
   .chat-messages { padding: 14px 12px; }
   .chat-input-area { padding: 10px 12px; }
@@ -7495,6 +7503,23 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   border-radius: 4px; padding: 2px 8px; font-size: 11px;
   color: var(--text-secondary); cursor: pointer; font-family: inherit;
 }
+/* Mobile: stack the manual-UVI row onto its own line and grow input +
+   button so they meet a usable tap target. */
+@media (max-width: 600px) {
+  .conditions-now-override {
+    flex-basis: 100%; width: 100%;
+    margin-top: 4px;
+  }
+  .conditions-now-override label { flex: 0 0 auto; }
+  .conditions-now-override input[type="number"] {
+    flex: 1; min-width: 0; width: auto;
+    padding: 8px 10px; font-size: 14px;
+  }
+  .conditions-now-override button {
+    padding: 8px 14px; font-size: 13px;
+    min-height: 38px;
+  }
+}
 .conditions-now-override button:hover { color: var(--text-primary); border-color: var(--text-secondary); }
 .conditions-now-override-badge {
   display: inline-block; margin-left: 6px;
@@ -7842,17 +7867,27 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 
 /* Coarse-pointer (touch) — fatten the stroke so tiny regions like
-   thyroid-throat / genitals / soles still meet a usable tap target. */
+   thyroid-throat / genitals / soles still meet a usable tap target.
+   `non-scaling-stroke` keeps the hit-area in screen pixels regardless
+   of the SVG scale, and `paint-order: stroke fill` paints the (almost
+   invisible) hit halo behind the fill so it never visually obscures
+   the figure. 32px stroke + the path's own height clears the 44×44
+   Apple/Google minimum on the thinnest regions (thyroid ~12px → 44px,
+   feet/glutes/genitals likewise). */
 @media (pointer: coarse) {
   .sun-silhouette-region {
     stroke: var(--text-muted);
-    stroke-width: 6;
+    stroke-width: 32;
     stroke-opacity: 0.001; /* near-invisible but expands hit-area */
+    vector-effect: non-scaling-stroke;
+    paint-order: stroke fill;
   }
   .sun-silhouette-region:hover,
   .sun-silhouette-region.selected,
   .sun-silhouette-region:focus-visible {
     stroke-opacity: 1;
+    stroke-width: 0.8;
+    paint-order: fill stroke;
   }
   /* AI verdict refresh + dismiss + CTA buttons — meet 44×44 minimum
      hit target on touch devices. */
@@ -8198,16 +8233,20 @@ svg.sun-silhouette text.sun-silhouette-label {
   border: 1px solid var(--border); border-radius: 6px;
 }
 /* Compact AI verdict line for Light Tools measurement readings —
-   sits directly under the value row in the room detail panel. */
+   sits directly under the value row in the room detail panel.
+   `flex-basis: 100%` forces this onto its own row inside the
+   flex-wrap parent (.light-env-room-readings) so the tip text can
+   wrap on narrow viewports instead of overflowing horizontally. */
 .light-env-reading-ai {
   display: flex; align-items: center; gap: 6px;
+  flex-basis: 100%; min-width: 0; width: 100%;
   margin: 4px 0 8px 22px;
   font-size: 11.5px;
   color: var(--text-muted);
 }
 .light-env-reading-ai .sun-session-ai-tip {
   flex: 1; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: normal; overflow-wrap: anywhere;
 }
 .light-env-reading-ai .sun-session-ai-cta {
   background: transparent; border: none;
