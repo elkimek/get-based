@@ -42,10 +42,19 @@ export function navigate(category, data) {
     // callers can pass `{ scrollAnchor: '<css-selector>' }` so the
     // anchor doesn't fall back to the auto-pick heuristic.
     if (data && typeof data === 'object' && data.scrollAnchor) {
-      const el = document.querySelector(data.scrollAnchor);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        anchor = { selector: data.scrollAnchor, viewportTop: rect.top };
+      // If a restore loop is ALREADY running for this same anchor (rapid
+      // re-render burst — e.g. saveMeasurement → AI verdict engine's
+      // _refresh → setTimeout-navigate all firing within ms), reuse the
+      // original captured viewportTop. Without this, each successive
+      // navigate captures AFTER the jump and pins to the wrong place.
+      if (_activeAnchor && _activeAnchor.selector === data.scrollAnchor) {
+        anchor = _activeAnchor;
+      } else {
+        const el = document.querySelector(data.scrollAnchor);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          anchor = { selector: data.scrollAnchor, viewportTop: rect.top };
+        }
       }
     }
     if (!anchor) anchor = _captureScrollAnchor();
@@ -77,12 +86,15 @@ export function navigate(category, data) {
     // would shift content above the room by 1115 px and the user saw
     // the page "jump up" to the session list.
     //
-    // Cancellation: (a) a NEW navigate increments the token and the
-    // old loop bails. (b) user-initiated scroll (wheel/touch/keydown)
-    // also cancels so we never fight a manual scroll. The 'scroll'
-    // event itself isn't a cancellation signal because OUR scrollBy
-    // calls also fire it — using upstream input events distinguishes
-    // user intent from our own restores.
+    // Cancellation: (a) a NEW navigate to a DIFFERENT anchor increments
+    // the token and the old loop bails. Same-anchor re-navigates reuse
+    // _activeAnchor (captured above) so all back-to-back navigates pin
+    // to the SAME original viewport position even if intermediate ones
+    // captured after content shifted. (b) user-initiated scroll
+    // (wheel/touch/keydown) also cancels so we never fight a manual
+    // scroll. The 'scroll' event itself isn't a cancellation signal
+    // because OUR scrollBy calls also fire it.
+    _activeAnchor = anchor;
     const myToken = ++_navAnchorToken;
     const start = Date.now();
     let cancelled = false;
@@ -95,6 +107,7 @@ export function navigate(category, data) {
       window.removeEventListener('wheel', cancel, inputOpts);
       window.removeEventListener('touchstart', cancel, inputOpts);
       window.removeEventListener('keydown', cancel, inputOpts);
+      if (myToken === _navAnchorToken) _activeAnchor = null;
     };
     const reapply = () => {
       if (cancelled || myToken !== _navAnchorToken) { cleanup(); return; }
@@ -110,6 +123,10 @@ export function navigate(category, data) {
 // captures a new token; older loops compare and bail when the user
 // has moved on.
 let _navAnchorToken = 0;
+// Currently-active anchor — exposed so rapid same-selector re-navigates
+// reuse the original captured viewportTop instead of re-capturing AFTER
+// the jump that the original was trying to prevent.
+let _activeAnchor = null;
 
 // Capture identity + viewport position of the most reasonable scroll
 // anchor for the current interaction. Priority:
