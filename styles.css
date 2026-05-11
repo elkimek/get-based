@@ -7783,11 +7783,14 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   display: block;
 }
 
-/* Mobile — cap picker height so the Start/Cancel buttons stay above the
-   fold inside the modal. Width-fit also keeps two figures proportional. */
+/* Mobile — let the picker take the full modal width so every region
+   (especially thin ones like thyroid / glutes / feet) renders larger
+   for finger-tap accuracy. Earlier 290px cap was holding the figures
+   at ~1.45× of the SVG viewBox; relaxing it lets the figures scale
+   up by ~70% inside a typical 351px mobile modal. */
 @media (max-width: 600px) {
-  .sun-silhouette-wrap { padding: 10px 8px 6px; }
-  .sun-silhouette { max-height: 320px; max-width: 290px; }
+  .sun-silhouette-wrap { padding: 10px 6px 6px; }
+  .sun-silhouette { max-width: 100%; }
 }
 
 /* Body outline — single confident line that DEFINES the figure. We use
@@ -7866,20 +7869,18 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   fill-opacity: 0.85;
 }
 
-/* Coarse-pointer (touch) — fatten the stroke so tiny regions like
-   thyroid-throat / genitals / soles still meet a usable tap target.
-   `non-scaling-stroke` keeps the hit-area in screen pixels regardless
-   of the SVG scale, and `paint-order: stroke fill` paints the (almost
-   invisible) hit halo behind the fill so it never visually obscures
-   the figure. 32px stroke + the path's own height clears the 44×44
-   Apple/Google minimum on the thinnest regions (thyroid ~12px → 44px,
-   feet/glutes/genitals likewise). */
+/* Coarse-pointer (touch) — gently fatten the hit area so thin regions
+   like thyroid / glutes / feet are still tappable. Earlier attempt at
+   32px non-scaling-stroke was too aggressive: adjacent regions' invisible
+   halos overlapped enough that the wrong region captured taps based on
+   SVG paint order (legs hijacking torso, etc.). Keeping the halo modest
+   (5 SVG units ≈ 12 screen px) plus relaxing the mobile silhouette width
+   above gets us most of the way without the overlap chaos. */
 @media (pointer: coarse) {
   .sun-silhouette-region {
     stroke: var(--text-muted);
-    stroke-width: 32;
+    stroke-width: 5;
     stroke-opacity: 0.001; /* near-invisible but expands hit-area */
-    vector-effect: non-scaling-stroke;
     paint-order: stroke fill;
   }
   .sun-silhouette-region:hover,
