@@ -1893,6 +1893,14 @@ function _renderChannelCitations(channelKey) {
 function _renderChannelWeekChart(channelKey) {
   if (!window.dailyChannelBreakdown) return '';
   const days = window.dailyChannelBreakdown(channelKey, 7);
+  // For vit-D, pull a per-day IU breakdown that uses the same per-session
+  // math as rollingVitaminDIU (real Fitz/UVI/rotation/genetics/body-frac
+  // cap). Bar height + tier color still use channel-au from `days` for
+  // continuity with the sparkline; only the numeric label switches to
+  // per-session-accurate IU so it agrees with the session-row IU readout.
+  const iuDays = (channelKey === 'vitamin_d' && window.dailyVitaminDIUBreakdown)
+    ? window.dailyVitaminDIUBreakdown(7)
+    : null;
   const ch = window.CHANNEL_DISPLAY || {};
   const meta = ch[channelKey] || {};
   const dailyTarget = meta.dailyTarget || 0;
@@ -1917,13 +1925,16 @@ function _renderChannelWeekChart(channelKey) {
   //
   // Returns "" for zero/sub-meaningful values so the chart doesn't get
   // peppered with "0%" labels on empty days.
-  const fmt = (n) => {
+  const fmt = (n, dayIdx) => {
     if (!Number.isFinite(n) || n < 0.5) return '';
-    if (channelKey === 'vitamin_d' && window.vitaminDIU) {
-      // No per-day fitz/uvi context; use Fitz III + assume threshold met
-      // as a chart-only approximation. Hero uses the per-session-correct
-      // rollingVitaminDIU; chart reads as relative IU per day.
-      const iu = window.vitaminDIU(n, 'III', 7);
+    if (channelKey === 'vitamin_d') {
+      // Use the per-session IU breakdown (same math as the session row
+      // and the rollingVitaminDIU hero) rather than the old Fitz-III /
+      // uvi-7 / no-genetics approximation that diverged 20-50% from the
+      // session-row IU on real sessions.
+      const iu = iuDays && dayIdx != null
+        ? (iuDays[dayIdx]?.sun || 0) + (iuDays[dayIdx]?.device || 0)
+        : 0;
       if (iu < 1) return '';
       if (iu >= 1000) return (iu / 1000).toFixed(1) + 'k';
       if (iu >= 100) return String(Math.round(iu / 10) * 10);
@@ -1969,7 +1980,7 @@ function _renderChannelWeekChart(channelKey) {
     const devH = total > 0 ? (d.device / max) * innerH : 0;
     const y = padTop + innerH - h;
     const isToday = d.date.getTime() === today.getTime();
-    const labelTxt = total > 0 ? fmt(total) : '';
+    const labelTxt = total > 0 ? fmt(total, i) : '';
     const { fill: barFill, op: barOp } = colorForDay(total);
     // Hit-target check mark — greener visual cue when the day cleared the
     // daily target line. Reduces the urge to chase higher percentages

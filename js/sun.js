@@ -1085,6 +1085,90 @@ export function rollingVitaminDIU(days = 7) {
   return total;
 }
 
+// Per-day vit-D IU breakdown for the same N-day window. Mirrors
+// rollingVitaminDIU exactly — per-session through vitaminDIUPerSession
+// with the real Fitzpatrick / UVI / rotation / genetics / bodyFraction,
+// summed per local day, then daily-cap applied. Returns [{date, key,
+// sun, device}] aligned to the chart's "today on the right" layout.
+//
+// Existence rationale: the weekly-chart in views.js previously called
+// vitaminDIU(channelAu, 'III', 7) per day — a hardcoded-Fitz-III,
+// hardcoded-uvi-7, no-rotation, no-genetics, no-body-cap approximation
+// that disagreed with the per-session row by 20-50% on real sessions.
+// Charts now read IU from here and stay consistent with what the row
+// shows.
+export function dailyVitaminDIUBreakdown(days = 7) {
+  const buckets = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    buckets.push({ date: d, key: d.toISOString().slice(0, 10), sun: 0, device: 0 });
+  }
+  const startOf = (ts) => {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const idxFor = (ts) => {
+    const day = startOf(ts);
+    return buckets.findIndex(b => b.date.getTime() === day);
+  };
+  const perSession = (typeof window !== 'undefined' && typeof window.vitaminDIUPerSession === 'function') ? window.vitaminDIUPerSession : null;
+  if (!perSession) return buckets;
+  const dailyCap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
+  const genetics = state.importedData?.genetics || null;
+  for (const sess of getSessions()) {
+    const ts = sess.endedAt || sess.startedAt;
+    if (!ts) continue;
+    const i = idxFor(ts);
+    if (i < 0) continue;
+    let au, fitz, uvi, rotated;
+    if (!sess.endedAt) {
+      const live = _liveDosesFor(sess);
+      au = live?.doses?.vitamin_d;
+      fitz = live?.fitzpatrick || sess.safety?.fitzpatrick || 'III';
+      uvi = live?.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
+      rotated = !!sess.bodyExposure?.rotatedSides;
+    } else {
+      au = sess.doses?.vitamin_d;
+      fitz = sess.safety?.fitzpatrick || 'III';
+      uvi = sess.atmosphere?.uvIndex ?? null;
+      rotated = !!sess.bodyExposure?.rotatedSides;
+    }
+    if (!Number.isFinite(au) || au <= 0) continue;
+    const bodyFrac = sess.bodyExposure?.fraction;
+    buckets[i].sun += perSession(au, fitz, uvi, rotated, genetics, bodyFrac);
+  }
+  const fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
+  const fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
+    ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
+    : {};
+  const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
+  for (const sess of (state.importedData?.deviceSessions || [])) {
+    if (!sess.endedAt) continue;
+    const i = idxFor(sess.endedAt);
+    if (i < 0) continue;
+    const au = sess.doses?.vitamin_d;
+    if (!Number.isFinite(au) || au <= 0) continue;
+    let bodyFrac = null;
+    if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
+      bodyFrac = sess.bodyAreas.reduce((acc, k) => acc + (fracByKey[k] || 0), 0);
+    } else if (sess.bodyArea) {
+      bodyFrac = _broadFracs[sess.bodyArea] ?? null;
+    }
+    buckets[i].device += perSession(au, fitzForDevice, null, false, genetics, bodyFrac);
+  }
+  // Daily cap applied to combined sun+device per day.
+  for (const b of buckets) {
+    const total = b.sun + b.device;
+    if (total > dailyCap) {
+      const scale = dailyCap / total;
+      b.sun *= scale;
+      b.device *= scale;
+    }
+  }
+  return buckets;
+}
+
 // Cumulative vitamin D IU synthesized from sun TODAY (local-day window).
 // Mirrors rollingVitaminDIU logic but bounds by local midnight instead of
 // a rolling-N-day cutoff. Used by the vit-D budget cross-check.
@@ -3824,6 +3908,7 @@ if (typeof window !== 'undefined') {
     getActiveSession,
     rollingChannelTotals,
     dailyChannelBreakdown,
+    dailyVitaminDIUBreakdown,
     rollingVitaminDIU,
     cumulativeMEDToday,
     cumulativeMEDYesterday,
