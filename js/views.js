@@ -68,14 +68,48 @@ export function navigate(category, data) {
     // Force synchronous layout so getBoundingClientRect is accurate.
     void document.body.offsetHeight;
     _restoreScrollAnchor(anchor);
-    // Re-apply on next frame and the frame after, in case post-layout
-    // async paths (chart paint, image decoding) shift content.
-    requestAnimationFrame(() => {
+    // Re-apply over a 1.2s window so async layout (Chart.js paints,
+    // image decodes, AI verdict chips rendering for OTHER rows above
+    // ours) doesn't drift the anchor element away from its captured
+    // viewport position. Earlier 3-RAF approach (~50ms total) caught
+    // synchronous reflows but missed downstream async ones — the
+    // measurement chip would land correctly, then a chart 200ms later
+    // would shift content above the room by 1115 px and the user saw
+    // the page "jump up" to the session list.
+    //
+    // Cancellation: (a) a NEW navigate increments the token and the
+    // old loop bails. (b) user-initiated scroll (wheel/touch/keydown)
+    // also cancels so we never fight a manual scroll. The 'scroll'
+    // event itself isn't a cancellation signal because OUR scrollBy
+    // calls also fire it — using upstream input events distinguishes
+    // user intent from our own restores.
+    const myToken = ++_navAnchorToken;
+    const start = Date.now();
+    let cancelled = false;
+    const cancel = () => { cancelled = true; };
+    const inputOpts = { passive: true, capture: true };
+    window.addEventListener('wheel', cancel, inputOpts);
+    window.addEventListener('touchstart', cancel, inputOpts);
+    window.addEventListener('keydown', cancel, inputOpts);
+    const cleanup = () => {
+      window.removeEventListener('wheel', cancel, inputOpts);
+      window.removeEventListener('touchstart', cancel, inputOpts);
+      window.removeEventListener('keydown', cancel, inputOpts);
+    };
+    const reapply = () => {
+      if (cancelled || myToken !== _navAnchorToken) { cleanup(); return; }
+      if (Date.now() - start > 1200) { cleanup(); return; }
       _restoreScrollAnchor(anchor);
-      requestAnimationFrame(() => _restoreScrollAnchor(anchor));
-    });
+      requestAnimationFrame(reapply);
+    };
+    requestAnimationFrame(reapply);
   }
 }
+
+// Monotonic counter for in-flight anchor-restore loops. Each navigate
+// captures a new token; older loops compare and bail when the user
+// has moved on.
+let _navAnchorToken = 0;
 
 // Capture identity + viewport position of the most reasonable scroll
 // anchor for the current interaction. Priority:
