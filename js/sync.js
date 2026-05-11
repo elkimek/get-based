@@ -3468,10 +3468,12 @@ async function onSyncReceived() {
           // becomes visible — but ONLY when the merge actually produced
           // new content from the remote side. `localImportedForMerge`
           // already had everything ⇒ no observable change ⇒ skip the
-          // re-render so an in-progress form (e.g. typing a duration
-          // into the session log dialog) doesn't get wiped on every pull.
-          const activeNav = document.querySelector('.nav-item.active');
-          const cat = activeNav?.dataset?.category || 'dashboard';
+          // re-render so an in-progress form doesn't get wiped on pull.
+          // Source: state.currentView (canonical). DOM .nav-item.active
+          // is briefly absent during buildSidebar→navigate cycles and
+          // would yank the user to 'dashboard' on a pull landing in
+          // that gap (user-reported flicker/sync race).
+          const cat = state.currentView || document.querySelector('.nav-item.active')?.dataset?.category || 'dashboard';
           // Sidebar nav items are conditional on data presence (e.g. the
           // Genetics entry only renders when state.importedData.genetics
           // exists). Per-row CRDT deltas can populate scalars/maps that
