@@ -70,7 +70,22 @@ if (!url) {
 }
 
 if (!token) {
-  console.error('[fetch-catalog] CATALOG_FETCH_URL is set but CATALOG_FETCH_TOKEN is missing. Aborting.');
+  // Vercel doesn't expose secrets to feature-branch / PR builds by
+  // default (security guard against fork-author exfiltration). The
+  // URL var is project-level config, so it lands; the TOKEN is
+  // secret, so it doesn't. Without it we can't auth the catalog
+  // fetch — but a PR preview doesn't NEED the real catalog, the
+  // example stub is enough for the preview deploy to succeed and
+  // surface UI changes. Production builds (main / VERCEL_ENV=
+  // production) have both env vars set and never reach this branch.
+  const stub = path.join(ROOT, 'data', 'recommendations.example.json');
+  if (fs.existsSync(stub)) {
+    const stubContent = fs.readFileSync(stub);
+    _replaceTarget(stubContent);
+    console.log(`[fetch-catalog] CATALOG_FETCH_TOKEN missing (PR preview?); using example stub → ${TARGET}.`);
+    process.exit(0);
+  }
+  console.error('[fetch-catalog] CATALOG_FETCH_URL is set but CATALOG_FETCH_TOKEN is missing AND no example stub. Aborting.');
   process.exit(1);
 }
 

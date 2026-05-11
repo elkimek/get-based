@@ -307,7 +307,14 @@ return (async function () {
   {
     const piiSrc = await fetchSrc('js/pii.js');
     assert('pii.js: probes /api/version before streaming',
-      /\/api\/version[\s\S]{0,200}AbortSignal\.timeout\(5000\)/.test(piiSrc));
+      /\/api\/version/.test(piiSrc) && /AbortSignal\.timeout\(5000\)/.test(piiSrc));
+    // v1.6.18 follow-up: probe signal composes the caller's signal
+    // with the 5s deadline so user-initiated aborts (closing the
+    // import dialog) take effect immediately instead of waiting up
+    // to 5s for the timeout. Mirrors api.js's AbortSignal.any +
+    // manual-polyfill pattern.
+    assert('pii.js: probe signal composes caller signal + timeout',
+      /probeSignal/.test(piiSrc) && /AbortSignal\.any/.test(piiSrc));
     assert('pii.js: throws fast on unreachable Ollama',
       /falling back to regex obfuscation/i.test(piiSrc));
     assert('pii.js: per-chunk stall timeout for streaming (45s)',

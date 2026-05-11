@@ -188,9 +188,33 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
   // Quick reachability probe with a 5s timeout BEFORE issuing the
   // streaming request. If Ollama is unreachable (server stopped,
   // airplane mode, etc.) the caller can fall back to regex without
-  // waiting for the long streaming timeout to fire.
+  // waiting for the long streaming timeout to fire. The probe signal
+  // composes the caller's `signal` with the 5s deadline so a user-
+  // initiated abort (e.g., closing the import dialog mid-probe) takes
+  // effect immediately instead of waiting up to 5s for the timeout
+  // to fire. Mirrors the AbortSignal.any-with-polyfill pattern used
+  // in api.js's _fetchWithRetry. Greptile PR #178 P2 comment.
   try {
-    await fetch(`${baseUrl}/api/version`, { signal: AbortSignal.timeout(5000) });
+    let probeSignal;
+    const hasTimeout = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function';
+    const timeoutSig = hasTimeout ? AbortSignal.timeout(5000) : null;
+    if (!timeoutSig) {
+      // No timeout API at all — use caller's signal alone. Loses the
+      // 5s deadline but at least doesn't spuriously fail the probe on
+      // a healthy server when Ollama responds in <5s anyway.
+      probeSignal = signal;
+    } else if (signal && typeof AbortSignal.any === 'function') {
+      probeSignal = AbortSignal.any([signal, timeoutSig]);
+    } else if (signal) {
+      const ctl = new AbortController();
+      const fwd = (s) => s.addEventListener('abort', () => ctl.abort(s.reason), { once: true });
+      if (signal.aborted) ctl.abort(signal.reason); else fwd(signal);
+      if (timeoutSig.aborted) ctl.abort(timeoutSig.reason); else fwd(timeoutSig);
+      probeSignal = ctl.signal;
+    } else {
+      probeSignal = timeoutSig;
+    }
+    await fetch(`${baseUrl}/api/version`, { signal: probeSignal });
   } catch (e) {
     throw new Error(`Local PII server unreachable at ${baseUrl} — falling back to regex obfuscation. (${e.message})`);
   }

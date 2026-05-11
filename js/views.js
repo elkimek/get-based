@@ -2617,20 +2617,37 @@ function renderUnifiedSessionsList() {
 // modal (the existing per-row onclicks pass through fine; they fire
 // their own modal which replaces this one's overlay).
 function _openAllSessionsModal() {
-  const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
-  const title = `All sessions (${rows.length})`;
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="${escapeAttr(title)}" style="max-width:760px">
-    <div class="modal-header">
-      <h3>${escapeHTML(title)}</h3>
-      <button class="modal-close" aria-label="Close" onclick="this.closest('.modal-overlay').remove()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="sun-sessions-list${hasDeviceRows ? ' light-sessions-list-unified' : ''}">${_renderSessionRowsHTML(rows)}</div>
-    </div>
-  </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => overlay.remove()); } catch (e) {}
+  const renderInto = () => {
+    const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
+    const title = `All sessions (${rows.length})`;
+    overlay.innerHTML = `<div class="modal" role="dialog" aria-label="${escapeAttr(title)}" style="max-width:760px">
+      <div class="modal-header">
+        <h3>${escapeHTML(title)}</h3>
+        <button class="modal-close" aria-label="Close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="sun-sessions-list${hasDeviceRows ? ' light-sessions-list-unified' : ''}">${_renderSessionRowsHTML(rows)}</div>
+      </div>
+    </div>`;
+  };
+  renderInto();
+  // Re-render on sync pull / AI verdict completion so the modal stays
+  // fresh when a paired device adds/edits/deletes sessions while it's
+  // open. Listeners self-remove on modal close (overlay.remove()).
+  // Greptile PR #178 P2 comment.
+  const onSync = () => {
+    if (!document.body.contains(overlay)) { _detach(); return; }
+    renderInto();
+  };
+  const _detach = () => {
+    window.removeEventListener('labcharts-ai-verdict-updated', onSync);
+    window.removeEventListener('labcharts-sync-applied', onSync);
+  };
+  window.addEventListener('labcharts-ai-verdict-updated', onSync);
+  window.addEventListener('labcharts-sync-applied', onSync);
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => { _detach(); overlay.remove(); }); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 }

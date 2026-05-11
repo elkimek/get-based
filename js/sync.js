@@ -3495,6 +3495,14 @@ async function onSyncReceived() {
             }
             dbg(`Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
           }
+          // Broadcast for any detached UI listening for cross-device
+          // updates (e.g., the All-Sessions modal in views.js). The
+          // navigate() above already rebuilt the inline page; this
+          // event covers floating modals that aren't part of the main
+          // tree. Greptile PR #178 P2 comment.
+          if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+            try { window.dispatchEvent(new CustomEvent('labcharts-sync-applied')); } catch (_) {}
+          }
         } else {
           dbg('Pulled profile:', profileId);
         }
