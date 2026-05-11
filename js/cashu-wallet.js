@@ -761,12 +761,28 @@ async function _autoMeltFees(feeProofs) {
       });
       if (isDebugMode()) console.log('[cashu-wallet] Fee melted:', feeSats, 'sats to', FEE_LN_ADDRESS);
       if (result.change && result.change.length) await _saveFeeProofs(result.change);
+      // Success — reset the consecutive-failure counter so the user
+      // doesn't see a persistent-failure toast just because they had
+      // a brief offline gap earlier.
+      _autoMeltConsecutiveFailures = 0;
     } catch (e) {
       if (feeProofs.length) await _saveFeeProofs(feeProofs);
       if (isDebugMode()) console.log('[cashu-wallet] Fee melt failed, saved for later:', e.message);
+      // Surface persistent failures so the user can act (top up the
+      // LN node, fix the address, etc.). Transient airplane-mode
+      // toggles produce one or two failures; only flag when something
+      // is durably broken.
+      _autoMeltConsecutiveFailures = (_autoMeltConsecutiveFailures || 0) + 1;
+      if (_autoMeltConsecutiveFailures === 3 && typeof window !== 'undefined' && window.showNotification) {
+        window.showNotification('Cashu fee melt failing repeatedly — proofs are safe and queued, but check Settings → AI → Routstr if the failures continue.', 'warning', 7000);
+      }
     }
   }).catch(() => {}); // fire-and-forget, never block caller
 }
+// Module-scoped counter for persistent-failure detection. Resets on
+// success, increments on each catch; only fires a user toast at 3 to
+// avoid noise during transient airplane-mode toggles.
+let _autoMeltConsecutiveFailures = 0;
 
 /** Get accumulated fee balance in sats */
 export async function getFeeBalance() {

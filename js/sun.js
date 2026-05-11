@@ -1828,6 +1828,29 @@ async function _snapshotActiveRate(sess) {
     const now = new Date();
     let atm = await fetchAtmosphere({ lat: coords.lat, lon: coords.lon, isoTime: now.toISOString() });
     atm = _applyAtmOverrides(atm);
+    // Mid-session source-flip guard: if a re-snapshot returns a result
+    // whose primary source differs from the prior snapshot AND the
+    // confidence dropped AND the UVI delta is large, REJECT the new atm
+    // and reuse the prior one. Targets the "airplane-mode toggle"
+    // pattern where the live ticker briefly fails over from CAMS (0.95
+    // confidence, real aerosol/AOD) to Open-Meteo (0.65, GFS-approx)
+    // and back, surfacing as a transient UVI spike (the v1.6.7 sanity
+    // warning catches this passively; this guard prevents the spike
+    // from feeding the live rate at all). 25% delta threshold rejects
+    // genuine source-driven discontinuities; smaller drifts pass through.
+    const priorAtm = _getLiveState(sess.id)?.atm;
+    if (priorAtm && Number.isFinite(priorAtm.uvIndex) && Number.isFinite(atm?.uvIndex)) {
+      const primarySrc = (s) => String(s || '').split('+')[0];
+      const sourcesDiffer = primarySrc(priorAtm.source) !== primarySrc(atm.source);
+      const priorConf = priorAtm.confidence ?? 0.6;
+      const newConf = atm.confidence ?? 0.6;
+      const downgraded = newConf < priorConf - 0.15;
+      const uviDelta = Math.abs(atm.uvIndex - priorAtm.uvIndex);
+      const largeJump = priorAtm.uvIndex > 0 && uviDelta > priorAtm.uvIndex * 0.25;
+      if (sourcesDiffer && downgraded && largeJump) {
+        atm = { ...priorAtm, _sourceFlipBlocked: { from: priorAtm.source, to: atm.source, attemptedUvi: atm.uvIndex, at: Date.now() } };
+      }
+    }
     const zenith = solarZenithAngle(now, coords.lat, coords.lon);
     const spectrum = reconstructSpectrum({
       zenithDeg: zenith,

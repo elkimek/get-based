@@ -24,11 +24,64 @@ import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
 
 // ─── Storage ───────────────────────────────────────────────────────────
+//
+// Storage model: at most ONE measurement per (roomId, tool) combination.
+// New readings replace the prior one for the same room+tool via
+// _supersedePriorMeasurement (called by saveMeasurement), with the old
+// entry's id written to `_deleted` so paired devices apply the same
+// replacement on pull. Audit snapshots deep-copy the live array at save
+// time, so historical compares survive in audit storage — the live
+// array is only ever a sparse "current state" view.
+//
+// Why not keep history here too? Every consumer that wants history
+// already reads it from the audit snapshots (they're the explicit
+// "save point"). The AI context only needs current state. UI portable-
+// readings list only needs current latest. Keeping per-(room,tool) rows
+// from months ago bloats localStorage, the sync payload, and AI context
+// tokens with no downstream consumer.
+
+// One-time-per-session migration: collapse any pre-redesign history into
+// the latest entry per (roomId, tool). Runs lazily on first read.
+const _collapsedThisSession = new WeakSet();
 
 export function getMeasurements() {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.lightMeasurements)) state.importedData.lightMeasurements = [];
+  if (!_collapsedThisSession.has(state.importedData.lightMeasurements)) {
+    _collapsedThisSession.add(state.importedData.lightMeasurements);
+    _collapseToLatestPerRoomTool(state.importedData.lightMeasurements);
+  }
   return state.importedData.lightMeasurements;
+}
+
+// Latest-per-(roomId, tool) wins. On pre-redesign data, this is the
+// migration step that runs once and tombstones every superseded entry
+// so the cleanup propagates across paired devices. New writes go
+// through _supersedePriorMeasurement which handles replacement +
+// tombstoning at write time, so this only needs to run once.
+function _collapseToLatestPerRoomTool(list) {
+  if (!Array.isArray(list) || list.length === 0) return 0;
+  // Group by (roomId, tool), pick the most-recent entry per group.
+  const latest = new Map();
+  for (const m of list) {
+    if (!m || !m.tool) continue;
+    const key = `${m.roomId || ''}::${m.tool}`;
+    const ts = m.capturedAt || m.takenAt || 0;
+    const cur = latest.get(key);
+    if (!cur || ts > (cur.capturedAt || cur.takenAt || 0)) latest.set(key, m);
+  }
+  if (latest.size === list.length) return 0; // already collapsed
+  const keep = new Set();
+  for (const m of latest.values()) keep.add(m);
+  let dropped = 0;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = list[i];
+    if (keep.has(m)) continue;
+    if (m && m.id) recordTombstone(state.importedData, 'lightMeasurements', m.id);
+    list.splice(i, 1);
+    dropped++;
+  }
+  return dropped;
 }
 
 // Per-tool "where to aim the camera" guide. Spelt out because the
@@ -108,6 +161,25 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// Find and remove any prior entry for the same (roomId, tool), recording
+// a tombstone so paired devices apply the same replacement on pull.
+// Returns the count of superseded entries (≤1 in normal use, >1 only
+// when migrating from pre-redesign data with multiple historical rows).
+function _supersedePriorMeasurement(list, roomId, tool) {
+  if (!Array.isArray(list)) return 0;
+  let removed = 0;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = list[i];
+    if (!m || m.tool !== tool) continue;
+    const sameRoom = (m.roomId || null) === (roomId || null);
+    if (!sameRoom) continue;
+    if (m.id) recordTombstone(state.importedData, 'lightMeasurements', m.id);
+    list.splice(i, 1);
+    removed++;
+  }
+  return removed;
+}
+
 export async function saveMeasurement(tool, value, opts = {}) {
   const id = `lm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const entry = {
@@ -121,6 +193,10 @@ export async function saveMeasurement(tool, value, opts = {}) {
     extra: opts.extra || null,
     roomId: opts.roomId || null,
   };
+  // Replace the prior (roomId, tool) entry — sparse latest-per-key model.
+  // Old entry's id tombstones into _deleted so paired devices drop it
+  // on the next pull. New entry has its own id and pushes normally.
+  _supersedePriorMeasurement(getMeasurements(), entry.roomId, entry.tool);
   getMeasurements().push(entry);
   await saveImportedData();
   if (typeof window !== 'undefined' && window.maybeAnalyzeMeasurementAfterSave) {
@@ -139,10 +215,16 @@ export async function saveMeasurement(tool, value, opts = {}) {
   // its camera/RAF loop yet, and a navigate would yank DOM out from under
   // it (orphan video element, detached interval handlers). The next user
   // navigation picks up the new measurement on its own.
+  // Pass scrollAnchor so the rebuild keeps the room the user was looking
+  // at pinned to the viewport — without it, navigate's auto-pick can
+  // grab a session card visible above the room and the page jumps up.
   if (typeof window !== 'undefined' && window.navigate && state.currentView === 'light') {
     setTimeout(() => {
       if (document.querySelector('.modal-overlay.show')) return;
-      window.navigate('light');
+      const anchor = opts.roomId
+        ? `[data-id="${opts.roomId.replace(/"/g, '\\"')}"]`
+        : null;
+      window.navigate('light', anchor ? { scrollAnchor: anchor } : undefined);
     }, 50);
   }
   return entry;

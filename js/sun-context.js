@@ -520,10 +520,13 @@ function lightEnvironmentBlock() {
   //   • sleep darkness > 1 lux at the pillow (above the WHO bedroom
   //     dark-enough threshold for full melatonin secretion)
   //   • after-sunset CCT > 3500K (still cool/blue when ought-to-be-warm)
-  //   • measurements older than 90 days are skipped — context drift
-  const measurements = state.importedData?.lightMeasurements || [];
-  const ninetyDaysAgo = Date.now() - 90 * 86400 * 1000;
-  const recent = measurements.filter(m => (m.takenAt || 0) >= ninetyDaysAgo);
+  // No time filter needed — saveMeasurement enforces a one-per-(roomId,
+  // tool) replace model, so the array is already a sparse "current
+  // state" view (~30 rows max for typical setups). Re-measuring a room
+  // tombstones the prior entry, so a fixed room stops appearing here
+  // automatically. Historical context lives in audit snapshots, not in
+  // the live measurements array.
+  const recent = state.importedData?.lightMeasurements || [];
   // Resolve roomId → user-typed room name. Names are no more sensitive
   // than the rest of the always-tier (the user typed them) and turn
   // an opaque "roomId=room_a4b2c8" into "in living-room" — actionable

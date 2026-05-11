@@ -1050,21 +1050,20 @@ export function renderEnvironmentSection() {
   // Portable readings — measurements taken via the Light Tools page
   // without a room selected (roomId === null). Earlier these were
   // invisible: the per-room render path filters by exact roomId match,
-  // and there was no global "all measurements" view. A user who fired
-  // the Lux Meter from the dashboard saw a confirmation toast but the
-  // reading effectively vanished. This collapsible block surfaces the
-  // last 30 days of unbound readings so they can be re-tagged or
-  // simply confirmed as captured.
+  // and there was no global "all measurements" view. This collapsible
+  // block surfaces the unmatched readings so they can be re-tagged or
+  // simply confirmed as captured. Storage is now latest-per-(roomId,
+  // tool) so this list is bounded to ~1 row per tool (lux, flicker,
+  // cct, etc.) — no time window, no pagination needed.
   const allMeasurements = state.importedData?.lightMeasurements || [];
-  const portableCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const portable = allMeasurements
-    .filter(m => !m.roomId && (m.takenAt || m.capturedAt || 0) >= portableCutoff)
+    .filter(m => !m.roomId)
     .sort((a, b) => (b.takenAt || b.capturedAt || 0) - (a.takenAt || a.capturedAt || 0));
   if (portable.length > 0) {
     html += `<details class="light-env-block light-env-portable-readings">
-      <summary><strong>Portable readings</strong> <span class="light-env-portable-count">${portable.length} not matched to a room · last 30d</span></summary>
+      <summary><strong>Portable readings</strong> <span class="light-env-portable-count">${portable.length} not matched to a room</span></summary>
       <div class="light-env-portable-readings-list">`;
-    for (const m of portable.slice(0, 20)) {
+    for (const m of portable) {
       const ts = m.takenAt || m.capturedAt || Date.now();
       const icon = TOOL_ICONS[m.tool] || '·';
       html += `<div class="light-env-portable-reading-row">
@@ -1072,9 +1071,6 @@ export function renderEnvironmentSection() {
         <span class="light-env-portable-reading-value">${escapeHTML(fmtMeasureValue(m))}</span>
         <span class="light-env-portable-reading-time">${escapeHTML(fmtMeasureTime(ts))}</span>
       </div>`;
-    }
-    if (portable.length > 20) {
-      html += `<div class="light-env-portable-reading-more">+${portable.length - 20} older — open the dedicated tool to see history</div>`;
     }
     html += `</div></details>`;
   }
@@ -1140,8 +1136,6 @@ export function renderEnvironmentSection() {
 let _expandedAuditId = null;
 let _auditCompareMode = false;
 
-const AUDIT_MEASUREMENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-
 export function getLightAudits() {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
@@ -1152,13 +1146,12 @@ export async function saveLightAudit(label = '') {
   const env = getEnvironment();
   if (!env) return null;
   const audits = getLightAudits();
-  // Snapshot recent measurements (last 30 days) — older ones likely
-  // reflect a different state of the environment than what's being
-  // audited, so they'd skew before/after comparisons.
-  const cutoff = Date.now() - AUDIT_MEASUREMENT_WINDOW_MS;
-  const measurements = (state.importedData?.lightMeasurements || [])
-    .filter(m => (m.capturedAt || 0) >= cutoff)
-    .map(m => ({ ...m }));
+  // Snapshot the current measurements — the live array is already a
+  // sparse latest-per-(roomId, tool) view (saveMeasurement supersedes
+  // priors), so no time-window filter is needed. Each audit deep-copies
+  // whatever rows are present at save time and lives forever in audit
+  // storage independent of future supersession.
+  const measurements = (state.importedData?.lightMeasurements || []).map(m => ({ ...m }));
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const audit = {

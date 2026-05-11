@@ -37,7 +37,18 @@ export function navigate(category, data) {
   const sameView = category === state.currentView;
   let anchor = null;
   if (sameView && typeof document !== 'undefined') {
-    anchor = _captureScrollAnchor();
+    // Optional explicit anchor — saveMeasurement, AI verdict refreshes,
+    // and other "I know exactly which element the user is looking at"
+    // callers can pass `{ scrollAnchor: '<css-selector>' }` so the
+    // anchor doesn't fall back to the auto-pick heuristic.
+    if (data && typeof data === 'object' && data.scrollAnchor) {
+      const el = document.querySelector(data.scrollAnchor);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        anchor = { selector: data.scrollAnchor, viewportTop: rect.top };
+      }
+    }
+    if (!anchor) anchor = _captureScrollAnchor();
   }
   document.querySelectorAll(".nav-item").forEach(el => {
     el.classList.toggle("active", el.dataset.category === category);
@@ -89,18 +100,51 @@ function _captureScrollAnchor() {
     }
     el = el.parentElement;
   }
-  // Fallback: pick the first stably-identifiable element currently in
-  // viewport. This covers async re-renders (AI refresh, sync pull) where
-  // there's no focused click target.
+  // Fallback heuristic: find the stably-identifiable element the user
+  // is most plausibly looking at. Two-tier:
+  //
+  // 1. Elements that CONTAIN the viewport center — the user's focus is
+  //    almost certainly inside one of these (a large expanded room
+  //    card, an open audit, etc.). Pick the SMALLEST containing element
+  //    (innermost = most specific anchor).
+  // 2. Failing that, the element whose rect center is closest to
+  //    viewport center.
+  //
+  // First-in-DOM-order was the previous heuristic and produced the
+  // "screen jumps to the session list" bug — session cards sit above
+  // rooms in the DOM, so the room couldn't win even when it dominated
+  // the viewport. Closest-center alone had the inverse problem: a huge
+  // room card has its rect-center off-screen, so smaller off-to-the-
+  // side elements with centers inside the viewport beat it.
   const candidates = document.querySelectorAll('[data-id], [data-screen-id], [data-room-id]');
+  const vh = window.innerHeight;
+  const viewportCenter = vh / 2;
+  let containingBest = null;
+  let containingBestArea = Infinity;
+  let centerBest = null;
+  let centerBestDist = Infinity;
   for (const c of candidates) {
     const rect = c.getBoundingClientRect();
-    if (rect.top >= 0 && rect.top < window.innerHeight) {
-      const sel = _stableSelectorFor(c);
-      if (sel) return { selector: sel, viewportTop: rect.top };
+    if (rect.bottom <= 0 || rect.top >= vh) continue;
+    const sel = _stableSelectorFor(c);
+    if (!sel) continue;
+    const containsCenter = rect.top <= viewportCenter && rect.bottom >= viewportCenter;
+    if (containsCenter) {
+      const area = rect.width * rect.height;
+      if (area < containingBestArea) {
+        containingBestArea = area;
+        containingBest = { selector: sel, viewportTop: rect.top };
+      }
+    } else {
+      const center = rect.top + rect.height / 2;
+      const dist = Math.abs(center - viewportCenter);
+      if (dist < centerBestDist) {
+        centerBestDist = dist;
+        centerBest = { selector: sel, viewportTop: rect.top };
+      }
     }
   }
-  return null;
+  return containingBest || centerBest;
 }
 
 function _stableSelectorFor(el) {
@@ -1215,6 +1259,16 @@ function _sanityCheckAtmosphere(atm, coords) {
   if (atm.uvIndex != null) {
     if (atm.uvIndex < 0) warnings.push(`UVI is ${atm.uvIndex} (should be ≥ 0)`);
     if (atm.uvIndex > 16) warnings.push(`UVI is ${atm.uvIndex} (extreme — typical max ~12-13)`);
+    // Live UVI exceeding today's forecast peak by >20% suggests a stale
+    // or wrong-hour cache entry (the same bug pattern that produced the
+    // "saw UVI 8+ briefly when daily max was 6" report). Forecast peak
+    // can legitimately revise upward by ~10-15% as forecast models
+    // refresh through the day, but a 20%+ overshoot is almost always a
+    // data anomaly worth surfacing.
+    const peak = atm.daily?.uvIndexMax;
+    if (Number.isFinite(peak) && peak > 0 && atm.uvIndex > peak * 1.2) {
+      warnings.push(`UVI ${atm.uvIndex.toFixed(1)} exceeds today's forecast peak (${peak.toFixed(1)}) — likely stale data, try Refresh`);
+    }
     // UVI should be near zero when sun is below horizon
     try {
       if (window.solarZenithAngle && coords) {

@@ -4,6 +4,26 @@ import { getModelPricing } from './schema.js';
 import { isDebugMode } from './utils.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 
+// Mid-stream stall timeout. Streaming SSE / NDJSON readers can hang
+// indefinitely on `reader.read()` if the network drops between chunks
+// (airplane-mode toggle, lost cell signal, server crash without close).
+// Wrap each read in this helper so the loop fails loud after 30 s of
+// silence instead of leaving the chat message stuck in "typing…" forever.
+// Cancels the reader on timeout so the connection releases.
+const STREAM_STALL_TIMEOUT_MS = 30000;
+function readWithStallTimeout(reader, label = 'AI stream') {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      try { reader.cancel(); } catch (e) {}
+      reject(new Error(`${label} stalled — no data for ${Math.round(STREAM_STALL_TIMEOUT_MS / 1000)}s. Check your connection, tap Stop in the chat header, then try again.`));
+    }, STREAM_STALL_TIMEOUT_MS);
+    reader.read().then(
+      (result) => { clearTimeout(timer); resolve(result); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 // ═══════════════════════════════════════════════
 // AI PROVIDER MANAGEMENT
 // ═══════════════════════════════════════════════
@@ -448,10 +468,50 @@ function _proxyFetch(url, options) {
   });
 }
 
+// Initial-response timeout for AI API calls. Browsers without explicit
+// timeouts can hang for minutes on a stalled connection (airplane mode,
+// dropped cell signal, server unresponsive) before the OS TCP layer
+// gives up. 60s is generous for slow models (long prompts still respond
+// within ~10s) but short enough to surface offline state quickly.
+const FETCH_REQUEST_TIMEOUT_MS = 60000;
 async function _fetchWithRetry(url, options, retries = 2, useProxy = true) {
   const fetchFn = useProxy ? _proxyFetch : fetch;
+  // Combine the caller's abort signal (if any) with a per-attempt timeout
+  // signal so a stalled fetch fails loud instead of hanging forever.
+  // Streaming reads still have their own stall timeout downstream
+  // (readWithStallTimeout) — this one covers the request-establishment
+  // phase before chunks start flowing.
+  const buildOpts = () => {
+    const timeoutSig = AbortSignal.timeout(FETCH_REQUEST_TIMEOUT_MS);
+    const signal = options.signal
+      ? (AbortSignal.any ? AbortSignal.any([options.signal, timeoutSig]) : options.signal)
+      : timeoutSig;
+    return { ...options, signal };
+  };
   for (let i = 0; i <= retries; i++) {
-    const res = await fetchFn(url, options);
+    let res;
+    try {
+      res = await fetchFn(url, buildOpts());
+    } catch (e) {
+      // User-initiated abort — surface immediately without retry.
+      if (options.signal?.aborted) throw e;
+      // Transient network errors: TypeError ("Failed to fetch") from a
+      // dropped connection, or timeout abort from FETCH_REQUEST_TIMEOUT_MS.
+      // Retry with backoff before giving up — matches the airplane-mode
+      // toggle pattern where one attempt fails but the next succeeds.
+      const isTimeout = e?.name === 'TimeoutError' || (e?.name === 'AbortError' && !options.signal?.aborted);
+      const isNetwork = e instanceof TypeError || /Failed to fetch|Load failed|NetworkError/.test(e?.message || '');
+      if ((isTimeout || isNetwork) && i < retries) {
+        const delay = (i + 1) * 1500; // 1.5s, 3s
+        if (isDebugMode()) console.log(`[API] Network error ${e?.name || e?.message}, retry ${i + 1}/${retries} in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      if (isTimeout) {
+        throw new Error(`request timed out after ${Math.round(FETCH_REQUEST_TIMEOUT_MS / 1000)}s — check your network`);
+      }
+      throw e;
+    }
     if (res.status !== 429 || i === retries) return res;
     const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
     const delay = Math.max(retryAfter * 1000, (i + 1) * 5000);
@@ -602,7 +662,7 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
       }
     };
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await readWithStallTimeout(reader, 'Local AI stream');
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
@@ -722,7 +782,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
       }
     };
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await readWithStallTimeout(reader, `${providerName} stream`);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
@@ -831,7 +891,7 @@ export async function callVeniceAPI(opts) {
     }
   };
   while (true) {
-    const { done, value } = await reader.read();
+    const { done, value } = await readWithStallTimeout(reader, 'Venice stream');
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');

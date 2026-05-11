@@ -40,7 +40,10 @@ const DEFAULT_CONFIG = {
   // raw embedding similarity misses. Off → single-query (original behavior).
   multiQuery: true,
 };
-const TIMEOUT_MS = 30000;
+// External-server RAG query timeout. 30s was too generous for a chat
+// flow (user thinks the app is hung); 10s is enough headroom for slow
+// HuggingFace-style local backends and surfaces offline state quickly.
+const TIMEOUT_MS = 10000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 20;
 const MAX_CHUNKS = 10;

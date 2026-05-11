@@ -517,8 +517,23 @@ export async function initSync() {
       window.addEventListener('pageshow', (e) => {
         if (e.persisted) _kickSync('pageshow-persisted');
       });
-      // Network came back — drain any pending pushes.
-      window.addEventListener('online', () => _kickSync('online'));
+      // Network came back — drain any pending pushes + toast the user.
+      // Evolu queues writes locally while offline; the user has no other
+      // signal that their edits are safely persisted (vs. lost). The
+      // toasts are throttled — only one fires per offline → online
+      // transition, not per visibilitychange.
+      let _lastNetState = navigator.onLine ?? true;
+      window.addEventListener('online', () => {
+        _kickSync('online');
+        if (!_lastNetState) {
+          _lastNetState = true;
+          if (window.showNotification) window.showNotification('Back online — syncing your changes.', 'success', 3000);
+        }
+      });
+      window.addEventListener('offline', () => {
+        _lastNetState = false;
+        if (window.showNotification) window.showNotification('Offline — changes are saved locally and will sync when you reconnect.', 'info', 5000);
+      });
     }
 
     dbg('Initialized, relay:', relay);
@@ -1252,6 +1267,17 @@ const DELTA_ARRAY_CONFIG = {
       if (!Number.isFinite(ts)) return null;
       return `${it.field}.${ts}`.replace(/[^a-zA-Z0-9_.-]/g, '_');
     },
+    noTombstones: true,
+  },
+  // lightMeasurements is pruned to a 30-day window locally (see
+  // _pruneOldMeasurements in light-tools.js). That eviction is bookkeeping,
+  // not a user-initiated delete — without noTombstones the prune would
+  // emit delete events that wipe the same rows on paired devices whose
+  // window happens to still include them (or whose clock skews a few
+  // seconds the other way). Genuine user-initiated deletes via
+  // deleteMeasurement still write tombstones explicitly via
+  // recordTombstone, which lives outside this planner path.
+  lightMeasurements: {
     noTombstones: true,
   },
   // Lab entries — `{date, markers, ...}` with no `.id`. The import path
