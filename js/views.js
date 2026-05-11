@@ -2501,19 +2501,18 @@ function _toggleChannelDetail(channelKey) {
 // device, or both kinds of sessions. Device rows render inline since
 // they have a simpler shape (no per-channel chips on the device-side
 // — those would be the SAME chips on every row, not informative).
-// Default cap on the historical sessions list. Without this, a year of
-// daily sessions becomes a 365-row scroll — useful information drowns
-// in chronology. Each row is ~160 px tall (date + duration + channel
-// chips + burn-risk meta + AI verdict chip), so 5 rows ≈ 800 px which
-// leaves the next sections (Devices, Light Environment, Tools) within
-// the next scroll page. 10-cap pushed everything below it 1600 px
-// down and made the page feel like a scroll-fest. The "Show N older
-// sessions" toggle below restores full history on demand. Module-
-// scoped flag persists for the tab session.
-const SESSIONS_DEFAULT_CAP = 5;
-let _showAllSessions = false;
+// Inline cap on the historical sessions list. 3 is enough for
+// at-a-glance context ("what did I do recently"); the full history
+// opens in a modal so the rest of the Light & Sun page (Devices,
+// Light Environment, Tools) sits within one scroll-page below.
+// Each row is ~160 px tall (date + duration + channel chips + burn-
+// risk meta + AI verdict chip), so 3 rows ≈ 480 px is a tight default.
+const SESSIONS_DEFAULT_CAP = 3;
 
-function renderUnifiedSessionsList() {
+// Build the unified, sorted (newest-first) row list of all completed
+// sun + device sessions. Shared between the inline render (cap-bounded)
+// and the modal that shows the full history.
+function _collectUnifiedSessionRows() {
   // Active sun session is pinned at the top of the page (showLight
   // renders it before the quicklog row), so filter it out of the
   // historical-sessions list to avoid the same row appearing twice.
@@ -2521,26 +2520,22 @@ function renderUnifiedSessionsList() {
   // Active device sessions are pinned above (renderActiveDeviceSessionCard);
   // filter them out here so the same row doesn't render twice.
   const devSessions = ((window.getDeviceSessions && window.getDeviceSessions()) || []).filter(s => !!s.endedAt);
-
-  // Build the unified, sorted row list once — regardless of whether we
-  // have only sun, only devices, or both. Lets the cap + toggle apply
-  // uniformly across all three shapes.
   const rows = [];
   for (const s of sunSessions) rows.push({ kind: 'sun', startedAt: s.startedAt || 0, sess: s });
   for (const s of devSessions) rows.push({ kind: 'device', startedAt: s.startedAt || 0, sess: s });
-  if (rows.length === 0) return '';
   rows.sort((a, b) => b.startedAt - a.startedAt);
+  return { rows, hasDeviceRows: devSessions.length > 0 };
+}
 
-  const totalCount = rows.length;
-  const visibleRows = _showAllSessions ? rows : rows.slice(0, SESSIONS_DEFAULT_CAP);
-  const hiddenCount = totalCount - visibleRows.length;
-
+// Render N session rows from the unified list as the body of a
+// .sun-sessions-list block. Shared by the inline render + modal so
+// the per-row look stays identical.
+function _renderSessionRowsHTML(rows) {
   const devices = (window.getDevices && window.getDevices()) || [];
   const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
   const renderSunRow = window.renderSunSessionRow;
-
-  let html = `<div class="sun-sessions-list${devSessions.length ? ' light-sessions-list-unified' : ''}">`;
-  for (const row of visibleRows) {
+  let html = '';
+  for (const row of rows) {
     if (row.kind === 'sun' && renderSunRow) {
       html += renderSunRow(row.sess);
     } else if (row.kind === 'device') {
@@ -2586,22 +2581,54 @@ function renderUnifiedSessionsList() {
       </div>`;
     }
   }
+  return html;
+}
+
+// Inline render — caps at SESSIONS_DEFAULT_CAP and exposes the rest
+// via "View all" modal instead of expanding inline (which used to
+// bloat the page 1600+ px below the visible session list).
+function renderUnifiedSessionsList() {
+  const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
+  if (rows.length === 0) return '';
+  const totalCount = rows.length;
+  const visibleRows = rows.slice(0, SESSIONS_DEFAULT_CAP);
+  const hiddenCount = totalCount - visibleRows.length;
+  let html = `<div class="sun-sessions-list${hasDeviceRows ? ' light-sessions-list-unified' : ''}">`;
+  html += _renderSessionRowsHTML(visibleRows);
   html += `</div>`;
-  // Toggle row — only render when there's something to expand/collapse.
   if (hiddenCount > 0) {
-    html += `<button class="light-sessions-show-more" onclick="window._toggleAllSessions()">Show ${hiddenCount} older session${hiddenCount === 1 ? '' : 's'}</button>`;
-  } else if (_showAllSessions && totalCount > SESSIONS_DEFAULT_CAP) {
-    html += `<button class="light-sessions-show-more" onclick="window._toggleAllSessions()">Show only the ${SESSIONS_DEFAULT_CAP} most recent</button>`;
+    html += `<button class="light-sessions-show-more" onclick="window._openAllSessionsModal()">View all ${totalCount} sessions</button>`;
   }
   return html;
 }
 
-// Exposed for the inline onclick on the show-more toggle.
+// Modal listing every session — opened from the "View all" button so
+// the Light & Sun page itself stays compact. Reuses the same per-row
+// renderer as the inline list. Click any row to drill into its detail
+// modal (the existing per-row onclicks pass through fine; they fire
+// their own modal which replaces this one's overlay).
+function _openAllSessionsModal() {
+  const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  const title = `All sessions (${rows.length})`;
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="${escapeAttr(title)}" style="max-width:760px">
+    <div class="modal-header">
+      <h3>${escapeHTML(title)}</h3>
+      <button class="modal-close" aria-label="Close" onclick="this.closest('.modal-overlay').remove()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="sun-sessions-list${hasDeviceRows ? ' light-sessions-list-unified' : ''}">${_renderSessionRowsHTML(rows)}</div>
+    </div>
+  </div>`;
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => overlay.remove()); } catch (e) {}
+  document.body.appendChild(overlay);
+  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+}
+
+// Exposed for the inline "View all" button onclick.
 if (typeof window !== 'undefined') {
-  window._toggleAllSessions = () => {
-    _showAllSessions = !_showAllSessions;
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
-  };
+  window._openAllSessionsModal = _openAllSessionsModal;
 }
 
 // One-line action suggestion based on the lowest-tier channel.

@@ -340,6 +340,10 @@ return (async function() {
     };
     S.importedData.lightDevices = [badgeModedDevice, badgePlainDevice];
     S.importedData.deviceSessions = [];
+    // Also clear sun sessions — the inline list caps at SESSIONS_DEFAULT_CAP
+    // newest-first across BOTH kinds, so leftover sun sessions from earlier
+    // tests would push device sessions out of the top slice.
+    S.importedData.sunSessions = [];
     await window.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'all-on' });
     await window.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'red-nir-only' });
     await window.logDeviceSession({ deviceId: 'D-badge-plain', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
