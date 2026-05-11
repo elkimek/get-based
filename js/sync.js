@@ -2283,25 +2283,22 @@ export async function fetchOwnerStorageFromRelay() {
 //   'unknown'  — couldn't probe (old relay, offline, no prior snapshot)
 let _lastRelaySnapshot = null;  // { storedBytes, messageCount, lastWriteToken, at }
 let _lastVerifyVerdict = { verdict: 'unknown', at: 0, reason: null };
+// Track the most recent local "push committed" event. The verifier only
+// reports 'wedged' if a push completed AFTER the last snapshot — without
+// this gate, two consecutive verify calls with no push between them
+// would always report 'wedged' (nothing changed on the relay because
+// nothing was pushed, but the user gets a misleading red dot).
+let _lastPushCommittedAt = 0;
 
 export function getRelayHealthVerdict() {
   return { ..._lastVerifyVerdict };
 }
 
-// Called immediately after a successful local "push committed" event —
-// snapshots the relay's view BEFORE the next probe. The next call to
-// verifyPushLanded() will compare against this baseline.
-async function snapshotRelayState() {
-  try {
-    const r = await fetchOwnerStorageFromRelay();
-    if (!r) return; // can't snapshot; verifyPushLanded will fall to 'unknown'
-    _lastRelaySnapshot = {
-      storedBytes: r.storedBytes,
-      messageCount: r.messageCount,
-      lastWriteToken: r.lastWriteToken,
-      at: Date.now(),
-    };
-  } catch { /* swallow — health check is best-effort */ }
+// Called from onComplete inside the push pipeline once a "Push committed"
+// event has fired. Used by verifyPushLanded to gate the wedged verdict —
+// otherwise idle calls would always be 'wedged'.
+function notePushCommitted() {
+  _lastPushCommittedAt = Date.now();
 }
 
 // Verify that the most recent push actually advanced the relay's state.
@@ -2320,6 +2317,18 @@ export async function verifyPushLanded() {
     _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'pre-1.2.3-relay' };
     return _lastVerifyVerdict;
   }
+  // Absolute-value sanity check: if we've pushed at least once this
+  // session AND the relay reports zero messages, we're in the exact
+  // 2026-05-11 wedged-owner shape. No baseline needed — pushes
+  // succeeded locally, relay has nothing. Strongest signal we have.
+  if (_lastPushCommittedAt > 0 && fresh.messageCount === 0 && fresh.storedBytes === 0) {
+    _lastVerifyVerdict = {
+      verdict: 'wedged',
+      at: Date.now(),
+      reason: 'pushes committed locally but relay reports zero messages and zero bytes',
+    };
+    return _lastVerifyVerdict;
+  }
   if (!_lastRelaySnapshot) {
     // First call this session — snapshot now, can't verify yet.
     _lastRelaySnapshot = {
@@ -2329,6 +2338,15 @@ export async function verifyPushLanded() {
       at: Date.now(),
     };
     _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'no-baseline-yet' };
+    return _lastVerifyVerdict;
+  }
+  // Only report 'wedged' from a delta if a push happened SINCE the
+  // baseline was captured. Otherwise the relay has nothing to advance
+  // past and we'd be flagging idle-as-wedged.
+  if (_lastPushCommittedAt <= _lastRelaySnapshot.at) {
+    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'no-push-since-baseline' };
+    // Don't roll the baseline — we want the NEXT verify (after a real
+    // push) to compare against the same snapshot.
     return _lastVerifyVerdict;
   }
   const advanced =
@@ -2341,7 +2359,7 @@ export async function verifyPushLanded() {
     _lastVerifyVerdict = {
       verdict: 'wedged',
       at: Date.now(),
-      reason: `storedBytes=${fresh.storedBytes} messageCount=${fresh.messageCount} lastWriteToken=${fresh.lastWriteToken ? fresh.lastWriteToken.slice(0, 8) + '…' : 'null'} unchanged since ${new Date(_lastRelaySnapshot.at).toISOString()}`,
+      reason: `pushed at ${new Date(_lastPushCommittedAt).toISOString()} but relay still reports storedBytes=${fresh.storedBytes} messageCount=${fresh.messageCount}`,
     };
   }
   // Roll the baseline forward so the next push-verify pair measures the
@@ -2715,6 +2733,11 @@ async function pushProfile(profileId, importedData, opts = {}) {
       const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
       dbg(okMsg);
       _logSyncEvent('push', okMsg);
+      // Mark the moment a push committed locally so the relay-health
+      // verifier (verifyPushLanded) can distinguish "no push happened
+      // yet" from "push happened but relay didn't advance" (silent
+      // reject).
+      notePushCommitted();
       // Only advance the local-sync-ts watermark when the push actually
       // landed. The previous (synchronous) bump after evolu.update meant
       // a wedged push set the watermark anyway → subsequent pulls saw
