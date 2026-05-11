@@ -1721,18 +1721,39 @@ function _topChannel(sess) {
 // preservation here too, but pixel-based broke when content above the
 // viewport changed height during rebuild — superseded by the navigate()
 // path which handles all callers uniformly.
+// Debounce window for _refreshSurfaces — the AI verdict engine fires
+// _refresh 3-5 times during a single measurement save (retrying.add,
+// inflight.add, inflight.delete, retrying.delete, plus saveMeasurement's
+// own setTimeout-navigate). Each rebuild destroys charts and re-renders
+// the entire view, and the destroy/recreate cycle shifts content above
+// the user's anchor (charts paint async, then are torn down again on
+// the next rebuild). That thrashing produced visible scroll jumps even
+// with the anchor-restore loop active. Coalescing multiple refresh
+// requests into a single rebuild eliminates the thrash.
+//
+// Trailing edge: we want the FINAL state (after the verdict lands) to
+// render, not the in-flight "analyzing" intermediate. The first refresh
+// in a burst schedules a navigate ~150ms out; subsequent refreshes
+// within that window reset the timer (keeping the latest scrollAnchor).
+// The user sees a slightly delayed "Analyzing..." indicator (acceptable
+// trade for no jump) and the final result with no thrash.
+let _refreshSurfacesTimer = null;
+let _refreshSurfacesPendingAnchor = null;
 function _refreshSurfaces(scrollAnchor) {
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-  const view = state.currentView || 'dashboard';
-  // Forward an optional explicit scroll anchor (passed from the AI
-  // verdict engine when it knows which row's verdict just landed)
-  // so the rebuild pins the page to that row instead of falling back
-  // to navigate's auto-pick.
-  const navOpts = scrollAnchor ? { scrollAnchor } : undefined;
-  if (window.navigate) try { window.navigate(view, navOpts); } catch (e) {}
-  // After re-render the active-session card is a fresh DOM node — make sure
-  // the ticker is alive so it patches the new card on the next interval.
-  setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
+  // Always keep the most recent anchor — if any caller in the burst
+  // requested a specific anchor, use it.
+  if (scrollAnchor) _refreshSurfacesPendingAnchor = scrollAnchor;
+  if (_refreshSurfacesTimer) clearTimeout(_refreshSurfacesTimer);
+  _refreshSurfacesTimer = setTimeout(() => {
+    _refreshSurfacesTimer = null;
+    const anchor = _refreshSurfacesPendingAnchor;
+    _refreshSurfacesPendingAnchor = null;
+    if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
+    const view = state.currentView || 'dashboard';
+    const navOpts = anchor ? { scrollAnchor: anchor } : undefined;
+    if (window.navigate) try { window.navigate(view, navOpts); } catch (e) {}
+    setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
+  }, 150);
 }
 
 // First-fire jargon explainer for in-session toasts. Returns a one-line
