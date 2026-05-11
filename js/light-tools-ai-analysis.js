@@ -204,7 +204,7 @@ const engine = createAIVerdict({
   // Anchor the post-verdict rebuild to the row's room so the user
   // stays put when the verdict lands. Portable readings (no roomId)
   // have no specific anchor — let the auto-pick handle them.
-  getScrollAnchor: (m) => m?.roomId ? `[data-id="${String(m.roomId).replace(/"/g, '\\"')}"]` : null,
+  getScrollAnchor: (m) => m?.roomId ? `[data-id="${CSS.escape(String(m.roomId))}"]` : null,
 });
 
 export const analyzeMeasurementAI = engine.analyze;

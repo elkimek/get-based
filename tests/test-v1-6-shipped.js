@@ -151,18 +151,49 @@ return (async function () {
       const tombstones = S.importedData._deleted?.lightMeasurements || [];
       assert('Superseded entry tombstoned via _deleted for sync propagation',
         tombstones.length >= 1);
+
+      // Audit-tool exemption: walkthrough records (tool='audit') must
+      // NOT supersede each other. Each walkthrough is a separate record
+      // whose extra.rooms holds per-pause labels — superseding would
+      // tombstone the per-walkthrough history. Verified by saving two
+      // audit records in a row and asserting both survive.
+      S.importedData.lightMeasurements = [];
+      delete S.importedData._deleted;
+      await window.saveMeasurement('audit', 4, { roomId: null, extra: { rooms: [{ index: 1, lux: 200, label: 'Bedroom' }] } });
+      await window.saveMeasurement('audit', 3, { roomId: null, extra: { rooms: [{ index: 1, lux: 800, label: 'Office' }] } });
+      const auditRows = window.getMeasurements().filter(m => m.tool === 'audit');
+      assert('Audit walkthroughs preserved across saves (no supersession)',
+        auditRows.length === 2);
+      const auditTombstones = (S.importedData._deleted?.lightMeasurements || []).length;
+      assert('Audit save does not tombstone the prior walkthrough',
+        auditTombstones === 0, `tombstones=${auditTombstones}`);
+
       // Restore.
       S.importedData = _saved;
     }
-    const sunSrc = await fetchSrc('js/sun.js');
-    void sunSrc;
     const ltSrc = await fetchSrc('js/light-tools.js');
-    assert('light-tools.js: SESSIONS_DEFAULT_CAP retention model documented',
+    assert('light-tools.js: retention model is latest-per-(roomId, tool)',
       /one-per-\(roomId, tool\)/i.test(ltSrc) || /latest-per-\(roomId, tool\)/i.test(ltSrc));
     assert('light-tools.js: _supersedePriorMeasurement helper exists',
       /function _supersedePriorMeasurement/.test(ltSrc));
     assert('light-tools.js: _collapseToLatestPerRoomTool one-time migration exists',
       /function _collapseToLatestPerRoomTool/.test(ltSrc));
+    assert('light-tools.js: tool === audit skips supersession at save',
+      /tool !== 'audit'[\s\S]{0,200}_supersedePriorMeasurement/.test(ltSrc));
+    assert('light-tools.js: collapse migration also exempts audit rows',
+      /auditRows\s*=\s*\[\][\s\S]{0,400}m\.tool\s*===\s*'audit'/.test(ltSrc));
+
+    // Phase 2 cutover regression: lightMeasurements MUST emit
+    // automatic per-row tombstones via the planner (no noTombstones
+    // flag). Without this, under v4 payloads the supersession-
+    // generated tombstones (which ride _deleted in v3) never reach
+    // peers, and paired devices retain stale measurements forever.
+    const syncSrc = await fetchSrc('js/sync.js');
+    const cfgBlock = syncSrc.split('DELTA_ARRAY_CONFIG')[1] || '';
+    const lmCfgMatch = cfgBlock.match(/lightMeasurements:\s*\{[\s\S]{0,300}?\}/);
+    assert('sync.js: lightMeasurements has NO noTombstones (Phase 2 propagation)',
+      !lmCfgMatch || !/noTombstones:\s*true/.test(lmCfgMatch[0]),
+      'lightMeasurements: noTombstones true would block v4 tombstone propagation');
   }
 
   // ─── 6. v1.6.9..v1.6.13 Scroll anchor system ────────────────────────
@@ -204,7 +235,7 @@ return (async function () {
     const aiEngineSrc = await fetchSrc('js/ai-verdict-engine.js');
     assert('ai-verdict-engine.js: getScrollAnchor config + default fallback',
       /getScrollAnchor/.test(aiEngineSrc)
-      && /\[data-id="\$\{tid/.test(aiEngineSrc));
+      && /\[data-id="\$\{CSS\.escape\(tid\)\}"\]/.test(aiEngineSrc));
     // v1.6.9: light-tools-ai-analysis overrides anchor to point at room.
     const measAiSrc = await fetchSrc('js/light-tools-ai-analysis.js');
     assert('light-tools-ai-analysis.js: anchor overrides to room data-id',
@@ -214,16 +245,26 @@ return (async function () {
   // ─── 7. v1.6.7 AI stream stall + request timeouts ───────────────────
   console.log('%c 7. AI stream stall + request timeouts ', 'font-weight:bold;color:#0891b2');
   {
+    // Import the exported constants directly — stronger than grepping
+    // (a refactor that renames the constant or changes the literal
+    // would break here, not silently in prod).
+    const api = await import('/js/api.js?bust=' + Date.now());
+    assert('api.js: STREAM_STALL_TIMEOUT_MS exported = 30000',
+      api.STREAM_STALL_TIMEOUT_MS === 30000, `got ${api.STREAM_STALL_TIMEOUT_MS}`);
+    assert('api.js: FETCH_REQUEST_TIMEOUT_MS exported = 60000',
+      api.FETCH_REQUEST_TIMEOUT_MS === 60000, `got ${api.FETCH_REQUEST_TIMEOUT_MS}`);
     const apiSrc = await fetchSrc('js/api.js');
     assert('api.js: readWithStallTimeout exists',
       /function readWithStallTimeout/.test(apiSrc));
-    assert('api.js: STREAM_STALL_TIMEOUT_MS = 30000',
-      /STREAM_STALL_TIMEOUT_MS\s*=\s*30000/.test(apiSrc));
-    assert('api.js: FETCH_REQUEST_TIMEOUT_MS = 60000',
-      /FETCH_REQUEST_TIMEOUT_MS\s*=\s*60000/.test(apiSrc));
     assert('api.js: _fetchWithRetry composes AbortSignal.timeout + caller signal',
       /AbortSignal\.timeout\(FETCH_REQUEST_TIMEOUT_MS\)/.test(apiSrc)
       && /AbortSignal\.any/.test(apiSrc));
+    // Polyfill path: when AbortSignal.any is unavailable, manual
+    // AbortController forwards both signals. Without this older
+    // browsers (Safari <17.4) would silently lose the 60s timeout.
+    assert('api.js: manual AbortController polyfill for older browsers',
+      /Manual polyfill for browsers without AbortSignal\.any/.test(apiSrc)
+      && /new AbortController/.test(apiSrc.split('_fetchWithRetry')[1] || ''));
     assert('api.js: retry on transient network errors (TypeError / Failed to fetch / timeout)',
       /isNetwork\s*=\s*e\s+instanceof\s+TypeError/.test(apiSrc)
       || /Failed to fetch.*Load failed.*NetworkError/.test(apiSrc));
@@ -253,6 +294,12 @@ return (async function () {
     const syncSrc = await fetchSrc('js/sync.js');
     assert('sync.js: pull handler reads state.currentView first',
       /const cat\s*=\s*state\.currentView\s*\|\|\s*document\.querySelector\('\.nav-item\.active'\)/.test(syncSrc));
+    // _refreshSurfaces gained the same fallback (audit P1.3): when
+    // state.currentView is undefined during boot, fall back to DOM
+    // instead of jumping straight to 'dashboard'.
+    const sunSrc = await fetchSrc('js/sun.js');
+    assert('sun.js: _refreshSurfaces also falls back via DOM before dashboard',
+      /_refreshSurfaces[\s\S]{0,1500}state\.currentView[\s\S]{0,400}document\.querySelector\('\.nav-item\.active'\)/.test(sunSrc));
   }
 
   // ─── 10. v1.6.7 PII Ollama reachability probe + 45s stall ───────────

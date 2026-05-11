@@ -1269,17 +1269,15 @@ const DELTA_ARRAY_CONFIG = {
     },
     noTombstones: true,
   },
-  // lightMeasurements is pruned to a 30-day window locally (see
-  // _pruneOldMeasurements in light-tools.js). That eviction is bookkeeping,
-  // not a user-initiated delete — without noTombstones the prune would
-  // emit delete events that wipe the same rows on paired devices whose
-  // window happens to still include them (or whose clock skews a few
-  // seconds the other way). Genuine user-initiated deletes via
-  // deleteMeasurement still write tombstones explicitly via
-  // recordTombstone, which lives outside this planner path.
-  lightMeasurements: {
-    noTombstones: true,
-  },
+  // lightMeasurements: every deletion path (_supersedePriorMeasurement
+  // on save, _collapseToLatestPerRoomTool one-time migration,
+  // deleteMeasurement on user delete) explicitly writes to _deleted via
+  // recordTombstone. Under Phase 1 (v3 blob) those tombstones ride the
+  // fat blob. Under Phase 2 (v4, blob omitted) the planner's automatic
+  // per-row tombstone emission is the ONLY carrier — so we MUST allow
+  // it (no `noTombstones: true`). The storm guard upstream still blocks
+  // a >50% drop from N>=20 rows, so a one-time migration that collapses
+  // historical data won't broadcast accidental peer-wipes.
   // Lab entries — `{date, markers, ...}` with no `.id`. The import path
   // already enforces date-uniqueness (import-dedup filter on `date`), so
   // `date` is the natural composite-free key. `YYYY-MM-DD` matches the

@@ -1749,7 +1749,14 @@ function _refreshSurfaces(scrollAnchor) {
     const anchor = _refreshSurfacesPendingAnchor;
     _refreshSurfacesPendingAnchor = null;
     if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-    const view = state.currentView || 'dashboard';
+    // Boot-time guard: state.currentView is undefined until the first
+    // navigate() runs. If a sync pull or AI verdict tick fires during
+    // that window, fall back to the DOM's active nav-item rather than
+    // defaulting to 'dashboard' (which would yank a user mid-init off
+    // whatever page they're on per the URL fragment / launcher target).
+    const view = state.currentView
+      || document.querySelector('.nav-item.active')?.dataset?.category
+      || 'dashboard';
     const navOpts = anchor ? { scrollAnchor: anchor } : undefined;
     if (window.navigate) try { window.navigate(view, navOpts); } catch (e) {}
     setTimeout(() => _resumeActiveTickerIfNeeded(), 100);

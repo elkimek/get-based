@@ -62,16 +62,22 @@ export function getMeasurements() {
 function _collapseToLatestPerRoomTool(list) {
   if (!Array.isArray(list) || list.length === 0) return 0;
   // Group by (roomId, tool), pick the most-recent entry per group.
+  // Audit-tool rows are exempt — each walkthrough is its own record
+  // (per-pause labels + lux readings in `extra.rooms`), so collapsing
+  // would destroy the per-walkthrough history. Audit rows pass through
+  // untouched.
   const latest = new Map();
+  const auditRows = [];
   for (const m of list) {
     if (!m || !m.tool) continue;
+    if (m.tool === 'audit') { auditRows.push(m); continue; }
     const key = `${m.roomId || ''}::${m.tool}`;
     const ts = m.capturedAt || m.takenAt || 0;
     const cur = latest.get(key);
     if (!cur || ts > (cur.capturedAt || cur.takenAt || 0)) latest.set(key, m);
   }
-  if (latest.size === list.length) return 0; // already collapsed
-  const keep = new Set();
+  if (latest.size + auditRows.length === list.length) return 0; // already collapsed
+  const keep = new Set(auditRows);
   for (const m of latest.values()) keep.add(m);
   let dropped = 0;
   for (let i = list.length - 1; i >= 0; i--) {
@@ -196,7 +202,17 @@ export async function saveMeasurement(tool, value, opts = {}) {
   // Replace the prior (roomId, tool) entry — sparse latest-per-key model.
   // Old entry's id tombstones into _deleted so paired devices drop it
   // on the next pull. New entry has its own id and pushes normally.
-  _supersedePriorMeasurement(getMeasurements(), entry.roomId, entry.tool);
+  //
+  // Skip supersession for `tool === 'audit'` — the eye-level walkthrough
+  // saves one bulk record per walkthrough whose `extra.rooms` carries
+  // per-pause labels + lux readings. Superseding by (roomId=null, 'audit')
+  // would tombstone the previous walkthrough's per-pause history every
+  // time the user ran a new walkthrough. The per-pause `tool='lux'` rows
+  // bound to specific rooms DO get superseded correctly under the latest-
+  // per-(roomId, tool) rule, which is the right behavior.
+  if (tool !== 'audit') {
+    _supersedePriorMeasurement(getMeasurements(), entry.roomId, entry.tool);
+  }
   getMeasurements().push(entry);
   await saveImportedData();
   if (typeof window !== 'undefined' && window.maybeAnalyzeMeasurementAfterSave) {
@@ -222,7 +238,7 @@ export async function saveMeasurement(tool, value, opts = {}) {
     setTimeout(() => {
       if (document.querySelector('.modal-overlay.show')) return;
       const anchor = opts.roomId
-        ? `[data-id="${opts.roomId.replace(/"/g, '\\"')}"]`
+        ? `[data-id="${CSS.escape(opts.roomId)}"]`
         : null;
       window.navigate('light', anchor ? { scrollAnchor: anchor } : undefined);
     }, 50);

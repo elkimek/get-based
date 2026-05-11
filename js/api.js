@@ -10,7 +10,7 @@ import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 // Wrap each read in this helper so the loop fails loud after 30 s of
 // silence instead of leaving the chat message stuck in "typing…" forever.
 // Cancels the reader on timeout so the connection releases.
-const STREAM_STALL_TIMEOUT_MS = 30000;
+export const STREAM_STALL_TIMEOUT_MS = 30000;
 function readWithStallTimeout(reader, label = 'AI stream') {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -473,7 +473,7 @@ function _proxyFetch(url, options) {
 // dropped cell signal, server unresponsive) before the OS TCP layer
 // gives up. 60s is generous for slow models (long prompts still respond
 // within ~10s) but short enough to surface offline state quickly.
-const FETCH_REQUEST_TIMEOUT_MS = 60000;
+export const FETCH_REQUEST_TIMEOUT_MS = 60000;
 async function _fetchWithRetry(url, options, retries = 2, useProxy = true) {
   const fetchFn = useProxy ? _proxyFetch : fetch;
   // Combine the caller's abort signal (if any) with a per-attempt timeout
@@ -483,9 +483,25 @@ async function _fetchWithRetry(url, options, retries = 2, useProxy = true) {
   // phase before chunks start flowing.
   const buildOpts = () => {
     const timeoutSig = AbortSignal.timeout(FETCH_REQUEST_TIMEOUT_MS);
-    const signal = options.signal
-      ? (AbortSignal.any ? AbortSignal.any([options.signal, timeoutSig]) : options.signal)
-      : timeoutSig;
+    let signal;
+    if (!options.signal) {
+      signal = timeoutSig;
+    } else if (typeof AbortSignal.any === 'function') {
+      signal = AbortSignal.any([options.signal, timeoutSig]);
+    } else {
+      // Manual polyfill for browsers without AbortSignal.any (Safari
+      // <17.4, etc.). Without this the request timeout would silently
+      // disappear when the caller passed their own signal — exactly
+      // the "hang on flaky network" regression this code is meant to
+      // prevent. Don't trust the .any check alone.
+      const ctl = new AbortController();
+      const fwd = (sig) => sig.addEventListener('abort', () => ctl.abort(sig.reason), { once: true });
+      if (options.signal.aborted) ctl.abort(options.signal.reason);
+      else fwd(options.signal);
+      if (timeoutSig.aborted) ctl.abort(timeoutSig.reason);
+      else fwd(timeoutSig);
+      signal = ctl.signal;
+    }
     return { ...options, signal };
   };
   for (let i = 0; i <= retries; i++) {

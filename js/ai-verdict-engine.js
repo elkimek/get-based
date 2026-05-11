@@ -230,7 +230,7 @@ export function createAIVerdict(cfg) {
       if (!anchor) {
         const tid = getId ? getId(target) : null;
         if (tid && typeof tid === 'string') {
-          anchor = `[data-id="${tid.replace(/"/g, '\\"')}"]`;
+          anchor = `[data-id="${CSS.escape(tid)}"]`;
         }
       }
     }

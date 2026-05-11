@@ -215,7 +215,16 @@ function _stableSelectorFor(el) {
 
 function _restoreScrollAnchor(anchor) {
   if (!anchor) return;
-  const el = document.querySelector(anchor.selector);
+  let el;
+  try {
+    el = document.querySelector(anchor.selector);
+  } catch (_) {
+    // Malformed selector (e.g., a roomId that slipped past CSS.escape
+    // and contained unbalanced brackets). querySelector throws
+    // SyntaxError on malformed CSS — caught here so the RAF re-anchor
+    // loop's cleanup() still runs (listener leak prevention).
+    return;
+  }
   if (!el) return;
   const rect = el.getBoundingClientRect();
   const delta = rect.top - anchor.viewportTop;
