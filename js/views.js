@@ -2503,11 +2503,14 @@ function _toggleChannelDetail(channelKey) {
 // — those would be the SAME chips on every row, not informative).
 // Default cap on the historical sessions list. Without this, a year of
 // daily sessions becomes a 365-row scroll — useful information drowns
-// in chronology. Cap at 10 most recent and offer a single toggle to
-// expand to the full history. Module-scoped flag persists for the tab
-// session (resets on reload) — small enough to be ergonomic, opinionated
-// enough to keep the page tight by default.
-const SESSIONS_DEFAULT_CAP = 10;
+// in chronology. Each row is ~160 px tall (date + duration + channel
+// chips + burn-risk meta + AI verdict chip), so 5 rows ≈ 800 px which
+// leaves the next sections (Devices, Light Environment, Tools) within
+// the next scroll page. 10-cap pushed everything below it 1600 px
+// down and made the page feel like a scroll-fest. The "Show N older
+// sessions" toggle below restores full history on demand. Module-
+// scoped flag persists for the tab session.
+const SESSIONS_DEFAULT_CAP = 5;
 let _showAllSessions = false;
 
 function renderUnifiedSessionsList() {
