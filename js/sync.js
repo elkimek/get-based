@@ -2313,7 +2313,13 @@ export async function verifyPushLanded() {
     _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'relay-unreachable' };
     return _lastVerifyVerdict;
   }
-  if (fresh.messageCount === null || fresh.lastWriteToken === undefined) {
+  // `messageCount` is the discriminator for relay version: v1.2.3+
+  // always returns an integer (0 for empty owners, > 0 otherwise);
+  // older relays omit the field and the fetcher maps the absence to
+  // null. We CANNOT use `lastWriteToken` here — it's null both for
+  // pre-1.2.3 AND for legit wedged owners (zero writes ever landed),
+  // which is exactly the state we want to detect. (Greptile follow-up.)
+  if (fresh.messageCount === null) {
     _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'pre-1.2.3-relay' };
     return _lastVerifyVerdict;
   }
@@ -4103,9 +4109,13 @@ async function confirmRotateIdentity(btn) {
     "• The old identity's data stays on the relay until it ages out (no immediate loss), but new pushes will go under the new identity.\n" +
     "• This is the recovery path for a wedged owner (red dot above) — see the 2026-05-11 silent-reject bug.\n\n" +
     "Proceed?";
+  // utils.js helper missing → proceed without confirmation. Mirrors the
+  // pattern in the sibling confirm* helpers (see confirmCompactRelay)
+  // so a utils-load failure doesn't dead-end the user. Native
+  // confirm()/prompt()/alert() are banned by the no-native-dialogs test.
   const proceed = (typeof window.showConfirmDialog === 'function')
     ? await window.showConfirmDialog(warning)
-    : confirm(warning);
+    : true;
   if (!proceed) return;
 
   // Stage 2: generate the new mnemonic. BIP-39 256 bits = 24 words.
@@ -4192,11 +4202,18 @@ async function confirmRotateIdentity(btn) {
   const check = overlay.querySelector('#rotate-saved-check');
   const applyBtn = overlay.querySelector('#rotate-apply-btn');
   const cleanup = () => {
-    // Zero out the in-memory mnemonic string when the modal closes so
-    // it isn't sitting in JS heap longer than necessary. Not a perfect
-    // wipe (JS strings are immutable, GC handles the original), but
-    // breaks the most obvious dev-tools snoop path.
+    // Zero out the in-memory mnemonic — both the string AND the words
+    // array, since the array is what the copy/apply handlers actually
+    // hold via closure. Missing the array was a Greptile finding: the
+    // string wipe alone left the seed live on the JS heap as long as
+    // the modal's handlers stayed in scope. Mutate-in-place (fill +
+    // length=0) so any closure that already captured the array sees
+    // the zeroed-out version too, not a stale snapshot.
     mnemonic = null;
+    if (Array.isArray(words)) {
+      words.fill('');
+      words.length = 0;
+    }
     overlay.remove();
   };
   closeBtn?.addEventListener('click', cleanup);
