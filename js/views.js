@@ -36,12 +36,16 @@ export function navigate(category, data) {
   // preserved.
   const sameView = category === state.currentView;
   let anchor = null;
+  // Track whether the caller explicitly requested an anchor — even if
+  // the element isn't found, an explicit request means "don't fall
+  // back to auto-pick." This covers the cross-view race where an AI
+  // verdict completes for a Light measurement after the user has
+  // already navigated to Dashboard: the room's data-id no longer
+  // exists, and we should leave the user's current scroll alone, not
+  // grab some random Dashboard element via the proximity heuristic.
+  const explicitAnchorRequested = !!(data && typeof data === 'object' && data.scrollAnchor);
   if (sameView && typeof document !== 'undefined') {
-    // Optional explicit anchor — saveMeasurement, AI verdict refreshes,
-    // and other "I know exactly which element the user is looking at"
-    // callers can pass `{ scrollAnchor: '<css-selector>' }` so the
-    // anchor doesn't fall back to the auto-pick heuristic.
-    if (data && typeof data === 'object' && data.scrollAnchor) {
+    if (explicitAnchorRequested) {
       // If a restore loop is ALREADY running for this same anchor (rapid
       // re-render burst — e.g. saveMeasurement → AI verdict engine's
       // _refresh → setTimeout-navigate all firing within ms), reuse the
@@ -55,9 +59,12 @@ export function navigate(category, data) {
           const rect = el.getBoundingClientRect();
           anchor = { selector: data.scrollAnchor, viewportTop: rect.top };
         }
+        // Element not found AND explicit anchor was requested →
+        // intentionally skip the auto-pick fallback below.
       }
+    } else {
+      anchor = _captureScrollAnchor();
     }
-    if (!anchor) anchor = _captureScrollAnchor();
   }
   document.querySelectorAll(".nav-item").forEach(el => {
     el.classList.toggle("active", el.dataset.category === category);
