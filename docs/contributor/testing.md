@@ -91,7 +91,7 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-lens-local-worker.js` | Full message-protocol round-trip against `lens-local-worker.js` with a mocked embedder |
 | `tests/test-lens-multi-query.js` | Multi-query rewrite + reciprocal-rank-fusion chunk fusion |
 | `tests/test-lens-parsers.js` | `js/lens-local-parsers.js` edge cases: `extractFromFile()` never throws, returns expected shape |
-| `tests/test-light-ai-renders.js` | Smoke coverage for the 9 feature-specific Light & Sun AI modules |
+| `tests/test-light-ai-renders.js` | Smoke coverage for the 10 feature-specific Light & Sun AI modules |
 | `tests/test-light-devices.js` | Light therapy device library + sessions: addDeviceFromPreset, deleteDevice, logDeviceSession |
 | `tests/test-light-env.js` | Light Environment math + CRUD: rooms, screens, computeRoomSeverity, computeScreenStatus, computeIndoorBurden |
 | `tests/test-light-tools.js` | Pure helpers from `light-tools.js`: computeRowBanding (flicker FFT), saveMeasurement, lockStatusLine |
