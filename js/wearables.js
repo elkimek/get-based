@@ -1392,6 +1392,10 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
         <button class="wearable-action wearable-action-primary" onclick="document.getElementById('apple-health-file-input').click()">Re-import new export</button>
         <button class="wearable-action wearable-action-danger" onclick="handleWearableDisconnect('${escapeHTML(adapter.id)}')">Remove data</button>
       </div>
+      <div id="apple-health-progress" class="apple-health-progress" style="display:none">
+        <div class="apple-health-progress-bar"><div class="apple-health-progress-fill"></div></div>
+        <div class="apple-health-progress-text"></div>
+      </div>
       <input type="file" id="apple-health-file-input" accept=".zip,.xml,application/zip,application/xml" style="display:none" onchange="handleAppleHealthFilePick(this)">`;
   }
   // Apple Health disconnected — full how-to-export + dropzone
