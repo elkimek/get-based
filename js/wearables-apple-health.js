@@ -82,13 +82,23 @@ export async function importAppleHealthFile(file, onProgress) {
 // ZIP extraction
 // ─────────────────────────────────────────────────────────
 
+let _jszipLoad = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  if (_jszipLoad) return _jszipLoad;
+  _jszipLoad = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = '/vendor/jszip.min.js';
+    s.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip failed to load'));
+    s.onerror = () => reject(new Error('Failed to load /vendor/jszip.min.js'));
+    document.head.appendChild(s);
+  });
+  return _jszipLoad;
+}
+
 async function extractExportXml(zipFile, onProgress) {
-  if (typeof window.JSZip === 'undefined') {
-    // Local vendor bundle exposes JSZip on window. Fall back to dynamic import
-    // if the build changed how it loads.
-    throw new Error('JSZip not loaded — Apple Health ZIP import needs vendor/jszip.min.js');
-  }
-  const zip = await window.JSZip.loadAsync(zipFile, {
+  const JSZip = await loadJSZip();
+  const zip = await JSZip.loadAsync(zipFile, {
     // Progress for large exports — Apple zips can be 500 MB+ compressed.
     onUpdate: m => onProgress?.({ stage: 'unzipping', pct: Math.round(m.percent * 0.4) }),
   });
