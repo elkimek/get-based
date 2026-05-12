@@ -70,6 +70,13 @@ export function openSettingsModal(tab) {
           </div>
         </div>
         <div class="settings-section">
+          <label class="settings-label" title="When on, the marker detail view also shows values in the alternate unit system (e.g. mg/dL alongside mmol/L). Useful for cross-checking against a lab report printed in the other system.">Alternate Units</label>
+          <div class="unit-toggle">
+            <button class="unit-toggle-btn${!state.showAltUnits ? ' active' : ''}" data-alt-units="off" onclick="toggleAltUnits(false);updateSettingsUI()">Off</button>
+            <button class="unit-toggle-btn${state.showAltUnits ? ' active' : ''}" data-alt-units="on" onclick="toggleAltUnits(true);updateSettingsUI()">Show both</button>
+          </div>
+        </div>
+        <div class="settings-section">
           <label class="settings-label">Range Display</label>
           <div class="range-toggle">
             <button class="range-toggle-btn${state.rangeMode === 'optimal' ? ' active' : ''}" data-range="optimal" onclick="switchRangeMode('optimal');updateSettingsUI()">Optimal</button>
@@ -489,8 +496,12 @@ export async function updatePrivacyStatusCard(enhanced) {
 export function updateSettingsUI() {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
-  modal.querySelectorAll('.unit-toggle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.unit === state.unitSystem));
+  // Scope by data-attribute so the shared `.unit-toggle-btn` style class can be
+  // reused for the Alternate Units row without the Unit System updater
+  // accidentally deactivating it (its buttons lack a data-unit attribute).
+  modal.querySelectorAll('.unit-toggle-btn[data-unit]').forEach(btn => btn.classList.toggle('active', btn.dataset.unit === state.unitSystem));
   modal.querySelectorAll('.range-toggle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.range === state.rangeMode));
+  modal.querySelectorAll('.unit-toggle-btn[data-alt-units]').forEach(btn => btn.classList.toggle('active', (btn.dataset.altUnits === 'on') === !!state.showAltUnits));
   const theme = getTheme();
   modal.querySelectorAll('.settings-theme-btn').forEach(btn => {
     btn.classList.toggle('active', btn.textContent.toLowerCase() === theme);

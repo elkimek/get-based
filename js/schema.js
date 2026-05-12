@@ -235,6 +235,11 @@ export const UNIT_CONVERSIONS = {
   'biochemistry.ggt': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.ldh': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.creatineKinase': { factor: 60, usUnit: 'U/L', type: 'multiply' },
+  'biochemistry.egfr': { factor: 60, usUnit: 'mL/min/1.73m²', type: 'multiply' },
+  'biochemistry.gfrCystatin': { factor: 60, usUnit: 'mL/min', type: 'multiply' },
+  'biochemistry.cystatinC': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
+  'proteins.hsCRP': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
+  'proteins.crp': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
   'hormones.testosterone': { factor: 28.818, usUnit: 'ng/dl', type: 'multiply' },
   'hormones.freeTestosterone': { factor: 0.2885, usUnit: 'pg/ml', type: 'multiply' },
   'hormones.estradiol': { factor: 0.2724, usUnit: 'pg/ml', type: 'multiply' },
@@ -285,8 +290,75 @@ export const UNIT_CONVERSIONS = {
   'diabetes.hba1c': { type: 'hba1c' },
   'calculatedRatios.tgHdlRatio': { factor: 2.29, usUnit: '', type: 'multiply' },
   'bodyComposition.leanMass': { factor: 2.20462, usUnit: 'lbs', type: 'multiply' },
-  'bodyComposition.fatMass': { factor: 2.20462, usUnit: 'lbs', type: 'multiply' }
+  'bodyComposition.fatMass': { factor: 2.20462, usUnit: 'lbs', type: 'multiply' },
+  // ── Label-only US conventions (factor: 1) ─────────────────────────────────
+  // These markers have *identical numerical values* in EU SI and US conventional
+  // units — only the printed label on a US lab report differs. We still expose
+  // them so a US user reading e.g. a Quest panel can match "5 µIU/mL" to the
+  // app's "5 mU/L" without second-guessing. NOT included: truly universal labels
+  // (homocysteine µmol/L, MCV fL, hematocrit %) or labels that match exactly
+  // (SHBG nmol/L).
+  'hormones.insulin':         { factor: 1, usUnit: 'µIU/mL',  type: 'multiply' },
+  'diabetes.insulin_d':       { factor: 1, usUnit: 'µIU/mL',  type: 'multiply' },
+  'thyroid.tsh':              { factor: 1, usUnit: 'µIU/mL',  type: 'multiply' },
+  'hormones.lh':              { factor: 1, usUnit: 'mIU/mL',       type: 'multiply' },
+  'hormones.fsh':             { factor: 1, usUnit: 'mIU/mL',       type: 'multiply' },
+  'electrolytes.sodium':      { factor: 1, usUnit: 'mEq/L',        type: 'multiply' },
+  'electrolytes.potassium':   { factor: 1, usUnit: 'mEq/L',        type: 'multiply' },
+  'electrolytes.chloride':    { factor: 1, usUnit: 'mEq/L',        type: 'multiply' },
+  'hematology.wbc':           { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
+  'hematology.rbc':           { factor: 1, usUnit: 'M/µL',    type: 'multiply' },
+  'hematology.platelets':     { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
+  'differential.neutrophils': { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
+  'differential.lymphocytes': { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
+  'differential.monocytes':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
+  'differential.eosinophils': { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
+  'differential.basophils':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' }
 };
+
+// Returns the converted {value, unit} in the *other* unit system for dual-display,
+// or null when no conversion exists. `displayValue` is what the user currently sees
+// (state.unitSystem-dependent); `isUSMode` is the current display mode flag.
+export function getAlternateUnit(dotKey, displayValue, isUSMode) {
+  const conv = UNIT_CONVERSIONS[dotKey];
+  if (!conv || displayValue == null || !Number.isFinite(displayValue)) return null;
+  const dot = dotKey.indexOf('.');
+  if (dot < 0) return null;
+  const cat = dotKey.slice(0, dot), mkr = dotKey.slice(dot + 1);
+  const siUnit = MARKER_SCHEMA[cat]?.markers?.[mkr]?.unit;
+  if (!siUnit) return null;
+  if (isUSMode) {
+    if (conv.type === 'multiply') {
+      return { value: parseFloat((displayValue / conv.factor).toPrecision(4)), unit: siUnit };
+    }
+    if (conv.type === 'hba1c') {
+      return { value: parseFloat(((displayValue - 2.15) * 10.929).toFixed(1)), unit: 'mmol/mol' };
+    }
+  } else {
+    if (conv.type === 'multiply') {
+      return { value: parseFloat((displayValue * conv.factor).toPrecision(4)), unit: conv.usUnit };
+    }
+    if (conv.type === 'hba1c') {
+      return { value: parseFloat(((displayValue / 10.929) + 2.15).toFixed(1)), unit: '%' };
+    }
+  }
+  return null;
+}
+
+// Convert a value the user typed in `inputUnit` to canonical SI for storage.
+// Used by manual-entry's per-field unit picker.
+export function convertUserInputToSI(dotKey, value, inputUnit) {
+  const conv = UNIT_CONVERSIONS[dotKey];
+  if (!conv || !Number.isFinite(value)) return value;
+  const dot = dotKey.indexOf('.');
+  if (dot < 0) return value;
+  const cat = dotKey.slice(0, dot), mkr = dotKey.slice(dot + 1);
+  const siUnit = MARKER_SCHEMA[cat]?.markers?.[mkr]?.unit;
+  if (inputUnit === siUnit) return value;
+  if (conv.type === 'multiply') return parseFloat((value / conv.factor).toPrecision(6));
+  if (conv.type === 'hba1c') return parseFloat(((value - 2.15) * 10.929).toFixed(1));
+  return value;
+}
 
 // ═══════════════════════════════════════════════
 // CORRELATION PRESETS

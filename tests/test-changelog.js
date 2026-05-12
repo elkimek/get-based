@@ -209,10 +209,14 @@ return (async function() {
     window.maybeShowChangelog();
     assert('maybeShowChangelog stays closed once user has seen the latest version',
       ovAfterClose?.classList.contains('show') === false);
-    // Shadowing defense: if seen is newer than the forceShow entry but
-    // older than a non-forceShow patch on top, modal must NOT auto-open
-    // (no critical action is pending).
-    localStorage.setItem('labcharts-changelog-seen', '1.7.1');
+    // Shadowing defense: if seen is the same major.minor as APP_VERSION
+    // (so minor-bump auto-show doesn't fire) and only non-forceShow patches
+    // are newer than seen, the modal must NOT auto-open.
+    // Use the current APP_VERSION's major.minor + '.0' as seen so this test
+    // tracks the moving version line — past iterations pinned '1.7.1' which
+    // breaks every time a new minor ships.
+    const _seenSameMajorMinor = window.APP_VERSION.split('.').slice(0, 2).join('.') + '.0';
+    localStorage.setItem('labcharts-changelog-seen', _seenSameMajorMinor);
     ovAfterClose?.classList.remove('show');
     window.maybeShowChangelog();
     assert('maybeShowChangelog stays closed when only non-forceShow patches are newer',

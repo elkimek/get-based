@@ -5,6 +5,7 @@ export const state = {
   markerRegistry: {},
   importedData: { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] },
   unitSystem: 'EU',
+  showAltUnits: false,
   selectedCorrelationMarkers: [],
   currentProfile: 'default',
   profiles: null,

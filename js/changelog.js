@@ -5,6 +5,16 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.8.0', date: '2026-05-12', title: 'See your values in both unit systems',
+    items: [
+      '<b>Alternate Units toggle (Settings → Display).</b> When on, the marker detail modal shows each value in both the active system AND the other one — <i>5.20 mmol/L · ≈ 93.7 mg/dL</i> for glucose, <i>140 mmol/L · ≈ 140 mEq/L</i> for sodium, <i>8.5 mU/L · ≈ 8.5 µIU/mL</i> for insulin. Off by default to keep the modal uncluttered for single-locale users. Reference + optimal ranges also render in both systems so a US user reading a Quest report (in <code>µIU/mL</code>) can match it against the app\'s EU SI numbers (in <code>mU/L</code>) without flipping the global toggle. Per-profile preference, persists across sessions.',
+      '<b>Type values in either unit on manual entry.</b> The "+ Add Value Manually" form now offers a small unit picker next to the value field for markers with a known conversion. Default is the current display unit; flip it to type a value straight from a lab report printed in the other system, and the app converts to canonical SI before storage. Round-trip stays exact (5 mmol/L in, 5 mmol/L back out via the alt unit and home). The range sanity-check now uses alt-unit ranges so typing <i>90 mg/dL</i> in EU mode doesn\'t spuriously flag against the SI ref range.',
+      '<b>Expanded unit coverage.</b> Added real conversions for <b>eGFR</b> (mL/s → mL/min), <b>GFR Cystatin</b>, <b>Cystatin C</b>, <b>hs-CRP</b>, and <b>CRP</b> (all now gain mg/dL displays alongside SI). Added label-only entries for markers where the number is the same but the printed label differs on US reports: <b>insulin</b> (mU/L = µIU/mL), <b>TSH</b>, <b>LH</b>, <b>FSH</b>, <b>sodium / potassium / chloride</b> (mmol/L = mEq/L), <b>WBC / RBC / platelets / differential absolute counts</b> (×10⁹/L = K/µL, ×10¹²/L = M/µL). Total coverage: 81 of 124 markers (was 66). Truly universal markers like homocysteine and percentages stay no-toggle since the label is the same in both systems.',
+      '<b>MyHeritage Low-pass WGS imports work again.</b> MyHeritage\'s 2025 raw-data export prepends a <code>##fileformat=MyHeritage</code> comment block before the column header, which the detector was reading as the first line and failing on. The CSV now imports normally.',
+      '<b>Bugfix: stale marker after switching unit systems.</b> If you flipped EU↔US while the manual-entry form was prepared, the form could carry the old display unit forward and convert your input through the wrong factor on save. The form now re-resolves every marker on open and on save, picking up the current display unit each time.',
+    ]
+  },
+  {
     version: '1.7.2', date: '2026-05-12', title: 'Readable changelog links',
     items: [
       '<b>Hyperlinks in the What\'s New modal are now visible.</b> Links rendered as the browser-default blue and disappeared into the dark-theme background. They now use the same accent-blue + underline as chat-message and summary-modal links.',

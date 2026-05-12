@@ -859,6 +859,26 @@ export function switchUnitSystem(system) {
   window.navigate(state.currentView || 'dashboard', data);
 }
 
+// Per-profile preference: when on, the detail modal renders a secondary
+// "≈ value altUnit" line for markers with a UNIT_CONVERSIONS entry. Default
+// off keeps the modal uncluttered for single-locale users. Lives in
+// Settings → Display alongside Unit System / Range Display.
+//   toggleAltUnits()      — flip (used internally / by tests)
+//   toggleAltUnits(true)  — force on (used by Settings on-button onclick)
+//   toggleAltUnits(false) — force off (used by Settings off-button onclick)
+export function toggleAltUnits(force) {
+  const next = (force === true || force === false) ? force : !state.showAltUnits;
+  if (next === state.showAltUnits) return;
+  state.showAltUnits = next;
+  localStorage.setItem(profileStorageKey(state.currentProfile, 'showAltUnits'), next ? 'on' : 'off');
+  // Refresh the currently-visible detail modal so the alt-unit lines update
+  // without a full navigate (the modal lives outside the page rebuild).
+  const openId = state._activeDetailMarkerId;
+  if (openId && typeof window.showDetailModal === 'function') {
+    window.showDetailModal(openId);
+  }
+}
+
 export function getEffectiveRange(marker) {
   if (state.rangeMode === 'optimal' || state.rangeMode === 'both') {
     if (marker.optimalMin != null || marker.optimalMax != null) {
@@ -918,4 +938,4 @@ export function updateHeaderRangeToggle() {
   ).join('');
 }
 
-Object.assign(window, { saveImportedData, getFocusCardFingerprint, getActiveData, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, renderDateRangeFilter, setDateRange, renderChartLayersDropdown, toggleChartLayersDropdown, setSuppOverlay, setNoteOverlay, setPhaseOverlay, destroyAllCharts, countFlagged, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, switchUnitSystem, getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope, switchRangeMode, updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback });
+Object.assign(window, { saveImportedData, getFocusCardFingerprint, getActiveData, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, renderDateRangeFilter, setDateRange, renderChartLayersDropdown, toggleChartLayersDropdown, setSuppOverlay, setNoteOverlay, setPhaseOverlay, destroyAllCharts, countFlagged, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, switchUnitSystem, toggleAltUnits, getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope, switchRangeMode, updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback });

@@ -33,22 +33,25 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 2. Range sanity check ', 'font-weight:bold;color:#f59e0b');
 
+  // The regex accepts any var prefixed onto refMax / refMin so the multi-unit
+  // feature (which introduces checkRefMax/checkRefMin to shadow with alt-unit
+  // ranges) doesn't break pattern pins. Intent is unchanged: a > 10x guard.
   assert('Sanity check triggers when value > refMax * 10',
-    /value > refMax \* 10/.test(viewsSrc));
-  // Greptile P2: without `refMax > 0` guard, `refMax === 0` makes the
-  // multiplication zero and every positive value triggers the warning.
+    /value > \w*[Rr]ef[Mm]ax \* 10/.test(viewsSrc));
+  // Greptile P2: without `> 0` guard, `refMax === 0` makes the multiplication
+  // zero and every positive value triggers the warning.
   assert('Sanity check is guarded against refMax === 0 (no spurious warn)',
-    /refMax != null && refMax > 0 && value > refMax \* 10/.test(viewsSrc));
+    /(\w*[Rr]ef[Mm]ax) != null && \1 > 0 && value > \1 \* 10/.test(viewsSrc));
   assert('Sanity check triggers when value < refMin / 10 (and refMin > 0)',
-    /refMin > 0 && value < refMin \/ 10/.test(viewsSrc));
+    /(\w*[Rr]ef[Mm]in) > 0 && value < \1 \/ 10/.test(viewsSrc));
   assert('Sanity check rejects negative values',
     /value < 0\)\s*warn\s*=/.test(viewsSrc) || /if \(value < 0\)/.test(viewsSrc));
   assert('Sanity-warn message mentions unit confusion',
     /Did you enter the right unit\?/.test(viewsSrc));
   assert('Sanity check awaits showConfirmDialog and bails on cancel',
     /if \(warn && !await showConfirmDialog\(`\$\{warn\}/.test(viewsSrc));
-  assert('Sanity check skipped when marker has no ref range',
-    /if \(marker\)\s*\{[\s\S]{0,2000}const refMin = marker\.refMin, refMax = marker\.refMax/.test(viewsSrc));
+  assert('Sanity check uses marker.refMin/refMax (with optional alt-unit overlay)',
+    /marker\.refMin[\s\S]{0,200}marker\.refMax/.test(viewsSrc));
 
   // ═══════════════════════════════════════
   // 3. Duplicate-date confirm

@@ -1,7 +1,7 @@
 // views.js — Navigate, dashboard, category views, detail modal, compare, correlations
 
 import { state } from './state.js';
-import { CORRELATION_PRESETS, CHIP_COLORS, trackUsage } from './schema.js';
+import { CORRELATION_PRESETS, CHIP_COLORS, trackUsage, UNIT_CONVERSIONS, getAlternateUnit, convertUserInputToSI } from './schema.js';
 import { escapeHTML, getStatus, getRangePosition, formatValue, getTrend, showNotification, showConfirmDialog, showPromptDialog, hasCardContent, formatDate, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, getFocusCardFingerprint, saveImportedData, recalculateHOMAIR, updateHeaderDates, renderDateRangeFilter, renderChartLayersDropdown, convertDisplayToSI } from './data.js';
@@ -3850,6 +3850,8 @@ export function showDetailModal(id, opts = {}) {
   let marker = data.categories[catKey]?.markers[mKey];
   if (marker) state.markerRegistry[id] = marker;
   if (!marker) return;
+  // Remember which marker is open so toggleAltUnits can re-render in place.
+  state._activeDetailMarkerId = id;
   rememberModalTrigger();
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
@@ -3889,9 +3891,42 @@ export function showDetailModal(id, opts = {}) {
   const renameLink = isRenamed
     ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" onclick="event.stopPropagation();revertMarkerName('${id}')" style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`
     : ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`;
+  // Dual-unit summary: render a secondary line under modal-unit when this marker
+  // has a UNIT_CONVERSIONS entry AND the per-profile "show alt units" toggle is
+  // on (Settings → Display). Mirrors the primary line's ranges in the other
+  // system so a user reading a lab report in the non-active unit can cross-check
+  // without flipping the global US/EU toggle.
+  const isUSMode = state.unitSystem === 'US';
+  const hasConv = !!UNIT_CONVERSIONS[dotKey];
+  let altUnitInfo = '';
+  if (hasConv && state.showAltUnits) {
+    const probe = marker.refMax ?? marker.refMin ?? 1;
+    const altProbe = getAlternateUnit(dotKey, probe, isUSMode);
+    if (altProbe) {
+      const altUnit = altProbe.unit;
+      const altRange = (min, max) => {
+        const a = min != null ? getAlternateUnit(dotKey, min, isUSMode)?.value : null;
+        const b = max != null ? getAlternateUnit(dotKey, max, isUSMode)?.value : null;
+        const dispA = a != null ? formatValue(a) : '–';
+        const dispB = b != null ? formatValue(b) : '–';
+        return `${dispA} – ${dispB}`;
+      };
+      let altRanges = '';
+      if (state.rangeMode === 'both') {
+        if (hasRef) altRanges += ` &middot; Reference: ${altRange(marker.refMin, marker.refMax)}`;
+        if (hasOpt) altRanges += ` &middot; <span style="color:var(--green)">Optimal: ${altRange(marker.optimalMin, marker.optimalMax)}</span>`;
+      } else if (state.rangeMode === 'optimal' && hasOpt) {
+        altRanges = ` &middot; Optimal: ${altRange(marker.optimalMin, marker.optimalMax)}`;
+      } else if (hasRef) {
+        altRanges = ` &middot; Reference: ${altRange(marker.refMin, marker.refMax)}`;
+      }
+      altUnitInfo = `<div class="modal-unit modal-unit-alt" title="Same marker, alternate unit system">≈ ${escapeHTML(altUnit)}${altRanges}</div>`;
+    }
+  }
   let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     <h3>${escapeHTML(marker.name)}${renameLink}</h3>
     <div class="modal-unit">${escapeHTML(marker.unit)}${rangeInfo}</div>
+    ${altUnitInfo}
     <div class="marker-description" id="marker-desc"></div>
     <div class="modal-chart"><canvas id="chart-modal"></canvas></div>
     <div class="modal-values-grid">`;
@@ -3941,8 +3976,10 @@ export function showDetailModal(id, opts = {}) {
           ? `<div class="mv-value-note has-note"><span class="mv-value-note-text" role="button" tabindex="0" title="Click to edit note" onclick="event.stopPropagation();editValueNote('${id}','${rawDate}')">${escapeHTML(valueNote)}</span> <button class="mv-value-note-delete" title="Remove note" onclick="event.stopPropagation();deleteValueNote('${id}','${rawDate}')">&times;</button></div>`
           : `<div class="mv-value-note add-note" role="button" tabindex="0" title="Add a note for this value" onclick="event.stopPropagation();editValueNote('${id}','${rawDate}')">+ note</div>`)
       : '';
+    const altVal = (hasConv && state.showAltUnits) ? getAlternateUnit(dotKey, v, isUSMode) : null;
+    const altLine = altVal ? `<div class="mv-alt" title="Same value, alternate unit">≈ ${formatValue(altVal.value)} ${escapeHTML(altVal.unit)}</div>` : '';
     html += `<div class="modal-value-card status-${s}">${deleteBtn}<div class="mv-date">${dates[i]}${noteIcon}</div>${sourceHtml}
-      <div class="mv-value val-${s}"${editClick}>${formatValue(v)}${manualBadge}</div>
+      <div class="mv-value val-${s}"${editClick}>${formatValue(v)}${manualBadge}</div>${altLine}
       <div class="mv-status val-${s}">${sl}</div>${phaseInfo}${valueNoteHtml}</div>`;
   }
   html += `</div>`;
@@ -4158,17 +4195,17 @@ export function showDetailModal(id, opts = {}) {
 }
 
 export function openManualEntryForm(id, prefillDate) {
-  let marker = state.markerRegistry[id];
-  if (!marker) {
-    // Fall back to schema lookup — marker may not have been registered
-    // yet (renderChartCard only runs for markers with data; a click on
-    // an empty cell in Table view can target a marker with no data).
-    const idx = id.indexOf('_');
-    const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
-    const data = getActiveData();
-    marker = data.categories[catKey]?.markers[mKey];
-    if (marker) state.markerRegistry[id] = marker;
-  }
+  // Always re-resolve from getActiveData — `state.markerRegistry` carries a
+  // marker frozen at the moment it was rendered, and `marker.unit` reflects
+  // the unit-system mode in effect *then*. After a US↔EU toggle the registry
+  // entry can lie about the current display unit, breaking the unit-picker
+  // comparison in saveManualEntry. Refresh on every open.
+  const idx = id.indexOf('_');
+  if (idx < 0) return;
+  const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
+  const data = getActiveData();
+  const marker = data.categories[catKey]?.markers[mKey];
+  if (marker) state.markerRegistry[id] = marker;
   if (!marker) return;
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
@@ -4191,6 +4228,24 @@ export function openManualEntryForm(id, prefillDate) {
   if (marker.refMin != null && marker.refMax != null) {
     placeholderHint = `e.g. ${formatValue((marker.refMin + marker.refMax) / 2)}`;
   }
+  // Per-field unit picker: surface the alternate unit when this marker has a
+  // UNIT_CONVERSIONS entry, so users entering a value from a lab report in the
+  // other system don't have to mentally convert. Default = current display unit.
+  const dotKeyForUnit = id.replace('_', '.');
+  const _meIsUS = state.unitSystem === 'US';
+  const _meConv = UNIT_CONVERSIONS[dotKeyForUnit];
+  let _meAltUnit = null;
+  if (_meConv) {
+    const probe = marker.refMax ?? marker.refMin ?? 1;
+    const alt = getAlternateUnit(dotKeyForUnit, probe, _meIsUS);
+    if (alt) _meAltUnit = alt.unit;
+  }
+  const unitPickerHtml = _meAltUnit
+    ? `<select id="me-unit" class="me-unit-select" aria-label="Input unit">
+         <option value="${escapeHTML(marker.unit)}" selected>${escapeHTML(marker.unit)}</option>
+         <option value="${escapeHTML(_meAltUnit)}">${escapeHTML(_meAltUnit)}</option>
+       </select>`
+    : `<span style="color:var(--text-muted);font-weight:400">(${escapeHTML(marker.unit)})</span>`;
   modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     <h3>Add Value Manually</h3>
     <div class="modal-unit"><strong>${escapeHTML(marker.name)}</strong> \u00b7 ${escapeHTML(marker.unit)}${refText ? ' \u00b7 ' + refText : ''}</div>
@@ -4200,7 +4255,7 @@ export function openManualEntryForm(id, prefillDate) {
         <input type="date" id="me-date" value="${dateValue}" max="${today}">
       </div>
       <div class="me-field">
-        <label for="me-value">Value <span style="color:var(--text-muted);font-weight:400">(${escapeHTML(marker.unit)})</span></label>
+        <label for="me-value">Value ${unitPickerHtml}</label>
         <input type="number" id="me-value" step="any" placeholder="${escapeHTML(placeholderHint)}" autofocus>
       </div>
       <div class="me-field">
@@ -4246,6 +4301,7 @@ export async function saveManualEntry(id, opts = {}) {
   const dateInput = document.getElementById('me-date');
   const valueInput = document.getElementById('me-value');
   const noteInput = document.getElementById('me-note');
+  const unitInput = document.getElementById('me-unit');
   if (!dateInput || !valueInput) return;
   const date = dateInput.value;
   const value = parseFloat(valueInput.value);
@@ -4257,18 +4313,33 @@ export async function saveManualEntry(id, opts = {}) {
   if (!date) { showNotification('Please enter a date', 'error'); return; }
   if (isNaN(value)) { showNotification('Please enter a valid number', 'error'); return; }
   const dotKey = id.replace('_', '.');
-  // Resolve marker for range + unit context (used by sanity/dup checks below).
-  const marker = state.markerRegistry[id] || (() => {
-    const idx = id.indexOf('_');
-    return getActiveData().categories[id.slice(0, idx)]?.markers[id.slice(idx + 1)];
-  })();
+  // Always re-resolve marker from getActiveData (not state.markerRegistry):
+  // the registry may hold a marker.unit captured under a different unit-system
+  // mode, which would break the unit-picker comparison below.
+  const _meIdx = id.indexOf('_');
+  const marker = _meIdx > 0
+    ? getActiveData().categories[id.slice(0, _meIdx)]?.markers[id.slice(_meIdx + 1)]
+    : null;
+  // Unit-picker integration: if the user selected the alternate unit, the
+  // range sanity check needs alt-unit-space refs (otherwise typing "90 mg/dL"
+  // against an SI ref range of 4–6 mmol/L would always trigger the warning).
+  const inputUnit = unitInput?.value || marker?.unit || '';
+  const usingAltUnit = !!(marker && inputUnit && inputUnit !== marker.unit);
+  let checkRefMin = marker?.refMin, checkRefMax = marker?.refMax, checkUnit = marker?.unit;
+  if (marker && usingAltUnit) {
+    const isUSMode = state.unitSystem === 'US';
+    const altMin = marker.refMin != null ? getAlternateUnit(dotKey, marker.refMin, isUSMode) : null;
+    const altMax = marker.refMax != null ? getAlternateUnit(dotKey, marker.refMax, isUSMode) : null;
+    checkRefMin = altMin?.value ?? null;
+    checkRefMax = altMax?.value ?? null;
+    checkUnit = inputUnit;
+  }
   // Range sanity check: catches decimal/unit slips (e.g. typing 100 mg/dL when SI ref is 4–6 mmol/L).
   if (marker) {
-    const refMin = marker.refMin, refMax = marker.refMax;
     let warn = null;
     if (value < 0) warn = `${value} is negative — values are usually 0 or positive.`;
-    else if (refMax != null && refMax > 0 && value > refMax * 10) warn = `${value} is much higher than the reference range (${refMin ?? '?'}–${refMax} ${marker.unit}). Did you enter the right unit?`;
-    else if (refMin != null && refMin > 0 && value < refMin / 10) warn = `${value} is much lower than the reference range (${refMin}–${refMax ?? '?'} ${marker.unit}). Did you enter the right unit?`;
+    else if (checkRefMax != null && checkRefMax > 0 && value > checkRefMax * 10) warn = `${value} is much higher than the reference range (${checkRefMin ?? '?'}–${checkRefMax} ${checkUnit}). Did you enter the right unit?`;
+    else if (checkRefMin != null && checkRefMin > 0 && value < checkRefMin / 10) warn = `${value} is much lower than the reference range (${checkRefMin}–${checkRefMax ?? '?'} ${checkUnit}). Did you enter the right unit?`;
     if (warn && !await showConfirmDialog(`${warn}\n\nSave anyway?`)) return;
   }
   // Duplicate-date check: an existing value for this marker on the same date.
@@ -4287,7 +4358,13 @@ export async function saveManualEntry(id, opts = {}) {
     entry = { date: date, markers: {} };
     state.importedData.entries.push(entry);
   }
-  const storedValue = convertDisplayToSI(dotKey, value);
+  // If the user picked the alternate unit, convert from there directly to SI
+  // (convertUserInputToSI is a no-op when inputUnit is already the SI unit, so
+  // the EU-mode default keeps working unchanged). Otherwise fall through to the
+  // existing display→SI path which handles the US-mode case.
+  const storedValue = usingAltUnit
+    ? convertUserInputToSI(dotKey, value, inputUnit)
+    : convertDisplayToSI(dotKey, value);
   entry.markers[dotKey] = storedValue;
   if (!entry.markerSources) entry.markerSources = {};
   entry.markerSources[dotKey] = { file: null, at: Date.now() };

@@ -352,6 +352,7 @@ export async function loadProfile(profileId) {
   state.unitSystem = savedUnits === 'US' ? 'US' : 'EU';
   const savedRange = localStorage.getItem(profileStorageKey(profileId, 'rangeMode'));
   state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';
+  state.showAltUnits = localStorage.getItem(profileStorageKey(profileId, 'showAltUnits')) === 'on';
   const savedSuppOverlay = localStorage.getItem(profileStorageKey(profileId, 'suppOverlay'));
   state.suppOverlayMode = savedSuppOverlay === 'on' ? 'on' : 'off';
   const savedNoteOverlay = localStorage.getItem(profileStorageKey(profileId, 'noteOverlay'));
@@ -463,6 +464,7 @@ export async function deleteProfile(profileId, onComplete) {
     localStorage.removeItem(profileStorageKey(profileId, 'suppOverlay'));
     localStorage.removeItem(profileStorageKey(profileId, 'noteOverlay'));
     localStorage.removeItem(profileStorageKey(profileId, 'rangeMode'));
+    localStorage.removeItem(profileStorageKey(profileId, 'showAltUnits'));
     localStorage.removeItem(profileStorageKey(profileId, 'suppImpact'));
     localStorage.removeItem(`labcharts-${profileId}-chat`);
     // Remove thread index + all per-thread message keys

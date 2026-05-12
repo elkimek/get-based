@@ -434,6 +434,9 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
      gracefully on narrow viewports rather than overflow the modal box. */
   display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center;
 }
+.modal .modal-unit.modal-unit-alt {
+  font-size: 12px; opacity: 0.7; margin-top: -4px; margin-bottom: 12px;
+}
 .modal .wearable-modal-source-swap {
   margin-left: auto;
   font-size: 11px;
@@ -501,6 +504,10 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
 .modal-value-card .mv-source-manual { font-style: italic; }
 .modal-value-card .mv-value {
   font-family: var(--font-mono); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.modal-value-card .mv-alt {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  margin-top: 2px; font-variant-numeric: tabular-nums;
 }
 .modal-value-card .mv-status { font-size: 11px; font-weight: 600; margin-top: 4px; }
 .modal-value-card .mv-phase { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
@@ -3058,6 +3065,10 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   color: var(--text-primary); font-size: 13px; font-family: inherit;
 }
 .manual-entry-form .me-field select:focus { border-color: var(--accent); }
+.manual-entry-form .me-field select.me-unit-select {
+  width: auto; padding: 2px 8px; font-size: 11px; margin-left: 6px;
+  font-weight: 400; color: var(--text-muted); vertical-align: middle;
+}
 .sidebar-add-marker {
   float: right; width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--border);
   background: transparent; color: var(--text-muted); font-size: 14px; line-height: 18px; cursor: pointer;
