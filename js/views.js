@@ -3380,6 +3380,13 @@ export function showCategory(categoryKey, preData) {
   html += `</div>`;
   main.innerHTML = html;
 
+  const savedView = state.categoryView;
+  if (savedView === 'table' || savedView === 'heatmap') {
+    const buttons = main.querySelectorAll('.view-toggle .view-btn');
+    const idx = savedView === 'table' ? 1 : 2;
+    if (buttons[idx]) { switchView(savedView, categoryKey, buttons[idx]); return; }
+  }
+
   if (withData.length === 0) { /* no charts to render */ }
   else if (cat.singleDate) { renderFattyAcidsCharts(cat); }
   else {
@@ -3546,6 +3553,7 @@ export function changeCategoryIcon(categoryKey) {
 }
 
 export function switchView(view, categoryKey, btn) {
+  state.categoryView = view;
   document.querySelectorAll(".view-btn").forEach(b => {
     b.classList.remove("active");
     b.setAttribute('aria-selected', 'false');
@@ -3560,7 +3568,7 @@ export function switchView(view, categoryKey, btn) {
   const cat = data.categories[categoryKey];
   const container = document.getElementById("view-content");
   if (view === "table") {
-    container.innerHTML = renderTableView(cat, data.dateLabels, categoryKey);
+    container.innerHTML = renderTableView(cat, data.dateLabels, categoryKey, data.dates);
   } else if (view === "heatmap") {
     container.innerHTML = renderHeatmapView(cat, data.dateLabels, data.dates, categoryKey);
   } else {
@@ -3629,7 +3637,7 @@ export function renderChartCard(id, marker, dateLabels) {
   return html;
 }
 
-export function renderTableView(cat, dateLabels, categoryKey) {
+export function renderTableView(cat, dateLabels, categoryKey, dates) {
   const labels = cat.singleDate ? [cat.singleDateLabel || "N/A"] : dateLabels;
   let html = `<div class="data-table-wrapper"><table class="data-table"><thead><tr>
     <th>Biomarker</th><th>Unit</th><th>Reference</th>`;
@@ -3650,7 +3658,13 @@ export function renderTableView(cat, dateLabels, categoryKey) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
       const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
-      html += `<td class="value-cell val-${s}">${v !== null ? formatValue(v) : "\u2014"}</td>`;
+      // Empty cells: click \u2192 add a value for THIS column's date (not today).
+      // Skip for singleDate categories where the "date" is a synthetic label.
+      const colDate = (dates && !cat.singleDate) ? dates[i] : null;
+      const emptyClick = (v === null && id && colDate)
+        ? ` onclick="event.stopPropagation();openManualEntryForm('${id}','${colDate}')" style="cursor:cell" title="Add value for ${escapeHTML(dateLabels[i] || colDate)}"`
+        : '';
+      html += `<td class="value-cell val-${s}"${emptyClick}>${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
     const li = getLatestValueIndex(marker.values);
     const trendRange = li !== -1 ? getEffectiveRangeForDate(marker, li) : r;
@@ -4078,12 +4092,23 @@ export function showDetailModal(id, opts = {}) {
   }
 }
 
-export function openManualEntryForm(id) {
-  const marker = state.markerRegistry[id];
+export function openManualEntryForm(id, prefillDate) {
+  let marker = state.markerRegistry[id];
+  if (!marker) {
+    // Fall back to schema lookup — marker may not have been registered
+    // yet (renderChartCard only runs for markers with data; a click on
+    // an empty cell in Table view can target a marker with no data).
+    const idx = id.indexOf('_');
+    const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
+    const data = getActiveData();
+    marker = data.categories[catKey]?.markers[mKey];
+    if (marker) state.markerRegistry[id] = marker;
+  }
   if (!marker) return;
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const today = new Date().toISOString().slice(0, 10);
+  const dateValue = (typeof prefillDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefillDate)) ? prefillDate : today;
   const refText = marker.refMin != null || marker.refMax != null
     ? `Reference: ${marker.refMin != null ? marker.refMin : '–'} \u2013 ${marker.refMax != null ? marker.refMax : '–'} ${escapeHTML(marker.unit)}`
     : '';
@@ -4093,7 +4118,7 @@ export function openManualEntryForm(id) {
     <div class="manual-entry-form">
       <div class="me-field">
         <label>Date</label>
-        <input type="date" id="me-date" value="${today}">
+        <input type="date" id="me-date" value="${dateValue}">
       </div>
       <div class="me-field">
         <label>Value (${marker.unit})</label>
@@ -4139,8 +4164,14 @@ export function saveManualEntry(id) {
   window.buildSidebar();
   updateHeaderDates();
   closeModal();
-  const activeNav = document.querySelector(".nav-item.active");
-  navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  // Target category derived from the marker id ("category_markerKey").
+  // We can't rely on the active sidebar nav: buildSidebar above
+  // re-creates the DOM with the "dashboard" item active by default, so
+  // querying for .nav-item.active after a save would always land on
+  // dashboard — that's the new-custom-marker post-create redirect bug.
+  const targetCat = id.indexOf('_') !== -1 ? id.slice(0, id.indexOf('_')) : null;
+  const data = getActiveData();
+  navigate((targetCat && data.categories?.[targetCat]) ? targetCat : "dashboard");
   showNotification(`Added ${state.markerRegistry[id]?.name || id}: ${value} on ${date}`, 'success');
   // Re-open detail modal so user stays in context (#29)
   setTimeout(() => showDetailModal(id), 50);
@@ -4310,9 +4341,10 @@ export async function deleteMarkerValue(id, date) {
     saveImportedData();
     window.buildSidebar();
     updateHeaderDates();
-    // Re-open the detail modal to show updated values
-    const activeNav = document.querySelector(".nav-item.active");
-    navigate(activeNav ? activeNav.dataset.category : "dashboard");
+    // Re-open the detail modal to show updated values. buildSidebar
+    // resets .active to Dashboard, so use state.currentView (kept in
+    // sync by navigate) instead of re-reading the DOM.
+    navigate(state.currentView || "dashboard");
     showDetailModal(id);
     showNotification(`Removed value from ${date}`, 'info');
   }

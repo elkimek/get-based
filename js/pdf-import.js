@@ -941,8 +941,9 @@ export function confirmImport() {
   if (!_batchMode) {
     window.buildSidebar();
     window.updateHeaderDates();
-    const activeNav = document.querySelector(".nav-item.active");
-    window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+    // buildSidebar resets .active to Dashboard — use state.currentView
+    // (kept in sync by navigate) instead of re-reading the stale DOM.
+    window.navigate(state.currentView || "dashboard");
   }
   showNotification(`Imported ${importCount} markers from ${result.date}`, "success");
   if (!_batchMode && typeof window.maybeShowEncryptionNudge === 'function') window.maybeShowEncryptionNudge();
@@ -954,8 +955,8 @@ export function removeImportedEntry(date) {
   saveImportedData();
   window.buildSidebar();
   window.updateHeaderDates();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  // buildSidebar resets .active to Dashboard — use state.currentView.
+  window.navigate(state.currentView || "dashboard");
   showNotification(`Removed imported data from ${date}`, "info");
 }
 
@@ -1001,9 +1002,46 @@ export async function renameImportedEntryDate(oldDate) {
   saveImportedData();
   window.buildSidebar();
   window.updateHeaderDates();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  // buildSidebar resets .active to Dashboard — use state.currentView.
+  window.navigate(state.currentView || "dashboard");
   showNotification(`Date changed from ${oldDate} to ${newDate}`, 'success');
+}
+
+// ═══════════════════════════════════════════════
+// FILE CLASSIFICATION
+// ═══════════════════════════════════════════════
+// Some browsers / OS file managers (e.g. OCRFeeder on Linux) export PDFs
+// with no extension and no MIME hint. Sniff the %PDF magic bytes so
+// extension-less files don't fall through to the unsupported branch.
+export async function isPdfByMagic(file) {
+  try {
+    const buf = await file.slice(0, 4).arrayBuffer();
+    const b = new Uint8Array(buf);
+    return b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46;
+  } catch { return false; }
+}
+
+// Shared classifier for both drop-zone and file-input paths. Returns
+// { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount }.
+// The PDF bucket includes magic-byte hits, so extension-less PDFs are
+// routed to the import pipeline instead of silently rejected.
+export async function classifyImportFiles(files) {
+  const jsonFiles = files.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
+  const pdfFiles = files.filter(f => f.name.endsWith('.pdf') || f.type === 'application/pdf');
+  const imageFiles = files.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) || f.type?.startsWith('image/'));
+  const dnaFiles = files.filter(f => window.isDNAFile && window.isDNAFile(f));
+  const textFiles = [];
+  const unmatched = files.filter(f => !jsonFiles.includes(f) && !pdfFiles.includes(f) && !imageFiles.includes(f) && !dnaFiles.includes(f));
+  for (const f of unmatched) {
+    if (/\.(txt|csv)$/i.test(f.name)) {
+      if (window.isDNAFileByContent && await window.isDNAFileByContent(f)) dnaFiles.push(f);
+      else if (f.name.endsWith('.txt')) textFiles.push(f);
+    } else if (await isPdfByMagic(f)) {
+      pdfFiles.push(f);
+    }
+  }
+  const unsupportedCount = files.length - jsonFiles.length - pdfFiles.length - imageFiles.length - dnaFiles.length - textFiles.length;
+  return { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount };
 }
 
 // ═══════════════════════════════════════════════
@@ -1020,19 +1058,8 @@ export function setupDropZone() {
     if (_importStatus.running) { showNotification("Import already in progress", "info"); return; }
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
-    const jsonFiles = files.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
-    const pdfFiles = files.filter(f => f.name.endsWith('.pdf') || f.type === 'application/pdf');
-    const imageFiles = files.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) || f.type?.startsWith('image/'));
-    const dnaFiles = files.filter(f => window.isDNAFile && window.isDNAFile(f));
-    // Unmatched .txt/.csv — check content for DNA format
-    const textFiles = [];
-    const unmatched = files.filter(f => !jsonFiles.includes(f) && !pdfFiles.includes(f) && !imageFiles.includes(f) && !dnaFiles.includes(f) && /\.(txt|csv)$/i.test(f.name));
-    for (const f of unmatched) {
-      if (window.isDNAFileByContent && await window.isDNAFileByContent(f)) dnaFiles.push(f);
-      else if (f.name.endsWith('.txt')) textFiles.push(f);
-    }
-    const unsupported = files.length - jsonFiles.length - pdfFiles.length - imageFiles.length - dnaFiles.length - textFiles.length;
-    if (unsupported > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
+    const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await classifyImportFiles(files);
+    if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
       showNotification("Unsupported file type. Use PDF, text, image, JSON, or DNA raw data (.txt/.csv).", "error");
       return;
     }
@@ -1754,8 +1781,8 @@ export async function handleBatchPDFs(pdfFiles) {
   // Refresh UI once after all files processed
   window.buildSidebar();
   window.updateHeaderDates();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  // buildSidebar resets .active to Dashboard — use state.currentView.
+  window.navigate(state.currentView || "dashboard");
   hideImportProgress();
   const parts = [];
   if (imported > 0) parts.push(`${imported} imported`);
@@ -1870,6 +1897,8 @@ Object.assign(window, {
   removeImportedEntry,
   renameImportedEntryDate,
   setupDropZone,
+  classifyImportFiles,
+  isPdfByMagic,
   showImportProgress,
   hideImportProgress,
   assessTextQuality,

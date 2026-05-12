@@ -844,8 +844,10 @@ export function initBroadcastChannel() {
           if (!state.importedData.supplements) state.importedData.supplements = [];
           window.migrateProfileData(state.importedData);
           window.buildSidebar();
-          const activeNav = document.querySelector('.nav-item.active');
-          window.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
+          // buildSidebar resets the .active class to Dashboard, so source
+          // the target view from state.currentView (kept in sync by
+          // navigate) rather than re-reading the stale DOM.
+          window.navigate(state.currentView || 'dashboard');
         } catch { /* ignore parse errors */ }
       }
     }

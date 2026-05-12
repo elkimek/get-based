@@ -196,7 +196,11 @@ i123456\t1\t100\tAA
 
   const mainSrc = await fetchWithRetry('js/main.js');
   assert('main.js imports dna.js', mainSrc.includes("'./dna.js'"));
-  assert('main.js checks isDNAFile', mainSrc.includes('isDNAFile'));
+  // DNA detection in the file-input path is now delegated to
+  // classifyImportFiles (pdf-import.js); main.js consumes the returned
+  // dnaFiles bucket. The downstream isDNAFile check still lives in the
+  // classifier and is asserted below.
+  assert('main.js routes DNA files via classifier', mainSrc.includes('classifyImportFiles') && mainSrc.includes('dnaFiles'));
   assert('main.js calls handleDNAFile', mainSrc.includes('handleDNAFile'));
 
   const pdfSrc = await fetchWithRetry('js/pdf-import.js');

@@ -248,16 +248,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (window.isImportRunning && window.isImportRunning()) { e.target.value = ''; return; }
     if (e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      const jsonFiles = files.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
-      const pdfFiles = files.filter(f => f.name.endsWith('.pdf') || f.type === 'application/pdf');
-      const imageFiles = files.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) || f.type?.startsWith('image/'));
-      const dnaFiles = files.filter(f => window.isDNAFile && window.isDNAFile(f));
-      // Unmatched .txt/.csv files — check content for DNA format
-      const textFiles = [];
-      const unmatched = files.filter(f => !jsonFiles.includes(f) && !pdfFiles.includes(f) && !imageFiles.includes(f) && !dnaFiles.includes(f) && /\.(txt|csv)$/i.test(f.name));
-      for (const f of unmatched) {
-        if (window.isDNAFileByContent && await window.isDNAFileByContent(f)) dnaFiles.push(f);
-        else if (f.name.endsWith('.txt')) textFiles.push(f);
+      const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await window.classifyImportFiles(files);
+      if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
+        showNotification("Unsupported file type. Use PDF, text, image, JSON, or DNA raw data (.txt/.csv).", "error");
+        e.target.value = '';
+        return;
       }
       for (const f of jsonFiles) window.importDataJSON(f);
       if (dnaFiles.length > 0) {
@@ -441,7 +436,11 @@ document.addEventListener("keydown", e => {
 // ═══════════════════════════════════════════════
 registerRefreshCallback(() => {
   buildSidebar();
-  const activeNav = document.querySelector('.nav-item.active');
-  window.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
+  // buildSidebar resets the sidebar's .active class to Dashboard by
+  // default. Source the target view from state.currentView (kept in
+  // sync by navigate) — re-reading the DOM here would always pick up
+  // Dashboard and bounce the user away from their current view on
+  // every refresh.
+  window.navigate(state.currentView || 'dashboard');
   window.updateChatNudge();
 });

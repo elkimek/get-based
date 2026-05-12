@@ -582,10 +582,15 @@ export function renderDateRangeFilter() {
 
 export function setDateRange(range) {
   state.dateRangeFilter = range;
-  const activeNav = document.querySelector('.nav-item.active');
-  const activeCat = activeNav ? activeNav.dataset.category : 'dashboard';
-  window.navigate(activeCat);
+  // Order matters: buildSidebar() resets the .active class to Dashboard
+  // by default. If we navigate first then buildSidebar, the next
+  // range-button click reads .nav-item.active as Dashboard and bounces
+  // the user there. Rebuild the sidebar first, then navigate — navigate
+  // re-applies the correct active class. Source the target view from
+  // state.currentView (set by navigate) rather than the DOM, since the
+  // DOM's active class has just been clobbered by buildSidebar.
   window.buildSidebar();
+  window.navigate(state.currentView || 'dashboard');
 }
 
 export function renderChartLayersDropdown() {
@@ -849,11 +854,9 @@ export function switchUnitSystem(system) {
   state.unitSystem = system;
   localStorage.setItem(profileStorageKey(state.currentProfile, 'units'), system);
   const data = getActiveData();
-  const activeNav = document.querySelector(".nav-item.active");
-  const currentCategory = activeNav ? activeNav.dataset.category : "dashboard";
   window.buildSidebar(data);
   updateHeaderDates(data);
-  window.navigate(currentCategory, data);
+  window.navigate(state.currentView || 'dashboard', data);
 }
 
 export function getEffectiveRange(marker) {
@@ -888,10 +891,8 @@ export function switchRangeMode(mode) {
   localStorage.setItem(profileStorageKey(state.currentProfile, 'rangeMode'), mode);
   updateHeaderRangeToggle();
   const data = getActiveData();
-  const activeNav = document.querySelector(".nav-item.active");
-  const currentCategory = activeNav ? activeNav.dataset.category : "dashboard";
   window.buildSidebar(data);
-  window.navigate(currentCategory, data);
+  window.navigate(state.currentView || 'dashboard', data);
 }
 
 export function updateHeaderDates(data) {
