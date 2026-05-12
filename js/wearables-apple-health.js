@@ -221,6 +221,7 @@ export function parseAppleHealthXml(xmlText) {
       stress_high_min: null, resilience_level: null, cardio_age: null,
       weight: null, bp_systolic: null, bp_diastolic: null,
       spo2_avg: null, body_temp_delta: null, glucose_avg: null,
+      vo2max: null,
     };
 
     // HRV SDNN — hour-window split. Day samples → hrv_day, night samples →
@@ -270,6 +271,13 @@ export function parseAppleHealthXml(xmlText) {
     if (Array.isArray(bucket.body_temp_delta) && bucket.body_temp_delta.length) {
       row.body_temp_delta = Math.round(mean(bucket.body_temp_delta.map(s => s.v)) * 100) / 100;
     }
+    // VO2max — Apple Watch writes one measurement per outdoor walk/run, so
+    // a given day may carry 0, 1, or multiple samples. Mean smooths out
+    // back-to-back walks on the same day; the gaps between days are
+    // expected and handled by the chart's span-gaps.
+    if (Array.isArray(bucket.vo2max) && bucket.vo2max.length) {
+      row.vo2max = Math.round(mean(bucket.vo2max.map(s => s.v)) * 100) / 100;
+    }
 
     rows.push(row);
   }
@@ -303,6 +311,10 @@ function normaliseUnit(metricId, value, unit) {
       // misleading number. Canonical is degC; if we wanted to populate this
       // the math is: value_celsius - profile_baseline_celsius.
       return null;
+    case 'vo2max':
+      // Apple ships VO₂max in "mL/min·kg" (their formatting). Canonical is
+      // mL/kg/min — same physiological quantity, just transposed factors.
+      return (!unit || unit === 'mL/min·kg' || unit === 'mL/kg/min') ? value : null;
     default:
       // If canonical declares a unit string and Apple disagrees, refuse.
       return (!unit || unit === canonUnit) ? value : null;
