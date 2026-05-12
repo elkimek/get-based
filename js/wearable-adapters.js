@@ -118,6 +118,9 @@ export const DEFAULT_METRIC_ORDER = [
   // Daytime companions are summarised so the AI / detail modal can read them,
   // but intentionally placed AFTER the overnight cards — the strip stays calm.
   'hrv_day', 'hr_day',
+  // Apple Health VO₂max — placed near cardio_fitness conceptually but at the
+  // tail so existing wearableCardOrder arrays aren't reshuffled for users.
+  'vo2max',
 ];
 
 export const ADAPTERS = [
