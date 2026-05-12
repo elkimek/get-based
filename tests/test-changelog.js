@@ -32,6 +32,20 @@ return (async function() {
   assert('changelog.js exports maybeShowChangelog', changelogSrc.includes('export function maybeShowChangelog'));
   assert('changelog.js has getMajorMinor helper', changelogSrc.includes('function getMajorMinor'));
   assert('maybeShowChangelog compares major.minor only', changelogSrc.includes('getMajorMinor(seen) !== getMajorMinor('));
+  // forceShow patch-bump escape hatch — when a maintainer flags an entry as
+  // critical (e.g. v1.7.1 "re-export your encrypted backup"), the modal
+  // must auto-fire even on a same-major.minor patch bump.
+  assert('changelog.js has _semverGt helper for forceShow gate',
+    /function\s+_semverGt\s*\(/.test(changelogSrc));
+  assert('maybeShowChangelog has forceShow branch on latest entry',
+    /CHANGELOG\[0\][\s\S]{0,120}forceShow[\s\S]{0,120}_semverGt/.test(changelogSrc));
+  assert('forceShow only fires when latest entry advances past seen version',
+    /_semverGt\(latest\.version,\s*seen\)/.test(changelogSrc));
+  // The v1.7.1 entry itself must carry forceShow — its body asks users to
+  // re-export their encrypted backup. Lock this in so a future copy edit
+  // doesn't silently drop the flag and break the call-to-action.
+  assert("v1.7.1 entry carries forceShow: true",
+    /version:\s*'1\.7\.1'[\s\S]{0,400}forceShow:\s*true/.test(changelogSrc));
 
   // ═══════════════════════════════════════
   // 2. Unified semver versioning
@@ -175,6 +189,30 @@ return (async function() {
   const ovAfterClose = document.getElementById('changelog-modal-overlay');
   assert('closeChangelog removes show class', ovAfterClose && !ovAfterClose.classList.contains('show'));
   assert('closeChangelog marks version as seen', localStorage.getItem('labcharts-changelog-seen') !== null);
+
+  // ── forceShow behavioral: seen=1.7.0 + APP_VERSION=1.7.1 must auto-open ──
+  // Patch bumps normally skip auto-open; forceShow on the latest entry has
+  // to override that. Stash the seen value, set it to 1.7.0, fire
+  // maybeShowChangelog, assert overlay opened.
+  const _origSeen = localStorage.getItem('labcharts-changelog-seen');
+  try {
+    localStorage.setItem('labcharts-changelog-seen', '1.7.0');
+    // Prove overlay starts hidden
+    ovAfterClose?.classList.remove('show');
+    window.maybeShowChangelog();
+    assert('maybeShowChangelog auto-opens on 1.7.0→1.7.1 patch bump (forceShow branch)',
+      ovAfterClose?.classList.contains('show') === true);
+    window.closeChangelog();
+    // Re-fire idempotency: after closeChangelog markChangelogSeen wrote the
+    // current APP_VERSION as seen, so _semverGt(latest.version, seen) is now
+    // false → modal must NOT re-open on subsequent maybeShowChangelog calls.
+    window.maybeShowChangelog();
+    assert('maybeShowChangelog stays closed once user has seen the latest version',
+      ovAfterClose?.classList.contains('show') === false);
+  } finally {
+    if (_origSeen !== null) localStorage.setItem('labcharts-changelog-seen', _origSeen);
+    else localStorage.removeItem('labcharts-changelog-seen');
+  }
 
   // ═══════════════════════════════════════
   // Inline-tag whitelist in changelog items

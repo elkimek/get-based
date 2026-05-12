@@ -6,6 +6,10 @@ import { escapeHTML } from './utils.js';
 const CHANGELOG = [
   {
     version: '1.7.1', date: '2026-05-12', title: 'Apple Health ZIP fix, encrypted-backup recovery, security hardening',
+    // Carries a critical user action (re-export the encrypted backup), so
+    // override the patch-skip in maybeShowChangelog and force the modal
+    // even for users on the same major.minor (1.7.0 → 1.7.1).
+    forceShow: true,
     items: [
       '<b>Apple Health ZIP imports work again.</b> Dropping an <code>export.zip</code> on Settings → Wearables → Apple Health was throwing "JSZip not loaded" — direct <code>.xml</code> drops were unaffected, but the ZIP path is the one most people use. The vendor unzip bundle now lazy-loads on first use. Thanks to <a href="https://github.com/Savi-1">@Savi-1</a> for the patch.',
       '<b>Encrypted backups, fixed — please re-export.</b> If you had encryption-at-rest turned on, every backup since v1.6.x silently exported <code>profiles: []</code> — a ~1 KB file with only your global settings, no profile data. Manual export, auto-backup, and folder-backup were all affected. Backups taken before today on encrypted installs are not recoverable; <b>strongly recommend re-exporting a fresh backup after updating.</b> Going forward, backups round-trip your profile data correctly. Thanks to <a href="https://github.com/Savi-1">@Savi-1</a> for the patch.',
@@ -214,12 +218,35 @@ export function closeChangelog() {
   markChangelogSeen();
 }
 
+// Compare two semver strings — returns true when `a` is strictly newer
+// than `b`. Tolerant of missing parts (treats "1.7" as "1.7.0").
+function _semverGt(a, b) {
+  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const ai = pa[i] || 0, bi = pb[i] || 0;
+    if (ai > bi) return true;
+    if (ai < bi) return false;
+  }
+  return false;
+}
+
 export function maybeShowChangelog() {
   const seen = getSeenVersion();
   // First visit — no changelog, just mark as seen
   if (!seen) { markChangelogSeen(); return; }
   // Only show What's New on minor/major bumps, not patch
   if (getMajorMinor(seen) !== getMajorMinor(window.APP_VERSION)) {
+    openChangelog(false);
+    return;
+  }
+  // Patch-level bumps normally don't auto-show, but a maintainer can flag
+  // an entry as forceShow when it carries a critical user-action notice
+  // (e.g. "re-export your encrypted backup" in v1.7.1). Fire only if the
+  // latest entry actually advances past the user's seen version, so users
+  // who already opened the modal don't see it again on every page load.
+  const latest = CHANGELOG[0];
+  if (latest && latest.forceShow && _semverGt(latest.version, seen)) {
     openChangelog(false);
   }
 }
