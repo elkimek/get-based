@@ -422,6 +422,67 @@ return (async function() {
   assert('ENCRYPTED_AI_KEYS includes labcharts-custom-key', /ENCRYPTED_AI_KEYS[\s\S]{0,400}labcharts-custom-key/.test(syncSrc));
 
   // ═══════════════════════════════════════
+  // 13b. #181 regression — encrypted backup re-enumerates profiles
+  // ═══════════════════════════════════════
+  // Pre-fix bug: with encryption-at-rest enabled, buildBackupSnapshot parsed
+  // the v1: envelope as `[]` and the localStorage fallback found nothing
+  // because v1.6.x moved *-imported blobs to IndexedDB. Result: every backup
+  // silently shipped profiles:[] (~1 KB file). buildFullBackupSnapshot now
+  // detects that case and re-enumerates via window.encryptedGetItem.
+  console.log('%c 13b. Encrypted backup re-enumerates profiles ', 'font-weight:bold;color:#f59e0b');
+
+  const backupSrcEnc = await fetch('/js/backup.js').then(r => r.text());
+  assert('buildFullBackupSnapshot detects encrypted profile list',
+    backupSrcEnc.includes('isEncryptedValue(snap.profileList)'));
+  assert('buildFullBackupSnapshot decrypts via window.encryptedGetItem',
+    backupSrcEnc.includes("encryptedGetItem?.('labcharts-profiles')"));
+  assert('Re-enumeration only fires when profiles array is empty (no double-write)',
+    /snap\.profiles\.length\s*===\s*0\s*&&\s*snap\.profileList\s*&&\s*isEncryptedValue/.test(backupSrcEnc));
+  assert('Re-enumeration uses PER_PROFILE_PREF_SUFFIXES (parity with sync path)',
+    /for\s*\(\s*const\s+suffix\s+of\s+PER_PROFILE_PREF_SUFFIXES\s*\)/.test(backupSrcEnc));
+
+  // Functional roundtrip: spoof the encrypted-list state and verify the
+  // snapshot recovers a profile. Stub window.encryptedGetItem so this works
+  // without an actual passphrase setup. Stash the real values, swap in
+  // spoofs, run the async builder, restore originals.
+  const _profileKey = 'labcharts-profiles';
+  const _origProfilesRaw = localStorage.getItem(_profileKey);
+  const _origEncryptedGetItem = window.encryptedGetItem;
+  let realProfiles = [];
+  try { realProfiles = JSON.parse(_origProfilesRaw || '[]'); } catch {}
+  if (Array.isArray(realProfiles) && realProfiles.length > 0) {
+    const decryptedJson = JSON.stringify(realProfiles);
+    // Make the on-disk value look encrypted (v1: prefix → isEncryptedValue
+    // returns true → buildBackupSnapshot parses it as []).
+    localStorage.setItem(_profileKey, 'v1:fake-ciphertext-only-the-prefix-matters');
+    // Stub encryptedGetItem to return the decrypted JSON for the profiles
+    // key only; everything else falls through to the real impl.
+    window.encryptedGetItem = async (key) => {
+      if (key === _profileKey) return decryptedJson;
+      return _origEncryptedGetItem ? _origEncryptedGetItem(key) : null;
+    };
+    try {
+      const backupMod = await import('/js/backup.js');
+      const recoveredSnap = await backupMod.buildFullBackupSnapshot();
+      assert('buildFullBackupSnapshot recovers profile list when encrypted',
+        recoveredSnap?.profiles?.length === realProfiles.length,
+        `expected ${realProfiles.length} profiles, got ${recoveredSnap?.profiles?.length ?? 'null'}`);
+      assert('Recovered first profile carries the imported blob (from IDB)',
+        recoveredSnap?.profiles?.[0]?.keys?.imported != null);
+      assert('Recovered profile carries the original profile id',
+        recoveredSnap?.profiles?.[0]?.profileId === realProfiles[0].id);
+    } finally {
+      // Restore originals so subsequent tests see a clean state.
+      if (_origProfilesRaw !== null) localStorage.setItem(_profileKey, _origProfilesRaw);
+      else localStorage.removeItem(_profileKey);
+      window.encryptedGetItem = _origEncryptedGetItem;
+    }
+  } else {
+    assert('Setup: at least one profile present for encrypted-recovery test', false,
+      'no profiles in localStorage — demo data setup may have failed');
+  }
+
+  // ═══════════════════════════════════════
   // 14. Window exports
   // ═══════════════════════════════════════
   console.log('%c 14. Window exports ', 'font-weight:bold;color:#f59e0b');

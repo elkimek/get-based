@@ -42,34 +42,66 @@ The `detail` argument appears in the failure output — use it to print the actu
 
 All test files live in the `tests/` directory. Run `ls tests/test-*.js | wc -l` for the current count.
 
+A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests + node script guards. Marked **node** in the table; everything else is browser-driven.
+
 | File | What it covers |
 |---|---|
+| `tests/test-a11y-phase3.js` | Accessibility regression pass: keyboard delegation, role="button" tabindex, focus trapping |
 | `tests/test-adapters.js` | Adapter registry: structure, fatty acids, OAT, metabolomix, cross-adapter |
-| `tests/test-audit.js` | Security audit: XSS escaping, null guards, div-by-zero, JSON.parse guards, focus trapping, CSP |
+| `tests/test-ai-verdict-engine.js` | Shared `js/ai-verdict-engine.js` factory: in-flight tracker, watchdog, fingerprint cache, JSON parse guards |
+| `tests/test-audit-fixes.js` | Regression coverage for the 2026-05-09 audit pass (multi-area follow-ups) |
+| `tests/test-audit.js` | Security audit: XSS escaping, marker-key allowlist guards, innerHTML sanitizer sweep, null/div-by-zero, focus trapping, CSP |
 | `tests/test-biometrics.js` | Biometrics time-series: weight, BP, pulse, BMI auto-calc |
 | `tests/test-biostarks-adapter.js` | BioStarks adapter: registration, detection, markers, normalization |
+| `tests/test-blob-storage.js` | IDB-backed key/value store + the localStorage→IDB migration on first read of `*-imported` |
 | `tests/test-calculated-markers.js` | Calculated markers: PhenoAge, Bortz Age, Biological Age, BUN/Creatinine, Free Water Deficit, hs-CRP/HDL |
-| `tests/test-cashu-wallet.js` | Cashu wallet: module exports, security (encrypted mnemonic, locks), proof management, recovery, fee mechanism, Nostr discovery, API nodeUrl guard, sync/export integration, BIP-39 seed generation |
+| `tests/test-cashu-wallet.js` | Cashu wallet: encrypted mnemonic, locks, proofs, recovery, fee split, Nostr discovery, BIP-39 seed |
 | `tests/test-change-history.js` | Change history: `recordChange` dedup, snapshot deep-copy, cap, AI context timeline, export/import round-trip |
-| `tests/test-changelog.js` | What's New modal + `hasCardContent` auto-gating: version sync, HTML, main.js wiring, settings, behavioral tests |
+| `tests/test-changelog.js` | What's New modal: version sync, HTML, main.js wiring, settings, forceShow patch-bump override, behavioral idempotency |
 | `tests/test-chat-actions.js` | Chat message action buttons: regenerate, copy, context toggle |
+| `tests/test-chat-panel-ux.js` | Chat panel interactive-while-open + fullscreen layout (v1.3.29 surface) |
 | `tests/test-chat-threads.js` | Chat thread CRUD, auto-naming, migration, encryption patterns, backup inclusion |
+| `tests/test-correctness-phase2.js` | v1.5.1 correctness pass: per-profile sync debouncer, lab-context fingerprint, lens LRU |
 | `tests/test-crypto.js` | AES-256-GCM encryption, PBKDF2, passphrase validation (20+ sections) |
 | `tests/test-custom-api.js` | Custom API provider: 6th provider registration, endpoint config, model fetch |
+| `tests/test-custom-lens.js` | Custom Knowledge Source (Lens Corpus): backend selection, library CRUD, query routing |
 | `tests/test-custom-personality.js` | Named custom personalities: storage, icon picker, generation, dirty state, thread metadata |
 | `tests/test-cycle-improvements.js` | Phase-aware ranges, cycle iron alerts, perimenopause detection, heavy flow alerts |
 | `tests/test-cycle-tour.js` | Cycle spotlight tour: 8 steps, DOM elements, auto-trigger, storage key |
+| `tests/test-dashboard-data-protection.js` | Data protection CTA + picker on the dashboard (encryption / sync / auto-backup) |
+| `tests/test-dashboard-genetics-empty.js` | Genetics empty-state CTA (DNA discovery stub) on the dashboard |
+| `tests/test-dashboard-knowledge-base.js` | Knowledge Base row + Personalize-AI CTA on the dashboard |
+| `tests/test-data-merge.js` | Per-array union-by-id sync merge: additions, edit-conflict resolution, tombstones, nested |
 | `tests/test-data-pipeline.js` | Core data pipeline: getActiveData, unit conversion, date filtering, trend detection |
 | `tests/test-demo.js` | Demo data files: v2 structure, structured context cards, menstrual cycle for Sarah |
-| `tests/test-dna.js` | DNA import: SNP parsing, APOE haplotype, format detection, dashboard rendering |
+| `tests/test-dev-server-helpers.js` | **node** — `dev-server.js` helper unit tests |
+| `tests/test-dev-server-origin.js` | **node** — `dev-server.js` `/api/*` same-origin guard rejects forged headers |
+| `tests/test-dna-illumina-and-valence.js` | Illumina GenomeStudio (DNAEra) + Valence formats; probe-name prefix strip |
+| `tests/test-dna-mtdna-subclades.js` | mtDNA sub-haplogroup resolution (v1.23.0) |
 | `tests/test-dna-recommendations.js` | DNA-aware supplement recommendations: snpHints, buildDNAHints, gene-keyword scanner |
+| `tests/test-dna.js` | DNA import: SNP parsing, APOE haplotype, format detection, dashboard rendering |
 | `tests/test-emf.js` | EMF assessment: SBM-2015 severity, room CRUD, source/mitigation tags |
-| `tests/test-export-import.js` | Export/import roundtrip: JSON structure, date merge, context field handling |
+| `tests/test-export-import.js` | Export/import roundtrip + encrypted-backup re-enumeration: JSON structure, date merge, context field handling |
+| `tests/test-family-history.js` | Medical History + family-history subsection: relative picker, CRUD, FAMILY_RELATIVES enum |
 | `tests/test-folder-backup.js` | Folder backup: File System Access API, snapshot format, daily filenames, IndexedDB v2 handle persistence |
 | `tests/test-hardware.js` | Model Advisor: GPU detection, VRAM badges, model fitness ratings |
 | `tests/test-image-utils.js` | Image utilities: resize, format, vision content building |
 | `tests/test-integration-batch2.js` | Integration: batch import, marker keys, custom markers, adapters |
+| `tests/test-lens-local-utils.js` | **node** — pure helpers from `js/lens-local-utils.js`: chunking, MMR selection, cosine similarity |
+| `tests/test-lens-local-worker.js` | Full message-protocol round-trip against `lens-local-worker.js` with a mocked embedder |
+| `tests/test-lens-multi-query.js` | Multi-query rewrite + reciprocal-rank-fusion chunk fusion |
+| `tests/test-lens-parsers.js` | `js/lens-local-parsers.js` edge cases: `extractFromFile()` never throws, returns expected shape |
+| `tests/test-light-ai-renders.js` | Smoke coverage for the 10 feature-specific Light & Sun AI modules |
+| `tests/test-light-devices.js` | Light therapy device library + sessions: addDeviceFromPreset, deleteDevice, logDeviceSession |
+| `tests/test-light-env.js` | Light Environment math + CRUD: rooms, screens, computeRoomSeverity, computeScreenStatus, computeIndoorBurden |
+| `tests/test-light-tools.js` | Pure helpers from `light-tools.js`: computeRowBanding (flicker FFT), saveMeasurement, lockStatusLine |
+| `tests/test-lighting-hardware-caveats.js` | Guard the load-bearing PWM/TRIAC caveat block against silent removal from any AI-analysis prompt |
+| `tests/test-manual-entry-flow.js` | Manual-entry quality-of-life: range sanity check, duplicate-date confirm, Save & Add Another |
+| `tests/test-markdown.js` | Markdown rendering + XSS surface assertions for streamed AI responses |
+| `tests/test-marker-key-safety.js` | **node** — `safeMarkerId` + `sanitizeMarkerKey` allowlist + proto-pollution rejection (38 assertions) |
+| `tests/test-marker-value-notes.js` | Per-value notes on lab markers: schema defaults, profile migration, sync DELTA_MAPS wiring |
 | `tests/test-mobile.js` | Responsive layout: breakpoints, grid overflow, touch tap targets, safe grid sizing |
+| `tests/test-no-native-dialogs.js` | **node** — guard against `window.prompt/confirm/alert` regressions across `js/` |
 | `tests/test-normalize-units.js` | Unit normalization: SI conversion in the PDF import pipeline |
 | `tests/test-openrouter.js` | OpenRouter provider: curated model list, pricing cache, exclude blocklist, model fetch |
 | `tests/test-phase-ranges.js` | Phase-aware reference ranges for estradiol and progesterone aligned with dates |
@@ -78,13 +110,33 @@ All test files live in the `tests/` directory. Run `ls tests/test-*.js | wc -l` 
 | `tests/test-provenance.js` | Import provenance: markerSources tracking, PDF/manual source attribution |
 | `tests/test-recommendations.js` | Supplement recommendations: catalog slots, keyword scanner, safety caveats, disclosure gate |
 | `tests/test-schema.js` | MARKER_SCHEMA integrity, unit conversions, optimal ranges, phase ranges |
+| `tests/test-security-phase1.js` | v1.5.0 security pass: pdf.js vendor presence, isEvalSupported, defense-in-depth |
+| `tests/test-silhouette-picker.js` | Body-region silhouette picker: bindBodySilhouette mounts, every region clickable |
+| `tests/test-silhouette-region-map.js` | Region-map correctness: anatomical body-zone definitions and lookups |
+| `tests/test-sun-ai-analysis.js` | Per-session AI verdict module: fingerprint stability, context-build, render state machine |
+| `tests/test-sun-context.js` | `buildSunContext({tier})` AI prompt assembly: always/standard/deep tier shaping, deficit detection |
+| `tests/test-sun-correlations.js` | Pearson coefficient + weekly binning + cache invalidation for per-channel × biomarker engine |
+| `tests/test-sun-defaults.js` | Onboarding defaults: Fitzpatrick mapping, OTT score boundaries, getSunDefaults round-trip |
+| `tests/test-sun-spectrum.js` | Bird-Riordan reconstruction + action-spectrum convolution + vit-D calibration gate |
+| `tests/test-sun-ui-flow.js` | Behavioral UI flow for the Light & Sun lens: dashboard strip, /light page, session controls |
+| `tests/test-sun-uvdata.js` | Multi-source UV/ozone client: SSRF guard, manual entry, provider routing, solar-zenith math |
+| `tests/test-sun.js` | Sun session orchestration: lifecycle, hydration, rolling totals, vit-D IU accumulation, MED carry-over |
 | `tests/test-supplement-impact.js` | Supplement-biomarker impact analysis: batched computation, caching, health dots |
 | `tests/test-sync.js` | Cross-device sync: payload format, AI settings keys, encrypted keys, Evolu integration |
+| `tests/test-table-heatmap-empty.js` | Table/Heatmap views skip all-null markers; empty category shows hint |
 | `tests/test-tour.js` | App tour: 7 steps, spotlight DOM, positioning, escape key, completion flag (154 assertions) |
 | `tests/test-trend-alerts.js` | Trend detection: sudden change alerts, linear regression, status logic |
 | `tests/test-ui-flows.js` | Behavioral UI tests: key user flows, rendered output verification |
 | `tests/test-unit-import.js` | Unit normalization on import: SI conversion, enzyme units, FA adapter safety |
+| `tests/test-v1-6-shipped.js` | Regression coverage for v1.6.7..v1.6.16 ship arc |
 | `tests/test-venice-e2ee.js` | Venice E2EE: ECDH key exchange, AES-GCM encryption, TEE headers, model detection |
+| `tests/test-wearables-bp-merge.js` | BP renders as one paired card (sys/dia): strip-render filter, reorder-mode behavior |
+| `tests/test-wearables-fetchers.js` | Per-vendor adapter `fetchXxxDailyRange` against canned proxy responses |
+| `tests/test-wearables-manual.js` | Manual entry as a first-class wearable source: logManualMetric, MANUAL_TAGS whitelist, migration |
+| `tests/test-wearables-runtime-config.js` | Self-host OAuth `*_CLIENT_ID` env override (issue #145) |
+| `tests/test-wearables-sync-flow.js` | Wearable sync orchestration end-to-end with mocked proxy fetch + fake connection record |
+| `tests/test-wearables-ui-flows.js` | DOM-driven wearable UI flows: detail-modal manual entry, source picker, reorder mode |
+| `tests/test-wearables.js` | Wearable adapter registry + L1 store + L2 summary + AI context + JSZip lazy-load (Apple Health) |
 
 The landing page test (`test-landing.js`) lives in the [get-based-site](https://github.com/elkimek/get-based-site) repo.
 
@@ -95,10 +147,11 @@ The landing page test (`test-landing.js`) lives in the [get-based-site](https://
 ```
 
 The script:
-1. Checks if a server is running on port 8000; starts `python3 -m http.server 8000` if not
-2. Runs each test file through headless Chrome via Puppeteer
-3. Prints a pass/fail summary per file
-4. Exits with code `0` if all pass, `1` if any fail
+1. Checks if a server is running on port 8000; starts `node dev-server.js` if not
+2. Runs the node-side tests first (fast fail on helper regressions, no browser needed)
+3. Runs each browser test file through headless Chrome via Puppeteer
+4. Prints a pass/fail summary per file
+5. Exits with code `0` if all pass, `1` if any fail
 
 **Requires:** Node.js with Puppeteer installed (`npm i -g puppeteer` or `npx puppeteer`).
 

@@ -55,6 +55,173 @@ return (async function() {
   assert('Clipboard has navigator.clipboard guard', chatSrc.includes('if (!navigator.clipboard)'));
 
   // ═══════════════════════════════════════
+  // 3b. XSS — marker-key allowlist on inline-onclick interpolation sites
+  // ═══════════════════════════════════════
+  // PDF AI extraction is sanitized at the parse boundary by _sanitizeAIMarker,
+  // but legacy data and sync pulls can still feed unsafe keys into views.js
+  // — five entry points interpolate keys into onclick="…('${id}')" handlers.
+  // safeMarkerId in utils.js gates each one. If a refactor removes the guard
+  // wiring, the helper test stays green but the actual defense disappears —
+  // pin the wiring here.
+  console.log('%c 3b. Marker-key allowlist guards ', 'font-weight:bold;color:#f59e0b');
+
+  const utilsXssSrc = await fetchWithRetry('js/utils.js');
+  assert('utils.js exports safeMarkerId',
+    /export\s+function\s+safeMarkerId\s*\(/.test(utilsXssSrc));
+  assert('safeMarkerId proto-pollution guard set covers __proto__/constructor/prototype',
+    /_PROTO_PARTS\s*=\s*new\s+Set\s*\(\s*\[\s*['"]__proto__['"]\s*,\s*['"]constructor['"]\s*,\s*['"]prototype['"]\s*\]\s*\)/.test(utilsXssSrc));
+  assert('views.js imports safeMarkerId from utils',
+    /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(viewsSrc));
+  assert('showCategory guards on safeMarkerId(categoryKey) at function entry',
+    /export function showCategory[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+  assert('switchView guards on safeMarkerId(categoryKey) at function entry',
+    /export function switchView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+  assert('showDetailModal guards on safeMarkerId(id) at function entry',
+    /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(viewsSrc));
+  assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + category)',
+    /export function renderChartCard[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return\s*''/.test(viewsSrc));
+  assert('renderFattyAcidsView returns "" on unsafe categoryKey',
+    /export function renderFattyAcidsView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return\s*''/.test(viewsSrc));
+  // Inner-loop per-key filter on category chart-cards path
+  assert('showCategory chart-cards loop skips legacy customMarkers with unsafe keys',
+    /for\s*\(\s*const\s*\[\s*key\s*,\s*marker\s*\]\s+of\s+withData\s*\)\s*\{\s*[\s\S]{0,200}if\s*\(\s*!safeMarkerId\(key\)\s*\)\s*continue/.test(viewsSrc));
+
+  // Functional: prove the guards actually no-op on adversarial input.
+  // Need at least one navigation target so a "did anything change?" check
+  // is meaningful. Use a known-safe categoryKey for the control.
+  if (window.showCategory && window._labState?.importedData) {
+    window.showCategory('biochemistry');
+    await new Promise(r => setTimeout(r, 50));
+    const beforeHeading = document.querySelector('.category-header h2')?.textContent || null;
+    if (beforeHeading) {
+      window.showCategory("hormones');alert(1);//");
+      await new Promise(r => setTimeout(r, 30));
+      assert('showCategory no-ops on quote-injection categoryKey (heading unchanged)',
+        document.querySelector('.category-header h2')?.textContent === beforeHeading);
+      window.showCategory('__proto__');
+      await new Promise(r => setTimeout(r, 30));
+      assert('showCategory no-ops on __proto__ categoryKey (heading unchanged)',
+        document.querySelector('.category-header h2')?.textContent === beforeHeading);
+    }
+    const overlay = document.getElementById('modal-overlay');
+    const openBefore = !!overlay?.classList.contains('show');
+    window.showDetailModal("biochemistry_glucose');alert(2);//");
+    await new Promise(r => setTimeout(r, 30));
+    assert('showDetailModal does not open on quote-injection id',
+      !!overlay?.classList.contains('show') === openBefore);
+    assert('renderChartCard returns "" on quote-injection id',
+      window.renderChartCard("foo';evil('", { name: 'x', values: [1] }, ['2025-01-01']) === '');
+    const safeRender = window.renderChartCard('biochemistry_glucose', { name: 'Glucose', values: [5] }, ['2025-01-01']) || '';
+    assert('renderChartCard returns valid HTML on safe id',
+      safeRender.includes('biochemistry_glucose') && safeRender.includes('chart-card'));
+  }
+
+  // ═══════════════════════════════════════
+  // 3c. Sweep guard — every innerHTML site in production JS is sanitized
+  // ═══════════════════════════════════════
+  // CodeQL's js/xss-through-dom is excluded repo-wide (.github/workflows/
+  // codeql.yml) because it doesn't model escapeHTML() / safeMarkerId().
+  // This sweep replaces that signal locally across every production JS
+  // file with innerHTML usage — a future PR adding an unsanitized site
+  // fires immediately, before review.
+  //
+  // Categorize each `.innerHTML =` site per file:
+  //   SAFE: empty/clear, pure static literal (no `${`), helper-fn call.
+  //   GUARDED: surrounding ±100 lines contain a recognized sanitizer.
+  //   UNGUARDED: fail with file + line + snippet.
+  console.log('%c 3c. innerHTML sanitizer sweep ', 'font-weight:bold;color:#f59e0b');
+
+  // Recognized in-codebase HTML sanitizers / safe-rendering primitives.
+  // Adding a new sanitizer? Append here AND verify it actually escapes
+  // its input. `applyInlineMarkdown` is the markdown.js sanitized
+  // renderer; `escapeAttr` is the attribute-context variant of escapeHTML;
+  // `renderMarkdown` is the markdown.js full renderer.
+  const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
+  // Known-safe HTML-returning helpers — each verified to either (a) use
+  // escapeHTML/safeMarkerId/escapeAttr internally or (b) interpolate only
+  // hardcoded strings + numeric values. Rule (c) trusts these by name
+  // instead of trusting any function call, closing the "what if the
+  // helper is unsafe?" false-negative. New helpers MUST be audited
+  // before being added here.
+  const _SAFE_HELPERS = new Set([
+    // views.js
+    'renderChartCard', 'renderTableView', 'renderHeatmapView',
+    'renderFattyAcidsView', 'renderCompareTable', 'renderChannelDetailPanel',
+    'renderChannelPills', 'renderConditionsHTML', 'renderLightTools',
+    // chat.js (escapeHTML returns sanitized text directly; renderMarkdown
+    // is the markdown.js sanitized full renderer)
+    'escapeHTML', 'renderMarkdown',
+  ]);
+  // Files explicitly named by the excluded CodeQL rule's surface — Greptile
+  // PR review on #188 called out parity with `views.js` for `chat.js` +
+  // `charts.js`. `charts.js` has zero innerHTML sites today (no-op). The
+  // other ~28 production files with innerHTML can be folded into this
+  // sweep as a separate follow-up; some (light-tools.js modal scaffolding,
+  // provider-panels.js) need either tighter heuristics or per-line audit
+  // annotations before the sweep is precision-clean for them.
+  const _SWEEP_FILES = ['views.js', 'chat.js', 'charts.js'];
+
+  function _sweepInnerHTML(filename, src) {
+    const lines = src.split('\n');
+    const sites = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (/\.innerHTML\s*\+?=/.test(lines[i])) sites.push({ lineNo: i + 1, line: lines[i] });
+    }
+    const unguarded = [];
+    for (const { lineNo, line } of sites) {
+      // Strip trailing line-comments so e.g. `innerHTML = '■'; // stop square`
+      // is recognized as a static literal in (a)/(b).
+      const _bare = line.replace(/\s*\/\/.*$/, '');
+      // (a) Empty/clear — `innerHTML = ''` or `innerHTML = "";`
+      if (/\.innerHTML\s*\+?=\s*(['"])\1\s*;?\s*$/.test(_bare)) continue;
+      // (b) Single-line static literal (no `${` interpolation). Multi-line
+      //     template literals fall through to (d) and need a sanitizer in
+      //     the surrounding window.
+      if (/\.innerHTML\s*\+?=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
+      // (c) Direct helper-function-call result, where the helper is in the
+      //     audited safe-helper whitelist. Tightened from "trust any function"
+      //     to "trust an explicitly-audited helper" — Greptile #188 review
+      //     flagged the loose form as a false-negative path.
+      const _fnCallMatch = _bare.match(/\.innerHTML\s*\+?=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
+      if (_fnCallMatch && _SAFE_HELPERS.has(_fnCallMatch[1])) continue;
+      // (d) Otherwise — sanitizer within ±100 lines (covers "build html
+      //     across many lines, assign at end" + "h is callback param" patterns).
+      //     Heuristic limitation: the proximity window can theoretically
+      //     associate a sanitizer with a different interpolation in the
+      //     same scope. A full per-`${...}` interpolation analysis would
+      //     close that path but adds significant complexity; the tradeoff
+      //     is documented in PR #188 review threads. This sweep is a
+      //     regression detector, not a complete proof — Greptile + manual
+      //     review remain the primary defense for the
+      //     unsafe-`${...}`-in-otherwise-safe-file class.
+      const start = Math.max(0, (lineNo - 1) - 100);
+      const end = Math.min(lines.length, lineNo + 100);
+      const win = lines.slice(start, end).join('\n');
+      if (_SANITIZER_RE.test(win)) continue;
+      unguarded.push(`${filename}:L${lineNo} — ${line.trim().slice(0, 100)}`);
+    }
+    return { siteCount: sites.length, unguarded };
+  }
+
+  const _allUnguarded = [];
+  let _totalSites = 0;
+  for (const filename of _SWEEP_FILES) {
+    const src = await fetchWithRetry(`js/${filename}`);
+    const { siteCount, unguarded } = _sweepInnerHTML(filename, src);
+    _totalSites += siteCount;
+    _allUnguarded.push(...unguarded);
+  }
+  // Site count drifts deliberately — sharp drop = refactor (good); spike
+  // = batch of new sites needing scrutiny.
+  assert(`production JS innerHTML sites tracked across ${_SWEEP_FILES.length} files (${_totalSites} found)`,
+    _totalSites > 0);
+  assert(
+    `every production JS innerHTML site is sanitized (escapeHTML/safeMarkerId/escapeAttr/applyInlineMarkdown/renderMarkdown) or a static-literal/helper-call`,
+    _allUnguarded.length === 0,
+    _allUnguarded.length ? `${_allUnguarded.length} unguarded:\n  ${_allUnguarded.slice(0, 8).join('\n  ')}` : ''
+  );
+
+  // ═══════════════════════════════════════
   // 4. Division by zero guards (utils.js)
   // ═══════════════════════════════════════
   console.log('%c 4. Division by Zero Guards ', 'font-weight:bold;color:#f59e0b');
