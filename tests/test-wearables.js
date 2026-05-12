@@ -640,6 +640,41 @@ return (async function() {
   assert('Hostile unit ("furlongs" for steps) is refused, not ingested',
     hostileRows.length === 0 || hostileRows[0].steps === null);
 
+  // ── #180 regression: lazy-load JSZip on first ZIP import ──
+  // index.html intentionally does NOT pre-load /vendor/jszip.min.js. A prior
+  // refactor exposed a "JSZip not loaded" throw on every ZIP import. The fix
+  // wraps JSZip access in a memoized loader. Pin the lazy-load pattern so a
+  // future refactor can't silently break it again.
+  const ahSrc = await fetch('/js/wearables-apple-health.js').then(r => r.text());
+  assert('Apple Health source defines loadJSZip lazy-loader',
+    /function\s+loadJSZip\s*\(\s*\)/.test(ahSrc));
+  assert('loadJSZip memoizes via module-level _jszipLoad',
+    /let\s+_jszipLoad\s*=\s*null/.test(ahSrc));
+  assert('loadJSZip injects /vendor/jszip.min.js script tag',
+    ahSrc.includes("'/vendor/jszip.min.js'"));
+  assert('extractExportXml awaits loadJSZip() instead of bare window.JSZip',
+    /const\s+JSZip\s*=\s*await\s+loadJSZip\(\)/.test(ahSrc));
+  assert('No bare "JSZip not loaded" throw left in extractExportXml',
+    !ahSrc.includes('JSZip not loaded — Apple Health'));
+  // Functional smoke: clear window.JSZip, route through importAppleHealthFile
+  // (the public entry point) with a tiny PK-header File whose name ends in
+  // .zip. JSZip will reject the malformed archive — we don't care about the
+  // parse outcome, only that loadJSZip set window.JSZip before the throw.
+  const _origJSZip = window.JSZip;
+  try {
+    delete window.JSZip;
+    const bogusZip = new File(
+      [new Uint8Array([0x50, 0x4b, 0x03, 0x04])],
+      'bogus.zip',
+      { type: 'application/zip' }
+    );
+    await ah.importAppleHealthFile(bogusZip).catch(() => {});
+    assert('First ZIP-path call sets window.JSZip via lazy-loader',
+      typeof window.JSZip !== 'undefined');
+  } finally {
+    if (_origJSZip) window.JSZip = _origJSZip;
+  }
+
   // ═══════════════════════════════════════
   // 15. Withings OAuth2 + measure-type decoding
   // ═══════════════════════════════════════

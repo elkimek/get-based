@@ -55,6 +55,68 @@ return (async function() {
   assert('Clipboard has navigator.clipboard guard', chatSrc.includes('if (!navigator.clipboard)'));
 
   // ═══════════════════════════════════════
+  // 3b. XSS — marker-key allowlist on inline-onclick interpolation sites
+  // ═══════════════════════════════════════
+  // PDF AI extraction is sanitized at the parse boundary by _sanitizeAIMarker,
+  // but legacy data and sync pulls can still feed unsafe keys into views.js
+  // — five entry points interpolate keys into onclick="…('${id}')" handlers.
+  // safeMarkerId in utils.js gates each one. If a refactor removes the guard
+  // wiring, the helper test stays green but the actual defense disappears —
+  // pin the wiring here.
+  console.log('%c 3b. Marker-key allowlist guards ', 'font-weight:bold;color:#f59e0b');
+
+  const utilsXssSrc = await fetchWithRetry('js/utils.js');
+  assert('utils.js exports safeMarkerId',
+    /export\s+function\s+safeMarkerId\s*\(/.test(utilsXssSrc));
+  assert('safeMarkerId proto-pollution guard set covers __proto__/constructor/prototype',
+    /_PROTO_PARTS\s*=\s*new\s+Set\s*\(\s*\[\s*['"]__proto__['"]\s*,\s*['"]constructor['"]\s*,\s*['"]prototype['"]\s*\]\s*\)/.test(utilsXssSrc));
+  assert('views.js imports safeMarkerId from utils',
+    /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(viewsSrc));
+  assert('showCategory guards on safeMarkerId(categoryKey) at function entry',
+    /export function showCategory[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+  assert('switchView guards on safeMarkerId(categoryKey) at function entry',
+    /export function switchView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+  assert('showDetailModal guards on safeMarkerId(id) at function entry',
+    /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(viewsSrc));
+  assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + category)',
+    /export function renderChartCard[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return\s*''/.test(viewsSrc));
+  assert('renderFattyAcidsView returns "" on unsafe categoryKey',
+    /export function renderFattyAcidsView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return\s*''/.test(viewsSrc));
+  // Inner-loop per-key filter on category chart-cards path
+  assert('showCategory chart-cards loop skips legacy customMarkers with unsafe keys',
+    /for\s*\(\s*const\s*\[\s*key\s*,\s*marker\s*\]\s+of\s+withData\s*\)\s*\{\s*[\s\S]{0,200}if\s*\(\s*!safeMarkerId\(key\)\s*\)\s*continue/.test(viewsSrc));
+
+  // Functional: prove the guards actually no-op on adversarial input.
+  // Need at least one navigation target so a "did anything change?" check
+  // is meaningful. Use a known-safe categoryKey for the control.
+  if (window.showCategory && window._labState?.importedData) {
+    window.showCategory('biochemistry');
+    await new Promise(r => setTimeout(r, 50));
+    const beforeHeading = document.querySelector('.category-header h2')?.textContent || null;
+    if (beforeHeading) {
+      window.showCategory("hormones');alert(1);//");
+      await new Promise(r => setTimeout(r, 30));
+      assert('showCategory no-ops on quote-injection categoryKey (heading unchanged)',
+        document.querySelector('.category-header h2')?.textContent === beforeHeading);
+      window.showCategory('__proto__');
+      await new Promise(r => setTimeout(r, 30));
+      assert('showCategory no-ops on __proto__ categoryKey (heading unchanged)',
+        document.querySelector('.category-header h2')?.textContent === beforeHeading);
+    }
+    const overlay = document.getElementById('modal-overlay');
+    const openBefore = !!overlay?.classList.contains('show');
+    window.showDetailModal("biochemistry_glucose');alert(2);//");
+    await new Promise(r => setTimeout(r, 30));
+    assert('showDetailModal does not open on quote-injection id',
+      !!overlay?.classList.contains('show') === openBefore);
+    assert('renderChartCard returns "" on quote-injection id',
+      window.renderChartCard("foo';evil('", { name: 'x', values: [1] }, ['2025-01-01']) === '');
+    const safeRender = window.renderChartCard('biochemistry_glucose', { name: 'Glucose', values: [5] }, ['2025-01-01']) || '';
+    assert('renderChartCard returns valid HTML on safe id',
+      safeRender.includes('biochemistry_glucose') && safeRender.includes('chart-card'));
+  }
+
+  // ═══════════════════════════════════════
   // 4. Division by zero guards (utils.js)
   // ═══════════════════════════════════════
   console.log('%c 4. Division by Zero Guards ', 'font-weight:bold;color:#f59e0b');
