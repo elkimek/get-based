@@ -117,60 +117,82 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
-  // 3c. Sweep guard — every views.js innerHTML site is sanitized
+  // 3c. Sweep guard — every innerHTML site in production JS is sanitized
   // ═══════════════════════════════════════
   // CodeQL's js/xss-through-dom is excluded repo-wide (.github/workflows/
   // codeql.yml) because it doesn't model escapeHTML() / safeMarkerId().
-  // This sweep replaces that signal locally — a future PR that adds an
-  // unsanitized innerHTML site fires immediately, before review.
+  // This sweep replaces that signal locally across every production JS
+  // file with innerHTML usage — a future PR adding an unsanitized site
+  // fires immediately, before review.
   //
-  // Categorize each `.innerHTML =` site:
+  // Categorize each `.innerHTML =` site per file:
   //   SAFE: empty/clear, pure static literal (no `${`), helper-fn call.
-  //   GUARDED: surrounding ±100 lines contain escapeHTML/safeMarkerId/
-  //            escapeAttr/applyInlineMarkdown.
-  //   UNGUARDED: fail with line + snippet.
+  //   GUARDED: surrounding ±100 lines contain a recognized sanitizer.
+  //   UNGUARDED: fail with file + line + snippet.
   console.log('%c 3c. innerHTML sanitizer sweep ', 'font-weight:bold;color:#f59e0b');
-  const _viewLines = viewsSrc.split('\n');
-  const _ihAssignments = [];
-  for (let i = 0; i < _viewLines.length; i++) {
-    if (/\.innerHTML\s*=/.test(_viewLines[i])) {
-      _ihAssignments.push({ lineNo: i + 1, line: _viewLines[i] });
-    }
-  }
-  // Tracking the count drifts deliberately — if it drops sharply, someone
-  // refactored away an innerHTML site (good); if it spikes, someone added
-  // a batch of new sites that need extra scrutiny.
-  assert(`views.js innerHTML site count tracked (${_ihAssignments.length} found)`, _ihAssignments.length > 0);
+
   // Recognized in-codebase HTML sanitizers / safe-rendering primitives.
-  // `applyInlineMarkdown` is the markdown.js sanitized renderer; `escapeAttr`
-  // is the attribute-context variant of escapeHTML. Adding a new sanitizer?
-  // Append it here AND make sure it actually escapes its input.
-  const _sanitizerCallRe = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown)\s*\(/;
-  const _unguarded = [];
-  for (const { lineNo, line } of _ihAssignments) {
-    // (a) Empty/clear — `innerHTML = ''` or `innerHTML = "";`
-    if (/\.innerHTML\s*=\s*(['"])\1\s*;?\s*$/.test(line)) continue;
-    // (b) Pure static literal on a single line — string or template literal
-    //     with no `${` interpolation. Multi-line template literals fall through
-    //     to (d) and need a sanitizer in the surrounding window.
-    if (/\.innerHTML\s*=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(line) && !line.includes('${')) continue;
-    // (c) Direct helper-function-call result. Trust the helper to sanitize
-    //     internally — the helper definition is in the same file or imported,
-    //     and would itself be subject to this sweep.
-    if (/\.innerHTML\s*=\s*(window\.|_)?[a-zA-Z][\w]*\s*\(/.test(line)) continue;
-    // (d) Otherwise — sanitizer must appear within ±100 lines (covers the
-    //     "build html in many lines, then assign at the end" pattern + the
-    //     "h is a callback param assigned from a helper" pattern).
-    const start = Math.max(0, (lineNo - 1) - 100);
-    const end = Math.min(_viewLines.length, lineNo + 100);
-    const win = _viewLines.slice(start, end).join('\n');
-    if (_sanitizerCallRe.test(win)) continue;
-    _unguarded.push(`L${lineNo}: ${line.trim().slice(0, 110)}`);
+  // Adding a new sanitizer? Append here AND verify it actually escapes
+  // its input. `applyInlineMarkdown` is the markdown.js sanitized
+  // renderer; `escapeAttr` is the attribute-context variant of escapeHTML;
+  // `renderMarkdown` is the markdown.js full renderer.
+  const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
+  // Files explicitly named by the excluded CodeQL rule's surface — Greptile
+  // PR review on #188 called out parity with `views.js` for `chat.js` +
+  // `charts.js`. `charts.js` has zero innerHTML sites today (no-op). The
+  // other ~28 production files with innerHTML can be folded into this
+  // sweep as a separate follow-up; some (light-tools.js modal scaffolding,
+  // provider-panels.js) need either tighter heuristics or per-line audit
+  // annotations before the sweep is precision-clean for them.
+  const _SWEEP_FILES = ['views.js', 'chat.js', 'charts.js'];
+
+  function _sweepInnerHTML(filename, src) {
+    const lines = src.split('\n');
+    const sites = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (/\.innerHTML\s*=/.test(lines[i])) sites.push({ lineNo: i + 1, line: lines[i] });
+    }
+    const unguarded = [];
+    for (const { lineNo, line } of sites) {
+      // Strip trailing line-comments so e.g. `innerHTML = '■'; // stop square`
+      // is recognized as a static literal in (a)/(b).
+      const _bare = line.replace(/\s*\/\/.*$/, '');
+      // (a) Empty/clear — `innerHTML = ''` or `innerHTML = "";`
+      if (/\.innerHTML\s*=\s*(['"])\1\s*;?\s*$/.test(_bare)) continue;
+      // (b) Single-line static literal (no `${` interpolation). Multi-line
+      //     template literals fall through to (d) and need a sanitizer in
+      //     the surrounding window.
+      if (/\.innerHTML\s*=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
+      // (c) Direct helper-function-call result. Trust the helper to sanitize
+      //     internally — the helper definition is itself subject to this sweep.
+      if (/\.innerHTML\s*=\s*(window\.|_)?[a-zA-Z][\w]*\s*\(/.test(_bare)) continue;
+      // (d) Otherwise — sanitizer within ±100 lines (covers "build html
+      //     across many lines, assign at end" + "h is callback param" patterns).
+      const start = Math.max(0, (lineNo - 1) - 100);
+      const end = Math.min(lines.length, lineNo + 100);
+      const win = lines.slice(start, end).join('\n');
+      if (_SANITIZER_RE.test(win)) continue;
+      unguarded.push(`${filename}:L${lineNo} — ${line.trim().slice(0, 100)}`);
+    }
+    return { siteCount: sites.length, unguarded };
   }
+
+  const _allUnguarded = [];
+  let _totalSites = 0;
+  for (const filename of _SWEEP_FILES) {
+    const src = await fetchWithRetry(`js/${filename}`);
+    const { siteCount, unguarded } = _sweepInnerHTML(filename, src);
+    _totalSites += siteCount;
+    _allUnguarded.push(...unguarded);
+  }
+  // Site count drifts deliberately — sharp drop = refactor (good); spike
+  // = batch of new sites needing scrutiny.
+  assert(`production JS innerHTML sites tracked across ${_SWEEP_FILES.length} files (${_totalSites} found)`,
+    _totalSites > 0);
   assert(
-    `every views.js innerHTML site is sanitized (escapeHTML/safeMarkerId/escapeAttr/applyInlineMarkdown) or a static-literal/helper-call`,
-    _unguarded.length === 0,
-    _unguarded.length ? `${_unguarded.length} unguarded:\n  ${_unguarded.slice(0, 5).join('\n  ')}` : ''
+    `every production JS innerHTML site is sanitized (escapeHTML/safeMarkerId/escapeAttr/applyInlineMarkdown/renderMarkdown) or a static-literal/helper-call`,
+    _allUnguarded.length === 0,
+    _allUnguarded.length ? `${_allUnguarded.length} unguarded:\n  ${_allUnguarded.slice(0, 8).join('\n  ')}` : ''
   );
 
   // ═══════════════════════════════════════
