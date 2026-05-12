@@ -426,6 +426,8 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   font-size: 14px; color: var(--text-secondary); line-height: 1.5;
 }
 .changelog-item::before { content: '–'; position: absolute; left: 0; color: var(--accent); font-weight: 600; }
+.changelog-item a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.changelog-item a:hover { text-decoration-thickness: 2px; }
 .modal .modal-unit {
   color: var(--text-muted); font-size: 14px; margin-bottom: 8px;
   /* Source-name + delta + trend separated by middle-dots; let them wrap
