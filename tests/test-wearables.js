@@ -311,10 +311,10 @@ return (async function() {
   }
   // Total canonicals: 14 (pre-#143) + 8 Body Scan body-comp + 6
   // additional /measure (fat_mass, spo2, body_temp, skin_temp,
-  // vascular_age, cardio_fitness) + 9 sleep-arch = 37. Each new
-  // canonical metric bumps this assertion intentionally so count
-  // drift surfaces in code review.
-  assert('DEFAULT_METRIC_ORDER is 36 metrics (full Withings coverage round)', reg.DEFAULT_METRIC_ORDER.length === 36);
+  // vascular_age, cardio_fitness) + 9 sleep-arch + 1 (vo2max from
+  // Apple Health) = 37. Each new canonical metric bumps this
+  // assertion intentionally so count drift surfaces in code review.
+  assert('DEFAULT_METRIC_ORDER is 37 metrics (Withings + Apple VO₂max)', reg.DEFAULT_METRIC_ORDER.length === 37);
   // Biometric metrics must be in the default order so the summary pipeline
   // iterates them for manual / Withings / Fitbit rows.
   assert('DEFAULT_METRIC_ORDER includes weight', reg.DEFAULT_METRIC_ORDER.includes('weight'));
@@ -639,6 +639,33 @@ return (async function() {
   const hostileRows = ah.parseAppleHealthXml(hostileXml);
   assert('Hostile unit ("furlongs" for steps) is refused, not ingested',
     hostileRows.length === 0 || hostileRows[0].steps === null);
+
+  // ── VO₂max ingestion (HKQuantityTypeIdentifierVO2Max) ──
+  // Apple Watch writes VO₂max during outdoor walks/runs. Apple's unit string
+  // is "mL/min·kg" — semantically the canonical mL/kg/min (same dimensional
+  // quantity, transposed factors). Distinct from Withings cardio_fitness
+  // (proprietary 0-100 score) — different scales, different cards.
+  // Aggregator means same-day samples (rare but possible: back-to-back walks).
+  const vo2Xml = '<?xml version="1.0"?><HealthData>' +
+    '<Record type="HKQuantityTypeIdentifierVO2Max" unit="mL/min·kg" startDate="2026-04-20 09:00:00 +0200" value="42.5"/>' +
+    '<Record type="HKQuantityTypeIdentifierVO2Max" unit="mL/min·kg" startDate="2026-04-20 18:00:00 +0200" value="43.5"/>' +
+    '<Record type="HKQuantityTypeIdentifierVO2Max" unit="mL/kg/min" startDate="2026-04-21 08:00:00 +0200" value="44.2"/>' +
+    '</HealthData>';
+  const vo2Rows = ah.parseAppleHealthXml(vo2Xml);
+  const vo2Day1 = vo2Rows.find(r => r.date === '2026-04-20');
+  const vo2Day2 = vo2Rows.find(r => r.date === '2026-04-21');
+  assert('VO₂max ingested from HKQuantityTypeIdentifierVO2Max (Apple "mL/min·kg" notation, same-day mean)',
+    vo2Day1?.vo2max === 43);
+  assert('VO₂max accepts canonical "mL/kg/min" notation as identity',
+    vo2Day2?.vo2max === 44.2);
+  // Hostile-unit guard parity with steps — a bogus unit must NOT silently
+  // land on the canonical mL/kg/min scale.
+  const vo2HostileXml = '<?xml version="1.0"?><HealthData>' +
+    '<Record type="HKQuantityTypeIdentifierVO2Max" unit="furlongs/s" startDate="2026-04-22 09:00:00 +0200" value="42"/>' +
+    '</HealthData>';
+  const vo2HostileRows = ah.parseAppleHealthXml(vo2HostileXml);
+  assert('VO₂max rejects unknown unit (no canonical-scale silent fallback)',
+    vo2HostileRows.length === 0 || vo2HostileRows[0].vo2max === null);
 
   // ═══════════════════════════════════════
   // 15. Withings OAuth2 + measure-type decoding
