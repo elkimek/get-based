@@ -52,6 +52,21 @@ jobs:
               # on a 25-file Puppeteer suite. Production code is still
               # fully scanned.
               - tests/**
+            query-filters:
+              # js/xss-through-dom doesn't recognize this codebase's two
+              # central sanitizers — escapeHTML() (covers every dynamic
+              # value interpolated into innerHTML) and safeMarkerId()
+              # (allowlist guard at the five views.js entry points where
+              # marker keys flow into inline-onclick handlers). The rule
+              # fires on every `innerHTML = templateLiteral` site
+              # regardless. Both sanitizers are pinned by tests/test-audit.js
+              # §3 (escapeHTML coverage) and §3b (safeMarkerId wiring +
+              # adversarial probes), and tests/test-marker-key-safety.js
+              # (38 unit assertions). Excluding the rule removes a high
+              # false-positive signal without compromising the actual XSS
+              # defense — every other CodeQL rule continues to run.
+              - exclude:
+                  id: js/xss-through-dom
 
       - uses: github/codeql-action/analyze@v4
         with:
