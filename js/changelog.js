@@ -5,6 +5,24 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.2', date: '2026-05-12', title: 'Readable changelog links',
+    items: [
+      '<b>Hyperlinks in the What\'s New modal are now visible.</b> Links rendered as the browser-default blue and disappeared into the dark-theme background. They now use the same accent-blue + underline as chat-message and summary-modal links.',
+    ]
+  },
+  {
+    version: '1.7.1', date: '2026-05-12', title: 'Apple Health ZIP fix, encrypted-backup recovery, security hardening',
+    // Carries a critical user action (re-export the encrypted backup), so
+    // override the patch-skip in maybeShowChangelog and force the modal
+    // even for users on the same major.minor (1.7.0 → 1.7.1).
+    forceShow: true,
+    items: [
+      '<b>Apple Health ZIP imports work again.</b> Dropping an <code>export.zip</code> on Settings → Wearables → Apple Health was throwing "JSZip not loaded" — direct <code>.xml</code> drops were unaffected, but the ZIP path is the one most people use. The vendor unzip bundle now lazy-loads on first use. Thanks to <a href="https://github.com/Savi-1">@Savi-1</a> for the patch.',
+      '<b>Encrypted backups, fixed — please re-export.</b> If you had encryption-at-rest turned on, every backup since v1.6.x silently exported <code>profiles: []</code> — a ~1 KB file with only your global settings, no profile data. Manual export, auto-backup, and folder-backup were all affected. Backups taken before today on encrypted installs are not recoverable; <b>strongly recommend re-exporting a fresh backup after updating.</b> Going forward, backups round-trip your profile data correctly. Thanks to <a href="https://github.com/Savi-1">@Savi-1</a> for the patch.',
+      '<b>Security hardening.</b> Tightened the allowlist for marker keys interpolated into inline click handlers — defense-in-depth against a theoretical XSS via a maliciously-crafted lab PDF. PDF AI extraction was already sanitized at the parse boundary; this adds the same guard at the render boundary so legacy data and sync pulls can\'t slip through either.',
+    ]
+  },
+  {
     version: '1.7.0', date: '2026-05-12', title: 'Medical History, per-value notes, smoother manual entry',
     items: [
       '<b>The Medical Conditions card is now Medical History</b> — same place, broader scope. Beneath your own diagnoses, a new <b>Family history</b> subsection captures first-degree relatives plus grandparents (mother, father, sibling, child, maternal/paternal grandmothers and grandfathers). Each entry takes a condition, optional age of onset, and an optional note. Family history reframes risk interpretation — a father\'s heart attack at 52 makes a borderline LDL more actionable, and the AI sees both your own diagnoses and what runs in the family.',
@@ -206,6 +224,19 @@ export function closeChangelog() {
   markChangelogSeen();
 }
 
+// Compare two semver strings — returns true when `a` is strictly newer
+// than `b`. Tolerant of missing parts (treats "1.7" as "1.7.0").
+function _semverGt(a, b) {
+  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const ai = pa[i] || 0, bi = pb[i] || 0;
+    if (ai > bi) return true;
+    if (ai < bi) return false;
+  }
+  return false;
+}
+
 export function maybeShowChangelog() {
   const seen = getSeenVersion();
   // First visit — no changelog, just mark as seen
@@ -213,7 +244,18 @@ export function maybeShowChangelog() {
   // Only show What's New on minor/major bumps, not patch
   if (getMajorMinor(seen) !== getMajorMinor(window.APP_VERSION)) {
     openChangelog(false);
+    return;
   }
+  // Patch-level bumps normally don't auto-show, but a maintainer can flag
+  // an entry as forceShow when it carries a critical user-action notice
+  // (e.g. "re-export your encrypted backup" in v1.7.1). Scan all entries
+  // newer than the user's seen version — a later non-forceShow patch must
+  // not shadow an earlier critical entry. Idempotent because closeChangelog
+  // advances seen to the current APP_VERSION.
+  const hasForceShowAheadOfSeen = CHANGELOG.some(
+    e => e && e.forceShow && _semverGt(e.version, seen)
+  );
+  if (hasForceShowAheadOfSeen) openChangelog(false);
 }
 
 Object.assign(window, { openChangelog, closeChangelog, maybeShowChangelog });
