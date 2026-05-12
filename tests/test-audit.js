@@ -137,6 +137,21 @@ return (async function() {
   // renderer; `escapeAttr` is the attribute-context variant of escapeHTML;
   // `renderMarkdown` is the markdown.js full renderer.
   const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
+  // Known-safe HTML-returning helpers — each verified to either (a) use
+  // escapeHTML/safeMarkerId/escapeAttr internally or (b) interpolate only
+  // hardcoded strings + numeric values. Rule (c) trusts these by name
+  // instead of trusting any function call, closing the "what if the
+  // helper is unsafe?" false-negative. New helpers MUST be audited
+  // before being added here.
+  const _SAFE_HELPERS = new Set([
+    // views.js
+    'renderChartCard', 'renderTableView', 'renderHeatmapView',
+    'renderFattyAcidsView', 'renderCompareTable', 'renderChannelDetailPanel',
+    'renderChannelPills', 'renderConditionsHTML', 'renderLightTools',
+    // chat.js (escapeHTML returns sanitized text directly; renderMarkdown
+    // is the markdown.js sanitized full renderer)
+    'escapeHTML', 'renderMarkdown',
+  ]);
   // Files explicitly named by the excluded CodeQL rule's surface — Greptile
   // PR review on #188 called out parity with `views.js` for `chat.js` +
   // `charts.js`. `charts.js` has zero innerHTML sites today (no-op). The
@@ -163,11 +178,22 @@ return (async function() {
       //     template literals fall through to (d) and need a sanitizer in
       //     the surrounding window.
       if (/\.innerHTML\s*=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
-      // (c) Direct helper-function-call result. Trust the helper to sanitize
-      //     internally — the helper definition is itself subject to this sweep.
-      if (/\.innerHTML\s*=\s*(window\.|_)?[a-zA-Z][\w]*\s*\(/.test(_bare)) continue;
+      // (c) Direct helper-function-call result, where the helper is in the
+      //     audited safe-helper whitelist. Tightened from "trust any function"
+      //     to "trust an explicitly-audited helper" — Greptile #188 review
+      //     flagged the loose form as a false-negative path.
+      const _fnCallMatch = _bare.match(/\.innerHTML\s*=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
+      if (_fnCallMatch && _SAFE_HELPERS.has(_fnCallMatch[1])) continue;
       // (d) Otherwise — sanitizer within ±100 lines (covers "build html
       //     across many lines, assign at end" + "h is callback param" patterns).
+      //     Heuristic limitation: the proximity window can theoretically
+      //     associate a sanitizer with a different interpolation in the
+      //     same scope. A full per-`${...}` interpolation analysis would
+      //     close that path but adds significant complexity; the tradeoff
+      //     is documented in PR #188 review threads. This sweep is a
+      //     regression detector, not a complete proof — Greptile + manual
+      //     review remain the primary defense for the
+      //     unsafe-`${...}`-in-otherwise-safe-file class.
       const start = Math.max(0, (lineNo - 1) - 100);
       const end = Math.min(lines.length, lineNo + 100);
       const win = lines.slice(start, end).join('\n');
