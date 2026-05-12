@@ -3648,7 +3648,10 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
   }
   let html = `<div class="data-table-wrapper"><table class="data-table"><thead><tr>
     <th>Biomarker</th><th>Unit</th><th>Reference</th>`;
-  for (const d of labels) html += `<th>${d}</th>`;
+  // Column headers are date labels derived from imported entries — validated
+  // YYYY-MM-DD upstream, but escape defensively so CodeQL's taint analysis
+  // (js/xss-through-dom) sees a sanitized boundary at the HTML output.
+  for (const d of labels) html += `<th>${escapeHTML(d)}</th>`;
   html += `<th>Trend</th><th>Range</th></tr></thead><tbody>`;
   for (const [key, marker] of markerEntries) {
     const id = categoryKey ? categoryKey + '_' + key : '';
@@ -3705,7 +3708,8 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
     return `<div class="heatmap-wrapper"><div style="padding:32px;text-align:center;color:var(--text-muted)">No data yet for this category. Use the sidebar to add a value or import a PDF.</div></div>`;
   }
   let html = `<div class="heatmap-wrapper"><table class="heatmap-table"><thead><tr><th>Biomarker</th>`;
-  for (const d of labels) html += `<th>${d}</th>`;
+  // See renderTableView — escape date labels at the HTML boundary.
+  for (const d of labels) html += `<th>${escapeHTML(d)}</th>`;
   html += `</tr></thead><tbody>`;
   for (const [key, marker] of markerEntries) {
     const id = categoryKey + "_" + key;
@@ -3715,7 +3719,7 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
       const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
-      const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${v !== null ? formatValue(v) : 'no value'}`;
+      const cellLabel = `${escapeHTML(marker.name)} ${escapeHTML(labels[i] || '')}: ${v !== null ? formatValue(v) : 'no value'}`;
       html += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" onclick="showDetailModal('${id}')">${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
     html += `</tr>`;
