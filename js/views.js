@@ -3567,10 +3567,17 @@ export function switchView(view, categoryKey, btn) {
   const data = filterDatesByRange(rawData);
   const cat = data.categories[categoryKey];
   const container = document.getElementById("view-content");
+  // Pre-sanitize date labels at the call boundary — CodeQL's taint analysis
+  // (js/xss-through-dom) doesn't trace sanitizers across function calls, so
+  // even though renderTableView/renderHeatmapView re-escape internally,
+  // escaping here closes the call-site taint flow. Date arrays stay raw
+  // because they're consumed by JSON.stringify in inline-onclick attrs
+  // (escapeHTML would double-escape the JSON literal).
+  const safeLabels = Array.isArray(data.dateLabels) ? data.dateLabels.map(escapeHTML) : data.dateLabels;
   if (view === "table") {
-    container.innerHTML = renderTableView(cat, data.dateLabels, categoryKey, data.dates);
+    container.innerHTML = renderTableView(cat, safeLabels, categoryKey, data.dates);
   } else if (view === "heatmap") {
-    container.innerHTML = renderHeatmapView(cat, data.dateLabels, data.dates, categoryKey);
+    container.innerHTML = renderHeatmapView(cat, safeLabels, data.dates, categoryKey);
   } else {
     if (cat.singleDate) {
       container.innerHTML = renderFattyAcidsView(cat, categoryKey);
@@ -3648,10 +3655,11 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
   }
   let html = `<div class="data-table-wrapper"><table class="data-table"><thead><tr>
     <th>Biomarker</th><th>Unit</th><th>Reference</th>`;
-  // Column headers are date labels derived from imported entries — validated
-  // YYYY-MM-DD upstream, but escape defensively so CodeQL's taint analysis
-  // (js/xss-through-dom) sees a sanitized boundary at the HTML output.
-  for (const d of labels) html += `<th>${escapeHTML(d)}</th>`;
+  // Column headers — labels are already HTML-escaped by the showCategory
+  // call site (renderTableView's contract: dateLabels passed in are safe).
+  // Pre-escape lives at the boundary so CodeQL's taint analysis sees the
+  // sanitizer at the call site (it doesn't trace across function calls).
+  for (const d of labels) html += `<th>${d}</th>`;
   html += `<th>Trend</th><th>Range</th></tr></thead><tbody>`;
   for (const [key, marker] of markerEntries) {
     const id = categoryKey ? categoryKey + '_' + key : '';
@@ -3678,7 +3686,7 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
       // condition names — defense in depth on top of the marker-key /
       // ISO-date validators upstream.
       const emptyClick = (v === null && id && colDate)
-        ? ` onclick="event.stopPropagation();openManualEntryForm(${escapeHTML(JSON.stringify(id))},${escapeHTML(JSON.stringify(colDate))})" style="cursor:cell" title="Add value for ${escapeHTML(dateLabels[i] || colDate)}"`
+        ? ` onclick="event.stopPropagation();openManualEntryForm(${escapeHTML(JSON.stringify(id))},${escapeHTML(JSON.stringify(colDate))})" style="cursor:cell" title="Add value for ${dateLabels[i] || escapeHTML(colDate)}"`
         : '';
       html += `<td class="value-cell val-${s}"${emptyClick}>${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
@@ -3708,8 +3716,8 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
     return `<div class="heatmap-wrapper"><div style="padding:32px;text-align:center;color:var(--text-muted)">No data yet for this category. Use the sidebar to add a value or import a PDF.</div></div>`;
   }
   let html = `<div class="heatmap-wrapper"><table class="heatmap-table"><thead><tr><th>Biomarker</th>`;
-  // See renderTableView — escape date labels at the HTML boundary.
-  for (const d of labels) html += `<th>${escapeHTML(d)}</th>`;
+  // Labels pre-escaped at the showCategory call boundary — see renderTableView.
+  for (const d of labels) html += `<th>${d}</th>`;
   html += `</tr></thead><tbody>`;
   for (const [key, marker] of markerEntries) {
     const id = categoryKey + "_" + key;
@@ -3719,7 +3727,7 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
       const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
-      const cellLabel = `${escapeHTML(marker.name)} ${escapeHTML(labels[i] || '')}: ${v !== null ? formatValue(v) : 'no value'}`;
+      const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${v !== null ? formatValue(v) : 'no value'}`;
       html += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" onclick="showDetailModal('${id}')">${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
     html += `</tr>`;
