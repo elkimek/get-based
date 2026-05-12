@@ -201,6 +201,45 @@ export function buildBackupSnapshot() {
 export async function buildFullBackupSnapshot() {
   const snap = buildBackupSnapshot();
   if (!snap) return null;
+
+  // buildBackupSnapshot is sync — when the profile list is encrypted (v1:),
+  // it can't enumerate IDs, and the localStorage fallback finds nothing
+  // because v1.6.x stores `*-imported` in IDB. Re-enumerate from the
+  // decrypted profile list here.
+  if (snap.profiles.length === 0 && snap.profileList && isEncryptedValue(snap.profileList)) {
+    let profileList = null;
+    try {
+      const decrypted = await window.encryptedGetItem?.('labcharts-profiles');
+      if (decrypted) profileList = JSON.parse(decrypted);
+    } catch {}
+    if (Array.isArray(profileList)) {
+      for (const p of profileList) {
+        const keys = {};
+        const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
+        if (imported) keys.imported = imported;
+        const chat = localStorage.getItem(`labcharts-${p.id}-chat`);
+        if (chat) keys.chat = chat;
+        const threadIndex = localStorage.getItem(`labcharts-${p.id}-chat-threads`);
+        if (threadIndex) {
+          keys['chat-threads'] = threadIndex;
+          try {
+            const threads = JSON.parse(threadIndex);
+            for (const t of threads) {
+              const tk = `labcharts-${p.id}-chat-t_${t.id}`;
+              const tv = localStorage.getItem(tk);
+              if (tv !== null) keys[`chat-t_${t.id}`] = tv;
+            }
+          } catch {}
+        }
+        for (const suffix of PER_PROFILE_PREF_SUFFIXES) {
+          const v = localStorage.getItem(`labcharts-${p.id}-${suffix}`);
+          if (v !== null) keys[suffix] = v;
+        }
+        snap.profiles.push({ profileId: p.id, name: p.name, keys });
+      }
+    }
+  }
+
   for (const p of snap.profiles || []) {
     if (p.keys && p.keys.imported == null) {
       const key = profileStorageKey(p.profileId, 'imported');
