@@ -5,6 +5,12 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.2', date: '2026-05-12', title: 'Readable changelog links',
+    items: [
+      '<b>Hyperlinks in the What\'s New modal are now visible.</b> Links rendered as the browser-default blue and disappeared into the dark-theme background. They now use the same accent-blue + underline as chat-message and summary-modal links.',
+    ]
+  },
+  {
     version: '1.7.1', date: '2026-05-12', title: 'Apple Health ZIP fix, encrypted-backup recovery, security hardening',
     // Carries a critical user action (re-export the encrypted backup), so
     // override the patch-skip in maybeShowChangelog and force the modal
@@ -242,13 +248,14 @@ export function maybeShowChangelog() {
   }
   // Patch-level bumps normally don't auto-show, but a maintainer can flag
   // an entry as forceShow when it carries a critical user-action notice
-  // (e.g. "re-export your encrypted backup" in v1.7.1). Fire only if the
-  // latest entry actually advances past the user's seen version, so users
-  // who already opened the modal don't see it again on every page load.
-  const latest = CHANGELOG[0];
-  if (latest && latest.forceShow && _semverGt(latest.version, seen)) {
-    openChangelog(false);
-  }
+  // (e.g. "re-export your encrypted backup" in v1.7.1). Scan all entries
+  // newer than the user's seen version — a later non-forceShow patch must
+  // not shadow an earlier critical entry. Idempotent because closeChangelog
+  // advances seen to the current APP_VERSION.
+  const hasForceShowAheadOfSeen = CHANGELOG.some(
+    e => e && e.forceShow && _semverGt(e.version, seen)
+  );
+  if (hasForceShowAheadOfSeen) openChangelog(false);
 }
 
 Object.assign(window, { openChangelog, closeChangelog, maybeShowChangelog });
