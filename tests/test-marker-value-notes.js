@@ -120,15 +120,10 @@ return (async function() {
   assert('deleteMarkerValue drops the per-value note for the same (date, marker)',
     /deleteMarkerValue[\s\S]{0,2000}delete state\.importedData\.markerValueNotes\[dotKey \+ ':' \+ date\]/.test(viewsSrc));
 
-  // Insulin dual-write parity: the value mirrors hormones.insulin → diabetes.insulin_d,
-  // so the per-value note must mirror too (otherwise notes don't show on the
-  // diabetes view + orphans accumulate on delete cycles).
-  assert('saveManualEntry mirrors the per-value note for the insulin dual-mapping',
-    /dotKey === 'hormones\.insulin'[\s\S]{0,500}mirrorNoteKey = 'diabetes\.insulin_d:' \+ date[\s\S]{0,200}state\.importedData\.markerValueNotes\[mirrorNoteKey\] = noteText/.test(viewsSrc));
-  assert('saveManualEntry clears the mirror note when the user empties the note field',
-    /dotKey === 'hormones\.insulin'[\s\S]{0,800}delete state\.importedData\.markerValueNotes\[mirrorNoteKey\]/.test(viewsSrc));
-  assert('deleteMarkerValue cleans the mirror note for the insulin dual-mapping',
-    /dotKey === 'hormones\.insulin'[\s\S]{0,800}delete state\.importedData\.markerValueNotes\['diabetes\.insulin_d:' \+ date\]/.test(viewsSrc));
+  // Insulin dual-mapping parity: the value mirrors hormones.insulin ↔
+  // diabetes.insulin_d, so the per-value note must mirror too. Bidirectional
+  // — user may save / edit / delete via either category page (Greptile P1
+  // 2026-05-12). Asserted via _insulinMirrorNoteKey helper presence below.
 
   // 500-char cap defends against runaway paste (matches the wearable note cap).
   assert('saveManualEntry caps the note at 500 chars before storing',
@@ -136,13 +131,28 @@ return (async function() {
   assert('editValueNote caps the note at 500 chars before storing',
     /editValueNote[\s\S]{0,1200}result\.length > 500 \? result\.slice\(0, 500\) : result/.test(viewsSrc));
 
-  // editValueNote + deleteValueNote also mirror the insulin dual-mapping
-  // (otherwise notes added/removed via the inline `+ note` affordance
-  // wouldn't reach the diabetes.insulin_d view).
-  assert('editValueNote mirrors the note to diabetes.insulin_d for insulin',
-    /editValueNote[\s\S]{0,1500}dotKey === 'hormones\.insulin'[\s\S]{0,300}state\.importedData\.markerValueNotes\['diabetes\.insulin_d:' \+ date\] = capped/.test(viewsSrc));
+  // editValueNote + deleteValueNote also route through _insulinMirrorNoteKey
+  // — see the bidirectional helper asserts below.
   assert('deleteValueNote cleans the mirror note for insulin',
-    /deleteValueNote[\s\S]{0,800}dotKey === 'hormones\.insulin'[\s\S]{0,200}delete state\.importedData\.markerValueNotes\['diabetes\.insulin_d:' \+ date\]/.test(viewsSrc));
+    /deleteValueNote[\s\S]{0,800}_insulinMirrorNoteKey\(dotKey, date\)/.test(viewsSrc));
+
+  // Greptile P1: insulin note mirror must be BIDIRECTIONAL — user may
+  // edit/delete via the hormones panel OR the diabetes panel.
+  assert('_insulinMirrorNoteKey helper defined and bidirectional',
+    /_insulinMirrorNoteKey\(dotKey, date\)/.test(viewsSrc) &&
+    /if \(dotKey === 'hormones\.insulin'\) return 'diabetes\.insulin_d:' \+ date/.test(viewsSrc) &&
+    /if \(dotKey === 'diabetes\.insulin_d'\) return 'hormones\.insulin:' \+ date/.test(viewsSrc));
+  assert('saveManualEntry uses bidirectional mirror helper',
+    /saveManualEntry[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(viewsSrc));
+  assert('deleteMarkerValue uses bidirectional mirror helper',
+    /deleteMarkerValue[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(viewsSrc));
+  assert('editValueNote uses bidirectional mirror helper',
+    /editValueNote[\s\S]{0,1500}_insulinMirrorNoteKey\(dotKey, date\)/.test(viewsSrc));
+
+  // CodeQL js/xss-through-dom: empty-cell onclick must use JSON.stringify
+  // so interpolated id/date survive the HTML-attr → JS-string round-trip.
+  assert('Empty-cell onclick uses JSON.stringify(id), JSON.stringify(colDate)',
+    /openManualEntryForm\(\$\{escapeHTML\(JSON\.stringify\(id\)\)\},\$\{escapeHTML\(JSON\.stringify\(colDate\)\)\}\)/.test(viewsSrc));
 
   // ═══════════════════════════════════════
   // 7. Value-card rendering

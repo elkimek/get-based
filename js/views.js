@@ -3668,8 +3668,14 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
       // Empty cells: click \u2192 add a value for THIS column's date (not today).
       // Skip for singleDate categories where the "date" is a synthetic label.
       const colDate = (dates && !cat.singleDate) ? dates[i] : null;
+      // JSON.stringify + escapeHTML so the interpolated values survive
+      // the HTML-attribute → JS-string-literal round-trip even if they
+      // ever contain quotes or HTML meta-chars (CodeQL js/xss-through-dom).
+      // Same trick as filterConditionSuggestions for apostrophe-bearing
+      // condition names — defense in depth on top of the marker-key /
+      // ISO-date validators upstream.
       const emptyClick = (v === null && id && colDate)
-        ? ` onclick="event.stopPropagation();openManualEntryForm('${id}','${colDate}')" style="cursor:cell" title="Add value for ${escapeHTML(dateLabels[i] || colDate)}"`
+        ? ` onclick="event.stopPropagation();openManualEntryForm(${escapeHTML(JSON.stringify(id))},${escapeHTML(JSON.stringify(colDate))})" style="cursor:cell" title="Add value for ${escapeHTML(dateLabels[i] || colDate)}"`
         : '';
       html += `<td class="value-cell val-${s}"${emptyClick}>${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
@@ -4186,6 +4192,17 @@ export function openManualEntryForm(id, prefillDate) {
   }, 50);
 }
 
+// Insulin is stored under hormones.insulin but also surfaced on the diabetes
+// category as diabetes.insulin_d (so the marker shows up in both contexts).
+// Per-value notes need to mirror across both keys regardless of which
+// category the user is editing from. Returns the OTHER key (if any) so the
+// caller can write the same note value to both sides.
+function _insulinMirrorNoteKey(dotKey, date) {
+  if (dotKey === 'hormones.insulin') return 'diabetes.insulin_d:' + date;
+  if (dotKey === 'diabetes.insulin_d') return 'hormones.insulin:' + date;
+  return null;
+}
+
 export async function saveManualEntry(id, opts = {}) {
   const { keepOpen = false } = opts;
   const dateInput = document.getElementById('me-date');
@@ -4212,7 +4229,7 @@ export async function saveManualEntry(id, opts = {}) {
     const refMin = marker.refMin, refMax = marker.refMax;
     let warn = null;
     if (value < 0) warn = `${value} is negative — values are usually 0 or positive.`;
-    else if (refMax != null && value > refMax * 10) warn = `${value} is much higher than the reference range (${refMin ?? '?'}–${refMax} ${marker.unit}). Did you enter the right unit?`;
+    else if (refMax != null && refMax > 0 && value > refMax * 10) warn = `${value} is much higher than the reference range (${refMin ?? '?'}–${refMax} ${marker.unit}). Did you enter the right unit?`;
     else if (refMin != null && refMin > 0 && value < refMin / 10) warn = `${value} is much lower than the reference range (${refMin}–${refMax ?? '?'} ${marker.unit}). Did you enter the right unit?`;
     if (warn && !await showConfirmDialog(`${warn}\n\nSave anyway?`)) return;
   }
@@ -4246,12 +4263,15 @@ export async function saveManualEntry(id, opts = {}) {
   if (dotKey === 'hormones.insulin') {
     entry.markers['diabetes.insulin_d'] = storedValue;
     entry.markerSources['diabetes.insulin_d'] = entry.markerSources[dotKey];
-    // Mirror the per-value note too — same reading, two views. Without this,
-    // a note added on hormones.insulin wouldn't show on the diabetes.insulin_d
-    // card, and orphans would accumulate over delete cycles.
-    const mirrorNoteKey = 'diabetes.insulin_d:' + date;
-    if (noteText) state.importedData.markerValueNotes[mirrorNoteKey] = noteText;
-    else delete state.importedData.markerValueNotes[mirrorNoteKey];
+  }
+  // Mirror the per-value note across the insulin dual-mapping — same reading,
+  // two views. Bidirectional: user may save via either category page. Without
+  // this, a note added on one side wouldn't show on the other, and orphans
+  // would accumulate over delete cycles.
+  const insulinNoteMirror = _insulinMirrorNoteKey(dotKey, date);
+  if (insulinNoteMirror) {
+    if (noteText) state.importedData.markerValueNotes[insulinNoteMirror] = noteText;
+    else delete state.importedData.markerValueNotes[insulinNoteMirror];
   }
   recalculateHOMAIR(entry);
   saveImportedData();
@@ -4442,8 +4462,13 @@ export async function deleteMarkerValue(id, date) {
     if (dotKey === 'hormones.insulin') {
       delete entry.markers['diabetes.insulin_d'];
       if (entry.markerSources) delete entry.markerSources['diabetes.insulin_d'];
-      if (state.importedData.markerValueNotes) delete state.importedData.markerValueNotes['diabetes.insulin_d:' + date];
       recalculateHOMAIR(entry);
+    }
+    // Mirror the note delete in both directions — user may delete via either
+    // category. Forward-only would leave orphans on the other side.
+    const mirrorKey = _insulinMirrorNoteKey(dotKey, date);
+    if (mirrorKey && state.importedData.markerValueNotes) {
+      delete state.importedData.markerValueNotes[mirrorKey];
     }
     // Remove entry entirely if no markers left
     if (Object.keys(entry.markers).length === 0) {
@@ -4587,11 +4612,11 @@ export async function editValueNote(id, date) {
   // into IDB, sync payloads, and AI context.
   const capped = result.length > 500 ? result.slice(0, 500) : result;
   state.importedData.markerValueNotes[noteKey] = capped;
-  // Mirror on the insulin dual-mapping so the diabetes.insulin_d view shows
-  // the same note for the same reading.
-  if (dotKey === 'hormones.insulin') {
-    state.importedData.markerValueNotes['diabetes.insulin_d:' + date] = capped;
-  }
+  // Mirror across the insulin dual-mapping in BOTH directions so a note
+  // edited via diabetes.insulin_d also lands on hormones.insulin and vice
+  // versa.
+  const mirror = _insulinMirrorNoteKey(dotKey, date);
+  if (mirror) state.importedData.markerValueNotes[mirror] = capped;
   saveImportedData();
   showDetailModal(id);
 }
@@ -4603,10 +4628,9 @@ export async function deleteValueNote(id, date) {
   const noteKey = dotKey + ':' + date;
   if (state.importedData.markerValueNotes && state.importedData.markerValueNotes[noteKey]) {
     delete state.importedData.markerValueNotes[noteKey];
-    // Mirror cleanup for insulin dual-mapping (same as saveManualEntry).
-    if (dotKey === 'hormones.insulin') {
-      delete state.importedData.markerValueNotes['diabetes.insulin_d:' + date];
-    }
+    // Mirror cleanup in BOTH directions across the insulin dual-mapping.
+    const mirror = _insulinMirrorNoteKey(dotKey, date);
+    if (mirror) delete state.importedData.markerValueNotes[mirror];
     saveImportedData();
     showDetailModal(id);
   }

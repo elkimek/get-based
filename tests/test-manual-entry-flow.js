@@ -35,6 +35,10 @@ return (async function() {
 
   assert('Sanity check triggers when value > refMax * 10',
     /value > refMax \* 10/.test(viewsSrc));
+  // Greptile P2: without `refMax > 0` guard, `refMax === 0` makes the
+  // multiplication zero and every positive value triggers the warning.
+  assert('Sanity check is guarded against refMax === 0 (no spurious warn)',
+    /refMax != null && refMax > 0 && value > refMax \* 10/.test(viewsSrc));
   assert('Sanity check triggers when value < refMin / 10 (and refMin > 0)',
     /refMin > 0 && value < refMin \/ 10/.test(viewsSrc));
   assert('Sanity check rejects negative values',
