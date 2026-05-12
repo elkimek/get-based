@@ -86,7 +86,12 @@ const TEST_FILES = [
   'tests/test-data-merge.js',
   'tests/test-blob-storage.js',
   'tests/test-audit-fixes.js',
-  'tests/test-v1-6-shipped.js'
+  'tests/test-v1-6-shipped.js',
+  'tests/test-marker-value-notes.js',
+  'tests/test-family-history.js',
+  'tests/test-manual-entry-flow.js',
+  'tests/test-table-heatmap-empty.js',
+  'tests/test-wearables-bp-merge.js'
 ];
 
 const PORT = process.env.PORT || 8000;

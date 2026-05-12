@@ -312,13 +312,53 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
     ctx += `[/section:markerNotes]\n\n`;
   }
 
-  // ── 6. Medical Conditions ("what medical context applies?") ──
+  // ── 5c. Per-Value Notes ──
+  // Context attached to a single (marker, date) reading — e.g. "fasted 14h",
+  // "retake of low value", "different lab". Distinct from markerNotes (which
+  // are overall per-marker thoughts) — these reframe a specific data point.
+  const mvNotes = state.importedData.markerValueNotes || {};
+  const mvKeys = Object.keys(mvNotes);
+  if (mvKeys.length > 0) {
+    // Group by marker so an AI scanning a single biomarker's history sees its
+    // value-level annotations contiguously. Sort dates ascending within each
+    // marker for chronological reading.
+    const byMarker = new Map();
+    for (const key of mvKeys) {
+      const colonIdx = key.lastIndexOf(':');
+      if (colonIdx === -1) continue;
+      const dotKey = key.slice(0, colonIdx);
+      const date = key.slice(colonIdx + 1);
+      if (!byMarker.has(dotKey)) byMarker.set(dotKey, []);
+      byMarker.get(dotKey).push({ date, note: mvNotes[key] });
+    }
+    ctx += `[section:markerValueNotes]\n## Per-Value Notes (context tied to specific readings)\n`;
+    for (const [dotKey, entries] of byMarker) {
+      const [catKey, mKey] = dotKey.split('.');
+      const mName = data.categories[catKey]?.markers[mKey]?.name || dotKey;
+      entries.sort((a, b) => a.date.localeCompare(b.date));
+      for (const e of entries) {
+        ctx += `- ${mName} on ${e.date}: ${e.note}\n`;
+      }
+    }
+    ctx += `[/section:markerValueNotes]\n\n`;
+  }
+
+  // ── 6. Medical History ("what medical context applies?") ──
   const diag = state.importedData.diagnoses;
   if (hasCardContent(diag)) {
-    ctx += `[section:diagnoses]\n## Medical Conditions / Diagnoses\n`;
+    ctx += `[section:diagnoses]\n## Medical History / Diagnoses\n`;
     if (diag.conditions && diag.conditions.length) {
       for (const c of diag.conditions) {
         ctx += `- ${c.name} (${c.severity}${c.since ? ', since ' + c.since : ''})\n`;
+      }
+    }
+    if (Array.isArray(diag.familyHistory) && diag.familyHistory.length) {
+      ctx += `### Family history (heritable/environmental risk signal)\n`;
+      for (const e of diag.familyHistory) {
+        const rel = (e.relative || '').replace(/_/g, ' ');
+        const age = (e.onsetAge != null && e.onsetAge !== '') ? `, onset age ${e.onsetAge}` : '';
+        const note = e.note ? ` — ${e.note}` : '';
+        ctx += `- ${rel}: ${e.condition || ''}${age}${note}\n`;
       }
     }
     if (diag.note) ctx += `Notes: ${diag.note}\n`;
@@ -660,7 +700,7 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
   // ── 17. Context Change Timeline ──
   const changeHistory = state.importedData.changeHistory || [];
   if (changeHistory.length > 0) {
-    const fieldLabels = { diet: 'Diet & Digestion', exercise: 'Exercise', sleepRest: 'Sleep & Rest', lightCircadian: 'Light & Circadian', stress: 'Stress', loveLife: 'Love Life', environment: 'Environment', diagnoses: 'Medical Conditions', healthGoals: 'Health Goals', interpretiveLens: 'Interpretive Lens', contextNotes: 'Context Notes', menstrualCycle: 'Menstrual Cycle' };
+    const fieldLabels = { diet: 'Diet & Digestion', exercise: 'Exercise', sleepRest: 'Sleep & Rest', lightCircadian: 'Light & Circadian', stress: 'Stress', loveLife: 'Love Life', environment: 'Environment', diagnoses: 'Medical History', healthGoals: 'Health Goals', interpretiveLens: 'Interpretive Lens', contextNotes: 'Context Notes', menstrualCycle: 'Menstrual Cycle' };
     // Group by field, sorted by date. Defensive against legacy entries that
     // somehow missed the date field — sorting on undefined throws and takes
     // down the whole context push (which is called on every saveImportedData).
@@ -719,7 +759,12 @@ export function getContextSummary() {
   if (markerCount > 0) areas.push({ label: 'Lab values', detail: `${markerCount} markers` });
   // Context cards
   const diag = state.importedData.diagnoses;
-  if (diag && ((diag.conditions && diag.conditions.length) || diag.note)) areas.push({ label: 'Medical Conditions', detail: diag.conditions ? `${diag.conditions.length} condition${diag.conditions.length !== 1 ? 's' : ''}` : 'notes' });
+  if (diag && ((diag.conditions && diag.conditions.length) || diag.note || (Array.isArray(diag.familyHistory) && diag.familyHistory.length))) {
+    const cN = (diag.conditions && diag.conditions.length) || 0;
+    const fN = (Array.isArray(diag.familyHistory) && diag.familyHistory.length) || 0;
+    const detail = cN && fN ? `${cN} condition${cN !== 1 ? 's' : ''}, ${fN} family entr${fN !== 1 ? 'ies' : 'y'}` : cN ? `${cN} condition${cN !== 1 ? 's' : ''}` : fN ? `${fN} family entr${fN !== 1 ? 'ies' : 'y'}` : 'notes';
+    areas.push({ label: 'Medical History', detail });
+  }
   if (state.importedData.diet) areas.push({ label: 'Diet & Digestion', detail: state.importedData.diet.type || 'filled' });
   if (state.importedData.exercise) areas.push({ label: 'Exercise', detail: state.importedData.exercise.frequency || 'filled' });
   if (state.importedData.sleepRest) areas.push({ label: 'Sleep & Rest', detail: state.importedData.sleepRest.duration || 'filled' });
@@ -1034,10 +1079,41 @@ export async function buildWearableSeriesSection(days) {
     lines.push(`${labelStr}: ${series.join('→')}`);
   }
 
-  if (lines.length === 0) return '';
+  // Manual-entry context — when the user logs a reading by hand they can
+  // attach tags (resting / morning-fasted / post-workout / stress) and a
+  // free-text note ("retook because cuff felt loose", "different arm"). That
+  // context is the thing manual entry beats wearables-only tracking on; the
+  // AI sees the raw row values but not its qualitative framing unless we
+  // surface it here. Only emit when at least one row in the window has a
+  // tag or note — many users log values without context, no need to clutter.
+  const manualRows = rowsBySource['manual'] || [];
+  const contextRows = manualRows.filter(r => {
+    if (r.date < startStr || r.date > today) return false;
+    const hasTags = Array.isArray(r.tags) && r.tags.length > 0;
+    const hasNote = typeof r.note === 'string' && r.note.trim().length > 0;
+    return hasTags || hasNote;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+  let contextBlock = '';
+  if (contextRows.length > 0) {
+    const contextLines = contextRows.map(r => {
+      const parts = [];
+      if (Array.isArray(r.tags) && r.tags.length) parts.push(`tags: ${r.tags.join(', ')}`);
+      if (typeof r.note === 'string' && r.note.trim()) parts.push(`note: "${r.note.trim()}"`);
+      return `${r.date} — ${parts.join('; ')}`;
+    });
+    contextBlock = `\n\n### Manual-entry context (qualifies same-day values above)\n${contextLines.join('\n')}`;
+  }
+
+  if (lines.length === 0 && !contextBlock) return '';
+  if (lines.length === 0) {
+    // Context exists but no numeric series fit the window — still worth
+    // shipping the context (the AI can correlate it against L2 latest values).
+    const tag = `wearables-series-${days}d`;
+    return `[section:${tag}]\n## Wearables — manual-entry context (${days}d)${contextBlock}\n[/section:${tag}]`;
+  }
 
   const tag = `wearables-series-${days}d`;
-  return `[section:${tag}]\n## Wearables — ${days}-day daily series (oldest→newest, "—" = no reading)\n${lines.join('\n')}\n[/section:${tag}]`;
+  return `[section:${tag}]\n## Wearables — ${days}-day daily series (oldest→newest, "—" = no reading)\n${lines.join('\n')}${contextBlock}\n[/section:${tag}]`;
 }
 
 Object.assign(window, {

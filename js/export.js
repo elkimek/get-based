@@ -32,7 +32,7 @@ export function exportPDFReport() {
     if (obj.note) parts.push(`Note: ${obj.note}`);
     return parts.join('. ');
   };
-  if (state.importedData.diagnoses) contextSections.push({ title: 'Medical Conditions', text: fmtCtx(state.importedData.diagnoses) });
+  if (state.importedData.diagnoses) contextSections.push({ title: 'Medical History', text: fmtCtx(state.importedData.diagnoses) });
   if (state.importedData.diet) contextSections.push({ title: 'Diet & Digestion', text: fmtCtx(state.importedData.diet) });
   if (state.importedData.exercise) contextSections.push({ title: 'Exercise & Movement', text: fmtCtx(state.importedData.exercise) });
   if (state.importedData.sleepRest) contextSections.push({ title: 'Sleep & Rest', text: fmtCtx(state.importedData.sleepRest) });
@@ -430,6 +430,7 @@ export async function exportClientJSON(profileId, includeChat = false) {
     genetics: data.genetics || null,
     biometrics: data.biometrics || null,
     markerNotes: data.markerNotes || {},
+    markerValueNotes: data.markerValueNotes || {},
     manualValues: data.manualValues || {},
     changeHistory: data.changeHistory || [],
     chatSummaries: data.chatSummaries || [],
@@ -735,6 +736,11 @@ export function importDataJSON(file) {
       if (json.markerNotes && typeof json.markerNotes === 'object') {
         if (!state.importedData.markerNotes) state.importedData.markerNotes = {};
         Object.assign(state.importedData.markerNotes, json.markerNotes);
+      }
+      // Import per-value notes (keyed "category.markerKey:date")
+      if (json.markerValueNotes && typeof json.markerValueNotes === 'object') {
+        if (!state.importedData.markerValueNotes) state.importedData.markerValueNotes = {};
+        Object.assign(state.importedData.markerValueNotes, json.markerValueNotes);
       }
       // Import manual value flags
       if (json.manualValues && typeof json.manualValues === 'object') {

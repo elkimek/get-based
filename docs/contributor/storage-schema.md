@@ -108,9 +108,16 @@ Stored as JSON at `labcharts-{profileId}-imported`. This is everything a user ca
   ],
 
   // Context cards — all nullable (null = not filled by user)
-  diagnoses: {                          // Medical Conditions card
+  diagnoses: {                          // Medical History card
     conditions: [
       { name: "Hashimoto's", severity: "major", since: "2020" }
+    ],
+    familyHistory: [                    // first-degree + grandparents
+      // relative ∈ {mother, father, sibling, child,
+      //             maternal_grandmother, maternal_grandfather,
+      //             paternal_grandmother, paternal_grandfather}
+      { relative: "father", condition: "Heart Attack (MI)", onsetAge: 52, note: "survived" },
+      { relative: "mother", condition: "Type 2 Diabetes", onsetAge: 45 }
     ],
     note: ""
   },
@@ -259,6 +266,34 @@ Stored as JSON at `labcharts-{profileId}-imported`. This is everything a user ca
       refMax: 720,
       categoryLabel: "My Lab"
     }
+  },
+
+  // Per-marker freeform notes — keyed by "category.markerKey".
+  // What the marker means to YOU overall, not tied to any one reading.
+  markerNotes: {
+    "biochemistry.glucose": "Fasted samples only — non-fasted reads run high for me"
+  },
+
+  // Per-VALUE freeform notes — keyed by "category.markerKey:YYYY-MM-DD".
+  // Context for a specific reading on a specific date (fasting status,
+  // retake reason, lab change, etc.). Surfaced inline on the value card +
+  // emitted as a dedicated AI-context section. Distinct from markerNotes
+  // (overall) and entries.notes (date-level, not marker-specific).
+  markerValueNotes: {
+    "biochemistry.glucose:2024-03-14": "post-workout, blood draw 30 min after gym",
+    "biochemistry.glucose:2024-04-02": "fasted 14h",
+    "lipids.ldl:2024-04-02": "retake — first lab reported 5.2 mmol/L"
+  },
+
+  // Tombstone-set tracking which (marker, date) values were entered or
+  // edited manually (vs imported from a PDF). Same colon-keying as
+  // markerValueNotes. Value semantics:
+  //   true  = manually added value (no original to revert to)
+  //   number = the original SI value (set on first inline edit so a
+  //            user can revert later)
+  manualValues: {
+    "biochemistry.glucose:2024-04-02": true,
+    "lipids.ldl:2024-03-15": 3.2
   },
 
   // Timestamped snapshots of context field changes — appended by recordChange()

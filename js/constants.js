@@ -2,13 +2,59 @@
 
 // ── Profile context card option arrays ──
 export const COMMON_CONDITIONS = [
+  // Metabolic / endocrine
   'Type 2 Diabetes', 'Type 1 Diabetes', 'Pre-diabetes', 'Insulin Resistance',
   'Hypothyroidism', 'Hashimoto\'s', 'Hyperthyroidism', 'Graves\' Disease',
-  'PCOS', 'Endometriosis', 'Iron Deficiency Anemia', 'B12 Deficiency',
+  'PCOS', 'Endometriosis', 'Metabolic Syndrome', 'Obesity',
+  'Adrenal Insufficiency', 'Cushing\'s Syndrome',
+  // Cardiovascular
+  'Hypertension', 'High Cholesterol', 'Heart Attack (MI)', 'Coronary Artery Disease',
+  'Heart Failure', 'Atrial Fibrillation', 'Stroke', 'Deep Vein Thrombosis',
+  // GI / liver
   'Celiac Disease', 'Crohn\'s Disease', 'Ulcerative Colitis', 'IBS',
-  'Fatty Liver (NAFLD)', 'Hypertension', 'High Cholesterol', 'Metabolic Syndrome',
-  'Chronic Kidney Disease', 'Gout', 'Rheumatoid Arthritis', 'Lupus (SLE)',
-  'Asthma', 'Sleep Apnea', 'Depression/Anxiety'
+  'GERD / Acid Reflux', 'Fatty Liver (NAFLD)', 'Diverticulitis', 'SIBO',
+  'H. pylori', 'Gallstones',
+  // Renal
+  'Chronic Kidney Disease', 'Kidney Stones',
+  // Blood / iron / nutrition
+  'Iron Deficiency Anemia', 'B12 Deficiency', 'Vitamin D Deficiency',
+  // Autoimmune / inflammatory
+  'Rheumatoid Arthritis', 'Lupus (SLE)', 'Psoriasis', 'Psoriatic Arthritis',
+  'Multiple Sclerosis', 'Scleroderma', 'Ankylosing Spondylitis', 'Sjögren\'s Syndrome',
+  'Gout',
+  // Skin
+  'Eczema (Atopic Dermatitis)', 'Rosacea', 'Vitiligo', 'Acne',
+  // Respiratory
+  'Asthma', 'COPD', 'Sleep Apnea', 'Chronic Sinusitis', 'Allergic Rhinitis',
+  // Neuro
+  'Migraine', 'Epilepsy', 'Alzheimer\'s Disease', 'Parkinson\'s Disease',
+  'Dementia (non-Alzheimer\'s)', 'ALS', 'Restless Leg Syndrome',
+  // Mental health
+  'Depression', 'Anxiety', 'Bipolar Disorder', 'ADHD', 'Autism Spectrum',
+  'PTSD', 'OCD', 'Schizophrenia', 'Eating Disorder', 'Substance Use Disorder',
+  // Cancer (common heritable / common in family history)
+  'Breast Cancer', 'Prostate Cancer', 'Colorectal Cancer', 'Lung Cancer',
+  'Skin Cancer (Melanoma)', 'Skin Cancer (non-melanoma)', 'Pancreatic Cancer',
+  'Ovarian Cancer', 'Cervical Cancer', 'Endometrial Cancer', 'Thyroid Cancer',
+  'Lymphoma', 'Leukemia', 'Kidney Cancer', 'Bladder Cancer', 'Stomach Cancer',
+  'Liver Cancer', 'Brain Cancer', 'Testicular Cancer',
+  // Musculoskeletal
+  'Osteoporosis', 'Osteoarthritis', 'Fibromyalgia', 'Chronic Fatigue Syndrome',
+  'Chronic Pain', 'Disc Herniation', 'Scoliosis',
+  // Eye
+  'Glaucoma', 'Macular Degeneration', 'Cataracts', 'Diabetic Retinopathy',
+  // Hearing
+  'Hearing Loss', 'Tinnitus',
+  // Reproductive / other
+  'Infertility', 'Erectile Dysfunction', 'Benign Prostatic Hyperplasia',
+  'Uterine Fibroids', 'Hemorrhoids', 'Varicose Veins',
+  // Infectious / chronic
+  'Hepatitis B', 'Hepatitis C', 'HIV', 'Lyme Disease', 'Long COVID',
+  // Allergy
+  'Food Allergy', 'Drug Allergy', 'Anaphylaxis history',
+  // Genetic / congenital (common to surface in family history)
+  'Hemochromatosis', 'Sickle Cell', 'Thalassemia', 'Cystic Fibrosis',
+  'Huntington\'s Disease', 'Marfan Syndrome', 'BRCA1/2 carrier'
 ];
 export const DIET_TYPES = ['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'low-carb', 'paleo', 'carnivore', 'mediterranean', 'other'];
 export const DIET_RESTRICTIONS = ['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'sugar-free', 'seed oil-free', 'low-sodium', 'low-FODMAP'];

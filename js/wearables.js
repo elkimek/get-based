@@ -283,12 +283,20 @@ function shortDate(iso) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
-function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate) {
+function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = {}) {
+  const pairedMetric = opts.pairedMetric || null;
+  // Paired BP card: relabel "BP sys" → "Blood pressure", swap latest/baseline
+  // for the "sys/dia" pair string. Trend/sparkline/delta stay sys-based —
+  // sys is the more clinically actionable of the two and adding a dual-line
+  // sparkline would crowd the card.
+  const isBPCard = metricId === 'bp_systolic' && pairedMetric;
+  const cardLabel = isBPCard ? 'Blood pressure' : canon.label;
+  const cardSub = isBPCard ? null : canon.sub;
   const deltaCls = deltaClassFor(metric.latest, metric.baseline, canon.worseWhen);
   const deltaText = formatDelta(metric.latest, metric.baseline, metricId, canon);
   // Space-prefix the sub so screen readers hear "HRV RMSSD" not "HRVRMSSD".
   // Visual spacing is still margin-left via .wearable-metric-sub CSS.
-  const subLabel = canon.sub ? ` <span class="wearable-metric-sub">${escapeHTML(canon.sub)}</span>` : '';
+  const subLabel = cardSub ? ` <span class="wearable-metric-sub">${escapeHTML(cardSub)}</span>` : '';
   // Units starting with "/" (e.g. "/5" for resilience level) read tighter
   // without a separator between value and unit — render "1/5", not "1 /5".
   const unitTight = canon.unit?.startsWith('/');
@@ -316,7 +324,12 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate) {
     ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn" onclick="event.stopPropagation();chooseWearableSource('${escapeHTML(metricId)}',event)" title="Click to switch source for this metric">via ${escapeHTML(adapter.displayName)}</button>` : '';
   // Build a meaningful aria-label: value + unit + trend direction + metric
   // name so screen readers can read the card at a glance without entering it.
-  const valueRead = formatValue(metric.latest, canon.unit);
+  const sysRead = formatValue(metric.latest, canon.unit);
+  const diaRead = isBPCard ? formatValue(pairedMetric.latest, canon.unit) : null;
+  const valueRead = isBPCard ? `${sysRead}/${diaRead || '—'}` : sysRead;
+  const baselineRead = isBPCard
+    ? `${metric.baseline ?? '—'}/${pairedMetric.baseline ?? '—'}`
+    : String(metric.baseline);
   const trendRead = trendLabel(metric.trend30d);
   // Glyph subs (🌙/☀️) don't speak well; map to words for screen readers.
   // English word subs (e.g. "SDNN") read fine as-is. Some metrics override
@@ -324,21 +337,23 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate) {
   const subRead = canon.sub === '🌙' ? 'overnight'
                : canon.sub === '☀️' ? 'daytime'
                : canon.sub;
-  const canonRead = canon.ariaLabel
-    ? canon.ariaLabel
-    : (subRead ? `${canon.label} ${subRead}` : canon.label);
+  const canonRead = isBPCard
+    ? 'Blood pressure'
+    : (canon.ariaLabel
+        ? canon.ariaLabel
+        : (subRead ? `${canon.label} ${subRead}` : canon.label));
   const deltaRead = deltaText
     ? `${deltaText.replace('↑', 'up').replace('↓', 'down').replace('→', 'flat at')} vs baseline, `
     : '';
   const ariaLabel = `${canonRead} ${valueRead}${canon.unit ? ' ' + canon.unit : ''}, ${deltaRead}${trendRead} — open detail`;
   return `<div class="wearable-card" onclick="openWearableDetail('${escapeHTML(metricId)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWearableDetail('${escapeHTML(metricId)}')}" role="button" tabindex="0" aria-label="${escapeHTML(ariaLabel)}">
     <div class="wearable-card-top">
-      <span class="wearable-metric-name">${escapeHTML(canon.label)}${subLabel}</span>
+      <span class="wearable-metric-name">${escapeHTML(cardLabel)}${subLabel}</span>
       ${deltaText ? `<span class="wearable-delta ${deltaCls}">${deltaText}</span>` : ''}
     </div>
     <div class="wearable-value-row">
       <span class="wearable-value">${valueRead}</span>${unitLabel}
-      <span class="wearable-baseline">baseline ${escapeHTML(String(metric.baseline))}${baselineUnit}</span>
+      <span class="wearable-baseline">baseline ${escapeHTML(baselineRead)}${baselineUnit}</span>
       ${stalenessHint}
     </div>
     ${sparklineSVG(metric.weekly, metric.baseline, canon.worseWhen)}
@@ -441,10 +456,16 @@ export function renderWearableStrip() {
   // Daytime companions live in the detail modal as sub-stats, not as their
   // own cards — keeps the strip calm at 6-8 cards instead of 10.
   const STRIP_HIDDEN_METRICS = new Set(['hrv_day', 'hr_day']);
+  // BP renders as one paired card (sys/dia). When systolic is present we
+  // suppress diastolic's standalone card and fold it into sys's render. If
+  // somehow only dia exists (no sys), let dia surface on its own so the data
+  // isn't invisible.
+  const hasSys = !!summary.metrics?.bp_systolic;
   const displayOrder = [];
   const seenDisplay = new Set();
   for (const id of baseMetricOrder) {
     if (STRIP_HIDDEN_METRICS.has(id)) continue;
+    if (id === 'bp_diastolic' && hasSys) continue;
     const m = summary.metrics?.[id];
     if (!m) continue;
     // Wearables-off mode: only manual-sourced cards survive. Vendor metrics
@@ -582,7 +603,9 @@ export function renderWearableStrip() {
       // can swap source per metric (auto-picker fallback when only one source
       // declares it). Single-source connections still hide the badge to avoid
       // redundancy with the header.
-      cardHtml = renderCard(metricId, canon, metric, showSourceBadges, sourceMaxDate[metric.primarySource]);
+      // BP card: pull the dia partner so renderCard can format "120/80".
+      const pairedMetric = (metricId === 'bp_systolic') ? summary.metrics?.bp_diastolic : null;
+      cardHtml = renderCard(metricId, canon, metric, showSourceBadges, sourceMaxDate[metric.primarySource], { pairedMetric });
     }
     if (reorderMode) {
       const canLeft = i > 0;
@@ -678,7 +701,7 @@ async function openWearableDetail(metricId) {
     if (op !== _detailOp) return;
   }
   const manualEntries = manualRows
-    .map(r => ({ date: r.date, v: r[metricId], tags: r.tags }))
+    .map(r => ({ date: r.date, v: r[metricId], tags: r.tags, note: r.note }))
     .filter(p => typeof p.v === 'number' && isFinite(p.v))
     .sort((a, b) => b.date.localeCompare(a.date)); // reverse-chron for display
 
@@ -787,13 +810,17 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
     const tagChips = Array.isArray(e.tags) && e.tags.length
       ? `<span class="wearable-manual-entry-tags">${e.tags.map(t => `<span class="wearable-manual-entry-tag">${escapeHTML(t)}</span>`).join('')}</span>`
       : '';
+    const noteRow = (typeof e.note === 'string' && e.note.trim())
+      ? `<div class="wearable-manual-entry-note">${escapeHTML(e.note)}</div>`
+      : '';
     const valueRead = formatValue(e.v, unit);
     const ariaText = `Delete ${metricLabel.toLowerCase()} reading from ${formatSpokenDate(e.date)}, ${valueRead}${unit ? ' ' + unit : ''}`;
-    return `<li class="wearable-manual-entry" data-entry-date="${escapeHTML(e.date)}">
+    return `<li class="wearable-manual-entry${noteRow ? ' has-note' : ''}" data-entry-date="${escapeHTML(e.date)}">
       <span class="wearable-manual-entry-date">${escapeHTML(shortDate(e.date))}</span>
       <span class="wearable-manual-entry-val">${valueRead}${unit ? ` <span class="wearable-manual-entry-unit">${escapeHTML(unit)}</span>` : ''}</span>
       ${tagChips}
       <button type="button" class="wearable-manual-entry-del" title="Delete this reading" aria-label="${escapeHTML(ariaText)}" onclick="deleteManualEntryFromDetail('${escapeHTML(metricId)}','${escapeHTML(e.date)}')">×</button>
+      ${noteRow}
     </li>`;
   }).join('');
   return `<section class="wearable-manual-entries">
@@ -1447,9 +1474,13 @@ async function moveWearableCard(metricId, delta) {
   const headerSourceIds = sourceIds.filter(s => (summary.sources[s].coverageDays || 0) > 0);
   const baseOrder = metricsForSources(headerSourceIds.length ? headerSourceIds : sourceIds);
   const MANUAL_EMPTY_METRICS_LOCAL = ['weight', 'bp_systolic', 'rhr'];
+  // Mirror the strip-render BP merge: dia folds into the sys card and never
+  // gets its own reorder slot when both are present.
+  const hasSysLocal = !!summary.metrics?.bp_systolic;
   const display = [];
   const seen = new Set();
   for (const id of baseOrder) {
+    if (id === 'bp_diastolic' && hasSysLocal) continue;
     if (summary.metrics?.[id]) { display.push(id); seen.add(id); }
   }
   for (const id of MANUAL_EMPTY_METRICS_LOCAL) {
@@ -1489,6 +1520,7 @@ function openManualAddFromDetail(metricId, event) {
     const weightUnit = state.unitSystem === 'US' ? 'lb' : 'kg';
     slot.innerHTML = `<form class="wearable-manual-add-form" onsubmit="event.preventDefault();saveManualEntryFromDetail('${escapeHTML(metricId)}','weight')">
       <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wlad-val" placeholder="${weightUnit}" aria-label="Weight in ${weightUnit === 'lb' ? 'pounds' : 'kilograms'}" autofocus>
+      ${_renderNoteField('wlad-note')}
       <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
       <button type="submit" class="wearable-log-save">Save</button>
       <button type="button" class="wearable-log-cancel" onclick="closeManualAddFromDetail()">✕</button>
@@ -1496,6 +1528,8 @@ function openManualAddFromDetail(metricId, event) {
   } else if (kind === 'rhr') {
     slot.innerHTML = `<form class="wearable-manual-add-form" onsubmit="event.preventDefault();saveManualEntryFromDetail('${escapeHTML(metricId)}','rhr')">
       <input type="number" inputmode="numeric" class="wearable-log-input" id="wlad-val" placeholder="bpm" autofocus>
+      ${_renderTagChips('rhr')}
+      ${_renderNoteField('wlad-note')}
       <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
       <button type="submit" class="wearable-log-save">Save</button>
       <button type="button" class="wearable-log-cancel" onclick="closeManualAddFromDetail()">✕</button>
@@ -1508,6 +1542,8 @@ function openManualAddFromDetail(metricId, event) {
         <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wlad-dia" placeholder="dia">
       </span>
       <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-pulse-optional" id="wlad-pulse" placeholder="pulse (optional)">
+      ${_renderTagChips('bp_systolic')}
+      ${_renderNoteField('wlad-note')}
       <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
       <button type="submit" class="wearable-log-save">Save</button>
       <button type="button" class="wearable-log-cancel" onclick="closeManualAddFromDetail()">✕</button>
@@ -1542,17 +1578,22 @@ async function saveManualEntryFromDetail(metricId, kind) {
   const profileId = getActiveProfileId();
   const date = document.getElementById('wlad-date')?.value;
   if (!date) { showNotification?.('Pick a date', 'error'); return; }
+  // Collect tags (rhr + bp forms only) + optional note from the detail-modal
+  // form. Scoped to the form element so chips from elsewhere don't bleed in.
+  const formEl = document.querySelector('.wearable-manual-add-form');
+  const tags = formEl ? _collectActiveChips(formEl) : [];
+  const note = document.getElementById('wlad-note')?.value || '';
   try {
     if (kind === 'weight') {
       const val = parseFloat(document.getElementById('wlad-val')?.value);
       if (!val || val <= 0) { showNotification?.('Enter a weight', 'error'); return; }
       if (val > 500) { showNotification?.('Weight over 500 kg seems unlikely', 'error'); return; }
-      await logManualMetric(profileId, 'weight', { date, value: val });
+      await logManualMetric(profileId, 'weight', { date, value: val, tags, note });
     } else if (kind === 'rhr') {
       const val = parseInt(document.getElementById('wlad-val')?.value, 10);
       if (!val || val <= 0) { showNotification?.('Enter a pulse', 'error'); return; }
       if (val > 250) { showNotification?.('Pulse over 250 bpm seems unlikely', 'error'); return; }
-      await logManualMetric(profileId, 'rhr', { date, value: val });
+      await logManualMetric(profileId, 'rhr', { date, value: val, tags, note });
     } else if (kind === 'bp') {
       const sys = parseInt(document.getElementById('wlad-sys')?.value, 10);
       const dia = parseInt(document.getElementById('wlad-dia')?.value, 10);
@@ -1560,7 +1601,7 @@ async function saveManualEntryFromDetail(metricId, kind) {
       if (!sys || !dia || sys <= 0 || dia <= 0) { showNotification?.('Enter systolic and diastolic', 'error'); return; }
       if (sys > 300 || dia > 200) { showNotification?.('BP values seem too high', 'error'); return; }
       if (dia >= sys) { showNotification?.('Diastolic should be lower than systolic', 'error'); return; }
-      await logManualBP(profileId, { date, systolic: sys, diastolic: dia, pulse: isFinite(pulse) && pulse > 0 ? pulse : undefined });
+      await logManualBP(profileId, { date, systolic: sys, diastolic: dia, pulse: isFinite(pulse) && pulse > 0 ? pulse : undefined, tags, note });
     }
     await refreshManualSummary(profileId);
     if (op !== _currentManualEntryOp(metricId)) return; // superseded by a later click on the SAME metric — bail
@@ -1810,17 +1851,28 @@ function toggleManualLogChip(btn, event) {
 function _collectActiveChips(card) {
   return Array.from(card.querySelectorAll('.wearable-log-chip.active')).map(b => b.dataset.tag);
 }
+// Shared note-textarea snippet for both manual-log forms. The `idSuffix`
+// disambiguates dashboard-card (`wl-...-note`) vs detail-modal (`wlad-note`).
+function _renderNoteField(idSuffix = 'wl-note') {
+  return `<textarea class="wearable-log-note" id="${escapeHTML(idSuffix)}" rows="2" placeholder="Optional note — e.g. retook because cuff felt loose, different arm, different lab, just after coffee..." aria-label="Optional note"></textarea>`;
+}
 
 function openManualLogForm(metricId, event) {
   if (event) event.stopPropagation();
   const card = document.querySelector(`.wearable-card-empty[data-empty-metric="${metricId}"]`);
   if (!card) return;
+  // Idempotent: clicks inside the form (e.g. tapping the dia field on the
+  // BP card) bubble to the card's onclick. Without this guard we'd rebuild
+  // innerHTML and refocus the first input — yanking the cursor off whatever
+  // the user actually clicked.
+  if (card.querySelector('.wearable-log-form')) return;
   const today = isoDay();
   if (metricId === 'weight') {
     card.innerHTML = `
       <div class="wearable-card-top"><span class="wearable-metric-name">Weight</span></div>
       <div class="wearable-log-form">
         <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wl-weight-val" placeholder="${state.unitSystem === 'US' ? 'lb' : 'kg'}" aria-label="${state.unitSystem === 'US' ? 'Weight in pounds' : 'Weight in kilograms'}" autofocus>
+        ${_renderNoteField('wl-weight-note')}
         <div class="wearable-log-row">
           <input type="date" class="wearable-log-date" id="wl-weight-date" value="${today}" max="${today}" aria-label="Date">
           <button type="button" class="wearable-log-save" onclick="saveManualLog('weight',event)">Save</button>
@@ -1838,6 +1890,7 @@ function openManualLogForm(metricId, event) {
         </div>
         <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-pulse-optional" id="wl-bp-pulse" placeholder="pulse (optional)" aria-label="Pulse (optional)">
         ${_renderTagChips('bp_systolic')}
+        ${_renderNoteField('wl-bp-note')}
         <div class="wearable-log-row">
           <input type="date" class="wearable-log-date" id="wl-bp-date" value="${today}" max="${today}" aria-label="Date">
           <button type="button" class="wearable-log-save" onclick="saveManualLog('bp',event)">Save</button>
@@ -1850,6 +1903,7 @@ function openManualLogForm(metricId, event) {
       <div class="wearable-log-form">
         <input type="number" inputmode="numeric" class="wearable-log-input" id="wl-rhr-val" placeholder="bpm" aria-label="Resting heart rate in bpm" autofocus>
         ${_renderTagChips('rhr')}
+        ${_renderNoteField('wl-rhr-note')}
         <div class="wearable-log-row">
           <input type="date" class="wearable-log-date" id="wl-rhr-date" value="${today}" max="${today}" aria-label="Date">
           <button type="button" class="wearable-log-save" onclick="saveManualLog('rhr',event)">Save</button>
@@ -1878,19 +1932,22 @@ async function saveManualLog(kind, event) {
     kind === 'rhr'    ? document.querySelector('.wearable-card-empty[data-empty-metric="rhr"]') :
     kind === 'bp'     ? document.querySelector('.wearable-card-empty[data-empty-metric="bp_systolic"]') : null;
   const tags = cardForTags ? _collectActiveChips(cardForTags) : [];
+  // Note field — id varies by kind ('wl-weight-note' / 'wl-bp-note' / 'wl-rhr-note').
+  const noteEl = document.getElementById(`wl-${kind === 'bp' ? 'bp' : kind}-note`);
+  const note = noteEl ? noteEl.value : '';
   try {
     if (kind === 'weight') {
       const val = parseFloat(document.getElementById('wl-weight-val')?.value);
       const date = document.getElementById('wl-weight-date')?.value;
       if (!val || val <= 0 || !date) { showNotification?.('Enter a weight and date', 'error'); return; }
       if (val > 500) { showNotification?.('Weight over 500 kg seems unlikely', 'error'); return; }
-      await logManualMetric(profileId, 'weight', { date, value: val, tags });
+      await logManualMetric(profileId, 'weight', { date, value: val, tags, note });
     } else if (kind === 'rhr') {
       const val = parseInt(document.getElementById('wl-rhr-val')?.value, 10);
       const date = document.getElementById('wl-rhr-date')?.value;
       if (!val || val <= 0 || !date) { showNotification?.('Enter a pulse and date', 'error'); return; }
       if (val > 250) { showNotification?.('Pulse over 250 bpm seems unlikely', 'error'); return; }
-      await logManualMetric(profileId, 'rhr', { date, value: val, tags });
+      await logManualMetric(profileId, 'rhr', { date, value: val, tags, note });
     } else if (kind === 'bp') {
       const sys = parseInt(document.getElementById('wl-bp-sys')?.value, 10);
       const dia = parseInt(document.getElementById('wl-bp-dia')?.value, 10);
@@ -1899,7 +1956,7 @@ async function saveManualLog(kind, event) {
       if (!sys || !dia || sys <= 0 || dia <= 0 || !date) { showNotification?.('Enter systolic, diastolic, and date', 'error'); return; }
       if (sys > 300 || dia > 200) { showNotification?.('BP values seem too high', 'error'); return; }
       if (dia >= sys) { showNotification?.('Diastolic should be lower than systolic', 'error'); return; }
-      await logManualBP(profileId, { date, systolic: sys, diastolic: dia, pulse: isFinite(pulse) && pulse > 0 ? pulse : undefined, tags });
+      await logManualBP(profileId, { date, systolic: sys, diastolic: dia, pulse: isFinite(pulse) && pulse > 0 ? pulse : undefined, tags, note });
     }
     await refreshManualSummary(profileId);
     if (window.navigate) window.navigate('dashboard');

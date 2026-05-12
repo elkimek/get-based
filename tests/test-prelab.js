@@ -38,8 +38,8 @@ return (async function() {
   // Sections 5-16 (notes, conditions, supplements, cycle, lifestyle cards) should NOT be gated by hasLabData
   assert('User Notes section not gated by hasLabData', labCtxSrc.includes("// ── 5. User Notes ──\n  const notes"),
     'User Notes should be at top level, not inside hasLabData block');
-  assert('Medical Conditions section not gated by hasLabData', labCtxSrc.includes("// ── 6. Medical Conditions"),
-    'Conditions should serialize without lab data');
+  assert('Medical History section not gated by hasLabData', labCtxSrc.includes("// ── 6. Medical History"),
+    'Medical history should serialize without lab data');
   assert('Diet section not gated by hasLabData', labCtxSrc.includes("// ── 9. Diet"),
     'Diet should serialize without lab data');
 

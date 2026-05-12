@@ -3,7 +3,7 @@
 export const state = {
   chartInstances: {},
   markerRegistry: {},
-  importedData: { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, genetics: null, customMarkers: {}, markerNotes: {}, changeHistory: [] },
+  importedData: { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] },
   unitSystem: 'EU',
   selectedCorrelationMarkers: [],
   currentProfile: 'default',

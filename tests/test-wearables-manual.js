@@ -290,6 +290,160 @@ return (async function() {
     assert('handleManualDisconnect uses promise-style showConfirmDialog',
       /await\s+window\.showConfirmDialog\(/.test(handleDisconnectFn));
 
+    // ═══════════════════════════════════════
+    // Note + chip parity (this-branch additions)
+    // ═══════════════════════════════════════
+    console.log('%c Note + chip parity ', 'font-weight:bold;color:#f59e0b');
+
+    const manualLibSrc = await fetch('js/wearables-manual.js').then(r => r.text());
+
+    // 1. logManualMetric / logManualBP accept note param + sanitize
+    assert('logManualMetric signature accepts note param',
+      /export async function logManualMetric\(profileId, metric, \{ date, value, tags, note \}\)/.test(manualLibSrc));
+    assert('logManualBP signature accepts note param',
+      /export async function logManualBP\(profileId, \{ date, systolic, diastolic, pulse, tags, note \}\)/.test(manualLibSrc));
+    assert('Both helpers write the note onto the row patch via _sanitizeNote',
+      /const noteClean = _sanitizeNote\(note\);[\s\S]{0,200}if \(noteClean\) patch\.note = noteClean/.test(manualLibSrc) &&
+      /const noteClean = _sanitizeNote\(note\);[\s\S]{0,200}if \(noteClean\) row\.note = noteClean/.test(manualLibSrc));
+
+    // _sanitizeNote behavior (trim + 500-char cap + non-string → '')
+    assert('_sanitizeNote function defined',
+      /function _sanitizeNote\(note\)/.test(manualLibSrc));
+    assert('_sanitizeNote trims whitespace',
+      /const trimmed = note\.trim\(\)/.test(manualLibSrc));
+    assert('_sanitizeNote caps at 500 chars',
+      /trimmed\.length > 500 \? trimmed\.slice\(0, 500\)/.test(manualLibSrc));
+    assert("_sanitizeNote returns '' for non-string",
+      /if \(typeof note !== 'string'\) return ''/.test(manualLibSrc));
+
+    // Live behavior: write + read a manual metric with note, verify persistence.
+    // Uses the isolated profile fixture already set up above.
+    try {
+      const probeProfile = 'test-note-' + Date.now();
+      window._labState.currentProfile = probeProfile;
+      await manual.logManualMetric(probeProfile, 'rhr', {
+        date: '2099-05-12', value: 60, tags: ['resting'], note: 'morning, just woke'
+      });
+      const rows = await store.getDailyRange(probeProfile, 'manual', '2099-05-12', '2099-05-12');
+      assert('logManualMetric persists note on the row',
+        rows.length === 1 && rows[0].note === 'morning, just woke');
+      assert('logManualMetric still persists tags alongside note',
+        Array.isArray(rows[0].tags) && rows[0].tags.includes('resting'));
+      // 500-char cap
+      const longNote = 'x'.repeat(800);
+      await manual.logManualMetric(probeProfile, 'weight', {
+        date: '2099-05-13', value: 70, note: longNote
+      });
+      const rows2 = await store.getDailyRange(probeProfile, 'manual', '2099-05-13', '2099-05-13');
+      assert('Note capped at 500 chars',
+        rows2[0].note && rows2[0].note.length === 500);
+      // Empty/whitespace note → no `note` field on the row
+      await manual.logManualMetric(probeProfile, 'weight', {
+        date: '2099-05-14', value: 71, note: '   '
+      });
+      const rows3 = await store.getDailyRange(probeProfile, 'manual', '2099-05-14', '2099-05-14');
+      assert('Whitespace-only note is dropped (no note field on row)',
+        rows3[0].note === undefined);
+
+      // logManualBP with note
+      await manual.logManualBP(probeProfile, {
+        date: '2099-05-15', systolic: 120, diastolic: 80, tags: ['post-workout'], note: 'after run'
+      });
+      const rows4 = await store.getDailyRange(probeProfile, 'manual', '2099-05-15', '2099-05-15');
+      assert('logManualBP persists note on the row',
+        rows4[0].note === 'after run' && rows4[0].tags?.includes('post-workout'));
+    } catch (e) {
+      console.warn('Manual note-persistence sub-test threw — IDB may not be available in this context', e?.message || e);
+    }
+
+    // 2. Detail-modal form has chips for rhr + bp (parity with empty-card form).
+    // Count occurrences across the whole file: empty-card form has one of
+    // each, detail-modal has the other. Both pairs => ≥2 occurrences each.
+    const rhrChipMatches = (wearablesSrc.match(/_renderTagChips\('rhr'\)/g) || []).length;
+    const bpChipMatches = (wearablesSrc.match(/_renderTagChips\('bp_systolic'\)/g) || []).length;
+    assert('_renderTagChips(\'rhr\') called from both empty-card AND detail-modal forms',
+      rhrChipMatches >= 2, `count=${rhrChipMatches}`);
+    assert('_renderTagChips(\'bp_systolic\') called from both empty-card AND detail-modal forms',
+      bpChipMatches >= 2, `count=${bpChipMatches}`);
+    // Scoped check that the detail-modal kind branches each call _renderTagChips.
+    // Slice between two reliable anchors so this isn't relying on greedy regex.
+    const openDetailStart = wearablesSrc.indexOf('function openManualAddFromDetail');
+    const closeManualFnStart = wearablesSrc.indexOf('function closeManualAddFromDetail');
+    const openDetailFn = (openDetailStart !== -1 && closeManualFnStart !== -1)
+      ? wearablesSrc.slice(openDetailStart, closeManualFnStart) : '';
+    assert('Detail-modal RHR branch renders tag chips',
+      /kind === 'rhr'[\s\S]{0,800}_renderTagChips\('rhr'\)/.test(openDetailFn));
+    assert('Detail-modal BP branch renders tag chips',
+      /kind === 'bp'[\s\S]{0,1500}_renderTagChips\('bp_systolic'\)/.test(openDetailFn));
+    assert('Detail-modal weight branch does NOT render tag chips (matches empty-card convention)',
+      !/kind === 'weight'[\s\S]{0,400}_renderTagChips/.test(openDetailFn));
+
+    // 3. Both forms have the note textarea (id wlad-note for detail-modal,
+    //    id wl-{kind}-note for empty-card)
+    assert('Detail-modal form renders the wlad-note textarea',
+      /openManualAddFromDetail[\s\S]{0,3000}_renderNoteField\('wlad-note'\)/.test(wearablesSrc));
+    assert('Empty-card weight form renders wl-weight-note textarea',
+      /metricId === 'weight'[\s\S]{0,1000}_renderNoteField\('wl-weight-note'\)/.test(wearablesSrc));
+    assert('Empty-card BP form renders wl-bp-note textarea',
+      /metricId === 'bp_systolic'[\s\S]{0,1500}_renderNoteField\('wl-bp-note'\)/.test(wearablesSrc));
+    assert('Empty-card RHR form renders wl-rhr-note textarea',
+      /metricId === 'rhr'[\s\S]{0,1000}_renderNoteField\('wl-rhr-note'\)/.test(wearablesSrc));
+
+    // _renderNoteField helper produces a textarea with the required class
+    assert('_renderNoteField helper defined',
+      /function _renderNoteField\(idSuffix = 'wl-note'\)/.test(wearablesSrc));
+    assert('_renderNoteField outputs a wearable-log-note textarea',
+      /<textarea class="wearable-log-note"/.test(wearablesSrc));
+
+    // 4. Save flows collect note + tags
+    const saveLogFn = wearablesSrc.match(/async function saveManualLog[\s\S]*?\n\}\s*\n/)?.[0] || '';
+    assert('saveManualLog reads note from `wl-${kind}-note` (or `wl-bp-note`)',
+      /document\.getElementById\(`wl-\$\{kind === 'bp' \? 'bp' : kind\}-note`\)/.test(saveLogFn));
+    assert('saveManualLog passes note to logManualMetric (weight + rhr) and logManualBP',
+      /logManualMetric\(profileId, 'weight', \{[^}]*note\s*\}\)/.test(saveLogFn) &&
+      /logManualMetric\(profileId, 'rhr', \{[^}]*note\s*\}\)/.test(saveLogFn) &&
+      /logManualBP\(profileId, \{[^}]*note\s*\}\)/.test(saveLogFn));
+
+    const saveFromDetailFn = wearablesSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
+    assert('saveManualEntryFromDetail reads wlad-note from the detail-modal form',
+      /document\.getElementById\('wlad-note'\)/.test(saveFromDetailFn));
+    assert('saveManualEntryFromDetail scopes chip collection to the form element',
+      /const formEl = document\.querySelector\('\.wearable-manual-add-form'\)[\s\S]{0,200}_collectActiveChips\(formEl\)/.test(saveFromDetailFn));
+    assert('saveManualEntryFromDetail passes tags + note to log helpers',
+      /logManualMetric\(profileId, 'weight', \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn) &&
+      /logManualMetric\(profileId, 'rhr', \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn) &&
+      /logManualBP\(profileId, \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn));
+
+    // 5. Entries list shows note when present
+    const entriesSectionFn = wearablesSrc.match(/function buildManualEntriesSection[\s\S]*?\n\}\s*\n/)?.[0] || '';
+    assert('manualEntries map pulls note: r.note from the IDB row',
+      /\.map\(r => \(\{ date: r\.date, v: r\[metricId\], tags: r\.tags, note: r\.note \}\)\)/.test(wearablesSrc));
+    assert('Entries-list row renders the note (.wearable-manual-entry-note) when present',
+      /typeof e\.note === 'string' && e\.note\.trim\(\)[\s\S]{0,200}wearable-manual-entry-note/.test(entriesSectionFn));
+    assert("Row gains 'has-note' modifier class for layout when note is present",
+      /wearable-manual-entry\$\{noteRow \? ' has-note' : ''\}/.test(entriesSectionFn));
+
+    // 6. CSS hooks
+    const stylesSrc = await fetch('styles.css').then(r => r.text());
+    assert('CSS defines .wearable-log-note',
+      /\.wearable-log-note\s*\{/.test(stylesSrc));
+    assert('CSS defines .wearable-manual-entry-note',
+      /\.wearable-manual-entry-note\s*\{/.test(stylesSrc));
+    assert('CSS defines .wearable-manual-entry.has-note { flex-wrap: wrap }',
+      /\.wearable-manual-entry\.has-note\s*\{[^}]*flex-wrap:\s*wrap/.test(stylesSrc));
+
+    // 7. AI context — wearable manual context block (tags + notes) within series section
+    const labCtxSrc = await fetch('js/lab-context.js').then(r => r.text());
+    assert('buildWearableSeriesSection emits a "Manual-entry context" sub-block',
+      /### Manual-entry context \(qualifies same-day values above\)/.test(labCtxSrc));
+    assert('Context sub-block filters to manual rows with tags or notes in the date window',
+      /const manualRows = rowsBySource\['manual'\] \|\| \[\];[\s\S]{0,600}hasTags \|\| hasNote/.test(labCtxSrc));
+    assert('Context sub-block surfaces tags + note text per row',
+      /tags: \$\{r\.tags\.join\(', '\)\}/.test(labCtxSrc) &&
+      /note: "\$\{r\.note\.trim\(\)\}"/.test(labCtxSrc));
+    assert('Wearable series section degrades gracefully when only context rows exist',
+      /if \(lines\.length === 0 && !contextBlock\) return ''[\s\S]{0,200}if \(lines\.length === 0\)/.test(labCtxSrc));
+
   } finally {
     // Restore live profile
     window._labState.currentProfile = origProfile;

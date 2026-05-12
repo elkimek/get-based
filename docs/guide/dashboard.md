@@ -51,7 +51,7 @@ Trend alerts and flagged markers also respect the date range filter — tighteni
 The nine context cards sit in a grid under the heading "What your GP won't ask you." They cover:
 
 - Health Goals
-- Medical Conditions
+- Medical History
 - Diet & Digestion
 - Exercise
 - Sleep & Rest

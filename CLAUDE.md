@@ -54,7 +54,7 @@ Functions called from inline HTML `onclick` handlers are exposed via `Object.ass
 
 ### Profile Context Cards
 
-Nine cards stored as structured objects in `importedData`. Cards: Health Goals, Medical Conditions, Diet & Digestion, Exercise, Sleep & Rest, Light & Circadian, Stress, Love Life & Relationships, Environment. Each has AI health dot (green/yellow/red) + tip. `buildLabContext()` in `lab-context.js` serializes all cards to AI context. See source for data structures.
+Nine cards stored as structured objects in `importedData`. Cards: Health Goals, Medical History, Diet & Digestion, Exercise, Sleep & Rest, Light & Circadian, Stress, Love Life & Relationships, Environment. Each has AI health dot (green/yellow/red) + tip. `buildLabContext()` in `lab-context.js` serializes all cards to AI context. **Medical History** (`diagnoses` field) carries `conditions[]`, `note`, and `familyHistory[]` — the family-history subsection captures first-degree-plus-grandparent relatives (mother/father/sibling/child/maternal+paternal grandmothers/grandfathers), each entry = `{ relative, condition, onsetAge?, note? }`. See source for full data structures.
 
 ### Menstrual Cycle Tracking
 

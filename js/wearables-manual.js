@@ -71,7 +71,7 @@ export function ensureManualConnection({ coverageDays = 0 } = {}) {
  * Rows are upserted on the [source, date] compound key. Logging weight
  * twice on the same day overwrites — same behaviour as a wearable sync.
  */
-export async function logManualMetric(profileId, metric, { date, value, tags }) {
+export async function logManualMetric(profileId, metric, { date, value, tags, note }) {
   if (!MANUAL_METRICS.includes(metric)) {
     throw new Error(`logManualMetric: unknown metric "${metric}"`);
   }
@@ -81,6 +81,8 @@ export async function logManualMetric(profileId, metric, { date, value, tags }) 
   const d = date || isoDay();
   const patch = { [metric]: value };
   if (Array.isArray(tags) && tags.length) patch.tags = _sanitizeTags(tags);
+  const noteClean = _sanitizeNote(note);
+  if (noteClean) patch.note = noteClean;
   await _mergeManualRow(profileId, d, patch);
   ensureManualConnection();
 }
@@ -89,7 +91,7 @@ export async function logManualMetric(profileId, metric, { date, value, tags }) 
  * Log BP as a pair — matches how home cuffs report systolic + diastolic
  * (+ optional pulse) in a single reading. One row per date.
  */
-export async function logManualBP(profileId, { date, systolic, diastolic, pulse, tags }) {
+export async function logManualBP(profileId, { date, systolic, diastolic, pulse, tags, note }) {
   const d = date || isoDay();
   const row = { source: 'manual', date: d };
   if (systolic != null && isFinite(systolic)) row.bp_systolic = systolic;
@@ -97,10 +99,20 @@ export async function logManualBP(profileId, { date, systolic, diastolic, pulse,
   if (pulse != null && isFinite(pulse)) row.rhr = pulse;
   if (!row.bp_systolic && !row.bp_diastolic && !row.rhr) return;
   if (Array.isArray(tags) && tags.length) row.tags = _sanitizeTags(tags);
+  const noteClean = _sanitizeNote(note);
+  if (noteClean) row.note = noteClean;
   // Merge rather than replace — preserves same-day weight from a prior entry.
   const { source: _s, date: _d, ...patch } = row;
   await _mergeManualRow(profileId, d, patch);
   ensureManualConnection();
+}
+
+// Trim + cap so a runaway paste doesn't bloat the row. 500 chars covers
+// "fasted 14h, just after wake, post-bath, third reading" type context.
+function _sanitizeNote(note) {
+  if (typeof note !== 'string') return '';
+  const trimmed = note.trim();
+  return trimmed.length > 500 ? trimmed.slice(0, 500) : trimmed;
 }
 
 // Keep only recognized tags so a typo'd or stale chip can't poison the row.

@@ -98,7 +98,14 @@ export function migrateProfileData(data) {
   delete data.fieldLens;
   // Migrate string fields → structured objects
   if (typeof data.diagnoses === 'string') {
-    data.diagnoses = data.diagnoses.trim() ? { conditions: [], note: data.diagnoses.trim() } : null;
+    data.diagnoses = data.diagnoses.trim() ? { conditions: [], note: data.diagnoses.trim(), familyHistory: [] } : null;
+  }
+  // Backfill familyHistory on existing diagnoses objects from before v1.7.
+  // Every read site uses Array.isArray() defensively, so this is purely a
+  // tidiness fix — but keeps `diag.familyHistory.length` valid without
+  // optional chaining everywhere downstream.
+  if (data.diagnoses && typeof data.diagnoses === 'object' && !Array.isArray(data.diagnoses.familyHistory)) {
+    data.diagnoses.familyHistory = [];
   }
   if (typeof data.diet === 'string') {
     data.diet = data.diet.trim() ? { type: null, restrictions: [], pattern: null, note: data.diet.trim() } : null;
@@ -271,6 +278,7 @@ export function migrateProfileData(data) {
   if (data.emfAssessment && !Array.isArray(data.emfAssessment.assessments)) data.emfAssessment = null;
   if (data.genetics === undefined) data.genetics = null;
   if (data.markerNotes === undefined) data.markerNotes = {};
+  if (data.markerValueNotes === undefined) data.markerValueNotes = {};
   if (data.changeHistory === undefined) data.changeHistory = [];
   if (data.biometrics === undefined) data.biometrics = null;
   // Light lens (v1.7+): sun sessions, light devices, light environment, on-device measurements

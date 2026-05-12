@@ -40,7 +40,7 @@ Everything the AI can know about the user comes from these sources:
 │                                                                     │
 │  PROFILE                    CONTEXT CARDS (9)      LAB DATA         │
 │  ├─ sex                     ├─ Health Goals         ├─ entries[]    │
-│  ├─ DOB (→ age)             ├─ Medical Conditions   ├─ dates[]      │
+│  ├─ DOB (→ age)             ├─ Medical History      ├─ dates[]      │
 │  └─ location/latitude       ├─ Diet                 ├─ marker values│
 │                             ├─ Exercise             ├─ ref ranges   │
 │  PERSONA                    ├─ Sleep & Rest         ├─ optimal ranges│
@@ -117,8 +117,12 @@ Note: status labels below use reference ranges.
 [/section:userNotes]
 
 [section:diagnoses]                        ←── 6. MEDICAL CONTEXT
-## Medical Conditions / Diagnoses
+## Medical History / Diagnoses
 - Hashimoto's (major, since 2020)
+### Family history (heritable/environmental risk signal)
+- father: Heart Attack (MI), onset age 52 — survived, on statin since
+- mother: Type 2 Diabetes, onset age 45
+- maternal grandmother: Breast Cancer, onset age 61
 Notes: On levothyroxine 50mcg
 [/section:diagnoses]
 
@@ -502,7 +506,7 @@ Each entry documents:
 - Consolidated 3 inline date formatters into single `fmtDate` helper
 
 **Section reordering** (primacy bias optimization)
-- Health Goals → Interpretive Lens → Lab Values → Flagged Results → User Notes → Medical Conditions → Supplements → Menstrual Cycle → Diet → Exercise → Sleep → Light → Stress → Love Life → Environment → Context Notes
+- Health Goals → Interpretive Lens → Lab Values → Flagged Results → User Notes → Marker Notes → Per-Value Notes → Medical History → Supplements → Menstrual Cycle → Diet → Exercise → Sleep → Light → Stress → Love Life → Environment → Context Notes
 - Rationale: AI sees "what to solve" first, then data, then medical context, then lifestyle
 
 **Empty-card guards**

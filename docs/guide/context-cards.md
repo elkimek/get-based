@@ -9,7 +9,7 @@ Each card represents a different area of your life that influences your biomarke
 The nine cards, in order:
 
 1. **Health Goals** — what you are working toward
-2. **Medical Conditions** — diagnoses and ongoing conditions
+2. **Medical History** — your diagnoses, ongoing conditions, and family history (first-degree relatives + grandparents)
 3. **Diet** — eating patterns, meal timing, and restrictions
 4. **Exercise** — frequency, types, intensity, and daily movement
 5. **Sleep & Rest** — duration, quality, sleep environment, and practices
@@ -36,6 +36,17 @@ Fill in as many cards as you can. The AI uses all of this context when interpret
 ## Opening a Card Editor
 
 Click any card to open its editor modal. Each editor uses pill-button selectors and tag pills for multi-select options — no dropdowns to dig through. Changes save when you click **Save**.
+
+## Medical History — Family History Subsection
+
+The Medical History card has two sub-sections that work together:
+
+- **Your conditions** — diagnoses you live with. Each entry has a name, optional severity (major / mild / minor), and optional "since" year.
+- **Family history** — what runs in the family. Each entry has a relative (mother, father, sibling, child, or any of the four grandparents), a condition, an optional age of onset, and an optional note (e.g. "survived, on statin since"). The relative list intentionally stops at grandparents — signal-to-noise drops fast beyond first-degree-plus-grandparents.
+
+The AI weights the two differently: your conditions explain why your current biomarkers may be expected to deviate from population reference ranges; family history reframes risk interpretation (e.g. a father's heart attack at 52 makes a borderline LDL more actionable). Both feed the same `[section:diagnoses]` block in AI context.
+
+The condition picker is shared by both subsections — type any name and accept an autocomplete suggestion, or type a free-text one if your condition isn't in the list. Common diagnoses across metabolic, cardiovascular, neuro, autoimmune, cancer, and mental-health categories are covered.
 
 ## Circadian & Mitochondrial Health Options
 

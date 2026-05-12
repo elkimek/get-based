@@ -502,6 +502,28 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
 }
 .modal-value-card .mv-status { font-size: 11px; font-weight: 600; margin-top: 4px; }
 .modal-value-card .mv-phase { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.modal-value-card .mv-value-note {
+  font-size: 11px; margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  display: flex; align-items: flex-start; gap: 4px; justify-content: center;
+}
+.modal-value-card .mv-value-note.has-note { color: var(--text-secondary); font-style: italic; }
+.modal-value-card .mv-value-note.add-note {
+  color: var(--text-muted); cursor: pointer; opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.modal-value-card:hover .mv-value-note.add-note { opacity: 0.7; }
+.modal-value-card .mv-value-note.add-note:hover { opacity: 1; color: var(--accent); }
+.modal-value-card .mv-value-note-text {
+  cursor: pointer; flex: 1; min-width: 0; word-break: break-word; text-align: center;
+}
+.modal-value-card .mv-value-note-text:hover { color: var(--accent); }
+.modal-value-card .mv-value-note-delete {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px; opacity: 0; transition: opacity 0.15s;
+}
+.modal-value-card:hover .mv-value-note-delete { opacity: 0.7; }
+.modal-value-card .mv-value-note-delete:hover { color: var(--red); opacity: 1; }
 .modal-ref-info {
   background: var(--bg-card); border-radius: var(--radius-sm);
   padding: 14px 18px; font-size: 13px; color: var(--text-secondary);
@@ -1135,6 +1157,60 @@ body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
 }
 .ctx-add-condition .supp-form-field { flex: 1; min-width: 120px; }
+/* Family history subsection */
+.ctx-family-history {
+  border-top: 1px solid var(--border);
+  padding-top: 14px; margin-top: 18px;
+}
+.ctx-family-head {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
+}
+.ctx-family-count {
+  font-size: 11px; color: var(--text-muted); font-weight: 500;
+  background: var(--bg-tertiary, rgba(128,128,128,0.08));
+  padding: 1px 7px; border-radius: 8px; min-width: 16px; text-align: center;
+}
+.ctx-family-count:empty { display: none; }
+.ctx-family-list {
+  display: flex; flex-direction: column; gap: 4px; margin: 10px 0 14px;
+}
+.ctx-family-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; flex-wrap: wrap; transition: border-color 0.15s;
+}
+.ctx-family-item:hover { border-color: var(--text-muted); }
+.ctx-family-relative {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary);
+  background: var(--bg-tertiary, rgba(128,128,128,0.08));
+  padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+  flex-shrink: 0;
+}
+.ctx-family-relative-label { font-weight: 500; }
+.ctx-family-condition { color: var(--text-primary); font-weight: 500; flex: 1; min-width: 100px; }
+.ctx-family-age {
+  font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ctx-family-note {
+  font-size: 12px; color: var(--text-muted); font-style: italic;
+  flex-basis: 100%; padding-left: 4px; line-height: 1.35;
+  margin-top: -2px;
+}
+.ctx-family-add { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ctx-family-add-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.ctx-family-select { max-width: 200px; flex-shrink: 0; }
+.ctx-family-condition-wrap { flex: 1; min-width: 200px; }
+.ctx-family-age-input { width: 130px; flex-shrink: 0; }
+.ctx-family-note-input { flex: 1; min-width: 180px; }
+@media (max-width: 600px) {
+  .ctx-family-select, .ctx-family-condition-wrap,
+  .ctx-family-age-input, .ctx-family-note-input { width: 100%; max-width: none; }
+  .ctx-family-add-row .import-btn { width: 100%; }
+}
 /* Context editor note input */
 .ctx-note-input {
   width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
@@ -2968,6 +3044,12 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   color: var(--text-primary); font-size: 13px; font-family: inherit;
 }
 .manual-entry-form .me-field input:focus { border-color: var(--accent); }
+.manual-entry-form .me-field textarea {
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical;
+}
+.manual-entry-form .me-field textarea:focus { border-color: var(--accent); }
 .manual-entry-form .me-field select {
   width: 100%; padding: 8px 12px; border-radius: 6px;
   border: 1px solid var(--border); background: var(--bg-primary);
@@ -4456,6 +4538,14 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   border-color: var(--accent);
   font-weight: 600;
 }
+.wearable-log-note {
+  width: 100%; min-height: 38px; padding: 6px 8px;
+  background: var(--bg-primary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: inherit; resize: vertical; box-sizing: border-box;
+}
+.wearable-log-note:focus { border-color: var(--accent); outline: none; }
+.wearable-log-note::placeholder { color: var(--text-muted); }
 
 /* Manual entries list in the detail modal — per-row delete + add form */
 .wearable-manual-entries {
@@ -4516,6 +4606,12 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   cursor: pointer; border-radius: 4px;
 }
 .wearable-manual-entry-del:hover { color: var(--red, #ef4444); background: var(--bg-tertiary, rgba(239,68,68,0.08)); }
+.wearable-manual-entry.has-note { flex-wrap: wrap; }
+.wearable-manual-entry-note {
+  flex-basis: 100%; font-size: 11px; color: var(--text-secondary);
+  font-style: italic; margin-top: 2px; padding-left: 0; line-height: 1.35;
+  word-break: break-word;
+}
 .wearable-manual-add-form {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 8px 10px; margin-bottom: 8px;

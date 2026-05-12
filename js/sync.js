@@ -1355,6 +1355,7 @@ const DELTA_ARRAY_CONFIG = {
 // defence-in-depth posture as malformed `.id` fields on the array path.
 const DELTA_MAPS = [
   'markerNotes',         // user-attached freeform notes per marker, ~bytes per entry, frequent edits
+  'markerValueNotes',    // user-attached freeform notes per (marker, date) — keyed `category.markerKey:date`
   'customMarkers',       // user-defined markers (PDF imports + manual creation), keyed by `category.markerKey`
   'manualValues',        // membership flags for manually-typed entry values, keyed `category.markerKey:date` (synth-id)
   'refOverrides',        // user-edited reference ranges per marker, keyed by `category.markerKey`
@@ -1436,6 +1437,14 @@ const DELTA_MAP_CONFIG = {
   // `_`; v1.7.13 audit fix). Pull side restores the original `:`-bearing
   // key from payload.k regardless.
   manualValues: {
+    keyIdFn: (rawKey) => {
+      if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
+      const safe = rawKey.replace(/_/g, '__').replace(/:/g, '_');
+      return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
+    },
+  },
+  // Same `category.markerKey:date` shape as manualValues — share the escape.
+  markerValueNotes: {
     keyIdFn: (rawKey) => {
       if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
       const safe = rawKey.replace(/_/g, '__').replace(/:/g, '_');

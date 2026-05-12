@@ -49,6 +49,15 @@ export function getConditionsSummary(d) {
     if (c.since) s += ` since ${c.since}`;
     return s;
   }).join(', '));
+  if (Array.isArray(d.familyHistory) && d.familyHistory.length) {
+    const fh = d.familyHistory.map(e => {
+      // Compact form: "father MI@52" / "mother T2D" — keeps the dashboard chip readable.
+      const rel = e.relative ? e.relative.replace(/^maternal_/, 'mat. ').replace(/^paternal_/, 'pat. ').replace(/_/g, ' ') : '';
+      const age = (e.onsetAge != null && e.onsetAge !== '') ? `@${e.onsetAge}` : '';
+      return `${rel} ${e.condition || ''}${age}`.trim();
+    }).join(', ');
+    parts.push(`Family: ${fh}`);
+  }
   if (d.note) parts.push(d.note);
   return parts.join(' — ');
 }
@@ -187,7 +196,7 @@ export function isContextFilled(key) {
 export function renderProfileContextCards() {
   const cardDefs = [
     { key: 'healthGoals', emoji: '\uD83C\uDFAF', label: 'Health Goals', editor: 'openHealthGoalsEditor', tooltip: 'Define what you\'re trying to solve or improve. AI prioritizes analysis around your stated goals.', placeholder: 'Add health goals', summaryFn: getGoalsSummary },
-    { key: 'diagnoses', emoji: '\uD83C\uDFE5', label: 'Medical Conditions', editor: 'openDiagnosesEditor', tooltip: 'Diagnoses directly affect how lab markers should be interpreted — what\'s abnormal for most may be expected for you.', placeholder: 'Add medical conditions', summaryFn: () => getConditionsSummary(state.importedData.diagnoses) },
+    { key: 'diagnoses', emoji: '\uD83C\uDFE5', label: 'Medical History', editor: 'openDiagnosesEditor', tooltip: 'Your diagnoses + family history shape how lab markers should be interpreted. What\'s abnormal for most may be expected for you; a parent\'s heart attack at 52 reframes a borderline LDL.', placeholder: 'Add diagnoses or family history', summaryFn: () => getConditionsSummary(state.importedData.diagnoses) },
     { key: 'diet', emoji: '\uD83E\uDD57', label: 'Diet & Digestion', editor: 'openDietEditor', tooltip: 'Nutrition and digestion directly affect blood markers — diet type impacts lipids, B12, iron; GI symptoms correlate with inflammation and nutrient absorption.', placeholder: 'Describe your diet & digestion', summaryFn: () => getDietSummary(state.importedData.diet) },
     { key: 'exercise', emoji: '\uD83C\uDFCB\uFE0F', label: 'Exercise', editor: 'openExerciseEditor', tooltip: 'Training type and intensity affect CK, liver enzymes, cholesterol, and inflammatory markers.', placeholder: 'Describe your routine', summaryFn: () => getExerciseSummary(state.importedData.exercise) },
     { key: 'sleepRest', emoji: '\uD83D\uDE34', label: 'Sleep & Rest', editor: 'openSleepRestEditor', tooltip: 'Sleep duration and quality directly affect inflammation, insulin sensitivity, cortisol, and immune function.', placeholder: 'Describe your sleep', summaryFn: () => getSleepSummary(state.importedData.sleepRest) },
@@ -555,11 +564,30 @@ export function openDiagnosesEditor() {
   overlay.classList.add("show");
 }
 
+// Relatives surfaced in the Family History subsection. First-degree
+// (mother/father/sibling/child) plus grandparents — covers the bulk of
+// clinically-relevant heritable risk without sprawling into the
+// "aunt/uncle/cousin" tail where signal-to-noise drops fast.
+const FAMILY_RELATIVES = [
+  { key: 'mother',                 label: 'Mother' },
+  { key: 'father',                 label: 'Father' },
+  { key: 'sibling',                label: 'Sibling' },
+  { key: 'child',                  label: 'Child' },
+  { key: 'maternal_grandmother',   label: 'Maternal grandmother' },
+  { key: 'maternal_grandfather',   label: 'Maternal grandfather' },
+  { key: 'paternal_grandmother',   label: 'Paternal grandmother' },
+  { key: 'paternal_grandfather',   label: 'Paternal grandfather' },
+];
+function _relativeLabel(key) {
+  return FAMILY_RELATIVES.find(r => r.key === key)?.label || key;
+}
+
 export function renderDiagnosesModal(modal, current) {
   const conditions = current.conditions || [];
+  const familyHistory = Array.isArray(current.familyHistory) ? current.familyHistory : [];
   let html = `<button class="modal-close" onclick="closeDiagnoses()">&times;</button>
-    <h3>Medical Conditions</h3>
-    <div class="modal-unit">Add diagnosed conditions. The AI will consider these when interpreting your labs.</div>`;
+    <h3>Medical History</h3>
+    <div class="modal-unit">Your diagnoses and family history. The AI considers both when interpreting your labs.</div>`;
   if (conditions.length > 0) {
     html += `<div class="ctx-conditions-list" id="ctx-conditions-list">`;
     for (let i = 0; i < conditions.length; i++) {
@@ -588,8 +616,73 @@ export function renderDiagnosesModal(modal, current) {
       <button type="button" class="ctx-btn-option" onclick="selectCtxOption(this,'condition-severity')">minor</button>
     </div>
   </div>`;
+  // ── Family History subsection ──
+  // Relative-key → emoji for the entry-row chip. Subtle visual hook so users
+  // can scan a long family-history list by "who" before "what".
+  const RELATIVE_EMOJI = {
+    mother: '👩', father: '👨', sibling: '👫', child: '🧒',
+    maternal_grandmother: '👵', maternal_grandfather: '👴',
+    paternal_grandmother: '👵', paternal_grandfather: '👴',
+  };
+  html += `<div class="ctx-family-history" id="ctx-family-section">
+    <div class="ctx-family-head">
+      <label class="ctx-field-label">Family history</label>
+      <span class="ctx-family-count">${familyHistory.length || ''}</span>
+    </div>
+    <div class="ctx-modal-hint">Genetic + environmental signal. Affects risk interpretation — e.g. a father's MI at 52 reframes a borderline LDL.</div>`;
+  if (familyHistory.length > 0) {
+    // Sort for display: same order as FAMILY_RELATIVES, then preserve add order.
+    const relOrder = new Map(FAMILY_RELATIVES.map((r, i) => [r.key, i]));
+    const indexed = familyHistory.map((e, i) => ({ e, i }));
+    indexed.sort((a, b) => (relOrder.get(a.e.relative) ?? 99) - (relOrder.get(b.e.relative) ?? 99));
+    html += `<div class="ctx-family-list" id="ctx-family-list">`;
+    for (const { e, i } of indexed) {
+      const emoji = RELATIVE_EMOJI[e.relative] || '👤';
+      html += `<div class="ctx-family-item">
+        <span class="ctx-family-relative" title="${escapeHTML(_relativeLabel(e.relative))}">${emoji} <span class="ctx-family-relative-label">${escapeHTML(_relativeLabel(e.relative))}</span></span>
+        <span class="ctx-family-condition">${escapeHTML(e.condition || '')}</span>
+        ${e.onsetAge != null && e.onsetAge !== '' ? `<span class="ctx-family-age">age ${escapeHTML(String(e.onsetAge))}</span>` : ''}
+        ${e.note ? `<span class="ctx-family-note">${escapeHTML(e.note)}</span>` : ''}
+        <button class="goals-delete-btn" onclick="deleteFamilyHistoryEntry(${i})" aria-label="Remove entry">&times;</button>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+  // Add form: two stacked rows so 4 inputs + button don't fight on one line.
+  // Row 1: who + what. Row 2: when + optional context + the Add CTA.
+  html += `<div class="ctx-family-add">
+    <div class="ctx-family-add-row">
+      <select class="ctx-note-input ctx-family-select" id="fh-relative" aria-label="Relative">
+        <optgroup label="Parents">
+          <option value="mother">Mother</option>
+          <option value="father">Father</option>
+        </optgroup>
+        <optgroup label="Siblings & Children">
+          <option value="sibling">Sibling</option>
+          <option value="child">Child</option>
+        </optgroup>
+        <optgroup label="Maternal grandparents">
+          <option value="maternal_grandmother">Maternal grandmother</option>
+          <option value="maternal_grandfather">Maternal grandfather</option>
+        </optgroup>
+        <optgroup label="Paternal grandparents">
+          <option value="paternal_grandmother">Paternal grandmother</option>
+          <option value="paternal_grandfather">Paternal grandfather</option>
+        </optgroup>
+      </select>
+      <div class="ctx-autocomplete-wrapper ctx-family-condition-wrap">
+        <input type="text" class="ctx-note-input" id="fh-condition" placeholder="Condition (e.g. heart attack, Alzheimer's, breast cancer)" oninput="filterFamilyConditionSuggestions()" onfocus="filterFamilyConditionSuggestions()" aria-label="Condition">
+        <div class="ctx-suggestions" id="fh-condition-suggestions"></div>
+      </div>
+    </div>
+    <div class="ctx-family-add-row">
+      <input type="number" min="0" max="120" class="ctx-note-input ctx-family-age-input" id="fh-age" placeholder="Age at onset" aria-label="Age at onset">
+      <input type="text" class="ctx-note-input ctx-family-note-input" id="fh-note" placeholder="Note — outcome, treatment, etc. (optional)" aria-label="Note">
+      <button class="import-btn import-btn-primary" onclick="addFamilyHistoryEntry()">+ Add</button>
+    </div>
+  </div></div>`;
   html += renderNoteField(current.note);
-  const hasCurrent = conditions.length > 0 || current.note;
+  const hasCurrent = conditions.length > 0 || familyHistory.length > 0 || current.note;
   html += `<div class="ctx-editor-actions">
     <button class="import-btn import-btn-primary" onclick="saveDiagnoses()">Save</button>
     <button class="import-btn import-btn-secondary" onclick="closeDiagnoses()">Cancel</button>
@@ -600,6 +693,10 @@ export function renderDiagnosesModal(modal, current) {
     const input = document.getElementById('condition-input');
     if (input) {
       input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addCondition(); } };
+    }
+    const fhCond = document.getElementById('fh-condition');
+    if (fhCond) {
+      fhCond.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addFamilyHistoryEntry(); } };
     }
     document.removeEventListener('click', closeSuggestionsOnClickOutside);
     document.addEventListener('click', closeSuggestionsOnClickOutside);
@@ -618,7 +715,11 @@ export function filterConditionSuggestions() {
   });
   const matches = val ? sexFiltered.filter(c => c.toLowerCase().includes(val) && !existing.includes(c.toLowerCase())) : sexFiltered.filter(c => !existing.includes(c.toLowerCase()));
   if (matches.length === 0 || !val) { container.innerHTML = ''; return; }
-  container.innerHTML = matches.slice(0, 8).map(m => `<div class="ctx-suggestion-item" onmousedown="selectConditionSuggestion('${escapeHTML(m)}')">${escapeHTML(m)}</div>`).join('');
+  // JSON.stringify + escapeHTML so conditions with apostrophes (Alzheimer's,
+  // Hashimoto's, Crohn's, etc.) survive both the JS-string-in-HTML-attribute
+  // round-trip. escapeHTML alone would convert `'` → `&#39;` which the HTML
+  // parser then decodes *before* JS sees it, breaking the JS string literal.
+  container.innerHTML = matches.slice(0, 8).map(m => `<div class="ctx-suggestion-item" onmousedown="selectConditionSuggestion(${escapeHTML(JSON.stringify(m))})">${escapeHTML(m)}</div>`).join('');
 }
 
 export function selectConditionSuggestion(name) {
@@ -633,6 +734,12 @@ export function closeSuggestionsOnClickOutside(e) {
   const input = document.getElementById('condition-input');
   if (container && input && !input.contains(e.target) && !container.contains(e.target)) {
     container.innerHTML = '';
+  }
+  // Family-history input shares this dismiss-on-outside-click behavior.
+  const fhContainer = document.getElementById('fh-condition-suggestions');
+  const fhInput = document.getElementById('fh-condition');
+  if (fhContainer && fhInput && !fhInput.contains(e.target) && !fhContainer.contains(e.target)) {
+    fhContainer.innerHTML = '';
   }
 }
 
@@ -666,14 +773,78 @@ export function deleteCondition(idx) {
   renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
 }
 
+export function addFamilyHistoryEntry() {
+  const relativeEl = document.getElementById('fh-relative');
+  const conditionEl = document.getElementById('fh-condition');
+  const ageEl = document.getElementById('fh-age');
+  const noteEl = document.getElementById('fh-note');
+  const relative = relativeEl?.value || '';
+  const condition = (conditionEl?.value || '').trim();
+  if (!relative || !condition) return;
+  // Validate relative against allowlist so a tampered <option> can't sneak in.
+  if (!FAMILY_RELATIVES.some(r => r.key === relative)) return;
+  const ageRaw = (ageEl?.value || '').trim();
+  const onsetAge = ageRaw === '' ? null : Math.max(0, Math.min(120, parseInt(ageRaw, 10)));
+  const note = (noteEl?.value || '').trim();
+  syncDiagnosesNote();
+  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
+  if (!Array.isArray(state.importedData.diagnoses.familyHistory)) state.importedData.diagnoses.familyHistory = [];
+  const entry = { relative, condition };
+  if (Number.isFinite(onsetAge)) entry.onsetAge = onsetAge;
+  if (note) entry.note = note;
+  state.importedData.diagnoses.familyHistory.push(entry);
+  recordChange('diagnoses');
+  saveImportedData();
+  renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
+}
+
+export function deleteFamilyHistoryEntry(idx) {
+  if (!state.importedData.diagnoses || !Array.isArray(state.importedData.diagnoses.familyHistory)) return;
+  syncDiagnosesNote();
+  state.importedData.diagnoses.familyHistory.splice(idx, 1);
+  recordChange('diagnoses');
+  saveImportedData();
+  renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
+}
+
+// Mirrors filterConditionSuggestions but targets the family-history input
+// — same COMMON_CONDITIONS pool, separate DOM ids so the two autocompletes
+// don't share state.
+export function filterFamilyConditionSuggestions() {
+  const input = document.getElementById('fh-condition');
+  const container = document.getElementById('fh-condition-suggestions');
+  if (!input || !container) return;
+  const val = input.value.toLowerCase().trim();
+  const sexFiltered = COMMON_CONDITIONS.filter(c => {
+    // Cross-sex family members can have either-sex conditions, so don't apply
+    // the user's profile sex filter here — a male profile can have a mother
+    // with PCOS or endometriosis.
+    return true;
+  });
+  const matches = val ? sexFiltered.filter(c => c.toLowerCase().includes(val)) : sexFiltered;
+  if (matches.length === 0 || !val) { container.innerHTML = ''; return; }
+  // Same JSON.stringify-then-escapeHTML trick as filterConditionSuggestions —
+  // see the comment there for why bare escapeHTML breaks apostrophe names.
+  container.innerHTML = matches.slice(0, 8).map(m => `<div class="ctx-suggestion-item" onmousedown="selectFamilyConditionSuggestion(${escapeHTML(JSON.stringify(m))})">${escapeHTML(m)}</div>`).join('');
+}
+
+export function selectFamilyConditionSuggestion(name) {
+  const input = document.getElementById('fh-condition');
+  if (input) input.value = name;
+  const container = document.getElementById('fh-condition-suggestions');
+  if (container) container.innerHTML = '';
+}
+
 export function saveDiagnoses() {
   const note = (document.getElementById('ctx-note-input') || {}).value || '';
   if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '' };
   state.importedData.diagnoses.note = note.trim();
-  if (state.importedData.diagnoses.conditions.length === 0 && !state.importedData.diagnoses.note) {
+  const fhLen = Array.isArray(state.importedData.diagnoses.familyHistory) ? state.importedData.diagnoses.familyHistory.length : 0;
+  // Don't nuke the whole card if family history is the only populated field.
+  if (state.importedData.diagnoses.conditions.length === 0 && !state.importedData.diagnoses.note && fhLen === 0) {
     state.importedData.diagnoses = null;
   }
-  saveAndRefresh('Medical conditions saved', 'diagnoses');
+  saveAndRefresh('Medical history saved', 'diagnoses');
 }
 
 export function closeDiagnoses() {
@@ -682,7 +853,7 @@ export function closeDiagnoses() {
 
 export function clearDiagnoses() {
   state.importedData.diagnoses = null;
-  saveAndRefresh('Medical conditions cleared', 'diagnoses');
+  saveAndRefresh('Medical history cleared', 'diagnoses');
 }
 
 // ═══════════════════════════════════════════════
@@ -1631,6 +1802,10 @@ Object.assign(window, {
   syncDiagnosesNote,
   addCondition,
   deleteCondition,
+  addFamilyHistoryEntry,
+  deleteFamilyHistoryEntry,
+  filterFamilyConditionSuggestions,
+  selectFamilyConditionSuggestion,
   saveDiagnoses,
   closeDiagnoses,
   clearDiagnoses,

@@ -267,7 +267,7 @@ return (async function() {
   const dietIdx = labCtxSrc.indexOf('## Diet\\n');
   const flaggedIdx = labCtxSrc.indexOf('## Flagged Results (Latest)');
   const notesIdx = labCtxSrc.indexOf('## User Notes');
-  const diagIdx = labCtxSrc.indexOf('## Medical Conditions / Diagnoses');
+  const diagIdx = labCtxSrc.indexOf('## Medical History / Diagnoses');
   // Goals should appear before diet in the source (section ordering)
   assert('Health Goals section before Diet section', labCtxSrc.indexOf('## Health Goals') < labCtxSrc.indexOf('## Diet'));
   assert('Interpretive Lens before lab values', labCtxSrc.indexOf('Interpretive Lens') < labCtxSrc.indexOf('${cat.label}'));

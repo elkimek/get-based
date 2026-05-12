@@ -176,7 +176,7 @@ return (async function() {
   assert('Stress passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Stress profile saved', 'stress')"));
   assert('Love life passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Love life saved', 'loveLife')"));
   assert('Environment passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Environment saved', 'environment')"));
-  assert('Diagnoses passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Medical conditions saved', 'diagnoses')"));
+  assert('Diagnoses passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Medical history saved', 'diagnoses')"));
 
   // ═══════════════════════════════════════
   // 16. Inline save paths call recordChange
