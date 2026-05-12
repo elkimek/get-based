@@ -5,7 +5,7 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
-    version: '1.8.0', date: '2026-05-12', title: 'See your values in both unit systems',
+    version: '1.7.4', date: '2026-05-12', title: 'See your values in both unit systems',
     items: [
       '<b>Alternate Units toggle (Settings → Display).</b> When on, the marker detail modal shows each value in both the active system AND the other one — <i>5.20 mmol/L · ≈ 93.7 mg/dL</i> for glucose, <i>140 mmol/L · ≈ 140 mEq/L</i> for sodium, <i>8.5 mU/L · ≈ 8.5 µIU/mL</i> for insulin. Off by default to keep the modal uncluttered for single-locale users. Reference + optimal ranges also render in both systems so a US user reading a Quest report (in <code>µIU/mL</code>) can match it against the app\'s EU SI numbers (in <code>mU/L</code>) without flipping the global toggle. Per-profile preference, persists across sessions.',
       '<b>Type values in either unit on manual entry.</b> The "+ Add Value Manually" form now offers a small unit picker next to the value field for markers with a known conversion. Default is the current display unit; flip it to type a value straight from a lab report printed in the other system, and the app converts to canonical SI before storage. Round-trip stays exact (5 mmol/L in, 5 mmol/L back out via the alt unit and home). The range sanity-check now uses alt-unit ranges so typing <i>90 mg/dL</i> in EU mode doesn\'t spuriously flag against the SI ref range.',

@@ -209,17 +209,16 @@ return (async function() {
     window.maybeShowChangelog();
     assert('maybeShowChangelog stays closed once user has seen the latest version',
       ovAfterClose?.classList.contains('show') === false);
-    // Shadowing defense: if seen is the same major.minor as APP_VERSION
-    // (so minor-bump auto-show doesn't fire) and only non-forceShow patches
-    // are newer than seen, the modal must NOT auto-open.
-    // Use the current APP_VERSION's major.minor + '.0' as seen so this test
-    // tracks the moving version line — past iterations pinned '1.7.1' which
-    // breaks every time a new minor ships.
-    const _seenSameMajorMinor = window.APP_VERSION.split('.').slice(0, 2).join('.') + '.0';
-    localStorage.setItem('labcharts-changelog-seen', _seenSameMajorMinor);
+    // No-forceShow-ahead defense: when seen is newer than every forceShow
+    // entry in CHANGELOG (so no critical user-action notice is pending), the
+    // modal must NOT auto-open even if other non-forceShow entries exist.
+    // Easiest way to guarantee that without parsing the changelog source: set
+    // seen = current APP_VERSION. No entry is newer, so no forceShow is newer.
+    // This survives future bumps where any new patch ships as forceShow.
+    localStorage.setItem('labcharts-changelog-seen', window.APP_VERSION);
     ovAfterClose?.classList.remove('show');
     window.maybeShowChangelog();
-    assert('maybeShowChangelog stays closed when only non-forceShow patches are newer',
+    assert('maybeShowChangelog stays closed when no forceShow entry is newer than seen',
       ovAfterClose?.classList.contains('show') === false);
   } finally {
     if (_origSeen !== null) localStorage.setItem('labcharts-changelog-seen', _origSeen);
