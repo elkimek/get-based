@@ -165,7 +165,7 @@ return (async function() {
     const lines = src.split('\n');
     const sites = [];
     for (let i = 0; i < lines.length; i++) {
-      if (/\.innerHTML\s*=/.test(lines[i])) sites.push({ lineNo: i + 1, line: lines[i] });
+      if (/\.innerHTML\s*\+?=/.test(lines[i])) sites.push({ lineNo: i + 1, line: lines[i] });
     }
     const unguarded = [];
     for (const { lineNo, line } of sites) {
@@ -173,16 +173,16 @@ return (async function() {
       // is recognized as a static literal in (a)/(b).
       const _bare = line.replace(/\s*\/\/.*$/, '');
       // (a) Empty/clear — `innerHTML = ''` or `innerHTML = "";`
-      if (/\.innerHTML\s*=\s*(['"])\1\s*;?\s*$/.test(_bare)) continue;
+      if (/\.innerHTML\s*\+?=\s*(['"])\1\s*;?\s*$/.test(_bare)) continue;
       // (b) Single-line static literal (no `${` interpolation). Multi-line
       //     template literals fall through to (d) and need a sanitizer in
       //     the surrounding window.
-      if (/\.innerHTML\s*=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
+      if (/\.innerHTML\s*\+?=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
       // (c) Direct helper-function-call result, where the helper is in the
       //     audited safe-helper whitelist. Tightened from "trust any function"
       //     to "trust an explicitly-audited helper" — Greptile #188 review
       //     flagged the loose form as a false-negative path.
-      const _fnCallMatch = _bare.match(/\.innerHTML\s*=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
+      const _fnCallMatch = _bare.match(/\.innerHTML\s*\+?=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
       if (_fnCallMatch && _SAFE_HELPERS.has(_fnCallMatch[1])) continue;
       // (d) Otherwise — sanitizer within ±100 lines (covers "build html
       //     across many lines, assign at end" + "h is callback param" patterns).
