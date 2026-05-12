@@ -36,6 +36,20 @@ return (async function() {
   assert('Detects Living DNA', dna.detectDNAFile('# Living DNA customer genotype data download file version: 1.0.1\n') === 'livingdna');
   assert('Detects CSV (MyHeritage/FTDNA)', dna.detectDNAFile('RSID,CHROMOSOME,POSITION,RESULT\n') === 'csv');
   assert('Detects quoted CSV', dna.detectDNAFile('"RSID","CHROMOSOME","POSITION","RESULT"\n') === 'csv');
+  // 2025+ MyHeritage Low-pass WGS export prepends a ##fileformat block before
+  // the column header. The detector used to read only line 0 and miss the
+  // RSID,CHROMOSOME,POSITION,RESULT line buried below ~12 comment rows.
+  const myHeritageWGSHeader =
+    '##fileformat=MyHeritage\n' +
+    '##format=MHv1.0\n' +
+    '##method=Low-pass Whole Genome Sequencing\n' +
+    '##timestamp=2026-05-12 13:09:09 UTC\n' +
+    '##reference=build37\n' +
+    '#\n' +
+    '# MyHeritage DNA raw data.\n' +
+    'RSID,CHROMOSOME,POSITION,RESULT\n' +
+    '"rs3131972","1","752721","AA"\n';
+  assert('Detects MyHeritage Low-pass WGS (##fileformat header)', dna.detectDNAFile(myHeritageWGSHeader) === 'csv');
   assert('Returns null for JSON', dna.detectDNAFile('{"entries": []}') === null);
   assert('Returns null for PDF header', dna.detectDNAFile('%PDF-1.4') === null);
 
@@ -116,6 +130,25 @@ i123456\t1\t100\tAA
   assert('CSV: source detected', csvResult.source === 'MyHeritage/FTDNA');
   assert('CSV: MTHFR matched', csvResult.matches.rs1801133?.genotype === 'GA');
   assert('CSV: handles quoted fields', csvResult.matches.rs1800562?.genotype === 'GG');
+
+  // CSV with MyHeritage Low-pass WGS ##fileformat header block (the format
+  // shipped after the 2025 export refresh — the detector used to miss it).
+  const myHeritageWGSContent =
+    '##fileformat=MyHeritage\n' +
+    '##format=MHv1.0\n' +
+    '##method=Low-pass Whole Genome Sequencing\n' +
+    '##timestamp=2026-05-12 13:09:09 UTC\n' +
+    '##reference=build37\n' +
+    '#\n' +
+    '# MyHeritage DNA raw data.\n' +
+    'RSID,CHROMOSOME,POSITION,RESULT\n' +
+    '"rs1801133","1","11856378","GA"\n' +
+    '"rs1800562","6","26093141","GG"\n';
+  const mhFile = new File([myHeritageWGSContent], 'MyHeritage_raw_dna_data_adj.csv', { type: 'text/csv' });
+  const mhResult = await dna.parseDNAFile(mhFile);
+  assert('MyHeritage WGS: source detected', mhResult.source === 'MyHeritage/FTDNA');
+  assert('MyHeritage WGS: comment lines skipped, MTHFR matched', mhResult.matches.rs1801133?.genotype === 'GA');
+  assert('MyHeritage WGS: HFE matched (past comment block)', mhResult.matches.rs1800562?.genotype === 'GG');
 
   // ═══════════════════════════════════════
   // 7. Genotype reversal (CT ↔ TC)
