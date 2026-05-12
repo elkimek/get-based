@@ -25,25 +25,26 @@ import { isDebugMode } from './utils.js';
 // ─────────────────────────────────────────────────────────
 
 // Accepts a File (either .zip from Apple export or raw export.xml). Streams
-// the zip via vendored JSZip when present; falls back to plain-text parse for
-// direct .xml drops.
+// the file through TextDecoderStream so multi-GB exports don't hit V8's
+// ~512 MB max-string-length limit on file.text(). For zips: JSZip decompresses
+// to a Blob (bytes only, no JS string allocation) and we stream-decode that.
 export async function importAppleHealthFile(file, onProgress) {
   if (!file) throw new Error('No file provided');
   onProgress?.({ stage: 'reading', pct: 0 });
 
   const name = (file.name || '').toLowerCase();
-  let xmlText;
+  let xmlBlob;
   if (name.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
-    xmlText = await extractExportXml(file, onProgress);
+    xmlBlob = await extractExportXmlBlob(file, onProgress);
   } else if (name.endsWith('.xml') || file.type === 'application/xml' || file.type === 'text/xml') {
-    xmlText = await file.text();
+    xmlBlob = file;
   } else {
     throw new Error(`Unrecognised file type (got "${name}") — expected Apple Health export.zip or export.xml`);
   }
-  if (!xmlText || xmlText.length === 0) throw new Error('Empty XML payload');
+  if (!xmlBlob || xmlBlob.size === 0) throw new Error('Empty XML payload');
 
   onProgress?.({ stage: 'parsing', pct: 40 });
-  const rows = parseAppleHealthXml(xmlText);
+  const rows = await parseAppleHealthBlob(xmlBlob, onProgress);
   if (isDebugMode?.()) console.log(`[apple-health] parsed ${rows.length} canonical day rows`);
 
   onProgress?.({ stage: 'writing', pct: 80 });
@@ -96,7 +97,7 @@ function loadJSZip() {
   return _jszipLoad;
 }
 
-async function extractExportXml(zipFile, onProgress) {
+async function extractExportXmlBlob(zipFile, onProgress) {
   const JSZip = await loadJSZip();
   const zip = await JSZip.loadAsync(zipFile, {
     // Progress for large exports — Apple zips can be 500 MB+ compressed.
@@ -112,7 +113,9 @@ async function extractExportXml(zipFile, onProgress) {
     const names = Object.keys(zip.files).filter(n => n.toLowerCase().endsWith('.xml')).slice(0, 5);
     throw new Error(`export.xml not found in ZIP. Found XMLs: ${names.join(', ') || '(none)'}`);
   }
-  return entry.async('text');
+  // Return decompressed bytes as a Blob (not a string). A 2 GB XML hits V8's
+  // ~512 MB max-string-length limit if requested as 'text'; bytes don't.
+  return entry.async('blob');
 }
 
 // ─────────────────────────────────────────────────────────
@@ -120,10 +123,13 @@ async function extractExportXml(zipFile, onProgress) {
 // ─────────────────────────────────────────────────────────
 
 // Apple Health XML is one giant `<HealthData>` root with `<Record>` children.
-// For exports that fit in memory (<~300 MB), DOMParser handles it. Beyond that
-// we'd need a chunked reader; defer until a tester reports the bound.
-export function parseAppleHealthXml(xmlText) {
-  const adapter = adapterById('apple_health');
+// Two entry points:
+//   parseAppleHealthXml(string)  — in-memory parse; kept for tests + small files
+//   parseAppleHealthBlob(blob)   — streaming parse; required for multi-GB exports
+//                                  that exceed V8's ~512 MB max-string-length
+// Both feed the same per-record bucket → daily-row aggregator.
+
+function _buildTypeToCanonical() {
   // Build hkType → canonical map. Skip entries with a `window` discriminator
   // (e.g. hrv_day uses the same hkType as hrv_sdnn but is derived later via
   // the day-window aggregator) — otherwise the second declaration would
@@ -131,62 +137,108 @@ export function parseAppleHealthXml(xmlText) {
   // Exception: hr_day's HKQuantityTypeIdentifierHeartRate hkType is unique
   // (no overlap with rhr's RestingHeartRate), so it routes directly into a
   // bucket from which the day-window aggregator will read.
+  const adapter = adapterById('apple_health');
   const typeToCanonical = {};
   for (const [canonId, m] of Object.entries(adapter?.metrics || {})) {
     if (!m?.hkType) continue;
-    if (m.window && typeToCanonical[m.hkType]) continue; // hrv_day shadows hrv_sdnn — skip
+    if (m.window && typeToCanonical[m.hkType]) continue;
     typeToCanonical[m.hkType] = canonId;
   }
+  return typeToCanonical;
+}
 
-  // Extract <Record …/> elements line-by-line using a regex scan rather than
-  // DOMParser — DOMParser materialises the full tree, which is expensive on
-  // 500 MB+ exports. Apple's export is well-formed and flat, so a regex is
-  // both safe and O(n).
-  //
-  // Contract: we only pull the attributes we care about. If Apple changes the
-  // schema we catch it on the unit-normalisation assert below.
-  const byDayByMetric = new Map(); // 'YYYY-MM-DD' → { metricId → number[] }
+// Match both self-closing <Record …/> and open <Record …>.
+const _RECORD_RE = /<Record\b([^>]*?)\/?>/g;
+const _ATTR_RE = /(\w+)="([^"]*)"/g;
 
-  // Match both self-closing <Record …/> and open/close <Record …></Record>.
-  const recordRe = /<Record\b([^>]*?)\/?>/g;
-  const attrRe = /(\w+)="([^"]*)"/g;
+function _processRecordAttrs(attrsRaw, typeToCanonical, byDayByMetric) {
+  // Fast path: skip records we don't care about before parsing attributes.
+  if (!/type="HK/.test(attrsRaw)) return;
 
-  let m;
-  while ((m = recordRe.exec(xmlText)) !== null) {
-    const attrsRaw = m[1];
-    // Fast path: skip records we don't care about before parsing attributes.
-    if (!/type="HK/.test(attrsRaw)) continue;
+  const attrs = {};
+  let a;
+  _ATTR_RE.lastIndex = 0;
+  while ((a = _ATTR_RE.exec(attrsRaw)) !== null) attrs[a[1]] = a[2];
 
-    const attrs = {};
-    let a;
-    attrRe.lastIndex = 0;
-    while ((a = attrRe.exec(attrsRaw)) !== null) attrs[a[1]] = a[2];
+  const metricId = typeToCanonical[attrs.type];
+  if (!metricId) return;
 
-    const metricId = typeToCanonical[attrs.type];
-    if (!metricId) continue;
+  const startDate = attrs.startDate || attrs.creationDate;
+  if (!startDate) return;
+  const day = startDate.slice(0, 10); // Apple's format: "2026-04-20 08:30:00 +0200"
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
 
-    const startDate = attrs.startDate || attrs.creationDate;
-    if (!startDate) continue;
-    const day = startDate.slice(0, 10); // Apple's format: "2026-04-20 08:30:00 +0200"
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+  const valueNum = Number(attrs.value);
+  if (!isFinite(valueNum)) return;
 
-    const valueNum = Number(attrs.value);
-    if (!isFinite(valueNum)) continue;
+  const normalised = normaliseUnit(metricId, valueNum, attrs.unit);
+  if (normalised == null) return;
 
-    const normalised = normaliseUnit(metricId, valueNum, attrs.unit);
-    if (normalised == null) continue;
+  // Pull the local hour out of "YYYY-MM-DD HH:mm:ss ±zzzz" — used downstream
+  // to split rhr/hrv_sdnn samples into night (22:00–06:00) vs day windows.
+  const hourMatch = startDate.match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}):/);
+  const hour = hourMatch ? Number(hourMatch[1]) : null;
 
-    // Pull the local hour out of "YYYY-MM-DD HH:mm:ss ±zzzz" — used downstream
-    // to split rhr/hrv_sdnn samples into night (22:00–06:00) vs day windows.
-    const hourMatch = startDate.match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}):/);
-    const hour = hourMatch ? Number(hourMatch[1]) : null;
+  if (!byDayByMetric.has(day)) byDayByMetric.set(day, {});
+  const bucket = byDayByMetric.get(day);
+  if (!bucket[metricId]) bucket[metricId] = [];
+  bucket[metricId].push({ v: normalised, h: hour });
+}
 
-    if (!byDayByMetric.has(day)) byDayByMetric.set(day, {});
-    const bucket = byDayByMetric.get(day);
-    if (!bucket[metricId]) bucket[metricId] = [];
-    bucket[metricId].push({ v: normalised, h: hour });
+// Streaming parser — reads `blob` via TextDecoderStream, splits on '\n', and
+// processes each `<Record …>` line as it arrives. Apple's export writes each
+// Record on its own line, so line-buffering is both safe and O(n). Memory
+// stays flat (one chunk + one line at a time) regardless of file size.
+export async function parseAppleHealthBlob(blob, onProgress) {
+  const typeToCanonical = _buildTypeToCanonical();
+  const byDayByMetric = new Map();
+  const reader = blob.stream()
+    .pipeThrough(new TextDecoderStream('utf-8'))
+    .getReader();
+  let buffer = '';
+  let bytesRead = 0;
+  const totalSize = blob.size || 0;
+
+  const flushLine = (line) => {
+    if (line.indexOf('<Record') === -1) return;
+    _RECORD_RE.lastIndex = 0;
+    const m = _RECORD_RE.exec(line);
+    if (m) _processRecordAttrs(m[1], typeToCanonical, byDayByMetric);
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    bytesRead += value.length;
+    let nlIdx;
+    while ((nlIdx = buffer.indexOf('\n')) !== -1) {
+      flushLine(buffer.slice(0, nlIdx));
+      buffer = buffer.slice(nlIdx + 1);
+    }
+    if (totalSize && onProgress) {
+      // Parse phase claims 40-80% of the progress bar.
+      onProgress({ stage: 'parsing', pct: Math.round((bytesRead / totalSize) * 40 + 40) });
+    }
   }
+  if (buffer.length) flushLine(buffer);
 
+  return _aggregateByDayByMetric(byDayByMetric);
+}
+
+// In-memory parser — kept for tests + small files. Same record-processor.
+export function parseAppleHealthXml(xmlText) {
+  const typeToCanonical = _buildTypeToCanonical();
+  const byDayByMetric = new Map();
+  _RECORD_RE.lastIndex = 0;
+  let m;
+  while ((m = _RECORD_RE.exec(xmlText)) !== null) {
+    _processRecordAttrs(m[1], typeToCanonical, byDayByMetric);
+  }
+  return _aggregateByDayByMetric(byDayByMetric);
+}
+
+function _aggregateByDayByMetric(byDayByMetric) {
   // Aggregate per day → canonical L1 row.
   //   hrv_sdnn   mean of night-window (22:00–06:00 local) samples — deep
   //              sleep on the wrist; the gold-standard recovery signal.
