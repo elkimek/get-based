@@ -239,6 +239,11 @@ console.log('\n-- source-shape pins (UI wiring) --');
   // Stale-marker fix: openManualEntryForm always reads from getActiveData (not state.markerRegistry)
   assert('openManualEntryForm always re-resolves from getActiveData (no markerRegistry fallback first)',
     /export function openManualEntryForm[\s\S]{0,800}const data = getActiveData\(\);\s+const marker = data\.categories/.test(views));
+  // Greptile P1 fix: closeModal must clear state._activeDetailMarkerId so a
+  // toggleAltUnits fired from Settings → Display after the user closed the
+  // detail modal doesn't re-open it on top of Settings.
+  assert('closeModal clears state._activeDetailMarkerId',
+    /export function closeModal\(\)[\s\S]{0,1000}state\._activeDetailMarkerId = null/.test(views));
 
   // Settings → Display has the Alternate Units row + both buttons
   assert('settings.js renders Alternate Units row in Display tab',

@@ -4759,6 +4759,9 @@ export function closeModal() {
   // Detail-modal Tab focus trap (wearables) — uninstall explicitly so the
   // global keydown handler doesn't outlive the modal it scoped to.
   if (window._uninstallWearableModalFocusTrap) window._uninstallWearableModalFocusTrap();
+  // Clear the active-detail-marker pointer so a later toggleAltUnits (fired
+  // from Settings → Display) doesn't re-open this modal on top of Settings.
+  state._activeDetailMarkerId = null;
   restoreModalTrigger();
 }
 
