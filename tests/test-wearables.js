@@ -640,6 +640,22 @@ return (async function() {
   assert('Hostile unit ("furlongs" for steps) is refused, not ingested',
     hostileRows.length === 0 || hostileRows[0].steps === null);
 
+  // ── streaming-path parity (parseAppleHealthBlob) ──
+  // Multi-GB exports hit V8's ~512 MB max-string-length wall when read via
+  // file.text() or JSZip entry.async('text'). parseAppleHealthBlob streams
+  // the Blob through TextDecoderStream and line-splits, keeping memory flat
+  // at one chunk + one line regardless of file size. Output must be
+  // byte-identical to the in-memory string parser on the same input so a
+  // future divergence between the two code paths surfaces immediately.
+  assert('parseAppleHealthBlob exported alongside parseAppleHealthXml',
+    typeof ah.parseAppleHealthBlob === 'function');
+  const blobInput = new Blob([fixtureXml], { type: 'application/xml' });
+  const blobRows = await ah.parseAppleHealthBlob(blobInput);
+  assert('Streaming parser returns same row count as in-memory parser',
+    blobRows.length === ahRows.length);
+  assert('Streaming parser produces identical canonical rows (JSON-equal)',
+    JSON.stringify(blobRows) === JSON.stringify(ahRows));
+
   // ═══════════════════════════════════════
   // 15. Withings OAuth2 + measure-type decoding
   // ═══════════════════════════════════════
