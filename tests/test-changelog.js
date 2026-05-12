@@ -186,8 +186,9 @@ return (async function() {
   const itemsHTML = tagModal?.innerHTML || '';
   assert('changelog renders <b> as bold (not literal text)',
     itemsHTML.includes('<b>') && !itemsHTML.includes('&lt;b&gt;'));
-  assert('expected bold span "5 new SNPs" present',
-    /<b>5 new SNPs<\/b>/.test(itemsHTML));
+  // Sanity that <b> rendering works on a known current-changelog bullet.
+  assert('expected bold span "Medical History" present',
+    /<b>The Medical Conditions card is now Medical History<\/b>/.test(itemsHTML));
   assert('changelog renders <code> as code (not literal text)',
     !itemsHTML.includes('&lt;code&gt;'));
   // Defense: source-code regex limits the inline-tag whitelist. A wildcard
