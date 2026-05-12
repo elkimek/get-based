@@ -117,6 +117,63 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
+  // 3c. Sweep guard — every views.js innerHTML site is sanitized
+  // ═══════════════════════════════════════
+  // CodeQL's js/xss-through-dom is excluded repo-wide (.github/workflows/
+  // codeql.yml) because it doesn't model escapeHTML() / safeMarkerId().
+  // This sweep replaces that signal locally — a future PR that adds an
+  // unsanitized innerHTML site fires immediately, before review.
+  //
+  // Categorize each `.innerHTML =` site:
+  //   SAFE: empty/clear, pure static literal (no `${`), helper-fn call.
+  //   GUARDED: surrounding ±100 lines contain escapeHTML/safeMarkerId/
+  //            escapeAttr/applyInlineMarkdown.
+  //   UNGUARDED: fail with line + snippet.
+  console.log('%c 3c. innerHTML sanitizer sweep ', 'font-weight:bold;color:#f59e0b');
+  const _viewLines = viewsSrc.split('\n');
+  const _ihAssignments = [];
+  for (let i = 0; i < _viewLines.length; i++) {
+    if (/\.innerHTML\s*=/.test(_viewLines[i])) {
+      _ihAssignments.push({ lineNo: i + 1, line: _viewLines[i] });
+    }
+  }
+  // Tracking the count drifts deliberately — if it drops sharply, someone
+  // refactored away an innerHTML site (good); if it spikes, someone added
+  // a batch of new sites that need extra scrutiny.
+  assert(`views.js innerHTML site count tracked (${_ihAssignments.length} found)`, _ihAssignments.length > 0);
+  // Recognized in-codebase HTML sanitizers / safe-rendering primitives.
+  // `applyInlineMarkdown` is the markdown.js sanitized renderer; `escapeAttr`
+  // is the attribute-context variant of escapeHTML. Adding a new sanitizer?
+  // Append it here AND make sure it actually escapes its input.
+  const _sanitizerCallRe = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown)\s*\(/;
+  const _unguarded = [];
+  for (const { lineNo, line } of _ihAssignments) {
+    // (a) Empty/clear — `innerHTML = ''` or `innerHTML = "";`
+    if (/\.innerHTML\s*=\s*(['"])\1\s*;?\s*$/.test(line)) continue;
+    // (b) Pure static literal on a single line — string or template literal
+    //     with no `${` interpolation. Multi-line template literals fall through
+    //     to (d) and need a sanitizer in the surrounding window.
+    if (/\.innerHTML\s*=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(line) && !line.includes('${')) continue;
+    // (c) Direct helper-function-call result. Trust the helper to sanitize
+    //     internally — the helper definition is in the same file or imported,
+    //     and would itself be subject to this sweep.
+    if (/\.innerHTML\s*=\s*(window\.|_)?[a-zA-Z][\w]*\s*\(/.test(line)) continue;
+    // (d) Otherwise — sanitizer must appear within ±100 lines (covers the
+    //     "build html in many lines, then assign at the end" pattern + the
+    //     "h is a callback param assigned from a helper" pattern).
+    const start = Math.max(0, (lineNo - 1) - 100);
+    const end = Math.min(_viewLines.length, lineNo + 100);
+    const win = _viewLines.slice(start, end).join('\n');
+    if (_sanitizerCallRe.test(win)) continue;
+    _unguarded.push(`L${lineNo}: ${line.trim().slice(0, 110)}`);
+  }
+  assert(
+    `every views.js innerHTML site is sanitized (escapeHTML/safeMarkerId/escapeAttr/applyInlineMarkdown) or a static-literal/helper-call`,
+    _unguarded.length === 0,
+    _unguarded.length ? `${_unguarded.length} unguarded:\n  ${_unguarded.slice(0, 5).join('\n  ')}` : ''
+  );
+
+  // ═══════════════════════════════════════
   // 4. Division by zero guards (utils.js)
   // ═══════════════════════════════════════
   console.log('%c 4. Division by Zero Guards ', 'font-weight:bold;color:#f59e0b');
