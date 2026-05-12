@@ -640,6 +640,17 @@ return (async function() {
   assert('Hostile unit ("furlongs" for steps) is refused, not ingested',
     hostileRows.length === 0 || hostileRows[0].steps === null);
 
+  // ── progress-bar markup must render in BOTH row branches ──
+  // importAppleHealthFlow queries #apple-health-progress by id; before this
+  // fix only the disconnected-state branch of renderRowDetail rendered that
+  // element, so re-imports on already-connected rows ran without any UI
+  // feedback (the `if (wrap)` / `if (bar)` / `if (text)` guards no-op'd).
+  // Pin both branches so a future refactor can't silently drop one again.
+  const appleProgressSrc = await fetch('/js/wearables.js').then(r => r.text());
+  const progressIdMatches = (appleProgressSrc.match(/id="apple-health-progress"/g) || []).length;
+  assert('renderRowDetail renders #apple-health-progress in BOTH connected and disconnected branches',
+    progressIdMatches >= 2);
+
   // ═══════════════════════════════════════
   // 15. Withings OAuth2 + measure-type decoding
   // ═══════════════════════════════════════
