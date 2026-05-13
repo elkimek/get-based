@@ -2735,12 +2735,7 @@ export function showDashboard(data) {
     // lift above the drop zone ("try before set-up"). With AI configured,
     // drop zone leads since the user almost certainly intends to import.
     const heroClass = hasAIProvider() ? 'welcome-hero' : 'welcome-hero welcome-hero-noai';
-    // Reminder banner sits above the hero so a user who clicked "Try the
-    // app first" in the chat quiz has an obvious re-entry point. Function
-    // self-gates: returns '' unless the skip flag is set and the banner
-    // hasn't been dismissed, so it's invisible on a fresh first visit.
-    let html = renderAIConnectionReminder();
-    html += `<div class="${heroClass}">
+    let html = `${renderAIConnectionReminder()}<div class="${escapeHTML(heroClass)}">
       <h2>Welcome to getbased</h2>
       <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
       <div class="drop-zone" id="drop-zone">
@@ -2792,9 +2787,17 @@ export function showDashboard(data) {
     // First-time visitor: auto-open chat onboarding after a short delay so
     // the wizard (profile → AI quiz → extras → cards) carries them through.
     // Without this nudge, new users land on the welcome hero and miss the
-    // chat-driven setup entirely. Skip if any chat history exists.
+    // chat-driven setup entirely. Skip if any chat history exists, or if
+    // something opened the panel between dashboard render and the timeout
+    // firing — openChatPanel idempotently re-toggles chat-panel-fullscreen
+    // from localStorage, which would stomp manual class state set by tests
+    // (or any other in-flight UI gesture).
     if (state.chatHistory.length === 0) {
-      setTimeout(() => window.openChatPanel?.(), 800);
+      setTimeout(() => {
+        if (!document.getElementById('chat-panel')?.classList.contains('open')) {
+          window.openChatPanel?.();
+        }
+      }, 800);
     }
     return;
   }
