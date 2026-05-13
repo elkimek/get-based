@@ -675,7 +675,6 @@ function toggleWearableStrip() {
 // that resolves with a stale token aborts before touching the DOM.
 let _detailOp = 0;
 
-
 async function openWearableDetail(metricId) {
   const op = ++_detailOp;
   const canon = canonicalMetric(metricId);
@@ -708,16 +707,13 @@ async function openWearableDetail(metricId) {
     .filter(p => isMetricValueMeaningful(metricId, p.v))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Activity-score Rest Mode hint: Oura emits a literal 0 for activity_score
-  // while Rest Mode is on. Our chart filter treats those as gaps, so by the
-  // time `series` is built they're gone — detect the all-zero pattern from
-  // the raw rows so the hint still fires.
-  const rawActivityValues = rows
-    .map(r => r[metricId])
-    .filter(v => typeof v === 'number' && isFinite(v));
+  // activity_score is allowlisted in isMetricValueMeaningful, so 0s pass
+  // through into `series` — that lets us detect Oura Rest Mode here and
+  // fire the dedicated hint from the detail modal instead of hiding the
+  // metric entirely.
   const allZeroActivity = metricId === 'activity_score'
-    && rawActivityValues.length > 0
-    && rawActivityValues.every(v => v === 0);
+    && series.length > 0
+    && series.every(p => p.v === 0);
 
   // Separately pull ALL manual rows (not just primary-source rows) so the
   // detail modal's "Manual entries" list shows manual readings even when
