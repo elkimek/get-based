@@ -1110,9 +1110,9 @@ export function renderChatMessages() {
             </div>
             <div class="chat-onboard-row">
               <label class="chat-onboard-label" for="chat-onboard-height">Height</label>
-              <div style="display:flex;gap:6px;flex:1">
-                <input type="number" class="chat-onboard-input" id="chat-onboard-height" placeholder="cm" step="0.1" value="${pHeight || ''}" style="flex:1">
-                <select class="chat-onboard-input" id="chat-onboard-height-unit" aria-label="Height unit" style="flex:0 0 55px" onchange="window.onboardHeightUnitChanged()">
+              <div class="chat-onboard-input-with-unit">
+                <input type="number" class="chat-onboard-input" id="chat-onboard-height" placeholder="cm" step="0.1" value="${pHeight || ''}">
+                <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-height-unit" aria-label="Height unit" onchange="window.onboardHeightUnitChanged()">
                   <option value="cm"${pHeightUnit !== 'in' ? ' selected' : ''}>cm</option>
                   <option value="in"${pHeightUnit === 'in' ? ' selected' : ''}>in</option>
                 </select>
@@ -1120,9 +1120,9 @@ export function renderChatMessages() {
             </div>
             <div class="chat-onboard-row">
               <label class="chat-onboard-label" for="chat-onboard-weight">Weight</label>
-              <div style="display:flex;gap:6px;flex:1">
-                <input type="number" class="chat-onboard-input" id="chat-onboard-weight" placeholder="kg" step="0.1" style="flex:1">
-                <select class="chat-onboard-input" id="chat-onboard-weight-unit" aria-label="Weight unit" style="flex:0 0 55px">
+              <div class="chat-onboard-input-with-unit">
+                <input type="number" class="chat-onboard-input" id="chat-onboard-weight" placeholder="kg" step="0.1">
+                <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-weight-unit" aria-label="Weight unit">
                   <option value="kg">kg</option>
                   <option value="lbs">lbs</option>
                 </select>
