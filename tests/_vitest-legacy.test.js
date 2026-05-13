@@ -14,13 +14,23 @@
 
 import { it, expect, beforeEach } from 'vitest';
 
+// Capture the canonical globalThis.fetch at module-load time, BEFORE
+// any LEGACY_TEST has a chance to overwrite it. Some ported tests
+// (test-light-devices, test-calculated-markers, test-data-pipeline)
+// install relative-URL → fs read-through fetch shims for their own
+// runtime needs and don't restore them. Without a beforeEach reset,
+// those shims leaked into every test that ran after them — a latent
+// trap flagged by Greptile in PR #199.
+const _origFetch = globalThis.fetch;
+
 // Reset shared module-level state between legacy tests. localStorage /
 // sessionStorage / fetch / addEventListener listeners are all wired up
 // on globalThis in _vitest-setup.js — if one legacy test sets a key
-// and the next test reads it, results leak. Clear at the boundary.
+// (or overwrites fetch) and the next test reads it, results leak.
 beforeEach(() => {
   if (typeof globalThis.localStorage?.clear === 'function') globalThis.localStorage.clear();
   if (typeof globalThis.sessionStorage?.clear === 'function') globalThis.sessionStorage.clear();
+  globalThis.fetch = _origFetch;
 });
 
 const LEGACY_TESTS = [
