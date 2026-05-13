@@ -1,15 +1,43 @@
+#!/usr/bin/env node
 // test-change-history.js — Verify change history recording, dedup, cap, AI context, export/import
-// Run: fetch('tests/test-change-history.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-change-history.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Change History Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Change History Tests ===\n');
+
+// context-cards.js exposes recordChange via Object.assign(window, ...).
+await import('../js/state.js');
+await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 1. recordChange function exists
   // ═══════════════════════════════════════
@@ -125,7 +153,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 10. Migration ', 'font-weight:bold;color:#f59e0b');
 
-  const profileSrc = await fetchWithRetry('js/profile.js');
+  const profileSrc = read('js/profile.js');
   assert('Migration guard for changeHistory', profileSrc.includes("data.changeHistory === undefined") && profileSrc.includes("data.changeHistory = []"));
 
   // ═══════════════════════════════════════
@@ -133,7 +161,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 11. State Default ', 'font-weight:bold;color:#f59e0b');
 
-  const stateSrc = await fetchWithRetry('js/state.js');
+  const stateSrc = read('js/state.js');
   assert('state.js has changeHistory default', stateSrc.includes('changeHistory: []'));
 
   // ═══════════════════════════════════════
@@ -141,7 +169,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 12. Export ', 'font-weight:bold;color:#f59e0b');
 
-  const exportSrc = await fetchWithRetry('js/export.js');
+  const exportSrc = read('js/export.js');
   assert('Export includes changeHistory', exportSrc.includes('changeHistory: data.changeHistory'));
 
   // ═══════════════════════════════════════
@@ -157,7 +185,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 14. AI Context ', 'font-weight:bold;color:#f59e0b');
 
-  const labCtxSrc = await fetchWithRetry('js/lab-context.js');
+  const labCtxSrc = read('js/lab-context.js');
   assert('buildLabContext reads changeHistory', labCtxSrc.includes('changeHistory'));
   assert('Context Change Timeline section', labCtxSrc.includes('Context Change Timeline'));
   assert('summarizeChange helper exists', labCtxSrc.includes('function summarizeChange'));
@@ -167,7 +195,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 15. saveAndRefresh Field Param ', 'font-weight:bold;color:#f59e0b');
 
-  const ctxSrc = await fetchWithRetry('js/context-cards.js');
+  const ctxSrc = read('js/context-cards.js');
   assert('saveAndRefresh has field parameter', ctxSrc.includes('function saveAndRefresh(msg, field)'));
   assert('Diet passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Diet & Digestion saved', 'diet')"));
   assert('Exercise passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Exercise saved', 'exercise')"));
@@ -188,7 +216,7 @@ return (async function() {
   assert('saveInterpretiveLens calls recordChange', ctxSrc.includes("recordChange('interpretiveLens')"));
   assert('debounceContextNotes calls recordChange', ctxSrc.includes("recordChange('contextNotes')"));
 
-  const cycleSrc = await fetchWithRetry('js/cycle.js');
+  const cycleSrc = read('js/cycle.js');
   assert('saveMenstrualCycle calls recordChange', cycleSrc.includes("recordChange('menstrualCycle')"));
 
   // Restore original state
@@ -196,7 +224,5 @@ return (async function() {
   window._labState.importedData.diet = origDiet;
 
   // ═══════════════════════════════════════
-  console.log(`\n=== Results ===\n${pass} passed, ${fail} failed`);
-  if (fail === 0) console.log('%c All tests passed! ', 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
-  return { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
