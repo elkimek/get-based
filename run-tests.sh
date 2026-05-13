@@ -57,14 +57,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Node-side tests first — no browser, fail fast on module / helper regressions.
-node "$DIR/tests/test-no-native-dialogs.js" || exit 1
+# Vitest covers pure-logic node-side tests — fastest fail-fast layer.
+# The legacy node-side files are wrapped by tests/_vitest-legacy.test.js.
+npm test || exit 1
 ensure_server
-node "$DIR/tests/test-lens-local-utils.js" || exit 1
-node "$DIR/tests/test-marker-key-safety.js" || exit 1
-node "$DIR/tests/test-dev-server-helpers.js" || exit 1
-ensure_server
-# HTTP-reliant test before the Puppeteer suite.
+# HTTP-reliant test before the Puppeteer suite (needs the dev server up).
 PORT=$PORT node "$DIR/tests/test-dev-server-origin.js" || exit 1
 # When COVERAGE=1 is set, default COVERAGE_MIN=90 so the suite fails on
 # any regression below the floor. Pass COVERAGE_MIN=0 to keep the report

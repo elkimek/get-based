@@ -1,112 +1,109 @@
+#!/usr/bin/env node
 // test-security-phase1.js — regression tests for the v1.5.0 security pass.
 // Covers: pdf.js vendor file presence, isEvalSupported defense-in-depth,
 // AI-supplied marker key sanitization, OAuth state param + expiry checks.
 //
-// Run: fetch('tests/test-security-phase1.js').then(r=>r.text()).then(s=>Function(s)())
+// Static source inspection only — switched from HTTP `fetch()` to direct
+// `fs.readFileSync` so the test runs node-side without a dev server.
+//
+// Run: node tests/test-security-phase1.js  (or via npm test)
 
-return (async function() {
-  let passed = 0, failed = 0;
-  const fails = [];
-  function assert(name, cond, detail) {
-    if (cond) { passed++; console.log(`  %c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { failed++; fails.push(name); console.error(`  %c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Phase 1 Security Tests ', 'background:#dc2626;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const exists = (rel) => fs.existsSync(path.join(ROOT, rel));
 
-  // ─── 1. pdf.js vendor file present at the new ESM path ───
-  console.log('%c 1. pdf.js ESM bundle ', 'font-weight:bold;color:#f59e0b');
-  const mjsHead = await fetch('/vendor/pdf.min.mjs', { method: 'HEAD' });
-  assert('vendor/pdf.min.mjs exists', mjsHead.ok, `status=${mjsHead.status}`);
-  const oldUmd = await fetch('/vendor/pdf.min.js', { method: 'HEAD' });
-  assert('vendor/pdf.min.js (old UMD) is gone', !oldUmd.ok, `status=${oldUmd.status}`);
+let passed = 0, failed = 0;
+const fails = [];
+function assert(name, cond, detail) {
+  if (cond) { passed++; console.log(`  PASS: ${name}`); }
+  else { failed++; fails.push(name); console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const loaderSrc = await fetch('/js/pdfjs-loader.js').then(r => r.text());
-  assert('pdfjs-loader pins isEvalSupported: false', loaderSrc.includes("isEvalSupported: false"),
-    'CVE-2024-4367 defense-in-depth — every getDocument call must disable eval');
-  // Greptile: ensure isEvalSupported lands AFTER the spread so extraOpts can't override.
-  assert('isEvalSupported wins over extraOpts (via spread order)',
-    loaderSrc.includes('...extraOpts, isEvalSupported: false }') &&
-    !loaderSrc.includes('isEvalSupported: false, ...extraOpts'),
-    'pin must apply after spread or a caller passing { isEvalSupported: true } reopens the CVE');
+console.log('=== Phase 1 Security Tests ===\n');
 
-  const importSrc = await fetch('/js/pdf-import.js').then(r => r.text());
-  assert('pdf-import.js routes through getPdfDocument',
-    importSrc.includes('getPdfDocument') && !importSrc.includes('pdfjsLib.getDocument'),
-    'no direct pdfjsLib.getDocument calls — they bypass the eval guard');
-  const lensParsersSrc = await fetch('/js/lens-local-parsers.js').then(r => r.text());
-  assert('lens-local-parsers.js routes through getPdfDocument',
-    lensParsersSrc.includes('getPdfDocument') && !lensParsersSrc.includes('pdfjs.getDocument'));
+// ─── 1. pdf.js vendor file present at the new ESM path ───
+console.log('1. pdf.js ESM bundle');
+assert('vendor/pdf.min.mjs exists', exists('vendor/pdf.min.mjs'));
+assert('vendor/pdf.min.js (old UMD) is gone', !exists('vendor/pdf.min.js'));
 
-  // ─── 2. AI suggestedKey / mappedKey sanitization ───
-  console.log('%c 2. AI key sanitization ', 'font-weight:bold;color:#f59e0b');
-  // The sanitizer is internal but exposed via behavior in parseLabPDFWithAI.
-  // We assert the regex pattern is present and the call sites wire to it.
-  assert('pdf-import.js defines _SAFE_MARKER_KEY pattern',
-    importSrc.includes('_SAFE_MARKER_KEY') && importSrc.includes('/^[a-zA-Z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9_]*$/'));
-  assert('_sanitizeAIMarker called before adapter runs',
-    importSrc.includes('parsed.markers.forEach(_sanitizeAIMarker)'),
-    'must run before normalizeWithAdapter to prevent adapter-derived keys from inheriting unsafe halves');
-  // Behavioral check: a marker with a quote-injection key should be nulled
-  const exposedSanitizer = importSrc.match(/function _sanitizeAIMarker\(m\) \{([^}]+)\}/);
-  assert('_sanitizeAIMarker drops both mappedKey and suggestedKey on bad input',
-    exposedSanitizer && exposedSanitizer[1].includes('m.mappedKey = null') && exposedSanitizer[1].includes('m.suggestedKey = null'));
+const loaderSrc = read('js/pdfjs-loader.js');
+assert('pdfjs-loader pins isEvalSupported: false', loaderSrc.includes("isEvalSupported: false"),
+  'CVE-2024-4367 defense-in-depth — every getDocument call must disable eval');
+assert('isEvalSupported wins over extraOpts (via spread order)',
+  loaderSrc.includes('...extraOpts, isEvalSupported: false }') &&
+  !loaderSrc.includes('isEvalSupported: false, ...extraOpts'),
+  'pin must apply after spread or a caller passing { isEvalSupported: true } reopens the CVE');
 
-  // ─── 3. OpenRouter OAuth state param ───
-  console.log('%c 3. OAuth state hardening ', 'font-weight:bold;color:#f59e0b');
-  const apiSrc = await fetch('/js/api.js').then(r => r.text());
-  assert('startOpenRouterOAuth sends state param',
-    apiSrc.includes("&state=' + encodeURIComponent(state)"),
-    'login-CSRF needs state, PKCE alone is insufficient');
-  assert('startOpenRouterOAuth stores state in sessionStorage',
-    apiSrc.includes("sessionStorage.setItem('or_oauth_state', state)"));
-  assert('exchangeOpenRouterCode verifies returned state',
-    apiSrc.includes('returnedState !== expectedState'));
-  assert('exchangeOpenRouterCode clears state on success and on mismatch',
-    (apiSrc.match(/sessionStorage\.removeItem\('or_oauth_state'\)/g) || []).length >= 2);
-  const mainSrc = await fetch('/js/main.js').then(r => r.text());
-  assert('main.js forwards state to exchangeOpenRouterCode',
-    mainSrc.includes('exchangeOpenRouterCode(oauthCode, oauthState)'));
+const importSrc = read('js/pdf-import.js');
+assert('pdf-import.js routes through getPdfDocument',
+  importSrc.includes('getPdfDocument') && !importSrc.includes('pdfjsLib.getDocument'),
+  'no direct pdfjsLib.getDocument calls — they bypass the eval guard');
+const lensParsersSrc = read('js/lens-local-parsers.js');
+assert('lens-local-parsers.js routes through getPdfDocument',
+  lensParsersSrc.includes('getPdfDocument') && !lensParsersSrc.includes('pdfjs.getDocument'));
 
-  // ─── 4. Wearable OAuth pending-state expiry ───
-  console.log('%c 4. Wearable OAuth expiry ', 'font-weight:bold;color:#f59e0b');
-  const adapters = ['oura', 'polar', 'ultrahuman', 'whoop', 'withings', 'fitbit'];
-  for (const id of adapters) {
-    const src = await fetch(`/js/wearables-${id}-auth.js`).then(r => r.text());
-    assert(`${id}-auth: expiry check present`,
-      src.includes("Date.now() - pending.startedAt > 10 * 60 * 1000"),
-      'reject any pending state older than 10 minutes');
-    assert(`${id}-auth: expiry returns ok:false`,
-      src.includes("error: 'OAuth flow expired"));
-  }
+// ─── 2. AI suggestedKey / mappedKey sanitization ───
+console.log('\n2. AI key sanitization');
+assert('pdf-import.js defines _SAFE_MARKER_KEY pattern',
+  importSrc.includes('_SAFE_MARKER_KEY') && importSrc.includes('/^[a-zA-Z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9_]*$/'));
+assert('_sanitizeAIMarker called before adapter runs',
+  importSrc.includes('parsed.markers.forEach(_sanitizeAIMarker)'),
+  'must run before normalizeWithAdapter to prevent adapter-derived keys from inheriting unsafe halves');
+const exposedSanitizer = importSrc.match(/function _sanitizeAIMarker\(m\) \{([^}]+)\}/);
+assert('_sanitizeAIMarker drops both mappedKey and suggestedKey on bad input',
+  exposedSanitizer && exposedSanitizer[1].includes('m.mappedKey = null') && exposedSanitizer[1].includes('m.suggestedKey = null'));
 
-  // ─── 5. dev-server CORS reflection helper ───
-  // (Server-side test — light-touch source-only assertion.)
-  console.log('%c 5. dev-server CORS reflection ', 'font-weight:bold;color:#f59e0b');
-  const devSrvHead = await fetch('/dev-server.js', { method: 'HEAD' });
-  if (devSrvHead.ok) {
-    const devSrc = await fetch('/dev-server.js').then(r => r.text());
-    assert('dev-server.js defines corsHeaders helper',
-      devSrc.includes('function corsHeaders(req)') && devSrc.includes("'Vary': 'Origin'"));
-    assert('dev-server.js no longer emits wildcard ACAO',
-      !devSrc.includes("'Access-Control-Allow-Origin': '*'"),
-      'must reflect allowlisted origin, not wildcard');
-    assert('dev-server.js gates SSRF-prone /api endpoints',
-      devSrc.match(/_isAllowedProxyUrl\(target\)/g)?.length >= 3,
-      '/api/check-url, /api/fetch-page, /api/fetch-page-rendered all gated');
-    // Greptile: redirect destinations must be re-checked through the SSRF guard
-    // so an allowlisted host can't 30x to 169.254.169.254 / private IPs.
-    assert('dev-server.js re-checks redirect destinations',
-      devSrc.match(/_isAllowedProxyUrl\(loc\)|_isAllowedProxyUrl\(redirect\)/g)?.length >= 3,
-      '/api/check-url + /api/fetch-page + /proxy redirect-follow paths each need their own guard');
-  } else {
-    // Production deploy — no dev-server in the bundle. Skip silently.
-    console.log('  (dev-server.js not served — production build, skipping CORS source asserts)');
-  }
+// ─── 3. OpenRouter OAuth state param ───
+console.log('\n3. OAuth state hardening');
+const apiSrc = read('js/api.js');
+assert('startOpenRouterOAuth sends state param',
+  apiSrc.includes("&state=' + encodeURIComponent(state)"),
+  'login-CSRF needs state, PKCE alone is insufficient');
+assert('startOpenRouterOAuth stores state in sessionStorage',
+  apiSrc.includes("sessionStorage.setItem('or_oauth_state', state)"));
+assert('exchangeOpenRouterCode verifies returned state',
+  apiSrc.includes('returnedState !== expectedState'));
+assert('exchangeOpenRouterCode clears state on success and on mismatch',
+  (apiSrc.match(/sessionStorage\.removeItem\('or_oauth_state'\)/g) || []).length >= 2);
+const mainSrc = read('js/main.js');
+assert('main.js forwards state to exchangeOpenRouterCode',
+  mainSrc.includes('exchangeOpenRouterCode(oauthCode, oauthState)'));
 
-  // ─── Done ───
-  console.log(`%c Phase 1 Security: ${passed} passed, ${failed} failed `,
-    failed === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold' : 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold');
-  if (failed > 0) console.error('Failures:', fails);
-  return { passed, failed, fails };
-})();
+// ─── 4. Wearable OAuth pending-state expiry ───
+console.log('\n4. Wearable OAuth expiry');
+const adapters = ['oura', 'polar', 'ultrahuman', 'whoop', 'withings', 'fitbit'];
+for (const id of adapters) {
+  const src = read(`js/wearables-${id}-auth.js`);
+  assert(`${id}-auth: expiry check present`,
+    src.includes("Date.now() - pending.startedAt > 10 * 60 * 1000"),
+    'reject any pending state older than 10 minutes');
+  assert(`${id}-auth: expiry returns ok:false`,
+    src.includes("error: 'OAuth flow expired"));
+}
+
+// ─── 5. dev-server CORS reflection helper ───
+console.log('\n5. dev-server CORS reflection');
+if (exists('dev-server.js')) {
+  const devSrc = read('dev-server.js');
+  assert('dev-server.js defines corsHeaders helper',
+    devSrc.includes('function corsHeaders(req)') && devSrc.includes("'Vary': 'Origin'"));
+  assert('dev-server.js no longer emits wildcard ACAO',
+    !devSrc.includes("'Access-Control-Allow-Origin': '*'"),
+    'must reflect allowlisted origin, not wildcard');
+  assert('dev-server.js gates SSRF-prone /api endpoints',
+    devSrc.match(/_isAllowedProxyUrl\(target\)/g)?.length >= 3,
+    '/api/check-url, /api/fetch-page, /api/fetch-page-rendered all gated');
+  assert('dev-server.js re-checks redirect destinations',
+    devSrc.match(/_isAllowedProxyUrl\(loc\)|_isAllowedProxyUrl\(redirect\)/g)?.length >= 3,
+    '/api/check-url + /api/fetch-page + /proxy redirect-follow paths each need their own guard');
+} else {
+  console.log('  (dev-server.js not present — production build, skipping CORS source asserts)');
+}
+
+console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
+if (failed > 0) console.log('Failures:', fails);
+process.exit(failed > 0 ? 1 : 0);

@@ -1,19 +1,19 @@
+#!/usr/bin/env node
 // test-data-merge.js — per-array union-by-id sync merge: additions, edit
 // conflict resolution, tombstones (no resurrection of deleted rows), nested
 // paths inside lightEnvironment, single-object LWW preservation.
-// Run: fetch('tests/test-data-merge.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-data-merge.js  (or via npm test — wrapped by _vitest-legacy.test.js)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  console.log('%c Data Merge Tests ', 'background:#f59e0b;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+console.log('=== Data Merge Tests ===\n');
 
-  const mod = await import('/js/data-merge.js?bust=' + Date.now());
-  const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHasRowsRemoteLacks, pickTimestamp } = mod;
+const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHasRowsRemoteLacks, pickTimestamp } = await import('../js/data-merge.js');
 
   // ─── pickTimestamp precedence (v1.7.20) ───────────────────────────────
   // Direct test for the field-precedence walk used by every cross-device
@@ -373,6 +373,5 @@ return (async function() {
   assert('updatedAt-stamped entry wins over unstamped on tie',
     m14d.changeHistory[0].snapshot.v === 'new');
 
-  console.log(`%c Data Merge: ${pass} passed, ${fail} failed `,
-    `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
