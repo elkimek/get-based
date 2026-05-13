@@ -152,6 +152,15 @@ function timeSeriesMin(obj) {
   return Math.min(...nums);
 }
 
+// Oura emits literal 0 for HRV/HR scalars when a sleep session has no usable
+// data (ring not worn, signal lost, sub-threshold session). 0 is biologically
+// nonsense for these metrics, and `??` doesn't catch it because 0 is not
+// nullish — so it flows through to L1 and pollutes the chart as a real
+// reading. Treat ≤ 0 as missing so the next fallback can run.
+function gtZero(v) {
+  return typeof v === 'number' && isFinite(v) && v > 0 ? v : null;
+}
+
 // Returns canonical L1 rows for the inclusive date range [startDate, endDate].
 // Each row is keyed by date; missing metrics are null (not omitted) so consumers
 // can see "no spo2 today" vs "spo2 not yet fetched."
@@ -216,7 +225,7 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
     // `average_hrv` only appears once their analysis pipeline finishes a few
     // hours later. Without this fallback today's HRV reads as null even when
     // the cloud shows data.
-    row.hrv_rmssd = s?.average_hrv
+    row.hrv_rmssd = gtZero(s?.average_hrv)
       ?? timeSeriesMean(s?.hrv)
       ?? meanOrNull(s?.hrv_samples) // legacy field name on older sessions
       ?? null;
@@ -225,10 +234,10 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
     // (the lowest 5-min average during sleep, typically hit in deep sleep).
     // average_heart_rate is the night-long mean and runs 5-10 bpm higher
     // than the user's RHR; using it here made our number disagree with
-    // Oura's. Same fresh-session lag applies — scalars may be unfilled
-    // while heart_rate.items is already present, so fall back to the
-    // per-sample minimum before giving up.
-    row.rhr = s?.lowest_heart_rate
+    // Oura's. gtZero() guards against the literal-0 sentinel Oura emits
+    // when the session has no usable data; same fresh-session lag applies,
+    // so fall back to per-sample minimum before giving up.
+    row.rhr = gtZero(s?.lowest_heart_rate)
       ?? timeSeriesMin(s?.heart_rate)
       ?? null;
   }
@@ -276,7 +285,7 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
   const hrDayBuckets = new Map(); // day → number[]
   for (const sample of (heartrateSamples || [])) {
     if (sample?.source !== 'awake') continue;
-    if (typeof sample?.bpm !== 'number' || !isFinite(sample.bpm)) continue;
+    if (typeof sample?.bpm !== 'number' || !isFinite(sample.bpm) || sample.bpm <= 0) continue;
     const day = String(sample?.timestamp || '').slice(0, 10);
     if (!day) continue;
     if (!hrDayBuckets.has(day)) hrDayBuckets.set(day, []);

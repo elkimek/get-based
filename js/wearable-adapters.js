@@ -92,6 +92,24 @@ export const CANONICAL_METRICS = {
   sleep_breath_disturb: { id: 'sleep_breath_disturb', label: 'Apnea',       sub: 'level', unit: '',    worseWhen: 'up'     }, // breathing-disturbances intensity 0-100 (Withings' apnea-class signal)
 };
 
+// For most wearable metrics, 0 is a sentinel for "no measurement" — the
+// vendor emits 0 when the device wasn't worn, signal was lost, or the
+// session was sub-threshold. Biologically nonsense for HR, HRV, weight,
+// body temp, etc. We treat these as gaps so charts don't plot misleading
+// dots at the floor and L2 means/baselines aren't dragged down by them.
+// A handful of metrics legitimately can be 0 (no steps on a rest day,
+// no high-stress minutes, no snoring, perfect sleep with no awake time,
+// body-temp deviation centered at 0) — those keep their zero values.
+const ZERO_IS_LEGITIMATE_METRICS = new Set([
+  'steps', 'stress_high_min', 'body_temp_delta',
+  'sleep_snoring_min', 'sleep_awake_min',
+]);
+export function isMetricValueMeaningful(metricId, v) {
+  if (typeof v !== 'number' || !isFinite(v)) return false;
+  if (ZERO_IS_LEGITIMATE_METRICS.has(metricId)) return true;
+  return v > 0;
+}
+
 // Default display order for the dashboard strip. A canonical metric not listed
 // here still renders (appended in registry order) — the list just pins priority.
 // Also used as METRICS_FOR_SUMMARY in wearables-summary.js, so any metric that

@@ -9,7 +9,7 @@
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { getDailyRange } from './wearables-store.js';
-import { DEFAULT_METRIC_ORDER } from './wearable-adapters.js';
+import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful } from './wearable-adapters.js';
 import { isDebugMode } from './utils.js';
 import { isoDay } from './wearables-oura.js';
 
@@ -61,7 +61,7 @@ function seriesFor(rowsByDate, metricId) {
   const out = [];
   for (const row of rowsByDate) {
     const v = row[metricId];
-    if (typeof v === 'number' && isFinite(v)) out.push({ date: row.date, v });
+    if (isMetricValueMeaningful(metricId, v)) out.push({ date: row.date, v });
   }
   return out;
 }
@@ -189,14 +189,14 @@ export function computeWearableSummary(rowsBySource, connectedSources, primaryOv
       const overRows = rowsBySource[overrideSrc];
       for (let i = overRows.length - 1; i >= 0; i--) {
         const v = overRows[i]?.[metricId];
-        if (typeof v === 'number' && isFinite(v)) { bestSrc = overrideSrc; break; }
+        if (isMetricValueMeaningful(metricId, v)) { bestSrc = overrideSrc; break; }
       }
     }
     if (!bestSrc) {
       for (const [sid, rows] of Object.entries(rowsBySource)) {
         for (let i = rows.length - 1; i >= 0; i--) {
           const v = rows[i]?.[metricId];
-          if (typeof v === 'number' && isFinite(v)) {
+          if (isMetricValueMeaningful(metricId, v)) {
             if (rows[i].date > bestDate) { bestDate = rows[i].date; bestSrc = sid; }
             break;
           }
