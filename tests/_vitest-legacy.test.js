@@ -12,7 +12,16 @@
 //
 // To add a file to the Vitest suite, append it to LEGACY_TESTS.
 
-import { it, expect } from 'vitest';
+import { it, expect, beforeEach } from 'vitest';
+
+// Reset shared module-level state between legacy tests. localStorage /
+// sessionStorage / fetch / addEventListener listeners are all wired up
+// on globalThis in _vitest-setup.js — if one legacy test sets a key
+// and the next test reads it, results leak. Clear at the boundary.
+beforeEach(() => {
+  if (typeof globalThis.localStorage?.clear === 'function') globalThis.localStorage.clear();
+  if (typeof globalThis.sessionStorage?.clear === 'function') globalThis.sessionStorage.clear();
+});
 
 const LEGACY_TESTS = [
   // Pre-existing node-side tests.
@@ -77,10 +86,14 @@ for (const path of LEGACY_TESTS) {
       origError(...args);
     };
     try {
-      // Cache-bust the dynamic import so re-runs see fresh module state.
-      // Vitest's watch mode would otherwise reuse the cached module and
-      // skip side effects on the second invocation.
-      await import(`${path}?t=${Date.now()}`);
+      // NOTE: dynamic-import query-string cache-bust is silently ignored
+      // by Vite/Vitest — verified empirically (same module reference
+      // returned across two `${path}?t=${Date.now()}` calls). Modules
+      // run once per worker. Watch-mode reruns only re-execute when
+      // Vitest invalidates the module graph via file change. The
+      // legacy tests are idempotent (side effects gated by `if`),
+      // so this hasn't bitten us, but it's worth knowing.
+      await import(path);
     } finally {
       console.log = origLog;
       console.error = origError;

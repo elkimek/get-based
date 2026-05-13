@@ -50,6 +50,34 @@ if (typeof globalThis.CSS === 'undefined') {
   globalThis.CSS = { escape: (s) => String(s).replace(/[^\w-]/g, (c) => '\\' + c) };
 }
 
+// Window event-bus stubs — broadcasts via window.dispatchEvent /
+// addEventListener show up across many modules (e.g. the AI verdict
+// engine fires `labcharts-ai-verdict-updated`). No-op stubs are
+// enough so the call sites don't throw; tests that depend on the
+// fired event capture it through their own indirection.
+if (typeof globalThis.addEventListener !== 'function') {
+  const _listeners = new Map();
+  globalThis.addEventListener = (type, fn) => {
+    if (!_listeners.has(type)) _listeners.set(type, new Set());
+    _listeners.get(type).add(fn);
+  };
+  globalThis.removeEventListener = (type, fn) => {
+    _listeners.get(type)?.delete(fn);
+  };
+  globalThis.dispatchEvent = (ev) => {
+    const fns = _listeners.get(ev?.type);
+    if (fns) for (const fn of fns) {
+      // Surface listener errors via console.error so Vitest's
+      // per-test output picks them up — silently swallowing was a
+      // landmine flagged in pre-PR review. Don't re-throw (would
+      // break dispatcher contract — browser dispatchEvent doesn't),
+      // but make the error loud.
+      try { fn(ev); } catch (e) { console.error('listener error:', e); }
+    }
+    return true;
+  };
+}
+
 if (!process.exit._vitestPatched) {
   const _origExit = process.exit.bind(process);
   process.exit = (code) => {

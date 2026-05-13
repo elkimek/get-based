@@ -19,6 +19,16 @@ export default defineConfig({
     include: [
       'tests/**/*.test.js',
     ],
+    // Belt-and-suspenders: the `include` glob already excludes vendored
+    // and built code by virtue of being scoped to `tests/`, but a future
+    // loosening (or someone running Vitest with `--include 'js/**'`)
+    // would crawl node_modules + vendor + the built docs. Pin these.
+    exclude: [
+      '**/node_modules/**',
+      'vendor/**',
+      'docs/**',
+      'dist-docs/**',
+    ],
     setupFiles: ['./tests/_vitest-setup.js'],
     reporters: ['default'],
   },

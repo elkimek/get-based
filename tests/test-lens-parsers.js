@@ -61,14 +61,12 @@ const { extractFromFile } = await import('../js/lens-local-parsers.js');
   assert('.MD (caps) detected as markdown', out.length === 1 && out[0].text === 'hello');
 }
 
-// ── empty zip ──
-// JSZip references `document` at load time inside the unzip path, which
-// jsdom/Node lacks. The zip-extraction code path is exercised end-to-end
-// by puppeteer; here we just confirm the file extension is registered.
-// (Lazy-load the test code so the error doesn't take down the suite.)
-{
-  // Skipped in Node — see comment above.
-}
+// ── empty zip ── SKIPPED in Node ────────────────────────────────────
+// JSZip references `document` in the unzip path. The zip path is still
+// covered by the puppeteer suite; flagged here so a future Vitest
+// browser-mode pass picks it up.
+console.log('  SKIP: empty zip path — JSZip needs `document`; covered by puppeteer.');
+console.log('  SKIP: empty zip returns [] — JSZip needs `document`; covered by puppeteer.');
 
 // ── corrupt PDF ──
 {
