@@ -1,31 +1,36 @@
+#!/usr/bin/env node
 // test-light-ai-renders.js — smoke coverage for the 9 feature-specific
 // AI modules. Engine-level contract is covered by test-ai-verdict-engine.js;
-// this file verifies that each consumer's render functions:
-//   • emit nothing when no AI provider is configured (UX contract)
-//   • render the correct dot color + tip text on `status: 'ok'`
-//   • escape user-supplied content (XSS regression coverage)
-//   • render the idle CTA when there's no cached verdict
-//   • recover orphaned `status: 'analyzing'` legacy state to idle
+// this file verifies the consumer render functions.
 //
-// Test stubs hasAIProvider via localStorage (provider='ollama' is
-// optimistic-true) so no real network calls fire from render paths.
-// Engine analyze() paths are NOT exercised here — engine tests cover
-// those.
+// Run: node tests/test-light-ai-renders.js  (or via npm test)
 
-return (async function () {
-  let pass = 0, fail = 0;
-  function assert(name, cond, detail) {
-    if (cond) {
-      pass++;
-      console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || '');
-    } else {
-      fail++;
-      console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || '');
-    }
-  }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
-  console.log('%c Light AI Render Smoke Tests ', 'background:#0ea5e9;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, cond, detail) {
+  if (cond) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
+console.log('=== Light AI Render Smoke Tests ===\n');
+
+await import('../js/state.js');
   const origImported = window._labState.importedData;
   const origProvider = localStorage.getItem('labcharts-ai-provider');
   const origPaused = localStorage.getItem('labcharts-ai-paused');
@@ -64,7 +69,7 @@ return (async function () {
   // ─── 1. Light Devices session ──────────────────────────────────────
   console.log('%c 1. Device session render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-device-ai-analysis.js?bust=' + Date.now());
+    const mod = await import('../js/light-device-ai-analysis.js');
     const sess = { id: 's1', endedAt: Date.now() - 60000, durationMin: 20, doses: { vitamin_d: 0 } };
 
     withoutProvider();
@@ -95,7 +100,7 @@ return (async function () {
   // ─── 2. Light Tools measurement ────────────────────────────────────
   console.log('%c 2. Tool measurement render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-tools-ai-analysis.js?bust=' + Date.now());
+    const mod = await import('../js/light-tools-ai-analysis.js');
     const m = { id: 'm1', tool: 'lux', value: 350, capturedAt: Date.now(), confidence: 0.7 };
 
     withoutProvider();
@@ -121,7 +126,7 @@ return (async function () {
   // ─── 3. Light Env Room ─────────────────────────────────────────────
   console.log('%c 3. Room verdict render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-env-ai-analysis.js?bust=' + Date.now());
+    const mod = await import('../js/light-env-ai-analysis.js');
     const r = { id: 'r1', name: 'Bedroom', primarySource: 'led-cool', hoursOccupiedPerDay: 8 };
 
     withoutProvider();
@@ -169,7 +174,7 @@ return (async function () {
   // ─── 4. Light Today daily hero ─────────────────────────────────────
   console.log('%c 4. Daily hero render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-today-ai.js?bust=' + Date.now());
+    const mod = await import('../js/light-today-ai.js');
     reset();
 
     withoutProvider();
@@ -207,7 +212,7 @@ return (async function () {
   // ─── 5. Per-screen ─────────────────────────────────────────────────
   console.log('%c 5. Screen verdict render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-screen-ai-analysis.js?bust=' + Date.now());
+    const mod = await import('../js/light-screen-ai-analysis.js');
     reset();
     const s = { id: 'scr1', device: 'phone', hoursPerDay: 4, eveningUseAfterSunset: 2, blueBlockerEnabled: false };
 
@@ -231,7 +236,7 @@ return (async function () {
   // ─── 6. Per-audit ──────────────────────────────────────────────────
   console.log('%c 6. Audit verdict render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-audit-ai-analysis.js?bust=' + Date.now());
+    const mod = await import('../js/light-audit-ai-analysis.js');
     const a = { id: 'a1', date: '2026-05-06', label: 'Test', rooms: [], screens: [], measurements: [] };
 
     withoutProvider();
@@ -260,7 +265,7 @@ return (async function () {
   // ─── 7. Indoor-burden summary ──────────────────────────────────────
   console.log('%c 7. Burden verdict render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-burden-ai-analysis.js?bust=' + Date.now());
+    const mod = await import('../js/light-burden-ai-analysis.js');
     reset({
       lightEnvironment: { rooms: [{ id: 'r1', name: 'Office', hoursOccupiedPerDay: 8, primarySource: 'incandescent' }], screens: [] },
     });
@@ -290,7 +295,7 @@ return (async function () {
   // ─── 8. Channel-mix synthesis ──────────────────────────────────────
   console.log('%c 8. Channel-mix render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/light-channels-ai-analysis.js?bust=' + Date.now());
+    const mod = await import('../js/light-channels-ai-analysis.js');
     reset();
     const fallback = '<div class="static-fallback">static suggestion</div>';
 
@@ -314,7 +319,7 @@ return (async function () {
   // ─── 9. Onboarding plan ────────────────────────────────────────────
   console.log('%c 9. Onboarding render ', 'font-weight:bold;color:#0ea5e9');
   {
-    const mod = await import('/js/sun-onboarding-ai.js?bust=' + Date.now());
+    const mod = await import('../js/sun-onboarding-ai.js');
     reset({ sunDefaults: { fitzpatrick: 'III', completedAt: Date.now() } });
 
     withoutProvider();
@@ -348,8 +353,5 @@ return (async function () {
   else localStorage.removeItem('labcharts-ai-paused');
   window._labState.importedData = origImported;
 
-  console.log(`%c Result: ${pass} passed, ${fail} failed `, fail === 0
-    ? 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px'
-    : 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
-  return { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

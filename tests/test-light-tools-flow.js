@@ -1,30 +1,42 @@
+#!/usr/bin/env node
 // test-light-tools-flow.js — Behavioral coverage for js/light-tools.js.
+// Drives every window-faceced entry point + saveMeasurement for each
+// tool type so the internal helpers (luxZone, cctTone, classifyLight,
+// etc.) get exercised transitively.
 //
-// Pre-this file, light-tools.js had 20 of 30 functions uncalled — none of the
-// 8 open*Meter / Detector / etc functions, nor saveMeasurement,
-// deleteMeasurement, or the internal classifiers. Coverage gap was the
-// largest single block remaining after emf.js. This file drives every
-// window-faceced entry point + saveMeasurement for each tool type so the
-// internal helpers (luxZone, cctTone, classifyLight, etc) get exercised
-// transitively. Camera-dependent functions throw cleanly when getUserMedia
-// is unavailable; V8 still marks them called.
+// Run: node tests/test-light-tools-flow.js  (or via npm test)
 
-return (async () => {
-  let pass = 0, fail = 0;
-  const assert = (name, cond, detail) => {
-    if (cond) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  };
-  const withTimeout = (fn, ms = 1500) => Promise.race([
-    Promise.resolve().then(fn).catch(() => {}),
-    new Promise(r => setTimeout(r, ms)),
-  ]);
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
-  console.log('%c Light Tools Flow ', 'background:#fb923c;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+const assert = (name, cond, detail) => {
+  if (cond) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+};
+const withTimeout = (fn, ms = 1500) => Promise.race([
+  Promise.resolve().then(fn).catch(() => {}),
+  new Promise(r => setTimeout(r, ms)),
+]);
 
-  const { state } = await import('/js/state.js');
-  await import('/js/light-tools.js?bust=' + Date.now());
+console.log('=== Light Tools Flow ===\n');
 
+const { state } = await import('../js/state.js');
+await import('../js/light-tools.js');
   assert('light-tools.js facade loaded', typeof window.openLuxMeter === 'function');
 
   // Snapshot lightMeasurements so we can restore after probing.
@@ -102,6 +114,5 @@ return (async () => {
   if (_origMeasurements) state.importedData.lightMeasurements = _origMeasurements;
   else state.importedData.lightMeasurements = [];
 
-  console.log(`\n%c Light Tools Result: ${pass} passed, ${fail} failed `,
-    `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-size:13px;padding:3px 10px;border-radius:3px`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

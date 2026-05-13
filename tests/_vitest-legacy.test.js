@@ -91,6 +91,12 @@ const LEGACY_TESTS = [
   './test-cycle-improvements.js',
   './test-change-history.js',
   './test-biometrics.js',
+  // Batch 12 — sun/light AI-analysis + flow tests.
+  './test-sun-uvdata-flow.js',
+  './test-light-tools-flow.js',
+  './test-sun-ai-analysis.js',
+  './test-light-device-ai-analysis.js',
+  './test-light-ai-renders.js',
 ];
 
 for (const path of LEGACY_TESTS) {
