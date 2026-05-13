@@ -749,6 +749,13 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
       const hint = providerName === 'Routstr' ? ' Top up with Lightning or Cashu.'
         : providerName === 'PPQ' ? ' Top up in Settings \u2192 AI \u2192 PPQ.'
         : ' Add credits at openrouter.ai/settings/credits';
+      // OpenRouter gets a persistent dialog with actionable options
+      // (add credits link OR switch to a free model with privacy
+      // warning). The thrown error still propagates so callers abort,
+      // but the user sees a stable modal instead of a vanishing toast.
+      if (providerName === 'OpenRouter' && typeof window !== 'undefined' && window.showInsufficientBalanceDialog) {
+        try { window.showInsufficientBalanceDialog(); } catch {}
+      }
       throw new Error(`Insufficient ${providerName} balance.${hint}`);
     }
     if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.');

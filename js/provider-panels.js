@@ -948,6 +948,90 @@ export function refreshOpenRouterBalance() {
   });
 }
 
+// Persistent modal shown when an OpenRouter API call returns 402 (out of
+// credit). Previously this surfaced as a toast that vanished in seconds
+// and left the user stuck. Two actionable paths:
+//   1. Add credits  → opens openrouter.ai/settings/credits in a new tab
+//   2. Switch to a free model → filters the cached models for :free
+//      variants + zero-priced entries; user picks one, we activate it.
+//      Includes an explicit privacy warning (free routes log + may train).
+export function showInsufficientBalanceDialog() {
+  let overlay = document.getElementById('or-no-balance-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'or-no-balance-overlay';
+    overlay.className = 'confirm-overlay';
+    document.body.appendChild(overlay);
+  }
+  let freeModels = [];
+  try {
+    const cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models') || '[]');
+    freeModels = cached.filter(function(m) {
+      if (!m || !m.id) return false;
+      if (m.id.endsWith(':free')) return true;
+      const inP = parseFloat(m.pricing?.prompt || 0);
+      const outP = parseFloat(m.pricing?.completion || 0);
+      return inP === 0 && outP === 0;
+    }).slice(0, 8);
+  } catch {}
+  const freeList = freeModels.length
+    ? freeModels.map(function(m) {
+        const name = (m.name || m.id).replace(/^.*\//, '').replace(/:free$/, '');
+        return '<button class="chat-quiz-option" data-model-id="' + escapeAttr(m.id) + '">' +
+          '<span class="chat-quiz-body"><strong>' + escapeHTML(name) + '</strong>' +
+          '<span>' + escapeHTML(m.id) + '</span></span>' +
+          '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span></button>';
+      }).join('')
+    : '<p style="font-size:12px;color:var(--text-muted);text-align:center;margin:8px 0">No free models cached. <a href="#" id="or-refresh-models" style="color:var(--accent)">Refresh model list</a>.</p>';
+  overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="OpenRouter balance empty" style="max-width:520px">' +
+    '<p class="confirm-message"><strong>Your OpenRouter balance is empty</strong></p>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Pick one of the two paths below to keep using AI.</p>' +
+    '<div style="margin-bottom:14px">' +
+      '<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);margin:0 0 6px">Option 1 &mdash; pay-as-you-go</p>' +
+      '<button class="chat-quiz-option chat-quiz-recommended" id="or-add-credits">' +
+        '<span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>' +
+        '<span class="chat-quiz-body"><strong>Add credits ($10 covers weeks of typical use)</strong>' +
+        '<span>Opens openrouter.ai/settings/credits in a new tab. <em class="chat-quiz-rec">Recommended for medical data</em></span></span>' +
+        '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>' +
+      '</button>' +
+    '</div>' +
+    '<div>' +
+      '<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);margin:0 0 6px">Option 2 &mdash; switch to a free model</p>' +
+      '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.4">' +
+        '<strong style="color:var(--red)">&#9888; Privacy warning</strong><br>' +
+        'OpenRouter free routes typically <strong>log your prompts</strong> and providers may use them for training. Avoid sending sensitive medical details, names, or identifiers. The app strips obvious PII but the residual context is still personal.' +
+      '</div>' +
+      freeList +
+    '</div>' +
+    '<div style="text-align:right;margin-top:14px">' +
+      '<button class="confirm-btn confirm-btn-cancel" id="or-nb-cancel">Not now</button>' +
+    '</div>' +
+  '</div>';
+  overlay.classList.add('show');
+  const close = function() { overlay.classList.remove('show'); };
+  document.getElementById('or-add-credits').onclick = function() {
+    close();
+    window.open('https://openrouter.ai/settings/credits', '_blank', 'noopener');
+  };
+  document.getElementById('or-nb-cancel').onclick = close;
+  const refreshLink = document.getElementById('or-refresh-models');
+  if (refreshLink) refreshLink.onclick = function(e) {
+    e.preventDefault();
+    close();
+    if (window.refreshOpenRouterBalance) window.refreshOpenRouterBalance();
+    setTimeout(function() { showInsufficientBalanceDialog(); }, 1200);
+  };
+  overlay.querySelectorAll('[data-model-id]').forEach(function(btn) {
+    btn.onclick = function() {
+      const id = btn.getAttribute('data-model-id');
+      if (id) setOpenRouterModel(id);
+      close();
+      showNotification('Switched to ' + id + ' — ready to try again.', 'success');
+    };
+  });
+  overlay.onclick = function(e) { if (e.target === overlay) close(); };
+}
+
 export async function applyCustomOpenRouterModel(modelId) {
   const id = modelId.trim();
   if (!id) return;
@@ -2292,6 +2376,7 @@ Object.assign(window, {
   doPpqTopupCustom,
   cancelPpqTopup,
   refreshOpenRouterBalance,
+  showInsufficientBalanceDialog,
   handleSaveCustomApi,
   handleRemoveCustomApi,
   renderCustomApiModelDropdown,

@@ -187,6 +187,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       fetchOpenRouterModels(key);
       window._openChatAfterInit = true;
       window.showNotification('Connected to OpenRouter successfully!', 'success');
+      // Proactive zero-balance check: a brand-new OpenRouter account has
+      // no credits, and the user otherwise discovers this via a vanishing
+      // 402 toast on their first AI call. Show the persistent dialog now
+      // so they can add credits or pick a free model before getting lost.
+      try {
+        const { getOpenRouterBalance } = await import('./api.js');
+        const balance = await getOpenRouterBalance();
+        if (balance && balance.remaining <= 0 && window.showInsufficientBalanceDialog) {
+          setTimeout(() => window.showInsufficientBalanceDialog(), 1500);
+        }
+      } catch {}
     } catch (e) {
       window.showNotification('OpenRouter connection failed: ' + e.message, 'error', 6000);
     }
