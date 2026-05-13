@@ -44,6 +44,10 @@ const LEGACY_TESTS = [
   './test-schema.js',
   './test-ai-verdict-engine-instance.js',
   './test-phase-ranges.js',
+  // Batch 6 — more module imports + source inspection.
+  './test-prelab.js',
+  './test-venice-e2ee.js',
+  './test-unit-import.js',
 ];
 
 for (const path of LEGACY_TESTS) {

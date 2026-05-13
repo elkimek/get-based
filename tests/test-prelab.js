@@ -1,22 +1,27 @@
+#!/usr/bin/env node
 // test-prelab.js — Verify pre-lab onboarding: context cards → test recommendations
-// Run: fetch('tests/test-prelab.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Static source inspection only — fs.readFileSync instead of fetch.
+//
+// Run: node tests/test-prelab.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Pre-Lab Onboarding Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
-  // ═══════════════════════════════════════
-  // 1. buildLabContext() — no-data path
-  // ═══════════════════════════════════════
-  console.log('%c 1. buildLabContext() No-Data Path ', 'font-weight:bold;color:#f59e0b');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const chatSrc = await fetchWithRetry('js/chat.js');
-  const labCtxSrc = await fetchWithRetry('js/lab-context.js');
+console.log('=== Pre-Lab Onboarding Tests ===\n');
+
+const chatSrc = read('js/chat.js');
+const labCtxSrc = read('js/lab-context.js');
 
   assert('No sentinel return string', !labCtxSrc.includes("return 'No lab data is currently loaded for this profile.'"),
     'The old sentinel early-return should be removed');
@@ -78,7 +83,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 3. System Prompt No-Data Section ', 'font-weight:bold;color:#f59e0b');
 
-  const constSrc = await fetchWithRetry('js/constants.js');
+  const constSrc = read('js/constants.js');
 
   assert('Has ## No Lab Data State section', constSrc.includes('## No Lab Data State'),
     'CHAT_SYSTEM_PROMPT should have no-data section');
@@ -106,7 +111,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 4. Dashboard Nudge Subtitle ', 'font-weight:bold;color:#f59e0b');
 
-  const ccSrc = await fetchWithRetry('js/context-cards.js');
+  const ccSrc = read('js/context-cards.js');
 
   assert('context-cards imports getActiveData', ccSrc.includes("import { saveImportedData, getActiveData } from './data.js'"),
     'Should import getActiveData for lab data check');
@@ -130,7 +135,7 @@ return (async function() {
     'Should only show subtitle when no labs');
 
   // CSS check
-  const cssSrc = await fetchWithRetry('styles.css');
+  const cssSrc = read('styles.css');
   assert('.context-section-subtitle in CSS', cssSrc.includes('.context-section-subtitle'),
     'CSS should define the subtitle class');
   assert('Subtitle font-size 13px', cssSrc.includes('.context-section-subtitle') && cssSrc.includes('font-size: 13px'),
@@ -220,7 +225,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. Floating Chat Bubble (FAB) ', 'font-weight:bold;color:#f59e0b');
 
-  const htmlSrc = await fetchWithRetry('index.html');
+  const htmlSrc = read('index.html');
 
   assert('FAB button exists in HTML', htmlSrc.includes('id="chat-fab"') && htmlSrc.includes('class="chat-fab"'),
     'index.html should have #chat-fab with .chat-fab class');
@@ -267,7 +272,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 9. Welcome Hero (Empty State) ', 'font-weight:bold;color:#f59e0b');
 
-  const viewsSrc = await fetchWithRetry('js/views.js');
+  const viewsSrc = read('js/views.js');
 
   // CSS checks
   assert('.welcome-hero in CSS with text-align: center', cssSrc.includes('.welcome-hero') && cssSrc.includes('text-align: center'),
@@ -327,7 +332,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-  console.log(`\n%c Results: ${pass} passed, ${fail} failed `, fail > 0
-    ? 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px'
-    : 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px');
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
