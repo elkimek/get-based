@@ -69,7 +69,7 @@ await import('../js/state.js');
 await import('../js/export.js');
 
   // ── 1. Source: views.js ──
-  console.log('\n%c1. views.js — Onboarding HTML', 'font-weight:bold');
+  console.log('\n1. views.js — Onboarding HTML');
   const viewsSrc = read('js/views.js');
   assert('Has onboarding-divider', viewsSrc.includes('onboarding-divider'));
   assert('Has onboarding-divider-line', viewsSrc.includes('onboarding-divider-line'));
@@ -86,7 +86,7 @@ await import('../js/export.js');
   assert('No old onboarding-demo-btn', !viewsSrc.includes('onboarding-demo-btn'));
 
   // ── 2. Source: export.js ──
-  console.log('\n%c2. export.js — loadDemoData(sex)', 'font-weight:bold');
+  console.log('\n2. export.js — loadDemoData(sex)');
   const exportSrc = read('js/export.js');
   assert('loadDemoData accepts sex param', exportSrc.includes("loadDemoData(sex = 'male')"));
   assert('References demo-female.json', exportSrc.includes('demo-female.json'));
@@ -99,7 +99,7 @@ await import('../js/export.js');
   assert('Dynamic import of profile.js', exportSrc.includes("import('./profile.js')"));
 
   // ── 3. Source: styles.css ──
-  console.log('\n%c3. styles.css — Demo card styles', 'font-weight:bold');
+  console.log('\n3. styles.css — Demo card styles');
   const cssSrc = read('styles.css');
   assert('Has .onboarding-divider rule', cssSrc.includes('.onboarding-divider'));
   assert('Has .onboarding-divider-line rule', cssSrc.includes('.onboarding-divider-line'));
@@ -116,7 +116,7 @@ await import('../js/export.js');
   assert('Mobile 480px: demo-cards flex-direction column', cssSrc.includes('.demo-cards { flex-direction: column'));
 
   // ── 4. Computed styles (if onboarding visible) ──
-  console.log('\n%c4. Computed styles (live DOM)', 'font-weight:bold');
+  console.log('\n4. Computed styles (live DOM)');
   const step1 = document.querySelector('.onboarding-step1');
   if (step1) {
     const step1Style = getComputedStyle(step1);
@@ -149,11 +149,11 @@ await import('../js/export.js');
   }
 
   // ── 5. Window exports ──
-  console.log('\n%c5. Window exports', 'font-weight:bold');
+  console.log('\n5. Window exports');
   assert('loadDemoData on window', typeof window.loadDemoData === 'function');
 
   // ── 6. Service worker ──
-  console.log('\n%c6. service-worker.js — Cache version', 'font-weight:bold');
+  console.log('\n6. service-worker.js — Cache version');
   const swSrc = read('service-worker.js');
   assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));

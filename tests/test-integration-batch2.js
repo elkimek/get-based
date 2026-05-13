@@ -38,7 +38,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 1. Module imports work
   // ═══════════════════════════════════════
-  console.log('%c 1. Module imports ', 'font-weight:bold;color:#f59e0b');
+  console.log('1. Module imports');
 
   const { UNIT_CONVERSIONS, MARKER_SCHEMA, OPTIMAL_RANGES } = await import('../js/schema.js');
 
@@ -49,7 +49,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 2. New unit conversions exist
   // ═══════════════════════════════════════
-  console.log('%c 2. New unit conversions ', 'font-weight:bold;color:#f59e0b');
+  console.log('2. New unit conversions');
 
   const expectedConversions = [
     'hormones.igf1', 'hormones.prolactin', 'hormones.calcitonin',
@@ -71,7 +71,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 3. Calcitriol marker complete
   // ═══════════════════════════════════════
-  console.log('%c 3. Calcitriol marker ', 'font-weight:bold;color:#f59e0b');
+  console.log('3. Calcitriol marker');
 
   const calcitriol = MARKER_SCHEMA.vitamins?.markers?.calcitriol;
   assert('Calcitriol in schema', calcitriol != null);
@@ -86,7 +86,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 4. Prolactin unit string correct
   // ═══════════════════════════════════════
-  console.log('%c 4. Prolactin unit encoding ', 'font-weight:bold;color:#f59e0b');
+  console.log('4. Prolactin unit encoding');
 
   const prolactin = MARKER_SCHEMA.hormones?.markers?.prolactin;
   assert('Prolactin exists', prolactin != null);
@@ -99,7 +99,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 5. Schema consistency checks
   // ═══════════════════════════════════════
-  console.log('%c 5. Schema consistency ', 'font-weight:bold;color:#f59e0b');
+  console.log('5. Schema consistency');
 
   let schemaErrors = 0;
   for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
@@ -130,7 +130,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 6. CSS checks
   // ═══════════════════════════════════════
-  console.log('%c 6. CSS fixes ', 'font-weight:bold;color:#f59e0b');
+  console.log('6. CSS fixes');
 
   const css = read('/styles.css');
 
@@ -159,7 +159,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 7. Tour steps
   // ═══════════════════════════════════════
-  console.log('%c 7. Tour verification ', 'font-weight:bold;color:#f59e0b');
+  console.log('7. Tour verification');
 
   const tourSrc = read('/js/tour.js');
   // Count TOUR_STEPS entries
@@ -173,7 +173,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 8. PII edit button
   // ═══════════════════════════════════════
-  console.log('%c 8. PII edit button ', 'font-weight:bold;color:#f59e0b');
+  console.log('8. PII edit button');
 
   const piiSrc = read('/js/pii.js');
   assert('PII edit button in HTML', piiSrc.includes('pii-edit-btn'));
@@ -182,7 +182,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 9. Chat clear resets header
   // ═══════════════════════════════════════
-  console.log('%c 9. Chat clear fixes ', 'font-weight:bold;color:#f59e0b');
+  console.log('9. Chat clear fixes');
 
   const chatSrc = read('/js/chat.js');
   // clearChatHistory should call updateChatHeaderTitle
@@ -194,7 +194,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 10. Sidebar date filtering
   // ═══════════════════════════════════════
-  console.log('%c 10. Sidebar date filtering ', 'font-weight:bold;color:#f59e0b');
+  console.log('10. Sidebar date filtering');
 
   const navSrc = read('/js/nav.js');
   assert('buildSidebar imports filterDatesByRange', navSrc.includes('filterDatesByRange'));
@@ -208,7 +208,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 11. Context card state preservation
   // ═══════════════════════════════════════
-  console.log('%c 11. Context card state ', 'font-weight:bold;color:#f59e0b');
+  console.log('11. Context card state');
 
   const ctxSrc = read('/js/context-cards.js');
   assert('saveAndRefresh preserves details state', ctxSrc.includes("welcome-context-details") && ctxSrc.includes('sessionStorage'));
@@ -266,7 +266,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 12. PDF filename storage
   // ═══════════════════════════════════════
-  console.log('%c 12. PDF filename storage ', 'font-weight:bold;color:#f59e0b');
+  console.log('12. PDF filename storage');
 
   const importSrc = read('/js/pdf-import.js');
   assert('confirmImport stores sourceFile', importSrc.includes('entry.sourceFile = result.fileName'));
@@ -278,7 +278,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 13. Both-range mode on cards
   // ═══════════════════════════════════════
-  console.log('%c 13. Both-range display ', 'font-weight:bold;color:#f59e0b');
+  console.log('13. Both-range display');
 
   const viewsSrc = read('/js/views.js');
   // Chart card should show both ranges
@@ -290,14 +290,14 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 14. Onboarding trim fix
   // ═══════════════════════════════════════
-  console.log('%c 14. Onboarding trim ', 'font-weight:bold;color:#f59e0b');
+  console.log('14. Onboarding trim');
 
   assert('Sex extraction uses .trim()', viewsSrc.includes('.textContent.trim().toLowerCase()'));
 
   // ═══════════════════════════════════════
   // 15. Conversion factor spot checks
   // ═══════════════════════════════════════
-  console.log('%c 15. Conversion factor validation ', 'font-weight:bold;color:#f59e0b');
+  console.log('15. Conversion factor validation');
 
   // Verify specific factors against medical literature
   assert('FT4 factor 0.07769', UNIT_CONVERSIONS['thyroid.ft4']?.factor === 0.07769);
@@ -321,7 +321,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   // 16. No markers with SI units left unconverted
   // ═══════════════════════════════════════
-  console.log('%c 16. Conversion coverage check ', 'font-weight:bold;color:#f59e0b');
+  console.log('16. Conversion coverage check');
 
   // Markers that DON'T need conversion (same unit US/SI or unitless)
   const noConvNeeded = new Set([
