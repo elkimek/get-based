@@ -1017,13 +1017,23 @@ export function showInsufficientBalanceDialog() {
       '</button>' +
     '</div>' +
     '<div>' +
-      '<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);margin:0 0 6px">Option 2 &mdash; switch to a free model</p>' +
+      '<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);margin:0 0 6px">Option 2 &mdash; switch to free</p>' +
       '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.4">' +
         '<strong style="color:var(--red)">&#9888; Privacy warning</strong><br>' +
         'OpenRouter free routes typically <strong>log your prompts</strong> and providers may use them for training. Avoid sending sensitive medical details, names, or identifiers. The app strips obvious PII but the residual context is still personal.' +
       '</div>' +
-      visionNote +
-      freeList +
+      '<button class="chat-quiz-option chat-quiz-recommended" data-model-id="openrouter/free" style="margin-bottom:8px">' +
+        '<span class="chat-quiz-icon" aria-hidden="true">&#127919;</span>' +
+        '<span class="chat-quiz-body"><strong>Use OpenRouter&rsquo;s free router</strong>' +
+        '<span>OpenRouter picks the best available free model for each request. Self-updating as their catalog changes.</span></span>' +
+        '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>' +
+      '</button>' +
+      '<details style="margin-top:4px"><summary style="font-size:12px;color:var(--text-muted);cursor:pointer;padding:6px 0">Or pin a specific free model</summary>' +
+        '<div style="margin-top:8px">' +
+          visionNote +
+          freeList +
+        '</div>' +
+      '</details>' +
     '</div>' +
     '<div style="text-align:right;margin-top:14px">' +
       '<button class="confirm-btn confirm-btn-cancel" id="or-nb-cancel">Not now</button>' +
