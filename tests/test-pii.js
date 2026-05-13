@@ -1,24 +1,36 @@
+#!/usr/bin/env node
 // test-pii.js — PII obfuscation: regex patterns, word-level diff, patient name extraction
-// Run: fetch('tests/test-pii.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-pii.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c PII Obfuscation Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
 
-  const piiModule = await import('../js/pii.js');
-  const { obfuscatePDFText, buildPIIDiffHTML } = piiModule;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
-  // ═══════════════════════════════════════
-  // 1. extractPatientName (internal, test via source)
-  // ═══════════════════════════════════════
-  console.log('%c 1. Patient Name Extraction ', 'font-weight:bold;color:#f59e0b');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const piiSrc = await fetchWithRetry('js/pii.js');
+console.log('=== PII Obfuscation Tests ===\n');
+
+const piiModule = await import('../js/pii.js');
+const { obfuscatePDFText, buildPIIDiffHTML } = piiModule;
+const piiSrc = read('js/pii.js');
 
   // Extract the function and test it by running obfuscation with known names
   // Czech format
@@ -191,7 +203,5 @@ return (async function() {
     piiSrc.includes("port !== '11434'"), 'should only fire for Ollama default port');
 
   // ═══════════════════════════════════════
-  console.log(`\n%c === Results === `, 'color:#06b6d4;font-weight:bold');
-  console.log(`%c ${pass} passed, ${fail} failed `, `color:${fail ? '#ef4444' : '#22c55e'};font-weight:bold`);
-  if (typeof window.__TEST_RESULTS !== 'undefined') window.__TEST_RESULTS = { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

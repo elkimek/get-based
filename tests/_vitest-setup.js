@@ -43,6 +43,13 @@ if (typeof globalThis.sessionStorage === 'undefined') {
   globalThis.sessionStorage = _makeStorage();
 }
 
+// CSS.escape is a browser global used by js/ai-verdict-engine.js when
+// building scroll anchors. Tiny polyfill covers the chars used in
+// our `[data-id="..."]` selectors.
+if (typeof globalThis.CSS === 'undefined') {
+  globalThis.CSS = { escape: (s) => String(s).replace(/[^\w-]/g, (c) => '\\' + c) };
+}
+
 if (!process.exit._vitestPatched) {
   const _origExit = process.exit.bind(process);
   process.exit = (code) => {

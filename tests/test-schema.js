@@ -1,21 +1,38 @@
+#!/usr/bin/env node
 // test-schema.js — Verify specialty marker removal and migration
-// Run: fetch('tests/test-schema.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-schema.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Specialty Marker Refactor Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
 
-  const schemaSrc = await fetchWithRetry('js/schema.js');
-  const adaptersSrc = await fetchWithRetry('js/adapters.js');
-  const profileSrc = await fetchWithRetry('js/profile.js');
-  const dataSrc = await fetchWithRetry('js/data.js');
-  const pdfImportSrc = await fetchWithRetry('js/pdf-import.js');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Specialty Marker Refactor Tests ===\n');
+
+const schemaSrc = read('js/schema.js');
+const adaptersSrc = read('js/adapters.js');
+const profileSrc = read('js/profile.js');
+const dataSrc = read('js/data.js');
+const pdfImportSrc = read('js/pdf-import.js');
   // ═══════════════════════════════════════
   // 1. MARKER_SCHEMA no longer has specialty categories
   // ═══════════════════════════════════════
@@ -195,5 +212,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-  console.log(`\n%c Results: ${pass} passed, ${fail} failed `, `background:${fail?'#ef4444':'#22c55e'};color:#fff;font-size:14px;padding:4px 12px;border-radius:4px`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

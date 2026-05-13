@@ -39,6 +39,11 @@ const LEGACY_TESTS = [
   './test-dna-mtdna-subclades.js',
   './test-vendor-personal-info.js',
   './test-normalize-units.js',
+  // Batch 5 — module imports + source inspection.
+  './test-pii.js',
+  './test-schema.js',
+  './test-ai-verdict-engine-instance.js',
+  './test-phase-ranges.js',
 ];
 
 for (const path of LEGACY_TESTS) {
