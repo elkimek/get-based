@@ -107,6 +107,9 @@ const LEGACY_TESTS = [
   './test-integration-batch2.js',
   // Batch 15 — v1.6 regression coverage.
   './test-v1-6-shipped.js',
+  // Batch 16 — sync + small dashboard tests.
+  './test-dashboard-genetics-empty.js',
+  './test-sync.js',
 ];
 
 for (const path of LEGACY_TESTS) {

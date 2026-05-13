@@ -1,14 +1,54 @@
+#!/usr/bin/env node
 // test-sync.js — Verify sync module exports, payload format, settings UI
-// Run: fetch('tests/test-sync.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-sync.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Cross-Device Sync Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
+function _stubEl() { return { style:{}, dataset:{}, classList:{add:()=>{},remove:()=>{},contains:()=>false,toggle:()=>{}}, appendChild:()=>{},removeChild:()=>{},replaceChild:()=>{},insertBefore:()=>{},remove:()=>{}, setAttribute:()=>{},getAttribute:()=>null,removeAttribute:()=>{}, addEventListener:()=>{},removeEventListener:()=>{}, querySelector:()=>null,querySelectorAll:()=>[], getBoundingClientRect:()=>({top:0,left:0,width:0,height:0,right:0,bottom:0}), focus:()=>{},blur:()=>{},click:()=>{}, children:[],childNodes:[], innerHTML:'',textContent:'',value:'', parentElement:null,parentNode:null }; }
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = { addEventListener:()=>{},removeEventListener:()=>{}, createElement:()=>_stubEl(),createDocumentFragment:()=>_stubEl(), getElementById:()=>null,querySelector:()=>null,querySelectorAll:()=>[], body:_stubEl(),head:_stubEl(),documentElement:_stubEl(), createTextNode:(t)=>({textContent:t}) };
+}
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+// Compat shim: original test used `await fetchWithRetry(path).then(s => s.includes(...))`
+// — port it as a sync wrapper that returns the file text (the .then is harmless).
+function fetchWithRetry(rel) {
+  return Promise.resolve(read(rel));
+}
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Cross-Device Sync Tests ===\n');
+
+// Load sync.js + settings.js so their Object.assign(window, ...) calls
+// populate window.enableSync, window.toggleSync, etc.
+await import('../js/state.js');
+await import('../js/sync.js');
+await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
@@ -32,7 +72,7 @@ return (async function() {
     /deleteProfileFromRelay[\s\S]{0,1200}evolu\.update\([\s\S]{0,400}isDeleted:\s*1/.test(syncSrc));
   assert('deleteProfileFromRelay is idempotent on missing rows (returns no-row reason)',
     /deleteProfileFromRelay[\s\S]{0,500}reason:\s*'no-row'/.test(syncSrc));
-  const profileSrc = await fetch('/js/profile.js').then(r => r.text());
+  const profileSrc = read('/js/profile.js');
   assert('deleteProfile in profile.js calls deleteProfileFromRelay',
     /deleteProfile\([\s\S]+?deleteProfileFromRelay/.test(profileSrc));
 
@@ -1310,7 +1350,7 @@ return (async function() {
     const wireBig = await gzB64(innerBig);
     // Use the actual exported function via dynamic import, since
     // parseSyncPayload isn't on window
-    const mod = await import('/js/sync.js');
+    const mod = await import('../js/sync.js');
     // Note: parseSyncPayload isn't exported either — fall back to
     // testing via a known caller. The shape is fine; just verify
     // the wireSmall round-trips and wireBig throws via _gunzipToStringCapped.
@@ -1373,7 +1413,7 @@ return (async function() {
   // raw JSON.parse on a GZ envelope threw and silently fell through.
   if (typeof window !== 'undefined' && typeof CompressionStream !== 'undefined') {
     try {
-      const mod = await import('/js/sync.js');
+      const mod = await import('../js/sync.js');
       // buildSyncPayload + parseSyncPayload aren't exported (module-private),
       // but we can still exercise the round-trip via the gzip envelope path
       // directly to verify the contract: producer writes, consumer reads
@@ -1932,13 +1972,13 @@ return (async function() {
 
   const vendorFiles = ['vendor/evolu/evolu-bundle.js', 'vendor/evolu/Db.worker.js', 'vendor/evolu/sqlite3.wasm'];
   for (const f of vendorFiles) {
-    const res = await fetch(f, { method: 'HEAD' });
-    assert(`${f} exists`, res.ok, `status: ${res.status}`);
+    // Node: existence check on disk. Browser would HTTP HEAD; same intent.
+    const exists = fs.existsSync(path.join(ROOT, f));
+    assert(`${f} exists`, exists, `not found on disk`);
   }
 
   // ═══════════════════════════════════════
   // SUMMARY
   // ═══════════════════════════════════════
-  console.log(`%c\n Sync Tests: ${pass} passed, ${fail} failed `, fail ? 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
-  if (typeof window.__TEST_RESULTS !== 'undefined') window.__TEST_RESULTS = { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

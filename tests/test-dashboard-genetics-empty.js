@@ -1,22 +1,37 @@
+#!/usr/bin/env node
 // test-dashboard-genetics-empty.js — Genetics empty-state CTA (v1.3.28)
 //
-// renderGeneticsSection() previously returned '' when the user had no
-// SNPs and no mtDNA — making DNA upload undiscoverable for anyone who
-// missed the chat onboarding's DNA step. Now it returns an in-context
-// CTA that triggers the same handleDNAFile parser path.
+// Run: node tests/test-dashboard-genetics-empty.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
-  console.log('%c Genetics empty-state CTA tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const dna = await import('../js/dna.js');
-  const { state } = await import('../js/state.js');
+console.log('=== Genetics empty-state CTA tests ===\n');
 
+const dna = await import('../js/dna.js');
+const { state } = await import('../js/state.js');
+// context-cards.js exposes window.triggerDNAFilePicker.
+await import('../js/context-cards.js');
   if (!state.importedData) state.importedData = {};
   const savedGenetics = state.importedData.genetics;
 
@@ -69,5 +84,5 @@ return (async function() {
     state.importedData.genetics = savedGenetics;
   }
 
-  console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
