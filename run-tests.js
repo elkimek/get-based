@@ -52,6 +52,11 @@ const TEST_FILES = [
   'tests/test-blob-storage.js',
   'tests/test-audit-fixes.js',
   'tests/test-family-history.js',
+  // Extracted from test-v1-6-shipped.js (PR #204) — the live-DOM
+  // assertion can't run in Node + ES modules can't run via the
+  // puppeteer `Function(s)()` evaluator, so the modal-render check
+  // needed its own thin file that stays in the puppeteer runner.
+  'tests/test-all-sessions-modal.js',
   'tests/test-wearables-bp-merge.js',
   // axe-core runtime scan runs LAST. It rebuilds the DOM extensively and
   // mutates state in ways that are expensive to fully reverse (creates a
