@@ -64,7 +64,13 @@ export function showAINeededDialog(action = 'import') {
   const close = () => overlay.classList.remove('show');
   document.getElementById('ai-needed-or').onclick = () => { close(); if (window.startOpenRouterOAuth) window.startOpenRouterOAuth(); };
   document.getElementById('ai-needed-key').onclick = () => { close(); if (window.openSettingsModal) window.openSettingsModal('ai'); };
-  document.getElementById('ai-needed-demo').onclick = () => { close(); if (window.loadDemoData) window.loadDemoData('male'); };
+  document.getElementById('ai-needed-demo').onclick = () => {
+    close();
+    if (window.loadDemoData) {
+      const sex = state.profileSex === 'female' ? 'female' : 'male';
+      window.loadDemoData(sex);
+    }
+  };
   document.getElementById('ai-needed-cancel').onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   document.getElementById('ai-needed-or').focus();

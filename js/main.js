@@ -194,7 +194,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       try {
         const { getOpenRouterBalance } = await import('./api.js');
         const balance = await getOpenRouterBalance();
-        if (balance && balance.remaining <= 0 && window.showInsufficientBalanceDialog) {
+        const remaining = balance?.remaining;
+        if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && window.showInsufficientBalanceDialog) {
           setTimeout(() => window.showInsufficientBalanceDialog(), 1500);
         }
       } catch {}
