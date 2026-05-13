@@ -34,6 +34,11 @@ const LEGACY_TESTS = [
   './test-biostarks-adapter.js',
   './test-trend-alerts.js',
   './test-supplement-impact.js',
+  // Batch 4 — more pure-logic ports.
+  './test-provenance.js',
+  './test-dna-mtdna-subclades.js',
+  './test-vendor-personal-info.js',
+  './test-normalize-units.js',
 ];
 
 for (const path of LEGACY_TESTS) {

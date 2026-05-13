@@ -1,18 +1,37 @@
+#!/usr/bin/env node
 // test-normalize-units.js — Unit normalization in the PDF import pipeline
-// Run: fetch('tests/test-normalize-units.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-normalize-units.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Unit Normalization Pipeline Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
 
-  const src = await fetchWithRetry('js/pdf-import.js');
-  const schemaSrc = await fetchWithRetry('js/schema.js');
-  const { UNIT_CONVERSIONS, MARKER_SCHEMA } = await import('/js/schema.js');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Unit Normalization Pipeline Tests ===\n');
+
+const src = read('js/pdf-import.js');
+const schemaSrc = read('js/schema.js');
+const { UNIT_CONVERSIONS, MARKER_SCHEMA } = await import('../js/schema.js');
+const { assessTextQuality } = await import('../js/pdf-import.js');
 
   // ═══════════════════════════════════════
   // Replicate normalizeUnitStr for functional tests
@@ -354,7 +373,7 @@ return (async function() {
   console.log('%c 19. assessTextQuality ', 'font-weight:bold;color:#f59e0b');
 
   // assessTextQuality is exported on window
-  const atq = window.assessTextQuality;
+  const atq = assessTextQuality;
   if (atq) {
     assert('empty text → empty', atq('') === 'empty');
     assert('null text → empty', atq(null) === 'empty');
@@ -410,7 +429,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-  console.log(`%c\n=== Results ===\n${pass} passed, ${fail} failed`, 'color:#38bdf8');
-  if (typeof window.__testResults !== 'undefined') window.__testResults = { pass, fail };
-  return { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

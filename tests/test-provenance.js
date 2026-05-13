@@ -1,75 +1,57 @@
-// test-provenance.js — Import provenance (markerSources) tests
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`  ✓ ${name}`); }
-    else { fail++; console.error(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
-  }
+#!/usr/bin/env node
+// test-provenance.js — Import provenance (markerSources) tests.
+//
+// Static source inspection only — switched from HTTP fetch to fs.readFileSync.
+//
+// Run: node tests/test-provenance.js  (or via npm test)
 
-  console.log('%c Import Provenance Tests ', 'background:#6366f1;color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  // ═══════════════════════════════════════
-  // 1. Source code verification
-  // ═══════════════════════════════════════
-  console.log('%c 1. PDF Import Provenance ', 'font-weight:bold;color:#f59e0b');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
-  const pdfSrc = await fetch('/js/pdf-import.js').then(r => r.text());
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  // markerSources initialization
-  assert('Init markerSources on entry', pdfSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
-  assert('Uses importTs timestamp', pdfSrc.includes('const importTs = Date.now()'));
+console.log('=== Import Provenance Tests ===\n');
 
-  // Matched markers get provenance
-  assert('Matched markers get markerSources', pdfSrc.includes('entry.markerSources[m.mappedKey] = { file: result.fileName'));
+// ─── 1. PDF Import Provenance ───
+console.log('1. PDF Import Provenance');
+const pdfSrc = read('js/pdf-import.js');
+assert('Init markerSources on entry', pdfSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
+assert('Uses importTs timestamp', pdfSrc.includes('const importTs = Date.now()'));
+assert('Matched markers get markerSources', pdfSrc.includes('entry.markerSources[m.mappedKey] = { file: result.fileName'));
+assert('New markers get markerSources', pdfSrc.includes('entry.markerSources[m.suggestedKey] = { file: result.fileName'));
 
-  // New markers get provenance
-  assert('New markers get markerSources', pdfSrc.includes('entry.markerSources[m.suggestedKey] = { file: result.fileName'));
+// ─── 2. Manual Entry Provenance ───
+console.log('\n2. Manual Entry Provenance');
+const viewsSrc = read('js/views.js');
+assert('saveManualEntry inits markerSources', viewsSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
+assert('saveManualEntry sets file:null', viewsSrc.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
+const editSection = viewsSrc.split('function editMarkerValue')[1] || '';
+assert('editMarkerValue sets provenance', editSection.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
 
-  // ═══════════════════════════════════════
-  // 2. Manual Entry Provenance
-  // ═══════════════════════════════════════
-  console.log('%c 2. Manual Entry Provenance ', 'font-weight:bold;color:#f59e0b');
+// ─── 3. Detail Modal Display ───
+console.log('\n3. Detail Modal Display');
+assert('Detail modal reads markerSources', viewsSrc.includes('srcEntry?.markerSources?.[dotKey]'));
+assert('Detail modal has mv-source class', viewsSrc.includes('class="mv-source"'));
+assert('Detail modal shows manual entry label', viewsSrc.includes('mv-source-manual'));
+assert('Detail modal falls back to sourceFile', viewsSrc.includes('srcEntry?.sourceFile'));
 
-  const viewsSrc = await fetch('/js/views.js').then(r => r.text());
+// ─── 4. CSS Styles ───
+console.log('\n4. CSS Styles');
+const cssSrc = read('styles.css');
+assert('mv-source style exists', cssSrc.includes('.mv-source'));
+assert('mv-source-manual style exists', cssSrc.includes('.mv-source-manual'));
 
-  // saveManualEntry writes provenance
-  assert('saveManualEntry inits markerSources', viewsSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
-  assert('saveManualEntry sets file:null', viewsSrc.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
+// ─── 5. Backward Compatibility ───
+console.log('\n5. Backward Compatibility');
+assert('Optional chaining on markerSources', viewsSrc.includes('markerSources?.[dotKey]'));
 
-  // editMarkerValue writes provenance
-  const editSection = viewsSrc.split('function editMarkerValue')[1] || '';
-  assert('editMarkerValue sets provenance', editSection.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
-
-  // ═══════════════════════════════════════
-  // 3. Detail Modal Display
-  // ═══════════════════════════════════════
-  console.log('%c 3. Detail Modal Display ', 'font-weight:bold;color:#f59e0b');
-
-  assert('Detail modal reads markerSources', viewsSrc.includes('srcEntry?.markerSources?.[dotKey]'));
-  assert('Detail modal has mv-source class', viewsSrc.includes('class="mv-source"'));
-  assert('Detail modal shows manual entry label', viewsSrc.includes('mv-source-manual'));
-  assert('Detail modal falls back to sourceFile', viewsSrc.includes('srcEntry?.sourceFile'));
-
-  // ═══════════════════════════════════════
-  // 4. CSS
-  // ═══════════════════════════════════════
-  console.log('%c 4. CSS Styles ', 'font-weight:bold;color:#f59e0b');
-
-  const cssSrc = await fetch('/styles.css').then(r => r.text());
-  assert('mv-source style exists', cssSrc.includes('.mv-source'));
-  assert('mv-source-manual style exists', cssSrc.includes('.mv-source-manual'));
-
-  // ═══════════════════════════════════════
-  // 5. Backward Compatibility
-  // ═══════════════════════════════════════
-  console.log('%c 5. Backward Compatibility ', 'font-weight:bold;color:#f59e0b');
-
-  // Uses optional chaining — won't crash on old entries
-  assert('Optional chaining on markerSources', viewsSrc.includes('markerSources?.[dotKey]'));
-
-  // ═══════════════════════════════════════
-  // Summary
-  // ═══════════════════════════════════════
-  console.log(`\n%c Provenance: ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px');
-  window.__testResults = { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
