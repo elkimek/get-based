@@ -28,6 +28,12 @@ const LEGACY_TESTS = [
   './test-data-merge.js',
   './test-security-phase1.js',
   './test-correctness-phase2.js',
+  // Batch 3 — more pure-logic ports.
+  './test-lens-multi-query.js',
+  './test-adapters.js',
+  './test-biostarks-adapter.js',
+  './test-trend-alerts.js',
+  './test-supplement-impact.js',
 ];
 
 for (const path of LEGACY_TESTS) {

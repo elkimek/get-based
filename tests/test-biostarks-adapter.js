@@ -1,17 +1,27 @@
+#!/usr/bin/env node
 // test-biostarks-adapter.js — BioStarks adapter: registration, detection, markers, normalization
-// Run: fetch('tests/test-biostarks-adapter.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Static source inspection only — fs.readFileSync instead of HTTP fetch.
+//
+// Run: node tests/test-biostarks-adapter.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c BioStarks Adapter Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
-  const adaptersSrc = await fetchWithRetry('js/adapters.js');
-  const pdfImportSrc = await fetchWithRetry('js/pdf-import.js');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== BioStarks Adapter Tests ===\n');
+
+const adaptersSrc = read('js/adapters.js');
+const pdfImportSrc = read('js/pdf-import.js');
 
   // ═══════════════════════════════════════
   // 1. Adapter Registration
@@ -135,9 +145,5 @@ return (async function() {
   // Image pipeline also mentions biostarks
   assert('Image pipeline has biostarks testType', pdfImportSrc.includes('"biostarks", "DUTCH"'));
 
-  // ═══════════════════════════════════════
-  // Summary
-  // ═══════════════════════════════════════
-  console.log(`\n%c BioStarks Adapter: ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px');
-  if (typeof window !== 'undefined') window.__TEST_RESULT__ = { passed: pass, failed: fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

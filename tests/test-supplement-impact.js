@@ -1,15 +1,34 @@
+#!/usr/bin/env node
 // test-supplement-impact.js — Supplement-biomarker impact analysis tests
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`  ✓ ${name}`); }
-    else { fail++; console.error(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
-  }
+//
+// Run: node tests/test-supplement-impact.js  (or via npm test)
 
-  console.log('%c Supplement Impact Tests ', 'background:#6366f1;color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  // Import computeSupplementImpact and computeAllImpacts
-  const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDailyTotal, effectiveTimesPerDay } = await import('/js/supplements.js');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Supplement Impact Tests ===\n');
+
+const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDailyTotal, effectiveTimesPerDay } = await import('../js/supplements.js');
 
   // ═══════════════════════════════════════
   // 1. computeSupplementImpact — basic case
@@ -130,7 +149,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. Source & UI Integration ', 'font-weight:bold;color:#f59e0b');
 
-  const suppSrc = await fetch('/js/supplements.js').then(r => r.text());
+  const suppSrc = read('js/supplements.js');
   assert('renderSupplementImpact exists', suppSrc.includes('function renderSupplementImpact'));
   assert('Wired into openSupplementsEditor', suppSrc.includes('renderSupplementImpact(s,'));
   assert('Detects overlapping supplements', suppSrc.includes('getOverlappingSupplements'));
@@ -151,7 +170,7 @@ return (async function() {
   assert('Row placeholder is just ×/day (no "inherit N" jargon)', suppSrc.includes('placeholder="×/day"'));
   assert('Outer label reads "Doses/day" (non-tech)', suppSrc.includes('<label>Doses/day</label>'));
   assert('Saves supp.timesPerDay when provided', suppSrc.includes('entry.timesPerDay = timesNum'));
-  assert('lab-context uses computed total too', (await fetch('/js/lab-context.js').then(r => r.text())).includes('ingredientDailyTotal'));
+  assert('lab-context uses computed total too', (read('js/lab-context.js')).includes('ingredientDailyTotal'));
 
   // ═══════════════════════════════════════
   // 9. parseAmount — number/unit extraction
@@ -204,11 +223,11 @@ return (async function() {
   assert('Falls back without AI', suppSrc.includes('Set up an AI provider'));
 
   // Focus card integration
-  const viewsSrc = await fetch('/js/views.js').then(r => r.text());
+  const viewsSrc = read('js/views.js');
   assert('Focus card uses computeAllImpacts', viewsSrc.includes('computeAllImpacts'));
 
   // CSS
-  const cssSrc = await fetch('/styles.css').then(r => r.text());
+  const cssSrc = read('styles.css');
   assert('Impact CSS exists', cssSrc.includes('.supp-impact-section'));
   assert('Impact summary CSS exists', cssSrc.includes('.supp-impact-summary'));
   assert('Summary color variants', cssSrc.includes('.supp-impact-summary-green'));
@@ -216,6 +235,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Summary
   // ═══════════════════════════════════════
-  console.log(`\n%c Supplement Impact: ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px');
-  window.__testResults = { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

@@ -1,15 +1,35 @@
+#!/usr/bin/env node
 // test-trend-alerts.js — Trend detection, alerts, and status logic
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`  \u2713 ${name}`); }
-    else { fail++; console.error(`  \u2717 ${name}${detail ? ' \u2014 ' + detail : ''}`); }
-  }
+//
+// Run: node tests/test-trend-alerts.js  (or via npm test)
 
-  console.log('%c Trend Alerts & Status Tests ', 'background:#6366f1;color:#fff;padding:4px 12px;border-radius:4px;font-weight:bold');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  const { linearRegression, getStatus } = await import('/js/utils.js');
-  const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await import('/js/data.js');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Trend Alerts & Status Tests ===\n');
+
+const { linearRegression, getStatus } = await import('../js/utils.js');
+const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await import('../js/data.js');
 
   // =======================================
   // 1. linearRegression — perfect fit
@@ -576,7 +596,7 @@ return (async function() {
   // =======================================
   console.log('%c 23. Source Code Checks ', 'font-weight:bold;color:#f59e0b');
 
-  const dataSrc = await fetch('/js/data.js').then(r => r.text());
+  const dataSrc = read('js/data.js');
   assert('detectTrendAlerts exported', dataSrc.includes('export function detectTrendAlerts'));
   assert('getKeyTrendMarkers exported', dataSrc.includes('export function getKeyTrendMarkers'));
   assert('Uses linearRegression', dataSrc.includes('linearRegression('));
@@ -599,7 +619,7 @@ return (async function() {
   assert('detectTrendAlerts on window', dataSrc.includes('detectTrendAlerts'));
   assert('getKeyTrendMarkers on window', dataSrc.includes('getKeyTrendMarkers'));
 
-  const utilsSrc = await fetch('/js/utils.js').then(r => r.text());
+  const utilsSrc = read('js/utils.js');
   assert('linearRegression exported', utilsSrc.includes('export function linearRegression'));
   assert('getStatus exported', utilsSrc.includes('export function getStatus'));
   assert('linearRegression handles denom=0', utilsSrc.includes('denom === 0'));
@@ -607,6 +627,5 @@ return (async function() {
   // =======================================
   // Summary
   // =======================================
-  console.log(`\n%c Trend Alerts: ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px');
-  window.__testResults = { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

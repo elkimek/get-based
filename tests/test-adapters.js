@@ -1,17 +1,28 @@
+#!/usr/bin/env node
 // test-adapters.js — Adapter registry: structure, fatty acids, OAT, metabolomix, cross-adapter
-// Run: fetch('tests/test-adapters.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Static source inspection only — switched from HTTP fetch to fs.readFileSync
+// so it runs node-side without a dev server.
+//
+// Run: node tests/test-adapters.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Adapter Registry Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
-  const adaptersSrc = await fetchWithRetry('js/adapters.js');
-  const schemaSrc = await fetchWithRetry('js/schema.js');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Adapter Registry Tests ===\n');
+
+const adaptersSrc = read('js/adapters.js');
+const schemaSrc = read('js/schema.js');
 
   // ═══════════════════════════════════════
   // 1. Registry Structure
@@ -198,9 +209,5 @@ return (async function() {
   assert('Imports MARKER_SCHEMA', adaptersSrc.includes("import { MARKER_SCHEMA } from './schema.js'"));
   assert('Imports isDebugMode', adaptersSrc.includes("import { isDebugMode } from './utils.js'"));
 
-  // ═══════════════════════════════════════
-  // Summary
-  // ═══════════════════════════════════════
-  console.log(`\n%c Adapter Registry: ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px');
-  if (typeof window !== 'undefined') window.__TEST_RESULT__ = { passed: pass, failed: fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
