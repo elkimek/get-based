@@ -1,22 +1,46 @@
+#!/usr/bin/env node
 // test-integration-batch2.js — Integration smoke tests for jonseed-followups-2 fixes
-// Tests: tour, sidebar filtering, both-range mode, unit conversions, context cards,
-// PII edit button, refresh health dots, PDF filename storage, chat clear, import modal
+//
+// Run: node tests/test-integration-batch2.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Integration Tests — Batch 2 Fixes ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Integration Tests — Batch 2 Fixes ===\n');
 
   // ═══════════════════════════════════════
   // 1. Module imports work
   // ═══════════════════════════════════════
   console.log('%c 1. Module imports ', 'font-weight:bold;color:#f59e0b');
 
-  const { UNIT_CONVERSIONS, MARKER_SCHEMA, OPTIMAL_RANGES } = await import('/js/schema.js');
+  const { UNIT_CONVERSIONS, MARKER_SCHEMA, OPTIMAL_RANGES } = await import('../js/schema.js');
 
   assert('UNIT_CONVERSIONS loaded', UNIT_CONVERSIONS != null);
   assert('MARKER_SCHEMA loaded', MARKER_SCHEMA != null);
@@ -108,7 +132,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 6. CSS fixes ', 'font-weight:bold;color:#f59e0b');
 
-  const css = await fetchWithRetry('/styles.css');
+  const css = read('/styles.css');
 
   // No duplicate @keyframes shimmer
   const shimmerMatches = css.match(/@keyframes shimmer/g);
@@ -137,7 +161,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 7. Tour verification ', 'font-weight:bold;color:#f59e0b');
 
-  const tourSrc = await fetchWithRetry('/js/tour.js');
+  const tourSrc = read('/js/tour.js');
   // Count TOUR_STEPS entries
   const stepMatches = tourSrc.match(/\{ target:/g);
   assert('8 tour steps', stepMatches?.length >= 8, `found ${stepMatches?.length}`);
@@ -151,7 +175,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. PII edit button ', 'font-weight:bold;color:#f59e0b');
 
-  const piiSrc = await fetchWithRetry('/js/pii.js');
+  const piiSrc = read('/js/pii.js');
   assert('PII edit button in HTML', piiSrc.includes('pii-edit-btn'));
   assert('PII edit button wired to switchToEditMode', piiSrc.includes("pii-edit-btn").valueOf() && piiSrc.includes('switchToEditMode'));
 
@@ -160,7 +184,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 9. Chat clear fixes ', 'font-weight:bold;color:#f59e0b');
 
-  const chatSrc = await fetchWithRetry('/js/chat.js');
+  const chatSrc = read('/js/chat.js');
   // clearChatHistory should call updateChatHeaderTitle
   const clearIdx = chatSrc.indexOf('function clearChatHistory');
   const clearBlock = chatSrc.substring(clearIdx, chatSrc.indexOf('\n}', clearIdx));
@@ -172,11 +196,11 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 10. Sidebar date filtering ', 'font-weight:bold;color:#f59e0b');
 
-  const navSrc = await fetchWithRetry('/js/nav.js');
+  const navSrc = read('/js/nav.js');
   assert('buildSidebar imports filterDatesByRange', navSrc.includes('filterDatesByRange'));
   assert('buildSidebar calls filterDatesByRange', navSrc.includes('filterDatesByRange(data)'));
 
-  const dataSrc = await fetchWithRetry('/js/data.js');
+  const dataSrc = read('/js/data.js');
   const setDateIdx = dataSrc.indexOf('function setDateRange');
   const setDateBlock = dataSrc.substring(setDateIdx, dataSrc.indexOf('\n}', setDateIdx));
   assert('setDateRange rebuilds sidebar', setDateBlock.includes('buildSidebar'));
@@ -186,7 +210,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 11. Context card state ', 'font-weight:bold;color:#f59e0b');
 
-  const ctxSrc = await fetchWithRetry('/js/context-cards.js');
+  const ctxSrc = read('/js/context-cards.js');
   assert('saveAndRefresh preserves details state', ctxSrc.includes("welcome-context-details") && ctxSrc.includes('sessionStorage'));
   assert('refreshAllHealthDots function exists', ctxSrc.includes('function refreshAllHealthDots'));
   assert('refreshAllHealthDots exposed on window', ctxSrc.includes('refreshAllHealthDots'));
@@ -205,8 +229,12 @@ return (async function() {
   }
 
   // Runtime check: save mutates state → re-render → summary text appears in DOM.
+  // SKIPPED in Node — needs a real DOM for showDashboard's innerHTML writes;
+  // covered end-to-end by puppeteer. Gate on `process.versions.node` (only
+  // truthy in Node) — clean cross-environment skip.
   const _rtState = window._labState;
-  if (typeof window.saveAndRefresh === 'function' && typeof window.navigate === 'function' && _rtState) {
+  const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
+  if (!_isNode && typeof window.saveAndRefresh === 'function' && typeof window.navigate === 'function' && _rtState) {
     const sv_stress = _rtState.importedData?.stress;
     try {
       window.navigate('dashboard');
@@ -240,10 +268,10 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 12. PDF filename storage ', 'font-weight:bold;color:#f59e0b');
 
-  const importSrc = await fetchWithRetry('/js/pdf-import.js');
+  const importSrc = read('/js/pdf-import.js');
   assert('confirmImport stores sourceFile', importSrc.includes('entry.sourceFile = result.fileName'));
 
-  const settingsSrc = await fetchWithRetry('/js/settings.js');
+  const settingsSrc = read('/js/settings.js');
   assert('Settings shows sourceFile', settingsSrc.includes('entry.sourceFile'));
   assert('Settings imports escapeAttr', settingsSrc.includes('escapeAttr'));
 
@@ -252,7 +280,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 13. Both-range display ', 'font-weight:bold;color:#f59e0b');
 
-  const viewsSrc = await fetchWithRetry('/js/views.js');
+  const viewsSrc = read('/js/views.js');
   // Chart card should show both ranges
   assert('Chart card handles both mode',
     viewsSrc.includes("state.rangeMode === 'both'") && viewsSrc.includes('marker.optimalMin') && viewsSrc.includes('marker.refMin'));
@@ -351,7 +379,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-  console.log(`%c\n=== Results ===\n${pass} passed, ${fail} failed`, 'color:#38bdf8');
-  window.__testResults = { pass, fail };
-  return { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

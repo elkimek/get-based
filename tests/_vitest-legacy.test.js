@@ -102,6 +102,9 @@ const LEGACY_TESTS = [
   './test-folder-backup.js',
   './test-table-heatmap-empty.js',
   './test-manual-entry-flow.js',
+  // Batch 14 — demo + integration source inspection.
+  './test-demo.js',
+  './test-integration-batch2.js',
 ];
 
 for (const path of LEGACY_TESTS) {

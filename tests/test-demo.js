@@ -1,18 +1,76 @@
+#!/usr/bin/env node
 // test-demo.js — Verify demo data onboarding redesign
-// Run: fetch('tests/test-demo.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-demo.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`  ✅ ${name}`); }
-    else { fail++; console.error(`  ❌ ${name}` + (detail ? ` — ${detail}` : '')); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c🧪 Demo Data Onboarding Redesign Tests', 'font-weight:bold;font-size:14px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
+// document shim — same shape as _vitest-setup.js _stubEl pattern.
+function _stubEl() {
+  return {
+    style: {}, dataset: {},
+    classList: { add: () => {}, remove: () => {}, contains: () => false, toggle: () => {} },
+    appendChild: () => {}, removeChild: () => {}, replaceChild: () => {},
+    insertBefore: () => {}, remove: () => {},
+    setAttribute: () => {}, getAttribute: () => null, removeAttribute: () => {},
+    addEventListener: () => {}, removeEventListener: () => {},
+    querySelector: () => null, querySelectorAll: () => [],
+    getBoundingClientRect: () => ({ top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 }),
+    focus: () => {}, blur: () => {}, click: () => {},
+    children: [], childNodes: [],
+    innerHTML: '', textContent: '', value: '',
+    parentElement: null, parentNode: null,
+  };
+}
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = {
+    addEventListener: () => {}, removeEventListener: () => {},
+    createElement: () => _stubEl(),
+    createDocumentFragment: () => _stubEl(),
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    body: _stubEl(), head: _stubEl(), documentElement: _stubEl(),
+    createTextNode: (t) => ({ textContent: t }),
+  };
+}
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Demo Data Onboarding Tests ===\n');
+
+// export.js exposes window.loadDemoData via Object.assign(window, ...).
+await import('../js/state.js');
+await import('../js/export.js');
 
   // ── 1. Source: views.js ──
   console.log('\n%c1. views.js — Onboarding HTML', 'font-weight:bold');
-  const viewsSrc = await fetchWithRetry('js/views.js');
+  const viewsSrc = read('js/views.js');
   assert('Has onboarding-divider', viewsSrc.includes('onboarding-divider'));
   assert('Has onboarding-divider-line', viewsSrc.includes('onboarding-divider-line'));
   assert('Has onboarding-divider-text', viewsSrc.includes('onboarding-divider-text'));
@@ -29,7 +87,7 @@ return (async function() {
 
   // ── 2. Source: export.js ──
   console.log('\n%c2. export.js — loadDemoData(sex)', 'font-weight:bold');
-  const exportSrc = await fetchWithRetry('js/export.js');
+  const exportSrc = read('js/export.js');
   assert('loadDemoData accepts sex param', exportSrc.includes("loadDemoData(sex = 'male')"));
   assert('References demo-female.json', exportSrc.includes('demo-female.json'));
   assert('References demo-male.json', exportSrc.includes('demo-male.json'));
@@ -42,7 +100,7 @@ return (async function() {
 
   // ── 3. Source: styles.css ──
   console.log('\n%c3. styles.css — Demo card styles', 'font-weight:bold');
-  const cssSrc = await fetchWithRetry('styles.css');
+  const cssSrc = read('styles.css');
   assert('Has .onboarding-divider rule', cssSrc.includes('.onboarding-divider'));
   assert('Has .onboarding-divider-line rule', cssSrc.includes('.onboarding-divider-line'));
   assert('Has .onboarding-divider-text rule', cssSrc.includes('.onboarding-divider-text'));
@@ -96,10 +154,10 @@ return (async function() {
 
   // ── 6. Service worker ──
   console.log('\n%c6. service-worker.js — Cache version', 'font-weight:bold');
-  const swSrc = await fetchWithRetry('service-worker.js');
+  const swSrc = read('service-worker.js');
   assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 
   // ── Summary ──
-  console.log(`\n%c${pass + fail} tests: ${pass} passed, ${fail} failed`, fail ? 'color:red;font-weight:bold' : 'color:green;font-weight:bold');
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
