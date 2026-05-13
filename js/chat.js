@@ -1090,6 +1090,7 @@ export function renderChatMessages() {
       const pHeightUnit = _pH.unit || 'cm';
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
+          ${_renderOnboardCrumbs(1)}
           <p>Hey! 👋 I'll be your AI health analyst — I help you understand blood work, track trends, and spot what matters. First, tell me a bit about yourself:</p>
           <div class="chat-onboard-form">
             <div class="chat-onboard-row">
@@ -1156,46 +1157,20 @@ export function renderChatMessages() {
       return;
     }
 
-    // Stage 2: Profile set, no AI — connect provider (full list)
+    // Stage 2: Profile set, no AI — provider quiz (one-question funnel).
+    // The previous flow dumped 5 provider cards on the user simultaneously
+    // (PPQ, Routstr, OpenRouter, Venice, Local AI) with KYC/Lightning/Cashu/
+    // E2EE/Ollama jargon. Non-tech users couldn't tell what to pick. The
+    // funnel asks one question first ("what matters to you?"), then leads
+    // each branch to the right setup with plain language.
     const providerSkipped = localStorage.getItem(`labcharts-onboard-provider-skipped-${state.currentProfile}`);
     if (!hasAIProvider() && !providerSkipped) {
       const name = currentP?.name || 'there';
+      const branch = sessionStorage.getItem('chat-onboard-provider-branch') || '';
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
-          <p>Nice to meet you, ${escapeHTML(name)}! I need an AI brain to analyze your labs. Pick a provider:</p>
-          <div class="chat-setup-providers">
-            <div class="chat-setup-provider">
-              <strong>PPQ</strong> <span class="chat-setup-rec">(Anonymous)</span><br>
-              <span class="chat-setup-detail">300+ models, no KYC. Bitcoin, Lightning, Monero, Litecoin. Top up in the app.</span><br>
-              <a href="#" onclick="event.preventDefault();closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('ppq')},300)" style="color:var(--accent)">Set up PPQ &rarr;</a>
-            </div>
-            <div class="chat-setup-provider">
-              <strong>Routstr</strong> <span class="chat-setup-rec">(Bitcoin)</span><br>
-              <span class="chat-setup-detail">Lightning and Cashu eCash. No account needed. Top up with QR codes in the app.</span><br>
-              <a href="#" onclick="event.preventDefault();closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('routstr')},300)" style="color:var(--accent)">Set up Routstr &rarr;</a>
-            </div>
-            <div class="chat-setup-provider">
-              <strong>OpenRouter</strong> <span class="chat-setup-rec">(Most models)</span><br>
-              <span class="chat-setup-detail">200+ models. Pay with card or USDC. One-click login.</span><br>
-              <button class="or-oauth-btn" style="margin-top:8px" onclick="startOpenRouterOAuth()">Connect with OpenRouter</button>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:6px">or <a href="#" onclick="event.preventDefault();closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('openrouter')},300)" style="color:var(--accent)">paste a key manually</a></div>
-            </div>
-            <div class="chat-setup-provider">
-              <strong>Venice</strong><br>
-              <span class="chat-setup-detail">Uncensored models with optional E2EE. No-log policy.</span><br>
-              <a href="#" onclick="event.preventDefault();closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('venice')},300)" style="color:var(--accent)">Set up Venice &rarr;</a>
-            </div>
-            <div class="chat-setup-provider">
-              <strong>Local AI</strong><br>
-              <span class="chat-setup-detail">Ollama, LM Studio, or Jan. Fully offline. Free forever.</span><br>
-              <a href="#" onclick="event.preventDefault();closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('ollama')},300)" style="color:var(--accent)">Set up Local AI &rarr;</a>
-            </div>
-          </div>
-          <p style="font-size:13px">Got a key from one of these? Paste it here:</p>
-          <button class="chat-setup-btn" onclick="closeChatPanel();setTimeout(()=>window.openSettingsModal('ai'),300)">Open AI Settings</button>
-          <div style="text-align:center;margin-top:12px">
-            <a href="#" onclick="event.preventDefault();window.skipProviderSetup()" style="color:var(--text-muted);font-size:12px">Skip for now — I'll set this up later</a>
-          </div>
+          ${_renderOnboardCrumbs(2)}
+          ${_renderProviderQuiz(branch, name)}
         </div>`;
       updateDiscussButton();
       return;
@@ -1308,6 +1283,7 @@ export function renderChatMessages() {
           </div>`;
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai" style="width:88%">
+          ${_renderOnboardCrumbs(3)}
           <p>${hasAIProvider() ? 'Great, we\'re connected! 🎉' : 'Nice!'} A couple of quick things that help me give better advice:</p>
           ${cycleSection}
           ${suppSection}
@@ -1325,6 +1301,7 @@ export function renderChatMessages() {
     if (filled >= 9 && !hasData) {
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
+          ${_renderOnboardCrumbs(4)}
           <p>${escapeHTML(name)}, you filled everything in — I have a really complete picture of your lifestyle now. ${hasAIProvider() ? 'Even without lab data, I can already help:' : 'Import your labs or connect an AI provider to get personalized insights.'}</p>
           <div class="chat-onboard-actions">
             ${hasAIProvider()
@@ -1344,6 +1321,7 @@ export function renderChatMessages() {
       const progressPct = Math.round((filled / 9) * 100);
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
+          ${_renderOnboardCrumbs(4)}
           <p>${filled >= 6 ? `Almost there, ${escapeHTML(name)}!` : filled >= 3 ? `Nice progress, ${escapeHTML(name)}!` : `Good start, ${escapeHTML(name)}!`} You've filled ${filled} of 9 cards.</p>
           <div class="chat-onboard-progress"><div class="chat-onboard-progress-bar" style="width:${progressPct}%"></div></div>
           <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">The more I know about your lifestyle, the better I can interpret your results and recommend what to test. Everything is optional.</p>
@@ -1362,6 +1340,7 @@ export function renderChatMessages() {
     if (!hasData) {
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
+          ${_renderOnboardCrumbs(4)}
           <p>You're ready to go, ${escapeHTML(name)}! Here's how to get the most out of this:</p>
           <p style="font-size:13px;margin:4px 0"><strong>Have lab results?</strong> Drop a PDF on the page — I'll extract everything and build your dashboard with trend charts, flags, and insights.</p>
           <p style="font-size:13px;margin:4px 0"><strong>No labs yet?</strong> Tell me about your lifestyle and I'll recommend what to test first.</p>
@@ -1916,8 +1895,113 @@ function _refreshDashboardCycle() {
   }
 }
 
+// Thin progress strip shown at the top of each onboarding chat message.
+// 4 steps: 1) profile, 2) AI setup, 3) extras (cycle/supplements), 4) cards
+// + import. The dots make the funnel feel finite — a wall of unknown
+// length is a big drop-off driver for non-tech users.
+function _renderOnboardCrumbs(currentStep, totalSteps = 4) {
+  const dots = Array.from({ length: totalSteps }, (_, i) => `<span class="chat-onboard-crumb${i + 1 <= currentStep ? ' active' : ''}"></span>`).join('');
+  return `<div class="chat-onboard-crumbs" aria-label="Onboarding step ${currentStep} of ${totalSteps}">
+    <span class="chat-onboard-crumbs-label">Step ${currentStep} of ${totalSteps}</span>
+    <span class="chat-onboard-crumbs-dots" aria-hidden="true">${dots}</span>
+  </div>`;
+}
+
+// Provider quiz — 4 plain-language branches replace the 5-card jargon grid.
+// Branch state lives in sessionStorage so a tab refresh mid-flow doesn't
+// drop the user back at the root (deliberately *not* localStorage — a new
+// session starts fresh).
+function _renderProviderQuiz(branch, name) {
+  const safeName = escapeHTML(name);
+  if (branch === 'card') {
+    return `<button class="chat-quiz-back" onclick="window.backToProviderQuiz()" aria-label="Back to provider options">&larr; Back</button>
+      <p><strong>Pay with a card &rarr; OpenRouter</strong></p>
+      <p style="font-size:13px">Click below &mdash; log in with Google or email, top up with your card, you&rsquo;re done. You&rsquo;ll come right back here.</p>
+      <button class="or-oauth-btn" onclick="startOpenRouterOAuth()">Connect with OpenRouter</button>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center">
+        <a href="#" onclick="event.preventDefault();closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('openrouter')},300)" style="color:var(--text-muted)">or paste a key manually</a>
+      </div>`;
+  }
+  if (branch === 'local') {
+    return `<button class="chat-quiz-back" onclick="window.backToProviderQuiz()" aria-label="Back to provider options">&larr; Back</button>
+      <p><strong>Runs on your computer &rarr; Local AI</strong></p>
+      <p style="font-size:13px">Install <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--accent)">Ollama</a>, <a href="https://lmstudio.ai" target="_blank" rel="noopener" style="color:var(--accent)">LM Studio</a>, or <a href="https://jan.ai" target="_blank" rel="noopener" style="color:var(--accent)">Jan</a> on your computer &mdash; they run AI models locally. Nothing leaves your machine, free forever. After install, point getbased at it.</p>
+      <button class="chat-setup-btn" onclick="closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('ollama')},300)">Open Local AI setup &rarr;</button>`;
+  }
+  if (branch === 'bitcoin') {
+    return `<button class="chat-quiz-back" onclick="window.backToProviderQuiz()" aria-label="Back to provider options">&larr; Back</button>
+      <p><strong>Pay with Bitcoin &rarr; 2 options</strong></p>
+      <div class="chat-quiz-options" style="margin-top:8px">
+        <button class="chat-quiz-option" onclick="closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('routstr')},300)">
+          <span class="chat-quiz-body">
+            <strong>Routstr</strong>
+            <span>Lightning + Cashu eCash. No account. Top up with a QR code.</span>
+          </span>
+          <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+        </button>
+        <button class="chat-quiz-option" onclick="closeChatPanel();setTimeout(()=>{window.openSettingsModal('ai');window.switchAIProvider('ppq')},300)">
+          <span class="chat-quiz-body">
+            <strong>PPQ</strong>
+            <span>300+ models. Pay with BTC, Lightning, Monero, or Litecoin.</span>
+          </span>
+          <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+        </button>
+      </div>`;
+  }
+  // Root question
+  return `<p>Welcome, ${safeName}! One more step &mdash; pick how you want to power the AI:</p>
+    <div class="chat-quiz-options">
+      <button class="chat-quiz-option chat-quiz-recommended" onclick="window.setProviderQuizBranch('card')">
+        <span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>
+        <span class="chat-quiz-body">
+          <strong>Easiest &mdash; pay with a card</strong>
+          <span>One-click login. Most familiar. <em class="chat-quiz-rec">Recommended</em></span>
+        </span>
+        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button class="chat-quiz-option" onclick="window.setProviderQuizBranch('local')">
+        <span class="chat-quiz-icon" aria-hidden="true">&#128274;</span>
+        <span class="chat-quiz-body">
+          <strong>Most private &mdash; runs on my computer</strong>
+          <span>No internet calls, free forever. Needs a desktop app.</span>
+        </span>
+        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button class="chat-quiz-option" onclick="window.setProviderQuizBranch('bitcoin')">
+        <span class="chat-quiz-icon" aria-hidden="true">&#8383;</span>
+        <span class="chat-quiz-body">
+          <strong>No account &mdash; pay with Bitcoin</strong>
+          <span>Anonymous. Top up with sats or eCash.</span>
+        </span>
+        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button class="chat-quiz-option" onclick="closeChatPanel();setTimeout(()=>window.openSettingsModal('ai'),300)">
+        <span class="chat-quiz-icon" aria-hidden="true">&#128273;</span>
+        <span class="chat-quiz-body">
+          <strong>I already have a key</strong>
+          <span>Skip ahead to Settings to paste it.</span>
+        </span>
+        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+    </div>
+    <div class="chat-quiz-skip">
+      <button class="chat-quiz-skip-btn" onclick="window.skipProviderSetup()">Try the app first &mdash; I&rsquo;ll connect AI later</button>
+    </div>`;
+}
+
+export function setProviderQuizBranch(branch) {
+  sessionStorage.setItem('chat-onboard-provider-branch', branch);
+  renderChatMessages();
+}
+
+export function backToProviderQuiz() {
+  sessionStorage.removeItem('chat-onboard-provider-branch');
+  renderChatMessages();
+}
+
 export function skipProviderSetup() {
   localStorage.setItem(`labcharts-onboard-provider-skipped-${state.currentProfile}`, '1');
+  sessionStorage.removeItem('chat-onboard-provider-branch');
   renderChatMessages();
 }
 
@@ -2861,6 +2945,8 @@ Object.assign(window, {
   saveChatPeriod,
   addChatSupplement,
   removeChatSupplement,
+  setProviderQuizBranch,
+  backToProviderQuiz,
   skipProviderSetup,
   skipOnboardingExtras,
   showCycleNoMensesOptions,

@@ -2725,20 +2725,24 @@ export function showDashboard(data) {
 
   // ── Empty state: welcome hero + collapsed context ──
   if (!hasData) {
-    let html = `<div class="welcome-hero">
+    // No AI configured? Tag the hero so CSS reorders children: demo-cards
+    // lift above the drop zone ("try before set-up"). With AI configured,
+    // drop zone leads since the user almost certainly intends to import.
+    const heroClass = hasAIProvider() ? 'welcome-hero' : 'welcome-hero welcome-hero-noai';
+    let html = `<div class="${heroClass}">
       <h2>Welcome to getbased</h2>
       <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
       <div class="drop-zone" id="drop-zone">
         <div class="drop-zone-icon">\uD83D\uDCC4</div>
         <div class="drop-zone-text">Drop PDF, image, JSON, or DNA raw data file here, or click to browse</div>
-        <div class="drop-zone-hint">AI-powered — works with any lab report (PDF, photo, screenshot) or getbased JSON export</div>
-        ${!hasAIProvider() ? `<div class="drop-zone-api-hint">${isAIPaused() ? 'AI features are paused — <a href="#" onclick="event.preventDefault();event.stopPropagation();window.openSettingsModal(\'ai\')">re-enable in Settings</a>' : 'Requires an AI connection — <a href="#" onclick="event.preventDefault();event.stopPropagation();closeChatPanel();window.openSettingsModal(\'ai\')">set up in 30 seconds</a>'}</div>` : ''}</div>
+        <div class="drop-zone-hint">Reads any lab report (PDF or photo). Also handles getbased JSON exports.</div>
+        ${!hasAIProvider() ? `<div class="drop-zone-api-hint">${isAIPaused() ? 'AI features are paused — <a href="#" onclick="event.preventDefault();event.stopPropagation();window.openSettingsModal(\'ai\')">re-enable in Settings</a>' : 'Needs a one-time AI setup so the app can read your values — <a href="#" onclick="event.preventDefault();event.stopPropagation();closeChatPanel();window.openSettingsModal(\'ai\')">walk me through it</a>'}</div>` : ''}</div>
       <div class="welcome-wearable-hint">
         ⧬ Got an Oura, Withings, Fitbit, Polar, or Apple Health export? <a href="#" onclick="event.preventDefault();window.openSettingsModal('wearables')">Connect it</a> to see HRV, sleep, recovery, and body composition trends alongside your other lenses.
       </div>
       <div class="onboarding-divider">
         <span class="onboarding-divider-line"></span>
-        <span class="onboarding-divider-text">or explore with demo data</span>
+        <span class="onboarding-divider-text">${hasAIProvider() ? 'or explore with demo data' : 'or import your own labs'}</span>
         <span class="onboarding-divider-line"></span>
       </div>
       <div class="demo-cards">
@@ -2785,6 +2789,7 @@ export function showDashboard(data) {
 
   // ── 2. Onboarding Banner (Step 2) ──
   html += renderOnboardingBanner();
+  html += renderAIConnectionReminder();
 
   // Knowledge Base is now discoverable via the dashboard CTA pill
   // ("Connect a knowledge base") and lives in its own dedicated modal —
@@ -3308,6 +3313,52 @@ export function dismissOnboarding() {
     setTimeout(() => banner.remove(), 300);
   }
   showNotification('You can set sex and DOB anytime in Settings.', 'info');
+}
+
+// Lightweight reminder shown to users who skipped the AI provider setup
+// during onboarding. Without it, "Skip for now" leads to a chat panel
+// with a disabled input and no obvious way back into setup. Renders
+// only when: provider was explicitly skipped, no AI is currently
+// configured, and the user hasn't dismissed this banner. Dismissal is
+// per-profile (so a fresh profile still sees it).
+export function renderAIConnectionReminder() {
+  if (hasAIProvider()) return '';
+  const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
+  const skipped = localStorage.getItem(skipKey);
+  if (!skipped) return '';
+  const dismissKey = profileStorageKey(state.currentProfile, 'ai-reminder-dismissed');
+  if (localStorage.getItem(dismissKey)) return '';
+  return `<div class="ai-reminder-banner" id="ai-reminder-banner" role="region" aria-label="Connect AI to unlock lab analysis">
+    <span class="ai-reminder-icon" aria-hidden="true">&#129504;</span>
+    <span class="ai-reminder-body">
+      <strong>Connect AI to unlock lab analysis</strong>
+      <span>PDF import, trend insights, and chat all need an AI provider. About 30 seconds.</span>
+    </span>
+    <button type="button" class="ai-reminder-cta" onclick="window.openChatProviderQuiz()">Connect now</button>
+    <button type="button" class="ai-reminder-dismiss" onclick="window.dismissAIReminder()" aria-label="Dismiss">&times;</button>
+  </div>`;
+}
+
+export function dismissAIReminder() {
+  const dismissKey = profileStorageKey(state.currentProfile, 'ai-reminder-dismissed');
+  localStorage.setItem(dismissKey, '1');
+  const banner = document.getElementById('ai-reminder-banner');
+  if (banner) {
+    banner.style.transition = 'opacity 0.3s, transform 0.3s';
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateY(-10px)';
+    setTimeout(() => banner.remove(), 300);
+  }
+}
+
+// Re-open the chat provider quiz: clear the skipped flag so the chat
+// renders Stage 2, then open the chat panel.
+export function openChatProviderQuiz() {
+  const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
+  localStorage.removeItem(skipKey);
+  if (window.openChatPanel) window.openChatPanel();
+  else if (window.toggleChatPanel) window.toggleChatPanel();
+  if (window.renderChatMessages) window.renderChatMessages();
 }
 
 // ═══════════════════════════════════════════════
@@ -5225,6 +5276,9 @@ Object.assign(window, {
   loadFocusCard,
   refreshFocusCard,
   renderOnboardingBanner,
+  renderAIConnectionReminder,
+  dismissAIReminder,
+  openChatProviderQuiz,
   completeOnboardingSex,
   completeOnboardingProfile,
   dismissOnboarding,

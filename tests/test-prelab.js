@@ -196,8 +196,9 @@ return (async function() {
     'Should have OAuth button and manual key option for API step');
   assert('Chat onboarding has PPQ', chatSrc.includes("switchAIProvider('ppq')"),
     'Should have PPQ setup link');
-  assert('Chat onboarding has Venice', chatSrc.includes("switchAIProvider('venice')"),
-    'Should have Venice setup link');
+  // Venice is intentionally NOT in the onboarding quiz — its
+  // uncensored/E2EE positioning hurts non-tech onboarding clarity.
+  // Reachable from Settings → AI (provider-panels.js + settings.js).
   assert('Chat onboarding has Local AI', chatSrc.includes("switchAIProvider('ollama')"),
     'Should have Local AI setup link');
   assert('Chat onboarding has settings opener', chatSrc.includes("openSettingsModal('ai')"),
@@ -208,9 +209,9 @@ return (async function() {
     return fnBody.includes('if (!hasAIProvider())');
   })(), 'sendChatMessage should check for provider and re-render setup guide');
 
-  // CSS checks
-  assert('.chat-setup-provider in CSS', cssSrc.includes('.chat-setup-provider'),
-    'CSS should define provider card styles');
+  // CSS checks — provider quiz (new) + setup button (legacy, still used)
+  assert('.chat-quiz-option in CSS', cssSrc.includes('.chat-quiz-option'),
+    'CSS should define quiz option card styles');
   assert('.chat-setup-btn in CSS', cssSrc.includes('.chat-setup-btn'),
     'CSS should define setup button styles');
 

@@ -13,6 +13,64 @@ import { getProfileLocation, getActiveProfileId } from './profile.js';
 
 
 // ═══════════════════════════════════════════════
+// AI-NEEDED DIALOG — contextual fallback when import is invoked without an AI provider.
+// Replaces a flash-notification + cold Settings-modal-open. Surfaces three options
+// matching the same mental model as the chat-onboarding quiz: easy (OpenRouter
+// OAuth), advanced (Settings for paste-a-key), or escape hatch (load demo data).
+// ═══════════════════════════════════════════════
+export function showAINeededDialog(action = 'import') {
+  let overlay = document.getElementById('ai-needed-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'ai-needed-overlay';
+    overlay.className = 'confirm-overlay';
+    document.body.appendChild(overlay);
+  }
+  const verb = action === 'image' ? 'Reading lab values from an image' : 'Reading lab values from a PDF';
+  overlay.innerHTML = `<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="AI needed to import">
+    <p class="confirm-message"><strong>${verb} needs an AI to parse them.</strong></p>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Quickest setup is the &ldquo;card&rdquo; option below &mdash; one-click login, charge to your card, you&rsquo;re done in about 30 seconds.</p>
+    <div class="chat-quiz-options" style="margin-bottom:10px">
+      <button class="chat-quiz-option chat-quiz-recommended" id="ai-needed-or">
+        <span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>
+        <span class="chat-quiz-body">
+          <strong>Connect with OpenRouter</strong>
+          <span>Card payment, one-click login. <em class="chat-quiz-rec">Recommended</em></span>
+        </span>
+        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button class="chat-quiz-option" id="ai-needed-key">
+        <span class="chat-quiz-icon" aria-hidden="true">&#128273;</span>
+        <span class="chat-quiz-body">
+          <strong>I already have an API key</strong>
+          <span>Open Settings &rarr; AI to paste it.</span>
+        </span>
+        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button class="chat-quiz-option" id="ai-needed-demo">
+        <span class="chat-quiz-icon" aria-hidden="true">&#128202;</span>
+        <span class="chat-quiz-body">
+          <strong>Just exploring? Load demo labs</strong>
+          <span>Sample dataset so you can poke around without setup.</span>
+        </span>
+        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+    </div>
+    <div style="text-align:right;margin-top:8px">
+      <button class="confirm-btn confirm-btn-cancel" id="ai-needed-cancel">Not now</button>
+    </div>
+  </div>`;
+  overlay.classList.add('show');
+  const close = () => overlay.classList.remove('show');
+  document.getElementById('ai-needed-or').onclick = () => { close(); if (window.startOpenRouterOAuth) window.startOpenRouterOAuth(); };
+  document.getElementById('ai-needed-key').onclick = () => { close(); if (window.openSettingsModal) window.openSettingsModal('ai'); };
+  document.getElementById('ai-needed-demo').onclick = () => { close(); if (window.loadDemoData) window.loadDemoData('male'); };
+  document.getElementById('ai-needed-cancel').onclick = close;
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  document.getElementById('ai-needed-or').focus();
+}
+
+// ═══════════════════════════════════════════════
 // UNIT NORMALIZATION — convert US-unit values to SI before storage
 // ═══════════════════════════════════════════════
 function normalizeUnitStr(s) {
@@ -1437,8 +1495,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       // Image mode path — skip PII, render pages as images
       if (!hasAIProvider()) {
         hideImportProgress('error');
-        showNotification("AI provider not configured. Opening settings...", "info");
-        setTimeout(() => window.openSettingsModal(), 500);
+        showAINeededDialog('image');
         return;
       }
       await showImportProgress(3, file.name);
@@ -1475,8 +1532,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
 
     if (!hasAIProvider()) {
       hideImportProgress('error');
-      showNotification("AI provider not configured. Opening settings...", "info");
-      setTimeout(() => window.openSettingsModal(), 500);
+      showAINeededDialog('import');
       return;
     }
 
@@ -1736,8 +1792,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
 
 export async function handleBatchPDFs(pdfFiles) {
   if (!hasAIProvider()) {
-    showNotification("AI provider not configured. Opening settings...", "info");
-    setTimeout(() => window.openSettingsModal(), 500);
+    showAINeededDialog('import');
     return;
   }
   _batchMode = true;
@@ -1820,8 +1875,7 @@ export function showImportPreviewAsync(result, fileName, current, total) {
 // ═══════════════════════════════════════════════
 export async function handleImageFile(file) {
   if (!hasAIProvider()) {
-    showNotification("AI provider not configured. Opening settings...", "info");
-    setTimeout(() => window.openSettingsModal(), 500);
+    showAINeededDialog('image');
     return;
   }
   // PII warning — images cannot be scrubbed
@@ -1888,6 +1942,7 @@ Object.assign(window, {
   extractPDFText,
   tryParseJSON,
   parseLabPDFWithAI,
+  showAINeededDialog,
   showImportPreview,
   applyManualImportDate,
   mapUnmatchedMarker,
