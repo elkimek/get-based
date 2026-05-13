@@ -3412,10 +3412,15 @@ export function setOnboardingFocus(mode) {
 }
 
 // Re-open the chat provider quiz: clear the skipped flag so the chat
-// renders Stage 2, then open the chat panel.
+// renders Stage 2, then open the chat panel. Also clear any
+// sub-branch the user landed on before skipping — a user clicking
+// "Connect now" wants to re-evaluate the four options, not get
+// dropped back into the specific provider they previously bounced
+// off of (mirrors what skipProviderSetup does on entry).
 export function openChatProviderQuiz() {
   const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
   localStorage.removeItem(skipKey);
+  sessionStorage.removeItem('chat-onboard-provider-branch');
   if (window.openChatPanel) window.openChatPanel();
   else if (window.toggleChatPanel) window.toggleChatPanel();
   if (window.renderChatMessages) window.renderChatMessages();
