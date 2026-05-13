@@ -31,7 +31,6 @@ if (typeof globalThis.document === 'undefined') {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
-const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -391,7 +390,5 @@ globalThis.fetch = async (url, opts) => {
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-  console.log(`\n%c Results: ${pass} passed, ${fail} failed `, `background:${fail?'#ef4444':'#22c55e'};color:#fff;font-size:14px;padding:4px 12px;border-radius:4px`);
-
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
