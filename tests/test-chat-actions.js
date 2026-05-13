@@ -240,25 +240,12 @@ return (async function() {
     assert('setChatPersonality switches in-place', chatSrc.includes('state.currentChatPersonality = id'), 'found');
     assert('Updates thread personality in-place', chatSrc.includes('thread.personality = id'), 'found in setChatPersonality');
     assert('Updates thread metadata on switch', chatSrc.includes('thread.personalityName') && chatSrc.includes('thread.personalityIcon'), 'found');
-
-    // Functional test: save with sourcesPending strips it
-    const origHist = JSON.parse(JSON.stringify(S.chatHistory));
-    const origThread = S.currentThreadId;
-    S.chatHistory = [
-      { role: 'user', content: 'test' },
-      { role: 'assistant', content: 'response', sourcesPending: true }
-    ];
-    await window.saveChatHistory();
-    const savedRaw = localStorage.getItem(window.getChatThreadKey(S.currentThreadId));
-    if (savedRaw) {
-      const savedParsed = JSON.parse(savedRaw);
-      const hasPending = savedParsed.some(m => m.sourcesPending);
-      assert('saveChatHistory strips sourcesPending from storage', !hasPending, hasPending ? 'LEAKED' : 'clean');
-    } else {
-      assert('saveChatHistory strips sourcesPending from storage', true, 'encrypted — cannot verify raw');
-    }
-    S.chatHistory = origHist;
-    S.currentThreadId = origThread;
+    // The previous sourcesPending-strip assertion tested behavior of the
+    // OpenAlex Sources feature, removed in 18ae2bc (Mar 2026). No code path
+    // writes sourcesPending into chatHistory anymore, so saveChatHistory
+    // doesn't need a strip step. The check was only passing on main by
+    // coincidence (different currentThreadId timing routed through the
+    // encrypted-key branch).
   }
 
   // ─── Section 20: state.js exposes _labState ───
