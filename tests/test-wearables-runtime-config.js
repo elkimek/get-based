@@ -1,20 +1,32 @@
+#!/usr/bin/env node
 // test-wearables-runtime-config.js — Self-host OAuth client_id override (issue #145)
 //
 // Covers the helper layer that lets self-hosters override the maintainer's
 // hardcoded OAuth client_id via *_CLIENT_ID env vars surfaced through
 // /api/proxy `wearable_runtime_config`. End-to-end behavior (the actual
 // fetch round-trip) is exercised by the live dev-server + Vercel proxy.
+//
+// Run: node tests/test-wearables-runtime-config.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
 
-  console.log('%c Wearable runtime-config tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const reg = await import('../js/wearable-adapters.js');
+console.log('=== Wearable runtime-config tests ===\n');
+
+const reg = await import('../js/wearable-adapters.js');
 
   // Snapshot hardcoded client_ids before any override touches them.
   const baseline = {};
@@ -86,5 +98,5 @@ return (async function() {
 
   reg._resetOAuthOverrides();
 
-  console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

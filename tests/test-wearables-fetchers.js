@@ -1,25 +1,34 @@
+#!/usr/bin/env node
 // test-wearables-fetchers.js — adapter-fetcher behavior with mocked HTTP
 // Drives each vendor's fetchXxxDailyRange against canned proxy responses.
 // Goal: catch field-rename and shape-drift bugs before they hit a real account.
+//
+// Run: node tests/test-wearables-fetchers.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
 
-  console.log('%c Adapter Fetcher Tests (mocked HTTP) ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  // Cache-bust: fetcher modules are loaded fresh so test runs see the latest code.
-  const bust = '?bust=' + Date.now();
-  const oura       = await import('../js/wearables-oura.js' + bust);
-  const whoop      = await import('../js/wearables-whoop.js' + bust);
-  const fitbit     = await import('../js/wearables-fitbit.js' + bust);
-  const withings   = await import('../js/wearables-withings.js' + bust);
-  const ultrahuman = await import('../js/wearables-ultrahuman.js' + bust);
-  const polar      = await import('../js/wearables-polar.js' + bust);
+console.log('=== Adapter Fetcher Tests (mocked HTTP) ===\n');
 
+const oura       = await import('../js/wearables-oura.js');
+const whoop      = await import('../js/wearables-whoop.js');
+const fitbit     = await import('../js/wearables-fitbit.js');
+const withings   = await import('../js/wearables-withings.js');
+const ultrahuman = await import('../js/wearables-ultrahuman.js');
+const polar      = await import('../js/wearables-polar.js');
   // ─────────────────────────────────────────────────────────
   // Mock-fetch harness
   // ─────────────────────────────────────────────────────────
@@ -576,6 +585,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-  console.log(`\n%c Tests complete: ${pass} passed, ${fail} failed `, fail ? 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px');
-  if (typeof window.__TEST_RESULTS !== 'undefined') window.__TEST_RESULTS = { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

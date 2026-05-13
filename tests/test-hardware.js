@@ -1,15 +1,32 @@
+#!/usr/bin/env node
 // test-hardware.js — Model advisor hardware detection + assessment
-// Run: fetch('tests/test-hardware.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-hardware.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Hardware & Model Advisor Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Hardware & Model Advisor Tests ===\n');
   // ═══════════════════════════════════════
   // 1. Module exports
   // ═══════════════════════════════════════
@@ -156,7 +173,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 7. checkOllama Return Shape ', 'font-weight:bold;color:#f59e0b');
 
-  const piiSrc = await fetchWithRetry('js/pii.js');
+  const piiSrc = read('js/pii.js');
   assert('checkOllama returns modelDetails', piiSrc.includes('modelDetails'));
   assert('modelDetails includes size', piiSrc.includes('size: m.size'));
   assert('modelDetails includes quantLevel', piiSrc.includes('quantization_level'));
@@ -167,7 +184,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. Settings Integration ', 'font-weight:bold;color:#f59e0b');
 
-  const ppSrc = await fetchWithRetry('js/provider-panels.js');
+  const ppSrc = read('js/provider-panels.js');
   assert('Provider panels imports hardware.js', ppSrc.includes("from './hardware.js'"));
   assert('Provider panels has advisor placeholder', ppSrc.includes('local-ai-advisor'));
   assert('Provider panels calls renderModelAdvisor', ppSrc.includes('renderModelAdvisor'));
@@ -176,6 +193,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-  console.log(`\n%c Tests complete: ${pass} passed, ${fail} failed `, fail ? 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px');
-  if (typeof window.__TEST_RESULTS !== 'undefined') window.__TEST_RESULTS = { pass, fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

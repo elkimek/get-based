@@ -48,6 +48,10 @@ const LEGACY_TESTS = [
   './test-prelab.js',
   './test-venice-e2ee.js',
   './test-unit-import.js',
+  // Batch 7 — wearables fetchers + hardware advisor.
+  './test-wearables-fetchers.js',
+  './test-wearables-runtime-config.js',
+  './test-hardware.js',
 ];
 
 for (const path of LEGACY_TESTS) {
