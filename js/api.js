@@ -749,14 +749,21 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
       const hint = providerName === 'Routstr' ? ' Top up with Lightning or Cashu.'
         : providerName === 'PPQ' ? ' Top up in Settings \u2192 AI \u2192 PPQ.'
         : ' Add credits at openrouter.ai/settings/credits';
-      // OpenRouter gets a persistent dialog with actionable options
-      // (add credits link OR switch to a free model with privacy
-      // warning). The thrown error still propagates so callers abort,
-      // but the user sees a stable modal instead of a vanishing toast.
-      if (providerName === 'OpenRouter' && typeof window !== 'undefined' && window.showInsufficientBalanceDialog) {
+      // OpenRouter gets a persistent dialog with an actionable
+      // "add credits" link. The thrown error still propagates so
+      // callers abort their in-flight request, but we tag the error
+      // with _modalShown so chat.js suppresses its inline red-error
+      // line — otherwise the user sees the modal AND a duplicate
+      // inline error for the same condition (Greptile #192 review).
+      const modalShown = providerName === 'OpenRouter'
+        && typeof window !== 'undefined'
+        && !!window.showInsufficientBalanceDialog;
+      if (modalShown) {
         try { window.showInsufficientBalanceDialog(); } catch {}
       }
-      throw new Error(`Insufficient ${providerName} balance.${hint}`);
+      const balanceErr = new Error(`Insufficient ${providerName} balance.${hint}`);
+      if (modalShown) balanceErr._modalShown = true;
+      throw balanceErr;
     }
     if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.');
     let errMsg = `${providerName} API error (${res.status})`;

@@ -1166,7 +1166,7 @@ export function renderChatMessages() {
     const providerSkipped = localStorage.getItem(`labcharts-onboard-provider-skipped-${state.currentProfile}`);
     if (!hasAIProvider() && !providerSkipped) {
       const name = currentP?.name || 'there';
-      const branch = sessionStorage.getItem('chat-onboard-provider-branch') || '';
+      const branch = sessionStorage.getItem(`chat-onboard-provider-branch-${state.currentProfile}`) || '';
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
           ${_renderOnboardCrumbs(2)}
@@ -1990,18 +1990,18 @@ function _renderProviderQuiz(branch, name) {
 }
 
 export function setProviderQuizBranch(branch) {
-  sessionStorage.setItem('chat-onboard-provider-branch', branch);
+  sessionStorage.setItem(`chat-onboard-provider-branch-${state.currentProfile}`, branch);
   renderChatMessages();
 }
 
 export function backToProviderQuiz() {
-  sessionStorage.removeItem('chat-onboard-provider-branch');
+  sessionStorage.removeItem(`chat-onboard-provider-branch-${state.currentProfile}`);
   renderChatMessages();
 }
 
 export function skipProviderSetup() {
   localStorage.setItem(`labcharts-onboard-provider-skipped-${state.currentProfile}`, '1');
-  sessionStorage.removeItem('chat-onboard-provider-branch');
+  sessionStorage.removeItem(`chat-onboard-provider-branch-${state.currentProfile}`);
   renderChatMessages();
 }
 
@@ -2365,7 +2365,10 @@ export async function sendChatMessage() {
         state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, stopped: true });
         saveChatHistory();
       }
-    } else {
+    } else if (!err?._modalShown) {
+      // Skip inline error rendering when a modal already surfaced the
+      // condition (e.g., OpenRouter 402 → showInsufficientBalanceDialog),
+      // to avoid double-notifying the user.
       const errEl = document.createElement('div');
       errEl.className = 'chat-msg chat-ai';
       errEl.innerHTML = `<span style="color:var(--red)">Error: ${escapeHTML(err.message)}</span>`;
@@ -2640,7 +2643,8 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   } catch (err) {
     if (err.name === 'AbortError') {
       // Partial text handled by DOM already
-    } else {
+    } else if (!err?._modalShown) {
+      // Skip when a modal already surfaced the condition (e.g., 402).
       const errEl = document.createElement('div');
       errEl.className = 'chat-msg chat-ai';
       errEl.innerHTML = `<span style="color:var(--red)">Error: ${escapeHTML(err.message)}</span>`;

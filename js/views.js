@@ -3420,7 +3420,7 @@ export function setOnboardingFocus(mode) {
 export function openChatProviderQuiz() {
   const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
   localStorage.removeItem(skipKey);
-  sessionStorage.removeItem('chat-onboard-provider-branch');
+  sessionStorage.removeItem(`chat-onboard-provider-branch-${state.currentProfile}`);
   if (window.openChatPanel) window.openChatPanel();
   else if (window.toggleChatPanel) window.toggleChatPanel();
   if (window.renderChatMessages) window.renderChatMessages();
