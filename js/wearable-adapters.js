@@ -100,9 +100,16 @@ export const CANONICAL_METRICS = {
 // A handful of metrics legitimately can be 0 (no steps on a rest day,
 // no high-stress minutes, no snoring, perfect sleep with no awake time,
 // body-temp deviation centered at 0) — those keep their zero values.
+//
+// activity_score is also allowlisted: Oura suppresses it to 0 while Rest
+// Mode is on, and we have a dedicated "Rest Mode" hint that fires from
+// the detail modal to explain this. Filtering it out drops the card from
+// the strip entirely, hiding the hint from the exact users it's for. Keep
+// the 0s so the card renders and the hint stays reachable.
 const ZERO_IS_LEGITIMATE_METRICS = new Set([
   'steps', 'stress_high_min', 'body_temp_delta',
   'sleep_snoring_min', 'sleep_awake_min',
+  'activity_score',
 ]);
 export function isMetricValueMeaningful(metricId, v) {
   if (typeof v !== 'number' || !isFinite(v)) return false;
