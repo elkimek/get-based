@@ -58,7 +58,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 1. MODULE EXPORTS
   // ═══════════════════════════════════════
-  console.log('%c 1. Module Exports ', 'font-weight:bold;color:#f59e0b');
+  console.log('1. Module Exports');
 
   const requiredExports = ['isSyncEnabled', 'initSync', 'enableSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'getSyncRelay', 'setSyncRelay', 'onDataSaved', 'pushCurrentProfile', 'deleteProfileFromRelay'];
   for (const fn of requiredExports) {
@@ -101,7 +101,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 2. SYNC PAYLOAD FORMAT
   // ═══════════════════════════════════════
-  console.log('%c 2. Sync Payload Format ', 'font-weight:bold;color:#f59e0b');
+  console.log('2. Sync Payload Format');
 
   assert('buildSyncPayload still emits _v: 3 (default dual-write)', syncSrc.includes('cutover ? 4 : 3'));
   assert('buildSyncPayload includes importedData', syncSrc.includes('importedData,') || syncSrc.includes('importedData:'));
@@ -206,7 +206,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 11. CRDT-DELTA REFACTOR — PHASE 1 (v1.7.0)
   // ═══════════════════════════════════════
-  console.log('%c 11. CRDT-Delta Phase 1 ', 'font-weight:bold;color:#10b981');
+  console.log('11. CRDT-Delta Phase 1');
 
   // Schema additions
   assert('Schema declares itemRow table',
@@ -309,7 +309,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 3. AI SETTINGS SYNC
   // ═══════════════════════════════════════
-  console.log('%c 3. AI Settings Sync ', 'font-weight:bold;color:#f59e0b');
+  console.log('3. AI Settings Sync');
 
   const expectedKeys = [
     'labcharts-ai-provider', 'labcharts-openrouter-key',
@@ -330,7 +330,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 4. MNEMONIC RESTORE
   // ═══════════════════════════════════════
-  console.log('%c 4. Mnemonic Restore ', 'font-weight:bold;color:#f59e0b');
+  console.log('4. Mnemonic Restore');
 
   assert('restoreFromMnemonic clears sync-ts after success', syncSrc.includes("'-sync-ts'") && syncSrc.includes('localStorage.removeItem(key)'));
   assert('restoreFromMnemonic calls evolu.restoreAppOwner', syncSrc.includes('evolu.restoreAppOwner(mnemonic)'));
@@ -343,7 +343,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 5. EVOLU CONFIG
   // ═══════════════════════════════════════
-  console.log('%c 5. Evolu Configuration ', 'font-weight:bold;color:#f59e0b');
+  console.log('5. Evolu Configuration');
 
   assert('reloadUrl uses window.location.pathname', syncSrc.includes('reloadUrl: window.location.pathname'));
   assert('enableLogging gated on debug mode', syncSrc.includes('enableLogging: isDebugMode()'));
@@ -356,7 +356,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 6. DATA.JS INTEGRATION
   // ═══════════════════════════════════════
-  console.log('%c 6. Data Integration ', 'font-weight:bold;color:#f59e0b');
+  console.log('6. Data Integration');
 
   assert('data.js imports onDataSaved from sync.js', dataSrc.includes("import { onDataSaved } from './sync.js'"));
   assert('saveImportedData calls onDataSaved()', dataSrc.includes('onDataSaved()'));
@@ -364,7 +364,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 7. MAIN.JS INTEGRATION
   // ═══════════════════════════════════════
-  console.log('%c 7. Main Integration ', 'font-weight:bold;color:#f59e0b');
+  console.log('7. Main Integration');
 
   assert('main.js imports initSync', mainSrc.includes("initSync") && mainSrc.includes("from './sync.js'"));
   assert('main.js calls initSync()', mainSrc.includes('await initSync()'));
@@ -385,7 +385,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 8. PUSH/PULL LOGIC
   // ═══════════════════════════════════════
-  console.log('%c 8. Push/Pull Logic ', 'font-weight:bold;color:#f59e0b');
+  console.log('8. Push/Pull Logic');
 
   assert('pushProfile guards on _syncing', syncSrc.includes('!_syncing') && syncSrc.includes('_syncing = true'));
   assert('pushProfile uses insert/update pattern', syncSrc.includes('evolu.insert(') && syncSrc.includes('evolu.update('));
@@ -433,7 +433,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 9. SETTINGS UI
   // ═══════════════════════════════════════
-  console.log('%c 9. Settings UI ', 'font-weight:bold;color:#f59e0b');
+  console.log('9. Settings UI');
 
   assert('Settings imports sync functions', settingsSrc.includes("from './sync.js'"));
   assert('renderSyncSection exists', settingsSrc.includes('function renderSyncSection'));
@@ -451,7 +451,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 10. SETUP MODAL
   // ═══════════════════════════════════════
-  console.log('%c 10. Setup Modal ', 'font-weight:bold;color:#f59e0b');
+  console.log('10. Setup Modal');
 
   assert('showSyncSetupModal exists', settingsSrc.includes('function showSyncSetupModal'));
   assert('Setup modal has two choices', settingsSrc.includes('New setup') && settingsSrc.includes('Join existing'));
@@ -474,7 +474,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 11. CHAT SYNC
   // ═══════════════════════════════════════
-  console.log('%c 11. Chat & Display Sync ', 'font-weight:bold;color:#f59e0b');
+  console.log('11. Chat & Display Sync');
 
   assert('collectChatData reads threads', syncSrc.includes('chat-threads') && syncSrc.includes('collectChatData'));
   assert('collectChatData reads per-thread messages', syncSrc.includes('chat-t_${t.id}'));
@@ -488,7 +488,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 12. MESSENGER ACCESS
   // ═══════════════════════════════════════
-  console.log('%c 12. Messenger Access ', 'font-weight:bold;color:#f59e0b');
+  console.log('12. Messenger Access');
 
   assert('generateMessengerToken creates 64-char hex', syncSrc.includes('crypto.getRandomValues') && syncSrc.includes('MESSENGER_TOKEN_KEY'));
   assert('pushContextToGateway exports', syncSrc.includes('export function pushContextToGateway'));
@@ -498,7 +498,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 13. WINDOW BINDINGS
   // ═══════════════════════════════════════
-  console.log('%c 13. Window Bindings ', 'font-weight:bold;color:#f59e0b');
+  console.log('13. Window Bindings');
 
   const syncWindowFns = ['enableSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'isSyncEnabled', 'isMessengerEnabled', 'getMessengerToken', 'generateMessengerToken', 'revokeMessengerToken'];
   for (const fn of syncWindowFns) {
@@ -518,7 +518,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14. WEARABLE CONNECTIONS PRESERVE
   // ═══════════════════════════════════════
-  console.log('%c 14. Wearable Connections Preserve ', 'font-weight:bold;color:#f59e0b');
+  console.log('14. Wearable Connections Preserve');
 
   // Push side: stripWearableCredentials removes wearableConnections from the payload
   assert('buildSyncPayload strips wearableConnections', syncSrc.includes('stripWearableCredentials(importedData)'));
@@ -546,7 +546,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14a. DELTA_ARRAY_CONFIG — composite-keyed + noTombstones
   // ═══════════════════════════════════════
-  console.log('%c 14a. Delta Array Config ', 'font-weight:bold;color:#f59e0b');
+  console.log('14a. Delta Array Config');
 
   assert('changeHistory listed in DELTA_ARRAYS',
     /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1000}'changeHistory'/.test(syncSrc));
@@ -600,7 +600,7 @@ await import('../js/settings.js');
   // Fix: explicit itemIdFn per surface, deterministic from content so
   // two devices migrating identical pre-existing data independently
   // derive matching ids (no cross-device duplication).
-  console.log('%c 14a-1b. Cutover-blocker itemIdFns ', 'font-weight:bold;color:#f59e0b');
+  console.log('14a-1b. Cutover-blocker itemIdFns');
 
   assert('entries listed in DELTA_ARRAYS',
     /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'entries'/.test(syncSrc));
@@ -722,7 +722,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14a-2. DELTA_MAPS — keyed-map shape (markerNotes)
   // ═══════════════════════════════════════
-  console.log('%c 14a-2. Delta Maps (keyed-object shape) ', 'font-weight:bold;color:#f59e0b');
+  console.log('14a-2. Delta Maps (keyed-object shape)');
 
   assert('DELTA_MAPS list defined parallel to DELTA_ARRAYS',
     /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'markerNotes'/.test(syncSrc));
@@ -821,7 +821,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14a-3. DELTA_SCALARS — singleton fields (menstrualCycle, context cards)
   // ═══════════════════════════════════════
-  console.log('%c 14a-3. Delta Scalars (singleton fields) ', 'font-weight:bold;color:#f59e0b');
+  console.log('14a-3. Delta Scalars (singleton fields)');
 
   assert('DELTA_SCALARS list defined alongside DELTA_ARRAYS / DELTA_MAPS',
     /const DELTA_SCALARS\s*=\s*\[/.test(syncSrc));
@@ -883,7 +883,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14b. PHASE 1 DUAL-WRITE TELEMETRY (observability for cutover decision)
   // ═══════════════════════════════════════
-  console.log('%c 14b. Phase 1 Dual-Write Telemetry ', 'font-weight:bold;color:#f59e0b');
+  console.log('14b. Phase 1 Dual-Write Telemetry');
 
   // Source-shape: helpers + exports + diagnose surface wiring
   assert('getDeltaTelemetry exported', /export function getDeltaTelemetry/.test(syncSrc));
@@ -944,7 +944,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14c. PHASE 2 CUTOVER READINESS CHECK (v1.7.9)
   // ═══════════════════════════════════════
-  console.log('%c 14c. Phase 2 Cutover Readiness ', 'font-weight:bold;color:#f59e0b');
+  console.log('14c. Phase 2 Cutover Readiness');
 
   assert('getDeltaCutoverReadiness exported', /export function getDeltaCutoverReadiness/.test(syncSrc));
   assert('getDeltaCutoverReadiness exposed on window',
@@ -1026,7 +1026,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14d. PHASE 2 CUTOVER FLAG (v1.7.10) — readiness-gated, reversible
   // ═══════════════════════════════════════
-  console.log('%c 14d. Phase 2 Cutover Flag (gated) ', 'font-weight:bold;color:#f59e0b');
+  console.log('14d. Phase 2 Cutover Flag (gated)');
 
   assert('isPhase2CutoverEnabled exported', /export function isPhase2CutoverEnabled/.test(syncSrc));
   assert('enablePhase2Cutover exported', /export function enablePhase2Cutover/.test(syncSrc));
@@ -1098,7 +1098,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14e. v1.7.11 AUDIT FIXES — proto-pollution / resurrect / cutover scope
   // ═══════════════════════════════════════
-  console.log('%c 14e. v1.7.11 audit fixes ', 'font-weight:bold;color:#f59e0b');
+  console.log('14e. v1.7.11 audit fixes');
 
   // Proto-pollution defence
   assert('_isAllowlistSafeId rejects __proto__ / constructor / prototype',
@@ -1164,7 +1164,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14f. v1.7.12 AUDIT FIXES — gunzip cap / snapshot-poisoning / changeHistory cap
   // ═══════════════════════════════════════
-  console.log('%c 14f. v1.7.12 audit fixes ', 'font-weight:bold;color:#f59e0b');
+  console.log('14f. v1.7.12 audit fixes');
 
   // Decompression-bomb defence
   assert('_gunzipToStringCapped defined with size cap',
@@ -1257,7 +1257,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14g. v1.7.13 P2 cleanup — comments + lat/lon + manualValues collision
   // ═══════════════════════════════════════
-  console.log('%c 14g. v1.7.13 P2 cleanup ', 'font-weight:bold;color:#f59e0b');
+  console.log('14g. v1.7.13 P2 cleanup');
 
   // Doc accuracy
   assert('Pull-order header comment matches actual code (blob first, per-row overlays)',
@@ -1301,7 +1301,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14h. v1.7.14 PRE-v1.7 AUDIT FIXES
   // ═══════════════════════════════════════
-  console.log('%c 14h. v1.7.14 audit fixes ', 'font-weight:bold;color:#f59e0b');
+  console.log('14h. v1.7.14 audit fixes');
 
   // P1: parseSyncPayload now uses capped gunzip (decompression-bomb defence on blob path)
   assert('parseSyncPayload routes blob gunzip through _gunzipToStringCapped',
@@ -1379,7 +1379,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14i. v1.7.15 — runtime parse-equivalence + diagnose telemetry + DST anchor
   // ═══════════════════════════════════════
-  console.log('%c 14i. v1.7.15 deferred-audit fixes ', 'font-weight:bold;color:#f59e0b');
+  console.log('14i. v1.7.15 deferred-audit fixes');
 
   // Telemetry on diagnose pre-pass parse failure
   assert('Diagnose pre-pass logs parse failures via _logSyncEvent',
@@ -1456,7 +1456,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 14j. v1.7.16 — concurrent-push snapshot clobber fix
   // ═══════════════════════════════════════
-  console.log('%c 14j. v1.7.16 snapshot clobber fix ', 'font-weight:bold;color:#f59e0b');
+  console.log('14j. v1.7.16 snapshot clobber fix');
 
   assert('_writeDeltaSnapshot accepts plannedAt 4th arg',
     /function _writeDeltaSnapshot\(profileId,\s*arrayName,\s*snap,\s*plannedAt\)/.test(syncSrc));
@@ -1527,7 +1527,7 @@ await import('../js/settings.js');
   // that drops a surface from the planner list lights up here instead of
   // silently ceasing to sync that data cross-device.
   // ═══════════════════════════════════════
-  console.log('%c 14k. Every-surface delta membership ', 'font-weight:bold;color:#f59e0b');
+  console.log('14k. Every-surface delta membership');
 
   // Helper: confirm an entry sits inside a given const list. We extract
   // the literal contents between `[` and `]` for the named const, then
@@ -1619,7 +1619,7 @@ await import('../js/settings.js');
   // Without (a), a fresh DNA import on device A blob-LWWs device B's
   // snps. Without (b), a single re-pushed scalar wipes the map merge.
   // ═══════════════════════════════════════
-  console.log('%c 14l. genetics scalar / snps-map split ', 'font-weight:bold;color:#f59e0b');
+  console.log('14l. genetics scalar / snps-map split');
 
   // Push-side strip: function exists + is called inside buildSyncPayload
   assert('stripGeneticsSnpsFromBlob defined',
@@ -1703,7 +1703,7 @@ await import('../js/settings.js');
   // state has a near-empty local map; without the guard the planner
   // would emit a wholesale-tombstone batch that wipes the peer's data.
   // ═══════════════════════════════════════
-  console.log('%c 14m. tombstone-storm guard ', 'font-weight:bold;color:#f59e0b');
+  console.log('14m. tombstone-storm guard');
 
   assert('Tombstone-storm guard exists in _planKeyedMapDelta',
     /_planKeyedMapDelta[\s\S]{0,5000}refused tombstone storm/.test(syncSrc));
@@ -1737,7 +1737,7 @@ await import('../js/settings.js');
   // for it. These are the surfaces that didn't exist before the
   // sun-sessions branch and need explicit cross-device proof.
   // ═══════════════════════════════════════
-  console.log('%c 14n. sun/light/wearable round-trip ', 'font-weight:bold;color:#f59e0b');
+  console.log('14n. sun/light/wearable round-trip');
 
   if (typeof window !== 'undefined' && typeof CompressionStream !== 'undefined') {
     const sample = {
@@ -1887,7 +1887,7 @@ await import('../js/settings.js');
   //     (ts=startedAt) → returns true → force-push catches the missing
   //     update.
   // ═══════════════════════════════════════
-  console.log('%c 14o. Startup reconciliation (lost-debounce catch-up) ', 'font-weight:bold;color:#f59e0b');
+  console.log('14o. Startup reconciliation (lost-debounce catch-up)');
 
   // Source-shape: the reconciliation function exists and routes through
   // the pickTimestamp-aware helper instead of bare id-set comparison.
@@ -1968,7 +1968,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   // 15. VENDOR FILES
   // ═══════════════════════════════════════
-  console.log('%c 15. Vendor Files ', 'font-weight:bold;color:#f59e0b');
+  console.log('15. Vendor Files');
 
   const vendorFiles = ['vendor/evolu/evolu-bundle.js', 'vendor/evolu/Db.worker.js', 'vendor/evolu/sqlite3.wasm'];
   for (const f of vendorFiles) {
