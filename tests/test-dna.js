@@ -25,6 +25,8 @@ return (async function() {
   assert('buildGeneticsContext exported', typeof dna.buildGeneticsContext === 'function');
   assert('buildFullGeneticsContext exported', typeof dna.buildFullGeneticsContext === 'function');
   assert('handleDNAFile exported', typeof dna.handleDNAFile === 'function');
+  assert('findGenotypeInfo exported', typeof dna.findGenotypeInfo === 'function');
+  assert('findSnpHint exported', typeof dna.findSnpHint === 'function');
 
   // ═══════════════════════════════════════
   // 2. Format detection
@@ -157,6 +159,67 @@ i123456\t1\t100\tAA
 
   // FADS1 table has TC but Ancestry gives CT — should still match via reversal
   assert('FADS1 CT matched as TC', aResult.matches.rs174546?.effect === 'moderate', aResult.matches.rs174546?.note);
+
+  // ═══════════════════════════════════════
+  // 7b. Strand-flip + sequencing-noise handling
+  // ═══════════════════════════════════════
+  // MyHeritage 2025 Low-pass WGS reports build37 forward strand. For a handful
+  // of catalog loci (PCSK9 R46L, MTR A2756G, UGT1A1 G71R, MTRR A66G, BHMT
+  // R239Q, FADS1 coding, LIPC -514, MC1R R160W) the catalog keys live on the
+  // opposite strand, so a raw "AC" call must resolve to a catalog "GT" via
+  // reverse-complement fallback. Independently, low-pass imputation noise can
+  // emit alleles that aren't valid for the locus at all (e.g. "CG" on a C/T
+  // SNP) — those must be dropped, not surfaced as "Genotype not in lookup".
+  console.log('%c 7b. Strand-flip + sequencing-noise ', 'font-weight:bold;color:#f59e0b');
+
+  const wgsEdgeContent =
+    '##fileformat=MyHeritage\n' +
+    '##method=Low-pass Whole Genome Sequencing\n' +
+    'RSID,CHROMOSOME,POSITION,RESULT\n' +
+    '"rs5882","16","57016092","AG"\n' +        // direct catalog AG, effect mild — must NOT be dropped
+    '"rs762551","15","75041917","AC"\n' +      // direct catalog AC, effect mild — must NOT be dropped
+    '"rs11591147","1","55505647","AC"\n' +     // RC of GT — must resolve to significant
+    '"rs1801394","5","7870973","TT"\n' +       // RC of AA — must resolve to none (MTRR wild-type)
+    '"rs1805087","1","237048500","CC"\n' +     // RC of GG — must resolve to moderate
+    '"rs11206244","1","54375701","CG"\n' +     // invalid call on C/T locus — must be dropped
+    '"rs1801198","22","31011610","AA"\n';      // invalid call on C/G palindromic locus — must be dropped (RC of AA is TT, also invalid)
+  const wgsEdgeFile = new File([wgsEdgeContent], 'wgs-edge.csv', { type: 'text/csv' });
+  const wgsEdgeResult = await dna.parseDNAFile(wgsEdgeFile);
+
+  assert('WGS edge: effect "mild" kept on rs5882 (was being dropped as unknown)', wgsEdgeResult.matches.rs5882?.effect === 'mild');
+  assert('WGS edge: effect "mild" kept on rs762551 (was being dropped as unknown)', wgsEdgeResult.matches.rs762551?.effect === 'mild');
+  assert('WGS edge: strand-flipped AC → GT resolves to significant (PCSK9 R46L)', wgsEdgeResult.matches.rs11591147?.effect === 'significant');
+  assert('WGS edge: strand-flipped TT → AA resolves to none (MTRR A66G wild-type)', wgsEdgeResult.matches.rs1801394?.effect === 'none');
+  assert('WGS edge: strand-flipped CC → GG resolves to moderate (MTR A2756G)', wgsEdgeResult.matches.rs1805087?.effect === 'moderate');
+  assert('WGS edge: invalid CG call on C/T locus dropped (not surfaced as unknown)', wgsEdgeResult.matches.rs11206244 == null);
+  assert('WGS edge: invalid AA call on C/G palindromic locus dropped (RC guard prevents false positive)', wgsEdgeResult.matches.rs1801198 == null);
+
+  // ═══════════════════════════════════════
+  // 7c. findGenotypeInfo strand-aware lookup
+  // ═══════════════════════════════════════
+  console.log('%c 7c. findGenotypeInfo helper ', 'font-weight:bold;color:#f59e0b');
+
+  // Non-palindromic SNP: A/G alleles → RC fallback should resolve CT→AG, TT→AA, CC→GG
+  const nonPalEntry = { genotypes: { AA: { effect: 'none' }, AG: { effect: 'moderate' }, GG: { effect: 'significant' } } };
+  assert('Non-palindromic: direct AG → moderate', dna.findGenotypeInfo(nonPalEntry, 'AG')?.effect === 'moderate');
+  assert('Non-palindromic: reversed GA → moderate', dna.findGenotypeInfo(nonPalEntry, 'GA')?.effect === 'moderate');
+  assert('Non-palindromic: RC of TT → AA → none', dna.findGenotypeInfo(nonPalEntry, 'TT')?.effect === 'none');
+  assert('Non-palindromic: RC of CC → GG → significant', dna.findGenotypeInfo(nonPalEntry, 'CC')?.effect === 'significant');
+  assert('Non-palindromic: RC of CT → AG → moderate', dna.findGenotypeInfo(nonPalEntry, 'CT')?.effect === 'moderate');
+  assert('Non-palindromic: unrelated alleles → null', dna.findGenotypeInfo(nonPalEntry, 'NN') == null);
+
+  // Palindromic SNP: C/G alleles → RC of CC is GG, both in catalog with different effects.
+  // RC fallback must be SUPPRESSED, else we'd silently equate CC and GG.
+  const palEntry = { genotypes: { CC: { effect: 'none' }, CG: { effect: 'moderate' }, GG: { effect: 'significant' } } };
+  assert('Palindromic: CC stays CC (not RC-flipped to GG)', dna.findGenotypeInfo(palEntry, 'CC')?.effect === 'none');
+  assert('Palindromic: GG stays GG (not RC-flipped to CC)', dna.findGenotypeInfo(palEntry, 'GG')?.effect === 'significant');
+  assert('Palindromic: invalid AA returns null (no RC fallback to TT either)', dna.findGenotypeInfo(palEntry, 'AA') == null);
+  assert('Palindromic: invalid TT returns null', dna.findGenotypeInfo(palEntry, 'TT') == null);
+
+  // Empty / malformed inputs
+  assert('findGenotypeInfo: null entry → null', dna.findGenotypeInfo(null, 'AG') == null);
+  assert('findGenotypeInfo: missing genotype → null', dna.findGenotypeInfo(nonPalEntry, '') == null);
+  assert('findGenotypeInfo: entry without genotypes → null', dna.findGenotypeInfo({}, 'AG') == null);
 
   // ═══════════════════════════════════════
   // 8. APOE haplotype

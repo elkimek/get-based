@@ -244,21 +244,26 @@ export async function parseDNAFile(file) {
     worker.postMessage({ file, snpIds, format });
   });
 
-  // Enrich matches with lookup table data
+  // Enrich matches with lookup table data. SNPs whose raw call doesn't resolve
+  // to any catalog genotype (after direct/reversed/sorted/RC fallbacks) are
+  // dropped silently — those are MyHeritage Low-pass WGS imputation noise
+  // (e.g. "CG" for a C/T locus) that we have no curated interpretation for.
+  // Surfacing them as "Genotype not in lookup" was misleading: the rsID *is*
+  // curated, only the specific allele call isn't a valid variant.
   const enriched = {};
   for (const [rsid, genotype] of Object.entries(result.matches)) {
     const entry = snpTable[rsid];
     if (!entry) continue;
-    const reversed = genotype.length === 2 ? genotype[1] + genotype[0] : genotype;
-    const genotypeInfo = entry.genotypes[genotype] || entry.genotypes[reversed] || entry.genotypes[sortAlleles(genotype)] || null;
+    const genotypeInfo = findGenotypeInfo(entry, genotype);
+    if (!genotypeInfo) continue;
     enriched[rsid] = {
       genotype,
       gene: entry.gene,
       variant: entry.variant,
       category: entry.category,
       markers: entry.markers || [],
-      effect: genotypeInfo ? genotypeInfo.effect : 'unknown',
-      note: genotypeInfo ? genotypeInfo.note : `Genotype ${genotype} not in lookup table`,
+      effect: genotypeInfo.effect,
+      note: genotypeInfo.note,
     };
   }
 
@@ -275,6 +280,77 @@ function sortAlleles(genotype) {
   if (!genotype || genotype.length !== 2) return genotype;
   const sorted = genotype.split('').sort().join('');
   return sorted;
+}
+
+// Reverse-complement a short allele string. Vendors disagree about which strand
+// they report on a per-SNP basis: 23andMe / Ancestry pick whichever strand the
+// probe was designed against, MyHeritage's 2025 Low-pass WGS export is
+// build37-forward across the board. Our catalog is mostly forward-strand too,
+// but for a handful of loci (PCSK9 R46L, MTR A2756G, UGT1A1 G71R, MTRR A66G,
+// BHMT R239Q, FADS1 coding, LIPC -514, MC1R R160W) the catalog keys live on
+// the opposite strand, so a forward-strand call like "AC" misses a catalog
+// keyed "GT". RC fallback fixes those without touching the catalog.
+const _COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
+function reverseComplement(genotype) {
+  if (!genotype) return genotype;
+  let out = '';
+  for (let i = genotype.length - 1; i >= 0; i--) {
+    out += _COMPLEMENT[genotype[i]] || genotype[i];
+  }
+  return out;
+}
+
+// Skip RC fallback for palindromic SNPs — A/T and C/G loci have allele sets
+// that map onto themselves under reverse-complement, so RC would conflate
+// homozygous calls on opposite strands (AA vs TT both valid genotypes meaning
+// different things). For these the only safe fallbacks are direct + reversed
+// + sorted on the user's raw call.
+function _isPalindromicEntry(entry) {
+  if (!entry || !entry.genotypes) return false;
+  const alleles = new Set();
+  for (const k of Object.keys(entry.genotypes)) {
+    for (const c of k) alleles.add(c);
+  }
+  if (alleles.size !== 2) return false;
+  return (alleles.has('A') && alleles.has('T')) || (alleles.has('C') && alleles.has('G'));
+}
+
+// Try direct / reversed (AG↔GA) / sorted on the genotype, then the same
+// three on its reverse-complement (skipped for palindromic SNPs to avoid
+// false positives — e.g. an A/T SNP where AA and TT are different valid
+// genotypes that RC would conflate). Returns the value at the matched key
+// or null. Shared by both genotype lookups and snpHint lookups.
+function _findStrandAwareKey(table, genotype, palindromic) {
+  if (!table || !genotype) return null;
+  const tries = [genotype];
+  if (genotype.length === 2) tries.push(genotype[1] + genotype[0]);
+  tries.push(sortAlleles(genotype));
+  if (!palindromic) {
+    const rc = reverseComplement(genotype);
+    tries.push(rc);
+    if (rc.length === 2) tries.push(rc[1] + rc[0]);
+    tries.push(sortAlleles(rc));
+  }
+  for (const k of tries) {
+    if (table[k] != null) return table[k];
+  }
+  return null;
+}
+
+// Single source of truth for "given a raw genotype call, what catalog entry
+// does it correspond to". Exported so recommendations.js and any future
+// consumer share the same lookup semantics.
+export function findGenotypeInfo(entry, genotype) {
+  if (!entry || !entry.genotypes) return null;
+  return _findStrandAwareKey(entry.genotypes, genotype, _isPalindromicEntry(entry));
+}
+
+// Same strand-aware lookup, for entry.snpHints. Keyed identically to
+// entry.genotypes, so the palindromic guard derived from the genotype set
+// is correct here too.
+export function findSnpHint(entry, genotype) {
+  if (!entry || !entry.snpHints) return null;
+  return _findStrandAwareKey(entry.snpHints, genotype, _isPalindromicEntry(entry));
 }
 
 function formatSourceName(format) {
@@ -312,18 +388,19 @@ export function saveGeneticsData(profileData, parseResult) {
   // Count effects for quick display (avoids needing SNP table at render time)
   const apoe = resolveAPOE(parseResult.matches);
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
-  let significant = 0, moderate = 0, normal = 0;
+  let significant = 0, moderate = 0, mild = 0, normal = 0;
   for (const [rsid, data] of Object.entries(parseResult.matches)) {
     if (apoeRsids.has(rsid)) continue;
     if (data.effect === 'significant') significant++;
     else if (data.effect === 'moderate') moderate++;
+    else if (data.effect === 'mild') mild++;
     else if (data.effect === 'none') normal++;
   }
   profileData.genetics = {
     source: parseResult.source,
     importDate: new Date().toISOString().slice(0, 10),
     coverage: parseResult.coverage,
-    effects: { significant, moderate, normal },
+    effects: { significant, moderate, mild, normal },
     snps: {},
     catalogVersion: _catalogSignature(_snpTable),
   };
@@ -412,8 +489,7 @@ export function buildGeneticsContext(genetics, activeMarkerKeys) {
     if (genetics.apoe && apoeRsids.has(rsid)) continue; // haplotype covers these
     const entry = snpTable[rsid];
     if (!entry) continue;
-    const reversed = stored.genotype.length === 2 ? stored.genotype[1] + stored.genotype[0] : stored.genotype;
-    const genotypeInfo = entry.genotypes[stored.genotype] || entry.genotypes[reversed] || entry.genotypes[sortAlleles(stored.genotype)];
+    const genotypeInfo = findGenotypeInfo(entry, stored.genotype);
     if (!genotypeInfo || genotypeInfo.effect === 'none') continue;
 
     // Filter to SNPs relevant to active markers (if provided)
@@ -482,8 +558,7 @@ export function renderGeneticsSection() {
     if (apoe && apoeRsids.has(rsid)) continue;
     const entry = snpTable?.[rsid];
     if (!entry) continue;
-    const reversed = stored.genotype.length === 2 ? stored.genotype[1] + stored.genotype[0] : stored.genotype;
-    const info = entry.genotypes[stored.genotype] || entry.genotypes[reversed] || entry.genotypes[sortAlleles(stored.genotype)];
+    const info = findGenotypeInfo(entry, stored.genotype);
     if (!info || info.effect === 'none') continue;
     const cat = entry.category || 'other';
     if (!byCat[cat]) byCat[cat] = [];
@@ -666,18 +741,24 @@ function showDNAImportPreview(result, fileName) {
   // Categorize matches by effect — skip raw APOE components when haplotype resolved
   const apoe = resolveAPOE(result.matches);
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
-  const significant = [], moderate = [], none = [], unknown = [];
+  // parseDNAFile already filtered out SNPs whose raw call doesn't resolve to
+  // any catalog genotype (Low-pass WGS imputation noise: garbage allele calls
+  // that aren't valid variants for the locus), so every entry here has a
+  // curated effect tier \u2014 significant / moderate / mild / none. No "unknown"
+  // bucket: surfacing those as "Genotype not in lookup" was misleading because
+  // the rsID *is* curated, only the specific allele call was bad data.
+  const significant = [], moderate = [], mild = [], none = [];
   for (const [rsid, m] of Object.entries(result.matches)) {
     if (apoeRsids.has(rsid)) continue;
     const item = { rsid, ...m };
     if (m.effect === 'significant') significant.push(item);
     else if (m.effect === 'moderate') moderate.push(item);
-    else if (m.effect === 'none') none.push(item);
-    else unknown.push(item);
+    else if (m.effect === 'mild') mild.push(item);
+    else none.push(item);
   }
 
-  const effectIcon = { significant: '\uD83D\uDD34', moderate: '\uD83D\uDFE1', none: '\uD83D\uDFE2', unknown: '\u2753' };
-  const effectLabel = { significant: 'Significant impact', moderate: 'Moderate impact', none: 'Normal / no impact', unknown: 'Not in lookup' };
+  const effectIcon = { significant: '\uD83D\uDD34', moderate: '\uD83D\uDFE1', mild: '\uD83D\uDFE0', none: '\uD83D\uDFE2' };
+  const effectLabel = { significant: 'Significant impact', moderate: 'Moderate impact', mild: 'Mild impact', none: 'Normal / no impact' };
 
   function renderGroup(items, label) {
     if (items.length === 0) return '';
@@ -717,8 +798,8 @@ function showDNAImportPreview(result, fileName) {
     <div class="dna-preview-body">
       ${renderGroup(significant, '\uD83D\uDD34 Significant findings')}
       ${renderGroup(moderate, '\uD83D\uDFE1 Moderate findings')}
+      ${renderCollapsedGroup(mild, '\uD83D\uDFE0 Mild findings')}
       ${renderCollapsedGroup(none, '\uD83D\uDFE2 Normal')}
-      ${renderCollapsedGroup(unknown, '\u2753 Genotype not in lookup')}
     </div>
     <div class="dna-preview-disclaimer">
       Processed locally \u2014 your DNA file was never transmitted. Only matched SNPs are stored.
@@ -761,17 +842,19 @@ function confirmDNAImport() {
   // Build summary for chat confirmation
   const apoe = state.importedData.genetics?.apoe;
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
-  let sigCount = 0, modCount = 0, normCount = 0;
+  let sigCount = 0, modCount = 0, mildCount = 0, normCount = 0;
   for (const [rsid, m] of Object.entries(result.matches)) {
     if (apoeRsids.has(rsid)) continue;
     if (m.effect === 'significant') sigCount++;
     else if (m.effect === 'moderate') modCount++;
+    else if (m.effect === 'mild') mildCount++;
     else if (m.effect === 'none') normCount++;
   }
   const parts = [];
   if (apoe) parts.push(`APOE: <strong>${escapeHTML(apoe)}</strong>`);
   if (sigCount > 0) parts.push(`\uD83D\uDD34 ${sigCount} significant`);
   if (modCount > 0) parts.push(`\uD83D\uDFE1 ${modCount} moderate`);
+  if (mildCount > 0) parts.push(`\uD83D\uDFE0 ${mildCount} mild`);
   if (normCount > 0) parts.push(`\uD83D\uDFE2 ${normCount} normal`);
 
   // Update chat onboarding — replace DNA upload with confirmation
@@ -812,12 +895,11 @@ function getRelevantSNPs(dotKey) {
     const entry = _snpTable[rsid];
     if (!entry || !entry.markers) continue;
     if (!entry.markers.includes(dotKey)) continue;
-    const reversed = stored.genotype.length === 2 ? stored.genotype[1] + stored.genotype[0] : stored.genotype;
-    const info = entry.genotypes[stored.genotype] || entry.genotypes[reversed] || entry.genotypes[sortAlleles(stored.genotype)];
+    const info = findGenotypeInfo(entry, stored.genotype);
     if (!info) continue;
     results.push({ rsid, gene: stored.gene, variant: stored.variant, genotype: stored.genotype, effect: info.effect, note: info.note, references: entry.references || [] });
   }
-  const order = { significant: 0, moderate: 1, none: 2 };
+  const order = { significant: 0, moderate: 1, mild: 2, none: 3 };
   results.sort((a, b) => (order[a.effect] ?? 3) - (order[b.effect] ?? 3));
   return results;
 }

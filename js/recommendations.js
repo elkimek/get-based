@@ -3,6 +3,7 @@
 import { escapeHTML } from './utils.js';
 import { getProfileLocation } from './profile.js';
 import { state } from './state.js';
+import { findGenotypeInfo, findSnpHint } from './dna.js';
 
 // ═══════════════════════════════════════════════
 // CATALOG CACHE
@@ -575,11 +576,9 @@ function _buildCardDNASection(cardKey) {
     if (!entry || !entry.snpHints || !entry.contextCards || !entry.contextCards.includes(cardKey)) continue;
     const g = stored.genotype;
     if (!g) continue;
-    const rev = g.length === 2 ? g[1] + g[0] : g;
-    const sorted = _sortAlleles(g);
-    const hint = entry.snpHints[g] || entry.snpHints[rev] || entry.snpHints[sorted];
+    const hint = findSnpHint(entry, g);
     if (!hint) continue;
-    const info = entry.genotypes?.[g] || entry.genotypes?.[rev] || entry.genotypes?.[sorted];
+    const info = findGenotypeInfo(entry, g);
     if (info && info.effect === 'none') continue;
     const isAvoid = hint.direction === 'avoid';
     const icon = isAvoid ? '\u26A0' : '\u2192';
@@ -648,8 +647,6 @@ function _buildEMFNudge() {
 // DNA HINTS — connect genetics to recommendations
 // ═══════════════════════════════════════════════
 
-function _sortAlleles(g) { return g?.length === 2 ? g.split('').sort().join('') : g; }
-
 export function buildDNAHints(slotKey) {
   const genetics = state.importedData?.genetics;
   if (!genetics || !genetics.snps) return [];
@@ -680,13 +677,11 @@ export function buildDNAHints(slotKey) {
 
     const g = stored.genotype;
     if (!g) continue;
-    const rev = g.length === 2 ? g[1] + g[0] : g;
-    const sorted = _sortAlleles(g);
-    const hint = entry.snpHints[g] || entry.snpHints[rev] || entry.snpHints[sorted];
+    const hint = findSnpHint(entry, g);
     if (!hint || hint.slotKey !== slotKey) continue;
 
     // Skip if genotype effect is "none"
-    const info = entry.genotypes?.[g] || entry.genotypes?.[rev] || entry.genotypes?.[sorted];
+    const info = findGenotypeInfo(entry, g);
     if (info && info.effect === 'none') continue;
 
     hints.push({
@@ -995,8 +990,7 @@ export function detectSupplementSlots(text) {
       if (!entry || !entry.snpHints) continue;
       const g = stored.genotype;
       if (!g) continue;
-      const rev = g.length === 2 ? g[1] + g[0] : g;
-      const hint = entry.snpHints[g] || entry.snpHints[rev] || entry.snpHints[_sortAlleles(g)];
+      const hint = findSnpHint(entry, g);
       if (!hint) continue;
       const geneRe = new RegExp('\\b' + stored.gene.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
       if (geneRe.test(lower) && !found.includes(hint.slotKey)) {

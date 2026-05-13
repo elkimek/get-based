@@ -5,6 +5,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.6', date: '2026-05-13', title: 'MyHeritage Low-pass WGS: strand-aware SNP matching',
+    items: [
+      '<b>The "Genotype not in lookup" group is gone.</b> MyHeritage\'s 2025 Low-pass WGS export reports every SNP on the build37 forward strand, but our catalog stored a handful of variants keyed on the opposite strand — so calls like <code>AC</code> for <b>PCSK9 R46L</b> or <code>TT</code> for <b>UGT1A1 G71R</b> silently missed the table and ended up labeled "not in lookup" even though they\'re standard, well-characterized genotypes. SNP lookups now try the reverse-complement as a fallback when the direct read misses, so MyHeritage forward-strand calls resolve to the right catalog entry across all eight affected loci (PCSK9, MTR, UGT1A1, MTRR, BHMT, FADS1 coding, LIPC -514, MC1R). Palindromic A/T and C/G SNPs (where strand flipping is ambiguous) keep the strict lookup to avoid false positives.',
+      '<b>Mild-effect SNPs now appear in their own group.</b> Two protective heterozygotes — <b>CETP I405V (AG)</b> and <b>CYP1A2 *1F (AC)</b> — were correctly matched against the catalog but bucketed into "not in lookup" because the import preview only recognized three impact tiers. They\'re now rendered as <b>🟠 Mild findings</b>, between Moderate and Normal.',
+      '<b>Honest coverage count.</b> Imputation-noise calls (alleles that aren\'t valid for the variant under either strand — e.g. a <code>CG</code> read at a C/T SNP) are now dropped at parse time instead of inflating the "not in lookup" group. The "X of Y health-relevant SNPs found" line reflects actually-curated matches.',
+    ]
+  },
+  {
     version: '1.7.5', date: '2026-05-13', title: 'Accessibility polish across the dark theme',
     items: [
       '<b>Better readability in dark mode.</b> The muted grays used for footers, hints, and reference text were brightened to clear WCAG AA contrast on every background. A handful of small-text labels (footer trademarks, recommendation disclaimers) had a faint extra opacity layer that dragged them below threshold — that\'s gone now.',
