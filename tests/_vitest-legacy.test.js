@@ -52,6 +52,10 @@ const LEGACY_TESTS = [
   './test-wearables-fetchers.js',
   './test-wearables-runtime-config.js',
   './test-hardware.js',
+  // Batch 8 — lens parsers + a11y phase 3 + marker value notes.
+  './test-lens-parsers.js',
+  './test-a11y-phase3.js',
+  './test-marker-value-notes.js',
 ];
 
 for (const path of LEGACY_TESTS) {

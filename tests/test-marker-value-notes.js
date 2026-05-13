@@ -1,31 +1,48 @@
+#!/usr/bin/env node
 // test-marker-value-notes.js — per-value notes on lab markers
 // Covers: schema defaults, profile migration, sync DELTA_MAPS wiring with
 // colon-bearing key escape, saveManualEntry storage, editValueNote /
 // deleteValueNote handlers, deleteMarkerValue orphan cleanup, value-card
 // rendering, AI context emission (section:markerValueNotes).
-// Run: fetch('tests/test-marker-value-notes.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-marker-value-notes.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c markerValueNotes Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
 
-  const state = (await import('../js/state.js')).state;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== markerValueNotes Tests ===\n');
+
+const state = (await import('../js/state.js')).state;
   // ═══════════════════════════════════════
   // 1. Schema defaults & profile migration
   // ═══════════════════════════════════════
   console.log('%c 1. Defaults & Migration ', 'font-weight:bold;color:#f59e0b');
 
-  const stateSrc = await fetch('js/state.js').then(r => r.text());
+  const stateSrc = read('js/state.js');
   assert('state.js default importedData includes markerValueNotes: {}',
     /markerValueNotes:\s*\{\}/.test(stateSrc));
 
-  const profSrc = await fetch('js/profile.js').then(r => r.text());
+  const profSrc = read('js/profile.js');
   assert('profile.js migrates markerValueNotes default',
     profSrc.includes('if (data.markerValueNotes === undefined) data.markerValueNotes = {}'));
 
@@ -34,7 +51,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 2. Sync DELTA_MAPS Wiring ', 'font-weight:bold;color:#f59e0b');
 
-  const syncSrc = await fetch('js/sync.js').then(r => r.text());
+  const syncSrc = read('js/sync.js');
   assert('markerValueNotes present in DELTA_MAPS array',
     /DELTA_MAPS\s*=\s*\[[^\]]*'markerValueNotes'/s.test(syncSrc));
   assert('markerValueNotes has DELTA_MAP_CONFIG.keyIdFn entry',
@@ -63,7 +80,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 3. Export / Import ', 'font-weight:bold;color:#f59e0b');
 
-  const exportSrc = await fetch('js/export.js').then(r => r.text());
+  const exportSrc = read('js/export.js');
   assert('export.js exports markerValueNotes in the JSON profile',
     /markerValueNotes:\s*data\.markerValueNotes\s*\|\|\s*\{\}/.test(exportSrc));
   assert('export.js import path merges markerValueNotes',
@@ -75,7 +92,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 4. saveManualEntry stores note ', 'font-weight:bold;color:#f59e0b');
 
-  const viewsSrc = await fetch('js/views.js').then(r => r.text());
+  const viewsSrc = read('js/views.js');
   assert('saveManualEntry reads me-note from the form',
     /const\s+noteInput\s*=\s*document\.getElementById\('me-note'\)/.test(viewsSrc));
   assert('saveManualEntry stores noteText in markerValueNotes when non-empty',
@@ -173,7 +190,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. AI context emission ', 'font-weight:bold;color:#f59e0b');
 
-  const labCtxSrc = await fetch('js/lab-context.js').then(r => r.text());
+  const labCtxSrc = read('js/lab-context.js');
   assert('buildLabContext emits [section:markerValueNotes] block',
     labCtxSrc.includes('[section:markerValueNotes]') &&
     labCtxSrc.includes('[/section:markerValueNotes]'));
@@ -192,7 +209,7 @@ return (async function() {
   // 9. CSS surface for the new render
   // ═══════════════════════════════════════
   console.log('%c 9. CSS ', 'font-weight:bold;color:#f59e0b');
-  const stylesSrc = await fetch('styles.css').then(r => r.text());
+  const stylesSrc = read('styles.css');
   assert('CSS defines .mv-value-note container',
     /\.mv-value-note\s*\{/.test(stylesSrc));
   assert('CSS defines .mv-value-note.add-note hover-reveal',
@@ -200,6 +217,5 @@ return (async function() {
   assert('CSS defines .mv-value-note-delete styling',
     /\.mv-value-note-delete/.test(stylesSrc));
 
-  console.log(`\n%c ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px' : 'background:#ef4444;color:#fff;padding:4px 12px');
-  console.log(`Result: ${pass} passed, ${fail} failed`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
