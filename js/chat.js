@@ -1955,7 +1955,7 @@ function _renderProviderQuiz(branch, name) {
         <span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>
         <span class="chat-quiz-body">
           <strong>Easiest &mdash; pay with a card</strong>
-          <span>One-click login. Most familiar. <em class="chat-quiz-rec">Recommended</em></span>
+          <span>One-click login. <em class="chat-quiz-rec">Recommended</em></span>
         </span>
         <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
       </button>
@@ -1978,8 +1978,8 @@ function _renderProviderQuiz(branch, name) {
       <button class="chat-quiz-option" onclick="closeChatPanel();setTimeout(()=>window.openSettingsModal('ai'),300)">
         <span class="chat-quiz-icon" aria-hidden="true">&#128273;</span>
         <span class="chat-quiz-body">
-          <strong>I already have a key</strong>
-          <span>Skip ahead to Settings to paste it.</span>
+          <strong>Advanced: I have an API key</strong>
+          <span>Skip ahead to AI settings to paste it.</span>
         </span>
         <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
       </button>
