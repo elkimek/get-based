@@ -51,7 +51,6 @@ const TEST_FILES = [
   'tests/test-sun-ui-flow.js',
   'tests/test-blob-storage.js',
   'tests/test-audit-fixes.js',
-  'tests/test-v1-6-shipped.js',
   'tests/test-family-history.js',
   'tests/test-wearables-bp-merge.js',
   // axe-core runtime scan runs LAST. It rebuilds the DOM extensively and
