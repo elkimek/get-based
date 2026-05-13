@@ -322,6 +322,47 @@ return (async function() {
   window._labState.importedData.genetics = e2eOrig;
 
   // ═══════════════════════════════════════
+  // 10. Severity ordering (categories + within-category)
+  // ═══════════════════════════════════════
+  // After the v1.7.6 mild-tier addition, the category sort and within-category
+  // sort each promote a full rank (significant > moderate > mild) instead of a
+  // binary "has significant?" / "is significant?". A category of moderate
+  // findings must out-rank a category of only mild findings, and inside a
+  // category mild rows must follow moderate rows.
+  console.log('%c 10. Severity Ordering ', 'font-weight:bold;color:#f59e0b');
+
+  const sortOrig = window._labState.importedData.genetics;
+  window._labState.importedData.genetics = {
+    source: 'TestSource', importDate: '2026-04-24',
+    coverage: { found: 4, total: 4 }, effects: {},
+    snps: {
+      // vitaminB12 cat → only mild (FUT2 GA = mild/neutral)
+      rs601338: { genotype: 'GA', gene: 'FUT2', variant: 'W154X' },
+      // iron cat → only moderate (HFE GA = moderate/risk)
+      rs1800562: { genotype: 'GA', gene: 'HFE', variant: 'C282Y' },
+      // methylation cat → both moderate (MTHFR GA) AND mild (MTR AG) — proves within-category ordering
+      rs1801133: { genotype: 'GA', gene: 'MTHFR', variant: 'C677T' },
+      rs1805087: { genotype: 'AG', gene: 'MTR',   variant: 'A2756G' },
+    }
+  };
+  const sortHtml = dna.renderGeneticsSection();
+  // Strip whitespace for stable substring comparisons.
+  const sortFlat = sortHtml.replace(/\s+/g, ' ');
+  const ironPos        = sortFlat.indexOf('>Iron<');
+  const vitaminB12Pos  = sortFlat.indexOf('>Vitamin B12<');
+  const methylationPos = sortFlat.indexOf('>Methylation<');
+  assert('Category sort: iron (moderate) renders before vitaminB12 (mild only)', ironPos > 0 && vitaminB12Pos > ironPos);
+  assert('Category sort: methylation (has moderate) renders before vitaminB12 (mild only)', methylationPos > 0 && vitaminB12Pos > methylationPos);
+
+  // Within methylation: MTHFR (moderate) must appear before MTR (mild).
+  const methylationBlock = sortFlat.slice(methylationPos, sortFlat.indexOf('genetics-cat-group', methylationPos + 1));
+  const mthfrPos = methylationBlock.indexOf('MTHFR');
+  const mtrPos   = methylationBlock.indexOf('MTR ');
+  assert('Within-category sort: MTHFR (moderate) before MTR (mild) inside methylation', mthfrPos > 0 && mtrPos > mthfrPos);
+
+  window._labState.importedData.genetics = sortOrig;
+
+  // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
   console.log(`\n%c Tests complete: ${pass} passed, ${fail} failed `, fail ? 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px');

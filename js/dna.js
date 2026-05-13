@@ -565,12 +565,14 @@ export function renderGeneticsSection() {
     byCat[cat].push({ rsid, gene: stored.gene, variant: stored.variant, genotype: stored.genotype, effect: info.effect, valence: info.valence || 'risk', note: info.note, references: entry.references || [] });
   }
 
-  // Sort categories: those with significant findings first
-  const catOrder = Object.entries(byCat).sort(([, a], [, b]) => {
-    const aS = a.some(f => f.effect === 'significant') ? 0 : 1;
-    const bS = b.some(f => f.effect === 'significant') ? 0 : 1;
-    return aS - bS;
-  });
+  // Sort categories by the weight of the heaviest finding in each — significant
+  // categories first, then moderate-only, then mild-only. Before there were
+  // only two non-none tiers the binary "has significant?" sort sufficed, but
+  // with three tiers a category of moderates was tying with a category of
+  // milds, hiding clinical priority in arrival order.
+  const _effectRank = { significant: 0, moderate: 1, mild: 2 };
+  const _heaviest = (findings) => Math.min(...findings.map(f => _effectRank[f.effect] ?? 3));
+  const catOrder = Object.entries(byCat).sort(([, a], [, b]) => _heaviest(a) - _heaviest(b));
   const totalFindings = catOrder.reduce((n, [, fs]) => n + fs.length, 0);
 
   // Two-axis dot: severity x valence. Protective = green regardless of magnitude;
@@ -641,8 +643,8 @@ export function renderGeneticsSection() {
       <span><span class="genetics-legend-dot">⚪</span> informational</span>
     </div>`;
     for (const [cat, findings] of catOrder) {
-      // Sort significant first within category
-      findings.sort((a, b) => (a.effect === 'significant' ? 0 : 1) - (b.effect === 'significant' ? 0 : 1));
+      // Within-category: severity descending (significant → moderate → mild)
+      findings.sort((a, b) => (_effectRank[a.effect] ?? 3) - (_effectRank[b.effect] ?? 3));
       const catLabel = catLabels[cat] || cat;
       const startHidden = shown >= INITIAL_LIMIT;
       html += `<div class="genetics-cat-group${startHidden ? ' genetics-extra' : ''}">`;
