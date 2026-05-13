@@ -1,15 +1,61 @@
+#!/usr/bin/env node
 // test-recommendations.js — Verify supplement & lifestyle recommendation module
-// Run: fetch('tests/test-recommendations.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-recommendations.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
+function _stubEl() { return { style:{}, dataset:{}, classList:{add:()=>{},remove:()=>{},contains:()=>false,toggle:()=>{}}, appendChild:()=>{},removeChild:()=>{},replaceChild:()=>{},insertBefore:()=>{},remove:()=>{}, setAttribute:()=>{},getAttribute:()=>null,removeAttribute:()=>{}, addEventListener:()=>{},removeEventListener:()=>{}, querySelector:()=>null,querySelectorAll:()=>[], getBoundingClientRect:()=>({top:0,left:0,width:0,height:0,right:0,bottom:0}), focus:()=>{},blur:()=>{},click:()=>{}, children:[],childNodes:[], innerHTML:'',textContent:'',value:'', parentElement:null,parentNode:null }; }
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = { addEventListener:()=>{},removeEventListener:()=>{}, createElement:()=>_stubEl(),createDocumentFragment:()=>_stubEl(), getElementById:()=>null,querySelector:()=>null,querySelectorAll:()=>[], body:_stubEl(),head:_stubEl(),documentElement:_stubEl(), createTextNode:(t)=>({textContent:t}), styleSheets:[] };
+}
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
+const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Supplement & Lifestyle Recommendations Tests ===\n');
+
+// recommendations.js exposes its handlers via Object.assign(window, ...).
+await import('../js/state.js');
+await import('../js/recommendations.js');
+
+// Original test reads data/light-device-presets.json via fetchWithRetry —
+// pass through fs read.
+const _realFetch = globalThis.fetch;
+globalThis.fetch = async (url, opts) => {
+  if (typeof url === 'string' && !/^https?:/.test(url)) {
+    const rel = url.replace(/^\//, '');
+    try { return new Response(read(rel), { status: 200 }); }
+    catch (_) { return new Response('', { status: 404 }); }
   }
-
-  console.log('%c Supplement & Lifestyle Recommendations Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
-
+  return _realFetch(url, opts);
+};
   const recSrc = await fetchWithRetry('js/recommendations.js');
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSrc = await fetchWithRetry('js/chat.js');
@@ -198,20 +244,10 @@ return (async function() {
 
   assert('SW includes recommendations.js', swSrc.includes('/js/recommendations.js'));
 
-  // Check CSS classes exist in the page
-  const styleSheets = Array.from(document.styleSheets);
-  let hasRecSection = false;
-  try {
-    for (const sheet of styleSheets) {
-      try {
-        for (const rule of sheet.cssRules || []) {
-          if (rule.selectorText && rule.selectorText.includes('.rec-section')) { hasRecSection = true; break; }
-        }
-      } catch(e) { /* cross-origin */ }
-      if (hasRecSection) break;
-    }
-  } catch(e) {}
-  assert('CSS has .rec-section rule', hasRecSection);
+  // Node port: read styles.css directly. Browser styleSheets walk is
+  // brittle (cross-origin, parsing race); source inspection is more reliable.
+  const cssSrc = read('/styles.css');
+  assert('CSS has .rec-section rule', cssSrc.includes('.rec-section'));
 
   // ═══════════════════════════════════════
   // 13. Security
@@ -356,4 +392,6 @@ return (async function() {
   // Results
   // ═══════════════════════════════════════
   console.log(`\n%c Results: ${pass} passed, ${fail} failed `, `background:${fail?'#ef4444':'#22c55e'};color:#fff;font-size:14px;padding:4px 12px;border-radius:4px`);
-})();
+
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

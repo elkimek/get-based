@@ -34,7 +34,6 @@ const TEST_FILES = [
   'tests/test-dashboard-knowledge-base.js',
   'tests/test-dashboard-data-protection.js',
   'tests/test-chat-panel-ux.js',
-  'tests/test-recommendations.js',
   'tests/test-dna-recommendations.js',
   'tests/test-cashu-wallet.js',
   'tests/test-custom-api.js',
