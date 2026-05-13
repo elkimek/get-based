@@ -220,13 +220,15 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
       ?? timeSeriesMean(s?.hrv)
       ?? meanOrNull(s?.hrv_samples) // legacy field name on older sessions
       ?? null;
-    // RHR: prefer the night's average (matches Oura's "Average HR" / what
-    // their app labels as "Resting"), then the lowest scalar, then fall
-    // back to per-sample time series. Same fresh-session lag applies —
-    // scalars may be unfilled while heart_rate.items is already present.
-    row.rhr = s?.average_heart_rate
-      ?? s?.lowest_heart_rate
-      ?? timeSeriesMean(s?.heart_rate)
+    // RHR: sleep-window minimum is the true overnight RHR — this is what
+    // Oura's app shows on the "Resting Heart Rate" card and trend graph
+    // (the lowest 5-min average during sleep, typically hit in deep sleep).
+    // average_heart_rate is the night-long mean and runs 5-10 bpm higher
+    // than the user's RHR; using it here made our number disagree with
+    // Oura's. Same fresh-session lag applies — scalars may be unfilled
+    // while heart_rate.items is already present, so fall back to the
+    // per-sample minimum before giving up.
+    row.rhr = s?.lowest_heart_rate
       ?? timeSeriesMin(s?.heart_rate)
       ?? null;
   }

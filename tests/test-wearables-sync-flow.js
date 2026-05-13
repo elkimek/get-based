@@ -89,9 +89,9 @@ return (async function() {
     installRoutes([
       { matcher: 'usercollection/sleep', body: {
         data: [
-          { day: '2026-04-20', total_sleep_duration: 26000, average_hrv: 38, average_heart_rate: 60 },
-          { day: '2026-04-21', total_sleep_duration: 25000, average_hrv: 42, average_heart_rate: 58 },
-          { day: '2026-04-22', total_sleep_duration: 27000, average_hrv: 40, average_heart_rate: 59 },
+          { day: '2026-04-20', total_sleep_duration: 26000, average_hrv: 38, average_heart_rate: 60, lowest_heart_rate: 54 },
+          { day: '2026-04-21', total_sleep_duration: 25000, average_hrv: 42, average_heart_rate: 58, lowest_heart_rate: 52 },
+          { day: '2026-04-22', total_sleep_duration: 27000, average_hrv: 40, average_heart_rate: 59, lowest_heart_rate: 53 },
         ], next_token: null,
       }},
       { matcher: 'usercollection/daily_sleep', body: { data: [
@@ -113,7 +113,7 @@ return (async function() {
     assert('Oura rows persisted to L1 IDB', rows.length >= 3);
     const day20 = rows.find(r => r.date === '2026-04-20');
     assert('Persisted row carries hrv_rmssd from sleep payload', day20?.hrv_rmssd === 38);
-    assert('Persisted row carries rhr from sleep payload', day20?.rhr === 60);
+    assert('Persisted row carries rhr from sleep lowest_heart_rate', day20?.rhr === 54);
     assert('Persisted row carries sleep_score from daily_sleep', day20?.sleep_score === 78);
 
     const meta = await store.getMeta(TEST_PROFILE_ID, 'last-sync:oura');

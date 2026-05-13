@@ -94,7 +94,7 @@ return (async function() {
     const r = rows.find(x => x.date === '2026-04-23');
     assert('Oura row tagged source: oura', r?.source === 'oura');
     assert('Oura hrv_rmssd from sleep average_hrv', r?.hrv_rmssd === 42);
-    assert('Oura rhr from sleep average_heart_rate (not lowest)', r?.rhr === 58);
+    assert('Oura rhr from sleep lowest_heart_rate (matches Oura app RHR card)', r?.rhr === 54);
     assert('Oura hr_day from heartrate awake-tagged samples (mean of 72+88=80)', r?.hr_day === 80);
     assert('Oura sleep_score from daily_sleep.score', r?.sleep_score === 78);
     assert('Oura readiness_score from daily_readiness.score', r?.readiness_score === 82);
@@ -160,9 +160,9 @@ return (async function() {
     assert('Oura time-series HRV filters zero-valued samples (gaps in recording)',
       r?.hrv_rmssd > 40, // would be 28.something if zeros were included
       `got ${r?.hrv_rmssd}`);
-    // RHR mean of [62,60,56,54,52,53,55,58,60] = 510/9 ≈ 56.67
-    assert('Oura rhr falls back to time-series mean when scalar null',
-      r?.rhr != null && Math.abs(r.rhr - 56.67) < 0.5,
+    // RHR is the minimum of [62,60,56,54,52,53,55,58,60] (zeros filtered) = 52
+    assert('Oura rhr falls back to time-series min when scalar null',
+      r?.rhr === 52,
       `got ${r?.rhr}`);
   } finally { restoreFetch(); }
 
@@ -185,7 +185,7 @@ return (async function() {
     const rows = await oura.fetchOuraDailyRange('test-token', '2026-04-23', '2026-04-23');
     const r = rows.find(x => x.date === '2026-04-23');
     assert('Oura prefers scalar average_hrv over hrv.items when both present', r?.hrv_rmssd === 42);
-    assert('Oura prefers scalar average_heart_rate over heart_rate.items when both present', r?.rhr === 58);
+    assert('Oura prefers scalar lowest_heart_rate over heart_rate.items when both present', r?.rhr === 54);
   } finally { restoreFetch(); }
 
   // ═══════════════════════════════════════
