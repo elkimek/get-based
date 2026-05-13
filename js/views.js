@@ -2778,6 +2778,13 @@ export function showDashboard(data) {
     html += renderGeneticsSection();
     main.innerHTML = html;
     setupDropZone();
+    // First-time visitor: auto-open chat onboarding after a short delay so
+    // the wizard (profile → AI quiz → extras → cards) carries them through.
+    // Without this nudge, new users land on the welcome hero and miss the
+    // chat-driven setup entirely. Skip if any chat history exists.
+    if (state.chatHistory.length === 0) {
+      setTimeout(() => window.openChatPanel?.(), 800);
+    }
     return;
   }
 
@@ -2932,14 +2939,13 @@ export function showDashboard(data) {
   // Preload catalog so rec sections and sorting use it immediately
   if (window.loadCatalog) window.loadCatalog().then(c => { window._cachedCatalog = c; });
 
-  // Auto-trigger guided tour on first visit — but skip if no data (chat onboarding handles new users)
+  // Auto-trigger guided tour on first visit once the user has data —
+  // the no-data path auto-opens the chat onboarding instead (handled
+  // inline in the welcome-hero branch above, before its early return).
   const _p = window.getProfiles?.()?.find(p => p.id === state.currentProfile);
   const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
   if (_hasProfile && hasData) {
     if (window.startTour) window.startTour(true);
-  } else if (!hasData) {
-    // First-time visitor: auto-open chat onboarding after a short delay
-    setTimeout(() => window.openChatPanel?.(), 800);
   }
 }
 
