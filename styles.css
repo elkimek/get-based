@@ -3621,6 +3621,45 @@ select.chat-onboard-input option { background: var(--bg-secondary); color: var(-
   background: var(--bg-card); border: 1px solid var(--accent); border-radius: var(--radius);
   padding: 24px; margin-top: 16px; text-align: center;
 }
+/* Onboarding focus mode — dims everything on the empty dashboard
+   except the section the user is meant to interact with. Chat panel
+   stays open as a guide. Triggered by setOnboardingFocus(mode). */
+body.cards-focus .welcome-hero > h2,
+body.cards-focus .welcome-hero > .welcome-hero-subtitle,
+body.cards-focus .welcome-hero > .welcome-hero-cta,
+body.cards-focus .welcome-hero > .drop-zone,
+body.cards-focus .welcome-hero > .demo-cards,
+body.cards-focus .welcome-hero > .onboarding-divider,
+body.cards-focus .welcome-hero > .welcome-wearable-hint,
+body.cards-focus .light-today-strip,
+body.cards-focus .wearable-strip,
+body.cards-focus .wearable-strip-empty,
+body.cards-focus .genetics-section,
+body.cards-focus .ai-reminder-banner,
+body.cards-focus .onboarding-banner,
+body.import-focus .welcome-hero > .welcome-hero-cta,
+body.import-focus .welcome-hero > .demo-cards,
+body.import-focus .welcome-hero > .onboarding-divider,
+body.import-focus .welcome-hero > .welcome-wearable-hint,
+body.import-focus .welcome-context-details,
+body.import-focus .light-today-strip,
+body.import-focus .wearable-strip,
+body.import-focus .wearable-strip-empty,
+body.import-focus .genetics-section,
+body.import-focus .ai-reminder-banner,
+body.import-focus .onboarding-banner {
+  opacity: 0.18;
+  filter: blur(1px) grayscale(0.6);
+  pointer-events: none;
+  transition: opacity 0.35s, filter 0.35s;
+}
+/* Glow on the highlighted target so it reads as "do this". */
+body.cards-focus .welcome-context-details,
+body.import-focus .welcome-hero > .drop-zone {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.4), 0 0 30px rgba(124, 58, 237, 0.18);
+  border-radius: 12px;
+  transition: box-shadow 0.35s;
+}
 /* Dashboard reminder for users who skipped the AI provider quiz. */
 .ai-reminder-banner {
   display: flex; align-items: center; gap: 12px;

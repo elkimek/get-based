@@ -1326,7 +1326,7 @@ export function renderChatMessages() {
           <div class="chat-onboard-progress"><div class="chat-onboard-progress-bar" style="width:${progressPct}%"></div></div>
           <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">The more I know about your lifestyle, the better I can interpret your results and recommend what to test. Everything is optional.</p>
           <div class="chat-onboard-actions">
-            <button class="chat-onboard-cta" onclick="closeChatPanel();sessionStorage.setItem('welcome-details-open','1');document.querySelector('.welcome-context-details')?.setAttribute('open','');document.querySelector('.welcome-context-details')?.scrollIntoView({behavior:'smooth'})">📋 Continue — ${remaining} card${remaining !== 1 ? 's' : ''} left</button>
+            <button class="chat-onboard-cta" onclick="window.setOnboardingFocus('cards')">📋 Continue — ${remaining} card${remaining !== 1 ? 's' : ''} left</button>
             ${hasAIProvider()
               ? `<button class="chat-prompt-btn" onclick="useChatPrompt('Based on what you know about me so far, what blood tests should I get?')">Skip ahead — recommend tests</button>`
               : `<button class="chat-prompt-btn" onclick="closeChatPanel();setTimeout(()=>window.openSettingsModal('ai'),300)">⚙️ Connect AI to get recommendations</button>`}
@@ -1345,8 +1345,8 @@ export function renderChatMessages() {
           <p style="font-size:13px;margin:4px 0"><strong>Have lab results?</strong> Drop a PDF on the page — I'll extract everything and build your dashboard with trend charts, flags, and insights.</p>
           <p style="font-size:13px;margin:4px 0"><strong>No labs yet?</strong> Tell me about your lifestyle and I'll recommend what to test first.</p>
           <div class="chat-onboard-actions">
-            <button class="chat-onboard-cta" onclick="closeChatPanel()">📄 Import a lab PDF</button>
-            <button class="chat-onboard-cta" onclick="closeChatPanel();sessionStorage.setItem('welcome-details-open','1');document.querySelector('.welcome-context-details')?.setAttribute('open','');document.querySelector('.welcome-context-details')?.scrollIntoView({behavior:'smooth'})">📋 Fill in my lifestyle cards</button>
+            <button class="chat-onboard-cta" onclick="window.setOnboardingFocus('import')">📄 Import a lab PDF</button>
+            <button class="chat-onboard-cta" onclick="window.setOnboardingFocus('cards')">📋 Fill in my lifestyle cards</button>
             ${hasAIProvider()
               ? `<button class="chat-prompt-btn" onclick="useChatPrompt('I don\\'t have any labs yet. Based on my profile, what blood tests should I get and why?')">Just tell me what to test</button>`
               : `<button class="chat-prompt-btn" onclick="closeChatPanel();setTimeout(()=>window.openSettingsModal('ai'),300)">⚙️ Connect AI to get recommendations</button>`}
@@ -1362,7 +1362,7 @@ export function renderChatMessages() {
         <div class="chat-msg chat-ai">
           <p>I can see your lab results — nice! 👋 I can already analyze these, but if you fill in a few lifestyle cards I'll give you much more personalized insights.</p>
           <div class="chat-onboard-actions">
-            <button class="chat-prompt-btn" onclick="closeChatPanel();document.querySelector('.profile-context-cards')?.scrollIntoView({behavior:'smooth'})">📋 Fill in lifestyle cards</button>
+            <button class="chat-prompt-btn" onclick="window.setOnboardingFocus('cards')">📋 Fill in lifestyle cards</button>
             <button class="chat-prompt-btn" onclick="useChatPrompt('What are my most concerning results?')">Analyze my results now</button>
           </div>
         </div>`;
@@ -1580,7 +1580,7 @@ export function closeChatPanel() {
   document.getElementById('chat-backdrop').classList.remove('open');
   // body.style.overflow no longer set on open (so nothing to restore)
   // Drop the dashboard-shift body classes so the layout reflows back.
-  document.body.classList.remove('chat-open', 'chat-fullscreen');
+  document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus');
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
 }

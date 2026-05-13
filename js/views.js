@@ -2711,6 +2711,12 @@ export function showDashboard(data) {
   const importFab = document.getElementById('import-fab');
   if (importFab) importFab.classList.toggle('hidden', !hasData);
 
+  // Clear any onboarding focus mode once the user has data — the
+  // welcome-hero / context-details targets no longer exist in the
+  // data view, so the dimmed-peer rules would be no-ops anyway,
+  // but stripping the classes keeps body state clean.
+  if (hasData) document.body.classList.remove('cards-focus', 'import-focus');
+
   // ── Demo-load in flight: short-lived placeholder while
   //    importDataJSON parses the demo blob (typically 2–3s). Without
   //    this the empty Welcome hero flashes for the duration. The flag
@@ -3354,6 +3360,37 @@ export function dismissAIReminder() {
     banner.style.opacity = '0';
     banner.style.transform = 'translateY(-10px)';
     setTimeout(() => banner.remove(), 300);
+  }
+}
+
+// Focus mode for onboarding — dims everything on the empty dashboard
+// except the section the user is meant to interact with, while keeping
+// the chat panel open as a guide. Mode is 'cards' (highlight lifestyle
+// cards) or 'import' (highlight PDF drop zone), or null to clear.
+//
+// Force chat out of fullscreen so the highlighted section is visible
+// alongside the chat panel. Scroll the target into view so the user
+// doesn't have to hunt for it.
+export function setOnboardingFocus(mode) {
+  const body = document.body;
+  body.classList.remove('cards-focus', 'import-focus');
+  if (!mode) return;
+  if (mode === 'cards') {
+    body.classList.add('cards-focus');
+  } else if (mode === 'import') {
+    body.classList.add('import-focus');
+  }
+  if (body.classList.contains('chat-fullscreen')) {
+    body.classList.remove('chat-fullscreen');
+    localStorage.setItem('labcharts-chat-fullscreen', 'false');
+  }
+  if (mode === 'cards') {
+    const details = document.querySelector('.welcome-context-details');
+    if (details && !details.open) details.setAttribute('open', '');
+    sessionStorage.setItem('welcome-details-open', '1');
+    setTimeout(() => details?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  } else if (mode === 'import') {
+    setTimeout(() => document.querySelector('.welcome-hero .drop-zone')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   }
 }
 
@@ -5285,6 +5322,7 @@ Object.assign(window, {
   renderAIConnectionReminder,
   dismissAIReminder,
   openChatProviderQuiz,
+  setOnboardingFocus,
   completeOnboardingSex,
   completeOnboardingProfile,
   dismissOnboarding,
