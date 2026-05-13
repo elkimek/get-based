@@ -3692,8 +3692,11 @@ body.import-focus .onboarding-banner {
   pointer-events: none;
   transition: opacity 0.35s, filter 0.35s;
 }
-/* Glow on the highlighted target so it reads as "do this". */
+/* Glow on the highlighted target so it reads as "do this".
+   .welcome-context-details is the empty-state target;
+   .profile-context-cards is the has-data target. */
 body.cards-focus .welcome-context-details,
+body.cards-focus .profile-context-cards,
 body.import-focus .welcome-hero > .drop-zone {
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.4), 0 0 30px rgba(124, 58, 237, 0.18);
   border-radius: 12px;

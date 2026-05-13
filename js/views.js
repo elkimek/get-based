@@ -3390,10 +3390,19 @@ export function setOnboardingFocus(mode) {
     localStorage.setItem('labcharts-chat-fullscreen', 'false');
   }
   if (mode === 'cards') {
+    // Empty-state cards live inside <details class="welcome-context-details">;
+    // has-data cards render as `.profile-context-cards` (no details wrapper).
+    // Prefer the welcome details when it's present, fall back to the has-data
+    // section so the button works in both dashboards.
     const details = document.querySelector('.welcome-context-details');
-    if (details && !details.open) details.setAttribute('open', '');
-    sessionStorage.setItem('welcome-details-open', '1');
-    setTimeout(() => details?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    if (details) {
+      if (!details.open) details.setAttribute('open', '');
+      sessionStorage.setItem('welcome-details-open', '1');
+      setTimeout(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } else {
+      const cards = document.querySelector('.profile-context-cards');
+      setTimeout(() => cards?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
   } else if (mode === 'import') {
     setTimeout(() => document.querySelector('.welcome-hero .drop-zone')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   }
