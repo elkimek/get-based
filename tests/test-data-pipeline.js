@@ -1,18 +1,50 @@
+#!/usr/bin/env node
 // test-data-pipeline.js — Core data pipeline verification: getActiveData, unit conversion, filtering, trends
-// Run: fetch('tests/test-data-pipeline.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-data-pipeline.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  const results = [];
-  function assert(name, condition, detail) {
-    if (condition) { pass++; results.push(`  PASS: ${name}`); }
-    else { fail++; results.push(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+
+const _ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const _realFetch = globalThis.fetch;
+globalThis.fetch = async (url, opts) => {
+  if (typeof url === 'string' && !/^https?:/.test(url)) {
+    const rel = url.replace(/^\//, '');
+    try {
+      const body = fs.readFileSync(path.join(_ROOT, rel), 'utf-8');
+      return new Response(body, { status: 200 });
+    } catch (_) { return new Response('', { status: 404 }); }
   }
-  const wait = ms => new Promise(r => setTimeout(r, ms));
+  return _realFetch(url, opts);
+};
 
-  console.log('%c[test-data-pipeline] Starting data pipeline verification...', 'color:#6366f1;font-weight:bold');
+let pass = 0, fail = 0;
+const results = [];
+function assert(name, condition, detail) {
+  if (condition) { pass++; results.push(`  PASS: ${name}`); }
+  else { fail++; results.push(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  const S = window._labState;
+console.log('=== Data Pipeline Tests ===\n');
+
+// Bring in state.js + data.js — getActiveData lives on window after data.js loads.
+await import('../js/state.js');
+await import('../js/data.js');
+
+const S = window._labState;
 
   // ═══════════════════════════════════════════════
   // SETUP — load demo data into state
@@ -228,7 +260,7 @@ return (async function() {
 
   // getStatus is on utils.js, exposed indirectly. We can test via window or source check
   // It's imported by data.js but not on window directly. Let's test via the source + data behavior
-  const dataSrc = await fetchWithRetry('js/utils.js');
+  const dataSrc = (await (await fetch('js/utils.js')).text());
   assert('getStatus exported from utils.js', dataSrc.includes('export function getStatus'));
 
   // Test through getAllFlaggedMarkers which uses getStatus internally
@@ -513,7 +545,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 14. Data Source Inspection ', 'font-weight:bold;color:#f59e0b');
 
-  const dataJsSrc = await fetchWithRetry('js/data.js');
+  const dataJsSrc = (await (await fetch('js/data.js')).text());
   assert('data.js imports MARKER_SCHEMA', dataJsSrc.includes("import { state } from './state.js'"));
   assert('data.js imports UNIT_CONVERSIONS', dataJsSrc.includes('UNIT_CONVERSIONS'));
   assert('data.js imports OPTIMAL_RANGES', dataJsSrc.includes('OPTIMAL_RANGES'));
@@ -550,8 +582,6 @@ return (async function() {
   // ═══════════════════════════════════════════════
   // SUMMARY
   // ═══════════════════════════════════════════════
-  console.log(results.join('\n'));
-  const color = fail === 0 ? '#22c55e' : '#ef4444';
-  console.log(`%c[test-data-pipeline] Results: ${pass} passed, ${fail} failed (${pass + fail} total)`, `color:${color};font-weight:bold`);
-  if (fail > 0) console.warn('[test-data-pipeline] Some tests failed — check above for details');
-})();
+console.log(results.join('\n'));
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

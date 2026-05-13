@@ -1,16 +1,48 @@
+#!/usr/bin/env node
 // test-calculated-markers.js — PhenoAge, Bortz Age, Biological Age, BUN/Creat, Free Water Deficit, hs-CRP/HDL
-// Run: fetch('tests/test-calculated-markers.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-calculated-markers.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const _ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const _realFetch = globalThis.fetch;
+globalThis.fetch = async (url, opts) => {
+  if (typeof url === 'string' && !/^https?:/.test(url)) {
+    const rel = url.replace(/^\//, '');
+    try {
+      const body = fs.readFileSync(path.join(_ROOT, rel), 'utf-8');
+      return new Response(body, { status: 200 });
+    } catch (_) { return new Response('', { status: 404 }); }
   }
+  return _realFetch(url, opts);
+};
 
-  console.log('%c Calculated Markers Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const state = window._labState;
+console.log('=== Calculated Markers Tests ===\n');
+
+// Bring in state.js + data.js so window._labState exists and getActiveData
+// is wired up (data.js does Object.assign(window, { getActiveData, ... })).
+await import('../js/state.js');
+await import('../js/data.js');
+
+const state = window._labState;
 
   // Save originals
   const origEntries = state.importedData.entries;
@@ -588,9 +620,5 @@ return (async function() {
   // ═══════════════════════════════════════
   // Summary
   // ═══════════════════════════════════════
-  console.log(`%c ${pass + fail} tests: ${pass} passed, ${fail} failed `,
-    `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-size:14px;padding:4px 12px;border-radius:4px`);
-
-  if (typeof window.__TEST_RESULTS__ === 'undefined') window.__TEST_RESULTS__ = {};
-  window.__TEST_RESULTS__['test-calculated-markers'] = { pass, fail, total: pass + fail };
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

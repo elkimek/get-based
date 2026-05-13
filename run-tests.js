@@ -52,8 +52,6 @@ const TEST_FILES = [
   'tests/test-custom-lens.js',
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',
-  'tests/test-data-pipeline.js',
-  'tests/test-calculated-markers.js',
   'tests/test-lens-local-worker.js',
   'tests/test-sun-uvdata.js',
   'tests/test-sun-correlations.js',

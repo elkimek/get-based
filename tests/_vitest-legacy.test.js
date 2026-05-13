@@ -56,6 +56,9 @@ const LEGACY_TESTS = [
   './test-lens-parsers.js',
   './test-a11y-phase3.js',
   './test-marker-value-notes.js',
+  // Batch 9 — data pipeline + calculated markers (uses state.js + data.js).
+  './test-calculated-markers.js',
+  './test-data-pipeline.js',
 ];
 
 for (const path of LEGACY_TESTS) {
