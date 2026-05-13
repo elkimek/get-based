@@ -9,15 +9,40 @@ import { fileURLToPath } from 'node:url';
 
 globalThis.window = globalThis.window || globalThis;
 // views.js imports many things and reads `document` at module load.
-// Minimal stub: just provide the methods views.js calls at top level.
+// `document` shim — same shape as tests/_vitest-setup.js's _stubEl() pattern.
+// Greptile #202 P2: the previous narrow stub (only style/appendChild/setAttribute
+// on createElement) would silently break if a future views.js init touched a
+// missing method like classList.add() — error would point at app code, not the
+// shim. Mirror the full _stubEl shape so standalone runs stay in sync with the
+// Vitest setup shim.
+function _stubEl() {
+  return {
+    style: {}, dataset: {},
+    classList: { add: () => {}, remove: () => {}, contains: () => false, toggle: () => {} },
+    appendChild: () => {}, removeChild: () => {}, replaceChild: () => {},
+    insertBefore: () => {}, remove: () => {},
+    setAttribute: () => {}, getAttribute: () => null, removeAttribute: () => {},
+    addEventListener: () => {}, removeEventListener: () => {},
+    querySelector: () => null, querySelectorAll: () => [],
+    getBoundingClientRect: () => ({ top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 }),
+    focus: () => {}, blur: () => {}, click: () => {},
+    children: [], childNodes: [],
+    innerHTML: '', textContent: '', value: '',
+    parentElement: null, parentNode: null,
+  };
+}
 if (typeof globalThis.document === 'undefined') {
   globalThis.document = {
-    addEventListener: () => {},
-    createElement: () => ({ style: {}, appendChild: () => {}, setAttribute: () => {} }),
+    addEventListener: () => {}, removeEventListener: () => {},
+    createElement: () => _stubEl(),
+    createDocumentFragment: () => _stubEl(),
     getElementById: () => null,
     querySelector: () => null,
     querySelectorAll: () => [],
-    body: { appendChild: () => {}, style: {} },
+    body: _stubEl(),
+    head: _stubEl(),
+    documentElement: _stubEl(),
+    createTextNode: (t) => ({ textContent: t }),
   };
 }
 function _ls() {

@@ -28,10 +28,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 let pass = 0, fail = 0;
-const results = [];
 function assert(name, condition, detail) {
-  if (condition) { pass++; results.push({ name, ok: true }); console.log(`  PASS: ${name}`); }
-  else { fail++; results.push({ name, ok: false, detail }); console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 }
 
 console.log('=== Cycle Tour Tests ===\n');

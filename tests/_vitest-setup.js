@@ -91,8 +91,8 @@ if (typeof globalThis.document === 'undefined') {
     getElementById: () => null,
     querySelector: () => null,
     querySelectorAll: () => [],
-    body: Object.assign(_stubEl(), { appendChild: () => {}, removeChild: () => {} }),
-    head: Object.assign(_stubEl(), { appendChild: () => {} }),
+    body: _stubEl(),
+    head: _stubEl(),
     documentElement: _stubEl(),
     createTextNode: (t) => ({ textContent: t }),
   };
