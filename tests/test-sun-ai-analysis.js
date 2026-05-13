@@ -19,6 +19,7 @@ return (async function() {
     renderSessionAIInline,
     renderSessionAIDetail,
     maybeAnalyzeSessionAfterFinish,
+    refreshSessionAIAnalysis,
   } = mod;
 
   const origImported = window._labState.importedData;
@@ -279,6 +280,32 @@ return (async function() {
   disableAI();
   try { maybeAnalyzeSessionAfterFinish(makeSess()); } catch (e) { crashed = true; }
   assert('maybeAnalyze noops with AI paused', !crashed);
+
+  // ─── 6. refresh path — exercise getTarget / canAnalyze / setAIAnalysis ───
+  // The engine adapters wired into createAIVerdict (getTarget, canAnalyze,
+  // setAIAnalysis) only fire on the analyze() path. maybeAnalyze short-
+  // circuits at hasAIProvider() before reaching them; refresh(id) with a
+  // real provider + stubbed fetch flows all the way through to the catch
+  // block, which invokes setAIAnalysis with an error sidecar.
+  console.log('%c 6. refresh adapter coverage ', 'font-weight:bold;color:#f59e0b');
+
+  enableAI();
+  const sess = makeSess({ id: 'sun_refresh_target' });
+  reset({ sunSessions: [sess] });
+  const origFetch = window.fetch;
+  window.fetch = () => Promise.reject(new Error('test stub: provider unreachable'));
+  try { await refreshSessionAIAnalysis('sun_refresh_target'); } catch (_) {}
+  window.fetch = origFetch;
+  const after = window._labState.importedData.sunSessions.find(s => s.id === 'sun_refresh_target');
+  assert('refresh resolved id via getTarget (target intact)', !!after);
+  assert('refresh reached setAIAnalysis via catch (error sidecar written)',
+    !!after?.aiAnalysis && (after.aiAnalysis.status === 'error' || !!after.aiAnalysis.lastErrorMessage),
+    JSON.stringify(after?.aiAnalysis || null).slice(0, 200));
+
+  let nullRefreshThrew = false;
+  try { await refreshSessionAIAnalysis('not-a-session'); }
+  catch (_) { nullRefreshThrew = true; }
+  assert('refresh on missing id returns cleanly (no throw)', !nullRefreshThrew);
 
   // Cleanup
   if (origProvider != null) localStorage.setItem('labcharts-ai-provider', origProvider);

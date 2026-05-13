@@ -246,6 +246,72 @@ return (async function() {
   assert('Two generations differ', mnemonic !== mnemonic2);
 
   // ═══════════════════════════════════════
+  // 9. SSRF VALIDATION WIRING (cashu-wallet.setMintUrl + nostr.setSelectedNodeUrl)
+  // ═══════════════════════════════════════
+  // The shared validator (js/url-safety.js) is exhaustively unit-tested via
+  // test-sun-uvdata.js (14 SSRF asserts). This section verifies that the
+  // *wiring* at the two new call sites actually invokes it — text-grep alone
+  // would miss e.g. an accidental refactor that swallows the throw.
+  console.log('%c 9. SSRF Validation Wiring ', 'font-weight:bold;color:#f59e0b');
+
+  const wallet = await import('/js/cashu-wallet.js?bust=' + Date.now());
+  const discovery = await import('/js/nostr-discovery.js?bust=' + Date.now());
+
+  // setMintUrl — throws on rejection (so backup-restore + node-mint-switch
+  // paths fail-closed instead of silently pinning the wallet to a hostile mint)
+  async function expectMintRejection(url, label) {
+    let threw = false;
+    try { await wallet.setMintUrl(url); } catch (e) { threw = /https/i.test(e.message) || /loopback|RFC1918|link-local|public/i.test(e.message); }
+    assert(`setMintUrl rejects: ${label}`, threw, `url=${url}`);
+  }
+  await expectMintRejection('http://localhost/mint', 'localhost');
+  await expectMintRejection('http://127.0.0.1/mint', 'IPv4 loopback');
+  await expectMintRejection('https://192.168.1.1/mint', 'RFC1918 192.168.x.x');
+  await expectMintRejection('https://169.254.169.254/mint', 'cloud metadata');
+  await expectMintRejection('http://example.com/mint', 'non-HTTPS public host');
+  await expectMintRejection('not a url', 'unparseable');
+  // Regression: IPv4-mapped IPv6 with omitted leading zeros (Greptile P1
+  // PR #193). `::ffff:c0a8:101` is a valid abbreviation for 192.168.1.1
+  // but the earlier hex-concatenate-and-pad logic mis-aligned byte
+  // boundaries to 12.10.129.1, bypassing the RFC-1918 block.
+  await expectMintRejection('https://[::ffff:c0a8:101]/mint', 'IPv4-mapped IPv6 abbreviated → 192.168.1.1');
+  await expectMintRejection('https://[::ffff:c0a8:0101]/mint', 'IPv4-mapped IPv6 padded → 192.168.1.1');
+  await expectMintRejection('https://[::ffff:7f00:1]/mint',  'IPv4-mapped IPv6 abbreviated → 127.0.0.1');
+  await expectMintRejection('https://[::ffff:a9fe:a9fe]/mint', 'IPv4-mapped IPv6 → 169.254.169.254 (cloud metadata)');
+  // Greptile follow-up on PR #194: 10/8 + 172.16/12 also bypassable under
+  // the old `hex.padStart(8,'0')` logic. `::ffff:a00:1` produced
+  // `0.0.160.1` (not 10.0.0.1); `::ffff:ac10:1` produced `0.10.193.1`
+  // (not 172.16.0.1). Both ranges are RFC-1918; the fix handles them
+  // mathematically — these asserts pin the regression coverage explicit.
+  await expectMintRejection('https://[::ffff:a00:1]/mint',   'IPv4-mapped IPv6 abbreviated → 10.0.0.1 (RFC-1918 10/8)');
+  await expectMintRejection('https://[::ffff:ac10:1]/mint',  'IPv4-mapped IPv6 abbreviated → 172.16.0.1 (RFC-1918 172.16/12)');
+
+  // setSelectedNodeUrl — silent no-op on rejection (Nostr/backup-restore
+  // paths route here unconditionally, throwing would surface as unhandled
+  // rejections at WS-message-handler scope which the user can't act on).
+  // We probe via getSelectedNodeUrl round-trip.
+  const origNode = discovery.getSelectedNodeUrl();
+  function expectNodeRejection(url, label) {
+    const sentinel = 'https://known-good-node.example.com/v1';
+    discovery.setSelectedNodeUrl(sentinel);
+    discovery.setSelectedNodeUrl(url); // should silently fail
+    assert(`setSelectedNodeUrl ignores: ${label}`,
+      discovery.getSelectedNodeUrl() === sentinel,
+      `expected sentinel preserved, got ${discovery.getSelectedNodeUrl()}`);
+  }
+  expectNodeRejection('http://127.0.0.1:8080', 'IPv4 loopback');
+  expectNodeRejection('https://10.0.0.5/api', 'RFC1918 10.x');
+  expectNodeRejection('http://[fe80::1]/api', 'IPv6 link-local');
+  expectNodeRejection('javascript:alert(1)', 'javascript: pseudo-URL');
+  // Round-trip a valid URL to confirm wiring isn't accidentally rejecting everything
+  discovery.setSelectedNodeUrl('https://valid-routstr.example.com');
+  assert('setSelectedNodeUrl accepts public HTTPS',
+    discovery.getSelectedNodeUrl() === 'https://valid-routstr.example.com');
+  // Restore prior state
+  if (origNode) discovery.setSelectedNodeUrl(origNode);
+  else localStorage.removeItem('labcharts-routstr-node');
+
+  // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
   console.log(`\n%c Results: ${pass} passed, ${fail} failed `, `background:${fail?'#ef4444':'#22c55e'};color:#fff;font-size:14px;padding:4px 12px;border-radius:4px`);

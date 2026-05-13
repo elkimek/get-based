@@ -23,6 +23,7 @@ import {
 import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, setOllamaPIIEnabled } from './pii.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
+import { isValidExternalUrl } from './url-safety.js';
 
 
 // ═══════════════════════════════════════════════
@@ -1326,8 +1327,10 @@ export async function doRoutstrMintChange() {
   const statusEl = document.getElementById('routstr-mint-status');
   if (!input || !statusEl) return;
   const url = input.value.trim().replace(/\/+$/, '');
-  if (!url || !url.startsWith('https://')) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a valid mint URL (https://...)</div>';
+  // Mint URL must be public HTTPS — block loopback / RFC1918 / link-local so
+  // a malicious paste can't make the browser probe internal services.
+  if (!url || !isValidExternalUrl(url)) {
+    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a valid public mint URL (https://...)</div>';
     return;
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking mint\u2026</div>';
@@ -1414,12 +1417,20 @@ export async function connectRoutstrNode(nodeUrl) {
   const currentMint = await window.cashuGetMintUrl();
   let mintSwitched = false;
   if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
-    // Current mint not accepted — switch to node's first mint
-    await window.cashuSetMintUrl(nodeMints[0]);
-    mintSwitched = true;
-    const mintLabel = document.getElementById('routstr-mint-label');
-    if (mintLabel) mintLabel.textContent = nodeMints[0].replace(/^https?:\/\//, '');
-    showNotification('Mint switched to ' + nodeMints[0].replace(/^https?:\/\//, '') + ' (required by node)', 'info');
+    // Current mint not accepted — switch to node's first mint.
+    // nodeMints comes from the node's /v1/info response (untrusted), so
+    // setMintUrl validates it and throws on a private/loopback target.
+    try {
+      await window.cashuSetMintUrl(nodeMints[0]);
+      mintSwitched = true;
+      const mintLabel = document.getElementById('routstr-mint-label');
+      if (mintLabel) mintLabel.textContent = nodeMints[0].replace(/^https?:\/\//, '');
+      showNotification('Mint switched to ' + nodeMints[0].replace(/^https?:\/\//, '') + ' (required by node)', 'info');
+    } catch (e) {
+      showNotification('Node requires an unsafe mint URL — refused. Try a different node.', 'error');
+      if (picker) picker.style.display = 'none';
+      return;
+    }
   }
 
   const walletBalance = await window.cashuGetBalance();

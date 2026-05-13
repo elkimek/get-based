@@ -2,6 +2,7 @@
 // Queries multiple relays in parallel, parses provider announcements, health-checks endpoints.
 
 import { isDebugMode } from './utils.js';
+import { isValidExternalUrl } from './url-safety.js';
 
 // ═══════════════════════════════════════════════
 // CONSTANTS
@@ -96,7 +97,11 @@ function _parseNodeEvent(event) {
     pubkey: event.pubkey,
     name,
     about,
-    urls: urls.filter(u => u.startsWith('http')),
+    // Filter URLs at parse-time: Nostr events are untrusted, so a malicious
+    // relay can advertise a "node" pointing at 127.0.0.1 / RFC1918 / link-local
+    // IPs. isValidExternalUrl rejects those + requires https://. Onion URLs
+    // are captured separately below for display only — never fetched here.
+    urls: urls.filter(u => isValidExternalUrl(u)),
     onion: urls.find(u => u.includes('.onion')) || null,
     mints,
     version,
@@ -196,6 +201,15 @@ export function getSelectedNodeUrl() {
 
 /** Set the selected node URL */
 export function setSelectedNodeUrl(url) {
+  // Routstr node URLs originate from untrusted Nostr Kind 38421 events
+  // (or wallet-backup imports), so a malicious relay can advertise a node
+  // pointing at internal services. Block private/loopback/link-local IP
+  // literals; HTTPS required so DNS-rebound hosts fail at the TLS layer
+  // before our Cashu token leaves the device.
+  if (!isValidExternalUrl(url)) {
+    if (typeof console !== 'undefined') console.warn('[Nostr] Refusing Routstr node URL — must be public https://', url);
+    return;
+  }
   localStorage.setItem('labcharts-routstr-node', url);
 }
 

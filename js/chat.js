@@ -1094,42 +1094,42 @@ export function renderChatMessages() {
           <p>Hey! 👋 I'll be your AI health analyst — I help you understand blood work, track trends, and spot what matters. First, tell me a bit about yourself:</p>
           <div class="chat-onboard-form">
             <div class="chat-onboard-row">
-              <label class="chat-onboard-label">Name</label>
+              <label class="chat-onboard-label" for="chat-onboard-name">Name</label>
               <input type="text" class="chat-onboard-input" id="chat-onboard-name" placeholder="your name" value="${escapeHTML(pName)}" onchange="window.saveChatProfile()">
             </div>
             <div class="chat-onboard-row">
-              <label class="chat-onboard-label">Sex</label>
-              <div class="chat-onboard-sex">
+              <span class="chat-onboard-label" id="chat-onboard-sex-label">Sex</span>
+              <div class="chat-onboard-sex" role="group" aria-labelledby="chat-onboard-sex-label">
                 <button class="welcome-sex-btn${pSex === 'male' ? ' active' : ''}" onclick="window.setChatProfileSex('male')">Male</button>
                 <button class="welcome-sex-btn${pSex === 'female' ? ' active' : ''}" onclick="window.setChatProfileSex('female')">Female</button>
               </div>
             </div>
             <div class="chat-onboard-row">
-              <label class="chat-onboard-label">Born</label>
+              <label class="chat-onboard-label" for="chat-onboard-dob">Born</label>
               <input type="date" class="chat-onboard-input" id="chat-onboard-dob" value="${escapeHTML(pDob)}" min="1900-01-01" max="${new Date().toISOString().slice(0, 10)}">
             </div>
             <div class="chat-onboard-row">
-              <label class="chat-onboard-label">Height</label>
+              <label class="chat-onboard-label" for="chat-onboard-height">Height</label>
               <div style="display:flex;gap:6px;flex:1">
                 <input type="number" class="chat-onboard-input" id="chat-onboard-height" placeholder="cm" step="0.1" value="${pHeight || ''}" style="flex:1">
-                <select class="chat-onboard-input" id="chat-onboard-height-unit" style="flex:0 0 55px" onchange="window.onboardHeightUnitChanged()">
+                <select class="chat-onboard-input" id="chat-onboard-height-unit" aria-label="Height unit" style="flex:0 0 55px" onchange="window.onboardHeightUnitChanged()">
                   <option value="cm"${pHeightUnit !== 'in' ? ' selected' : ''}>cm</option>
                   <option value="in"${pHeightUnit === 'in' ? ' selected' : ''}>in</option>
                 </select>
               </div>
             </div>
             <div class="chat-onboard-row">
-              <label class="chat-onboard-label">Weight</label>
+              <label class="chat-onboard-label" for="chat-onboard-weight">Weight</label>
               <div style="display:flex;gap:6px;flex:1">
                 <input type="number" class="chat-onboard-input" id="chat-onboard-weight" placeholder="kg" step="0.1" style="flex:1">
-                <select class="chat-onboard-input" id="chat-onboard-weight-unit" style="flex:0 0 55px">
+                <select class="chat-onboard-input" id="chat-onboard-weight-unit" aria-label="Weight unit" style="flex:0 0 55px">
                   <option value="kg">kg</option>
                   <option value="lbs">lbs</option>
                 </select>
               </div>
             </div>
             <div class="chat-onboard-row">
-              <label class="chat-onboard-label">Location</label>
+              <label class="chat-onboard-label" for="chat-onboard-country">Location</label>
               <input type="text" class="chat-onboard-input" id="chat-onboard-country" placeholder="e.g. Germany" value="${escapeHTML(pLoc.country || '')}" oninput="window.saveChatLocation()">
             </div>
             <div id="chat-onboard-lat" style="font-size:12px;margin:2px 0 0 52px"></div>
@@ -1205,9 +1205,9 @@ export function renderChatMessages() {
             <div class="chat-onboard-cycle-form" id="chat-onboard-cycle-entry" style="display:none">
               <p style="font-size:13px;margin:8px 0 4px">When did your last period start and end? (day of month)</p>
               <div class="chat-onboard-cycle-dates">
-                <label class="chat-onboard-label">Started</label>
+                <label class="chat-onboard-label" for="chat-onboard-period-start">Started</label>
                 <input type="number" class="chat-onboard-input chat-onboard-day" id="chat-onboard-period-start" min="1" max="31" placeholder="?" oninput="window._updatePeriodBtn()">
-                <label class="chat-onboard-label">ended</label>
+                <label class="chat-onboard-label" for="chat-onboard-period-end">ended</label>
                 <input type="number" class="chat-onboard-input chat-onboard-day" id="chat-onboard-period-end" min="1" max="31" placeholder="?" oninput="window._updatePeriodBtn()">
               </div>
               <div id="chat-onboard-period-preview" style="font-size:12px;color:var(--text-muted);margin:4px 0"></div>
@@ -1220,9 +1220,9 @@ export function renderChatMessages() {
             <p>💊 Are you taking any supplements or medications? These can significantly affect your lab results.</p>
             <div id="chat-onboard-supp-list">${suppList}</div>
             <div class="chat-onboard-supp-form">
-              <input type="text" class="chat-onboard-input" id="chat-onboard-supp-name" placeholder="Name (e.g. Creatine, Metformin)" style="flex:2" onkeydown="if(event.key==='Enter'){event.preventDefault();window.addChatSupplement()}">
-              <input type="text" class="chat-onboard-input" id="chat-onboard-supp-dose" placeholder="Dosage (e.g. 5g/day)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();window.addChatSupplement()}">
-              <select class="chat-onboard-input" id="chat-onboard-supp-type" style="flex:0 0 auto;width:auto">
+              <input type="text" class="chat-onboard-input" id="chat-onboard-supp-name" aria-label="Supplement or medication name" placeholder="Name (e.g. Creatine, Metformin)" style="flex:2" onkeydown="if(event.key==='Enter'){event.preventDefault();window.addChatSupplement()}">
+              <input type="text" class="chat-onboard-input" id="chat-onboard-supp-dose" aria-label="Dosage" placeholder="Dosage (e.g. 5g/day)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();window.addChatSupplement()}">
+              <select class="chat-onboard-input" id="chat-onboard-supp-type" aria-label="Type" style="flex:0 0 auto;width:auto">
                 <option value="supplement">Supplement</option>
                 <option value="medication">Medication</option>
               </select>

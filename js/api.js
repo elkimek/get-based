@@ -804,10 +804,20 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
         throw parseErr;
       }
     };
+    // Cap the unfinished-line buffer at 4 MB so a malicious / broken provider
+    // streaming megabytes without a newline can't OOM the tab. Real SSE lines
+    // are always tiny — providers chunk by token boundary, not line boundary.
+    // Crossing this cap means either the upstream is misbehaving or someone
+    // is trying to wedge us; fail loud rather than swelling indefinitely.
+    const MAX_SSE_BUFFER = 4 * 1024 * 1024;
     while (true) {
       const { done, value } = await readWithStallTimeout(reader, `${providerName} stream`);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
+      if (buffer.length > MAX_SSE_BUFFER) {
+        try { reader.cancel(); } catch {}
+        throw new Error(`${providerName} stream exceeded ${MAX_SSE_BUFFER} bytes without a newline — aborting.`);
+      }
       const lines = buffer.split('\n');
       buffer = lines.pop();
       for (const line of lines) handleSSELine(line, true);

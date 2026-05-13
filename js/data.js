@@ -853,10 +853,18 @@ export function getKeyTrendMarkers(filteredData) {
 export function switchUnitSystem(system) {
   state.unitSystem = system;
   localStorage.setItem(profileStorageKey(state.currentProfile, 'units'), system);
+  // Capture the open detail-modal marker BEFORE the rebuild — navigate()
+  // doesn't close the modal overlay, so without re-rendering it the user
+  // would see stale pre-conversion values behind their unit-toggle action.
+  // Matches the pattern in toggleAltUnits().
+  const openId = state._activeDetailMarkerId;
   const data = getActiveData();
   window.buildSidebar(data);
   updateHeaderDates(data);
   window.navigate(state.currentView || 'dashboard', data);
+  if (openId && typeof window.showDetailModal === 'function') {
+    window.showDetailModal(openId);
+  }
 }
 
 // Per-profile preference: when on, the detail modal renders a secondary
@@ -910,9 +918,16 @@ export function switchRangeMode(mode) {
   state.rangeMode = mode;
   localStorage.setItem(profileStorageKey(state.currentProfile, 'rangeMode'), mode);
   updateHeaderRangeToggle();
+  // Same capture-before-rebuild as switchUnitSystem — a detail modal open
+  // when the user flips ref/optimal/both would otherwise show stale band
+  // overlays behind the unchanged modal.
+  const openId = state._activeDetailMarkerId;
   const data = getActiveData();
   window.buildSidebar(data);
   window.navigate(state.currentView || 'dashboard', data);
+  if (openId && typeof window.showDetailModal === 'function') {
+    window.showDetailModal(openId);
+  }
 }
 
 export function updateHeaderDates(data) {

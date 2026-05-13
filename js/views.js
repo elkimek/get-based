@@ -4882,10 +4882,10 @@ export function showCompare(data) {
     return `<option value="${d}">${label}</option>`;
   };
   html += `<div class="compare-controls">
-    <label>Date 1:</label>
+    <label for="compare-select-1">Date 1:</label>
     <select id="compare-select-1" onchange="setCompareDate1(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
-    <button class="compare-swap-btn" onclick="swapCompareDates()" title="Swap dates">\u21C4</button>
-    <label>Date 2:</label>
+    <button class="compare-swap-btn" onclick="swapCompareDates()" title="Swap dates" aria-label="Swap dates">\u21C4</button>
+    <label for="compare-select-2">Date 2:</label>
     <select id="compare-select-2" onchange="setCompareDate2(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
   </div>`;
   html += `<div id="compare-results"></div>`;

@@ -4,6 +4,7 @@
 
 import { isDebugMode } from './utils.js';
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
+import { isValidExternalUrl } from './url-safety.js';
 
 // ═══════════════════════════════════════════════
 // CONSTANTS
@@ -342,6 +343,12 @@ export async function getMintUrl() {
 
 /** Set mint URL */
 export async function setMintUrl(url) {
+  // Backup-restore and node-auto-switch paths reach this without UI validation,
+  // so the SSRF gate has to live here too — a malicious wallet backup or a
+  // hostile Routstr node could otherwise pin the mint to an internal target.
+  if (!isValidExternalUrl(url)) {
+    throw new Error('Cashu mint URL must be public https://, not loopback / RFC1918 / link-local');
+  }
   _wallet = null; // reset wallet instance
   _mintUrl = null;
   await _setMeta('mintUrl', url);

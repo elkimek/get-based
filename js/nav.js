@@ -162,11 +162,19 @@ export function buildSidebar(data) {
       ? `<span class="flag-count">${group.totalFlagged}</span>`
       : '';
     const aiOn = window.isGroupInAIContext && window.isGroupInAIContext(groupName);
-    html += `<div class="sidebar-group-header${collapsed ? ' collapsed' : ''}" data-group-name="${escapeAttr(groupName)}" onclick="toggleNavGroup('${escapeAttr(groupName)}')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleNavGroup('${escapeAttr(groupName)}')}">
-      <span class="sidebar-group-label">${escapeHTML(groupName)}</span>
-      ${flagHtml}
+    // axe nested-interactive: the AI toggle button cannot live inside an
+    // interactive parent. Disclosure is now its own <button>; AI toggle
+    // is a sibling, not a descendant. Arrow is also a sibling (decorative
+    // span, aria-hidden) AFTER the AI toggle — restores the original
+    // [label flag] [AI] [arrow] visual order. Sighted users still see
+    // the rotation cue; keyboard users use the toggle button.
+    html += `<div class="sidebar-group-header${collapsed ? ' collapsed' : ''}" data-group-name="${escapeAttr(groupName)}" onclick="toggleNavGroup('${escapeAttr(groupName)}')">
+      <button class="sidebar-group-toggle" onclick="event.stopPropagation();toggleNavGroup('${escapeAttr(groupName)}')" aria-expanded="${!collapsed}" aria-label="${escapeAttr(groupName)} group">
+        <span class="sidebar-group-label">${escapeHTML(groupName)}</span>
+        ${flagHtml}
+      </button>
       <button class="sidebar-ai-toggle${aiOn ? ' active' : ''}" title="${aiOn ? 'Included in AI context' : 'Excluded from AI context — click to include'}" onclick="event.stopPropagation();toggleGroupAIContext('${escapeAttr(groupName)}')" aria-label="Toggle AI context for ${escapeHTML(groupName)}">AI</button>
-      <span class="sidebar-group-arrow">\u25B8</span>
+      <span class="sidebar-group-arrow" aria-hidden="true">\u25B8</span>
     </div>`;
     html += `<div class="sidebar-group-items" data-group-items="${escapeHTML(groupName)}"${collapsed ? ' style="display:none"' : ''}>`;
     for (const item of group.items) html += item.html;
@@ -196,6 +204,11 @@ export function toggleNavGroup(groupName) {
   if (!header || !items) return;
   const isCollapsed = header.classList.toggle('collapsed');
   items.style.display = isCollapsed ? 'none' : '';
+  // Keep aria-expanded in sync with the visual state. Without this, the
+  // attribute captured at render time goes stale on every toggle and screen
+  // readers announce a wrong expansion state until the next full re-render.
+  const toggleBtn = header.querySelector('.sidebar-group-toggle');
+  if (toggleBtn) toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
   try { localStorage.setItem(`labcharts-navgroup-${groupName}`, isCollapsed ? 'collapsed' : 'expanded'); } catch(e) {}
 }
 

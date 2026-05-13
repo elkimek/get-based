@@ -66,4 +66,11 @@ node "$DIR/tests/test-dev-server-helpers.js" || exit 1
 ensure_server
 # HTTP-reliant test before the Puppeteer suite.
 PORT=$PORT node "$DIR/tests/test-dev-server-origin.js" || exit 1
+# When COVERAGE=1 is set, default COVERAGE_MIN=90 so the suite fails on
+# any regression below the floor. Pass COVERAGE_MIN=0 to keep the report
+# but skip the gate.
+if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
+  : "${COVERAGE_MIN:=90}"
+  export COVERAGE COVERAGE_MIN
+fi
 PORT=$PORT NODE_PATH="$NODE_PATH_EXTRA" node "$DIR/run-tests.js"

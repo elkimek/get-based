@@ -1485,10 +1485,10 @@ function _writeDeltaSnapshot(profileId, arrayName, snap, plannedAt) {
       if (prevMetaRaw) {
         try {
           const m = JSON.parse(prevMetaRaw);
-          if (Number.isFinite(m?.plannedAt) && m.plannedAt > plannedAt) {
-            // A fresher push has already advanced this snapshot. Skip
-            // the clobber so the per-array diff stays in sync with
-            // what's actually on the relay.
+          if (Number.isFinite(m?.plannedAt) && m.plannedAt >= plannedAt) {
+            // `>=` (not `>`) so same-millisecond plannedAt collisions don't
+            // let a slow-to-onComplete A clobber a faster-to-finish B that
+            // already shipped fresher items. Date.now() granularity is 1ms.
             return false;
           }
         } catch {}

@@ -564,8 +564,12 @@ export function renderWearableStrip() {
     ? (collapsed ? 'Expand biometrics strip' : 'Collapse biometrics strip')
     : (collapsed ? 'Expand wearables strip' : 'Collapse wearables strip');
 
+  // axe nested-interactive: parent is mouse-clickable but keyboard
+  // toggle lives on the chevron button below. The other action buttons
+  // (sync, reorder, demo-pill) keep stopPropagation so they don't trip
+  // the row-click collapse handler.
   let html = `<section class="wearable-strip" id="wearable-strip">
-    <div class="wearable-strip-header" role="button" tabindex="0" aria-expanded="${!collapsed}" aria-label="${ariaLabel}" onclick="toggleWearableStrip()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleWearableStrip()}">
+    <div class="wearable-strip-header" onclick="toggleWearableStrip()" style="cursor:pointer">
       <div class="wearable-strip-title">
         <span class="wearable-strip-icon" aria-hidden="true">⌬</span>
         ${titleHTML}
@@ -578,7 +582,7 @@ export function renderWearableStrip() {
         <button type="button" class="wearable-strip-reorder${reorderMode ? ' active' : ''}" aria-label="${reorderMode ? 'Done reordering' : 'Reorder cards'}" title="${reorderMode ? 'Done reordering' : 'Reorder cards'}" onclick="event.stopPropagation();toggleWearableReorder()">
           ${reorderMode ? 'Done' : '⇄ Reorder'}
         </button>
-        <span class="wearable-collapse-arrow${collapsed ? ' collapsed' : ''}" aria-hidden="true">▾</span>
+        <button type="button" class="wearable-collapse-arrow${collapsed ? ' collapsed' : ''}" aria-expanded="${!collapsed}" aria-label="${ariaLabel}" onclick="event.stopPropagation();toggleWearableStrip()">▾</button>
       </div>
     </div>
     <div class="wearable-card-grid${collapsed ? ' hidden' : ''}${reorderMode ? ' wearable-card-grid-reorder' : ''}">`;
@@ -644,6 +648,21 @@ function toggleWearableStrip() {
   const hidden = grid.classList.toggle('hidden');
   footer?.classList.toggle('hidden', hidden);
   arrow?.classList.toggle('collapsed', hidden);
+  // Keep aria-expanded + aria-label on the chevron button in sync with the
+  // visual collapse state. Captured-at-render-time attributes go stale on
+  // every toggle without this — silent screen-reader regression.
+  if (arrow) {
+    arrow.setAttribute('aria-expanded', String(!hidden));
+    const expanded = !hidden;
+    const labelBase = arrow.getAttribute('aria-label') || '';
+    // Toggle "Expand"/"Collapse" prefix in-place; preserves the rest of the
+    // label that the renderer composed (e.g. "wearables strip").
+    if (expanded && /^Expand /i.test(labelBase)) {
+      arrow.setAttribute('aria-label', labelBase.replace(/^Expand /i, 'Collapse '));
+    } else if (!expanded && /^Collapse /i.test(labelBase)) {
+      arrow.setAttribute('aria-label', labelBase.replace(/^Collapse /i, 'Expand '));
+    }
+  }
   localStorage.setItem('wearables-strip-collapsed', hidden ? '1' : '0');
 }
 

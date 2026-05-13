@@ -2,8 +2,15 @@
 // Headless browser test runner for Get Based
 // Usage: node run-tests.js (requires http server on :8000)
 // Or:    ./run-tests.sh (starts server automatically)
+//
+// Coverage: COVERAGE=1 node run-tests.js — collects per-script byte coverage
+// via Puppeteer's CDP-backed JSCoverage API, writes tests/.coverage.json plus
+// a sorted report. Off by default (~3s slower per run when enabled).
 
 import puppeteer from 'puppeteer';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const TEST_FILES = [
   'tests/test-crypto.js',
@@ -26,6 +33,10 @@ const TEST_FILES = [
   'tests/test-pii.js',
   'tests/test-image-utils.js',
   'tests/test-emf.js',
+  'tests/test-emf-flow.js',
+  'tests/test-light-tools-flow.js',
+  'tests/test-sun-uvdata-flow.js',
+  'tests/test-ai-verdict-engine-instance.js',
   'tests/test-integration-batch2.js',
   'tests/test-hardware.js',
   'tests/test-dna.js',
@@ -75,6 +86,9 @@ const TEST_FILES = [
   'tests/test-sun-context.js',
   'tests/test-ai-verdict-engine.js',
   'tests/test-sun-ai-analysis.js',
+  'tests/test-light-device-ai-analysis.js',
+  'tests/test-vendor-personal-info.js',
+  'tests/test-coverage-stragglers.js',
   'tests/test-light-ai-renders.js',
   'tests/test-light-env.js',
   'tests/test-light-tools.js',
@@ -91,7 +105,12 @@ const TEST_FILES = [
   'tests/test-family-history.js',
   'tests/test-manual-entry-flow.js',
   'tests/test-table-heatmap-empty.js',
-  'tests/test-wearables-bp-merge.js'
+  'tests/test-wearables-bp-merge.js',
+  // axe-core runtime scan runs LAST. It rebuilds the DOM extensively and
+  // mutates state in ways that are expensive to fully reverse (creates a
+  // demo profile, swaps currentProfile, opens/closes 8 modals), so anything
+  // depending on a specific upstream state would have been observed by now.
+  'tests/test-a11y-axe.js',
 ];
 
 const PORT = process.env.PORT || 8000;
@@ -142,6 +161,16 @@ const PORT = process.env.PORT || 8000;
     console.log('\x1b[31m' + msg + '\x1b[0m');
   });
 
+  // Pipe selected env vars into the page context BEFORE the first
+  // navigation so test-side code (e.g. test-a11y-axe.js) can read them as
+  // `window.X`. Earlier the a11y test's docs claimed `A11Y_REBASELINE=1`
+  // would refresh the baseline, but nothing was wiring the env var
+  // through — the only working path was deleting the JSON by hand.
+  const A11Y_REBASELINE = process.env.A11Y_REBASELINE === '1' || process.env.A11Y_REBASELINE === 'true';
+  if (A11Y_REBASELINE) {
+    await page.evaluateOnNewDocument(() => { window.A11Y_REBASELINE = true; });
+  }
+
   try {
     await page.goto(`http://localhost:${PORT}/app`, { waitUntil: 'networkidle2', timeout: 15000 });
   } catch (e) {
@@ -163,6 +192,18 @@ const PORT = process.env.PORT || 8000;
 
   // Reload clean (no SW interference)
   await page.goto(`http://localhost:${PORT}/app`, { waitUntil: 'networkidle2', timeout: 15000 });
+
+  const COVERAGE = process.env.COVERAGE === '1' || process.env.COVERAGE === 'true';
+  if (COVERAGE) {
+    // resetOnNavigation: false keeps the accumulator alive across the page
+    // reloads we do on context destruction below — otherwise we'd lose
+    // everything collected before each reload. includeRawScriptCoverage: true
+    // exposes V8's per-function block-level data so we can report function
+    // coverage (each defined function called ≥ once) — the metric the team
+    // is targeting, separate from raw byte coverage.
+    await page.coverage.startJSCoverage({ resetOnNavigation: false, includeRawScriptCoverage: true });
+    console.log('\x1b[35m[coverage] JS coverage collection enabled\x1b[0m');
+  }
 
   console.log(`Running ${TEST_FILES.length} test files...\n`);
   listening = true;
@@ -203,17 +244,219 @@ const PORT = process.env.PORT || 8000;
   await new Promise(r => setTimeout(r, 3000));
   listening = false;
 
+  let coverageGateFailure = null;
+  if (COVERAGE) {
+    const entries = await page.coverage.stopJSCoverage();
+    // Debug dump for one file to verify v8 format assumptions.
+    if (process.env.COVERAGE_DEBUG) {
+      const allEmf = entries.filter(e => e.url.includes('/js/emf.js'));
+      for (const e of allEmf) {
+        const called = (e.rawScriptCoverage?.functions || [])
+          .filter(f => f.functionName && (f.ranges?.[0]?.count || 0) > 0)
+          .map(f => f.functionName);
+        console.log(`[DEBUG] ${e.url} — text.length=${e.text?.length} called=${called.length}`);
+        if (called.length) console.log('       called:', called.slice(0, 10).join(', '), called.length > 10 ? '...' : '');
+      }
+    }
+    const reportResult = writeCoverageReport(entries);
+    // CI gate: fail the suite if function coverage drops below the floor.
+    // COVERAGE_MIN defaults to 0 (off); set to e.g. 90 to enforce.
+    const minPct = parseFloat(process.env.COVERAGE_MIN || '0');
+    if (minPct > 0 && reportResult.globalFnPct < minPct) {
+      coverageGateFailure = `Function coverage ${reportResult.globalFnPct.toFixed(2)}% is below the ${minPct}% floor (COVERAGE_MIN). Add tests or lower the floor.`;
+      console.log('\n\x1b[31m\x1b[1m✘ ' + coverageGateFailure + '\x1b[0m');
+    }
+  }
+
   await browser.close();
 
   // Final summary
   console.log('\n' + '='.repeat(50));
-  if (fails.length === 0) {
+  if (fails.length === 0 && !coverageGateFailure) {
     console.log('\x1b[32m\x1b[1m  ALL TESTS PASSED\x1b[0m');
-  } else {
+  } else if (fails.length > 0) {
     console.log(`\x1b[31m\x1b[1m  ${fails.length} FAILURE(S):\x1b[0m`);
     fails.forEach(f => console.log('  \x1b[31m' + f + '\x1b[0m'));
+    if (coverageGateFailure) console.log('  \x1b[31m' + coverageGateFailure + '\x1b[0m');
+  } else {
+    // Tests passed but coverage gate tripped — surface that as the failure
+    // reason rather than the misleading "ALL TESTS PASSED" banner.
+    console.log('\x1b[31m\x1b[1m  TESTS PASSED BUT COVERAGE GATE FAILED\x1b[0m');
+    console.log('  \x1b[31m' + coverageGateFailure + '\x1b[0m');
   }
   console.log('='.repeat(50));
 
-  process.exit(fails.length > 0 ? 1 : 0);
+  process.exit((fails.length > 0 || coverageGateFailure) ? 1 : 0);
 })();
+
+// Merge overlapping/adjacent [start, end) ranges and return their total length.
+function unionLength(ranges) {
+  if (!ranges.length) return 0;
+  const sorted = [...ranges].sort((a, b) => a.start - b.start);
+  let covered = 0;
+  let curStart = sorted[0].start, curEnd = sorted[0].end;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].start <= curEnd) curEnd = Math.max(curEnd, sorted[i].end);
+    else { covered += curEnd - curStart; curStart = sorted[i].start; curEnd = sorted[i].end; }
+  }
+  return covered + (curEnd - curStart);
+}
+
+// Coverage report: aggregate by js/*.js + service-worker.js + version.js
+// (everything in our own source tree). Skip /vendor/, /node_modules/, data:
+// URLs, and the test files themselves. Print a sorted table to stdout and
+// dump the raw entries to tests/.coverage.json for follow-up tooling.
+function writeCoverageReport(entries) {
+  const ourSourcePattern = /\/(js|service-worker|version|api)\/.*\.m?js$|\/(service-worker|version)\.js$|\/api\/.*\.js$/;
+  // Pre-compute path-without-query for every entry so the regex below matches
+  // bust-querystringed imports (`/js/emf.js?bust=...`) — those used to be
+  // filtered out because the trailing `\.js$` didn't survive the `?bust=...`.
+  const cleanUrl = (u) => (u || '').replace(/^https?:\/\/[^/]+/, '').split('?')[0];
+  const perFile = new Map();
+  for (const e of entries) {
+    if (!e.url || !ourSourcePattern.test(cleanUrl(e.url))) continue;
+    // The runner fetches test files as text and runs them via Function(src) — those
+    // show up as anonymous scripts, not /tests/*.js URLs, so the test wrapper code
+    // never lands in this aggregate. Good — we only count product code coverage.
+    const total = (e.text || '').length;
+    if (!total) continue;
+    const covered = unionLength(e.ranges || []);
+    // Strip protocol+host AND query string so cache-busted imports
+    // (`/js/emf.js?bust=1234`) fold into the canonical `/js/emf.js` bucket.
+    // Without this, tests that use ?bust= for fresh module evaluation count
+    // toward a separate URL that nothing else hits — appearing as a regression
+    // when it's really the same file.
+    const rel = e.url.replace(/^https?:\/\/[^/]+\//, '').split('?')[0];
+    const prev = perFile.get(rel) || { total: 0, covered: 0 };
+    // Same script loaded multiple times (rare — only if page reload happened)
+    // → keep the entry with the most coverage observed.
+    perFile.set(rel, total > prev.total
+      ? { total, covered: Math.max(covered, prev.covered) }
+      : { total: prev.total, covered: Math.max(covered, prev.covered) });
+  }
+
+  // Function coverage: each file can show up under multiple URLs (cache-busted
+  // dynamic imports). Naively merging every URL's function records double-
+  // counts the function list. Instead:
+  //   1. Pick ONE canonical entry per file as the function list ground truth
+  //      (the entry with the largest text — handles fetch races where one
+  //      load might be empty).
+  //   2. For every OTHER entry of the same file, OR-in called status from its
+  //      function records into the canonical list (matched by function name).
+  //
+  // Anonymous wrappers (empty functionName) are skipped — V8 emits them for
+  // module top-level scope and they'd inflate the count.
+  const canonical = new Map(); // rel -> entry
+  for (const e of entries) {
+    if (!e.url || !ourSourcePattern.test(cleanUrl(e.url))) continue;
+    const rel = cleanUrl(e.url);
+    const prev = canonical.get(rel);
+    if (!prev || (e.text || '').length > (prev.text || '').length) canonical.set(rel, e);
+  }
+  const fnPerFile = new Map();
+  for (const [rel, e] of canonical) {
+    const fns = (e.rawScriptCoverage?.functions || [])
+      .filter(f => f.functionName)
+      .map(f => ({ name: f.functionName, called: (f.ranges?.[0]?.count || 0) > 0 }));
+    fnPerFile.set(rel, fns);
+  }
+  // Pass 2: union call counts from all non-canonical entries.
+  for (const e of entries) {
+    if (!e.url || !ourSourcePattern.test(cleanUrl(e.url))) continue;
+    const rel = cleanUrl(e.url);
+    if (e === canonical.get(rel)) continue;
+    const fns = fnPerFile.get(rel);
+    if (!fns) continue;
+    for (const fn of (e.rawScriptCoverage?.functions || [])) {
+      if (!fn.functionName) continue;
+      if (!((fn.ranges?.[0]?.count || 0) > 0)) continue;
+      const target = fns.find(f => f.name === fn.functionName && !f.called);
+      if (target) target.called = true;
+    }
+  }
+  // Convert per-file fn list to the shape the rest of the report expects.
+  const fnSummary = new Map();
+  for (const [rel, fns] of fnPerFile) {
+    fnSummary.set(rel, {
+      total: fns.length,
+      called: fns.filter(f => f.called).length,
+      names: fns.filter(f => !f.called).map(f => f.name),
+    });
+  }
+
+  const rows = [...perFile.entries()].map(([file, m]) => {
+    // perFile keys are stripped paths like `js/emf.js`; fnSummary keys
+    // come from `cleanUrl()` which keeps the leading slash. Always look
+    // up with the slash form.
+    const fnRow = fnSummary.get('/' + file) || { total: 0, called: 0, names: [] };
+    return {
+      file, total: m.total, covered: m.covered,
+      pct: m.total > 0 ? (m.covered / m.total) * 100 : 0,
+      uncovered: m.total - m.covered,
+      fnTotal: fnRow.total, fnCalled: fnRow.called,
+      fnPct: fnRow.total > 0 ? (fnRow.called / fnRow.total) * 100 : 100,
+      uncalledFns: fnRow.names,
+    };
+  });
+  rows.sort((a, b) => a.fnPct - b.fnPct);
+
+  const totals = rows.reduce((acc, r) => ({
+    total: acc.total + r.total, covered: acc.covered + r.covered,
+    fnTotal: acc.fnTotal + r.fnTotal, fnCalled: acc.fnCalled + r.fnCalled,
+  }), { total: 0, covered: 0, fnTotal: 0, fnCalled: 0 });
+  const globalPct = totals.total > 0 ? (totals.covered / totals.total) * 100 : 0;
+  const globalFnPct = totals.fnTotal > 0 ? (totals.fnCalled / totals.fnTotal) * 100 : 0;
+
+  // fileURLToPath handles percent-encoded paths (spaces in dir name) that
+  // new URL().pathname returns raw — fs.writeFile would otherwise see the
+  // encoded form and fail with ENOENT.
+  const outDir = path.dirname(fileURLToPath(import.meta.url));
+  const jsonPath = path.join(outDir, 'tests', '.coverage.json');
+
+  // Drift detector: read prior snapshot before overwriting. Static
+  // COVERAGE_MIN floor (90 by default) doesn't catch slow erosion across
+  // many small commits — current 93.47% could drop to 90.05% silently.
+  // Warn (non-fatal) when current dips >0.5pt vs prior.
+  let priorFnPct = null;
+  try {
+    const prior = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    if (prior?.totals?.fnTotal > 0) {
+      priorFnPct = (prior.totals.fnCalled / prior.totals.fnTotal) * 100;
+    }
+  } catch (_) { /* first run — no prior snapshot */ }
+
+  fs.writeFileSync(jsonPath, JSON.stringify({ globalPct, totals, rows, generatedAt: new Date().toISOString() }, null, 2));
+
+  console.log('\n' + '='.repeat(88));
+  console.log('\x1b[35m\x1b[1m  COVERAGE REPORT (function coverage primary; byte coverage secondary)\x1b[0m');
+  console.log('='.repeat(88));
+  console.log(['File'.padEnd(46), 'Fns'.padStart(6), 'Called'.padStart(8), 'Fn%'.padStart(8), 'Byte%'.padStart(10)].join(''));
+  console.log('-'.repeat(88));
+  for (const r of rows.slice(0, 30)) {
+    const color = r.fnPct < 50 ? '\x1b[31m' : r.fnPct < 90 ? '\x1b[33m' : '\x1b[32m';
+    console.log(color + [
+      r.file.padEnd(46).slice(0, 46),
+      String(r.fnTotal).padStart(6),
+      String(r.fnCalled).padStart(8),
+      (r.fnPct.toFixed(1) + '%').padStart(8),
+      (r.pct.toFixed(1) + '%').padStart(10),
+    ].join('') + '\x1b[0m');
+  }
+  if (rows.length > 30) console.log(`  ... ${rows.length - 30} more files (full data in tests/.coverage.json)`);
+  console.log('-'.repeat(88));
+  const fnBanner = globalFnPct >= 90 ? '\x1b[32m\x1b[1m' : globalFnPct >= 75 ? '\x1b[33m\x1b[1m' : '\x1b[31m\x1b[1m';
+  console.log(fnBanner + `  GLOBAL FUNCTIONS: ${totals.fnCalled.toLocaleString()} / ${totals.fnTotal.toLocaleString()} = ${globalFnPct.toFixed(2)}%\x1b[0m`);
+  console.log(`  GLOBAL BYTES:     ${totals.covered.toLocaleString()} / ${totals.total.toLocaleString()} = ${globalPct.toFixed(2)}%`);
+  if (priorFnPct != null) {
+    const drift = globalFnPct - priorFnPct;
+    if (drift <= -0.5) {
+      // Yellow drift warning — non-fatal but visible. Use COVERAGE_MIN to
+      // turn this into a hard gate if/when desired.
+      console.log(`\x1b[33m  DRIFT WARNING: function coverage dropped ${drift.toFixed(2)}pt vs prior run (${priorFnPct.toFixed(2)}% → ${globalFnPct.toFixed(2)}%)\x1b[0m`);
+    } else if (drift >= 0.5) {
+      console.log(`\x1b[32m  Δ +${drift.toFixed(2)}pt vs prior run (${priorFnPct.toFixed(2)}% → ${globalFnPct.toFixed(2)}%)\x1b[0m`);
+    }
+  }
+  console.log('='.repeat(88));
+  return { globalFnPct, globalPct, totals };
+}

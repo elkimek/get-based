@@ -167,11 +167,11 @@ return (async function() {
 
   const dataSrc = await fetch('js/data.js').then(r => r.text());
   assert('switchUnitSystem uses state.currentView (no .nav-item.active query)',
-    /switchUnitSystem[\s\S]{0,400}window\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
-    !/switchUnitSystem[\s\S]{0,400}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
+    /switchUnitSystem[\s\S]{0,800}window\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
+    !/switchUnitSystem[\s\S]{0,800}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
   assert('switchRangeMode uses state.currentView (no .nav-item.active query)',
-    /switchRangeMode[\s\S]{0,400}window\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
-    !/switchRangeMode[\s\S]{0,400}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
+    /switchRangeMode[\s\S]{0,800}window\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
+    !/switchRangeMode[\s\S]{0,800}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
   assert('setDateRange uses state.currentView',
     /setDateRange[\s\S]{0,1500}navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc));
 

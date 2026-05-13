@@ -1,5 +1,6 @@
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
+import { isValidExternalUrl } from './url-safety.js';
 //
 // Storage: meteo config (mode, selfhostUrl, selfhostBearer, privacyRounding)
 // is encrypted at rest via crypto.js's encryptedSetItem / encryptedGetItem.
@@ -420,76 +421,12 @@ export function manualAtmosphere({ uvIndex, ozoneDU = null, hasMeter = false, no
 //
 // Returns true if the URL is safe to fetch, false otherwise.
 function _isValidSelfhostUrl(raw, withBearer = false) {
-  let u;
-  try { u = new URL(raw); } catch { return false; }
-  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
-  // v1.7.8 hardening: bearer-bearing requests require HTTPS so DNS
-  // rebinding to a LAN/metadata IP fails at the TLS layer (rebound
-  // host won't have a cert for the original domain).
-  if (withBearer && u.protocol !== 'https:') return false;
-  // URL.hostname strips brackets in some runtimes and keeps them in others.
-  // Normalize so the IPv6 checks below see the bare address either way.
-  const rawHost = u.hostname.toLowerCase();
-  const host = (rawHost.startsWith('[') && rawHost.endsWith(']')) ? rawHost.slice(1, -1) : rawHost;
-  // Block IP-literal forms targeting internal hosts. Hostnames go through
-  // DNS at fetch time — those can still resolve to private IPs, but with
-  // the bearer-requires-HTTPS rule above, a rebound request fails TLS
-  // before the bearer leaves the device. Catching the obvious cases is
-  // still what matters for non-bearer configs and for refusing ambiguous
-  // pastes outright.
-  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return false;
-  if (host === '0.0.0.0') return false;
-  if (host.endsWith('.local') || host.endsWith('.localhost')) return false;
-  if (host === '168.63.129.16') return false;                   // Azure metadata
-  // RFC1918 + link-local + cloud-metadata IP literals
-  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (ipv4) {
-    const octets = ipv4.slice(1, 5);
-    // Reject leading-zero octets (0255 octal territory) — strictness
-    // mirrors api/proxy.js _isBlockedHost.
-    for (const o of octets) {
-      if (o.length > 1 && o[0] === '0') return false;
-      if (+o > 255) return false;
-    }
-    const o = octets.map(Number);
-    if (o[0] === 10) return false;                              // 10.0.0.0/8
-    if (o[0] === 127) return false;                             // 127.0.0.0/8
-    if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return false; // 172.16.0.0/12
-    if (o[0] === 192 && o[1] === 168) return false;             // 192.168.0.0/16
-    if (o[0] === 169 && o[1] === 254) return false;             // link-local (incl. cloud-metadata 169.254.169.254)
-    if (o[0] === 100 && o[1] >= 64 && o[1] <= 127) return false; // 100.64.0.0/10 carrier-grade NAT
-    if (o[0] >= 224) return false;                              // multicast / reserved
-    if (o[0] === 0) return false;                               // 0.0.0.0/8
-  }
-  // IPv6 literal handling — covers gaps closed by api/proxy.js _isBlockedHost
-  // but not previously enforced here. Any host containing ':' is IPv6.
-  // Without these, a no-bearer self-host config could SSRF private IPv6 LAN
-  // addresses (Audit P1 #3 from the 2026-05-10 review).
-  if (host.includes(':')) {
-    if (host === '::' || host === '0:0:0:0:0:0:0:0') return false;
-    if (/^fc[0-9a-f]{2}:/.test(host) || /^fd[0-9a-f]{2}:/.test(host)) return false; // fc00::/7 ULA
-    if (/^fe[89ab][0-9a-f]:/.test(host)) return false;          // fe80::/10 link-local
-    // IPv4-embedded forms — ::ffff:127.0.0.1, ::a.b.c.d, ::ffff:0:a.b.c.d
-    const v4Embed = host.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-    if (v4Embed) return _isValidSelfhostUrl(`${u.protocol}//${v4Embed[1]}${u.pathname || ''}`, withBearer);
-    // IPv4-mapped hex form ::ffff:7f00:0001 — translate the last 32 bits
-    if (host.startsWith('::ffff:')) {
-      const tail = host.slice(7);
-      const hex = tail.replace(/:/g, '');
-      if (/^[0-9a-f]{1,8}$/.test(hex)) {
-        const padded = hex.padStart(8, '0');
-        const a = parseInt(padded.slice(0, 2), 16);
-        const b = parseInt(padded.slice(2, 4), 16);
-        const c = parseInt(padded.slice(4, 6), 16);
-        const d = parseInt(padded.slice(6, 8), 16);
-        return _isValidSelfhostUrl(`${u.protocol}//${a}.${b}.${c}.${d}${u.pathname || ''}`, withBearer);
-      }
-    }
-    // Unknown / private IPv6 ranges we haven't enumerated — allow only
-    // globally-routable (2000::/3) IPv6 through. Anything else is rejected.
-    if (!/^[23][0-9a-f]{3}:/.test(host)) return false;
-  }
-  return true;
+  // Bearer-bearing requests require HTTPS so DNS rebinding to a LAN/metadata
+  // IP fails at the TLS layer (rebound host won't have a cert for the
+  // original domain). Without a bearer, we still want to refuse ambiguous
+  // private-range pastes outright. Both modes block loopback / RFC1918 /
+  // link-local / cloud-metadata literals — see js/url-safety.js.
+  return isValidExternalUrl(raw, { requireHttps: withBearer });
 }
 
 // Defence-in-depth: validates that a selfhost response payload looks

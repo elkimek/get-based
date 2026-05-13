@@ -9,6 +9,8 @@ test-data.json
 dist/
 out/
 release/
+# Coverage output from `COVERAGE=1 ./run-tests.sh` — regenerated on every run
+tests/.coverage.json
 labcharts-*.json
 test-*.json
 node_modules/

@@ -1420,10 +1420,10 @@ return (async function() {
 
   assert('_writeDeltaSnapshot accepts plannedAt 4th arg',
     /function _writeDeltaSnapshot\(profileId,\s*arrayName,\s*snap,\s*plannedAt\)/.test(syncSrc));
-  assert('_writeDeltaSnapshot refuses to overwrite when existing meta plannedAt is newer',
-    /m\?\.plannedAt\)\s*&&\s*m\.plannedAt\s*>\s*plannedAt[\s\S]{0,200}return false/.test(syncSrc));
+  assert('_writeDeltaSnapshot refuses to overwrite when existing meta plannedAt is newer (or equal)',
+    /m\?\.plannedAt\)\s*&&\s*m\.plannedAt\s*>=\s*plannedAt[\s\S]{0,400}return false/.test(syncSrc));
   assert('_writeDeltaSnapshot returns boolean (write-skipped vs written)',
-    /_writeDeltaSnapshot[\s\S]{0,800}return true[\s\S]{0,200}return false/.test(syncSrc));
+    /_writeDeltaSnapshot[\s\S]{0,1200}return true[\s\S]{0,200}return false/.test(syncSrc));
   assert('Snapshot meta key derives from snapshot key (-meta suffix)',
     /\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta/.test(syncSrc));
   assert('All 3 planners stamp plannedAt at start (not end)',

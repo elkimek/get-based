@@ -338,8 +338,10 @@ async function handleOuraTokenRequest(payload, req) {
 // Payloads:
 //   { withings_token_exchange: { code, redirect_uri, client_id } }
 //   { withings_token_refresh:  { refresh_token, client_id } }
-// Withings's token endpoint is POST wbsapi.withings.net/v2/oauth2 with an
-// `action=requesttoken` (or `requesttoken2` for refresh) in the body.
+// Withings's token endpoint is POST wbsapi.withings.net/v2/oauth2 with
+// `action=requesttoken` in the body — same action for both the initial
+// authorization-code exchange and refresh-token rotation (validated end-to-end
+// in v1.22.0 → v1.31.0). The grant_type field distinguishes the two flows.
 async function handleWithingsTokenRequest(payload, req) {
   const secret = typeof process !== 'undefined' ? process.env?.WITHINGS_CLIENT_SECRET : undefined;
   if (!secret) {

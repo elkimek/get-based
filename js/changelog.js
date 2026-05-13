@@ -5,6 +5,15 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.7.5', date: '2026-05-13', title: 'Accessibility polish across the dark theme',
+    items: [
+      '<b>Better readability in dark mode.</b> The muted grays used for footers, hints, and reference text were brightened to clear WCAG AA contrast on every background. A handful of small-text labels (footer trademarks, recommendation disclaimers) had a faint extra opacity layer that dragged them below threshold — that\'s gone now.',
+      '<b>Form labels and screen reader names.</b> The chat onboarding fields, the Compare Dates picker, and several form selects now properly announce their purpose to screen readers. Marker-group expand/collapse buttons in the sidebar announce their open/closed state correctly as you toggle them.',
+      '<b>Visible link cues.</b> The "primary study" / "more studies" links in the supplements card now carry a persistent underline so they\'re distinguishable without color alone.',
+      '<b>Sidebar marker-group rows.</b> Mouse click-anywhere-on-row to toggle still works; keyboard navigation now lands on a real button rather than a div pretending to be one. The AI-context toggle stayed where it was, next to the flag count.',
+    ]
+  },
+  {
     version: '1.7.4', date: '2026-05-12', title: 'See your values in both unit systems',
     items: [
       '<b>Alternate Units toggle (Settings → Display).</b> When on, the marker detail modal shows each value in both the active system AND the other one — <i>5.20 mmol/L · ≈ 93.7 mg/dL</i> for glucose, <i>140 mmol/L · ≈ 140 mEq/L</i> for sodium, <i>8.5 mU/L · ≈ 8.5 µIU/mL</i> for insulin. Off by default to keep the modal uncluttered for single-locale users. Reference + optimal ranges also render in both systems so a US user reading a Quest report (in <code>µIU/mL</code>) can match it against the app\'s EU SI numbers (in <code>mU/L</code>) without flipping the global toggle. Per-profile preference, persists across sessions.',

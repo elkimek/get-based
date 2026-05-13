@@ -46,7 +46,9 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 
 | File | What it covers |
 |---|---|
+| `tests/test-a11y-axe.js` | Runtime axe-core 4.10 scan across every lens + 6 Settings tabs + EMF editor (14 stops). Baseline-locked CI gate (see [Accessibility regression scan](#accessibility-regression-scan)) |
 | `tests/test-a11y-phase3.js` | Accessibility regression pass: keyboard delegation, role="button" tabindex, focus trapping |
+| `tests/test-ai-verdict-engine-instance.js` | Engine instance methods (refresh, isAnalyzing, maybeAfterFinish, purgeOrphaned) + the default cfg callbacks the main engine test overrides |
 | `tests/test-adapters.js` | Adapter registry: structure, fatty acids, OAT, metabolomix, cross-adapter |
 | `tests/test-ai-verdict-engine.js` | Shared `js/ai-verdict-engine.js` factory: in-flight tracker, watchdog, fingerprint cache, JSON parse guards |
 | `tests/test-audit-fixes.js` | Regression coverage for the 2026-05-09 audit pass (multi-area follow-ups) |
@@ -81,6 +83,7 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-dna-recommendations.js` | DNA-aware supplement recommendations: snpHints, buildDNAHints, gene-keyword scanner |
 | `tests/test-dna.js` | DNA import: SNP parsing, APOE haplotype, format detection, dashboard rendering |
 | `tests/test-emf.js` | EMF assessment: SBM-2015 severity, room CRUD, source/mitigation tags |
+| `tests/test-emf-flow.js` | EMF module behavioral flow (CRUD + interpret + PDF-import path) — opens the full editor lifecycle that `test-emf.js` only schema-tests |
 | `tests/test-export-import.js` | Export/import roundtrip + encrypted-backup re-enumeration: JSON structure, date merge, context field handling |
 | `tests/test-family-history.js` | Medical History + family-history subsection: relative picker, CRUD, FAMILY_RELATIVES enum |
 | `tests/test-folder-backup.js` | Folder backup: File System Access API, snapshot format, daily filenames, IndexedDB v2 handle persistence |
@@ -92,9 +95,11 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-lens-multi-query.js` | Multi-query rewrite + reciprocal-rank-fusion chunk fusion |
 | `tests/test-lens-parsers.js` | `js/lens-local-parsers.js` edge cases: `extractFromFile()` never throws, returns expected shape |
 | `tests/test-light-ai-renders.js` | Smoke coverage for the 10 feature-specific Light & Sun AI modules |
+| `tests/test-light-device-ai-analysis.js` | Per-device-session AI verdict: fingerprint determinism, prompt-context shape (incl. mode resolution + injection guards), render state machine, engine adapter coverage |
 | `tests/test-light-devices.js` | Light therapy device library + sessions: addDeviceFromPreset, deleteDevice, logDeviceSession |
 | `tests/test-light-env.js` | Light Environment math + CRUD: rooms, screens, computeRoomSeverity, computeScreenStatus, computeIndoorBurden |
 | `tests/test-light-tools.js` | Pure helpers from `light-tools.js`: computeRowBanding (flicker FFT), saveMeasurement, lockStatusLine |
+| `tests/test-light-tools-flow.js` | Drives `saveMeasurement` across all 8 tool types + every camera-bound opener (handles missing getUserMedia cleanly) |
 | `tests/test-lighting-hardware-caveats.js` | Guard the load-bearing PWM/TRIAC caveat block against silent removal from any AI-analysis prompt |
 | `tests/test-manual-entry-flow.js` | Manual-entry quality-of-life: range sanity check, duplicate-date confirm, Save & Add Another |
 | `tests/test-markdown.js` | Markdown rendering + XSS surface assertions for streamed AI responses |
@@ -120,6 +125,7 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-sun-spectrum.js` | Bird-Riordan reconstruction + action-spectrum convolution + vit-D calibration gate |
 | `tests/test-sun-ui-flow.js` | Behavioral UI flow for the Light & Sun lens: dashboard strip, /light page, session controls |
 | `tests/test-sun-uvdata.js` | Multi-source UV/ozone client: SSRF guard, manual entry, provider routing, solar-zenith math |
+| `tests/test-sun-uvdata-flow.js` | Behavioral flow for `sun-uvdata.js`: cache, provider chain (auto / open-meteo / selfhost / noaa), interpolateAtmosphere bracketing, readStaleCache fallback |
 | `tests/test-sun.js` | Sun session orchestration: lifecycle, hydration, rolling totals, vit-D IU accumulation, MED carry-over |
 | `tests/test-supplement-impact.js` | Supplement-biomarker impact analysis: batched computation, caching, health dots |
 | `tests/test-sync.js` | Cross-device sync: payload format, AI settings keys, encrypted keys, Evolu integration |
@@ -130,6 +136,8 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-unit-import.js` | Unit normalization on import: SI conversion, enzyme units, FA adapter safety |
 | `tests/test-v1-6-shipped.js` | Regression coverage for v1.6.7..v1.6.16 ship arc |
 | `tests/test-venice-e2ee.js` | Venice E2EE: ECDH key exchange, AES-GCM encryption, TEE headers, model detection |
+| `tests/test-vendor-personal-info.js` | `fetchXxxPersonalInfo` + `logDebug` rails for Fitbit / Ultrahuman / Whoop / Polar (one stubbed `/api/proxy` response per vendor) |
+| `tests/test-coverage-stragglers.js` | Targeted probes for the 1-fn gaps left after the AI-verdict + vendor sweeps: image-utils onerror, lens-local-parsers extractDocx, oura-auth json-catch, utils animationend, FileReader stub, AbortSignal.any polyfill, SSE handler, IDB onerror rails (blob / cashu / ws / backup), cashu open onerror, dna worker.onerror |
 | `tests/test-wearables-bp-merge.js` | BP renders as one paired card (sys/dia): strip-render filter, reorder-mode behavior |
 | `tests/test-wearables-fetchers.js` | Per-vendor adapter `fetchXxxDailyRange` against canned proxy responses |
 | `tests/test-wearables-manual.js` | Manual entry as a first-class wearable source: logManualMetric, MANUAL_TAGS whitelist, migration |
@@ -160,6 +168,82 @@ Alternatively, with a server already running:
 ```bash
 NODE_PATH=/path/to/node_modules node run-tests.js
 ```
+
+## Coverage reporting
+
+Function-level coverage is opt-in via the `COVERAGE` env var. Off by default — adds ~3 seconds per run when enabled.
+
+```bash
+COVERAGE=1 ./run-tests.sh
+```
+
+The runner uses Puppeteer's CDP-backed `JSCoverage` API with `includeRawScriptCoverage: true` so V8's per-function call data is exposed. Two metrics are reported:
+
+- **Function coverage** (primary) — each defined function called ≥ once. The metric the team gates on.
+- **Byte coverage** (secondary) — fraction of source bytes executed. Useful for spot-checks but noisy across branchy code.
+
+Per-file lines are sorted lowest-coverage first; the first 30 print, the rest get summarised at the bottom. Full data lands in `tests/.coverage.json` (gitignored — regenerated on every COVERAGE=1 run).
+
+### CI gate
+
+When `COVERAGE=1` is set, `run-tests.sh` defaults `COVERAGE_MIN=90`. The suite exits 1 if global function coverage drops below the floor:
+
+```bash
+COVERAGE=1 COVERAGE_MIN=90 ./run-tests.sh   # default
+COVERAGE=1 COVERAGE_MIN=0  ./run-tests.sh   # report-only, no gate
+```
+
+The gate is a static floor — pick a number, defend it. There is no auto-ratchet (the floor stays at 90 even when the actual coverage is higher) because legitimate refactors that drop coverage 91 → 90.5 shouldn't break CI.
+
+### Drift detector
+
+To catch slow erosion within the floor (the "death by a thousand cuts" pattern where coverage decays from 93% → 90.05% over many small commits), `run-tests.js` reads the prior `.coverage.json` snapshot before overwriting it. If the new run's function coverage drops > 0.5pt vs the prior, a `DRIFT WARNING` line prints in yellow. The warning is non-fatal — `COVERAGE_MIN` stays the hard gate.
+
+### Aggregation gotchas
+
+V8's coverage records are per-script-load, not per-source-file. The aggregator (in `run-tests.js`'s `writeCoverageReport`) handles two non-obvious cases:
+
+1. **Cache-busted URLs.** Tests that dynamic-import modules with `?bust=Date.now()` create separate URL records per import. The aggregator strips the query string before bucketing so all loads of `/js/foo.js?bust=N` fold into one canonical entry.
+2. **V8 startOffset divergence.** Same source bytes produce different `startOffset` values across loads. Naive `name + startOffset` deduping doubled function totals; the current aggregator picks ONE canonical entry per file (largest text wins) as ground truth, then OR-s in called-status across other entries by function name.
+
+## Accessibility regression scan
+
+`tests/test-a11y-axe.js` loads axe-core 4.10 from cdnjs at runtime and runs `axe.run()` against the live DOM at 14 stops (every lens + every modal). Severity policy:
+
+- **critical / serious** → test fails on regression vs baseline
+- **moderate / minor** → logged but doesn't block (axe leans opinionated at those tiers)
+
+### Baseline-locked gate
+
+The gate is **baseline-relative**, not zero-tolerance. Real-world a11y adoption gates on "no regression from current state" — gating on zero violations the first time a codebase adopts axe would block every PR forever.
+
+Baseline lives at `tests/.a11y-baseline.json`:
+
+```json
+{
+  "_axeVersion": "4.10.0",
+  "critical": {},
+  "serious": { "color-contrast": 124, "nested-interactive": 40 },
+  "moderate": {},
+  "minor": {}
+}
+```
+
+The test fails when any critical/serious rule's count **exceeds** the baseline. New rules with non-zero counts ARE a regression (the suite never saw them before). Improvements (current < baseline) pass and emit a hint to refresh the baseline.
+
+`_axeVersion` pins the runtime axe-core load. Bumping the cdnjs URL without bumping this field would surface rule renames as false regressions; the test prints an info line on mismatch.
+
+### Refreshing the baseline
+
+After a wave of fixes that legitimately drops violation counts:
+
+```bash
+A11Y_REBASELINE=1 ./run-tests.sh
+```
+
+`run-tests.js` pipes the env var into the page context via `page.evaluateOnNewDocument`. The test prints a `▶ {...}` JSON line — copy it over the critical/serious/moderate/minor blocks in `tests/.a11y-baseline.json`. Don't lower these numbers without an actual fix; the gate would lock in the new lower bound and silently accept regressions.
+
+If the baseline file is missing entirely, the test treats the first run as "establish baseline" and prints the JSON to stdout for paste-back.
 
 ## Running a single test in the browser
 
