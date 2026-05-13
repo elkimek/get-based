@@ -964,6 +964,10 @@ export function showInsufficientBalanceDialog() {
     document.body.appendChild(overlay);
   }
   let freeModels = [];
+  let visionIds = [];
+  try {
+    visionIds = JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models') || '[]');
+  } catch {}
   try {
     const cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models') || '[]');
     freeModels = cached.filter(function(m) {
@@ -972,17 +976,34 @@ export function showInsufficientBalanceDialog() {
       const inP = parseFloat(m.pricing?.prompt || 0);
       const outP = parseFloat(m.pricing?.completion || 0);
       return inP === 0 && outP === 0;
-    }).slice(0, 8);
+    });
   } catch {}
+  // Sort vision-capable first — image-mode PDF imports need vision.
+  // Without it the user could pick a free chat model and then hit a
+  // confusing error when they try to import a scanned lab.
+  const visionSet = new Set(visionIds);
+  freeModels.sort(function(a, b) {
+    const av = visionSet.has(a.id) ? 0 : 1;
+    const bv = visionSet.has(b.id) ? 0 : 1;
+    return av - bv;
+  });
+  freeModels = freeModels.slice(0, 10);
   const freeList = freeModels.length
     ? freeModels.map(function(m) {
         const name = (m.name || m.id).replace(/^.*\//, '').replace(/:free$/, '');
+        const hasVision = visionSet.has(m.id);
+        const badge = hasVision
+          ? '<span style="display:inline-block;font-size:10px;background:rgba(34,197,94,0.15);color:var(--green);padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle">&#128247; vision</span>'
+          : '<span style="display:inline-block;font-size:10px;background:rgba(245,158,11,0.12);color:#d97706;padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle">text only</span>';
         return '<button class="chat-quiz-option" data-model-id="' + escapeAttr(m.id) + '">' +
-          '<span class="chat-quiz-body"><strong>' + escapeHTML(name) + '</strong>' +
+          '<span class="chat-quiz-body"><strong>' + escapeHTML(name) + badge + '</strong>' +
           '<span>' + escapeHTML(m.id) + '</span></span>' +
           '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span></button>';
       }).join('')
     : '<p style="font-size:12px;color:var(--text-muted);text-align:center;margin:8px 0">No free models cached. <a href="#" id="or-refresh-models" style="color:var(--accent)">Refresh model list</a>.</p>';
+  const visionNote = freeModels.length
+    ? '<p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;line-height:1.4">&#128247; vision-capable models can read scanned/photographed lab reports. Text-only models still handle chat and JSON-export imports.</p>'
+    : '';
   overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="OpenRouter balance empty" style="max-width:520px">' +
     '<p class="confirm-message"><strong>Your OpenRouter balance is empty</strong></p>' +
     '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Pick one of the two paths below to keep using AI.</p>' +
@@ -1001,6 +1022,7 @@ export function showInsufficientBalanceDialog() {
         '<strong style="color:var(--red)">&#9888; Privacy warning</strong><br>' +
         'OpenRouter free routes typically <strong>log your prompts</strong> and providers may use them for training. Avoid sending sensitive medical details, names, or identifiers. The app strips obvious PII but the residual context is still personal.' +
       '</div>' +
+      visionNote +
       freeList +
     '</div>' +
     '<div style="text-align:right;margin-top:14px">' +
