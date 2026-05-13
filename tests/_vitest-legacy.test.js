@@ -74,6 +74,8 @@ const LEGACY_TESTS = [
   './test-sun.js',
   './test-light-env.js',
   './test-light-devices.js',
+  './test-sun-context.js',
+  './test-sun-uvdata.js',
 ];
 
 for (const path of LEGACY_TESTS) {

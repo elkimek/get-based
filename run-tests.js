@@ -53,8 +53,6 @@ const TEST_FILES = [
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',
   'tests/test-lens-local-worker.js',
-  'tests/test-sun-uvdata.js',
-  'tests/test-sun-context.js',
   'tests/test-ai-verdict-engine.js',
   'tests/test-sun-ai-analysis.js',
   'tests/test-light-device-ai-analysis.js',

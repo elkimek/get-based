@@ -1,26 +1,45 @@
+#!/usr/bin/env node
 // test-sun-uvdata.js — Multi-source UV/ozone client: SSRF guard, manual entry,
 // provider routing, solar-zenith math, privacy rounding, US-coords window.
-// Run: fetch('tests/test-sun-uvdata.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-sun-uvdata.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
-  console.log('%c Sun UV-Data Tests ', 'background:#f59e0b;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const mod = await import('/js/sun-uvdata.js?bust=' + Date.now());
-  const {
-    UV_SOURCE_CONFIDENCE,
-    getMeteoConfig,
-    saveMeteoConfig,
-    manualAtmosphere,
-    fetchAtmosphere,
-    solarZenithAngle,
-    nearestHourIndex,
-  } = mod;
+console.log('=== Sun UV-Data Tests ===\n');
+
+await import('../js/state.js');
+const mod = await import('../js/sun-uvdata.js');
+const {
+  UV_SOURCE_CONFIDENCE,
+  getMeteoConfig,
+  saveMeteoConfig,
+  manualAtmosphere,
+  fetchAtmosphere,
+  solarZenithAngle,
+  nearestHourIndex,
+} = mod;
 
   // ─── 1. UV_SOURCE_CONFIDENCE shape ─────────────────────────────────────
   console.log('%c 1. Source confidence weights ', 'font-weight:bold;color:#f59e0b');
@@ -261,7 +280,7 @@ return (async function() {
   // conditions.
   console.log('%c 8. Computed confidence ', 'font-weight:bold;color:#f59e0b');
 
-  const { computeUVConfidence } = await import('/js/sun-uvdata.js?bust=' + Date.now());
+  const { computeUVConfidence } = await import('../js/sun-uvdata.js');
   const approx = (a, b, tol = 0.005) => Math.abs(a - b) < tol;
 
   // Best case — fresh CAMS, clear sky, sun overhead, UVI in sweet spot.
@@ -384,7 +403,7 @@ return (async function() {
   // gets caught by the streaming byte-counter cap. Source-inspection +
   // a runtime probe through the actual fetchJson path.
   {
-    const uvSrc = await fetch('/js/sun-uvdata.js').then(r => r.text());
+    const uvSrc = (await import('node:fs')).default.readFileSync(new URL('../js/sun-uvdata.js', import.meta.url), 'utf-8');
     assert('fetchJson defines _UV_RESPONSE_CAP_BYTES',
       /_UV_RESPONSE_CAP_BYTES\s*=\s*256\s*\*\s*1024/.test(uvSrc));
     assert('fetchJson does Content-Length pre-check',
@@ -402,6 +421,5 @@ return (async function() {
     // probe here would require a fetchJson export hook just for tests.
   }
 
-  console.log(`%c Sun UV-Data: ${pass} passed, ${fail} failed `,
-    `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
