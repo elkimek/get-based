@@ -950,11 +950,11 @@ export function refreshOpenRouterBalance() {
 
 // Persistent modal shown when an OpenRouter API call returns 402 (out of
 // credit). Previously this surfaced as a toast that vanished in seconds
-// and left the user stuck. Two actionable paths:
-//   1. Add credits  → opens openrouter.ai/settings/credits in a new tab
-//   2. Switch to a free model → filters the cached models for :free
-//      variants + zero-priced entries; user picks one, we activate it.
-//      Includes an explicit privacy warning (free routes log + may train).
+// and left the user stuck. Single actionable path: add credits via OR's
+// settings page in a new tab. The "switch to a free model" branch was
+// removed — OpenRouter's free tier has no vision-capable models so
+// image-mode imports broke silently, and the privacy story (free
+// providers log + may train on prompts) is bad for medical data.
 export function showInsufficientBalanceDialog() {
   let overlay = document.getElementById('or-no-balance-overlay');
   if (!overlay) {
@@ -963,83 +963,15 @@ export function showInsufficientBalanceDialog() {
     overlay.className = 'confirm-overlay';
     document.body.appendChild(overlay);
   }
-  let freeModels = [];
-  let visionIds = [];
-  try {
-    visionIds = JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models') || '[]');
-  } catch {}
-  try {
-    const cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models') || '[]');
-    freeModels = cached.filter(function(m) {
-      if (!m || !m.id) return false;
-      if (m.id.endsWith(':free')) return true;
-      const inP = parseFloat(m.pricing?.prompt || 0);
-      const outP = parseFloat(m.pricing?.completion || 0);
-      return inP === 0 && outP === 0;
-    });
-  } catch {}
-  // Sort vision-capable first — image-mode PDF imports need vision.
-  // Without it the user could pick a free chat model and then hit a
-  // confusing error when they try to import a scanned lab.
-  const visionSet = new Set(visionIds);
-  freeModels.sort(function(a, b) {
-    const av = visionSet.has(a.id) ? 0 : 1;
-    const bv = visionSet.has(b.id) ? 0 : 1;
-    return av - bv;
-  });
-  freeModels = freeModels.slice(0, 10);
-  const freeList = freeModels.length
-    ? freeModels.map(function(m) {
-        const name = (m.name || m.id).replace(/^.*\//, '').replace(/:free$/, '');
-        const hasVision = visionSet.has(m.id);
-        const badge = hasVision
-          ? '<span style="display:inline-block;font-size:10px;background:rgba(34,197,94,0.15);color:var(--green);padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle">&#128247; vision</span>'
-          : '<span style="display:inline-block;font-size:10px;background:rgba(245,158,11,0.12);color:#d97706;padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle">text only</span>';
-        return '<button class="chat-quiz-option" data-model-id="' + escapeAttr(m.id) + '">' +
-          '<span class="chat-quiz-body"><strong>' + escapeHTML(name) + badge + '</strong>' +
-          '<span>' + escapeHTML(m.id) + '</span></span>' +
-          '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span></button>';
-      }).join('')
-    : '<p style="font-size:12px;color:var(--text-muted);text-align:center;margin:8px 0">No free models cached. <a href="#" id="or-refresh-models" style="color:var(--accent)">Refresh model list</a>.</p>';
-  const anyVision = freeModels.some(function(m) { return visionSet.has(m.id); });
-  // When vision-capable free models exist, highlight which is which.
-  // When none do, the main caveat above already explains the
-  // limitation — no need to repeat it inside the details section.
-  const visionNote = anyVision
-    ? '<p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;line-height:1.4">&#128247; vision-capable models can read scanned/photographed lab reports. Text-only models still handle chat and JSON-export imports.</p>'
-    : '';
-  overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="OpenRouter balance empty" style="max-width:520px">' +
+  overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="OpenRouter balance empty" style="max-width:480px">' +
     '<p class="confirm-message"><strong>Your OpenRouter balance is empty</strong></p>' +
-    '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Pick one of the two paths below to keep using AI.</p>' +
-    '<div style="margin-bottom:14px">' +
-      '<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);margin:0 0 6px">Option 1 &mdash; pay-as-you-go</p>' +
-      '<button class="chat-quiz-option chat-quiz-recommended" id="or-add-credits">' +
-        '<span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>' +
-        '<span class="chat-quiz-body"><strong>Add credits ($10 covers weeks of typical use)</strong>' +
-        '<span>Opens openrouter.ai/settings/credits in a new tab. <em class="chat-quiz-rec">Recommended for medical data</em></span></span>' +
-        '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>' +
-      '</button>' +
-    '</div>' +
-    '<div>' +
-      '<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);margin:0 0 6px">Option 2 &mdash; switch to free</p>' +
-      '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.4">' +
-        '<strong style="color:var(--red)">&#9888; Privacy warning</strong><br>' +
-        'OpenRouter free routes typically <strong>log your prompts</strong> and providers may use them for training. Avoid sending sensitive medical details, names, or identifiers. The app strips obvious PII but the residual context is still personal.' +
-      '</div>' +
-      (!anyVision && freeModels.length ? '<p style="font-size:11px;color:#d97706;margin:0 0 8px;line-height:1.4">&#9888; Free models don&rsquo;t support image-mode PDF imports today. Chat and text-mode PDFs still work either way.</p>' : '') +
-      '<button class="chat-quiz-option chat-quiz-recommended" data-model-id="openrouter/free" style="margin-bottom:8px">' +
-        '<span class="chat-quiz-icon" aria-hidden="true">&#127919;</span>' +
-        '<span class="chat-quiz-body"><strong>Use OpenRouter&rsquo;s free router</strong>' +
-        '<span>OpenRouter picks the best available free model for each request. Self-updating as their catalog changes.</span></span>' +
-        '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>' +
-      '</button>' +
-      '<details style="margin-top:4px"><summary style="font-size:12px;color:var(--text-muted);cursor:pointer;padding:6px 0">Or pin a specific free model</summary>' +
-        '<div style="margin-top:8px">' +
-          visionNote +
-          freeList +
-        '</div>' +
-      '</details>' +
-    '</div>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Add credits at OpenRouter to keep using AI. $10 covers weeks of typical use — chat, lab interpretation, and PDF imports.</p>' +
+    '<button class="chat-quiz-option chat-quiz-recommended" id="or-add-credits" style="margin-bottom:8px">' +
+      '<span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>' +
+      '<span class="chat-quiz-body"><strong>Add credits at openrouter.ai</strong>' +
+      '<span>Opens in a new tab. Come back to getbased when done — the page picks up automatically.</span></span>' +
+      '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>' +
+    '</button>' +
     '<div style="text-align:right;margin-top:14px">' +
       '<button class="confirm-btn confirm-btn-cancel" id="or-nb-cancel">Not now</button>' +
     '</div>' +
@@ -1051,21 +983,6 @@ export function showInsufficientBalanceDialog() {
     window.open('https://openrouter.ai/settings/credits', '_blank', 'noopener');
   };
   document.getElementById('or-nb-cancel').onclick = close;
-  const refreshLink = document.getElementById('or-refresh-models');
-  if (refreshLink) refreshLink.onclick = function(e) {
-    e.preventDefault();
-    close();
-    if (window.refreshOpenRouterBalance) window.refreshOpenRouterBalance();
-    setTimeout(function() { showInsufficientBalanceDialog(); }, 1200);
-  };
-  overlay.querySelectorAll('[data-model-id]').forEach(function(btn) {
-    btn.onclick = function() {
-      const id = btn.getAttribute('data-model-id');
-      if (id) setOpenRouterModel(id);
-      close();
-      showNotification('Switched to ' + id + ' — ready to try again.', 'success');
-    };
-  });
   overlay.onclick = function(e) { if (e.target === overlay) close(); };
 }
 
