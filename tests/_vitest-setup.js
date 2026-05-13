@@ -59,6 +59,45 @@ if (typeof globalThis.navigator === 'undefined') {
   globalThis.navigator = {};
 }
 
+// Minimal `document` shim. A few modules schedule setTimeout
+// callbacks at module load that reference `document` (e.g. sun.js
+// re-renders `state.currentView || document.querySelector('.nav-item.active')`
+// after 200ms). Without a shim the callback throws ReferenceError
+// after the test has finished, which Vitest reports as an unhandled
+// exception. Real DOM tests should opt into the jsdom environment.
+function _stubEl() {
+  const el = {
+    style: {}, dataset: {},
+    classList: { add: () => {}, remove: () => {}, contains: () => false, toggle: () => {} },
+    appendChild: () => {}, removeChild: () => {}, replaceChild: () => {},
+    insertBefore: () => {}, remove: () => {},
+    setAttribute: () => {}, getAttribute: () => null, removeAttribute: () => {},
+    addEventListener: () => {}, removeEventListener: () => {},
+    querySelector: () => null, querySelectorAll: () => [],
+    getBoundingClientRect: () => ({ top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 }),
+    focus: () => {}, blur: () => {}, click: () => {},
+    children: [], childNodes: [],
+    innerHTML: '', textContent: '', value: '',
+    parentElement: null, parentNode: null,
+  };
+  return el;
+}
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    createElement: () => _stubEl(),
+    createDocumentFragment: () => _stubEl(),
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    body: Object.assign(_stubEl(), { appendChild: () => {}, removeChild: () => {} }),
+    head: Object.assign(_stubEl(), { appendChild: () => {} }),
+    documentElement: _stubEl(),
+    createTextNode: (t) => ({ textContent: t }),
+  };
+}
+
 // Window event-bus stubs — broadcasts via window.dispatchEvent /
 // addEventListener show up across many modules (e.g. the AI verdict
 // engine fires `labcharts-ai-verdict-updated`). No-op stubs are

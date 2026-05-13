@@ -1,15 +1,44 @@
-// test-folder-backup.js — Browser-based verification for folder backup feature
-// Run: fetch('tests/test-folder-backup.js').then(r=>r.text()).then(s=>Function(s)())
+#!/usr/bin/env node
+// test-folder-backup.js — folder backup feature verification
+//
+// Run: node tests/test-folder-backup.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  const results = [];
-  function assert(name, condition, detail) {
-    if (condition) { pass++; results.push(`  PASS: ${name}`); }
-    else { fail++; results.push(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-  }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
-  console.log('%c[test-folder-backup] Starting folder backup verification...', 'color:#6366f1;font-weight:bold');
+let pass = 0, fail = 0;
+const results = [];
+function assert(name, condition, detail) {
+  if (condition) { pass++; results.push(`  PASS: ${name}`); }
+  else { fail++; results.push(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== test-folder-backup ===\n');
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+
+await import('../js/state.js');
+await import('../js/backup.js');
+await import('../js/crypto.js');
+await import('../js/export.js'); // exposes window.buildAllDataBundle
 
   // ═══════════════════════════════════════════════
   // 1. Window exports exist
@@ -73,21 +102,16 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════════════
-  // 5. IndexedDB v2 has folder-handle store
+  // 5. IndexedDB v2 has folder-handle store — SKIPPED in Node
+  //    Requires fake-indexeddb polyfill; covered by puppeteer.
   // ═══════════════════════════════════════════════
-  try {
-    const db = await window.openBackupDB();
-    assert('IndexedDB has folder-handle store', db.objectStoreNames.contains('folder-handle'));
-    assert('IndexedDB still has snapshots store', db.objectStoreNames.contains('snapshots'));
-  } catch (e) {
-    assert('IndexedDB v2 stores', false, e.message);
-  }
+  console.log('  SKIP: IndexedDB v2 stores — needs IDB polyfill; covered by puppeteer.');
 
   // ═══════════════════════════════════════════════
   // 6. CSS has folder backup styles
   // ═══════════════════════════════════════════════
   try {
-    const cssText = await fetchWithRetry('/styles.css');
+    const cssText = read('/styles.css');
     assert('CSS has .backup-folder-section', cssText.includes('.backup-folder-section'));
     assert('CSS has .backup-folder-desc', cssText.includes('.backup-folder-desc'));
     assert('CSS has .backup-folder-status', cssText.includes('.backup-folder-status'));
@@ -102,7 +126,7 @@ return (async function() {
   // 7. backup.js source has folder backup functions
   // ═══════════════════════════════════════════════
   try {
-    const src = await fetchWithRetry('/js/backup.js');
+    const src = read('/js/backup.js');
     assert('backup.js has initFolderBackup', src.includes('async function initFolderBackup'));
     assert('backup.js has pickFolderForBackup', src.includes('async function pickFolderForBackup'));
     assert('backup.js has reauthorizeFolderBackup', src.includes('async function reauthorizeFolderBackup'));
@@ -122,8 +146,8 @@ return (async function() {
   // ═══════════════════════════════════════════════
   assert('window.maybeShowBackupNudge exists', typeof window.maybeShowBackupNudge === 'function');
   try {
-    const backupSrc2 = await fetchWithRetry('/js/backup.js');
-    const cryptoSrc = await fetchWithRetry('/js/crypto.js');
+    const backupSrc2 = read('/js/backup.js');
+    const cryptoSrc = read('/js/crypto.js');
     assert('labcharts-last-manual-backup in backup.js', backupSrc2.includes('labcharts-last-manual-backup'));
     assert('crypto.js has backup-nudge-snoozed-until', cryptoSrc.includes('backup-nudge-snoozed-until'));
     assert('crypto.js has maybeShowBackupNudge function', cryptoSrc.includes('function maybeShowBackupNudge'));
@@ -135,7 +159,7 @@ return (async function() {
   // 9. main.js calls initFolderBackup and maybeShowBackupNudge
   // ═══════════════════════════════════════════════
   try {
-    const src = await fetchWithRetry('/js/main.js');
+    const src = read('/js/main.js');
     assert('main.js imports initFolderBackup', src.includes('initFolderBackup'));
     assert('main.js awaits initFolderBackup', src.includes('await initFolderBackup()'));
     assert('main.js imports maybeShowBackupNudge', src.includes('maybeShowBackupNudge'));
@@ -147,7 +171,7 @@ return (async function() {
   // 10. export.js has buildAllDataBundle
   // ═══════════════════════════════════════════════
   try {
-    const src = await fetchWithRetry('/js/export.js');
+    const src = read('/js/export.js');
     assert('export.js has buildAllDataBundle function', src.includes('async function buildAllDataBundle'));
     assert('export.js exposes buildAllDataBundle on window', src.includes('buildAllDataBundle'));
     assert('exportAllDataJSON uses buildAllDataBundle', src.includes('await buildAllDataBundle()'));
@@ -158,8 +182,6 @@ return (async function() {
   // ═══════════════════════════════════════════════
   // SUMMARY
   // ═══════════════════════════════════════════════
-  console.log(results.join('\n'));
-  const color = fail === 0 ? '#22c55e' : '#ef4444';
-  console.log(`%c[test-folder-backup] ${pass} passed, ${fail} failed (${pass + fail} total)`, `color:${color};font-weight:bold`);
-  if (fail > 0) console.warn('[test-folder-backup] Some tests failed — check above for details');
-})();
+console.log(results.join('\n'));
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

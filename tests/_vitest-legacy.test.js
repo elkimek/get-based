@@ -97,6 +97,11 @@ const LEGACY_TESTS = [
   './test-sun-ai-analysis.js',
   './test-light-device-ai-analysis.js',
   './test-light-ai-renders.js',
+  // Batch 13 — source inspection + light module ports.
+  './test-cycle-tour.js',
+  './test-folder-backup.js',
+  './test-table-heatmap-empty.js',
+  './test-manual-entry-flow.js',
 ];
 
 for (const path of LEGACY_TESTS) {

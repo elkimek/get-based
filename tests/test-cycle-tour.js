@@ -1,19 +1,49 @@
+#!/usr/bin/env node
 // test-cycle-tour.js — Cycle tour feature tests
-// Run: fetch('tests/test-cycle-tour.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-cycle-tour.js  (or via npm test)
 
-return (async function() {
-  const results = [];
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; results.push({ name, ok: true }); }
-    else { fail++; results.push({ name, ok: false, detail }); console.error(`FAIL: ${name}`, detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c=== Cycle Tour Tests ===', 'font-weight:bold;font-size:14px');
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+
+let pass = 0, fail = 0;
+const results = [];
+function assert(name, condition, detail) {
+  if (condition) { pass++; results.push({ name, ok: true }); console.log(`  PASS: ${name}`); }
+  else { fail++; results.push({ name, ok: false, detail }); console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Cycle Tour Tests ===\n');
+
+// tour.js exposes window.startTour / startCycleTour / endTour / _tourGoToStep
+// via Object.assign(window, ...) at module load.
+await import('../js/state.js');
+await import('../js/tour.js');
 
   // --- 1. TOUR_STEPS structure ---
   console.log('%c[1] App tour steps', 'font-weight:bold');
-  const tourSrc = await fetchWithRetry('/js/tour.js');
+  const tourSrc = read('/js/tour.js');
   const appStepCount = (tourSrc.match(/const TOUR_STEPS\s*=\s*\[([\s\S]*?)\];/)||[])[1];
   const appSteps = appStepCount ? appStepCount.split('{ target:').length - 1 : 0;
   assert('App tour has 9 steps', appSteps === 9, `found ${appSteps}`);
@@ -70,7 +100,7 @@ return (async function() {
 
   // --- 10. Auto-trigger in saveMenstrualCycle ---
   console.log('%c[10] Auto-trigger in saveMenstrualCycle', 'font-weight:bold');
-  const cycleSrc = await fetchWithRetry('/js/cycle.js');
+  const cycleSrc = read('/js/cycle.js');
   assert('saveMenstrualCycle calls startCycleTour(true)', cycleSrc.includes('startCycleTour(true)'));
   assert('setTimeout delay for DOM readiness', /setTimeout\s*\(\s*\(\)\s*=>\s*\{[^}]*startCycleTour\(true\)[^}]*\}\s*,\s*600\s*\)/.test(cycleSrc));
 
@@ -83,7 +113,7 @@ return (async function() {
 
   // --- 12. CSS rule for .cycle-tour-btn ---
   console.log('%c[12] CSS rule', 'font-weight:bold');
-  const cssSrc = await fetchWithRetry('/styles.css');
+  const cssSrc = read('/styles.css');
   assert('.cycle-tour-btn rule exists', cssSrc.includes('.cycle-tour-btn'));
   assert('24px width', /\.cycle-tour-btn\s*\{[^}]*width:\s*24px/.test(cssSrc));
   assert('border-radius: 50%', /\.cycle-tour-btn\s*\{[^}]*border-radius:\s*50%/.test(cssSrc));
@@ -91,22 +121,16 @@ return (async function() {
 
   // --- 13. Profile delete cleanup ---
   console.log('%c[13] Profile delete cleanup', 'font-weight:bold');
-  const profileSrc = await fetchWithRetry('/js/profile.js');
+  const profileSrc = read('/js/profile.js');
   assert('deleteProfile removes tour key', profileSrc.includes("-tour`"));
   assert('deleteProfile removes cycleTour key', profileSrc.includes("-cycleTour`"));
   assert('deleteProfile removes phaseOverlay key', profileSrc.includes("-phaseOverlay`"));
 
   // --- 14. Service worker cache version ---
   console.log('%c[14] Service worker cache', 'font-weight:bold');
-  const swSrc = await fetchWithRetry('/service-worker.js');
+  const swSrc = read('/service-worker.js');
   assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 
-  // --- Summary ---
-  console.log('%c=== Results ===', 'font-weight:bold;font-size:14px');
-  console.log(`%c${pass} passed, ${fail} failed`, `color:${fail ? 'red' : 'green'};font-weight:bold`);
-  if (fail > 0) {
-    console.log('Failures:');
-    results.filter(r => !r.ok).forEach(r => console.log(`  - ${r.name}${r.detail ? ': ' + r.detail : ''}`));
-  }
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

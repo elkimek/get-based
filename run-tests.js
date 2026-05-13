@@ -14,14 +14,12 @@ import { fileURLToPath } from 'url';
 
 const TEST_FILES = [
   'tests/test-crypto.js',
-  'tests/test-folder-backup.js',
   'tests/test-chat-threads.js',
   'tests/test-chat-actions.js',
   'tests/test-mobile.js',
   'tests/test-demo.js',
   'tests/test-openrouter.js',
   'tests/test-tour.js',
-  'tests/test-cycle-tour.js',
   'tests/test-custom-personality.js',
   'tests/test-changelog.js',
   'tests/test-audit.js',
@@ -57,8 +55,6 @@ const TEST_FILES = [
   'tests/test-audit-fixes.js',
   'tests/test-v1-6-shipped.js',
   'tests/test-family-history.js',
-  'tests/test-manual-entry-flow.js',
-  'tests/test-table-heatmap-empty.js',
   'tests/test-wearables-bp-merge.js',
   // axe-core runtime scan runs LAST. It rebuilds the DOM extensively and
   // mutates state in ways that are expensive to fully reverse (creates a

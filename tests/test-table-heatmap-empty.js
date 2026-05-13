@@ -1,19 +1,54 @@
-// test-table-heatmap-empty.js — Table/Heatmap views skip all-null markers
-// Covers: renderTableView and renderHeatmapView filter markers with no values,
-// render an empty-state message when zero markers have data, and still render
-// markers that have at least one non-null value.
-// Run: fetch('tests/test-table-heatmap-empty.js').then(r=>r.text()).then(s=>Function(s)())
+#!/usr/bin/env node
+// test-table-heatmap-empty.js — Table/Heatmap views skip all-null markers.
+//
+// Run: node tests/test-table-heatmap-empty.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Table/Heatmap empty-marker filter Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+globalThis.window = globalThis.window || globalThis;
+// views.js imports many things and reads `document` at module load.
+// Minimal stub: just provide the methods views.js calls at top level.
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = {
+    addEventListener: () => {},
+    createElement: () => ({ style: {}, appendChild: () => {}, setAttribute: () => {} }),
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    body: { appendChild: () => {}, style: {} },
+  };
+}
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
-  const views = await import('../js/views.js');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Table/Heatmap Empty-Marker Filter Tests ===\n');
+
+await import('../js/state.js');
+const views = await import('../js/views.js');
 
   // Build a tiny category-shaped object with mixed markers.
   const buildCat = ({ allEmpty = false } = {}) => ({
@@ -80,12 +115,11 @@ return (async function() {
   // 3. Source-grep — filter logic shape
   // ═══════════════════════════════════════
   console.log('%c 3. Filter logic shape ', 'font-weight:bold;color:#f59e0b');
-  const viewsSrc = await fetch('js/views.js').then(r => r.text());
+  const viewsSrc = read('js/views.js');
   assert('renderTableView filters with m.values.some(v => v !== null)',
     /renderTableView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(viewsSrc));
   assert('renderHeatmapView filters with m.values.some(v => v !== null)',
     /renderHeatmapView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(viewsSrc));
 
-  console.log(`\n%c ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px' : 'background:#ef4444;color:#fff;padding:4px 12px');
-  console.log(`Result: ${pass} passed, ${fail} failed`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

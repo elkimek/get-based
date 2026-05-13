@@ -1,20 +1,25 @@
-// test-manual-entry-flow.js — manual-entry quality-of-life pass
-// Covers: range sanity check, duplicate-date confirm, Save & Add Another,
-// session-last-date, inline-edit Escape cancel flag, no-change short-circuit,
-// navigate() rebuild after edit/revert, and the Add Value Manually placement
-// (above Note section).
-// Run: fetch('tests/test-manual-entry-flow.js').then(r=>r.text()).then(s=>Function(s)())
+#!/usr/bin/env node
+// test-manual-entry-flow.js — manual-entry quality-of-life pass.
+// Source inspection only — no module imports needed.
+//
+// Run: node tests/test-manual-entry-flow.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-  console.log('%c Manual Entry Flow Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
-  const viewsSrc = await fetch('js/views.js').then(r => r.text());
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Manual Entry Flow Tests ===\n');
+
+  const viewsSrc = read('js/views.js');
 
   // ═══════════════════════════════════════
   // 1. saveManualEntry is async (we await dialogs)
@@ -165,7 +170,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 10. activeNav sweep ', 'font-weight:bold;color:#f59e0b');
 
-  const dataSrc = await fetch('js/data.js').then(r => r.text());
+  const dataSrc = read('js/data.js');
   assert('switchUnitSystem uses state.currentView (no .nav-item.active query)',
     /switchUnitSystem[\s\S]{0,800}window\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
     !/switchUnitSystem[\s\S]{0,800}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
@@ -175,18 +180,17 @@ return (async function() {
   assert('setDateRange uses state.currentView',
     /setDateRange[\s\S]{0,1500}navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc));
 
-  const cryptoSrc = await fetch('js/crypto.js').then(r => r.text());
+  const cryptoSrc = read('js/crypto.js');
   assert('BroadcastChannel cross-tab reload uses state.currentView',
     /state\.currentView \|\| 'dashboard'/.test(cryptoSrc));
 
-  const mainSrc = await fetch('js/main.js').then(r => r.text());
+  const mainSrc = read('js/main.js');
   assert('registerRefreshCallback uses state.currentView',
     /registerRefreshCallback[\s\S]{0,800}state\.currentView \|\| 'dashboard'/.test(mainSrc));
 
-  const pdfSrc = await fetch('js/pdf-import.js').then(r => r.text());
+  const pdfSrc = read('js/pdf-import.js');
   assert('pdf-import.js no longer uses the buildSidebar+querySelector(.active) antipattern',
     !/buildSidebar\(\);\s*\n\s*const activeNav = document\.querySelector\('\.nav-item\.active'\)/.test(pdfSrc));
 
-  console.log(`\n%c ${pass} passed, ${fail} failed `, fail === 0 ? 'background:#22c55e;color:#fff;padding:4px 12px' : 'background:#ef4444;color:#fff;padding:4px 12px');
-  console.log(`Result: ${pass} passed, ${fail} failed`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
