@@ -1001,7 +1001,11 @@ export function showInsufficientBalanceDialog() {
           '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span></button>';
       }).join('')
     : '<p style="font-size:12px;color:var(--text-muted);text-align:center;margin:8px 0">No free models cached. <a href="#" id="or-refresh-models" style="color:var(--accent)">Refresh model list</a>.</p>';
-  const visionNote = freeModels.length
+  const anyVision = freeModels.some(function(m) { return visionSet.has(m.id); });
+  // When vision-capable free models exist, highlight which is which.
+  // When none do, the main caveat above already explains the
+  // limitation — no need to repeat it inside the details section.
+  const visionNote = anyVision
     ? '<p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;line-height:1.4">&#128247; vision-capable models can read scanned/photographed lab reports. Text-only models still handle chat and JSON-export imports.</p>'
     : '';
   overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="OpenRouter balance empty" style="max-width:520px">' +
@@ -1022,6 +1026,7 @@ export function showInsufficientBalanceDialog() {
         '<strong style="color:var(--red)">&#9888; Privacy warning</strong><br>' +
         'OpenRouter free routes typically <strong>log your prompts</strong> and providers may use them for training. Avoid sending sensitive medical details, names, or identifiers. The app strips obvious PII but the residual context is still personal.' +
       '</div>' +
+      (!anyVision && freeModels.length ? '<p style="font-size:11px;color:#d97706;margin:0 0 8px;line-height:1.4">&#9888; Free models don&rsquo;t support image-mode PDF imports today. Chat and text-mode PDFs still work either way.</p>' : '') +
       '<button class="chat-quiz-option chat-quiz-recommended" data-model-id="openrouter/free" style="margin-bottom:8px">' +
         '<span class="chat-quiz-icon" aria-hidden="true">&#127919;</span>' +
         '<span class="chat-quiz-body"><strong>Use OpenRouter&rsquo;s free router</strong>' +
