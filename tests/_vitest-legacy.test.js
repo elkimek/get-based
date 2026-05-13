@@ -75,16 +75,19 @@ for (const path of LEGACY_TESTS) {
     const fails = [];
     const origLog = console.log;
     const origError = console.error;
-    console.log = (...args) => {
-      const line = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
-      if (line.includes('FAIL:') || line.startsWith('FAIL ')) fails.push(line);
-      origLog(...args);
-    };
-    console.error = (...args) => {
-      const line = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
-      if (line.includes('FAIL:') || line.startsWith('FAIL ')) fails.push(line);
-      origError(...args);
-    };
+    // Greptile P2.2: tests that buffer results and emit them with
+    // `console.log(results.join('\n'))` send one multi-line arg.
+    // Split on \n before FAIL-detection so each failing assertion
+    // becomes its own entry, not a wedged blob.
+    function capture(args) {
+      const joined = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+      for (const line of joined.split('\n')) {
+        if (line.includes('FAIL:') || line.startsWith('FAIL ')) fails.push(line);
+      }
+    }
+    console.log = (...args) => { capture(args); origLog(...args); };
+    console.error = (...args) => { capture(args); origError(...args); };
+    let importError;
     try {
       // NOTE: dynamic-import query-string cache-bust is silently ignored
       // by Vite/Vitest — verified empirically (same module reference
@@ -93,10 +96,30 @@ for (const path of LEGACY_TESTS) {
       // Vitest invalidates the module graph via file change. The
       // legacy tests are idempotent (side effects gated by `if`),
       // so this hasn't bitten us, but it's worth knowing.
+      //
+      // Greptile P2.3 (watch-mode caveat): Vitest's module cache is
+      // shared across tests in the same worker. If two legacy tests
+      // transitively import e.g. state.js, only the first runs
+      // state.js's top-level side effects. Side effects in our legacy
+      // files are idempotent, but a contributor writing a new test
+      // that depends on freshly-loaded module state should be aware.
       await import(path);
+    } catch (e) {
+      importError = e;
     } finally {
       console.log = origLog;
       console.error = origError;
+    }
+    // Greptile P2.1: when the process.exit shim throws ("Test file
+    // called process.exit(1)"), the structured detail of WHICH
+    // assertion failed is only in the captured FAIL lines. Attach
+    // them to the thrown error so Vitest's reporter shows the
+    // specifics, not just the exit-code message.
+    if (importError) {
+      if (fails.length > 0) {
+        throw new Error(`${importError.message}\n\nCaptured failures:\n  ${fails.join('\n  ')}`);
+      }
+      throw importError;
     }
     expect(fails, fails.join('\n  ')).toHaveLength(0);
   });

@@ -50,6 +50,15 @@ if (typeof globalThis.CSS === 'undefined') {
   globalThis.CSS = { escape: (s) => String(s).replace(/[^\w-]/g, (c) => '\\' + c) };
 }
 
+// `navigator` is a global in Node 21+ but absent in Node 18/20. CI
+// runs an older Node so js/hardware.js (which reads
+// navigator.deviceMemory and navigator.hardwareConcurrency) throws a
+// ReferenceError. detectHardware already tolerates undefined fields;
+// it just needs the object to exist.
+if (typeof globalThis.navigator === 'undefined') {
+  globalThis.navigator = {};
+}
+
 // Window event-bus stubs — broadcasts via window.dispatchEvent /
 // addEventListener show up across many modules (e.g. the AI verdict
 // engine fires `labcharts-ai-verdict-updated`). No-op stubs are

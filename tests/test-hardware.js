@@ -16,6 +16,10 @@ function _ls() {
 }
 if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
 if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+// Node 21+ has navigator as a global; Node 18/20 does not. js/hardware.js
+// reads navigator.deviceMemory / hardwareConcurrency and tolerates
+// undefined fields, just needs the object to exist.
+if (typeof globalThis.navigator === 'undefined') globalThis.navigator = {};
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
