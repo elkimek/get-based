@@ -2735,7 +2735,12 @@ export function showDashboard(data) {
     // lift above the drop zone ("try before set-up"). With AI configured,
     // drop zone leads since the user almost certainly intends to import.
     const heroClass = hasAIProvider() ? 'welcome-hero' : 'welcome-hero welcome-hero-noai';
-    let html = `<div class="${heroClass}">
+    // Reminder banner sits above the hero so a user who clicked "Try the
+    // app first" in the chat quiz has an obvious re-entry point. Function
+    // self-gates: returns '' unless the skip flag is set and the banner
+    // hasn't been dismissed, so it's invisible on a fresh first visit.
+    let html = renderAIConnectionReminder();
+    html += `<div class="${heroClass}">
       <h2>Welcome to getbased</h2>
       <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
       <div class="drop-zone" id="drop-zone">
