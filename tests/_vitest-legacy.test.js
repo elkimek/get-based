@@ -68,6 +68,12 @@ const LEGACY_TESTS = [
   // Batch 9 — data pipeline + calculated markers (uses state.js + data.js).
   './test-calculated-markers.js',
   './test-data-pipeline.js',
+  // Batch 10 — sun + light pure-logic ports.
+  './test-sun-correlations.js',
+  './test-sun-defaults.js',
+  './test-sun.js',
+  './test-light-env.js',
+  './test-light-devices.js',
 ];
 
 for (const path of LEGACY_TESTS) {

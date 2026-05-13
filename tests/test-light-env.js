@@ -1,28 +1,51 @@
+#!/usr/bin/env node
 // test-light-env.js — Light Environment math + CRUD: rooms, screens,
 // computeRoomSeverity, computeScreenStatus, computeIndoorBurden,
 // computeDeficitAxes, isActiveToday auto-reset, light audits.
-// Run: fetch('tests/test-light-env.js').then(r=>r.text()).then(s=>Function(s)())
+//
+// Run: node tests/test-light-env.js  (or via npm test)
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-  }
+globalThis.window = globalThis.window || globalThis;
+function _ls() {
+  const s = new Map();
+  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
+    removeItem: k => s.delete(k), clear: () => s.clear(),
+    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
+}
+if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
+if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+if (typeof globalThis.addEventListener !== 'function') {
+  const _l = new Map();
+  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
+  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
+  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
+}
+if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
 
-  console.log('%c Light Environment Tests ', 'background:#f59e0b;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const env = await import('/js/light-env.js?bust=' + Date.now());
-  const {
-    PRIMARY_SOURCES, SCREEN_DEVICES,
-    getEnvironment,
-    addRoom, updateRoom, deleteRoom, nextDefaultRoomName,
-    addScreen, updateScreen, deleteScreen, getScreensForRoom,
-    isActiveToday, setTodayActive,
-    computeRoomSeverity, computeScreenStatus,
-    computeIndoorBurden, computeDeficitAxes,
-    getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
-  } = env;
+console.log('=== Light Environment Tests ===\n');
+
+await import('../js/state.js');
+// sun-context.js exposes buildSunContext via window. Two test sections
+// below gate on `typeof window.buildSunContext === 'function'`; without
+// this import they'd silently skip in Node.
+await import('../js/sun-context.js');
+const env = await import('../js/light-env.js');
+const {
+  PRIMARY_SOURCES, SCREEN_DEVICES,
+  getEnvironment,
+  addRoom, updateRoom, deleteRoom, nextDefaultRoomName,
+  addScreen, updateScreen, deleteScreen, getScreensForRoom,
+  isActiveToday, setTodayActive,
+  computeRoomSeverity, computeScreenStatus,
+  computeIndoorBurden, computeDeficitAxes,
+  getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
+} = env;
 
   const orig = window._labState.importedData;
   function reset(seed = {}) {
@@ -417,6 +440,5 @@ return (async function() {
   // Restore
   window._labState.importedData = orig;
 
-  console.log(`%c Light Environment: ${pass} passed, ${fail} failed `,
-    `background:${fail ? '#ef4444' : '#22c55e'};color:#fff;font-weight:bold;padding:4px 12px;border-radius:3px`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
