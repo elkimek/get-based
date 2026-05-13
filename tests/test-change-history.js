@@ -41,14 +41,14 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 1. recordChange function exists
   // ═══════════════════════════════════════
-  console.log('%c 1. Function Exports ', 'font-weight:bold;color:#f59e0b');
+  console.log('1. Function Exports');
 
   assert('recordChange is a window function', typeof window.recordChange === 'function');
 
   // ═══════════════════════════════════════
   // 2. Basic recording
   // ═══════════════════════════════════════
-  console.log('%c 2. Basic Recording ', 'font-weight:bold;color:#f59e0b');
+  console.log('2. Basic Recording');
 
   // Save original state
   const origHistory = window._labState.importedData.changeHistory;
@@ -69,7 +69,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 3. Dedup: identical snapshot skipped
   // ═══════════════════════════════════════
-  console.log('%c 3. Dedup — Identical Snapshot ', 'font-weight:bold;color:#f59e0b');
+  console.log('3. Dedup — Identical Snapshot');
 
   window.recordChange('diet');
   assert('Identical snapshot not duplicated', window._labState.importedData.changeHistory.length === 1);
@@ -77,7 +77,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 4. Dedup: same field + same day overwrites
   // ═══════════════════════════════════════
-  console.log('%c 4. Dedup — Same Day Overwrite ', 'font-weight:bold;color:#f59e0b');
+  console.log('4. Dedup — Same Day Overwrite');
 
   window._labState.importedData.diet = { type: 'low-carb', restrictions: ['gluten'], pattern: '2 meals', note: '' };
   window.recordChange('diet');
@@ -87,7 +87,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 5. Different fields tracked independently
   // ═══════════════════════════════════════
-  console.log('%c 5. Multiple Fields ', 'font-weight:bold;color:#f59e0b');
+  console.log('5. Multiple Fields');
 
   window._labState.importedData.exercise = { frequency: '3x/week', types: ['strength'], intensity: 'moderate', note: '' };
   window.recordChange('exercise');
@@ -97,7 +97,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 6. Null snapshot for cleared fields
   // ═══════════════════════════════════════
-  console.log('%c 6. Null Snapshot ', 'font-weight:bold;color:#f59e0b');
+  console.log('6. Null Snapshot');
 
   // Simulate clearing by setting to different date first
   const h = window._labState.importedData.changeHistory;
@@ -111,7 +111,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 7. Cap at 200 entries
   // ═══════════════════════════════════════
-  console.log('%c 7. Cap at 200 ', 'font-weight:bold;color:#f59e0b');
+  console.log('7. Cap at 200');
 
   window._labState.importedData.changeHistory = [];
   for (let i = 0; i < 210; i++) {
@@ -128,7 +128,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 8. String fields (interpretiveLens)
   // ═══════════════════════════════════════
-  console.log('%c 8. String Fields ', 'font-weight:bold;color:#f59e0b');
+  console.log('8. String Fields');
 
   window._labState.importedData.changeHistory = [];
   window._labState.importedData.interpretiveLens = 'Functional medicine';
@@ -139,7 +139,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 9. Array fields (healthGoals)
   // ═══════════════════════════════════════
-  console.log('%c 9. Array Fields ', 'font-weight:bold;color:#f59e0b');
+  console.log('9. Array Fields');
 
   window._labState.importedData.changeHistory = [];
   window._labState.importedData.healthGoals = [{ text: 'Reduce inflammation', severity: 'major' }];
@@ -151,7 +151,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 10. Migration guard
   // ═══════════════════════════════════════
-  console.log('%c 10. Migration ', 'font-weight:bold;color:#f59e0b');
+  console.log('10. Migration');
 
   const profileSrc = read('js/profile.js');
   assert('Migration guard for changeHistory', profileSrc.includes("data.changeHistory === undefined") && profileSrc.includes("data.changeHistory = []"));
@@ -159,7 +159,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 11. State default
   // ═══════════════════════════════════════
-  console.log('%c 11. State Default ', 'font-weight:bold;color:#f59e0b');
+  console.log('11. State Default');
 
   const stateSrc = read('js/state.js');
   assert('state.js has changeHistory default', stateSrc.includes('changeHistory: []'));
@@ -167,7 +167,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 12. Export includes changeHistory
   // ═══════════════════════════════════════
-  console.log('%c 12. Export ', 'font-weight:bold;color:#f59e0b');
+  console.log('12. Export');
 
   const exportSrc = read('js/export.js');
   assert('Export includes changeHistory', exportSrc.includes('changeHistory: data.changeHistory'));
@@ -175,7 +175,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 13. Import handles changeHistory
   // ═══════════════════════════════════════
-  console.log('%c 13. Import ', 'font-weight:bold;color:#f59e0b');
+  console.log('13. Import');
 
   assert('Import merges changeHistory (single-file path)', exportSrc.includes("Array.isArray(json.changeHistory)"));
   assert('Import merges changeHistory (bundle path)', exportSrc.includes("Array.isArray(importData.changeHistory)"));
@@ -183,7 +183,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 14. AI context integration
   // ═══════════════════════════════════════
-  console.log('%c 14. AI Context ', 'font-weight:bold;color:#f59e0b');
+  console.log('14. AI Context');
 
   const labCtxSrc = read('js/lab-context.js');
   assert('buildLabContext reads changeHistory', labCtxSrc.includes('changeHistory'));
@@ -193,7 +193,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 15. saveAndRefresh accepts field param
   // ═══════════════════════════════════════
-  console.log('%c 15. saveAndRefresh Field Param ', 'font-weight:bold;color:#f59e0b');
+  console.log('15. saveAndRefresh Field Param');
 
   const ctxSrc = read('js/context-cards.js');
   assert('saveAndRefresh has field parameter', ctxSrc.includes('function saveAndRefresh(msg, field)'));
@@ -209,7 +209,7 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   // 16. Inline save paths call recordChange
   // ═══════════════════════════════════════
-  console.log('%c 16. Inline Save Paths ', 'font-weight:bold;color:#f59e0b');
+  console.log('16. Inline Save Paths');
 
   assert('addCondition calls recordChange', ctxSrc.includes("recordChange('diagnoses')"));
   assert('addHealthGoal calls recordChange', ctxSrc.includes("recordChange('healthGoals')"));

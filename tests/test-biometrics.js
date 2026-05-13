@@ -46,7 +46,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 1. Profile height getter/setter
   // ═══════════════════════════════════════
-  console.log('%c 1. Height on Profile ', 'font-weight:bold;color:#f59e0b');
+  console.log('1. Height on Profile');
 
   assert('getProfileHeight is a function', typeof window.getProfileHeight === 'function');
   assert('setProfileHeight is a function', typeof window.setProfileHeight === 'function');
@@ -67,7 +67,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 2. Biometrics data migration
   // ═══════════════════════════════════════
-  console.log('%c 2. Data Migration ', 'font-weight:bold;color:#f59e0b');
+  console.log('2. Data Migration');
 
   const testData = {};
   window.migrateProfileData(testData);
@@ -76,7 +76,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 3. Weight entries
   // ═══════════════════════════════════════
-  console.log('%c 3. Weight CRUD ', 'font-weight:bold;color:#f59e0b');
+  console.log('3. Weight CRUD');
 
   state.importedData.biometrics = { weight: [], bp: [], pulse: [] };
 
@@ -102,7 +102,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 4. BP entries
   // ═══════════════════════════════════════
-  console.log('%c 4. Blood Pressure CRUD ', 'font-weight:bold;color:#f59e0b');
+  console.log('4. Blood Pressure CRUD');
 
   state.importedData.biometrics.bp.push({ date: '2026-01-15', sys: 120, dia: 80 });
   state.importedData.biometrics.bp.push({ date: '2026-02-15', sys: 130, dia: 85 });
@@ -113,7 +113,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 5. Pulse entries
   // ═══════════════════════════════════════
-  console.log('%c 5. Pulse CRUD ', 'font-weight:bold;color:#f59e0b');
+  console.log('5. Pulse CRUD');
 
   state.importedData.biometrics.pulse.push({ date: '2026-01-15', value: 65 });
   state.importedData.biometrics.pulse.push({ date: '2026-02-15', value: 70 });
@@ -122,7 +122,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 6. BMI calculation
   // ═══════════════════════════════════════
-  console.log('%c 6. BMI Calculation ', 'font-weight:bold;color:#f59e0b');
+  console.log('6. BMI Calculation');
 
   // BMI = weight(kg) / height(m)^2
   // 82 kg / (1.80)^2 = 25.3
@@ -143,7 +143,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 7. AI context
   // ═══════════════════════════════════════
-  console.log('%c 7. AI Context ', 'font-weight:bold;color:#f59e0b');
+  console.log('7. AI Context');
 
   if (typeof window.buildLabContext === 'function') {
     const ctx = window.buildLabContext();
@@ -160,7 +160,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 8. Export includes biometrics
   // ═══════════════════════════════════════
-  console.log('%c 8. Export ', 'font-weight:bold;color:#f59e0b');
+  console.log('8. Export');
 
   if (typeof window.exportClientJSON === 'function') {
     // Can't easily test the download, but verify the data is in importedData
@@ -173,7 +173,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   // 9. Profile migration backfills height
   // ═══════════════════════════════════════
-  console.log('%c 9. Profile Migration ', 'font-weight:bold;color:#f59e0b');
+  console.log('9. Profile Migration');
 
   const testProfiles = [{ id: 'test', name: 'Test', sex: null, dob: null, location: { country: '', zip: '' } }];
   // Simulate migrateProfiles by checking fields
