@@ -1,0 +1,42 @@
+# app.getbased.health robots.txt
+
+# Content Signals — open-source project, all uses welcome
+# search: appear in search results | ai-input: ground AI answers (RAG) | ai-train: train AI models
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Allow: /
+Disallow: /api
+
+Sitemap: https://app.getbased.health/sitemap.xml
+
+# AI search indexing bots
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+# AI training crawlers (allow — open source project, maximum exposure)
+User-agent: GPTBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
