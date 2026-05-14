@@ -115,7 +115,17 @@ return (async function () {
     const sun = await import('/js/sun.js?bust=' + Date.now());
     assert('sun.js exports trapModalFocus', typeof sun.trapModalFocus === 'function');
 
-    // Set a baseline overflow we can verify gets restored.
+    // Poll until `cond()` holds (or timeout). The whole suite runs in one
+    // shared page, so an earlier test file's async modal-teardown observer
+    // can still be in flight here — a fixed delay races it.
+    const waitFor = async (cond, ms = 500) => {
+      const start = Date.now();
+      while (!cond() && Date.now() - start < ms) await delay(10);
+    };
+
+    // Drain any leaked teardown observers from earlier files, *then* set the
+    // baseline last so a stale restore() can't clobber it mid-section.
+    await delay(50);
     document.body.style.overflow = 'auto';
     const baseline = document.body.style.overflow;
 
@@ -147,7 +157,7 @@ return (async function () {
     // Escape key on outer — overlay should be removed.
     const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
     document.dispatchEvent(escEvent);
-    await delay(20);
+    await waitFor(() => !document.body.contains(overlay) && document.body.style.overflow === baseline);
     assert('Escape key removes overlay',
       !document.body.contains(overlay));
     assert('body overflow restored to baseline after all modals closed',
@@ -165,7 +175,7 @@ return (async function () {
     sun.trapModalFocus(overlay3);
     stash.remove(); // detach previouslyFocused
     let threw = false;
-    try { overlay3.remove(); await delay(20); } catch (e) { threw = true; }
+    try { overlay3.remove(); await waitFor(() => document.body.style.overflow === baseline); } catch (e) { threw = true; }
     assert('detached-previouslyFocused does not throw on restore', !threw);
     assert('body overflow restored even after detached restore',
       document.body.style.overflow === baseline);
