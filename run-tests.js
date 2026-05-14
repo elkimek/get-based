@@ -22,7 +22,10 @@ const TEST_FILES = [
   'tests/test-custom-personality.js',
   'tests/test-changelog.js',
   'tests/test-audit.js',
-  'tests/test-image-utils.js',
+  // test-image-utils.js source-inspection + module-export checks ported to
+  // Vitest (PR for batch 19). DOM-runtime assertions (sections 6 + 7) live
+  // in test-image-utils-dom.js below.
+  'tests/test-image-utils-dom.js',
   'tests/test-emf.js',
   'tests/test-emf-flow.js',
   'tests/test-dna.js',
@@ -34,7 +37,6 @@ const TEST_FILES = [
   'tests/test-dashboard-knowledge-base.js',
   'tests/test-dashboard-data-protection.js',
   'tests/test-chat-panel-ux.js',
-  'tests/test-dna-recommendations.js',
   'tests/test-cashu-wallet.js',
   'tests/test-custom-api.js',
   'tests/test-custom-lens.js',

@@ -112,6 +112,11 @@ const LEGACY_TESTS = [
   './test-sync.js',
   // Batch 17 — recommendations module.
   './test-recommendations.js',
+  // Batch 19 — DNA-aware recommendation integration + image utils
+  // (DOM-runtime sections extracted to test-image-utils-dom.js, kept
+  // in the puppeteer runner).
+  './test-dna-recommendations.js',
+  './test-image-utils.js',
 ];
 
 for (const path of LEGACY_TESTS) {
