@@ -15,7 +15,11 @@ import { fileURLToPath } from 'url';
 const TEST_FILES = [
   'tests/test-crypto.js',
   'tests/test-chat-threads.js',
-  'tests/test-chat-actions.js',
+  // test-chat-actions.js source-inspection + buildActionBar HTML-string
+  // checks ported to Vitest (batch 29). DOM-runtime sections (4 / 10 / 12 —
+  // renderChatMessages/DOMParser, navigator.clipboard, context-toggle live
+  // DOM) live in test-chat-actions-dom.js below.
+  'tests/test-chat-actions-dom.js',
   'tests/test-mobile.js',
   // test-openrouter.js source-inspection + behavioral ported to Vitest
   // (batch 21). DOM-runtime section (Settings modal openSettingsModal,

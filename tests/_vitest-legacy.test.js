@@ -146,6 +146,9 @@ const LEGACY_TESTS = [
   // (section 6 picker open/dismiss in test-dashboard-data-protection-dom.js
   // stays on puppeteer).
   './test-dashboard-data-protection.js',
+  // Batch 29 — chat action buttons + context summary source-inspection
+  // (DOM sections 4/10/12 in test-chat-actions-dom.js stay on puppeteer).
+  './test-chat-actions.js',
 ];
 
 for (const path of LEGACY_TESTS) {
