@@ -131,7 +131,7 @@ User docs: `docs/guide/ai-overview.md` (canonical map of AI vs deterministic sur
 ```
 node dev-server.js
 ```
-Dev server mirrors production routing. Landing page repo (`../get-based-site`) served at `/` when present, app at `/app`. Docs at `/docs/*` route to `dist-docs/`.
+Dev server mirrors production routing. Landing page repo (`../get-based-site`) served at `/` when present, app at `/app`. `/docs/*` 301-redirects to `docs.getbased.health` (docs are hosted on Mintlify).
 
 ### Recommendation catalog
 

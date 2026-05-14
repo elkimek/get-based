@@ -2,7 +2,7 @@
 // Local dev server that mirrors production routing:
 //   /        → landing page (from ../get-based-site or SITE_DIR)
 //   /app     → the app (index.html)
-//   /docs/*  → built VitePress docs
+//   /docs/*  → 301 to docs.getbased.health (Mintlify)
 // Usage: node dev-server.js [port]
 //        SITE_DIR=/path/to/get-based-site node dev-server.js
 
@@ -1032,24 +1032,14 @@ const server = http.createServer((req, res) => {
     return serveFile(res, path.join(ROOT, 'index.html'));
   }
 
-  // Route: /docs → dist-docs/
-  if (pathname === '/docs' || pathname === '/docs/') {
-    return serveFile(res, path.join(ROOT, 'dist-docs', 'index.html'));
-  }
-  if (pathname.startsWith('/docs/')) {
-    let docPath = pathname.slice(6); // strip "/docs/"
-    let filePath = path.join(ROOT, 'dist-docs', docPath);
-    // Try exact file, then with .html, then index.html in directory
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      return serveFile(res, filePath);
-    }
-    if (fs.existsSync(filePath + '.html')) {
-      return serveFile(res, filePath + '.html');
-    }
-    if (fs.existsSync(path.join(filePath, 'index.html'))) {
-      return serveFile(res, path.join(filePath, 'index.html'));
-    }
-    res.writeHead(404); res.end('Not found'); return;
+  // Route: /docs/* → 301 to docs.getbased.health (docs moved to Mintlify;
+  // mirrors the redirects in the app's vercel.json).
+  if (pathname === '/docs' || pathname === '/docs/' || pathname.startsWith('/docs/')) {
+    const m = pathname.match(/^\/docs\/guide\/(.+?)(?:\.html)?\/?$/);
+    const dest = m ? `https://docs.getbased.health/guides/${m[1]}` : 'https://docs.getbased.health/';
+    res.writeHead(301, { Location: dest });
+    res.end();
+    return;
   }
 
   // Route: /blog → blog.html, /blog/{slug} → blog/{slug}/index.html (mirrors Vercel rewrites)
@@ -1126,5 +1116,5 @@ if (_isDirectRun) server.listen(PORT, HOST, () => {
   } else {
     console.log(`  /        → index.html (no site repo found at ${SITE_DIR})`);
   }
-  console.log(`  /docs/*  → dist-docs/*`);
+  console.log(`  /docs/*  → 301 docs.getbased.health`);
 });
