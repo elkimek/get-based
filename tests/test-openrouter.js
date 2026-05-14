@@ -17,7 +17,6 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -34,7 +33,7 @@ await import('../js/provider-panels.js');
 
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
-const apiSrc = await fetchWithRetry('js/api.js');
+const apiSrc = read('js/api.js');
 assert('getOpenRouterKey exists', apiSrc.includes('function getOpenRouterKey()'));
 assert('saveOpenRouterKey exists', apiSrc.includes('function saveOpenRouterKey('));
 assert('hasOpenRouterKey exists', apiSrc.includes('function hasOpenRouterKey()'));
@@ -50,13 +49,17 @@ assert('hasAIProvider handles openrouter', apiSrc.includes("provider === 'openro
 assert('callClaudeAPI handles openrouter', apiSrc.includes("provider === 'openrouter') return callOpenRouterAPI("));
 assert('callOpenRouterAPI sends HTTP-Referer', apiSrc.includes("'HTTP-Referer'"));
 assert('callOpenRouterAPI sends X-Title', apiSrc.includes("'X-Title': 'getbased'"));
-assert('OpenRouter default model is claude-sonnet-4-6', apiSrc.includes("'anthropic/claude-sonnet-4-6'"));
+// api.js carries the hyphenated 'anthropic/claude-sonnet-4-6' string as the
+// legacy-ID it migrates FROM — getOpenRouterModel() rewrites it to the dotted
+// canonical 'anthropic/claude-sonnet-4.6' (verified by the section-8 default
+// assertion). This checks the legacy-migration source string is still present.
+assert('api.js still references legacy hyphenated ID for migration', apiSrc.includes("'anthropic/claude-sonnet-4-6'"));
 assert('OpenRouter API endpoint', apiSrc.includes('openrouter.ai/api/v1/chat/completions'));
 assert('OpenRouter models endpoint', apiSrc.includes('openrouter.ai/api/v1/models'));
 
 // ─── 2. schema.js + api.js: curated models + dynamic pricing ───
 console.log('\n2. Curated models + dynamic pricing');
-const schemaSrc = await fetchWithRetry('js/schema.js');
+const schemaSrc = read('js/schema.js');
 assert('MODEL_PRICING has openrouter block', schemaSrc.includes('openrouter:'));
 assert('Has openrouter _default fallback', schemaSrc.includes("'_default':") && schemaSrc.includes('approx: true'));
 assert('getModelPricing checks openrouter-pricing cache', schemaSrc.includes('labcharts-openrouter-pricing'));
@@ -92,7 +95,7 @@ else localStorage.removeItem('labcharts-openrouter-pricing');
 
 // ─── 3. provider-panels.js source inspection (extracted from settings.js) ───
 console.log('\n3. provider-panels.js source inspection');
-const ppSrc = await fetchWithRetry('js/provider-panels.js');
+const ppSrc = read('js/provider-panels.js');
 assert('imports getOpenRouterKey', ppSrc.includes('getOpenRouterKey'));
 assert('imports saveOpenRouterKey', ppSrc.includes('saveOpenRouterKey'));
 assert('imports getOpenRouterModel', ppSrc.includes('getOpenRouterModel'));
@@ -100,7 +103,7 @@ assert('imports setOpenRouterModel', ppSrc.includes('setOpenRouterModel'));
 assert('imports getOpenRouterModelDisplay', ppSrc.includes('getOpenRouterModelDisplay'));
 assert('imports validateOpenRouterKey', ppSrc.includes('validateOpenRouterKey'));
 assert('imports fetchOpenRouterModels', ppSrc.includes('fetchOpenRouterModels'));
-const settingsSrc = await fetchWithRetry('js/settings.js');
+const settingsSrc = read('js/settings.js');
 assert('provider button with data-provider="openrouter"', settingsSrc.includes('data-provider="openrouter"'));
 assert("switchAIProvider('openrouter') in onclick", settingsSrc.includes("switchAIProvider('openrouter')"));
 assert('renderAIProviderPanel handles openrouter', ppSrc.includes("provider === 'openrouter'"));
@@ -123,12 +126,12 @@ assert('window exports updateOpenRouterModelPricing', ppSrc.includes('updateOpen
 
 // ─── 4. chat.js source inspection ───
 console.log('\n4. chat.js source inspection');
-const chatSrc = await fetchWithRetry('js/chat.js');
+const chatSrc = read('js/chat.js');
 assert('chat.js uses getActiveModelId for model resolution', chatSrc.includes('getActiveModelId'));
 
 // ─── 5. pdf-import.js source inspection ───
 console.log('\n5. pdf-import.js source inspection');
-const pdfSrc = await fetchWithRetry('js/pdf-import.js');
+const pdfSrc = read('js/pdf-import.js');
 assert('pdf-import imports getOpenRouterModel', pdfSrc.includes('getOpenRouterModel'));
 assert('pdf-import imports getOpenRouterModelDisplay', pdfSrc.includes('getOpenRouterModelDisplay'));
 assert('pdf-import has openrouter model-label case (costInfo display)', pdfSrc.includes("'openrouter' ? getOpenRouterModelDisplay()"));
@@ -136,7 +139,7 @@ assert('pdf-import uses getActiveModelId for model resolution', pdfSrc.includes(
 
 // ─── 6. service-worker.js ───
 console.log('\n6. service-worker.js');
-const swSrc = await fetchWithRetry('service-worker.js');
+const swSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW bypasses openrouter.ai', swSrc.includes('openrouter.ai'));
@@ -230,11 +233,11 @@ assert('startOpenRouterOAuth stores verifier in sessionStorage', apiSrc.includes
 assert('exchangeOpenRouterCode reads verifier from sessionStorage', apiSrc.includes("sessionStorage.getItem('or_pkce_verifier'"));
 assert('startOpenRouterOAuth redirects to openrouter.ai/auth', apiSrc.includes('openrouter.ai/auth?callback_url='));
 assert('exchangeOpenRouterCode posts to auth/keys endpoint', apiSrc.includes('openrouter.ai/api/v1/auth/keys'));
-const mainSrc = await fetchWithRetry('js/main.js');
+const mainSrc = read('js/main.js');
 assert('main.js checks for code URL param', mainSrc.includes("urlParams.get('code')") || mainSrc.includes("get('code')"));
 assert('main.js calls exchangeOpenRouterCode', mainSrc.includes('exchangeOpenRouterCode('));
 assert('main.js cleans URL via replaceState', mainSrc.includes('history.replaceState'));
-const cssSrc = await fetchWithRetry('styles.css');
+const cssSrc = read('styles.css');
 assert('CSS: .or-oauth-btn defined', cssSrc.includes('.or-oauth-btn'));
 assert('CSS: .or-oauth-divider defined', cssSrc.includes('.or-oauth-divider'));
 assert('provider-panels renders or-oauth-btn in OpenRouter panel', ppSrc.includes('or-oauth-btn'));
