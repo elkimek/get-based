@@ -11,6 +11,10 @@
 
 import './_node-shim.js';
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 let pass = 0, _failCount = 0, _skipCount = 0;
 const assert = (name, condition, detail) => {
   if (condition) { pass++; console.log(`  PASS: ${name}`); }
@@ -132,10 +136,8 @@ assert('49. renderEMFMeterRecs exported', typeof recsMod.renderEMFMeterRecs === 
 assert('50. renderEMFMitigationRecs exported', typeof recsMod.renderEMFMitigationRecs === 'function');
 
 // loadEMFCatalog fetches data/recommendations.json — install an fs-backed
-// fetch shim so the relative path resolves in Node.
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+// fetch shim so the relative path resolves in Node. (fs/path/url imports
+// are grouped at the top of the file.)
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 const _realFetch = globalThis.fetch;
