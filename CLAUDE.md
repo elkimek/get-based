@@ -153,6 +153,10 @@ VitePress at `/docs` (source in `docs/`). 33 user guide pages + 9 contributor pa
 
 `manifest.json` + `service-worker.js`. Cache: `labcharts-v${APP_VERSION}`. Bump `version.js` to bust cache. AI API calls bypass SW entirely (avoids IPC stream buffering).
 
+### Agent discovery metadata
+
+`.well-known/mcp.json` + `.well-known/agent-skills/` describe the `getbased-mcp` server for AI agents. These files are mirrored verbatim from the `get-based-site` repo — keep both copies in sync when the MCP version, tool list, or auth changes. If `SKILL.md` changes, regenerate its `sha256` digest in `index.json`.
+
 ### Responsive Layout
 
 Breakpoints: 3000/2000/1600/1400px (chat scaling), 1200px (cards 3→2 col), 1024px (sidebar → hamburger slide-out with backdrop), 768px (compact header — hides dates, range, feedback, donate; header groups with dividers), 600/480/375px (mobile). Grid items: `min-width: 0; overflow: hidden`. Touch: `@media (pointer: coarse)` 44px tap targets; `@media (hover: none)` reveals hover-only elements. Mobile sidebar: `toggleMobileSidebar()`/`closeMobileSidebar()` in nav.js, auto-closes on navigation.
