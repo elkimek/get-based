@@ -564,18 +564,18 @@ try {
 console.log('27. buildBackupSnapshot');
 try {
   const snapshot = window.buildBackupSnapshot();
-  if (snapshot) {
-    assert('buildBackupSnapshot has format field', snapshot.format === 'labcharts-backup');
-    assert('buildBackupSnapshot has version field', snapshot.version === 1);
-    assert('buildBackupSnapshot has createdAt', typeof snapshot.createdAt === 'string');
-    assert('buildBackupSnapshot has profiles array', Array.isArray(snapshot.profiles));
-    assert('buildBackupSnapshot has settings object', typeof snapshot.settings === 'object');
-    if (snapshot.profiles.length > 0) {
-      const firstProfile = snapshot.profiles[0];
-      assert('buildBackupSnapshot profile has keys', typeof firstProfile.keys === 'object');
-    }
-  } else {
-    assert('buildBackupSnapshot returns object (no profiles)', true);
+  // The profile registry is seeded at test startup, so a falsy return
+  // means a runtime error, not an empty profile list — assert the object
+  // type directly rather than letting a falsy value pass silently.
+  assert('buildBackupSnapshot returns an object', snapshot != null && typeof snapshot === 'object');
+  assert('buildBackupSnapshot has format field', snapshot.format === 'labcharts-backup');
+  assert('buildBackupSnapshot has version field', snapshot.version === 1);
+  assert('buildBackupSnapshot has createdAt', typeof snapshot.createdAt === 'string');
+  assert('buildBackupSnapshot has profiles array', Array.isArray(snapshot.profiles));
+  assert('buildBackupSnapshot has settings object', typeof snapshot.settings === 'object');
+  if (snapshot.profiles.length > 0) {
+    const firstProfile = snapshot.profiles[0];
+    assert('buildBackupSnapshot profile has keys', typeof firstProfile.keys === 'object');
   }
 } catch (e) {
   assert('buildBackupSnapshot', false, e.message);
