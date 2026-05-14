@@ -120,6 +120,9 @@ const LEGACY_TESTS = [
   // Batch 20 — changelog modal source-inspection + hasCardContent
   // (DOM-runtime sections in test-changelog-dom.js stay on puppeteer).
   './test-changelog.js',
+  // Batch 21 — OpenRouter integration source-inspection + behavioral
+  // (DOM section in test-openrouter-dom.js stays on puppeteer).
+  './test-openrouter.js',
 ];
 
 for (const path of LEGACY_TESTS) {

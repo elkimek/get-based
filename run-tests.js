@@ -17,7 +17,11 @@ const TEST_FILES = [
   'tests/test-chat-threads.js',
   'tests/test-chat-actions.js',
   'tests/test-mobile.js',
-  'tests/test-openrouter.js',
+  // test-openrouter.js source-inspection + behavioral ported to Vitest
+  // (batch 21). DOM-runtime section (Settings modal openSettingsModal,
+  // querySelectorAll on rendered provider cards) lives in
+  // test-openrouter-dom.js below.
+  'tests/test-openrouter-dom.js',
   'tests/test-tour.js',
   'tests/test-custom-personality.js',
   // test-changelog.js source-inspection + hasCardContent behavioral ported
