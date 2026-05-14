@@ -5,7 +5,7 @@
 User-agent: *
 Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
-Disallow: /api
+Disallow: /api/
 
 Sitemap: https://app.getbased.health/sitemap.xml
 
