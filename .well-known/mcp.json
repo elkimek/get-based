@@ -1,0 +1,37 @@
+{
+  "name": "getbased",
+  "description": "MCP server that exposes your getbased health data — blood work context, biomarker sections, and an optional RAG knowledge base — as tools for any MCP-compatible agent. Your data stays on your device; the server reads a read-only context summary, not raw records.",
+  "version": "0.2.5",
+  "transport": "stdio",
+  "hosting": "local",
+  "homepage": "https://getbased.health",
+  "documentation": "https://app.getbased.health/docs/guide/agent-access",
+  "repository": "https://github.com/elkimek/getbased-agents/tree/main/packages/mcp",
+  "license": "AGPL-3.0-or-later",
+  "install": {
+    "pypi": "getbased-mcp",
+    "command": "getbased-mcp",
+    "bundle": {
+      "package": "getbased-agent-stack",
+      "repository": "https://github.com/elkimek/getbased-agents/tree/main/packages/stack",
+      "description": "Meta-package that bundles the MCP server with the RAG backend and example Claude Code / Hermes / OpenClaw configs."
+    }
+  },
+  "authentication": {
+    "type": "token",
+    "env": "GETBASED_TOKEN",
+    "description": "Read-only token generated in the getbased app under Settings > Data > Messenger Access. Grants access to lab-context text only — no raw data, no write access. Revocable at any time by regenerating the token."
+  },
+  "gateway": "https://sync.getbased.health",
+  "tools": [
+    { "name": "getbased_lab_context", "description": "Full lab summary — biomarkers, ranges, trends, context cards, supplements, goals. Pass a profile to target a specific profile." },
+    { "name": "getbased_section", "description": "Get a specific section (e.g. hormones, lipids) or list all available sections. Token-efficient alternative to the full dump." },
+    { "name": "getbased_wearables_series", "description": "Read the daily wearable time-series (HRV, resting HR, sleep score, readiness, steps, weight, etc.) over the 7/30/90-day window the user opted into pushing." },
+    { "name": "getbased_list_profiles", "description": "List available profiles by name and ID." },
+    { "name": "knowledge_search", "description": "Semantic search across the active library of your RAG knowledge base. Requires the getbased-rag server; degrades gracefully if unavailable." },
+    { "name": "knowledge_list_libraries", "description": "List all knowledge-base libraries and show which is active." },
+    { "name": "knowledge_activate_library", "description": "Switch the active knowledge-base library for subsequent searches." },
+    { "name": "knowledge_stats", "description": "Per-source chunk counts for the active library — useful for diagnosing missing results." },
+    { "name": "getbased_lens_config", "description": "Show the Custom Knowledge Source endpoint configuration used by the getbased app." }
+  ]
+}
