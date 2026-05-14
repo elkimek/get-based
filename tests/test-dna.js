@@ -1,80 +1,120 @@
-// test-dna.js — DNA adapter: parser, storage, context assembly
-// Run: fetch('tests/test-dna.js').then(r=>r.text()).then(s=>Function(s)())
+#!/usr/bin/env node
+// test-dna.js — DNA adapter: parser, storage, context assembly.
+// Format detection, per-vendor parsers (Ancestry / 23andMe / CSV / MyHeritage
+// Low-pass WGS), genotype reversal + strand-flip handling, findGenotypeInfo,
+// APOE haplotype resolution, storage round-trip, context assembly, mtDNA
+// detection + haplogroup data, plus a source-integration sweep.
+//
+// Run: node tests/test-dna.js  (or via npm test)
+//
+// Full port — parseDNAFile spins a Blob-backed Worker; the synchronous
+// Worker shim in _node-shim.js runs it in-process. window-export checks
+// need state.js + dna.js loaded; haplogroups.json + source reads go
+// through the fs-backed fetch shim (`/app` aliases index.html).
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
+import './_node-shim.js';
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => {
+  let r = rel.replace(/^\//, '');
+  if (r === 'app' || r === '') r = 'index.html'; // dev-server alias
+  return fs.readFileSync(path.join(ROOT, r), 'utf-8');
+};
+function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
+
+// fs-backed fetch shim: relative URLs read from disk (read() handles the
+// dev-server `/app` → index.html alias).
+const _realFetch = globalThis.fetch;
+globalThis.fetch = async (url, opts) => {
+  if (typeof url === 'string' && !/^https?:/.test(url)) {
+    try { return new Response(read(url), { status: 200 }); }
+    catch (_) { return new Response('', { status: 404 }); }
   }
+  return _realFetch(url, opts);
+};
 
-  console.log('%c DNA Adapter Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
-  const dna = await import('../js/dna.js');
+console.log('=== DNA Adapter Tests ===\n');
 
-  // ═══════════════════════════════════════
-  // 1. Module exports
-  // ═══════════════════════════════════════
-  console.log('%c 1. Module Exports ', 'font-weight:bold;color:#f59e0b');
+// Load the app module surface so dna.js's Object.assign(window, …) runs
+// and window._labState is set by state.js.
+await import('../js/state.js');
+await import('../js/utils.js');
+await import('../js/data.js');
+const dna = await import('../js/dna.js');
 
-  assert('detectDNAFile exported', typeof dna.detectDNAFile === 'function');
-  assert('isDNAFile exported', typeof dna.isDNAFile === 'function');
-  assert('parseDNAFile exported', typeof dna.parseDNAFile === 'function');
-  assert('saveGeneticsData exported', typeof dna.saveGeneticsData === 'function');
-  assert('deleteGeneticsData exported', typeof dna.deleteGeneticsData === 'function');
-  assert('buildGeneticsContext exported', typeof dna.buildGeneticsContext === 'function');
-  assert('buildFullGeneticsContext exported', typeof dna.buildFullGeneticsContext === 'function');
-  assert('handleDNAFile exported', typeof dna.handleDNAFile === 'function');
-  assert('findGenotypeInfo exported', typeof dna.findGenotypeInfo === 'function');
-  assert('findSnpHint exported', typeof dna.findSnpHint === 'function');
+// ═══════════════════════════════════════
+// 1. Module exports
+// ═══════════════════════════════════════
+console.log('1. Module Exports');
 
-  // ═══════════════════════════════════════
-  // 2. Format detection
-  // ═══════════════════════════════════════
-  console.log('%c 2. Format Detection ', 'font-weight:bold;color:#f59e0b');
+assert('detectDNAFile exported', typeof dna.detectDNAFile === 'function');
+assert('isDNAFile exported', typeof dna.isDNAFile === 'function');
+assert('parseDNAFile exported', typeof dna.parseDNAFile === 'function');
+assert('saveGeneticsData exported', typeof dna.saveGeneticsData === 'function');
+assert('deleteGeneticsData exported', typeof dna.deleteGeneticsData === 'function');
+assert('buildGeneticsContext exported', typeof dna.buildGeneticsContext === 'function');
+assert('buildFullGeneticsContext exported', typeof dna.buildFullGeneticsContext === 'function');
+assert('handleDNAFile exported', typeof dna.handleDNAFile === 'function');
+assert('findGenotypeInfo exported', typeof dna.findGenotypeInfo === 'function');
+assert('findSnpHint exported', typeof dna.findSnpHint === 'function');
 
-  assert('Detects Ancestry', dna.detectDNAFile('#AncestryDNA raw data download\n') === 'ancestry');
-  assert('Detects 23andMe', dna.detectDNAFile('# This data file generated by 23andMe at: 2024-01-01\n') === '23andme');
-  assert('Detects Living DNA', dna.detectDNAFile('# Living DNA customer genotype data download file version: 1.0.1\n') === 'livingdna');
-  assert('Detects CSV (MyHeritage/FTDNA)', dna.detectDNAFile('RSID,CHROMOSOME,POSITION,RESULT\n') === 'csv');
-  assert('Detects quoted CSV', dna.detectDNAFile('"RSID","CHROMOSOME","POSITION","RESULT"\n') === 'csv');
-  // 2025+ MyHeritage Low-pass WGS export prepends a ##fileformat block before
-  // the column header. The detector used to read only line 0 and miss the
-  // RSID,CHROMOSOME,POSITION,RESULT line buried below ~12 comment rows.
-  const myHeritageWGSHeader =
-    '##fileformat=MyHeritage\n' +
-    '##format=MHv1.0\n' +
-    '##method=Low-pass Whole Genome Sequencing\n' +
-    '##timestamp=2026-05-12 13:09:09 UTC\n' +
-    '##reference=build37\n' +
-    '#\n' +
-    '# MyHeritage DNA raw data.\n' +
-    'RSID,CHROMOSOME,POSITION,RESULT\n' +
-    '"rs3131972","1","752721","AA"\n';
-  assert('Detects MyHeritage Low-pass WGS (##fileformat header)', dna.detectDNAFile(myHeritageWGSHeader) === 'csv');
-  assert('Returns null for JSON', dna.detectDNAFile('{"entries": []}') === null);
-  assert('Returns null for PDF header', dna.detectDNAFile('%PDF-1.4') === null);
+// ═══════════════════════════════════════
+// 2. Format detection
+// ═══════════════════════════════════════
+console.log('2. Format Detection');
 
-  // ═══════════════════════════════════════
-  // 3. isDNAFile by filename
-  // ═══════════════════════════════════════
-  console.log('%c 3. isDNAFile ', 'font-weight:bold;color:#f59e0b');
+assert('Detects Ancestry', dna.detectDNAFile('#AncestryDNA raw data download\n') === 'ancestry');
+assert('Detects 23andMe', dna.detectDNAFile('# This data file generated by 23andMe at: 2024-01-01\n') === '23andme');
+assert('Detects Living DNA', dna.detectDNAFile('# Living DNA customer genotype data download file version: 1.0.1\n') === 'livingdna');
+assert('Detects CSV (MyHeritage/FTDNA)', dna.detectDNAFile('RSID,CHROMOSOME,POSITION,RESULT\n') === 'csv');
+assert('Detects quoted CSV', dna.detectDNAFile('"RSID","CHROMOSOME","POSITION","RESULT"\n') === 'csv');
+// 2025+ MyHeritage Low-pass WGS export prepends a ##fileformat block before
+// the column header. The detector used to read only line 0 and miss the
+// RSID,CHROMOSOME,POSITION,RESULT line buried below ~12 comment rows.
+const myHeritageWGSHeader =
+  '##fileformat=MyHeritage\n' +
+  '##format=MHv1.0\n' +
+  '##method=Low-pass Whole Genome Sequencing\n' +
+  '##timestamp=2026-05-12 13:09:09 UTC\n' +
+  '##reference=build37\n' +
+  '#\n' +
+  '# MyHeritage DNA raw data.\n' +
+  'RSID,CHROMOSOME,POSITION,RESULT\n' +
+  '"rs3131972","1","752721","AA"\n';
+assert('Detects MyHeritage Low-pass WGS (##fileformat header)', dna.detectDNAFile(myHeritageWGSHeader) === 'csv');
+assert('Returns null for JSON', dna.detectDNAFile('{"entries": []}') === null);
+assert('Returns null for PDF header', dna.detectDNAFile('%PDF-1.4') === null);
 
-  assert('Recognizes AncestryDNA.txt', dna.isDNAFile({ name: 'AncestryDNA.txt' }));
-  assert('Recognizes 23andMe file', dna.isDNAFile({ name: 'genome_23andme_Full_20240101.txt' }));
-  assert('Recognizes MyHeritage', dna.isDNAFile({ name: 'MyHeritage_raw_dna_data.csv' }));
-  assert('Recognizes Family Finder', dna.isDNAFile({ name: 'Family_Finder_Results.csv' }));
-  assert('Recognizes Living DNA', dna.isDNAFile({ name: 'livingdna_results.txt' }));
-  assert('Rejects random PDF', !dna.isDNAFile({ name: 'lab-results.pdf' }));
-  assert('Rejects JSON', !dna.isDNAFile({ name: 'backup.json' }));
-  assert('Handles null', !dna.isDNAFile(null));
+// ═══════════════════════════════════════
+// 3. isDNAFile by filename
+// ═══════════════════════════════════════
+console.log('3. isDNAFile');
 
-  // ═══════════════════════════════════════
-  // 4. Ancestry parser
-  // ═══════════════════════════════════════
-  console.log('%c 4. Ancestry Parser ', 'font-weight:bold;color:#f59e0b');
+assert('Recognizes AncestryDNA.txt', dna.isDNAFile({ name: 'AncestryDNA.txt' }));
+assert('Recognizes 23andMe file', dna.isDNAFile({ name: 'genome_23andme_Full_20240101.txt' }));
+assert('Recognizes MyHeritage', dna.isDNAFile({ name: 'MyHeritage_raw_dna_data.csv' }));
+assert('Recognizes Family Finder', dna.isDNAFile({ name: 'Family_Finder_Results.csv' }));
+assert('Recognizes Living DNA', dna.isDNAFile({ name: 'livingdna_results.txt' }));
+assert('Rejects random PDF', !dna.isDNAFile({ name: 'lab-results.pdf' }));
+assert('Rejects JSON', !dna.isDNAFile({ name: 'backup.json' }));
+assert('Handles null', !dna.isDNAFile(null));
 
-  const ancestryContent = `#AncestryDNA raw data download
+// ═══════════════════════════════════════
+// 4. Ancestry parser
+// ═══════════════════════════════════════
+console.log('4. Ancestry Parser');
+
+const ancestryContent = `#AncestryDNA raw data download
 #This file was generated by AncestryDNA
 rsid\tchromosome\tposition\tallele1\tallele2
 rs1801133\t1\t11856378\tG\tA
@@ -85,313 +125,312 @@ rs7412\t19\t45412079\tC\tC
 rs174546\t11\t61569830\tC\tT
 rs999999\t1\t100000\tA\tG
 `;
-  const ancestryFile = new File([ancestryContent], 'AncestryDNA.txt', { type: 'text/plain' });
-  const aResult = await dna.parseDNAFile(ancestryFile);
+const ancestryFile = new File([ancestryContent], 'AncestryDNA.txt', { type: 'text/plain' });
+const aResult = await dna.parseDNAFile(ancestryFile);
 
-  assert('Ancestry: source detected', aResult.source === 'AncestryDNA');
-  assert('Ancestry: found matches', Object.keys(aResult.matches).length > 0, `found ${Object.keys(aResult.matches).length}`);
-  assert('Ancestry: MTHFR C677T matched', aResult.matches.rs1801133 != null);
-  assert('Ancestry: MTHFR genotype GA', aResult.matches.rs1801133?.genotype === 'GA');
-  assert('Ancestry: MTHFR effect moderate', aResult.matches.rs1801133?.effect === 'moderate');
-  assert('Ancestry: HFE matched', aResult.matches.rs1800562 != null);
-  assert('Ancestry: HFE effect none', aResult.matches.rs1800562?.effect === 'none');
-  assert('Ancestry: unknown rsid not in matches', aResult.matches.rs999999 == null);
-  assert('Ancestry: coverage reported', aResult.coverage.found > 0 && aResult.coverage.total > 0);
+assert('Ancestry: source detected', aResult.source === 'AncestryDNA');
+assert('Ancestry: found matches', Object.keys(aResult.matches).length > 0, `found ${Object.keys(aResult.matches).length}`);
+assert('Ancestry: MTHFR C677T matched', aResult.matches.rs1801133 != null);
+assert('Ancestry: MTHFR genotype GA', aResult.matches.rs1801133?.genotype === 'GA');
+assert('Ancestry: MTHFR effect moderate', aResult.matches.rs1801133?.effect === 'moderate');
+assert('Ancestry: HFE matched', aResult.matches.rs1800562 != null);
+assert('Ancestry: HFE effect none', aResult.matches.rs1800562?.effect === 'none');
+assert('Ancestry: unknown rsid not in matches', aResult.matches.rs999999 == null);
+assert('Ancestry: coverage reported', aResult.coverage.found > 0 && aResult.coverage.total > 0);
 
-  // ═══════════════════════════════════════
-  // 5. 23andMe parser
-  // ═══════════════════════════════════════
-  console.log('%c 5. 23andMe Parser ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 5. 23andMe parser
+// ═══════════════════════════════════════
+console.log('5. 23andMe Parser');
 
-  const me23Content = `# This data file generated by 23andMe at: 2024-01-01
+const me23Content = `# This data file generated by 23andMe at: 2024-01-01
 # rsid\tchromosome\tposition\tgenotype
 rs1801133\t1\t11856378\tGA
 rs1800562\t6\t26093141\tGG
 rs174546\t11\t61569830\tCT
 i123456\t1\t100\tAA
 `;
-  const me23File = new File([me23Content], '23andme.txt', { type: 'text/plain' });
-  const me23Result = await dna.parseDNAFile(me23File);
+const me23File = new File([me23Content], '23andme.txt', { type: 'text/plain' });
+const me23Result = await dna.parseDNAFile(me23File);
 
-  assert('23andMe: source detected', me23Result.source === '23andMe');
-  assert('23andMe: MTHFR matched', me23Result.matches.rs1801133?.genotype === 'GA');
-  assert('23andMe: internal ID skipped', me23Result.matches.i123456 == null);
+assert('23andMe: source detected', me23Result.source === '23andMe');
+assert('23andMe: MTHFR matched', me23Result.matches.rs1801133?.genotype === 'GA');
+assert('23andMe: internal ID skipped', me23Result.matches.i123456 == null);
 
-  // ═══════════════════════════════════════
-  // 6. CSV parser (MyHeritage/FTDNA)
-  // ═══════════════════════════════════════
-  console.log('%c 6. CSV Parser ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 6. CSV parser (MyHeritage/FTDNA)
+// ═══════════════════════════════════════
+console.log('6. CSV Parser');
 
-  const csvContent = `RSID,CHROMOSOME,POSITION,RESULT
+const csvContent = `RSID,CHROMOSOME,POSITION,RESULT
 "rs1801133","1","11856378","GA"
 "rs1800562","6","26093141","GG"
 `;
-  const csvFile = new File([csvContent], 'MyHeritage_raw_dna_data.csv', { type: 'text/csv' });
-  const csvResult = await dna.parseDNAFile(csvFile);
+const csvFile = new File([csvContent], 'MyHeritage_raw_dna_data.csv', { type: 'text/csv' });
+const csvResult = await dna.parseDNAFile(csvFile);
 
-  assert('CSV: source detected', csvResult.source === 'MyHeritage/FTDNA');
-  assert('CSV: MTHFR matched', csvResult.matches.rs1801133?.genotype === 'GA');
-  assert('CSV: handles quoted fields', csvResult.matches.rs1800562?.genotype === 'GG');
+assert('CSV: source detected', csvResult.source === 'MyHeritage/FTDNA');
+assert('CSV: MTHFR matched', csvResult.matches.rs1801133?.genotype === 'GA');
+assert('CSV: handles quoted fields', csvResult.matches.rs1800562?.genotype === 'GG');
 
-  // CSV with MyHeritage Low-pass WGS ##fileformat header block (the format
-  // shipped after the 2025 export refresh — the detector used to miss it).
-  const myHeritageWGSContent =
-    '##fileformat=MyHeritage\n' +
-    '##format=MHv1.0\n' +
-    '##method=Low-pass Whole Genome Sequencing\n' +
-    '##timestamp=2026-05-12 13:09:09 UTC\n' +
-    '##reference=build37\n' +
-    '#\n' +
-    '# MyHeritage DNA raw data.\n' +
-    'RSID,CHROMOSOME,POSITION,RESULT\n' +
-    '"rs1801133","1","11856378","GA"\n' +
-    '"rs1800562","6","26093141","GG"\n';
-  const mhFile = new File([myHeritageWGSContent], 'MyHeritage_raw_dna_data_adj.csv', { type: 'text/csv' });
-  const mhResult = await dna.parseDNAFile(mhFile);
-  assert('MyHeritage WGS: source detected', mhResult.source === 'MyHeritage/FTDNA');
-  assert('MyHeritage WGS: comment lines skipped, MTHFR matched', mhResult.matches.rs1801133?.genotype === 'GA');
-  assert('MyHeritage WGS: HFE matched (past comment block)', mhResult.matches.rs1800562?.genotype === 'GG');
+// CSV with MyHeritage Low-pass WGS ##fileformat header block (the format
+// shipped after the 2025 export refresh — the detector used to miss it).
+const myHeritageWGSContent =
+  '##fileformat=MyHeritage\n' +
+  '##format=MHv1.0\n' +
+  '##method=Low-pass Whole Genome Sequencing\n' +
+  '##timestamp=2026-05-12 13:09:09 UTC\n' +
+  '##reference=build37\n' +
+  '#\n' +
+  '# MyHeritage DNA raw data.\n' +
+  'RSID,CHROMOSOME,POSITION,RESULT\n' +
+  '"rs1801133","1","11856378","GA"\n' +
+  '"rs1800562","6","26093141","GG"\n';
+const mhFile = new File([myHeritageWGSContent], 'MyHeritage_raw_dna_data_adj.csv', { type: 'text/csv' });
+const mhResult = await dna.parseDNAFile(mhFile);
+assert('MyHeritage WGS: source detected', mhResult.source === 'MyHeritage/FTDNA');
+assert('MyHeritage WGS: comment lines skipped, MTHFR matched', mhResult.matches.rs1801133?.genotype === 'GA');
+assert('MyHeritage WGS: HFE matched (past comment block)', mhResult.matches.rs1800562?.genotype === 'GG');
 
-  // ═══════════════════════════════════════
-  // 7. Genotype reversal (CT ↔ TC)
-  // ═══════════════════════════════════════
-  console.log('%c 7. Genotype Reversal ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 7. Genotype reversal (CT ↔ TC)
+// ═══════════════════════════════════════
+console.log('7. Genotype Reversal');
 
-  // FADS1 table has TC but Ancestry gives CT — should still match via reversal
-  assert('FADS1 CT matched as TC', aResult.matches.rs174546?.effect === 'moderate', aResult.matches.rs174546?.note);
+// FADS1 table has TC but Ancestry gives CT — should still match via reversal
+assert('FADS1 CT matched as TC', aResult.matches.rs174546?.effect === 'moderate', aResult.matches.rs174546?.note);
 
-  // ═══════════════════════════════════════
-  // 7b. Strand-flip + sequencing-noise handling
-  // ═══════════════════════════════════════
-  // MyHeritage 2025 Low-pass WGS reports build37 forward strand. For a handful
-  // of catalog loci (PCSK9 R46L, MTR A2756G, UGT1A1 G71R, MTRR A66G, BHMT
-  // R239Q, FADS1 coding, LIPC -514, MC1R R160W) the catalog keys live on the
-  // opposite strand, so a raw "AC" call must resolve to a catalog "GT" via
-  // reverse-complement fallback. Independently, low-pass imputation noise can
-  // emit alleles that aren't valid for the locus at all (e.g. "CG" on a C/T
-  // SNP) — those must be dropped, not surfaced as "Genotype not in lookup".
-  console.log('%c 7b. Strand-flip + sequencing-noise ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 7b. Strand-flip + sequencing-noise handling
+// ═══════════════════════════════════════
+// MyHeritage 2025 Low-pass WGS reports build37 forward strand. For a handful
+// of catalog loci (PCSK9 R46L, MTR A2756G, UGT1A1 G71R, MTRR A66G, BHMT
+// R239Q, FADS1 coding, LIPC -514, MC1R R160W) the catalog keys live on the
+// opposite strand, so a raw "AC" call must resolve to a catalog "GT" via
+// reverse-complement fallback. Independently, low-pass imputation noise can
+// emit alleles that aren't valid for the locus at all (e.g. "CG" on a C/T
+// SNP) — those must be dropped, not surfaced as "Genotype not in lookup".
+console.log('7b. Strand-flip + sequencing-noise');
 
-  const wgsEdgeContent =
-    '##fileformat=MyHeritage\n' +
-    '##method=Low-pass Whole Genome Sequencing\n' +
-    'RSID,CHROMOSOME,POSITION,RESULT\n' +
-    '"rs5882","16","57016092","AG"\n' +        // direct catalog AG, effect mild — must NOT be dropped
-    '"rs762551","15","75041917","AC"\n' +      // direct catalog AC, effect mild — must NOT be dropped
-    '"rs11591147","1","55505647","AC"\n' +     // RC of GT — must resolve to significant
-    '"rs1801394","5","7870973","TT"\n' +       // RC of AA — must resolve to none (MTRR wild-type)
-    '"rs1805087","1","237048500","CC"\n' +     // RC of GG — must resolve to moderate
-    '"rs11206244","1","54375701","CG"\n' +     // invalid call on C/T locus — must be dropped
-    '"rs1801198","22","31011610","AA"\n';      // invalid call on C/G palindromic locus — must be dropped (RC of AA is TT, also invalid)
-  const wgsEdgeFile = new File([wgsEdgeContent], 'wgs-edge.csv', { type: 'text/csv' });
-  const wgsEdgeResult = await dna.parseDNAFile(wgsEdgeFile);
+const wgsEdgeContent =
+  '##fileformat=MyHeritage\n' +
+  '##method=Low-pass Whole Genome Sequencing\n' +
+  'RSID,CHROMOSOME,POSITION,RESULT\n' +
+  '"rs5882","16","57016092","AG"\n' +        // direct catalog AG, effect mild — must NOT be dropped
+  '"rs762551","15","75041917","AC"\n' +      // direct catalog AC, effect mild — must NOT be dropped
+  '"rs11591147","1","55505647","AC"\n' +     // RC of GT — must resolve to significant
+  '"rs1801394","5","7870973","TT"\n' +       // RC of AA — must resolve to none (MTRR wild-type)
+  '"rs1805087","1","237048500","CC"\n' +     // RC of GG — must resolve to moderate
+  '"rs11206244","1","54375701","CG"\n' +     // invalid call on C/T locus — must be dropped
+  '"rs1801198","22","31011610","AA"\n';      // invalid call on C/G palindromic locus — must be dropped (RC of AA is TT, also invalid)
+const wgsEdgeFile = new File([wgsEdgeContent], 'wgs-edge.csv', { type: 'text/csv' });
+const wgsEdgeResult = await dna.parseDNAFile(wgsEdgeFile);
 
-  assert('WGS edge: effect "mild" kept on rs5882 (was being dropped as unknown)', wgsEdgeResult.matches.rs5882?.effect === 'mild');
-  assert('WGS edge: effect "mild" kept on rs762551 (was being dropped as unknown)', wgsEdgeResult.matches.rs762551?.effect === 'mild');
-  assert('WGS edge: strand-flipped AC → GT resolves to significant (PCSK9 R46L)', wgsEdgeResult.matches.rs11591147?.effect === 'significant');
-  assert('WGS edge: strand-flipped TT → AA resolves to none (MTRR A66G wild-type)', wgsEdgeResult.matches.rs1801394?.effect === 'none');
-  assert('WGS edge: strand-flipped CC → GG resolves to moderate (MTR A2756G)', wgsEdgeResult.matches.rs1805087?.effect === 'moderate');
-  assert('WGS edge: invalid CG call on C/T locus dropped (not surfaced as unknown)', wgsEdgeResult.matches.rs11206244 == null);
-  assert('WGS edge: invalid AA call on C/G palindromic locus dropped (RC guard prevents false positive)', wgsEdgeResult.matches.rs1801198 == null);
+assert('WGS edge: effect "mild" kept on rs5882 (was being dropped as unknown)', wgsEdgeResult.matches.rs5882?.effect === 'mild');
+assert('WGS edge: effect "mild" kept on rs762551 (was being dropped as unknown)', wgsEdgeResult.matches.rs762551?.effect === 'mild');
+assert('WGS edge: strand-flipped AC → GT resolves to significant (PCSK9 R46L)', wgsEdgeResult.matches.rs11591147?.effect === 'significant');
+assert('WGS edge: strand-flipped TT → AA resolves to none (MTRR A66G wild-type)', wgsEdgeResult.matches.rs1801394?.effect === 'none');
+assert('WGS edge: strand-flipped CC → GG resolves to moderate (MTR A2756G)', wgsEdgeResult.matches.rs1805087?.effect === 'moderate');
+assert('WGS edge: invalid CG call on C/T locus dropped (not surfaced as unknown)', wgsEdgeResult.matches.rs11206244 == null);
+assert('WGS edge: invalid AA call on C/G palindromic locus dropped (RC guard prevents false positive)', wgsEdgeResult.matches.rs1801198 == null);
 
-  // ═══════════════════════════════════════
-  // 7c. findGenotypeInfo strand-aware lookup
-  // ═══════════════════════════════════════
-  console.log('%c 7c. findGenotypeInfo helper ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 7c. findGenotypeInfo strand-aware lookup
+// ═══════════════════════════════════════
+console.log('7c. findGenotypeInfo helper');
 
-  // Non-palindromic SNP: A/G alleles → RC fallback should resolve CT→AG, TT→AA, CC→GG
-  const nonPalEntry = { genotypes: { AA: { effect: 'none' }, AG: { effect: 'moderate' }, GG: { effect: 'significant' } } };
-  assert('Non-palindromic: direct AG → moderate', dna.findGenotypeInfo(nonPalEntry, 'AG')?.effect === 'moderate');
-  assert('Non-palindromic: reversed GA → moderate', dna.findGenotypeInfo(nonPalEntry, 'GA')?.effect === 'moderate');
-  assert('Non-palindromic: RC of TT → AA → none', dna.findGenotypeInfo(nonPalEntry, 'TT')?.effect === 'none');
-  assert('Non-palindromic: RC of CC → GG → significant', dna.findGenotypeInfo(nonPalEntry, 'CC')?.effect === 'significant');
-  assert('Non-palindromic: RC of CT → AG → moderate', dna.findGenotypeInfo(nonPalEntry, 'CT')?.effect === 'moderate');
-  assert('Non-palindromic: unrelated alleles → null', dna.findGenotypeInfo(nonPalEntry, 'NN') == null);
+// Non-palindromic SNP: A/G alleles → RC fallback should resolve CT→AG, TT→AA, CC→GG
+const nonPalEntry = { genotypes: { AA: { effect: 'none' }, AG: { effect: 'moderate' }, GG: { effect: 'significant' } } };
+assert('Non-palindromic: direct AG → moderate', dna.findGenotypeInfo(nonPalEntry, 'AG')?.effect === 'moderate');
+assert('Non-palindromic: reversed GA → moderate', dna.findGenotypeInfo(nonPalEntry, 'GA')?.effect === 'moderate');
+assert('Non-palindromic: RC of TT → AA → none', dna.findGenotypeInfo(nonPalEntry, 'TT')?.effect === 'none');
+assert('Non-palindromic: RC of CC → GG → significant', dna.findGenotypeInfo(nonPalEntry, 'CC')?.effect === 'significant');
+assert('Non-palindromic: RC of CT → AG → moderate', dna.findGenotypeInfo(nonPalEntry, 'CT')?.effect === 'moderate');
+assert('Non-palindromic: unrelated alleles → null', dna.findGenotypeInfo(nonPalEntry, 'NN') == null);
 
-  // Palindromic SNP: C/G alleles → RC of CC is GG, both in catalog with different effects.
-  // RC fallback must be SUPPRESSED, else we'd silently equate CC and GG.
-  const palEntry = { genotypes: { CC: { effect: 'none' }, CG: { effect: 'moderate' }, GG: { effect: 'significant' } } };
-  assert('Palindromic: CC stays CC (not RC-flipped to GG)', dna.findGenotypeInfo(palEntry, 'CC')?.effect === 'none');
-  assert('Palindromic: GG stays GG (not RC-flipped to CC)', dna.findGenotypeInfo(palEntry, 'GG')?.effect === 'significant');
-  assert('Palindromic: invalid AA returns null (no RC fallback to TT either)', dna.findGenotypeInfo(palEntry, 'AA') == null);
-  assert('Palindromic: invalid TT returns null', dna.findGenotypeInfo(palEntry, 'TT') == null);
+// Palindromic SNP: C/G alleles → RC of CC is GG, both in catalog with different effects.
+// RC fallback must be SUPPRESSED, else we'd silently equate CC and GG.
+const palEntry = { genotypes: { CC: { effect: 'none' }, CG: { effect: 'moderate' }, GG: { effect: 'significant' } } };
+assert('Palindromic: CC stays CC (not RC-flipped to GG)', dna.findGenotypeInfo(palEntry, 'CC')?.effect === 'none');
+assert('Palindromic: GG stays GG (not RC-flipped to CC)', dna.findGenotypeInfo(palEntry, 'GG')?.effect === 'significant');
+assert('Palindromic: invalid AA returns null (no RC fallback to TT either)', dna.findGenotypeInfo(palEntry, 'AA') == null);
+assert('Palindromic: invalid TT returns null', dna.findGenotypeInfo(palEntry, 'TT') == null);
 
-  // Empty / malformed inputs
-  assert('findGenotypeInfo: null entry → null', dna.findGenotypeInfo(null, 'AG') == null);
-  assert('findGenotypeInfo: missing genotype → null', dna.findGenotypeInfo(nonPalEntry, '') == null);
-  assert('findGenotypeInfo: entry without genotypes → null', dna.findGenotypeInfo({}, 'AG') == null);
+// Empty / malformed inputs
+assert('findGenotypeInfo: null entry → null', dna.findGenotypeInfo(null, 'AG') == null);
+assert('findGenotypeInfo: missing genotype → null', dna.findGenotypeInfo(nonPalEntry, '') == null);
+assert('findGenotypeInfo: entry without genotypes → null', dna.findGenotypeInfo({}, 'AG') == null);
 
-  // ═══════════════════════════════════════
-  // 8. APOE haplotype
-  // ═══════════════════════════════════════
-  console.log('%c 8. APOE Haplotype ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 8. APOE haplotype
+// ═══════════════════════════════════════
+console.log('8. APOE Haplotype');
 
-  const profileData = {};
-  dna.saveGeneticsData(profileData, aResult);
-  assert('APOE resolved', profileData.genetics?.apoe != null, profileData.genetics?.apoe);
-  assert('APOE is ε3/ε4', profileData.genetics?.apoe === 'ε3/ε4');
+const profileData = {};
+dna.saveGeneticsData(profileData, aResult);
+assert('APOE resolved', profileData.genetics?.apoe != null, profileData.genetics?.apoe);
+assert('APOE is ε3/ε4', profileData.genetics?.apoe === 'ε3/ε4');
 
-  // ═══════════════════════════════════════
-  // 9. Storage
-  // ═══════════════════════════════════════
-  console.log('%c 9. Storage ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 9. Storage
+// ═══════════════════════════════════════
+console.log('9. Storage');
 
-  assert('genetics.source saved', profileData.genetics?.source === 'AncestryDNA');
-  assert('genetics.importDate saved', typeof profileData.genetics?.importDate === 'string');
-  assert('genetics.coverage saved', profileData.genetics?.coverage?.found > 0);
-  assert('genetics.snps is object', typeof profileData.genetics?.snps === 'object');
-  assert('SNP has genotype', profileData.genetics?.snps?.rs1801133?.genotype === 'GA');
-  assert('SNP has gene', profileData.genetics?.snps?.rs1801133?.gene === 'MTHFR');
-  assert('SNP has variant', profileData.genetics?.snps?.rs1801133?.variant === 'C677T');
+assert('genetics.source saved', profileData.genetics?.source === 'AncestryDNA');
+assert('genetics.importDate saved', typeof profileData.genetics?.importDate === 'string');
+assert('genetics.coverage saved', profileData.genetics?.coverage?.found > 0);
+assert('genetics.snps is object', typeof profileData.genetics?.snps === 'object');
+assert('SNP has genotype', profileData.genetics?.snps?.rs1801133?.genotype === 'GA');
+assert('SNP has gene', profileData.genetics?.snps?.rs1801133?.gene === 'MTHFR');
+assert('SNP has variant', profileData.genetics?.snps?.rs1801133?.variant === 'C677T');
 
-  // Delete
-  dna.deleteGeneticsData(profileData);
-  assert('deleteGeneticsData removes genetics', profileData.genetics === undefined);
+// Delete
+dna.deleteGeneticsData(profileData);
+assert('deleteGeneticsData removes genetics', profileData.genetics === undefined);
 
-  // ═══════════════════════════════════════
-  // 10. Context assembly
-  // ═══════════════════════════════════════
-  console.log('%c 10. Context Assembly ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 10. Context assembly
+// ═══════════════════════════════════════
+console.log('10. Context Assembly');
 
-  // Re-save for context tests
-  dna.saveGeneticsData(profileData, aResult);
+// Re-save for context tests
+dna.saveGeneticsData(profileData, aResult);
 
-  const fullCtx = dna.buildFullGeneticsContext(profileData.genetics);
-  assert('Full context includes GENETICS header', fullCtx.startsWith('GENETICS ('));
-  assert('Full context includes APOE', fullCtx.includes('APOE: ε3/ε4'));
-  assert('Full context includes MTHFR', fullCtx.includes('MTHFR C677T'));
-  assert('Full context excludes none-effect SNPs', !fullCtx.includes('Normal MTHFR'));
-  assert('Full context excludes APOE component SNPs', !fullCtx.includes('APOE-part1'));
+const fullCtx = dna.buildFullGeneticsContext(profileData.genetics);
+assert('Full context includes GENETICS header', fullCtx.startsWith('GENETICS ('));
+assert('Full context includes APOE', fullCtx.includes('APOE: ε3/ε4'));
+assert('Full context includes MTHFR', fullCtx.includes('MTHFR C677T'));
+assert('Full context excludes none-effect SNPs', !fullCtx.includes('Normal MTHFR'));
+assert('Full context excludes APOE component SNPs', !fullCtx.includes('APOE-part1'));
 
-  // Filtered context — only SNPs relevant to specific markers
-  const filteredCtx = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine']);
-  assert('Filtered context includes MTHFR (maps to homocysteine)', filteredCtx.includes('MTHFR'));
-  assert('Filtered context excludes FADS1 (not in filter)', !filteredCtx.includes('FADS1'));
-  assert('Filtered context always includes APOE', filteredCtx.includes('APOE'));
+// Filtered context — only SNPs relevant to specific markers
+const filteredCtx = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine']);
+assert('Filtered context includes MTHFR (maps to homocysteine)', filteredCtx.includes('MTHFR'));
+assert('Filtered context excludes FADS1 (not in filter)', !filteredCtx.includes('FADS1'));
+assert('Filtered context always includes APOE', filteredCtx.includes('APOE'));
 
-  // Empty genetics
-  const emptyCtx = dna.buildGeneticsContext(null, []);
-  assert('Null genetics = empty string', emptyCtx === '');
+// Empty genetics
+const emptyCtx = dna.buildGeneticsContext(null, []);
+assert('Null genetics = empty string', emptyCtx === '');
 
-  // ═══════════════════════════════════════
-  // 11. Window exports
-  // ═══════════════════════════════════════
-  console.log('%c 11. Window Exports ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 11. Window exports
+// ═══════════════════════════════════════
+console.log('11. Window Exports');
 
-  assert('window.isDNAFile exists', typeof window.isDNAFile === 'function');
-  assert('window.handleDNAFile exists', typeof window.handleDNAFile === 'function');
-  assert('window.confirmDNAImport exists', typeof window.confirmDNAImport === 'function');
-  assert('window.closeDNAImportPreview exists', typeof window.closeDNAImportPreview === 'function');
-  assert('window.deleteGeneticsData exists', typeof window.deleteGeneticsData === 'function');
-  assert('window._buildGeneticsContext exists', typeof window._buildGeneticsContext === 'function');
+assert('window.isDNAFile exists', typeof window.isDNAFile === 'function');
+assert('window.handleDNAFile exists', typeof window.handleDNAFile === 'function');
+assert('window.confirmDNAImport exists', typeof window.confirmDNAImport === 'function');
+assert('window.closeDNAImportPreview exists', typeof window.closeDNAImportPreview === 'function');
+assert('window.deleteGeneticsData exists', typeof window.deleteGeneticsData === 'function');
+assert('window._buildGeneticsContext exists', typeof window._buildGeneticsContext === 'function');
 
-  // ═══════════════════════════════════════
-  // 12. Source integration
-  // ═══════════════════════════════════════
-  console.log('%c 12. Source Integration ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 12. Source integration
+// ═══════════════════════════════════════
+console.log('12. Source Integration');
 
-  const mainSrc = await fetchWithRetry('js/main.js');
-  assert('main.js imports dna.js', mainSrc.includes("'./dna.js'"));
-  // DNA detection in the file-input path is now delegated to
-  // classifyImportFiles (pdf-import.js); main.js consumes the returned
-  // dnaFiles bucket. The downstream isDNAFile check still lives in the
-  // classifier and is asserted below.
-  assert('main.js routes DNA files via classifier', mainSrc.includes('classifyImportFiles') && mainSrc.includes('dnaFiles'));
-  assert('main.js calls handleDNAFile', mainSrc.includes('handleDNAFile'));
+const mainSrc = await fetchWithRetry('js/main.js');
+assert('main.js imports dna.js', mainSrc.includes("'./dna.js'"));
+// DNA detection in the file-input path is now delegated to
+// classifyImportFiles (pdf-import.js); main.js consumes the returned
+// dnaFiles bucket. The downstream isDNAFile check still lives in the
+// classifier and is asserted below.
+assert('main.js routes DNA files via classifier', mainSrc.includes('classifyImportFiles') && mainSrc.includes('dnaFiles'));
+assert('main.js calls handleDNAFile', mainSrc.includes('handleDNAFile'));
 
-  const pdfSrc = await fetchWithRetry('js/pdf-import.js');
-  assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
+const pdfSrc = await fetchWithRetry('js/pdf-import.js');
+assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
 
-  const labCtxSrc = await fetchWithRetry('js/lab-context.js');
-  assert('lab-context.js includes genetics in context', labCtxSrc.includes('_buildGeneticsContext'));
+const labCtxSrc = await fetchWithRetry('js/lab-context.js');
+assert('lab-context.js includes genetics in context', labCtxSrc.includes('_buildGeneticsContext'));
 
-  const indexSrc = await fetchWithRetry('/app');
-  assert('File input accepts .txt', indexSrc.includes('.txt'));
+const indexSrc = await fetchWithRetry('/app');
+assert('File input accepts .txt', indexSrc.includes('.txt'));
 
-  // ═══════════════════════════════════════
-  // 13. mtDNA Format Detection
-  // ═══════════════════════════════════════
-  console.log('%c 13. mtDNA Format Detection ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 13. mtDNA Format Detection
+// ═══════════════════════════════════════
+console.log('13. mtDNA Format Detection');
 
-  const mtdnaSample = '263G\n462T\n1438G\n2706G\n3010A\n4216C\n4769G\n7028T\n10398G\n11251G\n11719A\n12612G\n13708A\n15326G\n16069T\n16126C';
-  assert('detectDNAFile returns mtdna for mtDNA CSV', dna.detectDNAFile(mtdnaSample) === 'mtdna');
-  assert('isDNAFile recognizes mtdna.csv', dna.isDNAFile({ name: 'mtdna.csv' }));
-  assert('Autosomal still detects as 23andme', dna.detectDNAFile('# This data file generated by 23andMe\nrs123\t1\t100\tAG') === '23andme');
+const mtdnaSample = '263G\n462T\n1438G\n2706G\n3010A\n4216C\n4769G\n7028T\n10398G\n11251G\n11719A\n12612G\n13708A\n15326G\n16069T\n16126C';
+assert('detectDNAFile returns mtdna for mtDNA CSV', dna.detectDNAFile(mtdnaSample) === 'mtdna');
+assert('isDNAFile recognizes mtdna.csv', dna.isDNAFile({ name: 'mtdna.csv' }));
+assert('Autosomal still detects as 23andme', dna.detectDNAFile('# This data file generated by 23andMe\nrs123\t1\t100\tAG') === '23andme');
 
-  // ═══════════════════════════════════════
-  // 14. Haplogroup Functions
-  // ═══════════════════════════════════════
-  console.log('%c 14. Haplogroup Functions ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 14. Haplogroup Functions
+// ═══════════════════════════════════════
+console.log('14. Haplogroup Functions');
 
-  assert('handleMtDNAFile exists on window', typeof window.handleMtDNAFile === 'function');
-  assert('detectMtDNAMismatch exists on window', typeof window.detectMtDNAMismatch === 'function');
-  assert('ensureHaplogroupTable exists on window', typeof window.ensureHaplogroupTable === 'function');
-  assert('closeMtDNAPreview exists on window', typeof window.closeMtDNAPreview === 'function');
-  assert('confirmMtDNAImport exists on window', typeof window.confirmMtDNAImport === 'function');
-  assert('deleteMtDNAData exists on window', typeof window.deleteMtDNAData === 'function');
+assert('handleMtDNAFile exists on window', typeof window.handleMtDNAFile === 'function');
+assert('detectMtDNAMismatch exists on window', typeof window.detectMtDNAMismatch === 'function');
+assert('ensureHaplogroupTable exists on window', typeof window.ensureHaplogroupTable === 'function');
+assert('closeMtDNAPreview exists on window', typeof window.closeMtDNAPreview === 'function');
+assert('confirmMtDNAImport exists on window', typeof window.confirmMtDNAImport === 'function');
+assert('deleteMtDNAData exists on window', typeof window.deleteMtDNAData === 'function');
 
-  // ═══════════════════════════════════════
-  // 15. Haplogroup Data File
-  // ═══════════════════════════════════════
-  console.log('%c 15. Haplogroup Data File ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 15. Haplogroup Data File
+// ═══════════════════════════════════════
+console.log('15. Haplogroup Data File');
 
-  const hapData = await fetch('data/haplogroups.json').then(r => r.json());
-  assert('haplogroups.json loads', hapData != null);
-  assert('Has _meta', hapData._meta != null);
-  assert('Has haplogroups object', typeof hapData.haplogroups === 'object');
-  assert('Has couplingLevels', typeof hapData.couplingLevels === 'object');
-  const hgCount = Object.keys(hapData.haplogroups).length;
-  assert('Has 26+ haplogroups', hgCount >= 26, `got ${hgCount}`);
-  assert('Has J haplogroup', hapData.haplogroups.J != null);
-  assert('J has mutations array', Array.isArray(hapData.haplogroups.J.mutations));
-  assert('J coupling is uncoupled', hapData.haplogroups.J.coupling === 'uncoupled');
-  assert('H has isReference flag', hapData.haplogroups.H.isReference === true);
-  assert('All haplogroups have valid coupling keys', Object.values(hapData.haplogroups).every(h => hapData.couplingLevels[h.coupling]));
-  assert('References include Wallace 2015', hapData._meta.references.some(r => r.pmid === 26406369));
+const hapData = await fetch('data/haplogroups.json').then(r => r.json());
+assert('haplogroups.json loads', hapData != null);
+assert('Has _meta', hapData._meta != null);
+assert('Has haplogroups object', typeof hapData.haplogroups === 'object');
+assert('Has couplingLevels', typeof hapData.couplingLevels === 'object');
+const hgCount = Object.keys(hapData.haplogroups).length;
+assert('Has 26+ haplogroups', hgCount >= 26, `got ${hgCount}`);
+assert('Has J haplogroup', hapData.haplogroups.J != null);
+assert('J has mutations array', Array.isArray(hapData.haplogroups.J.mutations));
+assert('J coupling is uncoupled', hapData.haplogroups.J.coupling === 'uncoupled');
+assert('H has isReference flag', hapData.haplogroups.H.isReference === true);
+assert('All haplogroups have valid coupling keys', Object.values(hapData.haplogroups).every(h => hapData.couplingLevels[h.coupling]));
+assert('References include Wallace 2015', hapData._meta.references.some(r => r.pmid === 26406369));
 
-  // ═══════════════════════════════════════
-  // 16. mtDNA Storage and Context
-  // ═══════════════════════════════════════
-  console.log('%c 16. mtDNA Storage & Context ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 16. mtDNA Storage and Context
+// ═══════════════════════════════════════
+console.log('16. mtDNA Storage & Context');
 
-  // Save original genetics
-  const origGenetics = window._labState.importedData.genetics;
+// Save original genetics
+const origGenetics = window._labState.importedData.genetics;
 
-  // Simulate mtDNA import
-  const testGenetics = origGenetics ? JSON.parse(JSON.stringify(origGenetics)) : { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
-  testGenetics.mtdna = {
-    haplogroup: 'J', confidence: 0.78,
-    coupling: { level: 'uncoupled', label: 'Uncoupled (more heat, less ATP)', shortLabel: 'uncoupled', climate: 'Cold (Northern European)', matchedLatBands: [3, 4] },
-    mutations: ['295T', '4216C', '10398G', '13708A', '16069T', '16126C', '11251G'],
-    source: 'mtDNA CSV', importDate: '2026-03-26'
-  };
-  window._labState.importedData.genetics = testGenetics;
+// Simulate mtDNA import
+const testGenetics = origGenetics ? JSON.parse(JSON.stringify(origGenetics)) : { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
+testGenetics.mtdna = {
+  haplogroup: 'J', confidence: 0.78,
+  coupling: { level: 'uncoupled', label: 'Uncoupled (more heat, less ATP)', shortLabel: 'uncoupled', climate: 'Cold (Northern European)', matchedLatBands: [3, 4] },
+  mutations: ['295T', '4216C', '10398G', '13708A', '16069T', '16126C', '11251G'],
+  source: 'mtDNA CSV', importDate: '2026-03-26'
+};
+window._labState.importedData.genetics = testGenetics;
 
-  // Test context includes haplogroup
-  const ctx = window._buildGeneticsContext(testGenetics, null);
-  assert('Context includes mtDNA haplogroup', ctx.includes('mtDNA Haplogroup: J'));
-  assert('Context includes coupling label', ctx.includes('Uncoupled'));
+// Test context includes haplogroup
+const ctx = window._buildGeneticsContext(testGenetics, null);
+assert('Context includes mtDNA haplogroup', ctx.includes('mtDNA Haplogroup: J'));
+assert('Context includes coupling label', ctx.includes('Uncoupled'));
 
-  // Test mismatch with no location → null
-  const noLocMismatch = window.detectMtDNAMismatch(testGenetics);
-  // May be null if no location, or may have a result — just check it doesn't throw
-  assert('detectMtDNAMismatch does not throw', true);
+// Test mismatch with no location → null
+const noLocMismatch = window.detectMtDNAMismatch(testGenetics);
+// May be null if no location, or may have a result — just check it doesn't throw
+assert('detectMtDNAMismatch does not throw', true);
 
-  // Test storage merge — mtdna doesn't wipe existing snps
-  const hasSnps = testGenetics.snps && Object.keys(testGenetics.snps).length > 0;
-  const hasMtdna = testGenetics.mtdna != null;
-  assert('mtDNA coexists with autosomal SNPs', hasMtdna && (hasSnps || !origGenetics?.snps));
+// Test storage merge — mtdna doesn't wipe existing snps
+const hasSnps = testGenetics.snps && Object.keys(testGenetics.snps).length > 0;
+const hasMtdna = testGenetics.mtdna != null;
+assert('mtDNA coexists with autosomal SNPs', hasMtdna && (hasSnps || !origGenetics?.snps));
 
-  // Test delete
-  delete testGenetics.mtdna;
-  assert('mtDNA deletable without affecting snps', testGenetics.snps != null && testGenetics.mtdna == null);
+// Test delete
+delete testGenetics.mtdna;
+assert('mtDNA deletable without affecting snps', testGenetics.snps != null && testGenetics.mtdna == null);
 
-  // Restore
-  window._labState.importedData.genetics = origGenetics;
+// Restore
+window._labState.importedData.genetics = origGenetics;
 
-  // ═══════════════════════════════════════
-  // Results
-  // ═══════════════════════════════════════
-  console.log(`\n%c Tests complete: ${pass} passed, ${fail} failed `, fail ? 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px');
-  if (typeof window.__TEST_RESULTS !== 'undefined') window.__TEST_RESULTS = { pass, fail };
-})();
+// ═══════════════════════════════════════
+// Results
+// ═══════════════════════════════════════
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);

@@ -112,3 +112,42 @@ if (typeof globalThis.document === 'undefined') {
 if (typeof globalThis.indexedDB === 'undefined') {
   await import('fake-indexeddb/auto');
 }
+
+// Synchronous Worker shim — for self-contained pure-JS workers whose
+// source is passed as a Blob (e.g. the DNA parser worker in js/dna.js,
+// created via `new Worker(URL.createObjectURL(blob))`). Runs the worker
+// source in-process: `worker.postMessage` invokes the worker's
+// `self.onmessage` handler and routes its `self.postMessage` back to the
+// main-side `worker.onmessage`. Does NOT support importScripts, network,
+// or WASM workers — test-lens-local-worker.js stays on puppeteer.
+if (typeof globalThis.Worker === 'undefined') {
+  const _blobRegistry = new Map();
+  const _origCreateObjectURL = globalThis.URL.createObjectURL;
+  globalThis.URL.createObjectURL = (blob) => {
+    let url;
+    try { url = _origCreateObjectURL.call(globalThis.URL, blob); }
+    catch { url = `blob:nodeshim/${_blobRegistry.size}`; }
+    _blobRegistry.set(url, blob);
+    return url;
+  };
+  globalThis.Worker = class NodeWorker {
+    constructor(url) {
+      const blob = _blobRegistry.get(url);
+      this._self = {
+        postMessage: (data) => {
+          queueMicrotask(() => { if (this.onmessage) this.onmessage({ data }); });
+        },
+      };
+      this._ready = (async () => {
+        if (!blob) throw new Error(`NodeWorker: no Blob registered for ${url}`);
+        new Function('self', await blob.text())(this._self);
+      })();
+    }
+    postMessage(data) {
+      this._ready
+        .then(() => this._self.onmessage({ data }))
+        .catch((err) => { if (this.onerror) this.onerror({ message: err.message }); });
+    }
+    terminate() {}
+  };
+}

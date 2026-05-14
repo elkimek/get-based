@@ -50,8 +50,10 @@ const TEST_FILES = [
   // test-emf.js fully ported to Vitest (batch 26) — pure-logic + module
   // imports, no DOM-runtime sections.
   'tests/test-emf-flow.js',
-  'tests/test-dna.js',
-  'tests/test-dna-illumina-and-valence.js',
+  // test-dna.js + test-dna-illumina-and-valence.js fully ported to Vitest
+  // (batch 35) — parseDNAFile's Blob-backed Worker runs via the synchronous
+  // Worker shim in _node-shim.js; renderGeneticsSection is a pure HTML-string
+  // builder.
   // test-wearables.js (~549 asserts) ported to Vitest (batch 32) — IDB CRUD
   // runs via fake-indexeddb. The openWearableDetail Chart.js modal islands +
   // JSZip script-injection smoke live in test-wearables-dom.js below.

@@ -190,6 +190,12 @@ const LEGACY_TESTS = [
   // doesn't. Left puppeteer-side until the engine exposes a state reset.
   './test-crypto.js',
   './test-cashu-wallet.js',
+  // Batch 35 — DNA adapter + Illumina/valence. parseDNAFile spins a
+  // Blob-backed Worker; the synchronous Worker shim added to _node-shim.js
+  // (+ _vitest-setup.js) runs self-contained pure-JS workers in-process.
+  // renderGeneticsSection returns an HTML string with no DOM dependency.
+  './test-dna.js',
+  './test-dna-illumina-and-valence.js',
 ];
 
 for (const path of LEGACY_TESTS) {

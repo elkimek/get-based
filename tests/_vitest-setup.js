@@ -153,6 +153,42 @@ if (typeof globalThis.indexedDB === 'undefined') {
   await import('fake-indexeddb/auto');
 }
 
+// Worker shim — kept in sync with _node-shim.js. Synchronous in-process
+// runner for self-contained pure-JS workers whose source is a Blob (the
+// DNA parser worker in js/dna.js). No importScripts/network/WASM support
+// — test-lens-local-worker.js stays on puppeteer.
+if (typeof globalThis.Worker === 'undefined') {
+  const _blobRegistry = new Map();
+  const _origCreateObjectURL = globalThis.URL.createObjectURL;
+  globalThis.URL.createObjectURL = (blob) => {
+    let url;
+    try { url = _origCreateObjectURL.call(globalThis.URL, blob); }
+    catch { url = `blob:nodeshim/${_blobRegistry.size}`; }
+    _blobRegistry.set(url, blob);
+    return url;
+  };
+  globalThis.Worker = class NodeWorker {
+    constructor(url) {
+      const blob = _blobRegistry.get(url);
+      this._self = {
+        postMessage: (data) => {
+          queueMicrotask(() => { if (this.onmessage) this.onmessage({ data }); });
+        },
+      };
+      this._ready = (async () => {
+        if (!blob) throw new Error(`NodeWorker: no Blob registered for ${url}`);
+        new Function('self', await blob.text())(this._self);
+      })();
+    }
+    postMessage(data) {
+      this._ready
+        .then(() => this._self.onmessage({ data }))
+        .catch((err) => { if (this.onerror) this.onerror({ message: err.message }); });
+    }
+    terminate() {}
+  };
+}
+
 // Per-test console.log capture for FAIL detection lives in
 // _vitest-legacy.test.js — scoped to the dynamic import call rather
 // than the global, so concurrent test workers don't trample each other.
