@@ -23,7 +23,11 @@ const TEST_FILES = [
   // test-openrouter-dom.js below.
   'tests/test-openrouter-dom.js',
   'tests/test-tour.js',
-  'tests/test-custom-personality.js',
+  // test-custom-personality.js source-inspection + behavioral ported to
+  // Vitest (batch 23). DOM-runtime sections (11/12/17/21 — updatePersonalityBar
+  // rendering, styleSheets CSS scan, dirty-state, Discuss button) live in
+  // test-custom-personality-dom.js below.
+  'tests/test-custom-personality-dom.js',
   // test-changelog.js source-inspection + hasCardContent behavioral ported
   // to Vitest (batch 20). DOM-runtime sections (modal open/close, forceShow
   // behavior, inline-tag rendering) live in test-changelog-dom.js below.

@@ -126,6 +126,9 @@ const LEGACY_TESTS = [
   // Batch 22 — pre-release audit source-inspection + innerHTML sweep
   // (section-3b functional guard probes in test-audit-dom.js stay on puppeteer).
   './test-audit.js',
+  // Batch 23 — custom personality behavioral + source-inspection
+  // (DOM sections 11/12/17/21 in test-custom-personality-dom.js stay on puppeteer).
+  './test-custom-personality.js',
 ];
 
 for (const path of LEGACY_TESTS) {
