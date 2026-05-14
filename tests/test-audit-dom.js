@@ -23,6 +23,10 @@ return (async function() {
     window.showCategory('biochemistry');
     await new Promise(r => setTimeout(r, 50));
     const beforeHeading = document.querySelector('.category-header h2')?.textContent || null;
+    // Surface a degraded environment as a FAILURE, not a silent skip — if the
+    // control category doesn't render its heading, the two injection-guard
+    // probes below can't run, and a hardcoded `true` here would mask that.
+    assert('control category heading rendered (precondition for guard probes)', !!beforeHeading);
     if (beforeHeading) {
       window.showCategory("hormones');alert(1);//");
       await new Promise(r => setTimeout(r, 30));
@@ -32,8 +36,6 @@ return (async function() {
       await new Promise(r => setTimeout(r, 30));
       assert('showCategory no-ops on __proto__ categoryKey (heading unchanged)',
         document.querySelector('.category-header h2')?.textContent === beforeHeading);
-    } else {
-      assert('category heading present for control (skipped — no rendered category)', true);
     }
     const overlay = document.getElementById('modal-overlay');
     const openBefore = !!overlay?.classList.contains('show');

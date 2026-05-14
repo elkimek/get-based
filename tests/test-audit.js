@@ -143,7 +143,18 @@ function _sweepInnerHTML(filename, src) {
     // (c) Direct helper-function-call result, helper in the audited whitelist
     const _fnCallMatch = _bare.match(/\.innerHTML\s*\+?=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
     if (_fnCallMatch && _SAFE_HELPERS.has(_fnCallMatch[1])) continue;
-    // (d) Otherwise — sanitizer within ±100 lines
+    // (d) Otherwise — sanitizer within ±100 lines (covers "build html
+    //     across many lines, assign at end" + "h is callback param" patterns).
+    //     Heuristic limitation: the proximity window can theoretically
+    //     associate a sanitizer with a different interpolation in the same
+    //     scope — a function that escapes one variable then writes a
+    //     different, unescaped one to innerHTML would pass if both lines
+    //     fall within the window. A full per-`${...}` interpolation analysis
+    //     would close that path but adds significant complexity; the
+    //     tradeoff is documented in PR #188 review threads. This sweep is a
+    //     regression detector, not a complete proof — Greptile + manual
+    //     review remain the primary defense for the
+    //     unsafe-`${...}`-in-otherwise-safe-file class.
     const start = Math.max(0, (lineNo - 1) - 100);
     const end = Math.min(lines.length, lineNo + 100);
     const win = lines.slice(start, end).join('\n');
