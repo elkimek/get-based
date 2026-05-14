@@ -164,6 +164,11 @@ const LEGACY_TESTS = [
   './test-tour.js',
   './test-chat-threads.js',
   './test-wearables-bp-merge.js',
+  // Batch 32 — test-wearables (~549 asserts: registry, IDB CRUD via
+  // fake-indexeddb, summary math, write gate, 7 vendor OAuth/PKCE modules,
+  // Apple Health parser, source-inspection sweep). The openWearableDetail
+  // Chart.js modal islands stay on puppeteer in test-wearables-dom.js.
+  './test-wearables.js',
 ];
 
 for (const path of LEGACY_TESTS) {

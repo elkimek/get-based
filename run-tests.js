@@ -53,7 +53,10 @@ const TEST_FILES = [
   'tests/test-emf-flow.js',
   'tests/test-dna.js',
   'tests/test-dna-illumina-and-valence.js',
-  'tests/test-wearables.js',
+  // test-wearables.js (~549 asserts) ported to Vitest (batch 32) — IDB CRUD
+  // runs via fake-indexeddb. The openWearableDetail Chart.js modal islands +
+  // JSZip script-injection smoke live in test-wearables-dom.js below.
+  'tests/test-wearables-dom.js',
   'tests/test-wearables-manual.js',
   'tests/test-wearables-sync-flow.js',
   'tests/test-wearables-ui-flows.js',
