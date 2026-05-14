@@ -32,7 +32,6 @@ await import('../js/utils.js');
 await import('../js/changelog.js');
 
 const changelogSrc = await fetchWithRetry('js/changelog.js');
-const chatSrc = await fetchWithRetry('js/chat.js');
 const utilsSrc = await fetchWithRetry('js/utils.js');
 const mainSrc = await fetchWithRetry('js/main.js');
 const settingsSrc = await fetchWithRetry('js/settings.js');
@@ -122,21 +121,27 @@ console.log('6. hasCardContent Utility');
 assert('hasCardContent exported from utils.js', utilsSrc.includes('export function hasCardContent'));
 assert('hasCardContent on window', typeof window.hasCardContent === 'function');
 
-// Behavioral tests — pure-logic, run anywhere.
+// Behavioral tests — pure-logic, run anywhere. Guard the call site so
+// that if `hasCardContent` ever fails to attach to window the rest of
+// the file still runs (the existence assertion above already records
+// the failure — without the guard, hcc(null) throws TypeError and
+// sections 7–12 silently skip).
 const hcc = window.hasCardContent;
-assert('hasCardContent(null) => false', hcc(null) === false);
-assert('hasCardContent(undefined) => false', hcc(undefined) === false);
-assert('hasCardContent({}) => false', hcc({}) === false);
-assert('hasCardContent({note: ""}) => false', hcc({ note: '' }) === false);
-assert('hasCardContent({note: "  "}) => false', hcc({ note: '  ' }) === false);
-assert('hasCardContent({note: "hi"}) => true', hcc({ note: 'hi' }) === true);
-assert('hasCardContent({type: ""}) => false', hcc({ type: '' }) === false);
-assert('hasCardContent({type: null}) => false', hcc({ type: null }) === false);
-assert('hasCardContent({type: "vegan"}) => true', hcc({ type: 'vegan' }) === true);
-assert('hasCardContent({items: []}) => false', hcc({ items: [] }) === false);
-assert('hasCardContent({items: ["x"]}) => true', hcc({ items: ['x'] }) === true);
-assert('hasCardContent({a: null, b: "", note: ""}) => false', hcc({ a: null, b: '', note: '' }) === false);
-assert('hasCardContent({a: null, b: "val"}) => true', hcc({ a: null, b: 'val' }) === true);
+if (typeof hcc === 'function') {
+  assert('hasCardContent(null) => false', hcc(null) === false);
+  assert('hasCardContent(undefined) => false', hcc(undefined) === false);
+  assert('hasCardContent({}) => false', hcc({}) === false);
+  assert('hasCardContent({note: ""}) => false', hcc({ note: '' }) === false);
+  assert('hasCardContent({note: "  "}) => false', hcc({ note: '  ' }) === false);
+  assert('hasCardContent({note: "hi"}) => true', hcc({ note: 'hi' }) === true);
+  assert('hasCardContent({type: ""}) => false', hcc({ type: '' }) === false);
+  assert('hasCardContent({type: null}) => false', hcc({ type: null }) === false);
+  assert('hasCardContent({type: "vegan"}) => true', hcc({ type: 'vegan' }) === true);
+  assert('hasCardContent({items: []}) => false', hcc({ items: [] }) === false);
+  assert('hasCardContent({items: ["x"]}) => true', hcc({ items: ['x'] }) === true);
+  assert('hasCardContent({a: null, b: "", note: ""}) => false', hcc({ a: null, b: '', note: '' }) === false);
+  assert('hasCardContent({a: null, b: "val"}) => true', hcc({ a: null, b: 'val' }) === true);
+}
 
 // ═══════════════════════════════════════
 // 7. lab-context.js uses hasCardContent for 7 gates
