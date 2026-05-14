@@ -22,7 +22,7 @@ The MCP server is installed and run locally by the user — there is no hosted e
 3. The token is provided to the MCP server via the `GETBASED_TOKEN` environment variable. It grants access to lab-context text only, no raw data, and is revocable.
 4. Add `getbased` to the MCP client config pointing at the `getbased-mcp` command.
 
-Full configuration details: https://app.getbased.health/docs/guide/agent-access
+Full configuration details: https://docs.getbased.health/guides/agent-access
 
 ## Tools
 

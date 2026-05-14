@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node scripts/fetch-catalog.mjs && npm run docs:build && node scripts/gen-sitemap.mjs",
+  "buildCommand": "node scripts/fetch-catalog.mjs",
   "outputDirectory": ".",
   "routes": [
     {
@@ -17,9 +17,13 @@
       "continue": true
     },
     { "src": "^/guide/(.*)", "status": 301, "headers": { "Location": "/docs/guide/$1" } },
-    { "src": "^/docs/?$", "dest": "/dist-docs/index.html" },
-    { "src": "^/docs/(.+)\\.(.+)$", "dest": "/dist-docs/$1.$2" },
-    { "src": "^/docs/(.+?)/?$", "dest": "/dist-docs/$1.html" },
+    { "src": "^/docs/guide/getting-started(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/quickstart" } },
+    { "src": "^/docs/guide/charts(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/biomarker-charts" } },
+    { "src": "^/docs/guide/folder-backup(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/backup" } },
+    { "src": "^/docs/guide/json-export-import(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/export-import" } },
+    { "src": "^/docs/guide/ai-providers(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/ai-providers" } },
+    { "src": "^/docs/guide/([^.]+?)(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/$1" } },
+    { "src": "^/docs(?:/.*)?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/" } },
     { "src": "^/app/?$", "dest": "/index.html" }
   ]
 }

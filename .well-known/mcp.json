@@ -5,7 +5,7 @@
   "transport": "stdio",
   "hosting": "local",
   "homepage": "https://getbased.health",
-  "documentation": "https://app.getbased.health/docs/guide/agent-access",
+  "documentation": "https://docs.getbased.health/guides/agent-access",
   "repository": "https://github.com/elkimek/getbased-agents/tree/main/packages/mcp",
   "license": "AGPL-3.0-or-later",
   "install": {

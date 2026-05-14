@@ -557,7 +557,7 @@ export function renderCustomLensSection() {
   const externalFieldsStyle = isExternal ? '' : 'display:none';
 
   return `<div class="ai-provider-panel">
-    <div class="ai-provider-desc">Optional. A Knowledge Base grounds the AI's answers in documents you provide — research papers, clinical guides, personal notes. Add your documents below and the AI cites them when answering chat questions. <a href="/docs/guide/interpretive-lens.html" target="_blank" rel="noopener" style="color:var(--accent)">Learn more →</a></div>
+    <div class="ai-provider-desc">Optional. A Knowledge Base grounds the AI's answers in documents you provide — research papers, clinical guides, personal notes. Add your documents below and the AI cites them when answering chat questions. <a href="https://docs.getbased.health/guides/interpretive-lens" target="_blank" rel="noopener" style="color:var(--accent)">Learn more →</a></div>
     <div class="api-key-status" id="lens-status-chip">${statusChip}${lastInfo}</div>
 
     <div style="margin-top:10px">
@@ -617,7 +617,7 @@ export function renderCustomLensSection() {
           <div style="font-size:11px;margin-top:4px;opacity:0.85">Installs via <code style="font-family:var(--font-mono,monospace);font-size:11px">pipx</code> or <code style="font-family:var(--font-mono,monospace);font-size:11px">uv</code> (auto-detected), starts rag + dashboard as systemd user services. <strong>Linux only</strong> — macOS and Windows aren't supported yet (the script installs but services won't auto-start).</div>
         </div>
         <div style="margin-top:14px">
-          <div style="margin-bottom:10px"><strong style="color:var(--text-primary)">2. Open the dashboard</strong> — the script prints a <a href="/docs/guide/interpretive-lens.html#one-click-login" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">one-click login URL</a> at the end.</div>
+          <div style="margin-bottom:10px"><strong style="color:var(--text-primary)">2. Open the dashboard</strong> — the script prints a <a href="https://docs.getbased.health/guides/interpretive-lens#one-click-login" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">one-click login URL</a> at the end.</div>
           <div style="font-size:12px;line-height:1.7">
             • <strong>Knowledge</strong> tab — create a library, drop files in, wait for indexing<br>
             • <strong>MCP</strong> tab → <strong>Environment</strong> panel — copy <code style="font-family:var(--font-mono,monospace);font-size:11px">LENS_API_KEY</code>

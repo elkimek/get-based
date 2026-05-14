@@ -10,7 +10,7 @@
 - **☀ Light** — sun exposure with CAMS-fed atmospheric data, photobiology devices, indoor light environment, 8 measurement tools
 - **🧠 Insight** — AI chat, custom knowledge base, correlations, recommendations
 
-**[Live app](https://app.getbased.health)** · **[Documentation](https://getbased.health/docs)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
+**[Live app](https://app.getbased.health)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
 
 ![getbased Dashboard](dashboard.png)
 

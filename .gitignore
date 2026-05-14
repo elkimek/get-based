@@ -15,7 +15,6 @@ labcharts-*.json
 test-*.json
 node_modules/
 dist-docs/
-sitemap.xml
 docs/.vitepress/cache/
 BingSiteAuth.xml
 docs/plans/
