@@ -53,7 +53,10 @@ const TEST_FILES = [
   // Vitest (batch 27). Section 5 (picker open/dismiss — live DOM overlay +
   // click) lives in test-dashboard-knowledge-base-dom.js below.
   'tests/test-dashboard-knowledge-base-dom.js',
-  'tests/test-dashboard-data-protection.js',
+  // test-dashboard-data-protection.js HTML-string rendering checks ported to
+  // Vitest (batch 28). Section 6 (picker open/dismiss — live DOM overlay +
+  // click) lives in test-dashboard-data-protection-dom.js below.
+  'tests/test-dashboard-data-protection-dom.js',
   'tests/test-chat-panel-ux.js',
   'tests/test-cashu-wallet.js',
   // test-custom-api.js source-inspection + behavioral ported to Vitest

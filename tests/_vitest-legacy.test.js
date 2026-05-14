@@ -142,6 +142,10 @@ const LEGACY_TESTS = [
   // (section 5 picker open/dismiss in test-dashboard-knowledge-base-dom.js
   // stays on puppeteer).
   './test-dashboard-knowledge-base.js',
+  // Batch 28 — dashboard data-protection CTA HTML-string rendering
+  // (section 6 picker open/dismiss in test-dashboard-data-protection-dom.js
+  // stays on puppeteer).
+  './test-dashboard-data-protection.js',
 ];
 
 for (const path of LEGACY_TESTS) {
