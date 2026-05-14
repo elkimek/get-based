@@ -115,6 +115,9 @@ assert('manual has no apiHost', manualAdapter?.apiHost === null);
 console.log('3. logManualMetric');
 
 const TEST_PROFILE = 'test-manual-' + Math.random().toString(36).slice(2, 8);
+// Every sub-profile that gets real IDB writes — torn down in the finally
+// so a reused Vitest worker (or a standalone re-run) doesn't accumulate.
+const _idbProfiles = [TEST_PROFILE];
 const origProfile = window._labState.currentProfile;
 const origImported = window._labState.importedData;
 window._labState.currentProfile = TEST_PROFILE;
@@ -175,6 +178,7 @@ try {
   console.log('6. Biometrics Migration');
 
   const MIGRATE_PROFILE = 'test-mig-' + Math.random().toString(36).slice(2, 8);
+  _idbProfiles.push(MIGRATE_PROFILE);
   window._labState.currentProfile = MIGRATE_PROFILE;
   window._labState.importedData = { wearableConnections: {} };
   const legacyBiometrics = {
@@ -218,6 +222,7 @@ try {
   console.log('7. deleteManualMetric');
 
   const DEL_PROFILE = 'test-del-' + Math.random().toString(36).slice(2, 8);
+  _idbProfiles.push(DEL_PROFILE);
   window._labState.currentProfile = DEL_PROFILE;
   window._labState.importedData = { wearableConnections: {} };
   await manual.logManualMetric(DEL_PROFILE, 'weight', { date: '2026-04-24', value: 82 });
@@ -248,6 +253,7 @@ try {
   console.log('8. Context Tags');
 
   const TAG_PROFILE = 'test-tags-' + Math.random().toString(36).slice(2, 8);
+  _idbProfiles.push(TAG_PROFILE);
   window._labState.currentProfile = TAG_PROFILE;
   window._labState.importedData = { wearableConnections: {} };
   await manual.logManualBP(TAG_PROFILE, {
@@ -274,8 +280,8 @@ try {
   assert('wearables.js renders tag chips on bp form', wearablesSrc.includes('_renderTagChips'));
   assert('toggleManualLogChip on window', typeof window.toggleManualLogChip === 'function');
 
-  const saveFn = wearablesSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}/)?.[0] || '';
-  const delFn = wearablesSrc.match(/async function deleteManualEntryFromDetail[\s\S]*?\n\}/)?.[0] || '';
+  const saveFn = wearablesSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
+  const delFn = wearablesSrc.match(/async function deleteManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('saveManualEntryFromDetail re-renders dashboard strip',
     /window\.navigate\([^)]*\)/.test(saveFn) && /['"]dashboard['"]/.test(saveFn));
   assert('deleteManualEntryFromDetail re-renders dashboard strip',
@@ -315,6 +321,7 @@ try {
 
   // Live behavior: write + read a manual metric with note, verify persistence.
   const probeProfile = 'test-note-' + Date.now();
+  _idbProfiles.push(probeProfile);
   window._labState.currentProfile = probeProfile;
   await manual.logManualMetric(probeProfile, 'rhr', {
     date: '2099-05-12', value: 60, tags: ['resting'], note: 'morning, just woke'
@@ -423,6 +430,11 @@ try {
     /if \(lines\.length === 0 && !contextBlock\) return ''[\s\S]{0,200}if \(lines\.length === 0\)/.test(labCtxSrc));
 
 } finally {
+  // Tear down every test sub-profile's IDB (consistent with
+  // test-wearables-sync-flow.js — keeps a reused worker clean).
+  for (const pid of _idbProfiles) {
+    try { await store.deleteWearablesDB(pid); } catch {}
+  }
   // Restore live profile
   window._labState.currentProfile = origProfile;
   window._labState.importedData = origImported;

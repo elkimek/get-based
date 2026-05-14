@@ -330,10 +330,11 @@ window._labState.importedData = {
   },
   changeHistory: [],
 };
+// buildLabContext + the export.js source read use whatever window.fetch is —
+// here that's the fs-backed shim (no /api/proxy routes installed). No wrapper
+// needed; the original test had a payload-capture wrapper that was never
+// asserted on, so it's just dropped.
 const origFetch = window.fetch;
-window.fetch = (input, init) => {
-  return origFetch.call(window, input, init);
-};
 try {
   const labCtx = await import('../js/lab-context.js');
   const ctx = labCtx.buildLabContext({ skipGroupFilter: true });
