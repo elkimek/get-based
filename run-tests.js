@@ -78,6 +78,12 @@ const TEST_FILES = [
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',
   'tests/test-lens-local-worker.js',
+  // test-ai-verdict-engine.js stays on the puppeteer runner — the engine has
+  // process-global concurrency-slot + inflight state shared with the
+  // per-feature AI-verdict tests already in Vitest, which leaves its slots
+  // dirty in the legacy worker. See tests/_vitest-legacy.test.js for the
+  // full rationale.
+  'tests/test-ai-verdict-engine.js',
   'tests/test-coverage-stragglers.js',
   'tests/test-silhouette-picker.js',
   'tests/test-silhouette-region-map.js',
