@@ -102,3 +102,13 @@ if (typeof globalThis.document === 'undefined') {
     styleSheets: [],
   };
 }
+
+// IndexedDB — wearables-store.js + blob-storage.js use plain IndexedDB
+// (per CLAUDE.md). `fake-indexeddb/auto` is a faithful pure-JS impl that
+// patches globalThis.indexedDB + IDBKeyRange + the IDB* constructors.
+// Side-effect import, guarded so a real browser IDB (or the Vitest setup
+// file) isn't clobbered. Top-level await is fine here — every test file
+// already `import './_node-shim.js'` ahead of its own top-level awaits.
+if (typeof globalThis.indexedDB === 'undefined') {
+  await import('fake-indexeddb/auto');
+}

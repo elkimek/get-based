@@ -144,6 +144,15 @@ if (!process.exit._vitestPatched) {
   process.exit._original = _origExit;
 }
 
+// IndexedDB — kept in sync with _node-shim.js. wearables-store.js +
+// blob-storage.js use plain IndexedDB; `fake-indexeddb/auto` patches
+// globalThis.indexedDB + IDBKeyRange + the IDB* constructors. Guarded so
+// a real browser IDB isn't clobbered. Top-level await in a Vitest setup
+// file is supported.
+if (typeof globalThis.indexedDB === 'undefined') {
+  await import('fake-indexeddb/auto');
+}
+
 // Per-test console.log capture for FAIL detection lives in
 // _vitest-legacy.test.js — scoped to the dynamic import call rather
 // than the global, so concurrent test workers don't trample each other.

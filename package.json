@@ -13,6 +13,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
     "puppeteer": "^24.42.0",
     "vite": "^8.0.10",
