@@ -49,7 +49,10 @@ const TEST_FILES = [
   'tests/test-image-utils-dom.js',
   // test-emf.js fully ported to Vitest (batch 26) — pure-logic + module
   // imports, no DOM-runtime sections.
-  'tests/test-emf-flow.js',
+  // test-emf-flow.js fully ported to Vitest (batch 36) — CRUD/state asserts
+  // are pure mutations; render/modal/photo/interpretation paths are
+  // coverage-only (try/catch + "X ran") and degrade gracefully against the
+  // Node DOM stub.
   // test-dna.js + test-dna-illumina-and-valence.js fully ported to Vitest
   // (batch 35) — parseDNAFile's Blob-backed Worker runs via the synchronous
   // Worker shim in _node-shim.js; renderGeneticsSection is a pure HTML-string
@@ -91,7 +94,11 @@ const TEST_FILES = [
   'tests/test-silhouette-region-map.js',
   'tests/test-sun-ui-flow.js',
   'tests/test-audit-fixes.js',
-  'tests/test-family-history.js',
+  // test-family-history.js source-inspection + getConditionsSummary ported
+  // to Vitest (batch 36). DOM-runtime sections — the apostrophe round-trip
+  // probe + the live add/delete handler test against #detail-modal — live
+  // in test-family-history-dom.js below.
+  'tests/test-family-history-dom.js',
   // Extracted from test-v1-6-shipped.js (PR #204) — the live-DOM
   // assertion can't run in Node + ES modules can't run via the
   // puppeteer `Function(s)()` evaluator, so the modal-render check

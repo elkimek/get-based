@@ -196,6 +196,13 @@ const LEGACY_TESTS = [
   // renderGeneticsSection returns an HTML string with no DOM dependency.
   './test-dna.js',
   './test-dna-illumina-and-valence.js',
+  // Batch 36 — family-history (source-inspection + getConditionsSummary;
+  // the apostrophe round-trip probe + live add/delete handler test stay on
+  // puppeteer in test-family-history-dom.js) and emf-flow (CRUD/state
+  // assertions are pure mutations; render/modal/photo/interpretation paths
+  // are coverage-only behind try/catch + "X ran").
+  './test-family-history.js',
+  './test-emf-flow.js',
 ];
 
 for (const path of LEGACY_TESTS) {
