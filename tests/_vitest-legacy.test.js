@@ -123,6 +123,9 @@ const LEGACY_TESTS = [
   // Batch 21 — OpenRouter integration source-inspection + behavioral
   // (DOM section in test-openrouter-dom.js stays on puppeteer).
   './test-openrouter.js',
+  // Batch 22 — pre-release audit source-inspection + innerHTML sweep
+  // (section-3b functional guard probes in test-audit-dom.js stay on puppeteer).
+  './test-audit.js',
 ];
 
 for (const path of LEGACY_TESTS) {

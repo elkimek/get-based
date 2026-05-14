@@ -1,504 +1,407 @@
-// test-audit.js — Verify pre-release audit fixes
-// Run: fetch('tests/test-audit.js').then(r=>r.text()).then(s=>Function(s)())
+#!/usr/bin/env node
+// test-audit.js — Pre-release audit fixes. Source-inspection across data.js,
+// views.js, chat.js, markdown.js, utils.js, schema.js, api.js, export.js,
+// pdf-import.js, nav.js, main.js, cycle.js, context-cards.js, charts.js,
+// lab-context.js, constants.js, styles.css, index.html, vercel.json,
+// service-worker.js — plus the innerHTML sanitizer sweep.
+//
+// Run: node tests/test-audit.js  (or via npm test)
+//
+// The section-3b *functional* block (proving safeMarkerId guards no-op on
+// adversarial input at runtime) needs a live DOM + populated state — it
+// lives in tests/test-audit-dom.js on the puppeteer runner. The section-3b
+// *source-inspection* asserts (guard wiring present) stay here.
 
-return (async function() {
-  let pass = 0, fail = 0;
-  function assert(name, condition, detail) {
-    if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
-    else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
+import './_node-shim.js';
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail) {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Pre-Release Audit Tests ===\n');
+
+// ═══════════════════════════════════════
+// 1. PhenoAge SI coefficients (CRITICAL)
+// ═══════════════════════════════════════
+console.log('1. PhenoAge SI Coefficients');
+
+const dataSrc = read('js/data.js');
+assert('PhenoAge uses SI albumin directly', dataSrc.includes('0.0336  * albumin_si'));
+assert('PhenoAge uses SI creatinine directly', dataSrc.includes('0.0095  * creatinine_si'));
+assert('PhenoAge uses SI glucose directly', dataSrc.includes('0.1953  * glucose_si'));
+assert('PhenoAge uses SI lymphocytes directly', dataSrc.includes('0.0120  * lymphPct_si'));
+assert('PhenoAge uses SI ALP directly', dataSrc.includes('0.00188 * alp_si'));
+
+// ═══════════════════════════════════════
+// 2. Service Worker registration (CRITICAL)
+// ═══════════════════════════════════════
+console.log('2. Service Worker Registration');
+
+// Original test fetched '/app' (dev-server alias for index.html).
+const indexSrc = read('index.html');
+assert('SW registration uses absolute path', indexSrc.includes("'/service-worker.js'") || indexSrc.includes('"/service-worker.js"'));
+assert('SW registration has catch handler', indexSrc.includes('.catch('));
+const swAuditSrc = read('service-worker.js');
+assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
+assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
+assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
+
+// ═══════════════════════════════════════
+// 3. XSS: escapeHTML in views.js
+// ═══════════════════════════════════════
+console.log('3. XSS Prevention');
+
+const viewsSrc = read('js/views.js');
+assert('Trend alert name escaped', viewsSrc.includes('escapeHTML(alert.name)'));
+assert('Trend alert category escaped', viewsSrc.includes('escapeHTML(alert.category)'));
+assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(viewsSrc));
+assert('Category label escaped in header', viewsSrc.includes('escapeHTML(cat.label)'));
+assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(viewsSrc));
+assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(viewsSrc));
+
+const chatSrc = read('js/chat.js');
+const markdownSrc = read('js/markdown.js');
+assert('Markdown URL has quote escaping', markdownSrc.includes('.replace(/"/g, \'&quot;\')'));
+assert('Clipboard has navigator.clipboard guard', chatSrc.includes('if (!navigator.clipboard)'));
+
+// ═══════════════════════════════════════
+// 3b. Marker-key allowlist guards (source-inspection)
+// ═══════════════════════════════════════
+// PDF AI extraction is sanitized at the parse boundary by _sanitizeAIMarker,
+// but legacy data and sync pulls can still feed unsafe keys into views.js
+// — five entry points interpolate keys into onclick="…('${id}')" handlers.
+// safeMarkerId in utils.js gates each one. The *functional* proof that the
+// guards no-op on adversarial input lives in test-audit-dom.js (needs a
+// live DOM); here we pin the guard *wiring*.
+console.log('3b. Marker-key allowlist guards');
+
+const utilsXssSrc = read('js/utils.js');
+assert('utils.js exports safeMarkerId',
+  /export\s+function\s+safeMarkerId\s*\(/.test(utilsXssSrc));
+assert('safeMarkerId proto-pollution guard set covers __proto__/constructor/prototype',
+  /_PROTO_PARTS\s*=\s*new\s+Set\s*\(\s*\[\s*['"]__proto__['"]\s*,\s*['"]constructor['"]\s*,\s*['"]prototype['"]\s*\]\s*\)/.test(utilsXssSrc));
+assert('views.js imports safeMarkerId from utils',
+  /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(viewsSrc));
+assert('showCategory guards on safeMarkerId(categoryKey) at function entry',
+  /export function showCategory[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+assert('switchView guards on safeMarkerId(categoryKey) at function entry',
+  /export function switchView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+assert('showDetailModal guards on safeMarkerId(id) at function entry',
+  /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(viewsSrc));
+assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + category)',
+  /export function renderChartCard[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return\s*''/.test(viewsSrc));
+assert('renderFattyAcidsView returns "" on unsafe categoryKey',
+  /export function renderFattyAcidsView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return\s*''/.test(viewsSrc));
+assert('showCategory chart-cards loop skips legacy customMarkers with unsafe keys',
+  /for\s*\(\s*const\s*\[\s*key\s*,\s*marker\s*\]\s+of\s+withData\s*\)\s*\{\s*[\s\S]{0,200}if\s*\(\s*!safeMarkerId\(key\)\s*\)\s*continue/.test(viewsSrc));
+
+// ═══════════════════════════════════════
+// 3c. Sweep guard — every innerHTML site in production JS is sanitized
+// ═══════════════════════════════════════
+// CodeQL's js/xss-through-dom is excluded repo-wide (.github/workflows/
+// codeql.yml) because it doesn't model escapeHTML() / safeMarkerId().
+// This sweep replaces that signal locally across every production JS
+// file with innerHTML usage — a future PR adding an unsanitized site
+// fires immediately, before review.
+console.log('3c. innerHTML sanitizer sweep');
+
+const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
+const _SAFE_HELPERS = new Set([
+  // views.js
+  'renderChartCard', 'renderTableView', 'renderHeatmapView',
+  'renderFattyAcidsView', 'renderCompareTable', 'renderChannelDetailPanel',
+  'renderChannelPills', 'renderConditionsHTML', 'renderLightTools',
+  // chat.js (escapeHTML returns sanitized text directly; renderMarkdown
+  // is the markdown.js sanitized full renderer)
+  'escapeHTML', 'renderMarkdown',
+]);
+const _SWEEP_FILES = ['views.js', 'chat.js', 'charts.js'];
+
+function _sweepInnerHTML(filename, src) {
+  const lines = src.split('\n');
+  const sites = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/\.innerHTML\s*\+?=/.test(lines[i])) sites.push({ lineNo: i + 1, line: lines[i] });
   }
-
-  console.log('%c Pre-Release Audit Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
-
-  // ═══════════════════════════════════════
-  // 1. PhenoAge SI coefficients (CRITICAL)
-  // ═══════════════════════════════════════
-  console.log('%c 1. PhenoAge SI Coefficients ', 'font-weight:bold;color:#f59e0b');
-
-  const dataSrc = await fetchWithRetry('js/data.js');
-  assert('PhenoAge uses SI albumin directly', dataSrc.includes('0.0336  * albumin_si'));
-  assert('PhenoAge uses SI creatinine directly', dataSrc.includes('0.0095  * creatinine_si'));
-  assert('PhenoAge uses SI glucose directly', dataSrc.includes('0.1953  * glucose_si'));
-  assert('PhenoAge uses SI lymphocytes directly', dataSrc.includes('0.0120  * lymphPct_si'));
-  assert('PhenoAge uses SI ALP directly', dataSrc.includes('0.00188 * alp_si'));
-
-  // ═══════════════════════════════════════
-  // 2. Service Worker registration (CRITICAL)
-  // ═══════════════════════════════════════
-  console.log('%c 2. Service Worker Registration ', 'font-weight:bold;color:#f59e0b');
-
-  const indexSrc = await fetchWithRetry('/app');
-  assert('SW registration uses absolute path', indexSrc.includes("'/service-worker.js'") || indexSrc.includes('"/service-worker.js"'));
-  assert('SW registration has catch handler', indexSrc.includes('.catch('));
-  const swAuditSrc = await fetchWithRetry('service-worker.js');
-  assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
-  assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
-  assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
-  assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
-
-  // ═══════════════════════════════════════
-  // 3. XSS: escapeHTML in views.js
-  // ═══════════════════════════════════════
-  console.log('%c 3. XSS Prevention ', 'font-weight:bold;color:#f59e0b');
-
-  const viewsSrc = await fetchWithRetry('js/views.js');
-  assert('Trend alert name escaped', viewsSrc.includes('escapeHTML(alert.name)'));
-  assert('Trend alert category escaped', viewsSrc.includes('escapeHTML(alert.category)'));
-  assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(viewsSrc));
-  assert('Category label escaped in header', viewsSrc.includes('escapeHTML(cat.label)'));
-  assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(viewsSrc));
-  assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(viewsSrc));
-
-  const chatSrc = await fetchWithRetry('js/chat.js');
-  const markdownSrc = await fetchWithRetry('js/markdown.js');
-  assert('Markdown URL has quote escaping', markdownSrc.includes('.replace(/"/g, \'&quot;\')'));
-  assert('Clipboard has navigator.clipboard guard', chatSrc.includes('if (!navigator.clipboard)'));
-
-  // ═══════════════════════════════════════
-  // 3b. XSS — marker-key allowlist on inline-onclick interpolation sites
-  // ═══════════════════════════════════════
-  // PDF AI extraction is sanitized at the parse boundary by _sanitizeAIMarker,
-  // but legacy data and sync pulls can still feed unsafe keys into views.js
-  // — five entry points interpolate keys into onclick="…('${id}')" handlers.
-  // safeMarkerId in utils.js gates each one. If a refactor removes the guard
-  // wiring, the helper test stays green but the actual defense disappears —
-  // pin the wiring here.
-  console.log('%c 3b. Marker-key allowlist guards ', 'font-weight:bold;color:#f59e0b');
-
-  const utilsXssSrc = await fetchWithRetry('js/utils.js');
-  assert('utils.js exports safeMarkerId',
-    /export\s+function\s+safeMarkerId\s*\(/.test(utilsXssSrc));
-  assert('safeMarkerId proto-pollution guard set covers __proto__/constructor/prototype',
-    /_PROTO_PARTS\s*=\s*new\s+Set\s*\(\s*\[\s*['"]__proto__['"]\s*,\s*['"]constructor['"]\s*,\s*['"]prototype['"]\s*\]\s*\)/.test(utilsXssSrc));
-  assert('views.js imports safeMarkerId from utils',
-    /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(viewsSrc));
-  assert('showCategory guards on safeMarkerId(categoryKey) at function entry',
-    /export function showCategory[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
-  assert('switchView guards on safeMarkerId(categoryKey) at function entry',
-    /export function switchView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
-  assert('showDetailModal guards on safeMarkerId(id) at function entry',
-    /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(viewsSrc));
-  assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + category)',
-    /export function renderChartCard[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return\s*''/.test(viewsSrc));
-  assert('renderFattyAcidsView returns "" on unsafe categoryKey',
-    /export function renderFattyAcidsView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return\s*''/.test(viewsSrc));
-  // Inner-loop per-key filter on category chart-cards path
-  assert('showCategory chart-cards loop skips legacy customMarkers with unsafe keys',
-    /for\s*\(\s*const\s*\[\s*key\s*,\s*marker\s*\]\s+of\s+withData\s*\)\s*\{\s*[\s\S]{0,200}if\s*\(\s*!safeMarkerId\(key\)\s*\)\s*continue/.test(viewsSrc));
-
-  // Functional: prove the guards actually no-op on adversarial input.
-  // Need at least one navigation target so a "did anything change?" check
-  // is meaningful. Use a known-safe categoryKey for the control.
-  if (window.showCategory && window._labState?.importedData) {
-    window.showCategory('biochemistry');
-    await new Promise(r => setTimeout(r, 50));
-    const beforeHeading = document.querySelector('.category-header h2')?.textContent || null;
-    if (beforeHeading) {
-      window.showCategory("hormones');alert(1);//");
-      await new Promise(r => setTimeout(r, 30));
-      assert('showCategory no-ops on quote-injection categoryKey (heading unchanged)',
-        document.querySelector('.category-header h2')?.textContent === beforeHeading);
-      window.showCategory('__proto__');
-      await new Promise(r => setTimeout(r, 30));
-      assert('showCategory no-ops on __proto__ categoryKey (heading unchanged)',
-        document.querySelector('.category-header h2')?.textContent === beforeHeading);
-    }
-    const overlay = document.getElementById('modal-overlay');
-    const openBefore = !!overlay?.classList.contains('show');
-    window.showDetailModal("biochemistry_glucose');alert(2);//");
-    await new Promise(r => setTimeout(r, 30));
-    assert('showDetailModal does not open on quote-injection id',
-      !!overlay?.classList.contains('show') === openBefore);
-    assert('renderChartCard returns "" on quote-injection id',
-      window.renderChartCard("foo';evil('", { name: 'x', values: [1] }, ['2025-01-01']) === '');
-    const safeRender = window.renderChartCard('biochemistry_glucose', { name: 'Glucose', values: [5] }, ['2025-01-01']) || '';
-    assert('renderChartCard returns valid HTML on safe id',
-      safeRender.includes('biochemistry_glucose') && safeRender.includes('chart-card'));
+  const unguarded = [];
+  for (const { lineNo, line } of sites) {
+    const _bare = line.replace(/\s*\/\/.*$/, '');
+    // (a) Empty/clear
+    if (/\.innerHTML\s*\+?=\s*(['"])\1\s*;?\s*$/.test(_bare)) continue;
+    // (b) Single-line static literal (no `${` interpolation)
+    if (/\.innerHTML\s*\+?=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
+    // (c) Direct helper-function-call result, helper in the audited whitelist
+    const _fnCallMatch = _bare.match(/\.innerHTML\s*\+?=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
+    if (_fnCallMatch && _SAFE_HELPERS.has(_fnCallMatch[1])) continue;
+    // (d) Otherwise — sanitizer within ±100 lines
+    const start = Math.max(0, (lineNo - 1) - 100);
+    const end = Math.min(lines.length, lineNo + 100);
+    const win = lines.slice(start, end).join('\n');
+    if (_SANITIZER_RE.test(win)) continue;
+    unguarded.push(`${filename}:L${lineNo} — ${line.trim().slice(0, 100)}`);
   }
+  return { siteCount: sites.length, unguarded };
+}
 
-  // ═══════════════════════════════════════
-  // 3c. Sweep guard — every innerHTML site in production JS is sanitized
-  // ═══════════════════════════════════════
-  // CodeQL's js/xss-through-dom is excluded repo-wide (.github/workflows/
-  // codeql.yml) because it doesn't model escapeHTML() / safeMarkerId().
-  // This sweep replaces that signal locally across every production JS
-  // file with innerHTML usage — a future PR adding an unsanitized site
-  // fires immediately, before review.
-  //
-  // Categorize each `.innerHTML =` site per file:
-  //   SAFE: empty/clear, pure static literal (no `${`), helper-fn call.
-  //   GUARDED: surrounding ±100 lines contain a recognized sanitizer.
-  //   UNGUARDED: fail with file + line + snippet.
-  console.log('%c 3c. innerHTML sanitizer sweep ', 'font-weight:bold;color:#f59e0b');
+const _allUnguarded = [];
+let _totalSites = 0;
+for (const filename of _SWEEP_FILES) {
+  const src = read(`js/${filename}`);
+  const { siteCount, unguarded } = _sweepInnerHTML(filename, src);
+  _totalSites += siteCount;
+  _allUnguarded.push(...unguarded);
+}
+assert(`production JS innerHTML sites tracked across ${_SWEEP_FILES.length} files (${_totalSites} found)`,
+  _totalSites > 0);
+assert(
+  'every production JS innerHTML site is sanitized (escapeHTML/safeMarkerId/escapeAttr/applyInlineMarkdown/renderMarkdown) or a static-literal/helper-call',
+  _allUnguarded.length === 0,
+  _allUnguarded.length ? `${_allUnguarded.length} unguarded:\n  ${_allUnguarded.slice(0, 8).join('\n  ')}` : ''
+);
 
-  // Recognized in-codebase HTML sanitizers / safe-rendering primitives.
-  // Adding a new sanitizer? Append here AND verify it actually escapes
-  // its input. `applyInlineMarkdown` is the markdown.js sanitized
-  // renderer; `escapeAttr` is the attribute-context variant of escapeHTML;
-  // `renderMarkdown` is the markdown.js full renderer.
-  const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
-  // Known-safe HTML-returning helpers — each verified to either (a) use
-  // escapeHTML/safeMarkerId/escapeAttr internally or (b) interpolate only
-  // hardcoded strings + numeric values. Rule (c) trusts these by name
-  // instead of trusting any function call, closing the "what if the
-  // helper is unsafe?" false-negative. New helpers MUST be audited
-  // before being added here.
-  const _SAFE_HELPERS = new Set([
-    // views.js
-    'renderChartCard', 'renderTableView', 'renderHeatmapView',
-    'renderFattyAcidsView', 'renderCompareTable', 'renderChannelDetailPanel',
-    'renderChannelPills', 'renderConditionsHTML', 'renderLightTools',
-    // chat.js (escapeHTML returns sanitized text directly; renderMarkdown
-    // is the markdown.js sanitized full renderer)
-    'escapeHTML', 'renderMarkdown',
-  ]);
-  // Files explicitly named by the excluded CodeQL rule's surface — Greptile
-  // PR review on #188 called out parity with `views.js` for `chat.js` +
-  // `charts.js`. `charts.js` has zero innerHTML sites today (no-op). The
-  // other ~28 production files with innerHTML can be folded into this
-  // sweep as a separate follow-up; some (light-tools.js modal scaffolding,
-  // provider-panels.js) need either tighter heuristics or per-line audit
-  // annotations before the sweep is precision-clean for them.
-  const _SWEEP_FILES = ['views.js', 'chat.js', 'charts.js'];
+// ═══════════════════════════════════════
+// 4. Division by zero guards (utils.js)
+// ═══════════════════════════════════════
+console.log('4. Division by Zero Guards');
 
-  function _sweepInnerHTML(filename, src) {
-    const lines = src.split('\n');
-    const sites = [];
-    for (let i = 0; i < lines.length; i++) {
-      if (/\.innerHTML\s*\+?=/.test(lines[i])) sites.push({ lineNo: i + 1, line: lines[i] });
-    }
-    const unguarded = [];
-    for (const { lineNo, line } of sites) {
-      // Strip trailing line-comments so e.g. `innerHTML = '■'; // stop square`
-      // is recognized as a static literal in (a)/(b).
-      const _bare = line.replace(/\s*\/\/.*$/, '');
-      // (a) Empty/clear — `innerHTML = ''` or `innerHTML = "";`
-      if (/\.innerHTML\s*\+?=\s*(['"])\1\s*;?\s*$/.test(_bare)) continue;
-      // (b) Single-line static literal (no `${` interpolation). Multi-line
-      //     template literals fall through to (d) and need a sanitizer in
-      //     the surrounding window.
-      if (/\.innerHTML\s*\+?=\s*(['"`])[^`$]*\1\s*;?\s*$/.test(_bare) && !_bare.includes('${')) continue;
-      // (c) Direct helper-function-call result, where the helper is in the
-      //     audited safe-helper whitelist. Tightened from "trust any function"
-      //     to "trust an explicitly-audited helper" — Greptile #188 review
-      //     flagged the loose form as a false-negative path.
-      const _fnCallMatch = _bare.match(/\.innerHTML\s*\+?=\s*(?:window\.|_)?([a-zA-Z][\w]*)\s*\(/);
-      if (_fnCallMatch && _SAFE_HELPERS.has(_fnCallMatch[1])) continue;
-      // (d) Otherwise — sanitizer within ±100 lines (covers "build html
-      //     across many lines, assign at end" + "h is callback param" patterns).
-      //     Heuristic limitation: the proximity window can theoretically
-      //     associate a sanitizer with a different interpolation in the
-      //     same scope. A full per-`${...}` interpolation analysis would
-      //     close that path but adds significant complexity; the tradeoff
-      //     is documented in PR #188 review threads. This sweep is a
-      //     regression detector, not a complete proof — Greptile + manual
-      //     review remain the primary defense for the
-      //     unsafe-`${...}`-in-otherwise-safe-file class.
-      const start = Math.max(0, (lineNo - 1) - 100);
-      const end = Math.min(lines.length, lineNo + 100);
-      const win = lines.slice(start, end).join('\n');
-      if (_SANITIZER_RE.test(win)) continue;
-      unguarded.push(`${filename}:L${lineNo} — ${line.trim().slice(0, 100)}`);
-    }
-    return { siteCount: sites.length, unguarded };
-  }
+const utilsSrc = read('js/utils.js');
+assert('getRangePosition guards refMax === refMin', utilsSrc.includes('refMax === refMin'));
+assert('getTrend guards prev === 0', utilsSrc.includes('prev === 0'));
 
-  const _allUnguarded = [];
-  let _totalSites = 0;
-  for (const filename of _SWEEP_FILES) {
-    const src = await fetchWithRetry(`js/${filename}`);
-    const { siteCount, unguarded } = _sweepInnerHTML(filename, src);
-    _totalSites += siteCount;
-    _allUnguarded.push(...unguarded);
-  }
-  // Site count drifts deliberately — sharp drop = refactor (good); spike
-  // = batch of new sites needing scrutiny.
-  assert(`production JS innerHTML sites tracked across ${_SWEEP_FILES.length} files (${_totalSites} found)`,
-    _totalSites > 0);
-  assert(
-    `every production JS innerHTML site is sanitized (escapeHTML/safeMarkerId/escapeAttr/applyInlineMarkdown/renderMarkdown) or a static-literal/helper-call`,
-    _allUnguarded.length === 0,
-    _allUnguarded.length ? `${_allUnguarded.length} unguarded:\n  ${_allUnguarded.slice(0, 8).join('\n  ')}` : ''
-  );
+// ═══════════════════════════════════════
+// 5. CSS variable fixes
+// ═══════════════════════════════════════
+console.log('5. CSS Variable Fixes');
 
-  // ═══════════════════════════════════════
-  // 4. Division by zero guards (utils.js)
-  // ═══════════════════════════════════════
-  console.log('%c 4. Division by Zero Guards ', 'font-weight:bold;color:#f59e0b');
+const cssSrc = read('styles.css');
+assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
+assert('No var(--text) without suffix', !/(var\(--text\))(?!-)/.test(cssSrc));
+assert('Dead overview-grid CSS removed', !cssSrc.includes('.overview-grid'));
+assert('Dead overview-card CSS removed', !cssSrc.includes('.overview-card'));
 
-  const utilsSrc = await fetchWithRetry('js/utils.js');
-  assert('getRangePosition guards refMax === refMin', utilsSrc.includes('refMax === refMin'));
-  assert('getTrend guards prev === 0', utilsSrc.includes('prev === 0'));
+// ═══════════════════════════════════════
+// 6. Data integrity fixes
+// ═══════════════════════════════════════
+console.log('6. Data Integrity');
 
-  // ═══════════════════════════════════════
-  // 5. CSS variable fixes
-  // ═══════════════════════════════════════
-  console.log('%c 5. CSS Variable Fixes ', 'font-weight:bold;color:#f59e0b');
+assert('Ferritin lookup uses iron category', dataSrc.includes("'iron','ferritin'") && !dataSrc.includes("'hematology','ferritin'"));
+assert('Unit conversion guards null refMin', dataSrc.includes('if (marker.refMin != null) marker.refMin = parseFloat'));
+assert('Unit conversion guards null refMax', dataSrc.includes('if (marker.refMax != null) marker.refMax = parseFloat'));
 
-  const cssSrc = await fetchWithRetry('styles.css');
-  assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
-  assert('No var(--text) without suffix', !/(var\(--text\))(?!-)/.test(cssSrc));
-  assert('Dead overview-grid CSS removed', !cssSrc.includes('.overview-grid'));
-  assert('Dead overview-card CSS removed', !cssSrc.includes('.overview-card'));
+const schemaSrc = read('js/schema.js');
+const apoMatch = schemaSrc.match(/lipids\.apoAI.*?optimalMax:\s*([\d.]+)/);
+if (apoMatch) {
+  const apoOptMax = parseFloat(apoMatch[1]);
+  assert('apoAI optimalMax <= refMax (1.70)', apoOptMax <= 1.70, `optimalMax = ${apoOptMax}`);
+}
 
-  // ═══════════════════════════════════════
-  // 6. Data integrity fixes
-  // ═══════════════════════════════════════
-  console.log('%c 6. Data Integrity ', 'font-weight:bold;color:#f59e0b');
+// ═══════════════════════════════════════
+// 7. Error handling
+// ═══════════════════════════════════════
+console.log('7. Error Handling');
 
-  assert('Ferritin lookup uses iron category', dataSrc.includes("'iron','ferritin'") && !dataSrc.includes("'hematology','ferritin'"));
-  assert('Unit conversion guards null refMin', dataSrc.includes('if (marker.refMin != null) marker.refMin = parseFloat'));
-  assert('Unit conversion guards null refMax', dataSrc.includes('if (marker.refMax != null) marker.refMax = parseFloat'));
+const apiSrc = read('js/api.js');
+assert('Venice models JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-venice-models')"));
+assert('OpenRouter models JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models')"));
+assert('OpenRouter pricing JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-pricing')"));
 
-  const schemaSrc = await fetchWithRetry('js/schema.js');
-  // Check apoAI optimalMax <= refMax
-  const apoMatch = schemaSrc.match(/lipids\.apoAI.*?optimalMax:\s*([\d.]+)/);
-  if (apoMatch) {
-    const apoOptMax = parseFloat(apoMatch[1]);
-    assert('apoAI optimalMax <= refMax (1.70)', apoOptMax <= 1.70, `optimalMax = ${apoOptMax}`);
-  }
+const exportSrc = read('js/export.js');
+assert('PDF report null popup guard', exportSrc.includes('if (!win)'));
+assert('PDF report context serialization', exportSrc.includes('fmtCtx'));
 
-  // ═══════════════════════════════════════
-  // 7. Error handling
-  // ═══════════════════════════════════════
-  console.log('%c 7. Error Handling ', 'font-weight:bold;color:#f59e0b');
+const pdfSrc = read('js/pdf-import.js');
+assert('NaN markers filtered out', pdfSrc.includes('filter(m => !isNaN(m.value))'));
 
-  const apiSrc = await fetchWithRetry('js/api.js');
-  assert('Venice models JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-venice-models')"));
-  assert('OpenRouter models JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models')"));
-  assert('OpenRouter pricing JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-pricing')"));
+// ═══════════════════════════════════════
+// 8. Duplicate code cleanup
+// ═══════════════════════════════════════
+console.log('8. Code Cleanup');
 
-  const exportSrc = await fetchWithRetry('js/export.js');
-  assert('PDF report null popup guard', exportSrc.includes('if (!win)'));
-  assert('PDF report context serialization', exportSrc.includes('fmtCtx'));
+assert('pdf-import.js imports formatCost from schema', pdfSrc.includes('formatCost') && pdfSrc.includes("from './schema.js'"));
+const localFormatCost = pdfSrc.match(/^function formatCost/m);
+assert('pdf-import.js no local formatCost', !localFormatCost);
 
-  const pdfSrc = await fetchWithRetry('js/pdf-import.js');
-  assert('NaN markers filtered out', pdfSrc.includes('filter(m => !isNaN(m.value))'));
+// ═══════════════════════════════════════
+// 9. OpenRouter curated prefixes
+// ═══════════════════════════════════════
+console.log('9. OpenRouter Curated List');
 
-  // ═══════════════════════════════════════
-  // 8. Duplicate code cleanup
-  // ═══════════════════════════════════════
-  console.log('%c 8. Code Cleanup ', 'font-weight:bold;color:#f59e0b');
+const curatedMatch = apiSrc.match(/OPENROUTER_CURATED\s*=\s*\[([\s\S]*?)\]/);
+if (curatedMatch) {
+  const curated = curatedMatch[1];
+  assert('Curated uses anthropic/claude- prefix (no dots in version)', !curated.includes('claude-sonnet-4.6') && !curated.includes('claude-opus-4.6'));
+  assert('Curated has anthropic prefix', curated.includes('anthropic/'));
+  assert('Curated has google prefix', curated.includes('google/'));
+  assert('Curated has x-ai prefix', curated.includes('x-ai/'));
+}
 
-  assert('pdf-import.js imports formatCost from schema', pdfSrc.includes('formatCost') && pdfSrc.includes("from './schema.js'"));
-  const localFormatCost = pdfSrc.match(/^function formatCost/m);
-  assert('pdf-import.js no local formatCost', !localFormatCost);
+// ═══════════════════════════════════════
+// 10. Accessibility
+// ═══════════════════════════════════════
+console.log('10. Accessibility');
 
-  // ═══════════════════════════════════════
-  // 9. OpenRouter curated prefixes
-  // ═══════════════════════════════════════
-  console.log('%c 9. OpenRouter Curated List ', 'font-weight:bold;color:#f59e0b');
+assert('Skip-to-content link exists', indexSrc.includes('class="skip-link"'));
+assert('Skip link targets #main-content', indexSrc.includes('href="#main-content"'));
+assert('Skip link CSS', cssSrc.includes('.skip-link'));
 
-  const curatedMatch = apiSrc.match(/OPENROUTER_CURATED\s*=\s*\[([\s\S]*?)\]/);
-  if (curatedMatch) {
-    const curated = curatedMatch[1];
-    assert('Curated uses anthropic/claude- prefix (no dots in version)', !curated.includes('claude-sonnet-4.6') && !curated.includes('claude-opus-4.6'));
-    assert('Curated has anthropic prefix', curated.includes('anthropic/'));
-    assert('Curated has google prefix', curated.includes('google/'));
-    assert('Curated has x-ai prefix', curated.includes('x-ai/'));
-  }
+const navSrc = read('js/nav.js');
+assert('Nav items have tabindex', navSrc.includes('tabindex="0"'));
+assert('Nav items have role=button', navSrc.includes('role="button"'));
+assert('Nav items have keyboard handler', navSrc.includes('onkeydown'));
+assert('Category labels escaped in sidebar', navSrc.includes('escapeHTML(label)') || navSrc.includes('escapeHTML(cat.label)'));
 
-  // ═══════════════════════════════════════
-  // 10. Accessibility
-  // ═══════════════════════════════════════
-  console.log('%c 10. Accessibility ', 'font-weight:bold;color:#f59e0b');
+const mainSrc = read('js/main.js');
+assert('Focus trap for modals', mainSrc.includes('e.key === "Tab"') && mainSrc.includes('focusable'));
 
-  assert('Skip-to-content link exists', indexSrc.includes('class="skip-link"'));
-  assert('Skip link targets #main-content', indexSrc.includes('href="#main-content"'));
-  assert('Skip link CSS', cssSrc.includes('.skip-link'));
+// ═══════════════════════════════════════
+// 11. Event listener leak fix
+// ═══════════════════════════════════════
+console.log('11. Event Listener Leak Fix');
 
-  const navSrc = await fetchWithRetry('js/nav.js');
-  assert('Nav items have tabindex', navSrc.includes('tabindex="0"'));
-  assert('Nav items have role=button', navSrc.includes('role="button"'));
-  assert('Nav items have keyboard handler', navSrc.includes('onkeydown'));
-  assert('Category labels escaped in sidebar', navSrc.includes('escapeHTML(label)') || navSrc.includes('escapeHTML(cat.label)'));
+const ctxSrc = read('js/context-cards.js');
+assert('Diagnoses editor removes old listener before adding', ctxSrc.includes("document.removeEventListener('click', closeSuggestionsOnClickOutside)"));
 
-  const mainSrc = await fetchWithRetry('js/main.js');
-  assert('Focus trap for modals', mainSrc.includes('e.key === "Tab"') && mainSrc.includes('focusable'));
+// ═══════════════════════════════════════
+// 12. Cycle stats NaN guard
+// ═══════════════════════════════════════
+console.log('12. Cycle Stats Guard');
 
-  // ═══════════════════════════════════════
-  // 11. Event listener leak fix
-  // ═══════════════════════════════════════
-  console.log('%c 11. Event Listener Leak Fix ', 'font-weight:bold;color:#f59e0b');
+const cycleSrc = read('js/cycle.js');
+assert('Cycle stats filters periods with endDate', cycleSrc.includes('filter(p => p.endDate)'));
+assert('Period length guards empty array', cycleSrc.includes('if (periodLengths.length > 0)'));
 
-  const ctxSrc = await fetchWithRetry('js/context-cards.js');
-  assert('Diagnoses editor removes old listener before adding', ctxSrc.includes('document.removeEventListener(\'click\', closeSuggestionsOnClickOutside)'));
+// ═══════════════════════════════════════
+// 13. Security Headers (CSP)
+// ═══════════════════════════════════════
+console.log('13. Security Headers');
 
-  // ═══════════════════════════════════════
-  // 12. Cycle stats NaN guard
-  // ═══════════════════════════════════════
-  console.log('%c 12. Cycle Stats Guard ', 'font-weight:bold;color:#f59e0b');
+const vercelSrc = read('vercel.json');
+assert('CSP header in vercel.json', vercelSrc.includes('Content-Security-Policy'));
+assert('CSP has no external CDN beyond jsdelivr (for transformers.js)',
+  !vercelSrc.includes('fonts.googleapis.com') && !vercelSrc.includes('unpkg.com'));
+assert('CSP allows cdn.jsdelivr.net in script-src (transformers.js)',
+  vercelSrc.includes('https://cdn.jsdelivr.net'));
+assert('CSP script-src includes blob: (required by ORT proxy worker)',
+  /script-src[^;]*\bblob:/.test(vercelSrc));
+assert('Vercel sends Cross-Origin-Opener-Policy: same-origin',
+  /"Cross-Origin-Opener-Policy"\s*:\s*"same-origin"/.test(vercelSrc));
+assert('Vercel sends Cross-Origin-Embedder-Policy: credentialless',
+  /"Cross-Origin-Embedder-Policy"\s*:\s*"credentialless"/.test(vercelSrc));
+assert('No Permissions-Policy header (matches dev-server)',
+  !/"Permissions-Policy"/.test(vercelSrc));
+assert('CSP connect-src allows https: (decentralized nodes)', vercelSrc.includes("connect-src 'self' https:"));
+assert('CSP allows localhost for Local AI', vercelSrc.includes('localhost:*'));
+assert('X-Frame-Options DENY', vercelSrc.includes('DENY'));
+assert('X-Content-Type-Options nosniff', vercelSrc.includes('nosniff'));
 
-  const cycleSrc = await fetchWithRetry('js/cycle.js');
-  assert('Cycle stats filters periods with endDate', cycleSrc.includes('filter(p => p.endDate)'));
-  assert('Period length guards empty array', cycleSrc.includes('if (periodLengths.length > 0)'));
+// ═══════════════════════════════════════
+// 14. Aria-live & Screen Reader
+// ═══════════════════════════════════════
+console.log('14. Aria-live & Screen Reader');
 
-  // ═══════════════════════════════════════
-  // 13. Security Headers (CSP)
-  // ═══════════════════════════════════════
-  console.log('%c 13. Security Headers ', 'font-weight:bold;color:#f59e0b');
+assert('Notification container has aria-live', indexSrc.includes('aria-live="polite"'));
+assert('Notification container has role=status', indexSrc.includes('role="status"'));
+const utilsSrc2 = read('js/utils.js');
+assert('Error toasts get role=alert', utilsSrc2.includes("role', 'alert'"));
+assert('Confirm dialog has role=alertdialog', utilsSrc2.includes('role="alertdialog"'));
 
-  const vercelSrc = await fetchWithRetry('/vercel.json');
-  assert('CSP header in vercel.json', vercelSrc.includes('Content-Security-Policy'));
-  // cdn.jsdelivr.net is the only remote script source — transformers.js
-  // ESM bundle can't be vendored yet (bare-specifier rewrite requires a
-  // bundler pass, phase 2c). Google Fonts + vendor bundles are local.
-  assert('CSP has no external CDN beyond jsdelivr (for transformers.js)',
-    !vercelSrc.includes('fonts.googleapis.com') && !vercelSrc.includes('unpkg.com'));
-  assert('CSP allows cdn.jsdelivr.net in script-src (transformers.js)',
-    vercelSrc.includes('https://cdn.jsdelivr.net'));
-  // ONNX Runtime (used inside transformers.js) spawns its proxy worker
-  // from a blob: URL and dynamic-imports it as a script. script-src
-  // MUST include blob: or the lens silently fails to init in prod with
-  // "No available backend found".
-  assert('CSP script-src includes blob: (required by ORT proxy worker)',
-    /script-src[^;]*\bblob:/.test(vercelSrc));
-  // Cross-origin isolation: required so the in-browser lens worker can
-  // use SharedArrayBuffer + multi-threaded WASM. Without these headers
-  // ORT silently falls back to single-threaded WASM (~7× slower) and
-  // WebGPU adapter access can also fail. Must match dev-server.js so
-  // localhost behavior matches prod.
-  assert('Vercel sends Cross-Origin-Opener-Policy: same-origin',
-    /"Cross-Origin-Opener-Policy"\s*:\s*"same-origin"/.test(vercelSrc));
-  assert('Vercel sends Cross-Origin-Embedder-Policy: credentialless',
-    /"Cross-Origin-Embedder-Policy"\s*:\s*"credentialless"/.test(vercelSrc));
-  // No Permissions-Policy header — dev-server doesn't send one either,
-  // and an explicit Permissions-Policy header (even granting
-  // webgpu=(self) explicitly) was observed to suppress WebGPU adapter
-  // access in Workers on Vercel, dropping the lens to WASM-only. Our
-  // app doesn't use camera/mic/geolocation so the previous restrictive
-  // policy wasn't load-bearing — removing it matches dev-server and
-  // unblocks WebGPU on prod.
-  assert('No Permissions-Policy header (matches dev-server)',
-    !/"Permissions-Policy"/.test(vercelSrc));
-  assert('CSP connect-src allows https: (decentralized nodes)', vercelSrc.includes("connect-src 'self' https:"));
-  assert('CSP allows localhost for Local AI', vercelSrc.includes('localhost:*'));
-  assert('X-Frame-Options DENY', vercelSrc.includes('DENY'));
-  assert('X-Content-Type-Options nosniff', vercelSrc.includes('nosniff'));
+// ═══════════════════════════════════════
+// 15. Colorblind Accessibility
+// ═══════════════════════════════════════
+console.log('15. Colorblind Accessibility');
 
-  // ═══════════════════════════════════════
-  // 14. Aria-live & Screen Reader
-  // ═══════════════════════════════════════
-  console.log('%c 14. Aria-live & Screen Reader ', 'font-weight:bold;color:#f59e0b');
+assert('Chart card val-high has ::before arrow', cssSrc.includes('.chart-value-num.val-high::before'));
+assert('Chart card val-low has ::before arrow', cssSrc.includes('.chart-value-num.val-low::before'));
+assert('Table val-high has ::before arrow', cssSrc.includes('.data-table .value-cell.val-high::before'));
+assert('Table val-low has ::before arrow', cssSrc.includes('.data-table .value-cell.val-low::before'));
+assert('Heatmap high has ::before', cssSrc.includes('.heatmap-high::before'));
+assert('Heatmap low has ::before', cssSrc.includes('.heatmap-low::before'));
+assert('Compare improved has ::before', cssSrc.includes('.compare-improved::before'));
+assert('Compare worsened has ::before', cssSrc.includes('.compare-worsened::before'));
+assert('Range bar high has glow', cssSrc.includes('.range-bar-marker.marker-high') && cssSrc.includes('box-shadow'));
+assert('Health dot yellow has glow', cssSrc.includes('.ctx-health-dot-yellow') && cssSrc.includes('box-shadow'));
+assert('Health dot red has glow', cssSrc.includes('.ctx-health-dot-red') && cssSrc.includes('box-shadow'));
 
-  assert('Notification container has aria-live', indexSrc.includes('aria-live="polite"'));
-  assert('Notification container has role=status', indexSrc.includes('role="status"'));
-  const utilsSrc2 = await fetchWithRetry('js/utils.js');
-  assert('Error toasts get role=alert', utilsSrc2.includes("role', 'alert'"));
-  assert('Confirm dialog has role=alertdialog', utilsSrc2.includes('role="alertdialog"'));
+const chartsSrc = read('js/charts.js');
+assert('Chart.js pointStyle per status', chartsSrc.includes('ptStyles') && chartsSrc.includes('pointStyle'));
 
-  // ═══════════════════════════════════════
-  // 15. Colorblind Accessibility
-  // ═══════════════════════════════════════
-  console.log('%c 15. Colorblind Accessibility ', 'font-weight:bold;color:#f59e0b');
+const ctxSrc2 = read('js/context-cards.js');
+assert('Health dots have title attribute', ctxSrc2.includes('dot.title'));
+assert('Health dots have aria-label', ctxSrc2.includes("dot.setAttribute('aria-label'"));
+assert('AI tips have severity prefix', ctxSrc2.includes('prefixes'));
 
-  assert('Chart card val-high has ::before arrow', cssSrc.includes('.chart-value-num.val-high::before'));
-  assert('Chart card val-low has ::before arrow', cssSrc.includes('.chart-value-num.val-low::before'));
-  assert('Table val-high has ::before arrow', cssSrc.includes('.data-table .value-cell.val-high::before'));
-  assert('Table val-low has ::before arrow', cssSrc.includes('.data-table .value-cell.val-low::before'));
-  assert('Heatmap high has ::before', cssSrc.includes('.heatmap-high::before'));
-  assert('Heatmap low has ::before', cssSrc.includes('.heatmap-low::before'));
-  assert('Compare improved has ::before', cssSrc.includes('.compare-improved::before'));
-  assert('Compare worsened has ::before', cssSrc.includes('.compare-worsened::before'));
-  assert('Range bar high has glow', cssSrc.includes('.range-bar-marker.marker-high') && cssSrc.includes('box-shadow'));
-  assert('Health dot yellow has glow', cssSrc.includes('.ctx-health-dot-yellow') && cssSrc.includes('box-shadow'));
-  assert('Health dot red has glow', cssSrc.includes('.ctx-health-dot-red') && cssSrc.includes('box-shadow'));
+const exportSrc2 = read('js/export.js');
+assert('PDF report values have status prefix', exportSrc2.includes('sPrefix'));
 
-  const chartsSrc = await fetchWithRetry('js/charts.js');
-  assert('Chart.js pointStyle per status', chartsSrc.includes('ptStyles') && chartsSrc.includes('pointStyle'));
+// ═══════════════════════════════════════
+// 16. Context Assembly Pipeline
+// ═══════════════════════════════════════
+console.log('16. Context Assembly Pipeline');
 
-  const ctxSrc2 = await fetchWithRetry('js/context-cards.js');
-  assert('Health dots have title attribute', ctxSrc2.includes('dot.title'));
-  assert('Health dots have aria-label', ctxSrc2.includes("dot.setAttribute('aria-label'"));
-  assert('AI tips have severity prefix', ctxSrc2.includes('prefixes'));
+const labCtxSrc = read('js/lab-context.js');
 
-  const exportSrc2 = await fetchWithRetry('js/export.js');
-  assert('PDF report values have status prefix', exportSrc2.includes('sPrefix'));
+assert('buildLabContext has age computation', labCtxSrc.includes('Math.floor((new Date() - new Date(state.profileDob))'));
+assert('buildLabContext has today ISO date', labCtxSrc.includes("new Date().toISOString().slice(0, 10)"));
+assert('buildLabContext has unit system label', labCtxSrc.includes("unit system: ${unitLabel}"));
+assert('buildLabContext has fmtDate helper', labCtxSrc.includes("const fmtDate = d => new Date(d + 'T00:00:00')"));
 
-  // ═══════════════════════════════════════
-  // 16. Context Assembly Pipeline
-  // ═══════════════════════════════════════
-  console.log('%c 16. Context Assembly Pipeline ', 'font-weight:bold;color:#f59e0b');
+assert('Health Goals section before Diet section', labCtxSrc.indexOf('## Health Goals') < labCtxSrc.indexOf('## Diet'));
+assert('Interpretive Lens before lab values', labCtxSrc.indexOf('Interpretive Lens') < labCtxSrc.indexOf('${cat.label}'));
 
-  const labCtxSrc = await fetchWithRetry('js/lab-context.js');
+assert('buildLabContext has global staleness daysSince', labCtxSrc.includes('daysSince'));
+assert('buildLabContext has global staleness months ago', labCtxSrc.includes('months ago'));
+assert('buildLabContext has per-category staleness', labCtxSrc.includes('catDaysSince') && labCtxSrc.includes('catMonthsAgo'));
+assert('Per-category staleness uses warning marker', labCtxSrc.includes('⚠ Last tested'));
+assert('buildFocusContext has last labs date', viewsSrc.includes('last labs'));
 
-  // buildLabContext enriched header
-  assert('buildLabContext has age computation', labCtxSrc.includes('Math.floor((new Date() - new Date(state.profileDob))'));
-  assert('buildLabContext has today ISO date', labCtxSrc.includes("new Date().toISOString().slice(0, 10)"));
-  assert('buildLabContext has unit system label', labCtxSrc.includes("unit system: ${unitLabel}"));
-  assert('buildLabContext has fmtDate helper', labCtxSrc.includes("const fmtDate = d => new Date(d + 'T00:00:00')"));
+const hccCount = (labCtxSrc.match(/hasCardContent\(/g) || []).length;
+assert('lab-context.js uses hasCardContent for 7 card gates', hccCount >= 7, `found ${hccCount}`);
+assert('lab-context.js imports hasCardContent', labCtxSrc.includes('hasCardContent') && labCtxSrc.includes("from './utils.js'"));
+assert('Diagnoses uses hasCardContent', labCtxSrc.includes('hasCardContent(diag)'));
+assert('Diet uses hasCardContent', labCtxSrc.includes('hasCardContent(diet)'));
+assert('Exercise uses hasCardContent', labCtxSrc.includes('hasCardContent(ex)'));
+assert('Sleep uses hasCardContent', labCtxSrc.includes('hasCardContent(sl)'));
+assert('Stress uses hasCardContent', labCtxSrc.includes('hasCardContent(st)'));
+assert('LoveLife uses hasCardContent', labCtxSrc.includes('hasCardContent(ll)'));
+assert('Environment uses hasCardContent', labCtxSrc.includes('hasCardContent(env)'));
+assert('Light still uses lc || autoLat gate', labCtxSrc.includes('lc || autoLat'));
+const utilsSrc3 = read('js/utils.js');
+assert('hasCardContent exported from utils.js', utilsSrc3.includes('export function hasCardContent'));
 
-  // Section ordering: goals before lab values, lab values before lifestyle
-  const goalsIdx = labCtxSrc.indexOf('## Health Goals (Things to Solve)');
-  const labValuesIdx = labCtxSrc.indexOf('## ${cat.label}');
-  const dietIdx = labCtxSrc.indexOf('## Diet\\n');
-  const flaggedIdx = labCtxSrc.indexOf('## Flagged Results (Latest)');
-  const notesIdx = labCtxSrc.indexOf('## User Notes');
-  const diagIdx = labCtxSrc.indexOf('## Medical History / Diagnoses');
-  // Goals should appear before diet in the source (section ordering)
-  assert('Health Goals section before Diet section', labCtxSrc.indexOf('## Health Goals') < labCtxSrc.indexOf('## Diet'));
-  assert('Interpretive Lens before lab values', labCtxSrc.indexOf('Interpretive Lens') < labCtxSrc.indexOf('${cat.label}'));
+const constSrc = read('js/constants.js');
+assert('System prompt has per-category staleness instruction', constSrc.includes('stale data') && constSrc.includes('recommend retesting'));
+assert('System prompt has absent field instruction', constSrc.includes('did not provide'));
+assert('System prompt has absent section instruction', constSrc.includes('has not filled in'));
+assert('System prompt has Core Rules section', constSrc.includes('## Core Rules'));
+assert('System prompt has Priority Context section', constSrc.includes('## Priority Context'));
+assert('System prompt has Lifestyle Context section', constSrc.includes('## Lifestyle Context'));
+assert('System prompt has cortisol cross-cutting note', constSrc.includes('cortisol/HPA axis'));
+assert('System prompt has Style section', constSrc.includes('## Style'));
+assert('Health goals at top of Priority Context', constSrc.indexOf('Health goals:') < constSrc.indexOf('Medical conditions:'));
 
-  // Staleness signals (global + per-category)
-  assert('buildLabContext has global staleness daysSince', labCtxSrc.includes('daysSince'));
-  assert('buildLabContext has global staleness months ago', labCtxSrc.includes('months ago'));
-  assert('buildLabContext has per-category staleness', labCtxSrc.includes('catDaysSince') && labCtxSrc.includes('catMonthsAgo'));
-  assert('Per-category staleness uses warning marker', labCtxSrc.includes('⚠ Last tested'));
-  assert('buildFocusContext has last labs date', viewsSrc.includes('last labs'));
+assert('Persona placed after lab data', chatSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));
 
-  // Auto-gating: 7 cards use hasCardContent(), 4 have custom logic
-  const hccCount = (labCtxSrc.match(/hasCardContent\(/g) || []).length;
-  assert('lab-context.js uses hasCardContent for 7 card gates', hccCount >= 7, `found ${hccCount}`);
-  assert('lab-context.js imports hasCardContent', labCtxSrc.includes("hasCardContent") && labCtxSrc.includes("from './utils.js'"));
-  assert('Diagnoses uses hasCardContent', labCtxSrc.includes('hasCardContent(diag)'));
-  assert('Diet uses hasCardContent', labCtxSrc.includes('hasCardContent(diet)'));
-  assert('Exercise uses hasCardContent', labCtxSrc.includes('hasCardContent(ex)'));
-  assert('Sleep uses hasCardContent', labCtxSrc.includes('hasCardContent(sl)'));
-  assert('Stress uses hasCardContent', labCtxSrc.includes('hasCardContent(st)'));
-  assert('LoveLife uses hasCardContent', labCtxSrc.includes('hasCardContent(ll)'));
-  assert('Environment uses hasCardContent', labCtxSrc.includes('hasCardContent(env)'));
-  // Light & Circadian still uses custom gate (external latitude data)
-  assert('Light still uses lc || autoLat gate', labCtxSrc.includes('lc || autoLat'));
-  // hasCardContent in utils.js
-  const utilsSrc3 = await fetchWithRetry('js/utils.js');
-  assert('hasCardContent exported from utils.js', utilsSrc3.includes('export function hasCardContent'));
+assert('buildFocusContext exists in views.js', viewsSrc.includes('function buildFocusContext()'));
+assert('Focus card uses buildFocusContext', viewsSrc.includes('buildFocusContext()'));
+assert('Focus card context-aware system prompt', viewsSrc.includes("this person's goals/conditions"));
 
-  // System prompt restructure
-  const constSrc = await fetchWithRetry('js/constants.js');
+assert('askAIAboutMarker uses marker.refMin/refMax', chatSrc.includes('${marker.refMin}') && chatSrc.includes('${marker.refMax}'));
+assert('askAIAboutMarker has trend direction', chatSrc.includes("Trend: ${dir}"));
 
-  // System prompt staleness + absent field instructions
-  assert('System prompt has per-category staleness instruction', constSrc.includes('stale data') && constSrc.includes('recommend retesting'));
-  assert('System prompt has absent field instruction', constSrc.includes('did not provide'));
-  assert('System prompt has absent section instruction', constSrc.includes('has not filled in'));
+assert('Health dots JSON.parse has try-catch', ctxSrc.includes('try { parsed = JSON.parse(jsonMatch[0])'));
 
-  assert('System prompt has Core Rules section', constSrc.includes('## Core Rules'));
-  assert('System prompt has Priority Context section', constSrc.includes('## Priority Context'));
-  assert('System prompt has Lifestyle Context section', constSrc.includes('## Lifestyle Context'));
-  assert('System prompt has cortisol cross-cutting note', constSrc.includes('cortisol/HPA axis'));
-  assert('System prompt has Style section', constSrc.includes('## Style'));
-  assert('Health goals at top of Priority Context', constSrc.indexOf('Health goals:') < constSrc.indexOf('Medical conditions:'));
+assert('WBC rule at position 5 (before Skip non-numeric)', pdfSrc.indexOf('differential WBC') < pdfSrc.indexOf('Skip non-numeric'));
+assert('PDF import includes filename in user message', pdfSrc.includes("(file: ' + fileName"));
 
-  // Persona after data in chat prompt
-  assert('Persona placed after lab data', chatSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));
-
-  // Focus card lightweight context
-  assert('buildFocusContext exists in views.js', viewsSrc.includes('function buildFocusContext()'));
-  assert('Focus card uses buildFocusContext', viewsSrc.includes('buildFocusContext()'));
-  assert('Focus card context-aware system prompt', viewsSrc.includes("this person's goals/conditions"));
-
-  // askAIAboutMarker uses actual reference range (not effective/optimal)
-  assert('askAIAboutMarker uses marker.refMin/refMax', chatSrc.includes('${marker.refMin}') && chatSrc.includes('${marker.refMax}'));
-  assert('askAIAboutMarker has trend direction', chatSrc.includes("Trend: ${dir}"));
-
-  // JSON.parse guard in health dots
-  assert('Health dots JSON.parse has try-catch', ctxSrc.includes('try { parsed = JSON.parse(jsonMatch[0])'));
-
-  // PDF import WBC rule position
-  assert('WBC rule at position 5 (before Skip non-numeric)', pdfSrc.indexOf('differential WBC') < pdfSrc.indexOf('Skip non-numeric'));
-  assert('PDF import includes filename in user message', pdfSrc.includes("(file: ' + fileName"));
-
-  // ═══════════════════════════════════════
-  // Results
-  // ═══════════════════════════════════════
-  console.log(`\n%c Results: ${pass} passed, ${fail} failed `, `background:${fail?'#ef4444':'#22c55e'};color:#fff;font-size:14px;padding:4px 12px;border-radius:4px`);
-})();
+console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
+process.exit(fail > 0 ? 1 : 0);
