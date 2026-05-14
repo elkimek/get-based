@@ -57,8 +57,6 @@ const TEST_FILES = [
   // runs via fake-indexeddb. The openWearableDetail Chart.js modal islands +
   // JSZip script-injection smoke live in test-wearables-dom.js below.
   'tests/test-wearables-dom.js',
-  'tests/test-wearables-manual.js',
-  'tests/test-wearables-sync-flow.js',
   'tests/test-wearables-ui-flows.js',
   // test-dashboard-knowledge-base.js HTML-string rendering checks ported to
   // Vitest (batch 27). Section 5 (picker open/dismiss — live DOM overlay +
@@ -87,7 +85,6 @@ const TEST_FILES = [
   'tests/test-silhouette-picker.js',
   'tests/test-silhouette-region-map.js',
   'tests/test-sun-ui-flow.js',
-  'tests/test-blob-storage.js',
   'tests/test-audit-fixes.js',
   'tests/test-family-history.js',
   // Extracted from test-v1-6-shipped.js (PR #204) — the live-DOM

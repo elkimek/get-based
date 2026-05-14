@@ -169,6 +169,13 @@ const LEGACY_TESTS = [
   // Apple Health parser, source-inspection sweep). The openWearableDetail
   // Chart.js modal islands stay on puppeteer in test-wearables-dom.js.
   './test-wearables.js',
+  // Batch 33 — the remaining IDB tail, full ports (no DOM): blob-storage
+  // (IDB k/v + localStorage→IDB migration), wearables-manual (manual-source
+  // logging + biometrics migration), wearables-sync-flow (backfill /
+  // incremental / disconnect orchestration with a mocked /api/proxy fetch).
+  './test-blob-storage.js',
+  './test-wearables-manual.js',
+  './test-wearables-sync-flow.js',
 ];
 
 for (const path of LEGACY_TESTS) {
