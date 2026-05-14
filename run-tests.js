@@ -52,7 +52,11 @@ const TEST_FILES = [
   'tests/test-dashboard-data-protection.js',
   'tests/test-chat-panel-ux.js',
   'tests/test-cashu-wallet.js',
-  'tests/test-custom-api.js',
+  // test-custom-api.js source-inspection + behavioral ported to Vitest
+  // (batch 24). DOM-runtime sections (13/14 — Settings modal rendering,
+  // Custom panel form fields, connected-state model dropdown) live in
+  // test-custom-api-dom.js below.
+  'tests/test-custom-api-dom.js',
   'tests/test-custom-lens.js',
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',

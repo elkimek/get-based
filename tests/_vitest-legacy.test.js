@@ -129,6 +129,9 @@ const LEGACY_TESTS = [
   // Batch 23 — custom personality behavioral + source-inspection
   // (DOM sections 11/12/17/21 in test-custom-personality-dom.js stay on puppeteer).
   './test-custom-personality.js',
+  // Batch 24 — custom API provider behavioral + source-inspection
+  // (DOM sections 13/14 in test-custom-api-dom.js stay on puppeteer).
+  './test-custom-api.js',
 ];
 
 for (const path of LEGACY_TESTS) {
