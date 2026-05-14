@@ -31,39 +31,49 @@ console.log('=== Dashboard KB / Personalize-AI Tests ===\n');
 // pure-synchronous (reads cfg + the localStorage count-shadow, never the
 // worker), so stubbing these capabilities lets the real count-driven
 // visibility logic run in Node. Section 5's live picker test stays on
-// puppeteer where these are genuinely present. Both are restored in the
-// finally block so they don't leak into later legacy tests.
+// puppeteer where these are genuinely present.
+//
+// The stub install + module imports happen INSIDE the try block so the
+// finally cleanup runs even if an import throws — otherwise a stub Worker
+// / empty navigator.storage would leak into later legacy tests.
 const _hadNavStorage = !!(globalThis.navigator && globalThis.navigator.storage);
 const _hadWorker = typeof globalThis.Worker !== 'undefined';
-if (globalThis.navigator && !globalThis.navigator.storage) {
-  globalThis.navigator.storage = {};
-}
-if (typeof globalThis.Worker === 'undefined') {
-  globalThis.Worker = class { constructor() {} postMessage() {} terminate() {} };
-}
 
-const lens = await import('../js/lens.js');
-const cards = await import('../js/context-cards.js');
-const { state } = await import('../js/state.js');
-
-// Snapshot everything we touch + restore in finally.
-const savedCfg = localStorage.getItem('labcharts-lens-config');
-const savedCount = localStorage.getItem('labcharts-lens-local-count');
-const savedLens = state.importedData?.interpretiveLens;
+// Snapshot vars are assigned inside the try once `state` is imported;
+// declared here so the finally-scoped restore() can see them.
+let savedCfg = null, savedCount = null, savedLens;
+let _state = null;
 const restore = () => {
   if (savedCfg === null) localStorage.removeItem('labcharts-lens-config');
   else localStorage.setItem('labcharts-lens-config', savedCfg);
   if (savedCount === null) localStorage.removeItem('labcharts-lens-local-count');
   else localStorage.setItem('labcharts-lens-local-count', savedCount);
-  if (state.importedData) state.importedData.interpretiveLens = savedLens;
+  if (_state && _state.importedData) _state.importedData.interpretiveLens = savedLens;
   // Undo the capability stubs so they don't leak into later legacy tests.
   if (!_hadNavStorage && globalThis.navigator) delete globalThis.navigator.storage;
   if (!_hadWorker) delete globalThis.Worker;
 };
 
-if (!state.importedData) state.importedData = {};
-
 try {
+  if (globalThis.navigator && !globalThis.navigator.storage) {
+    globalThis.navigator.storage = {};
+  }
+  if (typeof globalThis.Worker === 'undefined') {
+    globalThis.Worker = class { constructor() {} postMessage() {} terminate() {} };
+  }
+
+  const lens = await import('../js/lens.js');
+  const cards = await import('../js/context-cards.js');
+  const { state } = await import('../js/state.js');
+  _state = state;
+
+  // Snapshot everything we touch + restore in finally.
+  savedCfg = localStorage.getItem('labcharts-lens-config');
+  savedCount = localStorage.getItem('labcharts-lens-local-count');
+  savedLens = state.importedData?.interpretiveLens;
+
+  if (!state.importedData) state.importedData = {};
+
   // ─── 1. Both unset → only the picker CTA renders ───
   {
     localStorage.removeItem('labcharts-lens-config');
