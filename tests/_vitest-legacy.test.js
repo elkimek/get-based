@@ -13,6 +13,7 @@
 // To add a file to the Vitest suite, append it to LEGACY_TESTS.
 
 import { it, expect, beforeEach } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
 
 // Capture the canonical globalThis.fetch at module-load time, BEFORE
 // any LEGACY_TEST has a chance to overwrite it. Some ported tests
@@ -27,10 +28,18 @@ const _origFetch = globalThis.fetch;
 // sessionStorage / fetch / addEventListener listeners are all wired up
 // on globalThis in _vitest-setup.js — if one legacy test sets a key
 // (or overwrites fetch) and the next test reads it, results leak.
+//
+// IndexedDB: fake-indexeddb/auto installs ONE global IDBFactory for the
+// whole worker lifetime, so without a reset, an IDB-backed test (batch
+// 32+: test-wearables, test-blob-storage, …) could read stale databases
+// a prior test wrote. Swapping in a fresh IDBFactory each time gives
+// every legacy test an empty IDB. No-op for the current suite (nothing
+// touches IDB yet) — this just makes the shim ready for the IDB ports.
 beforeEach(() => {
   if (typeof globalThis.localStorage?.clear === 'function') globalThis.localStorage.clear();
   if (typeof globalThis.sessionStorage?.clear === 'function') globalThis.sessionStorage.clear();
   globalThis.fetch = _origFetch;
+  globalThis.indexedDB = new IDBFactory();
 });
 
 const LEGACY_TESTS = [
