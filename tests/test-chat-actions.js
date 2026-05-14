@@ -185,13 +185,15 @@ if (hasState) {
 }
 
 // ─── Section 19: setChatPersonality thread behavior ───
+// Pure source-inspection of chatSrc — `chatSrc` is read unconditionally
+// from the filesystem above, so these run regardless of _labState init
+// (the original's `if (hasState)` gate was a carry-over from when chatSrc
+// came from a fetch that could be absent before state was ready).
 console.log('Section 19: setChatPersonality thread behavior');
-if (hasState) {
-  assert('setChatPersonality is async', chatSrc.includes('async function setChatPersonality'), 'found in source');
-  assert('setChatPersonality switches in-place', chatSrc.includes('state.currentChatPersonality = id'), 'found');
-  assert('Updates thread personality in-place', chatSrc.includes('thread.personality = id'), 'found in setChatPersonality');
-  assert('Updates thread metadata on switch', chatSrc.includes('thread.personalityName') && chatSrc.includes('thread.personalityIcon'), 'found');
-}
+assert('setChatPersonality is async', chatSrc.includes('async function setChatPersonality'), 'found in source');
+assert('setChatPersonality switches in-place', chatSrc.includes('state.currentChatPersonality = id'), 'found');
+assert('Updates thread personality in-place', chatSrc.includes('thread.personality = id'), 'found in setChatPersonality');
+assert('Updates thread metadata on switch', chatSrc.includes('thread.personalityName') && chatSrc.includes('thread.personalityIcon'), 'found');
 
 // ─── Section 20: state.js exposes _labState ───
 console.log('Section 20: State exposure');
