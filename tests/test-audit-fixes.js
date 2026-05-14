@@ -117,15 +117,25 @@ return (async function () {
 
     // Poll until `cond()` holds (or timeout). The whole suite runs in one
     // shared page, so an earlier test file's async modal-teardown observer
-    // can still be in flight here — a fixed delay races it.
+    // can still be in flight here — a fixed delay races it. Warns on
+    // timeout so a future failure reads as "race" not "regression".
     const waitFor = async (cond, ms = 500) => {
       const start = Date.now();
       while (!cond() && Date.now() - start < ms) await delay(10);
+      const ok = cond();
+      if (!ok) console.warn(`[test-audit-fixes] waitFor timed out after ${ms}ms`);
+      return ok;
     };
 
-    // Drain any leaked teardown observers from earlier files, *then* set the
-    // baseline last so a stale restore() can't clobber it mid-section.
-    await delay(50);
+    // An earlier test file's async modal-teardown can still be writing
+    // document.body.style.overflow. Wait for it to settle (value unchanged
+    // across a 10ms tick) before capturing our baseline — self-calibrating,
+    // not a fixed drain — then set the baseline value last.
+    let prevOverflow = null;
+    for (let i = 0; i < 50 && document.body.style.overflow !== prevOverflow; i++) {
+      prevOverflow = document.body.style.overflow;
+      await delay(10);
+    }
     document.body.style.overflow = 'auto';
     const baseline = document.body.style.overflow;
 
