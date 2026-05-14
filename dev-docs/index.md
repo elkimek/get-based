@@ -29,13 +29,16 @@ Open `http://localhost:8000`. The app loads immediately — no compilation, no `
 
 | Page | What it covers |
 |---|---|
-| [Architecture](./architecture) | Zero-build philosophy, file layout, 6-layer dependency graph |
-| [Module Reference](./module-reference) | All 42 JS modules: exports, purpose, window bindings |
-| [Cross-Module Patterns](./cross-module-patterns) | Window exports, circular dep avoidance, state access |
-| [Data Pipeline](./data-pipeline) | `getActiveData()` walkthrough, marker keys, values arrays |
-| [Testing](./testing) | headless test runner, `./run-tests.sh`, writing new assertions |
-| [Deployment](./deployment) | Vercel config, CSP, service worker cache, PWA |
-| [Storage Schema](./storage-schema) | All localStorage keys, importedData structure, IndexedDB |
+| [Architecture](./architecture.md) | Zero-build philosophy, file layout, 6-layer dependency graph |
+| [Module Reference](./module-reference.md) | All 42 JS modules: exports, purpose, window bindings |
+| [Cross-Module Patterns](./cross-module-patterns.md) | Window exports, circular dep avoidance, state access |
+| [Context Assembly](./context-assembly.md) | How lab context is assembled for the AI |
+| [Data Pipeline](./data-pipeline.md) | `getActiveData()` walkthrough, marker keys, values arrays |
+| [Storage Schema](./storage-schema.md) | All localStorage keys, importedData structure, IndexedDB |
+| [Testing](./testing.md) | headless test runner, `./run-tests.sh`, writing new assertions |
+| [Deployment](./deployment.md) | Vercel config, CSP, service worker cache, PWA |
+| [Sun Spectrum Model](./sun-spectrum-model.md) | Bird-Riordan spectral reconstruction for Light sessions |
+| [Lens Endpoint Contract](./lens-endpoint-contract.md) | Wire spec for a custom Knowledge Source server |
 
 ## Code patterns at a glance
 

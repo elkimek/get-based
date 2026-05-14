@@ -72,7 +72,7 @@ export function buildSunContext({ tier = 'always' } = {}) {
 
   // Section marker is 'sun' (not 'sunSessions') so agent callers can
   // pull this block via getbased_section('sun') matching the documented
-  // API in docs/guide/agent-access.md. The block actually contains sun
+  // API in docs.getbased.health/guides/agent-access. The block actually contains sun
   // sessions + light environment + device sessions + audits — 'sun' is
   // the umbrella key for the whole Light & Sun lens.
   let ctx = '[section:sun]\n## Light & Sun lens\n\n';

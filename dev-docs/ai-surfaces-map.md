@@ -149,8 +149,8 @@ A lot of the app is deterministic math, not AI inference. If you see a number on
 
 ## Related guides
 
-- [Sun Sessions](./sun-sessions) — how outdoor light sessions work
-- [Light Environment](./light-environment) — rooms + screens + audits
-- [Light Tools](./light-tools) — the measurement tool ecosystem
-- [AI Providers](./ai-providers) — how to configure a provider
-- [AI Chat](./ai-chat) — the chat panel that complements the per-row verdicts
+- [Sun Sessions](https://docs.getbased.health/guides/sun-sessions) — how outdoor light sessions work
+- [Light Environment](https://docs.getbased.health/guides/light-environment) — rooms + screens + audits
+- [Light Tools](https://docs.getbased.health/guides/light-tools) — the measurement tool ecosystem
+- [AI Providers](https://docs.getbased.health/ai-providers) — how to configure a provider
+- [AI Chat](https://docs.getbased.health/guides/ai-chat) — the chat panel that complements the per-row verdicts

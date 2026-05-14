@@ -21,7 +21,7 @@ const DEFAULT_TEST_PROBE = 'vitamin D deficiency supplementation';
 //                       ~100 MB model.
 //   'external-server' — user-configured URL + Bearer key. For a server the
 //                       user runs themselves (contract documented in
-//                       docs/guide/interpretive-lens.md) or someone they trust.
+//                       dev-docs/lens-endpoint-contract.md) or someone they trust.
 //
 // Legacy names ('remote' → 'external-server', 'local-browser' → 'in-browser',
 // 'desktop-engine' → 'external-server' when url is the old 127.0.0.1:8322, else

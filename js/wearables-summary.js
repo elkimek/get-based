@@ -14,7 +14,7 @@ import { isDebugMode } from './utils.js';
 import { isoDay } from './wearables-oura.js';
 
 // ─────────────────────────────────────────────────────────
-// Tunables — see docs/contributor/wearables-architecture.md (planned)
+// Tunables — see dev-docs/wearables-architecture.md (planned)
 // ─────────────────────────────────────────────────────────
 const GATE_D7_DELTA_PCT     = 5;       // |d7 rolling mean shift| ≥ 5% triggers L2 write
 const GATE_WEEKLY_DELTA_PCT = 5;       // any weekly-series metric delta ≥ 5% triggers L2 write

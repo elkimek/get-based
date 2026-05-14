@@ -3878,7 +3878,7 @@ export async function showSyncDiagnose() {
         const detail = isHealthy
           ? 'Last verified ' + new Date(healthVerdict.at).toISOString().slice(11, 19) + 'Z. Storage state has advanced since the previous check.'
           : (healthVerdict.reason || 'No relay-side advance observed since the previous check.');
-        const recovery = isHealthy ? '' : '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This is the Evolu silent-reject pattern (2026-05-11 production incident). The fix is identity rotation — generate a fresh 24-word mnemonic and restore the other devices to it. See <a href="docs/guide/cross-device-sync.html" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
+        const recovery = isHealthy ? '' : '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This is the Evolu silent-reject pattern (2026-05-11 production incident). The fix is identity rotation — generate a fresh 24-word mnemonic and restore the other devices to it. See <a href="https://docs.getbased.health/guides/cross-device-sync" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
             <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></span>

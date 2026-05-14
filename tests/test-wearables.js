@@ -1669,23 +1669,11 @@ assert('Agent series tri-state copy cites the 7/30/90 token costs',
 assert('Agent series toggle no longer cites the stale ~1500 figure',
   !/~1500 extra tokens per agent prompt/.test(settingsSrc));
 
-// Single-maintainer voice — no "we don't yet have" / "We never see" in
-// the wearables-touched docs/changelog.
-const wearablesDoc = await fetch('/docs/guide/wearables.md').then(r => r.text());
-assert('docs/guide/wearables.md uses single-maintainer voice ("I", not "we")',
-  !/we don't yet have/.test(wearablesDoc));
-// The collapsed v1.30.0 entry replaced the per-version privacy bullets;
-// single-maintainer voice now applies across the whole entry. Just guard
-// against the plural-voice anti-pattern coming back ("We never see").
+// Single-maintainer voice — guard against the plural-voice anti-pattern
+// ("We never see") creeping back into the changelog.
 const changelogSrc = await fetch('/js/changelog.js').then(r => r.text());
 assert('changelog.js does not use plural "We never see" voice',
   !/We never see/.test(changelogSrc));
-
-// Doc-source assertions (cross-device-sync.md, dashboard.md, marker count
-// consistency across pdf-import.md / custom-markers.md / manual-entry.md)
-// can't run through the browser harness — `/docs/guide/*.md` are not
-// served by dev-server (they live in `dist-docs/` post-build). Source-edits
-// landed in the same commit; rely on PR review for those.
 
 // ═══════════════════════════════════════
 // 17z. P0 data-integrity (v1.27.3) — branch audit fallout

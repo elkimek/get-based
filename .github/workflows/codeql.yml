@@ -41,8 +41,6 @@ jobs:
           config: |
             paths-ignore:
               - vendor/**
-              - dist-docs/**
-              - docs/.vitepress/cache/**
               - node_modules/**
               - brands/**
               # Test fixtures intentionally exercise unsafe patterns
