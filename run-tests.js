@@ -20,7 +20,10 @@ const TEST_FILES = [
   'tests/test-openrouter.js',
   'tests/test-tour.js',
   'tests/test-custom-personality.js',
-  'tests/test-changelog.js',
+  // test-changelog.js source-inspection + hasCardContent behavioral ported
+  // to Vitest (batch 20). DOM-runtime sections (modal open/close, forceShow
+  // behavior, inline-tag rendering) live in test-changelog-dom.js below.
+  'tests/test-changelog-dom.js',
   'tests/test-audit.js',
   // test-image-utils.js source-inspection + module-export checks ported to
   // Vitest (PR for batch 19). DOM-runtime assertions (sections 6 + 7) live

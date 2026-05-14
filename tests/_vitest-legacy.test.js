@@ -117,6 +117,9 @@ const LEGACY_TESTS = [
   // in the puppeteer runner).
   './test-dna-recommendations.js',
   './test-image-utils.js',
+  // Batch 20 — changelog modal source-inspection + hasCardContent
+  // (DOM-runtime sections in test-changelog-dom.js stay on puppeteer).
+  './test-changelog.js',
 ];
 
 for (const path of LEGACY_TESTS) {
