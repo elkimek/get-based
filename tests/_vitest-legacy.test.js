@@ -138,6 +138,10 @@ const LEGACY_TESTS = [
   // Batch 26 — EMF assessment (full port, no DOM split — pure-logic +
   // module imports: SBM-2015 thresholds, severity tiers, affiliate catalog).
   './test-emf.js',
+  // Batch 27 — dashboard KB / Personalize-AI CTA HTML-string rendering
+  // (section 5 picker open/dismiss in test-dashboard-knowledge-base-dom.js
+  // stays on puppeteer).
+  './test-dashboard-knowledge-base.js',
 ];
 
 for (const path of LEGACY_TESTS) {

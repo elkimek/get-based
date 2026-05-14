@@ -49,7 +49,10 @@ const TEST_FILES = [
   'tests/test-wearables-manual.js',
   'tests/test-wearables-sync-flow.js',
   'tests/test-wearables-ui-flows.js',
-  'tests/test-dashboard-knowledge-base.js',
+  // test-dashboard-knowledge-base.js HTML-string rendering checks ported to
+  // Vitest (batch 27). Section 5 (picker open/dismiss — live DOM overlay +
+  // click) lives in test-dashboard-knowledge-base-dom.js below.
+  'tests/test-dashboard-knowledge-base-dom.js',
   'tests/test-dashboard-data-protection.js',
   'tests/test-chat-panel-ux.js',
   'tests/test-cashu-wallet.js',
