@@ -203,6 +203,12 @@ const LEGACY_TESTS = [
   // are coverage-only behind try/catch + "X ran").
   './test-family-history.js',
   './test-emf-flow.js',
+  // Batch 37 — coverage-stragglers stub-based probes (extractDocx, oura
+  // json-catch, reader.onerror, AbortSignal.any polyfill, IDB onerror
+  // rails, dna worker.onerror). The img.onerror / showConfirmDialog /
+  // handleSSELine / cashu _openDB sections need a browser runtime and
+  // stay on puppeteer in test-coverage-stragglers-dom.js.
+  './test-coverage-stragglers.js',
 ];
 
 for (const path of LEGACY_TESTS) {

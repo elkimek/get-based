@@ -89,7 +89,10 @@ const TEST_FILES = [
   // dirty in the legacy worker. See tests/_vitest-legacy.test.js for the
   // full rationale.
   'tests/test-ai-verdict-engine.js',
-  'tests/test-coverage-stragglers.js',
+  // test-coverage-stragglers.js stub-based probes ported to Vitest
+  // (batch 37). The img.onerror / showConfirmDialog / handleSSELine /
+  // cashu _openDB sections need a browser runtime and live here.
+  'tests/test-coverage-stragglers-dom.js',
   'tests/test-silhouette-picker.js',
   'tests/test-silhouette-region-map.js',
   'tests/test-sun-ui-flow.js',
