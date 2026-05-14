@@ -88,7 +88,7 @@ return (async function() {
   assert('changelog renders <code> as code (not literal text)',
     !itemsHTML.includes('&lt;code&gt;'));
   assert('changelog renders safe https <a> as a real link',
-    /<a href="https:\/\/getbased\.health[^"]*" target="_blank" rel="noopener noreferrer">[^<]+<\/a>/.test(itemsHTML));
+    /<a href="https:\/\/(?:[a-z-]+\.)?getbased\.health[^"]*" target="_blank" rel="noopener noreferrer">[^<]+<\/a>/.test(itemsHTML));
   window.closeChangelog();
 
   // Clean up
