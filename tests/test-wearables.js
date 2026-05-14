@@ -948,7 +948,7 @@ delete window._labState.importedData.wearableSummary;
 // but forgets to register its begin/callback/complete/withFreshToken/fetchRange
 // hooks in wearables-connect.js OAUTH_DISPATCH (or vice versa). apple_health is
 // the one legitimate exception — file-import, not OAuth.
-console.log('13. OAUTH_DISPATCH drift');
+console.log('13b. OAUTH_DISPATCH drift');
 const connect = await import('../js/wearables-connect.js');
 assert('OAUTH_DISPATCH exported', typeof connect.OAUTH_DISPATCH === 'object' && connect.OAUTH_DISPATCH !== null);
 
@@ -981,7 +981,7 @@ assert('apple_health NOT in OAUTH_DISPATCH', !dispatchIds.includes('apple_health
 // ═══════════════════════════════════════
 // 14. Withings error-code table
 // ═══════════════════════════════════════
-console.log('14. Withings error codes');
+console.log('14b. Withings error codes');
 const withings = await import('../js/wearables-withings.js');
 assert('withingsErrorMessage exported', typeof withings.withingsErrorMessage === 'function');
 assert('maps 100 → token invalid', /token/i.test(withings.withingsErrorMessage(100)));
@@ -1001,7 +1001,7 @@ assert('numeric string works', /token/i.test(withings.withingsErrorMessage('100'
 // WHOOP and Fitbit both use the S256 method; a bug in the derivation silently
 // breaks the final token exchange with a cryptic 'invalid_grant'. Pin the
 // exact byte sequence end-to-end against the RFC test vector.
-console.log('15. PKCE SHA256 pair');
+console.log('15b. PKCE SHA256 pair');
 // Auth modules already imported above (sections 6 + 11); reuse to avoid
 // top-level identifier collisions in this IIFE's single scope.
 const fitbitAuthPkce = await import('../js/wearables-fitbit-auth.js');
@@ -1027,7 +1027,7 @@ const RFC_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 // ═══════════════════════════════════════
 // 16. Polar AccessLink adapter
 // ═══════════════════════════════════════
-console.log('16. Polar adapter');
+console.log('16b. Polar adapter');
 const polarAdapter = reg.adapterById('polar');
 assert('Polar adapter registered', polarAdapter?.id === 'polar');
 assert('Polar displayName', polarAdapter?.displayName === 'Polar');
@@ -1573,7 +1573,15 @@ labCtx2.setAgentWearableSeriesEnabled(true);
 const { upsertDailyBatch } = await import('../js/wearables-store.js');
 const TEST_PROFILE_3 = '__test-replace-' + Date.now().toString(36);
 const origActive2 = localStorage.getItem('labcharts-active-profile');
+// buildWearableSeriesSection queries IDB keyed on window._labState.currentProfile
+// — NOT the localStorage 'labcharts-active-profile' key. Setting only the
+// latter (the original test's bug) meant the builder read the wrong store,
+// seriesBlock came back empty, and the ordering assertions below were
+// silently skipped by the `if (seriesBlock)` guard. Swap both, like
+// section 17r does.
+const origCurrent2 = window._labState.currentProfile;
 localStorage.setItem('labcharts-active-profile', TEST_PROFILE_3);
+window._labState.currentProfile = TEST_PROFILE_3;
 try {
   await upsertDailyBatch(TEST_PROFILE_3, [
     { source: 'oura', date: '2026-04-22', hrv_rmssd: 36 },
@@ -1596,6 +1604,7 @@ try {
   labCtx2.setAgentWearableSeriesEnabled(false);
   if (origActive2) localStorage.setItem('labcharts-active-profile', origActive2);
   else localStorage.removeItem('labcharts-active-profile');
+  window._labState.currentProfile = origCurrent2;
   try { const { deleteWearablesDB } = await import('../js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_3); } catch {}
 }
 window._labState.importedData = _origImported;
@@ -1979,7 +1988,7 @@ assert('window.pushContextToGateway is exposed (toggle re-pushes immediately)',
 // pending partner-credential validation. The strip and connection layer
 // still work normally for anyone who's already connected (or maintainers
 // with the escape-hatch flag).
-console.log('18. Beta-Hidden Vendors');
+console.log('18b. Beta-Hidden Vendors');
 const adaptersMod = await import('../js/wearable-adapters.js');
 const ouraEntry = adaptersMod.ADAPTERS.find(a => a.id === 'oura');
 const whoopEntry = adaptersMod.ADAPTERS.find(a => a.id === 'whoop');
