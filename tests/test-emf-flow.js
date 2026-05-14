@@ -123,13 +123,7 @@ window.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', '');
 assert('updateEMFMeasurement with empty value clears',
   asm.rooms[0].measurements.dirtyElectricity === undefined);
 
-// ── 4. Selection + render (need minimal modal DOM) ───────────────────
-for (const id of ['modal-overlay', 'detail-modal']) {
-  if (!document.getElementById(id)) {
-    const el = document.createElement('div'); el.id = id; el.style.display = 'none'; document.body.appendChild(el);
-  }
-}
-
+// ── 4. Selection + render (modal stub provided by the top-level getElementById patch) ───
 try { window.openEMFAssessmentEditor(); } catch (_) {}
 assert('openEMFAssessmentEditor ran', true);
 
@@ -227,6 +221,14 @@ assert('saveEMFExplicit ran', true);
 // persisted our probe data over its expected fixtures.
 if (_origEmf) state.importedData.emfAssessment = _origEmf;
 else delete state.importedData.emfAssessment;
+
+// Restore the original getElementById — the patch is installed at module
+// top-level, and the legacy runner's beforeEach doesn't reset `document`.
+// Leaving it in place would hand the #detail-modal / #modal-overlay stub
+// to any later test that queries those IDs (the PR #199 fetch-shim leak
+// pattern). All assertions above are collected, never thrown, so
+// execution always reaches here.
+document.getElementById = _origGetById;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
