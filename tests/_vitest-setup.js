@@ -182,7 +182,9 @@ if (typeof globalThis.Worker === 'undefined') {
     }
     postMessage(data) {
       this._ready
-        .then(() => this._self.onmessage({ data }))
+        // Match browser semantics — a worker that never assigns
+        // self.onmessage simply drops the message rather than throwing.
+        .then(() => { if (this._self.onmessage) this._self.onmessage({ data }); })
         .catch((err) => { if (this.onerror) this.onerror({ message: err.message }); });
     }
     terminate() {}

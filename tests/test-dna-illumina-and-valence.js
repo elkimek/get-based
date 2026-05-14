@@ -69,7 +69,7 @@ assert('Filename without dnaera/ancestry/etc not recognized', !dna.isDNAFile({ n
 // escape would silently render `/^[Data]/i` (a character class matching
 // D/a/t) — the parser would never advance past the [Header] block. This
 // bit us once during development. The dna.js source must contain `\\[Data\\]`.
-const dnaSrcForRegex = await fetch('js/dna.js').then(r => r.text());
+const dnaSrcForRegex = dnaSrc; // identical read — reuse the section-0 fetch
 assert('Worker [Data] regex uses double-escaped brackets',
   dnaSrcForRegex.includes('/^\\\\[Data\\\\]/i'),
   'should match `\\\\[Data\\\\]` in source so worker sees \\[Data\\]');
