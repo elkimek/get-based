@@ -95,6 +95,10 @@ if (typeof globalThis.document === 'undefined') {
     head: _stubEl(),
     documentElement: _stubEl(),
     createTextNode: (t) => ({ textContent: t }),
+    // Match _node-shim.js — some standalone-runnable tests probe
+    // `document.styleSheets.length`; absent here it would be undefined
+    // in Vitest workers but [] in `node tests/foo.js`. Greptile #207 P2.
+    styleSheets: [],
   };
 }
 

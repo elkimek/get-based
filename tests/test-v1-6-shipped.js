@@ -3,11 +3,11 @@
 //
 // Run: node tests/test-v1-6-shipped.js  (or via npm test)
 
+import './_node-shim.js';
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-import './_node-shim.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
