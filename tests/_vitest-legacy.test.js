@@ -132,6 +132,9 @@ const LEGACY_TESTS = [
   // Batch 24 — custom API provider behavioral + source-inspection
   // (DOM sections 13/14 in test-custom-api-dom.js stay on puppeteer).
   './test-custom-api.js',
+  // Batch 25 — custom lens (Knowledge Source) behavioral + source-inspection
+  // (DOM sections 15/16 in test-custom-lens-dom.js stay on puppeteer).
+  './test-custom-lens.js',
 ];
 
 for (const path of LEGACY_TESTS) {

@@ -57,7 +57,10 @@ const TEST_FILES = [
   // Custom panel form fields, connected-state model dropdown) live in
   // test-custom-api-dom.js below.
   'tests/test-custom-api-dom.js',
-  'tests/test-custom-lens.js',
+  // test-custom-lens.js source-inspection + behavioral ported to Vitest
+  // (batch 25). DOM-runtime sections (15/16 — chat-header lens indicator,
+  // Knowledge Base modal rendering) live in test-custom-lens-dom.js below.
+  'tests/test-custom-lens-dom.js',
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',
   'tests/test-lens-local-worker.js',
