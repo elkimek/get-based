@@ -109,8 +109,10 @@ return (async function() {
           maxTokens: 16,
         });
       } catch (_) { /* tolerate provider-shape variance */ }
+      // Intentionally loose — the coverage goal is that handleSSELine ran
+      // and accumulated *something*; exact content varies by provider shape.
       assert('handleSSELine accumulated text from streamed chunks',
-        streamedText.includes('hel') || streamedText.includes('hello') || streamedText.length > 0,
+        streamedText.length > 0,
         `streamedText=${JSON.stringify(streamedText)}`);
     } finally {
       window.fetch = origFetch;
