@@ -7,8 +7,8 @@ Welcome. getbased is a zero-build, native ES module web app. There is no install
 | Requirement | Purpose |
 |---|---|
 | Modern browser (Chrome or Firefox recommended) | Running the app and the test suite |
-| Python 3 | Local development server |
-| Node.js + Puppeteer | Headless test runner (`./run-tests.sh`) — optional |
+| Node.js | Local development server (`node dev-server.js`) |
+| Puppeteer (via `npm install`) | Headless test runner (`./run-tests.sh`) — optional |
 | AI API key or local AI server | PDF import and AI chat — optional |
 
 ## Get running in 3 steps
