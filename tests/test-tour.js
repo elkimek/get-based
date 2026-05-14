@@ -50,7 +50,7 @@ assert('endTour stores completed in localStorage', tourSrc.includes("'completed'
 assert('Overlay click dismisses tour', tourSrc.includes('if (e.target === overlay) endTour()'));
 
 // ═══════════════════════════════════════
-// 2. TOUR_STEPS content (8 steps)
+// 2. TOUR_STEPS content (9 entries — 8 labelled steps checked below)
 // ═══════════════════════════════════════
 console.log('2. Tour Steps Content');
 
