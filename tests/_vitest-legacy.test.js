@@ -149,6 +149,12 @@ const LEGACY_TESTS = [
   // Batch 29 — chat action buttons + context summary source-inspection
   // (DOM sections 4/10/12 in test-chat-actions-dom.js stay on puppeteer).
   './test-chat-actions.js',
+  // Batch 30 — multi-port: tour source-inspection, chat-threads behavioral,
+  // wearables-bp-merge source-inspection. DOM remnants in the matching
+  // *-dom.js files stay on puppeteer.
+  './test-tour.js',
+  './test-chat-threads.js',
+  './test-wearables-bp-merge.js',
 ];
 
 for (const path of LEGACY_TESTS) {

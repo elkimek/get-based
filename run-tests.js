@@ -14,7 +14,9 @@ import { fileURLToPath } from 'url';
 
 const TEST_FILES = [
   'tests/test-crypto.js',
-  'tests/test-chat-threads.js',
+  // test-chat-threads.js behavioral + source-inspection ported to Vitest
+  // (batch 30). DOM sections (3/10/11) live in test-chat-threads-dom.js below.
+  'tests/test-chat-threads-dom.js',
   // test-chat-actions.js source-inspection + buildActionBar HTML-string
   // checks ported to Vitest (batch 29). DOM-runtime sections (4 / 10 / 12 —
   // renderChatMessages/DOMParser, navigator.clipboard, context-toggle live
@@ -26,7 +28,9 @@ const TEST_FILES = [
   // querySelectorAll on rendered provider cards) lives in
   // test-openrouter-dom.js below.
   'tests/test-openrouter-dom.js',
-  'tests/test-tour.js',
+  // test-tour.js source-inspection ported to Vitest (batch 30). Live tour
+  // overlay/spotlight/tooltip DOM sections live in test-tour-dom.js below.
+  'tests/test-tour-dom.js',
   // test-custom-personality.js source-inspection + behavioral ported to
   // Vitest (batch 23). DOM-runtime sections (11/12/17/21 — updatePersonalityBar
   // rendering, styleSheets CSS scan, dirty-state, Discuss button) live in
@@ -88,7 +92,9 @@ const TEST_FILES = [
   // puppeteer `Function(s)()` evaluator, so the modal-render check
   // needed its own thin file that stays in the puppeteer runner.
   'tests/test-all-sessions-modal.js',
-  'tests/test-wearables-bp-merge.js',
+  // test-wearables-bp-merge.js source-inspection ported to Vitest (batch 30).
+  // Section-4 live idempotency probe lives in test-wearables-bp-merge-dom.js.
+  'tests/test-wearables-bp-merge-dom.js',
   // axe-core runtime scan runs LAST. It rebuilds the DOM extensively and
   // mutates state in ways that are expensive to fully reverse (creates a
   // demo profile, swaps currentProfile, opens/closes 8 modals), so anything
