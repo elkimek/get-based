@@ -60,7 +60,7 @@ return (async function() {
     assert('selected model is test-model', select.value === 'test-model');
   }
   assert('manual model input exists in connected state', !!document.getElementById('custom-manual-model'));
-  assert('Remove button shown in connected state', document.querySelector('.ai-provider-panel').innerHTML.includes('handleRemoveCustomApi'));
+  assert('Remove button shown in connected state', document.querySelector('.ai-provider-panel')?.innerHTML.includes('handleRemoveCustomApi'));
   window.closeSettingsModal();
   if (sv_url) localStorage.setItem('labcharts-custom-url', sv_url); else localStorage.removeItem('labcharts-custom-url');
   if (sv_key) localStorage.setItem('labcharts-custom-key', sv_key); else localStorage.removeItem('labcharts-custom-key');
