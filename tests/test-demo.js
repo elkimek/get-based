@@ -7,51 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-globalThis.window = globalThis.window || globalThis;
-function _ls() {
-  const s = new Map();
-  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
-    removeItem: k => s.delete(k), clear: () => s.clear(),
-    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
-}
-if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
-if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
-if (typeof globalThis.addEventListener !== 'function') {
-  const _l = new Map();
-  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
-  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
-  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
-}
-if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
-// document shim — same shape as _vitest-setup.js _stubEl pattern.
-function _stubEl() {
-  return {
-    style: {}, dataset: {},
-    classList: { add: () => {}, remove: () => {}, contains: () => false, toggle: () => {} },
-    appendChild: () => {}, removeChild: () => {}, replaceChild: () => {},
-    insertBefore: () => {}, remove: () => {},
-    setAttribute: () => {}, getAttribute: () => null, removeAttribute: () => {},
-    addEventListener: () => {}, removeEventListener: () => {},
-    querySelector: () => null, querySelectorAll: () => [],
-    getBoundingClientRect: () => ({ top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 }),
-    focus: () => {}, blur: () => {}, click: () => {},
-    children: [], childNodes: [],
-    innerHTML: '', textContent: '', value: '',
-    parentElement: null, parentNode: null,
-  };
-}
-if (typeof globalThis.document === 'undefined') {
-  globalThis.document = {
-    addEventListener: () => {}, removeEventListener: () => {},
-    createElement: () => _stubEl(),
-    createDocumentFragment: () => _stubEl(),
-    getElementById: () => null,
-    querySelector: () => null,
-    querySelectorAll: () => [],
-    body: _stubEl(), head: _stubEl(), documentElement: _stubEl(),
-    createTextNode: (t) => ({ textContent: t }),
-  };
-}
+import './_node-shim.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');

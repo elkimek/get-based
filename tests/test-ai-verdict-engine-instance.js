@@ -9,20 +9,7 @@
 //
 // Run: node tests/test-ai-verdict-engine-instance.js  (or via npm test)
 
-globalThis.window = globalThis.window || globalThis;
-function _ls() {
-  const s = new Map();
-  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
-    removeItem: k => s.delete(k), clear: () => s.clear(),
-    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
-}
-if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
-if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
-// CSS.escape is a browser global; engine.js calls it when building scroll
-// anchors. Minimal polyfill covers the chars used in our IDs.
-if (typeof globalThis.CSS === 'undefined') {
-  globalThis.CSS = { escape: (s) => String(s).replace(/[^\w-]/g, (c) => '\\' + c) };
-}
+import './_node-shim.js';
 
 let pass = 0, fail = 0;
 const assert = (n, c, d) => {

@@ -10,7 +10,7 @@
 // module load to expose handlers to inline-onclick attributes. Other
 // node-side tests sidestep this by reading source as text; we want to
 // exercise the actual exported functions, so a dummy window suffices.
-globalThis.window = globalThis.window || {};
+import './_node-shim.js';
 const { safeMarkerId, sanitizeMarkerKey } = await import('../js/utils.js');
 
 let passed = 0, failed = 0;

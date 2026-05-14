@@ -12,7 +12,7 @@
 //
 // Run: node tests/test-multi-unit.js
 
-globalThis.window = globalThis.window || {};
+import './_node-shim.js';
 const { UNIT_CONVERSIONS, MARKER_SCHEMA, getAlternateUnit, convertUserInputToSI } = await import('../js/schema.js');
 
 let passed = 0, failed = 0;

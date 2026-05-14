@@ -14,7 +14,7 @@
 //
 // Run: node tests/test-lens-parsers.js  (or via npm test)
 
-globalThis.window = globalThis.window || globalThis;
+import './_node-shim.js';
 
 let passed = 0, failed = 0;
 const results = [];

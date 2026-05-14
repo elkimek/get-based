@@ -7,9 +7,8 @@
 
 // utils.js does an Object.assign(window, ...) at module load to expose
 // handlers to inline-onclick attributes — markdown.js imports escapeHTML
-// from utils.js, so we shim window first. localStorage isn't touched at
-// module-eval time so no stub needed there.
-globalThis.window = globalThis.window || {};
+// from utils.js, so we shim window first via the shared shim.
+import './_node-shim.js';
 
 const { applyInlineMarkdown, renderMarkdown } = await import('../js/markdown.js');
 

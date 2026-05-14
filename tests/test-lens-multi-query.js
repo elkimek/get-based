@@ -16,15 +16,7 @@
 // lens.js transitively pulls in state.js, which does `window._labState
 // = state` at module load. Vitest's setup file handles this globally;
 // for standalone `node` runs we shim inline.
-globalThis.window = globalThis.window || globalThis;
-function _ls() {
-  const s = new Map();
-  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
-    removeItem: k => s.delete(k), clear: () => s.clear(),
-    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
-}
-if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
-if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
+import './_node-shim.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {

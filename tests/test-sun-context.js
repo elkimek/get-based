@@ -5,22 +5,7 @@
 //
 // Run: node tests/test-sun-context.js  (or via npm test)
 
-globalThis.window = globalThis.window || globalThis;
-function _ls() {
-  const s = new Map();
-  return { getItem: k => s.has(k) ? s.get(k) : null, setItem: (k, v) => s.set(k, String(v)),
-    removeItem: k => s.delete(k), clear: () => s.clear(),
-    get length() { return s.size; }, key: i => Array.from(s.keys())[i] ?? null };
-}
-if (typeof globalThis.localStorage === 'undefined') globalThis.localStorage = _ls();
-if (typeof globalThis.sessionStorage === 'undefined') globalThis.sessionStorage = _ls();
-if (typeof globalThis.addEventListener !== 'function') {
-  const _l = new Map();
-  globalThis.addEventListener = (t, f) => { (_l.get(t) || _l.set(t, new Set()).get(t)).add(f); };
-  globalThis.removeEventListener = (t, f) => { _l.get(t)?.delete(f); };
-  globalThis.dispatchEvent = (ev) => { const fns = _l.get(ev?.type); if (fns) for (const fn of fns) { try { fn(ev); } catch (e) { console.error(e); } } return true; };
-}
-if (typeof globalThis.CSS === 'undefined') globalThis.CSS = { escape: s => String(s).replace(/[^\w-]/g, c => '\\' + c) };
+import './_node-shim.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
