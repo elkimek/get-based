@@ -20,7 +20,7 @@
   "authentication": {
     "type": "token",
     "env": "GETBASED_TOKEN",
-    "description": "Read-only token generated in the getbased app under Settings > Data > Messenger Access. Grants access to lab-context text only — no raw data, no write access. Revocable at any time by regenerating the token."
+    "description": "Read-only token generated in the getbased app under Settings > Data > Agent Access. Grants access to lab-context text only — no raw data, no write access. Revocable at any time by regenerating the token."
   },
   "syncBackend": "https://sync.getbased.health",
   "tools": [

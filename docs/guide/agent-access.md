@@ -97,6 +97,7 @@ getbased-mcp provides these tools:
 |---|---|
 | `getbased_lab_context` | Full lab summary — values, ranges, trends, context cards, supplements, goals |
 | `getbased_section` | Query a specific section (hormones, biometrics, etc.) or list available sections |
+| `getbased_wearables_series` | Daily wearable time-series (HRV, resting HR, sleep score, readiness, steps, weight…) over the 7/30/90-day window you opted into — see [Wearable data](#wearable-data-hrv-rhr-sleep-recovery) below |
 | `getbased_list_profiles` | List all profiles by name and ID |
 | `knowledge_search` | Semantic search over your knowledge base. Requires a lens RAG server (default: `http://127.0.0.1:8322`, configurable via `LENS_URL`). Degrades gracefully — the lab-context tools keep working even if no RAG server is reachable. |
 | `knowledge_list_libraries` | List all libraries on the RAG server with their ids + which is active |
@@ -116,7 +117,7 @@ getbased_section('wearables', profile='Main')
 
 #### 30-day daily series (opt-in, ~400 tokens)
 
-For time-series reasoning ("did HRV drop the week before I got sick?"), the always-on summary isn't enough. Open **Settings → Agent Access** and turn on **"Push 30-day wearable series"**. The browser then writes a pivoted matrix into a separate section:
+For time-series reasoning ("did HRV drop the week before I got sick?"), the always-on summary isn't enough. Open **Settings → Data → Agent Access** and turn on **"Push 30-day wearable series"**. The browser then writes a pivoted matrix into a separate section:
 
 ```
 getbased_section('wearables-series-30d', profile='Main')

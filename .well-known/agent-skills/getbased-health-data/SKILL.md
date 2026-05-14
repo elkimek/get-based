@@ -18,7 +18,7 @@ Use this skill when the user wants you to reason about *their own* health data: 
 The MCP server is installed and run locally by the user — there is no hosted endpoint.
 
 1. Install: `pip install getbased-mcp` (or the `getbased-agent-stack` bundle).
-2. The user enables **Settings > Data > Messenger Access** in the getbased app and copies the read-only token.
+2. The user enables **Settings > Data > Agent Access** in the getbased app and copies the read-only token.
 3. The token is provided to the MCP server via the `GETBASED_TOKEN` environment variable. It grants access to lab-context text only, no raw data, and is revocable.
 4. Add `getbased` to the MCP client config pointing at the `getbased-mcp` command.
 

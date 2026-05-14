@@ -6,7 +6,7 @@
       "type": "skill-md",
       "description": "Connect to a user's getbased health data and query their blood work, biomarkers, genome, wearables, and personal research library via the getbased MCP server. Use when a user asks about their lab results, health trends, or wants AI reasoning grounded in their own health data.",
       "url": "/.well-known/agent-skills/getbased-health-data/SKILL.md",
-      "digest": "sha256:21e2c05fab6d810842d48562af259d5dde9cd005152ae4463aa4cbb0c189fc3d"
+      "digest": "sha256:f7b9f3f69cf7831f8b9155eb756a198f3d9dd0850586f1938736cadcb32e74f8"
     }
   ]
 }

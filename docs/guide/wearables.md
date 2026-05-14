@@ -58,7 +58,7 @@ Manual entries sync to your other devices via the same Evolu CRDT summary layer 
 - **Compact summary** (the L2 dashboard data) syncs to your other devices via Evolu CRDT (E2E encrypted, mnemonic-based identity).
 - **OAuth refresh tokens stay local.** They are *not* synced — you re-connect on each device.
 - **AI chat context** includes a ~200-token wearable summary by default. Toggle it off in Settings → AI → AI Context.
-- **Personal Agent (MCP)** receives the same compact summary by default. Optionally enable a 30-day pivoted daily series in Settings → Agent Access → "Push 30-day wearable series" for time-series reasoning ("did HRV drop the week before I got sick?"). See [Agent Access](agent-access.md).
+- **Personal Agent (MCP)** receives the same compact summary by default. Optionally enable a 30-day pivoted daily series in Settings → Data → Agent Access → "Push 30-day wearable series" for time-series reasoning ("did HRV drop the week before I got sick?"). See [Agent Access](agent-access.md).
 
 ## Multi-vendor metric ownership
 
