@@ -40,7 +40,8 @@ const TEST_FILES = [
   // Vitest (PR for batch 19). DOM-runtime assertions (sections 6 + 7) live
   // in test-image-utils-dom.js below.
   'tests/test-image-utils-dom.js',
-  'tests/test-emf.js',
+  // test-emf.js fully ported to Vitest (batch 26) — pure-logic + module
+  // imports, no DOM-runtime sections.
   'tests/test-emf-flow.js',
   'tests/test-dna.js',
   'tests/test-dna-illumina-and-valence.js',

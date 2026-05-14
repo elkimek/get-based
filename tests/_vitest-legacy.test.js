@@ -135,6 +135,9 @@ const LEGACY_TESTS = [
   // Batch 25 — custom lens (Knowledge Source) behavioral + source-inspection
   // (DOM sections 15/16 in test-custom-lens-dom.js stay on puppeteer).
   './test-custom-lens.js',
+  // Batch 26 — EMF assessment (full port, no DOM split — pure-logic +
+  // module imports: SBM-2015 thresholds, severity tiers, affiliate catalog).
+  './test-emf.js',
 ];
 
 for (const path of LEGACY_TESTS) {
