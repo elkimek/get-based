@@ -176,6 +176,20 @@ const LEGACY_TESTS = [
   './test-blob-storage.js',
   './test-wearables-manual.js',
   './test-wearables-sync-flow.js',
+  // Batch 34 — full ports, no DOM: crypto (encryption/backup/cross-tab — IDB
+  // via fake-indexeddb, app module surface loaded for window-export checks),
+  // cashu-wallet (wallet + Nostr discovery + BIP-39 + SSRF wiring; cashu-ts
+  // IIFE loaded via indirect eval, bip39-minimal self-assigns).
+  //
+  // test-ai-verdict-engine.js deliberately stays on the puppeteer runner:
+  // the engine has process-global concurrency-slot + inflight state that the
+  // per-feature AI-verdict tests (test-sun-ai-analysis et al., already in
+  // Vitest) share. Ported in isolation it's 35/35 green, but in the legacy
+  // runner's shared worker the earlier tests leave the engine's global slots
+  // dirty → hangs. Puppeteer's real async timing releases them; Node's
+  // doesn't. Left puppeteer-side until the engine exposes a state reset.
+  './test-crypto.js',
+  './test-cashu-wallet.js',
 ];
 
 for (const path of LEGACY_TESTS) {

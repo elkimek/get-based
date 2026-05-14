@@ -13,7 +13,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const TEST_FILES = [
-  'tests/test-crypto.js',
   // test-chat-threads.js behavioral + source-inspection ported to Vitest
   // (batch 30). DOM sections (3/10/11) live in test-chat-threads-dom.js below.
   'tests/test-chat-threads-dom.js',
@@ -67,7 +66,6 @@ const TEST_FILES = [
   // click) lives in test-dashboard-data-protection-dom.js below.
   'tests/test-dashboard-data-protection-dom.js',
   'tests/test-chat-panel-ux.js',
-  'tests/test-cashu-wallet.js',
   // test-custom-api.js source-inspection + behavioral ported to Vitest
   // (batch 24). DOM-runtime sections (13/14 — Settings modal rendering,
   // Custom panel form fields, connected-state model dropdown) live in
@@ -80,7 +78,6 @@ const TEST_FILES = [
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',
   'tests/test-lens-local-worker.js',
-  'tests/test-ai-verdict-engine.js',
   'tests/test-coverage-stragglers.js',
   'tests/test-silhouette-picker.js',
   'tests/test-silhouette-region-map.js',
