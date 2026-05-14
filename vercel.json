@@ -11,7 +11,8 @@
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Cross-Origin-Opener-Policy": "same-origin",
         "Cross-Origin-Embedder-Policy": "credentialless",
-        "Onion-Location": "http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion/$1"
+        "Onion-Location": "http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion/$1",
+        "Link": "</.well-known/mcp.json>; rel=\"service-desc\"; type=\"application/json\"; title=\"MCP server card\", </.well-known/agent-skills/index.json>; rel=\"service-desc\"; type=\"application/json\"; title=\"Agent Skills index\""
       },
       "continue": true
     },
