@@ -16,10 +16,20 @@
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>
+    (() => {
+      try {
+        const theme = localStorage.getItem('labcharts-theme');
+        const valid = ['light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+        if (valid.includes(theme)) document.documentElement.dataset.theme = theme;
+      } catch {}
+    })();
+  </script>
+  <style>#main-content{min-height:calc(100vh - 57px + 180px)}</style>
   <link rel="stylesheet" href="vendor/fonts/fonts.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Major+Mono+Display&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Major+Mono+Display&family=Share+Tech+Mono&display=optional">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="themes-extra.css">
 </head>

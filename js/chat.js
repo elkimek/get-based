@@ -1520,6 +1520,7 @@ export async function openChatPanel(prefillMessage) {
   // dashboard reflows instead of hiding behind the panel; `.chat-
   // fullscreen` cancels the shift since fullscreen covers everything.
   document.body.classList.add('chat-open');
+  document.body.classList.remove('chat-autostart-reserved');
   document.body.classList.toggle('chat-fullscreen', fullscreen);
   backdrop.classList.add('open');
   // Backdrop is now pointer-events: none — opening chat no longer
@@ -1580,7 +1581,7 @@ export function closeChatPanel() {
   document.getElementById('chat-backdrop').classList.remove('open');
   // body.style.overflow no longer set on open (so nothing to restore)
   // Drop the dashboard-shift body classes so the layout reflows back.
-  document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus');
+  document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus', 'chat-autostart-reserved');
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
   window.refreshMobileDashboardActiveTab?.();

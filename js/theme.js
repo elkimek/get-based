@@ -90,9 +90,15 @@ function refreshThemeDependents() {
 
 let toggleThemeFrame = 0;
 let toggleThemeTimer = 0;
-function scheduleThemeCommit(theme) {
+let toggleReturnTheme = 'dark';
+function cancelScheduledThemeCommit() {
   if (toggleThemeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(toggleThemeFrame);
   if (toggleThemeTimer) clearTimeout(toggleThemeTimer);
+  toggleThemeFrame = 0;
+  toggleThemeTimer = 0;
+}
+function scheduleThemeCommit(theme) {
+  cancelScheduledThemeCommit();
   const commit = () => {
     toggleThemeTimer = 0;
     setTheme(theme);
@@ -112,7 +118,11 @@ function scheduleThemeCommit(theme) {
 
 export function toggleTheme() {
   const current = getTheme();
-  scheduleThemeCommit(current === 'light' ? 'dark' : 'light');
+  cancelScheduledThemeCommit();
+  const next = current === 'light' ? (VALID_THEMES.includes(toggleReturnTheme) ? toggleReturnTheme : 'dark') : 'light';
+  if (current !== 'light') toggleReturnTheme = current;
+  setTheme(next);
+  refreshThemeDependents();
 }
 
 export function getChartColors() {

@@ -4107,7 +4107,7 @@ export function showDashboard(data) {
   // welcome-hero / context-details targets no longer exist in the
   // data view, so the dimmed-peer rules would be no-ops anyway,
   // but stripping the classes keeps body state clean.
-  if (hasData) document.body.classList.remove('cards-focus', 'import-focus');
+  if (hasData) document.body.classList.remove('cards-focus', 'import-focus', 'chat-autostart-reserved');
 
   // ── Demo-load in flight: short-lived placeholder while
   //    importDataJSON parses the demo blob (typically 2–3s). Without
@@ -4123,6 +4123,13 @@ export function showDashboard(data) {
 
   // ── Empty state: welcome hero + collapsed context ──
   if (!hasData) {
+    const shouldAutoOpenChat = state.chatHistory.length === 0
+      && Date.now() > _suppressEmptyDashboardChatUntil
+      && localStorage.getItem('labcharts-chat-fullscreen') !== 'true'
+      && typeof window !== 'undefined'
+      && window.innerWidth > 768
+      && !document.getElementById('chat-panel')?.classList.contains('open');
+    document.body.classList.toggle('chat-autostart-reserved', shouldAutoOpenChat);
     // No AI configured? Tag the hero so CSS reorders children: demo-cards
     // lift above the drop zone ("try before set-up"). With AI configured,
     // drop zone leads since the user almost certainly intends to import.
@@ -4184,7 +4191,7 @@ export function showDashboard(data) {
     // firing — openChatPanel idempotently re-toggles chat-panel-fullscreen
     // from localStorage, which would stomp manual class state set by tests
     // (or any other in-flight UI gesture).
-    if (state.chatHistory.length === 0 && Date.now() > _suppressEmptyDashboardChatUntil) {
+    if (shouldAutoOpenChat || (state.chatHistory.length === 0 && Date.now() > _suppressEmptyDashboardChatUntil)) {
       setTimeout(() => {
         if (Date.now() <= _suppressEmptyDashboardChatUntil) return;
         const latestData = getActiveData();

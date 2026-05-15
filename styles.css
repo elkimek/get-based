@@ -289,7 +289,7 @@ body {
   margin-left: auto; font-size: 10px; transition: transform 0.15s;
 }
 .sidebar-group-header:not(.collapsed) .sidebar-group-arrow { transform: rotate(90deg); }
-.main { flex: 1; padding: 24px 32px; margin-left: 260px; max-width: calc(100vw - 260px); }
+.main { flex: 1; min-height: calc(100vh - 57px + 180px); padding: 24px 32px; margin-left: 260px; max-width: calc(100vw - 260px); }
 
 /* When chat is open, push the dashboard left by the chat panel's
    responsive width so content stays visible alongside the chat
@@ -301,8 +301,10 @@ body {
    padding — Chromium aborts the transition partway through when the
    chat panel's own transform animation runs simultaneously. The snap
    is barely perceptible alongside the panel's slide-in. */
-body.chat-open .main { padding-right: calc(32px + 560px); }
-body.chat-open.chat-fullscreen .main { padding-right: 32px; }
+body.chat-open .main,
+body.chat-autostart-reserved .main { padding-right: calc(32px + 560px); }
+body.chat-open.chat-fullscreen .main,
+body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
 .app-footer { border-top: 1px solid var(--border); padding: 32px; }
 .app-footer-row { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
 .app-footer-logo { font-family: var(--font-display); font-weight: 800; font-size: 18px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -4647,7 +4649,8 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
   .chat-panel { width: 100%; }
   /* Mobile chat is full-screen takeover — no need to shift the
      dashboard since the user can't see it anyway. */
-  body.chat-open .main { padding-right: 20px; }
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { padding-right: 20px; }
   .chat-thread-rail.open {
     position: absolute; top: 0; left: 0; bottom: 0; width: 100%;
     z-index: 5; border-right: none;
@@ -4663,8 +4666,10 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
 /* Responsive chat panel scaling for larger screens */
 @media (min-width: 1400px) {
   .chat-panel { width: 640px; }
-  body.chat-open .main { padding-right: calc(32px + 640px); }
-  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { padding-right: calc(32px + 640px); }
+  body.chat-open.chat-fullscreen .main,
+  body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
   .chat-backdrop { background: rgba(0,0,0,0.15); }
   .chat-messages { padding: 22px 28px; gap: 16px; }
   .chat-header { padding: 18px 24px; }
@@ -4674,8 +4679,10 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
 }
 @media (min-width: 1600px) {
   .chat-panel { width: 740px; }
-  body.chat-open .main { padding-right: calc(32px + 740px); }
-  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { padding-right: calc(32px + 740px); }
+  body.chat-open.chat-fullscreen .main,
+  body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 24px 32px; gap: 16px; }
   .chat-msg { font-size: 14.5px; }
   .chat-header { padding: 18px 28px; }
@@ -4686,8 +4693,10 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
 }
 @media (min-width: 2000px) {
   .chat-panel { width: 880px; }
-  body.chat-open .main { padding-right: calc(32px + 880px); }
-  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { padding-right: calc(32px + 880px); }
+  body.chat-open.chat-fullscreen .main,
+  body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
   .chat-backdrop { background: rgba(0,0,0,0.08); }
   .chat-messages { padding: 28px 36px; gap: 18px; }
   .chat-msg { font-size: 15px; padding: 14px 20px; }
@@ -4700,8 +4709,10 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
 }
 @media (min-width: 3000px) {
   .chat-panel { width: 1060px; }
-  body.chat-open .main { padding-right: calc(32px + 1060px); }
-  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { padding-right: calc(32px + 1060px); }
+  body.chat-open.chat-fullscreen .main,
+  body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 32px 42px; gap: 20px; }
   .chat-msg { font-size: 16px; padding: 16px 24px; }
   .chat-header { padding: 22px 36px; }
@@ -11187,10 +11198,12 @@ svg.sun-silhouette text.sun-silhouette-label {
 .chat-panel.chat-panel-fullscreen {
   width: 100vw;
 }
-body.chat-open .main {
+body.chat-open .main,
+body.chat-autostart-reserved .main {
   padding-right: calc(32px + min(600px, 100vw));
 }
-body.chat-open.chat-fullscreen .main {
+body.chat-open.chat-fullscreen .main,
+body.chat-autostart-reserved.chat-fullscreen .main {
   padding-right: 32px;
 }
 body.chat-open .analytics-consent-banner {
@@ -11367,8 +11380,10 @@ body.chat-open .analytics-consent-banner {
 
 @media (min-width: 1400px) {
   .chat-panel { width: 600px; }
-  body.chat-open .main { padding-right: calc(32px + 600px); }
-  body.chat-open.chat-fullscreen .main { padding-right: 32px; }
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { padding-right: calc(32px + 600px); }
+  body.chat-open.chat-fullscreen .main,
+  body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 18px; gap: 14px; }
   .chat-header { padding: 14px 18px; }
   .chat-input-area { padding: 14px; gap: 8px; }
@@ -11377,8 +11392,10 @@ body.chat-open .analytics-consent-banner {
 }
 @media (max-width: 768px) {
   .chat-panel { width: 100%; }
-  body.chat-open .main { padding-right: 20px; }
-  body.chat-open.chat-fullscreen .main { padding-right: 20px; }
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { padding-right: 20px; }
+  body.chat-open.chat-fullscreen .main,
+  body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 20px; }
   .chat-messages { padding: 14px 12px; }
   .chat-msg { max-width: 92%; }
 }
@@ -11388,12 +11405,19 @@ body.chat-open .analytics-consent-banner {
 body.chat-open:has(#chat-thread-rail.open) .main {
   padding-right: calc(32px + min(820px, 100vw));
 }
+body.chat-autostart-reserved:has(#chat-thread-rail.open) .main {
+  padding-right: calc(32px + min(820px, 100vw));
+}
 body.chat-open.chat-fullscreen:has(#chat-thread-rail.open) .main {
+  padding-right: 32px;
+}
+body.chat-autostart-reserved.chat-fullscreen:has(#chat-thread-rail.open) .main {
   padding-right: 32px;
 }
 @media (max-width: 768px) {
   .chat-panel:has(.chat-thread-rail.open) { width: 100%; }
   body.chat-open:has(#chat-thread-rail.open) .main { padding-right: 20px; }
+  body.chat-autostart-reserved:has(#chat-thread-rail.open) .main { padding-right: 20px; }
 }
 
 /* Reduced motion */
