@@ -236,8 +236,15 @@ export function openChangelog(showAll) {
 
   const entries = showAll ? CHANGELOG : CHANGELOG.slice(0, 3);
 
-  let html = `<button class="modal-close" aria-label="Close" onclick="closeChangelog()">&times;</button>`;
-  html += `<h3>What's New</h3>`;
+  modal.className = 'modal changelog-modal gb-history-modal';
+  let html = `<div class="gb-modal-head">
+    <div>
+      <div class="gb-modal-kicker">Release notes</div>
+      <div class="gb-modal-title">What's New</div>
+    </div>
+    <button class="modal-close" aria-label="Close" onclick="closeChangelog()">&times;</button>
+  </div>
+  <div class="gb-form-body">`;
 
   for (const entry of entries) {
     html += `<div class="changelog-entry">`;
@@ -249,6 +256,7 @@ export function openChangelog(showAll) {
     html += '</ul></div>';
   }
 
+  html += `</div>`;
   modal.innerHTML = html;
   overlay.classList.add('show');
 }

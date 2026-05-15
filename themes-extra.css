@@ -1,0 +1,570 @@
+/* ============================================================
+   themes-extra.css
+   Drop-in additional themes for getbased.
+   Uses the existing token names from styles.css :root -
+   no changes needed to feature CSS, just include this file
+   after styles.css and add "cyberterm" | "glass" | "synth-sunrise"
+   | "neuromancer" as valid values in theme.js.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   CYPHERPUNK TERMINAL - refined, mono, sharp corners.
+   ------------------------------------------------------------ */
+[data-theme="cyberterm"] {
+  --bg-primary: #0b0d0b;
+  --bg-secondary: #10130f;
+  --bg-card: #0e110d;
+  --bg-hover: #141812;
+  --border: #1f2e23;
+  --text-primary: #cfe9d6;
+  --text-secondary: #7ea88d;
+  --text-muted: #4a6b56;
+  --accent: #4ade80;
+  --accent-light: #6df09a;
+  --accent-fill: rgba(74,222,128,0.10);
+  --accent-gradient: linear-gradient(135deg, #4ade80 0%, #4ade80 100%);
+  --green: #4ade80;
+  --green-bg: rgba(74,222,128,0.12);
+  --red: #e54b4b;
+  --red-bg: rgba(229,75,75,0.12);
+  --yellow: #e0a93a;
+  --yellow-bg: rgba(224,169,58,0.12);
+  --orange: #d4a017;
+  --orange-bg: rgba(212,160,23,0.12);
+  --purple: #9ca5d4;
+  --purple-light: rgba(156,165,212,0.14);
+  --cyan: rgba(78,222,222,0.6);
+  --neutral-soft-bg: rgba(126, 168, 141, 0.08);
+  --alert-soft-bg: rgba(229, 75, 75, 0.10);
+  --ref-band: rgba(74,222,128,0.06);
+  --ref-border: rgba(74,222,128,0.25);
+  --chart-grid: rgba(31,46,35,0.6);
+  --chart-tooltip-bg: rgba(11,13,11,0.95);
+  --shadow: 2px 2px 0 #1f2e23;
+  --shadow-lg: 3px 3px 0 #1f2e23;
+  --shadow-glow: 0 0 0 1px var(--accent);
+  --radius: 0px;
+  --radius-sm: 0px;
+  --font-display: 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+[data-theme="cyberterm"] body {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+/* Signature touches - minimal, only on the chrome */
+[data-theme="cyberterm"] .header h1::before { content: "$ "; color: var(--text-muted); }
+@keyframes ct-cursor { 50% { opacity: 0; } }
+
+
+/* ------------------------------------------------------------
+   GLASS / LIQUID - translucent surfaces, ambient mesh.
+   ------------------------------------------------------------ */
+[data-theme="glass"] {
+  --bg-primary: #0a0817;
+  --bg-secondary: rgba(28, 22, 56, 0.5);
+  --bg-card: rgba(38, 30, 72, 0.35);
+  --bg-hover: rgba(50, 40, 92, 0.45);
+  --border: rgba(255, 255, 255, 0.12);
+  --text-primary: #f6f3ff;
+  --text-secondary: #c8bfe4;
+  --text-muted: #9c92ba;
+  --accent: #c986ff;
+  --accent-light: #e0a5ff;
+  --accent-fill: rgba(201,134,255,0.10);
+  --accent-gradient: linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%);
+  --green: #34e1a8;
+  --green-bg: rgba(52,225,168,0.14);
+  --red: #ff6d8a;
+  --red-bg: rgba(255,109,138,0.14);
+  --yellow: #ffd56b;
+  --yellow-bg: rgba(255,213,107,0.14);
+  --orange: #ff9d5c;
+  --orange-bg: rgba(255,157,92,0.14);
+  --purple: #b794f6;
+  --purple-light: rgba(183,148,246,0.18);
+  --cyan: rgba(120,210,255,0.6);
+  --neutral-soft-bg: rgba(156, 146, 186, 0.12);
+  --alert-soft-bg: rgba(255,109,138,0.12);
+  --ref-band: rgba(201,134,255,0.08);
+  --ref-border: rgba(201,134,255,0.3);
+  --chart-grid: rgba(255,255,255,0.06);
+  --chart-tooltip-bg: rgba(20,15,40,0.85);
+  --shadow: 0 1px 0 rgba(255,255,255,0.18) inset, 0 24px 60px -20px rgba(0,0,0,0.6);
+  --shadow-lg: 0 40px 80px -20px rgba(0,0,0,0.7);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 8px 24px rgba(201,134,255,0.25);
+  --radius: 22px;
+  --radius-sm: 14px;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+[data-theme="glass"] body {
+  background: #0a0817;
+  position: relative;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+[data-theme="glass"] body::before {
+  content: "";
+  position: fixed; inset: -10%;
+  background:
+    radial-gradient(40% 40% at 18% 20%, rgba(196,99,255,0.55), transparent 60%),
+    radial-gradient(40% 40% at 80% 12%, rgba(99,180,255,0.5), transparent 65%),
+    radial-gradient(45% 45% at 70% 78%, rgba(180,99,255,0.55), transparent 60%),
+    radial-gradient(35% 35% at 20% 80%, rgba(255,150,99,0.5), transparent 65%);
+  filter: blur(40px);
+  z-index: 0;
+  pointer-events: none;
+  animation: glass-drift 28s ease-in-out infinite alternate;
+}
+@keyframes glass-drift {
+  0%   { transform: translate(0,0) scale(1); }
+  50%  { transform: translate(-3%, 2%) scale(1.05); }
+  100% { transform: translate(2%, -2%) scale(1.02); }
+}
+[data-theme="glass"] .header,
+[data-theme="glass"] .sidebar,
+[data-theme="glass"] .main,
+[data-theme="glass"] .layout,
+[data-theme="glass"] .app-footer { position: relative; z-index: 1; }
+/* Frosted-glass treatment for primary card surfaces */
+[data-theme="glass"] .chart-card,
+[data-theme="glass"] .context-card,
+[data-theme="glass"] .focus-card,
+[data-theme="glass"] .lens-section,
+[data-theme="glass"] .trend-alert-card,
+[data-theme="glass"] .supp-timeline,
+[data-theme="glass"] .alert-card,
+[data-theme="glass"] .modal,
+[data-theme="glass"] .header,
+[data-theme="glass"] .sidebar {
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+
+/* ------------------------------------------------------------
+   SYNTH SUNRISE - synthwave horizon, gridded ground.
+   ------------------------------------------------------------ */
+[data-theme="synth-sunrise"] {
+  --bg-primary: #0d0524;
+  --bg-secondary: #150830;
+  --bg-card: rgba(28, 14, 64, 0.65);
+  --bg-hover: rgba(40, 22, 80, 0.75);
+  --border: rgba(255, 43, 214, 0.35);
+  --text-primary: #f6e8ff;
+  --text-secondary: #c8b0e4;
+  --text-muted: #9882b8;
+  --accent: #ff2bd6;
+  --accent-light: #ff6ce0;
+  --accent-fill: rgba(255,43,214,0.10);
+  --accent-gradient: linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%);
+  --green: #2bffb4;
+  --green-bg: rgba(43,255,180,0.14);
+  --red: #ff3b6b;
+  --red-bg: rgba(255,59,107,0.14);
+  --yellow: #ffd56b;
+  --yellow-bg: rgba(255,213,107,0.14);
+  --orange: #ff7a18;
+  --orange-bg: rgba(255,122,24,0.14);
+  --purple: #c084fc;
+  --purple-light: rgba(192,132,252,0.18);
+  --cyan: rgba(0,224,255,0.65);
+  --neutral-soft-bg: rgba(152, 130, 184, 0.12);
+  --alert-soft-bg: rgba(255,59,107,0.12);
+  --ref-band: rgba(255,43,214,0.06);
+  --ref-border: rgba(255,43,214,0.3);
+  --chart-grid: rgba(255,43,214,0.08);
+  --chart-tooltip-bg: rgba(13,5,36,0.92);
+  --shadow: 0 16px 40px -16px rgba(0,0,0,0.7), 0 0 24px -8px rgba(255,43,214,0.35);
+  --shadow-lg: 0 0 60px -10px rgba(255,43,214,0.45), 0 24px 60px -16px rgba(0,0,0,0.7);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 24px rgba(255,43,214,0.4);
+  --radius: 4px;
+  --radius-sm: 2px;
+  --font-display: 'Orbitron', 'Outfit', sans-serif;
+  --font-mono: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
+}
+[data-theme="synth-sunrise"] body {
+  background:
+    radial-gradient(60% 80% at 50% 95%, #ff7a18 0%, #ff2bd6 22%, #7c3aed 42%, #1c0a4a 70%, #0d0524 100%);
+  background-attachment: fixed;
+  position: relative;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+}
+[data-theme="synth-sunrise"] body::before {
+  content: "";
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 50vh;
+  background:
+    linear-gradient(transparent 0%, rgba(255,43,214,0.18) 100%),
+    linear-gradient(to right,  rgba(255,43,214,0.7) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,43,214,0.7) 1px, transparent 1px);
+  background-size: 100% 100%, 60px 60px, 60px 60px;
+  transform: perspective(500px) rotateX(60deg);
+  transform-origin: center bottom;
+  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 30%, black 70%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 30%, black 70%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  animation: synth-scroll 14s linear infinite;
+}
+@keyframes synth-scroll {
+  0%   { background-position: 0 0, 0 0, 0 0; }
+  100% { background-position: 0 0, 0 60px, 0 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="glass"] body::before,
+  [data-theme="synth-sunrise"] body::before {
+    animation: none;
+  }
+}
+[data-theme="synth-sunrise"] .header,
+[data-theme="synth-sunrise"] .sidebar,
+[data-theme="synth-sunrise"] .main,
+[data-theme="synth-sunrise"] .layout,
+[data-theme="synth-sunrise"] .app-footer { position: relative; z-index: 1; }
+
+
+/* ------------------------------------------------------------
+   NEUROMANCER - Chiba City neon, ICE blue + sodium magenta.
+   ------------------------------------------------------------ */
+[data-theme="neuromancer"] {
+  --bg-primary: #050608;
+  --bg-secondary: #0a0d12;
+  --bg-card: rgba(8, 11, 16, 0.7);
+  --bg-hover: rgba(14, 20, 28, 0.85);
+  --border: rgba(0, 229, 255, 0.22);
+  --text-primary: #c8e8f5;
+  --text-secondary: #8aa8b8;
+  --text-muted: #5a7585;
+  --accent: #00e5ff;
+  --accent-light: #5cf2ff;
+  --accent-fill: rgba(0,229,255,0.10);
+  --accent-gradient: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+  --green: #00ff9d;
+  --green-bg: rgba(0,255,157,0.14);
+  --red: #ff2244;
+  --red-bg: rgba(255,34,68,0.14);
+  --yellow: #ffb000;
+  --yellow-bg: rgba(255,176,0,0.14);
+  --orange: #ff7a18;
+  --orange-bg: rgba(255,122,24,0.14);
+  --purple: #ff2bd6;
+  --purple-light: rgba(255,43,214,0.18);
+  --cyan: rgba(0,229,255,0.6);
+  --neutral-soft-bg: rgba(90, 117, 133, 0.12);
+  --alert-soft-bg: rgba(255,34,68,0.12);
+  --ref-band: rgba(0,229,255,0.06);
+  --ref-border: rgba(0,229,255,0.3);
+  --chart-grid: rgba(0,229,255,0.08);
+  --chart-tooltip-bg: rgba(5,6,8,0.95);
+  --shadow: 0 0 0 1px rgba(0,229,255,0.1), 0 0 24px -6px rgba(0,229,255,0.3);
+  --shadow-lg: 0 0 60px -10px rgba(0,229,255,0.45), 0 0 120px -30px rgba(255,43,214,0.4);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 24px rgba(0,229,255,0.45);
+  --radius: 0px;
+  --radius-sm: 0px;
+  --font-display: 'Major Mono Display', 'Share Tech Mono', ui-monospace, monospace;
+  --font-mono: 'Share Tech Mono', ui-monospace, monospace;
+}
+[data-theme="neuromancer"] body {
+  background-color: #050608;
+  position: relative;
+  font-family: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+}
+/* Subtle dataspace grid */
+[data-theme="neuromancer"] body::before {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(0,229,255,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,229,255,0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+[data-theme="neuromancer"] .header,
+[data-theme="neuromancer"] .sidebar,
+[data-theme="neuromancer"] .main,
+[data-theme="neuromancer"] .layout,
+[data-theme="neuromancer"] .app-footer { position: relative; z-index: 1; }
+
+
+/* ------------------------------------------------------------
+   Font preconnects - add these <link>s to <head> if you want
+   the new themes' fonts to load. (See README.)
+   ------------------------------------------------------------ */
+
+
+/* ------------------------------------------------------------
+   Phase 6 gap fixes - visual polish and contrast-safe theme glue.
+   ------------------------------------------------------------ */
+
+[data-theme="glass"] .layout,
+[data-theme="glass"] .main,
+[data-theme="synth-sunrise"] .layout,
+[data-theme="synth-sunrise"] .main,
+[data-theme="neuromancer"] .layout,
+[data-theme="neuromancer"] .main {
+  background: transparent;
+}
+
+[data-theme="glass"] .header,
+[data-theme="synth-sunrise"] .header,
+[data-theme="neuromancer"] .header {
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+}
+
+[data-theme="glass"] .sidebar,
+[data-theme="synth-sunrise"] .sidebar,
+[data-theme="neuromancer"] .sidebar {
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+}
+
+[data-theme="cyberterm"] .chart-card,
+[data-theme="cyberterm"] .alert-card,
+[data-theme="cyberterm"] .context-card,
+[data-theme="cyberterm"] .focus-card,
+[data-theme="cyberterm"] .lens-section,
+[data-theme="cyberterm"] .fa-card,
+[data-theme="cyberterm"] .trend-alert-card,
+[data-theme="cyberterm"] .supp-timeline,
+[data-theme="cyberterm"] .stat-card {
+  box-shadow: var(--shadow);
+}
+
+[data-theme="cyberterm"] .chart-card:hover,
+[data-theme="cyberterm"] .alert-card:hover {
+  box-shadow: 3px 3px 0 var(--accent);
+}
+
+[data-theme="cyberterm"] { --on-accent: #0b0d0b; }
+[data-theme="glass"] { --on-accent: #1a0a2c; }
+[data-theme="synth-sunrise"] { --on-accent: #0d0524; }
+[data-theme="neuromancer"] { --on-accent: #050608; }
+
+[data-theme="cyberterm"] .brand-mark::before {
+  content: "$ ";
+  color: var(--text-muted);
+}
+
+[data-theme="synth-sunrise"] .header {
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--accent) 14%, transparent) inset,
+    0 12px 24px -16px rgba(255, 43, 214, 0.4);
+}
+
+[data-theme="synth-sunrise"] .app-footer {
+  background:
+    linear-gradient(180deg, rgba(13, 5, 36, 0.86) 0%, rgba(7, 3, 20, 0.97) 100%);
+  border-top-color: rgba(255, 43, 214, 0.42);
+  box-shadow:
+    0 -32px 90px rgba(13, 5, 36, 0.82),
+    inset 0 1px 0 rgba(255, 213, 107, 0.16);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+}
+
+[data-theme="synth-sunrise"] .app-footer-logo {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+}
+
+[data-theme="synth-sunrise"] .app-footer-disclaimer {
+  color: #f2e6ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="synth-sunrise"] .app-footer-trademarks,
+[data-theme="synth-sunrise"] .app-footer-legal,
+[data-theme="synth-sunrise"] .app-footer-legal a,
+[data-theme="synth-sunrise"] .app-footer-socials a,
+[data-theme="synth-sunrise"] .app-footer-version,
+[data-theme="synth-sunrise"] .app-footer-version a {
+  color: #d9c4f5;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="synth-sunrise"] .app-footer-legal a:hover,
+[data-theme="synth-sunrise"] .app-footer-version a:hover,
+[data-theme="synth-sunrise"] .app-footer-socials a:hover {
+  color: #ffd56b;
+}
+
+[data-theme="neuromancer"] .header {
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+[data-theme="neuromancer"] .brand-mark,
+[data-theme="neuromancer"] .header h1.brand-mark,
+[data-theme="neuromancer"] .app-footer-logo {
+  font-family: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-caps: normal;
+  letter-spacing: 0;
+  text-transform: lowercase;
+}
+
+[data-theme="neuromancer"] body {
+  letter-spacing: 0.012em;
+}
+
+[data-theme="cyberterm"] ::-webkit-scrollbar-track { background: var(--bg-primary); }
+[data-theme="cyberterm"] ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 0; }
+[data-theme="cyberterm"] ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+[data-theme="glass"] ::-webkit-scrollbar-track { background: transparent; }
+[data-theme="glass"] ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 6px; }
+[data-theme="glass"] ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+
+[data-theme="synth-sunrise"] ::-webkit-scrollbar-track { background: rgba(13, 5, 36, 0.5); }
+[data-theme="synth-sunrise"] ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 2px; }
+[data-theme="synth-sunrise"] ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+[data-theme="neuromancer"] ::-webkit-scrollbar-track { background: var(--bg-primary); }
+[data-theme="neuromancer"] ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 0; }
+[data-theme="neuromancer"] ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="synth-sunrise"] body {
+    background-attachment: scroll;
+  }
+}
+
+[data-theme="glass"] .modal-overlay.show,
+[data-theme="synth-sunrise"] .modal-overlay.show,
+[data-theme="neuromancer"] .modal-overlay.show {
+  background: rgba(0, 0, 0, 0.82);
+}
+
+[data-theme="glass"] .status-normal,
+[data-theme="synth-sunrise"] .status-normal,
+[data-theme="neuromancer"] .status-normal {
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+}
+
+[data-theme="glass"] .status-high,
+[data-theme="synth-sunrise"] .status-high,
+[data-theme="neuromancer"] .status-high {
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+}
+
+[data-theme="glass"] .status-low,
+[data-theme="synth-sunrise"] .status-low,
+[data-theme="neuromancer"] .status-low {
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+}
+
+/* Sidebar/chat/font follow-up: wire body type and bring chat chrome in-theme. */
+[data-theme="cyberterm"] {
+  --font-body: 'JetBrains Mono', ui-monospace, monospace;
+}
+[data-theme="glass"] {
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+[data-theme="synth-sunrise"] {
+  --font-body: 'Space Grotesk', 'Inter', sans-serif;
+}
+[data-theme="neuromancer"] {
+  --font-body: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+}
+[data-theme="cyberterm"] body,
+[data-theme="glass"] body,
+[data-theme="synth-sunrise"] body,
+[data-theme="neuromancer"] body {
+  font-family: var(--font-body);
+}
+
+[data-theme="cyberterm"] .nav-item,
+[data-theme="cyberterm"] .sidebar-search,
+[data-theme="cyberterm"] .chat-panel,
+[data-theme="cyberterm"] .chat-fab,
+[data-theme="cyberterm"] .chat-msg,
+[data-theme="cyberterm"] .chat-input,
+[data-theme="cyberterm"] .chat-send-btn,
+[data-theme="cyberterm"] .chat-thread-item,
+[data-theme="cyberterm"] .chat-thread-new-btn,
+[data-theme="cyberterm"] .chat-fullscreen-btn,
+[data-theme="cyberterm"] .chat-close-btn,
+[data-theme="cyberterm"] .chat-rail-toggle {
+  border-radius: 0;
+}
+[data-theme="cyberterm"] .chat-panel {
+  border-left: 1px solid var(--border);
+  box-shadow: -3px 0 0 var(--border);
+}
+[data-theme="cyberterm"] .chat-fab {
+  width: 64px;
+  height: 64px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--border);
+  box-shadow: 3px 3px 0 var(--border);
+}
+[data-theme="cyberterm"] .chat-msg.chat-user,
+[data-theme="cyberterm"] .chat-send-btn {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--border);
+  box-shadow: 2px 2px 0 var(--border);
+}
+[data-theme="cyberterm"] .chat-msg.chat-ai {
+  border-left-color: var(--accent);
+}
+
+[data-theme="glass"] .chat-panel,
+[data-theme="glass"] .chat-panel-conversation,
+[data-theme="glass"] .chat-header,
+[data-theme="glass"] .chat-personality-bar,
+[data-theme="glass"] .chat-input-area {
+  background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+}
+[data-theme="glass"] .chat-msg.chat-ai,
+[data-theme="glass"] .chat-input,
+[data-theme="glass"] .chat-thread-rail {
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+}
+
+[data-theme="synth-sunrise"] .chat-panel {
+  border-left-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: -18px 0 48px -24px rgba(255, 43, 214, 0.62), var(--shadow-lg);
+}
+[data-theme="synth-sunrise"] .chat-header,
+[data-theme="synth-sunrise"] .chat-input-area {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+[data-theme="neuromancer"] .chat-panel {
+  border-left-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: -18px 0 52px -26px rgba(0, 229, 255, 0.7), var(--shadow-lg);
+}
+[data-theme="neuromancer"] .chat-msg.chat-ai {
+  border-left-color: var(--accent);
+}
+
+/* Keep the app header sticky in every theme. Some atmospheric theme
+   surface rules lift the header into the body effect layer; that must
+   not downgrade the base sticky positioning. */
+[data-theme] .header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Atmospheric theme wrappers should not change the app shell geometry. */
+[data-theme] .layout,
+[data-theme] .main {
+  position: static;
+  z-index: auto;
+}
+
+@media (min-width: 1025px) {
+  [data-theme] .sidebar {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    height: calc(100vh - 64px);
+    z-index: 10;
+  }
+}

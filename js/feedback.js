@@ -15,9 +15,16 @@ export function openFeedbackModal() {
   const modal = document.getElementById('feedback-modal');
   const overlay = document.getElementById('feedback-modal-overlay');
   const typeOptions = FEEDBACK_TYPES.map(t => `<option value="${t.value}">${escapeHTML(t.label)}</option>`).join('');
+  modal.className = 'modal gb-form-modal feedback-redesign-modal';
   modal.innerHTML = `
-    <button class="modal-close" aria-label="Close" onclick="closeFeedbackModal()">&times;</button>
-    <h3 style="margin-bottom:12px">Send Feedback</h3>
+    <div class="gb-modal-head">
+      <div>
+        <div class="gb-modal-kicker">GitHub issue</div>
+        <div class="gb-modal-title">Send Feedback</div>
+      </div>
+      <button class="modal-close" aria-label="Close" onclick="closeFeedbackModal()">&times;</button>
+    </div>
+    <div class="gb-form-body">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div>
         <label style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;display:block">Type</label>
@@ -38,6 +45,7 @@ export function openFeedbackModal() {
         <button class="import-btn import-btn-primary" onclick="submitFeedback()">Submit</button>
       </div>
       <p class="api-key-notice" style="margin:0">Opens a GitHub issue in a new tab. Requires a GitHub account.</p>
+    </div>
     </div>`;
   overlay.classList.add('show');
   // Focus the title input

@@ -746,17 +746,21 @@ export function openKnowledgeBaseModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'kb-modal';
-    modal.className = 'modal kb-modal';
     overlay.appendChild(modal);
   }
+  modal.className = 'modal kb-modal settings-modal';
   modal.innerHTML = `
-    <button class="modal-close" onclick="closeKnowledgeBaseModal()" aria-label="Close">&times;</button>
-    <h3 style="display:flex;align-items:center;gap:8px;margin-top:0">
-      <span aria-hidden="true">&#128218;</span>
-      <span>Knowledge Base</span>
-    </h3>
+    <div class="gb-modal-head">
+      <div>
+        <div class="gb-modal-kicker">Local context</div>
+        <div class="gb-modal-title">Knowledge Base</div>
+      </div>
+      <button class="modal-close" onclick="closeKnowledgeBaseModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="gb-form-body">
     <div class="settings-section" id="custom-lens-section">
       ${renderCustomLensSection()}
+    </div>
     </div>
   `;
   overlay.classList.add('show');

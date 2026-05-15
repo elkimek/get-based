@@ -5,6 +5,27 @@ import { escapeHTML, escapeAttr, hashString } from './utils.js';
 import { getActiveData, countFlagged, filterDatesByRange } from './data.js';
 import { getProfiles } from './profile.js';
 
+function _iconSvg(name) {
+  const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const icons = {
+    search: `<svg ${attrs}><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>`,
+    labs: `<svg ${attrs}><path d="M12 2.7s5 6.3 5 11.3a5 5 0 0 1-10 0c0-5 5-11.3 5-11.3z"></path></svg>`,
+    genome: `<svg ${attrs}><path d="M4 4c4 3 12 3 16 0"></path><path d="M4 8c4 3 12 3 16 0"></path><path d="M4 12c4 3 12 3 16 0"></path><path d="M4 16c4 3 12 3 16 0"></path><path d="M4 20c4 3 12 3 16 0"></path></svg>`,
+    body: `<svg ${attrs}><circle cx="12" cy="12" r="6"></circle><path d="M12 9v3l1.5 1.5"></path><path d="M16 4l-2 2"></path><path d="M8 4l2 2"></path><path d="M16 20l-2-2"></path><path d="M8 20l2-2"></path></svg>`,
+    light: `<svg ${attrs}><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path><path d="M4.93 19.07l1.41-1.41"></path><path d="M17.66 6.34l1.41-1.41"></path></svg>`,
+    insight: `<svg ${attrs}><path d="M9.5 3a3.5 3.5 0 0 0-3 5.3"></path><path d="M14.5 3a3.5 3.5 0 0 1 3 5.3"></path><path d="M6.5 8.3A4 4 0 0 0 4 12c0 1.7.7 3.2 1.8 4.3"></path><path d="M17.5 8.3A4 4 0 0 1 20 12c0 1.7-.7 3.2-1.8 4.3"></path><path d="M9 21a2 2 0 0 1-2-2v-2"></path><path d="M15 21a2 2 0 0 0 2-2v-2"></path><path d="M12 6v15"></path></svg>`,
+    compare: `<svg ${attrs}><path d="M17 3l4 4-4 4"></path><path d="M3 7h18"></path><path d="M7 21l-4-4 4-4"></path><path d="M21 17H3"></path></svg>`,
+    correlations: `<svg ${attrs}><path d="M3 17c3.5-8 7-8 10.5 0s7 8 10.5 0"></path></svg>`,
+    recommendations: `<svg ${attrs}><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M4.93 4.93l2.83 2.83"></path><path d="M16.24 16.24l2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="M4.93 19.07l2.83-2.83"></path><path d="M16.24 7.76l2.83-2.83"></path></svg>`,
+    knowledge: `<svg ${attrs}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path></svg>`,
+    plus: `<svg ${attrs}><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>`,
+    supplements: `<svg ${attrs}><path d="M10 21l8-8a4.24 4.24 0 0 0-6-6l-8 8a4.24 4.24 0 0 0 6 6z"></path><path d="M8.5 8.5l7 7"></path></svg>`,
+    cycle: `<svg ${attrs}><path d="M12 3a9 9 0 1 0 9 9"></path><path d="M21 3v6h-6"></path><path d="M21 9A9 9 0 0 0 12 3"></path></svg>`,
+    emf: `<svg ${attrs}><path d="M5 12.5a7 7 0 0 1 14 0"></path><path d="M8 12.5a4 4 0 0 1 8 0"></path><path d="M12 12.5v.01"></path><path d="M12 17v4"></path></svg>`,
+  };
+  return icons[name] || escapeHTML(String(name || ''));
+}
+
 // Render a conditional sidebar entry (e.g. Light & Sun, Wearables, Cycle, EMF, Genetics).
 // Appears only when the predicate yields data. Soft-promote via scroll-selector +
 // optional expand callback; hard-promote via dedicated `navigate` target.
@@ -23,9 +44,11 @@ function _renderConditionalNavItem({ key, icon, label, navigate = 'dashboard', b
   } else {
     onclick = `window.navigate('${navigate}')`;
   }
-  const badgeHtml = badge ? `<span class="nav-count">${escapeHTML(String(badge))}</span>` : '';
+  const badgeHtml = badge ? `<span class="nav-item-count nav-count">${escapeHTML(String(badge))}</span>` : '<span class="nav-item-dot"></span>';
   return `<div class="nav-item" data-category="${key}" tabindex="0" role="button" onclick="${onclick}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
-    <span class="icon">${icon}</span> ${escapeHTML(label)} ${badgeHtml}</div>`;
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg(icon)}</span>
+    <span class="nav-item-label">${escapeHTML(label)}</span>
+    ${badgeHtml}</div>`;
 }
 
 function _buildNavItem(key, cat) {
@@ -34,8 +57,8 @@ function _buildNavItem(key, cat) {
   if (withData === 0) return null;
   const flagged = countFlagged(markers);
   const flagHtml = flagged > 0
-    ? `<span class="flag-count">${flagged}</span>`
-    : `<span class="count">${withData}</span>`;
+    ? `<span class="nav-item-count flag-count">${flagged}</span>`
+    : `<span class="nav-item-count count">${withData}</span>`;
   const markerNames = markers.map(m => m.name).join('|');
   // Strip redundant group prefix from label when shown under a group header
   let label = cat.label;
@@ -43,25 +66,57 @@ function _buildNavItem(key, cat) {
     label = label.slice(cat.group.length + 2);
   }
   return { withData, flagged, html: `<div class="nav-item" data-category="${key}" data-markers="${escapeHTML(markerNames)}" data-group="${escapeHTML(cat.group || '')}" tabindex="0" role="button" onclick="window.navigate('${key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('${key}')}">
-      <span class="icon">${cat.icon}</span> ${escapeHTML(label)} ${flagHtml}</div>` };
+      <span class="nav-item-dot" aria-hidden="true"></span>
+      <span class="nav-item-label">${escapeHTML(label)}</span>
+      ${flagHtml}</div>` };
 }
 
 export function buildSidebar(data) {
   if (!data) data = getActiveData();
   data = filterDatesByRange(data);
   const nav = document.getElementById("sidebar-nav");
-  let html = `<input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search markers..." oninput="filterSidebar()">`;
-  html += `<div class="nav-item active" data-category="dashboard" tabindex="0" role="button" onclick="window.navigate('dashboard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('dashboard')}">
-    <span class="icon">\uD83D\uDCCB</span> Dashboard</div>`;
-  html += `<div class="nav-item" data-category="correlations" tabindex="0" role="button" onclick="window.navigate('correlations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('correlations')}">
-    <span class="icon">\uD83D\uDCC8</span> Correlations</div>`;
-  html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" onclick="window.navigate('compare')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('compare')}">
-    <span class="icon">\u2194</span> Compare Dates</div>`;
+  const counts = (() => {
+    let markerCount = 0;
+    for (const cat of Object.values(data.categories || {})) {
+      for (const marker of Object.values(cat.markers || {})) {
+        if (!marker.hidden && marker.values?.some(v => v !== null)) markerCount++;
+      }
+    }
+    return markerCount;
+  })();
+  let html = `<div class="sidebar-search-wrap">
+    <span class="sidebar-search-icon" aria-hidden="true">${_iconSvg('search')}</span>
+    <input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search markers..." oninput="filterSidebar()">
+  </div>`;
+  html += `<div class="nav-section">Lenses</div>`;
+  html += `<div class="nav-item active is-active" data-category="dashboard" tabindex="0" role="button" onclick="window.navigate('dashboard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('dashboard')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('labs')}</span>
+    <span class="nav-item-label">Labs</span>
+    <span class="nav-item-count">${counts}</span></div>`;
 
   // \u2500\u2500\u2500 Conditional module entries \u2014 only render when the module has data.
   // Order: most-used first; new modules (Light & Sun) at the top to highlight discovery.
   // All except Light & Sun soft-promote (scroll + expand on dashboard); Light & Sun
   // hard-promotes to its dedicated view.
+
+  const genetics = state.importedData?.genetics;
+  const hasGeneticsData = genetics && ((genetics.snps && Object.keys(genetics.snps).length > 0) || genetics.mtdna);
+  const gParts = [];
+  if (hasGeneticsData) {
+    if (genetics.snps && Object.keys(genetics.snps).length > 0) gParts.push(Object.keys(genetics.snps).length);
+    if (genetics.mtdna) gParts.push(genetics.mtdna.haplogroup);
+  }
+  html += `<div class="nav-item" data-category="genome" tabindex="0" role="button" onclick="window.navigate('genome')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('genome')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('genome')}</span>
+    <span class="nav-item-label">Genome</span>
+    ${gParts.length ? `<span class="nav-item-count">${escapeHTML(gParts.join(' '))}</span>` : '<span class="nav-item-dot"></span>'}</div>`;
+
+  const wearableConn = state.importedData?.wearableConnections || {};
+  const wearableCount = Object.keys(wearableConn).length;
+  html += `<div class="nav-item" data-category="body" tabindex="0" role="button" onclick="window.navigate('body')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('body')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('body')}</span>
+    <span class="nav-item-label">Body</span>
+    ${wearableCount ? `<span class="nav-item-count">${wearableCount}</span>` : '<span class="nav-item-dot"></span>'}</div>`;
 
   // \u2600 Light & Sun \u2014 always visible (flagship module). New users
   // need a discoverable entry point even before logging anything; once
@@ -71,29 +126,35 @@ export function buildSidebar(data) {
   const weekCount = sunSessions.filter(s => (s.endedAt || s.startedAt || 0) >= weekStart).length;
   html += _renderConditionalNavItem({
     key: 'light',
-    icon: '\u2600', // monochrome glyph (no FE0F selector) \u2014 matches the rest of the sidebar (\uD83D\uDCCB \uD83C\uDF38 \uD83D\uDCE1 \uD83E\uDDEC)
-    label: 'Light & Sun',
+    icon: 'light',
+    label: 'Light',
     navigate: 'light',
     badge: weekCount > 0 ? (weekCount > 9 ? '9+' : weekCount) : null,
   });
 
-  // \u231A Wearables \u2014 soft-promote (scroll to wearable strip)
-  const wearableConn = state.importedData?.wearableConnections || {};
-  if (Object.keys(wearableConn).length > 0) {
-    html += _renderConditionalNavItem({
-      key: 'wearables',
-      icon: '\u231A',
-      label: 'Wearables',
-      scrollSelector: '#wearable-strip',
-    });
-  }
+  html += `<div class="nav-item" data-category="insight" tabindex="0" role="button" onclick="window.navigate('insight')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('insight')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('insight')}</span>
+    <span class="nav-item-label">Insight</span>
+    <span class="nav-item-dot"></span></div>`;
+
+  html += `<div class="nav-section">Tools</div>`;
+  html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" onclick="window.navigate('compare')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('compare')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('compare')}</span><span class="nav-item-label">Compare dates</span><span class="nav-item-dot"></span></div>`;
+  html += `<div class="nav-item" data-category="correlations" tabindex="0" role="button" onclick="window.navigate('correlations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('correlations')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('correlations')}</span><span class="nav-item-label">Correlations</span><span class="nav-item-dot"></span></div>`;
+  html += `<div class="nav-item" data-category="recommendations" tabindex="0" role="button" onclick="window.navigate('dashboard');setTimeout(()=>{const el=document.querySelector('.rec-section,.recommendation-section,.rec-card');if(el){const y=el.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:y,behavior:'smooth'});}else{window.openSettingsModal&&window.openSettingsModal('display');}},100)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('recommendations')}</span><span class="nav-item-label">Recommendations</span><span class="nav-item-dot"></span></div>`;
+  html += `<div class="nav-item" data-category="knowledge" tabindex="0" role="button" onclick="window.openKnowledgeBaseModal&&window.openKnowledgeBaseModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge</span><span class="nav-item-dot"></span></div>`;
+  html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" onclick="window.openCreateMarkerModal&&window.openCreateMarkerModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
 
   // \uD83D\uDC8A Supplements \u2014 soft-promote
   const supps = state.importedData?.supplements;
   if (Array.isArray(supps) && supps.length > 0) {
     html += _renderConditionalNavItem({
       key: 'supplements',
-      icon: '\uD83D\uDC8A',
+      icon: 'supplements',
       label: 'Supplements',
       scrollSelector: '.supp-timeline-section',
       badge: supps.length,
@@ -106,7 +167,7 @@ export function buildSidebar(data) {
   if (sex === 'female' && mc) {
     html += _renderConditionalNavItem({
       key: 'cycle',
-      icon: '\uD83C\uDF38',
+      icon: 'cycle',
       label: 'Cycle',
       scrollSelector: '.cycle-section',
     });
@@ -117,23 +178,11 @@ export function buildSidebar(data) {
   if (Array.isArray(emfAssessments) && emfAssessments.length > 0) {
     html += _renderConditionalNavItem({
       key: 'emf',
-      icon: '\uD83D\uDCE1',
+      icon: 'emf',
       label: 'EMF',
       navigate: 'fn:window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()',
       badge: emfAssessments.length,
     });
-  }
-
-  // \uD83E\uDDEC Genetics \u2014 original conditional entry, refactored to use helper
-  const genetics = state.importedData?.genetics;
-  const hasGeneticsData = genetics && ((genetics.snps && Object.keys(genetics.snps).length > 0) || genetics.mtdna);
-  if (hasGeneticsData) {
-    const gParts = [];
-    if (genetics.snps && Object.keys(genetics.snps).length > 0) gParts.push(Object.keys(genetics.snps).length);
-    if (genetics.mtdna) gParts.push(genetics.mtdna.haplogroup);
-    // Genetics has special expand-on-scroll behavior \u2014 keep its inline form
-    html += `<div class="nav-item" data-category="genetics" tabindex="0" role="button" onclick="window.navigate('dashboard');setTimeout(()=>{const el=document.getElementById('genetics-section');if(el){const y=el.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:y,behavior:'smooth'});const b=el.querySelector('.genetics-body');if(b&&b.classList.contains('hidden'))window.toggleGeneticsCollapse();}},100)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
-      <span class="icon">\uD83E\uDDEC</span> Genetics <span class="nav-count">${gParts.join(' ')}</span></div>`;
   }
 
   // Separate categories into blood work (no group) and specialty groups
@@ -152,7 +201,11 @@ export function buildSidebar(data) {
   }
 
   // Render blood work categories
-  html += `<div class="sidebar-title">Categories <button class="sidebar-add-marker" onclick="event.stopPropagation();openCreateMarkerModal()" title="Create custom biomarker">+</button></div>`;
+  html += `<div class="nav-section sidebar-title">Categories <button class="sidebar-add-marker" onclick="event.stopPropagation();openCreateMarkerModal()" title="Create custom biomarker">+</button></div>`;
+  html += `<div class="nav-item nav-item-all" data-category="all" tabindex="0" role="button" onclick="window.navigate('dashboard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('dashboard')}">
+    <span class="nav-item-dot" aria-hidden="true"></span>
+    <span class="nav-item-label">All</span>
+    <span class="nav-item-count">${counts}</span></div>`;
   for (const item of bloodWork) html += item.html;
 
   // Render specialty groups
@@ -237,7 +290,7 @@ export function filterSidebar() {
   // When searching: show matching items, expand groups with matches, hide empty groups
   items.forEach(el => {
     const cat = el.dataset.category;
-    if (cat === 'dashboard' || cat === 'correlations' || cat === 'compare' || cat === 'light' || cat === 'wearables' || cat === 'supplements' || cat === 'cycle' || cat === 'emf' || cat === 'genetics') { el.style.display = ''; return; }
+    if (cat === 'dashboard' || cat === 'all' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'knowledge' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'supplements' || cat === 'cycle' || cat === 'emf' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
     const label = el.textContent.toLowerCase();
     const markers = (el.dataset.markers || '').toLowerCase();
     el.style.display = (label.includes(query) || markers.includes(query)) ? '' : 'none';

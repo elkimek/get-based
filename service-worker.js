@@ -26,6 +26,7 @@ const APP_SHELL = [
   '/version.js',
   '/index.html',
   '/styles.css',
+  '/themes-extra.css',
   '/js/main.js',
   '/js/schema.js',
   '/js/constants.js',

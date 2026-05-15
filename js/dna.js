@@ -208,7 +208,9 @@ function loadSNPTable({ forceFresh = false } = {}) {
 }
 
 // Eagerly load SNP table when genetics data exists (e.g. after JSON import)
-export function ensureSNPTable() { if (state.importedData?.genetics) loadSNPTable(); }
+export function ensureSNPTable() {
+  return state.importedData?.genetics ? loadSNPTable() : Promise.resolve(null);
+}
 
 // Catalog signature: { size, hash } over the sorted rsID list. Stamped on
 // genetics at import time and re-computed at render time so the genetics
@@ -263,6 +265,7 @@ export async function parseDNAFile(file) {
       category: entry.category,
       markers: entry.markers || [],
       effect: genotypeInfo.effect,
+      valence: genotypeInfo.valence,
       note: genotypeInfo.note,
     };
   }
@@ -409,6 +412,9 @@ export function saveGeneticsData(profileData, parseResult) {
       genotype: data.genotype,
       gene: data.gene,
       variant: data.variant,
+      effect: data.effect,
+      valence: data.valence,
+      note: data.note,
     };
   }
   if (apoe) {

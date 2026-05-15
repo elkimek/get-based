@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled } from './utils.js';
-import { getTheme, setTheme, getTimeFormat, setTimeFormat } from './theme.js';
+import { getTheme, setTheme, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
 import { getAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICompatible } from './pii.js';
@@ -17,6 +17,151 @@ import './provider-panels.js';
 // ═══════════════════════════════════════════════
 let _activeSettingsTab = 'display';
 
+const ACCENT_STORAGE_KEY = 'labcharts-accent-override';
+const TWEAK_ACCENTS = [
+  { id: '', label: 'Theme default', color: 'var(--accent)', gradient: 'var(--accent-gradient)', light: 'var(--accent-light)', fill: 'var(--accent-fill)' },
+  { id: 'blue', label: 'Blue', color: '#4f8cff', light: '#6ba0ff', fill: 'rgba(79, 140, 255, 0.10)', gradient: 'linear-gradient(135deg, #4f8cff 0%, #6366f1 100%)' },
+  { id: 'green', label: 'Green', color: '#34d399', light: '#6ee7b7', fill: 'rgba(52, 211, 153, 0.12)', gradient: 'linear-gradient(135deg, #34d399 0%, #14b8a6 100%)' },
+  { id: 'amber', label: 'Amber', color: '#f59e0b', light: '#fbbf24', fill: 'rgba(245, 158, 11, 0.12)', gradient: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' },
+  { id: 'rose', label: 'Rose', color: '#f43f5e', light: '#fb7185', fill: 'rgba(244, 63, 94, 0.12)', gradient: 'linear-gradient(135deg, #f43f5e 0%, #d946ef 100%)' },
+  { id: 'cyan', label: 'Cyan', color: '#06b6d4', light: '#22d3ee', fill: 'rgba(6, 182, 212, 0.12)', gradient: 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)' },
+];
+
+function getAccentOverride() {
+  const value = localStorage.getItem(ACCENT_STORAGE_KEY) || '';
+  return TWEAK_ACCENTS.some(a => a.id === value) ? value : '';
+}
+
+export function applyAccentOverride(id = getAccentOverride()) {
+  const accent = TWEAK_ACCENTS.find(a => a.id === id);
+  const root = document.documentElement;
+  const props = ['--accent', '--accent-light', '--accent-fill', '--accent-gradient', '--shadow-glow', '--ref-band', '--ref-border'];
+  const setProp = (prop, value) => {
+    if (root.style?.setProperty) root.style.setProperty(prop, value);
+    else if (root.style) root.style[prop] = value;
+  };
+  const removeProp = (prop) => {
+    if (root.style?.removeProperty) root.style.removeProperty(prop);
+    else if (root.style) delete root.style[prop];
+  };
+  if (!accent || !accent.id) {
+    props.forEach(removeProp);
+    return;
+  }
+  setProp('--accent', accent.color);
+  setProp('--accent-light', accent.light);
+  setProp('--accent-fill', accent.fill);
+  setProp('--accent-gradient', accent.gradient);
+  setProp('--shadow-glow', `0 0 0 1px ${accent.color}, 0 4px 12px ${accent.fill}`);
+  setProp('--ref-band', accent.fill);
+  setProp('--ref-border', accent.color);
+}
+
+function refreshVisualSurfaces() {
+  window.updateSettingsUI?.();
+  window.updateTweaksUI?.();
+  window.destroyAllCharts?.();
+  const activeView = state.currentView || document.querySelector('.nav-item.active,.nav-item.is-active')?.dataset.category || 'dashboard';
+  window.navigate?.(activeView === 'all' ? 'dashboard' : activeView);
+}
+
+window.handleThemeChange = function(themeId) {
+  setTheme(themeId);
+  applyAccentOverride();
+  window.updateSettingsUI?.();
+  window.updateTweaksUI?.();
+  window.destroyAllCharts?.();
+  const cat = document.querySelector('.nav-item.active')?.dataset.category || 'dashboard';
+  window.navigate?.(cat);
+};
+
+export function selectTweaksTheme(themeId) {
+  setTheme(themeId);
+  applyAccentOverride();
+  refreshVisualSurfaces();
+}
+
+export function selectTweaksAccent(accentId) {
+  const next = TWEAK_ACCENTS.some(a => a.id === accentId) ? accentId : '';
+  if (next) localStorage.setItem(ACCENT_STORAGE_KEY, next);
+  else localStorage.removeItem(ACCENT_STORAGE_KEY);
+  applyAccentOverride(next);
+  refreshVisualSurfaces();
+}
+
+export function updateTweaksUI() {
+  const panel = document.getElementById('tweaks-panel');
+  if (!panel) return;
+  const theme = getTheme();
+  const accentId = getAccentOverride();
+  panel.querySelectorAll('.tweaks-theme-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.themeId === theme));
+  panel.querySelectorAll('.tweaks-accent-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.accentId === accentId));
+}
+
+export function closeTweaksPanel() {
+  document.getElementById('tweaks-panel-overlay')?.remove();
+}
+
+export function openTweaksPanel() {
+  closeTweaksPanel();
+  const currentTheme = getTheme();
+  const currentAccent = getAccentOverride();
+  const themeButtons = THEMES.map(t => `
+    <button type="button" class="tweaks-theme-btn${currentTheme === t.id ? ' active' : ''}" data-theme-id="${escapeAttr(t.id)}" onclick="window.selectTweaksTheme('${escapeAttr(t.id)}')">
+      <span class="settings-theme-swatch settings-theme-swatch-${escapeAttr(t.id)}" aria-hidden="true"></span>
+      <span>${escapeHTML(t.label)}</span>
+    </button>
+  `).join('');
+  const accentButtons = TWEAK_ACCENTS.map(a => `
+    <button type="button" class="tweaks-accent-btn${currentAccent === a.id ? ' active' : ''}" data-accent-id="${escapeAttr(a.id)}" onclick="window.selectTweaksAccent('${escapeAttr(a.id)}')" title="${escapeAttr(a.label)}" aria-label="${escapeAttr(a.label)}">
+      <span class="tweaks-accent-swatch" style="--tweak-accent:${escapeAttr(a.color)};--tweak-gradient:${escapeAttr(a.gradient)}"></span>
+    </button>
+  `).join('');
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="tweaks-overlay show" id="tweaks-panel-overlay" onclick="if(event.target===this)window.closeTweaksPanel()">
+      <aside class="tweaks-panel" id="tweaks-panel" role="dialog" aria-modal="true" aria-label="Tweaks">
+        <div class="tweaks-head">
+          <div>
+            <div class="gb-modal-kicker">Controls</div>
+            <div class="gb-modal-title">Tweaks</div>
+          </div>
+          <button class="modal-close" aria-label="Close" onclick="window.closeTweaksPanel()">&times;</button>
+        </div>
+        <div class="tweaks-body">
+          <section class="tweaks-section">
+            <div class="tweaks-section-title">Theme world</div>
+            <div class="tweaks-theme-grid">${themeButtons}</div>
+          </section>
+          <section class="tweaks-section">
+            <div class="tweaks-section-title">Accent color</div>
+            <div class="tweaks-accent-row">${accentButtons}</div>
+          </section>
+          <section class="tweaks-section">
+            <div class="tweaks-section-title">Dashboard</div>
+            <div class="tweaks-action-grid">
+              <button type="button" onclick="window.resetDashboardWidgets?.();window.closeTweaksPanel()">Reset layout</button>
+              <button type="button" onclick="window.clearDashboardWidgets?.();window.closeTweaksPanel()">Clear all widgets</button>
+              <button type="button" onclick="window.toggleDashboardOrganizeMode?.(true);window.closeTweaksPanel()">Organize widgets</button>
+            </div>
+          </section>
+          <section class="tweaks-section">
+            <div class="tweaks-section-title">Try it</div>
+            <div class="tweaks-action-grid">
+              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>window.showDetailModal?.('lipids_apoB'),80)">Open marker</button>
+              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>window.openChatPanel?.(),80)">Open AI chat</button>
+              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>document.getElementById('pdf-input')?.click(),80)">Open import flow</button>
+              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>window.openSettingsModal?.(),80)">Open settings</button>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+  `);
+  document.querySelector('#tweaks-panel button')?.focus();
+}
+
+applyAccentOverride();
+
 export function openSettingsModal(tab) {
   window._settingsHadProvider = !!window.hasAIProvider?.();
   const overlay = document.getElementById('settings-modal-overlay');
@@ -28,10 +173,17 @@ export function openSettingsModal(tab) {
   if (tab === 'integrations') tab = 'wearables';
   if (tab) _activeSettingsTab = tab;
 
+  modal.className = 'modal settings-modal';
   modal.innerHTML = `
-    <button class="modal-close" aria-label="Close" onclick="closeSettingsModal()">&times;</button>
-    <h3>Settings</h3>
+    <div class="gb-modal-head settings-modal-head">
+      <div>
+        <div class="gb-modal-kicker">Controls</div>
+        <div class="gb-modal-title">Settings</div>
+      </div>
+      <button class="modal-close" aria-label="Close" onclick="closeSettingsModal()">&times;</button>
+    </div>
 
+    <div class="settings-layout">
     <div class="settings-tabs-bar" role="tablist" aria-label="Settings sections">
       <button role="tab" aria-selected="${_activeSettingsTab === 'display'}" aria-controls="settings-tab-display" tabindex="${_activeSettingsTab === 'display' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab="display" onclick="switchSettingsTab('display')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -58,6 +210,7 @@ export function openSettingsModal(tab) {
         Agent Access
       </button>
     </div>
+    <div class="settings-content">
 
     <!-- Display Tab -->
     <div class="settings-tab-panel${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab-panel="display">
@@ -86,9 +239,16 @@ export function openSettingsModal(tab) {
         </div>
         <div class="settings-section">
           <label class="settings-label">Theme</label>
-          <div class="settings-theme-toggle">
-            <button class="settings-theme-btn${currentTheme === 'dark' ? ' active' : ''}" onclick="setTheme('dark');updateSettingsUI();destroyAllCharts();navigate(document.querySelector('.nav-item.active')?.dataset.category||'dashboard')">Dark</button>
-            <button class="settings-theme-btn${currentTheme === 'light' ? ' active' : ''}" onclick="setTheme('light');updateSettingsUI();destroyAllCharts();navigate(document.querySelector('.nav-item.active')?.dataset.category||'dashboard')">Light</button>
+          <div class="settings-theme-grid">
+            ${THEMES.map(t => `
+              <button
+                class="settings-theme-btn${currentTheme === t.id ? ' active' : ''}"
+                onclick="window.handleThemeChange('${t.id}')"
+                data-theme-id="${t.id}">
+                <span class="settings-theme-swatch settings-theme-swatch-${t.id}" aria-hidden="true"></span>
+                <span class="settings-theme-label">${t.label}</span>
+              </button>
+            `).join('')}
           </div>
         </div>
         <div class="settings-section">
@@ -238,6 +398,8 @@ export function openSettingsModal(tab) {
       <div class="settings-section" id="messenger-section">
         ${renderMessengerSection()}
       </div>
+    </div>
+    </div>
     </div>`;
   overlay.classList.add('show');
   window.initSettingsOllamaCheck();
@@ -504,7 +666,7 @@ export function updateSettingsUI() {
   modal.querySelectorAll('.unit-toggle-btn[data-alt-units]').forEach(btn => btn.classList.toggle('active', (btn.dataset.altUnits === 'on') === !!state.showAltUnits));
   const theme = getTheme();
   modal.querySelectorAll('.settings-theme-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.toLowerCase() === theme);
+    btn.classList.toggle('active', btn.dataset.themeId === theme);
   });
   const timeFmt = getTimeFormat();
   modal.querySelectorAll('.time-toggle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.timefmt === timeFmt));
@@ -1234,4 +1396,10 @@ Object.assign(window, {
   renderDataEntriesSection,
   refreshDataEntriesSection,
   resetCurrentProfileUsage,
+  openTweaksPanel,
+  closeTweaksPanel,
+  selectTweaksTheme,
+  selectTweaksAccent,
+  applyAccentOverride,
+  updateTweaksUI,
 });

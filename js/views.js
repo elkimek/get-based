@@ -2,14 +2,15 @@
 
 import { state } from './state.js';
 import { CORRELATION_PRESETS, CHIP_COLORS, trackUsage, UNIT_CONVERSIONS, getAlternateUnit, convertUserInputToSI } from './schema.js';
-import { escapeHTML, getStatus, getRangePosition, formatValue, getTrend, showNotification, showConfirmDialog, showPromptDialog, hasCardContent, formatDate, safeMarkerId } from './utils.js';
+import { escapeHTML, escapeAttr, getStatus, getRangePosition, formatValue, getTrend, showNotification, showConfirmDialog, showPromptDialog, hasCardContent, formatDate, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, getFocusCardFingerprint, saveImportedData, recalculateHOMAIR, updateHeaderDates, renderDateRangeFilter, renderChartLayersDropdown, convertDisplayToSI } from './data.js';
-import { profileStorageKey } from './profile.js';
+import { profileStorageKey, getProfiles } from './profile.js';
 import { createLineChart, getMarkerDescription, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderWearableStrip } from './wearables.js';
-import { renderGeneticsSection } from './dna.js';
+import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
+import { ensureSNPTable, findGenotypeInfo, renderGeneticsSection } from './dna.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, renderInterpretiveLensSection, loadContextHealthDots, closeSuggestionsOnClickOutside } from './context-cards.js';
 import { callClaudeAPI, hasAIProvider, isAIPaused, getAIProvider, getActiveModelId } from './api.js';
@@ -19,12 +20,34 @@ import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
 
 function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
+function setDetailModalShell(...classes) {
+  const modal = document.getElementById('detail-modal');
+  if (!modal) return null;
+  modal.className = ['modal', ...classes.filter(Boolean)].join(' ');
+  return modal;
+}
 
 // ═══════════════════════════════════════════════
 // NAVIGATE (router)
 // ═══════════════════════════════════════════════
 
 export function navigate(category, data) {
+  category = category || 'dashboard';
+  const dashboardLens = category === 'labs' || category === 'genome' || category === 'body';
+  const routeCategory = dashboardLens ? 'dashboard' : category;
+  const activeCategory = category === 'labs' ? 'dashboard' : category;
+  if (category === 'insight') {
+    document.querySelectorAll(".nav-item").forEach(el => {
+      const isActive = el.dataset.category === 'insight';
+      el.classList.toggle("active", isActive);
+      el.classList.toggle("is-active", isActive);
+    });
+    if (window.closeMobileSidebar) window.closeMobileSidebar();
+    if (window.syncImportStatusFab) window.syncImportStatusFab();
+    if (window.openChatPanel) window.openChatPanel();
+    return;
+  }
+
   // Detect "re-render in place" (callsite is requesting a refresh of the
   // current view, not a real navigation). On in-place re-renders we use
   // ELEMENT-ANCHOR scroll preservation, not pixel-based: capture the
@@ -34,7 +57,7 @@ export function navigate(category, data) {
   // when the new layout has different content heights above the user's
   // viewport — they'd see a jump even though scrollY was technically
   // preserved.
-  const sameView = category === state.currentView;
+  const sameView = category === state.currentView && !dashboardLens;
   let anchor = null;
   // Track whether the caller explicitly requested an anchor — even if
   // the element isn't found, an explicit request means "don't fall
@@ -67,18 +90,29 @@ export function navigate(category, data) {
     }
   }
   document.querySelectorAll(".nav-item").forEach(el => {
-    el.classList.toggle("active", el.dataset.category === category);
+    const isActive = el.dataset.category === activeCategory;
+    el.classList.toggle("active", isActive);
+    el.classList.toggle("is-active", isActive);
   });
   // Close mobile sidebar on navigation
   if (window.closeMobileSidebar) window.closeMobileSidebar();
+  if (routeCategory !== "dashboard" && typeof document !== 'undefined') {
+    document.body.classList.remove('mobile-dashboard-active');
+  }
   if (window.syncImportStatusFab) window.syncImportStatusFab();
   destroyAllCharts();
-  if (category === "dashboard") showDashboard(data);
-  else if (category === "correlations") showCorrelations(data);
-  else if (category === "compare") showCompare(data);
-  else if (category === "light") showLight(data);
-  else showCategory(category, data);
-  state.currentView = category;
+  if (category === 'genome' || category === 'body') {
+    _suppressEmptyDashboardChatUntil = Date.now() + 2500;
+  }
+  if (routeCategory === "dashboard") showDashboard(data);
+  else if (routeCategory === "correlations") showCorrelations(data);
+  else if (routeCategory === "compare") showCompare(data);
+  else if (routeCategory === "light") showLight(data);
+  else showCategory(routeCategory, data);
+  state.currentView = routeCategory;
+  if (category === 'genome' || category === 'body') {
+    _scrollDashboardLensIntoView(category);
+  }
 
   if (anchor) {
     // Force synchronous layout so getBoundingClientRect is accurate.
@@ -126,6 +160,55 @@ export function navigate(category, data) {
   }
 }
 
+function _scrollDashboardLensIntoView(lens) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  const configs = {
+    genome: {
+      selectors: [
+        '#mobile-genome-section',
+        '#genetics-section',
+        '.dashboard-widget[data-widget-id="genome"]',
+        '.db-genome-empty',
+        '.genetics-empty-stub',
+      ],
+      afterScroll(target) {
+        const body = target.querySelector?.('.genetics-body') || document.querySelector('#genetics-section .genetics-body');
+        if (body?.classList.contains('hidden') && window.toggleGeneticsCollapse) window.toggleGeneticsCollapse();
+      },
+      fallback() {
+        if (window.openSettingsModal) window.openSettingsModal('data');
+      },
+    },
+    body: {
+      selectors: [
+        '#mobile-body-section',
+        '.dashboard-widget[data-widget-id="wearables"]',
+        '#wearable-strip',
+        '.wearable-strip',
+        '.dashboard-widget[data-widget-id="wearable-strip"]',
+        '.m-wear-empty',
+      ],
+      fallback() {
+        if (window.openSettingsModal) window.openSettingsModal('wearables');
+      },
+    },
+  };
+  const config = configs[lens];
+  if (!config) return;
+  setTimeout(() => {
+    const target = config.selectors
+      .map(selector => document.querySelector(selector))
+      .find(Boolean);
+    if (!target) {
+      config.fallback();
+      return;
+    }
+    const y = target.getBoundingClientRect().top + window.scrollY - 60;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    config.afterScroll?.(target);
+  }, 80);
+}
+
 // Monotonic counter for in-flight anchor-restore loops. Each navigate
 // captures a new token; older loops compare and bail when the user
 // has moved on.
@@ -134,6 +217,7 @@ let _navAnchorToken = 0;
 // reuse the original captured viewportTop instead of re-capturing AFTER
 // the jump that the original was trying to prevent.
 let _activeAnchor = null;
+let _suppressEmptyDashboardChatUntil = 0;
 
 // Capture identity + viewport position of the most reasonable scroll
 // anchor for the current interaction. Priority:
@@ -2694,6 +2778,1268 @@ function getSunCoordsHint() {
 }
 
 // ═══════════════════════════════════════════════
+// DASHBOARD WIDGETS
+// ═══════════════════════════════════════════════
+
+let _dashboardOrganizeMode = false;
+let _draggingDashboardWidgetId = null;
+
+const DASHBOARD_WIDGETS_VERSION = 5;
+const DASHBOARD_WIDGETS = [
+  { id: 'bio-age', title: 'Biological Age', description: 'Age-derived biological readout', size: 'half', render: renderDashboardBioAgeWidget },
+  { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', size: 'third', render: () => renderFocusCard() },
+  { id: 'spotlight', title: 'Marker Spotlight', description: 'Highest-priority current marker', size: 'half', render: renderDashboardSpotlightWidget },
+  { id: 'wearables', title: 'Wearables Today', description: 'Compact body signal tiles', size: 'half', render: renderDashboardWearableTilesWidget },
+  { id: 'stat-vitd', title: 'Vitamin D', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'vitamins', 'vitaminD') },
+  { id: 'stat-hba1c', title: 'HbA1c', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'diabetes', 'hba1c') },
+  { id: 'stat-testosterone', title: 'Testosterone', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'hormones', 'testosterone') },
+  { id: 'stat-apob', title: 'ApoB', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'lipids', 'apoB') },
+  { id: 'markers', title: 'All Biomarkers', description: 'Attention-ranked markers with sparklines', size: 'two-third', render: renderDashboardMarkerListWidget },
+  { id: 'insights', title: 'AI Insights', description: 'Top trend and range reads', size: 'third', render: renderDashboardInsightsListWidget },
+  { id: 'genome', title: 'Imported SNPs', description: 'All DNA calls and import status', size: 'half', render: renderDashboardGenomeWidget },
+  { id: 'alerts', title: 'Trends & Alerts', description: 'Fast changes and critical out-of-range markers', size: 'half', render: renderDashboardAlertsWidget },
+  { id: 'correlation', title: 'Correlations', description: 'Highest linked marker pairs', size: 'half', render: renderDashboardCorrelationWidget },
+  { id: 'lens', title: 'AI Lens', description: 'Interpretive lens and knowledge base', size: 'half', render: () => renderInterpretiveLensSection() },
+  { id: 'light-today', title: 'Light Today', description: 'Sun and light exposure channels', render: () => renderLightTodayStrip() },
+  { id: 'wearable-strip', title: 'Wearable Connections', description: 'Recovery, sleep, HRV, body composition', render: () => renderWearableStrip() },
+  { id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', render: () => renderProfileContextCards() },
+  { id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context', render: (ctx) => state.profileSex === 'female' ? renderMenstrualCycleSection(ctx.data) : '' },
+  { id: 'supplements', title: 'Supplements', description: 'Supplements and medication timeline', render: () => renderSupplementsSection() },
+  { id: 'key-trends', title: 'Key Trends', description: 'Auto-selected markers from your current range', render: renderDashboardKeyTrendsWidget },
+  { id: 'notes', title: 'Notes', description: 'Timeline notes linked to your data', render: renderDashboardNotesWidget },
+];
+const DASHBOARD_WIDGET_IDS = DASHBOARD_WIDGETS.map(w => w.id);
+const DASHBOARD_WIDGET_DEFAULT_IDS = [
+  'bio-age',
+  'focus',
+  'spotlight',
+  'wearables',
+  'light-today',
+  'stat-vitd',
+  'stat-hba1c',
+  'stat-testosterone',
+  'stat-apob',
+  'markers',
+  'insights',
+  'genome',
+  'alerts',
+  'correlation',
+  'profile-context',
+  'supplements',
+  'key-trends',
+];
+
+function dashboardWidgetStorageKey() {
+  return profileStorageKey(state.currentProfile || 'default', `dashboardWidgetsV${DASHBOARD_WIDGETS_VERSION}`);
+}
+
+function getDashboardDefaultWidgetPrefs() {
+  const order = [
+    ...DASHBOARD_WIDGET_DEFAULT_IDS,
+    ...DASHBOARD_WIDGET_IDS.filter(id => !DASHBOARD_WIDGET_DEFAULT_IDS.includes(id)),
+  ].filter(id => DASHBOARD_WIDGET_IDS.includes(id));
+  const hidden = DASHBOARD_WIDGET_IDS.filter(id => !DASHBOARD_WIDGET_DEFAULT_IDS.includes(id));
+  return { order, hidden };
+}
+
+function getDashboardWidgetPrefs() {
+  const fallback = getDashboardDefaultWidgetPrefs();
+  try {
+    const raw = JSON.parse(localStorage.getItem(dashboardWidgetStorageKey()));
+    if (!raw || !Array.isArray(raw.order) || !Array.isArray(raw.hidden)) return fallback;
+    const order = raw.order.filter(id => DASHBOARD_WIDGET_IDS.includes(id));
+    for (const id of DASHBOARD_WIDGET_IDS) if (!order.includes(id)) order.push(id);
+    return {
+      order,
+      hidden: raw.hidden.filter(id => DASHBOARD_WIDGET_IDS.includes(id)),
+    };
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function saveDashboardWidgetPrefs(prefs) {
+  const order = (prefs.order || []).filter(id => DASHBOARD_WIDGET_IDS.includes(id));
+  for (const id of DASHBOARD_WIDGET_IDS) if (!order.includes(id)) order.push(id);
+  const hidden = [...new Set(prefs.hidden || [])].filter(id => DASHBOARD_WIDGET_IDS.includes(id));
+  localStorage.setItem(dashboardWidgetStorageKey(), JSON.stringify({ order, hidden }));
+}
+
+function buildDashboardWidgetContext(data) {
+  const filteredData = filterDatesByRange(data);
+  const keyMarkers = getKeyTrendMarkers(filteredData);
+  const trendAlerts = detectTrendAlerts(filteredData);
+  const trendMarkerIds = new Set(trendAlerts.map(a => a.id));
+  const allFlags = getAllFlaggedMarkers(data);
+  const criticalFlags = allFlags.filter(f => {
+    if (trendMarkerIds.has(f.id)) return false;
+    const refRange = f.refMax - f.refMin;
+    if (refRange <= 0 || f.refMin == null || f.refMax == null) return false;
+    const distance = f.status === 'high' ? (f.rawValue - f.refMax) : (f.refMin - f.rawValue);
+    return distance > refRange * 0.5;
+  });
+  return { data, filteredData, keyMarkers, trendAlerts, criticalFlags };
+}
+
+function getOrderedDashboardWidgets(prefs = getDashboardWidgetPrefs()) {
+  const byId = new Map(DASHBOARD_WIDGETS.map(w => [w.id, w]));
+  return prefs.order.map(id => byId.get(id)).filter(Boolean);
+}
+
+function getDashboardProfileName() {
+  const profile = getMobileDashboardProfile();
+  const name = getMobileGreetingName(profile);
+  return name === 'there' ? 'Dashboard' : name;
+}
+
+function getDashboardPanelCount(data) {
+  return Object.values(data.categories || {}).filter(cat => {
+    if (cat.singlePoint && cat.singleDate) return true;
+    return Object.values(cat.markers || {}).some(markerHasData);
+  }).length;
+}
+
+function getDashboardMonthSpan(data) {
+  const dates = (data.dates || []).filter(Boolean);
+  if (dates.length < 2) return '';
+  const first = new Date(dates[0] + 'T00:00:00');
+  const last = new Date(dates[dates.length - 1] + 'T00:00:00');
+  if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime())) return '';
+  const months = Math.max(1, Math.round((last - first) / (1000 * 60 * 60 * 24 * 30.4375)));
+  return `${months} month${months === 1 ? '' : 's'}`;
+}
+
+function renderDashboardGreeting(ctx, title, visibleCount) {
+  const organizeLabel = _dashboardOrganizeMode ? 'Done' : 'Customize';
+  const counts = getMobileDashboardCounts(ctx.data);
+  const panelCount = getDashboardPanelCount(ctx.data);
+  const span = getDashboardMonthSpan(ctx.data);
+  const parts = [
+    `${counts.inRange} of ${counts.markerCount || 0} markers in range`,
+    counts.latestDate ? `last draw ${formatDate(counts.latestDate, 'short')}` : '',
+    `${panelCount} panel${panelCount === 1 ? '' : 's'}${span ? ` across ${span}` : ''}`,
+    `${visibleCount} widget${visibleCount === 1 ? '' : 's'} active`,
+  ].filter(Boolean);
+  return `<div class="category-header dashboard-greeting">
+    <div>
+      <div class="dashboard-greeting-kicker">${escapeHTML(title)}</div>
+      <h1>Hey ${escapeHTML(getDashboardProfileName())}.</h1>
+      <div class="dashboard-greeting-sub">${parts.map(escapeHTML).join(' · ')}</div>
+    </div>
+    <div class="dashboard-actions" aria-label="Dashboard widget controls">
+      <button class="dashboard-action-btn" type="button" onclick="window.toggleDashboardOrganizeMode()">${organizeLabel}</button>
+      <button class="dashboard-action-btn dashboard-action-btn-primary" type="button" onclick="window.openDashboardWidgetPicker()">+ Add widget</button>
+    </div>
+  </div>`;
+}
+
+function renderDashboardWidget(entry, prefs, index, visibleEntries) {
+  const { def, body } = entry;
+  const isHidden = prefs.hidden.includes(def.id);
+  if (isHidden || (!body && !_dashboardOrganizeMode)) return '';
+  const canMoveUp = index > 0;
+  const canMoveDown = index < visibleEntries.length - 1;
+  const controls = _dashboardOrganizeMode ? `<div class="dashboard-widget-tools">
+      <button type="button" class="dashboard-widget-tool" ${canMoveUp ? '' : 'disabled'} onclick="window.moveDashboardWidget('${def.id}', -1)" aria-label="Move ${escapeHTML(def.title)} up">↑</button>
+      <button type="button" class="dashboard-widget-tool" ${canMoveDown ? '' : 'disabled'} onclick="window.moveDashboardWidget('${def.id}', 1)" aria-label="Move ${escapeHTML(def.title)} down">↓</button>
+      <button type="button" class="dashboard-widget-tool" onclick="window.hideDashboardWidget('${def.id}')" aria-label="Hide ${escapeHTML(def.title)}">Hide</button>
+    </div>` : '';
+  return `<section class="dashboard-widget dashboard-widget-${def.size || 'full'}${_dashboardOrganizeMode ? ' is-organizing' : ''}${body ? '' : ' is-empty'}"
+      data-widget-id="${def.id}"
+      ${_dashboardOrganizeMode ? `draggable="true" ondragstart="window.startDashboardWidgetDrag(event, '${def.id}')" ondragover="window.allowDashboardWidgetDrop(event)" ondrop="window.dropDashboardWidget(event, '${def.id}')"` : ''}>
+    <div class="dashboard-widget-chrome">
+      <div class="dashboard-widget-handle" aria-hidden="true">⋮⋮</div>
+      <div class="dashboard-widget-heading">
+        <div class="dashboard-widget-title">${escapeHTML(def.title)}</div>
+        <div class="dashboard-widget-description">${escapeHTML(def.description || '')}</div>
+      </div>
+      ${controls}
+    </div>
+    <div class="dashboard-widget-body">${body || '<div class="dashboard-widget-empty">No data available for this widget.</div>'}</div>
+  </section>`;
+}
+
+function getDashboardMarkerByPath(data, catKey, markerKey) {
+  const id = `${catKey}_${markerKey}`;
+  if (!safeMarkerId(id)) return null;
+  const category = data.categories?.[catKey];
+  const marker = category?.markers?.[markerKey];
+  if (!category || !marker || !markerHasData(marker)) return null;
+  const latestIdx = getLatestValueIndex(marker.values || []);
+  if (latestIdx < 0) return null;
+  const range = getEffectiveRangeForDate(marker, latestIdx);
+  const value = marker.values[latestIdx];
+  const status = getStatus(value, range.min, range.max);
+  const trend = getTrend(marker.values || [], range.min, range.max);
+  state.markerRegistry[id] = marker;
+  return { id, category, marker, latestIdx, range, value, status, trend };
+}
+
+function getDashboardAge() {
+  if (!state.profileDob) return null;
+  const dob = new Date(state.profileDob);
+  if (Number.isNaN(dob.getTime())) return null;
+  return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+function getDashboardBioAgeMarker(ctx) {
+  const paths = [
+    ['ratios', 'bioAge'],
+    ['specialty', 'glycanAge'],
+    ['ratios', 'phenoAge'],
+    ['ratios', 'bortzAge'],
+  ];
+  for (const [cat, key] of paths) {
+    const hit = getDashboardMarkerByPath(ctx.data, cat, key);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function renderDashboardBioAgeWidget(ctx) {
+  const hit = getDashboardBioAgeMarker(ctx);
+  const age = getDashboardAge();
+  const value = hit ? Number(hit.value) : null;
+  const display = Number.isFinite(value) ? value.toFixed(1) : (age != null ? String(age) : '—');
+  const delta = Number.isFinite(value) && age != null ? value - age : null;
+  const deltaText = delta == null ? 'Chronological comparison unavailable'
+    : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} yr vs chronological`;
+  const pheno = getDashboardMarkerByPath(ctx.data, 'ratios', 'phenoAge');
+  const bortz = getDashboardMarkerByPath(ctx.data, 'ratios', 'bortzAge');
+  const pct = Number.isFinite(value) ? Math.max(4, Math.min(100, (value / 70) * 100)) : 35;
+  const open = hit ? ` onclick="window.showDetailModal('${hit.id}')"` : '';
+  return `<div class="db-hero-bio"${open}>
+    <div class="db-hero-bio-left">
+      <div class="db-hero-bio-num">${escapeHTML(display)}</div>
+      <div class="db-hero-bio-label">
+        <span class="top">${escapeHTML(hit?.marker?.name || 'Biological Age')}</span>
+        <span class="actual">Chronological: ${age != null ? `${age} yr` : 'not set'}</span>
+        <span class="delta">${escapeHTML(deltaText)}</span>
+      </div>
+    </div>
+    <div class="db-hero-bio-right">
+      <div class="db-hero-row"><span>PhenoAge</span><strong>${pheno ? formatValue(pheno.value) : '—'}</strong></div>
+      <div class="db-hero-row"><span>Bortz Age</span><strong>${bortz ? formatValue(bortz.value) : '—'}</strong></div>
+      <div class="db-hero-bio-bar"><div style="width:${pct.toFixed(0)}%"></div></div>
+      <div class="db-hero-scale"><span>0</span><span>35</span><span>70 yr</span></div>
+    </div>
+  </div>`;
+}
+
+function renderDashboardMiniSparkline(values, status, width = 120, height = 30) {
+  const points = (values || []).filter(v => v !== null && Number.isFinite(Number(v))).slice(-10).map(Number);
+  if (points.length < 2) return `<span class="db-spark db-spark-empty" aria-hidden="true"></span>`;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const coords = points.map((value, index) => {
+    const x = points.length === 1 ? width / 2 : (index / (points.length - 1)) * width;
+    const y = height - 2 - ((value - min) / span) * (height - 5);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="db-spark db-spark-${escapeAttr(status)}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+    <polyline points="${escapeAttr(coords)}"></polyline>
+    <circle cx="${escapeAttr(coords.split(' ').at(-1)?.split(',')[0] || String(width))}" cy="${escapeAttr(coords.split(' ').at(-1)?.split(',')[1] || '0')}" r="2.5"></circle>
+  </svg>`;
+}
+
+function renderDashboardStatWidget(ctx, catKey, markerKey) {
+  const hit = getDashboardMarkerByPath(ctx.data, catKey, markerKey);
+  if (!hit) return '';
+  return `<button type="button" class="db-stat-widget db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    <div class="db-stat-head">
+      <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
+      <span>${escapeHTML(hit.marker.name)}</span>
+    </div>
+    <div class="db-stat-value">${escapeHTML(formatValue(hit.value))}${hit.marker.unit ? `<small>${escapeHTML(hit.marker.unit)}</small>` : ''}</div>
+    <div class="db-stat-delta">${escapeHTML(hit.trend.arrow || '→')} vs prev</div>
+    ${renderDashboardMiniSparkline(hit.marker.values, hit.status, 120, 34)}
+  </button>`;
+}
+
+function getDashboardSpotlight(ctx) {
+  const firstAlert = ctx.trendAlerts?.[0];
+  if (firstAlert?.id) {
+    const idx = firstAlert.id.indexOf('_');
+    if (idx > 0) {
+      const hit = getDashboardMarkerByPath(ctx.data, firstAlert.id.slice(0, idx), firstAlert.id.slice(idx + 1));
+      if (hit) return hit;
+    }
+  }
+  for (const km of ctx.keyMarkers || []) {
+    const hit = getDashboardMarkerByPath(ctx.filteredData, km.cat, km.key) || getDashboardMarkerByPath(ctx.data, km.cat, km.key);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function renderDashboardSpotlightWidget(ctx) {
+  const hit = getDashboardSpotlight(ctx);
+  if (!hit) return '';
+  const range = getEffectiveRange(hit.marker);
+  const rangeText = range.min != null || range.max != null
+    ? `Range ${range.min != null ? formatValue(range.min) : '—'}–${range.max != null ? formatValue(range.max) : '—'} ${hit.marker.unit || ''}`
+    : 'No active range';
+  return `<div class="db-spotlight" role="button" tabindex="0" onclick="window.showDetailModal('${hit.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.showDetailModal('${hit.id}')}">
+    <div class="db-spotlight-head">
+      <div>
+        <div class="db-spotlight-name">${escapeHTML(hit.marker.name)}</div>
+        <div class="db-spotlight-meta">${escapeHTML(rangeText)}</div>
+      </div>
+      <div class="db-spotlight-value">${escapeHTML(formatValue(hit.value))}<small>${escapeHTML(hit.marker.unit || '')}</small></div>
+    </div>
+    ${renderDashboardMiniSparkline(hit.marker.values, hit.status, 420, 150)}
+    <button type="button" class="dashboard-action-btn" onclick="event.stopPropagation();window.showDetailModal('${hit.id}')">Open full marker</button>
+  </div>`;
+}
+
+function renderDashboardMarkerRow(marker) {
+  return `<button type="button" class="db-marker-row" onclick="window.showDetailModal('${marker.id}')" aria-label="${escapeAttr(marker.name + ': ' + marker.value + ' ' + marker.unit)}">
+    <span class="db-status-dot db-status-${escapeAttr(marker.status)}" aria-hidden="true"></span>
+    <span class="db-marker-name-wrap">
+      <span class="db-marker-name">${escapeHTML(marker.name)}</span>
+      <span class="db-marker-cat">${escapeHTML(marker.category)}</span>
+    </span>
+    <span class="db-marker-spark">${renderDashboardMiniSparkline(marker.values, marker.status, 140, 28)}</span>
+    <span class="db-marker-latest"><strong>${escapeHTML(marker.value)}</strong><small>${escapeHTML(marker.unit)}</small></span>
+    <span class="db-marker-trend">${escapeHTML(marker.trend?.arrow || '→')}</span>
+  </button>`;
+}
+
+function renderDashboardMarkerListWidget(ctx) {
+  const markers = getMobileDashboardMarkers(ctx).slice(0, 10);
+  if (!markers.length) return '';
+  return `<div class="db-marker-list">
+    <div class="db-marker-list-head"><span></span><span>Marker</span><span>Trend</span><span>Latest</span><span>Delta</span></div>
+    <div class="db-marker-list-scroll">${markers.map(renderDashboardMarkerRow).join('')}</div>
+  </div>`;
+}
+
+function renderDashboardInsightsListWidget(ctx) {
+  const markers = getMobileDashboardMarkers(ctx);
+  const insights = getMobileDashboardInsights(ctx, markers);
+  if (!insights.length) return '';
+  return `<div class="db-insights-list">${insights.map(insight => {
+    const open = insight.id && safeMarkerId(insight.id) ? ` onclick="window.showDetailModal('${insight.id}')"` : '';
+    return `<button type="button" class="db-insight db-insight-${escapeAttr(insight.tone)}"${open}>
+      <span class="db-insight-tag">${escapeHTML(insight.eyebrow)}</span>
+      <strong>${escapeHTML(insight.title)}</strong>
+      <span>${escapeHTML(insight.body)}</span>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+function renderDashboardWearableTilesWidget() {
+  const tiles = getMobileWearableTiles();
+  if (!tiles.length) return '';
+  return `<div class="db-wearable-grid">${tiles.map(tile => `<button type="button" class="db-wearable-tile" onclick="window.openWearableDetail ? window.openWearableDetail('${escapeAttr(tile.id)}') : window.openSettingsModal?.('wearables')">
+    <span class="db-wearable-label">${escapeHTML(tile.label)}</span>
+    <strong>${escapeHTML(tile.value)}</strong>
+    <span class="db-wearable-foot"><small>${escapeHTML(tile.unit || '')}</small><em>${escapeHTML(tile.change || 'latest')}</em></span>
+  </button>`).join('')}</div>`;
+}
+
+function getDashboardGenomeImpact(stored, entry) {
+  const info = entry ? findGenotypeInfo(entry, stored?.genotype) : null;
+  const effect = info?.effect || stored?.effect || 'info';
+  const valence = info?.valence || stored?.valence || 'risk';
+  const note = info?.note || stored?.note || '';
+  if (valence === 'protective') return { label: 'beneficial', rank: 3, note };
+  if (valence === 'neutral') return { label: 'informational', rank: 4, note };
+  if (effect === 'significant') return { label: 'significant', rank: 0, note };
+  if (effect === 'moderate') return { label: 'moderate', rank: 1, note };
+  if (effect === 'mild') return { label: 'mild', rank: 2, note };
+  if (effect === 'none') return { label: 'normal', rank: 5, note };
+  return { label: effect || 'info', rank: 6, note };
+}
+
+function renderDashboardGenomeWidget() {
+  const genetics = state.importedData?.genetics;
+  const snps = genetics?.snps || {};
+  const apoe = genetics?.apoe;
+  const snpTable = typeof window !== 'undefined' ? window._snpTableCache : null;
+  const snpCount = Object.keys(snps).length;
+  if (snpCount && !snpTable) {
+    ensureSNPTable()?.then(() => {
+      if (state.currentView === 'dashboard' && window.navigate) window.navigate('dashboard');
+    }).catch(() => {});
+  }
+  const findings = Object.entries(snps)
+    .map(([rsid, stored]) => {
+      const entry = snpTable?.[rsid];
+      const impact = getDashboardGenomeImpact(stored, entry);
+      return {
+        rsid,
+        ...stored,
+        impactLabel: impact.label,
+        impactRank: impact.rank,
+        note: impact.note || stored.note || '',
+      };
+    })
+    .filter(f => f.gene || f.variant || f.genotype)
+    .sort((a, b) => (a.impactRank - b.impactRank) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
+  if (!findings.length && !apoe && !genetics?.mtdna) {
+    return `<button type="button" class="db-genome-empty" onclick="window.triggerDNAFilePicker && window.triggerDNAFilePicker()">
+      <strong>Add DNA data</strong>
+      <span>Top variants will appear here alongside labs and body signals.</span>
+    </button>`;
+  }
+  const rows = findings.map(f => `<div class="db-snp-row">
+    <span class="db-snp-main">
+      <strong>${escapeHTML(f.gene || f.rsid)}</strong>
+      <small>${escapeHTML(f.variant || f.rsid)}</small>
+    </span>
+    <span class="db-snp-impact">${escapeHTML(f.impactLabel || 'info')}</span>
+    <span class="db-snp-geno">${escapeHTML(f.genotype || '—')}</span>
+    ${f.note ? `<span class="db-snp-note">${escapeHTML(f.note)}</span>` : ''}
+  </div>`).join('');
+  const meta = [
+    snpCount ? `${snpCount} imported SNP${snpCount === 1 ? '' : 's'}` : '',
+    genetics?.source || '',
+    genetics?.importDate || '',
+  ].filter(Boolean).join(' · ');
+  return `<div class="db-genome-list">
+    ${meta ? `<div class="db-genome-summary">${escapeHTML(meta)}</div>` : ''}
+    ${apoe ? `<div class="db-snp-row db-snp-row-apoe"><span class="db-snp-main"><strong>APOE</strong><small>Haplotype</small></span><span class="db-snp-impact">context</span><span class="db-snp-geno">${escapeHTML(apoe)}</span></div>` : ''}
+    ${genetics?.mtdna ? `<div class="db-snp-row"><span class="db-snp-main"><strong>mtDNA</strong><small>${escapeHTML(genetics.mtdna.coupling?.shortLabel || 'Haplogroup')}</small></span><span class="db-snp-impact">lineage</span><span class="db-snp-geno">${escapeHTML(genetics.mtdna.haplogroup)}</span></div>` : ''}
+    ${rows}
+  </div>`;
+}
+
+function dashboardPearson(aValues, bValues) {
+  const xs = [];
+  const ys = [];
+  const n = Math.min(aValues?.length || 0, bValues?.length || 0);
+  for (let i = 0; i < n; i++) {
+    const x = Number(aValues[i]);
+    const y = Number(bValues[i]);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      xs.push(x);
+      ys.push(y);
+    }
+  }
+  if (xs.length < 3) return null;
+  const meanX = xs.reduce((sum, value) => sum + value, 0) / xs.length;
+  const meanY = ys.reduce((sum, value) => sum + value, 0) / ys.length;
+  let num = 0;
+  let denX = 0;
+  let denY = 0;
+  for (let i = 0; i < xs.length; i++) {
+    const dx = xs[i] - meanX;
+    const dy = ys[i] - meanY;
+    num += dx * dy;
+    denX += dx * dx;
+    denY += dy * dy;
+  }
+  const den = Math.sqrt(denX * denY);
+  return den ? num / den : null;
+}
+
+function getDashboardCorrelationPairs(ctx) {
+  const target = getDashboardMarkerByPath(ctx.data, 'lipids', 'apoB')
+    || getDashboardMarkerByPath(ctx.data, 'lipids', 'ldl')
+    || getDashboardMarkerByPath(ctx.data, 'diabetes', 'hba1c')
+    || getDashboardSpotlight(ctx);
+  if (!target?.marker?.values) return null;
+  const pairs = [];
+  for (const [catKey, category] of Object.entries(ctx.data.categories || {})) {
+    for (const [markerKey, marker] of Object.entries(category.markers || {})) {
+      const id = `${catKey}_${markerKey}`;
+      if (id === target.id || !safeMarkerId(id) || !markerHasData(marker)) continue;
+      const r = dashboardPearson(target.marker.values || [], marker.values || []);
+      if (r == null || !Number.isFinite(r)) continue;
+      const latestIdx = getLatestValueIndex(marker.values || []);
+      state.markerRegistry[id] = marker;
+      pairs.push({
+        id,
+        name: marker.name || markerKey,
+        category: category.label || catKey,
+        value: latestIdx >= 0 ? formatValue(marker.values[latestIdx]) : '—',
+        unit: marker.unit || '',
+        r,
+      });
+    }
+  }
+  pairs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+  return { target, pairs: pairs.slice(0, 12) };
+}
+
+function renderDashboardCorrelationWidget(ctx) {
+  const result = getDashboardCorrelationPairs(ctx);
+  if (!result?.pairs?.length) {
+    return `<button type="button" class="db-correlation-empty" onclick="window.navigate('correlations')">
+      <strong>Pick markers to compare</strong>
+      <span>Correlations need at least three shared dated values.</span>
+    </button>`;
+  }
+  return `<div class="db-correlation-widget">
+    <div class="db-correlation-head">
+      <span>vs <strong>${escapeHTML(result.target.marker.name || 'target marker')}</strong></span>
+      <button type="button" onclick="window.navigate('correlations')">Open</button>
+    </div>
+    <div class="db-correlation-grid">
+      ${result.pairs.map(pair => {
+        const directionClass = pair.r >= 0 ? 'db-correlation-cell-pos' : 'db-correlation-cell-neg';
+        return `<button type="button" class="db-correlation-cell ${directionClass}" onclick="window.showDetailModal('${pair.id}')">
+          <span>${escapeHTML(pair.name)}</span>
+          <strong>${pair.r.toFixed(2)}</strong>
+          <small>${escapeHTML(pair.value)}${pair.unit ? ` ${escapeHTML(pair.unit)}` : ''}</small>
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderDashboardWidgets(ctx, title) {
+  const prefs = getDashboardWidgetPrefs();
+  const ordered = getOrderedDashboardWidgets(prefs);
+  const visibleEntries = ordered
+    .map(def => ({ def, body: def.render(ctx) || '' }))
+    .filter(entry => !prefs.hidden.includes(entry.def.id) && (entry.body || _dashboardOrganizeMode));
+  let html = renderDashboardGreeting(ctx, title, visibleEntries.length);
+  html += `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
+  html += renderOnboardingBanner();
+  html += renderAIConnectionReminder();
+  html += `<div class="dashboard-widgets${_dashboardOrganizeMode ? ' is-organizing' : ''}">`;
+  visibleEntries.forEach((entry, index) => { html += renderDashboardWidget(entry, prefs, index, visibleEntries); });
+  if (visibleEntries.length === 0) {
+    html += `<div class="dashboard-widget dashboard-widget-full is-empty">
+      <div class="dashboard-widget-empty">No widgets are visible.</div>
+    </div>`;
+  }
+  html += `</div>`;
+  if (_dashboardOrganizeMode) {
+    html += `<div class="dashboard-organize-footer">
+      <button type="button" class="dashboard-action-btn" onclick="window.openDashboardWidgetPicker()">+ Add widget</button>
+      <button type="button" class="dashboard-action-btn" onclick="window.resetDashboardWidgets()">Reset layout</button>
+    </div>`;
+  }
+  return html;
+}
+
+function renderDashboardKeyTrendsWidget(ctx) {
+  const { filteredData, keyMarkers } = ctx;
+  let html = `<div class="dashboard-widget-inline-controls">
+    ${renderDateRangeFilter()}
+    ${renderChartLayersDropdown()}
+  </div>`;
+  if (keyMarkers.length > 0) {
+    html += `<div class="charts-grid charts-grid-4col">`;
+    for (const km of keyMarkers) {
+      const marker = filteredData.categories[km.cat].markers[km.key];
+      html += renderChartCard(km.cat + "_" + km.key, marker, filteredData.dateLabels);
+    }
+    html += `</div>`;
+  } else {
+    html += `<div class="dashboard-widget-empty">No trend markers available in this date range.</div>`;
+  }
+  return html;
+}
+
+function renderDashboardAlertsWidget(ctx) {
+  const { trendAlerts, criticalFlags } = ctx;
+  const totalAttention = trendAlerts.length + criticalFlags.length;
+  if (totalAttention === 0) return '';
+  let html = `<div class="alerts-section dashboard-alerts-widget"><div class="alerts-title">Trends & Alerts (${totalAttention})</div>`;
+  for (const alert of trendAlerts) {
+    const isSudden = alert.concern.startsWith('sudden_');
+    const isPast = alert.concern.startsWith('past_');
+    const cls = isSudden ? 'trend-alert-sudden' : isPast ? 'trend-alert-danger' : 'trend-alert-warning';
+    const arrow = isSudden ? '\u26A1' : alert.direction === 'rising' ? '\u2197' : '\u2198';
+    const label = alert.concern === 'sudden_high' ? 'Sudden jump above range'
+      : alert.concern === 'sudden_low' ? 'Sudden drop below range'
+      : alert.concern === 'past_high' ? 'Above range & rising'
+      : alert.concern === 'past_low' ? 'Below range & falling'
+      : alert.concern === 'approaching_high' ? 'Approaching upper limit'
+      : 'Approaching lower limit';
+    html += `<div class="trend-alert-card ${cls}" role="button" tabindex="0" aria-label="${escapeHTML(alert.name)} \u2014 ${label}" onclick="showDetailModal('${alert.id}')">
+      <span class="trend-alert-arrow">${arrow}</span>
+      <div class="trend-alert-info">
+        <div class="trend-alert-name">${escapeHTML(alert.name)} <span class="trend-alert-cat">${escapeHTML(alert.category)}</span></div>
+        <div class="trend-alert-label">${label}</div>
+      </div>
+      <div class="trend-alert-spark">${alert.spark.join(' \u2192 ')}</div>
+    </div>`;
+  }
+  for (const f of criticalFlags) {
+    const cls = f.status === "high" ? "alert-high" : "alert-low";
+    const label = f.status === "high" ? "\u25B2 CRITICAL HIGH" : "\u25BC CRITICAL LOW";
+    html += `<div class="alert-card ${cls}" role="button" tabindex="0" aria-label="${label}: ${escapeHTML(f.name)} ${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}" onclick="navigate('${f.categoryKey}')">
+      <span class="alert-indicator">${label}</span>
+      <span class="alert-name">${escapeHTML(f.name)}</span>
+      <span class="alert-value">${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}</span>
+      <span class="alert-ref">${formatValue(f.effectiveMin)} \u2013 ${formatValue(f.effectiveMax)}</span></div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderDashboardNotesWidget() {
+  const hasNotes = state.importedData.notes && state.importedData.notes.length > 0;
+  let html = `<div class="notes-section dashboard-notes-widget">`;
+  html += `<button class="add-note-btn" onclick="openNoteEditor()">+ Add Note</button>`;
+  if (hasNotes) {
+    const notes = state.importedData.notes
+      .map((note, i) => ({ note, idx: i }))
+      .sort((a, b) => a.note.date.localeCompare(b.note.date));
+    for (const { note, idx } of notes) {
+      const d = new Date(note.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const preview = escapeHTML(note.text.length > 200 ? note.text.slice(0, 200) + '...' : note.text);
+      html += `<div class="note-card" role="button" tabindex="0" aria-label="Note from ${d}" onclick="openNoteEditor(null, ${idx})">
+        <div class="note-card-date">${d}</div>
+        <div class="note-card-text">${preview}</div>
+        <div class="note-card-actions">
+          <button class="note-card-action" onclick="event.stopPropagation();openNoteEditor(null, ${idx})">Edit</button>
+          <button class="note-card-action note-card-action-delete" onclick="event.stopPropagation();deleteNote(${idx})">Delete</button>
+        </div>
+      </div>`;
+    }
+  } else {
+    html += `<div class="dashboard-widget-empty">No notes yet. Add notes to track context around your lab results.</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function rerenderDashboardFromWidgetChange() {
+  window.navigate?.('dashboard');
+}
+
+export function toggleDashboardOrganizeMode(force) {
+  _dashboardOrganizeMode = typeof force === 'boolean' ? force : !_dashboardOrganizeMode;
+  rerenderDashboardFromWidgetChange();
+}
+
+export function moveDashboardWidget(id, direction) {
+  const prefs = getDashboardWidgetPrefs();
+  const visible = prefs.order.filter(widgetId => !prefs.hidden.includes(widgetId));
+  const visibleIndex = visible.indexOf(id);
+  const targetVisibleId = visible[visibleIndex + direction];
+  if (visibleIndex < 0 || !targetVisibleId) return;
+  const from = prefs.order.indexOf(id);
+  const to = prefs.order.indexOf(targetVisibleId);
+  prefs.order.splice(from, 1);
+  prefs.order.splice(to, 0, id);
+  saveDashboardWidgetPrefs(prefs);
+  rerenderDashboardFromWidgetChange();
+}
+
+export function hideDashboardWidget(id) {
+  const prefs = getDashboardWidgetPrefs();
+  if (!prefs.hidden.includes(id)) prefs.hidden.push(id);
+  saveDashboardWidgetPrefs(prefs);
+  rerenderDashboardFromWidgetChange();
+}
+
+export function showDashboardWidget(id) {
+  const prefs = getDashboardWidgetPrefs();
+  prefs.hidden = prefs.hidden.filter(widgetId => widgetId !== id);
+  if (!prefs.order.includes(id)) prefs.order.push(id);
+  saveDashboardWidgetPrefs(prefs);
+  closeDashboardWidgetPicker();
+  rerenderDashboardFromWidgetChange();
+}
+
+export function resetDashboardWidgets() {
+  localStorage.removeItem(dashboardWidgetStorageKey());
+  _dashboardOrganizeMode = false;
+  rerenderDashboardFromWidgetChange();
+}
+
+export function clearDashboardWidgets() {
+  saveDashboardWidgetPrefs({
+    order: [...DASHBOARD_WIDGET_IDS],
+    hidden: [...DASHBOARD_WIDGET_IDS],
+  });
+  _dashboardOrganizeMode = false;
+  rerenderDashboardFromWidgetChange();
+}
+
+export function openDashboardWidgetPicker() {
+  closeDashboardWidgetPicker();
+  const prefs = getDashboardWidgetPrefs();
+  const hidden = getOrderedDashboardWidgets(prefs).filter(def => prefs.hidden.includes(def.id));
+  const hiddenList = hidden.length ? hidden.map(def => `<button type="button" class="dashboard-widget-picker-card" onclick="window.showDashboardWidget('${def.id}')">
+      <span class="dashboard-widget-picker-title">${escapeHTML(def.title)}</span>
+      <span class="dashboard-widget-picker-sub">${escapeHTML(def.description || '')}</span>
+      <span class="dashboard-widget-picker-action">Add widget</span>
+    </button>`).join('') : `<div class="dashboard-widget-picker-empty">All widgets are visible.</div>`;
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" onclick="if(event.target===this)window.closeDashboardWidgetPicker()">
+    <div class="modal show dashboard-widget-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-widget-picker-title">
+      <button class="modal-close" aria-label="Close" onclick="window.closeDashboardWidgetPicker()">&times;</button>
+      <h3 id="dashboard-widget-picker-title">Add widget</h3>
+      <div class="dashboard-widget-picker-grid">${hiddenList}</div>
+      <div class="dashboard-widget-picker-actions">
+        <button type="button" class="dashboard-action-btn" onclick="window.toggleDashboardOrganizeMode(true);window.closeDashboardWidgetPicker()">Customize layout</button>
+        <button type="button" class="dashboard-action-btn" onclick="window.resetDashboardWidgets();window.closeDashboardWidgetPicker()">Reset layout</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+export function closeDashboardWidgetPicker() {
+  document.getElementById('dashboard-widget-picker-overlay')?.remove();
+}
+
+export function startDashboardWidgetDrag(event, id) {
+  _draggingDashboardWidgetId = id;
+  event.dataTransfer?.setData('text/plain', id);
+  event.dataTransfer?.setDragImage?.(event.currentTarget, 20, 20);
+}
+
+export function allowDashboardWidgetDrop(event) {
+  if (!_dashboardOrganizeMode) return;
+  event.preventDefault();
+}
+
+export function dropDashboardWidget(event, targetId) {
+  if (!_dashboardOrganizeMode) return;
+  event.preventDefault();
+  const sourceId = event.dataTransfer?.getData('text/plain') || _draggingDashboardWidgetId;
+  _draggingDashboardWidgetId = null;
+  if (!sourceId || sourceId === targetId) return;
+  const prefs = getDashboardWidgetPrefs();
+  const from = prefs.order.indexOf(sourceId);
+  const to = prefs.order.indexOf(targetId);
+  if (from < 0 || to < 0) return;
+  prefs.order.splice(from, 1);
+  prefs.order.splice(to, 0, sourceId);
+  saveDashboardWidgetPrefs(prefs);
+  rerenderDashboardFromWidgetChange();
+}
+
+Object.assign(window, {
+  toggleDashboardOrganizeMode,
+  moveDashboardWidget,
+  hideDashboardWidget,
+  showDashboardWidget,
+  resetDashboardWidgets,
+  clearDashboardWidgets,
+  openDashboardWidgetPicker,
+  closeDashboardWidgetPicker,
+  startDashboardWidgetDrag,
+  allowDashboardWidgetDrop,
+  dropDashboardWidget,
+});
+
+// ═══════════════════════════════════════════════
+// MOBILE DASHBOARD
+// ═══════════════════════════════════════════════
+
+const MOBILE_DASHBOARD_QUERY = '(max-width: 799px)';
+let _mobileDashboardScrollHandler = null;
+let _mobileDashboardManualTabLockUntil = 0;
+
+function isMobileDashboardViewport() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia(MOBILE_DASHBOARD_QUERY).matches;
+}
+
+function teardownMobileDashboardScrollSpy() {
+  if (_mobileDashboardScrollHandler && typeof window !== 'undefined') {
+    window.removeEventListener('scroll', _mobileDashboardScrollHandler);
+  }
+  _mobileDashboardScrollHandler = null;
+}
+
+function setupMobileDashboardScrollSpy() {
+  teardownMobileDashboardScrollSpy();
+  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') return;
+  let ticking = false;
+  const update = () => {
+    if (!document.body.classList.contains('mobile-dashboard-active')) return;
+    if (document.getElementById('chat-panel')?.classList.contains('open')) return;
+    if (document.getElementById('settings-modal-overlay')?.classList.contains('show')) return;
+    if (document.getElementById('client-list-overlay')?.classList.contains('show')) return;
+    const lockRemaining = _mobileDashboardManualTabLockUntil - Date.now();
+    if (lockRemaining > 0) {
+      setTimeout(update, lockRemaining + 20);
+      return;
+    }
+
+    const threshold = window.innerHeight * 0.35;
+    const sections = [
+      { tab: 'labs', el: document.querySelector('.m-greeting') },
+      { tab: 'body', el: document.getElementById('mobile-body-section') },
+      { tab: 'genome', el: document.getElementById('mobile-genome-section') },
+    ].filter(section => section.el);
+
+    let active = 'labs';
+    for (const section of sections) {
+      if (section.el.getBoundingClientRect().top <= threshold) active = section.tab;
+    }
+    mobileDashboardSetTab(active, { fromScroll: true });
+  };
+  _mobileDashboardScrollHandler = () => {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(() => {
+      ticking = false;
+      update();
+    });
+  };
+  window.addEventListener('scroll', _mobileDashboardScrollHandler, { passive: true });
+  setTimeout(update, 0);
+}
+
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  const mobileDashboardMedia = window.matchMedia(MOBILE_DASHBOARD_QUERY);
+  const refreshDashboardForBreakpoint = () => {
+    if (state.currentView === 'dashboard') window.navigate?.('dashboard');
+  };
+  if (typeof mobileDashboardMedia.addEventListener === 'function') {
+    mobileDashboardMedia.addEventListener('change', refreshDashboardForBreakpoint);
+  } else if (typeof mobileDashboardMedia.addListener === 'function') {
+    mobileDashboardMedia.addListener(refreshDashboardForBreakpoint);
+  }
+}
+
+function getMobileDashboardProfile() {
+  const profiles = getProfiles() || [];
+  return profiles.find(p => p.id === state.currentProfile) || profiles[0] || { id: 'default', name: 'Default' };
+}
+
+function getMobileGreetingName(profile) {
+  const name = (profile?.name || 'there').trim();
+  if (!name || name === 'Default') return 'there';
+  return name.split(/\s+/)[0];
+}
+
+function getMobileAvatar(profile) {
+  const name = profile?.name || '?';
+  if (profile?.avatar) {
+    return `<img class="m-avatar-img" src="${escapeAttr(profile.avatar)}" alt="">`;
+  }
+  const color = window.getAvatarColor ? window.getAvatarColor(profile?.id || 'default') : 'var(--accent)';
+  return `<span class="m-avatar-initial" style="background:${escapeAttr(color)}">${escapeHTML(name[0]?.toUpperCase() || '?')}</span>`;
+}
+
+function getMobileDashboardCounts(data) {
+  let markerCount = 0;
+  let inRange = 0;
+  let flagged = 0;
+  for (const cat of Object.values(data.categories || {})) {
+    for (const marker of Object.values(cat.markers || {})) {
+      if (!markerHasData(marker)) continue;
+      markerCount++;
+      const idx = getLatestValueIndex(marker.values || []);
+      if (idx < 0) continue;
+      const value = marker.values[idx];
+      const range = getEffectiveRangeForDate(marker, idx);
+      const status = getStatus(value, range.min, range.max);
+      if (status === 'normal') inRange++;
+      else if (status === 'high' || status === 'low') flagged++;
+    }
+  }
+  const latestDate = data.dates?.[data.dates.length - 1] || '';
+  return { markerCount, inRange, flagged, latestDate };
+}
+
+function mobileStatusLabel(status) {
+  if (status === 'normal') return 'In range';
+  if (status === 'high') return 'High';
+  if (status === 'low') return 'Low';
+  return 'No value';
+}
+
+function mobileStatusTone(status) {
+  if (status === 'normal') return 'good';
+  if (status === 'high' || status === 'low') return 'alert';
+  return 'muted';
+}
+
+function getMobileMarkerSummary(data, catKey, markerKey) {
+  const id = `${catKey}_${markerKey}`;
+  if (!safeMarkerId(id)) return null;
+  const category = data.categories?.[catKey];
+  const marker = category?.markers?.[markerKey];
+  if (!marker || !markerHasData(marker)) return null;
+  const latestIdx = getLatestValueIndex(marker.values || []);
+  if (latestIdx < 0) return null;
+  const value = marker.values[latestIdx];
+  const range = getEffectiveRangeForDate(marker, latestIdx);
+  const status = getStatus(value, range.min, range.max);
+  const trend = getTrend(marker.values || [], range.min, range.max);
+  const labelSource = marker.singlePoint ? [marker.singleDateLabel || 'Latest'] : (data.dateLabels || data.dates || []);
+  state.markerRegistry[id] = marker;
+  return {
+    id,
+    name: marker.name || markerKey,
+    category: category.label || catKey,
+    value: formatValue(value),
+    unit: marker.unit || '',
+    date: labelSource[latestIdx] || 'Latest',
+    status,
+    statusLabel: mobileStatusLabel(status),
+    tone: mobileStatusTone(status),
+    trend,
+    values: marker.values || [],
+  };
+}
+
+function getMobileDashboardMarkers(ctx) {
+  const seen = new Set();
+  const summaries = [];
+  const add = (catKey, markerKey, sourceData = ctx.filteredData) => {
+    const id = `${catKey}_${markerKey}`;
+    if (seen.has(id)) return;
+    const summary = getMobileMarkerSummary(sourceData, catKey, markerKey)
+      || getMobileMarkerSummary(ctx.data, catKey, markerKey);
+    if (!summary) return;
+    seen.add(id);
+    summaries.push(summary);
+  };
+
+  for (const km of ctx.keyMarkers || []) add(km.cat, km.key);
+  for (const alert of ctx.trendAlerts || []) {
+    const idx = alert.id.indexOf('_');
+    if (idx > 0) add(alert.id.slice(0, idx), alert.id.slice(idx + 1));
+  }
+  for (const flag of getAllFlaggedMarkers(ctx.data).slice(0, 12)) {
+    add(flag.categoryKey, flag.markerKey, ctx.data);
+  }
+  for (const [catKey, category] of Object.entries(ctx.filteredData.categories || {})) {
+    for (const markerKey of Object.keys(category.markers || {})) add(catKey, markerKey);
+    if (summaries.length >= 10) break;
+  }
+  return summaries.slice(0, 10);
+}
+
+function renderMobileSparkline(values, status) {
+  const points = (values || []).filter(v => v !== null && Number.isFinite(Number(v))).slice(-7).map(Number);
+  if (points.length < 2) return `<span class="m-spark m-spark-empty" aria-hidden="true"></span>`;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const coords = points.map((value, index) => {
+    const x = points.length === 1 ? 50 : (index / (points.length - 1)) * 100;
+    const y = 28 - ((value - min) / span) * 24;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="m-spark m-spark-${escapeAttr(status)}" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+    <polyline points="${escapeAttr(coords)}"></polyline>
+  </svg>`;
+}
+
+function renderMobileStatCard(item) {
+  if (item.type === 'summary') {
+    return `<div class="m-stat-card m-stat-summary">
+      <div class="m-stat-head"><span class="m-marker-dot" aria-hidden="true"></span><span class="m-stat-label">${escapeHTML(item.label)}</span></div>
+      <strong>${escapeHTML(item.value)}</strong>
+      <span class="m-stat-meta">${escapeHTML(item.meta)}</span>
+    </div>`;
+  }
+  return `<button type="button" class="m-stat-card m-stat-${escapeAttr(item.status)}" onclick="window.showDetailModal('${item.id}')" aria-label="${escapeAttr(item.name + ': ' + item.value + ' ' + item.unit + ', ' + item.statusLabel)}">
+    <div class="m-stat-head"><span class="m-marker-dot m-marker-${escapeAttr(item.status)}" aria-hidden="true"></span><span class="m-stat-label">${escapeHTML(item.name)}</span></div>
+    <strong>${escapeHTML(item.value)}${item.unit ? `<small>${escapeHTML(item.unit)}</small>` : ''}</strong>
+    <span class="m-stat-meta">${escapeHTML(item.statusLabel)}${item.trend?.arrow ? ` · ${escapeHTML(item.trend.arrow)}` : ''}</span>
+  </button>`;
+}
+
+function getMobileDashboardStats(data, ctx, markers) {
+  const counts = getMobileDashboardCounts(data);
+  const cards = markers.slice(0, 4).map(marker => ({ ...marker, type: 'marker' }));
+  const summaryCards = [
+    { type: 'summary', label: 'Attention', value: String((ctx.trendAlerts?.length || 0) + counts.flagged), meta: 'active flags' },
+    { type: 'summary', label: 'In range', value: `${counts.inRange}/${counts.markerCount || 0}`, meta: 'latest values' },
+    { type: 'summary', label: 'Last labs', value: counts.latestDate ? formatDate(counts.latestDate, 'short') : 'N/A', meta: `${data.dates?.length || 0} dates` },
+    { type: 'summary', label: 'Markers', value: String(counts.markerCount), meta: 'tracked' },
+  ];
+  for (const card of summaryCards) {
+    if (cards.length >= 4) break;
+    cards.push(card);
+  }
+  return cards.slice(0, 4);
+}
+
+function getMobileDashboardInsights(ctx, markers) {
+  const insights = [];
+  for (const flag of ctx.criticalFlags.slice(0, 2)) {
+    const summary = markers.find(m => m.id === flag.id);
+    insights.push({
+      id: flag.id,
+      tone: 'danger',
+      eyebrow: flag.status === 'high' ? 'Critical high' : 'Critical low',
+      title: flag.name,
+      body: `${formatValue(flag.rawValue)} ${flag.unit || ''} is outside the active range.`,
+      meta: summary?.trend?.arrow || summary?.date || '',
+    });
+  }
+  for (const alert of ctx.trendAlerts.slice(0, 3)) {
+    if (insights.length >= 3) break;
+    insights.push({
+      id: alert.id,
+      tone: alert.concern.startsWith('past_') || alert.concern.startsWith('sudden_') ? 'warn' : 'info',
+      eyebrow: 'Trend',
+      title: alert.name,
+      body: alert.concern.replace(/_/g, ' '),
+      meta: (alert.spark || []).join(' -> '),
+    });
+  }
+  if (insights.length === 0) {
+    insights.push({
+      tone: 'good',
+      eyebrow: 'Snapshot',
+      title: 'No urgent trend alerts',
+      body: 'Latest high-priority markers are not showing sudden range breaks.',
+      meta: `${markers.length} markers in the mobile watch list`,
+    });
+  }
+  return insights.slice(0, 3);
+}
+
+function renderMobileInsightCard(insight) {
+  const body = `<span class="m-insight-eyebrow">${escapeHTML(insight.eyebrow)}</span>
+    <strong>${escapeHTML(insight.title)}</strong>
+    <span>${escapeHTML(insight.body)}</span>
+    ${insight.meta ? `<small>${escapeHTML(insight.meta)}</small>` : ''}`;
+  if (insight.id && safeMarkerId(insight.id)) {
+    return `<button type="button" class="m-insight m-insight-${escapeAttr(insight.tone)}" onclick="window.showDetailModal('${insight.id}')">${body}</button>`;
+  }
+  return `<div class="m-insight m-insight-${escapeAttr(insight.tone)}">${body}</div>`;
+}
+
+function renderMobileMarkerRow(marker) {
+  return `<button type="button" class="m-marker-row" onclick="window.showDetailModal('${marker.id}')" aria-label="${escapeAttr(marker.name + ': ' + marker.value + ' ' + marker.unit)}">
+    <span class="m-marker-dot m-marker-${escapeAttr(marker.status)}" aria-hidden="true"></span>
+    <span class="m-marker-main">
+      <strong>${escapeHTML(marker.name)}</strong>
+      <small>${escapeHTML(marker.category)} · ${escapeHTML(marker.date)}</small>
+    </span>
+    ${renderMobileSparkline(marker.values, marker.status)}
+    <span class="m-marker-value">
+      <strong>${escapeHTML(marker.value)}</strong>
+      ${marker.unit ? `<small>${escapeHTML(marker.unit)}</small>` : ''}
+    </span>
+  </button>`;
+}
+
+const MOBILE_WEARABLE_PRIORITY = [
+  'hrv_rmssd',
+  'sleep_score',
+  'readiness_score',
+  'steps',
+  'rhr',
+  'weight',
+  'body_fat_pct',
+  'bp_systolic',
+];
+
+function formatMobileWearableValue(metricId, metric, summary) {
+  if (metricId === 'bp_systolic' && summary?.metrics?.bp_diastolic?.latest != null) {
+    return `${formatValue(metric.latest)}/${formatValue(summary.metrics.bp_diastolic.latest)}`;
+  }
+  const value = Number(metric?.latest);
+  if (!Number.isFinite(value)) return '—';
+  if (metricId === 'steps' && Math.abs(value) >= 1000) {
+    return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1).replace(/\.0$/, '')}k`;
+  }
+  return formatValue(value);
+}
+
+function formatMobileWearableDelta(metricId, metric, canon) {
+  const latest = Number(metric?.latest);
+  const baseline = Number(metric?.baseline);
+  if (!Number.isFinite(latest) || !Number.isFinite(baseline) || baseline === 0) return '';
+  if (metricId === 'steps') return '';
+  if (canon?.sub === 'Δ') {
+    const diff = latest - baseline;
+    const arrow = diff > 0.005 ? '↑' : diff < -0.005 ? '↓' : '→';
+    return `${arrow} ${Math.abs(diff).toFixed(2)}${canon.unit || ''}`;
+  }
+  const pct = ((latest - baseline) / baseline) * 100;
+  if (Math.abs(pct) < 0.5) return '→ baseline';
+  const arrow = pct > 0 ? '↑' : '↓';
+  return `${arrow} ${Math.abs(pct).toFixed(0)}%`;
+}
+
+function getMobileWearableTiles() {
+  const summary = state.importedData?.wearableSummary;
+  if (!summary?.metrics || Object.keys(summary.metrics).length === 0) return [];
+  const sourceIds = Object.keys(summary.sources || {});
+  const registryOrder = metricsForSources(sourceIds.length ? sourceIds : Object.keys(summary.metrics || {}));
+  const ordered = [
+    ...MOBILE_WEARABLE_PRIORITY,
+    ...registryOrder,
+    ...Object.keys(summary.metrics || {}),
+  ];
+  const seen = new Set();
+  const tiles = [];
+  for (const metricId of ordered) {
+    if (seen.has(metricId)) continue;
+    seen.add(metricId);
+    if (metricId === 'bp_diastolic' && summary.metrics.bp_systolic) continue;
+    const metric = summary.metrics[metricId];
+    const canon = canonicalMetric(metricId);
+    if (!metric || !canon || metric.latest == null) continue;
+    tiles.push({
+      id: metricId,
+      label: canon.label,
+      value: formatMobileWearableValue(metricId, metric, summary),
+      unit: metricId === 'bp_systolic' ? 'mmHg' : (canon.unit || canon.sub || ''),
+      change: formatMobileWearableDelta(metricId, metric, canon),
+    });
+    if (tiles.length >= 4) break;
+  }
+  return tiles;
+}
+
+function renderMobileWearableTiles(tiles) {
+  if (!tiles.length) {
+    return `<div class="m-wear-empty">
+      <strong>Connect body data</strong>
+      <span>HRV, sleep, steps, recovery and body composition can sit next to your labs.</span>
+      <button type="button" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">Connect</button>
+    </div>`;
+  }
+  return `<div class="m-wear-strip">
+    ${tiles.map(tile => `<button type="button" class="m-wear-tile" onclick="window.openWearableDetail ? window.openWearableDetail('${escapeAttr(tile.id)}') : window.openSettingsModal?.('wearables')" aria-label="${escapeAttr(tile.label + ': ' + tile.value + ' ' + tile.unit)}">
+      <span class="m-wear-label">${escapeHTML(tile.label)}</span>
+      <strong>${escapeHTML(tile.value)}${tile.unit ? `<small>${escapeHTML(tile.unit)}</small>` : ''}</strong>
+      <span class="m-wear-change">${escapeHTML(tile.change || 'latest')}</span>
+    </button>`).join('')}
+  </div>`;
+}
+
+function renderMobileSectionHead(title, count, actionLabel = '', action = '') {
+  return `<div class="m-section-head">
+    <div class="m-section-labels">
+      <span class="m-section-title">${escapeHTML(title)}</span>
+      ${count ? `<span class="m-section-count">${escapeHTML(count)}</span>` : ''}
+    </div>
+    ${actionLabel && action ? `<button type="button" onclick="${escapeAttr(action)}">${escapeHTML(actionLabel)}</button>` : ''}
+  </div>`;
+}
+
+export function mobileDashboardSetTab(tab, { fromScroll = false } = {}) {
+  if (!fromScroll) _mobileDashboardManualTabLockUntil = Date.now() + 600;
+  document.querySelectorAll('.m-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+
+function renderMobileBottomTabs() {
+  return `<nav class="m-tabbar" aria-label="Mobile dashboard sections">
+    <button type="button" class="m-tab active" data-tab="labs" onclick="window.mobileDashboardSetTab('labs');window.navigate('dashboard')" aria-label="Labs"><span>▦</span><small>Labs</small></button>
+    <button type="button" class="m-tab" data-tab="genome" onclick="window.mobileDashboardSetTab('genome');window.mobileDashboardJump('genome')" aria-label="Genome"><span>◇</span><small>Genome</small></button>
+    <button type="button" class="m-tab" data-tab="body" onclick="window.mobileDashboardSetTab('body');window.mobileDashboardJump('body')" aria-label="Body"><span>◌</span><small>Body</small></button>
+    <button type="button" class="m-tab" data-tab="insight" onclick="window.mobileDashboardSetTab('insight');window.openChatPanel && window.openChatPanel()" aria-label="Insight"><span>✦</span><small>Insight</small></button>
+    <button type="button" class="m-tab" data-tab="more" onclick="window.mobileDashboardSetTab('more');window.openSettingsModal && window.openSettingsModal()" aria-label="More"><span>☰</span><small>More</small></button>
+  </nav>`;
+}
+
+export function openMobileDashboardSearch() {
+  if (window.toggleMobileSidebar) window.toggleMobileSidebar();
+  setTimeout(() => document.getElementById('sidebar-search')?.focus(), 80);
+}
+
+export function mobileDashboardJump(section) {
+  if (section === 'genome') {
+    const target = document.getElementById('mobile-genome-section') || document.getElementById('genetics-section');
+    if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
+    else window.triggerDNAFilePicker?.();
+    return;
+  }
+  if (section === 'body') {
+    const target = document.getElementById('mobile-body-section') || document.querySelector('.wearable-strip');
+    if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
+    else window.openSettingsModal?.('wearables');
+  }
+}
+
+function renderMobileDashboard(data, { resetScroll = false } = {}) {
+  const main = document.getElementById("main-content");
+  if (!main) return;
+  const ctx = buildDashboardWidgetContext(data);
+  const profile = getMobileDashboardProfile();
+  const markers = getMobileDashboardMarkers(ctx);
+  const stats = getMobileDashboardStats(data, ctx, markers);
+  const insights = getMobileDashboardInsights(ctx, markers);
+  const lightHtml = renderLightTodayStrip();
+  const wearableTiles = getMobileWearableTiles();
+  const geneticsHtml = renderGeneticsSection();
+  const watchRows = markers.slice(0, 7).map(renderMobileMarkerRow).join('');
+  const firstName = getMobileGreetingName(profile);
+  const counts = getMobileDashboardCounts(data);
+  const greetingSub = [
+    `${counts.markerCount || 0} markers`,
+    counts.latestDate ? `last draw ${formatDate(counts.latestDate, 'short')}` : '',
+    `${data.dates?.length || 0} draw${data.dates?.length === 1 ? '' : 's'}`,
+  ].filter(Boolean).join(' · ');
+
+  document.body.classList.add('mobile-dashboard-active');
+  main.innerHTML = `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>
+    <div class="m-shell">
+      <div class="m-bg" aria-hidden="true"></div>
+      <div class="m-content">
+        <header class="m-topbar">
+          <div class="m-brand">
+            <strong>getbased</strong>
+            <span>${escapeHTML(profile?.name || 'Default')}</span>
+          </div>
+          <div class="m-topbar-actions">
+            <button type="button" class="m-icon-btn" onclick="window.openMobileDashboardSearch()" aria-label="Search markers">⌕</button>
+            <button type="button" class="m-avatar-btn" onclick="window.openClientList && window.openClientList()" aria-label="Switch profile">${getMobileAvatar(profile)}</button>
+          </div>
+        </header>
+
+        <section class="m-greeting">
+          <h1>Hey ${escapeHTML(firstName)}.</h1>
+          <div class="m-greeting-sub">${escapeHTML(greetingSub)}</div>
+        </section>
+
+        <section class="m-stats" aria-label="Quick stats">
+          ${stats.map(renderMobileStatCard).join('')}
+        </section>
+
+        <section class="m-section">
+          ${renderMobileSectionHead('Insights', String(insights.length), 'Ask AI', 'window.openChatPanel && window.openChatPanel()')}
+          <div class="m-insights">${insights.map(renderMobileInsightCard).join('')}</div>
+        </section>
+
+        <section class="m-section">
+          ${renderMobileSectionHead('Watch list', String(Math.min(markers.length, 7)), 'Explore', "window.navigate('correlations')")}
+          <div class="m-marker-list">${watchRows || '<div class="m-empty">No markers in the current range.</div>'}</div>
+        </section>
+
+        <section class="m-section" id="mobile-body-section">
+          ${renderMobileSectionHead('Today', wearableTiles.length ? `synced body data` : 'not connected', 'Connect', "window.openSettingsModal && window.openSettingsModal('wearables')")}
+          ${renderMobileWearableTiles(wearableTiles)}
+        </section>
+
+        ${lightHtml ? `<section class="m-section m-embedded" id="mobile-light-section">
+          ${renderMobileSectionHead('Light', 'sun + devices', 'Open', "window.navigate('light')")}
+          <div class="m-embedded-strip">${lightHtml}</div>
+        </section>` : ''}
+
+        ${geneticsHtml ? `<section class="m-section m-embedded" id="mobile-genome-section">
+          ${renderMobileSectionHead('Genome', 'DNA context', 'Import', 'window.triggerDNAFilePicker && window.triggerDNAFilePicker()')}
+          <div class="m-embedded-strip">${geneticsHtml}</div>
+        </section>` : ''}
+      </div>
+      <button type="button" class="m-chat-fab" onclick="window.openChatPanel && window.openChatPanel()" aria-label="Ask AI">✦</button>
+      ${renderMobileBottomTabs()}
+    </div>`;
+
+  if (resetScroll && typeof window.scrollTo === 'function') {
+    window.scrollTo(0, 0);
+  }
+  setupDropZone();
+  setupMobileDashboardScrollSpy();
+  loadContextHealthDots();
+  if (window.loadContextCardTips) window.loadContextCardTips();
+  loadCommitHash();
+  if (window.loadCatalog) window.loadCatalog().then(c => { window._cachedCatalog = c; });
+}
+
+Object.assign(window, {
+  openMobileDashboardSearch,
+  mobileDashboardJump,
+  mobileDashboardSetTab,
+});
+
+// ═══════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════
 
@@ -2705,6 +4051,9 @@ export function showDashboard(data) {
   if (window.ensureActiveDeviceTicker) try { window.ensureActiveDeviceTicker(); } catch (e) {}
   if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
+  const wasMobileDashboardActive = document.body.classList.contains('mobile-dashboard-active');
+  teardownMobileDashboardScrollSpy();
+  document.body.classList.remove('mobile-dashboard-active');
   const hasData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
 
   // Show/hide import FAB based on whether dashboard has data
@@ -2792,8 +4141,13 @@ export function showDashboard(data) {
     // firing — openChatPanel idempotently re-toggles chat-panel-fullscreen
     // from localStorage, which would stomp manual class state set by tests
     // (or any other in-flight UI gesture).
-    if (state.chatHistory.length === 0) {
+    if (state.chatHistory.length === 0 && Date.now() > _suppressEmptyDashboardChatUntil) {
       setTimeout(() => {
+        if (Date.now() <= _suppressEmptyDashboardChatUntil) return;
+        const latestData = getActiveData();
+        const stillEmpty = latestData.dates.length === 0
+          && !Object.values(latestData.categories).some(c => c.singlePoint && c.singleDate);
+        if (!stillEmpty || window._demoLoadingProfileId) return;
         if (!document.getElementById('chat-panel')?.classList.contains('open')) {
           window.openChatPanel?.();
         }
@@ -2802,145 +4156,23 @@ export function showDashboard(data) {
     return;
   }
 
-  // ── Has data: full dashboard ──
-  let html = `<div class="category-header"><h2>Dashboard Overview</h2>
-    <p>Summary of all results across ${data.dates.length} collection date${data.dates.length !== 1 ? 's' : ''}</p></div>`;
-  // Drop zone hidden element for drag-drop + file input (no visible space on dashboard)
-  html += `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
-
-  // ── 2. Onboarding Banner (Step 2) ──
-  html += renderOnboardingBanner();
-  html += renderAIConnectionReminder();
-
-  // Knowledge Base is now discoverable via the dashboard CTA pill
-  // ("Connect a knowledge base") and lives in its own dedicated modal —
-  // see openKnowledgeBaseModal() in lens.js. No banner needed here.
-
-  // ── 3. Interpretive Lens ──
-  html += renderInterpretiveLensSection();
-
-  // ── 3b. Focus Card (always render if data exists — shows cached insight even when AI is paused) ──
-  html += renderFocusCard();
-
-  // ── 3b1. Light Today strip (Light & Sun lens — appears once sessions exist or in solar windows) ──
-  html += renderLightTodayStrip();
-
-  // ── 3c. Wearable strip (Oura · Withings · Ultrahuman · WHOOP · Fitbit · Apple Health) ──
-  html += renderWearableStrip();
-
-  // ── 4. Profile Context Cards ──
-  html += renderProfileContextCards();
-
-  // ── 5. Menstrual Cycle (female only) ──
-  if (state.profileSex === 'female') html += renderMenstrualCycleSection(data);
-
-  // ── 6. Supplements & Medications ──
-  html += renderSupplementsSection();
-
-  // ── 7. Key Trends ──
-  const filteredData = filterDatesByRange(data);
-  html += `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:16px">
-    <div class="category-header" style="margin:0"><h2>Key Trends</h2>
-    <p>Auto-selected from your data</p></div>
-    ${renderDateRangeFilter()}
-    ${renderChartLayersDropdown()}
-  </div>`;
-
-  const keyMarkers = getKeyTrendMarkers(filteredData);
-  if (keyMarkers.length > 0) {
-    html += `<div class="charts-grid charts-grid-4col">`;
-    for (const km of keyMarkers) {
-      const marker = filteredData.categories[km.cat].markers[km.key];
-      html += renderChartCard(km.cat + "_" + km.key, marker, filteredData.dateLabels);
-    }
-    html += `</div>`;
+  if (isMobileDashboardViewport()) {
+    renderMobileDashboard(data, { resetScroll: !wasMobileDashboardActive });
+    return;
   }
 
-  // ── 7b. Genetics (static data, after dynamic trends) ──
-  html += renderGeneticsSection();
-
-  // ── 8. Trends & Critical Flags ──
-  const trendAlerts = detectTrendAlerts(filteredData);
-  const trendMarkerIds = new Set(trendAlerts.map(a => a.id));
-  const allFlags = getAllFlaggedMarkers(data);
-  // Critical flags always use reference range (not optimal) — critical is a medical concept
-  const criticalFlags = allFlags.filter(f => {
-    if (trendMarkerIds.has(f.id)) return false;
-    const refRange = f.refMax - f.refMin;
-    if (refRange <= 0 || f.refMin == null || f.refMax == null) return false;
-    const distance = f.status === 'high' ? (f.rawValue - f.refMax) : (f.refMin - f.rawValue);
-    return distance > refRange * 0.5;
-  });
-  const totalAttention = trendAlerts.length + criticalFlags.length;
-  if (totalAttention > 0) {
-    html += `<div class="alerts-section"><div class="alerts-title">Trends & Alerts (${totalAttention})</div>`;
-    for (const alert of trendAlerts) {
-      const isSudden = alert.concern.startsWith('sudden_');
-      const isPast = alert.concern.startsWith('past_');
-      const cls = isSudden ? 'trend-alert-sudden' : isPast ? 'trend-alert-danger' : 'trend-alert-warning';
-      const arrow = isSudden ? '\u26A1' : alert.direction === 'rising' ? '\u2197' : '\u2198';
-      const label = alert.concern === 'sudden_high' ? 'Sudden jump above range'
-        : alert.concern === 'sudden_low' ? 'Sudden drop below range'
-        : alert.concern === 'past_high' ? 'Above range & rising'
-        : alert.concern === 'past_low' ? 'Below range & falling'
-        : alert.concern === 'approaching_high' ? 'Approaching upper limit'
-        : 'Approaching lower limit';
-      html += `<div class="trend-alert-card ${cls}" role="button" tabindex="0" aria-label="${escapeHTML(alert.name)} \u2014 ${label}" onclick="showDetailModal('${alert.id}')">
-        <span class="trend-alert-arrow">${arrow}</span>
-        <div class="trend-alert-info">
-          <div class="trend-alert-name">${escapeHTML(alert.name)} <span class="trend-alert-cat">${escapeHTML(alert.category)}</span></div>
-          <div class="trend-alert-label">${label}</div>
-        </div>
-        <div class="trend-alert-spark">${alert.spark.join(' \u2192 ')}</div>
-      </div>`;
-    }
-    for (const f of criticalFlags) {
-      const cls = f.status === "high" ? "alert-high" : "alert-low";
-      const label = f.status === "high" ? "\u25B2 CRITICAL HIGH" : "\u25BC CRITICAL LOW";
-      html += `<div class="alert-card ${cls}" role="button" tabindex="0" aria-label="${label}: ${escapeHTML(f.name)} ${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}" onclick="navigate('${f.categoryKey}')">
-        <span class="alert-indicator">${label}</span>
-        <span class="alert-name">${escapeHTML(f.name)}</span>
-        <span class="alert-value">${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}</span>
-        <span class="alert-ref">${formatValue(f.effectiveMin)} \u2013 ${formatValue(f.effectiveMax)}</span></div>`;
-    }
-    html += `</div>`;
-  }
-
-  // ── 9. Notes (bottom) ──
-  const hasNotes = state.importedData.notes && state.importedData.notes.length > 0;
-  {
-    const noteCount = (state.importedData.notes || []).length;
-    const noteBadge = noteCount > 0 ? ` (${noteCount})` : '';
-    html += `<div style="margin-top:20px"><span class="context-section-title">Notes${noteBadge}</span></div>`;
-    html += `<div class="notes-section">`;
-    html += `<button class="add-note-btn" onclick="openNoteEditor()">+ Add Note</button>`;
-    if (hasNotes) {
-      const notes = state.importedData.notes
-        .map((note, i) => ({ note, idx: i }))
-        .sort((a, b) => a.note.date.localeCompare(b.note.date));
-      for (const { note, idx } of notes) {
-        const d = new Date(note.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const preview = escapeHTML(note.text.length > 200 ? note.text.slice(0, 200) + '...' : note.text);
-        html += `<div class="note-card" role="button" tabindex="0" aria-label="Note from ${d}" onclick="openNoteEditor(null, ${idx})">
-          <div class="note-card-date">${d}</div>
-          <div class="note-card-text">${preview}</div>
-          <div class="note-card-actions">
-            <button class="note-card-action" onclick="event.stopPropagation();openNoteEditor(null, ${idx})">Edit</button>
-            <button class="note-card-action note-card-action-delete" onclick="event.stopPropagation();deleteNote(${idx})">Delete</button>
-          </div>
-        </div>`;
-      }
-    } else {
-      html += `<div style="color:var(--text-muted);font-size:13px;padding:12px 0;font-style:italic">No notes yet — add notes to track context around your lab results</div>`;
-    }
-    html += `</div>`;
-  }
+  // ── Has data: full dashboard, rendered through modular widgets ──
+  const dashboardCtx = buildDashboardWidgetContext(data);
+  const dashboardTitle = 'Dashboard Overview';
+  let html = renderDashboardWidgets(dashboardCtx, dashboardTitle);
 
   main.innerHTML = html;
 
-  for (const km of keyMarkers) {
-    const marker = filteredData.categories[km.cat].markers[km.key];
-    createLineChart(km.cat + "_" + km.key, marker, filteredData.dateLabels, filteredData.dates, filteredData.phaseLabels);
+  for (const km of dashboardCtx.keyMarkers) {
+    const id = km.cat + "_" + km.key;
+    if (!document.getElementById("chart-" + id)) continue;
+    const marker = dashboardCtx.filteredData.categories[km.cat].markers[km.key];
+    createLineChart(id, marker, dashboardCtx.filteredData.dateLabels, dashboardCtx.filteredData.dates, dashboardCtx.filteredData.phaseLabels);
   }
   setupDropZone();
 
@@ -3969,10 +5201,49 @@ export function showDetailModal(id, opts = {}) {
   // Remember which marker is open so toggleAltUnits can re-render in place.
   state._activeDetailMarkerId = id;
   rememberModalTrigger();
-  const modal = document.getElementById("detail-modal");
+  const modal = setDetailModalShell('marker-detail-modal');
   const overlay = document.getElementById("modal-overlay");
+  if (!modal) return;
   const dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : data.dateLabels;
   const r = getEffectiveRange(marker);
+  const modalPoints = marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
+  const latestPoint = modalPoints[modalPoints.length - 1] || null;
+  const prevPoint = modalPoints.length > 1 ? modalPoints[modalPoints.length - 2] : null;
+  const firstPoint = modalPoints[0] || null;
+  const latestRange = latestPoint ? getEffectiveRangeForDate(marker, latestPoint.i) : r;
+  const latestStatus = latestPoint ? getStatus(latestPoint.v, latestRange.min, latestRange.max) : 'missing';
+  const statusText = latestStatus === 'normal' ? 'In range'
+    : latestStatus === 'high' ? 'Above range'
+    : latestStatus === 'low' ? 'Below range'
+    : 'No value';
+  const deltaFromPrev = latestPoint && prevPoint && Number(prevPoint.v) !== 0
+    ? (((Number(latestPoint.v) - Number(prevPoint.v)) / Number(prevPoint.v)) * 100)
+    : null;
+  const deltaFromFirst = latestPoint && firstPoint && Number(firstPoint.v) !== 0
+    ? (((Number(latestPoint.v) - Number(firstPoint.v)) / Number(firstPoint.v)) * 100)
+    : null;
+  const latestUnit = marker.unit || '';
+  const latestDisplay = latestPoint ? formatValue(latestPoint.v) : '—';
+  const latestDateLabel = latestPoint ? (dates[latestPoint.i] || 'Latest') : 'No values';
+  const rangeDisplay = `${latestRange.min != null ? formatValue(latestRange.min) : '—'}–${latestRange.max != null ? formatValue(latestRange.max) : '—'} ${latestUnit}`.trim();
+  const optimalDisplay = `${marker.optimalMin != null ? formatValue(marker.optimalMin) : '—'}–${marker.optimalMax != null ? formatValue(marker.optimalMax) : '—'} ${latestUnit}`.trim();
+  const clampPct = value => Math.max(0, Math.min(100, value));
+  const rangeBandHtml = (() => {
+    const min = latestRange.min;
+    const max = latestRange.max;
+    if (min == null || max == null || Number(max) === Number(min) || !latestPoint) return '';
+    const span = Number(max) - Number(min);
+    const dot = clampPct(((Number(latestPoint.v) - Number(min)) / span) * 100);
+    const optStart = marker.optimalMin != null ? clampPct(((Number(marker.optimalMin) - Number(min)) / span) * 100) : null;
+    const optEnd = marker.optimalMax != null ? clampPct(((Number(marker.optimalMax) - Number(min)) / span) * 100) : null;
+    const optWidth = optStart != null && optEnd != null ? Math.max(2, optEnd - optStart) : 0;
+    return `<div class="gb-range-band" aria-label="Range position">
+      <div class="gb-range-band-track"></div>
+      ${optWidth ? `<div class="gb-range-band-opt" style="left:${optStart}%;width:${optWidth}%"></div>` : ''}
+      <div class="gb-range-band-dot gb-range-band-dot-${escapeAttr(latestStatus)}" style="left:${dot}%"></div>
+      <div class="gb-range-band-scale"><span>${escapeHTML(formatValue(min))}</span><span>${escapeHTML(formatValue(max))}</span></div>
+    </div>`;
+  })();
   const dotKey = id.replace('_', '.');
   let rangeInfo = '';
   const overrides = state.importedData?.refOverrides?.[dotKey] || {};
@@ -4040,11 +5311,32 @@ export function showDetailModal(id, opts = {}) {
     }
   }
   let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
-    <h3>${escapeHTML(marker.name)}${renameLink}</h3>
-    <div class="modal-unit">${escapeHTML(marker.unit)}${rangeInfo}</div>
-    ${altUnitInfo}
+    <div class="gb-detail-head">
+      <div>
+        <div class="gb-detail-kicker">${escapeHTML(data.categories[catKey]?.label || catKey)}</div>
+        <h3>${escapeHTML(marker.name)}${renameLink}</h3>
+        <div class="modal-unit">${escapeHTML(marker.unit)}${rangeInfo}</div>
+        ${altUnitInfo}
+      </div>
+      <span class="gb-detail-status gb-detail-status-${escapeAttr(latestStatus)}">${escapeHTML(statusText)}</span>
+    </div>
     <div class="marker-description" id="marker-desc"></div>
+    <div class="gb-detail-summary">
+      <div class="stat-card">
+        <div class="stat-card-label">Latest</div>
+        <div class="stat-card-value val-${escapeAttr(latestStatus)}">${escapeHTML(latestDisplay)}${latestUnit ? ` <span>${escapeHTML(latestUnit)}</span>` : ''}</div>
+        <div class="stat-card-meta">${escapeHTML(latestDateLabel)}${deltaFromPrev != null ? ` · ${deltaFromPrev >= 0 ? '+' : ''}${deltaFromPrev.toFixed(1)}% vs prev` : ''}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Ranges</div>
+        <div class="stat-card-value stat-card-value-range">${escapeHTML(optimalDisplay)} <span>optimal</span></div>
+        <div class="stat-card-meta">Ref ${escapeHTML(rangeDisplay)}${deltaFromFirst != null ? ` · ${deltaFromFirst >= 0 ? '+' : ''}${deltaFromFirst.toFixed(1)}% vs first` : ''}</div>
+      </div>
+    </div>
+    ${rangeBandHtml}
+    <div class="gb-detail-section-label">Trend</div>
     <div class="modal-chart"><canvas id="chart-modal"></canvas></div>
+    <div class="gb-detail-section-label">History</div>
     <div class="modal-values-grid">`;
   for (let i = 0; i < marker.values.length; i++) {
     const v = marker.values[i];
@@ -4323,8 +5615,9 @@ export function openManualEntryForm(id, prefillDate) {
   const marker = data.categories[catKey]?.markers[mKey];
   if (marker) state.markerRegistry[id] = marker;
   if (!marker) return;
-  const modal = document.getElementById("detail-modal");
+  const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
   const overlay = document.getElementById("modal-overlay");
+  if (!modal) return;
   const today = new Date().toISOString().slice(0, 10);
   // Date fallback chain: explicit prefill (e.g. empty-cell click) → last-used in this session → today.
   // sessionStorage clears when the tab closes, so we don't outlast a single sitting.
@@ -4362,8 +5655,14 @@ export function openManualEntryForm(id, prefillDate) {
          <option value="${escapeHTML(_meAltUnit)}">${escapeHTML(_meAltUnit)}</option>
        </select>`
     : `<span style="color:var(--text-muted);font-weight:400">(${escapeHTML(marker.unit)})</span>`;
-  modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
-    <h3>Add Value Manually</h3>
+  modal.innerHTML = `<div class="gb-modal-head">
+      <div>
+        <div class="gb-modal-kicker">${escapeHTML(data.categories[catKey]?.label || catKey)}</div>
+        <div class="gb-modal-title">Add Value Manually</div>
+      </div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="gb-form-body">
     <div class="modal-unit"><strong>${escapeHTML(marker.name)}</strong> \u00b7 ${escapeHTML(marker.unit)}${refText ? ' \u00b7 ' + refText : ''}</div>
     <div class="manual-entry-form">
       <div class="me-field">
@@ -4378,11 +5677,12 @@ export function openManualEntryForm(id, prefillDate) {
         <label for="me-note">Note <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
         <textarea id="me-note" rows="2" placeholder="Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value..."></textarea>
       </div>
-      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <div class="gb-form-actions">
         <button class="import-btn import-btn-primary" onclick="saveManualEntry('${id}')">Save</button>
         <button class="import-btn import-btn-secondary" onclick="saveAndAddAnotherManualEntry('${id}')" title="Save this value, then enter another marker for the same date">Save &amp; Add Another</button>
         <button class="import-btn import-btn-secondary" onclick="showDetailModal('${id}')">Cancel</button>
       </div>
+    </div>
     </div>`;
   overlay.classList.add("show");
   setTimeout(() => {
@@ -4532,15 +5832,22 @@ export function saveAndAddAnotherManualEntry(id) {
 }
 
 export function openCreateMarkerModal() {
-  const modal = document.getElementById("detail-modal");
+  const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
   const overlay = document.getElementById("modal-overlay");
+  if (!modal) return;
   // Build category options from schema + existing custom categories
   const data = getActiveData();
   const catOptions = Object.entries(data.categories)
     .map(([key, c]) => `<option value="${key}">${escapeHTML(c.label)}</option>`)
     .join('');
-  modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
-    <h3>Create New Biomarker</h3>
+  modal.innerHTML = `<div class="gb-modal-head">
+      <div>
+        <div class="gb-modal-kicker">Custom marker</div>
+        <div class="gb-modal-title">Create New Biomarker</div>
+      </div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="gb-form-body">
     <div class="manual-entry-form">
       <div class="me-field">
         <label>Category</label>
@@ -4579,10 +5886,11 @@ export function openCreateMarkerModal() {
           <input type="number" id="cm-opt-max" step="any" placeholder="Max">
         </div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:16px">
+      <div class="gb-form-actions">
         <button class="import-btn import-btn-primary" onclick="saveCustomMarker()">Create</button>
         <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
       </div>
+    </div>
     </div>`;
   overlay.classList.add("show");
   setTimeout(() => { const el = document.getElementById('cm-name'); if (el) el.focus(); }, 50);
@@ -4869,6 +6177,8 @@ export async function deleteValueNote(id, date) {
 
 export function closeModal() {
   document.getElementById("modal-overlay").classList.remove("show");
+  const detailModal = document.getElementById("detail-modal");
+  if (detailModal) detailModal.className = 'modal';
   if (state.chartInstances["modal"]) { state.chartInstances["modal"].destroy(); delete state.chartInstances["modal"]; }
   document.removeEventListener('click', closeSuggestionsOnClickOutside);
   if (window.closeEMFInterpretation) window.closeEMFInterpretation();

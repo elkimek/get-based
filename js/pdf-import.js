@@ -691,9 +691,16 @@ export function showImportPreview(parseResult) {
   const unmatched = markers.filter(m => !m.matched && !m.suggestedKey);
   const importCount = matched.length + newMarkers.length;
   const batchCtx = window._batchImportContext;
-  const batchLabel = batchCtx ? `<div class="batch-counter">File ${batchCtx.current} of ${batchCtx.total}</div>` : '';
-  let html = `<button class="modal-close" onclick="closeImportModal()">&times;</button>
-    ${batchLabel}<h3>Import Preview</h3>
+  const batchLabel = batchCtx ? `File ${batchCtx.current} of ${batchCtx.total}` : 'Lab import';
+  modal.className = 'modal import-preview-modal gb-history-modal';
+  let html = `<div class="gb-modal-head">
+    <div>
+      <div class="gb-modal-kicker">${escapeHTML(batchLabel)}</div>
+      <div class="gb-modal-title">Import Preview</div>
+    </div>
+    <button class="modal-close" onclick="closeImportModal()">&times;</button>
+  </div>
+  <div class="gb-form-body">
     <p style="color:var(--text-secondary);margin-bottom:16px">
       File: ${escapeHTML(fileName)}<br>Collection Date: <strong>${dateFormatted}</strong><br>
       Matched: <span style="color:var(--green)">${matched.length}</span> \u00b7
@@ -797,7 +804,8 @@ export function showImportPreview(parseResult) {
   const importDisabled = !date ? ' disabled style="opacity:0.5;cursor:not-allowed"' : '';
   html += `<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
     <button class="import-btn import-btn-secondary" onclick="closeImportModal()">${cancelLabel}</button>
-    <button class="import-btn import-btn-primary" id="import-confirm-btn" onclick="confirmImport()"${importDisabled}>Import ${importCount} Marker${importCount !== 1 ? 's' : ''}</button></div>`;
+    <button class="import-btn import-btn-primary" id="import-confirm-btn" onclick="confirmImport()"${importDisabled}>Import ${importCount} Marker${importCount !== 1 ? 's' : ''}</button></div>
+    </div>`;
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   window._pendingImport = parseResult;
   modal.innerHTML = html;

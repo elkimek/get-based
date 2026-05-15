@@ -404,6 +404,8 @@ document.addEventListener("keydown", e => {
     if (feedbackOverlay && feedbackOverlay.classList.contains("show")) { window.closeFeedbackModal(); return; }
     const settingsOverlay = document.getElementById("settings-modal-overlay");
     if (settingsOverlay && settingsOverlay.classList.contains("show")) { window.closeSettingsModal(); return; }
+    const tweaksOverlay = document.getElementById("tweaks-panel-overlay");
+    if (tweaksOverlay && tweaksOverlay.classList.contains("show")) { window.closeTweaksPanel(); return; }
     const modalOverlay = document.getElementById("modal-overlay");
     if (modalOverlay && modalOverlay.classList.contains("show")) { window.closeModal(); return; }
     // Generic fallback: any dynamically-injected `.modal-overlay.show` (sun
@@ -421,7 +423,7 @@ document.addEventListener("keydown", e => {
   // `.modal-overlay` — include them so Tab doesn't escape back to the page
   // while the modal is visible.
   if (e.key === "Tab") {
-    const overlayIds = ["client-list-overlay","changelog-modal-overlay","settings-modal-overlay","import-modal-overlay","feedback-modal-overlay","sync-restore-overlay","sync-setup-overlay","modal-overlay","kb-modal-overlay","ai-personalize-picker-overlay","data-protection-picker-overlay"];
+    const overlayIds = ["client-list-overlay","changelog-modal-overlay","settings-modal-overlay","tweaks-panel-overlay","import-modal-overlay","feedback-modal-overlay","sync-restore-overlay","sync-setup-overlay","modal-overlay","kb-modal-overlay","ai-personalize-picker-overlay","data-protection-picker-overlay"];
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {

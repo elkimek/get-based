@@ -17,30 +17,34 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="vendor/fonts/fonts.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Major+Mono+Display&family=Share+Tech+Mono&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="themes-extra.css">
 </head>
 <body>
 
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <header class="header">
-    <div class="header-left">
+    <div class="brand header-left">
       <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleMobileSidebar()" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-      <a href="/" class="logo-link"><h1>getbased</h1></a>
+      <a href="/" class="logo-link"><h1 class="brand-mark">getbased</h1></a>
     </div>
-    <div class="header-info">
+    <div class="header-info header-mid">
       <div id="profile-selector"></div>
-      <span class="header-divider"></span>
       <div class="header-group header-data-group">
-        <div id="header-dates"><span class="label">Dates:</span></div>
+        <div id="header-dates" class="chip header-date-chip"><span class="label">Dates:</span></div>
         <div id="header-range-toggle" class="range-toggle"></div>
       </div>
-      <span class="header-divider"></span>
-      <div class="header-group">
-        <span id="sync-indicator-slot"></span>
+    </div>
+    <div class="header-group header-right">
+      <span id="sync-indicator-slot"></span>
+      <button class="header-icon-btn header-import-btn" onclick="document.getElementById('pdf-input').click()" title="Import" aria-label="Import lab results"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></button>
+      <button class="header-icon-btn tweaks-btn" onclick="openTweaksPanel()" title="Tweaks" aria-label="Tweaks"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
         <button class="header-icon-btn settings-btn" onclick="openSettingsModal()" title="Settings" aria-label="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button class="header-icon-btn feedback-btn" onclick="openFeedbackModal()" title="Send Feedback" aria-label="Send Feedback"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><line x1="6" y1="9" x2="8" y2="9"/><line x1="16" y1="9" x2="18" y2="9"/><line x1="6" y1="15" x2="8" y2="15"/><line x1="16" y1="15" x2="18" y2="15"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/><line x1="12" y1="13" x2="12" y2="13.01"/></svg></button>
         <a href="https://hydranode.org/btcpay/api/v1/invoices?storeId=BfxZicwEaRcJvJnkBPHdzGuCAonAhwLBb5vbWfjT2ZR1&checkoutDesc=Donate%20to%20getbased.health&price=&currency=USD&redirectURL=https%3A%2F%2Fgetbased.health%2Fthank-you" target="_blank" rel="noopener" class="header-icon-btn donate-btn" title="Donate" aria-label="Donate" style="text-decoration:none">&#x20bf; Donate</a>
-      </div>
     </div>
   </header>
 
@@ -141,8 +145,8 @@
             <span class="chat-lens-label">Lens</span>
           </button>
           <span class="sr-only" aria-live="polite" id="chat-lens-status"></span>
-          <button class="chat-summary-btn" onclick="summarizeThread()" title="Summarize this conversation">Summary</button>
-          <button class="chat-clear-btn" onclick="clearChatHistory()" title="Clear history">Clear</button>
+          <button class="chat-summary-btn" onclick="summarizeThread()" title="Summarize this conversation" aria-label="Summarize this conversation"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16"/><path d="M4 9h10"/><path d="M4 14h16"/><path d="M4 19h10"/></svg></button>
+          <button class="chat-clear-btn" onclick="clearChatHistory()" title="Clear history" aria-label="Clear history"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button>
           <button class="chat-fullscreen-btn" onclick="toggleChatFullscreen()" aria-label="Toggle fullscreen chat" title="Toggle fullscreen">⛶</button>
           <button class="chat-close-btn" onclick="closeChatPanel()" aria-label="Close chat">&times;</button>
         </div>

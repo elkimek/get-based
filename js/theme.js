@@ -1,5 +1,16 @@
 // theme.js — Theme management, chart colors, time format
 
+const VALID_THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+
+export const THEMES = [
+  { id: 'dark',          label: 'Modern Minimal' },
+  { id: 'light',         label: 'Soft Warm Light' },
+  { id: 'cyberterm',     label: 'Cypherpunk Terminal' },
+  { id: 'glass',         label: 'Glass / Liquid' },
+  { id: 'synth-sunrise', label: 'Synth Sunrise' },
+  { id: 'neuromancer',   label: 'Neuromancer' },
+];
+
 export function getTimeFormat() { return localStorage.getItem('labcharts-time-format') || '24h'; }
 export function setTimeFormat(fmt) { localStorage.setItem('labcharts-time-format', fmt); }
 
@@ -34,18 +45,23 @@ export function parseTimeInput(val) {
   return '';
 }
 
-export function getTheme() { return localStorage.getItem('labcharts-theme') || 'dark'; }
+export function getTheme() {
+  const theme = localStorage.getItem('labcharts-theme') || 'dark';
+  return VALID_THEMES.includes(theme) ? theme : 'dark';
+}
 
 export function setTheme(theme) {
+  if (!VALID_THEMES.includes(theme)) theme = 'dark';
   localStorage.setItem('labcharts-theme', theme);
-  if (theme === 'light') document.documentElement.dataset.theme = 'light';
-  else delete document.documentElement.dataset.theme;
+  if (theme === 'dark') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === 'light' ? '#ffffff' : '#1a1d27';
+  if (meta) meta.content = theme === 'light' ? '#ffffff' : '#0a0a12';
 }
 
 export function toggleTheme() {
-  setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+  const current = getTheme();
+  setTheme(current === 'light' ? 'dark' : 'light');
   const activeNav = document.querySelector('.nav-item.active');
   const activeCat = activeNav ? activeNav.dataset.category : 'dashboard';
   window.destroyAllCharts();
@@ -66,11 +82,11 @@ export function getChartColors() {
     tooltipBody: g('--text-secondary'), tooltipBorder: g('--border'),
     tickColor: g('--text-muted'), gridColor: g('--chart-grid'),
     legendColor: g('--text-secondary'), lineColor: g('--accent'),
-    lineFill: getTheme() === 'light' ? 'rgba(59,124,245,0.1)' : 'rgba(79,140,255,0.1)',
+    lineFill: g('--accent-fill') || 'color-mix(in srgb, var(--accent) 10%, transparent)',
     canvasTooltipBg: g('--chart-tooltip-bg'), canvasTooltipText: g('--text-primary'),
     chronoLineColor: g('--text-muted'),
     green: g('--green'), red: g('--red'), yellow: g('--yellow'),
   };
 }
 
-Object.assign(window, { getTheme, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors });
+Object.assign(window, { getTheme, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });
