@@ -358,15 +358,16 @@ function _suppFormHtml(editIdx, s) {
   const editing = !!s;
   const ingredients = editing && s.ingredients ? s.ingredients : [];
   const periods = editing ? getSupplementPeriods(s) : [{ start: new Date().toISOString().slice(0, 10), end: null }];
+  const sourceUrl = editing && s.sourceUrl ? s.sourceUrl : '';
   return `<div class="supp-form" id="supp-form-panel">
-    ${hasAIProvider() ? `<div class="supp-form-row supp-url-row">
-      <div class="supp-form-field" style="flex:1"><label>Import from URL</label>
+    <div class="supp-form-row supp-url-row">
+      <div class="supp-form-field" style="flex:1"><label>Product URL <span style="font-weight:normal;color:var(--text-muted)">(saved for reference${hasAIProvider() ? '; Fetch auto-fills' : ''})</span></label>
         <div class="supp-url-input-row">
-          <input type="url" id="supp-url" placeholder="Paste product page link to auto-fill" autocomplete="off">
-          <button class="supp-url-fetch" onclick="fetchSupplementFromURL()">Fetch</button>
+          <input type="url" id="supp-url" placeholder="https://..." autocomplete="off" value="${escapeHTML(sourceUrl)}">
+          ${hasAIProvider() ? `<button class="supp-url-fetch" onclick="fetchSupplementFromURL()">Fetch</button>` : ''}
         </div>
       </div>
-    </div>` : ''}
+    </div>
     <div class="supp-form-row">
       <div class="supp-form-field"><label>Name</label>
         <input type="text" id="supp-name" placeholder="e.g. Creatine, Metformin" value="${editing ? escapeHTML(s.name) : ''}">
@@ -461,11 +462,15 @@ export function openSupplementsEditor(editIdx) {
       const dateRange = pds.length === 1
         ? `${fmtDate(pds[0].start)} \u2192 ${pds[0].end ? fmtDate(pds[0].end) : 'ongoing'}`
         : pds.map(p => `${fmtDate(p.start)}\u2192${p.end ? fmtDate(p.end) : 'now'}`).join(' \u00b7 ');
+      let sourceHost = '';
+      if (s.sourceUrl) {
+        try { sourceHost = new URL(s.sourceUrl).hostname.replace(/^www\./, ''); } catch { sourceHost = ''; }
+      }
       html += `<div class="supp-list-item${isEdit && editIdx === i ? ' supp-list-item-active' : ''}" data-idx="${i}" onclick="toggleSuppAccordion(${i})">
         <span class="supp-list-icon">${icon}</span>
         <div class="supp-list-info">
           <div class="supp-list-name">${escapeHTML(s.name)}${s.dosage ? ` <span class="supp-list-meta">${escapeHTML(s.dosage)}</span>` : ''}</div>
-          <div class="supp-list-meta">${dateRange}</div>
+          <div class="supp-list-meta">${dateRange}${sourceHost ? ` &middot; <a href="${escapeHTML(s.sourceUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="supp-list-source">${escapeHTML(sourceHost)} ↗</a>` : ''}</div>
           ${s.ingredients?.length ? `<div class="supp-list-ingredients">${s.ingredients.map(ing => {
             const total = ingredientDailyTotal(ing, s);
             const times = effectiveTimesPerDay(ing, s);
@@ -540,11 +545,21 @@ export function saveSupplement(idx) {
   const ingredients = _collectIngredients();
   const timesRaw = document.getElementById('supp-times')?.value.trim();
   const timesNum = timesRaw ? parseFloat(timesRaw) : NaN;
+  const sourceUrlRaw = document.getElementById('supp-url')?.value.trim() || '';
+  let sourceUrl = '';
+  if (sourceUrlRaw) {
+    try {
+      const parsed = new URL(sourceUrlRaw);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') { showNotification('Product URL must be http or https', 'error'); return; }
+      sourceUrl = parsed.toString();
+    } catch { showNotification('Invalid product URL', 'error'); return; }
+  }
   if (!state.importedData.supplements) state.importedData.supplements = [];
   const entry = { name, dosage, startDate, endDate, type, note };
   if (sorted.length > 1) entry.periods = sorted;
   if (ingredients) entry.ingredients = ingredients;
   if (isFinite(timesNum) && timesNum > 0) entry.timesPerDay = timesNum;
+  if (sourceUrl) entry.sourceUrl = sourceUrl;
   if (idx >= 0) {
     state.importedData.supplements[idx] = entry;
   } else {
