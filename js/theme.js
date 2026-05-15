@@ -1,6 +1,14 @@
 // theme.js — Theme management, chart colors, time format
 
 const VALID_THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+const THEME_BAR_COLORS = {
+  dark: '#0a0a12',
+  light: '#ffffff',
+  cyberterm: '#0b0d0b',
+  glass: '#0a0817',
+  'synth-sunrise': '#0d0524',
+  neuromancer: '#050608',
+};
 
 export const THEMES = [
   { id: 'dark',          label: 'Modern Minimal' },
@@ -50,28 +58,61 @@ export function getTheme() {
   return VALID_THEMES.includes(theme) ? theme : 'dark';
 }
 
+export function getThemeColor(theme = getTheme()) {
+  return THEME_BAR_COLORS[theme] || THEME_BAR_COLORS.dark;
+}
+
 export function setTheme(theme) {
   if (!VALID_THEMES.includes(theme)) theme = 'dark';
   localStorage.setItem('labcharts-theme', theme);
   if (theme === 'dark') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === 'light' ? '#ffffff' : '#0a0a12';
+  document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
+    meta.content = getThemeColor(theme);
+  });
+  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+    window.dispatchEvent(new CustomEvent('labcharts-themechange', { detail: { theme } }));
+  }
+}
+
+function refreshThemeDependents() {
+  window.applyAccentOverride?.();
+  window.updateSettingsUI?.();
+  window.updateTweaksUI?.();
+  if (window.scheduleChartThemeRefresh) window.scheduleChartThemeRefresh();
+  else window.refreshChartThemeColors?.({ batchSize: 4 });
+  // If the Settings modal is open, the wearables list uses theme-aware
+  // iconLight/iconDark assets, so refresh that panel in place.
+  if (document.getElementById('settings-modal')?.classList.contains('show')) {
+    window.refreshSettingsWearables?.();
+  }
+}
+
+let toggleThemeFrame = 0;
+let toggleThemeTimer = 0;
+function scheduleThemeCommit(theme) {
+  if (toggleThemeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(toggleThemeFrame);
+  if (toggleThemeTimer) clearTimeout(toggleThemeTimer);
+  const commit = () => {
+    toggleThemeTimer = 0;
+    setTheme(theme);
+    refreshThemeDependents();
+  };
+  if (typeof window.requestAnimationFrame === 'function') {
+    toggleThemeFrame = window.requestAnimationFrame(() => {
+      toggleThemeFrame = window.requestAnimationFrame(() => {
+        toggleThemeFrame = 0;
+        commit();
+      });
+    });
+  } else {
+    toggleThemeTimer = setTimeout(commit, 0);
+  }
 }
 
 export function toggleTheme() {
   const current = getTheme();
-  setTheme(current === 'light' ? 'dark' : 'light');
-  const activeNav = document.querySelector('.nav-item.active');
-  const activeCat = activeNav ? activeNav.dataset.category : 'dashboard';
-  window.destroyAllCharts();
-  window.navigate(activeCat);
-  // If the Settings modal is open, the wearables list (and other theme-sensitive
-  // panels) won't re-render via navigate(). Vendor logos in the integrations
-  // list use theme-aware iconLight/iconDark assets — refresh in place.
-  if (document.getElementById('settings-modal')?.classList.contains('show')) {
-    window.refreshSettingsWearables?.();
-  }
+  scheduleThemeCommit(current === 'light' ? 'dark' : 'light');
 }
 
 export function getChartColors() {
@@ -89,4 +130,4 @@ export function getChartColors() {
   };
 }
 
-Object.assign(window, { getTheme, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });
+Object.assign(window, { getTheme, getThemeColor, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });

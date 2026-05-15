@@ -3527,6 +3527,7 @@ Object.assign(window, {
 // ═══════════════════════════════════════════════
 
 const MOBILE_DASHBOARD_QUERY = '(max-width: 799px)';
+const MOBILE_DASHBOARD_SCROLL_OFFSET = 64;
 let _mobileDashboardScrollHandler = null;
 let _mobileDashboardManualTabLockUntil = 0;
 
@@ -3541,6 +3542,27 @@ function teardownMobileDashboardScrollSpy() {
     window.removeEventListener('scroll', _mobileDashboardScrollHandler);
   }
   _mobileDashboardScrollHandler = null;
+}
+
+function getMobileDashboardActiveTabFromScroll() {
+  const threshold = window.innerHeight * 0.35;
+  const sections = [
+    { tab: 'labs', el: document.querySelector('.m-greeting') },
+    { tab: 'body', el: document.getElementById('mobile-body-section') },
+    { tab: 'genome', el: document.getElementById('mobile-genome-section') },
+  ].filter(section => section.el);
+
+  let active = 'labs';
+  for (const section of sections) {
+    if (section.el.getBoundingClientRect().top <= threshold) active = section.tab;
+  }
+  return active;
+}
+
+export function refreshMobileDashboardActiveTab() {
+  if (!document.body.classList.contains('mobile-dashboard-active')) return;
+  _mobileDashboardManualTabLockUntil = 0;
+  mobileDashboardSetTab(getMobileDashboardActiveTabFromScroll(), { fromScroll: true });
 }
 
 function setupMobileDashboardScrollSpy() {
@@ -3558,18 +3580,7 @@ function setupMobileDashboardScrollSpy() {
       return;
     }
 
-    const threshold = window.innerHeight * 0.35;
-    const sections = [
-      { tab: 'labs', el: document.querySelector('.m-greeting') },
-      { tab: 'body', el: document.getElementById('mobile-body-section') },
-      { tab: 'genome', el: document.getElementById('mobile-genome-section') },
-    ].filter(section => section.el);
-
-    let active = 'labs';
-    for (const section of sections) {
-      if (section.el.getBoundingClientRect().top <= threshold) active = section.tab;
-    }
-    mobileDashboardSetTab(active, { fromScroll: true });
+    mobileDashboardSetTab(getMobileDashboardActiveTabFromScroll(), { fromScroll: true });
   };
   _mobileDashboardScrollHandler = () => {
     if (ticking) return;
@@ -3912,6 +3923,26 @@ function renderMobileSectionHead(title, count, actionLabel = '', action = '') {
   </div>`;
 }
 
+function renderMobileIcon(name) {
+  const icons = {
+    labs: '<rect x="4" y="4" width="6" height="6" rx="1.2"></rect><rect x="14" y="4" width="6" height="6" rx="1.2"></rect><rect x="4" y="14" width="6" height="6" rx="1.2"></rect><rect x="14" y="14" width="6" height="6" rx="1.2"></rect>',
+    genome: '<path d="M8 4c4 4 4 12 8 16"></path><path d="M16 4c-4 4-4 12-8 16"></path><path d="M9.5 8h5"></path><path d="M9.5 12h5"></path><path d="M9.5 16h5"></path>',
+    body: '<path d="M4 12h4l2-6 4 12 2-6h4"></path>',
+    insight: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path>',
+    more: '<path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path>',
+    search: '<circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path>',
+    chat: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>',
+  };
+  return `<svg class="m-svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.labs}</svg>`;
+}
+
+function scrollMobileDashboardTarget(target) {
+  if (!target || typeof window.scrollTo !== 'function') return false;
+  const top = target.getBoundingClientRect().top + window.scrollY - MOBILE_DASHBOARD_SCROLL_OFFSET;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+  return true;
+}
+
 export function mobileDashboardSetTab(tab, { fromScroll = false } = {}) {
   if (!fromScroll) _mobileDashboardManualTabLockUntil = Date.now() + 600;
   document.querySelectorAll('.m-tab').forEach(btn => {
@@ -3921,11 +3952,11 @@ export function mobileDashboardSetTab(tab, { fromScroll = false } = {}) {
 
 function renderMobileBottomTabs() {
   return `<nav class="m-tabbar" aria-label="Mobile dashboard sections">
-    <button type="button" class="m-tab active" data-tab="labs" onclick="window.mobileDashboardSetTab('labs');window.navigate('dashboard')" aria-label="Labs"><span>▦</span><small>Labs</small></button>
-    <button type="button" class="m-tab" data-tab="genome" onclick="window.mobileDashboardSetTab('genome');window.mobileDashboardJump('genome')" aria-label="Genome"><span>◇</span><small>Genome</small></button>
-    <button type="button" class="m-tab" data-tab="body" onclick="window.mobileDashboardSetTab('body');window.mobileDashboardJump('body')" aria-label="Body"><span>◌</span><small>Body</small></button>
-    <button type="button" class="m-tab" data-tab="insight" onclick="window.mobileDashboardSetTab('insight');window.openChatPanel && window.openChatPanel()" aria-label="Insight"><span>✦</span><small>Insight</small></button>
-    <button type="button" class="m-tab" data-tab="more" onclick="window.mobileDashboardSetTab('more');window.openSettingsModal && window.openSettingsModal()" aria-label="More"><span>☰</span><small>More</small></button>
+    <button type="button" class="m-tab active" data-tab="labs" onclick="window.mobileDashboardSetTab('labs');window.navigate('dashboard')" aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
+    <button type="button" class="m-tab" data-tab="genome" onclick="window.mobileDashboardSetTab('genome');window.mobileDashboardJump('genome')" aria-label="Genome"><span class="m-tab-icon">${renderMobileIcon('genome')}</span><small>Genome</small></button>
+    <button type="button" class="m-tab" data-tab="body" onclick="window.mobileDashboardSetTab('body');window.mobileDashboardJump('body')" aria-label="Body"><span class="m-tab-icon">${renderMobileIcon('body')}</span><small>Body</small></button>
+    <button type="button" class="m-tab" data-tab="insight" onclick="window.mobileDashboardSetTab('insight');window.openChatPanel && window.openChatPanel()" aria-label="Insight"><span class="m-tab-icon">${renderMobileIcon('insight')}</span><small>Insight</small></button>
+    <button type="button" class="m-tab" data-tab="more" onclick="window.mobileDashboardSetTab('more');window.openSettingsModal && window.openSettingsModal()" aria-label="More"><span class="m-tab-icon">${renderMobileIcon('more')}</span><small>More</small></button>
   </nav>`;
 }
 
@@ -3937,14 +3968,14 @@ export function openMobileDashboardSearch() {
 export function mobileDashboardJump(section) {
   if (section === 'genome') {
     const target = document.getElementById('mobile-genome-section') || document.getElementById('genetics-section');
-    if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
-    else window.triggerDNAFilePicker?.();
+    if (target) scrollMobileDashboardTarget(target);
+    else mobileDashboardSetTab('genome', { fromScroll: true });
     return;
   }
   if (section === 'body') {
     const target = document.getElementById('mobile-body-section') || document.querySelector('.wearable-strip');
-    if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
-    else window.openSettingsModal?.('wearables');
+    if (target) scrollMobileDashboardTarget(target);
+    else mobileDashboardSetTab('body', { fromScroll: true });
   }
 }
 
@@ -3958,7 +3989,18 @@ function renderMobileDashboard(data, { resetScroll = false } = {}) {
   const insights = getMobileDashboardInsights(ctx, markers);
   const lightHtml = renderLightTodayStrip();
   const wearableTiles = getMobileWearableTiles();
-  const geneticsHtml = renderGeneticsSection();
+  const geneticsRawHtml = renderGeneticsSection();
+  const genetics = state.importedData.genetics || {};
+  const geneticsPending = (!!genetics.mtdna || Object.keys(genetics.snps || {}).length > 0)
+    ? `<div class="genetics-empty-stub genetics-loading-stub" aria-live="polite">
+      <span class="genetics-empty-stub-icon" aria-hidden="true">&#129516;</span>
+      <span class="genetics-empty-stub-body">
+        <span class="genetics-empty-stub-title">Loading DNA context</span>
+        <span class="genetics-empty-stub-sub">Your imported variants are being matched to the SNP catalog.</span>
+      </span>
+    </div>`
+    : '';
+  const geneticsHtml = geneticsRawHtml || geneticsPending;
   const watchRows = markers.slice(0, 7).map(renderMobileMarkerRow).join('');
   const firstName = getMobileGreetingName(profile);
   const counts = getMobileDashboardCounts(data);
@@ -3979,7 +4021,7 @@ function renderMobileDashboard(data, { resetScroll = false } = {}) {
             <span>${escapeHTML(profile?.name || 'Default')}</span>
           </div>
           <div class="m-topbar-actions">
-            <button type="button" class="m-icon-btn" onclick="window.openMobileDashboardSearch()" aria-label="Search markers">⌕</button>
+            <button type="button" class="m-icon-btn" onclick="window.openMobileDashboardSearch()" aria-label="Search markers">${renderMobileIcon('search')}</button>
             <button type="button" class="m-avatar-btn" onclick="window.openClientList && window.openClientList()" aria-label="Switch profile">${getMobileAvatar(profile)}</button>
           </div>
         </header>
@@ -4018,7 +4060,7 @@ function renderMobileDashboard(data, { resetScroll = false } = {}) {
           <div class="m-embedded-strip">${geneticsHtml}</div>
         </section>` : ''}
       </div>
-      <button type="button" class="m-chat-fab" onclick="window.openChatPanel && window.openChatPanel()" aria-label="Ask AI">✦</button>
+      <button type="button" class="m-chat-fab" onclick="window.openChatPanel && window.openChatPanel()" aria-label="Ask AI">${renderMobileIcon('chat')}</button>
       ${renderMobileBottomTabs()}
     </div>`;
 
@@ -4037,6 +4079,7 @@ Object.assign(window, {
   openMobileDashboardSearch,
   mobileDashboardJump,
   mobileDashboardSetTab,
+  refreshMobileDashboardActiveTab,
 });
 
 // ═══════════════════════════════════════════════
@@ -4974,10 +5017,11 @@ export function renderChartCard(id, marker, dateLabels) {
 
   const trend = getTrend(marker.values, lr.min, lr.max);
   const trendBadge = trend.cls !== 'trend-stable' || trend.arrow !== '\u2014' ? `<span class="chart-card-trend ${trend.cls}">${trend.arrow}</span>` : '';
+  const markerName = marker.name || '';
 
-  let html = `<div class="chart-card" role="button" tabindex="0" aria-label="${escapeHTML(marker.name)} — ${statusLabel}" onclick="showDetailModal('${id}')">
+  let html = `<div class="chart-card" role="button" tabindex="0" aria-label="${escapeAttr(markerName + ' - ' + statusLabel)}" onclick="showDetailModal('${id}')">
     <div class="chart-card-header"><div>
-      <div class="chart-card-title">${escapeHTML(marker.name)} <span id="chart-rec-${id}"></span></div>
+      <div class="chart-card-title" title="${escapeAttr(markerName)}">${escapeHTML(markerName)} <span id="chart-rec-${id}"></span></div>
       <div class="chart-card-unit">${escapeHTML(marker.unit)}</div></div>
       <div><span class="chart-card-status status-${status}">${sIcon ? sIcon + ' ' : ''}${statusLabel}</span>${trendBadge}</div></div>
     <div class="chart-container"><canvas id="chart-${id}"></canvas></div>

@@ -98,22 +98,14 @@
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 [data-theme="glass"] body {
-  background: #0a0817;
+  background:
+    linear-gradient(135deg, rgba(201,134,255,0.18) 0%, rgba(110,196,255,0.12) 42%, rgba(10,8,23,1) 100%),
+    #0a0817;
   position: relative;
   font-family: 'Inter', system-ui, sans-serif;
 }
 [data-theme="glass"] body::before {
-  content: "";
-  position: fixed; inset: -10%;
-  background:
-    radial-gradient(40% 40% at 18% 20%, rgba(196,99,255,0.55), transparent 60%),
-    radial-gradient(40% 40% at 80% 12%, rgba(99,180,255,0.5), transparent 65%),
-    radial-gradient(45% 45% at 70% 78%, rgba(180,99,255,0.55), transparent 60%),
-    radial-gradient(35% 35% at 20% 80%, rgba(255,150,99,0.5), transparent 65%);
-  filter: blur(40px);
-  z-index: 0;
-  pointer-events: none;
-  animation: glass-drift 28s ease-in-out infinite alternate;
+  display: none;
 }
 @keyframes glass-drift {
   0%   { transform: translate(0,0) scale(1); }
@@ -136,8 +128,8 @@
 [data-theme="glass"] .modal,
 [data-theme="glass"] .header,
 [data-theme="glass"] .sidebar {
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
 }
 
 
@@ -185,7 +177,7 @@
 [data-theme="synth-sunrise"] body {
   background:
     radial-gradient(60% 80% at 50% 95%, #ff7a18 0%, #ff2bd6 22%, #7c3aed 42%, #1c0a4a 70%, #0d0524 100%);
-  background-attachment: fixed;
+  background-attachment: scroll;
   position: relative;
   font-family: 'Space Grotesk', 'Inter', sans-serif;
 }
@@ -334,12 +326,21 @@
 }
 
 [data-theme="cyberterm"] .chart-card:hover,
-[data-theme="cyberterm"] .alert-card:hover {
+[data-theme="cyberterm"] .alert-card:hover,
+[data-theme="cyberterm"] .context-card:hover,
+[data-theme="cyberterm"] .focus-card:hover,
+[data-theme="cyberterm"] .lens-section:hover,
+[data-theme="cyberterm"] .fa-card:hover,
+[data-theme="cyberterm"] .trend-alert-card:hover,
+[data-theme="cyberterm"] .supp-timeline:hover,
+[data-theme="cyberterm"] .stat-card:hover {
   box-shadow: 3px 3px 0 var(--accent);
 }
 
 [data-theme="cyberterm"] { --on-accent: #0b0d0b; }
 [data-theme="glass"] { --on-accent: #1a0a2c; }
+/* #ff2bd6 with white foreground is under AA for normal text; this dark
+   foreground keeps synth active controls readable. */
 [data-theme="synth-sunrise"] { --on-accent: #0d0524; }
 [data-theme="neuromancer"] { --on-accent: #050608; }
 
@@ -425,8 +426,35 @@
 [data-theme="neuromancer"] ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
+  [data-theme="glass"] body,
   [data-theme="synth-sunrise"] body {
+    background: var(--bg-primary);
     background-attachment: scroll;
+  }
+  [data-theme="glass"] body::before,
+  [data-theme="synth-sunrise"] body::before,
+  [data-theme="neuromancer"] body::before {
+    display: none;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-theme="glass"] .chart-card,
+  [data-theme="glass"] .context-card,
+  [data-theme="glass"] .focus-card,
+  [data-theme="glass"] .lens-section,
+  [data-theme="glass"] .trend-alert-card,
+  [data-theme="glass"] .supp-timeline,
+  [data-theme="glass"] .alert-card,
+  [data-theme="glass"] .modal,
+  [data-theme="glass"] .header,
+  [data-theme="glass"] .sidebar,
+  [data-theme="glass"] .m-stat-card,
+  [data-theme="glass"] .m-insight,
+  [data-theme="glass"] .m-marker-row,
+  [data-theme="glass"] .m-wear-tile,
+  [data-theme="glass"] .m-tabbar {
+    background: rgba(38, 30, 72, 0.78);
   }
 }
 
@@ -566,5 +594,16 @@
     left: 0;
     height: calc(100vh - 64px);
     z-index: 10;
+  }
+}
+
+@media (max-width: 600px) {
+  [data-theme="neuromancer"] .brand-mark,
+  [data-theme="neuromancer"] .header h1.brand-mark,
+  [data-theme="neuromancer"] .m-brand strong {
+    font-family: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 17px;
+    letter-spacing: 0;
+    text-transform: lowercase;
   }
 }

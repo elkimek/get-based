@@ -1583,6 +1583,7 @@ export function closeChatPanel() {
   document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus');
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
+  window.refreshMobileDashboardActiveTab?.();
 }
 
 // ═══════════════════════════════════════════════

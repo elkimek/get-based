@@ -27,6 +27,22 @@ const TWEAK_ACCENTS = [
   { id: 'cyan', label: 'Cyan', color: '#06b6d4', light: '#22d3ee', fill: 'rgba(6, 182, 212, 0.12)', gradient: 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)' },
 ];
 
+function renderThemeButton(t, currentTheme, ctx = 'settings') {
+  const id = escapeAttr(t.id);
+  const label = escapeHTML(t.label);
+  const active = currentTheme === t.id ? ' active' : '';
+  const isTweaks = ctx === 'tweaks';
+  const className = isTweaks ? 'tweaks-theme-btn' : 'settings-theme-btn';
+  const handler = isTweaks ? 'selectTweaksTheme' : 'handleThemeChange';
+  const labelClass = isTweaks ? '' : ' class="settings-theme-label"';
+  return `
+    <button type="button" class="${className}${active}" data-theme-id="${id}" onclick="window.${handler}('${id}')">
+      <span class="settings-theme-swatch settings-theme-swatch-${id}" aria-hidden="true"></span>
+      <span${labelClass}>${label}</span>
+    </button>
+  `;
+}
+
 function getAccentOverride() {
   const value = localStorage.getItem(ACCENT_STORAGE_KEY) || '';
   return TWEAK_ACCENTS.some(a => a.id === value) ? value : '';
@@ -50,7 +66,7 @@ export function applyAccentOverride(id = getAccentOverride()) {
   }
   setProp('--accent', accent.color);
   setProp('--accent-light', accent.light);
-  setProp('--accent-fill', accent.fill);
+  setProp('--accent-fill', accent.fill || 'color-mix(in srgb, var(--accent) 10%, transparent)');
   setProp('--accent-gradient', accent.gradient);
   setProp('--shadow-glow', `0 0 0 1px ${accent.color}, 0 4px 12px ${accent.fill}`);
   setProp('--ref-band', accent.fill);
@@ -60,25 +76,72 @@ export function applyAccentOverride(id = getAccentOverride()) {
 function refreshVisualSurfaces() {
   window.updateSettingsUI?.();
   window.updateTweaksUI?.();
-  window.destroyAllCharts?.();
-  const activeView = state.currentView || document.querySelector('.nav-item.active,.nav-item.is-active')?.dataset.category || 'dashboard';
-  window.navigate?.(activeView === 'all' ? 'dashboard' : activeView);
+  scheduleChartThemeRefresh();
+  if (document.getElementById('settings-modal')?.classList.contains('show')) {
+    window.refreshSettingsWearables?.();
+  }
 }
 
-window.handleThemeChange = function(themeId) {
-  setTheme(themeId);
-  applyAccentOverride();
-  window.updateSettingsUI?.();
-  window.updateTweaksUI?.();
-  window.destroyAllCharts?.();
-  const cat = document.querySelector('.nav-item.active')?.dataset.category || 'dashboard';
-  window.navigate?.(cat);
-};
+let chartThemeRefreshFrame = 0;
+let chartThemeRefreshTimer = 0;
+function scheduleChartThemeRefresh() {
+  if (chartThemeRefreshFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(chartThemeRefreshFrame);
+  if (chartThemeRefreshTimer) clearTimeout(chartThemeRefreshTimer);
+  const refresh = () => window.refreshChartThemeColors?.({ batchSize: 4 });
+  if (typeof window.requestAnimationFrame === 'function') {
+    chartThemeRefreshFrame = window.requestAnimationFrame(() => {
+      chartThemeRefreshFrame = 0;
+      chartThemeRefreshTimer = setTimeout(() => {
+        chartThemeRefreshTimer = 0;
+        refresh();
+      }, 0);
+    });
+  } else {
+    chartThemeRefreshTimer = setTimeout(() => {
+      chartThemeRefreshTimer = 0;
+      refresh();
+    }, 0);
+  }
+}
 
-export function selectTweaksTheme(themeId) {
+let themeChangeFrame = 0;
+let themeChangeTimer = 0;
+let pendingThemeId = '';
+function markThemeControls(themeId) {
+  document.querySelectorAll('.settings-theme-btn,.tweaks-theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.themeId === themeId);
+  });
+}
+function applyThemeChange(themeId) {
   setTheme(themeId);
   applyAccentOverride();
   refreshVisualSurfaces();
+}
+function scheduleThemeChange(themeId) {
+  pendingThemeId = themeId;
+  markThemeControls(themeId);
+  if (themeChangeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(themeChangeFrame);
+  if (themeChangeTimer) clearTimeout(themeChangeTimer);
+  const commit = () => {
+    themeChangeTimer = 0;
+    applyThemeChange(pendingThemeId);
+  };
+  if (typeof window.requestAnimationFrame === 'function') {
+    themeChangeFrame = window.requestAnimationFrame(() => {
+      themeChangeFrame = window.requestAnimationFrame(() => {
+        themeChangeFrame = 0;
+        commit();
+      });
+    });
+  } else {
+    themeChangeTimer = setTimeout(commit, 0);
+  }
+}
+
+window.handleThemeChange = scheduleThemeChange;
+
+export function selectTweaksTheme(themeId) {
+  scheduleThemeChange(themeId);
 }
 
 export function selectTweaksAccent(accentId) {
@@ -106,12 +169,7 @@ export function openTweaksPanel() {
   closeTweaksPanel();
   const currentTheme = getTheme();
   const currentAccent = getAccentOverride();
-  const themeButtons = THEMES.map(t => `
-    <button type="button" class="tweaks-theme-btn${currentTheme === t.id ? ' active' : ''}" data-theme-id="${escapeAttr(t.id)}" onclick="window.selectTweaksTheme('${escapeAttr(t.id)}')">
-      <span class="settings-theme-swatch settings-theme-swatch-${escapeAttr(t.id)}" aria-hidden="true"></span>
-      <span>${escapeHTML(t.label)}</span>
-    </button>
-  `).join('');
+  const themeButtons = THEMES.map(t => renderThemeButton(t, currentTheme, 'tweaks')).join('');
   const accentButtons = TWEAK_ACCENTS.map(a => `
     <button type="button" class="tweaks-accent-btn${currentAccent === a.id ? ' active' : ''}" data-accent-id="${escapeAttr(a.id)}" onclick="window.selectTweaksAccent('${escapeAttr(a.id)}')" title="${escapeAttr(a.label)}" aria-label="${escapeAttr(a.label)}">
       <span class="tweaks-accent-swatch" style="--tweak-accent:${escapeAttr(a.color)};--tweak-gradient:${escapeAttr(a.gradient)}"></span>
@@ -161,6 +219,9 @@ export function openTweaksPanel() {
 }
 
 applyAccentOverride();
+if (typeof window !== 'undefined') {
+  window.addEventListener('labcharts-themechange', () => applyAccentOverride());
+}
 
 export function openSettingsModal(tab) {
   window._settingsHadProvider = !!window.hasAIProvider?.();
@@ -240,15 +301,7 @@ export function openSettingsModal(tab) {
         <div class="settings-section">
           <label class="settings-label">Theme</label>
           <div class="settings-theme-grid">
-            ${THEMES.map(t => `
-              <button
-                class="settings-theme-btn${currentTheme === t.id ? ' active' : ''}"
-                onclick="window.handleThemeChange('${t.id}')"
-                data-theme-id="${t.id}">
-                <span class="settings-theme-swatch settings-theme-swatch-${t.id}" aria-hidden="true"></span>
-                <span class="settings-theme-label">${t.label}</span>
-              </button>
-            `).join('')}
+            ${THEMES.map(t => renderThemeButton(t, currentTheme, 'settings')).join('')}
           </div>
         </div>
         <div class="settings-section">
@@ -676,6 +729,7 @@ export function closeSettingsModal() {
   const hadProvider = window._settingsHadProvider;
   document.getElementById('settings-modal-overlay').classList.remove('show');
   if (window.updateChatNudge) window.updateChatNudge();
+  window.refreshMobileDashboardActiveTab?.();
 }
 
 
@@ -1401,5 +1455,6 @@ Object.assign(window, {
   selectTweaksTheme,
   selectTweaksAccent,
   applyAccentOverride,
+  scheduleChartThemeRefresh,
   updateTweaksUI,
 });

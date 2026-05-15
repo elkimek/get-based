@@ -476,14 +476,15 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   const maxV = Math.max(...allValid, refMaxSafe, optMaxSafe);
   const pad = (maxV - minV) * 0.15 || 1;
   const chartRange = getEffectiveRange(marker);
-  const ptColors = []; const ptStyles = [];
+  const ptColors = []; const ptStyles = []; const ptStatuses = [];
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
-    if (v === null) { ptColors.push("transparent"); ptStyles.push('circle'); continue; }
+    if (v === null) { ptColors.push("transparent"); ptStyles.push('circle'); ptStatuses.push('missing'); continue; }
     const r = getEffectiveRangeForDate(marker, i + trimOffset);
     const s = getStatus(v, r.min, r.max);
     ptColors.push(s==="normal"?tc.green:s==="high"?tc.red:tc.yellow);
     ptStyles.push('circle');
+    ptStatuses.push(s);
   }
   const rawDates = chartDates || [];
   const chartNotes = marker.singlePoint ? [] : getNotesForChart(rawDates);
@@ -492,7 +493,8 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
     data: values, borderColor: tc.lineColor, backgroundColor: tc.lineFill,
     borderWidth: 2.5, pointBackgroundColor: ptColors, pointBorderColor: ptColors,
     pointStyle: ptStyles, pointRadius: 6, pointHoverRadius: 8, tension: 0.3, fill: false, spanGaps: true,
-    label: isPhenoAge ? 'Biological Age' : ''
+    label: isPhenoAge ? 'Biological Age' : '',
+    _gbPointStatuses: ptStatuses
   }];
   if (chronoAgeValues) {
     datasets.push({
@@ -535,6 +537,67 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   });
 }
 
+function getStatusChartColor(status, tc) {
+  if (status === 'normal') return tc.green;
+  if (status === 'high') return tc.red;
+  if (status === 'low') return tc.yellow;
+  return 'transparent';
+}
+
+function applyChartThemeColors(chart, tc) {
+  const plugins = chart.options?.plugins || {};
+  if (plugins.legend?.labels) plugins.legend.labels.color = tc.legendColor;
+  if (plugins.tooltip) {
+    plugins.tooltip.backgroundColor = tc.tooltipBg;
+    plugins.tooltip.titleColor = tc.tooltipTitle;
+    plugins.tooltip.bodyColor = tc.tooltipBody;
+    plugins.tooltip.borderColor = tc.tooltipBorder;
+  }
+
+  const xScale = chart.options?.scales?.x;
+  const yScale = chart.options?.scales?.y;
+  if (xScale?.ticks) xScale.ticks.color = tc.tickColor;
+  if (xScale?.grid && xScale.grid.display !== false) xScale.grid.color = tc.gridColor;
+  if (yScale?.ticks) yScale.ticks.color = tc.tickColor;
+  if (yScale?.grid) yScale.grid.color = tc.gridColor;
+
+  const datasets = chart.data?.datasets || [];
+  const primary = datasets[0];
+  if (primary) {
+    primary.borderColor = tc.lineColor;
+    primary.backgroundColor = tc.lineFill;
+    if (Array.isArray(primary._gbPointStatuses)) {
+      const pointColors = primary._gbPointStatuses.map(status => getStatusChartColor(status, tc));
+      primary.pointBackgroundColor = pointColors;
+      primary.pointBorderColor = pointColors;
+    }
+  }
+  for (const dataset of datasets) {
+    if (dataset.label === 'Chronological Age') dataset.borderColor = tc.chronoLineColor;
+  }
+  chart.update('none');
+}
+
+let chartThemeRefreshToken = 0;
+
+export function refreshChartThemeColors(options = {}) {
+  const charts = Object.values(state.chartInstances).filter(Boolean);
+  if (!charts.length) return;
+  const tc = getChartColors();
+  const batchSize = Number.isFinite(options.batchSize)
+    ? Math.max(1, Math.floor(options.batchSize))
+    : charts.length;
+  const token = ++chartThemeRefreshToken;
+  let index = 0;
+  const runBatch = () => {
+    if (token !== chartThemeRefreshToken) return;
+    const end = Math.min(index + batchSize, charts.length);
+    for (; index < end; index++) applyChartThemeColors(charts[index], tc);
+    if (index < charts.length) setTimeout(runBatch, 0);
+  };
+  runBatch();
+}
+
 export function getMarkerDescription(markerId) {
   const marker = state.markerRegistry[markerId];
   if (marker && marker.desc) return marker.desc;
@@ -543,4 +606,4 @@ export function getMarkerDescription(markerId) {
   return cache[markerId] || null;
 }
 
-Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, getMarkerDescription });
+Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription });
