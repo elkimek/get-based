@@ -37,6 +37,10 @@ return (async function() {
 
   window.navigate?.('dashboard');
   await wait(80);
+  if (!main.querySelector('.dashboard-widget[data-widget-id="light-today"]')) {
+    window.showDashboardWidget?.('light-today');
+    await wait(120);
+  }
   const todayWidget = main.querySelector('.dashboard-widget[data-widget-id="light-today"]');
   const hero = todayWidget?.querySelector('.light-today-hero');
   assert('Dashboard renders the Light Today widget',

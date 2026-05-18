@@ -684,7 +684,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   const dashboardDefaultOrderBlock = (viewsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardWidgetsBlock = (viewsSrc.match(/const DASHBOARD_WIDGETS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
-  assert('Dashboard default order is evidence-first for new users',
+  assert('Dashboard default order prioritizes female cycle context and evidence',
     JSON.stringify(dashboardDefaultOrder) === JSON.stringify([
       'focus',
       'cycle',

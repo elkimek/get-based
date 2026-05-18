@@ -8000,12 +8000,13 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
   font-size: 11px;
   font-weight: 800;
   text-transform: capitalize;
+  border: 1px solid transparent;
 }
 .cycle-tag-day { color: var(--text-muted); }
-.phase-menstrual { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
-.phase-follicular { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
-.phase-ovulatory { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
-.phase-luteal { background: var(--purple-light); color: var(--purple); }
+.phase-menstrual { background: var(--red-bg); color: var(--text-primary); border-color: color-mix(in srgb, var(--red) 36%, var(--border)); }
+.phase-follicular { background: var(--accent-fill); color: var(--text-primary); border-color: color-mix(in srgb, var(--accent) 36%, var(--border)); }
+.phase-ovulatory { background: var(--green-bg); color: var(--text-primary); border-color: color-mix(in srgb, var(--green) 36%, var(--border)); }
+.phase-luteal { background: var(--purple-light); color: var(--text-primary); border-color: color-mix(in srgb, var(--purple) 36%, var(--border)); }
 .cycle-period-entry {
   display: inline-flex;
   align-items: center;
@@ -15343,14 +15344,14 @@ svg.sun-silhouette text.sun-silhouette-label {
      invisible on every verdict block. Border + bg-tint at idle keeps
      it discoverable without screaming for attention. */
   border: 1px solid var(--border, rgba(255,255,255,0.08));
-  color: var(--text-secondary); cursor: pointer;
+  color: var(--text-primary); cursor: pointer;
   font-size: 14px; line-height: 1;
   padding: 4px 8px; border-radius: 6px;
   flex-shrink: 0;
   background: var(--bg-elev-1, rgba(255,255,255,0.03));
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
-.sun-session-ai-refresh:hover { color: var(--accent); background: var(--bg-elev-2, rgba(255,255,255,0.06)); border-color: var(--accent); }
+.sun-session-ai-refresh:hover { color: var(--text-primary); background: var(--bg-elev-2, rgba(255,255,255,0.06)); border-color: var(--accent); }
 .sun-session-ai-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Idle "Analyze this session" CTA — passive prompt for sessions that
    haven't been auto-analyzed yet (created before this feature, or
@@ -15369,7 +15370,7 @@ svg.sun-silhouette text.sun-silhouette-label {
   font-size: 13px; color: var(--text-muted);
 }
 .sun-detail-ai-idle .sun-session-ai-refresh {
-  color: var(--accent);
+  color: var(--text-primary);
   font-size: 12px; padding: 4px 10px;
   border: 1px solid var(--border); border-radius: 6px;
 }
