@@ -69,15 +69,15 @@ function getTourTargetElement(target) {
 }
 
 function runTour(steps, storageKey, auto) {
-  if (auto && isTourCompleted(storageKey)) return;
+  if (auto && isTourCompleted(storageKey)) return false;
   // Demo profiles are exploration sandboxes — re-firing the welcome
   // tour every time the user picks a different demo is noise. Manual
   // tour invocation (auto=false) still works on demo profiles.
-  if (auto && _isActiveProfileDemo()) return;
+  if (auto && _isActiveProfileDemo()) return false;
 
   // Filter out steps whose target element is missing or hidden (except null/center steps).
   const filteredSteps = steps.filter(s => s.target === null || getTourTargetElement(s.target));
-  if (filteredSteps.length === 0) return;
+  if (filteredSteps.length === 0) return false;
 
   activeTour = { steps: filteredSteps, storageKey, currentStep: 0 };
 
@@ -107,6 +107,7 @@ function runTour(steps, storageKey, auto) {
   document.getElementById('tour-tooltip').style.display = 'block';
 
   goToStep(0);
+  return true;
 }
 
 function goToStep(index) {
@@ -225,11 +226,11 @@ function positionTooltip(rect, position) {
 }
 
 export function startTour(auto) {
-  runTour(TOUR_STEPS, profileKey('tour'), auto);
+  return runTour(TOUR_STEPS, profileKey('tour'), auto);
 }
 
 export function startCycleTour(auto) {
-  runTour(CYCLE_TOUR_STEPS, profileKey('cycleTour'), auto);
+  return runTour(CYCLE_TOUR_STEPS, profileKey('cycleTour'), auto);
 }
 
 export function endTour() {

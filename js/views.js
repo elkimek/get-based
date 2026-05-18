@@ -5997,10 +5997,15 @@ export function showDashboard(data) {
     html += renderGeneticsSection();
     main.innerHTML = html;
     setupDropZone();
-    // First-time desktop visitors get the guided chat setup beside the
+    // First visit starts the guided tour from the empty welcome state.
+    // Delay one tick so header/profile controls are rendered before targets
+    // are filtered. If the user already completed it, fall through to chat onboarding.
+    const shouldAutoStartTour = !!window.startTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'tour'));
+    if (shouldAutoStartTour) setTimeout(() => window.startTour?.(true), 100);
+    // Returning desktop visitors get the guided chat setup beside the
     // welcome hero. Mobile keeps the welcome/import controls unobscured.
     const isDesktopChatOnboardingViewport = typeof window !== 'undefined' && window.innerWidth > 768;
-    if (state.chatHistory.length === 0) {
+    if (!shouldAutoStartTour && state.chatHistory.length === 0) {
       if (isDesktopChatOnboardingViewport && !document.getElementById('chat-panel')?.classList.contains('open')) {
         document.body.classList.add('chat-autostart-reserved');
       }
@@ -6041,9 +6046,8 @@ export function showDashboard(data) {
   // Preload catalog so rec sections and sorting use it immediately
   if (window.loadCatalog) window.loadCatalog().then(c => { window._cachedCatalog = c; });
 
-  // Auto-trigger guided tour on first visit once the user has data —
-  // the no-data path auto-opens the chat onboarding instead (handled
-  // inline in the welcome-hero branch above, before its early return).
+  // Auto-trigger guided tour on first populated dashboard visit as a fallback
+  // for users who imported before seeing the empty-state tour.
   const _p = window.getProfiles?.()?.find(p => p.id === state.currentProfile);
   const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
   if (_hasProfile && hasData) {

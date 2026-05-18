@@ -47,6 +47,7 @@ assert('tour.js imports profileStorageKey', tourSrc.includes("import { profileSt
 assert('tour.js has window exports', tourSrc.includes('Object.assign(window,') && tourSrc.includes('startTour') && tourSrc.includes('endTour'));
 assert('tour.js exposes _tourGoToStep on window', tourSrc.includes('window._tourGoToStep = goToStep'));
 assert('startTour respects auto flag', tourSrc.includes('if (auto && isTourCompleted(') && tourSrc.includes(') return'));
+assert('startTour returns whether tour opened', tourSrc.includes('return runTour(TOUR_STEPS') && tourSrc.includes('return true'));
 assert('endTour stores completed in localStorage', tourSrc.includes("'completed'"));
 assert('Overlay click dismisses tour', tourSrc.includes('if (e.target === overlay) endTour()'));
 
@@ -155,6 +156,10 @@ const viewsSrc = read('js/views.js');
 
 assert('views.js calls window.startTour(true)', viewsSrc.includes('window.startTour(true)'));
 assert('views.js guards with if (window.startTour)', viewsSrc.includes('if (window.startTour)'));
+assert('Empty first visit starts tour before chat onboarding',
+  viewsSrc.includes("const shouldAutoStartTour = !!window.startTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'tour'))") &&
+  viewsSrc.includes("setTimeout(() => window.startTour?.(true), 100)") &&
+  viewsSrc.includes('if (!shouldAutoStartTour && state.chatHistory.length === 0)'));
 const setupIdx = viewsSrc.indexOf('setupDropZone()');
 const tourIdx = viewsSrc.indexOf('startTour(true)');
 assert('startTour called after setupDropZone', setupIdx > 0 && tourIdx > setupIdx);
