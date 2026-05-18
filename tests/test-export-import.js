@@ -322,6 +322,7 @@ return (async function() {
   assert('Clears focus card key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-focusCard`)"));
   assert('Clears context health key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-contextHealth`)"));
   assert('Clears onboarded key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-onboarded`)"));
+  assert('Clears empty tour key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-emptyTour`)"));
   assert('Clears tour key', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-tour`)"));
   assert('Clears sync timestamp', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-sync-ts`)"));
   assert('Resets state.importedData', exportSrc.includes('state.importedData = { entries: []'));

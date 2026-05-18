@@ -32,14 +32,21 @@ await import('../js/tour.js');
   const appSteps = appStepCount ? appStepCount.split('{ target:').length - 1 : 0;
   assert('App tour has 9 steps', appSteps === 9, `found ${appSteps}`);
 
-  // --- 2. CYCLE_TOUR_STEPS structure ---
-  console.log('%c[2] Cycle tour steps', 'font-weight:bold');
+  // --- 2. EMPTY_TOUR_STEPS structure ---
+  console.log('%c[2] Empty app tour steps', 'font-weight:bold');
+  const emptyStepBlock = (tourSrc.match(/const EMPTY_TOUR_STEPS\s*=\s*\[([\s\S]*?)\];/)||[])[1];
+  const emptySteps = emptyStepBlock ? emptyStepBlock.split('{ target:').length - 1 : 0;
+  assert('Empty app tour has 8 steps', emptySteps === 8, `found ${emptySteps}`);
+  assert('startEmptyTour uses emptyTour storage key', tourSrc.includes("profileKey('emptyTour')"));
+
+  // --- 3. CYCLE_TOUR_STEPS structure ---
+  console.log('%c[3] Cycle tour steps', 'font-weight:bold');
   const cycleStepBlock = (tourSrc.match(/const CYCLE_TOUR_STEPS\s*=\s*\[([\s\S]*?)\];/)||[])[1];
   const cycleSteps = cycleStepBlock ? cycleStepBlock.split('{ target:').length - 1 : 0;
   assert('Cycle tour has 8 steps', cycleSteps === 8, `found ${cycleSteps}`);
 
-  // --- 3. Cycle tour step targets ---
-  console.log('%c[3] Cycle tour targets', 'font-weight:bold');
+  // --- 4. Cycle tour step targets ---
+  console.log('%c[4] Cycle tour targets', 'font-weight:bold');
   assert('Step 1 is welcome (null target)', /target:\s*null.*Cycle-Aware/.test(cycleStepBlock), 'no null/center step');
   assert('Has .cycle-summary-card target', cycleStepBlock.includes('.cycle-summary-card'));
   assert('Has .cycle-draw-date target', cycleStepBlock.includes('.cycle-draw-date'));
@@ -49,69 +56,74 @@ await import('../js/tour.js');
   assert('Has .chart-layers-wrapper target', cycleStepBlock.includes('.chart-layers-wrapper'));
   assert('Has #chat-fab target', cycleStepBlock.includes('#chat-fab'));
 
-  // --- 4. Generic engine: runTour function ---
-  console.log('%c[4] Generic tour engine', 'font-weight:bold');
+  // --- 5. Generic engine: runTour function ---
+  console.log('%c[5] Generic tour engine', 'font-weight:bold');
   assert('runTour function exists', tourSrc.includes('function runTour('));
   assert('runTour accepts steps, storageKey, auto', /runTour\(\s*steps\s*,\s*storageKey\s*,\s*auto\s*\)/.test(tourSrc));
   assert('activeTour object used', tourSrc.includes('activeTour'));
   assert('activeTour stores steps/storageKey/currentStep', /activeTour\s*=\s*\{[^}]*steps[^}]*storageKey[^}]*currentStep/.test(tourSrc));
 
-  // --- 5. startTour delegates to runTour ---
-  console.log('%c[5] startTour delegates', 'font-weight:bold');
+  // --- 6. startTour delegates to runTour ---
+  console.log('%c[6] startTour delegates', 'font-weight:bold');
   assert('startTour calls runTour with TOUR_STEPS', /startTour.*\{[\s\S]*?runTour\(\s*TOUR_STEPS/.test(tourSrc));
+  assert('startEmptyTour calls runTour with EMPTY_TOUR_STEPS', /startEmptyTour.*\{[\s\S]*?runTour\(\s*EMPTY_TOUR_STEPS/.test(tourSrc));
+  assert('startGuidedTour delegates to the current visible tour', tourSrc.includes('export function startGuidedTour') && tourSrc.includes('startEmptyTour(auto)') && tourSrc.includes('startTour(auto)'));
 
-  // --- 6. startCycleTour delegates to runTour ---
-  console.log('%c[6] startCycleTour delegates', 'font-weight:bold');
+  // --- 7. startCycleTour delegates to runTour ---
+  console.log('%c[7] startCycleTour delegates', 'font-weight:bold');
   assert('startCycleTour calls runTour with CYCLE_TOUR_STEPS', /startCycleTour.*\{[\s\S]*?runTour\(\s*CYCLE_TOUR_STEPS/.test(tourSrc));
   assert('startCycleTour uses cycleTour storage key', tourSrc.includes("profileKey('cycleTour')"));
 
-  // --- 7. Window exports ---
-  console.log('%c[7] Window exports', 'font-weight:bold');
+  // --- 8. Window exports ---
+  console.log('%c[8] Window exports', 'font-weight:bold');
+  assert('window.startEmptyTour exists', typeof window.startEmptyTour === 'function');
   assert('window.startTour exists', typeof window.startTour === 'function');
+  assert('window.startGuidedTour exists', typeof window.startGuidedTour === 'function');
   assert('window.startCycleTour exists', typeof window.startCycleTour === 'function');
   assert('window.endTour exists', typeof window.endTour === 'function');
   assert('window._tourGoToStep exists', typeof window._tourGoToStep === 'function');
 
-  // --- 8. runTour filters missing targets ---
-  console.log('%c[8] Step filtering', 'font-weight:bold');
+  // --- 9. runTour filters missing targets ---
+  console.log('%c[9] Step filtering', 'font-weight:bold');
   assert('runTour filters steps with missing targets', /filteredSteps\s*=\s*steps\.filter/.test(tourSrc));
   assert('Null targets are kept (center steps)', /s\.target\s*===\s*null\s*\|\|/.test(tourSrc));
 
-  // --- 9. endTour uses activeTour.storageKey ---
-  console.log('%c[9] endTour storage', 'font-weight:bold');
+  // --- 10. endTour uses activeTour.storageKey ---
+  console.log('%c[10] endTour storage', 'font-weight:bold');
   assert('endTour reads storageKey from activeTour', /activeTour\.storageKey/.test(tourSrc));
   assert('endTour nulls activeTour', /activeTour\s*=\s*null/.test(tourSrc));
 
-  // --- 10. Auto-trigger in saveMenstrualCycle ---
-  console.log('%c[10] Auto-trigger in saveMenstrualCycle', 'font-weight:bold');
+  // --- 11. Auto-trigger in saveMenstrualCycle ---
+  console.log('%c[11] Auto-trigger in saveMenstrualCycle', 'font-weight:bold');
   const cycleSrc = read('/js/cycle.js');
   assert('saveMenstrualCycle calls startCycleTour(true)', cycleSrc.includes('startCycleTour(true)'));
   assert('setTimeout delay for DOM readiness', /setTimeout\s*\(\s*\(\)\s*=>\s*\{[^}]*startCycleTour\(true\)[^}]*\}\s*,\s*600\s*\)/.test(cycleSrc));
 
-  // --- 11. Tour button in renderMenstrualCycleSection ---
-  console.log('%c[11] Tour button in cycle section', 'font-weight:bold');
+  // --- 12. Tour button in renderMenstrualCycleSection ---
+  console.log('%c[12] Tour button in cycle section', 'font-weight:bold');
   assert('Renders cycle icon button', cycleSrc.includes('class="cycle-icon-btn"'));
   assert('Button calls startCycleTour(false)', cycleSrc.includes('startCycleTour(false)'));
   assert('Button only shown when mc exists', /\$\{mc\s*\?\s*`<button type="button" class="cycle-icon-btn"/.test(cycleSrc));
   assert('Button has accessible tour label', cycleSrc.includes('aria-label="Take the cycle feature tour"'));
 
-  // --- 12. CSS rule for cycle buttons ---
-  console.log('%c[12] CSS rule', 'font-weight:bold');
+  // --- 13. CSS rule for cycle buttons ---
+  console.log('%c[13] CSS rule', 'font-weight:bold');
   const cssSrc = read('/styles.css');
   assert('.cycle-icon-btn rule exists', cssSrc.includes('.cycle-icon-btn'));
   assert('touch-sized desktop controls', /\.cycle-icon-btn,[\s\S]*?min-height:\s*36px/.test(cssSrc));
   assert('touch-sized mobile controls', /@media \(max-width: 768px\)[\s\S]*?\.cycle-icon-btn,[\s\S]*?min-height:\s*40px/.test(cssSrc));
   assert('Hover rule exists', cssSrc.includes('.cycle-icon-btn:hover'));
 
-  // --- 13. Profile delete cleanup ---
-  console.log('%c[13] Profile delete cleanup', 'font-weight:bold');
+  // --- 14. Profile delete cleanup ---
+  console.log('%c[14] Profile delete cleanup', 'font-weight:bold');
   const profileSrc = read('/js/profile.js');
+  assert('deleteProfile removes emptyTour key', profileSrc.includes("-emptyTour`"));
   assert('deleteProfile removes tour key', profileSrc.includes("-tour`"));
   assert('deleteProfile removes cycleTour key', profileSrc.includes("-cycleTour`"));
   assert('deleteProfile removes phaseOverlay key', profileSrc.includes("-phaseOverlay`"));
 
-  // --- 14. Service worker cache version ---
-  console.log('%c[14] Service worker cache', 'font-weight:bold');
+  // --- 15. Service worker cache version ---
+  console.log('%c[15] Service worker cache', 'font-weight:bold');
   const swSrc = read('/service-worker.js');
   assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));

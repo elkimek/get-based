@@ -3132,6 +3132,7 @@ async function applyRemoteTombstones() {
     localStorage.removeItem(`labcharts-${tombId}-focusCard`);
     localStorage.removeItem(`labcharts-${tombId}-contextHealth`);
     localStorage.removeItem(`labcharts-${tombId}-onboarded`);
+    localStorage.removeItem(`labcharts-${tombId}-emptyTour`);
     localStorage.removeItem(`labcharts-${tombId}-tour`);
     localStorage.removeItem(`labcharts-${tombId}-cycleTour`);
     localStorage.removeItem(`labcharts-${tombId}-phaseOverlay`);
@@ -3187,7 +3188,7 @@ export async function applyPendingTombstone(profileId) {
   for (const k of ['units','suppOverlay','noteOverlay','rangeMode','suppImpact']) {
     localStorage.removeItem(profileStorageKey(profileId, k));
   }
-  for (const k of ['chat','chat-threads','chatRailOpen','chatPersonality','chatPersonalityCustom','focusCard','contextHealth','onboarded','tour','cycleTour','phaseOverlay','sync-ts']) {
+  for (const k of ['chat','chat-threads','chatRailOpen','chatPersonality','chatPersonalityCustom','focusCard','contextHealth','onboarded','emptyTour','tour','cycleTour','phaseOverlay','sync-ts']) {
     localStorage.removeItem(`labcharts-${profileId}-${k}`);
   }
   try {

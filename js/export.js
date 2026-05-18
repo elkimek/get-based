@@ -1097,6 +1097,7 @@ export async function clearAllData() {
       localStorage.removeItem(`labcharts-${id}-focusCard`);
       localStorage.removeItem(`labcharts-${id}-contextHealth`);
       localStorage.removeItem(`labcharts-${id}-onboarded`);
+      localStorage.removeItem(`labcharts-${id}-emptyTour`);
       localStorage.removeItem(`labcharts-${id}-tour`);
       localStorage.removeItem(`labcharts-${id}-cycleTour`);
       localStorage.removeItem(`labcharts-${id}-phaseOverlay`);

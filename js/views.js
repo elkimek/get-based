@@ -5997,15 +5997,15 @@ export function showDashboard(data) {
     html += renderGeneticsSection();
     main.innerHTML = html;
     setupDropZone();
-    // First visit starts the guided tour from the empty welcome state.
+    // First visit starts the empty-state tour from the welcome screen.
     // Delay one tick so header/profile controls are rendered before targets
     // are filtered. If the user already completed it, fall through to chat onboarding.
-    const shouldAutoStartTour = !!window.startTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'tour'));
-    if (shouldAutoStartTour) setTimeout(() => window.startTour?.(true), 100);
+    const shouldAutoStartEmptyTour = !!window.startEmptyTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'));
+    if (shouldAutoStartEmptyTour) setTimeout(() => window.startEmptyTour?.(true), 100);
     // Returning desktop visitors get the guided chat setup beside the
     // welcome hero. Mobile keeps the welcome/import controls unobscured.
     const isDesktopChatOnboardingViewport = typeof window !== 'undefined' && window.innerWidth > 768;
-    if (!shouldAutoStartTour && state.chatHistory.length === 0) {
+    if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0) {
       if (isDesktopChatOnboardingViewport && !document.getElementById('chat-panel')?.classList.contains('open')) {
         document.body.classList.add('chat-autostart-reserved');
       }

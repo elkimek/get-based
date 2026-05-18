@@ -1,18 +1,29 @@
-// tour.js — Generic spotlight tour engine + app tour + cycle tour
+// tour.js — Generic spotlight tour engine + app tours + cycle tour
 
 import { state } from './state.js';
 import { profileStorageKey } from './profile.js';
+
+const EMPTY_TOUR_STEPS = [
+  { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. Import data, try a demo, or add context before labs arrive.', position: 'center' },
+  { target: '.welcome-primary-panel', title: 'Choose Your Starting Point', text: 'Use the main action to set up AI or import health data. The secondary action opens chat when you want guidance.', position: 'bottom' },
+  { target: '#drop-zone, .header-import-btn, #import-fab', title: 'Import Your First Data', text: 'Drop lab PDFs, screenshots, DNA files, or getbased JSON here. Everything stays local to this profile.', position: 'bottom' },
+  { target: '.demo-cards', title: 'Try a Populated Profile', text: 'Demo profiles show the full dashboard without adding your own data.', position: 'top' },
+  { target: '.welcome-secondary-grid', title: 'Connect Signals', text: 'Add wearables or set up Light & Sun when you want trends beyond lab files.', position: 'top' },
+  { target: '.welcome-context-summary', title: 'Add Context Before Labs', text: 'Open this section to record diet, exercise, sleep, environment, supplements, genetics, and medical history.', position: 'top' },
+  { target: '.profile-compact-btn', title: 'Profiles Stay Separate', text: 'Switch or manage profiles here. Each profile keeps its own data, settings, and tour progress.', position: 'bottom' },
+  { target: '.settings-btn', title: 'Settings & Connections', text: 'Configure privacy, AI providers, wearables, sync, and data controls here.', position: 'bottom' },
+];
 
 const TOUR_STEPS = [
   { target: null, title: 'Welcome to getbased', text: 'Health intelligence that\'s actually yours \u2014 five lenses on your biology, one private dashboard. Let\'s take a quick look around.', position: 'center' },
   { target: '.header-import-btn, #import-fab, #drop-zone', title: 'Import Health Data', text: 'Import lab PDFs, report photos, DNA raw data, or getbased JSON. You can also drop files directly onto the page.', position: 'bottom' },
   { target: '.profile-compact-btn', title: 'Profiles & Demo Data', text: 'Switch profiles, manage clients, or load demo data from here. Each profile keeps its own data, settings, and tour progress.', position: 'bottom' },
   { target: '.nav-item[data-category="labs"], #sidebar-toggle, .m-tabbar', title: 'Five Lenses', text: 'Move between Dashboard, Labs, Genome, Body, Light, Insight, and Recommendations. Desktop uses the sidebar; smaller screens use tabs and the menu.', position: 'right' },
-  { target: '.dashboard-greeting, .welcome-primary-panel', title: 'Dashboard Overview', text: 'The dashboard summarizes the current profile. After import, widgets surface focus areas, priorities, recommendations, body data, and light context.', position: 'bottom' },
-  { target: '.dashboard-sticky-actions, .demo-cards', title: 'Customize Widgets', text: 'Use Customize and Add widget to choose the sections that matter. On a fresh install, demo cards let you explore a populated dashboard first.', position: 'bottom' },
+  { target: '.dashboard-greeting', title: 'Dashboard Overview', text: 'The dashboard summarizes the current profile. After import, widgets surface focus areas, priorities, recommendations, body data, and light context.', position: 'bottom' },
+  { target: '.dashboard-sticky-actions', title: 'Customize Widgets', text: 'Use Customize and Add widget to choose the sections that matter for this profile.', position: 'bottom' },
   { target: '.tweaks-btn', title: 'Display Tweaks', text: 'Adjust theme, accent color, density, and motion effects without leaving the current screen.', position: 'bottom' },
   { target: '.settings-btn', title: 'Settings & Connections', text: 'Configure demographics, privacy, AI providers, wearables, sync, and data controls here.', position: 'bottom' },
-  { target: '#chat-fab, .m-chat-fab, #chat-panel.open, .welcome-primary-actions .welcome-action-btn:not(.welcome-action-primary)', title: 'Ask AI', text: 'Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.', position: 'left' },
+  { target: '#chat-fab, .m-chat-fab, #chat-panel.open', title: 'Ask AI', text: 'Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.', position: 'left' },
 ];
 
 const CYCLE_TOUR_STEPS = [
@@ -225,8 +236,18 @@ function positionTooltip(rect, position) {
   tooltip.style.top = top + 'px';
 }
 
+export function startEmptyTour(auto) {
+  return runTour(EMPTY_TOUR_STEPS, profileKey('emptyTour'), auto);
+}
+
 export function startTour(auto) {
   return runTour(TOUR_STEPS, profileKey('tour'), auto);
+}
+
+export function startGuidedTour(auto) {
+  return getTourTargetElement('.welcome-primary-panel')
+    ? startEmptyTour(auto)
+    : startTour(auto);
 }
 
 export function startCycleTour(auto) {
@@ -249,4 +270,4 @@ export function endTour() {
 // Internal navigation helper exposed for onclick
 window._tourGoToStep = goToStep;
 
-Object.assign(window, { startTour, startCycleTour, endTour });
+Object.assign(window, { startEmptyTour, startTour, startGuidedTour, startCycleTour, endTour });

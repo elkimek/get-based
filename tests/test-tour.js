@@ -41,30 +41,55 @@ assert('tour.js has goToStep function', tourSrc.includes('function goToStep'));
 assert('tour.js has positionTooltip function', tourSrc.includes('function positionTooltip'));
 assert('tour.js has isTourCompleted function', tourSrc.includes('function isTourCompleted'));
 assert('tour.js has visible target helper', tourSrc.includes('function getTourTargetElement'));
+assert('tour.js has EMPTY_TOUR_STEPS array', tourSrc.includes('const EMPTY_TOUR_STEPS'));
 assert('tour.js has TOUR_STEPS array', tourSrc.includes('const TOUR_STEPS'));
 assert('tour.js imports state', tourSrc.includes("import { state } from './state.js'"));
 assert('tour.js imports profileStorageKey', tourSrc.includes("import { profileStorageKey } from './profile.js'"));
-assert('tour.js has window exports', tourSrc.includes('Object.assign(window,') && tourSrc.includes('startTour') && tourSrc.includes('endTour'));
+assert('tour.js has window exports', tourSrc.includes('Object.assign(window,') && tourSrc.includes('startEmptyTour') && tourSrc.includes('startTour') && tourSrc.includes('startGuidedTour') && tourSrc.includes('endTour'));
 assert('tour.js exposes _tourGoToStep on window', tourSrc.includes('window._tourGoToStep = goToStep'));
 assert('startTour respects auto flag', tourSrc.includes('if (auto && isTourCompleted(') && tourSrc.includes(') return'));
 assert('startTour returns whether tour opened', tourSrc.includes('return runTour(TOUR_STEPS') && tourSrc.includes('return true'));
+assert('startEmptyTour returns whether empty tour opened', tourSrc.includes('return runTour(EMPTY_TOUR_STEPS') && tourSrc.includes("profileKey('emptyTour')"));
+assert('startGuidedTour routes by visible empty state', tourSrc.includes('export function startGuidedTour') && tourSrc.includes("getTourTargetElement('.welcome-primary-panel')"));
 assert('endTour stores completed in localStorage', tourSrc.includes("'completed'"));
 assert('Overlay click dismisses tour', tourSrc.includes('if (e.target === overlay) endTour()'));
 
 // ═══════════════════════════════════════
-// 2. TOUR_STEPS content (9 entries checked below)
+// 2. EMPTY_TOUR_STEPS content
 // ═══════════════════════════════════════
-console.log('2. Tour Steps Content');
+console.log('2. Empty Tour Steps Content');
+
+assert('Empty step 1: Welcome (null target)', tourSrc.includes("target: null, title: 'Welcome to getbased'"));
+assert('Empty step 2: Welcome panel', tourSrc.includes("target: '.welcome-primary-panel', title: 'Choose Your Starting Point'"));
+assert('Empty step 3: Drop zone/import', tourSrc.includes("target: '#drop-zone, .header-import-btn, #import-fab', title: 'Import Your First Data'"));
+assert('Empty step 4: Demo cards', tourSrc.includes("target: '.demo-cards', title: 'Try a Populated Profile'"));
+assert('Empty step 5: Secondary setup grid', tourSrc.includes("target: '.welcome-secondary-grid', title: 'Connect Signals'"));
+assert('Empty step 6: Context details', tourSrc.includes("target: '.welcome-context-summary', title: 'Add Context Before Labs'"));
+assert('Empty step 7: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles Stay Separate'"));
+assert('Empty step 8: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
+
+const emptyStepsStart = tourSrc.indexOf('const EMPTY_TOUR_STEPS');
+const appStepsStart = tourSrc.indexOf('const TOUR_STEPS');
+const emptyStepsSection = emptyStepsStart >= 0 && appStepsStart > emptyStepsStart
+  ? tourSrc.slice(emptyStepsStart, appStepsStart)
+  : tourSrc.slice(emptyStepsStart, emptyStepsStart + 2000);
+const emptyStepMatches = emptyStepsSection.match(/\{ target:/g);
+assert('Exactly 8 steps in EMPTY_TOUR_STEPS', emptyStepMatches && emptyStepMatches.length === 8, `found ${emptyStepMatches ? emptyStepMatches.length : 0}`);
+
+// ═══════════════════════════════════════
+// 2b. TOUR_STEPS content (data dashboard, 9 entries checked below)
+// ═══════════════════════════════════════
+console.log('2b. Data Tour Steps Content');
 
 assert('Step 1: Welcome (null target)', tourSrc.includes("target: null, title: 'Welcome to getbased'"));
 assert('Step 2: Import controls', tourSrc.includes("target: '.header-import-btn, #import-fab, #drop-zone', title: 'Import Health Data'"));
 assert('Step 3: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles & Demo Data'"));
 assert('Step 4: Lens navigation', tourSrc.includes("target: '.nav-item[data-category=\"labs\"], #sidebar-toggle, .m-tabbar', title: 'Five Lenses'"));
-assert('Step 5: Dashboard overview', tourSrc.includes("target: '.dashboard-greeting, .welcome-primary-panel', title: 'Dashboard Overview'"));
-assert('Step 6: Widget customization', tourSrc.includes("target: '.dashboard-sticky-actions, .demo-cards', title: 'Customize Widgets'"));
+assert('Step 5: Dashboard overview', tourSrc.includes("target: '.dashboard-greeting', title: 'Dashboard Overview'"));
+assert('Step 6: Widget customization', tourSrc.includes("target: '.dashboard-sticky-actions', title: 'Customize Widgets'"));
 assert('Step 7: Display tweaks', tourSrc.includes("target: '.tweaks-btn', title: 'Display Tweaks'"));
 assert('Step 8: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
-assert('Step 9: Chat targets', tourSrc.includes("target: '#chat-fab, .m-chat-fab, #chat-panel.open, .welcome-primary-actions .welcome-action-btn:not(.welcome-action-primary)', title: 'Ask AI'"));
+assert('Step 9: Chat targets', tourSrc.includes("target: '#chat-fab, .m-chat-fab, #chat-panel.open', title: 'Ask AI'"));
 
 const tourStepsStart = tourSrc.indexOf('const TOUR_STEPS');
 const cycleStepsStart = tourSrc.indexOf('const CYCLE_TOUR_STEPS');
@@ -156,12 +181,15 @@ const viewsSrc = read('js/views.js');
 
 assert('views.js calls window.startTour(true)', viewsSrc.includes('window.startTour(true)'));
 assert('views.js guards with if (window.startTour)', viewsSrc.includes('if (window.startTour)'));
-assert('Empty first visit starts tour before chat onboarding',
-  viewsSrc.includes("const shouldAutoStartTour = !!window.startTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'tour'))") &&
-  viewsSrc.includes("setTimeout(() => window.startTour?.(true), 100)") &&
-  viewsSrc.includes('if (!shouldAutoStartTour && state.chatHistory.length === 0)'));
+assert('views.js calls window.startEmptyTour(true)', viewsSrc.includes('window.startEmptyTour?.(true)'));
+assert('Empty first visit starts empty tour before chat onboarding',
+  viewsSrc.includes("const shouldAutoStartEmptyTour = !!window.startEmptyTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
+  viewsSrc.includes("setTimeout(() => window.startEmptyTour?.(true), 100)") &&
+  viewsSrc.includes('if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0)'));
 const setupIdx = viewsSrc.indexOf('setupDropZone()');
+const emptyTourIdx = viewsSrc.indexOf('startEmptyTour');
 const tourIdx = viewsSrc.indexOf('startTour(true)');
+assert('startEmptyTour called after setupDropZone', setupIdx > 0 && emptyTourIdx > setupIdx);
 assert('startTour called after setupDropZone', setupIdx > 0 && tourIdx > setupIdx);
 
 // ═══════════════════════════════════════
@@ -172,9 +200,9 @@ console.log('21. Settings — Take a Tour');
 const settingsSrc = read('js/settings.js');
 
 assert('settings.js has "Guided Tour" button', settingsSrc.includes('Guided Tour'));
-assert('settings.js calls startTour(false)', settingsSrc.includes('startTour(false)'));
+assert('settings.js calls startGuidedTour(false)', settingsSrc.includes('startGuidedTour(false)'));
 assert('settings.js closes modal before tour', settingsSrc.includes('closeSettingsModal()'));
-assert('settings.js uses setTimeout for delay', settingsSrc.includes('setTimeout(()=>startTour(false)'));
+assert('settings.js uses setTimeout for delay', settingsSrc.includes('setTimeout(()=>startGuidedTour(false)'));
 assert('Tour button in Display tab panel', /tab-panel="display"[\s\S]*?Guided Tour/s.test(settingsSrc));
 
 // ═══════════════════════════════════════

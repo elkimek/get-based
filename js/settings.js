@@ -513,7 +513,7 @@ export function openSettingsModal(tab) {
       <div class="settings-group-title">Resources</div>
       <div class="settings-links-row">
         <a href="/docs" class="settings-link-btn">Documentation</a>
-        <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>startTour(false),300)">Guided Tour</button>
+        <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>startGuidedTour(false),300)">Guided Tour</button>
         <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>openChangelog(true),300)">What's New</button>
       </div>
 
