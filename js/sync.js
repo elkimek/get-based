@@ -19,6 +19,9 @@ async function ensureBip39() {
     _bip39Load = loadScriptOnce('/vendor/bip39-minimal.js').then(() => {
       if (!window.bip39) throw new Error('BIP-39 library did not initialize');
       return window.bip39;
+    }).catch(err => {
+      _bip39Load = null;
+      throw err;
     });
   }
   return _bip39Load;
@@ -30,6 +33,9 @@ async function ensureQRCode() {
     _qrCodeLoad = loadScriptOnce('/vendor/qrcode-generator.js').then(() => {
       if (typeof qrcode !== 'function') throw new Error('QR code library did not initialize');
       return qrcode;
+    }).catch(err => {
+      _qrCodeLoad = null;
+      throw err;
     });
   }
   return _qrCodeLoad;

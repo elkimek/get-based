@@ -362,6 +362,12 @@ await import('../js/settings.js');
   assert('getSyncBlocker still gates on crypto.subtle', /getSyncBlocker[\s\S]*?crypto\?\.subtle/.test(syncSrc));
   assert('Settings banner copy updated to "in this browser"',
     settingsSrc.includes('Sync unavailable in this browser') && !settingsSrc.includes('Sync unavailable in this build'));
+  assert('BIP-39 lazy loader resets cached promise after failure',
+    /_bip39Load\s*=\s*null/.test(syncSrc),
+    'transient script failure should not poison identity rotation for the full session');
+  assert('QR lazy loader resets cached promise after failure',
+    /_qrCodeLoad\s*=\s*null/.test(syncSrc),
+    'transient script failure should not poison QR rendering for the full session');
 
   // ═══════════════════════════════════════
   // 8. PUSH/PULL LOGIC

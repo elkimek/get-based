@@ -9,6 +9,7 @@ import { getTheme, setTheme } from './theme.js';
 import { exchangeOpenRouterCode, saveOpenRouterKey, setAIProvider, fetchOpenRouterModels } from './api.js';
 import { saveProfiles, getActiveProfileId, setActiveProfileId, getProfileSex, getProfileDob, profileStorageKey, migrateProfileData, initProfilesCache } from './profile.js';
 import { updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback } from './data.js';
+import { loadPdfImport } from './import-loader.js';
 import './pii.js';
 import './charts.js';
 import './notes.js';
@@ -20,11 +21,6 @@ import './context-cards.js';
 const _emfFns = ['openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment','selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment','updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','saveEMFExplicit','toggleEMFCompare','interpretEMFAssessment','interpretEMFComparison','closeEMFInterpretation','discussEMFInterpretation','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','handleEMFPDF'];
 for (const fn of _emfFns) {
   window[fn] = async function(...args) { const mod = await import('./emf.js'); for (const f of _emfFns) window[f] = mod[f]; return mod[fn](...args); };
-}
-let _pdfImportLoad = null;
-function loadPdfImport() {
-  if (!_pdfImportLoad) _pdfImportLoad = import('./pdf-import.js');
-  return _pdfImportLoad;
 }
 import { ensureSNPTable, ensureHaplogroupTable } from './dna.js';
 import './wearables.js';

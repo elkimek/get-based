@@ -56,6 +56,9 @@ assert('cacheGet re-inserts on hit',
 // ─── 4. Service worker precaches dynamic modules ───
 console.log('\n4. SW precache');
 const swSrc = read('service-worker.js');
+const mainSrc = read('js/main.js');
+const viewsSrc = read('js/views.js');
+const importLoaderSrc = read('js/import-loader.js');
 const pwaAppShellAssets = [
   '/app',
   '/vendor/qrcode-generator.js',
@@ -69,6 +72,7 @@ const pwaAppShellAssets = [
   '/vendor/evolu/sqlite3-worker1-bundler-friendly.mjs',
   '/vendor/evolu/sqlite3.wasm',
   '/js/ai-verdict-engine.js',
+  '/js/import-loader.js',
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/light-devices.js',
@@ -102,6 +106,11 @@ assert('SW has offline navigation fallback for /app',
   swSrc.includes("caches.match('/app')") &&
   swSrc.includes("caches.match('/index.html')"),
   'installed PWA start_url=/app needs a cached document while offline');
+assert('PDF import lazy loader is shared by main.js and views.js',
+  mainSrc.includes("from './import-loader.js'") &&
+  viewsSrc.includes("from './import-loader.js'") &&
+  importLoaderSrc.includes("import('./pdf-import.js')"),
+  'separate per-module promise caches can issue duplicate first-use imports');
 
 // ─── 5. Polar OAuth callback returns true + clears connection ───
 console.log('\n5. Polar OAuth callback');

@@ -16,12 +16,8 @@ import { callClaudeAPI, hasAIProvider, isAIPaused, getAIProvider, getActiveModel
 import { injectLensChunks } from './lab-context.js';
 import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
+import { loadPdfImport } from './import-loader.js';
 
-let _pdfImportLoad = null;
-function loadPdfImport() {
-  if (!_pdfImportLoad) _pdfImportLoad = import('./pdf-import.js');
-  return _pdfImportLoad;
-}
 function setupDropZone() {
   const dropZone = document.getElementById("drop-zone");
   if (!dropZone || dropZone.dataset.lazyDropZoneBound === 'true') return;

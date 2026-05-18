@@ -35,6 +35,7 @@ const APP_SHELL = [
   '/js/utils.js',
   '/js/theme.js',
   '/js/api.js',
+  '/js/import-loader.js',
   '/js/ai-verdict-engine.js',
   '/js/profile.js',
   '/js/data.js',

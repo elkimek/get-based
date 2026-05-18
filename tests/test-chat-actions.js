@@ -165,6 +165,8 @@ assert('sendChatMessage snapshots context', chatSrc.includes('contextSnapshot'),
 assert('chat raises response token headroom', chatSrc.includes('CHAT_RESPONSE_MAX_TOKENS = 16384'), 'found');
 assert('chat auto-continues token-limit stops', chatSrc.includes('CHAT_AUTO_CONTINUE_LIMIT') && chatSrc.includes('_callChatAPIWithContinuation'), 'found');
 assert('chat auto-continues likely mid-sentence stops', chatSrc.includes('_isLikelyIncompleteResponse') && chatSrc.includes('_shouldAutoContinueResponse'), 'found');
+assert('chat incomplete heuristic does not continue solely because final line is long',
+  !chatSrc.includes('return lastLine.length > 60'), 'length-only fallback removed');
 assert('chat renders output-limit note', chatSrc.includes('output limit reached'), 'found');
 assert('chat persists truncated assistant state', chatSrc.includes('assistantMsg.truncated = true'), 'found');
 assert('renderChatMessages restores truncated note', chatSrc.includes('msg.truncated') && chatSrc.includes('_responseLimitNote()'), 'found');
