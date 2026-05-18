@@ -5,6 +5,19 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.8.0', date: '2026-05-18', title: 'Redesigned dashboard, guided onboarding, and recommendations',
+    items: [
+      '<b>A new dashboard built around what matters now.</b> The home screen is now a customizable overview instead of a long all-in-one page. Current Focus, Biological Age, Recommended Next Steps, Current Priority, Quick Markers, Biometrics Overview, Light Today, and Key Trends give you the short version first, with deeper work still one click away.',
+      '<b>Clearer navigation across the whole app.</b> getbased is now organized into focused spaces: Dashboard, Labs, Genome, Body, Light, Insight, and Recommendations, with Compare dates and Correlations kept as analysis tools. Desktop gets the full sidebar; mobile gets bottom tabs and a compact menu.',
+      '<b>First visit is guided, not overwhelming.</b> Fresh profiles now start with a short empty-profile tour, then open guided chat. Chat is the main starting point for new users, while demo profiles and direct import stay available when you want to explore or add files yourself.',
+      '<b>Two tours for two real situations.</b> New users get a tour designed for an empty app. Once a profile has data, the full app tour explains imports, lenses, dashboard widgets, display tweaks, settings, and AI chat.',
+      '<b>Recommendations have their own home.</b> The new Recommendations page turns Labs, Body, Light, Genome, and Insight signals into data-linked next steps. You can save useful items, dismiss ones that are not relevant, and keep product links behind the existing disclosure controls.',
+      '<b>Better workspaces for every lens.</b> Labs owns biomarker charts and tables. Genome owns DNA, APOE, mtDNA, and SNP context. Body owns wearables, manual metrics, supplements, and cycle tracking. Light owns sun, devices, indoor light, and measurement tools. Insight owns Current Focus, AI insights, profile context, and synthesis.',
+      '<b>Mobile and theme polish.</b> The redesigned app is easier to use on smaller screens, and browser chrome now follows the selected theme so Light, Dark, Synth Sunrise, Neuromancer, Glass, and Cypherpunk Terminal feel consistent on mobile.',
+      '<b>Your data model stays the same.</b> Existing profiles, imports, notes, wearables, DNA, context cards, sync, backups, and encryption continue to work. The redesign changes how the app is organized and presented, not who owns your data.',
+    ]
+  },
+  {
     version: '1.7.7', date: '2026-05-13', title: 'Oura RHR matches the Oura app + zero-sentinel cleanup',
     items: [
       '<b>RHR now matches what your Oura app shows.</b> Resting Heart Rate on the dashboard used the night-long average from Oura\'s sleep payload, which runs 5–10 bpm higher than the true RHR. The Oura app\'s "Resting Heart Rate" card and trend graph use the lowest 5-min average during sleep (typically hit in deep sleep) — we now source from the same field. Existing rows refresh on the next sync.',
