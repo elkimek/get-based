@@ -1365,6 +1365,15 @@ export function hideImportProgress(reason = 'success') {
   if (dropZone.parentElement === document.body) { dropZone.remove(); return; }
   if (dropZone.classList.contains('drop-zone-hidden')) {
     dropZone.innerHTML = '';
+  } else if (dropZone.classList.contains('welcome-import-panel')) {
+    dropZone.innerHTML = `<span class="welcome-primary-kicker">Start here</span>
+      <strong>Import your first report</strong>
+      <p>Drop a lab PDF, report photo, getbased JSON export, or DNA raw data file. Imports stay local to this profile.</p>
+      <div class="welcome-import-formats" aria-hidden="true">
+        <span>PDF/photo labs</span>
+        <span>JSON export</span>
+        <span>DNA raw data</span>
+      </div>`;
   } else {
     dropZone.innerHTML = `<div class="drop-zone-icon">\uD83D\uDCC4</div>
       <div class="drop-zone-text">Drop PDF, image, JSON, or DNA raw data file here, or click to browse</div>

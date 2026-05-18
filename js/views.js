@@ -5918,30 +5918,34 @@ export function showDashboard(data) {
     document.body.classList.remove('chat-autostart-reserved');
     const aiReady = hasAIProvider();
     const aiPaused = isAIPaused();
-    const heroClass = aiReady ? 'welcome-hero' : 'welcome-hero welcome-hero-noai';
-    const primaryAction = aiReady
-      ? "document.getElementById('pdf-input')?.click()"
-      : "closeChatPanel();window.openSettingsModal('ai')";
-    const guideAction = aiReady
+    const importReady = aiReady && !aiPaused;
+    const heroClass = importReady ? 'welcome-hero welcome-hero-ready' : 'welcome-hero welcome-hero-noai';
+    const primaryAction = "closeChatPanel();window.openSettingsModal('ai')";
+    const guideAction = importReady
       ? "window.openChatPanel && window.openChatPanel()"
       : "window.openChatProviderQuiz ? window.openChatProviderQuiz() : window.openChatPanel && window.openChatPanel()";
-    const primaryLabel = aiPaused ? 'Re-enable AI' : (aiReady ? 'Choose a file' : 'Set up AI import');
+    const primaryLabel = aiPaused ? 'Re-enable AI' : 'Set up AI import';
     const primaryTitle = aiPaused ? 'AI is paused' : (aiReady ? 'Import your first report' : 'Set up AI, then import your report');
     const primaryCopy = aiPaused
       ? 'Re-enable AI in Settings so getbased can read reports and turn them into private, structured health data.'
       : (aiReady
-        ? 'Drop a lab PDF, photo, getbased JSON export, or DNA raw data file. Imports stay local to this browser.'
+        ? 'Drop a lab PDF, report photo, getbased JSON export, or DNA raw data file. Imports stay local to this profile.'
         : 'One short provider setup unlocks lab parsing, guided review, and personalized next-step recommendations.');
-    const dropText = aiReady
-      ? 'Drop PDF, image, JSON, or DNA raw data file here, or click to browse'
-      : 'After AI setup, drop a lab report, image, JSON export, or DNA raw file here';
-    const dropHint = aiReady
-      ? 'Reads any lab report (PDF or photo). Also handles getbased JSON exports.'
-      : 'Want to see the dashboard first? Try a demo profile below.';
-    let html = `${renderAIConnectionReminder()}<div class="${escapeHTML(heroClass)}">
-      <h2>Welcome to getbased</h2>
-      <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
-      <div class="welcome-primary-panel">
+    const primaryPanel = importReady
+      ? `<div class="welcome-primary-panel welcome-import-panel drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Import health data" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+        <span class="welcome-primary-kicker">Start here</span>
+        <strong>${escapeHTML(primaryTitle)}</strong>
+        <p>${escapeHTML(primaryCopy)}</p>
+        <div class="welcome-import-formats" aria-hidden="true">
+          <span>PDF/photo labs</span>
+          <span>JSON export</span>
+          <span>DNA raw data</span>
+        </div>
+      </div>
+      <div class="welcome-helper-actions">
+        <button type="button" class="welcome-action-btn" onclick="${guideAction}">Ask AI to guide me</button>
+      </div>`
+      : `<div class="welcome-primary-panel welcome-setup-panel">
         <span class="welcome-primary-kicker">Start here</span>
         <strong>${escapeHTML(primaryTitle)}</strong>
         <p>${escapeHTML(primaryCopy)}</p>
@@ -5950,27 +5954,25 @@ export function showDashboard(data) {
           <button type="button" class="welcome-action-btn" onclick="${guideAction}">Ask AI to guide me</button>
         </div>
       </div>
-      <div class="drop-zone" id="drop-zone">
-        <div class="drop-zone-icon">\uD83D\uDCC4</div>
-        <div class="drop-zone-text">${escapeHTML(dropText)}</div>
-        <div class="drop-zone-hint">${escapeHTML(dropHint)}</div>
-        ${!aiReady ? `<div class="drop-zone-api-hint">${aiPaused ? 'AI features are paused — <a href="#" onclick="event.preventDefault();event.stopPropagation();window.openSettingsModal(\'ai\')">re-enable in Settings</a>' : 'AI setup comes first — use the primary action above when you are ready.'}</div>` : ''}</div>
-      <div class="onboarding-divider">
-        <span class="onboarding-divider-line"></span>
-        <span class="onboarding-divider-text">or try a demo profile</span>
-        <span class="onboarding-divider-line"></span>
-      </div>
-      <div class="demo-cards">
-        <button class="demo-card" onclick="loadDemoData('female')">
-          <span class="demo-card-avatar">\uD83D\uDC69</span>
-          <span class="demo-card-name">Sarah, 34</span>
-          <span class="demo-card-desc">Iron + Oura: overtraining clues</span>
-        </button>
-        <button class="demo-card" onclick="loadDemoData('male')">
-          <span class="demo-card-avatar">\uD83D\uDC68</span>
-          <span class="demo-card-name">Alex, 38</span>
-          <span class="demo-card-desc">Metabolic + Withings body comp</span>
-        </button>
+      <div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
+    let html = `${renderAIConnectionReminder()}<div class="${escapeHTML(heroClass)}">
+      <h2>Welcome to getbased</h2>
+      <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
+      ${primaryPanel}
+      <div class="welcome-demo-section">
+        <span class="welcome-section-label">Preview with demo data</span>
+        <div class="demo-cards">
+          <button class="demo-card" onclick="loadDemoData('female')">
+            <span class="demo-card-avatar">\uD83D\uDC69</span>
+            <span class="demo-card-name">Sarah, 34</span>
+            <span class="demo-card-desc">Iron + Oura: overtraining clues</span>
+          </button>
+          <button class="demo-card" onclick="loadDemoData('male')">
+            <span class="demo-card-avatar">\uD83D\uDC68</span>
+            <span class="demo-card-name">Alex, 38</span>
+            <span class="demo-card-desc">Metabolic + Withings body comp</span>
+          </button>
+        </div>
       </div>
       <div class="welcome-secondary-grid">
         <button type="button" class="welcome-secondary-card" onclick="window.openSettingsModal('wearables')">
@@ -5983,9 +5985,6 @@ export function showDashboard(data) {
         </button>
       </div>
     </div>`;
-    // Light Today stays available for users who log sun sessions before
-    // importing labs, but the empty-state container keeps it secondary.
-    html += `<div class="welcome-empty-light">${renderLightTodayStrip()}</div>`;
     const detailsOpen = sessionStorage.getItem('welcome-details-open') === '1';
     html += `<details class="welcome-context-details"${detailsOpen ? ' open' : ''}>
       <summary class="welcome-context-summary" onclick="setTimeout(()=>sessionStorage.setItem('welcome-details-open',document.querySelector('.welcome-context-details')?.open?'1':'0'),0)">Don\u2019t have labs yet? Tell the AI about yourself</summary>
@@ -5994,7 +5993,6 @@ export function showDashboard(data) {
     if (state.profileSex === 'female') html += renderMenstrualCycleSection(data);
     html += renderSupplementsSection();
     html += `</div></details>`;
-    html += renderGeneticsSection();
     main.innerHTML = html;
     setupDropZone();
     // First visit starts the empty-state tour from the welcome screen.
@@ -6502,7 +6500,7 @@ export function setOnboardingFocus(mode) {
       setTimeout(() => cards?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     }
   } else if (mode === 'import') {
-    setTimeout(() => document.querySelector('.welcome-hero .drop-zone')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    setTimeout(() => document.querySelector('.welcome-hero .drop-zone:not(.drop-zone-hidden), .welcome-primary-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   }
 }
 

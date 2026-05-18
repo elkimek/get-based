@@ -27,9 +27,9 @@ await import('../js/export.js');
   // ── 1. Source: views.js ──
   console.log('\n1. views.js — Onboarding HTML');
   const viewsSrc = read('js/views.js');
-  assert('Has onboarding-divider', viewsSrc.includes('onboarding-divider'));
-  assert('Has onboarding-divider-line', viewsSrc.includes('onboarding-divider-line'));
-  assert('Has onboarding-divider-text', viewsSrc.includes('onboarding-divider-text'));
+  assert('Has welcome-demo-section', viewsSrc.includes('welcome-demo-section'));
+  assert('Has welcome-section-label', viewsSrc.includes('welcome-section-label'));
+  assert('Old onboarding divider markup removed', !viewsSrc.includes('onboarding-divider'));
   assert('Has demo-cards container', viewsSrc.includes('demo-cards'));
   assert('Has demo-card class', viewsSrc.includes('demo-card'));
   assert('Has female card with loadDemoData(\'female\')', viewsSrc.includes("loadDemoData('female')"));
@@ -57,9 +57,9 @@ await import('../js/export.js');
   // ── 3. Source: styles.css ──
   console.log('\n3. styles.css — Demo card styles');
   const cssSrc = read('styles.css');
-  assert('Has .onboarding-divider rule', cssSrc.includes('.onboarding-divider'));
-  assert('Has .onboarding-divider-line rule', cssSrc.includes('.onboarding-divider-line'));
-  assert('Has .onboarding-divider-text rule', cssSrc.includes('.onboarding-divider-text'));
+  assert('Has .welcome-demo-section rule', cssSrc.includes('.welcome-demo-section'));
+  assert('Has .welcome-section-label rule', cssSrc.includes('.welcome-section-label'));
+  assert('Old .onboarding-divider rules removed', !cssSrc.includes('.onboarding-divider'));
   assert('Has .demo-cards rule', cssSrc.includes('.demo-cards'));
   assert('Has .demo-card rule', cssSrc.includes('.demo-card {'));
   assert('Has .demo-card:hover rule', cssSrc.includes('.demo-card:hover'));
@@ -67,23 +67,18 @@ await import('../js/export.js');
   assert('Has .demo-card-name rule', cssSrc.includes('.demo-card-name'));
   assert('Has .demo-card-desc rule', cssSrc.includes('.demo-card-desc'));
   assert('No old .onboarding-demo-btn rule', !cssSrc.includes('.onboarding-demo-btn'));
-  assert('Demo cards flex layout', cssSrc.includes('.demo-cards { display: flex'));
+  assert('Demo cards grid layout', cssSrc.includes('.demo-cards { display: grid'));
   assert('Demo card cursor pointer', cssSrc.includes('cursor: pointer'));
-  assert('Mobile 480px: demo-cards flex-direction column', cssSrc.includes('.demo-cards { flex-direction: column'));
+  assert('Hidden drop zone stays invisible without progress', cssSrc.includes('.drop-zone-hidden:not(:has(.import-progress-bar)) { display: none; }'));
+  assert('Mobile 480px: demo-cards stay two-column grid', cssSrc.includes('.demo-cards { grid-template-columns: 1fr 1fr; }'));
 
   // ── 4. Computed styles (if onboarding visible) ──
   console.log('\n4. Computed styles (live DOM)');
-  const step1 = document.querySelector('.onboarding-step1');
-  if (step1) {
-    const step1Style = getComputedStyle(step1);
-    assert('.onboarding-step1 has text-align center', step1Style.textAlign === 'center');
-
-    const divider = document.querySelector('.onboarding-divider');
-    assert('.onboarding-divider exists in DOM', !!divider);
-    if (divider) {
-      const divStyle = getComputedStyle(divider);
-      assert('.onboarding-divider has flex display', divStyle.display === 'flex');
-    }
+  const welcomeDemo = document.querySelector('.welcome-demo-section');
+  if (welcomeDemo) {
+    assert('.welcome-demo-section exists in DOM', !!welcomeDemo);
+    const demoStyle = getComputedStyle(welcomeDemo);
+    assert('.welcome-demo-section is constrained', demoStyle.maxWidth === '760px');
 
     const cards = document.querySelectorAll('.demo-card');
     assert('Two .demo-card buttons in DOM', cards.length === 2);
@@ -94,14 +89,10 @@ await import('../js/export.js');
       assert('Demo card has pointer cursor', cardStyle.cursor === 'pointer');
     }
 
-    const importBtn = document.querySelector('.onboarding-import-btn');
-    assert('.onboarding-import-btn exists', !!importBtn);
-    if (importBtn) {
-      const btnStyle = getComputedStyle(importBtn);
-      assert('Import btn is inline-block (centered by text-align)', btnStyle.display === 'inline-block');
-    }
+    const importPanel = document.querySelector('.welcome-import-panel, .welcome-setup-panel');
+    assert('Primary empty-state panel exists', !!importPanel);
   } else {
-    console.log('  ⚠️  Onboarding step 1 not visible (data already loaded) — skipping DOM checks');
+    console.log('  ⚠️  Empty dashboard not visible (data already loaded) — skipping DOM checks');
   }
 
   // ── 5. Window exports ──

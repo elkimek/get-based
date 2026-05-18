@@ -60,13 +60,11 @@ assert('Overlay click dismisses tour', tourSrc.includes('if (e.target === overla
 console.log('2. Empty Tour Steps Content');
 
 assert('Empty step 1: Welcome (null target)', tourSrc.includes("target: null, title: 'Welcome to getbased'"));
-assert('Empty step 2: Welcome panel', tourSrc.includes("target: '.welcome-primary-panel', title: 'Choose Your Starting Point'"));
-assert('Empty step 3: Drop zone/import', tourSrc.includes("target: '#drop-zone, .header-import-btn, #import-fab', title: 'Import Your First Data'"));
-assert('Empty step 4: Demo cards', tourSrc.includes("target: '.demo-cards', title: 'Try a Populated Profile'"));
-assert('Empty step 5: Secondary setup grid', tourSrc.includes("target: '.welcome-secondary-grid', title: 'Connect Signals'"));
-assert('Empty step 6: Context details', tourSrc.includes("target: '.welcome-context-summary', title: 'Add Context Before Labs'"));
-assert('Empty step 7: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles Stay Separate'"));
-assert('Empty step 8: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
+assert('Empty step 2: Start panel', tourSrc.includes("target: '.welcome-primary-panel, #drop-zone', title: 'Start Here'"));
+assert('Empty step 3: Demo cards', tourSrc.includes("target: '.demo-cards', title: 'Try a Populated Profile'"));
+assert('Empty step 4: Context details', tourSrc.includes("target: '.welcome-context-summary', title: 'Add Context Before Labs'"));
+assert('Empty step 5: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles Stay Separate'"));
+assert('Empty step 6: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
 
 const emptyStepsStart = tourSrc.indexOf('const EMPTY_TOUR_STEPS');
 const appStepsStart = tourSrc.indexOf('const TOUR_STEPS');
@@ -74,7 +72,7 @@ const emptyStepsSection = emptyStepsStart >= 0 && appStepsStart > emptyStepsStar
   ? tourSrc.slice(emptyStepsStart, appStepsStart)
   : tourSrc.slice(emptyStepsStart, emptyStepsStart + 2000);
 const emptyStepMatches = emptyStepsSection.match(/\{ target:/g);
-assert('Exactly 8 steps in EMPTY_TOUR_STEPS', emptyStepMatches && emptyStepMatches.length === 8, `found ${emptyStepMatches ? emptyStepMatches.length : 0}`);
+assert('Exactly 6 steps in EMPTY_TOUR_STEPS', emptyStepMatches && emptyStepMatches.length === 6, `found ${emptyStepMatches ? emptyStepMatches.length : 0}`);
 
 // ═══════════════════════════════════════
 // 2b. TOUR_STEPS content (data dashboard, 9 entries checked below)

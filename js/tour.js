@@ -5,10 +5,8 @@ import { profileStorageKey } from './profile.js';
 
 const EMPTY_TOUR_STEPS = [
   { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. Import data, try a demo, or add context before labs arrive.', position: 'center' },
-  { target: '.welcome-primary-panel', title: 'Choose Your Starting Point', text: 'Use the main action to set up AI or import health data. The secondary action opens chat when you want guidance.', position: 'bottom' },
-  { target: '#drop-zone, .header-import-btn, #import-fab', title: 'Import Your First Data', text: 'Drop lab PDFs, screenshots, DNA files, or getbased JSON here. Everything stays local to this profile.', position: 'bottom' },
+  { target: '.welcome-primary-panel, #drop-zone', title: 'Start Here', text: 'This is the main path: set up AI import when needed, or drop your first report once import is ready.', position: 'bottom' },
   { target: '.demo-cards', title: 'Try a Populated Profile', text: 'Demo profiles show the full dashboard without adding your own data.', position: 'top' },
-  { target: '.welcome-secondary-grid', title: 'Connect Signals', text: 'Add wearables or set up Light & Sun when you want trends beyond lab files.', position: 'top' },
   { target: '.welcome-context-summary', title: 'Add Context Before Labs', text: 'Open this section to record diet, exercise, sleep, environment, supplements, genetics, and medical history.', position: 'top' },
   { target: '.profile-compact-btn', title: 'Profiles Stay Separate', text: 'Switch or manage profiles here. Each profile keeps its own data, settings, and tour progress.', position: 'bottom' },
   { target: '.settings-btn', title: 'Settings & Connections', text: 'Configure privacy, AI providers, wearables, sync, and data controls here.', position: 'bottom' },

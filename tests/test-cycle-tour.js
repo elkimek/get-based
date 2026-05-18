@@ -36,7 +36,7 @@ await import('../js/tour.js');
   console.log('%c[2] Empty app tour steps', 'font-weight:bold');
   const emptyStepBlock = (tourSrc.match(/const EMPTY_TOUR_STEPS\s*=\s*\[([\s\S]*?)\];/)||[])[1];
   const emptySteps = emptyStepBlock ? emptyStepBlock.split('{ target:').length - 1 : 0;
-  assert('Empty app tour has 8 steps', emptySteps === 8, `found ${emptySteps}`);
+  assert('Empty app tour has 6 steps', emptySteps === 6, `found ${emptySteps}`);
   assert('startEmptyTour uses emptyTour storage key', tourSrc.includes("profileKey('emptyTour')"));
 
   // --- 3. CYCLE_TOUR_STEPS structure ---

@@ -88,9 +88,9 @@ return (async function() {
   assert('Description mentions fresh profile framing', tooltip.querySelector('p')?.textContent.includes('fresh profile'));
 
   const dots = tooltip.querySelectorAll('.tour-dot');
-  assert('8 progress dots rendered', dots.length === 8);
+  assert('6 progress dots rendered', dots.length === 6);
   assert('First dot is active', dots[0]?.classList.contains('active'));
-  assert('Other dots are inactive', !dots[1]?.classList.contains('active') && !dots[7]?.classList.contains('active'));
+  assert('Other dots are inactive', !dots[1]?.classList.contains('active') && !dots[5]?.classList.contains('active'));
 
   const btns = tooltip.querySelectorAll('.tour-btn');
   assert('Two buttons on welcome step', btns.length === 2);
@@ -108,7 +108,7 @@ return (async function() {
   await wait(100);
 
   const tooltip2 = document.getElementById('tour-tooltip');
-  assert('Step 1 title is "Choose Your Starting Point"', tooltip2?.querySelector('h4')?.textContent === 'Choose Your Starting Point');
+  assert('Step 1 title is "Start Here"', tooltip2?.querySelector('h4')?.textContent === 'Start Here');
 
   const dots2 = tooltip2.querySelectorAll('.tour-dot');
   assert('Second dot active on step 1', dots2[1]?.classList.contains('active'));
@@ -123,20 +123,20 @@ return (async function() {
   const sl2 = document.getElementById('tour-spotlight');
   assert('Spotlight visible on step 1', sl2 && sl2.style.display === 'block');
 
-  const importTarget = firstVisible('#drop-zone, .header-import-btn, #import-fab');
-  if (importTarget) {
-    importTarget.scrollIntoView({ behavior: 'instant', block: 'nearest' });
-    window._tourGoToStep(2);
+  const startTarget = firstVisible('.welcome-primary-panel, #drop-zone');
+  if (startTarget) {
+    startTarget.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+    window._tourGoToStep(1);
     await wait(150);
-    const fabRect = importTarget.getBoundingClientRect();
+    const fabRect = startTarget.getBoundingClientRect();
     const slLeft = parseFloat(sl2.style.left);
     const slTop = parseFloat(sl2.style.top);
-    assert('Spotlight left near import target', Math.abs(slLeft - (fabRect.left - 8)) < 2, `sl=${slLeft} target=${fabRect.left - 8}`);
-    assert('Spotlight top near import target', Math.abs(slTop - (fabRect.top - 8)) < 2, `sl=${slTop} target=${fabRect.top - 8}`);
-    assert('Spotlight width = import target + 16px padding', Math.abs(parseFloat(sl2.style.width) - (fabRect.width + 16)) < 2);
-    assert('Spotlight height = import target + 16px padding', Math.abs(parseFloat(sl2.style.height) - (fabRect.height + 16)) < 2);
+    assert('Spotlight left near start target', Math.abs(slLeft - (fabRect.left - 8)) < 2, `sl=${slLeft} target=${fabRect.left - 8}`);
+    assert('Spotlight top near start target', Math.abs(slTop - (fabRect.top - 8)) < 2, `sl=${slTop} target=${fabRect.top - 8}`);
+    assert('Spotlight width = start target + 16px padding', Math.abs(parseFloat(sl2.style.width) - (fabRect.width + 16)) < 2);
+    assert('Spotlight height = start target + 16px padding', Math.abs(parseFloat(sl2.style.height) - (fabRect.height + 16)) < 2);
   } else {
-    assert('Visible import target exists for spotlight test', false, 'no visible #drop-zone, .header-import-btn, or #import-fab');
+    assert('Visible start target exists for spotlight test', false, 'no visible .welcome-primary-panel or #drop-zone');
   }
 
   // ═══════════════════════════════════════
@@ -158,20 +158,20 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. Last Step — Done ', 'font-weight:bold;color:#f59e0b');
 
-  window._tourGoToStep(7);
+  window._tourGoToStep(5);
   await wait(100);
 
   const tooltip4 = document.getElementById('tour-tooltip');
-  assert('Step 7 title is "Settings & Connections"', tooltip4?.querySelector('h4')?.textContent === 'Settings & Connections');
+  assert('Step 5 title is "Settings & Connections"', tooltip4?.querySelector('h4')?.textContent === 'Settings & Connections');
 
   const btns4 = tooltip4.querySelectorAll('.tour-btn');
   assert('Last step has Back button', btns4[0]?.textContent.trim() === 'Back');
   assert('Last step has Done button (not Next)', btns4[1]?.textContent.trim() === 'Done');
   assert('Done calls endTour()', btns4[1]?.getAttribute('onclick')?.includes('endTour'));
-  assert('Back calls _tourGoToStep(6)', btns4[0]?.getAttribute('onclick')?.includes('_tourGoToStep(6)'));
+  assert('Back calls _tourGoToStep(4)', btns4[0]?.getAttribute('onclick')?.includes('_tourGoToStep(4)'));
 
   const dots4 = tooltip4.querySelectorAll('.tour-dot');
-  assert('Last dot (8th) is active on step 7', dots4[7]?.classList.contains('active'));
+  assert('Last dot (6th) is active on step 5', dots4[5]?.classList.contains('active'));
 
   // ═══════════════════════════════════════
   // 9. End tour — cleanup
@@ -243,7 +243,7 @@ return (async function() {
   console.log('%c 15. Tooltip In Viewport (Live) ', 'font-weight:bold;color:#f59e0b');
 
   window.startEmptyTour(false);
-  window._tourGoToStep(2);
+  window._tourGoToStep(1);
   await wait(100);
 
   const ttRect = document.getElementById('tour-tooltip').getBoundingClientRect();
@@ -260,22 +260,20 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 16. Tour Step Targets in DOM ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Empty welcome panel target exists', !!document.querySelector('.welcome-primary-panel'));
-  assert('Empty import target exists', !!document.querySelector('#drop-zone, .header-import-btn, #import-fab'));
+  assert('Empty start target exists', !!document.querySelector('.welcome-primary-panel, #drop-zone'));
   assert('Empty demo cards target exists', !!document.querySelector('.demo-cards'));
-  assert('Empty secondary setup target exists', !!document.querySelector('.welcome-secondary-grid'));
   assert('Empty context details target exists', !!document.querySelector('.welcome-context-summary'));
   assert('.profile-compact-btn exists', !!document.querySelector('.profile-compact-btn'));
   assert('.settings-btn exists', !!document.querySelector('.settings-btn'));
 
   // ═══════════════════════════════════════
-  // 17. Empty tour full walkthrough (all 8 titles + dots)
+  // 17. Empty tour full walkthrough (all 6 titles + dots)
   // ═══════════════════════════════════════
-  console.log('%c 17. Empty Tour Full Walkthrough (Steps 0-7) ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 17. Empty Tour Full Walkthrough (Steps 0-5) ', 'font-weight:bold;color:#f59e0b');
 
   const expectedTitles = [
-    'Welcome to getbased', 'Choose Your Starting Point', 'Import Your First Data', 'Try a Populated Profile',
-    'Connect Signals', 'Add Context Before Labs', 'Profiles Stay Separate', 'Settings & Connections'
+    'Welcome to getbased', 'Start Here', 'Try a Populated Profile',
+    'Add Context Before Labs', 'Profiles Stay Separate', 'Settings & Connections'
   ];
 
   localStorage.removeItem(emptyTourKey);
