@@ -1,4 +1,4 @@
-// sun-defaults.js — Light lens onboarding: 4 setup questions + a 10-item
+// sun-defaults.js — Light lens onboarding: 3 setup questions + a 10-item
 // indoor-light burden audit grounded in current photobiology. Persists to
 // importedData.sunDefaults.
 //
@@ -27,6 +27,13 @@ function _psmTierOf(raw) {
   if (raw === false || raw == null) return 'none';
   return String(raw);
 }
+
+const PHOTOSENSITIVE_OPTIONS = [
+  { key: 'none', label: 'None', sub: 'No known photosensitizers' },
+  { key: 'mild', label: 'Mild', sub: 'Antihistamines or light NSAID use' },
+  { key: 'moderate', label: 'Moderate', sub: "NSAIDs, thiazides, sulfa, St. John's Wort, topical retinol" },
+  { key: 'severe', label: 'Severe', sub: 'Tetracyclines, oral retinoids, amiodarone, citrus oils on skin' },
+];
 
 function fitzpatrickToSkinTypeIndex(fp) {
   return Math.max(0, ROMAN.indexOf(fp));
@@ -157,21 +164,22 @@ export function isOnboardingComplete() {
   return d && d.fitzpatrick && d.completedAt;
 }
 
-// ─── UI: setup card (4 questions + indoor-light burden audit) ────────
+// ─── UI: setup card (3 questions + indoor-light burden audit) ────────
 
-// Session-level flag — when set, the editor renders even if onboarding
-// was already completed. Cleared after a save / dismiss / cancel so the
-// summary card returns to view.
+// Session-level flag kept for compatibility with older callers that expected
+// edit mode to be stateful. The editor now lives in a focused overlay; the
+// widget always renders either a compact prompt or the saved summary.
 let _setupForceOpen = false;
+const LIGHT_SETUP_OVERLAY_ID = 'light-setup-focus-overlay';
 
 function reopenSunSetup() {
   _setupForceOpen = true;
-  if (window.navigate) window.navigate('light');
+  openSunSetupOverlay();
 }
 
 function cancelReopenSunSetup() {
+  closeSunSetupOverlay();
   _setupForceOpen = false;
-  if (window.navigate) window.navigate('light');
 }
 
 // Map an indoor-light burden score (0-10, higher = more indoor) to a
@@ -308,28 +316,121 @@ function renderSavedSummary() {
 }
 
 export function renderSetupCard() {
-  // Three render modes:
-  //   - editor (onboarding incomplete OR user reopened via "Edit setup")
-  //   - summary (onboarding complete and not reopened)
-  if (isOnboardingComplete() && !_setupForceOpen) {
-    return renderSavedSummary();
-  }
-  const d = getSunDefaults() || {};
+  return isOnboardingComplete() ? renderSavedSummary() : renderSetupPrompt();
+}
 
-  // Count how many of the 4 core questions are filled — drives the "3 of 4
-  // done" progress hint (#9). Skin type counts only when actively tapped.
+function renderSetupPrompt() {
+  return `<div class="light-setup-prompt light-widget-prompt">
+    <div class="light-widget-prompt-copy">
+      <strong>Set up your light assumptions</strong>
+      <p>Skin type, home lighting, and eyewear drive burn math and channel estimates.</p>
+    </div>
+    <div class="light-setup-prompt-actions">
+      <button type="button" class="dashboard-action-btn" onclick="window.dismissSunSetup && window.dismissSunSetup()">Later</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" onclick="window.reopenSunSetup && window.reopenSunSetup()">Set up</button>
+    </div>
+  </div>`;
+}
+
+function getSetupFilledCount() {
+  const d = getSunDefaults() || {};
+  // Count how many of the 3 core questions are filled. Skin type counts only
+  // when actively tapped.
   const skinFilled = !!getInitialFitzpatrick();
   const homeFilled = !!d.homeLight;
   const eyewearFilled = !!d.eyewear;
-  const locFilled = !!(d.coords?.lat && d.coords?.lon) || !!(window.getSunCoords && window.getSunCoords()?.source === 'country-band');
-  const filledCount = [skinFilled, homeFilled, eyewearFilled, locFilled].filter(Boolean).length;
+  return [skinFilled, homeFilled, eyewearFilled].filter(Boolean).length;
+}
 
-  let html = `<div class="light-setup-card">
-    <div class="light-setup-title">Light setup
-      <span class="light-setup-progress" aria-label="${filledCount} of 4 questions done">${filledCount}/4 done</span>
+function renderSetupActions(filledCount = getSetupFilledCount()) {
+  return `<div class="light-setup-actions" data-setup-actions="core">
+    ${isOnboardingComplete()
+      ? `<button class="import-btn import-btn-secondary" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">Cancel</button>
+         <button class="import-btn import-btn-primary light-setup-next-btn" onclick="window.setLightSetupStep && window.setLightSetupStep('score')">Next: Light score</button>`
+      : `<button class="import-btn import-btn-tertiary light-setup-skip-btn" onclick="window.dismissSunSetup && window.dismissSunSetup()">I'll do this later</button>
+         <button class="import-btn import-btn-primary light-setup-next-btn" onclick="window.setLightSetupStep && window.setLightSetupStep('score')">Next: Light score</button>`}
+  </div>
+  <div class="light-setup-actions" data-setup-actions="score">
+    <button class="import-btn import-btn-secondary" onclick="window.setLightSetupStep && window.setLightSetupStep('core')">Back</button>
+    ${isOnboardingComplete()
+      ? `<button class="import-btn import-btn-primary light-setup-save-btn" onclick="window.saveSunSetup()">Save changes</button>`
+      : `<button class="import-btn import-btn-primary light-setup-save-btn" onclick="window.saveSunSetup()">Save setup</button>`}
+  </div>`;
+}
+
+function renderSetupChoiceGroup(id, options, selected, className = '') {
+  return `<input type="hidden" id="${escapeAttr(id)}" value="${escapeAttr(selected || '')}">
+    <div class="light-setup-choice-grid ${className}" role="group">
+      ${options.map(o => {
+        const active = selected === o.key;
+        return `<button type="button" class="light-setup-choice${active ? ' active' : ''}" data-choice-group="${escapeAttr(id)}" data-value="${escapeAttr(o.key)}" aria-pressed="${active ? 'true' : 'false'}" onclick="window._selectSetupChoice && window._selectSetupChoice(this)">
+          <span class="light-setup-choice-label">${escapeHTML(o.label)}</span>
+          ${o.sub ? `<span class="light-setup-choice-sub">${escapeHTML(o.sub)}</span>` : ''}
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderOttScoreMeter(score) {
+  const burden = Math.max(0, Math.min(10, Number(score) || 0));
+  const aligned = 10 - burden;
+  const meta = ottScoreToLabel(burden);
+  return `<div class="light-setup-ott-running light-setup-score-meter" id="ott-running-score" data-tier="${escapeAttr(String(meta.tier))}">
+    <div class="light-setup-score-main">
+      <span>Alignment</span>
+      <strong id="ott-running-aligned">${aligned}/10</strong>
     </div>
-    <p class="light-setup-lead"><strong>30 seconds.</strong> Once you've answered, the AI knows your burn threshold, your indoor light environment, and your circadian baseline — and can interpret your sun sessions and labs through that lens. Answers stay on this device.</p>
+    <div class="light-setup-score-bar" aria-hidden="true">
+      <span id="ott-score-fill" style="width:${aligned * 10}%"></span>
+    </div>
+    <div class="light-setup-score-meta">
+      <span class="light-setup-score-gap-count">Gaps flagged: <strong id="ott-running-value">${burden}/10</strong></span>
+      <span class="light-ott-badge light-ott-tier-${meta.tier}" id="ott-running-label" data-tier="${escapeAttr(String(meta.tier))}">${escapeHTML(meta.label)}</span>
+      <span class="light-setup-ott-summary-score" id="ott-summary-score">${aligned}/10 aligned</span>
+    </div>
+  </div>`;
+}
 
+function renderOttQuestion(q, index, checked) {
+  return `<label class="light-setup-ott-q light-setup-ott-card${checked ? ' is-flagged' : ''}">
+    <input class="light-setup-ott-input" type="checkbox" data-ott="${escapeAttr(q.key)}"${checked ? ' checked' : ''} oninput="window._updateOttRunningScore && window._updateOttRunningScore()">
+    <span class="light-setup-ott-card-mark" aria-hidden="true"><span>${index + 1}</span></span>
+    <span class="light-setup-ott-q-body">
+      <span class="light-setup-ott-q-top">
+        <span class="light-setup-ott-q-text">${escapeHTML(q.text)}</span>
+        <span class="light-setup-ott-q-state light-setup-ott-q-state-clear">Aligned</span>
+        <span class="light-setup-ott-q-state light-setup-ott-q-state-flagged">Gap flagged</span>
+      </span>
+      ${q.why ? `<span class="light-setup-ott-q-why">${escapeHTML(q.why)}</span>` : ''}
+    </span>
+  </label>`;
+}
+
+function renderSetupEditor({ includeActions = true } = {}) {
+  const d = getSunDefaults() || {};
+  const filledCount = getSetupFilledCount();
+  const ottBurden = d.ott ? Object.values(d.ott).filter(v => v).length : 0;
+
+  let html = `<div class="light-setup-card light-setup-card-editor">
+    <div class="light-setup-step-tabs" role="tablist" aria-label="Light setup steps">
+      <button type="button" class="light-setup-step-tab active" data-setup-tab="core" role="tab" aria-selected="true" onclick="window.setLightSetupStep && window.setLightSetupStep('core')">
+        <span class="light-setup-step-tab-index">1</span>
+        <span>Core assumptions</span>
+      </button>
+      <button type="button" class="light-setup-step-tab" data-setup-tab="score" role="tab" aria-selected="false" onclick="window.setLightSetupStep && window.setLightSetupStep('score')">
+        <span class="light-setup-step-tab-index">2</span>
+        <span>Light score check</span>
+      </button>
+    </div>
+
+    <section class="light-setup-pane" data-setup-pane="core">
+    <div class="light-setup-title" tabindex="-1">Core assumptions
+      <span class="light-setup-progress" aria-label="${filledCount} of 3 questions done">${filledCount}/3 done</span>
+    </div>
+    <p class="light-setup-lead"><strong>Step 1 of 2.</strong> Calibrate the assumptions that drive burn threshold, indoor-light context, and eye-channel estimates. The next step asks the 10 light-score questions.</p>
+    ${renderSetupLocationStatus()}
+
+    <div class="light-setup-fields-grid">
     <div class="light-setup-step">
       <label class="ctx-label" id="setup-skin-label-id">Skin type</label>
       <p class="light-setup-step-why">Sets your burn threshold (MED) and how much UV you can take before getting red.</p>
@@ -349,74 +450,218 @@ export function renderSetupCard() {
     </div>
 
     <div class="light-setup-step light-setup-photo-row">
-      <label for="setup-photosensitive" class="ctx-label"><strong>Photosensitizing meds / supplements</strong></label>
-      <select id="setup-photosensitive" class="ctx-select">
-        <option value="none"${_psmTierOf(d.photosensitiveMeds) === 'none' ? ' selected' : ''}>None — no photosensitizers</option>
-        <option value="mild"${_psmTierOf(d.photosensitiveMeds) === 'mild' ? ' selected' : ''}>Mild — antihistamines, light NSAIDs (×0.7 burn threshold)</option>
-        <option value="moderate"${_psmTierOf(d.photosensitiveMeds) === 'moderate' ? ' selected' : ''}>Moderate — NSAIDs, thiazides, sulfa, St. John's Wort, topical retinol (×0.4)</option>
-        <option value="severe"${_psmTierOf(d.photosensitiveMeds) === 'severe' ? ' selected' : ''}>Severe — tetracyclines, oral retinoids, amiodarone, citrus oils on skin (×0.25)</option>
-      </select>
+      <div class="ctx-label"><strong>Photosensitizing meds / supplements</strong></div>
+      ${renderSetupChoiceGroup('setup-photosensitive', PHOTOSENSITIVE_OPTIONS, _psmTierOf(d.photosensitiveMeds), 'light-setup-choice-grid-compact')}
       <p class="light-setup-photo-why">Lowers your sunburn threshold so burn alerts trigger sooner. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">AAD list →</a></p>
     </div>
 
     <div class="light-setup-step">
-      <label class="ctx-label">Home lighting</label>
+      <div class="ctx-label">Home lighting</div>
       <p class="light-setup-step-why">Shapes your indoor melanopic dose — what the AI sees for the half of your day spent inside.</p>
-      <select id="setup-homelight" class="ctx-select" onchange="window._refreshSetupProgress && window._refreshSetupProgress()">
-        <option value="">Choose what's mostly true at home</option>
-        ${HOME_LIGHT_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.homeLight === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-      </select>
+      ${renderSetupChoiceGroup('setup-homelight', HOME_LIGHT_OPTIONS, d.homeLight, 'light-setup-choice-grid-compact')}
     </div>
 
     <div class="light-setup-step">
-      <label class="ctx-label">Eyewear outside</label>
+      <div class="ctx-label">Eyewear outside</div>
       <p class="light-setup-step-why">Eye exposure to UV / 360–400 nm violet drives circadian + α-MSH / dopamine signals.</p>
-      <select id="setup-eyewear" class="ctx-select" onchange="window._refreshSetupProgress && window._refreshSetupProgress()">
-        <option value="">Choose what you wear most often outside</option>
-        ${EYEWEAR_OPTIONS.map(o => `<option value="${escapeAttr(o.key)}"${d.eyewear === o.key ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-      </select>
+      ${renderSetupChoiceGroup('setup-eyewear', EYEWEAR_OPTIONS, d.eyewear)}
     </div>
 
-    <div class="light-setup-step">
-      <label class="ctx-label">Location</label>
-      <p class="light-setup-step-why">Drives sun-angle and UV-index math. Country-level is fine; precise lat/lon sharpens it.</p>
-      <div class="light-setup-loc-row">
-        <span class="setup-hint-inline">${getSunCoordsLine()}</span>
-        <button class="import-btn import-btn-secondary" onclick="window.requestPreciseLocation && window.requestPreciseLocation().then(()=>window.navigate('light'))">Pinpoint location for sharper UV math</button>
+    </div>
+    </section>
+
+    <section class="light-setup-pane" data-setup-pane="score">
+    <section class="light-setup-ott">
+      <div class="light-setup-ott-head">
+        <div>
+          <div class="light-setup-ott-kicker">Light score check</div>
+          <h4 tabindex="-1">Flag the light-environment gaps that are true for you</h4>
+        </div>
       </div>
-    </div>
-
-    <details class="light-setup-ott"${(d.ott && Object.values(d.ott).some(v => v)) ? ' open' : ''}>
-      <summary>Tune your light score (optional, ~1 min) <span class="light-setup-ott-summary-score" id="ott-summary-score">${(typeof d.ottScore === 'number') ? `· ${10 - d.ottScore}/10 aligned · ${ottScoreToLabel(d.ottScore).label}` : ''}</span></summary>
-      <p class="light-setup-body" style="margin:8px 0">10 yes/no questions, each grounded in current photobiology. <strong>"Yes" always = a gap</strong> — morning light skipped, glass-mediated days, dark sleep missed, etc. Higher alignment score = better-aligned circadian + UV environment.</p>
+      <p class="light-setup-body light-setup-ott-lead"><strong>Step 2 of 2.</strong> Tapped cards count as gaps. Leave a card unselected when the statement is not true for you.</p>
+      ${renderOttScoreMeter(d.ott ? ottBurden : ((typeof d.ottScore === 'number') ? d.ottScore : 0))}
       <div class="light-setup-ott-questions">
-        ${OTT_QUESTIONS.map(q => `<label class="light-setup-ott-q"><input type="checkbox" data-ott="${escapeAttr(q.key)}"${(d.ott && d.ott[q.key]) ? ' checked' : ''} oninput="window._updateOttRunningScore && window._updateOttRunningScore()"><span class="light-setup-ott-q-body"><span class="light-setup-ott-q-text">${escapeHTML(q.text)}</span>${q.why ? `<span class="light-setup-ott-q-why">${escapeHTML(q.why)}</span>` : ''}</span></label>`).join('')}
+        ${OTT_QUESTIONS.map((q, i) => renderOttQuestion(q, i, !!(d.ott && d.ott[q.key]))).join('')}
       </div>
-      <div class="light-setup-ott-running" id="ott-running-score">
-        <span class="light-setup-ott-running-pos">Alignment: <strong id="ott-running-aligned">${10 - (d.ott ? Object.values(d.ott).filter(v => v).length : 0)}/10</strong></span>
-        <span class="light-setup-ott-running-sep">·</span>
-        <span class="light-setup-ott-running-neg">Burden: <strong id="ott-running-value">${(d.ott ? Object.values(d.ott).filter(v => v).length : 0)}/10</strong></span>
-        <span class="light-ott-badge light-ott-tier-${ottScoreToLabel(d.ott ? Object.values(d.ott).filter(v => v).length : 0).tier}" id="ott-running-label">${ottScoreToLabel(d.ott ? Object.values(d.ott).filter(v => v).length : 0).label}</span>
-      </div>
-    </details>
+    </section>
+    </section>
 
-    <div class="light-setup-actions">
-      ${isOnboardingComplete()
-        ? `<button class="import-btn import-btn-secondary" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">Cancel</button>
-           <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save changes</button>`
-        : `<button class="import-btn import-btn-tertiary light-setup-skip-btn" onclick="window.dismissSunSetup && window.dismissSunSetup()">I'll do this later</button>
-           <button class="import-btn import-btn-primary" onclick="window.saveSunSetup()">Save setup · ${filledCount}/4 done</button>`}
-    </div>
+    ${includeActions ? renderSetupActions(filledCount) : ''}
   </div>`;
   return html;
 }
 
-function getSunCoordsLine() {
-  const c = window.getSunCoords && window.getSunCoords();
-  if (!c) return 'no location yet — set your country in profile, or share precise location';
-  if (c.source === 'profile-precise') return 'precise location saved (highest accuracy)';
-  if (c.source === 'country-band') return `country-level estimate (~${c.lat}° latitude)`;
-  return 'unknown';
+function openSunSetupOverlay() {
+  if (typeof document === 'undefined') return;
+  const existing = document.getElementById(LIGHT_SETUP_OVERLAY_ID);
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = LIGHT_SETUP_OVERLAY_ID;
+  overlay.className = 'modal-overlay show light-setup-focus-overlay';
+  overlay.innerHTML = `<div class="modal light-setup-focus-modal" data-setup-step="core" role="dialog" aria-modal="true" aria-labelledby="light-setup-focus-title">
+    <header class="light-setup-focus-head">
+      <div>
+        <div class="gb-modal-kicker">Light lens setup</div>
+        <h3 id="light-setup-focus-title">Light setup</h3>
+        <p>Calibrate burn math, indoor-light context, and circadian assumptions for this profile.</p>
+      </div>
+      <button type="button" class="modal-close" aria-label="Close light setup" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">&times;</button>
+    </header>
+    <div class="light-setup-focus-body" tabindex="-1">
+      ${renderSetupEditor({ includeActions: false })}
+    </div>
+    ${renderSetupActions()}
+  </div>`;
+
+  if (window._wireBackdropClose) {
+    try { window._wireBackdropClose(overlay, closeSunSetupOverlay); } catch (_) {}
+  } else {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeSunSetupOverlay();
+    });
+  }
+
+  document.body.appendChild(overlay);
+
+  const obs = new MutationObserver(() => {
+    if (!document.body.contains(overlay)) {
+      obs.disconnect();
+      _setupForceOpen = false;
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+
+  if (window.trapModalFocus) {
+    try { window.trapModalFocus(overlay); } catch (_) {}
+  }
+  setLightSetupStep('core', { focus: false });
+  const focusBody = () => overlay.querySelector('.light-setup-focus-body')?.focus?.({ preventScroll: true });
+  setTimeout(() => {
+    _refreshSetupProgress();
+    focusBody();
+  }, 40);
+  setTimeout(focusBody, 120);
+}
+
+function closeSunSetupOverlay() {
+  const overlay = typeof document !== 'undefined'
+    ? document.getElementById(LIGHT_SETUP_OVERLAY_ID)
+    : null;
+  if (overlay) overlay.remove();
+  _setupForceOpen = false;
+}
+
+function setLightSetupStep(step, opts = {}) {
+  if (typeof document === 'undefined') return;
+  const nextStep = step === 'score' ? 'score' : 'core';
+  const modal = document.querySelector('.light-setup-focus-modal');
+  if (!modal) return;
+  modal.dataset.setupStep = nextStep;
+  modal.querySelectorAll('[data-setup-tab]').forEach(tab => {
+    const active = tab.dataset.setupTab === nextStep;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  modal.querySelectorAll('[data-setup-pane]').forEach(pane => {
+    const active = pane.dataset.setupPane === nextStep;
+    pane.toggleAttribute('hidden', !active);
+  });
+  const body = modal.querySelector('.light-setup-focus-body');
+  if (body) body.scrollTop = 0;
+  if (opts.focus !== false) {
+    const target = modal.querySelector(`[data-setup-pane="${nextStep}"] .light-setup-title, [data-setup-pane="${nextStep}"] h4`);
+    setTimeout(() => target?.focus?.({ preventScroll: true }), 0);
+  }
+}
+
+function formatSetupLatitude(lat) {
+  const n = Number(lat);
+  if (!Number.isFinite(n)) return '';
+  const digits = Math.abs(n) >= 10 ? 1 : 2;
+  return `${Math.abs(n).toFixed(digits)}°${n < 0 ? 'S' : 'N'}`;
+}
+
+function getSetupLocationStatus() {
+  const c = (typeof window !== 'undefined' && window.getSunCoords)
+    ? window.getSunCoords()
+    : null;
+  const loc = (typeof window !== 'undefined' && window.getProfileLocation)
+    ? window.getProfileLocation()
+    : {};
+  const country = (loc?.country || '').trim();
+  const lat = c ? formatSetupLatitude(c.lat) : '';
+
+  if (c?.source === 'profile-precise') {
+    return {
+      tone: 'precise',
+      value: 'Precise location saved',
+      badge: 'highest accuracy',
+      detail: 'Drives sun-angle and UV-index math with saved lat/lon.',
+      preciseLabel: 'Refresh precise location',
+    };
+  }
+  if (c?.source === 'country-band') {
+    return {
+      tone: 'estimate',
+      value: `Profile estimate${lat ? ` · ~${lat}` : ''}`,
+      badge: 'profile',
+      detail: `${country ? `${country} profile location. ` : ''}Country-level is enough for setup; precise location sharpens live sun timing.`,
+      preciseLabel: 'Use precise location',
+    };
+  }
+  return {
+    tone: 'missing',
+    value: 'No profile location set',
+    badge: 'optional',
+    detail: 'Set country in Profile for daylight and UV estimates, or share precise location once.',
+    preciseLabel: 'Use precise location',
+  };
+}
+
+function renderSetupLocationStatus() {
+  const status = getSetupLocationStatus();
+  return `<div class="light-setup-location-status light-setup-location-${escapeAttr(status.tone)}" aria-label="Location status">
+    <div class="light-setup-location-copy">
+      <div class="light-setup-location-label">Location</div>
+      <div class="light-setup-location-value-row">
+        <strong>${escapeHTML(status.value)}</strong>
+        <span class="light-setup-location-badge">${escapeHTML(status.badge)}</span>
+      </div>
+      <p>${escapeHTML(status.detail)}</p>
+    </div>
+    <div class="light-setup-location-actions">
+      <button type="button" class="import-btn import-btn-secondary" onclick="window.openLightSetupProfileLocation && window.openLightSetupProfileLocation()">Edit profile</button>
+      <button type="button" class="import-btn import-btn-secondary" onclick="window.requestLightSetupPreciseLocation && window.requestLightSetupPreciseLocation()">${escapeHTML(status.preciseLabel)}</button>
+    </div>
+  </div>`;
+}
+
+function refreshSetupLocationStatus() {
+  if (typeof document === 'undefined') return;
+  const row = document.querySelector('.light-setup-location-status');
+  if (row) row.outerHTML = renderSetupLocationStatus();
+}
+
+function openLightSetupProfileLocation() {
+  cancelReopenSunSetup();
+  setTimeout(() => {
+    if (window.openProfileLocationEditor) {
+      window.openProfileLocationEditor();
+    } else if (window.openClientList) {
+      window.openClientList();
+    }
+  }, 0);
+}
+
+async function requestLightSetupPreciseLocation() {
+  if (!window.requestPreciseLocation) {
+    showNotification('Precise location is unavailable here.');
+    return null;
+  }
+  const coords = await window.requestPreciseLocation();
+  refreshSetupLocationStatus();
+  return coords;
 }
 
 // Save handler — wired to button via window
@@ -433,6 +678,7 @@ async function saveSunSetup() {
   const homeLight = root.querySelector('#setup-homelight')?.value || null;
   const eyewear = root.querySelector('#setup-eyewear')?.value || null;
   if (!fitzpatrick) {
+    setLightSetupStep('core');
     showNotification('Tap a face to confirm your skin type.');
     return;
   }
@@ -445,11 +691,11 @@ async function saveSunSetup() {
       if (cb.checked) ottScore++;
     }
   }
-  // photosensitiveMeds was a boolean checkbox; now a tier-based select.
-  // Read .value (string) and fall back to legacy boolean parsing for any
-  // mid-rollout state that still has a checkbox node (cached templates).
+  // photosensitiveMeds started as a boolean checkbox, then briefly used a
+  // native select. The current setup uses a hidden input driven by inline
+  // choice buttons so the option list stays inside the focused modal.
   const psmEl = root.querySelector('#setup-photosensitive');
-  const photosensitiveMeds = psmEl?.tagName === 'SELECT'
+  const photosensitiveMeds = (psmEl?.tagName === 'SELECT' || psmEl?.type === 'hidden')
     ? (psmEl.value || 'none')
     : (psmEl?.checked ? 'moderate' : 'none');
   await saveSunDefaults({
@@ -468,7 +714,7 @@ async function saveSunSetup() {
   }
   state.importedData.lightCircadian.skinType = SKIN_TYPE[skinIdx];
   await saveImportedData();
-  _setupForceOpen = false;
+  closeSunSetupOverlay();
   showNotification(`Setup saved · light burden ${ottScore}/10`);
   if (typeof window !== 'undefined' && window.maybeAnalyzeOnboardingAfterSave) {
     try { window.maybeAnalyzeOnboardingAfterSave(); } catch (_) {}
@@ -484,15 +730,22 @@ function _updateOttRunningScore() {
   if (!root) return;
   const cbs = root.querySelectorAll('input[data-ott]');
   let score = 0;
-  cbs.forEach(cb => { if (cb.checked) score++; });
+  cbs.forEach(cb => {
+    cb.closest('.light-setup-ott-card')?.classList.toggle('is-flagged', cb.checked);
+    if (cb.checked) score++;
+  });
   const aligned = 10 - score;
   const valueEl = root.querySelector('#ott-running-value');
   const alignedEl = root.querySelector('#ott-running-aligned');
   const labelEl = root.querySelector('#ott-running-label');
   const summary = root.querySelector('#ott-summary-score');
+  const meter = root.querySelector('#ott-running-score');
+  const fill = root.querySelector('#ott-score-fill');
   const meta = ottScoreToLabel(score);
   if (valueEl) valueEl.textContent = `${score}/10`;
   if (alignedEl) alignedEl.textContent = `${aligned}/10`;
+  if (meter) meter.dataset.tier = String(meta.tier);
+  if (fill) fill.style.width = `${aligned * 10}%`;
   if (labelEl) {
     // Tier-change animation — flash the badge briefly when its tier color
     // shifts so the score change feels alive instead of silently swapping.
@@ -506,7 +759,7 @@ function _updateOttRunningScore() {
       setTimeout(() => labelEl.classList.remove('tier-changed'), 600);
     }
   }
-  if (summary) summary.textContent = `· ${aligned}/10 aligned · ${meta.label}`;
+  if (summary) summary.textContent = `${aligned}/10 aligned`;
 }
 
 // Live update of the setup-card emoji slider (mirrors updateSkinSlider in
@@ -539,7 +792,22 @@ function _updateSetupSkinSlider(val) {
   _refreshSetupProgress();
 }
 
-// Recompute the "X/4 done" progress hint from the live DOM state. Called
+function _selectSetupChoice(button) {
+  const group = button?.dataset?.choiceGroup;
+  if (!group) return;
+  const card = button.closest('.light-setup-card');
+  const input = card?.querySelector(`#${group}`);
+  if (!input) return;
+  input.value = button.dataset.value || '';
+  card.querySelectorAll(`[data-choice-group="${group}"]`).forEach(el => {
+    const active = el === button;
+    el.classList.toggle('active', active);
+    el.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  _refreshSetupProgress();
+}
+
+// Recompute the "X/3 done" progress hint from the live DOM state. Called
 // from each input's onchange/oninput so the counter advances on click,
 // not on Save — pre-fix the user clicked a skin face and got no
 // feedback that they'd just made progress.
@@ -549,19 +817,16 @@ function _refreshSetupProgress() {
   const skinFilled = card.querySelector('#setup-skin-range')?.dataset.set === '1';
   const homeFilled = !!card.querySelector('#setup-homelight')?.value;
   const eyewearFilled = !!card.querySelector('#setup-eyewear')?.value;
-  // Location: best-effort read; getSunCoords may return a country-band fallback
-  // that counts toward "filled" the same way the initial render does.
-  let locFilled = false;
-  try {
-    const d = getSunDefaults() || {};
-    locFilled = !!(d.coords?.lat && d.coords?.lon)
-      || !!(window.getSunCoords && window.getSunCoords()?.source === 'country-band');
-  } catch (_) {}
-  const filled = [skinFilled, homeFilled, eyewearFilled, locFilled].filter(Boolean).length;
+  const filled = [skinFilled, homeFilled, eyewearFilled].filter(Boolean).length;
   const progress = card.querySelector('.light-setup-progress');
   if (progress) {
-    progress.textContent = `${filled}/4 done`;
-    progress.setAttribute('aria-label', `${filled} of 4 questions done`);
+    progress.textContent = `${filled}/3 done`;
+    progress.setAttribute('aria-label', `${filled} of 3 questions done`);
+  }
+  const saveBtn = card.closest('.light-setup-focus-modal')?.querySelector('.light-setup-save-btn')
+    || card.querySelector('.light-setup-save-btn');
+  if (saveBtn && !isOnboardingComplete()) {
+    saveBtn.textContent = 'Save setup';
   }
 }
 
@@ -569,7 +834,7 @@ function _refreshSetupProgress() {
 // Card disappears; a session log will start with default Fitzpatrick III.
 async function dismissSunSetup() {
   await saveSunDefaults({ fitzpatrick: 'III', skipped: true, completedAt: Date.now() });
-  _setupForceOpen = false;
+  closeSunSetupOverlay();
   if (window.navigate) window.navigate('light');
 }
 
@@ -583,11 +848,16 @@ if (typeof window !== 'undefined') {
     dismissSunSetup,
     reopenSunSetup,
     cancelReopenSunSetup,
+    openSunSetupOverlay,
+    openLightSetupProfileLocation,
+    requestLightSetupPreciseLocation,
+    setLightSetupStep,
     ottScoreToLabel,
     _sunHomeLightOptions: HOME_LIGHT_OPTIONS,
     _sunEyewearOptions: EYEWEAR_OPTIONS,
     _updateSetupSkinSlider,
     _refreshSetupProgress,
+    _selectSetupChoice,
     _updateOttRunningScore,
     _skinTypeToFitzpatrick: skinTypeToFitzpatrick,
     _skinFaceKeydown,

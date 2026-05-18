@@ -120,8 +120,8 @@ await import('../js/state.js');
 
     withProvider();
     const idle = mod.renderRoomAIBlock(r);
-    assert('room block renders idle CTA + AI verdict step header',
-      idle.includes('AI verdict') && idle.includes('Analyze room'));
+    assert('room block renders compact idle AI read row',
+      idle.includes('light-env-room-ai-idle') && idle.includes('AI read') && idle.includes('Analyze'));
 
     // Fingerprint must match the room's current shape — post-2026-05-08
     // renderRoomAIBlock detects stale verdicts and surfaces a shimmer
@@ -129,8 +129,8 @@ await import('../js/state.js');
     const realRoomFp = mod.getRoomFingerprint ? mod.getRoomFingerprint(r) : 'fp';
     r.aiAnalysis = { ...okVerdict('red'), fingerprint: realRoomFp };
     const ok = mod.renderRoomAIBlock(r);
-    assert('room block renders red dot + step header',
-      ok.includes('sun-session-ai-dot-red') && ok.includes('AI verdict'));
+    assert('room block renders red dot in compact AI read row',
+      ok.includes('sun-session-ai-dot-red') && ok.includes('light-env-room-ai-red') && ok.includes('AI read'));
 
     // Verify _safeText bounds on prompt context (P0 prompt-injection fix).
     // _safeText collapses whitespace + caps length — it doesn't strip the

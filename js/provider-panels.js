@@ -1,6 +1,6 @@
 // provider-panels.js — AI provider panel rendering, model dropdowns, balance display, key validation
 
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, loadScriptOnce } from './utils.js';
 import {
   getVeniceKey, saveVeniceKey, getOpenRouterKey, saveOpenRouterKey, setAIProvider,
   getVeniceModel, setVeniceModel, getOpenRouterModel, setOpenRouterModel,
@@ -24,6 +24,18 @@ import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, 
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
 import { isValidExternalUrl } from './url-safety.js';
+
+let _qrCodeLoad = null;
+async function ensureQRCode() {
+  if (typeof qrcode === 'function') return qrcode;
+  if (!_qrCodeLoad) {
+    _qrCodeLoad = loadScriptOnce('/vendor/qrcode-generator.js').then(() => {
+      if (typeof qrcode !== 'function') throw new Error('QR code library did not initialize');
+      return qrcode;
+    });
+  }
+  return _qrCodeLoad;
+}
 
 
 // ═══════════════════════════════════════════════
@@ -1236,6 +1248,14 @@ export async function doRoutstrWalletFund(amountSats) {
       qr.addData(result.invoice.toUpperCase());
       qr.make();
       qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+    } else {
+      try {
+        const makeQr = await ensureQRCode();
+        const qr = makeQr(0, 'L');
+        qr.addData(result.invoice.toUpperCase());
+        qr.make();
+        qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+      } catch {}
     }
     const payUri = 'lightning:' + result.invoice;
     statusEl.innerHTML = `<div style="margin-top:8px;text-align:center">
@@ -2104,7 +2124,8 @@ export async function doPpqTopup(amount) {
     const isLightning = _ppqSelectedMethod === 'btc-lightning';
     let qrSvg = '';
     try {
-      const qr = qrcode(0, 'L');
+      const makeQr = await ensureQRCode();
+      const qr = makeQr(0, 'L');
       qr.addData(isLightning ? payString.toUpperCase() : payString);
       qr.make();
       qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });

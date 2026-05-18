@@ -801,6 +801,20 @@ export function getContextSummary() {
 // ═══════════════════════════════════════════════
 // LENS INJECTION — fold retrieved chunks into the Interpretive Lens block
 // ═══════════════════════════════════════════════
+const LENS_PROMPT_CHUNK_CHAR_LIMIT = 1800;
+const LENS_PROMPT_CHUNK_TOTAL_LIMIT = 8000;
+
+function _trimLensTextForPrompt(text, remainingBudget) {
+  const raw = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  const limit = Math.max(0, Math.min(LENS_PROMPT_CHUNK_CHAR_LIMIT, remainingBudget));
+  if (limit === 0) return '';
+  if (raw.length <= limit) return raw;
+  const suffix = '... [trimmed]';
+  if (limit <= suffix.length) return raw.slice(0, limit);
+  return raw.slice(0, limit - suffix.length).trimEnd() + suffix;
+}
+
 export function injectLensChunks(ctx, lensResult) {
   if (!lensResult || !Array.isArray(lensResult.chunks) || !lensResult.chunks.length) return ctx;
   const snippet = _formatLensChunks(lensResult);
@@ -816,9 +830,15 @@ export function injectLensChunks(ctx, lensResult) {
 
 function _formatLensChunks(result) {
   const lines = [`### Retrieved from your knowledge source (${result.sourceName || 'Lens'}):`];
-  result.chunks.forEach((c, i) => {
-    const cite = c.source ? ` — ${c.source}` : '';
-    lines.push(`${i + 1}. ${c.text}${cite}`);
+  let remainingBudget = LENS_PROMPT_CHUNK_TOTAL_LIMIT;
+  let n = 1;
+  result.chunks.forEach(c => {
+    if (remainingBudget <= 0) return;
+    const text = _trimLensTextForPrompt(c.text, remainingBudget);
+    if (!text) return;
+    remainingBudget -= text.length;
+    const cite = c.source ? ` - ${c.source}` : '';
+    lines.push(`${n++}. ${text}${cite}`);
   });
   lines.push('When your interpretation draws on these excerpts, cite the source. When it does not, say so.');
   return lines.join('\n');

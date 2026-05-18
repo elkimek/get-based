@@ -41,7 +41,7 @@ await import('../js/tour.js');
   // --- 3. Cycle tour step targets ---
   console.log('%c[3] Cycle tour targets', 'font-weight:bold');
   assert('Step 1 is welcome (null target)', /target:\s*null.*Cycle-Aware/.test(cycleStepBlock), 'no null/center step');
-  assert('Has .cycle-summary target', cycleStepBlock.includes('.cycle-summary'));
+  assert('Has .cycle-summary-card target', cycleStepBlock.includes('.cycle-summary-card'));
   assert('Has .cycle-draw-date target', cycleStepBlock.includes('.cycle-draw-date'));
   assert('Has .cycle-draw-phases target', cycleStepBlock.includes('.cycle-draw-phases'));
   assert('Has .cycle-period-log target', cycleStepBlock.includes('.cycle-period-log'));
@@ -90,18 +90,18 @@ await import('../js/tour.js');
 
   // --- 11. Tour button in renderMenstrualCycleSection ---
   console.log('%c[11] Tour button in cycle section', 'font-weight:bold');
-  assert('Renders .cycle-tour-btn', cycleSrc.includes('cycle-tour-btn'));
+  assert('Renders cycle icon button', cycleSrc.includes('class="cycle-icon-btn"'));
   assert('Button calls startCycleTour(false)', cycleSrc.includes('startCycleTour(false)'));
-  assert('Button only shown when mc exists', /\$\{mc\s*\?\s*`<button class="cycle-tour-btn"/.test(cycleSrc));
-  assert('Button has ? text', /cycle-tour-btn[^>]*>(\?)<\/button>/.test(cycleSrc));
+  assert('Button only shown when mc exists', /\$\{mc\s*\?\s*`<button type="button" class="cycle-icon-btn"/.test(cycleSrc));
+  assert('Button has accessible tour label', cycleSrc.includes('aria-label="Take the cycle feature tour"'));
 
-  // --- 12. CSS rule for .cycle-tour-btn ---
+  // --- 12. CSS rule for cycle buttons ---
   console.log('%c[12] CSS rule', 'font-weight:bold');
   const cssSrc = read('/styles.css');
-  assert('.cycle-tour-btn rule exists', cssSrc.includes('.cycle-tour-btn'));
-  assert('24px width', /\.cycle-tour-btn\s*\{[^}]*width:\s*24px/.test(cssSrc));
-  assert('border-radius: 50%', /\.cycle-tour-btn\s*\{[^}]*border-radius:\s*50%/.test(cssSrc));
-  assert('Hover rule exists', cssSrc.includes('.cycle-tour-btn:hover'));
+  assert('.cycle-icon-btn rule exists', cssSrc.includes('.cycle-icon-btn'));
+  assert('touch-sized desktop controls', /\.cycle-icon-btn,[\s\S]*?min-height:\s*36px/.test(cssSrc));
+  assert('touch-sized mobile controls', /@media \(max-width: 768px\)[\s\S]*?\.cycle-icon-btn,[\s\S]*?min-height:\s*40px/.test(cssSrc));
+  assert('Hover rule exists', cssSrc.includes('.cycle-icon-btn:hover'));
 
   // --- 13. Profile delete cleanup ---
   console.log('%c[13] Profile delete cleanup', 'font-weight:bold');

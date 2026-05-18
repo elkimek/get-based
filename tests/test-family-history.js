@@ -176,7 +176,7 @@ console.log('8. Medical History rename');
 assert("Card label is 'Medical History'",
   /label:\s*'Medical History'/.test(ctxSrc));
 assert("Modal headline reads 'Medical History'",
-  /<h3>Medical History<\/h3>/.test(ctxSrc));
+  /renderContextEditorModal\(modal,\s*'Medical History'/.test(ctxSrc));
 assert('Modal description mentions both diagnoses and family history',
   /diagnoses and family history/.test(ctxSrc));
 assert('Card placeholder mentions family history',

@@ -203,7 +203,9 @@ export function renderRoomAIBlock(r) {
   const currentFingerprint = getRoomFingerprint(r);
   const cachedFingerprint = a?.fingerprint;
   const stale = !!(cachedFingerprint && cachedFingerprint !== currentFingerprint);
-  const head = `<div class="light-env-room-step-head"><span class="light-env-room-step-num">⚡</span> AI verdict</div>`;
+  const renderInline = (state, bodyHTML) => `<div class="light-env-room-ai light-env-room-ai-${escapeAttr(state)}">
+    ${bodyHTML}
+  </div>`;
 
   // Auto-fire on first render when the room has enough data to analyze
   // (a primarySource set OR at least one measurement) AND we don't have
@@ -222,55 +224,32 @@ export function renderRoomAIBlock(r) {
   // falls through to the ok branch (with ↻); the auto-fire above
   // updates the verdict underneath when it resolves.
   if (status === 'analyzing') {
-    return `<div class="light-env-room-step light-env-room-ai">
-      ${head}
-      <div class="light-env-room-step-body">
-        <div class="sun-detail-ai sun-detail-ai-loading">
-          <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-          <span>Analyzing this room…</span>
-        </div>
-      </div>
-    </div>`;
+    return renderInline('loading', `
+      <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
+      <span class="light-env-room-ai-label">AI read</span>
+      <span class="light-env-room-ai-tip">Checking this room…</span>`);
   }
   if (status === 'ok') {
     const dot = a.dot;
-    return `<div class="light-env-room-step light-env-room-ai">
-      ${head}
-      <div class="light-env-room-step-body">
-        <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
-          <div class="sun-detail-ai-head">
-            <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-            <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-            <button class="sun-session-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
-          </div>
-          ${a.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a.detail)}</div>` : ''}
-        </div>
-      </div>
-    </div>`;
+    return renderInline(dot, `
+      <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
+      <span class="light-env-room-ai-label">AI read</span>
+      <span class="light-env-room-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
+      <button class="sun-session-ai-refresh light-env-room-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`);
   }
   if (status === 'error') {
     const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
-    return `<div class="light-env-room-step light-env-room-ai">
-      ${head}
-      <div class="light-env-room-step-body">
-        <div class="sun-detail-ai sun-detail-ai-error">
-          <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-          <span>${escapeHTML(msg)}</span>
-          <button class="sun-session-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')">Try again</button>
-        </div>
-      </div>
-    </div>`;
+    return renderInline('error', `
+      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
+      <span class="light-env-room-ai-label">AI read</span>
+      <span class="light-env-room-ai-tip">${escapeHTML(msg)}</span>
+      <button class="sun-session-ai-refresh light-env-room-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')">Try again</button>`);
   }
-  return `<div class="light-env-room-step light-env-room-ai">
-    ${head}
-    <div class="light-env-room-step-body">
-      <div class="sun-detail-ai sun-detail-ai-idle">
-        <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-        <span>Get a circadian-friendliness verdict for this room.</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')">Analyze room</button>
-      </div>
-    </div>
-  </div>`;
+  return renderInline('idle', `
+    <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
+    <span class="light-env-room-ai-label">AI read</span>
+    <span class="light-env-room-ai-tip">Circadian-friendliness check for this room.</span>
+    <button class="sun-session-ai-refresh light-env-room-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')">Analyze</button>`);
 }
 
 Object.assign(window, {

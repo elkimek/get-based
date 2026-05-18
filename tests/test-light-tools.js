@@ -6,6 +6,7 @@
 // Run: node tests/test-light-tools.js  (or via npm test)
 
 import './_node-shim.js';
+import fs from 'node:fs';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -17,11 +18,19 @@ console.log('=== Light Tools Tests ===\n');
 
 await import('../js/state.js');
 const tools = await import('../js/light-tools.js');
-const {
-  computeRowBanding,
-  cameraLockStatusLine,
-  getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement,
-} = tools;
+  const {
+    computeRowBanding,
+    cameraLockStatusLine,
+    getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement,
+    normalizeGoldenHourMinutes,
+    } = tools;
+    const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
+    const stylesSrc = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+    const appearsBefore = (needleA, needleB, from = 0) => {
+      const a = lightToolsSrc.indexOf(needleA, from);
+      const b = lightToolsSrc.indexOf(needleB, from);
+      return a >= 0 && b >= 0 && a < b;
+    };
 
   const orig = window._labState.importedData;
   function reset(seed = {}) {
@@ -100,9 +109,27 @@ const {
   // ─── 5. getMeasurements lazy init + saveMeasurement ─────────────────
   console.log('%c 5. Measurement persistence ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
-  assert('getMeasurements lazily initializes empty list',
-    Array.isArray(getMeasurements()) && getMeasurements().length === 0);
+    reset();
+    assert('getMeasurements lazily initializes empty list',
+      Array.isArray(getMeasurements()) && getMeasurements().length === 0);
+
+    reset({
+      lightMeasurements: [
+        { id: 'old-lux', tool: 'lux', roomId: 'r1', value: 100, capturedAt: 1000 },
+        { id: 'new-lux', tool: 'lux', roomId: 'r1', value: 300, capturedAt: 2000 },
+        { id: 'audit-a', tool: 'audit', value: 2, capturedAt: 1000 },
+        { id: 'audit-b', tool: 'audit', value: 3, capturedAt: 2000 },
+      ],
+    });
+    const migrated = getMeasurements();
+    assert('getMeasurements collapses duplicate non-audit room/tool rows',
+      migrated.length === 3 && migrated.some(m => m.id === 'new-lux') && !migrated.some(m => m.id === 'old-lux'));
+    assert('getMeasurements preserves audit walkthrough history during collapse',
+      migrated.filter(m => m.tool === 'audit').length === 2);
+    assert('getMeasurements tombstones collapsed rows for sync',
+      window._labState.importedData._deleted?.lightMeasurements?.includes('old-lux'));
+
+    reset();
 
   const m1 = await saveMeasurement('lux', 350, { roomId: 'r1', label: 'desk' });
   assert('saveMeasurement returns a stamped entry',
@@ -173,8 +200,58 @@ const {
   // Non-spectrum tool → no hook
   suggestionCalls = 0;
   await saveMeasurement('lux', 500, { roomId: 'r99' });
-  assert('Non-spectrum tool does not fire the hook',
-    suggestionCalls === 0);
+    assert('Non-spectrum tool does not fire the hook',
+      suggestionCalls === 0);
+
+    // ─── 9. Golden-hour duration guard ──────────────────────────────────
+    console.log('%c 9. Golden-hour duration clamp ', 'font-weight:bold;color:#f59e0b');
+
+    assert('normalizeGoldenHourMinutes defaults invalid input to 15',
+      normalizeGoldenHourMinutes('nope') === 15);
+    assert('normalizeGoldenHourMinutes clamps below min',
+      normalizeGoldenHourMinutes('-5') === 1);
+    assert('normalizeGoldenHourMinutes clamps above max',
+      normalizeGoldenHourMinutes('500') === 120);
+    assert('normalizeGoldenHourMinutes accepts valid minutes',
+      normalizeGoldenHourMinutes('45') === 45);
+
+    // ─── 10. Camera lifecycle regressions ────────────────────────────────
+    console.log('%c 10. Camera lifecycle source guards ', 'font-weight:bold;color:#f59e0b');
+
+      assert('Lux assigns close handler before camera fallback can await',
+        appearsBefore('window._closeLuxMeter =', 'await startCameraFallback();'));
+    assert('Lux AmbientLightSensor error retries the camera fallback',
+      /sensor\.addEventListener\('error'[\s\S]{0,500}startCameraFallback/.test(lightToolsSrc));
+      assert('Flicker assigns close handler before getUserMedia await',
+        appearsBefore('window._closeFlicker =', 'navigator.mediaDevices.getUserMedia', lightToolsSrc.indexOf('export async function openFlickerDetector')));
+      assert('CCT assigns close handler before getUserMedia await',
+        appearsBefore('window._closeCCT =', 'navigator.mediaDevices.getUserMedia', lightToolsSrc.indexOf('export async function openCCTMeter')));
+      assert('Spectrum assigns close handler before getUserMedia await',
+        appearsBefore('window._closeSpec =', 'navigator.mediaDevices.getUserMedia', lightToolsSrc.indexOf('export async function openSpectrumClassifier')));
+    assert('Glass transmission tracks and stops active streams on close/finally',
+      /activeGlassStreams\.add\(stream\)/.test(lightToolsSrc) &&
+      /activeGlassStreams\.delete\(stream\)/.test(lightToolsSrc) &&
+      /for \(const stream of activeGlassStreams\)[\s\S]{0,160}getTracks\(\)\.forEach/.test(lightToolsSrc));
+    assert('Eye-level audit waits for movement before recording another pause',
+      /waitingForMovement[\s\S]{0,700}pauseDetections\.push[\s\S]{0,250}waitingForMovement\s*=\s*true/.test(lightToolsSrc));
+
+    // ─── 11. Live measurement anti-jitter layout ───────────────────────
+    console.log('%c 11. Live measurement anti-jitter layout ', 'font-weight:bold;color:#f59e0b');
+
+    assert('Light tool overlay is top-anchored so height changes do not recenter',
+      /\.light-tool-overlay\.modal-overlay\.show\s*\{[\s\S]{0,140}align-items:\s*flex-start/.test(stylesSrc));
+    assert('Live light tool video previews reserve aspect-ratio space before camera metadata',
+      /\.light-tool-modal video\s*\{[\s\S]{0,160}aspect-ratio:\s*4\s*\/\s*3/.test(stylesSrc));
+    assert('Lux live number reserves tabular-width space',
+      /\.lux-dial-value\s*\{[\s\S]{0,220}min-width:\s*6ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc));
+    assert('Flicker and darkness result boxes reserve stable height',
+      /\.flicker-result,\s*\.dark-status\s*\{[\s\S]{0,260}min-height:\s*74px/.test(stylesSrc));
+    assert('CCT and spectrum live result boxes reserve stable height',
+      /\.cct-result\s*\{[\s\S]{0,160}min-height:\s*116px/.test(stylesSrc) &&
+      /\.spec-result\s*\{[\s\S]{0,220}min-height:\s*140px/.test(stylesSrc));
+    assert('Glass and audit result boxes reserve stable numeric layout',
+      /\.glass-reading\s*\{[\s\S]{0,220}min-width:\s*9ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc) &&
+      /\.audit-status\s*\{[\s\S]{0,220}min-height:\s*88px/.test(stylesSrc));
 
   // restore
   if (origSuggest) window.suggestRoomSourceFromSpectrum = origSuggest;

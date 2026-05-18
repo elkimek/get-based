@@ -419,7 +419,7 @@ export function renderLightTodayHero() {
   </div>`;
 }
 
-// Verdict block for the DASHBOARD's Light Today strip. Reuses the same
+// Legacy verdict block for the older Light Today strip. Reuses the same
 // cached verdict as the Light & Sun page hero — runs the AI once per
 // day, both surfaces display it. Renders the full tip + detail + a
 // deep-link to the Light & Sun page hero by default; no
@@ -503,10 +503,12 @@ Object.assign(window, {
 if (typeof window !== 'undefined') {
   window.addEventListener('labcharts-ai-verdict-updated', () => {
     if (state.currentView !== 'dashboard') return;
-    const existing = document.querySelector('.light-today-strip .light-today-dash-ai');
+    const existing = document.querySelector('.dashboard-widget[data-widget-id="light-today"] .light-today-hero, .light-today-strip .light-today-dash-ai');
     if (!existing) return;
     const wrapper = document.createElement('div');
-    wrapper.innerHTML = renderLightTodayDashboardChip().trim();
+    wrapper.innerHTML = (existing.classList.contains('light-today-hero')
+      ? renderLightTodayHero()
+      : renderLightTodayDashboardChip()).trim();
     const fresh = wrapper.firstChild;
     if (fresh) existing.replaceWith(fresh);
   });

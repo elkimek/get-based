@@ -2,7 +2,7 @@
 // Uses cashu-ts (vendored IIFE → global `cashuts`) for protocol operations.
 // Proofs stored in IndexedDB, included in backup/sync.
 
-import { isDebugMode } from './utils.js';
+import { isDebugMode, loadScriptOnce } from './utils.js';
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { isValidExternalUrl } from './url-safety.js';
 
@@ -21,6 +21,31 @@ const DB_VERSION = 2;
 const STORE_PROOFS = 'proofs';
 const STORE_META = 'meta';
 const STORE_FEES = 'fee-proofs';
+
+let _cashuLibLoad = null;
+let _bip39Load = null;
+
+async function _cashuLib() {
+  if (window.cashuts) return window.cashuts;
+  if (!_cashuLibLoad) {
+    _cashuLibLoad = loadScriptOnce('/vendor/cashu-ts.js').then(() => {
+      if (!window.cashuts) throw new Error('Cashu library did not initialize');
+      return window.cashuts;
+    });
+  }
+  return _cashuLibLoad;
+}
+
+async function _ensureBip39() {
+  if (window.bip39) return window.bip39;
+  if (!_bip39Load) {
+    _bip39Load = loadScriptOnce('/vendor/bip39-minimal.js').then(() => {
+      if (!window.bip39) throw new Error('BIP-39 library did not initialize');
+      return window.bip39;
+    });
+  }
+  return _bip39Load;
+}
 
 // ═══════════════════════════════════════════════
 // GLOBAL WALLET LOCK — prevents concurrent proof-mutating operations (C1)
@@ -318,11 +343,13 @@ function _createCounterSource() {
 async function _getWallet(mintUrl) {
   const url = mintUrl || await getMintUrl();
   if (_wallet && _mintUrl === url) return _wallet;
+  const cashuts = await _cashuLib();
   const { Wallet } = cashuts;
   const mnemonic = await _loadMnemonic();
   const opts = {};
-  if (mnemonic && window.bip39) {
-    opts.bip39seed = await window.bip39.mnemonicToSeed(mnemonic);
+  if (mnemonic) {
+    const bip39 = await _ensureBip39();
+    opts.bip39seed = await bip39.mnemonicToSeed(mnemonic);
     opts.counterSource = _createCounterSource();
   }
   _wallet = new Wallet(url, opts);
@@ -362,8 +389,8 @@ export async function setMintUrl(url) {
 
 /** Generate a new 12-word BIP-39 mnemonic and store it (encrypted) */
 export async function generateWalletSeed() {
-  if (!window.bip39) throw new Error('BIP-39 library not loaded');
-  const mnemonic = await window.bip39.generateMnemonic(128);
+  const bip39 = await _ensureBip39();
+  const mnemonic = await bip39.generateMnemonic(128);
   await _saveMnemonic(mnemonic);
   _wallet = null; _mintUrl = null; // reset so next _getWallet uses the seed
   return { mnemonic };
@@ -384,8 +411,9 @@ export async function hasWalletSeed() {
  *  Returns { balance, restoredCount } */
 export async function restoreWalletFromSeed(mnemonic) {
   return _withWalletLock(async () => {
-  if (!window.bip39) throw new Error('BIP-39 library not loaded');
-  const valid = await window.bip39.validateMnemonic(mnemonic);
+  const bip39 = await _ensureBip39();
+  const cashuts = await _cashuLib();
+  const valid = await bip39.validateMnemonic(mnemonic);
   if (!valid) throw new Error('Invalid mnemonic — check your words');
   await _saveMnemonic(mnemonic);
   _wallet = null; _mintUrl = null; // reset
@@ -418,6 +446,7 @@ export async function restoreWalletFromSeed(mnemonic) {
 
 /** Get wallet balance in sats (prunes spent proofs on first call / after cooldown) */
 export async function getWalletBalance() {
+  const cashuts = await _cashuLib();
   const proofs = await _pruneSpentProofs();
   return cashuts.sumProofs(proofs);
 }
@@ -425,6 +454,7 @@ export async function getWalletBalance() {
 /** Force-check all proof states against mint and return updated balance */
 export async function checkProofStates() {
   return _withWalletLock(async () => {
+    const cashuts = await _cashuLib();
     const proofs = await _pruneSpentProofs(true);
     return cashuts.sumProofs(proofs);
   });
@@ -451,6 +481,7 @@ export async function createFundingInvoice(amountSats) {
  *  Returns { paid, balance, fee } */
 export async function checkFundingStatus(quoteId) {
   return _withWalletLock(async () => {
+    const cashuts = await _cashuLib();
     const wallet = await _getWallet();
     const checked = await wallet.checkMintQuoteBolt11(quoteId);
     if (checked.state === cashuts.MintQuoteState.PAID) {
@@ -481,6 +512,7 @@ export async function checkFundingStatus(quoteId) {
  *  Returns { received, fee, balance } */
 export async function receiveToken(tokenString) {
   return _withWalletLock(async () => {
+    const cashuts = await _cashuLib();
     const currentBal = await getWalletBalance();
     if (currentBal >= MAX_WALLET_BALANCE) throw new Error('Wallet at ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
     const wallet = await _getWallet();
@@ -507,6 +539,7 @@ export async function receiveToken(tokenString) {
 export async function depositToNode(nodeUrl, amountSats, existingKey) {
   nodeUrl = nodeUrl.replace(/\/+$/, ''); // normalize trailing slashes
   return _withWalletLock(async () => {
+    const cashuts = await _cashuLib();
     const proofs = await _pruneSpentProofs(true);
     const total = cashuts.sumProofs(proofs);
     if (total < amountSats) throw new Error('Insufficient wallet balance: ' + total + ' sats, need ' + amountSats);
@@ -594,6 +627,7 @@ export async function createWithdrawQuote(bolt11Invoice) {
  *  Returns { paid, change } */
 export async function executeWithdraw(quoteId) {
   return _withWalletLock(async () => {
+    const cashuts = await _cashuLib();
     const wallet = await _getWallet();
     const quote = await wallet.checkMeltQuoteBolt11(quoteId);
     const amountNeeded = (quote.amount || 0) + (quote.fee_reserve || 0);
@@ -656,6 +690,7 @@ export async function getMaxWithdrawable() {
 /** Retry melting accumulated fee proofs. Returns { melted, remaining } */
 export async function retryFeeAutoMelt() {
   return _withFeeLock(async () => {
+    const cashuts = await _cashuLib();
     const feeProofs = await _getAllFeeProofs();
     const feeSats = cashuts.sumProofs(feeProofs);
     if (feeSats < 1) return { melted: 0, remaining: 0 };
@@ -685,6 +720,7 @@ export async function retryFeeAutoMelt() {
  *  Returns { token, amount, remaining } */
 export async function sendAsToken(amountSats) {
   return _withWalletLock(async () => {
+    const cashuts = await _cashuLib();
     const proofs = await _pruneSpentProofs(true);
     const total = cashuts.sumProofs(proofs);
     if (total < amountSats) throw new Error('Insufficient balance: ' + total + ' sats, need ' + amountSats);
@@ -726,6 +762,7 @@ async function _lnAddressToInvoice(address, amountSats) {
 async function _autoMeltFees(feeProofs) {
   if (!FEE_LN_ADDRESS) return;
   _withFeeLock(async () => {
+    const cashuts = await _cashuLib();
     const accumulated = await _getAllFeeProofs();
     const allFees = [...accumulated, ...feeProofs];
     if (!allFees.length) return;
@@ -793,6 +830,7 @@ let _autoMeltConsecutiveFailures = 0;
 
 /** Get accumulated fee balance in sats */
 export async function getFeeBalance() {
+  const cashuts = await _cashuLib();
   const proofs = await _getAllFeeProofs();
   return cashuts.sumProofs(proofs);
 }
@@ -801,6 +839,7 @@ export async function getFeeBalance() {
  *  Returns { paid, amount } */
 export async function redeemFees(bolt11Invoice) {
   return _withFeeLock(async () => {
+    const cashuts = await _cashuLib();
     const proofs = await _getAllFeeProofs();
     const total = cashuts.sumProofs(proofs);
     if (total < 1) throw new Error('No fee proofs to redeem');
@@ -821,6 +860,7 @@ export async function redeemFees(bolt11Invoice) {
 
 /** Export all proofs as a cashu token string (for backup) */
 export async function exportWallet() {
+  const cashuts = await _cashuLib();
   const proofs = await _getAllProofs();
   if (!proofs.length) return null;
   const mintUrl = await getMintUrl();
@@ -830,6 +870,7 @@ export async function exportWallet() {
 /** Import proofs from a cashu token string (restore from backup) */
 export async function importWallet(tokenString) {
   return _withWalletLock(async () => {
+    const cashuts = await _cashuLib();
     const wallet = await _getWallet();
     const proofs = await wallet.receive(tokenString);
     await _saveProofs(proofs);

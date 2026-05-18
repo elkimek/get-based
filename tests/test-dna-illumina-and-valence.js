@@ -249,19 +249,20 @@ assert('Significant risk renders red dot', html.includes('🔴'));
 
 // Moderate risk: MTHFR A1298C GG... wait we recalibrated that to mild. Use HFE C282Y heterozygote → moderate
 html = mockAndRender({ rs1800562: { genotype: 'GA', gene: 'HFE', variant: 'C282Y' } });
-assert('Moderate risk renders yellow dot', html.includes('🟡'));
+assert('Moderate risk renders orange dot', html.includes('🟠'));
 
 // Mild risk: MTR A2756G AG → orange dot (🟠 = D83D DFE0)
 html = mockAndRender({ rs1805087: { genotype: 'AG', gene: 'MTR', variant: 'A2756G' } });
-assert('Mild risk renders orange dot', html.includes('🟠'));
+assert('Mild risk renders yellow dot', html.includes('🟡'));
 
-// Neutral: FUT2 AA → white circle (⚪ = U+26AA)
+// Neutral: FUT2 AA → white circle, but collapsed under other imported SNPs
 html = mockAndRender({ rs601338: { genotype: 'AA', gene: 'FUT2', variant: 'W154X' } });
 assert('Neutral genotype renders white circle', html.includes('⚪'));
+assert('Neutral genotype is collapsed with other SNPs', html.includes('genetics-other-snps'));
 
-// None: FUT2 GG (wild-type) → no finding row at all (filtered before render)
+// None: FUT2 GG (wild-type) → collapsed, not shown in the priority tier
 html = mockAndRender({ rs601338: { genotype: 'GG', gene: 'FUT2', variant: 'W154X' } });
-assert('None-effect genotype produces no finding row', !html.includes('genetics-finding-row'));
+assert('None-effect genotype is collapsed with other SNPs', html.includes('genetics-other-snps') && html.includes('normal') && findingRowDots(html).includes('⚪'));
 
 // Restore genetics state
 window._labState.importedData.genetics = origGenetics;
@@ -282,13 +283,13 @@ assert('Legend block renders', legendHtml.includes('genetics-legend'));
 assert('Legend has "significant risk" label', legendHtml.includes('significant risk'));
 assert('Legend has "mild risk" label', legendHtml.includes('mild risk'));
 assert('Legend has "beneficial" label', legendHtml.includes('beneficial'));
-assert('Legend has "informational" label', legendHtml.includes('informational'));
+assert('Legend has "neutral" label', legendHtml.includes('neutral'));
 assert('Legend has "moderate risk" label', legendHtml.includes('moderate risk'));
 window._labState.importedData.genetics = origGenetics;
 
-// Every category used in snp-health.json must have a display label in catLabels
-const catLabelsMatch = dnaSrc.match(/const catLabels = \{([^}]+)\}/);
-assert('catLabels object found in dna.js source', catLabelsMatch != null);
+// Every category used in snp-health.json must have a display label in SNP_CATEGORY_LABELS
+const catLabelsMatch = dnaSrc.match(/SNP_CATEGORY_LABELS = \{([^}]+)\}/);
+assert('SNP_CATEGORY_LABELS object found in dna.js source', catLabelsMatch != null);
 const catLabelsKeys = (catLabelsMatch?.[1] || '').match(/(\w+):/g)?.map(s => s.replace(':', '')) || [];
 const usedCats = new Set();
 for (const [rsid, entry] of Object.entries(snpTable)) {
@@ -311,8 +312,8 @@ console.log('9. End-to-End: Illumina file → render dashboard');
 // Build a small Illumina file with rsids that exercise all 5 dot states:
 //   PCSK9 GT (protective)            → 🟢
 //   MTHFR C677T AA (significant)     → 🔴
-//   HFE C282Y GA (moderate)          → 🟡
-//   MTR A2756G AG (mild)             → 🟠
+//   HFE C282Y GA (moderate)          → 🟠
+//   MTR A2756G AG (mild)             → 🟡
 //   FUT2 W154X AA (neutral)          → ⚪
 const e2eContent = '﻿[Header]\nGSGT Version,2.0.5\n[Data]\n' +
   'Sample Name,SNP Name,Chr,Position,Allele1 - Plus,Allele2 - Plus\n' +
@@ -343,8 +344,8 @@ window._labState.importedData.genetics = e2eState;
 const e2eHtml = dna.renderGeneticsSection();
 assert('E2E render: green dot present (PCSK9 protective)', e2eHtml.includes('🟢'));
 assert('E2E render: red dot present (MTHFR significant)', e2eHtml.includes('🔴'));
-assert('E2E render: yellow dot present (HFE moderate)', e2eHtml.includes('🟡'));
-assert('E2E render: orange dot present (MTR mild)', e2eHtml.includes('🟠'));
+assert('E2E render: orange dot present (HFE moderate)', e2eHtml.includes('🟠'));
+assert('E2E render: yellow dot present (MTR mild)', e2eHtml.includes('🟡'));
 assert('E2E render: white circle present (FUT2 neutral)', e2eHtml.includes('⚪'));
 assert('E2E render: legend visible', e2eHtml.includes('genetics-legend'));
 assert('E2E render: source name "Illumina GenomeStudio (DNAEra)" visible', e2eHtml.includes('Illumina GenomeStudio'));

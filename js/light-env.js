@@ -813,6 +813,36 @@ const PRIMARY_SOURCE_SHORT = {
   'natural-only': 'Natural only',
 };
 
+function renderEnvironmentLoadSummary() {
+  const burden = computeIndoorBurden();
+  const interpHTML = (typeof window !== 'undefined' && window.renderBurdenInterp)
+    ? window.renderBurdenInterp(burden)
+    : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
+  // Reconcile the banner label with the AI verdict's dot when one exists.
+  // The deterministic computeIndoorBurden() tier crosses to "Heavy" at
+  // d2 > 8 hr — but the AI looks at the broader picture (sleep-room
+  // contamination, evening blue, room-by-room context) and may legitimately
+  // call it "moderate". Showing "HEAVY LOAD" as a header above an AI body
+  // that says "moderate" was contradictory copy. When the AI verdict is
+  // present + ok, drive the banner label/color from its dot so header +
+  // body agree. Gray / missing AI → fall through to the deterministic
+  // tier (this preserves behaviour for users without an AI provider).
+  const aiVerdict = getEnvironment()?.burdenAI || null;
+  const aiOk = aiVerdict?.status === 'ok' && ['green','yellow','red'].includes(aiVerdict?.dot);
+  const bannerColor = aiOk ? aiVerdict.dot : burden.color;
+  const bannerLabel = aiOk
+    ? ({ green: 'Light load', yellow: 'Moderate load', red: 'Heavy load' }[aiVerdict.dot])
+    : burden.label;
+  return `<div class="light-env-summary light-env-summary-top light-env-summary-${bannerColor}">
+    <div class="light-env-summary-kicker">Indoor light load</div>
+    <div class="light-env-summary-head">
+      <span class="light-env-summary-tier">${escapeHTML(bannerLabel)}</span>
+      ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
+    </div>
+    ${interpHTML}
+  </div>`;
+}
+
 // Disclosure-pattern room card. Header shows: name · severity dot ·
 // hours · source · today-toggle · expand affordance. Click anywhere on
 // the header (except interactive children) to toggle expand. Expanded
@@ -863,16 +893,18 @@ function renderRoomExpandedBody(r, measurements, sev) {
   const _activeToday = isActiveToday(r);
   let html = `<div class="light-env-room-disclosure-body">
 
-    <div class="light-env-room-step">
-      <div class="light-env-room-step-head">About this room</div>
-      <p class="light-env-room-step-sub">This shapes how the AI weights your day-vs-evening light. The more you fill in, the more accurate the read.</p>
-      <div class="light-env-room-step-body">
-        <label class="ctx-label">Room name
+    <div class="light-env-room-step light-env-room-step-about">
+      <div class="light-env-room-step-head">
+        <span>Room setup</span>
+        <span class="light-env-room-status-pill light-env-room-status-${escapeAttr(sev.color)}">${escapeHTML(sev.label)}</span>
+      </div>
+      <div class="light-env-room-step-body light-env-room-setup-body">
+        <label class="ctx-label light-env-room-name-field">Room name
           <input type="text" class="ctx-input light-env-room-name-input" value="${escapeAttr(r.name)}" oninput="window.updateLightEnvRoom('${escapeAttr(r.id)}', { name: this.value })" aria-label="Room name" />
         </label>
-        <div class="light-env-room-today-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
-          <span style="flex:1;min-width:0;font-size:13px;color:var(--text-secondary)">Counts toward today's exposure
-            <span style="display:block;font-size:11px;color:var(--text-muted);margin-top:2px">Skip if you didn't actually use the room today (vacation, sick day). Resets to "in use" tomorrow.</span>
+        <div class="light-env-room-today-row">
+          <span class="light-env-room-today-copy">Use today
+            <span>Skip only for travel, sick days, or rooms you did not use.</span>
           </span>
           ${_renderTodayToggle('room', r.id, _activeToday)}
         </div>
@@ -882,12 +914,14 @@ function renderRoomExpandedBody(r, measurements, sev) {
       </div>
     </div>
 
-    <div class="light-env-room-step">
-      <div class="light-env-room-step-head">Measure (optional)</div>
-      <p class="light-env-room-step-sub">Pick whichever you have time for — even one helps the AI grade this room better.</p>
+    <div class="light-env-room-step light-env-room-step-measure">
+      <div class="light-env-room-step-head">
+        <span>Measure this room</span>
+        <span class="light-env-room-step-tag">Optional</span>
+      </div>
       <div class="light-env-room-step-body">
-        <div class="light-env-room-tools">
-          <button class="light-env-tool-pill" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum (auto-detects warm/cool/fluorescent)">🔬 Spectrum</button>
+        <div class="light-env-room-tools light-env-measure-toolbar" aria-label="Room measurement tools">
+          <button class="light-env-tool-pill light-env-tool-pill-primary" onclick="window.openSpectrumClassifier && window.openSpectrumClassifier({ roomId: '${escapeAttr(r.id)}' })" title="Identify the spectrum (auto-detects warm/cool/fluorescent)">🔬 Spectrum</button>
           <button class="light-env-tool-pill" onclick="window.openLuxMeter && window.openLuxMeter({ roomId: '${escapeAttr(r.id)}' })" title="Measure lux">📏 Lux</button>
           <button class="light-env-tool-pill" onclick="window.openFlickerDetector && window.openFlickerDetector({ roomId: '${escapeAttr(r.id)}' })" title="Test for flicker">⚡ Flicker</button>
           <button class="light-env-tool-pill" onclick="window.openCCTMeter && window.openCCTMeter({ roomId: '${escapeAttr(r.id)}' })" title="Color temperature">🎨 CCT</button>
@@ -989,7 +1023,8 @@ export function renderEnvironmentSection() {
     <div class="light-env-head">
       <h3 class="light-section-title">Light environment</h3>
       <p class="light-section-hint">Indoor light is the dominant exposure most days. Map your spaces and screens — the rest of the app uses this to weight your channel pills + interpret your sleep data.</p>
-    </div>`;
+    </div>
+    ${renderEnvironmentLoadSummary()}`;
 
   // Rooms — disclosure list (mirrors EMF Assessment + Light Audits).
   // Each row is collapsed-by-default with name + severity + key
@@ -1074,41 +1109,6 @@ export function renderEnvironmentSection() {
     }
     html += `</div></details>`;
   }
-
-  // Whole-environment burden summary — interpretive plain-English copy
-  // with tier indicator. Pre-2026-05-08 this rendered BELOW the Light
-  // Audits block, which made the "MODERATE LOAD" verdict look like a
-  // per-audit detail. Now positioned above audits so it reads as the
-  // headline rollup for the whole environment, with audits as the
-  // historical-snapshot tool below.
-  // Delegated to the burden-AI module when an AI provider is configured;
-  // falls through to heuristic copy otherwise.
-  const burden = computeIndoorBurden();
-  const interpHTML = (typeof window !== 'undefined' && window.renderBurdenInterp)
-    ? window.renderBurdenInterp(burden)
-    : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
-  // Reconcile the banner label with the AI verdict's dot when one exists.
-  // The deterministic computeIndoorBurden() tier crosses to "Heavy" at
-  // d2 > 8 hr — but the AI looks at the broader picture (sleep-room
-  // contamination, evening blue, room-by-room context) and may legitimately
-  // call it "moderate". Showing "HEAVY LOAD" as a header above an AI body
-  // that says "moderate" was contradictory copy. When the AI verdict is
-  // present + ok, drive the banner label/color from its dot so header +
-  // body agree. Gray / missing AI → fall through to the deterministic
-  // tier (this preserves behaviour for users without an AI provider).
-  const _aiVerdict = getEnvironment()?.burdenAI || null;
-  const _aiOk = _aiVerdict?.status === 'ok' && ['green','yellow','red'].includes(_aiVerdict?.dot);
-  const _bannerColor = _aiOk ? _aiVerdict.dot : burden.color;
-  const _bannerLabel = _aiOk
-    ? ({ green: 'Light load', yellow: 'Moderate load', red: 'Heavy load' }[_aiVerdict.dot])
-    : burden.label;
-  html += `<div class="light-env-summary light-env-summary-${_bannerColor}">
-    <div class="light-env-summary-head">
-      <span class="light-env-summary-tier">${escapeHTML(_bannerLabel)}</span>
-      ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
-    </div>
-    ${interpHTML}
-  </div>`;
 
   // Light Audits — frozen snapshots of rooms + screens + measurements.
   // Hidden until the user has at least one room mapped.
@@ -1534,16 +1534,17 @@ function renderLightAuditsBlock() {
   // When ≥2 audits exist, Compare becomes the primary action. Bumped to
   // import-btn-primary so it's visually weighted ahead of "Save audit".
   const compareBtn = audits.length >= 2
-    ? `<button class="import-btn ${_auditCompareMode ? 'import-btn-secondary' : 'import-btn-primary'}" onclick="window.toggleLightAuditCompare()">${_auditCompareMode ? 'Exit compare' : '⇄ Compare'}</button>`
+    ? `<button class="import-btn ${_auditCompareMode ? 'import-btn-secondary' : 'import-btn-primary'}" onclick="event.preventDefault();event.stopPropagation();window.toggleLightAuditCompare()">${_auditCompareMode ? 'Exit compare' : '⇄ Compare'}</button>`
     : '';
-  let html = `<div class="light-env-block light-audits-block">
-    <div class="light-env-block-head">
+  const openAttr = (_auditCompareMode || _expandedAuditId) ? ' open' : '';
+  let html = `<details class="light-env-block light-audits-block"${openAttr}>
+    <summary class="light-env-block-head light-audits-summary">
       <strong>Light audits</strong>
       <div class="light-audit-actions">
         ${compareBtn}
-        <button class="import-btn import-btn-secondary" onclick="window.saveLightAuditFromUI()" title="Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.">+ Save audit</button>
+        <button class="import-btn import-btn-secondary" onclick="event.preventDefault();event.stopPropagation();window.saveLightAuditFromUI()" title="Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.">+ Save audit</button>
       </div>
-    </div>`;
+    </summary>`;
 
   if (audits.length === 0) {
     html += `<p class="light-env-empty">Snapshot your rooms + measurements so you can see what a change actually did. Run the tools, save a "Before" audit, make a change (warmer bulbs, blackouts, blue blockers), save an "After". Once you have two, Compare lights up and you'll see the deltas per room.</p>`;
@@ -1561,7 +1562,7 @@ function renderLightAuditsBlock() {
     }
   }
 
-  html += `</div>`;
+  html += `</details>`;
   return html;
 }
 

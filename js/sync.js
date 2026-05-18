@@ -3,12 +3,37 @@
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
 
 import { state } from './state.js';
-import { showNotification, isDebugMode, escapeHTML } from './utils.js';
+import { showNotification, isDebugMode, escapeHTML, loadScriptOnce } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt } from './data-merge.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
+
+let _bip39Load = null;
+let _qrCodeLoad = null;
+
+async function ensureBip39() {
+  if (window.bip39) return window.bip39;
+  if (!_bip39Load) {
+    _bip39Load = loadScriptOnce('/vendor/bip39-minimal.js').then(() => {
+      if (!window.bip39) throw new Error('BIP-39 library did not initialize');
+      return window.bip39;
+    });
+  }
+  return _bip39Load;
+}
+
+async function ensureQRCode() {
+  if (typeof qrcode === 'function') return qrcode;
+  if (!_qrCodeLoad) {
+    _qrCodeLoad = loadScriptOnce('/vendor/qrcode-generator.js').then(() => {
+      if (typeof qrcode !== 'function') throw new Error('QR code library did not initialize');
+      return qrcode;
+    });
+  }
+  return _qrCodeLoad;
+}
 
 // Ring buffer of recent sync events — surfaced in the sync popover so phone
 // users can see push/pull payload counts without USB-debugging the console.
@@ -4162,13 +4187,14 @@ async function confirmRotateIdentity(btn) {
   if (!proceed) return;
 
   // Stage 2: generate the new mnemonic. BIP-39 256 bits = 24 words.
-  if (!window.bip39 || typeof window.bip39.generateMnemonic !== 'function') {
+  const bip39 = await ensureBip39().catch(() => null);
+  if (!bip39 || typeof bip39.generateMnemonic !== 'function') {
     showNotification('BIP-39 library not loaded — cannot rotate identity', 'error');
     return;
   }
   let mnemonic;
   try {
-    mnemonic = await window.bip39.generateMnemonic(256);
+    mnemonic = await bip39.generateMnemonic(256);
   } catch (e) {
     showNotification(`Mnemonic generation failed: ${e?.message || e}`, 'error');
     return;
@@ -4190,12 +4216,11 @@ async function confirmRotateIdentity(btn) {
 
   let qrSvg = '';
   try {
-    if (typeof qrcode === 'function') {
-      const qr = qrcode(0, 'L');
-      qr.addData(mnemonic);
-      qr.make();
-      qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
-    }
+    const makeQr = await ensureQRCode();
+    const qr = makeQr(0, 'L');
+    qr.addData(mnemonic);
+    qr.make();
+    qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
   } catch (e) {
     // Non-fatal; the user can still copy-paste.
     qrSvg = '';

@@ -13,6 +13,27 @@ let _tagFilter = '';
 let _editingId = null;
 let _pendingAvatar = undefined; // undefined = no change, null = remove, string = new dataURL
 
+const CL_ICONS = Object.freeze({
+  archive: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
+  arrowLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4 13 6H8a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3h-.5L14.5 4z"/><circle cx="12" cy="13" r="3"/></svg>',
+  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  export: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22V4"/><path d="M4 5h13l-1 5 1 5H4"/></svg>',
+  import: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 8 5-5 5 5"/><path d="M12 3v12"/></svg>',
+  more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5-4 4v5l-2 2-5-5-4 4-1-1 4-4-5-5 2-2h5Z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
+  user: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
+});
+
+function _clMenuButton({ icon, label, onclick, danger = false }) {
+  return `<button type="button" class="cl-menu-item${danger ? ' cl-menu-danger' : ''}" onclick="${onclick}">${icon}<span>${label}</span></button>`;
+}
+
 // Use imported escapeAttr for onclick="fn('${val}')" contexts
 
 // ═══════════════════════════════════════════════
@@ -116,34 +137,48 @@ function renderClientList() {
     ? profiles.filter(p => p.status === 'archived')
     : [];
 
+  const activeCount = profiles.filter(p => p.status !== 'archived').length;
   let html = `<div class="cl-header">
     <div class="cl-header-left">
-      <h2 class="cl-title">Clients <span class="cl-count">(${profiles.filter(p => p.status !== 'archived').length})</span></h2>
+      <div>
+        <h2 class="cl-title">Clients</h2>
+        <div class="cl-count">${activeCount} active profile${activeCount === 1 ? '' : 's'}</div>
+      </div>
     </div>
     <div class="cl-header-right">
-      <button class="cl-export-all-btn" onclick="document.getElementById('cl-json-import').click()">Import</button>
       <input type="file" id="cl-json-import" accept=".json" style="display:none" onchange="if(this.files[0]){closeClientList();window.importDataJSON(this.files[0]);this.value=''}">
-      <button class="cl-export-all-btn" onclick="window.exportAllDataJSON()">Export All</button>
-      <button class="cl-new-btn cl-demo-btn" onclick="closeClientList();window.loadDemoData('female')">+ Demo Sarah</button>
-      <button class="cl-new-btn cl-demo-btn" onclick="closeClientList();window.loadDemoData('male')">+ Demo Alex</button>
-      <button class="cl-new-btn" onclick="openClientForm()">+ New Client</button>
-      <button class="modal-close" onclick="closeClientList()" aria-label="Close">&times;</button>
+      <div class="cl-tools-wrap">
+        <button type="button" class="cl-icon-btn cl-tools-btn" onclick="window._clToggleToolsMenu(event)" aria-label="More client actions" title="More actions">${CL_ICONS.more}</button>
+        <div class="cl-tools-menu" id="cl-tools-menu">
+          <button type="button" class="cl-tools-item" onclick="window._clCloseMenus();document.getElementById('cl-json-import').click()">${CL_ICONS.import}<span>Import JSON</span></button>
+          <button type="button" class="cl-tools-item" onclick="window._clCloseMenus();window.exportAllDataJSON()">${CL_ICONS.export}<span>Export all</span></button>
+          <button type="button" class="cl-tools-item" onclick="closeClientList();window.loadDemoData('female')">${CL_ICONS.user}<span>Demo Sarah</span></button>
+          <button type="button" class="cl-tools-item" onclick="closeClientList();window.loadDemoData('male')">${CL_ICONS.user}<span>Demo Alex</span></button>
+        </div>
+      </div>
+      <button type="button" class="cl-new-btn" onclick="openClientForm()" aria-label="New Client">${CL_ICONS.plus}<span>New Client</span></button>
+      <button type="button" class="modal-close cl-icon-btn" onclick="closeClientList()" aria-label="Close">${CL_ICONS.close}</button>
     </div>
   </div>
   <div class="cl-toolbar">
-    <input type="text" class="cl-search" id="cl-search" placeholder="Search clients..." value="${escapeHTML(_search)}" oninput="window._clSearch(this.value)">
-    <select class="cl-sort" onchange="window._clSort(this.value)">
-      <option value="lastUpdated"${_sort === 'lastUpdated' ? ' selected' : ''}>Last Updated</option>
-      <option value="az"${_sort === 'az' ? ' selected' : ''}>A \u2192 Z</option>
-      <option value="za"${_sort === 'za' ? ' selected' : ''}>Z \u2192 A</option>
-      <option value="created"${_sort === 'created' ? ' selected' : ''}>Created</option>
-    </select>
-    <select class="cl-status-filter" onchange="window._clStatusFilter(this.value)">
-      <option value="active"${_statusFilter === 'active' ? ' selected' : ''}>Active</option>
-      <option value="flagged"${_statusFilter === 'flagged' ? ' selected' : ''}>Flagged</option>
-      <option value="all"${_statusFilter === 'all' ? ' selected' : ''}>All</option>
-      <option value="archived"${_statusFilter === 'archived' ? ' selected' : ''}>Archived</option>
-    </select>
+    <label class="cl-search-wrap" for="cl-search">
+      ${CL_ICONS.search}
+      <input type="text" class="cl-search" id="cl-search" placeholder="Search clients..." value="${escapeHTML(_search)}" oninput="window._clSearch(this.value)">
+    </label>
+    <div class="cl-filter-group">
+      <select class="cl-sort" aria-label="Sort clients" onchange="window._clSort(this.value)">
+        <option value="lastUpdated"${_sort === 'lastUpdated' ? ' selected' : ''}>Last Updated</option>
+        <option value="az"${_sort === 'az' ? ' selected' : ''}>A \u2192 Z</option>
+        <option value="za"${_sort === 'za' ? ' selected' : ''}>Z \u2192 A</option>
+        <option value="created"${_sort === 'created' ? ' selected' : ''}>Created</option>
+      </select>
+      <select class="cl-status-filter" aria-label="Filter client status" onchange="window._clStatusFilter(this.value)">
+        <option value="active"${_statusFilter === 'active' ? ' selected' : ''}>Active</option>
+        <option value="flagged"${_statusFilter === 'flagged' ? ' selected' : ''}>Flagged</option>
+        <option value="all"${_statusFilter === 'all' ? ' selected' : ''}>All</option>
+        <option value="archived"${_statusFilter === 'archived' ? ' selected' : ''}>Archived</option>
+      </select>
+    </div>
   </div>`;
 
   // Tag filter chips
@@ -187,11 +222,11 @@ function renderClientList() {
 }
 
 function _renderClientRow(p, activeId) {
-  const color = getAvatarColor(p.id);
-  const initial = (p.name || '?')[0].toUpperCase();
   const isActive = p.id === activeId;
   const timeAgo = _timeAgo(p.lastUpdated);
   const notePreview = (p.notes || '').slice(0, 60).replace(/\n/g, ' ');
+  const eid = escapeAttr(p.id);
+  const label = escapeAttr(p.name || 'client');
 
   let badges = '';
   if (p.status === 'flagged') badges += `<span class="cl-badge cl-badge-flagged" title="Flagged">flagged</span>`;
@@ -202,7 +237,7 @@ function _renderClientRow(p, activeId) {
     tags = p.tags.map(t => `<span class="cl-row-tag">${escapeHTML(t)}</span>`).join('');
   }
 
-  return `<div class="cl-row${isActive ? ' cl-row-active' : ''}" data-id="${escapeAttr(p.id)}" onclick="window._clSelect('${escapeAttr(p.id)}')">
+  return `<div class="cl-row${isActive ? ' cl-row-active' : ''}" data-id="${eid}" role="button" tabindex="0" onclick="window._clSelect('${eid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window._clSelect('${eid}')}">
     ${_renderAvatarEl(p)}
     <div class="cl-row-info">
       <div class="cl-row-top">
@@ -214,8 +249,8 @@ function _renderClientRow(p, activeId) {
       </div>
     </div>
     <div class="cl-row-actions" onclick="event.stopPropagation()">
-      <button class="cl-row-edit" onclick="openClientForm('${escapeAttr(p.id)}')" title="Edit">Edit</button>
-      <button class="cl-row-menu-btn" onclick="window._clToggleMenu(event, '${escapeAttr(p.id)}')" title="More" aria-label="More actions">&ctdot;</button>
+      <button type="button" class="cl-row-edit cl-icon-btn" onclick="openClientForm('${eid}')" title="Edit" aria-label="Edit ${label}">${CL_ICONS.edit}</button>
+      <button type="button" class="cl-row-menu-btn cl-icon-btn" onclick="window._clToggleMenu(event, '${eid}')" title="More" aria-label="More actions for ${label}">${CL_ICONS.more}</button>
     </div>
   </div>`;
 }
@@ -273,119 +308,139 @@ export function openClientForm(profileId) {
     ? `<img class="cl-avatar-preview-img" id="cl-avatar-img" src="${escapeAttr(avatar)}" alt="">`
     : `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${avatarColor}">${escapeHTML(avatarInitial)}</span>`;
 
-  modal.innerHTML = `<div class="cl-header">
+  modal.innerHTML = `<div class="cl-header cl-form-header">
     <div class="cl-header-left">
-      <button class="cl-back-btn" onclick="window._clBackToList()">&larr;</button>
-      <h2 class="cl-title">${p ? 'Edit Client' : 'New Client'}</h2>
+      <button type="button" class="cl-back-btn cl-icon-btn" onclick="window._clBackToList()" aria-label="Back to clients">${CL_ICONS.arrowLeft}</button>
+      <div>
+        <h2 class="cl-title">${p ? 'Edit Client' : 'New Client'}</h2>
+        <div class="cl-count">${p ? escapeHTML(p.name || 'Profile') : 'Create a local profile'}</div>
+      </div>
     </div>
     <div class="cl-header-right">
-      <button class="modal-close" onclick="closeClientList()" aria-label="Close">&times;</button>
+      <button type="button" class="modal-close cl-icon-btn" onclick="closeClientList()" aria-label="Close">${CL_ICONS.close}</button>
     </div>
   </div>
   <form class="cl-form" onsubmit="window._clSaveForm(event)">
-    <div class="cl-form-row cl-avatar-row">
-      <div class="cl-avatar-picker" onclick="document.getElementById('cl-avatar-input').click()">
-        ${avatarPreview}
-        <span class="cl-avatar-edit-icon">&#128247;</span>
-      </div>
-      <input type="file" id="cl-avatar-input" accept="image/*" style="display:none" onchange="window._clAvatarChanged(this)">
-      ${avatar ? `<button type="button" class="cl-avatar-remove" onclick="window._clRemoveAvatar()">Remove photo</button>` : ''}
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">Name <span class="cl-required">*</span></label>
-      <input type="text" class="cl-form-input" id="cl-name" value="${escapeHTML(name)}" required autofocus>
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">Sex</label>
-      <div class="cl-sex-toggle" id="cl-sex-toggle">
-        <button type="button" class="sex-toggle-btn${sex === 'male' ? ' active' : ''}" data-sex="male" onclick="window._clSetSex('male')">Male</button>
-        <button type="button" class="sex-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex="female" onclick="window._clSetSex('female')">Female</button>
-      </div>
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">Date of Birth</label>
-      <input type="date" class="cl-form-input cl-form-date" id="cl-dob" value="${escapeHTML(dob)}">
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">Location <span style="font-weight:400;color:var(--text-muted);font-size:11px">(country drives which region's recommendations + affiliate URLs you see)</span></label>
-      <div class="cl-form-row-split">
-        <div class="cl-form-col">
-          <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country (e.g. Slovakia)" oninput="window._clUpdateLat()" list="cl-country-list" autocomplete="country-name">
-          <datalist id="cl-country-list">
-            <option value="Czech Republic"></option>
-            <option value="Slovakia"></option>
-            <option value="Germany"></option>
-            <option value="Austria"></option>
-            <option value="United States"></option>
-            <option value="France"></option>
-            <option value="Italy"></option>
-            <option value="Spain"></option>
-            <option value="Netherlands"></option>
-            <option value="Belgium"></option>
-            <option value="Poland"></option>
-            <option value="Hungary"></option>
-            <option value="Portugal"></option>
-            <option value="Ireland"></option>
-            <option value="Denmark"></option>
-            <option value="Sweden"></option>
-            <option value="Finland"></option>
-            <option value="United Kingdom"></option>
-            <option value="Canada"></option>
-            <option value="Australia"></option>
-          </datalist>
+    <div class="cl-form-body">
+      <section class="cl-form-section">
+        <div class="cl-section-title">Profile</div>
+        <div class="cl-form-row cl-avatar-row">
+          <div class="cl-avatar-picker" onclick="document.getElementById('cl-avatar-input').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('cl-avatar-input').click()}">
+            ${avatarPreview}
+            <span class="cl-avatar-edit-icon">${CL_ICONS.camera}</span>
+          </div>
+          <input type="file" id="cl-avatar-input" accept="image/*" style="display:none" onchange="window._clAvatarChanged(this)">
+          ${avatar ? `<button type="button" class="cl-avatar-remove" onclick="window._clRemoveAvatar()">Remove photo</button>` : ''}
         </div>
-        <div class="cl-form-col">
-          <input type="text" class="cl-form-input" id="cl-zip" value="${escapeHTML(zip)}" placeholder="ZIP / postal code" oninput="window._clUpdateLat()">
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-name">Name <span class="cl-required">*</span></label>
+          <input type="text" class="cl-form-input" id="cl-name" value="${escapeHTML(name)}" required autofocus>
         </div>
-      </div>
-      <div id="cl-lat-display" style="font-size:11px;margin-top:4px"></div>
-    </div>
-    <div class="cl-form-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
-      <div class="cl-form-row-split" style="margin-bottom:4px">
-        <div class="cl-form-col">
-          <label style="font-size:11px;color:var(--text-muted)">Height <a href="#" class="cl-bio-unit-toggle" id="cl-height-unit-toggle" data-unit="${heightUnit}" onclick="window._clHeightUnitChanged();return false">${heightUnit}</a></label>
-          <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="0.1" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" oninput="window._clUpdateBMI()">
-          <input type="hidden" id="cl-height-unit" value="${heightUnit}">
+        <div class="cl-form-row-split">
+          <div class="cl-form-row cl-form-col">
+            <label class="cl-form-label">Sex</label>
+            <div class="cl-sex-toggle" id="cl-sex-toggle">
+              <button type="button" class="sex-toggle-btn${sex === 'male' ? ' active' : ''}" data-sex="male" onclick="window._clSetSex('male')">Male</button>
+              <button type="button" class="sex-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex="female" onclick="window._clSetSex('female')">Female</button>
+            </div>
+          </div>
+          <div class="cl-form-row cl-form-col">
+            <label class="cl-form-label" for="cl-dob">Date of Birth</label>
+            <input type="date" class="cl-form-input cl-form-date" id="cl-dob" value="${escapeHTML(dob)}">
+          </div>
         </div>
-        ${p ? `<div class="cl-form-col">
-          <label style="font-size:11px;color:var(--text-muted)">BMI</label>
-          <div class="mc-auto-value" id="cl-bmi-display"></div>
-        </div>` : ''}
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
-        ${p
-          ? '<a href="#" onclick="window._clGoToHealthMetrics(event)" style="color:var(--text-muted);text-decoration:underline">Log weight, blood pressure &amp; pulse on the dashboard &rarr;</a>'
-          : 'Log weight, blood pressure &amp; pulse on the dashboard after creating the client.'}
-      </div>
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">mtDNA Haplogroup <span style="font-weight:400;color:var(--text-muted);font-size:11px">(maternal lineage)</span></label>
-      <div style="display:flex;align-items:center;gap:8px">
-        <select class="cl-form-input" id="cl-haplogroup" style="max-width:160px" onchange="window._clHaplogroupChanged()">
-          <option value="">— not set —</option>
-          ${window.HAPLOGROUP_LIST ? window.HAPLOGROUP_LIST.map(h => '<option value="' + h + '"' + (state.importedData?.genetics?.mtdna?.haplogroup === h ? ' selected' : '') + '>' + h + '</option>').join('') : ''}
-        </select>
-        <span id="cl-hg-coupling" style="font-size:12px;color:var(--text-muted)">${state.importedData?.genetics?.mtdna?.coupling?.shortLabel || ''}</span>
-      </div>
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">Tags</label>
-      <div class="cl-tags-wrap" id="cl-tags-wrap">
-        ${tags.map(t => `<span class="cl-tag-pill">${escapeHTML(t)}<button type="button" class="cl-tag-remove" onclick="window._clRemoveTag(this)">&times;</button></span>`).join('')}
-        <input type="text" class="cl-tag-input" id="cl-tag-input" placeholder="Add tag + Enter" onkeydown="window._clTagKeydown(event)">
-      </div>
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">Notes</label>
-      <textarea class="cl-form-textarea" id="cl-notes" rows="3" placeholder="Practitioner notes...">${escapeHTML(notes)}</textarea>
-    </div>
-    <div class="cl-form-row">
-      <label class="cl-form-label">Status</label>
-      <div class="cl-status-radios">
-        <label class="cl-radio"><input type="radio" name="cl-status" value="active"${status === 'active' ? ' checked' : ''}> Active</label>
-        <label class="cl-radio"><input type="radio" name="cl-status" value="flagged"${status === 'flagged' ? ' checked' : ''}> Flagged</label>
-        <label class="cl-radio"><input type="radio" name="cl-status" value="archived"${status === 'archived' ? ' checked' : ''}> Archived</label>
-      </div>
+      </section>
+
+      <section class="cl-form-section">
+        <div class="cl-section-title">Region</div>
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-country">Location <span class="cl-label-detail">drives regional recommendations and affiliate URLs</span></label>
+          <div class="cl-form-row-split">
+            <div class="cl-form-col">
+              <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country (e.g. Slovakia)" oninput="window._clUpdateLat()" list="cl-country-list" autocomplete="country-name">
+              <datalist id="cl-country-list">
+                <option value="Czech Republic"></option>
+                <option value="Slovakia"></option>
+                <option value="Germany"></option>
+                <option value="Austria"></option>
+                <option value="United States"></option>
+                <option value="France"></option>
+                <option value="Italy"></option>
+                <option value="Spain"></option>
+                <option value="Netherlands"></option>
+                <option value="Belgium"></option>
+                <option value="Poland"></option>
+                <option value="Hungary"></option>
+                <option value="Portugal"></option>
+                <option value="Ireland"></option>
+                <option value="Denmark"></option>
+                <option value="Sweden"></option>
+                <option value="Finland"></option>
+                <option value="United Kingdom"></option>
+                <option value="Canada"></option>
+                <option value="Australia"></option>
+              </datalist>
+            </div>
+            <div class="cl-form-col">
+              <input type="text" class="cl-form-input" id="cl-zip" value="${escapeHTML(zip)}" placeholder="ZIP / postal code" oninput="window._clUpdateLat()">
+            </div>
+          </div>
+          <div id="cl-lat-display" class="cl-lat-display"></div>
+        </div>
+      </section>
+
+      <section class="cl-form-section">
+        <div class="cl-section-title">Health Metadata</div>
+        <div class="cl-form-row-split">
+          <div class="cl-form-row cl-form-col">
+            <label class="cl-form-label" for="cl-height">Height <a href="#" class="cl-bio-unit-toggle" id="cl-height-unit-toggle" data-unit="${heightUnit}" onclick="window._clHeightUnitChanged();return false">${heightUnit}</a></label>
+            <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="0.1" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" oninput="window._clUpdateBMI()">
+            <input type="hidden" id="cl-height-unit" value="${heightUnit}">
+          </div>
+          ${p ? `<div class="cl-form-row cl-form-col">
+            <label class="cl-form-label">BMI</label>
+            <div class="mc-auto-value cl-bmi-display" id="cl-bmi-display"></div>
+          </div>` : ''}
+        </div>
+        <div class="cl-health-note">
+          ${p
+            ? '<a href="#" class="cl-health-link" onclick="window._clGoToHealthMetrics(event)">Log weight, blood pressure and pulse on the dashboard</a>'
+            : 'Log weight, blood pressure and pulse on the dashboard after creating the client.'}
+        </div>
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-haplogroup">mtDNA Haplogroup <span class="cl-label-detail">maternal lineage</span></label>
+          <div class="cl-haplogroup-row">
+            <select class="cl-form-input cl-haplogroup-select" id="cl-haplogroup" onchange="window._clHaplogroupChanged()">
+              <option value="">Not set</option>
+              ${window.HAPLOGROUP_LIST ? window.HAPLOGROUP_LIST.map(h => '<option value="' + h + '"' + (state.importedData?.genetics?.mtdna?.haplogroup === h ? ' selected' : '') + '>' + h + '</option>').join('') : ''}
+            </select>
+            <span id="cl-hg-coupling" class="cl-hg-coupling">${state.importedData?.genetics?.mtdna?.coupling?.shortLabel || ''}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="cl-form-section">
+        <div class="cl-section-title">Client Notes</div>
+        <div class="cl-form-row">
+          <label class="cl-form-label">Tags</label>
+          <div class="cl-tags-wrap" id="cl-tags-wrap">
+            ${tags.map(t => `<span class="cl-tag-pill">${escapeHTML(t)}<button type="button" class="cl-tag-remove" onclick="window._clRemoveTag(this)" aria-label="Remove tag">${CL_ICONS.close}</button></span>`).join('')}
+            <input type="text" class="cl-tag-input" id="cl-tag-input" placeholder="Add tag + Enter" onkeydown="window._clTagKeydown(event)">
+          </div>
+        </div>
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-notes">Notes</label>
+          <textarea class="cl-form-textarea" id="cl-notes" rows="3" placeholder="Practitioner notes...">${escapeHTML(notes)}</textarea>
+        </div>
+        <div class="cl-form-row">
+          <label class="cl-form-label">Status</label>
+          <div class="cl-status-radios">
+            <label class="cl-radio"><input type="radio" name="cl-status" value="active"${status === 'active' ? ' checked' : ''}> Active</label>
+            <label class="cl-radio"><input type="radio" name="cl-status" value="flagged"${status === 'flagged' ? ' checked' : ''}> Flagged</label>
+            <label class="cl-radio"><input type="radio" name="cl-status" value="archived"${status === 'archived' ? ' checked' : ''}> Archived</label>
+          </div>
+        </div>
+      </section>
     </div>
     <div class="cl-form-actions">
       <button type="button" class="cl-form-cancel" onclick="window._clBackToList()">Cancel</button>
@@ -485,7 +540,7 @@ async function _clAvatarChanged(input) {
     _pendingAvatar = dataUrl;
     const container = document.querySelector('.cl-avatar-picker');
     if (container) {
-      container.innerHTML = `<img class="cl-avatar-preview-img" id="cl-avatar-img" src="${escapeAttr(dataUrl)}" alt=""><span class="cl-avatar-edit-icon">&#128247;</span>`;
+      container.innerHTML = `<img class="cl-avatar-preview-img" id="cl-avatar-img" src="${escapeAttr(dataUrl)}" alt=""><span class="cl-avatar-edit-icon">${CL_ICONS.camera}</span>`;
     }
     // Add remove button if not present
     if (!document.querySelector('.cl-avatar-remove')) {
@@ -512,7 +567,7 @@ function _clRemoveAvatar() {
     const color = getAvatarColor(_editingId || 'new');
     const nameInput = document.getElementById('cl-name');
     const initial = ((nameInput?.value || '?')[0]).toUpperCase();
-    container.innerHTML = `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${color}">${escapeHTML(initial)}</span><span class="cl-avatar-edit-icon">&#128247;</span>`;
+    container.innerHTML = `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${color}">${escapeHTML(initial)}</span><span class="cl-avatar-edit-icon">${CL_ICONS.camera}</span>`;
   }
   const removeBtn = document.querySelector('.cl-avatar-remove');
   if (removeBtn) removeBtn.remove();
@@ -603,7 +658,7 @@ function _clTagKeydown(e) {
   if (existing.includes(val.toLowerCase())) { input.value = ''; return; }
   const pill = document.createElement('span');
   pill.className = 'cl-tag-pill';
-  pill.innerHTML = `${escapeHTML(val)}<button type="button" class="cl-tag-remove" onclick="window._clRemoveTag(this)">&times;</button>`;
+  pill.innerHTML = `${escapeHTML(val)}<button type="button" class="cl-tag-remove" onclick="window._clRemoveTag(this)" aria-label="Remove tag">${CL_ICONS.close}</button>`;
   const wrap = document.getElementById('cl-tags-wrap');
   wrap.insertBefore(pill, input);
   input.value = '';
@@ -641,6 +696,15 @@ function _clSort(val) { _sort = val; renderClientList(); }
 function _clStatusFilter(val) { _statusFilter = val; renderClientList(); }
 function _clTagFilter(val) { _tagFilter = (_tagFilter === val) ? '' : val; renderClientList(); }
 
+function _clToggleToolsMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('cl-tools-menu');
+  if (!menu) return;
+  const open = menu.classList.contains('show');
+  _closeMenus();
+  menu.classList.toggle('show', !open);
+}
+
 function _clToggleMenu(e, id) {
   e.stopPropagation();
   const menu = document.getElementById('cl-active-menu');
@@ -657,20 +721,21 @@ function _clToggleMenu(e, id) {
   menu.dataset.profileId = id;
   const eid = escapeAttr(id);
   menu.innerHTML =
+    _clMenuButton({ icon: CL_ICONS.edit, label: 'Edit', onclick: `window._clEdit('${eid}')` }) +
     (p.pinned
-      ? `<div class="cl-menu-item" onclick="window._clUnpin('${eid}')">Unpin</div>`
-      : `<div class="cl-menu-item" onclick="window._clPin('${eid}')">Pin</div>`) +
+      ? _clMenuButton({ icon: CL_ICONS.pin, label: 'Unpin', onclick: `window._clUnpin('${eid}')` })
+      : _clMenuButton({ icon: CL_ICONS.pin, label: 'Pin', onclick: `window._clPin('${eid}')` })) +
     (p.status === 'flagged'
-      ? `<div class="cl-menu-item" onclick="window._clUnflag('${eid}')">Unflag</div>`
-      : `<div class="cl-menu-item" onclick="window._clFlag('${eid}')">Flag</div>`) +
+      ? _clMenuButton({ icon: CL_ICONS.flag, label: 'Unflag', onclick: `window._clUnflag('${eid}')` })
+      : _clMenuButton({ icon: CL_ICONS.flag, label: 'Flag', onclick: `window._clFlag('${eid}')` })) +
     `<div class="cl-menu-sep"></div>` +
-    `<div class="cl-menu-item" onclick="window._clExport('${eid}')">Export</div>` +
-    `<div class="cl-menu-item" onclick="window._clExportChat('${eid}')">Export with Chat</div>` +
+    _clMenuButton({ icon: CL_ICONS.export, label: 'Export', onclick: `window._clExport('${eid}')` }) +
+    _clMenuButton({ icon: CL_ICONS.export, label: 'Export with Chat', onclick: `window._clExportChat('${eid}')` }) +
     `<div class="cl-menu-sep"></div>` +
     (p.status === 'archived'
-      ? `<div class="cl-menu-item" onclick="window._clUnarchive('${eid}')">Unarchive</div>`
-      : `<div class="cl-menu-item" onclick="window._clArchive('${eid}')">Archive</div>`) +
-    `<div class="cl-menu-item cl-menu-danger" onclick="window._clDelete('${eid}')">Delete</div>`;
+      ? _clMenuButton({ icon: CL_ICONS.archive, label: 'Unarchive', onclick: `window._clUnarchive('${eid}')` })
+      : _clMenuButton({ icon: CL_ICONS.archive, label: 'Archive', onclick: `window._clArchive('${eid}')` })) +
+    _clMenuButton({ icon: CL_ICONS.trash, label: 'Delete', onclick: `window._clDelete('${eid}')`, danger: true });
   // Position relative to the modal (absolute positioned child)
   const btn = e.currentTarget;
   const modal = menu.parentElement;
@@ -695,20 +760,26 @@ function _clToggleMenu(e, id) {
   menu.style.top = top + 'px';
 }
 
+function _clEdit(id) { _closeMenus(); openClientForm(id); }
 function _clPin(id) { updateProfileMeta(id, { pinned: true }); renderClientList(); }
 function _clUnpin(id) { updateProfileMeta(id, { pinned: false }); renderClientList(); }
 function _clFlag(id) { updateProfileMeta(id, { status: 'flagged' }); renderClientList(); window.renderProfileButton(); }
 function _clUnflag(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); window.renderProfileButton(); }
 function _clArchive(id) { updateProfileMeta(id, { status: 'archived' }); renderClientList(); window.renderProfileButton(); }
 function _clUnarchive(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); window.renderProfileButton(); }
-function _closeMenus() { const m = document.getElementById('cl-active-menu'); if (m) m.classList.remove('show'); }
+function _closeMenus() {
+  const m = document.getElementById('cl-active-menu');
+  const tools = document.getElementById('cl-tools-menu');
+  if (m) m.classList.remove('show');
+  if (tools) tools.classList.remove('show');
+}
 function _clExport(id) { _closeMenus(); window.exportClientJSON(id); }
 function _clExportChat(id) { _closeMenus(); window.exportClientJSON(id, true); }
 function _clDelete(id) { _closeMenus(); deleteProfile(id, () => renderClientList()); }
 
 // Close context menus on click outside
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.cl-row-menu-btn')) _closeMenus();
+  if (!e.target.closest('.cl-row-menu-btn, .cl-row-menu, .cl-tools-wrap')) _closeMenus();
 });
 
 function _clUpdateBMI() {
@@ -784,6 +855,6 @@ Object.assign(window, {
   _clSearch, _clSort, _clStatusFilter, _clTagFilter, _clSelect,
   _clSaveForm, _clSetSex, _clUpdateLat, _clTagKeydown, _clRemoveTag, _clBackToList,
   _clAvatarChanged, _clRemoveAvatar, _clHaplogroupChanged,
-  _clToggleMenu, _clPin, _clUnpin, _clFlag, _clUnflag, _clArchive, _clUnarchive, _clExport, _clExportChat, _clDelete,
+  _clToggleToolsMenu, _clCloseMenus: _closeMenus, _clToggleMenu, _clEdit, _clPin, _clUnpin, _clFlag, _clUnflag, _clArchive, _clUnarchive, _clExport, _clExportChat, _clDelete,
   _clUpdateBMI, _clHeightUnitChanged, _clGoToHealthMetrics,
 });

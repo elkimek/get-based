@@ -1,7 +1,8 @@
 // test-wearables-ui-flows.js — DOM click-driven UI behavior
 // Drives real wearable UI flows through real DOM clicks: detail-modal manual
 // delete (the v1.24.1 confirm-dialog regression), source picker swap,
-// reorder ◀▶, manual entry inline form, and assert IDB / state side-effects.
+// modular Biometrics Overview tiles, manual entry inline form, and assert IDB
+// / state side-effects.
 
 return (async function() {
   let pass = 0, fail = 0;
@@ -21,6 +22,8 @@ return (async function() {
   // Test profile + state isolation
   // ─────────────────────────────────────────────────────────
   const TEST_PROFILE_ID = 'ui-flow-test-' + Date.now().toString(36);
+  const BIOMETRIC_SELECTION_KEY = `labcharts-${TEST_PROFILE_ID}-dashboardBiometricMetricsV1`;
+  const DASHBOARD_WIDGET_PREFS_KEY = `labcharts-${TEST_PROFILE_ID}-dashboardWidgetsV9`;
   const origActive = localStorage.getItem('labcharts-active-profile');
   // CRITICAL: saveImportedData() keys off state.currentProfile, NOT the
   // localStorage active-profile entry. Swap both — otherwise any save
@@ -36,12 +39,12 @@ return (async function() {
     changeHistory: [],
   };
 
-  // Seed manual entries so the strip renders something to click.
+  // Seed manual entries so the overview renders something to click.
   await manual.logManualMetric(TEST_PROFILE_ID, 'weight', { date: '2026-04-22', value: 75.5 });
   await manual.logManualMetric(TEST_PROFILE_ID, 'rhr', { date: '2026-04-22', value: 62 });
   await manual.refreshManualSummary(TEST_PROFILE_ID);
 
-  // Wait for navigate to render the dashboard with the strip
+  // Wait for navigate to render the dashboard with the overview widget.
   if (window.navigate) window.navigate('dashboard');
   await new Promise(r => setTimeout(r, 200));
 
@@ -166,70 +169,63 @@ return (async function() {
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
-  // 5. Strip-card click opens detail modal
+  // 5. Biometrics Overview tile click opens detail modal
   // ═══════════════════════════════════════
-  console.log('%c 5. Strip Card → Modal ', 'font-keight:bold;color:#f59e0b');
+  console.log('%c 5. Overview Tile → Modal ', 'font-weight:bold;color:#f59e0b');
   if (window.navigate) window.navigate('dashboard');
   await new Promise(r => setTimeout(r, 200));
-  const strip = document.getElementById('wearable-strip');
-  assert('Wearable strip renders on dashboard when wearableSummary populated',
-    !!strip);
-  const card = strip?.querySelector('.wearable-card[role="button"]');
-  if (card) {
-    card.click();
+  const overview = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
+  assert('Biometrics Overview renders on dashboard when wearableSummary populated',
+    !!overview);
+  assert('Dashboard no longer renders the Wearable Connections strip',
+    !document.getElementById('wearable-strip') && !document.querySelector('.dashboard-widget[data-widget-id="wearable-strip"]'));
+  const overviewTile = overview?.querySelector('.db-biometric-widget');
+  assert('Biometrics Overview renders metric tiles inside a single widget',
+    !!overviewTile && !!overview?.querySelector('.db-biometric-overview-grid'));
+  if (overviewTile) {
+    overviewTile.click();
     await new Promise(r => setTimeout(r, 300));
-    assert('Clicking a strip card opens the detail modal',
+    assert('Clicking an overview metric opens the detail modal',
       document.getElementById('modal-overlay')?.classList?.contains('show'));
   }
   if (window.closeModal) window.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
-  // 6. Reorder mode — banner + arrows + savedOrder persist
+  // 6. Modular metric selection — add/remove inside the overview
   // ═══════════════════════════════════════
-  console.log('%c 6. Reorder Mode ', 'font-weight:bold;color:#f59e0b');
-  if (typeof window.toggleWearableReorder === 'function') {
-    window.toggleWearableReorder();
-    await new Promise(r => setTimeout(r, 200));
-    const pill = document.querySelector('.wearable-strip-reorder-pill');
-    assert('Reorder mode shows the accent banner pill',
-      !!pill);
-    const arrows = document.querySelectorAll('.wearable-reorder-arrow');
-    assert('Reorder mode renders ◀ ▶ arrows on each card (≥2 cards × 2 arrows)',
-      arrows.length >= 4);
-    // Click a → arrow on the first non-disabled position to advance a card
-    const rightArrow = Array.from(arrows).find(a => a.textContent.trim() === '▶' && !a.disabled);
-    if (rightArrow) {
-      const beforeOrder = (window._labState.importedData.wearableCardOrder || []).slice();
-      rightArrow.click();
-      await new Promise(r => setTimeout(r, 200));
-      const afterOrder = (window._labState.importedData.wearableCardOrder || []).slice();
-      assert('▶ arrow click writes wearableCardOrder (savedOrder persists)',
-        afterOrder.length > 0 && JSON.stringify(beforeOrder) !== JSON.stringify(afterOrder));
-    }
-    // Exit reorder mode
-    window.toggleWearableReorder();
-    await new Promise(r => setTimeout(r, 200));
-    assert('Toggling reorder again removes the banner pill',
-      !document.querySelector('.wearable-strip-reorder-pill'));
-  } else {
-    assert('toggleWearableReorder exposed on window', false);
+  console.log('%c 6. Modular Metric Selection ', 'font-weight:bold;color:#f59e0b');
+  await window.addDashboardBiometricMetric?.('weight');
+  await new Promise(r => setTimeout(r, 300));
+  const overviewAfterAdd = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
+  assert('Adding weight keeps it inside Biometrics Overview',
+    !!overviewAfterAdd && /Weight/i.test(overviewAfterAdd.textContent || ''));
+  assert('Adding a biometric does not create a standalone biometric widget',
+    !document.querySelector('.dashboard-widget[data-widget-id^="biometric_"]'));
+  const selectedAfterAdd = JSON.parse(localStorage.getItem(BIOMETRIC_SELECTION_KEY) || '[]');
+  assert('Added biometric persists in the overview selection',
+    selectedAfterAdd.includes('weight'));
+  const weightRemove = Array.from(document.querySelectorAll('.db-biometric-remove'))
+    .find(btn => /Weight/i.test(btn.getAttribute('aria-label') || ''));
+  assert('Overview metric renders its own remove button',
+    !!weightRemove);
+  if (weightRemove) {
+    weightRemove.click();
+    await new Promise(r => setTimeout(r, 300));
+    const selectedAfterRemove = JSON.parse(localStorage.getItem(BIOMETRIC_SELECTION_KEY) || '[]');
+    assert('Removing a metric updates the same overview selection',
+      !selectedAfterRemove.includes('weight'));
   }
 
   // ═══════════════════════════════════════
-  // 7. Niche-card disclosure — hides cardio_age/resilience by default
+  // 7. Picker + stale sync state
   // ═══════════════════════════════════════
-  console.log('%c 7. Niche Disclosure ', 'font-weight:bold;color:#f59e0b');
-  // Stub niche metrics into the summary; clear savedOrder so they don't pin inline.
-  // Bump oura coverageDays to 1 so it's a "with-data" source (the strip drops
-  // 0-coverage sources from baseMetricOrder, which would hide cardio_age too).
-  delete window._labState.importedData.wearableCardOrder;
+  console.log('%c 7. Picker + Stale Sync ', 'font-weight:bold;color:#f59e0b');
+  localStorage.setItem(BIOMETRIC_SELECTION_KEY, JSON.stringify(['rhr']));
   if (window._labState.importedData.wearableSummary?.sources?.oura) {
     window._labState.importedData.wearableSummary.sources.oura.coverageDays = 1;
+    window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now();
   }
-  // v1.30.1: cardio_age + resilience render inline alongside the rest —
-  // the "vendor-specific scores" disclosure was removed (single-metric
-  // collapse with a misleading label, plus pin-drift bugs across origins).
   const sum = window._labState.importedData.wearableSummary;
   if (sum) {
     sum.metrics.cardio_age = { primarySource: 'oura', latest: 35, latestDate: '2026-04-22',
@@ -240,14 +236,43 @@ return (async function() {
       rolling: { d7: 3, d30: 3, d90: 3 }, trend30d: 'flat', weekly: [3] };
     if (window.navigate) window.navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
-    assert('Niche disclosure container is gone',
-      !document.querySelector('.wearable-niche-disclosure'));
-    const cards = document.querySelectorAll('.wearable-card-grid .wearable-card');
-    const labels = Array.from(cards).map(c => c.textContent || '');
-    assert('Cardio age renders inline as a regular card',
-      labels.some(t => /Cardio age/i.test(t)));
-    assert('Resilience renders inline as a regular card',
-      labels.some(t => /Resilience/i.test(t)));
+    const selectedOverview = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
+    assert('Unselected biometrics stay out of the overview by default',
+      selectedOverview && !/Cardio age/i.test(selectedOverview.textContent || '') && !/Resilience/i.test(selectedOverview.textContent || ''));
+    assert('Fresh connected data does not show a dashboard sync button',
+      !document.querySelector('.db-biometric-sync-btn'));
+    window.openDashboardWidgetPicker?.();
+    await new Promise(r => setTimeout(r, 200));
+    const pickerOptions = Array.from(document.querySelectorAll('.dashboard-biometric-widget-option'));
+    assert('Picker offers additional biometrics for the overview',
+      pickerOptions.some(btn => /Cardio age/i.test(btn.textContent || '')) &&
+      pickerOptions.some(btn => /Resilience/i.test(btn.textContent || '')));
+    window.closeDashboardWidgetPicker?.();
+    window.openDashboardBiometricPicker?.();
+    await new Promise(r => setTimeout(r, 200));
+    const biometricOnlyText = document.getElementById('dashboard-widget-picker-overlay')?.textContent || '';
+    const biometricOnlyOptions = Array.from(document.querySelectorAll('.dashboard-biometric-widget-option'));
+    const biometricOnlyGrid = document.querySelector('.dashboard-biometric-picker .dashboard-biometric-widget-grid');
+    assert('Biometrics Add metrics opens the biometric-only picker',
+      !!document.getElementById('dashboard-biometric-picker-title') &&
+      !document.getElementById('dashboard-marker-widget-search') &&
+      !biometricOnlyText.includes('Lens and tool widgets'));
+    assert('Biometric-only picker has its own scroll container',
+      !!biometricOnlyGrid && getComputedStyle(biometricOnlyGrid).overflowY !== 'visible');
+    assert('Biometric-only picker still offers wearable/manual metrics',
+      biometricOnlyOptions.some(btn => /Cardio age/i.test(btn.textContent || '')) &&
+      biometricOnlyOptions.some(btn => /Resilience/i.test(btn.textContent || '')));
+    window.closeDashboardWidgetPicker?.();
+    await window.addDashboardBiometricMetric?.('cardio_age');
+    await new Promise(r => setTimeout(r, 300));
+    const overviewWithCardio = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
+    assert('Picker add places the chosen biometric inside Biometrics Overview',
+      !!overviewWithCardio && /Cardio age/i.test(overviewWithCardio.textContent || ''));
+    window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
+    if (window.navigate) window.navigate('dashboard');
+    await new Promise(r => setTimeout(r, 300));
+    assert('Stale connected data shows the dashboard sync button',
+      !!document.querySelector('.db-biometric-sync-btn'));
   }
 
   // ─────────────────────────────────────────────────────────
@@ -258,6 +283,8 @@ return (async function() {
   // Drop test-profile storage keys first so a partial write during the test
   // can't survive across the swap-back.
   localStorage.removeItem(`labcharts-${TEST_PROFILE_ID}-imported`);
+  localStorage.removeItem(BIOMETRIC_SELECTION_KEY);
+  localStorage.removeItem(DASHBOARD_WIDGET_PREFS_KEY);
   if (origActive) localStorage.setItem('labcharts-active-profile', origActive);
   else localStorage.removeItem('labcharts-active-profile');
   window._labState.currentProfile = origCurrentProfile;

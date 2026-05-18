@@ -369,7 +369,7 @@ export async function loadProfile(profileId) {
   window.loadChatPersonality();
   window.destroyAllCharts();
   window.buildSidebar();
-  window.showDashboard();
+  window.navigate(window.getInitialView?.() || 'dashboard');
   window.updateHeaderDates();
   window.updateHeaderRangeToggle();
   window.renderProfileButton();

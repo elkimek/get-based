@@ -414,7 +414,7 @@ DNA raw data import: client-side parser, storage, dashboard section, AI context 
 - `saveGeneticsData(profileData, result)` — stores matched SNPs + APOE in `importedData.genetics`
 - `deleteGeneticsData(profileData)` — removes genetics data
 - `buildGeneticsContext(genetics, activeMarkerKeys)` — serializes genetics for AI context, filtered to SNPs relevant to active markers
-- `renderGeneticsSection()` — dashboard card with APOE + significant/moderate findings; returns an in-context "Add your DNA data" empty-state stub (wired to `triggerDNAFilePicker`) when no SNPs/mtDNA exist
+- `renderGeneticsSection()` — full genetics interpretation section for classic/mobile dashboard contexts; returns an in-context "Add your DNA data" empty-state stub (wired to `triggerDNAFilePicker`) when no SNPs/mtDNA exist
 - `handleDNAFile(file)` — full import flow: parse → preview modal → confirm → save
 
 Supports: AncestryDNA (2-column alleles), 23andMe, MyHeritage, FTDNA, Living DNA. Genotype reversal handles strand ambiguity (CT ↔ TC).
@@ -507,16 +507,16 @@ In-app feedback modal.
 
 ### `nav.js`
 
-Sidebar navigation and chart layer controls.
+Sidebar navigation, profile switcher, and mobile sidebar shell.
 
 **Key exports:**
-- `renderSidebar(data)` — renders category navigation with marker counts
-- `renderDateRangeFilter()` — renders the date range pills
-- `renderLayersDropdown(data)` — renders the Layers dropdown (shown only when profile has notes/supplements/cycle data)
-- `setDateRangeFilter(range)` — updates `state.dateRangeFilter` and refreshes
-- `toggleLayer(layer)` — toggles `noteOverlayMode`, `suppOverlayMode`, or `phaseOverlayMode`
+- `buildSidebar(data)` - renders Home, Lenses, Tools, and lab category navigation with marker counts
+- `filterSidebar()` - filters lab categories and keeps top-level app routes visible during search
+- `toggleNavGroup(groupId)` - expands/collapses sidebar category groups
+- `renderProfileDropdown()` / `renderProfileButton()` - profile switcher UI
+- `openRecommendationsFromSidebar()` - compatibility helper that routes to the dedicated `recommendations` page
 
-**Window exports:** `setDateRangeFilter`, `toggleLayer`, `navigateTo`
+**Window exports:** `buildSidebar`, `filterSidebar`, `toggleNavGroup`, `renderProfileDropdown`, `renderProfileButton`, `toggleMobileSidebar`, `closeMobileSidebar`, `openRecommendationsFromSidebar`
 
 ---
 
@@ -524,20 +524,17 @@ Sidebar navigation and chart layer controls.
 
 ### `views.js`
 
-All dashboard and category rendering. The largest module.
+All dashboard, lens page, tool page, category, and modal rendering. The largest module.
 
 **Key exports:**
 - `navigate(section, params)` — main router; calls the appropriate render function
-- `showDashboard(data?)` — renders the full dashboard: drop zone → interpretive lens → focus card → context cards → cycle → supplements → key trends → alerts → data & notes
-- `showCategory(catKey, data?)` — renders a single category with chart grid and data table
-- `showCompare(data?)` — renders the date-comparison view
-- `showCorrelations(data?)` — renders the correlation matrix
+- `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Biological Age, Trends & Alerts, Recommended Next Steps, Marker Spotlight, Quick Markers, Biometrics Overview, Light Today, and Key Trends
+- `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - dedicated lens/action pages
+- `showCompare(data?)` / `showCorrelations(data?)` - focused tool pages
+- Dashboard widget controls: `openDashboardWidgetPicker()`, `toggleDashboardOrganizeMode()`, `resetDashboardWidgets()`, `clearDashboardWidgets()`, `addDashboardWidgetFromLens()`, `removeDashboardWidgetFromLens()`
 - `showDetailModal(markerKey, data?)` — opens the marker detail modal
-- `showManualEntry(data?)` — renders the manual data entry form
-- `showFocusCard(data?)` — renders the AI focus card with cache management
-- `refreshDashboard()` — convenience function: calls `getActiveData()` and `showDashboard(data)`
 
-**Window exports:** `navigate`, `showDashboard`, `showCategory`, `showDetailModal`, `showManualEntry`, `refreshDashboard`, `openMenstrualCycleEditor` (re-exported)
+**Window exports:** `navigate`, `showDashboard`, `showLabs`, `showGenomeLens`, `showBodyLens`, `showInsightLens`, `showRecommendations`, `showCategory`, `showDetailModal`, dashboard widget controls, and recommendation page helpers (`openRecommendationDetail`, `discussRecommendation`, `saveRecommendation`, `dismissRecommendation`)
 
 ---
 
@@ -547,7 +544,7 @@ Entry point. Runs once on `DOMContentLoaded`.
 
 **Responsibilities:**
 - Imports all feature modules (side-effect imports for window exports)
-- Registers `registerRefreshCallback(() => window.refreshDashboard())`
+- Registers a refresh callback that rebuilds the sidebar and re-renders `state.currentView` through `navigate()`
 - Attaches global event listeners: keyboard shortcuts, modal backdrop clicks, drop zone, profile selector
 - Calls initial `navigate('dashboard')`
 
@@ -599,7 +596,7 @@ Client List modal for managing multiple profiles.
 
 ### `recommendations.js`
 
-Supplement, lifestyle, and EMF affiliate recommendations driven by a lazy-loaded catalog. Region-aware: products + URLs + coupons are filtered by user country via a single hierarchy chain (CZ → EU → INTL etc.).
+Supplement, lifestyle, light-device, and EMF affiliate recommendations driven by a lazy-loaded catalog. Region-aware: products + URLs + coupons are filtered by user country via a single hierarchy chain (CZ → EU → INTL etc.). The global Recommendations page and dashboard widget live in `views.js`; this module owns catalog loading, slot rendering, disclosure state, product filtering, and DNA/wearable slot helpers.
 
 **Key exports:**
 - `loadCatalog()` — lazy-loads `data/recommendations.json` on first call

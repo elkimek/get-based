@@ -4,20 +4,73 @@ import { state } from './state.js';
 import { CORRELATION_PRESETS, CHIP_COLORS, trackUsage, UNIT_CONVERSIONS, getAlternateUnit, convertUserInputToSI } from './schema.js';
 import { escapeHTML, escapeAttr, getStatus, getRangePosition, formatValue, getTrend, showNotification, showConfirmDialog, showPromptDialog, hasCardContent, formatDate, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
-import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, getFocusCardFingerprint, saveImportedData, recalculateHOMAIR, updateHeaderDates, renderDateRangeFilter, renderChartLayersDropdown, convertDisplayToSI } from './data.js';
+import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, getAllFlaggedMarkers, countFlagged, statusIcon, detectTrendAlerts, getKeyTrendMarkers, getFocusCardFingerprint, saveImportedData, recalculateHOMAIR, updateHeaderDates, renderDateRangeFilter, renderChartLayersDropdown, convertDisplayToSI } from './data.js';
 import { profileStorageKey, getProfiles } from './profile.js';
-import { createLineChart, getMarkerDescription, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
+import { createLineChart, ensureChartJs, getMarkerDescription, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
 import { renderSupplementsSection } from './supplements.js';
-import { renderWearableStrip } from './wearables.js';
-import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
-import { ensureSNPTable, findGenotypeInfo, renderGeneticsSection } from './dna.js';
+import { canonicalMetric, metricsForSources, DEFAULT_METRIC_ORDER } from './wearable-adapters.js';
+import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel, renderGeneticsSection } from './dna.js';
 import { renderMenstrualCycleSection } from './cycle.js';
-import { renderProfileContextCards, renderInterpretiveLensSection, loadContextHealthDots, closeSuggestionsOnClickOutside } from './context-cards.js';
+import { renderProfileContextCards, loadContextHealthDots, closeSuggestionsOnClickOutside } from './context-cards.js';
 import { callClaudeAPI, hasAIProvider, isAIPaused, getAIProvider, getActiveModelId } from './api.js';
-import { setupDropZone } from './pdf-import.js';
 import { injectLensChunks } from './lab-context.js';
 import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
+
+let _pdfImportLoad = null;
+function loadPdfImport() {
+  if (!_pdfImportLoad) _pdfImportLoad = import('./pdf-import.js');
+  return _pdfImportLoad;
+}
+function setupDropZone() {
+  const dropZone = document.getElementById("drop-zone");
+  if (!dropZone || dropZone.dataset.lazyDropZoneBound === 'true') return;
+  dropZone.dataset.lazyDropZoneBound = 'true';
+  dropZone.addEventListener("click", () => {
+    if (window.isImportRunning && window.isImportRunning()) return;
+    document.getElementById('pdf-input')?.click();
+  });
+  dropZone.addEventListener("dragover", e => {
+    e.preventDefault();
+    if (!(window.isImportRunning && window.isImportRunning())) dropZone.classList.add("drag-over");
+  });
+  dropZone.addEventListener("dragleave", e => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+  });
+  dropZone.addEventListener("drop", async e => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    if (window.isImportRunning && window.isImportRunning()) {
+      window.showNotification?.("Import already in progress", "info");
+      return;
+    }
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (files.length === 0) return;
+    const importMod = await loadPdfImport();
+    const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await importMod.classifyImportFiles(files);
+    if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
+      window.showNotification?.("Unsupported file type. Use PDF, text, image, JSON, or DNA raw data (.txt/.csv).", "error");
+      return;
+    }
+    for (const f of jsonFiles) window.importDataJSON(f);
+    if (dnaFiles.length > 0) {
+      for (const f of dnaFiles) {
+        const header = await f.slice(0, 1500).text();
+        const fmt = window.detectDNAFile ? window.detectDNAFile(header) : null;
+        if ((fmt === 'mtdna' || fmt === '23andme-mito') && window.handleMtDNAFile) await window.handleMtDNAFile(f);
+        else if (fmt === '23andme-y') { window.showNotification?.('Y-chromosome DNA files are not supported', 'info'); }
+        else await window.handleDNAFile(f);
+      }
+    }
+    else if (textFiles.length > 0) { for (const f of textFiles) await importMod.handleTextFile(f); }
+    else if (imageFiles.length > 0) { for (const f of imageFiles) await importMod.handleImageFile(f); }
+    else {
+      if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]);
+      else if (pdfFiles.length > 1) await importMod.handleBatchPDFs(pdfFiles);
+    }
+  });
+}
 
 function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
 function setDetailModalShell(...classes) {
@@ -31,22 +84,49 @@ function setDetailModalShell(...classes) {
 // NAVIGATE (router)
 // ═══════════════════════════════════════════════
 
+const CORE_ROUTES = new Set([
+  'dashboard',
+  'labs',
+  'genome',
+  'body',
+  'insight',
+  'recommendations',
+  'correlations',
+  'compare',
+  'light',
+]);
+
+function _lastViewStorageKey() {
+  return profileStorageKey(state.currentProfile || 'default', 'lastViewV1');
+}
+
+function _routeData(preData) {
+  return preData && typeof preData === 'object' && preData.categories ? preData : getActiveData();
+}
+
+function _isKnownRoute(route, preData = null) {
+  route = String(route || '');
+  if (CORE_ROUTES.has(route)) return true;
+  if (!safeMarkerId(route)) return false;
+  const data = _routeData(preData);
+  return !!data?.categories?.[route];
+}
+
+function _persistCurrentView(route) {
+  if (!_isKnownRoute(route)) return;
+  try { localStorage.setItem(_lastViewStorageKey(), route); } catch (_) {}
+}
+
+export function getInitialView() {
+  let saved = '';
+  try { saved = localStorage.getItem(_lastViewStorageKey()) || ''; } catch (_) {}
+  return _isKnownRoute(saved) ? saved : 'dashboard';
+}
+
 export function navigate(category, data) {
-  category = category || 'dashboard';
-  const dashboardLens = category === 'labs' || category === 'genome' || category === 'body';
-  const routeCategory = dashboardLens ? 'dashboard' : category;
-  const activeCategory = category === 'labs' ? 'dashboard' : category;
-  if (category === 'insight') {
-    document.querySelectorAll(".nav-item").forEach(el => {
-      const isActive = el.dataset.category === 'insight';
-      el.classList.toggle("active", isActive);
-      el.classList.toggle("is-active", isActive);
-    });
-    if (window.closeMobileSidebar) window.closeMobileSidebar();
-    if (window.syncImportStatusFab) window.syncImportStatusFab();
-    if (window.openChatPanel) window.openChatPanel();
-    return;
-  }
+  const requestedCategory = String(category || 'dashboard');
+  const routeCategory = _isKnownRoute(requestedCategory, data) ? requestedCategory : 'dashboard';
+  const activeCategory = routeCategory;
 
   // Detect "re-render in place" (callsite is requesting a refresh of the
   // current view, not a real navigation). On in-place re-renders we use
@@ -57,7 +137,7 @@ export function navigate(category, data) {
   // when the new layout has different content heights above the user's
   // viewport — they'd see a jump even though scrollY was technically
   // preserved.
-  const sameView = category === state.currentView && !dashboardLens;
+  const sameView = routeCategory === state.currentView;
   let anchor = null;
   // Track whether the caller explicitly requested an anchor — even if
   // the element isn't found, an explicit request means "don't fall
@@ -97,22 +177,23 @@ export function navigate(category, data) {
   // Close mobile sidebar on navigation
   if (window.closeMobileSidebar) window.closeMobileSidebar();
   if (routeCategory !== "dashboard" && typeof document !== 'undefined') {
-    document.body.classList.remove('mobile-dashboard-active');
+    document.body.classList.remove('mobile-dashboard-active', 'empty-dashboard-active');
   }
   if (window.syncImportStatusFab) window.syncImportStatusFab();
   destroyAllCharts();
-  if (category === 'genome' || category === 'body') {
-    _suppressEmptyDashboardChatUntil = Date.now() + 2500;
-  }
   if (routeCategory === "dashboard") showDashboard(data);
+  else if (routeCategory === "labs") showLabs(data);
+  else if (routeCategory === "genome") showGenomeLens(data);
+  else if (routeCategory === "body") showBodyLens(data);
+  else if (routeCategory === "insight") showInsightLens(data);
+  else if (routeCategory === "recommendations") showRecommendations(data);
   else if (routeCategory === "correlations") showCorrelations(data);
   else if (routeCategory === "compare") showCompare(data);
   else if (routeCategory === "light") showLight(data);
   else showCategory(routeCategory, data);
   state.currentView = routeCategory;
-  if (category === 'genome' || category === 'body') {
-    _scrollDashboardLensIntoView(category);
-  }
+  _persistCurrentView(routeCategory);
+  syncMobileBottomNav(routeCategory);
 
   if (anchor) {
     // Force synchronous layout so getBoundingClientRect is accurate.
@@ -160,55 +241,6 @@ export function navigate(category, data) {
   }
 }
 
-function _scrollDashboardLensIntoView(lens) {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
-  const configs = {
-    genome: {
-      selectors: [
-        '#mobile-genome-section',
-        '#genetics-section',
-        '.dashboard-widget[data-widget-id="genome"]',
-        '.db-genome-empty',
-        '.genetics-empty-stub',
-      ],
-      afterScroll(target) {
-        const body = target.querySelector?.('.genetics-body') || document.querySelector('#genetics-section .genetics-body');
-        if (body?.classList.contains('hidden') && window.toggleGeneticsCollapse) window.toggleGeneticsCollapse();
-      },
-      fallback() {
-        if (window.openSettingsModal) window.openSettingsModal('data');
-      },
-    },
-    body: {
-      selectors: [
-        '#mobile-body-section',
-        '.dashboard-widget[data-widget-id="wearables"]',
-        '#wearable-strip',
-        '.wearable-strip',
-        '.dashboard-widget[data-widget-id="wearable-strip"]',
-        '.m-wear-empty',
-      ],
-      fallback() {
-        if (window.openSettingsModal) window.openSettingsModal('wearables');
-      },
-    },
-  };
-  const config = configs[lens];
-  if (!config) return;
-  setTimeout(() => {
-    const target = config.selectors
-      .map(selector => document.querySelector(selector))
-      .find(Boolean);
-    if (!target) {
-      config.fallback();
-      return;
-    }
-    const y = target.getBoundingClientRect().top + window.scrollY - 60;
-    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-    config.afterScroll?.(target);
-  }, 80);
-}
-
 // Monotonic counter for in-flight anchor-restore loops. Each navigate
 // captures a new token; older loops compare and bail when the user
 // has moved on.
@@ -217,7 +249,6 @@ let _navAnchorToken = 0;
 // reuse the original captured viewportTop instead of re-capturing AFTER
 // the jump that the original was trying to prevent.
 let _activeAnchor = null;
-let _suppressEmptyDashboardChatUntil = 0;
 
 // Capture identity + viewport position of the most reasonable scroll
 // anchor for the current interaction. Priority:
@@ -320,8 +351,153 @@ function _restoreScrollAnchor(anchor) {
 }
 
 // ═══════════════════════════════════════════════
-// LIGHT TODAY STRIP — dashboard panel between Lens and Wearables
+// LIGHT TODAY STRIP — legacy compact surface used by welcome/embedded views
 // ═══════════════════════════════════════════════
+
+function renderDashboardLightChannelPills() {
+  const ch = window.CHANNEL_DISPLAY || {};
+  // Dashboard pills represent a 7-day rolling total; classify with the
+  // weekly tier so optional Light widgets agree with the Light page pills.
+  const tier = window.weeklyChannelTier || (() => 0);
+  const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
+  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
+  const combinedTotals7d = mergeTotalsLocal(totals7d, devTotals7d);
+  return `<div class="light-pills-row">
+    ${order.map(k => {
+      const meta = ch[k] || {};
+      const t = tier(combinedTotals7d[k] || 0, k);
+      const dc = _channelDayCount(k);
+      const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week. Tap for details.`;
+      return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" onclick="window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" aria-label="${escapeHTML((meta.label || k) + ', ' + dc.n + ' of 7 days hit target, tap to open detail')}">
+        <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
+        <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
+        ${_channelSparkline(k)}
+        <span class="light-pill-daycount">${escapeHTML(dc.txt)}</span>
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' } = {}) {
+  const conditionsOpts = { variant };
+  if (slotId) conditionsOpts.slotId = slotId;
+  return `<div class="light-conditions-now-wrap">
+      <div class="light-conditions-now-head">
+        <span class="light-conditions-now-title">Conditions now</span>
+        <span class="light-conditions-now-actions">
+          <button type="button" class="conditions-now-refresh light-widget-mini-btn" aria-label="Refresh conditions data — bypasses cache" onclick="window._refreshConditionsNow && window._refreshConditionsNow()"${_conditionsTooltipAttr('Force a fresh fetch, bypassing the short cache')}>Refresh</button>
+          <button type="button" class="conditions-now-inspect light-widget-mini-btn" aria-label="Show raw conditions response, source, cache, and sanity check" onclick="window._inspectConditionsNow && window._inspectConditionsNow()"${_conditionsTooltipAttr('See raw response, source, cache age, and sanity checks')}>Details</button>
+        </span>
+      </div>
+      ${renderConditionsNow(conditionsOpts)}
+  </div>`;
+}
+
+function renderLightSessionLogActions() {
+  const sessions = (window.getSessions && window.getSessions()) || [];
+  const devices = (window.getDevices && window.getDevices()) || [];
+  const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const hasDevices = devices.length > 0;
+  const totalSessions = sessions.length + deviceSessionsAll.length;
+  const sunCount = sessions.length;
+  const devCount = deviceSessionsAll.length;
+  const tallyDetail = (sunCount > 0 || devCount > 0)
+    ? `${sunCount} sun + ${devCount} device`
+    : '';
+  const sunActive = !!(window.getActiveSession && window.getActiveSession());
+  let ctaButtons = '';
+  if (sunActive) {
+    // Stop controls live in the pinned active-session card; this widget keeps
+    // the remaining logging actions available without duplicating Stop.
+    if (hasDevices) {
+      ctaButtons = `<button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">Start device session</button>`;
+    } else {
+      ctaButtons = `<button class="dashboard-action-btn light-log-action" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()">Add light device</button>`;
+    }
+  } else if (hasDevices) {
+    ctaButtons = `<button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogSunSession()">Start sun session</button>
+      <button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">Start device session</button>`;
+  } else {
+    ctaButtons = `<button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogSunSession()">Start sun session</button>
+      <button class="dashboard-action-btn light-log-action" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()">Add light device</button>`;
+  }
+  return `<div class="light-session-log-actions">
+    <div class="light-quicklog-row">
+      ${ctaButtons}
+      <button class="dashboard-action-btn light-log-action" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">Log past session</button>
+      ${totalSessions === 0 ? `<span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>No sessions yet</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderDashboardLightTodayWidget() {
+  const hero = (typeof window !== 'undefined' && typeof window.renderLightTodayHero === 'function')
+    ? window.renderLightTodayHero()
+    : '';
+  const heroHtml = hero || `<div class="light-today-hero light-today-hero-dashboard-fallback">
+    <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
+    <div class="sun-detail-ai sun-detail-ai-idle">
+      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
+      <span>Open Light &amp; Sun to review today's sun, devices, environment, and channel rhythm.</span>
+      <button class="sun-session-ai-refresh" onclick="window.navigate && window.navigate('light')">Open Light &amp; Sun</button>
+    </div>
+  </div>`;
+  return `${heroHtml}${renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-light-today-widget' })}`;
+}
+
+function renderDashboardLightConditionsWidget() {
+  return renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' });
+}
+
+function renderDashboardLightSessionLogWidget() {
+  return renderLightSessionLogActions();
+}
+
+function renderDashboardLightChannelsWidget() {
+  const sessions = (window.getSessions && window.getSessions()) || [];
+  const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const totalSessions = sessions.length + deviceSessionsAll.length;
+  const lead = totalSessions === 0
+    ? 'No light sessions yet. Start logging sun or device exposure to fill your channel rhythm.'
+    : 'Seven-day channel rhythm from outdoor sun and therapy devices.';
+  return `<div class="light-channels-section light-channels-section-dashboard">
+    <p class="light-section-hint">${lead}</p>
+    ${renderDashboardLightChannelPills()}
+    <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-dashboard-open-btn" onclick="window.navigate && window.navigate('light')">Open Light &amp; Sun</button>
+  </div>`;
+}
+
+function renderLightWidgetPrompt(status, ctaLabel, ctaJs, hint, extraClass = '') {
+  return `<div class="light-widget-prompt ${extraClass}">
+    <div class="light-widget-prompt-copy">
+      <strong>${escapeHTML(status)}</strong>
+      <p>${escapeHTML(hint)}</p>
+    </div>
+    <button class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" onclick="${escapeAttr(ctaJs)}">${escapeHTML(ctaLabel)}</button>
+  </div>`;
+}
+
+function renderLightMethodsWidgetBody() {
+  let html = `<details class="light-explainer">
+    <summary>How we estimate vitamin D, burn risk &amp; channels</summary>
+    <div class="light-explainer-body">
+      <p><strong>Burn dose (% MED).</strong> 1 MED = "minimal erythemal dose," the smallest UV dose that turns your skin slightly pink. Set per Fitzpatrick skin type (Type I = 200 J/m² CIE-erythemal, Type VI = 1000 J/m²). 100% means a sunburn is starting; 70% means stop or cover up soon. Yesterday's dose carries forward — when yesterday + today exceeds 100% the banner flags a back-to-back risk, even if today alone is under threshold.</p>
+      <p><strong>Vitamin D in IU.</strong> Bogh &amp; Wulf 2010 + Holick 2007. Roughly 60 IU per unit of vit-D-action-spectrum-weighted UVB at sea-level zenith (calibrated against dminder + NIWA at UVI 5-7), scaled by your Fitzpatrick type (melanin lowers it). Saturates at the tens-of-thousands-of-IU level per session — at high doses the skin photoisomerizes excess previtamin D back to inert tachysterol/lumisterol. <strong>Below UVI 2 there's no meaningful synthesis</strong> (Webb 2018, ramps in linearly between UVI 2 and 3) — winter mornings, low sun, behind glass all yield zero.</p>
+      <p><strong>The ±50% range.</strong> Estimate is "central x 0.6 to x 1.5" because the spectral reconstruction model, skin response, and exposed area all vary. Treat the band as honest — the central number alone is false precision.</p>
+      <p><strong>Channels.</strong> Sun does six things you can see on this page, each with its own action spectrum: vitamin D synthesis, circadian/melanopic light, cardiovascular nitric-oxide release, mood/alpha-MSH on skin, violet-eye dopamine, and near-infrared cellular repair. Sun and therapy panels both feed these channels by wavelength.</p>
+      <p><strong>Atmosphere data.</strong> CAMS by default — real ozone column and aerosols from the hosted getbased-uvdata relay, merged with Open-Meteo clouds, temperature, air quality, and hourly UV baseline. All math runs on-device — your location is rounded before network calls unless you change the privacy slider.</p>
+      <p><strong>Want the math?</strong> See <a href="https://github.com/elkimek/get-based/blob/main/dev-docs/sun-spectrum-model.md" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
+    </div>
+  </details>`;
+  if (typeof window !== 'undefined' && typeof window.renderSunDataSourceSettings === 'function') {
+    html += `<details class="light-data-source-details">
+      <summary>Sun data source</summary>
+      <div class="light-data-source-body">${window.renderSunDataSourceSettings()}</div>
+    </details>`;
+  }
+  return `<div class="light-methods-stack">${html}</div>`;
+}
 
 // Render only when the user has logged sessions OR we're in a solar window
 // (sunrise/midday/sunset ±2h) and the user has labs — encourages discovery.
@@ -333,7 +509,6 @@ export function renderLightTodayStrip() {
   // that the Light lens exists. The CTA copy adapts to the situation.
 
   const active = (window.getActiveSession && window.getActiveSession()) || null;
-  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
   const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
 
   // CTA — adaptive to whether the user has therapy devices set up. A
@@ -400,36 +575,6 @@ export function renderLightTodayStrip() {
   } else {
     cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>${roomBtn}</div>`;
   }
-
-  // Qualitative pill summary of the 6 user-facing channels for the past 7 days.
-  // Numbers are kept off the dashboard — only "none / low / moderate / good /
-  // strong" tiers + dots. Hover for science.
-  const ch = window.CHANNEL_DISPLAY || {};
-  // Dashboard strip pills represent a 7-day rolling total; classify with
-  // the weekly tier so the strip agrees with the Light page pills + the
-  // AI rollup on the same data.
-  const tier = window.weeklyChannelTier || (() => 0);
-  const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  // Combine sun + device contributions so a user with a Joovv panel and no
-  // outdoor sessions still sees PBM channels light up.
-  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
-  const combinedTotals7d = mergeTotalsLocal(totals7d, devTotals7d);
-  // Dashboard pills are clickable — navigate to the Light & Sun page
-  // and auto-expand the matching channel's drill-down panel. Same
-  // vocabulary as the Light page pills, just one click away from the
-  // detail instead of three (open Light page → find pill → tap).
-  const pills = order.map(k => {
-    const meta = ch[k] || {};
-    const t = tier(combinedTotals7d[k] || 0, k);
-    const dc = _channelDayCount(k);
-    const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week. Tap for details.`;
-    return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" onclick="window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" aria-label="${escapeHTML((meta.label || k) + ', ' + dc.n + ' of 7 days hit target, tap to open detail')}">
-      <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
-      <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
-      ${_channelSparkline(k)}
-      <span class="light-pill-daycount">${escapeHTML(dc.txt)}</span>
-    </button>`;
-  }).join('');
 
   // Burn-risk gauge — qualitative, plain English, no acronyms
   const medPct = Math.round(medToday * 100);
@@ -503,9 +648,7 @@ export function renderLightTodayStrip() {
     </div>
     ${typeof window !== 'undefined' && window.renderLightTodayDashboardChip ? window.renderLightTodayDashboardChip() : ''}
     ${renderConditionsNow({ variant: 'compact' })}
-    <div class="light-pills-row">
-      ${pills}
-    </div>
+    ${renderDashboardLightChannelPills()}
     ${weeklyIUStr || vitDBudgetChip ? `<div class="light-today-vitd-row">${weeklyIUStr}${vitDBudgetChip ? ' ' + vitDBudgetChip : ''}</div>` : ''}
     <div class="light-today-foot">
       ${showBurnRisk ? `<span class="light-today-med light-today-med-${medCls}" title="How close today's sun exposure is to your burn threshold (Fitzpatrick-based). 100% = burn threshold reached.">
@@ -536,11 +679,30 @@ let _conditionsFetchInFlight = false;
 // so a single interval handles auto-refresh for the slot's lifetime.
 const _conditionsIntervals = new Map();
 
+function _conditionsTooltipAttr(text, opts = {}) {
+  if (!text) return '';
+  return ` data-conditions-tooltip="${escapeAttr(text)}"${opts.focusable ? ' tabindex="0"' : ''}`;
+}
+
 function _coordKey(coords) {
   if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) return null;
   const f = 2; // 0.5° rounding → coarse enough to share within a metro, fine enough to distinguish countries
   const k = (n) => (Math.round(n * f) / f).toFixed(1);
   return `${k(coords.lat)}_${k(coords.lon)}`;
+}
+
+function _centerConditionsNowMarker(slotOrId) {
+  if (typeof document === 'undefined') return;
+  const slot = typeof slotOrId === 'string' ? document.getElementById(slotOrId) : slotOrId;
+  const scroller = slot?.querySelector?.('.conditions-now-events');
+  const nowMarker = slot?.querySelector?.('.conditions-now-event-now');
+  if (!scroller || !nowMarker || scroller.scrollWidth <= scroller.clientWidth + 2) return;
+  const center = () => {
+    const nextLeft = nowMarker.offsetLeft + (nowMarker.offsetWidth / 2) - (scroller.clientWidth / 2);
+    scroller.scrollLeft = Math.max(0, nextLeft);
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(center);
+  else setTimeout(center, 0);
 }
 
 export function renderConditionsNow(opts = {}) {
@@ -576,6 +738,7 @@ export function renderConditionsNow(opts = {}) {
     const coords = (typeof window !== 'undefined' && window.getSunCoords && window.getSunCoords()) || null;
     if (coords && _conditionsCache && _conditionsCache.coordKey === _coordKey(coords)
         && (Date.now() - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
+      setTimeout(() => _centerConditionsNowMarker(slotId), 0);
       return `<div class="conditions-now conditions-now-${variant}" id="${slotId}" data-variant="${variant}" aria-busy="false">${_renderConditionsHTML(_conditionsCache.atm, coords, variant)}</div>`;
     }
   } catch (_) {}
@@ -611,9 +774,13 @@ async function _refreshConditions(slotId, variant, opts = {}) {
   if (!opts.force && _conditionsCache && _conditionsCache.coordKey === key && (now - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
     _resolveBusy();
     slot.innerHTML = _renderConditionsHTML(_conditionsCache.atm, coords, variant);
+    _centerConditionsNowMarker(slot);
     return;
   }
-  if (_conditionsFetchInFlight) return;
+  if (_conditionsFetchInFlight) {
+    setTimeout(() => _refreshConditions(slotId, variant, opts), 180);
+    return;
+  }
   _conditionsFetchInFlight = true;
   // For a user-triggered refresh, mark the slot busy + add a guaranteed
   // minimum visible-spinner duration. Otherwise a fast fetch (50ms) replaces
@@ -662,6 +829,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
     _conditionsCache = { coordKey: key, atm, fetchedAt: now };
     slot.setAttribute('aria-busy', 'false');
     slot.innerHTML = _renderConditionsHTML(atm, coords, variant, !online);
+    _centerConditionsNowMarker(slot);
     slot.classList.remove('is-refreshing');
     // Brief "✓ Updated" flash on user-triggered refresh — the new content
     // already shows "just now" but a green tick gives explicit confirmation.
@@ -920,11 +1088,11 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
 
   const fetchedAgo = Math.max(0, Math.round((Date.now() - (atm.fetchedAt || Date.now())) / 60000));
   const staleness = offline
-    ? `<span class="conditions-now-stale" title="Network unavailable — using cached values">⚠ offline · cached ${fetchedAgo} min ago</span>`
+    ? `<span class="conditions-now-stale"${_conditionsTooltipAttr('Network unavailable — using cached values', { focusable: true })}>⚠ offline · cached ${fetchedAgo} min ago</span>`
     : (fetchedAgo > 60
-        ? `<span class="conditions-now-stale" title="Cached value, refresh to update">cached ${fetchedAgo} min ago — tap ↻ to refresh</span>`
+        ? `<span class="conditions-now-stale"${_conditionsTooltipAttr('Cached value — refresh to update', { focusable: true })}>cached ${fetchedAgo} min ago — tap ↻ to refresh</span>`
         : (fetchedAgo > 30
-            ? `<span class="conditions-now-stale conditions-now-stale-mild" title="Conditions can drift with cloud cover; tap refresh for a fresh fetch">data ${fetchedAgo} min old</span>`
+            ? `<span class="conditions-now-stale conditions-now-stale-mild"${_conditionsTooltipAttr('Conditions can drift with cloud cover; tap refresh for a fresh fetch', { focusable: true })}>data ${fetchedAgo} min old</span>`
             : ''));
 
   // Resolve user's Fitzpatrick (for time-to-MED). Track whether it's
@@ -1024,13 +1192,37 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   const nowSubLabel = nextEvent && nextEventLabel
     ? `now · ${_fmtMinutes(minsToNext)} to ${nextEventLabel}`
     : 'now';
-  const nowEvent = { icon: '⏵', label: nowSubLabel, ts: nowTs, isNow: true };
+  const nowEvent = {
+    icon: '⏵',
+    label: nowSubLabel,
+    ts: nowTs,
+    isNow: true,
+    tooltip: nextEvent && nextEventLabel
+      ? `Current time marker — ${_fmtMinutes(minsToNext)} until ${nextEventLabel}.`
+      : 'Current time marker — all tracked sun events for today have passed.',
+  };
   // Insert "now" at the right chronological position
   const eventsWithNow = [...events, nowEvent].sort((a, b) => a.ts - b.ts);
-  const sunEventsLine = events.length ? `<div class="conditions-now-events-wrap" title="${escapeAttr('Today\'s sun timeline — left to right is the timeline through your day. Events left of the highlighted now-marker have passed; events to the right are upcoming.')}">
+  const eventRailLabel = (e) => ({
+    sunrise: 'Sunrise',
+    'first-uva': 'UV-A on',
+    peak: 'Peak',
+    'last-uva': 'UV-A off',
+    sunset: 'Sunset',
+  })[e.kind] || (e.isNow ? 'Now' : 'Event');
+  const eventRailTime = (e) => {
+    if (e.isNow) return e.label.replace(/^now(?: · )?/, '') || 'current';
+    if (e.kind === 'first-uva' || e.kind === 'last-uva') return e.label.split(' · ')[0];
+    return e.label;
+  };
+  const timelineTip = 'Today\'s sun timeline — left to right is the timeline through your day. Events left of the highlighted now-marker have passed; events to the right are upcoming.';
+  const sunEventsLine = events.length ? `<div class="conditions-now-events-wrap"${_conditionsTooltipAttr(timelineTip, { focusable: true })}>
     <div class="conditions-now-events-caption">Today's sun timeline</div>
     <div class="conditions-now-events">
-      ${eventsWithNow.map(e => `<span class="conditions-now-event${e.peak ? ' conditions-now-event-peak' : ''}${e.uvaEvent ? ' conditions-now-event-uva' : ''}${e.isNow ? ' conditions-now-event-now' : ''}${e.ts < nowTs ? ' conditions-now-event-past' : ''}"${e.tooltip ? ` title="${escapeAttr(e.tooltip)}"` : ''}><span class="conditions-now-event-icon">${e.icon}</span>${escapeHTML(e.label)}</span>`).join('')}
+      <div class="conditions-now-events-rail" role="list" aria-label="Today's sun timeline" style="--conditions-event-count: ${eventsWithNow.length};">
+        <span class="conditions-now-events-track" aria-hidden="true"></span>
+        ${eventsWithNow.map((e, i) => `<span role="listitem" class="conditions-now-event${e.peak ? ' conditions-now-event-peak' : ''}${e.uvaEvent ? ' conditions-now-event-uva' : ''}${e.isNow ? ' conditions-now-event-now' : ''}${e.ts < nowTs ? ' conditions-now-event-past' : ''}" style="grid-column: ${i + 1};"${_conditionsTooltipAttr(e.tooltip, { focusable: true })} aria-label="${escapeAttr(`${eventRailLabel(e)}: ${e.label}`)}"><span class="conditions-now-event-dot"><span class="conditions-now-event-icon">${e.icon}</span></span><span class="conditions-now-event-copy"><span class="conditions-now-event-label">${escapeHTML(eventRailLabel(e))}</span><span class="conditions-now-event-time">${escapeHTML(eventRailTime(e))}</span></span></span>`).join('')}
+      </div>
     </div>
   </div>` : '';
 
@@ -1038,16 +1230,16 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   // Refresh + Inspect now live in the title row, not down here.
   const ovStored = state.importedData?.sunDefaults?.overrides?.uvIndex;
   const trustFooter = `<div class="conditions-now-trust">
-    <span class="conditions-now-source ${offline ? 'is-offline' : (atm._stale ? 'is-stale' : 'is-fresh')}" title="${escapeAttr(`via ${sourceLabel} · ${freshnessLabel} · refreshes every few minutes · works offline once cached`)}">
+    <span class="conditions-now-source ${offline ? 'is-offline' : (atm._stale ? 'is-stale' : 'is-fresh')}"${_conditionsTooltipAttr(`via ${sourceLabel} · ${freshnessLabel} · refreshes every few minutes · works offline once cached`, { focusable: true })}>
       <span class="conditions-now-source-dot"></span>
       ${offline ? 'offline · cached' : (atm._stale ? 'stale · cached' : 'live')} · via ${escapeHTML(sourceLabel)} · ${escapeHTML(freshnessLabel)}
     </span>
-    ${sanityWarnings.length ? `<span class="conditions-now-warning" title="${escapeAttr(sanityWarnings.join(' · '))}">⚠ ${sanityWarnings.length} sanity warning${sanityWarnings.length === 1 ? '' : 's'}</span>` : ''}
-    <span class="conditions-now-override" title="Manual UVI override — feeds your own UV-meter reading into the spectrum reconstruction. Leave blank to use the live atmosphere fetch.">
+    ${sanityWarnings.length ? `<span class="conditions-now-warning"${_conditionsTooltipAttr(sanityWarnings.join(' · '), { focusable: true })}>⚠ ${sanityWarnings.length} sanity warning${sanityWarnings.length === 1 ? '' : 's'}</span>` : ''}
+    <span class="conditions-now-override"${_conditionsTooltipAttr('Manual UVI override — feeds your own UV-meter reading into the spectrum reconstruction. Leave blank to use the live atmosphere fetch.')}>
       <label for="manual-uvi-input">Manual UVI:</label>
       <input type="number" min="0" max="20" step="0.1" inputmode="decimal" id="manual-uvi-input" value="${Number.isFinite(ovStored) ? ovStored : ''}" placeholder="${atm.uvIndex != null && !atm._uvOverridden ? atm.uvIndex.toFixed(1) : '—'}">
       <button type="button" onclick="window._setManualUvi && window._setManualUvi()">Apply</button>
-      ${Number.isFinite(ovStored) ? `<button type="button" onclick="window._clearManualUvi && window._clearManualUvi()" title="Clear the manual override" aria-label="Clear manual UVI override">×</button>` : ''}
+      ${Number.isFinite(ovStored) ? `<button type="button" onclick="window._clearManualUvi && window._clearManualUvi()"${_conditionsTooltipAttr('Clear the manual override')} aria-label="Clear manual UVI override">×</button>` : ''}
     </span>
   </div>`;
 
@@ -1063,10 +1255,10 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
       return s;
     })() : '';
     return `<div class="conditions-now-row">
-      ${uvi != null ? `<span class="conditions-now-pill conditions-uvi-${uviCls}" title="WHO UV index — sunburn intensity">UVI <strong>${uvi}</strong></span>` : ''}
-      ${aqAgg ? `<span class="conditions-now-pill conditions-aq-${aqAgg.cls}" title="Air quality (worst-of multi-pollutant)">AQ ${escapeHTML(aqAgg.label)}</span>` : ''}
-      ${peakAt && !peakIsNow ? `<span class="conditions-now-pill" title="UV index peaks today at ${_fmtTime(peakAt)} · UVI ${peakUvi != null ? peakUvi.toFixed(1) : '—'}">peak ${_fmtTime(peakAt)}</span>` : ''}
-      <span class="conditions-now-source-compact ${offline ? 'is-offline' : (atm._stale ? 'is-stale' : 'is-fresh')}" title="${escapeAttr(`via ${sourceLabel} · ${freshnessLabel}${offline ? ' (offline)' : ''}`)}">
+      ${uvi != null ? `<span class="conditions-now-pill conditions-uvi-${uviCls}"${_conditionsTooltipAttr('WHO UV index — sunburn intensity', { focusable: true })}>UVI <strong>${uvi}</strong></span>` : ''}
+      ${aqAgg ? `<span class="conditions-now-pill conditions-aq-${aqAgg.cls}"${_conditionsTooltipAttr('Air quality — worst-of category across PM2.5, PM10, and NO₂', { focusable: true })}>AQ ${escapeHTML(aqAgg.label)}</span>` : ''}
+      ${peakAt && !peakIsNow ? `<span class="conditions-now-pill"${_conditionsTooltipAttr(`UV index peaks today at ${_fmtTime(peakAt)} · UVI ${peakUvi != null ? peakUvi.toFixed(1) : '—'}`, { focusable: true })}>peak ${_fmtTime(peakAt)}</span>` : ''}
+      <span class="conditions-now-source-compact ${offline ? 'is-offline' : (atm._stale ? 'is-stale' : 'is-fresh')}"${_conditionsTooltipAttr(`via ${sourceLabel} · ${freshnessLabel}${offline ? ' (offline)' : ''}`, { focusable: true })}>
         <span class="conditions-now-source-dot"></span>${escapeHTML(sourceLabel)}
       </span>
     </div>
@@ -1075,28 +1267,37 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
 
   // Full Light & Sun page strip — UVI is hero, others are supporting.
   // 4-column grid where UVI spans 2 columns to dominate visually.
+  const uviHeroTip = medResult && medResult.kind === 'minutes'
+    ? TANNING_MODIFIERS_NOTE
+    : 'WHO UV index — sunburn intensity; vitamin-D synthesis rises as UVI climbs.';
+  const fpDefaultTip = 'No skin type set yet — using medium (Fitzpatrick III) as a default. Set your actual skin type in Light setup for a personalized estimate.';
+  const sunPositionTip = `${SHADOW_RULE_HINT}\n\nSun elevation: ${sunAngle != null ? sunAngle + '°' : 'unknown'} above horizon.`;
+  const ozoneTip = ozone != null
+    ? 'Total atmospheric ozone column (Dobson Units) — the protective stratospheric layer that blocks UV-B. Lower DU → more UV reaches the surface.'
+    : SMOG_HINT;
+  const airQualityTip = 'Air quality is the worst-of category across PM2.5, PM10, and NO₂ — so a high traffic-pollutant level (NO₂) won\'t hide behind clean PM. EAQI uses the same multi-pollutant logic.';
   return `<div class="conditions-now-grid">
-    <div class="conditions-now-cell conditions-now-cell-hero ${uvi != null ? `conditions-uvi-${uviCls}` : ''}">
-      <div class="conditions-now-label">UV index${atm._uvOverridden ? ' <span class="conditions-now-override-badge" title="Manual UVI override active — clear in Light setup or via the override row below.">manual</span>' : ''}</div>
+    <div class="conditions-now-cell conditions-now-cell-hero ${uvi != null ? `conditions-uvi-${uviCls}` : ''}"${_conditionsTooltipAttr(uviHeroTip, { focusable: true })}>
+      <div class="conditions-now-label">UV index${atm._uvOverridden ? ` <span class="conditions-now-override-badge"${_conditionsTooltipAttr('Manual UVI override active — clear in Light setup or via the override row below.', { focusable: true })}>manual</span>` : ''}</div>
       <div class="conditions-now-value conditions-now-value-hero">${uvi != null ? uvi : '—'}</div>
-      ${uvi != null ? `<div class="conditions-now-interpretation"${medResult && medResult.kind === 'minutes' ? ` title="${escapeAttr(TANNING_MODIFIERS_NOTE)}"` : ''}>${escapeHTML(vitDLabel)}${(() => {
+      ${uvi != null ? `<div class="conditions-now-interpretation">${escapeHTML(vitDLabel)}${(() => {
         if (!medResult) return '';
         if (medResult.kind === 'no-uv') return ' · UV near zero, no burn risk';
         if (medResult.kind === 'safe-til-sunset') return ' · won\'t burn before sunset';
         if (medResult.kind === 'minutes') return ` · ~${_fmtMinutes(medResult.value)} to your sunburn dose${fpIsDefault ? '*' : ''}`;
         return '';
-      })()}${fpIsDefault && medResult?.kind === 'minutes' ? ` <span class="conditions-now-asterisk" title="${escapeAttr('No skin type set yet — using medium (Fitzpatrick III) as a default. Set your actual skin type in Light setup for a personalized estimate.')}">*</span>` : ''}</div>` : ''}
+      })()}${fpIsDefault && medResult?.kind === 'minutes' ? ` <span class="conditions-now-asterisk"${_conditionsTooltipAttr(fpDefaultTip, { focusable: true })}>*</span>` : ''}</div>` : ''}
       ${(cloudChip || peakChip) ? `<div class="conditions-now-chips">
         ${cloudChip ? `<span class="conditions-now-chip">${escapeHTML(cloudChip)}</span>` : ''}
         ${peakChip ? `<span class="conditions-now-chip conditions-now-chip-peak">${escapeHTML(peakChip)}</span>` : ''}
       </div>` : ''}
     </div>
-    <div class="conditions-now-cell" title="${escapeAttr(`${SHADOW_RULE_HINT}\n\nSun elevation: ${sunAngle != null ? sunAngle + '°' : 'unknown'} above horizon.`)}">
+    <div class="conditions-now-cell"${_conditionsTooltipAttr(sunPositionTip, { focusable: true })}>
       <div class="conditions-now-label">Sun position</div>
       <div class="conditions-now-value conditions-now-value-aq">${escapeHTML(_sunPositionLabel(sunAngle))}</div>
       <div class="conditions-now-sub">${escapeHTML(_sunPositionSub(sunAngle))}</div>
     </div>
-    <div class="conditions-now-cell ${surfaceOzoneCls ? `conditions-aq-${surfaceOzoneCls}` : ''}" title="${escapeAttr(ozone != null ? 'Total atmospheric ozone column (Dobson Units) — the protective stratospheric layer that blocks UV-B. Lower DU → more UV reaches the surface.' : SMOG_HINT)}">
+    <div class="conditions-now-cell ${surfaceOzoneCls ? `conditions-aq-${surfaceOzoneCls}` : ''}"${_conditionsTooltipAttr(ozoneTip, { focusable: true })}>
       <div class="conditions-now-label">${ozone != null ? 'Ozone column' : 'Smog (ground O₃)'}</div>
       <div class="conditions-now-value conditions-now-value-aq">${ozone != null ? ozone : (surfaceOzone != null ? escapeHTML(_surfaceOzoneLabel(surfaceOzone)?.label || '—') : '—')}</div>
       <div class="conditions-now-sub">${
@@ -1104,14 +1305,14 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
         surfaceOzone != null ? escapeHTML(_surfaceOzoneLabel(surfaceOzone)?.action || `${surfaceOzone} µg/m³`) : ''
       }</div>
     </div>
-    <div class="conditions-now-cell ${aqAgg ? `conditions-aq-${aqAgg.cls}` : ''}" title="${escapeAttr('Air quality is the worst-of category across PM2.5, PM10, and NO₂ — so a high traffic-pollutant level (NO₂) won\'t hide behind clean PM. EAQI uses the same multi-pollutant logic.')}">
+    <div class="conditions-now-cell ${aqAgg ? `conditions-aq-${aqAgg.cls}` : ''}"${_conditionsTooltipAttr(airQualityTip, { focusable: true })}>
       <div class="conditions-now-label">Air quality</div>
       <div class="conditions-now-value conditions-now-value-aq">${aqAgg ? escapeHTML(aqAgg.label) : '—'}</div>
       <div class="conditions-now-sub">${aqAgg ? (aqAgg.why === 'EAQI' ? 'EU air quality index' : (aqAgg.why ? `worst pollutant: ${aqAgg.why} ${aqAgg.why === 'PM2.5' && aqPm25 != null ? aqPm25 + ' µg/m³' : ''}` : 'worst-of multi-pollutant')) : ''}</div>
     </div>
   </div>
   ${sunEventsLine}
-  <div class="conditions-now-footnote" title="${escapeAttr(TANNING_MODIFIERS_NOTE)}">
+  <div class="conditions-now-footnote"${_conditionsTooltipAttr(TANNING_MODIFIERS_NOTE, { focusable: true })}>
     Burn-time estimates are based on Fitzpatrick skin type — actual burn / tan response also depends on <strong>genetics</strong> (e.g. MC1R variants), <strong>diet</strong> (omega-3, antioxidants), <strong>recent sun history</strong>, <strong>circadian state</strong>, sleep, and hydration.
   </div>
   ${trustFooter}`;
@@ -1525,18 +1726,32 @@ export function showLight(_data) {
   const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
   const totals30d = (window.rollingChannelTotals && window.rollingChannelTotals(30)) || {};
   const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
+  const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const totalSessions = sessions.length + deviceSessionsAll.length;
+  const sunCount = sessions.length;
+  const widgets = [];
 
-  let html = `<div class="category-header">
-    <h2>Light &amp; Sun</h2>
-    <p>Track your light exposure. See how it shapes your sleep, hormones, and lab results.</p>
-  </div>`;
+  let html = `<div class="light-page">
+    ${renderLensHeader('Light & Sun', 'Track your light exposure. See how it shapes your sleep, hormones, and lab results.')}`;
 
   // AI hero verdict — synthesizes today's full picture (sun + devices +
   // environment + trends) into one read. Sits above active-session and
   // conditions so the user gets the "how am I doing?" answer before the
   // raw inputs.
   if (typeof window !== 'undefined' && window.renderLightTodayHero) {
-    try { html += window.renderLightTodayHero(); } catch (_) {}
+    try {
+      const todayBody = window.renderLightTodayHero() || '';
+      if (todayBody) {
+        widgets.push({
+          id: 'light-today',
+          title: 'Today',
+          description: 'Current light synthesis across sun, devices, and environment',
+          body: todayBody,
+          size: 'full',
+          opts: { source: 'Light', dashboardId: 'light-today' },
+        });
+      }
+    } catch (_) {}
   }
 
   // Active sun session card — pinned at the very top of the page so the
@@ -1545,8 +1760,9 @@ export function showLight(_data) {
   // Conditions / Setup / Stop CTA. Filtered out of the historical
   // sessions list further down so the same row doesn't render twice.
   const _activeSunSess = (window.getActiveSession && window.getActiveSession()) || null;
+  let activeSessionBody = '';
   if (_activeSunSess && typeof window.renderSunSessionRow === 'function') {
-    html += `<div class="light-active-session-pinned" aria-label="Active sun session">${window.renderSunSessionRow(_activeSunSess)}</div>`;
+    activeSessionBody += `<div class="light-active-session-pinned" aria-label="Active sun session">${window.renderSunSessionRow(_activeSunSess)}</div>`;
   }
   // Same pattern for active device-therapy sessions (PBM panels, SAD
   // lamps, dawn simulators). Pinned above the conditions panel so the
@@ -1554,74 +1770,56 @@ export function showLight(_data) {
   if (typeof window.renderActiveDeviceSessionCard === 'function') {
     const _activeDevHtml = window.renderActiveDeviceSessionCard();
     if (_activeDevHtml) {
-      html += `<div class="light-active-session-pinned" aria-label="Active device session">${_activeDevHtml}</div>`;
+      activeSessionBody += `<div class="light-active-session-pinned" aria-label="Active device session">${_activeDevHtml}</div>`;
     }
+  }
+  if (activeSessionBody) {
+    widgets.push({
+      id: 'light-live-session',
+      title: 'Live Session',
+      description: 'Running sun or therapy sessions with stop controls',
+      body: activeSessionBody,
+      size: 'full',
+      opts: { source: 'Light', dashboardId: '' },
+    });
   }
 
   // Always-visible "Conditions now" panel — UVI / ozone / AQI / sun angle.
   // Tells the user whether right now is a good time to go out, even before
   // they have any session history.
-  html += `<div class="light-conditions-now-wrap">
-    <div class="light-conditions-now-head">
-      <span class="light-conditions-now-title">Conditions now</span>
-      <span class="light-conditions-now-actions">
-        <button type="button" class="conditions-now-refresh" aria-label="Refresh conditions data — bypasses cache" onclick="window._refreshConditionsNow && window._refreshConditionsNow()" title="Force a fresh fetch (bypasses cache)">↻ Refresh</button>
-        <button type="button" class="conditions-now-inspect" aria-label="Show raw conditions response, source, cache, and sanity check" onclick="window._inspectConditionsNow && window._inspectConditionsNow()" title="See raw response, source, cache, sanity check">Show details</button>
-      </span>
-    </div>
-    ${renderConditionsNow({ variant: 'full' })}
-  </div>`;
-
   // Setup card / saved summary. renderSunSetupCard() returns the editor
   // when onboarding is incomplete or the user has reopened to edit, and a
   // compact "Light setup saved" summary with an Edit button otherwise.
+  let setupHtml = '';
   if (typeof window.renderSunSetupCard === 'function') {
-    html += window.renderSunSetupCard();
+    try { setupHtml = window.renderSunSetupCard() || ''; } catch (_) {}
   }
-
-
-  // Quick-log CTA row — primary action. Adaptive: a winter user with a
-  // therapy panel sees "Start a device session" alongside (or instead of)
-  // "Start a sun session," and the count below counts BOTH session kinds.
-  // Devices and outdoor sun feed the same channels; the page shouldn't
-  // privilege one over the other.
-  const devices = (window.getDevices && window.getDevices()) || [];
-  const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
-  const hasDevices = devices.length > 0;
-  const totalSessions = sessions.length + deviceSessionsAll.length;
-  const sunCount = sessions.length;
-  const devCount = deviceSessionsAll.length;
-  const tallyDetail = (sunCount > 0 || devCount > 0)
-    ? `${sunCount} sun + ${devCount} device`
-    : '';
-  const sunActive = !!(window.getActiveSession && window.getActiveSession());
-  let ctaButtons = '';
-  if (sunActive) {
-    // While a sun session is active, the Stop control lives inside the
-    // pinned active-session card at the top (next to Pause / Flip /
-    // Sunscreen / Ozone). Don't render a second, far-away Stop here —
-    // earlier the row contained "⏹ Stop & save current session" 600+
-    // pixels below the running banner, so users hunted for it past the
-    // entire setup card and channel pills. Surface device/past-log
-    // affordances instead since those still apply during a running sun
-    // session.
-    if (hasDevices) {
-      ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()"><span aria-hidden="true">🔴 </span>Start a device session</button>`;
-    } else {
-      ctaButtons = `<button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()"><span aria-hidden="true">+ </span>Add a light device</button>`;
-    }
-  } else if (hasDevices) {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀ </span>Start a sun session</button>
-      <button class="import-btn import-btn-primary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()"><span aria-hidden="true">🔴 </span>Start a device session</button>`;
-  } else {
-    ctaButtons = `<button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀ </span>Start a sun session</button>
-      <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()"><span aria-hidden="true">+ </span>Add a light device</button>`;
-  }
-  html += `<div class="light-quicklog-row">
-    ${ctaButtons}
-    <button class="import-btn import-btn-secondary" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">Log a past session</button>
-    ${totalSessions === 0 ? `<span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>No sessions yet</span>` : ''}
-  </div>`;
+  const conditionsBody = renderLightConditionsWidgetBody({ variant: 'full' });
+  widgets.push({
+    id: 'light-conditions-now',
+    title: 'Conditions Now',
+    description: 'Current outdoor UVI, atmosphere, air quality, and sun timing',
+    body: conditionsBody,
+    size: 'two-third',
+    opts: { source: 'Light', dashboardId: 'light-conditions-now' },
+  });
+  const logBody = renderLightSessionLogActions();
+  widgets.push({
+    id: 'light-session-log',
+    title: 'Log Sessions',
+    description: 'Start sun or therapy sessions and backfill past exposure',
+    body: logBody,
+    size: 'third',
+    opts: { source: 'Light', dashboardId: 'light-session-log' },
+  });
+  widgets.push({
+    id: 'light-setup',
+    title: 'Light Setup',
+    description: 'Skin type, indoor light context, and personal light assumptions',
+    body: setupHtml,
+    size: 'full',
+    opts: { source: 'Light', dashboardId: '' },
+  });
 
   // Slot id for the async-populated channel-deficit device recommendation
   // panel. Declared at top scope so the post-render population block can
@@ -1662,14 +1860,22 @@ export function showLight(_data) {
   } else {
     lead = `${litChannels} of 6 channels lit by your recent sessions. Tap any pill for what you've logged, the 7-day rhythm, and what would tip it up.`;
   }
-  html += `<div class="light-channels-section">
-    <h3 class="light-section-title">Your light, by what it does</h3>
+  const channelsBody = `<div class="light-channels-section">
     <p class="light-section-hint">${lead}</p>
     ${renderChannelPills(combined7d, combined30d)}
     ${isEmpty ? getSunCoordsHint() : ''}
   </div>`;
+  widgets.push({
+    id: 'light-channels',
+    title: 'Your Light, By What It Does',
+    description: 'Channel doses from outdoor sun and therapy devices',
+    body: channelsBody,
+    size: 'full',
+    opts: { source: 'Light', dashboardId: 'light-channels' },
+  });
 
   if (!isEmpty) {
+    let guidanceBody = '';
     // Today's burn-risk card — sun-specific, gated on having sun sessions.
     // A winter user with only device sessions doesn't need a "Sun exposure
     // today: safe (0%)" panel taking up space. Surfaces once outdoor sun
@@ -1688,7 +1894,7 @@ export function showLight(_data) {
       const carryChip = (combinedMED > 1.0 && medToday < 1.0)
         ? `<div class="light-med-carryover" title="Yesterday ${Math.round(medY * 100)}% MED + today ${medPct}% MED. Skin partially carries dose between days — back-to-back exposure compounds burn risk.">⚠ Cumulative dose with yesterday: ${Math.round(combinedMED * 100)}% — go easy today.</div>`
         : '';
-      html += `<div class="light-med-banner light-med-${medCls}">
+      guidanceBody += `<div class="light-med-banner light-med-${medCls}">
         <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
         <div class="light-med-body">
           <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your burn threshold)</span>` : ''}</div>
@@ -1706,7 +1912,7 @@ export function showLight(_data) {
     // baseline content under the "Get AI synthesis" CTA before the
     // user has clicked it.
     const _staticSuggestion = renderSuggestion(combined7d);
-    html += (typeof window !== 'undefined' && window.renderChannelMixVerdict)
+    guidanceBody += (typeof window !== 'undefined' && window.renderChannelMixVerdict)
       ? window.renderChannelMixVerdict(_staticSuggestion)
       : _staticSuggestion;
 
@@ -1719,7 +1925,15 @@ export function showLight(_data) {
     // stays empty if recs are off, region filters everything out, or
     // the catalog isn't reachable.
     deficitRecSlotId = `light-deficit-rec-slot-${Date.now()}`;
-    html += `<div id="${deficitRecSlotId}"></div>`;
+    guidanceBody += `<div id="${escapeAttr(deficitRecSlotId)}"></div>`;
+    widgets.push({
+      id: 'light-guidance',
+      title: 'Guidance',
+      description: 'Burn risk, channel synthesis, and device-fillable gaps',
+      body: guidanceBody,
+      size: 'full',
+      opts: { source: 'Light', dashboardId: '' },
+    });
 
     // Unified sessions list — sun + device merged chronologically.
     // Active sun session is pinned at top of page; this list shows
@@ -1732,16 +1946,59 @@ export function showLight(_data) {
       // history yet?" answer alongside the section name. Replaces the
       // earlier orphan tally that sat above the CTAs.
       const _countLabel = totalSessions === 0 ? '' : ` (${totalSessions})`;
-      html += `<div class="category-header" style="margin-top:24px"><h3>Recent sessions${_countLabel}</h3></div>`;
-      html += _unifiedHtml;
+      widgets.push({
+        id: 'light-sessions',
+        title: `Recent Sessions${_countLabel}`,
+        description: 'Chronological outdoor sun and therapy device history',
+        body: _unifiedHtml,
+        size: 'full',
+        opts: { source: 'Light', dashboardId: '' },
+      });
     }
   }
 
-  // Devices, environment, tools — auto-collapsed when empty per v1.7.0a UX review
-  const placeholderId = `light-aux-slot-${Date.now()}`;
-  html += `<div id="${placeholderId}"></div>`;
+  // Page-only Light workbench surfaces stay separate widgets so each one can
+  // be reordered, scanned, and visually handled like the rest of the redesign.
+  const devicesSlotId = `light-devices-slot-${Date.now()}`;
+  const environmentSlotId = `light-environment-slot-${Date.now()}`;
+  const toolsSlotId = `light-tools-slot-${Date.now()}`;
+  widgets.push({
+    id: 'light-devices',
+    title: 'Light Devices',
+    description: 'Therapy panels, SAD lamps, dawn simulators, and device logging',
+    body: `<div id="${escapeAttr(devicesSlotId)}" class="light-widget-loading">Loading devices...</div>`,
+    size: 'full',
+    opts: { source: 'Light', dashboardId: '' },
+  });
+  widgets.push({
+    id: 'light-environment',
+    title: 'Light Environment',
+    description: 'Indoor rooms, screens, and evening light context',
+    body: `<div id="${escapeAttr(environmentSlotId)}" class="light-widget-loading">Loading environment...</div>`,
+    size: 'full',
+    opts: { source: 'Light', dashboardId: '' },
+  });
+  widgets.push({
+    id: 'light-tools',
+    title: 'Measurement Tools',
+    description: 'On-device light checks and room measurement workflows',
+    body: `<div id="${escapeAttr(toolsSlotId)}" class="light-widget-loading">Loading tools...</div>`,
+    size: 'full',
+    opts: { source: 'Light', dashboardId: '' },
+  });
+  widgets.push({
+    id: 'light-methods',
+    title: 'Methods & Sources',
+    description: 'Estimation model, uncertainty, and sun data source controls',
+    body: renderLightMethodsWidgetBody(),
+    size: 'full',
+    opts: { source: 'Light', dashboardId: '' },
+  });
+
+  html += `${renderLensPageWidgets('light', widgets)}</div>`;
 
   main.innerHTML = html;
+  main.querySelector('.light-page')?.classList.add('is-ready');
 
   // Populate the channel-deficit device-rec slot. Same baseline gate as
   // sun-context.js: ≥7 logged events of any kind. Device-fillable
@@ -1763,7 +2020,7 @@ export function showLight(_data) {
           .then(([catalog, presetData]) => {
             if (!catalog || !presetData?.presets) return;
             const blocks = empty
-              .map(c => window.renderChannelDeficitDeviceRecs(catalog, c.key, presetData.presets, { label: c.label }))
+              .map(c => window.renderChannelDeficitDeviceRecs(catalog, c.key, presetData.presets, { label: escapeHTML(c.label) }))
               .filter(Boolean);
             if (blocks.length && slot.isConnected) slot.innerHTML = blocks.join('');
           })
@@ -1774,60 +2031,33 @@ export function showLight(_data) {
 
   if (typeof window.renderDevicesSection === 'function') {
     Promise.resolve(window.renderDevicesSection()).then((devHtml) => {
-      const slot = document.getElementById(placeholderId);
-      if (slot) {
-        const devices = (window.getDevices && window.getDevices()) || [];
-        const env = (window.getLightEnvironment && window.getLightEnvironment()) || null;
-        const hasRooms = !!(env?.rooms?.length || env?.screens?.length);
-        const measurements = (window.getMeasurements && window.getMeasurements()) || [];
-        let aux = devices.length > 0 ? devHtml : renderCollapsedSubsection('Light devices', '+ Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, dawn simulators — log them here and your sessions feed the same channels as outdoor sun.');
-        aux += hasRooms ? ((window.renderEnvironmentSection && window.renderEnvironmentSection()) || '') : renderCollapsedSubsection('Light environment', '+ Map a room', "window.addLightEnvRoom && window.addLightEnvRoom()", 'LEDs, fluorescents, screens — most users spend 8–14 hours/day under them. Map your rooms so the AI sees the half of your day spent inside.');
-        aux += measurements.length > 0
-          ? ((window.renderLightTools && window.renderLightTools()) || '')
-          : renderCollapsedSubsection('Light tools', '🛠 Open light tools', 'window._expandLightToolsSection && window._expandLightToolsSection()', 'Eight on-device measurement tools — lux, flicker, color temp, glass transmission, sleep darkness, more. Camera frames stay on your phone.', 'light-tools-section-collapsed');
-        // "How we estimate" — single explainer covering MED / IU / channels
-        // / uncertainty. Lives at the bottom of the page (alongside the Sun
-        // data source disclosure) rather than mid-page so it doesn't break
-        // the flow between channel mix and Sessions for users who already
-        // know the math. Collapsed by default.
-        aux += `<details class="light-explainer" style="margin-top:24px">
-          <summary>How we estimate vitamin D, burn risk &amp; channels</summary>
-          <div class="light-explainer-body">
-            <p><strong>Burn dose (% MED).</strong> 1 MED = "minimal erythemal dose," the smallest UV dose that turns your skin slightly pink. Set per Fitzpatrick skin type (Type I = 200 J/m² CIE-erythemal, Type VI = 1000 J/m²). 100% means a sunburn is starting; 70% means stop or cover up soon. Yesterday's dose carries forward — when yesterday + today exceeds 100% the banner flags a back-to-back risk, even if today alone is under threshold.</p>
-            <p><strong>Vitamin D in IU.</strong> Bogh &amp; Wulf 2010 + Holick 2007. Roughly 60 IU per unit of vit-D-action-spectrum-weighted UVB at sea-level zenith (calibrated against dminder + NIWA at UVI 5–7), scaled by your Fitzpatrick type (melanin lowers it). Saturates at the tens-of-thousands-of-IU level per session — at high doses the skin photoisomerizes excess previtamin D back to inert tachysterol/lumisterol. <strong>Below UVI 2 there's no meaningful synthesis</strong> (Webb 2018, ramps in linearly between UVI 2 and 3) — winter mornings, low sun, behind glass all yield zero.</p>
-            <p><strong>The ±50% range.</strong> Estimate is "central × 0.6 to × 1.5" because (a) the spectral reconstruction model is accurate to ~20–25% at noon and degrades off-noon, (b) skin response varies per person ~30%, (c) actual exposed area can differ 10–20% from your selected regions. Treat the band as honest — the central number alone is false precision.</p>
-            <p><strong>Channels.</strong> Sun does six things you can see on this page, each with its own action spectrum: vitamin D synthesis (UVB 290-315nm), circadian/melanopic (peak ~490nm at the eye), cardiovascular nitric-oxide release (UVA-violet 320-440nm), mood/α-MSH on the skin (UVA + UVB on keratinocytes), violet-eye dopamine (360-400nm at the eye), and near-infrared cellular repair (660-850nm). Sun and therapy panels both feed these channels by wavelength. Therapy panels also drive two device-only channels — narrowband red 660nm and near-infrared 810/850nm — surfaced on the device card rather than the solar pill row.</p>
-            <p><strong>Atmosphere data.</strong> Open-Meteo by default — UV index, cloud cover, AQI, plus a fixed 300 DU stratospheric ozone (Open-Meteo's free tier only exposes ground-level pollution ozone). Each session captures one atmosphere snapshot at start and reuses it; the global fetch cache is 1 hour, the dashboard "Conditions now" strip auto-refreshes every 5 minutes. For higher fidelity, switch to a self-hosted CAMS-mirrored source via the <strong>Sun data source</strong> panel below. All math runs on-device — your location is rounded to 0.1° (~11 km) before any network call unless you change the privacy slider.</p>
-            <p><strong>Want the math?</strong> See <a href="https://github.com/elkimek/get-based/blob/main/dev-docs/sun-spectrum-model.md" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
-          </div>
-        </details>`;
-        // Sun data source — collapsed by default. Most users stay on the
-        // Open-Meteo default; the panel matters when self-hosting CAMS or
-        // disabling network calls entirely. Lives here (per-feature config)
-        // rather than Settings → Privacy.
-        if (typeof window.renderSunDataSourceSettings === 'function') {
-          aux += `<details class="light-data-source-details" style="margin-top:24px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0">
-            <summary style="padding:12px 16px;cursor:pointer;font-size:13px;color:var(--text-secondary);user-select:none">⚙ Sun data source</summary>
-            <div style="padding:0 16px 16px 16px">${window.renderSunDataSourceSettings()}</div>
-          </details>`;
-        }
-        slot.outerHTML = aux;
-      }
+      const slot = document.getElementById(devicesSlotId);
+      if (!slot) return;
+      const devices = (window.getDevices && window.getDevices()) || [];
+      slot.outerHTML = devices.length > 0
+        ? devHtml
+        : renderLightWidgetPrompt('No devices added', 'Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
     }).catch(() => {});
+  } else {
+    const slot = document.getElementById(devicesSlotId);
+    if (slot) {
+      slot.outerHTML = renderLightWidgetPrompt('No devices added', 'Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
+    }
   }
-}
-
-// Render a "soft empty" sub-section header on the Light & Sun page when the
-// user hasn't engaged with that section yet. Avoids the "wall of empty
-// sections" the v1.7.0a UX review flagged.
-function renderCollapsedSubsection(title, ctaLabel, ctaJs, hint, extraClass = '') {
-  return `<div class="light-collapsed-section ${extraClass}">
-    <div class="light-collapsed-row">
-      <strong class="light-collapsed-title">${escapeHTML(title)}</strong>
-      <button class="import-btn import-btn-secondary light-collapsed-cta" onclick="${ctaJs}">${escapeHTML(ctaLabel)}</button>
-    </div>
-    <p class="light-collapsed-hint">${escapeHTML(hint)}</p>
-  </div>`;
+  const envSlot = document.getElementById(environmentSlotId);
+  if (envSlot) {
+    const env = (window.getLightEnvironment && window.getLightEnvironment()) || null;
+    const hasLightEnvironment = !!(env?.rooms?.length || env?.screens?.length);
+    envSlot.outerHTML = hasLightEnvironment && window.renderEnvironmentSection
+      ? (window.renderEnvironmentSection() || '')
+      : renderLightWidgetPrompt('No rooms mapped', 'Map a room', "window.addLightEnvRoom && window.addLightEnvRoom()", 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
+  }
+  const toolsSlot = document.getElementById(toolsSlotId);
+  if (toolsSlot) {
+    toolsSlot.outerHTML = window.renderLightTools
+      ? (window.renderLightTools() || '')
+      : renderLightWidgetPrompt('No measurements yet', 'Open light tools', 'window._expandLightToolsSection && window._expandLightToolsSection()', 'Run lux, flicker, color temperature, glass, and sleep-darkness checks on this device. Camera frames stay local.', 'light-tools-section-collapsed');
+  }
 }
 
 // Expand the collapsed Light tools placeholder into the full 8-card grid.
@@ -1868,8 +2098,8 @@ function _channelSparkline(channelKey, totals = null) {
   const colorFor = (total) => {
     if (dailyTarget <= 0 || total < dailyTarget * 0.05) return null; // faint stub
     if (total >= dailyTarget) return 'var(--green)';
-    if (total >= dailyTarget * 0.30) return 'var(--accent)';
-    return 'var(--accent)';
+    if (total >= dailyTarget * 0.30) return 'var(--channel-accent, var(--accent))';
+    return 'var(--channel-accent, var(--accent))';
   };
   const opacityFor = (total) => {
     if (dailyTarget <= 0 || total < dailyTarget * 0.05) return 0.35;
@@ -2173,8 +2403,8 @@ function _renderChannelWeekChart(channelKey) {
   const colorForDay = (total) => {
     if (dailyTarget <= 0 || total < dailyTarget * 0.05) return { fill: 'var(--text-muted)', op: 0.40 };
     if (total >= dailyTarget) return { fill: 'var(--green)', op: 1.0 };
-    if (total >= dailyTarget * dayThreshold) return { fill: 'var(--accent)', op: 0.85 };
-    return { fill: 'var(--accent)', op: 0.45 };
+    if (total >= dailyTarget * dayThreshold) return { fill: 'var(--channel-accent, var(--accent))', op: 0.85 };
+    return { fill: 'var(--channel-accent, var(--accent))', op: 0.45 };
   };
 
   const bars = days.map((d, i) => {
@@ -2263,10 +2493,13 @@ function _meaningfulDayCount(days, dailyTarget, threshold) {
 // exposure not banked. The "X of 7 days" framing matches the biology;
 // the cumulative real-unit (IU / J/cm²) when defensible is shown as
 // a sub-line for completeness.
-function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7) {
+function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, weeklyTier = 0) {
   const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
   const target = meta.dailyTarget || 0;
   const threshold = _CHANNEL_DAY_THRESHOLD[channelKey] ?? 0.30;
+  const tierLabelFor = window.tierLabel || (() => 'none');
+  const tierColors = ['muted', 'tier1', 'tier2', 'tier3', 'tier4'];
+  const tierPill = `<span class="light-channel-detail-tierpill ${tierColors[weeklyTier] || 'muted'}">${escapeHTML(tierLabelFor(weeklyTier))} this week</span>`;
   const fmtIntK = (n) => {
     if (n < 10) return n.toFixed(1);
     if (n < 1000) return String(Math.round(n));
@@ -2325,7 +2558,10 @@ function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7) {
   }
 
   return `<div class="light-channel-hero">
-    <div class="light-channel-hero-primary">${escapeHTML(primary)}</div>
+    <div class="light-channel-hero-top">
+      <div class="light-channel-hero-primary">${escapeHTML(primary)}</div>
+      ${tierPill}
+    </div>
     <div class="light-channel-hero-sub">${escapeHTML(primarySub)}</div>
     ${trend}
   </div>`;
@@ -2494,20 +2730,14 @@ function _renderChannelDetailPanel(channelKey) {
   // today's UV-peak time — way more actionable than "spend time outdoors."
   const atm = _conditionsCache?.atm || null;
 
-  // Tier pill at top — same color scheme as the in-row chip; gives
-  // immediate visual signal of where the user stands without scrolling.
-  const tierColors = ['muted', 'tier1', 'tier2', 'tier3', 'tier4'];
-  const tierPill = `<span class="light-channel-detail-tierpill ${tierColors[t7]}">${escapeHTML(tlabel(t7))} this week</span>`;
-
-  return `<div class="light-channel-detail" id="light-pill-detail-${escapeAttr(channelKey)}" role="region" aria-label="${escapeHTML(meta.label || channelKey)} detail">
+  return `<div class="light-channel-detail" data-channel="${escapeAttr(channelKey)}" id="light-pill-detail-${escapeAttr(channelKey)}" role="region" aria-label="${escapeHTML(meta.label || channelKey)} detail">
     <header class="light-channel-detail-head">
       <span class="light-channel-detail-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <h4 class="light-channel-detail-title">${escapeHTML(meta.label || channelKey)}</h4>
-      ${tierPill}
       <button type="button" class="light-channel-detail-close" aria-label="Close ${escapeAttr(meta.label || channelKey)} detail" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(channelKey)}')">×</button>
     </header>
 
-    ${_channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7)}
+    ${_channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, t7)}
 
     <p class="light-channel-detail-body">${escapeHTML(meta.what || '')}</p>
 
@@ -2601,6 +2831,10 @@ function _toggleChannelDetail(channelKey) {
 // Each row is ~160 px tall (date + duration + channel chips + burn-
 // risk meta + AI verdict chip), so 3 rows ≈ 480 px is a tight default.
 const SESSIONS_DEFAULT_CAP = 3;
+// Marker detail modals are already a focused view, so keep history compact by
+// default and expand in place instead of opening a nested history modal.
+const MARKER_HISTORY_DEFAULT_CAP = 3;
+const MARKER_HISTORY_EXPANDED_CAP = 40;
 
 // Build the unified, sorted (newest-first) row list of all completed
 // sun + device sessions. Shared between the inline render (cap-bounded)
@@ -2623,6 +2857,32 @@ function _collectUnifiedSessionRows() {
 // Render N session rows from the unified list as the body of a
 // .sun-sessions-list block. Shared by the inline render + modal so
 // the per-row look stays identical.
+function _renderLightSessionChannelChips(doses, durationMin = 0) {
+  if (!doses) return '';
+  const ch = window.CHANNEL_DISPLAY || {};
+  const tier = window.channelTier || (() => 0);
+  const formatUnit = window.formatChannelUnit || (() => '');
+  const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
+  const ranked = order
+    .map(key => ({ key, v: doses[key] || 0, tier: tier(doses[key] || 0, key) }))
+    .filter(r => r.v > 0 && r.tier > 0)
+    .sort((a, b) => b.tier - a.tier || b.v - a.v)
+    .slice(0, 3);
+  if (!ranked.length) return '';
+  const chips = ranked.map(r => {
+    const meta = ch[r.key] || {};
+    const label = meta.label || r.key.replace('_', ' ');
+    const value = formatUnit(r.key, r.v, durationMin, 'III', null, null, false, null);
+    const tip = value ? `${meta.what || ''} — this session: ${value}` : `${meta.what || ''}`;
+    return `<span class="sun-chip sun-chip-tier-${r.tier}" data-channel="${escapeAttr(r.key)}" title="${escapeAttr(tip)}">
+      <span class="sun-chip-icon">${meta.icon || '·'}</span>
+      <span class="sun-chip-label">${escapeHTML(label)}</span>
+      ${value ? `<span class="sun-chip-value">${escapeHTML(value)}</span>` : ''}
+    </span>`;
+  }).join('');
+  return `<div class="sun-channel-chips light-session-device-channels">${chips}</div>`;
+}
+
 function _renderSessionRowsHTML(rows) {
   const devices = (window.getDevices && window.getDevices()) || [];
   const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
@@ -2660,7 +2920,7 @@ function _renderSessionRowsHTML(rows) {
         }
       }
       const devAriaLabel = `Open ${date} device session details — ${devName}${modeAria}`;
-      html += `<div class="sun-session light-session-row light-session-device" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}" onclick="window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
+      html += `<div class="sun-session light-session-row light-session-device" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}" onclick="window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')}">
         <div class="sun-session-head">
           <span class="light-session-icon" aria-hidden="true">🔴</span>
           <span class="sun-session-date">${escapeHTML(date)}</span>
@@ -2670,6 +2930,7 @@ function _renderSessionRowsHTML(rows) {
           <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
         </div>
         <div class="sun-session-meta">${escapeHTML(meta)}</div>
+        ${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}
         ${window.renderDeviceSessionAIInline ? window.renderDeviceSessionAIInline(sess) : ''}
       </div>`;
     }
@@ -2702,17 +2963,39 @@ function renderUnifiedSessionsList() {
 // their own modal which replaces this one's overlay).
 function _openAllSessionsModal() {
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay show light-sessions-modal-overlay';
+  let _detach = () => {};
+  const _removeOverlay = overlay.remove.bind(overlay);
+  overlay.remove = () => {
+    _detach();
+    _removeOverlay();
+  };
   const renderInto = () => {
     const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
+    const sunCount = rows.filter(row => row.kind === 'sun').length;
+    const deviceCount = rows.filter(row => row.kind === 'device').length;
+    const lastLabel = rows[0]?.startedAt
+      ? formatDate(new Date(rows[0].startedAt).toISOString().slice(0, 10))
+      : '—';
     const title = `All sessions (${rows.length})`;
-    overlay.innerHTML = `<div class="modal" role="dialog" aria-label="${escapeAttr(title)}" style="max-width:760px">
-      <div class="modal-header">
-        <h3>${escapeHTML(title)}</h3>
+    overlay.innerHTML = `<div class="modal light-sessions-modal" role="dialog" aria-modal="true" aria-labelledby="light-all-sessions-title">
+      <header class="light-sessions-modal-head">
+        <div>
+          <h3 id="light-all-sessions-title">${escapeHTML(title)}</h3>
+          <p>Outdoor sun and therapy device history</p>
+        </div>
         <button class="modal-close" aria-label="Close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </header>
+      <div class="light-sessions-modal-summary" aria-label="Session summary">
+        <div><span>Total</span><strong>${rows.length}</strong></div>
+        <div><span>Sun</span><strong>${sunCount}</strong></div>
+        <div><span>Device</span><strong>${deviceCount}</strong></div>
+        <div><span>Latest</span><strong>${escapeHTML(lastLabel)}</strong></div>
       </div>
-      <div class="modal-body">
-        <div class="sun-sessions-list${hasDeviceRows ? ' light-sessions-list-unified' : ''}">${_renderSessionRowsHTML(rows)}</div>
+      <div class="light-sessions-modal-body">
+        ${rows.length
+          ? `<div class="sun-sessions-list${hasDeviceRows ? ' light-sessions-list-unified' : ''}">${_renderSessionRowsHTML(rows)}</div>`
+          : '<div class="sun-empty"><p>No completed sessions yet.</p></div>'}
       </div>
     </div>`;
   };
@@ -2725,13 +3008,33 @@ function _openAllSessionsModal() {
     if (!document.body.contains(overlay)) { _detach(); return; }
     renderInto();
   };
-  const _detach = () => {
+  _detach = () => {
     window.removeEventListener('labcharts-ai-verdict-updated', onSync);
     window.removeEventListener('labcharts-sync-applied', onSync);
   };
   window.addEventListener('labcharts-ai-verdict-updated', onSync);
   window.addEventListener('labcharts-sync-applied', onSync);
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => { _detach(); overlay.remove(); }); } catch (e) {}
+  const eventElement = (target) => {
+    if (!target) return null;
+    if (target.closest) return target;
+    const parent = target.parentElement || target.parentNode;
+    return parent?.closest ? parent : null;
+  };
+  overlay.addEventListener('click', (event) => {
+    const target = eventElement(event.target);
+    const row = target?.closest?.('.sun-session[role="button"]');
+    if (!row || !overlay.contains(row)) return;
+    if (target?.closest?.('button, a, input, select, textarea, [role="menuitem"]')) return;
+    setTimeout(() => overlay.remove(), 0);
+  });
+  overlay.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const target = eventElement(event.target);
+    const row = target?.closest?.('.sun-session[role="button"]');
+    if (!row || !overlay.contains(row)) return;
+    setTimeout(() => overlay.remove(), 0);
+  });
+  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 }
@@ -2783,49 +3086,39 @@ function getSunCoordsHint() {
 
 let _dashboardOrganizeMode = false;
 let _draggingDashboardWidgetId = null;
+let _dashboardGenomeSnpLoadPromise = null;
 
-const DASHBOARD_WIDGETS_VERSION = 5;
+const DASHBOARD_WIDGETS_VERSION = 10;
 const DASHBOARD_WIDGETS = [
-  { id: 'bio-age', title: 'Biological Age', description: 'Age-derived biological readout', size: 'half', render: renderDashboardBioAgeWidget },
-  { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', size: 'third', render: () => renderFocusCard() },
-  { id: 'spotlight', title: 'Marker Spotlight', description: 'Highest-priority current marker', size: 'half', render: renderDashboardSpotlightWidget },
-  { id: 'wearables', title: 'Wearables Today', description: 'Compact body signal tiles', size: 'half', render: renderDashboardWearableTilesWidget },
-  { id: 'stat-vitd', title: 'Vitamin D', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'vitamins', 'vitaminD') },
-  { id: 'stat-hba1c', title: 'HbA1c', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'diabetes', 'hba1c') },
-  { id: 'stat-testosterone', title: 'Testosterone', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'hormones', 'testosterone') },
-  { id: 'stat-apob', title: 'ApoB', description: 'Quick marker tile', size: 'quarter', render: (ctx) => renderDashboardStatWidget(ctx, 'lipids', 'apoB') },
-  { id: 'markers', title: 'All Biomarkers', description: 'Attention-ranked markers with sparklines', size: 'two-third', render: renderDashboardMarkerListWidget },
-  { id: 'insights', title: 'AI Insights', description: 'Top trend and range reads', size: 'third', render: renderDashboardInsightsListWidget },
-  { id: 'genome', title: 'Imported SNPs', description: 'All DNA calls and import status', size: 'half', render: renderDashboardGenomeWidget },
-  { id: 'alerts', title: 'Trends & Alerts', description: 'Fast changes and critical out-of-range markers', size: 'half', render: renderDashboardAlertsWidget },
-  { id: 'correlation', title: 'Correlations', description: 'Highest linked marker pairs', size: 'half', render: renderDashboardCorrelationWidget },
-  { id: 'lens', title: 'AI Lens', description: 'Interpretive lens and knowledge base', size: 'half', render: () => renderInterpretiveLensSection() },
-  { id: 'light-today', title: 'Light Today', description: 'Sun and light exposure channels', render: () => renderLightTodayStrip() },
-  { id: 'wearable-strip', title: 'Wearable Connections', description: 'Recovery, sleep, HRV, body composition', render: () => renderWearableStrip() },
-  { id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', render: () => renderProfileContextCards() },
-  { id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context', render: (ctx) => state.profileSex === 'female' ? renderMenstrualCycleSection(ctx.data) : '' },
-  { id: 'supplements', title: 'Supplements', description: 'Supplements and medication timeline', render: () => renderSupplementsSection() },
-  { id: 'key-trends', title: 'Key Trends', description: 'Auto-selected markers from your current range', render: renderDashboardKeyTrendsWidget },
-  { id: 'notes', title: 'Notes', description: 'Timeline notes linked to your data', render: renderDashboardNotesWidget },
+  { id: 'bio-age', source: 'Labs', title: 'Biological Age', description: 'Age-derived biological readout', size: 'half', render: renderDashboardBioAgeWidget },
+  { id: 'focus', source: 'Insight', title: 'Current Focus', description: 'One synthesized read on the latest data', size: 'half', render: () => renderFocusCard() },
+  { id: 'recommendations', source: 'Insight', title: 'Recommended Next Steps', description: 'Top data-linked actions across lenses', size: 'half', render: renderDashboardRecommendationsWidget },
+  { id: 'spotlight', source: 'Labs', title: 'Current Priority', description: 'Highest-priority marker with the reason it was selected', size: 'half', render: renderDashboardSpotlightWidget },
+  { id: 'wearables', source: 'Body', title: 'Biometrics Overview', description: 'User-selected body signal tiles', size: 'full', render: renderDashboardWearableTilesWidget },
+  { id: 'quick-markers', source: 'Labs', title: 'Quick Markers', description: 'Pinned and priority-ranked marker tiles', size: 'full', render: renderDashboardQuickMarkersWidget },
+  { id: 'insights', source: 'Insight', title: 'AI Insights', description: 'Top trend and range reads', size: 'half', render: renderDashboardInsightsListWidget },
+  { id: 'genome', source: 'Genome', title: 'Genetic Modifiers', description: 'Actionable SNP context relevant to labs and goals', size: 'half', render: renderDashboardGenomeWidget },
+  { id: 'alerts', source: 'Labs', title: 'Needs Attention', description: 'Sudden changes and critical out-of-range markers', size: 'half', render: renderDashboardAlertsWidget },
+  { id: 'correlation', source: 'Tools', title: 'Correlations', description: 'Highest linked marker pairs', size: 'half', render: renderDashboardCorrelationWidget },
+  { id: 'light-today', source: 'Light', title: 'Light Today', description: "Today's light synthesis across sun, devices, and environment", render: renderDashboardLightTodayWidget },
+  { id: 'light-conditions-now', source: 'Light', title: 'Conditions Now', description: 'Current outdoor UV, atmosphere, and air quality', size: 'full', render: renderDashboardLightConditionsWidget },
+  { id: 'light-session-log', source: 'Light', title: 'Log Sessions', description: 'Start sun or therapy sessions quickly', size: 'third', render: renderDashboardLightSessionLogWidget },
+  { id: 'light-channels', source: 'Light', title: 'Light Channels', description: 'Seven-day rhythm across light biology channels', size: 'half', render: renderDashboardLightChannelsWidget },
+  { id: 'profile-context', source: 'Insight', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', render: () => renderProfileContextCards() },
+  { id: 'cycle', source: 'Body', title: 'Cycle', description: 'Menstrual cycle context', size: 'half', isAvailable: () => state.profileSex === 'female', render: (ctx) => renderMenstrualCycleSection(ctx.data, { variant: 'dashboard', showHeader: false }) },
+  { id: 'supplements', source: 'Body', title: 'Supplements & Meds', description: 'Supplements and medication timeline', render: () => renderSupplementsSection() },
+  { id: 'key-trends', source: 'Labs', title: 'Key Trends', description: 'Auto-selected markers from your current range', render: renderDashboardKeyTrendsWidget },
+  { id: 'notes', source: 'Labs', title: 'Notes', description: 'Timeline notes linked to your data', render: renderDashboardNotesWidget },
 ];
-const DASHBOARD_WIDGET_IDS = DASHBOARD_WIDGETS.map(w => w.id);
+const DASHBOARD_WIDGET_SOURCE_ORDER = ['Labs', 'Genome', 'Body', 'Light', 'Insight', 'Tools'];
 const DASHBOARD_WIDGET_DEFAULT_IDS = [
-  'bio-age',
   'focus',
+  'bio-age',
+  'recommendations',
   'spotlight',
+  'quick-markers',
   'wearables',
   'light-today',
-  'stat-vitd',
-  'stat-hba1c',
-  'stat-testosterone',
-  'stat-apob',
-  'markers',
-  'insights',
-  'genome',
-  'alerts',
-  'correlation',
-  'profile-context',
-  'supplements',
   'key-trends',
 ];
 
@@ -2833,12 +3126,50 @@ function dashboardWidgetStorageKey() {
   return profileStorageKey(state.currentProfile || 'default', `dashboardWidgetsV${DASHBOARD_WIDGETS_VERSION}`);
 }
 
+function isDashboardFixedWidgetAvailable(def) {
+  return !!def && (typeof def.isAvailable !== 'function' || def.isAvailable());
+}
+
+function getAvailableDashboardFixedWidgets() {
+  return DASHBOARD_WIDGETS.filter(isDashboardFixedWidgetAvailable);
+}
+
+function getAvailableDashboardFixedWidgetIds() {
+  return getAvailableDashboardFixedWidgets().map(w => w.id);
+}
+
+function dashboardMarkerWidgetId(markerId) {
+  return safeMarkerId(markerId) ? `marker_${markerId}` : '';
+}
+
+function dashboardMarkerIdFromWidgetId(widgetId) {
+  if (typeof widgetId !== 'string' || !widgetId.startsWith('marker_')) return '';
+  const markerId = widgetId.slice('marker_'.length);
+  return safeMarkerId(markerId) ? markerId : '';
+}
+
+function isDashboardMarkerWidgetId(widgetId) {
+  return !!dashboardMarkerIdFromWidgetId(widgetId);
+}
+
+function isKnownDashboardWidgetId(id) {
+  return getAvailableDashboardFixedWidgetIds().includes(id) || isDashboardMarkerWidgetId(id);
+}
+
+const DASHBOARD_MANUAL_BIOMETRIC_METRICS = ['weight', 'bp_systolic', 'rhr'];
+const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
+
+function dashboardBiometricSelectionKey() {
+  return profileStorageKey(state.currentProfile || 'default', 'dashboardBiometricMetricsV1');
+}
+
 function getDashboardDefaultWidgetPrefs() {
+  const fixedIds = getAvailableDashboardFixedWidgetIds();
   const order = [
     ...DASHBOARD_WIDGET_DEFAULT_IDS,
-    ...DASHBOARD_WIDGET_IDS.filter(id => !DASHBOARD_WIDGET_DEFAULT_IDS.includes(id)),
-  ].filter(id => DASHBOARD_WIDGET_IDS.includes(id));
-  const hidden = DASHBOARD_WIDGET_IDS.filter(id => !DASHBOARD_WIDGET_DEFAULT_IDS.includes(id));
+    ...fixedIds.filter(id => !DASHBOARD_WIDGET_DEFAULT_IDS.includes(id)),
+  ].filter(id => fixedIds.includes(id));
+  const hidden = fixedIds.filter(id => !DASHBOARD_WIDGET_DEFAULT_IDS.includes(id));
   return { order, hidden };
 }
 
@@ -2847,11 +3178,18 @@ function getDashboardWidgetPrefs() {
   try {
     const raw = JSON.parse(localStorage.getItem(dashboardWidgetStorageKey()));
     if (!raw || !Array.isArray(raw.order) || !Array.isArray(raw.hidden)) return fallback;
-    const order = raw.order.filter(id => DASHBOARD_WIDGET_IDS.includes(id));
-    for (const id of DASHBOARD_WIDGET_IDS) if (!order.includes(id)) order.push(id);
+    const fixedIds = getAvailableDashboardFixedWidgetIds();
+    const rawOrder = raw.order.filter(id => typeof id === 'string');
+    const rawOrderSet = new Set(rawOrder);
+    const order = rawOrder.filter(isKnownDashboardWidgetId);
+    for (const id of fixedIds) if (!order.includes(id)) order.push(id);
+    const hidden = raw.hidden.filter(id => fixedIds.includes(id) || isDashboardMarkerWidgetId(id));
+    for (const id of fixedIds) {
+      if (!DASHBOARD_WIDGET_DEFAULT_IDS.includes(id) && !rawOrderSet.has(id) && !hidden.includes(id)) hidden.push(id);
+    }
     return {
       order,
-      hidden: raw.hidden.filter(id => DASHBOARD_WIDGET_IDS.includes(id)),
+      hidden,
     };
   } catch (e) {
     return fallback;
@@ -2859,9 +3197,10 @@ function getDashboardWidgetPrefs() {
 }
 
 function saveDashboardWidgetPrefs(prefs) {
-  const order = (prefs.order || []).filter(id => DASHBOARD_WIDGET_IDS.includes(id));
-  for (const id of DASHBOARD_WIDGET_IDS) if (!order.includes(id)) order.push(id);
-  const hidden = [...new Set(prefs.hidden || [])].filter(id => DASHBOARD_WIDGET_IDS.includes(id));
+  const fixedIds = getAvailableDashboardFixedWidgetIds();
+  const order = (prefs.order || []).filter(isKnownDashboardWidgetId);
+  for (const id of fixedIds) if (!order.includes(id)) order.push(id);
+  const hidden = [...new Set(prefs.hidden || [])].filter(id => fixedIds.includes(id) || isDashboardMarkerWidgetId(id));
   localStorage.setItem(dashboardWidgetStorageKey(), JSON.stringify({ order, hidden }));
 }
 
@@ -2881,9 +3220,272 @@ function buildDashboardWidgetContext(data) {
   return { data, filteredData, keyMarkers, trendAlerts, criticalFlags };
 }
 
-function getOrderedDashboardWidgets(prefs = getDashboardWidgetPrefs()) {
-  const byId = new Map(DASHBOARD_WIDGETS.map(w => [w.id, w]));
-  return prefs.order.map(id => byId.get(id)).filter(Boolean);
+let _recommendationsLoadPromise = null;
+
+function recommendationStateStorageKey(kind) {
+  return profileStorageKey(state.currentProfile || 'default', `recommendations-${kind}-v1`);
+}
+
+function getRecommendationStateSet(kind) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(recommendationStateStorageKey(kind)) || '[]');
+    return new Set(Array.isArray(raw) ? raw.filter(v => typeof v === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveRecommendationStateSet(kind, set) {
+  localStorage.setItem(recommendationStateStorageKey(kind), JSON.stringify([...set]));
+}
+
+function setRecommendationState(kind, id, on) {
+  if (!id) return;
+  const set = getRecommendationStateSet(kind);
+  if (on) set.add(id);
+  else set.delete(id);
+  saveRecommendationStateSet(kind, set);
+  refreshRecommendationSurfaces();
+}
+
+function getCachedRecommendationsCatalog() {
+  return window._cachedCatalog?.slots ? window._cachedCatalog : null;
+}
+
+function refreshRecommendationsWhenCatalogReady() {
+  if (_recommendationsLoadPromise || !window.loadCatalog) return;
+  _recommendationsLoadPromise = window.loadCatalog()
+    .then(catalog => {
+      if (catalog) window._cachedCatalog = catalog;
+      refreshRecommendationSurfaces();
+    })
+    .finally(() => { _recommendationsLoadPromise = null; });
+}
+
+function refreshRecommendationSurfaces() {
+  const ctx = buildDashboardWidgetContext(getActiveData());
+  const dashboardBody = document.querySelector?.('.dashboard-widget[data-widget-id="recommendations"] .dashboard-widget-body');
+  if (dashboardBody) dashboardBody.innerHTML = renderDashboardRecommendationsWidget(ctx);
+  const page = document.getElementById('recommendations-page');
+  if (page && state.currentView === 'recommendations') showRecommendations(getActiveData());
+}
+
+function getRecommendationSlotLabel(catalog, slotKey) {
+  return catalog?.slots?.[slotKey]?.label || slotKey.split('.').pop().replace(/([A-Z])/g, ' $1');
+}
+
+function getRecommendationPrimaryAction(catalog, slotKey) {
+  const slot = catalog?.slots?.[slotKey];
+  return slot?.freeActions?.[0] || slot?.foodForms?.[0] || slot?.productForms?.[0] || slot?.forms?.[0] || '';
+}
+
+function getRecommendationStatusReason(name, status, alert) {
+  const readable = String(status || '').replace(/_/g, ' ');
+  if (alert?.code) {
+    const code = String(alert.code).replace(/_/g, ' ');
+    return `${name} is ${readable}; trend signal: ${code}.`;
+  }
+  return `${name} is ${readable} versus its active reference range.`;
+}
+
+function inlineJsString(value) {
+  return JSON.stringify(String(value ?? '')).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+}
+
+function inlineHandlerCall(fnName, ...args) {
+  return escapeAttr(`window.${fnName}(${args.map(inlineJsString).join(', ')})`);
+}
+
+function getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed = false } = {}) {
+  if (!window.isProductRecsEnabled?.() || !catalog?.slots) return [];
+  const dismissed = getRecommendationStateSet('dismissed');
+  const saved = getRecommendationStateSet('saved');
+  const trendById = new Map((ctx.trendAlerts || []).map(alert => [alert.id, alert]));
+  const criticalIds = new Set((ctx.criticalFlags || []).map(f => f.id));
+  const out = [];
+  const add = candidate => {
+    if (!candidate?.slotKey || !catalog.slots[candidate.slotKey]) return;
+    const id = candidate.id || `${candidate.source}:${candidate.slotKey}:${candidate.markerId || ''}`;
+    if (!includeDismissed && dismissed.has(id)) return;
+    out.push({
+      ...candidate,
+      id,
+      label: candidate.label || getRecommendationSlotLabel(catalog, candidate.slotKey),
+      primaryAction: candidate.primaryAction || getRecommendationPrimaryAction(catalog, candidate.slotKey),
+      saved: saved.has(id),
+      dismissed: dismissed.has(id),
+    });
+  };
+
+  for (const [catKey, category] of Object.entries(ctx.data.categories || {})) {
+    for (const [markerKey, marker] of Object.entries(category.markers || {})) {
+      if (!marker || marker.hidden || !markerHasData(marker)) continue;
+      const markerId = `${catKey}_${markerKey}`;
+      const slotKey = `${catKey}.${markerKey}`;
+      if (!catalog.slots[slotKey]) continue;
+      const latestIdx = getLatestValueIndex(marker.values || []);
+      if (latestIdx < 0) continue;
+      const range = getEffectiveRangeForDate(marker, latestIdx);
+      const value = marker.values[latestIdx];
+      const status = getStatus(value, range.min, range.max);
+      const alert = trendById.get(markerId);
+      if (status === 'normal' && !alert && !criticalIds.has(markerId)) continue;
+      state.markerRegistry[markerId] = marker;
+      add({
+        id: `labs:${slotKey}:${markerId}`,
+        source: 'Labs',
+        slotKey,
+        markerId,
+        markerStatus: status,
+        score: (criticalIds.has(markerId) ? 110 : status === 'high' || status === 'low' ? 80 : 45) + (alert ? 25 : 0),
+        label: getRecommendationSlotLabel(catalog, slotKey),
+        reason: getRecommendationStatusReason(marker.name || markerKey, status, alert),
+        meta: `${category.label || catKey} · ${formatValue(value)}${marker.unit ? ` ${marker.unit}` : ''}`,
+      });
+    }
+  }
+
+  const sessions = (window.getSessions?.() || []).filter(s => s?.startedAt || s?.endedAt);
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const hasRecentLightSession = sessions.some(s => Number(s.endedAt || s.startedAt || 0) >= sevenDaysAgo);
+  const totals7d = window.rollingChannelTotals?.(7) || {};
+  if (catalog.slots['light.morningLight'] && (!hasRecentLightSession || Number(totals7d.circadian || 0) <= 0)) {
+    add({
+      id: 'light:light.morningLight:recent',
+      source: 'Light',
+      slotKey: 'light.morningLight',
+      score: hasRecentLightSession ? 62 : 70,
+      reason: hasRecentLightSession
+        ? 'Recent light logs show little circadian-channel exposure over the last 7 days.'
+        : 'No recent sun or device sessions are logged, so morning light is the cleanest Light-lens next step.',
+      meta: 'Light & Sun',
+    });
+  }
+
+  if (typeof window.detectWearableTrendSlots === 'function') {
+    for (const hit of window.detectWearableTrendSlots(state.importedData?.wearableSummary)) {
+      add({
+        id: `body:${hit.slotKey}:wearable`,
+        source: 'Body',
+        slotKey: hit.slotKey,
+        score: 78,
+        reason: hit.reason,
+        meta: 'Wearable trend',
+      });
+    }
+  }
+
+  if (typeof window.buildDNAHints === 'function' && window._snpTableCache) {
+    for (const slotKey of Object.keys(catalog.slots)) {
+      const hints = window.buildDNAHints(slotKey);
+      if (!hints?.length) continue;
+      add({
+        id: `genome:${slotKey}:dna`,
+        source: 'Genome',
+        slotKey,
+        score: 72,
+        reason: hints[0].text,
+        meta: hints.slice(0, 3).map(h => h.gene).filter(Boolean).join(', ') || 'Imported DNA',
+      });
+    }
+  }
+
+  return out.sort((a, b) => (b.saved - a.saved) || (b.score - a.score) || String(a.label).localeCompare(String(b.label)));
+}
+
+function renderRecommendationCard(candidate, { compact = false } = {}) {
+  const savedClass = candidate.saved ? ' is-saved' : '';
+  const primaryAction = candidate.primaryAction ? `<div class="rec-next-primary">${escapeHTML(candidate.primaryAction)}</div>` : '';
+  const markerCall = candidate.markerId
+    ? escapeAttr(`window.showDetailModal(${inlineJsString(candidate.markerId)}, { scrollToRec: true })`)
+    : '';
+  const detailCall = inlineHandlerCall('openRecommendationDetail', candidate.slotKey, candidate.label, candidate.markerStatus || '');
+  const discussCall = inlineHandlerCall('discussRecommendation', candidate.id);
+  const saveCall = escapeAttr(`window.saveRecommendation(${inlineJsString(candidate.id)}, ${candidate.saved ? 'false' : 'true'})`);
+  const dismissCall = inlineHandlerCall('dismissRecommendation', candidate.id);
+  const markerBtn = candidate.markerId
+    ? `<button type="button" class="dashboard-action-btn" onclick="${markerCall}">View marker</button>`
+    : '';
+  const saveLabel = candidate.saved ? 'Saved' : 'Save';
+  return `<article class="rec-next-card${compact ? ' rec-next-card-compact' : ''}${savedClass}" data-rec-id="${escapeAttr(candidate.id)}">
+    <div class="rec-next-head">
+      <span class="rec-next-source">${escapeHTML(candidate.source)}</span>
+      <strong>${escapeHTML(candidate.label)}</strong>
+    </div>
+    <div class="rec-next-reason">${escapeHTML(candidate.reason || '')}</div>
+    ${candidate.meta ? `<div class="rec-next-meta">${escapeHTML(candidate.meta)}</div>` : ''}
+    ${compact ? '' : primaryAction}
+    <div class="rec-next-actions">
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="${detailCall}">View options</button>
+      ${markerBtn}
+      <button type="button" class="dashboard-action-btn" onclick="${discussCall}">Discuss</button>
+      <button type="button" class="dashboard-action-btn" onclick="${saveCall}">${saveLabel}</button>
+      ${compact ? '' : `<button type="button" class="dashboard-action-btn" onclick="${dismissCall}">Dismiss</button>`}
+    </div>
+  </article>`;
+}
+
+function renderRecommendationsEmpty(message = 'No data-linked recommendations yet.') {
+  return `<button type="button" class="db-correlation-empty" onclick="window.navigate('labs')">
+    <strong>${escapeHTML(message)}</strong>
+    <span>Import labs, connect body data, log light exposure, or add DNA to generate recommendation candidates.</span>
+  </button>`;
+}
+
+function renderDashboardRecommendationsWidget(ctx) {
+  if (!window.isProductRecsEnabled?.()) {
+    return `<button type="button" class="db-correlation-empty" onclick="window.openSettingsModal && window.openSettingsModal('privacy')">
+      <strong>Recommendations are off</strong>
+      <span>Enable Tips & Recommendations in settings to show data-linked next steps.</span>
+    </button>`;
+  }
+  const catalog = getCachedRecommendationsCatalog();
+  if (!catalog) {
+    refreshRecommendationsWhenCatalogReady();
+    return `<div class="dashboard-widget-empty">Loading recommendations...</div>`;
+  }
+  const candidates = getGlobalRecommendationCandidates(ctx, catalog).slice(0, 3);
+  if (!candidates.length) return renderRecommendationsEmpty();
+  return `<div class="rec-next-widget">
+    ${candidates.map(c => renderRecommendationCard(c, { compact: true })).join('')}
+    <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.navigate('recommendations')">View all recommendations</button>
+  </div>`;
+}
+
+function getDashboardMarkerWidgetDefinition(widgetId, ctx = null) {
+  const markerId = dashboardMarkerIdFromWidgetId(widgetId);
+  if (!markerId) return null;
+  const hit = ctx ? (getDashboardMarkerById(ctx.data, markerId) || getDashboardMarkerById(ctx.filteredData, markerId)) : getDashboardMarkerById(getActiveData(), markerId);
+  const title = hit?.marker?.name || markerId.replace(/_/g, ' ');
+  const category = hit?.category?.label || 'Single marker';
+  return {
+    id: widgetId,
+    title,
+    source: 'Labs',
+    description: `${category} marker widget`,
+    size: 'quarter',
+    customMarkerWidget: true,
+    render: (renderCtx) => renderDashboardSingleMarkerWidget(renderCtx, markerId),
+  };
+}
+
+function getDashboardWidgetDefinition(id, ctx = null) {
+  const fixed = DASHBOARD_WIDGETS.find(w => w.id === id);
+  if (fixed) return isDashboardFixedWidgetAvailable(fixed) ? fixed : null;
+  return getDashboardMarkerWidgetDefinition(id, ctx);
+}
+
+function getOrderedDashboardWidgets(prefs = getDashboardWidgetPrefs(), ctx = null) {
+  return prefs.order.map(id => getDashboardWidgetDefinition(id, ctx)).filter(Boolean);
+}
+
+function getVisibleDashboardWidgetEntries(ctx, prefs = getDashboardWidgetPrefs(), opts = {}) {
+  const includeEmpty = opts.includeEmpty ?? _dashboardOrganizeMode;
+  const excludeIds = opts.excludeIds || new Set();
+  return getOrderedDashboardWidgets(prefs, ctx)
+    .map(def => ({ def, body: def.render(ctx) || '' }))
+    .filter(entry => !excludeIds.has(entry.def.id))
+    .filter(entry => !prefs.hidden.includes(entry.def.id) && (entry.body || includeEmpty));
 }
 
 function getDashboardProfileName() {
@@ -2910,7 +3512,6 @@ function getDashboardMonthSpan(data) {
 }
 
 function renderDashboardGreeting(ctx, title, visibleCount) {
-  const organizeLabel = _dashboardOrganizeMode ? 'Done' : 'Customize';
   const counts = getMobileDashboardCounts(ctx.data);
   const panelCount = getDashboardPanelCount(ctx.data);
   const span = getDashboardMonthSpan(ctx.data);
@@ -2926,11 +3527,18 @@ function renderDashboardGreeting(ctx, title, visibleCount) {
       <h1>Hey ${escapeHTML(getDashboardProfileName())}.</h1>
       <div class="dashboard-greeting-sub">${parts.map(escapeHTML).join(' · ')}</div>
     </div>
-    <div class="dashboard-actions" aria-label="Dashboard widget controls">
-      <button class="dashboard-action-btn" type="button" onclick="window.toggleDashboardOrganizeMode()">${organizeLabel}</button>
-      <button class="dashboard-action-btn dashboard-action-btn-primary" type="button" onclick="window.openDashboardWidgetPicker()">+ Add widget</button>
-    </div>
   </div>`;
+}
+
+function renderDashboardControlButtons({ includeReset = false } = {}) {
+  const organizeLabel = _dashboardOrganizeMode ? 'Done' : 'Customize';
+  return `<button class="dashboard-action-btn" type="button" onclick="window.toggleDashboardOrganizeMode()">${organizeLabel}</button>
+    <button class="dashboard-action-btn dashboard-action-btn-primary" type="button" onclick="window.openDashboardWidgetPicker()">+ Add widget</button>
+    ${includeReset || _dashboardOrganizeMode ? `<button type="button" class="dashboard-action-btn" onclick="window.resetDashboardWidgets()">Reset layout</button>` : ''}`;
+}
+
+function renderDashboardStickyControls() {
+  return `<div class="dashboard-sticky-actions" aria-label="Floating dashboard widget controls">${renderDashboardControlButtons()}</div>`;
 }
 
 function renderDashboardWidget(entry, prefs, index, visibleEntries) {
@@ -2939,17 +3547,19 @@ function renderDashboardWidget(entry, prefs, index, visibleEntries) {
   if (isHidden || (!body && !_dashboardOrganizeMode)) return '';
   const canMoveUp = index > 0;
   const canMoveDown = index < visibleEntries.length - 1;
+  const removeLabel = def.customMarkerWidget ? 'Remove' : 'Hide';
   const controls = _dashboardOrganizeMode ? `<div class="dashboard-widget-tools">
       <button type="button" class="dashboard-widget-tool" ${canMoveUp ? '' : 'disabled'} onclick="window.moveDashboardWidget('${def.id}', -1)" aria-label="Move ${escapeHTML(def.title)} up">↑</button>
       <button type="button" class="dashboard-widget-tool" ${canMoveDown ? '' : 'disabled'} onclick="window.moveDashboardWidget('${def.id}', 1)" aria-label="Move ${escapeHTML(def.title)} down">↓</button>
-      <button type="button" class="dashboard-widget-tool" onclick="window.hideDashboardWidget('${def.id}')" aria-label="Hide ${escapeHTML(def.title)}">Hide</button>
+      <button type="button" class="dashboard-widget-tool" onclick="window.hideDashboardWidget('${def.id}')" aria-label="${removeLabel} ${escapeHTML(def.title)}">${removeLabel}</button>
     </div>` : '';
   return `<section class="dashboard-widget dashboard-widget-${def.size || 'full'}${_dashboardOrganizeMode ? ' is-organizing' : ''}${body ? '' : ' is-empty'}"
-      data-widget-id="${def.id}"
+      data-widget-id="${escapeAttr(def.id)}"
       ${_dashboardOrganizeMode ? `draggable="true" ondragstart="window.startDashboardWidgetDrag(event, '${def.id}')" ondragover="window.allowDashboardWidgetDrop(event)" ondrop="window.dropDashboardWidget(event, '${def.id}')"` : ''}>
     <div class="dashboard-widget-chrome">
       <div class="dashboard-widget-handle" aria-hidden="true">⋮⋮</div>
       <div class="dashboard-widget-heading">
+        ${def.source ? `<div class="dashboard-widget-source">${escapeHTML(def.source)}</div>` : ''}
         <div class="dashboard-widget-title">${escapeHTML(def.title)}</div>
         <div class="dashboard-widget-description">${escapeHTML(def.description || '')}</div>
       </div>
@@ -2975,6 +3585,13 @@ function getDashboardMarkerByPath(data, catKey, markerKey) {
   return { id, category, marker, latestIdx, range, value, status, trend };
 }
 
+function getDashboardMarkerById(data, id) {
+  if (!safeMarkerId(id)) return null;
+  const idx = id.indexOf('_');
+  if (idx <= 0) return null;
+  return getDashboardMarkerByPath(data, id.slice(0, idx), id.slice(idx + 1));
+}
+
 function getDashboardAge() {
   if (!state.profileDob) return null;
   const dob = new Date(state.profileDob);
@@ -2984,8 +3601,11 @@ function getDashboardAge() {
 
 function getDashboardBioAgeMarker(ctx) {
   const paths = [
-    ['ratios', 'bioAge'],
+    ['calculatedRatios', 'biologicalAge'],
     ['specialty', 'glycanAge'],
+    ['calculatedRatios', 'phenoAge'],
+    ['calculatedRatios', 'bortzAge'],
+    ['ratios', 'bioAge'],
     ['ratios', 'phenoAge'],
     ['ratios', 'bortzAge'],
   ];
@@ -3004,11 +3624,14 @@ function renderDashboardBioAgeWidget(ctx) {
   const delta = Number.isFinite(value) && age != null ? value - age : null;
   const deltaText = delta == null ? 'Chronological comparison unavailable'
     : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} yr vs chronological`;
-  const pheno = getDashboardMarkerByPath(ctx.data, 'ratios', 'phenoAge');
-  const bortz = getDashboardMarkerByPath(ctx.data, 'ratios', 'bortzAge');
+  const pheno = getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')
+    || getDashboardMarkerByPath(ctx.data, 'ratios', 'phenoAge');
+  const bortz = getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')
+    || getDashboardMarkerByPath(ctx.data, 'ratios', 'bortzAge');
   const pct = Number.isFinite(value) ? Math.max(4, Math.min(100, (value / 70) * 100)) : 35;
-  const open = hit ? ` onclick="window.showDetailModal('${hit.id}')"` : '';
-  return `<div class="db-hero-bio"${open}>
+  const tag = hit ? 'button' : 'div';
+  const open = hit ? ` type="button" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr((hit.marker?.name || 'Biological Age') + ': ' + display)}"` : '';
+  return `<${tag} class="db-hero-bio"${open}>
     <div class="db-hero-bio-left">
       <div class="db-hero-bio-num">${escapeHTML(display)}</div>
       <div class="db-hero-bio-label">
@@ -3023,7 +3646,7 @@ function renderDashboardBioAgeWidget(ctx) {
       <div class="db-hero-bio-bar"><div style="width:${pct.toFixed(0)}%"></div></div>
       <div class="db-hero-scale"><span>0</span><span>35</span><span>70 yr</span></div>
     </div>
-  </div>`;
+  </${tag}>`;
 }
 
 function renderDashboardMiniSparkline(values, status, width = 120, height = 30) {
@@ -3043,10 +3666,233 @@ function renderDashboardMiniSparkline(values, status, width = 120, height = 30) 
   </svg>`;
 }
 
-function renderDashboardStatWidget(ctx, catKey, markerKey) {
-  const hit = getDashboardMarkerByPath(ctx.data, catKey, markerKey);
-  if (!hit) return '';
-  return `<button type="button" class="db-stat-widget db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+const DASHBOARD_QUICK_MARKERS_MAX = 4;
+const DASHBOARD_QUICK_MARKER_GOAL_SCORE = { major: 22, mild: 14, minor: 8 };
+const DASHBOARD_QUICK_MARKER_CORE_PATHS = {
+  female: [
+    ['diabetes', 'hba1c'],
+    ['diabetes', 'homaIR'],
+    ['lipids', 'apoB'],
+    ['lipids', 'ldl'],
+    ['vitamins', 'vitaminD'],
+    ['thyroid', 'tsh'],
+    ['iron', 'ferritin'],
+    ['hormones', 'estradiol'],
+    ['proteins', 'hsCRP'],
+  ],
+  male: [
+    ['diabetes', 'hba1c'],
+    ['diabetes', 'homaIR'],
+    ['lipids', 'apoB'],
+    ['lipids', 'ldl'],
+    ['vitamins', 'vitaminD'],
+    ['thyroid', 'tsh'],
+    ['hormones', 'testosterone'],
+    ['proteins', 'hsCRP'],
+    ['biochemistry', 'ggt'],
+  ],
+  default: [
+    ['diabetes', 'hba1c'],
+    ['diabetes', 'homaIR'],
+    ['lipids', 'apoB'],
+    ['lipids', 'ldl'],
+    ['vitamins', 'vitaminD'],
+    ['thyroid', 'tsh'],
+    ['proteins', 'hsCRP'],
+    ['biochemistry', 'ggt'],
+    ['hematology', 'hemoglobin'],
+  ],
+};
+const DASHBOARD_QUICK_MARKER_GOAL_RULES = [
+  { pattern: /\b(insulin|glucose|blood sugar|a1c|hba1c|homa|metabolic|diabetes|prediabetes|body comp|body composition|weight|fat loss)\b/i, ids: ['diabetes_hba1c', 'diabetes_homaIR', 'diabetes_glucose', 'diabetes_insulin'] },
+  { pattern: /\b(cholesterol|lipid|apob|apo b|ldl|cardio|heart|artery|atherosclerosis|vascular)\b/i, ids: ['lipids_apoB', 'lipids_ldl', 'lipids_hdl', 'lipids_triglycerides'] },
+  { pattern: /\b(vitamin d|vitamin-d|immune|immunity|skin|bone|dandruff)\b/i, ids: ['vitamins_vitaminD', 'proteins_hsCRP'] },
+  { pattern: /\b(thyroid|tsh|fatigue|cold intolerance|metabolism)\b/i, ids: ['thyroid_tsh', 'thyroid_freeT3', 'thyroid_freeT4'] },
+  { pattern: /\b(testosterone|hormone|libido|fertility|erectile|muscle|sarcopenia)\b/i, ids: ['hormones_testosterone', 'hormones_freeTestosterone', 'vitamins_vitaminD'] },
+  { pattern: /\b(estrogen|estradiol|progesterone|cycle|menstrual|menopause|fertility)\b/i, ids: ['hormones_estradiol', 'hormones_progesterone', 'hormones_lh', 'hormones_fsh'] },
+  { pattern: /\b(iron|ferritin|anemia|anaemia|hair loss|oxygen|endurance)\b/i, ids: ['iron_ferritin', 'iron_iron', 'iron_transferrinSaturation', 'hematology_hemoglobin'] },
+  { pattern: /\b(inflammation|crp|hs-crp|recovery|pain|autoimmune)\b/i, ids: ['proteins_hsCRP', 'proteins_crp', 'hematology_wbc'] },
+  { pattern: /\b(liver|detox|alcohol|ggt|alt|ast)\b/i, ids: ['biochemistry_ggt', 'biochemistry_alt', 'biochemistry_ast'] },
+  { pattern: /\b(kidney|renal|creatinine|egfr)\b/i, ids: ['biochemistry_creatinine', 'biochemistry_eGFR'] },
+];
+
+function dashboardQuickMarkerPinsKey() {
+  return profileStorageKey(state.currentProfile || 'default', 'dashboardQuickMarkerPinsV1');
+}
+
+function normalizeDashboardQuickMarkerPins(ids) {
+  const seen = new Set();
+  const normalized = [];
+  for (const id of Array.isArray(ids) ? ids : []) {
+    if (!safeMarkerId(id) || seen.has(id)) continue;
+    seen.add(id);
+    normalized.push(id);
+    if (normalized.length >= DASHBOARD_QUICK_MARKERS_MAX) break;
+  }
+  return normalized;
+}
+
+function getDashboardQuickMarkerPins() {
+  try {
+    return normalizeDashboardQuickMarkerPins(JSON.parse(localStorage.getItem(dashboardQuickMarkerPinsKey())));
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveDashboardQuickMarkerPins(ids) {
+  localStorage.setItem(dashboardQuickMarkerPinsKey(), JSON.stringify(normalizeDashboardQuickMarkerPins(ids)));
+}
+
+function isDashboardQuickMarkerPinned(id) {
+  return getDashboardQuickMarkerPins().includes(id);
+}
+
+function toggleDashboardQuickMarkerPin(id) {
+  if (!safeMarkerId(id)) return;
+  const pins = getDashboardQuickMarkerPins();
+  const existing = pins.indexOf(id);
+  let pinned = false;
+  if (existing >= 0) {
+    pins.splice(existing, 1);
+  } else {
+    pins.unshift(id);
+    pinned = true;
+  }
+  saveDashboardQuickMarkerPins(pins);
+  showNotification(pinned ? 'Pinned to Quick Markers' : 'Removed from Quick Markers', pinned ? 'success' : 'info');
+  if (state.currentView === 'dashboard') rerenderDashboardFromWidgetChange();
+  if (state._activeDetailMarkerId === id) showDetailModal(id);
+}
+
+function getDashboardQuickMarkerCoreRanks() {
+  const sex = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'default';
+  const ranks = new Map();
+  (DASHBOARD_QUICK_MARKER_CORE_PATHS[sex] || DASHBOARD_QUICK_MARKER_CORE_PATHS.default).forEach(([cat, key], index) => {
+    const id = `${cat}_${key}`;
+    if (!ranks.has(id)) ranks.set(id, index);
+  });
+  return ranks;
+}
+
+function getDashboardQuickMarkerGoalMatches() {
+  const matches = new Map();
+  for (const goal of state.importedData?.healthGoals || []) {
+    const text = String(goal?.text || '').trim();
+    if (!text) continue;
+    const goalScore = DASHBOARD_QUICK_MARKER_GOAL_SCORE[goal.severity] || DASHBOARD_QUICK_MARKER_GOAL_SCORE.minor;
+    for (const rule of DASHBOARD_QUICK_MARKER_GOAL_RULES) {
+      if (!rule.pattern.test(text)) continue;
+      for (const id of rule.ids) {
+        const current = matches.get(id);
+        if (!current || goalScore > current.score) {
+          matches.set(id, {
+            score: goalScore,
+            reason: goal.severity ? `${goal.severity} goal match` : 'goal match',
+          });
+        }
+      }
+    }
+  }
+  return matches;
+}
+
+function buildDashboardQuickMarkerPriorityContext(ctx) {
+  const priority = buildDashboardSpotlightPriorityContext(ctx);
+  priority.coreRanks = getDashboardQuickMarkerCoreRanks();
+  priority.goalMatches = getDashboardQuickMarkerGoalMatches();
+  priority.pins = getDashboardQuickMarkerPins();
+  priority.pinnedIds = new Set(priority.pins);
+  return priority;
+}
+
+function scoreDashboardQuickMarkerHit(hit, priority) {
+  const base = scoreDashboardSpotlightHit(hit, priority);
+  let score = base.priorityScore;
+  let reason = base.priorityReason;
+
+  const goalMatch = priority.goalMatches.get(hit.id);
+  if (goalMatch) {
+    score += goalMatch.score;
+    if (base.priorityScore < 25 || reason === 'core dashboard marker' || reason === 'latest tracked marker') {
+      reason = goalMatch.reason;
+    }
+  }
+
+  const coreRank = priority.coreRanks.get(hit.id);
+  if (coreRank != null) {
+    score += Math.max(4, 18 - coreRank * 2);
+    if (reason === 'latest tracked marker') reason = 'core quick marker';
+  }
+
+  const pinned = priority.pinnedIds.has(hit.id);
+  if (pinned) {
+    score += 140;
+    reason = 'manual pick';
+  }
+
+  return {
+    ...base,
+    priorityScore: Math.max(0, Math.round(score)),
+    priorityReason: reason,
+    quickMarkerPinned: pinned,
+    quickMarkerCoreRank: coreRank ?? 999,
+  };
+}
+
+function getDashboardPriorityLabel(hit, { pinned = false } = {}) {
+  if (pinned) return 'Pinned';
+  const score = Number(hit?.priorityScore) || 0;
+  if (score >= 120) return 'Needs attention';
+  if (score >= 70) return 'Watch closely';
+  if (score >= 25) return 'Keep an eye on';
+  return 'Core marker';
+}
+
+function getDashboardQuickMarkerCandidates(ctx, priority) {
+  const candidates = new Map();
+  const addHit = hit => {
+    if (!hit || hit.marker?.hidden || candidates.has(hit.id)) return;
+    candidates.set(hit.id, hit);
+  };
+  const addId = id => addHit(getDashboardMarkerById(ctx.data, id) || getDashboardMarkerById(ctx.filteredData, id));
+
+  for (const hit of getDashboardSpotlightCandidates(ctx)) addHit(hit);
+  for (const id of priority.pins) addId(id);
+  for (const id of priority.coreRanks.keys()) addId(id);
+  for (const id of priority.goalMatches.keys()) addId(id);
+  return [...candidates.values()];
+}
+
+function getDashboardQuickMarkers(ctx) {
+  const priority = buildDashboardQuickMarkerPriorityContext(ctx);
+  const spotlightId = getDashboardSpotlight(ctx)?.id || '';
+  const scored = getDashboardQuickMarkerCandidates(ctx, priority)
+    .map(hit => scoreDashboardQuickMarkerHit(hit, priority))
+    .filter(hit => hit.quickMarkerPinned
+      || hit.id !== spotlightId)
+    .filter(hit => hit.quickMarkerPinned
+      || hit.priorityScore > 0
+      || priority.keyRanks.has(hit.id)
+      || priority.coreRanks.has(hit.id)
+      || priority.goalMatches.has(hit.id));
+
+  const byId = new Map(scored.map(hit => [hit.id, hit]));
+  const pinned = priority.pins.map(id => byId.get(id)).filter(Boolean);
+  const pinnedIds = new Set(pinned.map(hit => hit.id));
+  const dynamic = scored
+    .filter(hit => !pinnedIds.has(hit.id))
+    .sort((a, b) => (b.priorityScore - a.priorityScore)
+      || (a.quickMarkerCoreRank - b.quickMarkerCoreRank)
+      || (a.priorityKeyRank - b.priorityKeyRank)
+      || String(a.marker?.name || a.id).localeCompare(String(b.marker?.name || b.id)));
+  return [...pinned, ...dynamic].slice(0, DASHBOARD_QUICK_MARKERS_MAX);
+}
+
+function renderDashboardQuickMarkerTile(hit) {
+  const scoreLabel = getDashboardPriorityLabel(hit, { pinned: hit.quickMarkerPinned });
+  const reason = `${scoreLabel} · ${hit.priorityReason || 'latest tracked marker'}`;
+  return `<button type="button" class="db-stat-widget db-quick-marker-tile db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
     <div class="db-stat-head">
       <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
       <span>${escapeHTML(hit.marker.name)}</span>
@@ -3054,23 +3900,177 @@ function renderDashboardStatWidget(ctx, catKey, markerKey) {
     <div class="db-stat-value">${escapeHTML(formatValue(hit.value))}${hit.marker.unit ? `<small>${escapeHTML(hit.marker.unit)}</small>` : ''}</div>
     <div class="db-stat-delta">${escapeHTML(hit.trend.arrow || '→')} vs prev</div>
     ${renderDashboardMiniSparkline(hit.marker.values, hit.status, 120, 34)}
+    <div class="db-stat-reason">${escapeHTML(reason)}</div>
   </button>`;
 }
 
-function getDashboardSpotlight(ctx) {
-  const firstAlert = ctx.trendAlerts?.[0];
-  if (firstAlert?.id) {
-    const idx = firstAlert.id.indexOf('_');
-    if (idx > 0) {
-      const hit = getDashboardMarkerByPath(ctx.data, firstAlert.id.slice(0, idx), firstAlert.id.slice(idx + 1));
-      if (hit) return hit;
+function renderDashboardQuickMarkersWidget(ctx) {
+  const hits = getDashboardQuickMarkers(ctx);
+  if (!hits.length) return '';
+  return `<div class="db-quick-marker-grid">${hits.map(renderDashboardQuickMarkerTile).join('')}</div>`;
+}
+
+function renderDashboardSingleMarkerWidget(ctx, markerId) {
+  const hit = getDashboardMarkerById(ctx.data, markerId) || getDashboardMarkerById(ctx.filteredData, markerId);
+  if (!hit) return '';
+  const range = getEffectiveRange(hit.marker);
+  const rangeText = range.min != null || range.max != null
+    ? `Range ${range.min != null ? formatValue(range.min) : '—'}–${range.max != null ? formatValue(range.max) : '—'} ${hit.marker.unit || ''}`
+    : 'Custom marker widget';
+  return `<button type="button" class="db-stat-widget db-single-marker-widget db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    <div class="db-stat-head">
+      <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
+      <span>${escapeHTML(hit.marker.name)}</span>
+    </div>
+    <div class="db-stat-value">${escapeHTML(formatValue(hit.value))}${hit.marker.unit ? `<small>${escapeHTML(hit.marker.unit)}</small>` : ''}</div>
+    <div class="db-stat-delta">${escapeHTML(hit.trend.arrow || '→')} vs prev</div>
+    ${renderDashboardMiniSparkline(hit.marker.values, hit.status, 120, 34)}
+    <div class="db-stat-reason">${escapeHTML(rangeText)}</div>
+  </button>`;
+}
+
+const DASHBOARD_SPOTLIGHT_ALERT_SCORE = {
+  sudden_high: 90,
+  sudden_low: 90,
+  past_high: 65,
+  past_low: 65,
+  approaching_high: 32,
+  approaching_low: 32,
+};
+
+function dashboardSpotlightConcernLabel(concern) {
+  const labels = {
+    sudden_high: 'sudden high trend',
+    sudden_low: 'sudden low trend',
+    past_high: 'rising above range',
+    past_low: 'falling below range',
+    approaching_high: 'approaching upper range',
+    approaching_low: 'approaching lower range',
+  };
+  return labels[concern] || String(concern || '').replace(/_/g, ' ');
+}
+
+function getDashboardSpotlightRangeSignal(hit) {
+  const value = Number(hit?.value);
+  const min = hit?.range?.min;
+  const max = hit?.range?.max;
+  if (!Number.isFinite(value)) return { outside: 0, edge: 0, reason: '' };
+
+  if (min != null && value < min) {
+    const width = max != null && max > min ? max - min : Math.max(Math.abs(min), 1);
+    const outside = width > 0 ? (min - value) / width : 0;
+    return { outside, edge: 0, reason: `${outside.toFixed(1)}x range below low` };
+  }
+  if (max != null && value > max) {
+    const width = min != null && max > min ? max - min : Math.max(Math.abs(max), 1);
+    const outside = width > 0 ? (value - max) / width : 0;
+    return { outside, edge: 0, reason: `${outside.toFixed(1)}x range above high` };
+  }
+  if (min != null && max != null && max > min) {
+    const position = (value - min) / (max - min);
+    const edgeDistance = Math.min(position, 1 - position);
+    const edge = Math.max(0, (0.15 - edgeDistance) / 0.15);
+    if (edge > 0) {
+      return {
+        outside: 0,
+        edge,
+        reason: position >= 0.5 ? 'near upper range edge' : 'near lower range edge',
+      };
     }
   }
-  for (const km of ctx.keyMarkers || []) {
-    const hit = getDashboardMarkerByPath(ctx.filteredData, km.cat, km.key) || getDashboardMarkerByPath(ctx.data, km.cat, km.key);
-    if (hit) return hit;
+  return { outside: 0, edge: 0, reason: '' };
+}
+
+function buildDashboardSpotlightPriorityContext(ctx) {
+  const alerts = new Map();
+  for (const alert of ctx.trendAlerts || []) {
+    if (alert?.id && !alerts.has(alert.id)) alerts.set(alert.id, alert);
   }
-  return null;
+  const keyRanks = new Map();
+  (ctx.keyMarkers || []).forEach((km, index) => {
+    const id = `${km.cat}_${km.key}`;
+    if (!keyRanks.has(id)) keyRanks.set(id, index);
+  });
+  const criticalFlags = new Set((ctx.criticalFlags || []).map(f => f.id));
+  return { alerts, keyRanks, criticalFlags };
+}
+
+function scoreDashboardSpotlightHit(hit, priority) {
+  let score = 0;
+  const reasons = [];
+  const alert = priority.alerts.get(hit.id);
+  if (alert) {
+    score += DASHBOARD_SPOTLIGHT_ALERT_SCORE[alert.concern] || 24;
+    reasons.push(dashboardSpotlightConcernLabel(alert.concern));
+  }
+
+  const rangeSignal = getDashboardSpotlightRangeSignal(hit);
+  if (hit.status === 'high' || hit.status === 'low') {
+    score += 40 + Math.min(80, rangeSignal.outside * 55);
+    reasons.push(rangeSignal.reason || (hit.status === 'high' ? 'above range' : 'below range'));
+  } else if (rangeSignal.edge > 0) {
+    score += rangeSignal.edge * 14;
+    reasons.push(rangeSignal.reason);
+  }
+
+  if (priority.criticalFlags.has(hit.id)) {
+    score += 30;
+    reasons.push('critical range distance');
+  }
+
+  if (hit.trend?.cls?.includes('trend-bad')) {
+    score += 16;
+    reasons.push('moving the wrong way');
+  } else if (hit.trend?.cls?.includes('trend-good')) {
+    score -= 6;
+  }
+
+  const keyRank = priority.keyRanks.get(hit.id);
+  if (keyRank != null) {
+    score += Math.max(2, 16 - keyRank * 2);
+    if (!reasons.length) reasons.push('core dashboard marker');
+  }
+
+  return {
+    ...hit,
+    priorityScore: Math.max(0, Math.round(score)),
+    priorityReason: reasons[0] || 'latest tracked marker',
+    priorityKeyRank: keyRank ?? 999,
+  };
+}
+
+function getDashboardSpotlightCandidates(ctx) {
+  const candidates = [];
+  const seen = new Set();
+  const add = (data, catKey, markerKey) => {
+    const id = `${catKey}_${markerKey}`;
+    if (seen.has(id)) return;
+    const hit = getDashboardMarkerByPath(data, catKey, markerKey);
+    if (!hit || hit.marker?.hidden) return;
+    seen.add(id);
+    candidates.push(hit);
+  };
+
+  for (const [catKey, category] of Object.entries(ctx.filteredData?.categories || {})) {
+    for (const markerKey of Object.keys(category.markers || {})) add(ctx.filteredData, catKey, markerKey);
+  }
+  for (const alert of ctx.trendAlerts || []) {
+    const idx = alert.id?.indexOf('_') ?? -1;
+    if (idx > 0) add(ctx.data, alert.id.slice(0, idx), alert.id.slice(idx + 1));
+  }
+  for (const km of ctx.keyMarkers || []) add(ctx.data, km.cat, km.key);
+  return candidates;
+}
+
+function getDashboardSpotlight(ctx) {
+  const priority = buildDashboardSpotlightPriorityContext(ctx);
+  const scored = getDashboardSpotlightCandidates(ctx)
+    .map(hit => scoreDashboardSpotlightHit(hit, priority))
+    .filter(hit => hit.priorityScore > 0 || priority.keyRanks.has(hit.id))
+    .sort((a, b) => (b.priorityScore - a.priorityScore)
+      || (a.priorityKeyRank - b.priorityKeyRank)
+      || String(a.marker?.name || a.id).localeCompare(String(b.marker?.name || b.id)));
+  return scored[0] || null;
 }
 
 function renderDashboardSpotlightWidget(ctx) {
@@ -3080,39 +4080,34 @@ function renderDashboardSpotlightWidget(ctx) {
   const rangeText = range.min != null || range.max != null
     ? `Range ${range.min != null ? formatValue(range.min) : '—'}–${range.max != null ? formatValue(range.max) : '—'} ${hit.marker.unit || ''}`
     : 'No active range';
-  return `<div class="db-spotlight" role="button" tabindex="0" onclick="window.showDetailModal('${hit.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.showDetailModal('${hit.id}')}">
+  const priorityText = `${getDashboardPriorityLabel(hit)} · ${hit.priorityReason || 'latest tracked marker'}`;
+  return `<button type="button" class="db-spotlight" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
     <div class="db-spotlight-head">
       <div>
         <div class="db-spotlight-name">${escapeHTML(hit.marker.name)}</div>
         <div class="db-spotlight-meta">${escapeHTML(rangeText)}</div>
+        <div class="db-spotlight-priority">${escapeHTML(priorityText)}</div>
       </div>
       <div class="db-spotlight-value">${escapeHTML(formatValue(hit.value))}<small>${escapeHTML(hit.marker.unit || '')}</small></div>
     </div>
     ${renderDashboardMiniSparkline(hit.marker.values, hit.status, 420, 150)}
-    <button type="button" class="dashboard-action-btn" onclick="event.stopPropagation();window.showDetailModal('${hit.id}')">Open full marker</button>
-  </div>`;
-}
-
-function renderDashboardMarkerRow(marker) {
-  return `<button type="button" class="db-marker-row" onclick="window.showDetailModal('${marker.id}')" aria-label="${escapeAttr(marker.name + ': ' + marker.value + ' ' + marker.unit)}">
-    <span class="db-status-dot db-status-${escapeAttr(marker.status)}" aria-hidden="true"></span>
-    <span class="db-marker-name-wrap">
-      <span class="db-marker-name">${escapeHTML(marker.name)}</span>
-      <span class="db-marker-cat">${escapeHTML(marker.category)}</span>
-    </span>
-    <span class="db-marker-spark">${renderDashboardMiniSparkline(marker.values, marker.status, 140, 28)}</span>
-    <span class="db-marker-latest"><strong>${escapeHTML(marker.value)}</strong><small>${escapeHTML(marker.unit)}</small></span>
-    <span class="db-marker-trend">${escapeHTML(marker.trend?.arrow || '→')}</span>
   </button>`;
 }
 
-function renderDashboardMarkerListWidget(ctx) {
-  const markers = getMobileDashboardMarkers(ctx).slice(0, 10);
-  if (!markers.length) return '';
-  return `<div class="db-marker-list">
-    <div class="db-marker-list-head"><span></span><span>Marker</span><span>Trend</span><span>Latest</span><span>Delta</span></div>
-    <div class="db-marker-list-scroll">${markers.map(renderDashboardMarkerRow).join('')}</div>
-  </div>`;
+function renderLabsPriorityBanner(ctx) {
+  const hit = getDashboardSpotlight(ctx);
+  if (!hit) return '';
+  const priorityText = `${getDashboardPriorityLabel(hit)} · ${hit.priorityReason || 'latest tracked marker'}`;
+  return `<button type="button" class="labs-priority-banner db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
+    <span class="labs-priority-copy">
+      <span class="labs-priority-kicker">Current Priority</span>
+      <strong>${escapeHTML(hit.marker.name)}</strong>
+      <small>${escapeHTML(priorityText)}</small>
+    </span>
+    <span class="labs-priority-spark">${renderDashboardMiniSparkline(hit.marker.values, hit.status, 120, 28)}</span>
+    <span class="labs-priority-value">${escapeHTML(formatValue(hit.value))}<small>${escapeHTML(hit.marker.unit || '')}</small></span>
+  </button>`;
 }
 
 function renderDashboardInsightsListWidget(ctx) {
@@ -3129,28 +4124,240 @@ function renderDashboardInsightsListWidget(ctx) {
   }).join('')}</div>`;
 }
 
+function isDashboardManualBiometricMetric(metricId) {
+  return DASHBOARD_MANUAL_BIOMETRIC_METRICS.includes(metricId);
+}
+
+function getDashboardBiometricMetricOrder() {
+  const summary = state.importedData?.wearableSummary;
+  const sourceIds = Object.keys(summary?.sources || {});
+  const registryOrder = metricsForSources(sourceIds);
+  const ordered = [
+    ...MOBILE_WEARABLE_PRIORITY,
+    ...registryOrder,
+    ...DEFAULT_METRIC_ORDER,
+    ...Object.keys(summary?.metrics || {}),
+    ...DASHBOARD_MANUAL_BIOMETRIC_METRICS,
+  ];
+  const seen = new Set();
+  return ordered.filter(metricId => {
+    if (!safeMarkerId(metricId) || seen.has(metricId)) return false;
+    seen.add(metricId);
+    return !!canonicalMetric(metricId);
+  });
+}
+
+function getDashboardDefaultBiometricSelection() {
+  const defaults = getMobileWearableTiles().map(tile => tile.id);
+  if (defaults.length) return defaults;
+  return DASHBOARD_MANUAL_BIOMETRIC_METRICS.filter(metricId => !!canonicalMetric(metricId));
+}
+
+function normalizeDashboardBiometricSelection(ids) {
+  const out = [];
+  const seen = new Set();
+  for (const metricId of Array.isArray(ids) ? ids : []) {
+    if (!safeMarkerId(metricId) || seen.has(metricId) || !canonicalMetric(metricId)) continue;
+    if (metricId === 'bp_diastolic' && seen.has('bp_systolic')) continue;
+    out.push(metricId);
+    seen.add(metricId);
+  }
+  return out;
+}
+
+function getDashboardBiometricSelection() {
+  try {
+    const raw = localStorage.getItem(dashboardBiometricSelectionKey());
+    if (raw != null) return normalizeDashboardBiometricSelection(JSON.parse(raw));
+  } catch {}
+  return normalizeDashboardBiometricSelection(getDashboardDefaultBiometricSelection());
+}
+
+function saveDashboardBiometricSelection(ids) {
+  localStorage.setItem(dashboardBiometricSelectionKey(), JSON.stringify(normalizeDashboardBiometricSelection(ids)));
+}
+
+function formatDashboardRelativeTime(ts) {
+  const n = Number(ts);
+  if (!Number.isFinite(n) || n <= 0) return 'never';
+  const diff = Math.max(0, Date.now() - n);
+  const min = Math.round(diff / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 48) return `${hr}h ago`;
+  const days = Math.round(hr / 24);
+  return `${days}d ago`;
+}
+
+function getDashboardBiometricSyncState() {
+  const connections = state.importedData?.wearableConnections || {};
+  const sources = Object.values(connections).filter(conn => conn?.connectedAt && conn?.accessToken && !conn.needsReauth);
+  if (!sources.length) return { showSync: false, lastSyncAt: 0 };
+  const now = Date.now();
+  const lastSyncAt = Math.max(0, ...sources.map(conn => Number(conn.lastSyncAt) || 0));
+  const staleCount = sources.filter(conn => now - (Number(conn.lastSyncAt) || 0) >= DASHBOARD_BIOMETRIC_STALE_MS).length;
+  return { showSync: staleCount > 0, staleCount, lastSyncAt };
+}
+
+function renderDashboardBiometricSyncStatus() {
+  const syncState = getDashboardBiometricSyncState();
+  if (!syncState.lastSyncAt && !syncState.showSync) return '';
+  const label = syncState.lastSyncAt ? `Updated ${formatDashboardRelativeTime(syncState.lastSyncAt)}` : 'Not synced yet';
+  return `<span class="db-biometric-sync-status${syncState.showSync ? ' is-stale' : ''}">${escapeHTML(label)}</span>
+    ${syncState.showSync ? `<button type="button" class="dashboard-action-btn db-biometric-sync-btn" onclick="event.stopPropagation();window.syncWearableNow?.(this)">Sync stale data</button>` : ''}`;
+}
+
+function getDashboardBiometricTile(metricId, { allowEmptyManual = false } = {}) {
+  const summary = state.importedData?.wearableSummary;
+  const metric = summary?.metrics?.[metricId];
+  const canon = canonicalMetric(metricId);
+  if (!canon) return null;
+  if (!summary || !metric || metric.latest == null) {
+    if (!allowEmptyManual || !isDashboardManualBiometricMetric(metricId)) return null;
+    return {
+      id: metricId,
+      label: metricId === 'bp_systolic' ? 'Blood pressure' : canon.label,
+      value: '\u2014',
+      unit: metricId === 'bp_systolic' ? 'mmHg' : (canon.unit || canon.sub || ''),
+      change: '+ Log',
+      empty: true,
+    };
+  }
+  return {
+    id: metricId,
+    label: metricId === 'bp_systolic' && summary?.metrics?.bp_diastolic ? 'Blood pressure' : canon.label,
+    value: formatMobileWearableValue(metricId, metric, summary),
+    unit: metricId === 'bp_systolic' ? 'mmHg' : (canon.unit || canon.sub || ''),
+    change: formatMobileWearableDelta(metricId, metric, canon) || 'latest',
+    empty: false,
+  };
+}
+
+function renderDashboardBiometricTile(tile) {
+  const remove = `<button type="button" class="db-biometric-remove" onclick="event.stopPropagation();window.removeDashboardBiometricMetric('${escapeAttr(tile.id)}')" aria-label="Remove ${escapeAttr(tile.label)} from Biometrics Overview" title="Remove metric">&times;</button>`;
+  if (tile.empty) {
+    return `<div class="db-biometric-tile-wrap">
+      <div class="wearable-card wearable-card-empty db-biometric-manual-empty" data-empty-metric="${escapeAttr(tile.id)}" onclick="window.openManualLogForm?.('${escapeAttr(tile.id)}',event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openManualLogForm?.('${escapeAttr(tile.id)}',event)}" role="button" tabindex="0" aria-label="Log ${escapeAttr(tile.label.toLowerCase())} manually">
+        <div class="wearable-card-top"><span class="wearable-metric-name">${escapeHTML(tile.label)}</span></div>
+        <div class="wearable-value-row wearable-value-row-empty"><span class="wearable-value wearable-value-dash">-</span></div>
+        <div class="wearable-card-bottom"><div class="wearable-empty-cta">+ Log</div></div>
+      </div>
+      ${remove}
+    </div>`;
+  }
+  return `<div class="db-biometric-tile-wrap">
+    <button type="button" class="db-wearable-tile db-biometric-widget" onclick="window.openWearableDetail ? window.openWearableDetail('${escapeAttr(tile.id)}') : window.openSettingsModal?.('wearables')" aria-label="${escapeAttr(tile.label + ': ' + tile.value + ' ' + tile.unit)}">
+      <span class="db-wearable-label">${escapeHTML(tile.label)}</span>
+      <strong>${escapeHTML(tile.value)}</strong>
+      <span class="db-wearable-foot"><small>${escapeHTML(tile.unit || '')}</small><em>${escapeHTML(tile.change || 'latest')}</em></span>
+    </button>
+    ${remove}
+  </div>`;
+}
+
 function renderDashboardWearableTilesWidget() {
-  const tiles = getMobileWearableTiles();
-  if (!tiles.length) return '';
-  return `<div class="db-wearable-grid">${tiles.map(tile => `<button type="button" class="db-wearable-tile" onclick="window.openWearableDetail ? window.openWearableDetail('${escapeAttr(tile.id)}') : window.openSettingsModal?.('wearables')">
-    <span class="db-wearable-label">${escapeHTML(tile.label)}</span>
-    <strong>${escapeHTML(tile.value)}</strong>
-    <span class="db-wearable-foot"><small>${escapeHTML(tile.unit || '')}</small><em>${escapeHTML(tile.change || 'latest')}</em></span>
-  </button>`).join('')}</div>`;
+  const selected = getDashboardBiometricSelection();
+  const tiles = selected
+    .map(metricId => getDashboardBiometricTile(metricId, { allowEmptyManual: true }))
+    .filter(Boolean);
+  const syncStatus = renderDashboardBiometricSyncStatus();
+  const toolbar = `<div class="db-biometric-overview-bar">
+    <span>${escapeHTML(String(tiles.length))} metric${tiles.length === 1 ? '' : 's'} selected</span>
+    <div class="db-biometric-overview-actions">
+      ${syncStatus}
+      <button type="button" class="dashboard-action-btn" onclick="window.openDashboardBiometricPicker()">Add metrics</button>
+    </div>
+  </div>`;
+  if (!tiles.length) {
+    return `${toolbar}<div class="dashboard-widget-empty">No biometrics selected.</div>`;
+  }
+  return `${toolbar}<div class="db-wearable-grid db-biometric-overview-grid">${tiles.map(renderDashboardBiometricTile).join('')}</div>`;
 }
 
 function getDashboardGenomeImpact(stored, entry) {
   const info = entry ? findGenotypeInfo(entry, stored?.genotype) : null;
-  const effect = info?.effect || stored?.effect || 'info';
+  const effect = info?.effect || stored?.effect || '';
   const valence = info?.valence || stored?.valence || 'risk';
   const note = info?.note || stored?.note || '';
-  if (valence === 'protective') return { label: 'beneficial', rank: 3, note };
-  if (valence === 'neutral') return { label: 'informational', rank: 4, note };
-  if (effect === 'significant') return { label: 'significant', rank: 0, note };
-  if (effect === 'moderate') return { label: 'moderate', rank: 1, note };
-  if (effect === 'mild') return { label: 'mild', rank: 2, note };
-  if (effect === 'none') return { label: 'normal', rank: 5, note };
-  return { label: effect || 'info', rank: 6, note };
+  if (valence === 'protective') return { label: 'beneficial', tone: 'beneficial', rank: 3, note };
+  if (valence === 'neutral') return { label: 'neutral', tone: 'informational', rank: 4, note };
+  if (effect === 'significant') return { label: 'significant', tone: 'significant', rank: 0, note };
+  if (effect === 'moderate') return { label: 'moderate', tone: 'moderate', rank: 1, note };
+  if (effect === 'mild') return { label: 'mild', tone: 'mild', rank: 2, note };
+  if (effect === 'none') return { label: 'normal', tone: 'normal', rank: 5, note };
+  return { label: entry ? 'unclassified' : 'pending', tone: 'pending', rank: 6, note };
+}
+
+const DASHBOARD_VISIBLE_SNP_TONES = new Set(['significant', 'moderate', 'mild', 'beneficial']);
+
+function renderDashboardGenomeRow(f, { showCategoryLabel = true } = {}) {
+  const subline = [
+    f.variant || f.rsid,
+    showCategoryLabel ? f.categoryLabel : '',
+  ].filter(Boolean).join(' · ');
+  return `<div class="db-snp-row db-snp-${escapeAttr(f.impactTone || 'pending')}">
+    <span class="db-snp-main">
+      <strong>${escapeHTML(f.gene || f.rsid)}</strong>
+      <small>${escapeHTML(subline)}</small>
+    </span>
+    <span class="db-snp-impact">${escapeHTML(f.impactLabel || 'pending')}</span>
+    <span class="db-snp-geno">${escapeHTML(f.genotype || '—')}</span>
+    ${f.note ? `<span class="db-snp-note">${escapeHTML(f.note)}</span>` : ''}
+  </div>`;
+}
+
+function groupDashboardGenomeFindings(findings) {
+  const groups = new Map();
+  for (const f of findings) {
+    const category = f.category || 'other';
+    if (!groups.has(category)) {
+      groups.set(category, {
+        category,
+        categoryLabel: f.categoryLabel || getSnpCategoryLabel(category),
+        findings: [],
+        rank: Number.POSITIVE_INFINITY,
+        tone: 'pending',
+        impactLabel: 'pending',
+      });
+    }
+    const group = groups.get(category);
+    group.findings.push(f);
+    if ((f.impactRank ?? 99) < group.rank) {
+      group.rank = f.impactRank ?? 99;
+      group.tone = f.impactTone || 'pending';
+      group.impactLabel = f.impactLabel || 'pending';
+    }
+  }
+  return Array.from(groups.values())
+    .map(group => ({
+      ...group,
+      findings: group.findings.slice().sort((a, b) => (a.impactRank - b.impactRank) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || ''))),
+    }))
+    .sort((a, b) => (a.rank - b.rank) || String(a.categoryLabel).localeCompare(String(b.categoryLabel)));
+}
+
+function renderDashboardGenomeGroup(group, { secondary = false } = {}) {
+  const count = group.findings.length;
+  return `<div class="db-genome-category db-genome-category-${escapeAttr(group.tone || 'pending')}${secondary ? ' db-genome-category-secondary' : ''}">
+    <div class="db-genome-category-head">
+      <strong>${escapeHTML(group.categoryLabel || 'Other')}</strong>
+      <span>${count} finding${count === 1 ? '' : 's'}</span>
+      <em>${escapeHTML(group.impactLabel || 'pending')}</em>
+    </div>
+    <div class="db-genome-category-rows">${group.findings.map(f => renderDashboardGenomeRow(f, { showCategoryLabel: false })).join('')}</div>
+  </div>`;
+}
+
+function refreshDashboardGenomeWidgetWhenSNPTableReady() {
+  if (_dashboardGenomeSnpLoadPromise) return;
+  _dashboardGenomeSnpLoadPromise = ensureSNPTable()
+    .then(() => {
+      _dashboardGenomeSnpLoadPromise = null;
+      const body = document.querySelector?.('.dashboard-widget[data-widget-id="genome"] .dashboard-widget-body');
+      if (body) body.innerHTML = renderDashboardGenomeWidget();
+    })
+    .catch(() => { _dashboardGenomeSnpLoadPromise = null; });
 }
 
 function renderDashboardGenomeWidget() {
@@ -3160,18 +4367,27 @@ function renderDashboardGenomeWidget() {
   const snpTable = typeof window !== 'undefined' ? window._snpTableCache : null;
   const snpCount = Object.keys(snps).length;
   if (snpCount && !snpTable) {
-    ensureSNPTable()?.then(() => {
-      if (state.currentView === 'dashboard' && window.navigate) window.navigate('dashboard');
-    }).catch(() => {});
+    refreshDashboardGenomeWidgetWhenSNPTableReady();
+    return `<div class="db-genome-list">
+      <div class="db-genome-summary">${snpCount} imported SNP${snpCount === 1 ? '' : 's'}</div>
+      <div class="db-genome-empty db-genome-loading" aria-live="polite">
+        <strong>Loading SNP interpretations</strong>
+        <span>Matching your variants to the SNP catalog so effect, category, and notes render correctly.</span>
+      </div>
+    </div>`;
   }
   const findings = Object.entries(snps)
     .map(([rsid, stored]) => {
       const entry = snpTable?.[rsid];
       const impact = getDashboardGenomeImpact(stored, entry);
+      const category = entry?.category || stored.category || 'other';
       return {
         rsid,
         ...stored,
+        category,
+        categoryLabel: category ? getSnpCategoryLabel(category) : '',
         impactLabel: impact.label,
+        impactTone: impact.tone,
         impactRank: impact.rank,
         note: impact.note || stored.note || '',
       };
@@ -3184,15 +4400,26 @@ function renderDashboardGenomeWidget() {
       <span>Top variants will appear here alongside labs and body signals.</span>
     </button>`;
   }
-  const rows = findings.map(f => `<div class="db-snp-row">
-    <span class="db-snp-main">
-      <strong>${escapeHTML(f.gene || f.rsid)}</strong>
-      <small>${escapeHTML(f.variant || f.rsid)}</small>
-    </span>
-    <span class="db-snp-impact">${escapeHTML(f.impactLabel || 'info')}</span>
-    <span class="db-snp-geno">${escapeHTML(f.genotype || '—')}</span>
-    ${f.note ? `<span class="db-snp-note">${escapeHTML(f.note)}</span>` : ''}
-  </div>`).join('');
+  const visibleFindings = findings.filter(f => DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
+  const secondaryFindings = findings.filter(f => !DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
+  const groups = groupDashboardGenomeFindings(visibleFindings);
+  const secondaryGroups = groupDashboardGenomeFindings(secondaryFindings);
+  const rows = groups.map(group => renderDashboardGenomeGroup(group)).join('');
+  const secondaryRows = secondaryFindings.length ? `<details class="db-genome-secondary">
+    <summary>Other imported SNPs (${secondaryFindings.length})</summary>
+    <div class="db-genome-secondary-list">${secondaryGroups.map(group => renderDashboardGenomeGroup(group, { secondary: true })).join('')}</div>
+  </details>` : '';
+  const noVisibleRows = snpCount && !visibleFindings.length ? `<div class="db-genome-empty db-genome-no-priority">
+    <strong>No significant, moderate, mild, or beneficial SNP calls</strong>
+    <span>Normal, neutral, and unclassified imported calls are collapsed below.</span>
+  </div>` : '';
+  const legend = visibleFindings.length ? `<div class="db-genome-legend" aria-label="Genome significance legend">
+    <span class="db-genome-legend-item db-genome-legend-significant"><span>🔴</span> significant</span>
+    <span class="db-genome-legend-item db-genome-legend-moderate"><span>🟠</span> moderate</span>
+    <span class="db-genome-legend-item db-genome-legend-mild"><span>🟡</span> mild</span>
+    <span class="db-genome-legend-item db-genome-legend-beneficial"><span>🟢</span> beneficial</span>
+    <span class="db-genome-legend-item db-genome-legend-informational"><span>⚪</span> neutral</span>
+  </div>` : '';
   const meta = [
     snpCount ? `${snpCount} imported SNP${snpCount === 1 ? '' : 's'}` : '',
     genetics?.source || '',
@@ -3200,9 +4427,12 @@ function renderDashboardGenomeWidget() {
   ].filter(Boolean).join(' · ');
   return `<div class="db-genome-list">
     ${meta ? `<div class="db-genome-summary">${escapeHTML(meta)}</div>` : ''}
+    ${legend}
     ${apoe ? `<div class="db-snp-row db-snp-row-apoe"><span class="db-snp-main"><strong>APOE</strong><small>Haplotype</small></span><span class="db-snp-impact">context</span><span class="db-snp-geno">${escapeHTML(apoe)}</span></div>` : ''}
     ${genetics?.mtdna ? `<div class="db-snp-row"><span class="db-snp-main"><strong>mtDNA</strong><small>${escapeHTML(genetics.mtdna.coupling?.shortLabel || 'Haplogroup')}</small></span><span class="db-snp-impact">lineage</span><span class="db-snp-geno">${escapeHTML(genetics.mtdna.haplogroup)}</span></div>` : ''}
+    ${noVisibleRows}
     ${rows}
+    ${secondaryRows}
   </div>`;
 }
 
@@ -3292,14 +4522,12 @@ function renderDashboardCorrelationWidget(ctx) {
 
 function renderDashboardWidgets(ctx, title) {
   const prefs = getDashboardWidgetPrefs();
-  const ordered = getOrderedDashboardWidgets(prefs);
-  const visibleEntries = ordered
-    .map(def => ({ def, body: def.render(ctx) || '' }))
-    .filter(entry => !prefs.hidden.includes(entry.def.id) && (entry.body || _dashboardOrganizeMode));
+  const visibleEntries = getVisibleDashboardWidgetEntries(ctx, prefs);
   let html = renderDashboardGreeting(ctx, title, visibleEntries.length);
   html += `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
   html += renderOnboardingBanner();
   html += renderAIConnectionReminder();
+  html += renderDashboardStickyControls();
   html += `<div class="dashboard-widgets${_dashboardOrganizeMode ? ' is-organizing' : ''}">`;
   visibleEntries.forEach((entry, index) => { html += renderDashboardWidget(entry, prefs, index, visibleEntries); });
   if (visibleEntries.length === 0) {
@@ -3310,26 +4538,414 @@ function renderDashboardWidgets(ctx, title) {
   html += `</div>`;
   if (_dashboardOrganizeMode) {
     html += `<div class="dashboard-organize-footer">
-      <button type="button" class="dashboard-action-btn" onclick="window.openDashboardWidgetPicker()">+ Add widget</button>
-      <button type="button" class="dashboard-action-btn" onclick="window.resetDashboardWidgets()">Reset layout</button>
+      ${renderDashboardControlButtons({ includeReset: true })}
     </div>`;
   }
   return html;
 }
 
-function renderDashboardKeyTrendsWidget(ctx) {
-  const { filteredData, keyMarkers } = ctx;
-  let html = `<div class="dashboard-widget-inline-controls">
-    ${renderDateRangeFilter()}
-    ${renderChartLayersDropdown()}
+function renderLensHeader(title, subtitle, actions = '') {
+  return `<div class="category-header lens-page-header">
+    <h2>${escapeHTML(title)}</h2>
+    <p>${escapeHTML(subtitle)}</p>
+    ${actions ? `<div class="dashboard-widget-inline-controls">${actions}</div>` : ''}
   </div>`;
-  if (keyMarkers.length > 0) {
-    html += `<div class="charts-grid charts-grid-4col">`;
-    for (const km of keyMarkers) {
-      const marker = filteredData.categories[km.cat].markers[km.key];
-      html += renderChartCard(km.cat + "_" + km.key, marker, filteredData.dateLabels);
-    }
+}
+
+const LENS_PAGE_ORDER_VERSION = 1;
+
+function lensPageOrderStorageKey(route) {
+  return profileStorageKey(state.currentProfile || 'default', `lensPageOrder-${route}-v${LENS_PAGE_ORDER_VERSION}`);
+}
+
+function getLensPageWidgetOrder(route, defaultIds) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(lensPageOrderStorageKey(route)) || '[]');
+    if (!Array.isArray(raw)) return defaultIds;
+    const known = new Set(defaultIds);
+    const ordered = raw.filter(id => known.has(id));
+    for (const id of defaultIds) if (!ordered.includes(id)) ordered.push(id);
+    return ordered;
+  } catch {
+    return defaultIds;
+  }
+}
+
+function orderLensPageWidgets(route, widgets) {
+  const ids = widgets.map(w => w.id);
+  const order = getLensPageWidgetOrder(route, ids);
+  const byId = new Map(widgets.map(w => [w.id, w]));
+  return order.map(id => byId.get(id)).filter(Boolean);
+}
+
+function renderLensPageMoveControls(route, id, index, count) {
+  if (!route || count < 2) return '';
+  return `<button type="button" class="dashboard-widget-tool" ${index <= 0 ? 'disabled' : ''} onclick="${inlineHandlerCall('moveLensPageWidget', route, id, '-1')}" aria-label="Move page section up">↑</button>
+    <button type="button" class="dashboard-widget-tool" ${index >= count - 1 ? 'disabled' : ''} onclick="${inlineHandlerCall('moveLensPageWidget', route, id, '1')}" aria-label="Move page section down">↓</button>`;
+}
+
+function renderLensPageWidgets(route, widgets) {
+  const ordered = orderLensPageWidgets(route, widgets.filter(Boolean));
+  return `<div class="dashboard-widgets lens-page-widgets" data-lens-route="${escapeAttr(route)}">
+    ${ordered.map((widget, index) => renderLensWidget(
+      widget.id,
+      widget.title,
+      widget.description,
+      widget.body,
+      widget.size || 'full',
+      { ...(widget.opts || {}), pageRoute: route, pageIndex: index, pageCount: ordered.length }
+    )).join('')}
+  </div>`;
+}
+
+export function moveLensPageWidget(route, id, direction) {
+  route = String(route || state.currentView || '');
+  id = String(id || '');
+  const dir = Number(direction);
+  if (!route || !id || !Number.isFinite(dir) || dir === 0) return;
+  const container = [...document.querySelectorAll('.lens-page-widgets[data-lens-route]')]
+    .find(el => el.dataset.lensRoute === route);
+  const ids = container
+    ? [...container.querySelectorAll('.dashboard-widget[data-widget-id]')].map(el => el.dataset.widgetId).filter(Boolean)
+    : getLensPageWidgetOrder(route, []);
+  const index = ids.indexOf(id);
+  const target = index + (dir < 0 ? -1 : 1);
+  if (index < 0 || target < 0 || target >= ids.length) return;
+  [ids[index], ids[target]] = [ids[target], ids[index]];
+  localStorage.setItem(lensPageOrderStorageKey(route), JSON.stringify(ids));
+  if (state.currentView === route) window.navigate?.(route);
+}
+
+function renderLensDashboardToggle(dashboardId) {
+  if (!dashboardId || !getAvailableDashboardFixedWidgetIds().includes(dashboardId)) return '';
+  const prefs = getDashboardWidgetPrefs();
+  const isVisible = !prefs.hidden.includes(dashboardId);
+  const label = isVisible ? 'Remove from Dashboard' : 'Add to Dashboard';
+  const action = isVisible ? 'removeDashboardWidgetFromLens' : 'addDashboardWidgetFromLens';
+  return `<button type="button" class="dashboard-widget-tool lens-widget-dashboard-toggle" onclick="${inlineHandlerCall(action, dashboardId)}">${label}</button>`;
+}
+
+function renderLensWidget(id, title, description, body, size = 'full', opts = {}) {
+  const dashboardId = Object.prototype.hasOwnProperty.call(opts, 'dashboardId') ? opts.dashboardId : id;
+  const dashboardToggle = renderLensDashboardToggle(dashboardId);
+  const pageControls = renderLensPageMoveControls(opts.pageRoute || '', id, opts.pageIndex || 0, opts.pageCount || 0);
+  const tools = [pageControls, dashboardToggle].filter(Boolean).join('');
+  return `<section class="dashboard-widget dashboard-widget-${escapeAttr(size)}${body ? '' : ' is-empty'}" data-widget-id="${escapeAttr(id)}">
+    <div class="dashboard-widget-chrome">
+      <div class="dashboard-widget-heading">
+        ${opts.source ? `<div class="dashboard-widget-source">${escapeHTML(opts.source)}</div>` : ''}
+        <div class="dashboard-widget-title">${escapeHTML(title)}</div>
+        <div class="dashboard-widget-description">${escapeHTML(description || '')}</div>
+      </div>
+      ${tools ? `<div class="dashboard-widget-tools">${tools}</div>` : ''}
+    </div>
+    <div class="dashboard-widget-body">${body || '<div class="dashboard-widget-empty">No data available yet.</div>'}</div>
+  </section>`;
+}
+
+function hasAnyLabData(data) {
+  if (!data) return false;
+  if (data.dates?.length) return true;
+  return Object.values(data.categories || {}).some(cat =>
+    cat.singleDate || Object.values(cat.markers || {}).some(marker => markerHasData(marker))
+  );
+}
+
+export function showLabs(preData) {
+  const rawData = preData || getActiveData();
+  const main = document.getElementById("main-content");
+  if (!main) return;
+  document.body.classList.remove('mobile-dashboard-active');
+  const actions = renderDateRangeFilter();
+  let html = renderLensHeader('Labs', 'Dedicated biomarker workspace: categories, marker changes, and lab-level patterns.', actions);
+
+  if (!hasAnyLabData(rawData)) {
+    html += `<div class="drop-zone" id="drop-zone">
+      <div class="drop-zone-icon">\uD83D\uDCC4</div>
+      <div class="drop-zone-text">Drop a lab PDF, image, JSON export, or click to browse</div>
+      <div class="drop-zone-hint">Your lab markers become searchable categories, charts, and dashboard summaries.</div>
+    </div>`;
+    main.innerHTML = html;
+    setupDropZone();
+    return;
+  }
+
+  const ctx = buildDashboardWidgetContext(rawData);
+  html += renderLabsPriorityBanner(ctx);
+  html += renderLensPageWidgets('labs', [
+    { id: 'quick-markers', title: 'Quick Markers', description: 'Pinned and priority-ranked marker tiles', body: renderDashboardQuickMarkersWidget(ctx), size: 'full', opts: { source: 'Labs' } },
+    { id: 'key-trends', title: 'Key Trends', description: 'Auto-selected markers from your current range', body: renderDashboardKeyTrendsWidget(ctx), size: 'full', opts: { source: 'Labs' } },
+  ]);
+  main.innerHTML = html;
+  setupDropZone();
+}
+
+function renderGenomeImportDetailsWidget() {
+  const genetics = state.importedData?.genetics;
+  const snps = genetics?.snps || {};
+  const snpCount = Object.keys(snps).length;
+  const hasMtdna = !!genetics?.mtdna;
+  if (!genetics || (!snpCount && !hasMtdna)) return '';
+
+  const coverage = genetics.coverage && Number.isFinite(Number(genetics.coverage.found)) && Number.isFinite(Number(genetics.coverage.total))
+    ? `${Number(genetics.coverage.found).toLocaleString()} / ${Number(genetics.coverage.total).toLocaleString()} catalog SNPs matched`
+    : '';
+  const cards = [
+    {
+      label: 'Autosomal SNPs',
+      value: snpCount ? snpCount.toLocaleString() : '0',
+      sub: genetics.source || 'No raw autosomal import',
+    },
+    genetics.importDate ? {
+      label: 'Imported',
+      value: genetics.importDate,
+      sub: coverage || 'Raw file processed locally',
+    } : null,
+    genetics.apoe ? {
+      label: 'APOE',
+      value: genetics.apoe,
+      sub: 'Haplotype context',
+    } : null,
+    hasMtdna ? {
+      label: 'mtDNA',
+      value: genetics.mtdna.haplogroup,
+      sub: genetics.mtdna.coupling?.shortLabel || genetics.mtdna.source || 'Maternal lineage',
+    } : null,
+  ].filter(Boolean);
+
+  const mtdnaDetail = hasMtdna ? `<div class="db-genome-import-note">
+    <strong>mtDNA ${escapeHTML(genetics.mtdna.haplogroup)}</strong>
+    <span>${escapeHTML(genetics.mtdna.coupling?.label || 'Haplogroup stored')}${genetics.mtdna.importDate ? ` · ${escapeHTML(genetics.mtdna.importDate)}` : ''}</span>
+  </div>` : '';
+
+  return `<div class="genome-import-details">
+    <div class="genetics-overview-grid">
+      ${cards.map(card => `<div class="genetics-overview-card">
+        <span class="genetics-overview-label">${escapeHTML(card.label)}</span>
+        <strong>${escapeHTML(card.value)}</strong>
+        <small>${escapeHTML(card.sub)}</small>
+      </div>`).join('')}
+    </div>
+    ${mtdnaDetail}
+    <div class="dashboard-widget-inline-controls">
+      <button type="button" class="dashboard-action-btn" onclick="window.reimportDNA ? window.reimportDNA() : (window.triggerDNAFilePicker && window.triggerDNAFilePicker())">Re-import</button>
+      <button type="button" class="dashboard-action-btn" onclick="window.confirmDeleteDNA && window.confirmDeleteDNA()">Delete genome data</button>
+    </div>
+  </div>`;
+}
+
+export function showGenomeLens() {
+  const main = document.getElementById("main-content");
+  if (!main) return;
+  document.body.classList.remove('mobile-dashboard-active');
+  const importDetails = renderGenomeImportDetailsWidget();
+  let html = renderLensHeader('Genome', 'Dedicated DNA workspace: actionable genetic modifiers, import status, mtDNA, and lab-linked context.',
+    `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.triggerDNAFilePicker && window.triggerDNAFilePicker()">Import DNA</button>`);
+  html += renderLensPageWidgets('genome', [
+    { id: 'genome', title: 'Actionable Genetic Modifiers', description: 'Priority SNP context relevant to labs and goals', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
+    importDetails ? { id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', body: importDetails, size: 'full', opts: { source: 'Genome', dashboardId: '' } } : null,
+  ]);
+  main.innerHTML = html;
+}
+
+function renderBodySourcesWidget() {
+  const connections = state.importedData?.wearableConnections || {};
+  const summary = state.importedData?.wearableSummary || null;
+  const ids = Object.keys(connections);
+  if (!ids.length && !summary?.sources) {
+    return `<button type="button" class="db-correlation-empty" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">
+      <strong>Connect body data</strong>
+      <span>Oura, Withings, Fitbit, Polar, Apple Health, or manual logging can feed HRV, sleep, recovery, blood pressure, and body composition.</span>
+    </button>`;
+  }
+  const sourceIds = Array.from(new Set([...ids, ...Object.keys(summary?.sources || {})]));
+  const cards = sourceIds.map(id => {
+    const source = connections[id] || summary?.sources?.[id] || {};
+    const lastSync = source.lastSyncAt ? new Date(source.lastSyncAt).toLocaleDateString() : 'not synced';
+    const coverage = source.coverageDays ? `${source.coverageDays}d coverage` : 'coverage pending';
+    return `<button type="button" class="dashboard-widget-picker-card" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">
+      <span class="dashboard-widget-picker-title">${escapeHTML(id === 'manual' ? 'Manual logs' : id)}</span>
+      <span class="dashboard-widget-picker-sub">${escapeHTML(lastSync)} · ${escapeHTML(coverage)}</span>
+      <span class="dashboard-widget-picker-action">Manage source</span>
+    </button>`;
+  }).join('');
+  return `<div class="dashboard-widget-picker-grid">${cards}</div>`;
+}
+
+export function showBodyLens() {
+  const main = document.getElementById("main-content");
+  if (!main) return;
+  document.body.classList.remove('mobile-dashboard-active');
+  let html = renderLensHeader('Body', 'Dedicated biometrics workspace: wearable signals, manual body metrics, sync state, and metric history.',
+    `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">Connect source</button>
+     <button type="button" class="dashboard-action-btn" onclick="window.openDashboardBiometricPicker && window.openDashboardBiometricPicker()">Choose metrics</button>`);
+  html += renderLensPageWidgets('body', [
+    { id: 'wearables', title: 'Biometrics Overview', description: 'User-selected body signal tiles', body: renderDashboardWearableTilesWidget(), size: 'full', opts: { source: 'Body' } },
+    { id: 'body-sources', title: 'Connected Sources', description: 'Wearable and manual sources feeding body context', body: renderBodySourcesWidget(), size: 'full', opts: { source: 'Body', dashboardId: '' } },
+    { id: 'supplements', title: 'Supplements & Meds', description: 'Tracked supplements and medications that feed lab and AI context', body: renderSupplementsSection(), size: 'full', opts: { source: 'Body' } },
+    state.profileSex === 'female' ? { id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context for hormone, iron, and inflammation interpretation', body: renderMenstrualCycleSection(getActiveData()), size: 'full', opts: { source: 'Body' } } : null,
+  ]);
+  main.innerHTML = html;
+}
+
+export function showInsightLens(preData) {
+  const rawData = preData || getActiveData();
+  const main = document.getElementById("main-content");
+  if (!main) return;
+  document.body.classList.remove('mobile-dashboard-active');
+  const ctx = buildDashboardWidgetContext(rawData);
+  let html = renderLensHeader('Insight', 'Dedicated synthesis workspace: AI focus, trend interpretation, context, and next-step surfaces.',
+    `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.openChatPanel && window.openChatPanel()">Open AI chat</button>
+     <button type="button" class="dashboard-action-btn" onclick="window.navigate && window.navigate('recommendations')">Recommendations</button>`);
+  html += renderLensPageWidgets('insight', [
+    { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', body: renderFocusCard(), size: 'full', opts: { source: 'Insight' } },
+    { id: 'recommendations', title: 'Recommended Next Steps', description: 'Top data-linked actions across lenses', body: renderDashboardRecommendationsWidget(ctx), size: 'half', opts: { source: 'Insight' } },
+    { id: 'insights', title: 'AI Insights', description: 'Top trend and range reads', body: renderDashboardInsightsListWidget(ctx), size: 'half', opts: { source: 'Insight' } },
+    { id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', body: renderProfileContextCards(), size: 'full', opts: { source: 'Insight' } },
+  ]);
+  main.innerHTML = html;
+  loadFocusCard();
+  loadContextHealthDots();
+}
+
+function renderRecommendationsPageGroups(ctx, catalog) {
+  const active = getGlobalRecommendationCandidates(ctx, catalog);
+  const allWithDismissed = getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed: true });
+  const saved = allWithDismissed.filter(c => c.saved);
+  const dismissed = allWithDismissed.filter(c => c.dismissed);
+  if (!active.length && !saved.length && !dismissed.length) {
+    return renderRecommendationsEmpty();
+  }
+  const top = active.slice(0, 4);
+  const bySource = new Map();
+  for (const candidate of active) {
+    if (!bySource.has(candidate.source)) bySource.set(candidate.source, []);
+    bySource.get(candidate.source).push(candidate);
+  }
+  const widgets = [];
+  if (top.length) {
+    widgets.push({ id: 'recommendations-top', title: 'Top Recommendations', description: 'Highest-priority data-linked next steps', body: `<div class="rec-next-list">${top.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
+  }
+  for (const source of ['Labs', 'Body', 'Light', 'Genome', 'Insight']) {
+    const rows = (bySource.get(source) || []).filter(c => !top.includes(c));
+    if (!rows.length) continue;
+    widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source}-Driven`, description: `Recommendations originating from ${source}`, body: `<div class="rec-next-list">${rows.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
+  }
+  if (saved.length) {
+    widgets.push({ id: 'recommendations-saved', title: 'Saved', description: 'Recommendations saved for later', body: `<div class="rec-next-list">${saved.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
+  }
+  if (dismissed.length) {
+    widgets.push({ id: 'recommendations-dismissed', title: 'Dismissed', description: 'Currently dismissed recommendations from active data', body: `<div class="rec-next-list">${dismissed.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
+  }
+  return renderLensPageWidgets('recommendations', widgets);
+}
+
+export function showRecommendations(preData) {
+  const rawData = preData || getActiveData();
+  const ctx = buildDashboardWidgetContext(rawData);
+  const main = document.getElementById("main-content");
+  if (!main) return;
+  document.body.classList.remove('mobile-dashboard-active');
+  const prefs = getDashboardWidgetPrefs();
+  const recommendationsVisible = !prefs.hidden.includes('recommendations');
+  const dashboardAction = recommendationsVisible ? 'removeDashboardWidgetFromLens' : 'addDashboardWidgetFromLens';
+  const dashboardLabel = recommendationsVisible ? 'Remove from Dashboard' : 'Add to Dashboard';
+  const actions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="${inlineHandlerCall(dashboardAction, 'recommendations')}">${dashboardLabel}</button>
+    <button type="button" class="dashboard-action-btn" onclick="window.openSettingsModal && window.openSettingsModal('privacy')">Disclosure & settings</button>`;
+  let html = `<div id="recommendations-page">`;
+  html += renderLensHeader('Recommendations', 'A global action plan built from Labs, Body, Light, Genome, and Insight signals. Product links stay behind the existing disclosure.', actions);
+  if (!window.isProductRecsEnabled?.()) {
+    html += renderLensWidget('recommendations-disabled', 'Recommendations are off', 'Enable Tips & Recommendations to build this action surface', `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.openSettingsModal && window.openSettingsModal('privacy')">Open settings</button>`, 'full', { source: 'Recommendations', dashboardId: '' });
     html += `</div>`;
+    main.innerHTML = html;
+    return;
+  }
+  const catalog = getCachedRecommendationsCatalog();
+  if (!catalog) {
+    refreshRecommendationsWhenCatalogReady();
+    html += `<div class="dashboard-widget-empty">Loading recommendation catalog...</div></div>`;
+    main.innerHTML = html;
+    return;
+  }
+  if (state.importedData?.genetics?.snps && !window._snpTableCache) {
+    ensureSNPTable().then(() => { if (state.currentView === 'recommendations') showRecommendations(getActiveData()); }).catch(() => {});
+  }
+  html += `${renderRecommendationsPageGroups(ctx, catalog)}</div>`;
+  main.innerHTML = html;
+}
+
+export function openRecommendationDetail(slotKey, label = 'Recommendation', markerStatus = '') {
+  const modal = setDetailModalShell('recommendation-detail-modal');
+  const overlay = document.getElementById("modal-overlay");
+  if (!modal || !overlay) return;
+  modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+    <h3>${escapeHTML(label || 'Recommendation')}</h3>
+    <div class="dashboard-widget-empty">Loading options...</div>`;
+  overlay.classList.add("show");
+  window.renderRecommendationSection?.(slotKey, { label: 'Options', maxProducts: 4, markerStatus })
+    .then(html => {
+      modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+        <h3>${escapeHTML(label || 'Recommendation')}</h3>
+        ${html || '<div class="dashboard-widget-empty">No recommendation details available for this slot.</div>'}`;
+    })
+    .catch(() => {
+      modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+        <h3>${escapeHTML(label || 'Recommendation')}</h3>
+        <div class="dashboard-widget-empty">Could not load recommendation details.</div>`;
+    });
+}
+
+export function discussRecommendation(id) {
+  const catalog = getCachedRecommendationsCatalog();
+  const ctx = buildDashboardWidgetContext(getActiveData());
+  const candidate = getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed: true }).find(c => c.id === id);
+  const prompt = candidate
+    ? `Help me evaluate this recommendation from getbased.\nSource: ${candidate.source}\nRecommendation: ${candidate.label}\nReason: ${candidate.reason}\nSuggested first action: ${candidate.primaryAction || 'none listed'}\nWhat are the pros, cons, and safer non-product alternatives?`
+    : 'Help me evaluate my current getbased recommendations. Which should I prioritize and why?';
+  window.openChatPanel?.(prompt);
+}
+
+export function saveRecommendation(id, on = true) {
+  setRecommendationState('saved', id, !!on);
+}
+
+export function dismissRecommendation(id) {
+  setRecommendationState('dismissed', id, true);
+}
+
+function getDashboardKeyTrendReason(ctx, id, hit) {
+  const alert = (ctx.trendAlerts || []).find(a => a.id === id);
+  if (alert) return dashboardSpotlightConcernLabel(alert.concern);
+  if (hit.status === 'high') return 'above range';
+  if (hit.status === 'low') return 'below range';
+  if (hit.trend?.cls?.includes('trend-good')) return 'moving in range';
+  if (hit.trend?.cls?.includes('trend-bad')) return 'moving away from range';
+  if (hit.trend?.cls && !hit.trend.cls.includes('trend-stable')) return 'recent change';
+  return 'watchlist marker';
+}
+
+function renderDashboardKeyTrendRow(ctx, km) {
+  const hit = getDashboardMarkerByPath(ctx.filteredData, km.cat, km.key)
+    || getDashboardMarkerByPath(ctx.data, km.cat, km.key);
+  if (!hit) return '';
+  const reason = getDashboardKeyTrendReason(ctx, hit.id, hit);
+  return `<button type="button" class="db-key-trend-row db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
+    <span class="db-key-trend-name-wrap">
+      <span class="db-key-trend-name">${escapeHTML(hit.marker.name)}</span>
+      <span class="db-key-trend-cat">${escapeHTML(hit.category?.label || km.cat)}</span>
+    </span>
+    <span class="db-key-trend-spark">${renderDashboardMiniSparkline(hit.marker.values, hit.status, 132, 28)}</span>
+    <span class="db-key-trend-latest"><strong>${escapeHTML(formatValue(hit.value))}</strong><small>${escapeHTML(hit.marker.unit || '')}</small></span>
+    <span class="db-key-trend-signal"><strong>${escapeHTML(hit.trend?.arrow || '\u2192')}</strong><small>${escapeHTML(reason)}</small></span>
+  </button>`;
+}
+
+function renderDashboardKeyTrendsWidget(ctx) {
+  const rows = (ctx.keyMarkers || []).map(km => renderDashboardKeyTrendRow(ctx, km)).filter(Boolean);
+  let html = `<div class="dashboard-widget-inline-controls">${renderDateRangeFilter()}</div>`;
+  if (rows.length > 0) {
+    html += `<div class="db-key-trend-list">${rows.join('')}</div>`;
   } else {
     html += `<div class="dashboard-widget-empty">No trend markers available in this date range.</div>`;
   }
@@ -3340,7 +4956,7 @@ function renderDashboardAlertsWidget(ctx) {
   const { trendAlerts, criticalFlags } = ctx;
   const totalAttention = trendAlerts.length + criticalFlags.length;
   if (totalAttention === 0) return '';
-  let html = `<div class="alerts-section dashboard-alerts-widget"><div class="alerts-title">Trends & Alerts (${totalAttention})</div>`;
+  let html = `<div class="alerts-section dashboard-alerts-widget"><div class="alerts-title">Needs Attention (${totalAttention})</div>`;
   for (const alert of trendAlerts) {
     const isSudden = alert.concern.startsWith('sudden_');
     const isPast = alert.concern.startsWith('past_');
@@ -3402,7 +5018,137 @@ function renderDashboardNotesWidget() {
 }
 
 function rerenderDashboardFromWidgetChange() {
-  window.navigate?.('dashboard');
+  if (state.currentView === 'dashboard') window.navigate?.('dashboard');
+}
+
+function scrollDashboardWidgetIntoView(id) {
+  if (!id || typeof document === 'undefined') return;
+  requestAnimationFrame(() => {
+    const el = [...document.querySelectorAll('.dashboard-widget[data-widget-id]')]
+      .find(node => node.dataset.widgetId === id);
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  });
+}
+
+function getDashboardViewportTargetWidgetId() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return '';
+  const targetLine = Math.max(120, window.innerHeight * 0.36);
+  const widgets = [...document.querySelectorAll('.dashboard-widget[data-widget-id]')];
+  for (const el of widgets) {
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom >= targetLine) return el.dataset.widgetId || '';
+  }
+  return widgets.at(-1)?.dataset.widgetId || '';
+}
+
+function insertDashboardWidgetAtViewport(prefs, id) {
+  prefs.order = (prefs.order || []).filter(widgetId => widgetId !== id);
+  prefs.hidden = (prefs.hidden || []).filter(widgetId => widgetId !== id);
+  const targetId = getDashboardViewportTargetWidgetId();
+  const targetIndex = targetId ? prefs.order.indexOf(targetId) : -1;
+  if (targetIndex >= 0) prefs.order.splice(targetIndex, 0, id);
+  else prefs.order.push(id);
+}
+
+function getDashboardMarkerWidgetOptions(data = getActiveData(), prefs = getDashboardWidgetPrefs()) {
+  const existing = new Set((prefs.order || []).map(dashboardMarkerIdFromWidgetId).filter(Boolean));
+  const options = [];
+  for (const [catKey, category] of Object.entries(data.categories || {})) {
+    for (const [markerKey, marker] of Object.entries(category.markers || {})) {
+      const markerId = `${catKey}_${markerKey}`;
+      if (!safeMarkerId(markerId) || existing.has(markerId) || marker?.hidden || !markerHasData(marker)) continue;
+      const latestIdx = getLatestValueIndex(marker.values || []);
+      if (latestIdx < 0) continue;
+      const range = getEffectiveRangeForDate(marker, latestIdx);
+      const value = marker.values[latestIdx];
+      const status = getStatus(value, range.min, range.max);
+      options.push({
+        id: markerId,
+        name: marker.name || markerKey,
+        category: category.label || catKey,
+        value: formatValue(value),
+        unit: marker.unit || '',
+        status,
+      });
+    }
+  }
+  return options.sort((a, b) => String(a.category).localeCompare(String(b.category)) || String(a.name).localeCompare(String(b.name)));
+}
+
+function getDashboardBiometricWidgetOptions(prefs = getDashboardWidgetPrefs()) {
+  const selected = new Set(getDashboardBiometricSelection());
+  const options = [];
+  for (const metricId of getDashboardBiometricMetricOrder()) {
+    if (selected.has(metricId)) continue;
+    if (metricId === 'bp_diastolic' && selected.has('bp_systolic')) continue;
+    const tile = getDashboardBiometricTile(metricId, { allowEmptyManual: true });
+    const canon = canonicalMetric(metricId);
+    if (!tile || !canon) continue;
+    options.push({
+      id: metricId,
+      label: tile.label,
+      sub: canon.sub || '',
+      value: tile.value,
+      unit: tile.unit,
+      change: tile.change,
+    });
+  }
+  return options;
+}
+
+function renderDashboardMarkerWidgetOption(option) {
+  const searchText = `${option.name} ${option.category} ${option.value} ${option.unit}`.toLowerCase();
+  return `<button type="button" class="dashboard-widget-picker-card dashboard-marker-widget-option" data-marker-search="${escapeAttr(searchText)}" onclick="window.addDashboardMarkerWidget('${option.id}')">
+    <span class="dashboard-widget-picker-title">${escapeHTML(option.name)}</span>
+    <span class="dashboard-widget-picker-sub">${escapeHTML(option.category)} · ${escapeHTML(option.value)}${option.unit ? ` ${escapeHTML(option.unit)}` : ''}</span>
+    <span class="dashboard-widget-picker-action">Add marker widget</span>
+  </button>`;
+}
+
+function renderDashboardBiometricWidgetOption(option) {
+  const searchText = `${option.label} ${option.sub} ${option.value} ${option.unit} ${option.change}`.toLowerCase();
+  return `<button type="button" class="dashboard-widget-picker-card dashboard-biometric-widget-option" data-biometric-search="${escapeAttr(searchText)}" onclick="window.addDashboardBiometricMetric('${option.id}')">
+    <span class="dashboard-widget-picker-title">${escapeHTML(option.label)}${option.sub ? ` <small>${escapeHTML(option.sub)}</small>` : ''}</span>
+    <span class="dashboard-widget-picker-sub">${escapeHTML(option.value)}${option.unit ? ` ${escapeHTML(option.unit)}` : ''} · ${escapeHTML(option.change || 'latest')}</span>
+    <span class="dashboard-widget-picker-action">Add to Biometrics Overview</span>
+  </button>`;
+}
+
+function renderDashboardPickerFixedGroups(hidden) {
+  if (!hidden.length) return `<div class="dashboard-widget-picker-empty">All dashboard widgets are visible.</div>`;
+  const groups = new Map();
+  for (const def of hidden) {
+    const source = def.source || 'Other';
+    if (!groups.has(source)) groups.set(source, []);
+    groups.get(source).push(def);
+  }
+  const orderedSources = [
+    ...DASHBOARD_WIDGET_SOURCE_ORDER,
+    ...[...groups.keys()].filter(source => !DASHBOARD_WIDGET_SOURCE_ORDER.includes(source)).sort(),
+  ];
+  return orderedSources
+    .filter(source => groups.has(source))
+    .map(source => `<div class="dashboard-widget-picker-source">
+      <div class="dashboard-widget-picker-label">${escapeHTML(source)}</div>
+      <div class="dashboard-widget-picker-grid">${groups.get(source).map(def => `<button type="button" class="dashboard-widget-picker-card" onclick="window.showDashboardWidget('${def.id}')">
+        <span class="dashboard-widget-picker-title">${escapeHTML(def.title)}</span>
+        <span class="dashboard-widget-picker-sub">${escapeHTML(def.description || '')}</span>
+        <span class="dashboard-widget-picker-action">Add dashboard widget</span>
+      </button>`).join('')}</div>
+    </div>`)
+    .join('');
+}
+
+function filterDashboardPickerOptions(selector, dataAttr, emptyId, query = '') {
+  const needle = String(query || '').trim().toLowerCase();
+  let visible = 0;
+  document.querySelectorAll?.(selector).forEach(el => {
+    const match = !needle || (el.dataset[dataAttr] || '').includes(needle);
+    el.hidden = !match;
+    if (match) visible += 1;
+  });
+  const empty = document.getElementById(emptyId);
+  if (empty) empty.hidden = visible > 0;
 }
 
 export function toggleDashboardOrganizeMode(force) {
@@ -3426,30 +5172,106 @@ export function moveDashboardWidget(id, direction) {
 
 export function hideDashboardWidget(id) {
   const prefs = getDashboardWidgetPrefs();
-  if (!prefs.hidden.includes(id)) prefs.hidden.push(id);
+  if (isDashboardMarkerWidgetId(id)) {
+    prefs.order = prefs.order.filter(widgetId => widgetId !== id);
+    prefs.hidden = prefs.hidden.filter(widgetId => widgetId !== id);
+  } else if (!prefs.hidden.includes(id)) {
+    prefs.hidden.push(id);
+  }
   saveDashboardWidgetPrefs(prefs);
   rerenderDashboardFromWidgetChange();
 }
 
 export function showDashboardWidget(id) {
+  if (!getAvailableDashboardFixedWidgetIds().includes(id)) return;
   const prefs = getDashboardWidgetPrefs();
-  prefs.hidden = prefs.hidden.filter(widgetId => widgetId !== id);
-  if (!prefs.order.includes(id)) prefs.order.push(id);
+  insertDashboardWidgetAtViewport(prefs, id);
   saveDashboardWidgetPrefs(prefs);
   closeDashboardWidgetPicker();
   rerenderDashboardFromWidgetChange();
+  scrollDashboardWidgetIntoView(id);
+}
+
+export function addDashboardWidgetFromLens(id) {
+  showDashboardWidget(id);
+  if (state.currentView && state.currentView !== 'dashboard') window.navigate?.(state.currentView);
+  showNotification('Added to Dashboard', 'success');
+}
+
+export function removeDashboardWidgetFromLens(id) {
+  if (!getAvailableDashboardFixedWidgetIds().includes(id)) return;
+  const prefs = getDashboardWidgetPrefs();
+  if (!prefs.hidden.includes(id)) prefs.hidden.push(id);
+  saveDashboardWidgetPrefs(prefs);
+  if (state.currentView === 'dashboard') rerenderDashboardFromWidgetChange();
+  else if (state.currentView) window.navigate?.(state.currentView);
+  showNotification('Removed from Dashboard', 'info');
+}
+
+export function addDashboardMarkerWidget(markerId) {
+  const widgetId = dashboardMarkerWidgetId(markerId);
+  if (!widgetId) return;
+  const hit = getDashboardMarkerById(getActiveData(), markerId);
+  if (!hit) {
+    showNotification('That marker has no data yet', 'info');
+    return;
+  }
+  const prefs = getDashboardWidgetPrefs();
+  insertDashboardWidgetAtViewport(prefs, widgetId);
+  saveDashboardWidgetPrefs(prefs);
+  closeDashboardWidgetPicker();
+  rerenderDashboardFromWidgetChange();
+  scrollDashboardWidgetIntoView(widgetId);
+}
+
+export function addDashboardBiometricMetric(metricId) {
+  if (!safeMarkerId(metricId) || !canonicalMetric(metricId)) return;
+  if (!getDashboardBiometricTile(metricId, { allowEmptyManual: true })) {
+    showNotification('That biometric has no data yet', 'info');
+    return;
+  }
+  const selected = getDashboardBiometricSelection();
+  if (!selected.includes(metricId)) saveDashboardBiometricSelection([...selected, metricId]);
+  const prefs = getDashboardWidgetPrefs();
+  const wasHidden = prefs.hidden.includes('wearables');
+  prefs.hidden = prefs.hidden.filter(id => id !== 'wearables');
+  if (wasHidden) prefs.order = prefs.order.filter(id => id !== 'wearables');
+  if (wasHidden || !prefs.order.includes('wearables')) insertDashboardWidgetAtViewport(prefs, 'wearables');
+  saveDashboardWidgetPrefs(prefs);
+  closeDashboardWidgetPicker();
+  rerenderDashboardFromWidgetChange();
+  scrollDashboardWidgetIntoView('wearables');
+}
+
+export function addDashboardBiometricWidget(metricId) {
+  addDashboardBiometricMetric(metricId);
+}
+
+export function removeDashboardBiometricMetric(metricId) {
+  const selected = getDashboardBiometricSelection().filter(id => id !== metricId);
+  saveDashboardBiometricSelection(selected);
+  rerenderDashboardFromWidgetChange();
+}
+
+export function filterDashboardMarkerWidgetPicker(query = '') {
+  filterDashboardPickerOptions('.dashboard-marker-widget-option', 'markerSearch', 'dashboard-marker-widget-empty', query);
+}
+
+export function filterDashboardBiometricWidgetPicker(query = '') {
+  filterDashboardPickerOptions('.dashboard-biometric-widget-option', 'biometricSearch', 'dashboard-biometric-widget-empty', query);
 }
 
 export function resetDashboardWidgets() {
   localStorage.removeItem(dashboardWidgetStorageKey());
+  localStorage.removeItem(dashboardBiometricSelectionKey());
   _dashboardOrganizeMode = false;
   rerenderDashboardFromWidgetChange();
 }
 
 export function clearDashboardWidgets() {
   saveDashboardWidgetPrefs({
-    order: [...DASHBOARD_WIDGET_IDS],
-    hidden: [...DASHBOARD_WIDGET_IDS],
+    order: [...getAvailableDashboardFixedWidgetIds()],
+    hidden: [...getAvailableDashboardFixedWidgetIds()],
   });
   _dashboardOrganizeMode = false;
   rerenderDashboardFromWidgetChange();
@@ -3458,23 +5280,61 @@ export function clearDashboardWidgets() {
 export function openDashboardWidgetPicker() {
   closeDashboardWidgetPicker();
   const prefs = getDashboardWidgetPrefs();
-  const hidden = getOrderedDashboardWidgets(prefs).filter(def => prefs.hidden.includes(def.id));
-  const hiddenList = hidden.length ? hidden.map(def => `<button type="button" class="dashboard-widget-picker-card" onclick="window.showDashboardWidget('${def.id}')">
-      <span class="dashboard-widget-picker-title">${escapeHTML(def.title)}</span>
-      <span class="dashboard-widget-picker-sub">${escapeHTML(def.description || '')}</span>
-      <span class="dashboard-widget-picker-action">Add widget</span>
-    </button>`).join('') : `<div class="dashboard-widget-picker-empty">All widgets are visible.</div>`;
+  const hidden = getAvailableDashboardFixedWidgets().filter(def => prefs.hidden.includes(def.id));
+  const hiddenList = renderDashboardPickerFixedGroups(hidden);
+  const biometricOptions = getDashboardBiometricWidgetOptions(prefs);
+  const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
+  const markerOptions = getDashboardMarkerWidgetOptions(getActiveData(), prefs);
+  const markerList = markerOptions.length ? markerOptions.map(renderDashboardMarkerWidgetOption).join('') : '';
   document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" onclick="if(event.target===this)window.closeDashboardWidgetPicker()">
     <div class="modal show dashboard-widget-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-widget-picker-title">
       <button class="modal-close" aria-label="Close" onclick="window.closeDashboardWidgetPicker()">&times;</button>
-      <h3 id="dashboard-widget-picker-title">Add widget</h3>
-      <div class="dashboard-widget-picker-grid">${hiddenList}</div>
+      <h3 id="dashboard-widget-picker-title">Add dashboard widget</h3>
+      <div class="dashboard-widget-picker-section">
+        <div class="dashboard-widget-picker-label">Lens and tool widgets</div>
+        <div class="dashboard-widget-picker-grid">${hiddenList}</div>
+      </div>
+      <div class="dashboard-widget-picker-section">
+        <label class="dashboard-widget-picker-label" for="dashboard-biometric-widget-search">Body / Biometrics Overview metrics</label>
+        <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" oninput="window.filterDashboardBiometricWidgetPicker(this.value)">
+        <div class="dashboard-widget-picker-grid dashboard-biometric-widget-grid">${biometricList}</div>
+        <div class="dashboard-widget-picker-empty" id="dashboard-biometric-widget-empty" ${biometricOptions.length ? 'hidden' : ''}>All available biometrics are already in the overview.</div>
+      </div>
+      <div class="dashboard-widget-picker-section">
+        <label class="dashboard-widget-picker-label" for="dashboard-marker-widget-search">Labs / Single marker widgets</label>
+        <input id="dashboard-marker-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search markers" oninput="window.filterDashboardMarkerWidgetPicker(this.value)">
+        <div class="dashboard-widget-picker-grid dashboard-marker-widget-grid">${markerList}</div>
+        <div class="dashboard-widget-picker-empty" id="dashboard-marker-widget-empty" ${markerOptions.length ? 'hidden' : ''}>No available markers to add.</div>
+      </div>
       <div class="dashboard-widget-picker-actions">
         <button type="button" class="dashboard-action-btn" onclick="window.toggleDashboardOrganizeMode(true);window.closeDashboardWidgetPicker()">Customize layout</button>
         <button type="button" class="dashboard-action-btn" onclick="window.resetDashboardWidgets();window.closeDashboardWidgetPicker()">Reset layout</button>
       </div>
     </div>
   </div>`);
+}
+
+export function openDashboardBiometricPicker() {
+  closeDashboardWidgetPicker();
+  const prefs = getDashboardWidgetPrefs();
+  const biometricOptions = getDashboardBiometricWidgetOptions(prefs);
+  const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" onclick="if(event.target===this)window.closeDashboardWidgetPicker()">
+    <div class="modal show dashboard-widget-picker dashboard-biometric-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-biometric-picker-title">
+      <button class="modal-close" aria-label="Close" onclick="window.closeDashboardWidgetPicker()">&times;</button>
+      <h3 id="dashboard-biometric-picker-title">Add biometric metrics</h3>
+      <div class="dashboard-widget-picker-section">
+        <label class="dashboard-widget-picker-label" for="dashboard-biometric-widget-search">Manual and wearable metrics</label>
+        <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" oninput="window.filterDashboardBiometricWidgetPicker(this.value)">
+        <div class="dashboard-widget-picker-grid dashboard-biometric-widget-grid">${biometricList}</div>
+        <div class="dashboard-widget-picker-empty" id="dashboard-biometric-widget-empty" ${biometricOptions.length ? 'hidden' : ''}>All available biometrics are already in the overview.</div>
+      </div>
+      <div class="dashboard-widget-picker-actions">
+        <button type="button" class="dashboard-action-btn" onclick="window.openSettingsModal && window.openSettingsModal('wearables');window.closeDashboardWidgetPicker()">Connect source</button>
+      </div>
+    </div>
+  </div>`);
+  setTimeout(() => document.getElementById('dashboard-biometric-widget-search')?.focus(), 0);
 }
 
 export function closeDashboardWidgetPicker() {
@@ -3511,11 +5371,22 @@ export function dropDashboardWidget(event, targetId) {
 Object.assign(window, {
   toggleDashboardOrganizeMode,
   moveDashboardWidget,
+  moveLensPageWidget,
   hideDashboardWidget,
   showDashboardWidget,
+  addDashboardWidgetFromLens,
+  removeDashboardWidgetFromLens,
+  addDashboardMarkerWidget,
+  addDashboardBiometricMetric,
+  addDashboardBiometricWidget,
+  removeDashboardBiometricMetric,
+  filterDashboardMarkerWidgetPicker,
+  filterDashboardBiometricWidgetPicker,
   resetDashboardWidgets,
   clearDashboardWidgets,
+  toggleDashboardQuickMarkerPin,
   openDashboardWidgetPicker,
+  openDashboardBiometricPicker,
   closeDashboardWidgetPicker,
   startDashboardWidgetDrag,
   allowDashboardWidgetDrop,
@@ -3527,8 +5398,6 @@ Object.assign(window, {
 // ═══════════════════════════════════════════════
 
 const MOBILE_DASHBOARD_QUERY = '(max-width: 799px)';
-const MOBILE_DASHBOARD_SCROLL_OFFSET = 64;
-let _mobileDashboardScrollHandler = null;
 let _mobileDashboardManualTabLockUntil = 0;
 
 function isMobileDashboardViewport() {
@@ -3537,67 +5406,44 @@ function isMobileDashboardViewport() {
     && window.matchMedia(MOBILE_DASHBOARD_QUERY).matches;
 }
 
-function teardownMobileDashboardScrollSpy() {
-  if (_mobileDashboardScrollHandler && typeof window !== 'undefined') {
-    window.removeEventListener('scroll', _mobileDashboardScrollHandler);
-  }
-  _mobileDashboardScrollHandler = null;
+function getMobileBottomTabForRoute(route) {
+  if (['dashboard', 'labs', 'body', 'light', 'insight'].includes(route)) return route;
+  if (route === 'recommendations') return 'insight';
+  if (route === 'compare' || route === 'correlations') return 'labs';
+  if (route && getActiveData().categories?.[route]) return 'labs';
+  return 'dashboard';
 }
 
-function getMobileDashboardActiveTabFromScroll() {
-  const threshold = window.innerHeight * 0.35;
-  const sections = [
-    { tab: 'labs', el: document.querySelector('.m-greeting') },
-    { tab: 'body', el: document.getElementById('mobile-body-section') },
-    { tab: 'genome', el: document.getElementById('mobile-genome-section') },
-  ].filter(section => section.el);
-
-  let active = 'labs';
-  for (const section of sections) {
-    if (section.el.getBoundingClientRect().top <= threshold) active = section.tab;
+function syncMobileBottomNav(route = state.currentView || 'dashboard') {
+  if (typeof document === 'undefined') return;
+  const existing = document.getElementById('mobile-bottom-tabs');
+  const hasDashboardShell = document.body.classList.contains('mobile-dashboard-active');
+  const shouldRender = isMobileDashboardViewport() && !hasDashboardShell;
+  document.body.classList.toggle('mobile-tabs-active', shouldRender);
+  if (!shouldRender) {
+    existing?.remove();
+    return;
   }
-  return active;
+  const activeTab = getMobileBottomTabForRoute(route);
+  const html = renderMobileBottomTabs(activeTab, { id: 'mobile-bottom-tabs' });
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
 }
 
 export function refreshMobileDashboardActiveTab() {
   if (!document.body.classList.contains('mobile-dashboard-active')) return;
   _mobileDashboardManualTabLockUntil = 0;
-  mobileDashboardSetTab(getMobileDashboardActiveTabFromScroll(), { fromScroll: true });
-}
-
-function setupMobileDashboardScrollSpy() {
-  teardownMobileDashboardScrollSpy();
-  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') return;
-  let ticking = false;
-  const update = () => {
-    if (!document.body.classList.contains('mobile-dashboard-active')) return;
-    if (document.getElementById('chat-panel')?.classList.contains('open')) return;
-    if (document.getElementById('settings-modal-overlay')?.classList.contains('show')) return;
-    if (document.getElementById('client-list-overlay')?.classList.contains('show')) return;
-    const lockRemaining = _mobileDashboardManualTabLockUntil - Date.now();
-    if (lockRemaining > 0) {
-      setTimeout(update, lockRemaining + 20);
-      return;
-    }
-
-    mobileDashboardSetTab(getMobileDashboardActiveTabFromScroll(), { fromScroll: true });
-  };
-  _mobileDashboardScrollHandler = () => {
-    if (ticking) return;
-    ticking = true;
-    window.requestAnimationFrame(() => {
-      ticking = false;
-      update();
-    });
-  };
-  window.addEventListener('scroll', _mobileDashboardScrollHandler, { passive: true });
-  setTimeout(update, 0);
+  mobileDashboardSetTab('dashboard', { fromScroll: true });
 }
 
 if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
   const mobileDashboardMedia = window.matchMedia(MOBILE_DASHBOARD_QUERY);
   const refreshDashboardForBreakpoint = () => {
     if (state.currentView === 'dashboard') window.navigate?.('dashboard');
+    else syncMobileBottomNav(state.currentView || 'dashboard');
   };
   if (typeof mobileDashboardMedia.addEventListener === 'function') {
     mobileDashboardMedia.addEventListener('change', refreshDashboardForBreakpoint);
@@ -3615,15 +5461,6 @@ function getMobileGreetingName(profile) {
   const name = (profile?.name || 'there').trim();
   if (!name || name === 'Default') return 'there';
   return name.split(/\s+/)[0];
-}
-
-function getMobileAvatar(profile) {
-  const name = profile?.name || '?';
-  if (profile?.avatar) {
-    return `<img class="m-avatar-img" src="${escapeAttr(profile.avatar)}" alt="">`;
-  }
-  const color = window.getAvatarColor ? window.getAvatarColor(profile?.id || 'default') : 'var(--accent)';
-  return `<span class="m-avatar-initial" style="background:${escapeAttr(color)}">${escapeHTML(name[0]?.toUpperCase() || '?')}</span>`;
 }
 
 function getMobileDashboardCounts(data) {
@@ -3735,7 +5572,8 @@ function renderMobileSparkline(values, status) {
 
 function renderMobileStatCard(item) {
   if (item.type === 'summary') {
-    return `<div class="m-stat-card m-stat-summary">
+    const summaryLabel = `${item.label}: ${item.value}, ${item.meta}`;
+    return `<div class="m-stat-card m-stat-summary" role="group" aria-label="${escapeAttr(summaryLabel)}">
       <div class="m-stat-head"><span class="m-marker-dot" aria-hidden="true"></span><span class="m-stat-label">${escapeHTML(item.label)}</span></div>
       <strong>${escapeHTML(item.value)}</strong>
       <span class="m-stat-meta">${escapeHTML(item.meta)}</span>
@@ -3928,36 +5766,50 @@ function renderMobileIcon(name) {
     labs: '<rect x="4" y="4" width="6" height="6" rx="1.2"></rect><rect x="14" y="4" width="6" height="6" rx="1.2"></rect><rect x="4" y="14" width="6" height="6" rx="1.2"></rect><rect x="14" y="14" width="6" height="6" rx="1.2"></rect>',
     genome: '<path d="M8 4c4 4 4 12 8 16"></path><path d="M16 4c-4 4-4 12-8 16"></path><path d="M9.5 8h5"></path><path d="M9.5 12h5"></path><path d="M9.5 16h5"></path>',
     body: '<path d="M4 12h4l2-6 4 12 2-6h4"></path>',
+    light: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="M4.93 4.93l2.12 2.12"></path><path d="M16.95 16.95l2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="M4.93 19.07l2.12-2.12"></path><path d="M16.95 7.05l2.12-2.12"></path>',
     insight: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path>',
     more: '<path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path>',
+    tweaks: '<line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>',
+    settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
     search: '<circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path>',
     chat: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>',
   };
   return `<svg class="m-svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.labs}</svg>`;
 }
 
-function scrollMobileDashboardTarget(target) {
-  if (!target || typeof window.scrollTo !== 'function') return false;
-  const top = target.getBoundingClientRect().top + window.scrollY - MOBILE_DASHBOARD_SCROLL_OFFSET;
-  window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
-  return true;
-}
-
 export function mobileDashboardSetTab(tab, { fromScroll = false } = {}) {
   if (!fromScroll) _mobileDashboardManualTabLockUntil = Date.now() + 600;
   document.querySelectorAll('.m-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tab);
+    const isActive = btn.dataset.tab === tab;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 }
 
-function renderMobileBottomTabs() {
-  return `<nav class="m-tabbar" aria-label="Mobile dashboard sections">
-    <button type="button" class="m-tab active" data-tab="labs" onclick="window.mobileDashboardSetTab('labs');window.navigate('dashboard')" aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
-    <button type="button" class="m-tab" data-tab="genome" onclick="window.mobileDashboardSetTab('genome');window.mobileDashboardJump('genome')" aria-label="Genome"><span class="m-tab-icon">${renderMobileIcon('genome')}</span><small>Genome</small></button>
-    <button type="button" class="m-tab" data-tab="body" onclick="window.mobileDashboardSetTab('body');window.mobileDashboardJump('body')" aria-label="Body"><span class="m-tab-icon">${renderMobileIcon('body')}</span><small>Body</small></button>
-    <button type="button" class="m-tab" data-tab="insight" onclick="window.mobileDashboardSetTab('insight');window.openChatPanel && window.openChatPanel()" aria-label="Insight"><span class="m-tab-icon">${renderMobileIcon('insight')}</span><small>Insight</small></button>
-    <button type="button" class="m-tab" data-tab="more" onclick="window.mobileDashboardSetTab('more');window.openSettingsModal && window.openSettingsModal()" aria-label="More"><span class="m-tab-icon">${renderMobileIcon('more')}</span><small>More</small></button>
+function renderMobileBottomTabs(activeTab = 'dashboard', { id = '' } = {}) {
+  const navId = id ? ` id="${id}"` : '';
+  const tabAttrs = tab => `class="m-tab${activeTab === tab ? ' active' : ''}" data-tab="${tab}" aria-current="${activeTab === tab ? 'page' : 'false'}"`;
+  return `<nav${navId} class="m-tabbar" aria-label="Mobile primary navigation">
+    <button type="button" ${tabAttrs('dashboard')} onclick="window.mobileDashboardSetTab('dashboard');window.navigate('dashboard')" aria-label="Dashboard"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Home</small></button>
+    <button type="button" ${tabAttrs('labs')} onclick="window.mobileDashboardSetTab('labs');window.navigate('labs')" aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
+    <button type="button" ${tabAttrs('body')} onclick="window.mobileDashboardSetTab('body');window.navigate('body')" aria-label="Body"><span class="m-tab-icon">${renderMobileIcon('body')}</span><small>Body</small></button>
+    <button type="button" ${tabAttrs('light')} onclick="window.mobileDashboardSetTab('light');window.navigate('light')" aria-label="Light"><span class="m-tab-icon">${renderMobileIcon('light')}</span><small>Light</small></button>
+    <button type="button" ${tabAttrs('insight')} onclick="window.mobileDashboardSetTab('insight');window.navigate('insight')" aria-label="Insight"><span class="m-tab-icon">${renderMobileIcon('insight')}</span><small>Insight</small></button>
   </nav>`;
+}
+
+function renderMobileDashboardWidgetStack(ctx) {
+  const prefs = getDashboardWidgetPrefs();
+  const visibleEntries = getVisibleDashboardWidgetEntries(ctx, prefs);
+  return `<section class="m-section m-dashboard-widget-section">
+    ${renderMobileSectionHead('Dashboard widgets', String(visibleEntries.length))}
+    <div class="m-dashboard-widget-actions">${renderDashboardControlButtons({ includeReset: _dashboardOrganizeMode })}</div>
+    <div class="dashboard-widgets m-dashboard-widgets">
+      ${visibleEntries.length
+        ? visibleEntries.map((entry, index) => renderDashboardWidget(entry, prefs, index, visibleEntries)).join('')
+        : '<div class="dashboard-widget dashboard-widget-full is-empty"><div class="dashboard-widget-empty">No widgets are visible.</div></div>'}
+    </div>
+  </section>`;
 }
 
 export function openMobileDashboardSearch() {
@@ -3966,17 +5818,9 @@ export function openMobileDashboardSearch() {
 }
 
 export function mobileDashboardJump(section) {
-  if (section === 'genome') {
-    const target = document.getElementById('mobile-genome-section') || document.getElementById('genetics-section');
-    if (target) scrollMobileDashboardTarget(target);
-    else mobileDashboardSetTab('genome', { fromScroll: true });
-    return;
-  }
-  if (section === 'body') {
-    const target = document.getElementById('mobile-body-section') || document.querySelector('.wearable-strip');
-    if (target) scrollMobileDashboardTarget(target);
-    else mobileDashboardSetTab('body', { fromScroll: true });
-  }
+  const route = ['dashboard', 'labs', 'genome', 'body', 'light', 'insight', 'recommendations'].includes(section) ? section : 'dashboard';
+  mobileDashboardSetTab(route === 'genome' || route === 'recommendations' ? 'dashboard' : route);
+  window.navigate?.(route);
 }
 
 function renderMobileDashboard(data, { resetScroll = false } = {}) {
@@ -3984,24 +5828,7 @@ function renderMobileDashboard(data, { resetScroll = false } = {}) {
   if (!main) return;
   const ctx = buildDashboardWidgetContext(data);
   const profile = getMobileDashboardProfile();
-  const markers = getMobileDashboardMarkers(ctx);
-  const stats = getMobileDashboardStats(data, ctx, markers);
-  const insights = getMobileDashboardInsights(ctx, markers);
-  const lightHtml = renderLightTodayStrip();
-  const wearableTiles = getMobileWearableTiles();
-  const geneticsRawHtml = renderGeneticsSection();
-  const genetics = state.importedData.genetics || {};
-  const geneticsPending = (!!genetics.mtdna || Object.keys(genetics.snps || {}).length > 0)
-    ? `<div class="genetics-empty-stub genetics-loading-stub" aria-live="polite">
-      <span class="genetics-empty-stub-icon" aria-hidden="true">&#129516;</span>
-      <span class="genetics-empty-stub-body">
-        <span class="genetics-empty-stub-title">Loading DNA context</span>
-        <span class="genetics-empty-stub-sub">Your imported variants are being matched to the SNP catalog.</span>
-      </span>
-    </div>`
-    : '';
-  const geneticsHtml = geneticsRawHtml || geneticsPending;
-  const watchRows = markers.slice(0, 7).map(renderMobileMarkerRow).join('');
+  const mobileWidgetStack = renderMobileDashboardWidgetStack(ctx);
   const firstName = getMobileGreetingName(profile);
   const counts = getMobileDashboardCounts(data);
   const greetingSub = [
@@ -4015,60 +5842,22 @@ function renderMobileDashboard(data, { resetScroll = false } = {}) {
     <div class="m-shell">
       <div class="m-bg" aria-hidden="true"></div>
       <div class="m-content">
-        <header class="m-topbar">
-          <div class="m-brand">
-            <strong>getbased</strong>
-            <span>${escapeHTML(profile?.name || 'Default')}</span>
-          </div>
-          <div class="m-topbar-actions">
-            <button type="button" class="m-icon-btn" onclick="window.openMobileDashboardSearch()" aria-label="Search markers">${renderMobileIcon('search')}</button>
-            <button type="button" class="m-avatar-btn" onclick="window.openClientList && window.openClientList()" aria-label="Switch profile">${getMobileAvatar(profile)}</button>
-          </div>
-        </header>
-
         <section class="m-greeting">
           <h1>Hey ${escapeHTML(firstName)}.</h1>
           <div class="m-greeting-sub">${escapeHTML(greetingSub)}</div>
         </section>
 
-        <section class="m-stats" aria-label="Quick stats">
-          ${stats.map(renderMobileStatCard).join('')}
-        </section>
-
-        <section class="m-section">
-          ${renderMobileSectionHead('Insights', String(insights.length), 'Ask AI', 'window.openChatPanel && window.openChatPanel()')}
-          <div class="m-insights">${insights.map(renderMobileInsightCard).join('')}</div>
-        </section>
-
-        <section class="m-section">
-          ${renderMobileSectionHead('Watch list', String(Math.min(markers.length, 7)), 'Explore', "window.navigate('correlations')")}
-          <div class="m-marker-list">${watchRows || '<div class="m-empty">No markers in the current range.</div>'}</div>
-        </section>
-
-        <section class="m-section" id="mobile-body-section">
-          ${renderMobileSectionHead('Today', wearableTiles.length ? `synced body data` : 'not connected', 'Connect', "window.openSettingsModal && window.openSettingsModal('wearables')")}
-          ${renderMobileWearableTiles(wearableTiles)}
-        </section>
-
-        ${lightHtml ? `<section class="m-section m-embedded" id="mobile-light-section">
-          ${renderMobileSectionHead('Light', 'sun + devices', 'Open', "window.navigate('light')")}
-          <div class="m-embedded-strip">${lightHtml}</div>
-        </section>` : ''}
-
-        ${geneticsHtml ? `<section class="m-section m-embedded" id="mobile-genome-section">
-          ${renderMobileSectionHead('Genome', 'DNA context', 'Import', 'window.triggerDNAFilePicker && window.triggerDNAFilePicker()')}
-          <div class="m-embedded-strip">${geneticsHtml}</div>
-        </section>` : ''}
+        ${mobileWidgetStack}
       </div>
       <button type="button" class="m-chat-fab" onclick="window.openChatPanel && window.openChatPanel()" aria-label="Ask AI">${renderMobileIcon('chat')}</button>
-      ${renderMobileBottomTabs()}
+      ${renderMobileBottomTabs('dashboard')}
     </div>`;
 
   if (resetScroll && typeof window.scrollTo === 'function') {
     window.scrollTo(0, 0);
   }
   setupDropZone();
-  setupMobileDashboardScrollSpy();
+  refreshMobileDashboardActiveTab();
   loadContextHealthDots();
   if (window.loadContextCardTips) window.loadContextCardTips();
   loadCommitHash();
@@ -4088,16 +5877,17 @@ Object.assign(window, {
 
 export function showDashboard(data) {
   // Resume the live-session ticker if a session was started before this
-  // page loaded — keeps the dashboard Light Today strip ticking after a
+  // page loaded — keeps the dashboard Light Today surface ticking after a
   // hard reload mid-session.
   if (window._resumeActiveTickerIfNeeded) try { window._resumeActiveTickerIfNeeded(); } catch (e) {}
   if (window.ensureActiveDeviceTicker) try { window.ensureActiveDeviceTicker(); } catch (e) {}
   if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
   const wasMobileDashboardActive = document.body.classList.contains('mobile-dashboard-active');
-  teardownMobileDashboardScrollSpy();
   document.body.classList.remove('mobile-dashboard-active');
-  const hasData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
+  const wearableMetrics = state.importedData?.wearableSummary?.metrics || {};
+  const hasWearableData = Object.values(wearableMetrics).some(metric => metric?.latest != null);
+  const hasData = data.dates.length > 0 || hasWearableData || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
 
   // Show/hide import FAB based on whether dashboard has data
   const importFab = document.getElementById('import-fab');
@@ -4107,13 +5897,14 @@ export function showDashboard(data) {
   // welcome-hero / context-details targets no longer exist in the
   // data view, so the dimmed-peer rules would be no-ops anyway,
   // but stripping the classes keeps body state clean.
-  if (hasData) document.body.classList.remove('cards-focus', 'import-focus', 'chat-autostart-reserved');
+  if (hasData) document.body.classList.remove('cards-focus', 'import-focus', 'chat-autostart-reserved', 'empty-dashboard-active');
 
   // ── Demo-load in flight: short-lived placeholder while
   //    importDataJSON parses the demo blob (typically 2–3s). Without
   //    this the empty Welcome hero flashes for the duration. The flag
   //    is set in loadDemoData() and cleared on import success/failure.
   if (!hasData && window._demoLoadingProfileId === state.currentProfile) {
+    document.body.classList.add('empty-dashboard-active');
     main.innerHTML = `<div class="welcome-hero" aria-busy="true" role="status" aria-live="polite">
       <h2>Loading demo data…</h2>
       <p class="welcome-hero-subtitle">Setting up the demo profile — this takes a few seconds the first time.</p>
@@ -4123,31 +5914,50 @@ export function showDashboard(data) {
 
   // ── Empty state: welcome hero + collapsed context ──
   if (!hasData) {
-    const shouldAutoOpenChat = state.chatHistory.length === 0
-      && Date.now() > _suppressEmptyDashboardChatUntil
-      && localStorage.getItem('labcharts-chat-fullscreen') !== 'true'
-      && typeof window !== 'undefined'
-      && window.innerWidth > 768
-      && !document.getElementById('chat-panel')?.classList.contains('open');
-    document.body.classList.toggle('chat-autostart-reserved', shouldAutoOpenChat);
-    // No AI configured? Tag the hero so CSS reorders children: demo-cards
-    // lift above the drop zone ("try before set-up"). With AI configured,
-    // drop zone leads since the user almost certainly intends to import.
-    const heroClass = hasAIProvider() ? 'welcome-hero' : 'welcome-hero welcome-hero-noai';
+    document.body.classList.add('empty-dashboard-active');
+    document.body.classList.remove('chat-autostart-reserved');
+    const aiReady = hasAIProvider();
+    const aiPaused = isAIPaused();
+    const heroClass = aiReady ? 'welcome-hero' : 'welcome-hero welcome-hero-noai';
+    const primaryAction = aiReady
+      ? "document.getElementById('pdf-input')?.click()"
+      : "closeChatPanel();window.openSettingsModal('ai')";
+    const guideAction = aiReady
+      ? "window.openChatPanel && window.openChatPanel()"
+      : "window.openChatProviderQuiz ? window.openChatProviderQuiz() : window.openChatPanel && window.openChatPanel()";
+    const primaryLabel = aiPaused ? 'Re-enable AI' : (aiReady ? 'Choose a file' : 'Set up AI import');
+    const primaryTitle = aiPaused ? 'AI is paused' : (aiReady ? 'Import your first report' : 'Set up AI, then import your report');
+    const primaryCopy = aiPaused
+      ? 'Re-enable AI in Settings so getbased can read reports and turn them into private, structured health data.'
+      : (aiReady
+        ? 'Drop a lab PDF, photo, getbased JSON export, or DNA raw data file. Imports stay local to this browser.'
+        : 'One short provider setup unlocks lab parsing, guided review, and personalized next-step recommendations.');
+    const dropText = aiReady
+      ? 'Drop PDF, image, JSON, or DNA raw data file here, or click to browse'
+      : 'After AI setup, drop a lab report, image, JSON export, or DNA raw file here';
+    const dropHint = aiReady
+      ? 'Reads any lab report (PDF or photo). Also handles getbased JSON exports.'
+      : 'Want to see the dashboard first? Try a demo profile below.';
     let html = `${renderAIConnectionReminder()}<div class="${escapeHTML(heroClass)}">
       <h2>Welcome to getbased</h2>
       <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
+      <div class="welcome-primary-panel">
+        <span class="welcome-primary-kicker">Start here</span>
+        <strong>${escapeHTML(primaryTitle)}</strong>
+        <p>${escapeHTML(primaryCopy)}</p>
+        <div class="welcome-primary-actions">
+          <button type="button" class="welcome-action-btn welcome-action-primary" onclick="${primaryAction}">${escapeHTML(primaryLabel)}</button>
+          <button type="button" class="welcome-action-btn" onclick="${guideAction}">Ask AI to guide me</button>
+        </div>
+      </div>
       <div class="drop-zone" id="drop-zone">
         <div class="drop-zone-icon">\uD83D\uDCC4</div>
-        <div class="drop-zone-text">Drop PDF, image, JSON, or DNA raw data file here, or click to browse</div>
-        <div class="drop-zone-hint">Reads any lab report (PDF or photo). Also handles getbased JSON exports.</div>
-        ${!hasAIProvider() ? `<div class="drop-zone-api-hint">${isAIPaused() ? 'AI features are paused — <a href="#" onclick="event.preventDefault();event.stopPropagation();window.openSettingsModal(\'ai\')">re-enable in Settings</a>' : 'Needs a one-time AI setup so the app can read your values — <a href="#" onclick="event.preventDefault();event.stopPropagation();closeChatPanel();window.openSettingsModal(\'ai\')">walk me through it</a>'}</div>` : ''}</div>
-      <div class="welcome-wearable-hint">
-        ⧬ Got an Oura, Withings, Fitbit, Polar, or Apple Health export? <a href="#" onclick="event.preventDefault();window.openSettingsModal('wearables')">Connect it</a> to see HRV, sleep, recovery, and body composition trends alongside your other lenses.
-      </div>
+        <div class="drop-zone-text">${escapeHTML(dropText)}</div>
+        <div class="drop-zone-hint">${escapeHTML(dropHint)}</div>
+        ${!aiReady ? `<div class="drop-zone-api-hint">${aiPaused ? 'AI features are paused — <a href="#" onclick="event.preventDefault();event.stopPropagation();window.openSettingsModal(\'ai\')">re-enable in Settings</a>' : 'AI setup comes first — use the primary action above when you are ready.'}</div>` : ''}</div>
       <div class="onboarding-divider">
         <span class="onboarding-divider-line"></span>
-        <span class="onboarding-divider-text">${hasAIProvider() ? 'or explore with demo data' : 'or import your own labs'}</span>
+        <span class="onboarding-divider-text">or try a demo profile</span>
         <span class="onboarding-divider-line"></span>
       </div>
       <div class="demo-cards">
@@ -4162,45 +5972,47 @@ export function showDashboard(data) {
           <span class="demo-card-desc">Metabolic + Withings body comp</span>
         </button>
       </div>
+      <div class="welcome-secondary-grid">
+        <button type="button" class="welcome-secondary-card" onclick="window.openSettingsModal('wearables')">
+          <span class="welcome-secondary-icon" aria-hidden="true">⧬</span>
+          <span><strong>Connect wearables</strong><small>Oura, Withings, Fitbit, Polar, or Apple Health trends.</small></span>
+        </button>
+        <button type="button" class="welcome-secondary-card" onclick="window.navigate && window.navigate('light')">
+          <span class="welcome-secondary-icon" aria-hidden="true">☀</span>
+          <span><strong>Set up Light &amp; Sun</strong><small>Track daylight, devices, circadian timing, and UV context.</small></span>
+        </button>
+      </div>
     </div>`;
-    // Light Today strip renders here too \u2014 users who log sun sessions
-    // before importing labs should still see their channel pills on the
-    // dashboard. renderLightTodayStrip() returns '' when no sessions and
-    // not in a solar window, so it's safe to always call.
-    html += renderLightTodayStrip();
-    // Wearable strip renders even without lab data \u2014 users who connect Oura
-    // etc. before importing any PDFs should still see their HRV / sleep /
-    // RHR trends. renderWearableStrip() returns '' when no wearables are
-    // connected, so it's safe to always call.
-    html += renderWearableStrip();
+    // Light Today stays available for users who log sun sessions before
+    // importing labs, but the empty-state container keeps it secondary.
+    html += `<div class="welcome-empty-light">${renderLightTodayStrip()}</div>`;
     const detailsOpen = sessionStorage.getItem('welcome-details-open') === '1';
     html += `<details class="welcome-context-details"${detailsOpen ? ' open' : ''}>
-      <summary class="welcome-context-summary" onclick="setTimeout(()=>sessionStorage.setItem('welcome-details-open',document.querySelector('.welcome-context-details')?.open?'1':'0'),0)">Don\u2019t have labs yet? Tell the AI about yourself</summary>`;
+      <summary class="welcome-context-summary" onclick="setTimeout(()=>sessionStorage.setItem('welcome-details-open',document.querySelector('.welcome-context-details')?.open?'1':'0'),0)">Don\u2019t have labs yet? Tell the AI about yourself</summary>
+      <div class="welcome-context-body">`;
     html += renderProfileContextCards();
     if (state.profileSex === 'female') html += renderMenstrualCycleSection(data);
     html += renderSupplementsSection();
-    html += `</details>`;
+    html += `</div></details>`;
     html += renderGeneticsSection();
     main.innerHTML = html;
     setupDropZone();
-    // First-time visitor: auto-open chat onboarding after a short delay so
-    // the wizard (profile → AI quiz → extras → cards) carries them through.
-    // Without this nudge, new users land on the welcome hero and miss the
-    // chat-driven setup entirely. Skip if any chat history exists, or if
-    // something opened the panel between dashboard render and the timeout
-    // firing — openChatPanel idempotently re-toggles chat-panel-fullscreen
-    // from localStorage, which would stomp manual class state set by tests
-    // (or any other in-flight UI gesture).
-    if (shouldAutoOpenChat || (state.chatHistory.length === 0 && Date.now() > _suppressEmptyDashboardChatUntil)) {
+    // First-time desktop visitors get the guided chat setup beside the
+    // welcome hero. Mobile keeps the welcome/import controls unobscured.
+    const isDesktopChatOnboardingViewport = typeof window !== 'undefined' && window.innerWidth > 768;
+    if (state.chatHistory.length === 0) {
+      if (isDesktopChatOnboardingViewport && !document.getElementById('chat-panel')?.classList.contains('open')) {
+        document.body.classList.add('chat-autostart-reserved');
+      }
       setTimeout(() => {
-        if (Date.now() <= _suppressEmptyDashboardChatUntil) return;
-        const latestData = getActiveData();
-        const stillEmpty = latestData.dates.length === 0
-          && !Object.values(latestData.categories).some(c => c.singlePoint && c.singleDate);
-        if (!stillEmpty || window._demoLoadingProfileId) return;
-        if (!document.getElementById('chat-panel')?.classList.contains('open')) {
-          window.openChatPanel?.();
+        if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return;
+        const panel = document.getElementById('chat-panel');
+        if (state.chatHistory.length > 0 || panel?.classList.contains('open')) {
+          document.body.classList.remove('chat-autostart-reserved');
+          return;
         }
+        if (window.openChatPanel) window.openChatPanel();
+        else document.body.classList.remove('chat-autostart-reserved');
       }, 800);
     }
     return;
@@ -4218,17 +6030,10 @@ export function showDashboard(data) {
 
   main.innerHTML = html;
 
-  for (const km of dashboardCtx.keyMarkers) {
-    const id = km.cat + "_" + km.key;
-    if (!document.getElementById("chart-" + id)) continue;
-    const marker = dashboardCtx.filteredData.categories[km.cat].markers[km.key];
-    createLineChart(id, marker, dashboardCtx.filteredData.dateLabels, dashboardCtx.filteredData.dates, dashboardCtx.filteredData.phaseLabels);
-  }
   setupDropZone();
 
-  // Non-blocking: load focus card, health dots, and recs after DOM is ready
+  // Non-blocking: load focus card and context health dots after DOM is ready
   if (hasData) loadFocusCard();
-  if (hasData) loadChartCardRecs();
   loadContextHealthDots();
   if (window.loadContextCardTips) window.loadContextCardTips();
   loadCommitHash();
@@ -4533,7 +6338,8 @@ async function loadChartCardRecs() {
   }
   // One-time nudge (must query after badges are added)
   const recLinks = document.querySelectorAll('[id^="chart-rec-"] .ctx-tips-badge');
-  if (recLinks.length > 0 && !localStorage.getItem('labcharts-rec-nudge-seen')) {
+  const modalOpen = !!document.querySelector('.modal-overlay.show');
+  if (recLinks.length > 0 && !modalOpen && !localStorage.getItem('labcharts-rec-nudge-seen')) {
     localStorage.setItem('labcharts-rec-nudge-seen', '1');
     showNotification(`${recLinks.length} marker${recLinks.length > 1 ? 's have' : ' has'} actionable tips \u2014 look for the Tips badge on your chart cards`, 'info');
   }
@@ -4712,9 +6518,48 @@ export function openChatProviderQuiz() {
 // CATEGORY VIEWS
 // ═══════════════════════════════════════════════
 
+const CATEGORY_GLYPH_CODES = Object.freeze({
+  biochemistry: 'BC',
+  hormones: 'HR',
+  electrolytes: 'EM',
+  lipids: 'LP',
+  iron: 'FE',
+  proteins: 'IN',
+  thyroid: 'TH',
+  vitamins: 'VT',
+  diabetes: 'GL',
+  tumorMarkers: 'TM',
+  coagulation: 'CG',
+  hematology: 'CB',
+  wbcDifferential: 'WB',
+  bone: 'BN',
+  urinalysis: 'UR',
+  bodyComposition: 'BD',
+  boneDensity: 'DX',
+  calculatedRatios: 'RT',
+});
+
+function _categoryGlyphCode(categoryKey, label = '') {
+  if (CATEGORY_GLYPH_CODES[categoryKey]) return CATEGORY_GLYPH_CODES[categoryKey];
+  const words = String(label || categoryKey || '')
+    .replace(/&/g, ' ')
+    .replace(/[^A-Za-z0-9 ]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  const compact = String(label || categoryKey || 'M').replace(/[^A-Za-z0-9]+/g, '');
+  return (compact.slice(0, 2) || 'M').toUpperCase();
+}
+
+function renderCategoryGlyph(categoryKey, label, { large = false } = {}) {
+  const code = _categoryGlyphCode(categoryKey, label);
+  return `<span class="category-glyph${large ? ' category-glyph-large' : ''}" aria-hidden="true">${escapeHTML(code)}</span>`;
+}
+
 export function showCategory(categoryKey, preData) {
   // categoryKey is interpolated into inline-onclick handlers below (rename,
-  // changeIcon, switchView, showDetailModal). Reject anything that doesn't
+  // switchView, showDetailModal). Reject anything that doesn't
   // match the strict allowlist so a poisoned customMarker key can't break
   // out of the JS string context.
   if (!safeMarkerId(categoryKey)) return;
@@ -4728,8 +6573,7 @@ export function showCategory(categoryKey, preData) {
   const withData = allEntries.filter(([, m]) => markerHasData(m));
   const countLabel = withData.length < allEntries.length ? `${withData.length} of ${allEntries.length} biomarkers with data` : `${allEntries.length} biomarkers tracked`;
   const renameBtn = ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename category" title="Rename category" onclick="event.stopPropagation();renameCategory('${categoryKey}')" style="cursor:pointer;font-size:12px">rename</span>`;
-  const iconDisplay = cat.icon || '\uD83D\uDD16';
-  let html = `<div class="category-header"><h2><span title="Click to change icon" style="cursor:pointer;min-width:24px;display:inline-block" onclick="event.stopPropagation();changeCategoryIcon('${categoryKey}')">${iconDisplay}</span> ${escapeHTML(cat.label)}${renameBtn}</h2>
+  let html = `<div class="category-header"><h2>${renderCategoryGlyph(categoryKey, cat.label)}<span class="category-title-text">${escapeHTML(cat.label)}</span>${renameBtn}</h2>
     <p>${countLabel}</p></div>`;
 
   html += `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px">`;
@@ -4743,7 +6587,7 @@ export function showCategory(categoryKey, preData) {
 
   html += `<div id="view-content">`;
   if (withData.length === 0) {
-    html += `<div class="empty-state"><div class="empty-state-icon">${cat.icon}</div>
+    html += `<div class="empty-state"><div class="empty-state-icon empty-state-icon-category">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>
       <h3>No Data Available</h3><p>Import lab results containing ${escapeHTML(cat.label.toLowerCase())} markers to see data here.</p></div>`;
   } else if (cat.singleDate) {
     html += renderFattyAcidsView(cat, categoryKey);
@@ -5025,23 +6869,59 @@ export function renderChartCard(id, marker, dateLabels) {
   const trend = getTrend(marker.values, lr.min, lr.max);
   const trendBadge = trend.cls !== 'trend-stable' || trend.arrow !== '\u2014' ? `<span class="chart-card-trend ${trend.cls}">${trend.arrow}</span>` : '';
   const markerName = marker.name || '';
+  const labels = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : dateLabels;
+  const fmtRange = (min, max) => `${min != null ? formatValue(min) : '–'} \u2013 ${max != null ? formatValue(max) : '–'}`;
+  const effectiveRange = getEffectiveRange(marker);
+  const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Reference';
+  const rangeSummary = effectiveRange.min != null || effectiveRange.max != null
+    ? `${rangeLabel}: ${fmtRange(effectiveRange.min, effectiveRange.max)}`
+    : 'No range set';
+  const latestDateLabel = latestIdx !== -1 ? (labels[latestIdx] || 'Latest') : 'No value';
+  const latestDisplay = latestVal !== null ? formatValue(latestVal) : '\u2014';
+  const latestUnit = marker.unit || '';
+  const latestMeta = latestVal !== null
+    ? `${latestDateLabel}${latestUnit ? ' · ' + latestUnit : ''}`
+    : 'Add a value to start the trend';
 
-  let html = `<div class="chart-card" role="button" tabindex="0" aria-label="${escapeAttr(markerName + ' - ' + statusLabel)}" onclick="showDetailModal('${id}')">
-    <div class="chart-card-header"><div>
-      <div class="chart-card-title" title="${escapeAttr(markerName)}">${escapeHTML(markerName)} <span id="chart-rec-${id}"></span></div>
-      <div class="chart-card-unit">${escapeHTML(marker.unit)}</div></div>
-      <div><span class="chart-card-status status-${status}">${sIcon ? sIcon + ' ' : ''}${statusLabel}</span>${trendBadge}</div></div>
+  let html = `<div class="chart-card chart-card-${status}" role="button" tabindex="0" aria-label="${escapeAttr(markerName + ' - ' + statusLabel)}" onclick="showDetailModal('${id}')">
+    <div class="chart-card-header">
+      <div class="chart-card-title-block">
+        <div class="chart-card-title" title="${escapeAttr(markerName)}">
+          <span class="chart-card-title-text">${escapeHTML(markerName)}</span>
+          <span class="chart-card-tips-host" id="chart-rec-${id}"></span>
+        </div>
+        <div class="chart-card-meta">
+          <span class="chart-card-unit">${escapeHTML(latestUnit || 'unitless')}</span>
+          <span class="chart-card-range">${escapeHTML(rangeSummary)}${latestUnit ? ` ${escapeHTML(latestUnit)}` : ''}</span>
+        </div>
+      </div>
+      <div class="chart-card-state"><span class="chart-card-status status-${status}">${sIcon ? sIcon + ' ' : ''}${statusLabel}</span>${trendBadge}</div>
+    </div>
+    <div class="chart-card-snapshot">
+      <div>
+        <span class="chart-card-snapshot-label">Latest</span>
+        <strong class="chart-card-latest-value val-${status}">${escapeHTML(latestDisplay)}</strong>
+        <span class="chart-card-snapshot-meta">${escapeHTML(latestMeta)}</span>
+      </div>
+      <div class="chart-card-snapshot-side">
+        <span>${escapeHTML(rangeLabel)}</span>
+        <strong>${escapeHTML(fmtRange(effectiveRange.min, effectiveRange.max))}</strong>
+      </div>
+    </div>
     <div class="chart-container"><canvas id="chart-${id}"></canvas></div>
     <div class="chart-values">`;
-  const labels = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : dateLabels;
-  // Trim leading/trailing nulls to match chart trimming
+  // Trim leading/trailing nulls to match chart trimming, then show the most
+  // recent points only so category cards stay scannable.
   let valStart = 0, valEnd = marker.values.length - 1;
   if (!marker.singlePoint && marker.values.length > 1) {
     valStart = marker.values.findIndex(v => v !== null);
     if (valStart < 0) valStart = 0;
     while (valEnd > valStart && marker.values[valEnd] === null) valEnd--;
   }
-  for (let i = valStart; i <= valEnd; i++) {
+  const visibleValueIndexes = [];
+  for (let i = valStart; i <= valEnd; i++) visibleValueIndexes.push(i);
+  const compactValueIndexes = visibleValueIndexes.length > 4 ? visibleValueIndexes.slice(-4) : visibleValueIndexes;
+  for (const i of compactValueIndexes) {
     const v = marker.values[i];
     const ri = getEffectiveRangeForDate(marker, i);
     const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
@@ -5049,7 +6929,6 @@ export function renderChartCard(id, marker, dateLabels) {
       <div class="chart-value-num val-${s}">${v !== null ? formatValue(v) : "\u2014"}</div></div>`;
   }
   let rangeHtml = '';
-  const fmtRange = (min, max) => `${min != null ? formatValue(min) : '–'} \u2013 ${max != null ? formatValue(max) : '–'}`;
   if (state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) && (marker.refMin != null || marker.refMax != null)) {
     rangeHtml = `<div class="chart-ref-range">Ref: ${fmtRange(marker.refMin, marker.refMax)} · <span style="color:var(--green)">Optimal: ${fmtRange(marker.optimalMin, marker.optimalMax)}</span> ${escapeHTML(marker.unit)}</div>`;
   } else {
@@ -5061,6 +6940,25 @@ export function renderChartCard(id, marker, dateLabels) {
   return html;
 }
 
+function renderTableColgroup(cols) {
+  return `<colgroup>${cols.map(cls => `<col class="${escapeAttr(cls)}">`).join('')}</colgroup>`;
+}
+
+function renderScrollableTableShell(kind, wrapperClass, tableClass, colgroup, headHtml, bodyHtml, minWidth) {
+  const shellClass = `gb-table-shell gb-table-shell-${kind}`;
+  const syncScroll = "this.parentElement&&this.parentElement.style.setProperty('--gb-table-scroll-x',this.scrollLeft+'px')";
+  return `<div class="${shellClass}" style="--gb-table-min-width:${Math.max(660, Math.round(minWidth))}px">
+    <div class="gb-table-sticky-head" aria-hidden="true">
+      <div class="gb-table-sticky-head-scroll">
+        <table class="${tableClass}">${colgroup}<thead>${headHtml}</thead></table>
+      </div>
+    </div>
+    <div class="${wrapperClass}" onscroll="${syncScroll}">
+      <table class="${tableClass}">${colgroup}<thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table>
+    </div>
+  </div>`;
+}
+
 export function renderTableView(cat, dateLabels, categoryKey, dates) {
   const labels = cat.singleDate ? [cat.singleDateLabel || "N/A"] : dateLabels;
   // Hide markers with no values at all — sidebar still lists them with 0 count.
@@ -5070,14 +6968,22 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
   if (markerEntries.length === 0) {
     return `<div class="data-table-wrapper"><div style="padding:32px;text-align:center;color:var(--text-muted)">No data yet for this category. Use the sidebar to add a value or import a PDF.</div></div>`;
   }
-  let html = `<div class="data-table-wrapper"><table class="data-table"><thead><tr>
-    <th>Biomarker</th><th>Unit</th><th>Reference</th>`;
+  const colgroup = renderTableColgroup([
+    'gb-col-marker',
+    'gb-col-unit',
+    'gb-col-reference',
+    ...labels.map(() => 'gb-col-date'),
+    'gb-col-trend',
+    'gb-col-range',
+  ]);
+  let headHtml = `<tr><th>Biomarker</th><th>Unit</th><th>Reference</th>`;
   // Column headers — labels are already HTML-escaped by the showCategory
   // call site (renderTableView's contract: dateLabels passed in are safe).
   // Pre-escape lives at the boundary so CodeQL's taint analysis sees the
   // sanitizer at the call site (it doesn't trace across function calls).
-  for (const d of labels) html += `<th>${d}</th>`;
-  html += `<th>Trend</th><th>Range</th></tr></thead><tbody>`;
+  for (const d of labels) headHtml += `<th>${d}</th>`;
+  headHtml += `<th>Trend</th><th>Range</th></tr>`;
+  let bodyHtml = '';
   for (const [key, marker] of markerEntries) {
     const id = categoryKey ? categoryKey + '_' + key : '';
     const r = getEffectiveRange(marker);
@@ -5086,7 +6992,7 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
       if (marker.optimalMin != null || marker.optimalMax != null) refCell = `${formatValue(marker.refMin)} \u2013 ${formatValue(marker.refMax)}<br><span style="color:var(--green);font-size:11px">opt: ${formatValue(marker.optimalMin)} \u2013 ${formatValue(marker.optimalMax)}</span>`;
     }
     const rowClick = id ? ` onclick="showDetailModal('${id}')" style="cursor:pointer"` : '';
-    html += `<tr${rowClick}><td class="marker-name">${escapeHTML(marker.name)}</td>
+    bodyHtml += `<tr${rowClick}><td class="marker-name">${escapeHTML(marker.name)}</td>
       <td class="unit-col">${escapeHTML(marker.unit)}</td>
       <td class="ref-col">${refCell}</td>`;
     for (let i = 0; i < marker.values.length; i++) {
@@ -5105,23 +7011,23 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
       const emptyClick = (v === null && id && colDate)
         ? ` onclick="event.stopPropagation();openManualEntryForm(${escapeHTML(JSON.stringify(id))},${escapeHTML(JSON.stringify(colDate))})" style="cursor:cell" title="Add value for ${dateLabels[i] || escapeHTML(colDate)}"`
         : '';
-      html += `<td class="value-cell val-${s}"${emptyClick}>${v !== null ? formatValue(v) : "\u2014"}</td>`;
+      bodyHtml += `<td class="value-cell val-${s}"${emptyClick}>${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
     const li = getLatestValueIndex(marker.values);
     const trendRange = li !== -1 ? getEffectiveRangeForDate(marker, li) : r;
     const trend = getTrend(marker.values, trendRange.min, trendRange.max);
-    html += `<td><span class="trend-arrow ${trend.cls}">${trend.arrow}</span></td>`;
+    bodyHtml += `<td><span class="trend-arrow ${trend.cls}">${trend.arrow}</span></td>`;
     if (li !== -1 && r.min != null && r.max != null) {
       const lr = getEffectiveRangeForDate(marker, li);
       const pos = Math.max(0, Math.min(100, getRangePosition(marker.values[li], lr.min, lr.max)));
       const s = getStatus(marker.values[li], lr.min, lr.max);
-      html += `<td><div class="range-bar"><div class="range-bar-fill" style="left:0;width:100%"></div>
+      bodyHtml += `<td><div class="range-bar"><div class="range-bar-fill" style="left:0;width:100%"></div>
         <div class="range-bar-marker marker-${s}" style="left:${pos}%"></div></div></td>`;
-    } else html += `<td>\u2014</td>`;
-    html += `</tr>`;
+    } else bodyHtml += `<td>\u2014</td>`;
+    bodyHtml += `</tr>`;
   }
-  html += `</tbody></table></div>`;
-  return html;
+  const minWidth = 180 + 86 + 128 + labels.length * 104 + 78 + 112;
+  return renderScrollableTableShell('data', 'data-table-wrapper', 'data-table', colgroup, headHtml, bodyHtml, minWidth);
 }
 
 export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
@@ -5132,25 +7038,30 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
   if (markerEntries.length === 0) {
     return `<div class="heatmap-wrapper"><div style="padding:32px;text-align:center;color:var(--text-muted)">No data yet for this category. Use the sidebar to add a value or import a PDF.</div></div>`;
   }
-  let html = `<div class="heatmap-wrapper"><table class="heatmap-table"><thead><tr><th>Biomarker</th>`;
+  const colgroup = renderTableColgroup([
+    'gb-col-marker',
+    ...labels.map(() => 'gb-col-date'),
+  ]);
+  let headHtml = `<tr><th>Biomarker</th>`;
   // Labels pre-escaped at the showCategory call boundary — see renderTableView.
-  for (const d of labels) html += `<th>${d}</th>`;
-  html += `</tr></thead><tbody>`;
+  for (const d of labels) headHtml += `<th>${d}</th>`;
+  headHtml += `</tr>`;
+  let bodyHtml = '';
   for (const [key, marker] of markerEntries) {
     const id = categoryKey + "_" + key;
     state.markerRegistry[id] = marker;
-    html += `<tr><td role="button" tabindex="0" aria-label="${escapeHTML(marker.name)}" style="cursor:pointer" onclick="showDetailModal('${id}')">${escapeHTML(marker.name)}</td>`;
+    bodyHtml += `<tr><td role="button" tabindex="0" aria-label="${escapeHTML(marker.name)}" style="cursor:pointer" onclick="showDetailModal('${id}')">${escapeHTML(marker.name)}</td>`;
     for (let i = 0; i < marker.values.length; i++) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
       const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
       const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${v !== null ? formatValue(v) : 'no value'}`;
-      html += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" onclick="showDetailModal('${id}')">${v !== null ? formatValue(v) : "\u2014"}</td>`;
+      bodyHtml += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" onclick="showDetailModal('${id}')">${v !== null ? formatValue(v) : "\u2014"}</td>`;
     }
-    html += `</tr>`;
+    bodyHtml += `</tr>`;
   }
-  html += `</tbody></table></div>`;
-  return html;
+  const minWidth = 180 + labels.length * 104;
+  return renderScrollableTableShell('heatmap', 'heatmap-wrapper', 'heatmap-table', colgroup, headHtml, bodyHtml, minWidth);
 }
 
 export function renderFattyAcidsView(cat, categoryKey) {
@@ -5183,6 +7094,12 @@ export function renderFattyAcidsView(cat, categoryKey) {
 }
 
 export function renderFattyAcidsCharts(cat) {
+  if (!window.Chart) {
+    ensureChartJs().then(() => {
+      if (document.getElementById("chart-fa-bar")) renderFattyAcidsCharts(cat);
+    }).catch(() => {});
+    return;
+  }
   const tc = getChartColors();
   const names=[], vals=[], mins=[], maxs=[], bgC=[], brC=[];
   for (const m of Object.values(cat.markers)) {
@@ -5195,7 +7112,7 @@ export function renderFattyAcidsCharts(cat) {
   }
   const ctx = document.getElementById("chart-fa-bar");
   if (!ctx) return;
-  state.chartInstances["fa-bar"] = new Chart(ctx, {
+  state.chartInstances["fa-bar"] = new window.Chart(ctx, {
     type: "bar",
     data: { labels: names, datasets: [
       { label:"Value", data:vals, backgroundColor:bgC, borderColor:brC, borderWidth:1, borderRadius:4 },
@@ -5258,6 +7175,13 @@ export function showDetailModal(id, opts = {}) {
   const dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : data.dateLabels;
   const r = getEffectiveRange(marker);
   const modalPoints = marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
+  const showAllHistory = !!opts.showAllHistory;
+  const requestedHistoryLimit = Number.isFinite(opts.historyLimit)
+    ? Math.max(MARKER_HISTORY_DEFAULT_CAP, Math.floor(opts.historyLimit))
+    : MARKER_HISTORY_EXPANDED_CAP;
+  const expandedHistoryLimit = Math.min(modalPoints.length, requestedHistoryLimit);
+  const visibleHistoryPoints = showAllHistory ? modalPoints.slice(-expandedHistoryLimit) : modalPoints.slice(-MARKER_HISTORY_DEFAULT_CAP);
+  const hiddenHistoryCount = modalPoints.length - visibleHistoryPoints.length;
   const latestPoint = modalPoints[modalPoints.length - 1] || null;
   const prevPoint = modalPoints.length > 1 ? modalPoints[modalPoints.length - 2] : null;
   const firstPoint = modalPoints[0] || null;
@@ -5276,21 +7200,68 @@ export function showDetailModal(id, opts = {}) {
   const latestUnit = marker.unit || '';
   const latestDisplay = latestPoint ? formatValue(latestPoint.v) : '—';
   const latestDateLabel = latestPoint ? (dates[latestPoint.i] || 'Latest') : 'No values';
-  const rangeDisplay = `${latestRange.min != null ? formatValue(latestRange.min) : '—'}–${latestRange.max != null ? formatValue(latestRange.max) : '—'} ${latestUnit}`.trim();
+  const hasReferenceRange = marker.refMin != null || marker.refMax != null;
+  const referenceMinDisplay = hasReferenceRange && marker.refMin != null ? formatValue(marker.refMin) : latestRange.min != null ? formatValue(latestRange.min) : '—';
+  const referenceMaxDisplay = hasReferenceRange && marker.refMax != null ? formatValue(marker.refMax) : latestRange.max != null ? formatValue(latestRange.max) : '—';
+  const referenceDisplay = `${referenceMinDisplay}–${referenceMaxDisplay} ${latestUnit}`.trim();
+  const referenceMetaLabel = hasReferenceRange ? 'Ref' : 'Range';
+  const hasOptimalRange = marker.optimalMin != null && marker.optimalMax != null;
   const optimalDisplay = `${marker.optimalMin != null ? formatValue(marker.optimalMin) : '—'}–${marker.optimalMax != null ? formatValue(marker.optimalMax) : '—'} ${latestUnit}`.trim();
+  const rangeMainDisplay = hasOptimalRange ? optimalDisplay : referenceDisplay;
+  const rangeMainLabel = hasOptimalRange ? 'optimal' : referenceMetaLabel.toLowerCase();
   const clampPct = value => Math.max(0, Math.min(100, value));
+  const numericOrNull = value => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
   const rangeBandHtml = (() => {
-    const min = latestRange.min;
-    const max = latestRange.max;
-    if (min == null || max == null || Number(max) === Number(min) || !latestPoint) return '';
-    const span = Number(max) - Number(min);
-    const dot = clampPct(((Number(latestPoint.v) - Number(min)) / span) * 100);
-    const optStart = marker.optimalMin != null ? clampPct(((Number(marker.optimalMin) - Number(min)) / span) * 100) : null;
-    const optEnd = marker.optimalMax != null ? clampPct(((Number(marker.optimalMax) - Number(min)) / span) * 100) : null;
-    const optWidth = optStart != null && optEnd != null ? Math.max(2, optEnd - optStart) : 0;
+    const latestValue = latestPoint ? numericOrNull(latestPoint.v) : null;
+    const refMin = numericOrNull(marker.refMin);
+    const refMax = numericOrNull(marker.refMax);
+    const effMin = numericOrNull(latestRange.min);
+    const effMax = numericOrNull(latestRange.max);
+    const optMin = numericOrNull(marker.optimalMin);
+    const optMax = numericOrNull(marker.optimalMax);
+    const baseMin = refMin ?? effMin;
+    const baseMax = refMax ?? effMax;
+    if (baseMin == null || baseMax == null || latestValue == null || Number(baseMax) === Number(baseMin)) return '';
+    const hasOptimalBand = optMin != null && optMax != null;
+    const goodMin = hasOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
+    const goodMax = hasOptimalBand ? Math.max(optMin, optMax) : Math.max(baseMin, baseMax);
+    let min = Math.min(baseMin, baseMax);
+    let max = Math.max(baseMin, baseMax);
+    const goodSpan = goodMax - goodMin;
+    if (goodSpan > 0) {
+      const zonePad = goodSpan * 0.1;
+      if (goodMin > 0) min = Math.min(min, goodMin - zonePad);
+      max = Math.max(max, goodMax + zonePad);
+    }
+    for (const value of [goodMin, goodMax, latestValue]) {
+      if (value == null) continue;
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+    if (max === min) return '';
+    let span = max - min;
+    if (latestValue <= min) min -= span * 0.08;
+    if (latestValue >= max) max += span * 0.08;
+    span = max - min;
+    if (span <= 0) return '';
+    const dot = clampPct(((latestValue - min) / span) * 100);
+    const optStart = clampPct(((goodMin - min) / span) * 100);
+    const optEnd = clampPct(((goodMax - min) / span) * 100);
+    const optLeft = optStart != null && optEnd != null ? Math.min(optStart, optEnd) : null;
+    const optRight = optStart != null && optEnd != null ? Math.max(optStart, optEnd) : null;
+    const optWidth = optLeft != null && optRight != null ? Math.max(0, optRight - optLeft) : 0;
+    const lowZoneWidth = optLeft != null ? Math.max(0, optLeft) : 0;
+    const highZoneWidth = optRight != null ? Math.max(0, 100 - optRight) : 0;
     return `<div class="gb-range-band" aria-label="Range position">
-      <div class="gb-range-band-track"></div>
-      ${optWidth ? `<div class="gb-range-band-opt" style="left:${optStart}%;width:${optWidth}%"></div>` : ''}
+      <div class="gb-range-band-track">
+        ${lowZoneWidth ? `<div class="gb-range-band-zone gb-range-band-zone-low" style="left:0%;width:${lowZoneWidth}%"></div>` : ''}
+        ${highZoneWidth ? `<div class="gb-range-band-zone gb-range-band-zone-high" style="left:${optRight}%;width:${highZoneWidth}%"></div>` : ''}
+        ${optWidth ? `<div class="gb-range-band-opt" style="left:${optLeft}%;width:${optWidth}%"></div>` : ''}
+      </div>
       <div class="gb-range-band-dot gb-range-band-dot-${escapeAttr(latestStatus)}" style="left:${dot}%"></div>
       <div class="gb-range-band-scale"><span>${escapeHTML(formatValue(min))}</span><span>${escapeHTML(formatValue(max))}</span></div>
     </div>`;
@@ -5325,6 +7296,7 @@ export function showDetailModal(id, opts = {}) {
   } else if (isCustom) {
     rangeInfo = refEditable('Reference', '–', '–', 'ref');
   }
+  const rangeCardControls = rangeInfo ? rangeInfo.replace(/^ &middot; /, '') : '';
   const isRenamed = !!state.importedData?.markerLabels?.[dotKey];
   const renameLink = isRenamed
     ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" onclick="event.stopPropagation();revertMarkerName('${id}')" style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`
@@ -5361,15 +7333,21 @@ export function showDetailModal(id, opts = {}) {
       altUnitInfo = `<div class="modal-unit modal-unit-alt" title="Same marker, alternate unit system">≈ ${escapeHTML(altUnit)}${altRanges}</div>`;
     }
   }
-  let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
-    <div class="gb-detail-head">
+  const quickMarkerPinned = isDashboardQuickMarkerPinned(id);
+  const quickMarkerPinText = quickMarkerPinned ? 'Pinned' : 'Pin';
+  const quickMarkerPinTitle = quickMarkerPinned ? 'Remove from Quick Markers' : 'Pin to Quick Markers';
+  let html = `<div class="gb-detail-head">
       <div>
         <div class="gb-detail-kicker">${escapeHTML(data.categories[catKey]?.label || catKey)}</div>
         <h3>${escapeHTML(marker.name)}${renameLink}</h3>
-        <div class="modal-unit">${escapeHTML(marker.unit)}${rangeInfo}</div>
+        <div class="modal-unit">${escapeHTML(marker.unit)}</div>
         ${altUnitInfo}
       </div>
-      <span class="gb-detail-status gb-detail-status-${escapeAttr(latestStatus)}">${escapeHTML(statusText)}</span>
+      <div class="gb-detail-head-actions">
+        <button type="button" class="gb-detail-pin-btn${quickMarkerPinned ? ' is-pinned' : ''}" aria-pressed="${quickMarkerPinned ? 'true' : 'false'}" title="${escapeAttr(quickMarkerPinTitle)}" onclick="window.toggleDashboardQuickMarkerPin('${id}')">${escapeHTML(quickMarkerPinText)}</button>
+        <span class="gb-detail-status gb-detail-status-${escapeAttr(latestStatus)}">${escapeHTML(statusText)}</span>
+      </div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
     </div>
     <div class="marker-description" id="marker-desc"></div>
     <div class="gb-detail-summary">
@@ -5380,18 +7358,18 @@ export function showDetailModal(id, opts = {}) {
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Ranges</div>
-        <div class="stat-card-value stat-card-value-range">${escapeHTML(optimalDisplay)} <span>optimal</span></div>
-        <div class="stat-card-meta">Ref ${escapeHTML(rangeDisplay)}${deltaFromFirst != null ? ` · ${deltaFromFirst >= 0 ? '+' : ''}${deltaFromFirst.toFixed(1)}% vs first` : ''}</div>
+        <div class="stat-card-value stat-card-value-range">${escapeHTML(rangeMainDisplay)} <span>${escapeHTML(rangeMainLabel)}</span></div>
+        <div class="stat-card-meta">${escapeHTML(referenceMetaLabel)} ${escapeHTML(referenceDisplay)}${deltaFromFirst != null ? ` · ${deltaFromFirst >= 0 ? '+' : ''}${deltaFromFirst.toFixed(1)}% vs first` : ''}</div>
+        ${rangeCardControls ? `<div class="stat-card-range-controls">${rangeCardControls}</div>` : ''}
       </div>
     </div>
     ${rangeBandHtml}
     <div class="gb-detail-section-label">Trend</div>
     <div class="modal-chart"><canvas id="chart-modal"></canvas></div>
     <div class="gb-detail-section-label">History</div>
-    <div class="modal-values-grid">`;
-  for (let i = 0; i < marker.values.length; i++) {
-    const v = marker.values[i];
-    if (v === null) continue;
+    <div class="modal-values-grid marker-history-list">`;
+  for (const point of visibleHistoryPoints) {
+    const { v, i } = point;
     const ri = getEffectiveRangeForDate(marker, i);
     const s = getStatus(v, ri.min, ri.max);
     const sl = s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":"Unknown";
@@ -5399,7 +7377,7 @@ export function showDetailModal(id, opts = {}) {
     const phaseInfo = phaseLabel ? `<div class="mv-phase">${phaseLabel} \u2022 ${formatValue(ri.min)}\u2013${formatValue(ri.max)}</div>` : '';
     const rawDate = marker.singlePoint ? null : data.dates[i];
     const matchingNote = rawDate && state.importedData.notes ? state.importedData.notes.find(n => n.date === rawDate) : null;
-    const noteIcon = matchingNote ? `<div class="mv-note" onclick="event.stopPropagation();this.parentElement.parentElement.querySelector('.mv-note-text').classList.toggle('show')">&#128221;</div><div class="mv-note-text">${escapeHTML(matchingNote.text)}</div>` : '';
+    const noteIcon = matchingNote ? `<button type="button" class="mv-note" onclick="event.stopPropagation();this.parentElement.parentElement.querySelector('.mv-note-text').classList.toggle('show')">Note</button><div class="mv-note-text">${escapeHTML(matchingNote.text)}</div>` : '';
     const mvKey = dotKey + ':' + rawDate;
     const manualVal = rawDate && state.importedData.manualValues && state.importedData.manualValues[mvKey];
     const isManual = manualVal !== undefined && manualVal !== null;
@@ -5437,12 +7415,27 @@ export function showDetailModal(id, opts = {}) {
       : '';
     const altVal = (hasConv && state.showAltUnits) ? getAlternateUnit(dotKey, v, isUSMode) : null;
     const altLine = altVal ? `<div class="mv-alt" title="Same value, alternate unit">≈ ${formatValue(altVal.value)} ${escapeHTML(altVal.unit)}</div>` : '';
-    html += `<div class="modal-value-card status-${s}">${deleteBtn}<div class="mv-date">${dates[i]}${noteIcon}</div>${sourceHtml}
-      <div class="mv-value val-${s}"${editClick}>${formatValue(v)}${manualBadge}</div>${altLine}
-      <div class="mv-status val-${s}">${sl}</div>${phaseInfo}${valueNoteHtml}</div>`;
+    html += `<div class="modal-value-card marker-history-row status-${s}">${deleteBtn}
+      <div class="marker-history-date-row"><div class="mv-date">${dates[i]}${noteIcon}</div>${sourceHtml}</div>
+      <div class="marker-history-value-row"><div class="mv-value val-${s}"${editClick}>${formatValue(v)}${manualBadge}</div><div class="mv-status val-${s}">${sl}</div></div>
+      ${altLine}${phaseInfo}${valueNoteHtml}</div>`;
   }
   html += `</div>`;
-  const nonNull = marker.values.map((v,i)=>({v,i})).filter(x=>x.v!==null);
+  if (hiddenHistoryCount > 0) {
+    const nextHistoryLimit = showAllHistory
+      ? Math.min(modalPoints.length, expandedHistoryLimit + MARKER_HISTORY_EXPANDED_CAP)
+      : MARKER_HISTORY_EXPANDED_CAP;
+    const showCount = showAllHistory
+      ? Math.min(MARKER_HISTORY_EXPANDED_CAP, hiddenHistoryCount)
+      : Math.min(MARKER_HISTORY_EXPANDED_CAP, hiddenHistoryCount);
+    const historyButtonLabel = showAllHistory
+      ? `Show ${showCount} older ${showCount === 1 ? 'value' : 'values'}`
+      : `View more history (${modalPoints.length} values)`;
+    html += `<button class="light-sessions-show-more marker-history-show-more" onclick="event.stopPropagation();showDetailModal('${id}', { showAllHistory: true, historyLimit: ${nextHistoryLimit}, scrollToHistory: true })">${historyButtonLabel}</button>`;
+  } else if (showAllHistory && modalPoints.length > MARKER_HISTORY_DEFAULT_CAP) {
+    html += `<button class="light-sessions-show-more marker-history-show-more" onclick="event.stopPropagation();showDetailModal('${id}', { scrollToHistory: true })">Show last ${MARKER_HISTORY_DEFAULT_CAP} values</button>`;
+  }
+  const nonNull = modalPoints;
   if (nonNull.length >= 2) {
     const f = nonNull[0], l = nonNull[nonNull.length-1];
     const ch = l.v - f.v, pct = ((ch/f.v)*100).toFixed(1);
@@ -5582,8 +7575,11 @@ export function showDetailModal(id, opts = {}) {
   }
   // Collect inline SNPs for the unified rec section (genetics + actionable tips together)
   const _inlineSNPs = (state.importedData.genetics?.snps && window._getRelevantSNPs) ? window._getRelevantSNPs(dotKey) : [];
-  // Add Value (Manually) — primary action, kept above Note so it's the first thing users see below the values grid.
-  html += `<button class="manual-entry-btn" onclick="event.stopPropagation();openManualEntryForm('${id}')">+ Add Value Manually</button>`;
+  html += `<div class="gb-detail-actions">
+    <div class="gb-detail-action-row">
+      <button class="manual-entry-btn" onclick="event.stopPropagation();openManualEntryForm('${id}')">+ Add Value Manually</button>
+      <button class="ask-ai-btn" onclick="event.stopPropagation();askAIAboutMarker('${id}')">Ask AI</button>
+    </div>`;
   // Marker note
   const markerNote = state.importedData.markerNotes?.[dotKey] || '';
   html += `<div class="marker-note-section">
@@ -5595,20 +7591,26 @@ export function showDetailModal(id, opts = {}) {
         <button class="import-btn import-btn-primary" onclick="event.stopPropagation();saveMarkerNote('${dotKey}','${id}')">Save</button>
         <button class="import-btn import-btn-secondary" onclick="event.stopPropagation();toggleMarkerNoteEditor('${dotKey}')">Cancel</button>
         ${markerNote ? `<button class="import-btn import-btn-secondary" style="color:var(--red)" onclick="event.stopPropagation();deleteMarkerNote('${dotKey}','${id}')">Delete</button>` : ''}
-      </div>
-    </div>
-  </div>`;
+	      </div>
+	    </div>
+	  </div>`;
   // Recommendation placeholder — shown for any marker with a catalog slot
   if (window.isProductRecsEnabled && window.isProductRecsEnabled()) {
     html += `<div id="rec-modal-${id}"></div>`;
   }
-  html += `<button class="ask-ai-btn" onclick="event.stopPropagation();askAIAboutMarker('${id}')">Ask AI about this marker</button>`;
+  html += `</div>`;
   // Show delete link for custom markers only
   if (state.importedData?.customMarkers?.[dotKey]) {
     html += `<div style="text-align:center;margin-top:8px"><a href="#" style="color:var(--text-muted);font-size:0.8rem" onclick="event.preventDefault();event.stopPropagation();deleteCustomMarker('${id}')">Delete this marker</a></div>`;
   }
   modal.innerHTML = html;
   overlay.classList.add("show");
+  if (opts.scrollToHistory) {
+    setTimeout(() => {
+      const historyEl = modal.querySelector('.marker-history-list');
+      if (historyEl) historyEl.scrollIntoView({ block: 'start' });
+    }, 0);
+  }
   // Async-fill recommendation section (unified: genetics + actionable tips)
   if (window.renderRecommendationSection) {
     const _latestVal = marker.values?.filter(v => v !== null).pop();
@@ -6250,7 +8252,7 @@ export function closeModal() {
 export function showCompare(data) {
   if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
-  let html = `<div class="category-header"><h2>\u2194 Compare Dates</h2>
+  let html = `<div class="category-header"><h2>Compare Dates</h2>
     <p>Side-by-side comparison of biomarker values between two collection dates</p></div>`;
   if (data.dates.length < 2) {
     html += `<div class="empty-state"><div class="empty-state-icon">\u2194</div>
@@ -6265,11 +8267,13 @@ export function showCompare(data) {
     return `<option value="${d}">${label}</option>`;
   };
   html += `<div class="compare-controls">
-    <label for="compare-select-1">Date 1:</label>
-    <select id="compare-select-1" onchange="setCompareDate1(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
+    <label class="compare-date-field" for="compare-select-1"><span>Date 1:</span>
+      <select id="compare-select-1" onchange="setCompareDate1(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
+    </label>
     <button class="compare-swap-btn" onclick="swapCompareDates()" title="Swap dates" aria-label="Swap dates">\u21C4</button>
-    <label for="compare-select-2">Date 2:</label>
-    <select id="compare-select-2" onchange="setCompareDate2(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
+    <label class="compare-date-field" for="compare-select-2"><span>Date 2:</span>
+      <select id="compare-select-2" onchange="setCompareDate2(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
+    </label>
   </div>`;
   html += `<div id="compare-results"></div>`;
   main.innerHTML = html;
@@ -6305,9 +8309,19 @@ export function swapCompareDates() {
 export function renderCompareTable(data, idx1, idx2) {
   const d1Label = data.dateLabels[idx1];
   const d2Label = data.dateLabels[idx2];
-  let html = `<div class="compare-table-wrapper"><table class="compare-table"><thead><tr>
+  const colgroup = renderTableColgroup([
+    'gb-col-marker',
+    'gb-col-unit',
+    'gb-col-reference',
+    'gb-col-compare-date',
+    'gb-col-compare-date',
+    'gb-col-delta',
+    'gb-col-delta',
+  ]);
+  const headHtml = `<tr>
     <th>Biomarker</th><th>Unit</th><th>Reference</th>
-    <th>${d1Label}</th><th>${d2Label}</th><th>Delta</th><th>% Change</th></tr></thead><tbody>`;
+    <th>${d1Label}</th><th>${d2Label}</th><th>Delta</th><th>% Change</th></tr>`;
+  let bodyHtml = '';
   for (const [catKey, cat] of Object.entries(data.categories)) {
     if (cat.singlePoint) continue;
     const rows = [];
@@ -6344,12 +8358,11 @@ export function renderCompareTable(data, idx1, idx2) {
       </tr>`);
     }
     if (rows.length > 0) {
-      html += `<tr class="cat-row"><td colspan="7">${escapeHTML(cat.icon)} ${escapeHTML(cat.label)}</td></tr>`;
-      html += rows.join('');
+      bodyHtml += `<tr class="cat-row"><td colspan="7"><span class="compare-category-label">${renderCategoryGlyph(catKey, cat.label)}<span>${escapeHTML(cat.label)}</span></span></td></tr>`;
+      bodyHtml += rows.join('');
     }
   }
-  html += `</tbody></table></div>`;
-  return html;
+  return renderScrollableTableShell('compare', 'compare-table-wrapper', 'compare-table', colgroup, headHtml, bodyHtml, 866);
 }
 
 // ═══════════════════════════════════════════════
@@ -6359,7 +8372,7 @@ export function renderCompareTable(data, idx1, idx2) {
 export function showCorrelations(data) {
   if (!data) data = getActiveData();
   const main = document.getElementById("main-content");
-  let html = `<div class="category-header"><h2>\uD83D\uDCC8 Correlations</h2>
+  let html = `<div class="category-header"><h2>Correlations</h2>
     <p>Compare biomarkers across categories on a normalized scale</p></div>`;
   html += `<div class="correlation-controls">
     <h3>Select Biomarkers (2\u20138)</h3>
@@ -6464,6 +8477,12 @@ export function renderCorrelationChart() {
   if (state.chartInstances["correlation"]) { state.chartInstances["correlation"].destroy(); delete state.chartInstances["correlation"]; }
   const canvas = document.getElementById("chart-correlation");
   if (!canvas) return;
+  if (!window.Chart) {
+    ensureChartJs().then(() => {
+      if (document.getElementById("chart-correlation")) renderCorrelationChart();
+    }).catch(() => {});
+    return;
+  }
   const datasets = [];
   state.selectedCorrelationMarkers.forEach((key, i) => {
     const [catKey, markerKey] = key.split('.');
@@ -6488,7 +8507,7 @@ export function renderCorrelationChart() {
   const minY = Math.min(0, ...allVals) - 10;
   const maxY = Math.max(100, ...allVals) + 10;
   const tc = getChartColors();
-  state.chartInstances["correlation"] = new Chart(canvas, {
+  state.chartInstances["correlation"] = new window.Chart(canvas, {
     type: "line",
     data: { labels: data.dateLabels, datasets },
     options: {
@@ -6685,7 +8704,17 @@ function deleteMarkerNote(dotKey, id) {
 
 Object.assign(window, {
   navigate,
+  getInitialView,
   showDashboard,
+  showLabs,
+  showGenomeLens,
+  showBodyLens,
+  showInsightLens,
+  showRecommendations,
+  openRecommendationDetail,
+  discussRecommendation,
+  saveRecommendation,
+  dismissRecommendation,
   showLight,
   _expandLightToolsSection,
   _toggleChannelDetail,

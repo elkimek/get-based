@@ -434,8 +434,35 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 17. v1.6.7 copy fixes ', 'font-weight:bold;color:#0891b2');
   {
     const viewsSrc = fetchSrc('js/views.js');
+    const cssSrc = fetchSrc('styles.css');
+    const tooltipSrc = fetchSrc('js/touch-tooltip.js');
     assert('views.js: "Today\'s sun timeline" replaces "TODAY\'S SUN ARC"',
       /Today's sun timeline/.test(viewsSrc) && !/Today's sun arc/.test(viewsSrc));
+    assert('views.js: sun timeline renders as a rail with dots',
+      /conditions-now-events-rail/.test(viewsSrc) && /conditions-now-event-dot/.test(viewsSrc));
+    assert('styles.css: sun timeline rail scrolls instead of wrapping',
+      /\.conditions-now-events\s*\{[\s\S]{0,180}overflow-x:\s*auto/.test(cssSrc)
+      && /conditions-now-events-rail/.test(cssSrc));
+    assert('styles.css: Conditions Now widget chrome owns the visible title',
+      /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-title\s*\{[\s\S]{0,80}display:\s*none/.test(cssSrc));
+    assert('styles.css: Conditions Now grid responds to widget width',
+      /container-name:\s*conditions-now/.test(cssSrc)
+      && /@container conditions-now \(max-width:\s*300px\)/.test(cssSrc));
+    assert('views.js: Conditions Now uses data tooltips instead of native timeline titles',
+      /data-conditions-tooltip/.test(viewsSrc)
+      && !/conditions-now-event[\s\S]{0,220}title=/.test(viewsSrc));
+    assert('touch-tooltip.js: app-wide tooltip handles title and data tooltip attrs',
+      /data-app-tooltip/.test(tooltipSrc)
+      && /data-conditions-tooltip/.test(tooltipSrc)
+      && /getAttribute\('title'\)/.test(tooltipSrc)
+      && /removeAttribute\('title'\)/.test(tooltipSrc));
+    assert('touch-tooltip.js: mobile taps do not leave focus tooltips behind',
+      /let _lastTouchAt\s*=\s*0/.test(tooltipSrc)
+      && /Date\.now\(\)\s*-\s*_lastTouchAt\s*<\s*1000/.test(tooltipSrc)
+      && /document\.addEventListener\('click',\s*_hideTooltip,\s*true\)/.test(tooltipSrc));
+    assert('styles.css: app tooltip overlay is fixed and unclipped',
+      /\.app-tooltip\s*\{[\s\S]{0,160}position:\s*fixed/.test(cssSrc)
+      && /\.app-tooltip\.is-visible/.test(cssSrc));
     assert('views.js: EAQI label rendered as "EU air quality index"',
       /EU air quality index/.test(viewsSrc));
     assert('views.js: cloud chip uses "clear-sky max UVI"',
@@ -445,6 +472,120 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     const sunSrc = fetchSrc('js/sun.js');
     assert('sun.js: Eyes-mode option shortened ("never stare at sun")',
       /Eyes uncovered \(never stare at sun\)/.test(sunSrc));
+  }
+
+  // ─── 18. Refresh restores the active view ───────────────────────────
+  console.log('%c 18. refresh restores active view ', 'font-weight:bold;color:#0891b2');
+  {
+    const mainSrc = fetchSrc('js/main.js');
+    const profileSrc = fetchSrc('js/profile.js');
+    const viewsSrc = fetchSrc('js/views.js');
+    assert('views.js: last route is stored per active profile',
+      /profileStorageKey\(state\.currentProfile \|\| 'default',\s*'lastViewV1'\)/.test(viewsSrc)
+      && /localStorage\.setItem\(_lastViewStorageKey\(\),\s*route\)/.test(viewsSrc));
+    assert('views.js: saved route is validated before restore',
+      /export function getInitialView\(\)/.test(viewsSrc)
+      && /return _isKnownRoute\(saved\) \? saved : 'dashboard'/.test(viewsSrc));
+    assert('views.js: navigate falls back when a saved category is stale',
+      /const routeCategory\s*=\s*_isKnownRoute\(requestedCategory,\s*data\)\s*\? requestedCategory : 'dashboard'/.test(viewsSrc));
+    assert('main.js: boot navigates to stored route instead of hard Dashboard',
+      /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(mainSrc)
+      && !/window\.showDashboard\(\);/.test(mainSrc));
+    assert('profile.js: profile switch restores that profile route',
+      /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(profileSrc));
+  }
+
+  // ─── 19. Category marker card redesign ──────────────────────────────
+  console.log('%c 19. category marker card redesign ', 'font-weight:bold;color:#0891b2');
+  {
+    const viewsSrc = fetchSrc('js/views.js');
+    const dataSrc = fetchSrc('js/data.js');
+    const cssSrc = fetchSrc('styles.css');
+    assert('views.js: marker cards render latest-value summary before chart',
+      /chart-card-snapshot/.test(viewsSrc)
+      && /chart-card-latest-value/.test(viewsSrc)
+      && /visibleValueIndexes\.length > 4 \? visibleValueIndexes\.slice\(-4\)/.test(viewsSrc));
+    assert('styles.css: category chart content uses full available width',
+      /#view-content\s*\{[\s\S]{0,80}width:\s*100%/.test(cssSrc)
+      && /\.charts-grid\s*\{[\s\S]{0,180}width:\s*100%/.test(cssSrc));
+    assert('styles.css: marker cards stretch to preserve row alignment',
+      /\.charts-grid\s*\{[\s\S]{0,220}align-items:\s*stretch/.test(cssSrc)
+      && /\.chart-card\s*\{[\s\S]{0,260}height:\s*100%/.test(cssSrc)
+      && /\.chart-card-meta\s*\{[\s\S]{0,180}flex-wrap:\s*nowrap/.test(cssSrc));
+    assert('styles.css: marker cards are compact summary-first cards',
+      /\.chart-card-snapshot\s*\{/.test(cssSrc)
+      && /\.chart-container\s*\{[^\}]*height:\s*150px/.test(cssSrc)
+      && /\.chart-values\s*\{[\s\S]{0,140}grid-template-columns:\s*repeat\(4/.test(cssSrc));
+    assert('views.js: tips nudge does not cover open marker modal',
+      /const modalOpen\s*=\s*!!document\.querySelector\('\.modal-overlay\.show'\)/.test(viewsSrc)
+      && /recLinks\.length > 0 && !modalOpen/.test(viewsSrc));
+    assert('data.js: range mode switch paints the active pill before heavy rebuild',
+      /function _afterNextPaint\(fn\)/.test(dataSrc)
+      && /window\.requestAnimationFrame\(\(\) => setTimeout\(fn,\s*0\)\)/.test(dataSrc)
+      && /const token\s*=\s*\+\+_rangeModeRefreshToken/.test(dataSrc)
+      && /_afterNextPaint\(\(\) => \{[\s\S]{0,500}window\.navigate\(state\.currentView \|\| 'dashboard',\s*data\)/.test(dataSrc));
+    assert('data.js: header range toggle patches existing buttons',
+      /const canPatch\s*=/.test(dataSrc)
+      && /btn\.classList\.toggle\('active',\s*active\)/.test(dataSrc)
+      && /data-range="\$\{m\}"/.test(dataSrc));
+    assert('data.js: active data cache avoids rebuilding marker data during modal browsing',
+      /let _activeDataCache\s*=\s*null/.test(dataSrc)
+      && /export function invalidateActiveDataCache\(\)/.test(dataSrc)
+      && /if \(_activeDataCacheMatches\(cacheMeta\)\) return _activeDataCache/.test(dataSrc)
+      && /profileDob:\s*state\.profileDob/.test(dataSrc)
+      && /wearableWeightLatest/.test(dataSrc)
+      && /legacyWeightStamp/.test(dataSrc)
+      && /saveImportedData\(\)[\s\S]{0,120}invalidateActiveDataCache\(\)/.test(dataSrc)
+      && /switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataSrc));
+    assert('views.js: marker category surfaces use coded glyphs instead of emoji icons',
+      /function renderCategoryGlyph\(categoryKey,\s*label/.test(viewsSrc)
+      && /renderCategoryGlyph\(categoryKey,\s*cat\.label\)/.test(viewsSrc)
+      && /empty-state-icon-category/.test(viewsSrc)
+      && /compare-category-label/.test(viewsSrc)
+      && !/Click to change icon/.test(viewsSrc));
+    assert('styles.css: category glyph has redesigned non-emoji treatment',
+      /\.category-glyph\s*\{[\s\S]{0,520}font-family:\s*var\(--font-mono\)/.test(cssSrc)
+      && /\.compare-category-label\s*\{/.test(cssSrc));
+    assert('views.js: marker detail modal uses compact redesigned sections',
+      /stat-card-range-controls/.test(viewsSrc)
+      && /marker-history-list/.test(viewsSrc)
+      && /marker-history-row/.test(viewsSrc)
+      && /gb-detail-actions/.test(viewsSrc)
+      && !/&#128221;/.test(viewsSrc));
+    assert('views.js: marker modal history defaults to last three with inline expansion',
+      /MARKER_HISTORY_DEFAULT_CAP\s*=\s*3/.test(viewsSrc)
+      && /MARKER_HISTORY_EXPANDED_CAP\s*=\s*40/.test(viewsSrc)
+      && /modalPoints\.slice\(-MARKER_HISTORY_DEFAULT_CAP\)/.test(viewsSrc)
+      && /modalPoints\.slice\(-expandedHistoryLimit\)/.test(viewsSrc)
+      && /historyLimit:\s*\$\{nextHistoryLimit\}/.test(viewsSrc)
+      && /View more history \(\$\{modalPoints\.length\} values\)/.test(viewsSrc)
+      && /Show \$\{showCount\} older/.test(viewsSrc)
+      && /Show last \$\{MARKER_HISTORY_DEFAULT_CAP\} values/.test(viewsSrc));
+    assert('views.js: marker range band uses reference scale instead of full-width optimal green',
+      /const refMin\s*=\s*numericOrNull\(marker\.refMin\)/.test(viewsSrc)
+      && /const effMin\s*=\s*numericOrNull\(latestRange\.min\)/.test(viewsSrc)
+      && /const baseMin\s*=\s*refMin \?\? effMin/.test(viewsSrc)
+      && /const hasOptimalBand\s*=\s*optMin != null && optMax != null/.test(viewsSrc)
+      && /const goodMin\s*=\s*hasOptimalBand \? Math\.min\(optMin, optMax\) : Math\.min\(baseMin, baseMax\)/.test(viewsSrc)
+      && /const zonePad\s*=\s*goodSpan \* 0\.1/.test(viewsSrc)
+      && /for \(const value of \[goodMin, goodMax, latestValue\]\)/.test(viewsSrc)
+      && /if \(latestValue >= max\) max \+= span \* 0\.08/.test(viewsSrc)
+      && /const referenceDisplay\s*=/.test(viewsSrc)
+      && /const referenceMetaLabel\s*=\s*hasReferenceRange \? 'Ref' : 'Range'/.test(viewsSrc)
+      && /const rangeMainDisplay\s*=\s*hasOptimalRange \? optimalDisplay : referenceDisplay/.test(viewsSrc));
+    assert('views.js/styles.css: marker range band colors non-optimal zones',
+      /gb-range-band-zone-low/.test(viewsSrc)
+      && /gb-range-band-zone-high/.test(viewsSrc)
+      && /const lowZoneWidth\s*=/.test(viewsSrc)
+      && /const highZoneWidth\s*=/.test(viewsSrc)
+      && /\.gb-range-band-zone-low\s*\{[\s\S]{0,120}var\(--yellow\)/.test(cssSrc)
+      && /\.gb-range-band-zone-high\s*\{[\s\S]{0,120}var\(--red\)/.test(cssSrc));
+    assert('styles.css: marker detail modal has opaque sticky header and compact history',
+      /\.gb-detail-head\s*\{[\s\S]{0,360}z-index:\s*20[\s\S]{0,360}background:\s*var\(--bg-secondary\)/.test(cssSrc)
+      && /\.marker-detail-modal \.marker-history-row\s*\{[\s\S]{0,420}grid-template-columns:\s*minmax\(0,\s*1fr\)\s*auto/.test(cssSrc)
+      && /\.marker-detail-modal \.marker-history-row\s*\{[\s\S]{0,520}content-visibility:\s*auto/.test(cssSrc)
+      && /\.marker-detail-modal \.gb-detail-actions\s*\{[\s\S]{0,260}border-top:\s*1px solid var\(--border\)/.test(cssSrc)
+      && /\.modal\.marker-detail-modal\s*\{\s*padding:\s*0/.test(cssSrc));
   }
 
   // ─── Restore state ──────────────────────────────────────────────────

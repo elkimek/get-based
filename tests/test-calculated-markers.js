@@ -287,6 +287,13 @@ const state = window._labState;
   assert('Biological Age equals (PhenoAge + Bortz) / 2',
     bioAge === Math.round(((phenoCheck + bortzCheck) / 2) * 10) / 10,
     `${bioAge} vs (${phenoCheck} + ${bortzCheck}) / 2`);
+  const viewsSrc = fs.readFileSync(path.join(_ROOT, 'js/views.js'), 'utf-8');
+  assert('Dashboard Biological Age widget reads calculated biologicalAge marker',
+    viewsSrc.includes("['calculatedRatios', 'biologicalAge']"));
+  assert('Dashboard Biological Age widget reads calculated PhenoAge row',
+    viewsSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')"));
+  assert('Dashboard Biological Age widget reads calculated Bortz row',
+    viewsSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')"));
 
   // ── Biological Age: only PhenoAge available → uses PhenoAge alone ──
   state.importedData.entries = [{

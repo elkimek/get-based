@@ -2,15 +2,115 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled } from './utils.js';
-import { getTheme, setTheme, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
+import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
 import { getAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICompatible } from './pii.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { isSyncEnabled, enableSync, disableSync, getMnemonic, getMnemonicResolutionError, getSyncBlocker, restoreFromMnemonic, getSyncRelay, setSyncRelay, checkRelayConnection, isMessengerEnabled, getMessengerToken, generateMessengerToken, revokeMessengerToken, pushContextToGateway } from './sync.js';
 import { renderWearablesSettingsSection } from './wearables.js';
-import './provider-panels.js';
 
+let _providerPanelsLoad = null;
+
+function loadProviderPanels() {
+  if (!_providerPanelsLoad) _providerPanelsLoad = import('./provider-panels.js');
+  return _providerPanelsLoad;
+}
+
+function renderAIProviderPanelBridge(provider) {
+  loadProviderPanels().then(() => {
+    const panel = document.getElementById('ai-provider-panel');
+    if (panel && typeof window.renderAIProviderPanel === 'function' && window.renderAIProviderPanel !== renderAIProviderPanelBridge) {
+      panel.innerHTML = window.renderAIProviderPanel(provider || getAIProvider());
+    }
+  }).catch(() => {});
+  return '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
+}
+
+function installProviderPanelBridge(name) {
+  if (typeof window[name] === 'function') return;
+  const bridge = async function(...args) {
+    await loadProviderPanels();
+    const fn = window[name];
+    if (typeof fn !== 'function' || fn === bridge) return undefined;
+    return fn(...args);
+  };
+  window[name] = bridge;
+}
+
+window.renderAIProviderPanel = renderAIProviderPanelBridge;
+[
+  'toggleAIPause',
+  'switchAIProvider',
+  'initSettingsModelFetch',
+  'initSettingsOllamaCheck',
+  'testOllamaConnection',
+  'testPIIOllamaConnection',
+  'refreshVeniceBalance',
+  'updateVeniceModelPricing',
+  'toggleVeniceE2EE',
+  'updateOpenRouterModelPricing',
+  'updateRoutstrModelPricing',
+  'handleSaveVeniceKey',
+  'handleRemoveVeniceKey',
+  'renderVeniceModelDropdown',
+  'handleSaveOpenRouterKey',
+  'handleRemoveOpenRouterKey',
+  'renderOpenRouterModelDropdown',
+  'applyCustomOpenRouterModel',
+  'onOpenRouterDropdownChange',
+  'handleSaveRoutstrKey',
+  'handleRemoveRoutstrKey',
+  'renderRoutstrModelDropdown',
+  'refreshCashuWalletBalance',
+  'refreshRoutstrBalance',
+  'showRoutstrWalletFund',
+  'rsWalletFundCustomInput',
+  'doRoutstrWalletFundCustom',
+  'doRoutstrWalletFund',
+  'doRoutstrWalletReceiveCashu',
+  'showRoutstrMintEdit',
+  'doRoutstrMintChange',
+  'showRoutstrWalletBackup',
+  'showRoutstrNodePicker',
+  'connectRoutstrNode',
+  'doRoutstrNodeDeposit',
+  'doRoutstrNodeWithdraw',
+  '_setActiveNodeAction',
+  'walletSeedAcknowledged',
+  'showWalletSeedPhrase',
+  'showRoutstrWithdraw',
+  'showRoutstrWithdrawLightning',
+  'showRoutstrWithdrawToken',
+  'doRoutstrSendToken',
+  'doRoutstrWithdrawQuote',
+  'doRoutstrWithdrawExecute',
+  'doRoutstrWalletRestore',
+  'handleCreatePpqAccount',
+  'dismissPpqKeyReveal',
+  'handleSavePpqKey',
+  'handleRemovePpqKey',
+  'renderPpqModelDropdown',
+  'updatePpqModelPricing',
+  'refreshPpqBalance',
+  'showPpqTopup',
+  'selectPpqMethod',
+  'doPpqTopup',
+  'ppqShowCustomInput',
+  'doPpqTopupCustom',
+  'cancelPpqTopup',
+  'refreshOpenRouterBalance',
+  'showInsufficientBalanceDialog',
+  'handleSaveCustomApi',
+  'handleRemoveCustomApi',
+  'renderCustomApiModelDropdown',
+  'applyCustomApiManualModel',
+  'updateCustomModelPricing',
+  'copyOllamaPullCmd',
+  'refreshModelAdvisor',
+  'applyHardwareOverride',
+  'clearHardwareOverride',
+].forEach(installProviderPanelBridge);
 
 // ═══════════════════════════════════════════════
 // SETTINGS MODAL
@@ -18,14 +118,26 @@ import './provider-panels.js';
 let _activeSettingsTab = 'display';
 
 const ACCENT_STORAGE_KEY = 'labcharts-accent-override';
+const THEME_DEFAULT_ACCENTS = {
+  dark: { color: '#4f8cff', light: '#6ba0ff', fill: 'rgba(79, 140, 255, 0.10)', gradient: 'linear-gradient(135deg, #4f8cff 0%, #6366f1 100%)' },
+  light: { color: '#3b7cf5', light: '#2b6ce5', fill: 'rgba(59,124,245,0.10)', gradient: 'linear-gradient(135deg, #3b7cf5 0%, #5b5bf6 100%)' },
+  cyberterm: { color: '#4ade80', light: '#6df09a', fill: 'rgba(74,222,128,0.10)', gradient: 'linear-gradient(135deg, #4ade80 0%, #4ade80 100%)' },
+  glass: { color: '#c986ff', light: '#e0a5ff', fill: 'rgba(201,134,255,0.10)', gradient: 'linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%)' },
+  'synth-sunrise': { color: '#ff2bd6', light: '#ff6ce0', fill: 'rgba(255,43,214,0.10)', gradient: 'linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%)' },
+  neuromancer: { color: '#00e5ff', light: '#5cf2ff', fill: 'rgba(0,229,255,0.10)', gradient: 'linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%)' },
+};
 const TWEAK_ACCENTS = [
-  { id: '', label: 'Theme default', color: 'var(--accent)', gradient: 'var(--accent-gradient)', light: 'var(--accent-light)', fill: 'var(--accent-fill)' },
+  { id: '', label: 'Theme default' },
   { id: 'blue', label: 'Blue', color: '#4f8cff', light: '#6ba0ff', fill: 'rgba(79, 140, 255, 0.10)', gradient: 'linear-gradient(135deg, #4f8cff 0%, #6366f1 100%)' },
   { id: 'green', label: 'Green', color: '#34d399', light: '#6ee7b7', fill: 'rgba(52, 211, 153, 0.12)', gradient: 'linear-gradient(135deg, #34d399 0%, #14b8a6 100%)' },
   { id: 'amber', label: 'Amber', color: '#f59e0b', light: '#fbbf24', fill: 'rgba(245, 158, 11, 0.12)', gradient: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' },
   { id: 'rose', label: 'Rose', color: '#f43f5e', light: '#fb7185', fill: 'rgba(244, 63, 94, 0.12)', gradient: 'linear-gradient(135deg, #f43f5e 0%, #d946ef 100%)' },
   { id: 'cyan', label: 'Cyan', color: '#06b6d4', light: '#22d3ee', fill: 'rgba(6, 182, 212, 0.12)', gradient: 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)' },
 ];
+
+function accentSwatchSpec(accent, theme = getTheme()) {
+  return accent?.id ? accent : (THEME_DEFAULT_ACCENTS[theme] || THEME_DEFAULT_ACCENTS.dark);
+}
 
 function renderThemeButton(t, currentTheme, ctx = 'settings') {
   const id = escapeAttr(t.id);
@@ -49,7 +161,6 @@ function getAccentOverride() {
 }
 
 export function applyAccentOverride(id = getAccentOverride()) {
-  const accent = TWEAK_ACCENTS.find(a => a.id === id);
   const root = document.documentElement;
   const props = ['--accent', '--accent-light', '--accent-fill', '--accent-gradient', '--shadow-glow', '--ref-band', '--ref-border'];
   const setProp = (prop, value) => {
@@ -60,6 +171,11 @@ export function applyAccentOverride(id = getAccentOverride()) {
     if (root.style?.removeProperty) root.style.removeProperty(prop);
     else if (root.style) delete root.style[prop];
   };
+  if (isSunsetMode()) {
+    props.forEach(removeProp);
+    return;
+  }
+  const accent = TWEAK_ACCENTS.find(a => a.id === id);
   if (!accent || !accent.id) {
     props.forEach(removeProp);
     return;
@@ -152,13 +268,47 @@ export function selectTweaksAccent(accentId) {
   refreshVisualSurfaces();
 }
 
+export function toggleTweaksSunsetMode(enabled) {
+  setSunsetMode(!!enabled);
+  applyAccentOverride();
+  refreshVisualSurfaces();
+}
+
+export function toggleTweaksCrtEffects(enabled) {
+  setCrtEffectsEnabled(!!enabled);
+  refreshVisualSurfaces();
+}
+
 export function updateTweaksUI() {
   const panel = document.getElementById('tweaks-panel');
   if (!panel) return;
   const theme = getTheme();
   const accentId = getAccentOverride();
+  const sunset = isSunsetMode();
+  const crtEffects = isCrtEffectsEnabled();
+  const crtSupported = supportsCrtEffects(theme);
+  panel.classList.toggle('sunset-active', sunset);
+  panel.classList.toggle('crt-active', crtEffects);
+  panel.classList.toggle('crt-supported', crtSupported);
+  const sunsetToggle = panel.querySelector('#tweaks-sunset-mode');
+  if (sunsetToggle) sunsetToggle.checked = sunset;
+  const crtRow = panel.querySelector('#tweaks-crt-effects-row');
+  if (crtRow) crtRow.hidden = !crtSupported;
+  const crtToggle = panel.querySelector('#tweaks-crt-effects');
+  if (crtToggle) {
+    crtToggle.checked = crtEffects;
+    crtToggle.disabled = !crtSupported;
+  }
   panel.querySelectorAll('.tweaks-theme-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.themeId === theme));
-  panel.querySelectorAll('.tweaks-accent-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.accentId === accentId));
+  panel.querySelectorAll('.tweaks-accent-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.accentId === accentId);
+    if (btn.dataset.accentId === '') {
+      const swatch = btn.querySelector('.tweaks-accent-swatch');
+      const spec = accentSwatchSpec(null, theme);
+      swatch?.style.setProperty('--tweak-accent', spec.color);
+      swatch?.style.setProperty('--tweak-gradient', spec.gradient);
+    }
+  });
 }
 
 export function closeTweaksPanel() {
@@ -169,12 +319,17 @@ export function openTweaksPanel() {
   closeTweaksPanel();
   const currentTheme = getTheme();
   const currentAccent = getAccentOverride();
+  const currentSunset = isSunsetMode();
+  const currentCrtEffects = isCrtEffectsEnabled();
+  const currentCrtSupported = supportsCrtEffects(currentTheme);
   const themeButtons = THEMES.map(t => renderThemeButton(t, currentTheme, 'tweaks')).join('');
-  const accentButtons = TWEAK_ACCENTS.map(a => `
+  const accentButtons = TWEAK_ACCENTS.map(a => {
+    const swatch = accentSwatchSpec(a, currentTheme);
+    return `
     <button type="button" class="tweaks-accent-btn${currentAccent === a.id ? ' active' : ''}" data-accent-id="${escapeAttr(a.id)}" onclick="window.selectTweaksAccent('${escapeAttr(a.id)}')" title="${escapeAttr(a.label)}" aria-label="${escapeAttr(a.label)}">
-      <span class="tweaks-accent-swatch" style="--tweak-accent:${escapeAttr(a.color)};--tweak-gradient:${escapeAttr(a.gradient)}"></span>
-    </button>
-  `).join('');
+      <span class="tweaks-accent-swatch" style="--tweak-accent:${escapeAttr(swatch.color)};--tweak-gradient:${escapeAttr(swatch.gradient)}"></span>
+    </button>`;
+  }).join('');
   document.body.insertAdjacentHTML('beforeend', `
     <div class="tweaks-overlay show" id="tweaks-panel-overlay" onclick="if(event.target===this)window.closeTweaksPanel()">
       <aside class="tweaks-panel" id="tweaks-panel" role="dialog" aria-modal="true" aria-label="Tweaks">
@@ -195,26 +350,42 @@ export function openTweaksPanel() {
             <div class="tweaks-accent-row">${accentButtons}</div>
           </section>
           <section class="tweaks-section">
+            <div class="tweaks-section-title">Visual modes</div>
+            <div class="tweaks-option-row">
+              <div class="settings-copy">
+                <div class="settings-copy-title">Sunset mode</div>
+                <div class="settings-copy-desc">Warm high-contrast palette for red blue-blocking glasses.</div>
+              </div>
+              <label class="toggle-switch" title="Use warm tokens that remain legible through red lenses">
+                <input type="checkbox" id="tweaks-sunset-mode" ${currentSunset ? 'checked' : ''} onchange="window.toggleTweaksSunsetMode(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="tweaks-option-row" id="tweaks-crt-effects-row"${currentCrtSupported ? '' : ' hidden'}>
+              <div class="settings-copy">
+                <div class="settings-copy-title">CRT effects</div>
+                <div class="settings-copy-desc">Scanlines and phosphor glow for Terminal, Synth Sunrise, and Neuromancer.</div>
+              </div>
+              <label class="toggle-switch" title="Apply CRT scanline effects to terminal-style themes">
+                <input type="checkbox" id="tweaks-crt-effects" ${currentCrtEffects ? 'checked' : ''}${currentCrtSupported ? '' : ' disabled'} onchange="window.toggleTweaksCrtEffects(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </section>
+          <section class="tweaks-section">
             <div class="tweaks-section-title">Dashboard</div>
             <div class="tweaks-action-grid">
               <button type="button" onclick="window.resetDashboardWidgets?.();window.closeTweaksPanel()">Reset layout</button>
               <button type="button" onclick="window.clearDashboardWidgets?.();window.closeTweaksPanel()">Clear all widgets</button>
               <button type="button" onclick="window.toggleDashboardOrganizeMode?.(true);window.closeTweaksPanel()">Organize widgets</button>
-            </div>
-          </section>
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Try it</div>
-            <div class="tweaks-action-grid">
-              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>window.showDetailModal?.('lipids_apoB'),80)">Open marker</button>
-              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>window.openChatPanel?.(),80)">Open AI chat</button>
-              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>document.getElementById('pdf-input')?.click(),80)">Open import flow</button>
-              <button type="button" onclick="window.closeTweaksPanel();setTimeout(()=>window.openSettingsModal?.(),80)">Open settings</button>
+              <button type="button" onclick="window.closeTweaksPanel();window.openFeedbackModal?.()">Send feedback</button>
             </div>
           </section>
         </div>
       </aside>
     </div>
   `);
+  updateTweaksUI();
   document.querySelector('#tweaks-panel button')?.focus();
 }
 
@@ -227,7 +398,6 @@ export function openSettingsModal(tab) {
   window._settingsHadProvider = !!window.hasAIProvider?.();
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
-  const currentTheme = getTheme();
   const provider = getAIProvider();
   // Legacy v1.27 tab id 'integrations' — same redirect as switchSettingsTab.
   // Older deep-links / tour steps / external links may still pass it.
@@ -299,12 +469,6 @@ export function openSettingsModal(tab) {
           </div>
         </div>
         <div class="settings-section">
-          <label class="settings-label">Theme</label>
-          <div class="settings-theme-grid">
-            ${THEMES.map(t => renderThemeButton(t, currentTheme, 'settings')).join('')}
-          </div>
-        </div>
-        <div class="settings-section">
           <label class="settings-label">Time Format</label>
           <div class="unit-toggle">
             <button class="time-toggle-btn${getTimeFormat() === '24h' ? ' active' : ''}" data-timefmt="24h" onclick="setTimeFormat('24h');updateSettingsUI()">24h</button>
@@ -312,10 +476,19 @@ export function openSettingsModal(tab) {
           </div>
         </div>
         <div class="settings-section">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <label class="settings-label" style="margin-bottom:2px">Tips & Recommendations</label>
-              <div style="font-size:11px;color:var(--text-muted)">Supplement, food, and lifestyle guidance on markers</div>
+          <div class="settings-action-row">
+            <div class="settings-copy">
+              <div class="settings-copy-title">Appearance</div>
+              <div class="settings-copy-desc">Themes, accent color, and dashboard layout live in the quick Tweaks panel.</div>
+            </div>
+            <button type="button" class="import-btn import-btn-secondary settings-mini-btn" onclick="closeSettingsModal();setTimeout(()=>openTweaksPanel(),120)">Open Tweaks</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-action-row">
+            <div class="settings-copy">
+              <label class="settings-label">Tips & Recommendations</label>
+              <div class="settings-copy-desc">Supplement, food, and lifestyle guidance on markers</div>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="settings-product-recs" ${window.isProductRecsEnabled && window.isProductRecsEnabled() ? 'checked' : ''} onchange="setProductRecsEnabled(this.checked);if(window.navigate)window.navigate('dashboard')">
@@ -324,10 +497,10 @@ export function openSettingsModal(tab) {
           </div>
         </div>
         <div class="settings-section">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <label class="settings-label" style="margin-bottom:2px">Verbose console logging</label>
-              <div style="font-size:11px;color:var(--text-muted)">Adds detailed log output and reveals diagnostic UI in the sync popover. No data leaves your device.</div>
+          <div class="settings-action-row">
+            <div class="settings-copy">
+              <label class="settings-label">Verbose console logging</label>
+              <div class="settings-copy-desc">Adds detailed log output and reveals diagnostic UI in the sync popover. No data leaves your device.</div>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} onchange="setDebugMode(this.checked)">
@@ -352,8 +525,10 @@ export function openSettingsModal(tab) {
       <div class="settings-group-title">Provider</div>
 
       <div class="settings-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <span style="font-size:13px;color:var(--text-secondary)">AI features</span>
+        <div class="settings-action-row" style="margin-bottom:12px">
+          <div class="settings-copy">
+            <div class="settings-copy-title">AI features</div>
+          </div>
           <label class="toggle-switch">
             <input type="checkbox" id="ai-pause-toggle" ${isAIPaused() ? '' : 'checked'} onchange="toggleAIPause(this.checked)">
             <span class="toggle-slider"></span>
@@ -374,20 +549,20 @@ export function openSettingsModal(tab) {
       <div class="settings-group-title">AI Context</div>
 
       <div class="settings-section" id="ai-context-section">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text-secondary)">Include wearable data</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">~200 tokens summarising HRV, sleep, recovery and trends from your connected wearables.</div>
+        <div class="settings-action-row">
+          <div class="settings-copy">
+            <div class="settings-copy-title">Include wearable data</div>
+            <div class="settings-copy-desc">~200 tokens summarising HRV, sleep, recovery and trends from your connected wearables.</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="ai-ctx-wearables-toggle" ${window.isWearableContextEnabled?.() ? 'checked' : ''} onchange="window.setWearableContextEnabled(this.checked)">
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text-secondary)">Share body regions in Sun &amp; Light context</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Off by default. When on, specific anatomical regions you logged (face, chest, genitals…) are included in chat context and agent slices. Off keeps coverage fraction + preset names but strips the per-region anatomy.</div>
+        <div class="settings-action-row">
+          <div class="settings-copy">
+            <div class="settings-copy-title">Share body regions in Sun &amp; Light context</div>
+            <div class="settings-copy-desc">Off by default. When on, specific anatomical regions you logged (face, chest, genitals…) are included in chat context and agent slices. Off keeps coverage fraction + preset names but strips the per-region anatomy.</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="ai-ctx-body-regions-toggle" ${window.isBodyRegionsInAIContext?.() ? 'checked' : ''} onchange="window.setBodyRegionsInAIContext(this.checked)">
@@ -463,6 +638,24 @@ export function openSettingsModal(tab) {
   // Always fire so wearables Manual-row reading counts populate on first paint
   // (whether the user lands on the Integrations tab or switches into it).
   document.dispatchEvent(new CustomEvent('settings:wearables-rendered'));
+  scrollActiveSettingsTabIntoView();
+}
+
+function scrollActiveSettingsTabIntoView() {
+  requestAnimationFrame(() => {
+    const bar = document.querySelector('#settings-modal .settings-tabs-bar');
+    const active = bar?.querySelector('.settings-tab-btn.active');
+    if (!bar || !active || window.matchMedia('(min-width: 721px)').matches) return;
+    const padding = 12;
+    const activeLeft = active.offsetLeft;
+    const activeRight = activeLeft + active.offsetWidth;
+    const visibleLeft = bar.scrollLeft + padding;
+    const visibleRight = bar.scrollLeft + bar.clientWidth - padding;
+    let target = null;
+    if (activeLeft < visibleLeft) target = activeLeft - padding;
+    if (activeRight > visibleRight) target = activeRight - bar.clientWidth + padding;
+    if (target !== null) bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+  });
 }
 
 function loadSettingsCommitHash() {
@@ -504,6 +697,7 @@ export function switchSettingsTab(tabId) {
   modal.querySelectorAll('.settings-tab-panel').forEach(panel => {
     panel.classList.toggle('active', panel.dataset.tabPanel === tabId);
   });
+  scrollActiveSettingsTabIntoView();
   // Re-run init for tabs that need async setup
   if (tabId === 'ai') {
     window.initSettingsOllamaCheck();
@@ -1227,10 +1421,10 @@ function renderMessengerSection() {
   const enabled = isMessengerEnabled();
   const token = getMessengerToken();
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${enabled ? '16' : '8'}px">
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Agent Access</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
+    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px">
+      <div class="settings-copy">
+        <div class="settings-copy-title">Agent Access</div>
+        <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
       </div>
       <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle Agent Access">
         <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleMessenger(this.checked)" style="display:none">
@@ -1239,27 +1433,27 @@ function renderMessengerSection() {
     </div>
     ${enabled && token ? `
       <div style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="settings-token-head">
           <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Read-only token</label>
-          <div style="display:flex;gap:6px">
-            <button id="messenger-token-toggle" class="import-btn import-btn-secondary" style="font-size:11px;padding:2px 10px" onclick="toggleMessengerToken()" aria-label="Show token">Show</button>
-            <button class="import-btn import-btn-secondary" style="font-size:11px;padding:2px 10px" onclick="copyMessengerToken()" aria-label="Copy token">Copy</button>
+          <div class="settings-token-actions">
+            <button id="messenger-token-toggle" class="import-btn import-btn-secondary settings-mini-btn" onclick="toggleMessengerToken()" aria-label="Show token">Show</button>
+            <button class="import-btn import-btn-secondary settings-mini-btn" onclick="copyMessengerToken()" aria-label="Copy token">Copy</button>
           </div>
         </div>
-        <div id="messenger-token" data-masked="true" style="font-family:var(--font-mono, monospace);font-size:11.5px;background:var(--bg-secondary);padding:10px 12px;border-radius:8px;border:1px solid var(--border);word-break:break-all;line-height:1.6;min-height:20px;user-select:none" aria-label="Agent Access token">${'\u2022'.repeat(64)}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5">Use <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">getbased-mcp</a> to connect <a href="https://github.com/hermes-agent/hermes-agent" target="_blank" rel="noopener" style="color:var(--accent)">Hermes Agent</a>, <a href="https://openclaw.ai" target="_blank" rel="noopener" style="color:var(--accent)">OpenClaw</a>, or any MCP-compatible agent. Paste this token into your agent's config.</div>
+        <div id="messenger-token" class="settings-token-box" data-masked="true" aria-label="Agent Access token">${'\u2022'.repeat(64)}</div>
+        <div class="settings-copy-desc" style="margin-top:6px">Use <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">getbased-mcp</a> to connect <a href="https://github.com/hermes-agent/hermes-agent" target="_blank" rel="noopener" style="color:var(--accent)">Hermes Agent</a>, <a href="https://openclaw.ai" target="_blank" rel="noopener" style="color:var(--accent)">OpenClaw</a>, or any MCP-compatible agent. Paste this token into your agent's config.</div>
       </div>
-      <button class="import-btn import-btn-secondary" style="font-size:12px;padding:5px 14px;width:100%" onclick="regenerateMessengerToken()">Regenerate token</button>
-      <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--border)">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px">
-          <div style="flex:1">
-            <div style="font-size:13px;color:var(--text-secondary)">Push wearable daily series</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Adds a pivoted daily-values matrix (HRV, RHR, sleep…) so agents can spot trends. ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days respectively (real-measured at 13 metrics); cached cleanly so the marginal cost per turn is small. Off by default — pick 7 days for cheap follow-ups, 30 for monthly reasoning, 90 for season-spanning analysis.</div>
+      <button class="import-btn import-btn-secondary settings-full-btn" onclick="regenerateMessengerToken()">Regenerate token</button>
+      <div class="settings-divider">
+        <div class="settings-action-row">
+          <div class="settings-copy">
+            <div class="settings-copy-title">Push wearable daily series</div>
+            <div class="settings-copy-desc">Adds a pivoted daily-values matrix (HRV, RHR, sleep…) so agents can spot trends. ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days respectively (real-measured at 13 metrics); cached cleanly so the marginal cost per turn is small. Off by default — pick 7 days for cheap follow-ups, 30 for monthly reasoning, 90 for season-spanning analysis.</div>
           </div>
           <select id="agent-wearable-series-select"
             onchange="window.setAgentWearableSeriesDays(this.value === 'off' ? 0 : Number(this.value)); window.pushContextToGateway && window.pushContextToGateway()"
             aria-label="Wearable series window pushed to agent"
-            style="font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);min-width:90px">
+            class="settings-select">
             <option value="off"${(window.getAgentWearableSeriesDays?.() || 0) === 0 ? ' selected' : ''}>Off</option>
             <option value="7"${window.getAgentWearableSeriesDays?.() === 7 ? ' selected' : ''}>7 days</option>
             <option value="30"${window.getAgentWearableSeriesDays?.() === 30 ? ' selected' : ''}>30 days</option>
@@ -1268,7 +1462,7 @@ function renderMessengerSection() {
         </div>
       </div>
     ` : `
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
+      <div class="settings-copy-desc">
         Let AI agents query your labs — coding agents, messenger bots, or any <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">MCP-compatible tool</a>. Only a read-only summary is shared — your data stays encrypted.
       </div>
     `}
@@ -1454,6 +1648,8 @@ Object.assign(window, {
   closeTweaksPanel,
   selectTweaksTheme,
   selectTweaksAccent,
+  toggleTweaksSunsetMode,
+  toggleTweaksCrtEffects,
   applyAccentOverride,
   scheduleChartThemeRefresh,
   updateTweaksUI,

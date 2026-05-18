@@ -39,10 +39,73 @@ function _getCyclePhase(dateStr, mc) {
 let _refreshCallback = null;
 export function registerRefreshCallback(fn) { _refreshCallback = fn; }
 
+let _activeDataCache = null;
+let _activeDataCacheMeta = null;
+
+export function invalidateActiveDataCache() {
+  _activeDataCache = null;
+  _activeDataCacheMeta = null;
+}
+
+function _activeDataCacheMatches(meta) {
+  const prev = _activeDataCacheMeta;
+  return !!(_activeDataCache && prev
+    && prev.importedData === meta.importedData
+    && prev.entries === meta.entries
+    && prev.entriesLength === meta.entriesLength
+    && prev.customMarkers === meta.customMarkers
+    && prev.refOverrides === meta.refOverrides
+    && prev.categoryLabels === meta.categoryLabels
+    && prev.categoryIcons === meta.categoryIcons
+    && prev.markerLabels === meta.markerLabels
+    && prev.menstrualCycle === meta.menstrualCycle
+    && prev.biometrics === meta.biometrics
+    && prev.wearableSummary === meta.wearableSummary
+    && prev.wearableWeightLatest === meta.wearableWeightLatest
+    && prev.legacyWeightStamp === meta.legacyWeightStamp
+    && prev.unitSystem === meta.unitSystem
+    && prev.rangeMode === meta.rangeMode
+    && prev.profileSex === meta.profileSex
+    && prev.profileDob === meta.profileDob);
+}
+
+function _makeActiveDataCacheMeta() {
+  const importedData = state.importedData || {};
+  const entries = importedData.entries || null;
+  const biometrics = importedData.biometrics || null;
+  const wearableSummary = importedData.wearableSummary || null;
+  const weightRows = Array.isArray(biometrics?.weight) ? biometrics.weight : [];
+  const lastWeight = weightRows.length ? weightRows[weightRows.length - 1] : null;
+  const wearableWeightLatest = wearableSummary?.metrics?.weight?.latest ?? null;
+  const legacyWeightStamp = lastWeight
+    ? `${weightRows.length}:${lastWeight.date || ''}:${lastWeight.value ?? ''}:${lastWeight.unit || ''}`
+    : '';
+  return {
+    importedData,
+    entries,
+    entriesLength: Array.isArray(entries) ? entries.length : 0,
+    customMarkers: importedData.customMarkers || null,
+    refOverrides: importedData.refOverrides || null,
+    categoryLabels: importedData.categoryLabels || null,
+    categoryIcons: importedData.categoryIcons || null,
+    markerLabels: importedData.markerLabels || null,
+    menstrualCycle: importedData.menstrualCycle || null,
+    biometrics,
+    wearableSummary,
+    wearableWeightLatest,
+    legacyWeightStamp,
+    unitSystem: state.unitSystem,
+    rangeMode: state.rangeMode,
+    profileSex: state.profileSex,
+    profileDob: state.profileDob,
+  };
+}
+
 // ═══════════════════════════════════════════════
 // STORAGE
 // ═══════════════════════════════════════════════
 export async function saveImportedData() {
+  invalidateActiveDataCache();
   try {
     const key = profileStorageKey(state.currentProfile, 'imported');
     const value = JSON.stringify(state.importedData);
@@ -80,6 +143,8 @@ export function getFocusCardFingerprint() {
 // DATA PIPELINE
 // ═══════════════════════════════════════════════
 export function getActiveData() {
+  const cacheMeta = _makeActiveDataCacheMeta();
+  if (_activeDataCacheMatches(cacheMeta)) return _activeDataCache;
   const data = {
     dates: [],
     dateLabels: [],
@@ -481,6 +546,8 @@ export function getActiveData() {
   }
 
   if (state.unitSystem === 'US') applyUnitConversion(data);
+  _activeDataCache = data;
+  _activeDataCacheMeta = cacheMeta;
   return data;
 }
 
@@ -851,6 +918,7 @@ export function getKeyTrendMarkers(filteredData) {
 // UNIT TOGGLE
 // ═══════════════════════════════════════════════
 export function switchUnitSystem(system) {
+  invalidateActiveDataCache();
   state.unitSystem = system;
   localStorage.setItem(profileStorageKey(state.currentProfile, 'units'), system);
   // Capture the open detail-modal marker BEFORE the rebuild — navigate()
@@ -914,20 +982,37 @@ export function getPhaseRefEnvelope(marker) {
   return min === Infinity ? null : { min, max };
 }
 
+let _rangeModeRefreshToken = 0;
+
+function _afterNextPaint(fn) {
+  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+    setTimeout(fn, 0);
+    return;
+  }
+  window.requestAnimationFrame(() => setTimeout(fn, 0));
+}
+
 export function switchRangeMode(mode) {
-  state.rangeMode = mode;
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'rangeMode'), mode);
+  const nextMode = mode === 'reference' ? 'reference' : mode === 'both' ? 'both' : 'optimal';
+  if (state.rangeMode === nextMode) return;
+  invalidateActiveDataCache();
+  state.rangeMode = nextMode;
+  localStorage.setItem(profileStorageKey(state.currentProfile, 'rangeMode'), nextMode);
   updateHeaderRangeToggle();
   // Same capture-before-rebuild as switchUnitSystem — a detail modal open
   // when the user flips ref/optimal/both would otherwise show stale band
   // overlays behind the unchanged modal.
   const openId = state._activeDetailMarkerId;
-  const data = getActiveData();
-  window.buildSidebar(data);
-  window.navigate(state.currentView || 'dashboard', data);
-  if (openId && typeof window.showDetailModal === 'function') {
-    window.showDetailModal(openId);
-  }
+  const token = ++_rangeModeRefreshToken;
+  _afterNextPaint(() => {
+    if (token !== _rangeModeRefreshToken || state.rangeMode !== nextMode) return;
+    const data = getActiveData();
+    window.buildSidebar(data);
+    window.navigate(state.currentView || 'dashboard', data);
+    if (openId && state._activeDetailMarkerId === openId && typeof window.showDetailModal === 'function') {
+      window.showDetailModal(openId);
+    }
+  });
 }
 
 export function updateHeaderDates(data) {
@@ -948,9 +1033,20 @@ export function updateHeaderDates(data) {
 export function updateHeaderRangeToggle() {
   const el = document.getElementById('header-range-toggle');
   if (!el) return;
-  el.innerHTML = ['optimal', 'reference', 'both'].map(m =>
-    `<button class="range-toggle-btn${state.rangeMode === m ? ' active' : ''}" onclick="switchRangeMode('${m}')">${m.charAt(0).toUpperCase() + m.slice(1)}</button>`
-  ).join('');
+  const modes = ['optimal', 'reference', 'both'];
+  const buttons = Array.from(el.querySelectorAll('.range-toggle-btn'));
+  const canPatch = buttons.length === modes.length && modes.every(m => buttons.some(btn => btn.dataset.range === m));
+  if (!canPatch) {
+    el.innerHTML = modes.map(m =>
+      `<button class="range-toggle-btn${state.rangeMode === m ? ' active' : ''}" data-range="${m}" aria-pressed="${state.rangeMode === m ? 'true' : 'false'}" onclick="switchRangeMode('${m}')">${m.charAt(0).toUpperCase() + m.slice(1)}</button>`
+    ).join('');
+    return;
+  }
+  for (const btn of buttons) {
+    const active = btn.dataset.range === state.rangeMode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }
 }
 
-Object.assign(window, { saveImportedData, getFocusCardFingerprint, getActiveData, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, renderDateRangeFilter, setDateRange, renderChartLayersDropdown, toggleChartLayersDropdown, setSuppOverlay, setNoteOverlay, setPhaseOverlay, destroyAllCharts, countFlagged, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, switchUnitSystem, toggleAltUnits, getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope, switchRangeMode, updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback });
+Object.assign(window, { saveImportedData, getFocusCardFingerprint, getActiveData, invalidateActiveDataCache, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, renderDateRangeFilter, setDateRange, renderChartLayersDropdown, toggleChartLayersDropdown, setSuppOverlay, setNoteOverlay, setPhaseOverlay, destroyAllCharts, countFlagged, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, switchUnitSystem, toggleAltUnits, getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope, switchRangeMode, updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback });

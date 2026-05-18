@@ -34,13 +34,10 @@ The HTML then just uses the function name directly:
 When module A needs to call a function from module B, but B also imports from A (creating a cycle), use `window.fn()` instead of a static import:
 
 ```js
-// views.js needs to call refreshDashboard after a data change,
-// but data.js also imports from views.js — circular!
-// Solution in data.js:
-window.refreshDashboard();
-
-// And in views.js, expose it on window:
-Object.assign(window, { refreshDashboard });
+// chat.js needs to open a marker modal that lives in views.js.
+// Importing views.js from chat.js would create a heavy UI cycle, so call
+// the window export instead:
+window.showDetailModal(markerKey);
 ```
 
 The key rule: **`window.fn()` is only for calls that would create a cycle.** For everything else, use normal ES module imports.
@@ -53,7 +50,6 @@ import { getActiveData } from './data.js';
 
 // window call — only when necessary
 window.showDetailModal(markerKey);   // views.js from chat.js (would be circular)
-window.refreshDashboard();           // views.js from data.js (would be circular)
 ```
 
 ---
@@ -66,11 +62,15 @@ window.refreshDashboard();           // views.js from data.js (would be circular
 
 ```js
 // main.js
+import { state } from './state.js';
 import { registerRefreshCallback } from './data.js';
-import { refreshDashboard } from './views.js';
+import { buildSidebar } from './nav.js';
 
-// Register so data.js can call refreshDashboard without importing views.js
-registerRefreshCallback(() => refreshDashboard());
+// Register so data.js can refresh the current route without importing views.js
+registerRefreshCallback(() => {
+  buildSidebar();
+  window.navigate(state.currentView || 'dashboard');
+});
 ```
 
 Then anywhere in `data.js` or modules that `data.js` calls:

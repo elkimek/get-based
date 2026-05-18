@@ -525,14 +525,14 @@ export function showPIIDiffViewer(originalText, obfuscatedText) {
   const { leftHtml, rightHtml } = buildPIIDiffHTML(originalText, obfuscatedText);
   overlay.innerHTML = `
     <div class="pii-diff-modal" role="dialog" aria-modal="true" aria-label="Privacy Diff">
-      <button class="modal-close" onclick="document.body.style.overflow='';this.closest('.pii-warning-overlay').remove()">&times;</button>
+      <button type="button" class="modal-close" onclick="document.body.style.overflow='';this.closest('.pii-warning-overlay').remove()" aria-label="Close privacy diff">&times;</button>
       <h3>&#128269; Privacy Diff — Before / After</h3>
       <div class="pii-diff-viewer">
         <div class="pii-diff-left"><div class="pii-diff-header">Original</div>${leftHtml}</div>
         <div class="pii-diff-right"><div class="pii-diff-header">Obfuscated</div>${rightHtml}</div>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:12px">
-        <button class="import-btn import-btn-secondary" onclick="document.body.style.overflow='';this.closest('.pii-warning-overlay').remove()">Close</button>
+      <div class="pii-review-actions pii-review-actions-simple">
+        <button type="button" class="import-btn import-btn-secondary" onclick="document.body.style.overflow='';this.closest('.pii-warning-overlay').remove()">Close</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -550,29 +550,38 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
     const { leftHtml } = buildPIIDiffHTML(originalText, obfuscatedText || originalText);
     const initialText = obfuscatedText ? escapeHTML(obfuscatedText) : '';
     overlay.innerHTML = `
-      <div class="pii-diff-modal" role="dialog" aria-modal="true" aria-label="PII Review">
-        <h3>&#128274; Review &amp; Edit — This is what AI will receive</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px">Personal information on the left has been replaced with fake data on the right. You can edit the right side to fix any remaining PII before sending.</p>
+      <div class="pii-diff-modal pii-review-modal" role="dialog" aria-modal="true" aria-label="PII Review">
+        <div class="gb-modal-head pii-review-head">
+          <div>
+            <div class="gb-modal-kicker">Privacy review</div>
+            <div class="gb-modal-title">Review &amp; Edit</div>
+          </div>
+        </div>
+        <p class="pii-review-intro">Personal information has been replaced with fake data before AI sees the report. Review the text that will be sent and edit anything that still looks identifying.</p>
         <div class="pii-search-bar">
           <input type="text" class="pii-search-input" id="pii-search-input" placeholder="Search for your name, address, phone\u2026" autocomplete="off">
           <span class="pii-search-count" id="pii-search-count"></span>
         </div>
-        <div class="pii-diff-viewer">
+        <details class="pii-mobile-original">
+          <summary>Original text (stays local)</summary>
+          <div class="pii-mobile-original-body">${leftHtml}</div>
+        </details>
+        <div class="pii-diff-viewer pii-review-viewer">
           <div class="pii-diff-left"><div class="pii-diff-header">Original (stays local)</div>${leftHtml}</div>
           <div class="pii-diff-right">
             <div class="pii-diff-header">Sent to AI <button class="pii-edit-btn" id="pii-edit-btn" type="button">&#9998; Edit</button></div>
-            ${isStreaming ? '<details class="pii-thinking-section" id="pii-thinking-section" style="display:none"><summary>Thinking\u2026</summary><pre class="pii-thinking-content" id="pii-thinking-content"></pre></details>' : ''}
+            ${isStreaming ? '<details class="pii-thinking-section" id="pii-thinking-section" hidden><summary>Thinking\u2026</summary><pre class="pii-thinking-content" id="pii-thinking-content"></pre></details>' : ''}
             <textarea class="pii-edit-textarea" id="pii-edit-textarea" spellcheck="false"${isStreaming ? ' readonly' : ''}>${initialText}</textarea>
             ${isStreaming ? '<div class="pii-stream-status pii-stream-waiting" id="pii-stream-status">Waiting for model response\u2026</div>' : ''}
           </div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="import-btn import-btn-secondary" id="pii-review-regex" title="Run regex-based obfuscation instead">Use regex instead</button>
-          ${isStreaming ? '<button class="import-btn import-btn-secondary" id="pii-stream-stop">Stop</button>' : ''}
-          ${isStreaming ? '<button class="import-btn import-btn-secondary" id="pii-stream-retry" style="display:none">Retry</button>' : ''}
-          <span style="flex:1"></span>
-          <button class="import-btn import-btn-secondary" id="pii-review-cancel">Cancel Import</button>
-          <button class="import-btn" id="pii-review-send"${isStreaming ? ' disabled' : ''}>Send to AI</button>
+        <div class="pii-review-actions">
+          <button type="button" class="import-btn import-btn-secondary" id="pii-review-regex" title="Run regex-based obfuscation instead">Use regex instead</button>
+          ${isStreaming ? '<button type="button" class="import-btn import-btn-secondary" id="pii-stream-stop">Stop</button>' : ''}
+          ${isStreaming ? '<button type="button" class="import-btn import-btn-secondary" id="pii-stream-retry" hidden>Retry</button>' : ''}
+          <span class="pii-action-spacer"></span>
+          <button type="button" class="import-btn import-btn-secondary" id="pii-review-cancel">Cancel Import</button>
+          <button type="button" class="import-btn import-btn-primary" id="pii-review-send"${isStreaming ? ' disabled' : ''}>Send to AI</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -585,7 +594,8 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
     const sendBtn = overlay.querySelector('#pii-review-send');
     const statusEl = overlay.querySelector('#pii-stream-status');
     const stopBtn = overlay.querySelector('#pii-stream-stop');
-    const leftPanel = overlay.querySelector('.pii-diff-left');
+    const leftPanel = overlay.querySelector('.pii-review-viewer > .pii-diff-left');
+    const mobileOriginal = overlay.querySelector('.pii-mobile-original-body');
     let dirty = false;
 
     // Search handler
@@ -654,6 +664,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
     function showDiffPreview(obfuscatedText) {
       const { leftHtml, rightHtml } = buildPIIDiffHTML(originalText, obfuscatedText);
       if (leftPanel) leftPanel.innerHTML = `<div class="pii-diff-header">Original (stays local)</div>${leftHtml}`;
+      if (mobileOriginal) mobileOriginal.innerHTML = leftHtml;
       textarea.style.display = 'none';
       let diffView = overlay.querySelector('.pii-diff-preview');
       if (!diffView) { diffView = document.createElement('div'); diffView.className = 'pii-diff-preview'; textarea.parentNode.insertBefore(diffView, textarea); }
@@ -671,7 +682,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
       textarea.readOnly = false;
       sendBtn.disabled = false;
       if (statusEl) statusEl.textContent = `Regex applied \u2014 ${result.replacements} replacement${result.replacements !== 1 ? 's' : ''}`;
-      if (stopBtn) stopBtn.style.display = 'none';
+      if (stopBtn) stopBtn.hidden = true;
       if (abortController) { abortController.abort(); abortController = null; }
       unloadOllamaPIIModel();
       showDiffPreview(result.obfuscated);
@@ -705,14 +716,14 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
         textarea.style.display = '';
         textarea.readOnly = true;
         sendBtn.disabled = true;
-        stopBtn.style.display = '';
-        retryBtn.style.display = 'none';
+        stopBtn.hidden = false;
+        retryBtn.hidden = true;
         // Clear previous diff preview so streaming is visible
         const prevDiff = overlay.querySelector('.pii-diff-preview');
         if (prevDiff) prevDiff.style.display = 'none';
         statusEl.className = 'pii-stream-status pii-stream-waiting';
         statusEl.textContent = 'Waiting for model response\u2026';
-        if (thinkingSection) { thinkingSection.style.display = 'none'; thinkingContent.textContent = ''; }
+        if (thinkingSection) { thinkingSection.hidden = true; thinkingContent.textContent = ''; }
         let charCount = 0;
         let rafPending = false;
         let pendingText = '';
@@ -721,7 +732,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
 
         const flushToTextarea = () => {
           if (pendingThinking && thinkingSection) {
-            if (!hasThinking) { thinkingSection.style.display = ''; thinkingSection.open = true; hasThinking = true; }
+            if (!hasThinking) { thinkingSection.hidden = false; thinkingSection.open = true; hasThinking = true; }
             thinkingContent.textContent += pendingThinking;
             pendingThinking = '';
             thinkingContent.scrollTop = thinkingContent.scrollHeight;
@@ -756,8 +767,8 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
           textarea.readOnly = false;
           sendBtn.disabled = false;
           if (statusEl) statusEl.textContent = `Complete \u2014 ${charCount.toLocaleString()} chars \u2014 click text to edit`;
-          stopBtn.style.display = 'none';
-          retryBtn.style.display = '';
+          stopBtn.hidden = true;
+          retryBtn.hidden = false;
           if (thinkingSection && hasThinking) { thinkingSection.open = false; thinkingSection.querySelector('summary').textContent = 'Thinking (done)'; }
           showDiffPreview(textarea.value);
         }).catch(err => {
@@ -766,8 +777,8 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
           textarea.readOnly = false;
           sendBtn.disabled = false;
           if (statusEl) statusEl.textContent = `Error: ${err.message}`;
-          stopBtn.style.display = 'none';
-          retryBtn.style.display = '';
+          stopBtn.hidden = true;
+          retryBtn.hidden = false;
         });
       };
 
@@ -778,8 +789,8 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
         textarea.readOnly = false;
         sendBtn.disabled = false;
         statusEl.textContent = 'Stopped \u2014 review partial result and edit below';
-        stopBtn.style.display = 'none';
-        retryBtn.style.display = '';
+        stopBtn.hidden = true;
+        retryBtn.hidden = false;
         unloadOllamaPIIModel();
       });
 

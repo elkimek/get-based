@@ -24,6 +24,7 @@ return (async function() {
     lightDevices: [],
     lightEnvironment: { rooms: [], screens: [] },
     lightMeasurements: [],
+    wearableSummary: { metrics: { steps: { latest: 4200, baseline: 3600 } }, sources: {} },
   });
   await window.saveImportedData?.();
 
@@ -31,35 +32,32 @@ return (async function() {
   document.querySelectorAll('.modal-overlay.show').forEach(el => el.classList.remove('show'));
   document.querySelectorAll('.modal-overlay').forEach(el => { if (el.parentNode) el.remove(); });
 
-  // ─── 1. Dashboard Light Today strip renders even with zero sessions ──
-  console.log('%c 1. Light Today strip on dashboard ', 'font-weight:bold;color:#6366f1');
+  // ─── 1. Dashboard Light Today uses the same hero surface as /light ──
+  console.log('%c 1. Light Today hero on dashboard ', 'font-weight:bold;color:#6366f1');
 
   window.navigate?.('dashboard');
   await wait(80);
-  const strip = main.querySelector('.light-today-strip');
-  assert('Dashboard renders the Light Today strip',
-    !!strip,
-    `looked for .light-today-strip in main-content`);
-  assert('Light Today strip has the title', strip && /Light Today/.test(strip.innerHTML));
-  assert('Strip exposes a "Open Light & Sun" link',
-    strip && /Open Light/.test(strip.innerHTML));
-  // CTA copy adapts to time-of-day — "Log a sun session" outside solar
-  // windows, "{Morning|Midday|Afternoon} sun — log a session" inside one.
-  assert('Empty-state strip shows a sun-log CTA (any solar-window variant)',
-    strip && /log a session|Log a sun session|☀ Sun/i.test(strip.innerHTML));
-  // 6 user-facing channel pills present (vitamin_d / circadian / nir_solar / no_cv / pomc / violet_eye).
-  // Loosened to `>=` + content spot-check — adding a new pill (UVA-IR
-  // composite, etc.) is safe; the canonical 6 must remain.
-  const pills = strip ? strip.querySelectorAll('.light-pill') : [];
-  const pillKeys = Array.from(pills).map(p => p.dataset.channel || p.dataset.key || '');
-  const REQUIRED_PILLS = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  const missingPills = REQUIRED_PILLS.filter(k => !pillKeys.includes(k));
-  assert('Strip renders the 6 canonical channel pills',
-    pills.length >= 6 && (missingPills.length === 0 || pills.length === 6),
-    `got ${pills.length}, missing keys: ${missingPills.join(',') || '(unknown — no data-channel attr)'}`);
+  const todayWidget = main.querySelector('.dashboard-widget[data-widget-id="light-today"]');
+  const hero = todayWidget?.querySelector('.light-today-hero');
+  assert('Dashboard renders the Light Today widget',
+    !!todayWidget,
+    `looked for dashboard widget data-widget-id="light-today"`);
+  assert('Dashboard Light Today renders the page-matched hero',
+    !!hero,
+    `looked for .light-today-hero inside the dashboard widget`);
+  assert('Dashboard Light Today no longer uses the old strip surface',
+    !todayWidget?.querySelector('.light-today-strip'));
+  assert('Dashboard Light Today has the same hero label as /light',
+    hero && /Today's light/.test(hero.innerHTML));
+  assert('Dashboard Light Today does not embed compact Conditions Now',
+    !todayWidget?.querySelector('.conditions-now-compact'));
+  assert('Dashboard Light Today embeds the full Conditions sun timeline',
+    !!todayWidget?.querySelector('.conditions-now-full .conditions-now-events-wrap') ||
+    !!todayWidget?.querySelector('#cond-now-dashboard-light-today-widget.conditions-now-full'),
+    'expected the Light Today widget to reuse the full Conditions timeline renderer');
 
-  // ─── 2. Logging a session lights up channels + updates strip ─────────
-  console.log('%c 2. Logging a session updates the strip ', 'font-weight:bold;color:#6366f1');
+  // ─── 2. Logging a session keeps the dashboard hero surface stable ────
+  console.log('%c 2. Logging a session keeps the dashboard hero ', 'font-weight:bold;color:#6366f1');
 
   const id = await window.logCompletedSession({
     startedAt: Date.now() - 30 * 60 * 1000,
@@ -74,15 +72,13 @@ return (async function() {
 
   window.navigate?.('dashboard');
   await wait(80);
-  const strip2 = main.querySelector('.light-today-strip');
-  // After a session with non-trivial doses, at least one pill should
-  // light up to tier ≥ 1 (some filled dots).
-  const litPills = strip2 ? strip2.querySelectorAll('.light-pill[class*="light-pill-tier-"]:not(.light-pill-tier-0)') : [];
-  assert('At least one channel pill is lit after logging a strong session',
-    litPills.length >= 1, `lit pills: ${litPills.length}`);
-  // Sub-label includes "1 light session"
-  assert('Sub-label reports 1 session',
-    strip2 && /1 light session/.test(strip2.innerHTML));
+  const todayWidgetAfter = main.querySelector('.dashboard-widget[data-widget-id="light-today"]');
+  assert('Dashboard Light Today still renders as hero after logging',
+    !!todayWidgetAfter?.querySelector('.light-today-hero'));
+  assert('Logged-session dashboard hero does not regress to the old strip',
+    !todayWidgetAfter?.querySelector('.light-today-strip'));
+  assert('Logged-session dashboard keeps the full Conditions timeline surface',
+    !!todayWidgetAfter?.querySelector('.conditions-now-full'));
 
   // ─── 3. /light page renders Light & Sun list ─────────────────────────
   console.log('%c 3. /light dedicated page ', 'font-weight:bold;color:#6366f1');
@@ -91,6 +87,25 @@ return (async function() {
   await wait(120);
   assert('Light & Sun page header renders',
     /Light &amp; Sun|Light & Sun/.test(main.innerHTML));
+  const lightWidgetRoute = main.querySelector('.lens-page-widgets[data-lens-route="light"]');
+  assert('Light page renders through the page widget system',
+    !!lightWidgetRoute &&
+    !!lightWidgetRoute.querySelector('.dashboard-widget[data-widget-id="light-conditions-now"]'));
+  assert('Light page separates conditions, session logging, and setup widgets',
+    !!main.querySelector('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap') &&
+    !!main.querySelector('.dashboard-widget[data-widget-id="light-session-log"] .light-quicklog-row') &&
+    !!main.querySelector('.dashboard-widget[data-widget-id="light-setup"]'));
+  assert('Light page widgets expose reorder controls',
+    !!lightWidgetRoute?.querySelector('.dashboard-widget-tool[aria-label="Move page section down"]'));
+  const dashboardSafeLightWidgets = ['light-conditions-now', 'light-session-log', 'light-channels'];
+  const pageOnlyLightWidgets = ['light-setup', 'light-guidance', 'light-sessions', 'light-devices', 'light-environment', 'light-tools', 'light-methods'];
+  const addableMissing = dashboardSafeLightWidgets.filter(id =>
+    !lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`));
+  const pageOnlyWithToggle = pageOnlyLightWidgets.filter(id =>
+    !!lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`));
+  assert('Light page exposes dashboard toggles only on dashboard-safe widgets',
+    addableMissing.length === 0 && pageOnlyWithToggle.length === 0,
+    `missing addable: ${addableMissing.join(',') || 'none'}; page-only toggles: ${pageOnlyWithToggle.join(',') || 'none'}`);
   assert('Light page has the channel pill section',
     main.querySelector('.light-channels-section') !== null);
   assert('Light page lists at least one session row',

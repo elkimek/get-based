@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
 
+export const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
+
 // Self-host OAuth client_id overrides — extracted as an exported helper so
 // tests can exercise the env→override mapping without spinning up the HTTP
 // server. See issue #145. The same six VAR→adapter pairs are mirrored in
@@ -919,15 +921,25 @@ const server = http.createServer((req, res) => {
 
         // CAMS atmosphere relay → getbased-uvdata. Mirrors the
         // handleCamsRelay block in api/proxy.js so localhost dev can
-        // exercise the same flow against a real upstream. Reads
-        // UVDATA_UPSTREAM + UVDATA_BEARER from process.env (typically
-        // .env.local sourced before `node dev-server.js`).
+        // exercise the same flow against a real upstream. Uses the
+        // maintainer-hosted relay by default; UVDATA_UPSTREAM can override
+        // it for self-host/dev testing, and UVDATA_BEARER is injected when
+        // present.
         if (payload.meteo === 'cams') {
-          const upstream = (process.env.UVDATA_UPSTREAM || '').replace(/\/+$/, '');
+          const configuredUpstream = process.env.UVDATA_UPSTREAM ? process.env.UVDATA_UPSTREAM.replace(/\/+$/, '') : '';
+          const upstream = configuredUpstream || DEFAULT_UVDATA_UPSTREAM;
+          const bearer = process.env.UVDATA_BEARER || '';
           if (!upstream) {
             res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders(req) });
             res.end(JSON.stringify({
-              error: 'CAMS relay not configured locally. Set UVDATA_UPSTREAM (and UVDATA_BEARER) in your shell env before `node dev-server.js`.',
+              error: 'CAMS relay upstream is empty. Set UVDATA_UPSTREAM or switch Sun Data Source to Open-Meteo/manual.',
+            }));
+            return;
+          }
+          if (!configuredUpstream && !bearer) {
+            res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+            res.end(JSON.stringify({
+              error: 'CAMS hosted relay requires UVDATA_BEARER. Set UVDATA_BEARER for the hosted default, set UVDATA_UPSTREAM for your own relay, or switch Sun Data Source to Open-Meteo/manual.',
             }));
             return;
           }
@@ -943,7 +955,7 @@ const server = http.createServer((req, res) => {
           if (time) qs.set('time', time);
           const upstreamUrl = `${upstream}/uv?${qs.toString()}`;
           const upstreamHeaders = { 'Accept': 'application/json' };
-          if (process.env.UVDATA_BEARER) upstreamHeaders['Authorization'] = `Bearer ${process.env.UVDATA_BEARER}`;
+          if (bearer) upstreamHeaders['Authorization'] = `Bearer ${bearer}`;
           // Mirror the 256 KB streaming cap from api/proxy.js (Greptile P2
           // closeout `5869341`). A misbehaving upstream that streams an
           // unbounded body would otherwise OOM the dev server.

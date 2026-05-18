@@ -195,10 +195,148 @@ assert('getTrend guards prev === 0', utilsSrc.includes('prev === 0'));
 console.log('5. CSS Variable Fixes');
 
 const cssSrc = read('styles.css');
+const sunSrc = read('js/sun.js');
+const lightDevicesSrc = read('js/light-devices.js');
 assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
 assert('No var(--text) without suffix', !/(var\(--text\))(?!-)/.test(cssSrc));
 assert('Dead overview-grid CSS removed', !cssSrc.includes('.overview-grid'));
 assert('Dead overview-card CSS removed', !cssSrc.includes('.overview-card'));
+assert('Light page uses scoped layout wrapper', viewsSrc.includes('class="light-page"'));
+const dashboardWidgetsBlock = (viewsSrc.match(/const DASHBOARD_WIDGETS = \[([\s\S]*?)\];/) || [null, ''])[1];
+const lightSessionLogStart = viewsSrc.indexOf('function renderLightSessionLogActions');
+const lightSessionLogEnd = viewsSrc.indexOf('function renderDashboardLightConditionsWidget', lightSessionLogStart);
+const lightSessionLogBlock = lightSessionLogStart >= 0 && lightSessionLogEnd > lightSessionLogStart
+  ? viewsSrc.slice(lightSessionLogStart, lightSessionLogEnd)
+  : '';
+assert('Light page renders as a reorderable page widget route',
+  viewsSrc.includes("renderLensPageWidgets('light', widgets)") &&
+  viewsSrc.includes("id: 'light-conditions-now'") &&
+  viewsSrc.includes("id: 'light-session-log'") &&
+  viewsSrc.includes("id: 'light-setup'") &&
+  viewsSrc.includes("id: 'light-channels'") &&
+  viewsSrc.includes("id: 'light-devices'") &&
+  viewsSrc.includes("id: 'light-environment'") &&
+  viewsSrc.includes("id: 'light-tools'") &&
+  viewsSrc.includes("id: 'light-methods'") &&
+  !viewsSrc.includes("id: 'light-workbench'") &&
+  !viewsSrc.includes("id: 'light-now-log'"));
+assert('Light page uses full workspace width',
+  /\.light-page\s*\{[\s\S]*width:\s*100%;[\s\S]*max-width:\s*none;/.test(cssSrc));
+assert('Light page grid uses zero-min track for mobile',
+  /\.light-page\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*min-width:\s*0;/.test(cssSrc) &&
+  /\.light-page > \*\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/.test(cssSrc));
+assert('Light page splits conditions, logging, and setup into separate widgets',
+  !viewsSrc.includes('class="light-top-grid"') &&
+  viewsSrc.indexOf("id: 'light-conditions-now'") < viewsSrc.indexOf("id: 'light-session-log'") &&
+  viewsSrc.indexOf("id: 'light-session-log'") < viewsSrc.indexOf("id: 'light-setup'"));
+assert('Light dashboard registry exposes only dashboard-safe Light widgets',
+  dashboardWidgetsBlock.includes("id: 'light-today'") &&
+  dashboardWidgetsBlock.includes("id: 'light-conditions-now'") &&
+  dashboardWidgetsBlock.includes("id: 'light-session-log'") &&
+  dashboardWidgetsBlock.includes("id: 'light-channels'") &&
+  !dashboardWidgetsBlock.includes("id: 'light-setup'") &&
+  !dashboardWidgetsBlock.includes("id: 'light-guidance'") &&
+  !dashboardWidgetsBlock.includes("id: 'light-sessions'") &&
+  !dashboardWidgetsBlock.includes("id: 'light-devices'") &&
+  !dashboardWidgetsBlock.includes("id: 'light-environment'") &&
+  !dashboardWidgetsBlock.includes("id: 'light-tools'") &&
+  !dashboardWidgetsBlock.includes("id: 'light-methods'"));
+assert('Dashboard Light Today uses the same hero surface as the Light page',
+  viewsSrc.includes('function renderDashboardLightTodayWidget()') &&
+  viewsSrc.includes('window.renderLightTodayHero()') &&
+  /id: 'light-today'[\s\S]*?render: renderDashboardLightTodayWidget/.test(dashboardWidgetsBlock) &&
+  !/id: 'light-today'[\s\S]*?render:\s*\(\)\s*=>\s*renderLightTodayStrip\(\)/.test(dashboardWidgetsBlock));
+assert('Dashboard Light Today uses the full Conditions timeline renderer',
+  viewsSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-light-today-widget' })") &&
+  cssSrc.includes('.dashboard-widget[data-widget-id="light-today"] .light-conditions-now-wrap'));
+assert('Dashboard Conditions Now uses the full Light page timeline layout',
+  viewsSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' })") &&
+  /id: 'light-conditions-now'[\s\S]*?size: 'full'/.test(dashboardWidgetsBlock));
+assert('Light page dashboard toggles are explicitly scoped',
+  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-today' }") &&
+  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-conditions-now' }") &&
+  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-session-log' }") &&
+  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-channels' }") &&
+  /id: 'light-setup'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  /id: 'light-guidance'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  /id: 'light-sessions'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  /id: 'light-devices'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  /id: 'light-environment'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  /id: 'light-tools'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  /id: 'light-methods'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  viewsSrc.includes("Object.prototype.hasOwnProperty.call(opts, 'dashboardId')"));
+assert('Light operation widgets deframe nested operation surfaces',
+  /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-wrap,[\s\S]*\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(cssSrc));
+assert('Light page workbench is split into page-only redesigned widgets',
+  viewsSrc.includes("id: 'light-devices'") &&
+  viewsSrc.includes("id: 'light-environment'") &&
+  viewsSrc.includes("id: 'light-tools'") &&
+  viewsSrc.includes("id: 'light-methods'") &&
+  viewsSrc.includes('renderLightWidgetPrompt') &&
+  cssSrc.includes('.light-widget-prompt') &&
+  cssSrc.includes('.light-setup-fields-grid') &&
+  lightSessionLogBlock.includes('dashboard-action-btn') &&
+  !lightSessionLogBlock.includes('import-btn') &&
+  !viewsSrc.includes('function renderCollapsedSubsection'));
+assert('Light conditions grid stays compact on phones',
+  /@media \(max-width:\s*600px\)\s*\{[\s\S]*\.conditions-now-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/.test(cssSrc) &&
+  /\.conditions-now-cell-hero\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1;/.test(cssSrc));
+assert('Light page sun data source avoids inline card styling',
+  viewsSrc.includes('class="light-data-source-details"') &&
+  !viewsSrc.includes('light-data-source-details" style='));
+assert('Light channel pills use redesigned channel tile treatment',
+  /\.light-channels-section \.light-pills-row\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(174px,\s*100%\),\s*1fr\)\);/.test(cssSrc) &&
+  /\.light-channels-section \.light-pill\s*\{[\s\S]*grid-template-areas:[\s\S]*"icon label count"[\s\S]*"icon spark spark";[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc) &&
+  cssSrc.includes('.light-channels-section .light-pill[data-channel="violet_eye"] { --channel-accent: var(--purple); }'));
+assert('Light channel detail charts inherit activated channel accent',
+  viewsSrc.includes('class="light-channel-detail" data-channel="${escapeAttr(channelKey)}"') &&
+  viewsSrc.includes("return 'var(--channel-accent, var(--accent))';") &&
+  /\.light-channel-detail\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*border:\s*1px solid color-mix\(in srgb, var\(--channel-accent\)/.test(cssSrc) &&
+  cssSrc.includes('.light-channel-detail[data-channel="violet_eye"] { --channel-accent: var(--purple); }') &&
+  /\.light-channel-weekchart\s*\{[\s\S]*color-mix\(in srgb, var\(--channel-accent\) 8%, transparent\)/.test(cssSrc));
+assert('Light recent session rows and modals use session/channel accents',
+  sunSrc.includes('class="sun-session light-session-row light-session-sun"') &&
+  viewsSrc.includes('function _renderLightSessionChannelChips') &&
+  viewsSrc.includes('${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}') &&
+  sunSrc.includes('class="modal sun-detail-modal" data-session-kind="sun"') &&
+  lightDevicesSrc.includes('class="modal sun-detail-modal" data-session-kind="device"') &&
+  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(sunSrc) &&
+  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(lightDevicesSrc) &&
+  /\.light-session-row\s*\{[\s\S]*--session-accent:\s*var\(--orange\);[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/.test(cssSrc) &&
+  /\.sun-detail-channel-row\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*grid-template-columns:[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc));
+assert('Light context setup mirror is not double-framed',
+  /\.ctx-lightsetup-mirror\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;[\s\S]*padding:\s*0;/.test(cssSrc));
+assert('Light setup AI context wrapper is not double-framed',
+  /\.light-setup-ai-block\s*\{[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/.test(cssSrc) &&
+  /\.light-setup-ai-block-green,[\s\S]*\.light-setup-ai-block-yellow,[\s\S]*\.light-setup-ai-block-red\s*\{\s*border-left:\s*0;\s*\}/.test(cssSrc));
+assert('Light page surfaces use shared card/theme tokens',
+  cssSrc.includes('.light-page') &&
+  /\.light-channels-section\s*\{[\s\S]*background:\s*color-mix\(in srgb, var\(--bg-card\)/.test(cssSrc) &&
+  /\.light-setup-card\s*\{[\s\S]*border-top:\s*3px solid var\(--accent\)/.test(cssSrc));
+assert('Light page status chips use theme tokens instead of legacy blue fallbacks',
+  !cssSrc.includes('var(--accent-bg, rgba(96,165,250,0.10))') &&
+  cssSrc.includes('background: color-mix(in srgb, var(--accent) 10%, transparent);') &&
+  cssSrc.includes('.conditions-uvi-extreme   .conditions-now-value { color: var(--purple); }'));
+assert('Mobile hides closed chat panel so it cannot widen pages',
+  /@media \(max-width:\s*768px\)\s*\{[\s\S]*\.chat-panel:not\(\.open\)\s*\{[\s\S]*display:\s*none;/.test(cssSrc));
+const quickMarkerBaseIndex = cssSrc.indexOf('.db-quick-marker-grid {\n  display: grid;');
+const quickMarkerMobileIndex = cssSrc.indexOf('@media (max-width: 640px)', quickMarkerBaseIndex);
+assert('Mobile quick marker grid override comes after base grid',
+  quickMarkerBaseIndex !== -1 &&
+  quickMarkerMobileIndex !== -1 &&
+  /\.db-quick-marker-grid\s*\{[\s\S]*grid-template-columns:\s*1fr;/.test(cssSrc.slice(quickMarkerMobileIndex, quickMarkerMobileIndex + 1800)));
+assert('Mobile compare tables scroll instead of clipping columns',
+  /@media \(max-width:\s*768px\)\s*\{[\s\S]*\.data-table-wrapper,\s*[\s\S]*\.compare-table-wrapper,\s*[\s\S]*\.heatmap-wrapper\s*\{[\s\S]*overflow-x:\s*auto;[\s\S]*overflow-y:\s*clip;/.test(cssSrc) &&
+  viewsSrc.includes('class="compare-date-field"'));
+assert('Compare and correlations headings are text-only',
+  viewsSrc.includes('<h2>Compare Dates</h2>') &&
+  viewsSrc.includes('<h2>Correlations</h2>') &&
+  !viewsSrc.includes('<h2>\\u2194 Compare Dates</h2>') &&
+  !viewsSrc.includes('<h2>\\uD83D\\uDCC8 Correlations</h2>'));
+const themesExtraSrc = read('themes-extra.css');
+assert('Glass theme includes Light page surfaces',
+  themesExtraSrc.includes('[data-theme="glass"] .light-setup-card') &&
+  themesExtraSrc.includes('[data-theme="glass"] .light-conditions-now-wrap'));
 
 // ═══════════════════════════════════════
 // 6. Data integrity fixes
@@ -290,6 +428,18 @@ console.log('12. Cycle Stats Guard');
 const cycleSrc = read('js/cycle.js');
 assert('Cycle stats filters periods with endDate', cycleSrc.includes('filter(p => p.endDate)'));
 assert('Period length guards empty array', cycleSrc.includes('if (periodLengths.length > 0)'));
+assert('Cycle renderer no longer uses supplement UI classes',
+  !/supp-(timeline-header|add-btn|form-row|form-field|list)/.test(cycleSrc));
+assert('Cycle renderer avoids inline style attributes', !cycleSrc.includes('style='));
+assert('Cycle editor uses dedicated modal shell', cycleSrc.includes("modal.className = 'modal cycle-modal'"));
+assert('Cycle cards use semantic buttons',
+  cycleSrc.includes('<button type="button" class="cycle-prompt"') &&
+  cycleSrc.includes('<button type="button" class="cycle-summary-card"'));
+assert('Cycle mobile modal uses full-height layout',
+  cssSrc.includes('.cycle-modal') && cssSrc.includes('height: calc(100dvh - 24px)'));
+const themeExtraSrc = read('themes-extra.css');
+assert('Cycle glass modal has opaque readability override',
+  themeExtraSrc.includes('[data-theme="glass"] .cycle-modal') && themeExtraSrc.includes('0.96'));
 
 // ═══════════════════════════════════════
 // 13. Security Headers (CSP)

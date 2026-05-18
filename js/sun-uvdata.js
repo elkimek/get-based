@@ -314,7 +314,7 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   // noCache so user-triggered "force refresh" always reaches the provider.
   if (!noCache) {
     const cached = readCache(cacheKey);
-    if (cached) return cached;
+    if (cached && cacheMatchesConfig(cached, cfg)) return cached;
   }
 
   // Provider order based on config
@@ -861,6 +861,20 @@ function readCache(key) {
     if (Date.now() - obj.fetchedAt > CACHE_TTL_MS) return null;
     return obj;
   } catch (e) { return null; }
+}
+
+function cacheMatchesConfig(cached, cfg) {
+  const source = String(cached?.source || '');
+  if (!source) return true;
+  if (cfg.mode === 'open-meteo') return source.startsWith('open_meteo');
+  if (cfg.mode === 'manual') return false;
+  if (cfg.mode === 'selfhost' && cfg.selfhostUrl) {
+    return source.startsWith('selfhost');
+  }
+  if (cfg.mode === 'auto') {
+    return source.startsWith('selfhost') || source.startsWith('cams') || source.startsWith('manual');
+  }
+  return true;
 }
 
 // Walk every cached entry for these coords (any time bucket) and return the

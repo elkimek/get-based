@@ -49,7 +49,10 @@ export function getMeasurements() {
   if (!Array.isArray(state.importedData.lightMeasurements)) state.importedData.lightMeasurements = [];
   if (!_collapsedThisSession.has(state.importedData.lightMeasurements)) {
     _collapsedThisSession.add(state.importedData.lightMeasurements);
-    _collapseToLatestPerRoomTool(state.importedData.lightMeasurements);
+    const dropped = _collapseToLatestPerRoomTool(state.importedData.lightMeasurements);
+    if (dropped > 0) {
+      void saveImportedData();
+    }
   }
   return state.importedData.lightMeasurements;
 }
@@ -505,6 +508,15 @@ export async function openLuxMeter(opts = {}) {
       </div>
     </div>
   </div>`;
+  let closed = false;
+  window._closeLuxMeter = () => {
+    closed = true;
+    _luxState.running = false;
+    if (_luxState.sensor) { try { _luxState.sensor.stop(); } catch (e) {} _luxState.sensor = null; }
+    if (_luxState.stream) { try { _luxState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _luxState.stream = null; }
+    _luxState.video = null;
+    overlay.remove();
+  };
   if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeLuxMeter()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
@@ -528,55 +540,35 @@ export async function openLuxMeter(opts = {}) {
   // calibrate, the sensor reading is authoritative.
   let usingALS = false;
   let usingManualEntry = false;
+  let cameraFallbackStarted = false;
   const calibrationPanel = overlay.querySelector('#lux-calibration-panel');
-  if ('AmbientLightSensor' in window) {
+  const startCameraFallback = async (introHTML = '') => {
+    if (closed || cameraFallbackStarted) return;
+    cameraFallbackStarted = true;
+    usingALS = false;
     try {
-      const sensor = new window.AmbientLightSensor({ frequency: 4 });
-      sensor.addEventListener('reading', () => {
-        currentLux = sensor.illuminance;
-        renderLux(currentLux);
-      });
-      // The Generic Sensor spec throws SecurityError ASYNCHRONOUSLY via
-      // sensor.onerror when permission is denied (Chromium-Android with
-      // ALS permission off, browsers in Permissions-Policy=(),
-      // privacy-mode iframes). Without this listener the sensor object
-      // exists, start() succeeds, but `reading` events never fire and
-      // the user sees a spinning "—" forever. Catch the async error
-      // and fall back to the camera path same as a synchronous throw.
-      sensor.addEventListener('error', () => {
-        try { sensor.stop(); } catch (e) {}
-        _luxState.sensor = null;
-        sourceLine.innerHTML = '<b>Ambient light sensor blocked</b> by browser permissions. Close this dialog and reopen — the Lux Meter will retry with the camera fallback.';
-      });
-      sensor.start();
-      _luxState.sensor = sensor;
-      usingALS = true;
-      sourceLine.textContent = 'Reading from your phone\'s ambient light sensor.';
-      // ALS is the authoritative source — no calibration needed.
-      if (calibrationPanel) calibrationPanel.style.display = 'none';
-    } catch (e) {
-      // Synchronous construction error — fall through to camera path
-    }
-  }
-
-  // Fallback: camera-based estimate
-  if (!usingALS) {
-    try {
+      if (introHTML) sourceLine.innerHTML = introHTML;
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 320, height: 240 } });
+      if (closed) {
+        try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        return;
+      }
       _luxState.stream = stream;
       const lock = await lockCameraForMeasurement(stream);
+      if (closed) return;
       sourceLine.innerHTML = `Camera estimate (calibration ${_luxState.calibration.toFixed(2)}×, ±30%). ${cameraLockStatusLine(lock)}`;
       const video = document.createElement('video');
       video.srcObject = stream;
       video.muted = true;
       video.playsInline = true;
       await video.play();
+      if (closed) return;
       _luxState.video = video;
       const canvas = document.createElement('canvas');
       canvas.width = 64; canvas.height = 48;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const tick = () => {
-        if (!_luxState.running) return;
+        if (!_luxState.running || closed) return;
         try {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -594,10 +586,11 @@ export async function openLuxMeter(opts = {}) {
         } catch (e) {
           /* video not ready yet */
         }
-        if (_luxState.running) requestAnimationFrame(tick);
+        if (_luxState.running && !closed) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     } catch (e) {
+      if (closed) return;
       usingManualEntry = true;
       sourceLine.innerHTML = '<b>Camera access denied.</b> Enter a lux value manually below — read it from a real meter, a second phone with an ambient-light sensor, or pick the closest zone from the scale.';
       // Camera path is unavailable — replace the live dial with a numeric
@@ -632,6 +625,42 @@ export async function openLuxMeter(opts = {}) {
       }
       if (calibrationPanel) calibrationPanel.style.display = 'none';
     }
+  };
+  if ('AmbientLightSensor' in window) {
+    try {
+      const sensor = new window.AmbientLightSensor({ frequency: 4 });
+      sensor.addEventListener('reading', () => {
+        currentLux = sensor.illuminance;
+        renderLux(currentLux);
+      });
+      // The Generic Sensor spec throws SecurityError ASYNCHRONOUSLY via
+      // sensor.onerror when permission is denied (Chromium-Android with
+      // ALS permission off, browsers in Permissions-Policy=(),
+      // privacy-mode iframes). Without this listener the sensor object
+      // exists, start() succeeds, but `reading` events never fire and
+      // the user sees a spinning "—" forever. Catch the async error
+      // and fall back to the camera path same as a synchronous throw.
+      sensor.addEventListener('error', () => {
+        try { sensor.stop(); } catch (e) {}
+        _luxState.sensor = null;
+        currentLux = null;
+        renderLux(null);
+        void startCameraFallback('<b>Ambient light sensor blocked</b> by browser permissions. Retrying with camera estimate…');
+      });
+      sensor.start();
+      _luxState.sensor = sensor;
+      usingALS = true;
+      sourceLine.textContent = 'Reading from your phone\'s ambient light sensor.';
+      // ALS is the authoritative source — no calibration needed.
+      if (calibrationPanel) calibrationPanel.style.display = 'none';
+    } catch (e) {
+      // Synchronous construction error — fall through to camera path
+    }
+  }
+
+  // Fallback: camera-based estimate
+  if (!usingALS) {
+    await startCameraFallback();
   }
 
   function renderLux(v) {
@@ -696,13 +725,6 @@ export async function openLuxMeter(opts = {}) {
     window._closeLuxMeter();
   });
 
-  window._closeLuxMeter = () => {
-    _luxState.running = false;
-    if (_luxState.sensor) { try { _luxState.sensor.stop(); } catch (e) {} _luxState.sensor = null; }
-    if (_luxState.stream) { try { _luxState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _luxState.stream = null; }
-    _luxState.video = null;
-    overlay.remove();
-  };
 }
 
 // ─── Tool 2: Flicker Detector ──────────────────────────────────────────
@@ -728,7 +750,14 @@ export async function openFlickerDetector(opts = {}) {
         <button class="import-btn import-btn-primary" id="flicker-save">Save reading</button>
       </div>
     </div>
-  </div>`;
+    </div>`;
+  let closed = false;
+  window._closeFlicker = () => {
+    closed = true;
+    _flickerState.running = false;
+    if (_flickerState.stream) { try { _flickerState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _flickerState.stream = null; }
+    overlay.remove();
+  };
   if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeFlicker()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
@@ -742,12 +771,18 @@ export async function openFlickerDetector(opts = {}) {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', frameRate: { ideal: 240, min: 60 }, width: 320, height: 240 },
     });
+    if (closed) {
+      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      return;
+    }
     _flickerState.stream = stream;
     video.srcObject = stream;
     await video.play();
+    if (closed) return;
     // Lock exposure short + manual so PWM banding is visible — auto mode
     // smooths the brightness fluctuations that ARE the signal we're after.
     const lock = await lockCameraForMeasurement(stream, { shortExposure: true });
+    if (closed) return;
     const lockNote = cameraLockStatusLine(lock);
     if (lockNote) resultEl.innerHTML = `Hold camera on a light for 5 seconds…<br>${lockNote}`;
     if (lock.frameRate && lock.frameRate < 60) {
@@ -784,12 +819,13 @@ export async function openFlickerDetector(opts = {}) {
       if (frameSamples.length > 240) frameSamples.shift();
       if (bandingSamples.length > 240) bandingSamples.shift();
       if (frameSamples.length >= 60) renderFlicker(frameSamples, bandingSamples, lock);
-      if (_flickerState.running) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  } catch (e) {
-    resultEl.innerHTML = 'Camera access denied — flicker detector unavailable. <br><span style="font-size:11px;color:var(--text-muted)">This tool needs the camera at 240 fps to detect PWM banding. To re-enable, open your browser\'s site settings and allow camera access.</span>';
-  }
+      if (_flickerState.running && !closed) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } catch (e) {
+    if (closed) return;
+      resultEl.innerHTML = 'Camera access denied — flicker detector unavailable. <br><span style="font-size:11px;color:var(--text-muted)">This tool needs the camera at 240 fps to detect PWM banding. To re-enable, open your browser\'s site settings and allow camera access.</span>';
+    }
 
   function renderFlicker(frameSamples, bandingSamples, lock) {
     const recent = frameSamples.slice(-120);
@@ -847,11 +883,6 @@ export async function openFlickerDetector(opts = {}) {
     window._closeFlicker();
   });
 
-  window._closeFlicker = () => {
-    _flickerState.running = false;
-    if (_flickerState.stream) { try { _flickerState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _flickerState.stream = null; }
-    overlay.remove();
-  };
 }
 
 // ─── Tool 6: Sleep Darkness Meter ─────────────────────────────────────
@@ -1039,7 +1070,14 @@ export async function openCCTMeter(opts = {}) {
         <button class="import-btn import-btn-primary" id="cct-save">Save reading</button>
       </div>
     </div>
-  </div>`;
+    </div>`;
+  let closed = false;
+  window._closeCCT = () => {
+    closed = true;
+    _cctState.running = false;
+    if (_cctState.stream) { try { _cctState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _cctState.stream = null; }
+    overlay.remove();
+  };
   if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeCCT()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
@@ -1057,13 +1095,19 @@ export async function openCCTMeter(opts = {}) {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: 320, height: 240 },
     });
+    if (closed) {
+      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      return;
+    }
     _cctState.stream = stream;
     video.srcObject = stream;
     await video.play();
+    if (closed) return;
     // Manual WB + exposure are the entire game here — auto-WB neutralizes
     // the color cast we're trying to measure. Without the lock, R/B ratio
     // is the camera's residual error, not the source CCT.
     const lock = await lockCameraForMeasurement(stream);
+    if (closed) return;
     if (lock.whiteBalance !== 'manual') {
       cohEl.innerHTML = `<span style="color:var(--orange);font-size:11px">⚠ camera auto-white-balance is on — CCT reading is the camera's error, not the source. Try a different browser / phone, or use a meter for accurate readings.</span>`;
     }
@@ -1113,12 +1157,13 @@ export async function openCCTMeter(opts = {}) {
           : '';
         cohEl.innerHTML = solarCoherence(cct) + `<br>${melanopicNote}${pwmNote}`;
       }
-      if (_cctState.running) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  } catch (e) {
-    valueEl.textContent = 'Camera denied';
-  }
+      if (_cctState.running && !closed) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } catch (e) {
+    if (closed) return;
+      valueEl.textContent = 'Camera denied';
+    }
 
   overlay.querySelector('#cct-save').addEventListener('click', async () => {
     if (currentCCT == null) return;
@@ -1131,11 +1176,6 @@ export async function openCCTMeter(opts = {}) {
     window._closeCCT();
   });
 
-  window._closeCCT = () => {
-    _cctState.running = false;
-    if (_cctState.stream) { try { _cctState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _cctState.stream = null; }
-    overlay.remove();
-  };
 }
 
 function cctTone(k) {
@@ -1184,7 +1224,14 @@ export async function openSpectrumClassifier(opts = {}) {
         <button class="import-btn import-btn-primary" id="spec-save">Save reading</button>
       </div>
     </div>
-  </div>`;
+    </div>`;
+  let closed = false;
+  window._closeSpec = () => {
+    closed = true;
+    _specState.running = false;
+    if (_specState.stream) { try { _specState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _specState.stream = null; }
+    overlay.remove();
+  };
   if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeSpec()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
@@ -1198,13 +1245,19 @@ export async function openSpectrumClassifier(opts = {}) {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', frameRate: { ideal: 240, min: 60 }, width: 320, height: 240 },
     });
+    if (closed) {
+      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      return;
+    }
     _specState.stream = stream;
     video.srcObject = stream;
     await video.play();
+    if (closed) return;
     // Manual exposure + WB so the classifier reads the actual emitter,
     // not the camera's auto-corrected output. Auto-mode would map every
     // light source toward neutral grey, defeating classification.
     const lock = await lockCameraForMeasurement(stream, { shortExposure: true });
+    if (closed) return;
     if (lock.whiteBalance !== 'manual' || lock.exposure !== 'manual') {
       resultEl.innerHTML = `<span style="color:var(--orange);font-size:12px">⚠ camera auto-mode partially active — classification reliability is reduced. ${cameraLockStatusLine(lock)}</span>`;
     }
@@ -1238,11 +1291,12 @@ export async function openSpectrumClassifier(opts = {}) {
         : result.circadian === 'day-only' ? `<span style="color:var(--orange);font-size:11px">⚠ day-only — high melanopic load</span>`
         : `<span style="color:var(--text-muted);font-size:11px">mixed melanopic load</span>`;
       resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small><br>${circadianBadge} <span style="color:var(--text-muted);font-size:11px">· melanopic ratio ${(result.melanopic * 100).toFixed(0)}%</span>`;
-      if (_specState.running) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  } catch (e) {
-    // Replace the dead video preview with a permission-request CTA so the
+      if (_specState.running && !closed) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } catch (e) {
+    if (closed) return;
+      // Replace the dead video preview with a permission-request CTA so the
     // user can either retry the prompt or open browser site-settings.
     // Without the camera there's no signal to classify — manual pick from
     // the four spectrum types is the only fallback.
@@ -1280,11 +1334,6 @@ export async function openSpectrumClassifier(opts = {}) {
     window._closeSpec();
   });
 
-  window._closeSpec = () => {
-    _specState.running = false;
-    if (_specState.stream) { try { _specState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _specState.stream = null; }
-    overlay.remove();
-  };
 }
 
 // Spectrum classifier — RGB ratio + rolling-shutter PWM banding +
@@ -1364,7 +1413,17 @@ export async function openGlassTransmission(opts = {}) {
         <button class="import-btn import-btn-primary" id="glass-save" disabled>Save reading</button>
       </div>
     </div>
-  </div>`;
+    </div>`;
+  let closed = false;
+  const activeGlassStreams = new Set();
+  window._closeGlass = () => {
+    closed = true;
+    for (const stream of activeGlassStreams) {
+      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+    }
+    activeGlassStreams.clear();
+    overlay.remove();
+  };
   if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeGlass()); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
@@ -1374,15 +1433,20 @@ export async function openGlassTransmission(opts = {}) {
   let _lastGlassLock = null;
   const measure = async (which) => {
     // Reuse the lux-camera path inline. Simpler than spinning up the modal.
+    let stream = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 160, height: 120 } });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 160, height: 120 } });
+      if (closed) return;
+      activeGlassStreams.add(stream);
       const video = document.createElement('video');
       video.srcObject = stream; video.muted = true; video.playsInline = true;
       await video.play();
+      if (closed) return;
       // Critical: the through-glass and direct samples MUST use the same
       // exposure/WB or the ratio compares apples to oranges. Auto-mode
       // re-exposes for each scene → ratio reflects camera-AE, not glass.
       const lock = await lockCameraForMeasurement(stream);
+      if (closed) return;
       _lastGlassLock = lock;
       const canvas = document.createElement('canvas');
       canvas.width = 32; canvas.height = 24;
@@ -1390,6 +1454,7 @@ export async function openGlassTransmission(opts = {}) {
       // Sample over 1s
       const samples = [];
       for (let i = 0; i < 8; i++) {
+        if (closed) return;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
         let sum = 0;
@@ -1397,14 +1462,23 @@ export async function openGlassTransmission(opts = {}) {
         samples.push(sum / (data.length / 4));
         await new Promise(r => setTimeout(r, 125));
       }
-      stream.getTracks().forEach(t => t.stop());
       const meanLuma = samples.reduce((a, b) => a + b, 0) / samples.length;
       const luxEst = Math.max(0, meanLuma * 40 * loadLuxCalibration());
+      if (closed) return;
       _glassReadings[which] = luxEst;
-      overlay.querySelector(`#glass-reading-${which}`).textContent = `${Math.round(luxEst)} lux`;
+      const readingEl = overlay.querySelector(`#glass-reading-${which}`);
+      if (readingEl) readingEl.textContent = `${Math.round(luxEst)} lux`;
       computeGlass();
     } catch (e) {
-      overlay.querySelector(`#glass-reading-${which}`).textContent = 'denied';
+      if (!closed) {
+        const readingEl = overlay.querySelector(`#glass-reading-${which}`);
+        if (readingEl) readingEl.textContent = 'denied';
+      }
+    } finally {
+      if (stream) {
+        try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        activeGlassStreams.delete(stream);
+      }
     }
   };
   overlay.querySelector('#glass-measure-inside').addEventListener('click', () => measure('inside'));
@@ -1432,7 +1506,6 @@ export async function openGlassTransmission(opts = {}) {
     };
   }
 
-  window._closeGlass = () => overlay.remove();
 }
 
 // ─── Tool 7: Sunrise / Sunset Logger ──────────────────────────────────
@@ -1498,6 +1571,12 @@ function _fmtClock(d) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+export function normalizeGoldenHourMinutes(value) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 15;
+  return Math.min(120, Math.max(1, parsed));
+}
+
 export function openSunriseLogger() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show light-tool-overlay';
@@ -1536,7 +1615,7 @@ export function openSunriseLogger() {
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 
   overlay.querySelector('#sunrise-save').addEventListener('click', async () => {
-    const minutes = parseInt(overlay.querySelector('#sunrise-duration').value, 10) || 15;
+    const minutes = normalizeGoldenHourMinutes(overlay.querySelector('#sunrise-duration').value);
     if (window.logCompletedSession) {
       const start = Date.now() - minutes * 60 * 1000;
       await window.logCompletedSession({
@@ -1640,6 +1719,7 @@ export async function openEyeLevelAudit() {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         let lastSampleLuma = null;
         let pauseStart = null;
+        let waitingForMovement = false;
         const tick = async () => {
           if (!_auditState.running) return;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -1651,16 +1731,23 @@ export async function openEyeLevelAudit() {
           _auditState.samples.push({ t, luma });
           // Pause detection: low variance over 5s
           if (lastSampleLuma != null && Math.abs(luma - lastSampleLuma) < 5) {
+            if (waitingForMovement) {
+              lastSampleLuma = luma;
+              if (_auditState.running) setTimeout(tick, 250);
+              return;
+            }
             if (!pauseStart) pauseStart = t;
             else if (t - pauseStart > 5000) {
               // Mark a pause snapshot
               const lux = Math.max(0, luma * 40 * loadLuxCalibration());
               pauseDetections.push({ at: t, luma, lux, label: '' });
               renderAuditList();
-              pauseStart = null; // reset until movement
+              pauseStart = null;
+              waitingForMovement = true;
             }
           } else {
             pauseStart = null;
+            waitingForMovement = false;
           }
           lastSampleLuma = luma;
           if (_auditState.running) setTimeout(tick, 250);
@@ -1741,61 +1828,136 @@ export async function openEyeLevelAudit() {
 // ─── Tools page render ────────────────────────────────────────────────
 
 export function renderLightTools() {
-  // Compute lightweight stats for the "since-you-started" footer line.
-  // No new state — just walks the existing measurements array which
-  // saveMeasurement appends to. Stays cheap even at hundreds of rows
-  // because we early-out at the totals (no per-tool aggregation here;
-  // the Light Environment page surfaces per-tool results elsewhere).
   const all = getMeasurements();
   const total = all.length;
   const cutoff7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const recent7 = all.filter(m => (m.capturedAt || 0) >= cutoff7d).length;
+  const env = state.importedData?.lightEnvironment || {};
+  const rooms = Array.isArray(env.rooms) ? env.rooms : [];
+  const roomCount = rooms.length;
 
-  // Tool groups — quick reach, full measurement, walkthrough/log.
-  // The Spectrum card still gets primary-action visual treatment via
-  // .light-tool-card-primary (subtle accent border) since it's the
-  // single highest-value first measurement for users without bulb
-  // specs. The "start here" badge was dropped because the other tools
-  // had no inverse hierarchy ("come here second / third"), so the
-  // implied sequencing was misleading.
-  const card = (handler, icon, name, desc, opts = {}) => `
-    <button class="light-tool-card${opts.primary ? ' light-tool-card-primary' : ''}" onclick="${handler}">
-      <div class="light-tool-icon">${icon}</div>
-      <div class="light-tool-name">${name}${opts.primary ? '<span class="light-tool-pill-hint" title="Recommended starting point">Start here</span>' : ''}</div>
-      <div class="light-tool-desc">${desc}</div>
+  const tools = {
+    spectrum: {
+      handler: 'window.openSpectrumClassifier()',
+      icon: '🔬',
+      name: 'What is this light?',
+      desc: 'Classify LED, fluorescent, daylight, or incandescent and estimate melanopic load.',
+      short: 'Bulb type + spectrum',
+    },
+    lux: {
+      handler: 'window.openLuxMeter()',
+      icon: '📏',
+      name: 'Lux meter',
+      desc: 'Measure room brightness with daylight comparison and per-device calibration.',
+      short: 'Brightness baseline',
+    },
+    cct: {
+      handler: 'window.openCCTMeter()',
+      icon: '🎨',
+      name: 'Color temp',
+      desc: 'Check warm/cool kelvin, solar-time match, and dimming warning signs.',
+      short: 'Warm vs cool',
+    },
+    flicker: {
+      handler: 'window.openFlickerDetector()',
+      icon: '⚡',
+      name: 'Flicker detector',
+      desc: 'Find PWM and rolling-shutter banding up to 25 kHz.',
+      short: 'PWM risk',
+    },
+    darkness: {
+      handler: 'window.openDarknessMeter()',
+      icon: '🌙',
+      name: 'Sleep darkness',
+      desc: 'Measure mean and peak lux at the pillow.',
+      short: 'Bedroom night check',
+    },
+    glass: {
+      handler: 'window.openGlassTransmission()',
+      icon: '🪟',
+      name: 'Window check',
+      desc: 'Compare two readings with and without glass for a better behind-glass estimate.',
+      short: 'Glass transmission',
+    },
+    audit: {
+      handler: 'window.openEyeLevelAudit()',
+      icon: '🚶',
+      name: 'Home audit',
+      desc: 'Walk through rooms and capture a per-room snapshot in about 10 minutes.',
+      short: 'Room sweep',
+    },
+    golden: {
+      handler: 'window.openSunriseLogger()',
+      icon: '🌅',
+      name: 'Golden hour log',
+      desc: 'After-the-fact log for sunrise or sunset sessions.',
+      short: 'Solar timing',
+    },
+  };
+
+  const action = (id, opts = {}) => {
+    const t = tools[id];
+    if (!t) return '';
+    const reason = opts.reason || t.short;
+    return `<button class="light-tool-action${opts.primary ? ' light-tool-action-primary' : ''}" onclick="${t.handler}" title="${escapeAttr(t.desc)}">
+      <span class="light-tool-action-icon" aria-hidden="true">${t.icon}</span>
+      <span class="light-tool-action-copy">
+        <span class="light-tool-action-name">${escapeHTML(t.name)}</span>
+        <span class="light-tool-action-desc">${escapeHTML(reason)}</span>
+      </span>
     </button>`;
+  };
+
+  const next = [
+    { id: 'lux', reason: 'Set brightness baseline', primary: true },
+    { id: 'flicker', reason: 'Rule out PWM risk' },
+    { id: 'spectrum', reason: 'Identify the light source' },
+  ];
+
+  const statusChips = total > 0
+    ? [
+      `${total} measurement${total === 1 ? '' : 's'}`,
+      recent7 > 0 ? `${recent7} in the last 7 days` : 'No readings this week',
+      roomCount > 0 ? `${roomCount} room${roomCount === 1 ? '' : 's'} mapped` : 'No rooms mapped',
+    ]
+    : [
+      'No measurements yet',
+      'Camera frames stay local',
+      roomCount > 0 ? `${roomCount} room${roomCount === 1 ? '' : 's'} ready` : 'Map rooms to attach readings',
+    ];
+
+  const group = (title, time, ids) => `<details class="light-tools-group">
+    <summary class="light-tools-group-head">
+      <span>${escapeHTML(title)}</span>
+      <span class="light-tools-group-time">${escapeHTML(time)}</span>
+    </summary>
+    <div class="light-tools-grid">
+      ${ids.map(id => action(id)).join('')}
+    </div>
+  </details>`;
 
   return `<div class="light-tools-section">
     <h3 class="light-section-title">Light tools</h3>
-    <p class="light-section-hint">Measurements run on your device. Camera frames never leave your phone.</p>
+    <p class="light-section-hint">On-device checks for room light, screens, windows, and solar logs.</p>
 
-    <div class="light-tools-group">
-      <div class="light-tools-group-head">Quick checks · 10–30 s</div>
-      <div class="light-tools-grid">
-        ${card("window.openSpectrumClassifier()", '🔬', 'What is this light?', 'LED, fluorescent, daylight, or incandescent? Auto-detects warm vs cool + melanopic load.', { primary: true })}
-        ${card("window.openLuxMeter()", '📏', 'Lux Meter', 'How bright is this room? Daylight comparison + per-device calibration.')}
-        ${card("window.openCCTMeter()", '🎨', 'Color Temp', 'Warm or cool kelvin? Matches solar time? Flags PWM dimming.')}
+    <div class="light-tools-status" aria-label="Measurement status">
+      ${statusChips.map(s => `<span>${escapeHTML(s)}</span>`).join('')}
+    </div>
+
+    <div class="light-tools-recommended">
+      <div class="light-tools-recommended-head">
+        <span>Recommended next</span>
+        <span>Camera stays on device</span>
+      </div>
+      <div class="light-tools-action-grid">
+        ${next.map((rec, i) => action(rec.id, { reason: rec.reason, primary: rec.primary || i === 0 })).join('')}
       </div>
     </div>
 
-    <div class="light-tools-group">
-      <div class="light-tools-group-head">Full measurements · 30 s – 2 min</div>
-      <div class="light-tools-grid">
-        ${card("window.openFlickerDetector()", '⚡', 'Flicker Detector', 'Is this light flickering? Sees PWM up to 25 kHz via rolling-shutter banding.')}
-        ${card("window.openDarknessMeter()", '🌙', 'Sleep Darkness', 'Is your bedroom dark enough for melatonin? Measures mean + peak lux at the pillow.')}
-        ${card("window.openGlassTransmission()", '🪟', 'Window check', 'Measure your glass transmission with two readings (with + without), side-by-side. The in-session "behind glass" toggle uses a generic curve — measure here for accuracy.')}
-      </div>
+    <div class="light-tools-drawer">
+      ${group('Specialized checks', '30 s-2 min', ['cct', 'darkness', 'glass'])}
+      ${group('Walkthroughs & logs', '2-10 min', ['audit', 'golden'])}
     </div>
-
-    <div class="light-tools-group">
-      <div class="light-tools-group-head">Walkthroughs &amp; logs</div>
-      <div class="light-tools-grid">
-        ${card("window.openEyeLevelAudit()", '🚶', 'Home audit', 'Walk through, pause in each room for ~5 s. Get a per-room snapshot in 10 minutes.')}
-        ${card("window.openSunriseLogger()", '🌅', 'Golden hour log', 'Quick after-the-fact log for sunrise / sunset sessions.')}
-      </div>
-    </div>
-
-    ${total > 0 ? `<p class="light-tools-stats">${total} measurement${total === 1 ? '' : 's'} taken${recent7 > 0 ? ` · ${recent7} in the last 7 days` : ''}.</p>` : `<p class="light-tools-stats light-tools-stats-empty">No measurements yet. Start with <strong>What is this light?</strong> on the bulb closest to where you spend your evenings.</p>`}
   </div>`;
 }
 

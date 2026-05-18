@@ -52,10 +52,12 @@ console.log('=== Phase 3 A11y Tests ===\n');
     viewsSrc.includes('class="focus-card-refresh" onclick="refreshFocusCard()" aria-label="Regenerate insight"'));
 
   const cycleSrc = read('/js/cycle.js');
-  assert('cycle-prompt has role+tabindex',
-    cycleSrc.includes('class="cycle-prompt" role="button" tabindex="0"'));
-  assert('cycle-summary has role+tabindex',
-    cycleSrc.includes('class="cycle-summary" role="button" tabindex="0"'));
+  assert('cycle-prompt is a semantic button',
+    cycleSrc.includes('<button type="button" class="cycle-prompt"'));
+  assert('cycle-summary is a semantic button',
+    cycleSrc.includes('<button type="button" class="cycle-summary-card"'));
+  assert('cycle editable cards keep keyboard activation handler',
+    cycleSrc.includes('CYCLE_KEY_ACTIVATE_EDITOR'));
 
   const suppSrc = read('/js/supplements.js');
   assert('supp-bar-row has role+tabindex',
@@ -138,6 +140,11 @@ console.log('=== Phase 3 A11y Tests ===\n');
     indexSrc.includes('media="(prefers-color-scheme: light)"'));
   assert('footer drops the heart emoji',
     !indexSrc.includes('Built with ❤️') && indexSrc.includes('Built by'));
+  assert('header brand wordmark keeps theme gradient like footer',
+    /\.brand-mark,[\s\S]*?\.header h1\.brand-mark[\s\S]*?background:\s*var\(--accent-gradient\)[\s\S]*?-webkit-text-fill-color:\s*transparent/.test(cssSrc));
+  const themesSrc = read('/themes-extra.css');
+  assert('cyberterm brand prompt stays visible over gradient wordmark',
+    /\[data-theme="cyberterm"\] \.brand-mark::before[\s\S]*?-webkit-text-fill-color:\s*var\(--text-muted\)/.test(themesSrc));
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');

@@ -20,6 +20,66 @@ import { buildLabContext, getContextSummary, injectLensChunks } from './lab-cont
 import { hasLens, queryLensMulti, updateLensIndicator } from './lens.js';
 import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 
+const CHAT_RESPONSE_MAX_TOKENS = 16384;
+const CHAT_AUTO_CONTINUE_LIMIT = 2;
+const CHAT_CONTINUE_PROMPT = 'Continue exactly where you stopped. Do not repeat anything already written. Finish the interrupted sentence first, then complete the answer.';
+const CHAT_ICON_SEND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
+const CHAT_ICON_STOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>';
+const CHAT_ICON_COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const CHAT_ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const CHAT_ICON_REFRESH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.6 6.1"/><path d="M3 12A9 9 0 0 1 18.6 5.9"/><path d="M18 2v4h4"/><path d="M6 22v-4H2"/></svg>';
+const CHAT_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const CHAT_ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
+function _createChatIcon(kind) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = (d) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    el.setAttribute('d', d);
+    svg.appendChild(el);
+  };
+  if (kind === 'send') {
+    path('m22 2-7 20-4-9-9-4Z');
+    path('M22 2 11 13');
+  } else if (kind === 'stop') {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', '7');
+    rect.setAttribute('y', '7');
+    rect.setAttribute('width', '10');
+    rect.setAttribute('height', '10');
+    rect.setAttribute('rx', '1');
+    svg.appendChild(rect);
+  } else if (kind === 'copy') {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', '9');
+    rect.setAttribute('y', '9');
+    rect.setAttribute('width', '13');
+    rect.setAttribute('height', '13');
+    rect.setAttribute('rx', '2');
+    svg.appendChild(rect);
+    path('M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1');
+  } else if (kind === 'check') {
+    path('M20 6 9 17l-5-5');
+  } else {
+    path('M18 6 6 18');
+    path('m6 6 12 12');
+  }
+  return svg;
+}
+
+function _setIconButtonContent(btn, kind, label = '') {
+  if (!btn) return;
+  const nodes = [_createChatIcon(kind)];
+  if (label) {
+    const span = document.createElement('span');
+    span.textContent = label;
+    nodes.push(span);
+  }
+  btn.replaceChildren(...nodes);
+}
+
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
 // ═══════════════════════════════════════════════
@@ -126,9 +186,9 @@ export function buildActionBar(msgIndex) {
 
   let html = '<div class="chat-action-bar">';
   if (isLast) {
-    html += `<button class="chat-action-btn" onclick="regenerateLastMessage()" title="Regenerate response">\u21BB Regenerate</button>`;
+    html += `<button class="chat-action-btn" onclick="regenerateLastMessage()" title="Regenerate response">${CHAT_ICON_REFRESH}<span>Regenerate</span></button>`;
   }
-  html += `<button class="chat-action-btn" onclick="copyMessage(${msgIndex})" id="chat-copy-btn-${msgIndex}" title="Copy to clipboard">\uD83D\uDCCB Copy</button>`;
+  html += `<button class="chat-action-btn" onclick="copyMessage(${msgIndex})" id="chat-copy-btn-${msgIndex}" title="Copy to clipboard">${CHAT_ICON_COPY}<span>Copy</span></button>`;
   html += '</div>';
 
   // Context used section
@@ -171,14 +231,14 @@ export function copyMessage(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg) return;
   const btn = document.getElementById(`chat-copy-btn-${msgIndex}`);
-  if (!navigator.clipboard) { if (btn) { btn.innerHTML = '\u2717 Not supported'; setTimeout(() => { btn.innerHTML = '\uD83D\uDCCB Copy'; }, 1500); } return; }
+  if (!navigator.clipboard) { if (btn) { _setIconButtonContent(btn, 'x', 'Not supported'); setTimeout(() => { _setIconButtonContent(btn, 'copy', 'Copy'); }, 1500); } return; }
   navigator.clipboard.writeText(msg.content).then(() => {
     if (btn) {
-      btn.innerHTML = '\u2713 Copied!';
-      setTimeout(() => { btn.innerHTML = '\uD83D\uDCCB Copy'; }, 1500);
+      _setIconButtonContent(btn, 'check', 'Copied');
+      setTimeout(() => { _setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);
     }
   }).catch(() => {
-    if (btn) { btn.innerHTML = '\u2717 Failed'; setTimeout(() => { btn.innerHTML = '\uD83D\uDCCB Copy'; }, 1500); }
+    if (btn) { _setIconButtonContent(btn, 'x', 'Failed'); setTimeout(() => { _setIconButtonContent(btn, 'copy', 'Copy'); }, 1500); }
   });
 }
 
@@ -424,8 +484,8 @@ export function updatePersonalityBar() {
         </div>
         <span class="chat-personality-opt-check">&#10003;</span>
       </button>
-      <button class="chat-personality-edit" onclick="event.stopPropagation(); editCustomPersonality('${escapeHTML(cp.id)}')" title="Edit personality">&#9998;</button>
-      <button class="chat-personality-delete" onclick="event.stopPropagation(); deleteCustomPersonality('${escapeHTML(cp.id)}')" title="Delete personality">&times;</button>
+      <button class="chat-personality-edit" onclick="event.stopPropagation(); editCustomPersonality('${escapeHTML(cp.id)}')" title="Edit personality" aria-label="Edit personality">${CHAT_ICON_EDIT}</button>
+      <button class="chat-personality-delete" onclick="event.stopPropagation(); deleteCustomPersonality('${escapeHTML(cp.id)}')" title="Delete personality" aria-label="Delete personality">${CHAT_ICON_X}</button>
     </div>`;
   }
   html += '<button class="chat-personality-add-btn" onclick="startNewCustomPersonality()">+ New Personality</button>';
@@ -1068,9 +1128,86 @@ function _renderLensSources(chunks, sourceName) {
   </details>`;
 }
 
+function _responseLimitNote() {
+  return '<div class="chat-stopped-note">[output limit reached - ask "continue" to finish]</div>';
+}
+
+function _isAIResponseTruncated(result) {
+  if (result?.truncated) return true;
+  const reason = String(result?.finishReason || '').toLowerCase();
+  return reason === 'length'
+    || reason === 'max_tokens'
+    || reason === 'max_completion_tokens'
+    || reason.includes('token_limit')
+    || reason.includes('max token');
+}
+
+function _isLikelyIncompleteResponse(text) {
+  const t = String(text || '').trim();
+  if (t.length < 500 || t.endsWith('```')) return false;
+  if (/[.!?)]$/.test(t)) return false;
+  const lines = t.split('\n').map(line => line.trim()).filter(Boolean);
+  const lastLine = lines[lines.length - 1] || '';
+  if (!lastLine) return false;
+  if (/^#{1,6}\s+/.test(lastLine)) return true;
+  if (/[:,;]$/.test(t)) return true;
+  if (/\b(and|or|but|because|with|without|low|high|given|especially|that|the|a|an|to|for|of|in|on|by|from)$/i.test(t)) return true;
+  return lastLine.length > 60;
+}
+
+function _shouldAutoContinueResponse(result, text) {
+  return _isAIResponseTruncated(result) || _isLikelyIncompleteResponse(text);
+}
+
+function _mergeAIUsage(total = {}, next = {}) {
+  return {
+    inputTokens: (total.inputTokens || 0) + (next.inputTokens || 0),
+    outputTokens: (total.outputTokens || 0) + (next.outputTokens || 0),
+  };
+}
+
+async function _callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch }) {
+  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch });
+  let fullText = result.text || '';
+  let usage = result.usage || {};
+  let continued = 0;
+
+  while (_shouldAutoContinueResponse(result, fullText) && continued < CHAT_AUTO_CONTINUE_LIMIT && !signal?.aborted) {
+    continued += 1;
+    const priorText = fullText;
+    const continuationMessages = [
+      ...messages,
+      { role: 'assistant', content: priorText },
+      { role: 'user', content: CHAT_CONTINUE_PROMPT },
+    ];
+    result = await callClaudeAPI({
+      system,
+      messages: continuationMessages,
+      maxTokens,
+      signal,
+      onStream(partial) {
+        if (onStream) onStream(priorText + partial);
+      },
+      webSearch,
+    });
+    fullText += result.text || '';
+    usage = _mergeAIUsage(usage, result.usage || {});
+  }
+
+  return {
+    ...result,
+    text: fullText,
+    usage,
+    continued,
+    truncated: _shouldAutoContinueResponse(result, fullText),
+  };
+}
+
 export function renderChatMessages() {
   const container = document.getElementById('chat-messages');
   if (!container) return;
+  const panel = document.getElementById('chat-panel');
+  panel?.classList.remove('chat-onboarding-active');
 
   // ── Onboarding flow: conversational chat bubbles guide through setup ──
   if (state.chatHistory.length === 0) {
@@ -1081,6 +1218,7 @@ export function renderChatMessages() {
 
     // Stage 1: No profile — ask name/sex/DOB/location
     if (!hasProfile) {
+      panel?.classList.add('chat-onboarding-active');
       const pName = (currentP?.name && currentP.name !== 'Default') ? currentP.name : '';
       const pSex = state.profileSex || '';
       const pDob = state.profileDob || '';
@@ -1108,32 +1246,37 @@ export function renderChatMessages() {
               <label class="chat-onboard-label" for="chat-onboard-dob">Born</label>
               <input type="date" class="chat-onboard-input" id="chat-onboard-dob" value="${escapeHTML(pDob)}" min="1900-01-01" max="${new Date().toISOString().slice(0, 10)}">
             </div>
-            <div class="chat-onboard-row">
-              <label class="chat-onboard-label" for="chat-onboard-height">Height</label>
-              <div class="chat-onboard-input-with-unit">
-                <input type="number" class="chat-onboard-input" id="chat-onboard-height" placeholder="cm" step="0.1" value="${pHeight || ''}">
-                <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-height-unit" aria-label="Height unit" onchange="window.onboardHeightUnitChanged()">
-                  <option value="cm"${pHeightUnit !== 'in' ? ' selected' : ''}>cm</option>
-                  <option value="in"${pHeightUnit === 'in' ? ' selected' : ''}>in</option>
-                </select>
+            <details class="chat-onboard-more">
+              <summary>Optional body and location context</summary>
+              <div class="chat-onboard-more-body">
+                <div class="chat-onboard-row">
+                  <label class="chat-onboard-label" for="chat-onboard-height">Height</label>
+                  <div class="chat-onboard-input-with-unit">
+                    <input type="number" class="chat-onboard-input" id="chat-onboard-height" placeholder="cm" step="0.1" value="${pHeight || ''}">
+                    <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-height-unit" aria-label="Height unit" onchange="window.onboardHeightUnitChanged()">
+                      <option value="cm"${pHeightUnit !== 'in' ? ' selected' : ''}>cm</option>
+                      <option value="in"${pHeightUnit === 'in' ? ' selected' : ''}>in</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="chat-onboard-row">
+                  <label class="chat-onboard-label" for="chat-onboard-weight">Weight</label>
+                  <div class="chat-onboard-input-with-unit">
+                    <input type="number" class="chat-onboard-input" id="chat-onboard-weight" placeholder="kg" step="0.1">
+                    <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-weight-unit" aria-label="Weight unit">
+                      <option value="kg">kg</option>
+                      <option value="lbs">lbs</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="chat-onboard-row">
+                  <label class="chat-onboard-label" for="chat-onboard-country">Location</label>
+                  <input type="text" class="chat-onboard-input" id="chat-onboard-country" placeholder="e.g. Germany" value="${escapeHTML(pLoc.country || '')}" oninput="window.saveChatLocation()">
+                </div>
+                <div id="chat-onboard-lat" class="chat-onboard-lat"></div>
+                <div class="chat-onboard-help">Latitude affects vitamin D, circadian rhythm, and seasonal health patterns.</div>
               </div>
-            </div>
-            <div class="chat-onboard-row">
-              <label class="chat-onboard-label" for="chat-onboard-weight">Weight</label>
-              <div class="chat-onboard-input-with-unit">
-                <input type="number" class="chat-onboard-input" id="chat-onboard-weight" placeholder="kg" step="0.1">
-                <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-weight-unit" aria-label="Weight unit">
-                  <option value="kg">kg</option>
-                  <option value="lbs">lbs</option>
-                </select>
-              </div>
-            </div>
-            <div class="chat-onboard-row">
-              <label class="chat-onboard-label" for="chat-onboard-country">Location</label>
-              <input type="text" class="chat-onboard-input" id="chat-onboard-country" placeholder="e.g. Germany" value="${escapeHTML(pLoc.country || '')}" oninput="window.saveChatLocation()">
-            </div>
-            <div id="chat-onboard-lat" style="font-size:12px;margin:2px 0 0 52px"></div>
-            <div style="font-size:11px;color:var(--text-muted);margin:2px 0 0 52px;line-height:1.3">Latitude affects vitamin D, circadian rhythm, and seasonal health patterns.</div>
+            </details>
             <button class="chat-onboard-next" id="chat-onboard-next" onclick="window.saveChatProfile(true)" disabled>Continue →</button>
           </div>
         </div>`;
@@ -1145,6 +1288,7 @@ export function renderChatMessages() {
 
     // AI paused — show re-enable prompt instead of setup guide
     if (isAIPaused()) {
+      panel?.classList.add('chat-onboarding-active');
       const name = currentP?.name || 'there';
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
@@ -1165,6 +1309,7 @@ export function renderChatMessages() {
     // each branch to the right setup with plain language.
     const providerSkipped = localStorage.getItem(`labcharts-onboard-provider-skipped-${state.currentProfile}`);
     if (!hasAIProvider() && !providerSkipped) {
+      panel?.classList.add('chat-onboarding-active');
       const name = currentP?.name || 'there';
       const branch = sessionStorage.getItem(`chat-onboard-provider-branch-${state.currentProfile}`) || '';
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
@@ -1188,109 +1333,67 @@ export function renderChatMessages() {
 
     // Stage 3-extras: Cycle + supplements (dedicated step, shown once before cards/import)
     if (!hasData && !extrasDone) {
-      const cycleSection = (isFemale && !hasCycle) ? `<div class="chat-onboard-cycle-hint">
-            <p>🩸 Do you currently have a menstrual cycle? This helps me interpret hormones, iron, and inflammation — they shift significantly with cycle phase.</p>
-            <div class="chat-onboard-cycle-options" id="chat-onboard-cycle-options">
-              <button class="ctx-btn-option" onclick="window.showCyclePeriodEntry()">Yes — I get regular periods</button>
-              <button class="ctx-btn-option" onclick="window.saveCycleStatus('perimenopause')">They're irregular / perimenopause</button>
-              <button class="ctx-btn-option" onclick="window.showCycleNoMensesOptions()">No — not currently menstruating</button>
-            </div>
-            <div class="chat-onboard-cycle-options" id="chat-onboard-cycle-no-menses" style="display:none">
-              <p style="font-size:13px;margin:0 0 6px;color:var(--text-muted)">What's the reason? This helps me interpret your labs correctly.</p>
-              <button class="ctx-btn-option" onclick="window.saveCycleStatus('postmenopause')">Menopause</button>
-              <button class="ctx-btn-option" onclick="window.saveCycleStatus('pregnant')">Pregnant</button>
-              <button class="ctx-btn-option" onclick="window.saveCycleStatus('breastfeeding')">Breastfeeding</button>
-              <button class="ctx-btn-option" onclick="window.saveCycleStatus('absent')">Other reason</button>
-            </div>
-            <div class="chat-onboard-cycle-form" id="chat-onboard-cycle-entry" style="display:none">
-              <p style="font-size:13px;margin:8px 0 4px">When did your last period start and end? (day of month)</p>
-              <div class="chat-onboard-cycle-dates">
-                <label class="chat-onboard-label" for="chat-onboard-period-start">Started</label>
-                <input type="number" class="chat-onboard-input chat-onboard-day" id="chat-onboard-period-start" min="1" max="31" placeholder="?" oninput="window._updatePeriodBtn()">
-                <label class="chat-onboard-label" for="chat-onboard-period-end">ended</label>
-                <input type="number" class="chat-onboard-input chat-onboard-day" id="chat-onboard-period-end" min="1" max="31" placeholder="?" oninput="window._updatePeriodBtn()">
-              </div>
-              <div id="chat-onboard-period-preview" style="font-size:12px;color:var(--text-muted);margin:4px 0"></div>
-              <button class="chat-onboard-next" id="chat-onboard-period-btn" onclick="window.saveChatPeriod()" disabled>Save</button>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">You can always change this later in the <a href="#" onclick="event.stopPropagation();closeChatPanel();window.openMenstrualCycleEditor?.()" style="color:var(--accent)">cycle editor</a>.</div>
-          </div>` : '';
-      const suppList = supps.map((s, i) => `<div class="chat-onboard-supp-item"><span>${escapeHTML(s.name)}${s.dosage ? ' — ' + escapeHTML(s.dosage) : ''} <span style="color:var(--text-muted);font-size:11px">(${s.type})</span></span><button class="chat-onboard-supp-remove" onclick="window.removeChatSupplement(${i})" title="Remove">&times;</button></div>`).join('');
-      const suppSection = `<div class="chat-onboard-supps">
-            <p>💊 Are you taking any supplements or medications? These can significantly affect your lab results.</p>
-            <div id="chat-onboard-supp-list">${suppList}</div>
-            <div class="chat-onboard-supp-form">
-              <input type="text" class="chat-onboard-input" id="chat-onboard-supp-name" aria-label="Supplement or medication name" placeholder="Name (e.g. Creatine, Metformin)" style="flex:2" onkeydown="if(event.key==='Enter'){event.preventDefault();window.addChatSupplement()}">
-              <input type="text" class="chat-onboard-input" id="chat-onboard-supp-dose" aria-label="Dosage" placeholder="Dosage (e.g. 5g/day)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();window.addChatSupplement()}">
-              <select class="chat-onboard-input" id="chat-onboard-supp-type" aria-label="Type" style="flex:0 0 auto;width:auto">
-                <option value="supplement">Supplement</option>
-                <option value="medication">Medication</option>
-              </select>
-              <button class="chat-onboard-supp-add" onclick="window.addChatSupplement()">+</button>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Press + or Enter to add. You can always edit these later on the dashboard.</div>
-          </div>`;
-      const genetics = state.importedData.genetics;
-      const hasSnps = genetics && Object.keys(genetics.snps || {}).length > 0;
-      const hasMtdna = genetics && genetics.mtdna;
-      let dnaSection = `<div class="chat-onboard-dna" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">`;
-      if (hasSnps) {
-        const fx = genetics.effects || {};
-        const dots = [];
-        if (genetics.apoe) dots.push(`APOE: <strong>${escapeHTML(genetics.apoe)}</strong>`);
-        if (fx.significant > 0) dots.push(`\uD83D\uDD34 ${fx.significant} significant`);
-        if (fx.moderate > 0) dots.push(`\uD83D\uDFE1 ${fx.moderate} moderate`);
-        if (fx.normal > 0) dots.push(`\uD83D\uDFE2 ${fx.normal} normal`);
-        const dotsHtml = dots.length > 0 ? `<div style="font-size:13px;line-height:1.8">${dots.join(' &nbsp;\u00B7&nbsp; ')}</div>` : '';
-        dnaSection += `<p style="margin:0 0 6px">\uD83E\uDDEC <strong>${Object.keys(genetics.snps).length} SNPs imported</strong> from ${escapeHTML(genetics.source)}</p>${dotsHtml}`;
-      }
-      if (hasMtdna) {
-        const mt = genetics.mtdna;
-        dnaSection += `<p style="margin:${hasSnps ? '8' : '0'}px 0 6px">\uD83E\uDDEC mtDNA Haplogroup: <strong>${escapeHTML(mt.haplogroup)}</strong>${mt.coupling ? ` \u2014 ${escapeHTML(mt.coupling.shortLabel)}` : ''}</p>`;
-      }
-      if (hasSnps || hasMtdna) {
-        dnaSection += `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">I'll factor these into all your lab interpretations.</div>`;
-      }
-      if (!hasSnps || !hasMtdna) {
-        const prompts = [];
-        if (!hasSnps) prompts.push('autosomal raw data (23andMe, Ancestry, etc.)');
-        if (!hasMtdna) prompts.push('mtDNA mutation file (maternal haplogroup)');
-        dnaSection += `<p style="margin:${hasSnps || hasMtdna ? '8' : '0'}px 0 8px">\uD83E\uDDEC ${hasSnps || hasMtdna ? 'You can also add' : 'Have you ever done a DNA test? Upload'} ${prompts.join(' or ')}${hasSnps || hasMtdna ? '.' : ' \u2014 it helps me understand <em>why</em> your labs look the way they do.'}</p>
-            <div style="display:flex;align-items:center;gap:8px;margin:8px 0">
-              ${!hasSnps ? `<button class="ctx-btn-option" onclick="document.getElementById('dna-onboard-input').click()">Upload DNA raw data</button>` : ''}
-              ${!hasMtdna ? `<button class="ctx-btn-option" onclick="document.getElementById('mtdna-onboard-input').click()">Upload mtDNA file</button>` : ''}
-              ${!hasMtdna ? `<span style="font-size:12px;color:var(--text-muted)">or</span>
-              <select class="ctx-btn-option" style="padding:4px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px" onchange="if(this.value){window.setManualHaplogroup(this.value);this.value=''}">
-                <option value="">Enter haplogroup</option>
-                ${window.HAPLOGROUP_LIST ? window.HAPLOGROUP_LIST.map(h => '<option value="' + h + '">' + h + '</option>').join('') : ''}
-              </select>` : ''}
-            </div>
-            ${!hasSnps ? `<input type="file" id="dna-onboard-input" accept=".txt,.csv" style="display:none" onchange="if(this.files[0]){window.handleDNAFile(this.files[0]);this.value=''}">` : ''}
-            ${!hasMtdna ? `<input type="file" id="mtdna-onboard-input" accept=".txt,.csv" style="display:none" onchange="if(this.files[0]){window.handleMtDNAFile(this.files[0]);this.value=''}">` : ''}
-            <div style="font-size:11px;color:var(--text-muted);line-height:1.5">Processed locally \u2014 your DNA files never leave your device.</div>`;
-      }
-      dnaSection += `</div>`;
+      panel?.classList.add('chat-onboarding-active');
+      const genetics = state.importedData.genetics || {};
+      const hasSnps = Object.keys(genetics.snps || {}).length > 0;
+      const hasMtdna = !!genetics.mtdna;
       const wearableConns = state.importedData?.wearableConnections || {};
       const hasWearable = Object.values(wearableConns).some(c => c?.accessToken || c?.connectedSince);
-      const wearableSection = hasWearable ? '' : `<div class="chat-onboard-wearable" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-            <p style="margin:0 0 6px">⧬ Do you wear a smartwatch or fitness tracker? HRV, sleep, recovery and body composition give me a much richer picture alongside your blood work.</p>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">
-              <button class="ctx-btn-option" onclick="event.stopPropagation();closeChatPanel();window.openSettingsModal('wearables')">Connect a wearable</button>
-              <button class="ctx-btn-option" onclick="event.stopPropagation();this.closest('.chat-onboard-wearable').style.display='none'">I don't wear one</button>
-              <span style="font-size:12px;color:var(--text-muted);align-self:center">Oura · Withings · Fitbit · Polar · Apple Health</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);line-height:1.5">Raw daily samples stay on your device. Sync only carries a compact encrypted summary.</div>
-          </div>`;
+      const suppSummary = supps.length
+        ? supps.slice(0, 2).map(s => `${s.name}${s.dosage ? ` ${s.dosage}` : ''}`).join(', ') + (supps.length > 2 ? ` +${supps.length - 2}` : '')
+        : 'Add medications or supplements that can shift labs.';
+      const dnaSummary = [
+        hasSnps ? `${Object.keys(genetics.snps || {}).length} SNPs` : '',
+        hasMtdna ? `mtDNA ${genetics.mtdna?.haplogroup || ''}`.trim() : '',
+      ].filter(Boolean).join(' · ') || 'Optional: import DNA context when you have it.';
+      const cards = [
+        isFemale ? `<article class="chat-onboard-task${hasCycle ? ' is-complete' : ''}">
+          <span class="chat-onboard-task-icon" aria-hidden="true">◐</span>
+          <span class="chat-onboard-task-body">
+            <strong>Cycle context</strong>
+            <small>${hasCycle ? 'Cycle tracking is already set.' : 'Helps interpret hormones, iron, and inflammation.'}</small>
+          </span>
+          <button type="button" class="chat-onboard-mini-btn" onclick="event.stopPropagation();closeChatPanel();window.openMenstrualCycleEditor?.()">${hasCycle ? 'Edit' : 'Set up'}</button>
+        </article>` : '',
+        `<article class="chat-onboard-task${supps.length ? ' is-complete' : ''}">
+          <span class="chat-onboard-task-icon" aria-hidden="true">Rx</span>
+          <span class="chat-onboard-task-body">
+            <strong>Supplements &amp; meds</strong>
+            <small>${escapeHTML(suppSummary)}</small>
+          </span>
+          <button type="button" class="chat-onboard-mini-btn" onclick="event.stopPropagation();closeChatPanel();window.openSupplementsEditor?.()">${supps.length ? 'Edit' : 'Add'}</button>
+        </article>`,
+        `<article class="chat-onboard-task chat-onboard-dna${hasSnps || hasMtdna ? ' is-complete' : ''}">
+          <span class="chat-onboard-task-icon" aria-hidden="true">DNA</span>
+          <span class="chat-onboard-task-body">
+            <strong>Genetics</strong>
+            <small>${escapeHTML(dnaSummary)}</small>
+          </span>
+          <span class="chat-onboard-mini-actions">
+            ${!hasSnps ? `<button type="button" class="chat-onboard-mini-btn" onclick="event.stopPropagation();closeChatPanel();window.triggerDNAFilePicker?.()">Import</button>` : ''}
+            ${!hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" onclick="event.stopPropagation();const input=document.getElementById('mtdna-onboard-input');closeChatPanel();input?.click()">mtDNA</button>
+            <input type="file" id="mtdna-onboard-input" class="sr-only" accept=".txt,.csv" onchange="if(this.files[0]){window.handleMtDNAFile?.(this.files[0]);this.value=''}">` : ''}
+            ${hasSnps && hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" onclick="event.stopPropagation();closeChatPanel();window.triggerDNAFilePicker?.()">Re-import</button>` : ''}
+          </span>
+        </article>`,
+        hasWearable ? '' : `<article class="chat-onboard-task">
+          <span class="chat-onboard-task-icon" aria-hidden="true">HRV</span>
+          <span class="chat-onboard-task-body">
+            <strong>Wearables</strong>
+            <small>Optional HRV, sleep, recovery, and body composition trends.</small>
+          </span>
+          <button type="button" class="chat-onboard-mini-btn" onclick="event.stopPropagation();closeChatPanel();window.openSettingsModal('wearables')">Connect</button>
+        </article>`,
+      ].filter(Boolean).join('');
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
-        <div class="chat-msg chat-ai" style="width:88%">
+        <div class="chat-msg chat-ai">
           ${_renderOnboardCrumbs(3)}
-          <p>${hasAIProvider() ? 'Great, we\'re connected! 🎉' : 'Nice!'} A couple of quick things that help me give better advice:</p>
-          ${cycleSection}
-          ${suppSection}
-          ${dnaSection}
-          ${wearableSection}
-          <div class="chat-onboard-actions">
-            <button class="chat-onboard-cta" onclick="window.skipOnboardingExtras()">Continue →</button>
+          <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice.'} These optional context pieces make the AI more useful, but you can skip them and import labs now.</p>
+          <div class="chat-onboard-task-grid">${cards}</div>
+          <div class="chat-onboard-note">You can change all of this later from the dashboard, settings, or client profile.</div>
+          <div class="chat-onboard-actions chat-onboard-actions-row">
+            <button class="chat-onboard-cta" onclick="window.skipOnboardingExtras()">Continue to import</button>
+            <button class="chat-prompt-btn" onclick="window.skipOnboardingExtras()">Skip optional setup</button>
           </div>
         </div>`;
       updateDiscussButton();
@@ -1299,6 +1402,7 @@ export function renderChatMessages() {
 
     // 3a: All 9 cards filled, no data — full picture
     if (filled >= 9 && !hasData) {
+      panel?.classList.add('chat-onboarding-active');
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
           ${_renderOnboardCrumbs(4)}
@@ -1317,6 +1421,7 @@ export function renderChatMessages() {
 
     // 3b: No data, some cards filled — show progress, encourage more
     if (!hasData && filled > 0) {
+      panel?.classList.add('chat-onboarding-active');
       const remaining = 9 - filled;
       const progressPct = Math.round((filled / 9) * 100);
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
@@ -1338,6 +1443,7 @@ export function renderChatMessages() {
 
     // 3c: No data, no cards — initial prompt
     if (!hasData) {
+      panel?.classList.add('chat-onboarding-active');
       container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
         <div class="chat-msg chat-ai">
           ${_renderOnboardCrumbs(4)}
@@ -1417,6 +1523,7 @@ export function renderChatMessages() {
       }
     }
     html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${renderMarkdown(msg.content)}${stoppedNote}`;
+    if (msg.role === 'assistant' && msg.truncated) html += _responseLimitNote();
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {
         const mId = msg.modelId || getActiveModelId();
@@ -1889,7 +1996,11 @@ function _refreshDashboardCycle() {
   if (details && !details.open) { details.setAttribute('open', ''); sessionStorage.setItem('welcome-details-open', '1'); }
   const el = document.querySelector('.cycle-section');
   if (el && window.renderMenstrualCycleSection) {
-    el.outerHTML = window.renderMenstrualCycleSection(window.getActiveData());
+    const inDashboardCycleWidget = !!el.closest('.dashboard-widget[data-widget-id="cycle"]');
+    el.outerHTML = window.renderMenstrualCycleSection(
+      window.getActiveData(),
+      inDashboardCycleWidget ? { variant: 'dashboard', showHeader: false } : {}
+    );
   } else if (!el && state.profileSex === 'female' && window.renderMenstrualCycleSection) {
     // Cycle section doesn't exist yet — insert it after context cards
     const supps = document.querySelector('.supp-timeline-section');
@@ -2045,11 +2156,11 @@ function setSendButtonMode(btn, mode) {
   if (!btn) return;
   if (mode === 'streaming') {
     btn.disabled = false;
-    btn.innerHTML = '&#9632;'; // ■ stop square
+    _setIconButtonContent(btn, 'stop');
     btn.classList.add('streaming');
   } else {
     btn.disabled = false;
-    btn.innerHTML = '&#10148;'; // ➤ send arrow
+    _setIconButtonContent(btn, 'send');
     btn.classList.remove('streaming');
   }
 }
@@ -2220,14 +2331,16 @@ export async function sendChatMessage() {
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
     const typewriter = createTypewriter(aiMsgEl, typingEl, container);
 
-    const { text: fullText, usage } = await callClaudeAPI({
+    const aiResult = await _callChatAPIWithContinuation({
       system: systemPrompt,
       messages: apiMessages,
-      maxTokens: 4096,
+      maxTokens: CHAT_RESPONSE_MAX_TOKENS,
       signal: _chatAbortController ? _chatAbortController.signal : undefined,
       onStream(text) { typewriter.update(text); },
       webSearch: webSearchEnabled
     });
+    const { text: fullText, usage } = aiResult;
+    const responseTruncated = _isAIResponseTruncated(aiResult);
 
     // Final render with full markdown
     typewriter.stop();
@@ -2236,6 +2349,7 @@ export async function sendChatMessage() {
     if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
 
     aiMsgEl.innerHTML = renderMarkdown(fullText);
+    if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', _responseLimitNote());
     // Cost footnote
     if (usage && (usage.inputTokens || usage.outputTokens)) {
       const cost = calculateCost(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
@@ -2250,6 +2364,10 @@ export async function sendChatMessage() {
 
     // Build assistant message object with context snapshot
     const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
+    if (responseTruncated) {
+      assistantMsg.truncated = true;
+      assistantMsg.finishReason = aiResult.finishReason || 'length';
+    }
     if (webSearchEnabled) assistantMsg.webSearch = true;
     if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = window._veniceAttestation || null; }
     if (_lensResultForMsg && _lensResultForMsg.chunks?.length) {
@@ -2596,20 +2714,23 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
       const typewriter = createTypewriter(aiMsgEl, typingEl, container);
 
-      const { text: fullText, usage } = await callClaudeAPI({
+      const aiResult = await _callChatAPIWithContinuation({
         system: systemPrompt,
         messages: apiMessages,
-        maxTokens: 4096,
+        maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: _chatAbortController.signal,
         onStream(text) { typewriter.update(text); },
         webSearch: getChatWebSearchEnabled() && supportsWebSearch()
       });
+      const { text: fullText, usage } = aiResult;
+      const responseTruncated = _isAIResponseTruncated(aiResult);
 
       typewriter.stop();
       aiMsgEl.style.whiteSpace = '';
       if (typingEl.parentNode) typingEl.remove();
       if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
       aiMsgEl.innerHTML = renderMarkdown(fullText);
+      if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', _responseLimitNote());
 
       const _dWebSearch = getChatWebSearchEnabled() && supportsWebSearch();
       if (usage && (usage.inputTokens || usage.outputTokens)) {
@@ -2624,6 +2745,10 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       }
 
       const assistantMsg = { role: 'assistant', content: fullText, personalityName: personality.name, personalityIcon: personality.icon, modelId: _dMsgModelId, modelDisplay: _dMsgModelDisplay };
+      if (responseTruncated) {
+        assistantMsg.truncated = true;
+        assistantMsg.finishReason = aiResult.finishReason || 'length';
+      }
       if (_dWebSearch) assistantMsg.webSearch = true;
       if (_dMsgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = window._veniceAttestation || null; }
       if (_lensResultForMsg && _lensResultForMsg.chunks?.length) {

@@ -47,6 +47,17 @@ return (async function () {
   const after = document.querySelectorAll('.modal-overlay').length;
   assert('_openAllSessionsModal opens a modal-overlay', after > before,
     `before=${before}, after=${after}`);
+  const overlay = document.querySelectorAll('.modal-overlay')[after - 1];
+  const modal = overlay?.querySelector('.light-sessions-modal');
+  assert('all sessions modal uses dedicated shell',
+    !!modal && modal.getAttribute('aria-modal') === 'true' &&
+      modal.getAttribute('aria-labelledby') === 'light-all-sessions-title');
+  assert('all sessions modal summary renders sun/device counts',
+    /Total\s*1/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || '') &&
+      /Sun\s*1/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || '') &&
+      /Device\s*0/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || ''));
+  assert('all sessions modal renders session rows',
+    modal?.querySelectorAll('.sun-sessions-list .sun-session').length === 1);
 
   // Clean up so downstream tests see clean state.
   const m = document.querySelectorAll('.modal-overlay');

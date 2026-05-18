@@ -140,6 +140,27 @@ const labCtxSrc = read('js/lab-context.js');
     'CSS should define the subtitle class');
   assert('Subtitle font-size 13px', cssSrc.includes('.context-section-subtitle') && cssSrc.includes('font-size: 13px'),
     'Subtitle should be 13px');
+  assert('Profile context grid is container-aware', cssSrc.includes('repeat(auto-fit, minmax(min(100%, 220px), 1fr))'),
+    'Context cards should not force tiny 3-column tracks inside narrow widgets');
+  assert('Context card labels truncate instead of overflowing', cssSrc.includes('.context-card-label') && cssSrc.includes('text-overflow: ellipsis'),
+    'Card labels should fit compact widget widths');
+  assert('Context editors use redesigned modal shell', ccSrc.includes("modal gb-form-modal ctx-editor-modal") && ccSrc.includes('gb-modal-head ctx-editor-head'),
+    'Context editors should use the newer solid modal chrome');
+  assert('Context editor actions are sticky', cssSrc.includes('.ctx-editor-modal .ctx-editor-actions') && cssSrc.includes('position: sticky') && cssSrc.includes('bottom: 0'),
+    'Long context editors need reachable actions while scrolling');
+  assert('Glass theme hardens Profile Context surfaces', (() => {
+    const themeSrc = read('themes-extra.css');
+    return themeSrc.includes('[data-theme="glass"] .ctx-editor-head') &&
+      themeSrc.includes('[data-theme="glass"] .dashboard-widget[data-widget-id="profile-context"]') &&
+      themeSrc.includes('rgba(24, 18, 48, 0.98)');
+  })(), 'Glass theme should not leave context widget/editor chrome translucent');
+  assert('Insight Profile Context widget is full-width', (() => {
+    const insightSrc = read('js/views.js');
+    const lensStart = insightSrc.indexOf('export function showInsightLens');
+    const cardStart = insightSrc.indexOf("id: 'profile-context'", lensStart);
+    const cardEnd = insightSrc.indexOf('\n', cardStart);
+    return cardStart !== -1 && insightSrc.substring(cardStart, cardEnd).includes("size: 'full'");
+  })(), 'Insight page should not cram Profile Context into a half-width column');
 
   // ═══════════════════════════════════════
   // 5. Health dots sentinel fix
@@ -197,6 +218,14 @@ const labCtxSrc = read('js/lab-context.js');
 
   assert('Chat onboarding has profile form', chatSrc.includes('chat-onboard-form') && chatSrc.includes('chat-onboard-name'),
     'Should show profile setup form for new visitors');
+  assert('Chat onboarding keeps optional profile context collapsed', chatSrc.includes('chat-onboard-more') && chatSrc.includes('Optional body and location context'),
+    'Optional height/weight/location fields should not crowd the first mobile onboarding step');
+  assert('Chat onboarding has compact optional task cards', chatSrc.includes('chat-onboard-task-grid') && chatSrc.includes('chat-onboard-dna'),
+    'Optional setup should use compact cards and preserve DNA import update hook');
+  assert('Chat onboarding hides composer while active', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-input-area') && cssSrc.includes('display: none'),
+    'Onboarding steps should not compete with the disabled composer on mobile');
+  assert('Chat onboarding uses solid active surfaces', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-msg.chat-ai') && cssSrc.includes('var(--bg-card) 94%'),
+    'Onboarding cards should stay readable in glass/synth themes');
   assert('Chat onboarding has OpenRouter OAuth', chatSrc.includes('startOpenRouterOAuth') && chatSrc.includes('paste a key manually'),
     'Should have OAuth button and manual key option for API step');
   assert('Chat onboarding has PPQ', chatSrc.includes("switchAIProvider('ppq')"),
@@ -291,6 +320,8 @@ const labCtxSrc = read('js/lab-context.js');
     'Triangle should rotate when open');
   assert('Default marker hidden', cssSrc.includes('.welcome-context-summary::-webkit-details-marker') && cssSrc.includes('display: none'),
     'Default disclosure marker should be hidden');
+  assert('Closed welcome context body is hidden', cssSrc.includes('.welcome-context-details:not([open]) > .welcome-context-body') && cssSrc.includes('display: none !important'),
+    'Closed details content should not leak visible context cards');
   assert('Mobile override at 480px', cssSrc.includes('.welcome-hero { padding: 28px 14px 24px; }'),
     'Welcome hero should have compact mobile padding');
 
@@ -311,6 +342,8 @@ const labCtxSrc = read('js/lab-context.js');
     const dropZoneInHero = viewsSrc.indexOf('id="drop-zone"', heroStart);
     return heroStart !== -1 && dropZoneInHero !== -1 && dropZoneInHero > heroStart;
   })(), 'Drop zone should be inside welcome hero');
+  assert('Welcome hero has a primary start panel', viewsSrc.includes('welcome-primary-panel') && viewsSrc.includes('Set up AI import'),
+    'Empty state should lead with one clear setup/import path');
   assert('Demo cards inside welcome hero', (() => {
     const heroStart = viewsSrc.indexOf('welcome-hero');
     const detailsStart = viewsSrc.indexOf('welcome-context-details', heroStart);

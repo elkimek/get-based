@@ -33,10 +33,59 @@ return (async function() {
   assert('header-info has flex-wrap', headerInfo && getComputedStyle(headerInfo).flexWrap === 'wrap');
   assert('header-info has align-items center', headerInfo && getComputedStyle(headerInfo).alignItems === 'center');
   assert('480px breakpoint hides #header-dates', css.includes('#header-dates') && css.includes('display: none'));
+  assert('themed mobile sidebar remains fixed above backdrop',
+    css.includes('@media (max-width: 1024px)') &&
+    css.includes('[data-theme] .sidebar') &&
+    css.includes('position: fixed') &&
+    css.includes('z-index: 360'));
+  const viewsSrc = await fetchWithRetry('js/views.js');
+  assert('mobile landing does not auto-open fullscreen chat',
+    viewsSrc.includes('isDesktopChatOnboardingViewport') &&
+    viewsSrc.includes('if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return'));
+  assert('mobile bottom tabs persist outside dashboard shell',
+    viewsSrc.includes('syncMobileBottomNav(routeCategory)') &&
+    viewsSrc.includes("id: 'mobile-bottom-tabs'") &&
+    viewsSrc.includes('renderMobileBottomTabs(activeTab'));
+  assert('mobile dashboard home uses the shared header chrome',
+    css.includes('body.mobile-dashboard-active .header') &&
+    css.includes('display: flex') &&
+    !viewsSrc.includes('class="m-topbar"'));
+  assert('mobile dashboard no longer ships dead private topbar styles',
+    !css.includes('.m-topbar-actions') &&
+    !css.includes('.m-avatar-btn') &&
+    !css.includes('.m-icon-btn') &&
+    !viewsSrc.includes('getMobileAvatar'));
+  assert('mobile dashboard renders the same registered widget stack as desktop',
+    viewsSrc.includes('function renderMobileDashboardWidgetStack(ctx)') &&
+    viewsSrc.includes('getVisibleDashboardWidgetEntries(ctx, prefs') &&
+    viewsSrc.includes('m-dashboard-widget-actions') &&
+    viewsSrc.includes('renderDashboardControlButtons({ includeReset: _dashboardOrganizeMode })') &&
+    viewsSrc.includes('renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
+    viewsSrc.includes('${mobileWidgetStack}') &&
+    css.includes('.m-dashboard-widgets'));
+  assert('mobile dashboard no longer has static duplicate dashboard sections',
+    !viewsSrc.includes('id="mobile-light-section"') &&
+    !viewsSrc.includes('id="mobile-body-section"') &&
+    !viewsSrc.includes('id="mobile-genome-section"') &&
+    !viewsSrc.includes('const lightHtml = renderLightTodayStrip();') &&
+    !viewsSrc.includes('stats.map(renderMobileStatCard)') &&
+    !viewsSrc.includes('insights.map(renderMobileInsightCard)') &&
+    !viewsSrc.includes('markers.slice(0, 7).map(renderMobileMarkerRow)'));
+  const themesSrc = await fetchWithRetry('themes-extra.css');
+  assert('glass tweaks panel is opaque enough to read',
+    themesSrc.includes('[data-theme="glass"] .tweaks-panel') &&
+    themesSrc.includes('rgba(24, 18, 48, 0.94)') &&
+    themesSrc.includes('[data-theme="glass"] .tweaks-overlay.show'));
+  assert('mobile FABs clear persistent bottom tabs',
+    css.includes('body.mobile-tabs-active #chat-fab') &&
+    css.includes('body.mobile-tabs-active #import-fab'));
+  assert('mobile consent banner clears persistent bottom tabs',
+    css.includes('body.mobile-tabs-active .analytics-consent-banner') &&
+    css.includes('bottom: calc(96px + env(safe-area-inset-bottom))'));
 
   // ═══ Section 2: Charts grid safe minmax ═══
   console.log('%c[2] Charts Grid Safe Minmax', 'font-weight:bold');
-  assert('charts-grid uses min(440px, 100%)', css.includes('min(440px, 100%)'));
+  assert('charts-grid uses min(360px, 100%)', css.includes('min(360px, 100%)'));
   const chartsGrid = document.querySelector('.charts-grid');
   if (chartsGrid) {
     const style = getComputedStyle(chartsGrid);
@@ -109,6 +158,42 @@ return (async function() {
   const swMobileSrc = await fetchWithRetry('service-worker.js');
   assert('SW uses importScripts for version', swMobileSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swMobileSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+  assert('SW precaches installed app start_url',
+    swMobileSrc.includes("'/app'") &&
+    swMobileSrc.includes("caches.match('/app')"));
+  assert('SW falls back for offline navigations',
+    swMobileSrc.includes("event.request.mode === 'navigate'") &&
+    swMobileSrc.includes("caches.match('/index.html')"));
+  assert('SW precaches mobile runtime vendors',
+    swMobileSrc.includes("'/vendor/qrcode-generator.js'") &&
+    swMobileSrc.includes("'/vendor/venice-e2ee.js'") &&
+    swMobileSrc.includes("'/vendor/evolu/evolu-bundle.js'"));
+  const manifestSrc = await fetchWithRetry('manifest.json');
+  assert('manifest exposes maskable install icons',
+    manifestSrc.includes('"purpose": "any maskable"') &&
+    manifestSrc.includes('"start_url": "/app"') &&
+    manifestSrc.includes('"scope": "/app"'));
+  assert('iOS standalone title is configured',
+    document.head.innerHTML.includes('apple-mobile-web-app-title'));
+
+  // ═══ Section 14: Marker Detail Modal Phone Fit ═══
+  console.log('%c[14] Marker Detail Modal Phone Fit', 'font-weight:bold');
+  assert('marker detail modal is clamped to phone viewport',
+    css.includes('.marker-detail-modal') &&
+    (css.includes('width: calc(100vw - 16px)') || css.includes('width: calc(-16px + 100vw)')) &&
+    (css.includes('max-height: calc(100svh - 16px)') || css.includes('max-height: calc(-16px + 100svh)')));
+  assert('marker detail modal uses compact phone gutters',
+    css.includes('.marker-detail-modal .manual-entry-btn') &&
+    css.includes('width: calc(100% - 32px)') &&
+    css.includes('margin-left: 16px'));
+  assert('marker detail summary stacks on phones',
+    css.includes('.marker-detail-modal .gb-detail-summary') &&
+    (css.includes('grid-template-columns: minmax(0, 1fr)') ||
+      css.includes('grid-template-columns: minmax(0px, 1fr)')));
+  assert('marker detail content wraps long names/ranges/values',
+    css.includes('overflow-wrap: anywhere') &&
+    css.includes('.marker-detail-modal .stat-card-value') &&
+    css.includes('.marker-detail-modal .mv-value'));
 
   // ═══ Summary ═══
   console.log('\n' + results.join('\n'));

@@ -4,6 +4,8 @@
 
 export const config = { runtime: 'edge' };
 
+const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
+
 // Allowlisted provider URL prefixes — these always pass without further
 // checks. User-configured endpoints (Custom API, decentralized Routstr
 // nodes) are allowed too, but only over HTTPS with a non-private host.
@@ -510,20 +512,33 @@ async function handlePolarTokenRequest(payload, req) {
   }
 }
 
-// CAMS atmosphere relay → getbased-uvdata (the maintainer-run instance
-// behind UVDATA_UPSTREAM env). The proxy injects the bearer server-side
-// so the token never reaches the browser. Hosted-only path; self-host
-// users go straight via the `selfhost` Sun Data Source mode instead.
+// CAMS atmosphere relay → getbased-uvdata. Defaults to the maintainer-run
+// instance so Sun Data Source `auto` is genuinely CAMS-first out of the box.
+// UVDATA_UPSTREAM can override the upstream, and UVDATA_BEARER is injected
+// server-side when configured so the token never reaches the browser.
+// Self-host users can also go straight via the `selfhost` Sun Data Source
+// mode instead.
 //
 // env:
-//   UVDATA_UPSTREAM — base URL, e.g. https://uvdata.getbased.health
+//   UVDATA_UPSTREAM — optional base URL override, e.g. https://your-uvdata.example.com
 //   UVDATA_BEARER   — token to send on Authorization header
 async function handleCamsRelay(payload, req) {
-  const upstream = (typeof process !== 'undefined' && process.env?.UVDATA_UPSTREAM)
-    ? process.env.UVDATA_UPSTREAM.replace(/\/+$/, '') : '';
+  const configuredUpstream = (typeof process !== 'undefined' && process.env?.UVDATA_UPSTREAM)
+    ? process.env.UVDATA_UPSTREAM.replace(/\/+$/, '')
+    : '';
+  const upstream = configuredUpstream || DEFAULT_UVDATA_UPSTREAM;
+  const bearer = (typeof process !== 'undefined' && process.env?.UVDATA_BEARER) ? process.env.UVDATA_BEARER : '';
   if (!upstream) {
     return new Response(JSON.stringify({
-      error: 'CAMS relay not configured on this deploy. Set UVDATA_UPSTREAM env or use the self-host Sun Data Source mode.',
+      error: 'CAMS relay upstream is empty. Set UVDATA_UPSTREAM or switch Sun Data Source to Open-Meteo/manual.',
+    }), {
+      status: 503,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+  if (!configuredUpstream && !bearer) {
+    return new Response(JSON.stringify({
+      error: 'CAMS hosted relay requires UVDATA_BEARER. Set UVDATA_BEARER for the hosted default, set UVDATA_UPSTREAM for your own relay, or switch Sun Data Source to Open-Meteo/manual.',
     }), {
       status: 503,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
@@ -542,7 +557,6 @@ async function handleCamsRelay(payload, req) {
   if (time) qs.set('time', time);
   const url = `${upstream}/uv?${qs.toString()}`;
   const headers = { 'Accept': 'application/json' };
-  const bearer = (typeof process !== 'undefined' && process.env?.UVDATA_BEARER) ? process.env.UVDATA_BEARER : '';
   if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   try {
     const res = await fetch(url, { headers });

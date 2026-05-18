@@ -21,7 +21,11 @@ const _emfFns = ['openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessme
 for (const fn of _emfFns) {
   window[fn] = async function(...args) { const mod = await import('./emf.js'); for (const f of _emfFns) window[f] = mod[f]; return mod[fn](...args); };
 }
-import './pdf-import.js';
+let _pdfImportLoad = null;
+function loadPdfImport() {
+  if (!_pdfImportLoad) _pdfImportLoad = import('./pdf-import.js');
+  return _pdfImportLoad;
+}
 import { ensureSNPTable, ensureHaplogroupTable } from './dna.js';
 import './wearables.js';
 import { initWearableScheduler, handleOAuthCallbackOnLoad, loadWearableRuntimeConfig } from './wearables-connect.js';
@@ -231,7 +235,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const vTextEl = document.getElementById('app-version-text');
   if (vTextEl) vTextEl.textContent = window.APP_VERSION || '';
   buildSidebar();
-  window.showDashboard();
+  window.navigate(window.getInitialView?.() || 'dashboard');
   maybeShowChangelog();
   // First-launch transparency banner about anonymous analytics — appears once,
   // never again after the user clicks either "Got it" or "Turn off".
@@ -259,8 +263,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("pdf-input").addEventListener("change", async e => {
     if (window.isImportRunning && window.isImportRunning()) { e.target.value = ''; return; }
     if (e.target.files.length > 0) {
+      const importMod = await loadPdfImport();
       const files = Array.from(e.target.files);
-      const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await window.classifyImportFiles(files);
+      const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await importMod.classifyImportFiles(files);
       if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
         showNotification("Unsupported file type. Use PDF, text, image, JSON, or DNA raw data (.txt/.csv).", "error");
         e.target.value = '';
@@ -276,11 +281,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           else await window.handleDNAFile(f);
         }
       }
-      else if (textFiles.length > 0) { for (const f of textFiles) await window.handleTextFile(f); }
-      else if (imageFiles.length > 0) { for (const f of imageFiles) await window.handleImageFile(f); }
+      else if (textFiles.length > 0) { for (const f of textFiles) await importMod.handleTextFile(f); }
+      else if (imageFiles.length > 0) { for (const f of imageFiles) await importMod.handleImageFile(f); }
       else {
-        if (pdfFiles.length === 1) await window.handlePDFFile(pdfFiles[0]);
-        else if (pdfFiles.length > 1) await window.handleBatchPDFs(pdfFiles);
+        if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]);
+        else if (pdfFiles.length > 1) await importMod.handleBatchPDFs(pdfFiles);
       }
       e.target.value = '';
     }
@@ -298,7 +303,7 @@ document.addEventListener("wheel", e => {
   const overlay = e.target.closest(".modal-overlay.show, .chat-backdrop.open");
   if (!overlay) return;
   // Allow scroll inside scrollable children (modal content, chat messages)
-  const scrollable = e.target.closest(".modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body");
+  const scrollable = e.target.closest(".light-setup-focus-body, .modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form-body, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body");
   if (scrollable) {
     const atTop = scrollable.scrollTop <= 0 && e.deltaY < 0;
     const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight && e.deltaY > 0;

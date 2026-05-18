@@ -173,24 +173,28 @@ export function maybeShowAnalyticsConsent() {
   banner.innerHTML = `
     <div class="analytics-consent-body">
       <span aria-hidden="true">📊</span>
-      <span>Anonymous usage stats are <strong>on</strong> to help me improve getbased — counts only, no IP, no health data, cookieless.</span>
+      <span class="analytics-consent-copy analytics-consent-copy-long">Anonymous usage stats are <strong>on</strong> to help me improve getbased — counts only, no IP, no health data, cookieless.</span>
+      <span class="analytics-consent-copy analytics-consent-copy-short">Anonymous, cookieless stats are <strong>on</strong>. No health data.</span>
     </div>
     <div class="analytics-consent-actions">
       <button type="button" class="analytics-consent-btn analytics-consent-btn-primary" onclick="dismissAnalyticsConsent()">Got it</button>
       <button type="button" class="analytics-consent-btn" onclick="dismissAnalyticsConsentAndDisable()">Turn off</button>
     </div>`;
   document.body.appendChild(banner);
+  document.body.classList.add('analytics-consent-visible');
 }
 
 export function dismissAnalyticsConsent() {
   markAnalyticsConsentSeen();
   document.getElementById('analytics-consent-banner')?.remove();
+  document.body.classList.remove('analytics-consent-visible');
 }
 
 export function dismissAnalyticsConsentAndDisable() {
   setAnalyticsEnabled(false);
   markAnalyticsConsentSeen();
   document.getElementById('analytics-consent-banner')?.remove();
+  document.body.classList.remove('analytics-consent-visible');
   showNotification('Anonymous usage stats turned off. You can change this anytime in Settings → Privacy.', 'info', 4000);
 }
 
@@ -304,4 +308,29 @@ export function hasCardContent(obj) {
 /// escapeAttr for attribute contexts continue to work and read clearly.
 export const escapeAttr = escapeHTML;
 
-Object.assign(window, { showNotification, showConfirmDialog, showPromptDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled, maybeShowAnalyticsConsent, dismissAnalyticsConsent, dismissAnalyticsConsentAndDisable, hasCardContent, escapeAttr });
+const _scriptLoadPromises = new Map();
+
+export function loadScriptOnce(src) {
+  if (!src) return Promise.reject(new Error('Missing script src'));
+  const existing = Array.from(document.scripts || []).find(s => s.getAttribute('src') === src);
+  if (existing?.dataset.loaded === 'true') return Promise.resolve(existing);
+  if (_scriptLoadPromises.has(src)) return _scriptLoadPromises.get(src);
+  const p = new Promise((resolve, reject) => {
+    const script = existing || document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve(script);
+    };
+    script.onerror = () => {
+      _scriptLoadPromises.delete(src);
+      reject(new Error(`Failed to load ${src}`));
+    };
+    if (!existing) document.head.appendChild(script);
+  });
+  _scriptLoadPromises.set(src, p);
+  return p;
+}
+
+Object.assign(window, { showNotification, showConfirmDialog, showPromptDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled, maybeShowAnalyticsConsent, dismissAnalyticsConsent, dismissAnalyticsConsentAndDisable, hasCardContent, escapeAttr, loadScriptOnce });

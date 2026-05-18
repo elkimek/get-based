@@ -16,7 +16,7 @@
 // These were extracted as exports so tests can import them without spinning
 // up the HTTP server (the server-side SSRF guard would be end-to-end work).
 
-import { parseEnvLocal, _proxyHostBlocked, _isAllowedProxyUrl, _resolveCatalogRepo, _runPostDeployHooks, collectWearableOverrides, WEARABLE_CLIENT_ID_VARS } from '../dev-server.js';
+import { parseEnvLocal, _proxyHostBlocked, _isAllowedProxyUrl, _resolveCatalogRepo, _runPostDeployHooks, collectWearableOverrides, WEARABLE_CLIENT_ID_VARS, DEFAULT_UVDATA_UPSTREAM } from '../dev-server.js';
 
 let passed = 0, failed = 0;
 function assert(name, cond, detail) {
@@ -25,6 +25,9 @@ function assert(name, cond, detail) {
 }
 
 console.log('\n── parseEnvLocal ──');
+
+assert('CAMS dev proxy defaults to hosted getbased-uvdata',
+  DEFAULT_UVDATA_UPSTREAM === 'https://uvdata.getbased.health');
 
 // Basic key=value
 {

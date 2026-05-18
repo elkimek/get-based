@@ -36,6 +36,7 @@ import { getActiveProfileId } from './profile.js';
 import { getDailyRange } from './wearables-store.js';
 import { MANUAL_METRICS } from './wearables-manual.js';
 import { getChartColors } from './theme.js';
+import { ensureChartJs } from './charts.js';
 import { isoDay } from './wearables-oura.js';
 
 // ─────────────────────────────────────────────────────────
@@ -555,10 +556,11 @@ export function renderWearableStrip() {
   const titleHTML = manualOnly
     ? '<span>Biometrics</span>'
     : `<span>Wearables: <span class="wearable-source-label">${escapeHTML(sourceLabel)}${coverageLabel}</span></span>`;
+  const hasStaleSource = !manualOnly && sourceIds.some(s => s !== 'manual' && Date.now() - (summary.sources?.[s]?.lastSyncAt || 0) >= 12 * 60 * 60 * 1000);
   const lastSyncHTML = manualOnly ? '' : `<span class="wearable-strip-lastsync">last synced ${formatAgo(lastSyncAt)}</span>`;
-  const syncBtnHTML = manualOnly ? '' : `<button type="button" class="wearable-strip-sync" aria-label="Sync wearables now" onclick="event.stopPropagation();syncWearableNow(this);return false">
+  const syncBtnHTML = manualOnly || !hasStaleSource ? '' : `<button type="button" class="wearable-strip-sync" aria-label="Sync stale wearables now" onclick="event.stopPropagation();syncWearableNow(this);return false">
     <svg class="wearable-strip-sync-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 12 13 12"/></svg>
-    <span>Sync</span>
+    <span>Sync stale data</span>
   </button>`;
   const ariaLabel = manualOnly
     ? (collapsed ? 'Expand biometrics strip' : 'Collapse biometrics strip')
@@ -753,7 +755,7 @@ async function openWearableDetail(metricId) {
   _installWearableModalFocusTrap(modal);
 
   const canvas = document.getElementById('chart-modal');
-  if (canvas && typeof window.Chart !== 'undefined' && series.length > 0) {
+  if (canvas && series.length > 0) {
     renderWearableChart(canvas, canon, m, series);
   }
 }
@@ -1032,6 +1034,13 @@ function _buildEMFSleepHint(metricId, m) {
 }
 
 function renderWearableChart(canvas, canon, m, series) {
+  if (!window.Chart) {
+    ensureChartJs().then(() => {
+      const currentCanvas = document.getElementById(canvas.id);
+      if (currentCanvas) renderWearableChart(currentCanvas, canon, m, series);
+    }).catch(() => {});
+    return;
+  }
   const tc = getChartColors();
   const labels = series.map(p => p.date);
   const values = series.map(p => p.v);

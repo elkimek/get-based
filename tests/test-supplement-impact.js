@@ -223,6 +223,12 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   assert('Impact CSS exists', cssSrc.includes('.supp-impact-section'));
   assert('Impact summary CSS exists', cssSrc.includes('.supp-impact-summary'));
   assert('Summary color variants', cssSrc.includes('.supp-impact-summary-green'));
+  const suppGapCss = (cssSrc.match(/\.supp-bar-gap\s*\{([\s\S]*?)\}/) || [null, ''])[1];
+  assert('Supplement timeline off-period gaps stay visible on dark themes',
+    suppGapCss &&
+    suppGapCss.includes('color-mix(in srgb, var(--text-muted) 14%') &&
+    suppGapCss.includes('opacity: 1') &&
+    !suppGapCss.includes('opacity: 0.15'));
 
   // ═══════════════════════════════════════
   // Summary

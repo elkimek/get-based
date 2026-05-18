@@ -4,6 +4,39 @@ import { PERIOD_SYMPTOMS } from './constants.js';
 import { escapeHTML, showNotification, showConfirmDialog, linearRegression } from './utils.js';
 import { saveImportedData } from './data.js';
 
+const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
+const CYCLE_KEY_ACTIVATE_EDITOR = "if(event.key==='Enter'||event.key===' '){event.preventDefault();openMenstrualCycleEditor()}";
+const CYCLE_ICONS = {
+  calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
+  droplet: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5 6.9 9.1a8 8 0 1 0 10.2 0L12 2.5Z"></path></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>',
+  help: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 1 1 4.9 2.3c-.9.6-1.5 1.1-1.5 2.2"></path><path d="M12 17h.01"></path></svg>',
+  info: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v5M14 11v5"></path></svg>',
+  warning: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg>',
+  x: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg>'
+};
+
+function isActiveCycleStatus(status) {
+  return !status || CYCLE_ACTIVE_STATUSES.has(status);
+}
+
+function fmtCycleDate(dateStr, opts = { month: 'short', day: 'numeric' }) {
+  if (!dateStr) return 'No date';
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', opts);
+}
+
+function flowClass(flow) {
+  if (flow === 'heavy') return 'severity-major';
+  if (flow === 'light') return 'severity-minor';
+  return 'severity-mild';
+}
+
+function renderCycleMetaTags(items) {
+  return items.filter(Boolean).map(item => `<span class="cycle-meta-tag">${escapeHTML(item)}</span>`).join('');
+}
+
 export function getCyclePhase(dateStr, mc) {
   if (!mc || !mc.periods || mc.periods.length === 0) return null;
   const target = new Date(dateStr + 'T00:00:00');
@@ -266,60 +299,65 @@ export function openMenstrualCycleEditor() {
   const mc = state.importedData.menstrualCycle || {};
   const periods = (mc.periods || []).slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
   const stats = calculateCycleStats(mc.periods);
-  const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const regLabels = { regular: 'Regular', irregular: 'Irregular', very_irregular: 'Very Irregular' };
-  const isActiveCycleStatus = !mc.cycleStatus || mc.cycleStatus === 'regular' || mc.cycleStatus === 'perimenopause';
+  const activeCycle = isActiveCycleStatus(mc.cycleStatus);
   const flowLabels = { light: 'Light', moderate: 'Moderate', heavy: 'Heavy' };
-  let html = `<button class="modal-close" onclick="window.closeModal()">&times;</button>
-    <h3>Menstrual Cycle</h3>
-    <div class="modal-unit">Track your cycle so AI can interpret hormone, iron, and inflammation markers in context of cycle phase.</div>
-    <div class="cycle-editor-form">
-      <div class="supp-form-row">
-        <div class="supp-form-field">
-          <label>Cycle Status</label>
+  modal.className = 'modal cycle-modal';
+  let html = `<div class="gb-modal-head cycle-modal-head">
+      <div>
+        <div class="gb-modal-kicker">Body context</div>
+        <div class="gb-modal-title">Menstrual Cycle</div>
+      </div>
+      <button type="button" class="modal-close cycle-icon-btn" onclick="window.closeModal()" aria-label="Close cycle editor">${CYCLE_ICONS.x}</button>
+    </div>
+    <div class="cycle-modal-body">
+      <p class="cycle-modal-intro">Track cycle status, period history, and symptoms so hormone, iron, and inflammation markers can be interpreted against cycle phase.</p>
+      <section class="cycle-editor-section">
+        <div class="cycle-editor-section-title">Cycle Profile</div>
+        <div class="cycle-form-grid cycle-form-grid-single">
+          <label class="cycle-field">
+            <span>Cycle Status</span>
           <select id="mc-cycle-status" onchange="window._toggleCycleEditorFields()">
-            <option value="regular"${mc.cycleStatus === 'regular' || !mc.cycleStatus ? ' selected' : ''}>Active — regular cycling</option>
+            <option value="regular"${mc.cycleStatus === 'regular' || !mc.cycleStatus ? ' selected' : ''}>Active - regular cycling</option>
             <option value="perimenopause"${mc.cycleStatus === 'perimenopause' ? ' selected' : ''}>Perimenopause / irregular</option>
             <option value="postmenopause"${mc.cycleStatus === 'postmenopause' ? ' selected' : ''}>Postmenopause / no periods</option>
             <option value="pregnant"${mc.cycleStatus === 'pregnant' ? ' selected' : ''}>Pregnant</option>
             <option value="breastfeeding"${mc.cycleStatus === 'breastfeeding' ? ' selected' : ''}>Breastfeeding</option>
             <option value="absent"${mc.cycleStatus === 'absent' ? ' selected' : ''}>Absent (other reason)</option>
           </select>
+          </label>
         </div>
-      </div>
-      <div id="mc-active-fields" ${isActiveCycleStatus ? '' : 'style="display:none"'}>
-      <div class="supp-form-row">
-        <div class="supp-form-field">
-          <label>Average Cycle Length (days)</label>
+        <div id="mc-active-fields" class="cycle-active-fields"${activeCycle ? '' : ' hidden'}>
+          <div class="cycle-form-grid">
+            <label class="cycle-field">
+              <span>Average Cycle Length</span>
           ${stats.cycleLength != null
-            ? `<div class="mc-auto-value" id="mc-cycle-length-auto" data-value="${stats.cycleLength}">${stats.cycleLength} days</div>`
-            : `<div class="mc-auto-value mc-auto-pending">${mc.cycleLength || 28} days <span class="mc-auto-hint">default — log 2+ periods to auto-calculate</span></div>`}
-        </div>
-        <div class="supp-form-field">
-          <label>Average Period Length (days)</label>
+            ? `<div class="mc-auto-value cycle-auto-value" id="mc-cycle-length-auto" data-value="${stats.cycleLength}">${stats.cycleLength} days</div>`
+            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${mc.cycleLength || 28} days <span class="mc-auto-hint">default - log 2+ periods to auto-calculate</span></div>`}
+            </label>
+            <label class="cycle-field">
+              <span>Average Period Length</span>
           ${stats.periodLength != null
-            ? `<div class="mc-auto-value" id="mc-period-length-auto" data-value="${stats.periodLength}">${stats.periodLength} days</div>`
-            : `<div class="mc-auto-value mc-auto-pending">${mc.periodLength || 5} days <span class="mc-auto-hint">default — log periods with end dates to auto-calculate</span></div>`}
-        </div>
-      </div>
-      <div class="supp-form-row">
-        <div class="supp-form-field">
-          <label>Regularity</label>
+            ? `<div class="mc-auto-value cycle-auto-value" id="mc-period-length-auto" data-value="${stats.periodLength}">${stats.periodLength} days</div>`
+            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${mc.periodLength || 5} days <span class="mc-auto-hint">default - log periods with end dates to auto-calculate</span></div>`}
+            </label>
+            <label class="cycle-field">
+              <span>Regularity</span>
           ${stats.regularity != null
-            ? `<div class="mc-auto-value" id="mc-regularity-auto" data-value="${stats.regularity}">${regLabels[stats.regularity]}</div>`
-            : `<div class="mc-auto-value mc-auto-pending">${regLabels[mc.regularity] || 'Regular'} <span class="mc-auto-hint">default — log 3+ periods to auto-calculate</span></div>`}
-        </div>
-        <div class="supp-form-field">
-          <label>Typical Flow</label>
+            ? `<div class="mc-auto-value cycle-auto-value" id="mc-regularity-auto" data-value="${stats.regularity}">${regLabels[stats.regularity]}</div>`
+            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${regLabels[mc.regularity] || 'Regular'} <span class="mc-auto-hint">default - log 3+ periods to auto-calculate</span></div>`}
+            </label>
+            <label class="cycle-field">
+              <span>Typical Flow</span>
           ${stats.flow != null
-            ? `<div class="mc-auto-value" id="mc-flow-auto" data-value="${stats.flow}">${flowLabels[stats.flow]}</div>`
-            : `<div class="mc-auto-value mc-auto-pending">${flowLabels[mc.flow] || 'Moderate'} <span class="mc-auto-hint">default — log 1+ period to auto-calculate</span></div>`}
+            ? `<div class="mc-auto-value cycle-auto-value" id="mc-flow-auto" data-value="${stats.flow}">${flowLabels[stats.flow]}</div>`
+            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${flowLabels[mc.flow] || 'Moderate'} <span class="mc-auto-hint">default - log 1+ period to auto-calculate</span></div>`}
+            </label>
+          </div>
         </div>
-      </div>
-      </div>
-      <div class="supp-form-row">
-        <div class="supp-form-field">
-          <label>Contraceptive</label>
+        <div class="cycle-form-grid">
+          <label class="cycle-field">
+            <span>Contraceptive</span>
           <select id="mc-contraceptive">
             <option value=""${!mc.contraceptive ? ' selected' : ''}>None</option>
             <optgroup label="Hormonal">
@@ -337,75 +375,75 @@ export function openMenstrualCycleEditor() {
             </optgroup>
             <option value="other"${mc.contraceptive && !['OCP','Hormonal IUD (Mirena)','Implant','Patch','Ring','Depo injection','Copper IUD','Barrier','FAM'].includes(mc.contraceptive) && mc.contraceptive !== '' ? ' selected' : ''}>Other</option>
           </select>
-        </div>
-        <div class="supp-form-field">
-          <label>Conditions</label>
+          </label>
+          <label class="cycle-field">
+            <span>Conditions</span>
           <input type="text" id="mc-conditions" value="${escapeHTML(mc.conditions || '')}" placeholder="e.g. PCOS, endometriosis, fibroids">
+          </label>
         </div>
-      </div>
-    </div>
-    <div id="mc-period-log-section" style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px${isActiveCycleStatus ? '' : ';display:none'}">
-      <div class="supp-form-title">Period Log</div>`;
+      </section>
+      <section id="mc-period-log-section" class="cycle-editor-section cycle-period-editor"${activeCycle ? '' : ' hidden'}>
+        <div class="cycle-editor-section-title">Period Log</div>`;
   if (periods.length > 0) {
-    html += `<div class="supp-list">`;
-    for (let i = 0; i < periods.length; i++) {
-      const p = periods[i];
-      const flowCls = p.flow === 'heavy' ? 'severity-major' : p.flow === 'light' ? 'severity-minor' : 'severity-mild';
-      html += `<div class="supp-list-item">
-        <span class="supp-list-icon">\uD83D\uDD34</span>
-        <div class="supp-list-info">
-          <div class="supp-list-name">${fmtDate(p.startDate)} \u2013 ${fmtDate(p.endDate)}</div>
-          <div class="supp-list-meta"><span class="goals-severity-badge ${flowCls}">${p.flow || 'moderate'}</span>${(p.symptoms && p.symptoms.length) ? p.symptoms.map(s => `<span class="period-symptom-tag">${escapeHTML(s)}</span>`).join('') : ''}${p.notes ? ' ' + escapeHTML(p.notes) : ''}</div>
+    html += `<div class="cycle-log-list">`;
+    for (const p of periods) {
+      const dateLabel = `${fmtCycleDate(p.startDate, { month: 'short', day: 'numeric', year: 'numeric' })} - ${fmtCycleDate(p.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      html += `<div class="cycle-log-item">
+        <span class="cycle-log-icon">${CYCLE_ICONS.droplet}</span>
+        <div class="cycle-log-main">
+          <div class="cycle-log-date">${escapeHTML(dateLabel)}</div>
+          <div class="cycle-log-meta">
+            <span class="goals-severity-badge ${flowClass(p.flow)}">${escapeHTML(p.flow || 'moderate')}</span>
+            ${(p.symptoms && p.symptoms.length) ? p.symptoms.map(s => `<span class="period-symptom-tag">${escapeHTML(s)}</span>`).join('') : ''}
+            ${p.notes ? `<span class="cycle-period-note">${escapeHTML(p.notes)}</span>` : ''}
+          </div>
         </div>
-        <div class="supp-list-actions">
-          <button class="delete" onclick="deletePeriodEntry('${p.startDate}')">\u2715</button>
-        </div>
+        <button type="button" class="cycle-icon-btn cycle-delete-btn" onclick="deletePeriodEntry('${escapeHTML(p.startDate)}')" aria-label="Delete period starting ${escapeHTML(fmtCycleDate(p.startDate))}" title="Delete period">${CYCLE_ICONS.trash}</button>
       </div>`;
     }
     html += `</div>`;
   }
   const today = new Date().toISOString().slice(0, 10);
   const defaultEnd = new Date(Date.now() + ((mc.periodLength || 5) - 1) * 86400000).toISOString().slice(0, 10);
-  html += `<div class="supp-form-row">
-        <div class="supp-form-field">
-          <label>Start Date</label>
+  html += `<div class="cycle-period-add">
+        <div class="cycle-form-grid cycle-form-grid-three">
+          <label class="cycle-field">
+            <span>Start Date</span>
           <input type="date" id="mc-period-start" value="${today}">
-        </div>
-        <div class="supp-form-field">
-          <label>End Date</label>
+          </label>
+          <label class="cycle-field">
+            <span>End Date</span>
           <input type="date" id="mc-period-end" value="${defaultEnd}">
-        </div>
-        <div class="supp-form-field">
-          <label>Flow</label>
+          </label>
+          <label class="cycle-field">
+            <span>Flow</span>
           <select id="mc-period-flow">
             <option value="light">Light</option>
             <option value="moderate" selected>Moderate</option>
             <option value="heavy">Heavy</option>
           </select>
+          </label>
         </div>
-      </div>
-      <div class="supp-form-row">
-        <div class="supp-form-field" style="flex:2">
-          <label>Symptoms</label>
-          <div class="ctx-tags" id="mc-period-symptoms">
-            ${PERIOD_SYMPTOMS.map(s => `<span class="ctx-tag" data-value="${s}" onclick="this.classList.toggle('active')">${s}</span>`).join('')}
+        <label class="cycle-field cycle-field-wide">
+          <span>Symptoms</span>
+          <div class="ctx-tags cycle-symptom-grid" id="mc-period-symptoms">
+            ${PERIOD_SYMPTOMS.map(s => `<button type="button" class="ctx-tag cycle-symptom-chip" data-value="${escapeHTML(s)}" aria-pressed="false" onclick="toggleCycleSymptomTag(this)">${escapeHTML(s)}</button>`).join('')}
           </div>
-        </div>
-      </div>
-      <div class="supp-form-row">
-        <div class="supp-form-field" style="flex:2">
-          <label>Notes (optional)</label>
+        </label>
+        <div class="cycle-add-row">
+          <label class="cycle-field">
+            <span>Notes (optional)</span>
           <input type="text" id="mc-period-notes" placeholder="e.g. spotting, unusual pain">
-        </div>
-        <div class="supp-form-field" style="flex:0;align-self:flex-end">
-          <button class="import-btn import-btn-primary" style="padding:8px 16px" onclick="addPeriodEntry()">Add</button>
+          </label>
+          <button type="button" class="dashboard-action-btn dashboard-action-btn-primary cycle-add-btn" onclick="addPeriodEntry()">${CYCLE_ICONS.plus}<span>Add period</span></button>
         </div>
       </div>
+      </section>
     </div>
-    <div class="note-editor-actions" style="margin-top:16px">
-      <button class="import-btn import-btn-primary" onclick="saveMenstrualCycle()">Save</button>
-      <button class="import-btn import-btn-secondary" onclick="window.closeModal()">Cancel</button>
-      ${state.importedData.menstrualCycle ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="clearMenstrualCycle()">Clear All</button>` : ''}
+    <div class="cycle-modal-footer">
+      ${state.importedData.menstrualCycle ? `<button type="button" class="dashboard-action-btn cycle-danger-btn" onclick="clearMenstrualCycle()">Clear All</button>` : ''}
+      <button type="button" class="dashboard-action-btn" onclick="window.closeModal()">Cancel</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="saveMenstrualCycle()">Save</button>
     </div>`;
   modal.innerHTML = html;
   overlay.classList.add("show");
@@ -414,9 +452,10 @@ export function openMenstrualCycleEditor() {
 export function saveMenstrualCycle() {
   syncMenstrualCycleProfileFromForm();
   // Auto-add pending period if form has data that hasn't been added yet
+  const cycleStatus = document.getElementById('mc-cycle-status')?.value || 'regular';
   const pendingStart = document.getElementById('mc-period-start')?.value;
   const pendingEnd = document.getElementById('mc-period-end')?.value;
-  if (pendingStart && pendingEnd && pendingEnd >= pendingStart) {
+  if (isActiveCycleStatus(cycleStatus) && pendingStart && pendingEnd && pendingEnd >= pendingStart) {
     const periods = state.importedData.menstrualCycle?.periods || [];
     const exists = periods.some(p => p.startDate === pendingStart);
     const overlaps = periods.some(p => pendingStart <= (p.endDate || p.startDate) && pendingEnd >= p.startDate);
@@ -454,9 +493,15 @@ function _toggleCycleEditorFields() {
   const status = document.getElementById('mc-cycle-status')?.value;
   const fields = document.getElementById('mc-active-fields');
   const periodLog = document.getElementById('mc-period-log-section');
-  const isActive = !status || status === 'regular' || status === 'perimenopause';
-  if (fields) fields.style.display = isActive ? '' : 'none';
-  if (periodLog) periodLog.style.display = isActive ? '' : 'none';
+  const isActive = isActiveCycleStatus(status);
+  if (fields) fields.hidden = !isActive;
+  if (periodLog) periodLog.hidden = !isActive;
+}
+
+export function toggleCycleSymptomTag(btn) {
+  if (!btn) return;
+  const active = btn.classList.toggle('active');
+  btn.setAttribute('aria-pressed', active ? 'true' : 'false');
 }
 
 export function syncMenstrualCycleProfileFromForm() {
@@ -510,92 +555,129 @@ export function deletePeriodEntry(startDate) {
   openMenstrualCycleEditor();
 }
 
-export function renderMenstrualCycleSection(data) {
+export function renderMenstrualCycleSection(data, opts = {}) {
+  const compact = opts?.variant === 'dashboard';
+  const showHeader = opts?.showHeader !== false;
   const mc = state.importedData.menstrualCycle;
-  let html = `<div class="cycle-section">
-    <div class="supp-timeline-header">
-      <span class="context-section-title">Menstrual Cycle</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        ${mc ? `<button class="cycle-tour-btn" onclick="startCycleTour(false)" title="Cycle feature tour" aria-label="Take the cycle feature tour">?</button>` : ''}
-        <button class="supp-add-btn" onclick="openMenstrualCycleEditor()">${mc ? 'Edit' : '+ Set Up'}</button>
+  const renderAlert = alert => {
+    const cls = alert.kind === 'perimenopause'
+      ? 'cycle-alert-perimenopause'
+      : alert.severity === 'critical'
+        ? 'cycle-alert-critical'
+        : alert.severity === 'warning'
+          ? 'cycle-alert-warning'
+          : 'cycle-alert-info';
+    return `<div class="cycle-alert ${cls}">
+      <span class="cycle-alert-icon">${alert.severity === 'info' ? CYCLE_ICONS.info : CYCLE_ICONS.warning}</span>
+      <div class="cycle-alert-copy">
+        <strong>${escapeHTML(alert.title)}</strong>
+        <div class="cycle-alert-detail">${escapeHTML(alert.message)}</div>
       </div>
     </div>`;
-  if (!mc) {
-    html += `<div class="cycle-prompt" role="button" tabindex="0" aria-label="Set up cycle tracking" onclick="openMenstrualCycleEditor()">
-      <span class="cycle-prompt-icon">\uD83D\uDD34</span>
-      <div><strong>Track your cycle for better lab interpretation</strong><br>
-      <span style="color:var(--text-muted);font-size:12px">Hormone, iron, and inflammation markers vary significantly by cycle phase. Set up cycle tracking so AI can factor this in.</span></div>
+  };
+  let html = `<div class="cycle-section${compact ? ' cycle-section-compact' : ''}">`;
+  if (showHeader) {
+    html += `<div class="cycle-widget-head">
+      <div class="cycle-widget-title-wrap">
+        <span class="cycle-widget-kicker">Body context</span>
+        <span class="cycle-widget-title">Menstrual cycle</span>
+      </div>
+      <div class="cycle-widget-actions">
+        ${mc ? `<button type="button" class="cycle-icon-btn" onclick="startCycleTour(false)" title="Cycle feature tour" aria-label="Take the cycle feature tour">${CYCLE_ICONS.help}</button>` : ''}
+        <button type="button" class="cycle-action-btn" onclick="openMenstrualCycleEditor()">${mc ? CYCLE_ICONS.edit : CYCLE_ICONS.plus}<span>${mc ? 'Edit' : 'Set up'}</span></button>
+      </div>
     </div>`;
+  }
+  if (!mc) {
+    html += `<button type="button" class="cycle-prompt" aria-label="Set up cycle tracking" onclick="openMenstrualCycleEditor()" onkeydown="${CYCLE_KEY_ACTIVATE_EDITOR}">
+      <span class="cycle-prompt-icon">${CYCLE_ICONS.droplet}</span>
+      <span class="cycle-prompt-copy">
+        <strong>Track your cycle for better lab interpretation</strong>
+        <span>Hormone, iron, and inflammation markers shift by phase. Add cycle context so AI can account for timing.</span>
+      </span>
+    </button>`;
   } else {
     const regLabel = mc.regularity === 'very_irregular' ? 'very irregular' : mc.regularity || 'regular';
     const statusLabels = { postmenopause: 'Postmenopause', perimenopause: 'Perimenopause', pregnant: 'Pregnant', breastfeeding: 'Breastfeeding', absent: 'No active cycle' };
-    let summary;
+    let summaryPrimary;
+    const summaryMeta = [];
     if (mc.cycleStatus && mc.cycleStatus !== 'regular' && statusLabels[mc.cycleStatus]) {
-      summary = statusLabels[mc.cycleStatus];
-      if (mc.conditions) summary += ` \u2022 ${escapeHTML(mc.conditions)}`;
+      summaryPrimary = statusLabels[mc.cycleStatus];
+      if (isActiveCycleStatus(mc.cycleStatus)) {
+        summaryMeta.push(`${mc.cycleLength || 28}-day cycle`, regLabel, `${mc.flow || 'moderate'} flow`);
+      }
     } else {
-      summary = `${mc.cycleLength || 28}-day cycle, ${regLabel}, ${mc.flow || 'moderate'} flow`;
-      if (mc.contraceptive) summary += ` \u2022 ${escapeHTML(mc.contraceptive)}`;
-      if (mc.conditions) summary += ` \u2022 ${escapeHTML(mc.conditions)}`;
+      summaryPrimary = `${mc.cycleLength || 28}-day cycle`;
+      summaryMeta.push(regLabel, `${mc.flow || 'moderate'} flow`);
     }
-    html += `<div class="cycle-summary" role="button" tabindex="0" aria-label="Edit cycle: ${escapeHTML(summary)}" onclick="openMenstrualCycleEditor()" style="cursor:pointer">${summary}</div>`;
-    const isActiveCycle = !mc.cycleStatus || mc.cycleStatus === 'regular' || mc.cycleStatus === 'perimenopause';
+    if (mc.contraceptive) summaryMeta.push(mc.contraceptive);
+    if (mc.conditions) summaryMeta.push(mc.conditions);
+    const sortedPeriods = (mc.periods || []).slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
+    if (compact && sortedPeriods[0]?.startDate) summaryMeta.push(`Last ${fmtCycleDate(sortedPeriods[0].startDate)}`);
+    const summaryAria = [summaryPrimary, ...summaryMeta].filter(Boolean).join(', ');
+    html += `<button type="button" class="cycle-summary-card" aria-label="Edit cycle: ${escapeHTML(summaryAria)}" onclick="openMenstrualCycleEditor()" onkeydown="${CYCLE_KEY_ACTIVATE_EDITOR}">
+      <span class="cycle-summary-icon">${CYCLE_ICONS.droplet}</span>
+      <span class="cycle-summary-copy">
+        <span class="cycle-summary-label">Current profile</span>
+        <strong>${escapeHTML(summaryPrimary)}</strong>
+        <span class="cycle-summary-tags">${renderCycleMetaTags(summaryMeta)}</span>
+      </span>
+    </button>`;
+    const isActiveCycle = isActiveCycleStatus(mc.cycleStatus);
     const drawRec = isActiveCycle ? getNextBestDrawDate(mc) : null;
     if (drawRec) {
       html += `<div class="cycle-draw-date">
-        <span class="cycle-draw-icon">\uD83D\uDCC5</span>
-        <div><strong>Next best blood draw:</strong> ${escapeHTML(drawRec.description)}
-        <div class="cycle-draw-explain">Early follicular phase gives the most stable baseline for hormones, iron, and inflammation markers.</div></div>
+        <span class="cycle-draw-icon">${CYCLE_ICONS.calendar}</span>
+        <div class="cycle-draw-copy">
+          <strong>Next best blood draw</strong>
+          <span>${escapeHTML(drawRec.description)}</span>
+          <small>Early follicular phase gives the most stable baseline for hormones, iron, and inflammation markers.</small>
+        </div>
       </div>`;
     }
-    if (isActiveCycle && data.dates.length > 0) {
+    if (isActiveCycle && data?.dates?.length > 0) {
       const phases = getBloodDrawPhases(mc, data.dates);
       const phaseDates = Object.entries(phases);
       if (phaseDates.length > 0) {
         html += `<div class="cycle-draw-phases">`;
-        const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        for (const [date, p] of phaseDates) {
-          html += `<span class="cycle-draw-tag"><span class="cycle-phase-badge phase-${p.phase}">${p.phaseName}</span> ${fmtDate(date)} \u2014 Day ${p.cycleDay}</span>`;
+        const visiblePhaseDates = compact ? phaseDates.slice(0, 2) : phaseDates;
+        for (const [date, p] of visiblePhaseDates) {
+          html += `<span class="cycle-draw-tag"><span class="cycle-phase-badge phase-${p.phase}">${escapeHTML(p.phaseName)}</span><span>${escapeHTML(fmtCycleDate(date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span><span class="cycle-tag-day">Day ${p.cycleDay}</span></span>`;
+        }
+        if (compact && phaseDates.length > visiblePhaseDates.length) {
+          html += `<span class="cycle-draw-tag cycle-draw-more">+${phaseDates.length - visiblePhaseDates.length} more draws</span>`;
         }
         html += `</div>`;
       }
     }
-    const periods = (mc.periods || []).slice().sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 6);
+    const periods = compact ? [] : sortedPeriods.slice(0, 6);
     if (periods.length > 0) {
-      const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       html += `<div class="cycle-period-log">`;
       for (const p of periods) {
-        const flowCls = p.flow === 'heavy' ? 'severity-major' : p.flow === 'light' ? 'severity-minor' : 'severity-mild';
-        html += `<span class="cycle-period-entry">${fmtDate(p.startDate)}\u2013${fmtDate(p.endDate)} <span class="goals-severity-badge ${flowCls}">${p.flow}</span>${(p.symptoms && p.symptoms.length) ? p.symptoms.map(s => `<span class="period-symptom-tag">${escapeHTML(s)}</span>`).join('') : ''}${p.notes ? ` <span class="cycle-period-note">${escapeHTML(p.notes)}</span>` : ''}</span>`;
+        const dateLabel = `${fmtCycleDate(p.startDate)}-${fmtCycleDate(p.endDate || p.startDate)}`;
+        html += `<span class="cycle-period-entry">
+          <span class="cycle-period-date">${escapeHTML(dateLabel)}</span>
+          <span class="goals-severity-badge ${flowClass(p.flow)}">${escapeHTML(p.flow || 'moderate')}</span>
+          ${(p.symptoms && p.symptoms.length) ? p.symptoms.map(s => `<span class="period-symptom-tag">${escapeHTML(s)}</span>`).join('') : ''}
+          ${p.notes ? `<span class="cycle-period-note">${escapeHTML(p.notes)}</span>` : ''}
+        </span>`;
       }
       html += `</div>`;
     }
     // Perimenopause pattern detection
     const perimenopause = detectPerimenopausePattern(mc, state.profileDob);
-    if (perimenopause) {
-      html += `<div class="cycle-alert cycle-alert-perimenopause">
-        <span class="cycle-alert-icon">\u26A0\uFE0F</span>
-        <div>
-          <strong>Possible Perimenopause Pattern</strong>
-          <div class="cycle-alert-detail">${escapeHTML(perimenopause.message)}</div>
-        </div>
-      </div>`;
-    }
     // Heavy flow + iron alerts
-    const ironAlerts = detectCycleIronAlerts(mc, data);
-    for (const alert of ironAlerts) {
-      const cls = alert.severity === 'critical' ? 'cycle-alert-critical' : alert.severity === 'warning' ? 'cycle-alert-warning' : 'cycle-alert-info';
-      html += `<div class="cycle-alert ${cls}">
-        <span class="cycle-alert-icon">${alert.severity === 'critical' ? '\uD83D\uDEA8' : alert.severity === 'warning' ? '\u26A0\uFE0F' : '\u2139\uFE0F'}</span>
-        <div>
-          <strong>${alert.marker ? escapeHTML(alert.marker) + ' + Heavy Flow' : 'Iron Panel Missing'}</strong>
-          <div class="cycle-alert-detail">${escapeHTML(alert.message)}</div>
-        </div>
-      </div>`;
+    const ironAlerts = data ? detectCycleIronAlerts(mc, data) : [];
+    const alerts = [
+      perimenopause ? { kind: 'perimenopause', severity: 'warning', title: 'Possible Perimenopause Pattern', message: perimenopause.message } : null,
+      ...ironAlerts.map(alert => ({ ...alert, title: alert.marker ? `${alert.marker} + Heavy Flow` : 'Iron Panel Missing' }))
+    ].filter(Boolean);
+    for (const alert of compact ? alerts.slice(0, 1) : alerts) {
+      html += renderAlert(alert);
     }
   }
   html += `</div>`;
   return html;
 }
 
-Object.assign(window, { getCyclePhase, getNextBestDrawDate, getBloodDrawPhases, detectPerimenopausePattern, detectCycleIronAlerts, renderMenstrualCycleSection, openMenstrualCycleEditor, saveMenstrualCycle, clearMenstrualCycle, syncMenstrualCycleProfileFromForm, addPeriodEntry, deletePeriodEntry, _toggleCycleEditorFields });
+Object.assign(window, { getCyclePhase, getNextBestDrawDate, getBloodDrawPhases, detectPerimenopausePattern, detectCycleIronAlerts, renderMenstrualCycleSection, openMenstrualCycleEditor, saveMenstrualCycle, clearMenstrualCycle, syncMenstrualCycleProfileFromForm, addPeriodEntry, deletePeriodEntry, toggleCycleSymptomTag, _toggleCycleEditorFields });

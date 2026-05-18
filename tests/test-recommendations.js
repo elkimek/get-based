@@ -41,6 +41,7 @@ globalThis.fetch = async (url, opts) => {
   const chatSrc = await fetchWithRetry('js/chat.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
   const contextSrc = await fetchWithRetry('js/context-cards.js');
+  const navSrc = await fetchWithRetry('js/nav.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const constantsSrc = await fetchWithRetry('js/constants.js');
   const swSrc = await fetchWithRetry('service-worker.js');
@@ -194,9 +195,19 @@ globalThis.fetch = async (url, opts) => {
   assert('chat.js detects recSlots for live rendering', chatSrc.includes('_recSlots'));
   assert('chat.js has rec-chat-wrapper class', chatSrc.includes('rec-chat-wrapper'));
   assert('views.js has chart-rec placeholder in header', viewsSrc.includes('chart-rec-'));
+  assert('views.js keeps chart title text separate from tips host', viewsSrc.includes('chart-card-title-text') && viewsSrc.includes('chart-card-tips-host'));
   assert('views.js has loadChartCardRecs function', viewsSrc.includes('function loadChartCardRecs'));
   assert('views.js scrollToRec auto-opens details', viewsSrc.includes('scrollToRec'));
   assert('loadCatalog on window', typeof window.loadCatalog === 'function');
+  assert('nav.js exposes recommendations sidebar helper', navSrc.includes('openRecommendationsFromSidebar'));
+  const recNavMarkup = navSrc.match(/data-category="recommendations"[\s\S]{0,500}/)?.[0] || '';
+  assert('Recommendations sidebar routes to dedicated page', recNavMarkup.includes("window.navigate('recommendations')"));
+  assert('Recommendations sidebar item does not open Settings', !recNavMarkup.includes('openSettingsModal'));
+  assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('export function showRecommendations') && viewsSrc.includes('openRecommendationDetail'));
+  assert('dashboard has Recommendations widget surface', viewsSrc.includes("id: 'recommendations'") && viewsSrc.includes('renderDashboardRecommendationsWidget'));
+  assert('Recommendations page header directly toggles its dashboard widget',
+    viewsSrc.includes("inlineHandlerCall(dashboardAction, 'recommendations')") &&
+    !viewsSrc.includes("openDashboardWidgetPicker && window.openDashboardWidgetPicker()\">Add to Dashboard"));
 
   // ═══════════════════════════════════════
   // 10. Settings toggle
@@ -228,6 +239,8 @@ globalThis.fetch = async (url, opts) => {
   // brittle (cross-origin, parsing race); source inspection is more reliable.
   const cssSrc = read('/styles.css');
   assert('CSS has .rec-section rule', cssSrc.includes('.rec-section'));
+  assert('CSS keeps Tips badge outside line-clamped chart title text', cssSrc.includes('.chart-card-title-text') && cssSrc.includes('.chart-card-tips-host .ctx-tips-badge'));
+  assert('CSS gives detail modal recommendation sections horizontal spacing', cssSrc.includes('.marker-detail-modal [id^="rec-modal-"]'));
 
   // ═══════════════════════════════════════
   // 13. Security

@@ -67,6 +67,9 @@ assert('buildFullGeneticsContext exported', typeof dna.buildFullGeneticsContext 
 assert('handleDNAFile exported', typeof dna.handleDNAFile === 'function');
 assert('findGenotypeInfo exported', typeof dna.findGenotypeInfo === 'function');
 assert('findSnpHint exported', typeof dna.findSnpHint === 'function');
+assert('getSnpCategoryLabel exported', typeof dna.getSnpCategoryLabel === 'function');
+assert('SNP_CATEGORY_LABELS exported', typeof dna.SNP_CATEGORY_LABELS === 'object');
+assert('SNP category fallback is user-facing', dna.getSnpCategoryLabel(null) === 'Other');
 
 // ═══════════════════════════════════════
 // 2. Format detection
@@ -283,6 +286,8 @@ assert('genetics.snps is object', typeof profileData.genetics?.snps === 'object'
 assert('SNP has genotype', profileData.genetics?.snps?.rs1801133?.genotype === 'GA');
 assert('SNP has gene', profileData.genetics?.snps?.rs1801133?.gene === 'MTHFR');
 assert('SNP has variant', profileData.genetics?.snps?.rs1801133?.variant === 'C677T');
+assert('SNP has functional category', profileData.genetics?.snps?.rs1801133?.category === 'methylation');
+assert('SNP has marker links', Array.isArray(profileData.genetics?.snps?.rs1801133?.markers));
 
 // Delete
 dna.deleteGeneticsData(profileData);
@@ -299,6 +304,7 @@ dna.saveGeneticsData(profileData, aResult);
 const fullCtx = dna.buildFullGeneticsContext(profileData.genetics);
 assert('Full context includes GENETICS header', fullCtx.startsWith('GENETICS ('));
 assert('Full context includes APOE', fullCtx.includes('APOE: ε3/ε4'));
+assert('Full context labels MTHFR under Methylation category', fullCtx.includes('Methylation') && fullCtx.includes('MTHFR C677T'));
 assert('Full context includes MTHFR', fullCtx.includes('MTHFR C677T'));
 assert('Full context excludes none-effect SNPs', !fullCtx.includes('Normal MTHFR'));
 assert('Full context excludes APOE component SNPs', !fullCtx.includes('APOE-part1'));
@@ -324,6 +330,8 @@ assert('window.confirmDNAImport exists', typeof window.confirmDNAImport === 'fun
 assert('window.closeDNAImportPreview exists', typeof window.closeDNAImportPreview === 'function');
 assert('window.deleteGeneticsData exists', typeof window.deleteGeneticsData === 'function');
 assert('window._buildGeneticsContext exists', typeof window._buildGeneticsContext === 'function');
+assert('window.getSnpCategoryLabel exists', typeof window.getSnpCategoryLabel === 'function');
+assert('window.SNP_CATEGORY_LABELS exists', typeof window.SNP_CATEGORY_LABELS === 'object');
 
 // ═══════════════════════════════════════
 // 12. Source integration
@@ -341,6 +349,39 @@ assert('main.js calls handleDNAFile', mainSrc.includes('handleDNAFile'));
 
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');
 assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
+
+const viewsSrc = await fetchWithRetry('js/views.js');
+assert('views.js imports SNP category labels', viewsSrc.includes('getSnpCategoryLabel'));
+assert('dashboard genome widget waits for SNP catalog before rows', viewsSrc.includes('Loading SNP interpretations'));
+assert('dashboard genome widget refreshes itself after catalog load', viewsSrc.includes('refreshDashboardGenomeWidgetWhenSNPTableReady') && viewsSrc.includes('body.innerHTML = renderDashboardGenomeWidget()'));
+assert('dashboard genome widget no longer gates refresh on currentView', !viewsSrc.includes("state.currentView === 'dashboard' && window.navigate"));
+assert('dashboard genome rows include category label', viewsSrc.includes('categoryLabel'));
+assert('dashboard genome only shows priority SNP tiers up front', viewsSrc.includes('DASHBOARD_VISIBLE_SNP_TONES') && viewsSrc.includes("['significant', 'moderate', 'mild', 'beneficial']"));
+assert('dashboard genome groups priority SNPs by category', viewsSrc.includes('groupDashboardGenomeFindings') && viewsSrc.includes('db-genome-category'));
+assert('dashboard genome collapses low-priority SNP calls', viewsSrc.includes('db-genome-secondary') && viewsSrc.includes('Other imported SNPs'));
+assert('dashboard genome collapsed SNPs reuse category groups', viewsSrc.includes('secondaryGroups.map(group => renderDashboardGenomeGroup'));
+assert('Genome lens avoids duplicated full genetics surfaces',
+  viewsSrc.includes('Actionable Genetic Modifiers') &&
+  viewsSrc.includes('renderGenomeImportDetailsWidget') &&
+  viewsSrc.includes("id: 'genome-import', title: 'Import Details'") &&
+  viewsSrc.includes("renderLensPageWidgets('genome'") &&
+  !viewsSrc.includes('Imported Genome Data'));
+
+const stylesSrc = await fetchWithRetry('styles.css');
+const genomeCategoryCss = (stylesSrc.match(/\.db-genome-category\s*\{([^}]*)\}/) || [null, ''])[1];
+assert('dashboard genome category groups avoid duplicate severity border',
+  genomeCategoryCss &&
+  !genomeCategoryCss.includes('border-left') &&
+  genomeCategoryCss.includes('color-mix(in srgb, var(--bg-secondary)'));
+assert('dashboard genome SNP rows keep severity left border',
+  stylesSrc.includes('.db-snp-significant') && stylesSrc.includes('border-left-color: var(--db-snp-tone)'));
+
+const dnaSrc = await fetchWithRetry('js/dna.js');
+assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
+assert('DNA import preview separates beneficial findings', dnaSrc.includes('Beneficial findings') && dnaSrc.includes("impact: m.valence === 'protective' ? 'beneficial' : m.effect"));
+assert('DNA reference links use attribute escaping instead of quote-only replacement',
+  dnaSrc.includes('escapeAttr(primaryRef)') &&
+  !dnaSrc.includes("f.references[0].replace(/\\\"/g, '&quot;')"));
 
 const labCtxSrc = await fetchWithRetry('js/lab-context.js');
 assert('lab-context.js includes genetics in context', labCtxSrc.includes('_buildGeneticsContext'));

@@ -24,6 +24,15 @@ function readWithStallTimeout(reader, label = 'AI stream') {
   });
 }
 
+function isTokenLimitFinish(reason) {
+  const r = String(reason || '').toLowerCase();
+  return r === 'length'
+    || r === 'max_tokens'
+    || r === 'max_completion_tokens'
+    || r.includes('token_limit')
+    || r.includes('max token');
+}
+
 // ═══════════════════════════════════════════════
 // AI PROVIDER MANAGEMENT
 // ═══════════════════════════════════════════════
@@ -778,6 +787,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
     let fullText = '';
     let _hasContent = false;
     let _reasoningBuf = '';
+    let finishReason = null;
     let inputTokens = 0, outputTokens = 0;
     // Local helper so the trailing-buffer pass after the loop and the in-loop
     // line iteration share identical handling. `boundary` is true while the
@@ -790,7 +800,10 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
       try {
         const event = JSON.parse(data);
         if (event.error) throw new Error(event.error.message || JSON.stringify(event.error));
-        const delta = event.choices?.[0]?.delta;
+        const choice = event.choices?.[0];
+        const delta = choice?.delta;
+        if (choice?.finish_reason) finishReason = choice.finish_reason;
+        else if (choice?.native_finish_reason) finishReason = choice.native_finish_reason;
         if (delta?.content) {
           if (!_hasContent) _hasContent = true;
           fullText += delta.content;
@@ -833,15 +846,17 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
     // newline (e.g. server truncation) would otherwise be silently dropped.
     if (buffer.startsWith('data: ')) handleSSELine(buffer, false);
     if (!fullText && _reasoningBuf) fullText = _reasoningBuf;
-    return { text: fullText, usage: { inputTokens, outputTokens } };
+    return { text: fullText, usage: { inputTokens, outputTokens }, finishReason, truncated: isTokenLimitFinish(finishReason) };
   } else {
     const data = await res.json();
     const usage = data.usage || {};
-    const msg = data.choices?.[0]?.message;
+    const choice = data.choices?.[0];
+    const msg = choice?.message;
     let text = msg?.content || '';
     // If content is empty, fall back to reasoning but strip thinking tags
     if (!text && msg?.reasoning_content) text = msg.reasoning_content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    return { text, usage: { inputTokens: usage.prompt_tokens || 0, outputTokens: usage.completion_tokens || 0 } };
+    const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
+    return { text, usage: { inputTokens: usage.prompt_tokens || 0, outputTokens: usage.completion_tokens || 0 }, finishReason, truncated: isTokenLimitFinish(finishReason) };
   }
 }
 
@@ -910,15 +925,18 @@ export async function callVeniceAPI(opts) {
   // Streaming with per-chunk decryption
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = '', fullText = '', inputTokens = 0, outputTokens = 0;
+  let buffer = '', fullText = '', inputTokens = 0, outputTokens = 0, finishReason = null;
   const handleVeniceLine = async (line, boundary) => {
     if (!line.startsWith('data: ')) return;
     const data = line.slice(6);
     if (data === '[DONE]') return;
     try {
       const event = JSON.parse(data);
-      if (event.choices?.[0]?.delta?.content) {
-        const chunk = await decryptChunk(session.privateKey, event.choices[0].delta.content);
+      const choice = event.choices?.[0];
+      if (choice?.finish_reason) finishReason = choice.finish_reason;
+      else if (choice?.native_finish_reason) finishReason = choice.native_finish_reason;
+      if (choice?.delta?.content) {
+        const chunk = await decryptChunk(session.privateKey, choice.delta.content);
         fullText += chunk;
         if (onStream) onStream(fullText);
       }
@@ -939,7 +957,7 @@ export async function callVeniceAPI(opts) {
     for (const line of lines) await handleVeniceLine(line, true);
   }
   if (buffer.startsWith('data: ')) await handleVeniceLine(buffer, false);
-  return { text: fullText, usage: { inputTokens, outputTokens } };
+  return { text: fullText, usage: { inputTokens, outputTokens }, finishReason, truncated: isTokenLimitFinish(finishReason) };
 }
 
 export async function callOpenRouterAPI(opts) {

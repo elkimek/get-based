@@ -17,7 +17,7 @@ const TOUR_STEPS = [
 
 const CYCLE_TOUR_STEPS = [
   { target: null, title: 'Cycle-Aware Lab Interpretation', text: 'getbased tracks your menstrual cycle so AI can interpret hormones, iron, and inflammation in the right context. Here\u2019s what\u2019s available.', position: 'center' },
-  { target: '.cycle-summary', title: 'Your Cycle at a Glance', text: 'Cycle length, regularity, flow, and contraceptive info \u2014 auto-calculated from your period log when possible.', position: 'bottom' },
+  { target: '.cycle-summary-card', title: 'Your Cycle at a Glance', text: 'Cycle length, regularity, flow, and contraceptive info \u2014 auto-calculated from your period log when possible.', position: 'bottom' },
   { target: '.cycle-draw-date', title: 'Optimal Blood Draw Timing', text: 'Get recommendations for when to schedule blood work \u2014 early follicular phase (days 3\u20135) gives the most stable baseline.', position: 'bottom' },
   { target: '.cycle-draw-phases', title: 'Phase Labels on Lab Dates', text: 'Each lab date is tagged with its cycle phase so you can see how timing may have affected your results.', position: 'bottom' },
   { target: '.cycle-period-log', title: 'Period Log & Symptoms', text: 'Log each period with flow, symptoms, and notes. More entries = better auto-calculated stats and smarter alerts.', position: 'bottom' },

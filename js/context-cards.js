@@ -421,6 +421,23 @@ export function refreshAllHealthDots() {
 // CONTEXT CARD EDITOR HELPERS
 // ═══════════════════════════════════════════════
 
+function renderContextEditorModal(modal, title, subtitle, bodyHtml, closeFn = 'closeModal') {
+  if (!modal) return;
+  modal.className = 'modal gb-form-modal ctx-editor-modal';
+  modal.setAttribute('aria-label', title);
+  modal.innerHTML = `<div class="gb-modal-head ctx-editor-head">
+    <div>
+      <div class="gb-modal-kicker">Profile context</div>
+      <h3 class="gb-modal-title">${escapeHTML(title)}</h3>
+    </div>
+    <button type="button" class="modal-close" onclick="${closeFn}()" aria-label="Close ${escapeHTML(title)}">&times;</button>
+  </div>
+  <div class="gb-form-body ctx-editor-body">
+    ${subtitle ? `<div class="modal-unit">${escapeHTML(subtitle)}</div>` : ''}
+    ${bodyHtml}
+  </div>`;
+}
+
 export function renderSelectField(label, id, options, current) {
   return `<div class="ctx-field-group"><label class="ctx-field-label">${label}</label>
     <div class="ctx-btn-group" id="${id}">
@@ -589,9 +606,7 @@ function _relativeLabel(key) {
 export function renderDiagnosesModal(modal, current) {
   const conditions = current.conditions || [];
   const familyHistory = Array.isArray(current.familyHistory) ? current.familyHistory : [];
-  let html = `<button class="modal-close" onclick="closeDiagnoses()">&times;</button>
-    <h3>Medical History</h3>
-    <div class="modal-unit">Your diagnoses and family history. The AI considers both when interpreting your labs.</div>`;
+  let html = '';
   if (conditions.length > 0) {
     html += `<div class="ctx-conditions-list" id="ctx-conditions-list">`;
     for (let i = 0; i < conditions.length; i++) {
@@ -692,7 +707,7 @@ export function renderDiagnosesModal(modal, current) {
     <button class="import-btn import-btn-secondary" onclick="closeDiagnoses()">Cancel</button>
     ${hasCurrent ? '<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="clearDiagnoses()">Clear</button>' : ''}
   </div>`;
-  modal.innerHTML = html;
+  renderContextEditorModal(modal, 'Medical History', 'Your diagnoses and family history. The AI considers both when interpreting your labs.', html, 'closeDiagnoses');
   setTimeout(() => {
     const input = document.getElementById('condition-input');
     if (input) {
@@ -868,9 +883,7 @@ export function openDietEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.diet || { type: null, restrictions: [], pattern: null, breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Diet & Digestion</h3>
-    <div class="modal-unit">Describe your typical diet and digestive health. The AI will factor this in when interpreting your labs.</div>
+  renderContextEditorModal(modal, 'Diet & Digestion', 'Describe your typical diet and digestive health. The AI will factor this in when interpreting your labs.', `
     ${renderSelectField('Diet type', 'diet-type', DIET_TYPES, current.type)}
     ${renderSelectField('Eating pattern', 'diet-pattern', DIET_PATTERNS, current.pattern)}
     ${renderTagsField('Restrictions', 'diet-restrictions', DIET_RESTRICTIONS, current.restrictions)}
@@ -894,7 +907,7 @@ export function openDietEditor() {
     ${renderSelectField('Abdominal pain', 'diet-abdpain', ABDOMINAL_PAIN, current.abdominalPain || null)}
     ${renderTagsField('Food sensitivities', 'diet-sensitivities', FOOD_SENSITIVITIES, current.foodSensitivities || [])}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.diet != null, 'saveDiet', 'clearDiet')}`;
+    ${contextEditorActions(state.importedData.diet != null, 'saveDiet', 'clearDiet')}`);
   overlay.classList.add("show");
 }
 
@@ -942,9 +955,7 @@ export function openSleepRestEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.sleepRest || { duration: null, quality: null, schedule: null, roomTemp: null, issues: [], environment: [], practices: [], note: '' };
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Sleep & Rest</h3>
-    <div class="modal-unit">Sleep is when the body repairs. Duration, temperature, darkness, and EMF exposure all affect hormones, inflammation, and recovery.</div>
+  renderContextEditorModal(modal, 'Sleep & Rest', 'Sleep is when the body repairs. Duration, temperature, darkness, and EMF exposure all affect hormones, inflammation, and recovery.', `
     ${renderSelectField('Duration', 'sleep-duration', SLEEP_DURATIONS, current.duration)}
     ${renderSelectField('Quality', 'sleep-quality', SLEEP_QUALITY, current.quality)}
     ${renderSelectField('Schedule', 'sleep-schedule', SLEEP_SCHEDULE, current.schedule)}
@@ -954,7 +965,7 @@ export function openSleepRestEditor() {
     ${renderTagsField('Sleep environment', 'sleep-env', SLEEP_ENVIRONMENT, current.environment)}
     ${renderTagsField('Sleep practices', 'sleep-practices', SLEEP_PRACTICES, current.practices)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.sleepRest != null, 'saveSleepRest', 'clearSleepRest')}`;
+    ${contextEditorActions(state.importedData.sleepRest != null, 'saveSleepRest', 'clearSleepRest')}`);
   overlay.classList.add("show");
 }
 
@@ -989,9 +1000,7 @@ export function openLightCircadianEditor() {
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.lightCircadian || { amLight: null, daytime: null, uvExposure: null, skinType: null, evening: [], screenTime: null, techEnv: [], cold: null, grounding: null, mealTiming: [], note: '' };
   const lat = getLatitudeFromLocation();
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Light & Circadian</h3>
-    <div class="modal-unit">Light is the #1 circadian signal. Morning light sets cortisol, UV drives vitamin D and hormones, cold and grounding affect mitochondrial function.</div>
+  renderContextEditorModal(modal, 'Light & Circadian', 'Light is the #1 circadian signal. Morning light sets cortisol, UV drives vitamin D and hormones, cold and grounding affect mitochondrial function.', `
     ${renderSelectField('Morning light', 'light-am', LIGHT_AM, current.amLight)}
     ${renderSelectField('Daytime outdoor exposure', 'light-daytime', LIGHT_DAYTIME, current.daytime)}
     ${renderSelectField('UV / sun exposure', 'light-uv', LIGHT_UV, current.uvExposure)}
@@ -1006,7 +1015,7 @@ export function openLightCircadianEditor() {
     ${renderTagsField('Meal timing signals', 'light-meal', LIGHT_MEAL_TIMING, current.mealTiming)}
     ${lat ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">📍 Latitude: <strong style="color:var(--text-primary)">${escapeHTML(lat)}</strong> <span style="font-size:11px">(from Settings → Location)</span></div>` : `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">💡 Set your country in Settings → Profile for automatic latitude detection</div>`}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.lightCircadian != null, 'saveLightCircadian', 'clearLightCircadian')}`;
+    ${contextEditorActions(state.importedData.lightCircadian != null, 'saveLightCircadian', 'clearLightCircadian')}`);
   overlay.classList.add("show");
 }
 
@@ -1098,15 +1107,13 @@ export function openExerciseEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.exercise || { frequency: null, types: [], intensity: null, dailyMovement: null, note: '' };
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Exercise & Movement</h3>
-    <div class="modal-unit">Describe your exercise routine. The AI considers this when interpreting your labs.</div>
+  renderContextEditorModal(modal, 'Exercise & Movement', 'Describe your exercise routine. The AI considers this when interpreting your labs.', `
     ${renderSelectField('Frequency', 'exercise-freq', EXERCISE_FREQ, current.frequency)}
     ${renderTagsField('Types', 'exercise-types', EXERCISE_TYPES, current.types)}
     ${renderSelectField('Intensity', 'exercise-intensity', EXERCISE_INTENSITY, current.intensity)}
     ${renderSelectField('Daily movement', 'exercise-movement', DAILY_MOVEMENT, current.dailyMovement)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.exercise != null, 'saveExercise', 'clearExercise')}`;
+    ${contextEditorActions(state.importedData.exercise != null, 'saveExercise', 'clearExercise')}`);
   overlay.classList.add("show");
 }
 
@@ -1137,14 +1144,12 @@ export function openStressEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.stress || { level: null, sources: [], management: [], note: '' };
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Stress</h3>
-    <div class="modal-unit">Chronic stress elevates cortisol, disrupts thyroid, raises inflammation, and impairs immunity.</div>
+  renderContextEditorModal(modal, 'Stress', 'Chronic stress elevates cortisol, disrupts thyroid, raises inflammation, and impairs immunity.', `
     ${renderSelectField('Stress level', 'stress-level', STRESS_LEVELS, current.level)}
     ${renderTagsField('Sources', 'stress-sources', STRESS_SOURCES, current.sources)}
     ${renderTagsField('Management', 'stress-mgmt', STRESS_MGMT, current.management)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.stress != null, 'saveStress', 'clearStress')}`;
+    ${contextEditorActions(state.importedData.stress != null, 'saveStress', 'clearStress')}`);
   overlay.classList.add("show");
 }
 
@@ -1174,9 +1179,7 @@ export function openLoveLifeEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.loveLife || { status: null, satisfaction: null, relationship: null, libido: null, frequency: null, orgasm: null, concerns: [], note: '' };
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Love Life</h3>
-    <div class="modal-unit">Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.</div>
+  renderContextEditorModal(modal, 'Love Life', 'Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.', `
     ${renderSelectField('Relationship status', 'love-status', LOVE_STATUS, current.status)}
     ${renderSelectField('Relationship quality', 'love-relationship', LOVE_RELATIONSHIP, current.relationship)}
     ${renderSelectField('Overall satisfaction', 'love-satisfaction', LOVE_SATISFACTION, current.satisfaction)}
@@ -1191,7 +1194,7 @@ export function openLoveLifeEditor() {
       return true;
     }), current.concerns)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.loveLife != null, 'saveLoveLife', 'clearLoveLife')}`;
+    ${contextEditorActions(state.importedData.loveLife != null, 'saveLoveLife', 'clearLoveLife')}`);
   overlay.classList.add("show");
 }
 
@@ -1225,9 +1228,7 @@ export function openEnvironmentEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.environment || { setting: null, climate: null, water: null, waterConcerns: [], emf: [], emfMitigation: [], homeLight: null, air: [], toxins: [], building: null, note: '' };
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Environment</h3>
-    <div class="modal-unit">Your environment shapes your biology — water quality, EMF, light, air, and toxin exposure directly impact mitochondria, inflammation, and hormone function.</div>
+  renderContextEditorModal(modal, 'Environment', 'Your environment shapes your biology — water quality, EMF, light, air, and toxin exposure directly impact mitochondria, inflammation, and hormone function.', `
     ${renderSelectField('Living setting', 'env-setting', ENV_SETTING, current.setting)}
     ${renderSelectField('Climate', 'env-climate', ENV_CLIMATE, current.climate)}
     <div class="ctx-editor-divider"></div>
@@ -1252,7 +1253,7 @@ export function openEnvironmentEditor() {
     ${renderTagsField('Toxin exposure', 'env-toxins', ENV_TOXINS, current.toxins)}
     ${renderSelectField('Building', 'env-building', ENV_BUILDING, current.building)}
     ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.environment != null, 'saveEnvironment', 'clearEnvironment')}`;
+    ${contextEditorActions(state.importedData.environment != null, 'saveEnvironment', 'clearEnvironment')}`);
   overlay.classList.add("show");
 }
 
@@ -1295,9 +1296,7 @@ export function openHealthGoalsEditor() {
 
 export function renderHealthGoalsModal(modal) {
   const goals = state.importedData.healthGoals || [];
-  let html = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Health Goals</h3>
-    <div class="modal-unit">List things you want to solve or improve. The AI will prioritize analysis around your stated goals.</div>`;
+  let html = '';
   if (goals.length > 0) {
     html += `<div class="goals-list">`;
     for (let i = 0; i < goals.length; i++) {
@@ -1325,7 +1324,7 @@ export function renderHealthGoalsModal(modal) {
     <button class="import-btn import-btn-secondary" onclick="closeHealthGoals()">Done</button>
     ${goals.length > 0 ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="clearHealthGoals()">Clear All</button>` : ''}
   </div>`;
-  modal.innerHTML = html;
+  renderContextEditorModal(modal, 'Health Goals', 'List things you want to solve or improve. The AI will prioritize analysis around your stated goals.', html);
   setTimeout(() => {
     const input = document.getElementById('goal-text-input');
     if (input) {
@@ -1380,15 +1379,13 @@ export function openInterpretiveLensEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.interpretiveLens || '';
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>Interpretive Lens</h3>
-    <div class="modal-unit">List researchers, clinicians, or scientific paradigms whose frameworks you follow. The AI will consider their perspectives when interpreting your results.</div>
+  renderContextEditorModal(modal, 'Interpretive Lens', 'List researchers, clinicians, or scientific paradigms whose frameworks you follow. The AI will consider their perspectives when interpreting your results.', `
     <textarea class="note-editor" id="interpretive-lens-textarea" placeholder="e.g. Longevity medicine, quantum biology, functional endocrinology framework...">${escapeHTML(current)}</textarea>
     <div class="ctx-editor-actions">
       <button class="import-btn import-btn-primary" onclick="saveInterpretiveLens()">Save</button>
       <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
       ${current ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="clearInterpretiveLens()">Clear</button>` : ''}
-    </div>`;
+    </div>`);
   overlay.classList.add("show");
   setTimeout(() => {
     const ta = document.getElementById('interpretive-lens-textarea');

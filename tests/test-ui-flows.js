@@ -62,14 +62,34 @@ return (async function() {
   await wait(50);
 
   assert('Dashboard has main content', main.innerHTML.length > 500);
-  assert('Dashboard has context cards', !!main.querySelector('.context-card'));
-  assert('Dashboard has supplement section', !!main.querySelector('.supp-timeline-section'));
+  assert('Dashboard has Focus summary', main.innerHTML.includes('Current Focus'));
+  assert('Dashboard keeps Profile Context available as optional widget', viewsSrc.includes("id: 'profile-context'"));
+  assert('Dashboard keeps Supplements available as optional widget', viewsSrc.includes("id: 'supplements'"));
+  assert('Dashboard labels the spotlight widget as Current Priority',
+    !!main.querySelector('.dashboard-widget[data-widget-id="spotlight"]') && main.textContent.includes('Current Priority'));
+  assert('Dashboard does not show standalone Needs Attention by default',
+    !main.querySelector('.dashboard-widget[data-widget-id="alerts"]'));
   assert('Dashboard has key trends', main.innerHTML.includes('Key Trends') || main.innerHTML.includes('key-trends'));
+  const keyTrendsWidget = main.querySelector('.dashboard-widget[data-widget-id="key-trends"]');
+  assert('Dashboard Key Trends uses compact rows, not category chart cards',
+    !!keyTrendsWidget?.querySelector('.db-key-trend-row') && !keyTrendsWidget.querySelector('.chart-card'));
 
   // Sidebar rendered
   const sidebar = document.getElementById('sidebar-nav');
   assert('Sidebar has nav items', sidebar.querySelectorAll('.nav-item').length >= 5);
   assert('Dashboard nav item is active', !!sidebar.querySelector('.nav-item.active[data-category="dashboard"]'));
+  const sidebarText = sidebar.textContent || '';
+  assert('Sidebar scopes biomarker shortcuts to Lab categories', sidebarText.includes('Lab categories'));
+  assert('Sidebar does not duplicate Labs with an All biomarkers category shortcut',
+    !sidebar.querySelector('.nav-item[data-category="all"]') && !sidebarText.includes('All biomarkers'));
+  assert('Sidebar separates analysis tools from management modals',
+    sidebarText.includes('Analysis tools') && sidebarText.includes('Manage') && sidebarText.includes('Knowledge Base'));
+  const analysisIndex = sidebarText.indexOf('Analysis tools');
+  const manageIndex = sidebarText.indexOf('Manage');
+  const labCategoriesIndex = sidebarText.indexOf('Lab categories');
+  assert('Sidebar places tools and management above Lab categories',
+    analysisIndex > -1 && manageIndex > -1 && labCategoriesIndex > -1 &&
+      analysisIndex < labCategoriesIndex && manageIndex < labCategoriesIndex);
 
   // Header elements
   assert('Header dates populated', document.getElementById('header-dates')?.innerHTML.length > 10);
@@ -103,6 +123,40 @@ return (async function() {
   await wait(50);
   assert('Back to dashboard', !!sidebar.querySelector('.nav-item.active[data-category="dashboard"]'));
 
+  // Lens pages are dedicated workspaces; they should not duplicate sidebar
+  // category navigation, and their page sections should be reorderable.
+  const lensOrderProfile = window.getActiveProfileId?.() || S.currentProfile || 'default';
+  const labsOrderKey = `labcharts-${lensOrderProfile}-lensPageOrder-labs-v1`;
+  const savedLabsOrder = localStorage.getItem(labsOrderKey);
+  localStorage.removeItem(labsOrderKey);
+  window.navigate('labs');
+  await wait(80);
+  const labsPageWidgets = main.querySelector('.lens-page-widgets[data-lens-route="labs"]');
+  assert('Labs page uses compact Current Priority banner',
+    !!main.querySelector('.labs-priority-banner') && !main.querySelector('.lens-page-widgets .dashboard-widget[data-widget-id="spotlight"]'));
+  assert('Labs page does not show standalone Trends & Alerts section',
+    !main.querySelector('.lens-page-widgets .dashboard-widget[data-widget-id="alerts"]') && !main.textContent.includes('Trends & Alerts'));
+  assert('Labs page no longer duplicates sidebar category index',
+    !main.querySelector('.dashboard-widget[data-widget-id="labs-categories"]') && !main.textContent.includes('Lab Categories'));
+  assert('Labs page avoids duplicate All Biomarkers summary widget',
+    !main.querySelector('.dashboard-widget[data-widget-id="markers"]') && !main.textContent.includes('All Biomarkers'));
+  if (labsPageWidgets && labsPageWidgets.querySelectorAll('.dashboard-widget[data-widget-id]').length > 1) {
+    const beforeFirstLensWidget = labsPageWidgets.querySelector('.dashboard-widget[data-widget-id]')?.dataset.widgetId;
+    const downButton = labsPageWidgets.querySelector('.dashboard-widget[data-widget-id] .dashboard-widget-tool[aria-label="Move page section down"]');
+    downButton?.click();
+    await wait(80);
+    const afterFirstLensWidget = main.querySelector('.lens-page-widgets[data-lens-route="labs"] .dashboard-widget[data-widget-id]')?.dataset.widgetId;
+    assert('Lens page sections can be reordered',
+      beforeFirstLensWidget && afterFirstLensWidget && beforeFirstLensWidget !== afterFirstLensWidget,
+      `${beforeFirstLensWidget} -> ${afterFirstLensWidget}`);
+  } else {
+    assert('Lens page sections can be reordered', true, 'skip — no Labs widgets in current data');
+  }
+  if (savedLabsOrder == null) localStorage.removeItem(labsOrderKey);
+  else localStorage.setItem(labsOrderKey, savedLabsOrder);
+  window.navigate('dashboard');
+  await wait(50);
+
   // ═══════════════════════════════════════════════
   // 3. SETTINGS MODAL — open, tabs, provider switch, close
   // ═══════════════════════════════════════════════
@@ -123,6 +177,49 @@ return (async function() {
   assert('Display tab active after switch', !!document.querySelector('.settings-tab-btn[data-tab="display"].active'));
   assert('AI tab no longer active', !document.querySelector('.settings-tab-btn[data-tab="ai"].active'));
   assert('Display panel visible', !!document.querySelector('.settings-tab-panel[data-tab-panel="display"].active'));
+  assert('Display settings does not duplicate theme picker', !document.querySelector('.settings-theme-grid'));
+
+  const origThemeForTweaks = window.getTheme();
+  const origAccentForTweaks = localStorage.getItem('labcharts-accent-override');
+  const origSunsetForTweaks = localStorage.getItem('labcharts-sunset-mode');
+  const origCrtForTweaks = localStorage.getItem('labcharts-crt-effects');
+  window.setTheme('dark');
+  window.setSunsetMode?.(false);
+  window.setCrtEffectsEnabled?.(false);
+  window.applyAccentOverride?.();
+  window.openTweaksPanel?.();
+  await wait(30);
+  assert('Tweaks owns theme controls', !!document.querySelector('#tweaks-panel .tweaks-theme-grid'));
+  assert('Tweaks owns accent controls', !!document.querySelector('#tweaks-panel .tweaks-accent-row'));
+  assert('Tweaks owns sunset mode control', !!document.querySelector('#tweaks-sunset-mode'));
+  const darkCrtRow = document.querySelector('#tweaks-crt-effects-row');
+  assert('Tweaks hides CRT effects control on unsupported themes', !!darkCrtRow && darkCrtRow.hidden && !!document.querySelector('#tweaks-crt-effects')?.disabled);
+  assert('Tweaks no longer shows Try it actions', !(document.getElementById('tweaks-panel')?.textContent || '').includes('Try it'));
+  window.selectTweaksTheme?.('cyberterm');
+  await wait(80);
+  const cyberCrtRow = document.querySelector('#tweaks-crt-effects-row');
+  assert('Tweaks shows CRT effects control on supported themes', !!cyberCrtRow && !cyberCrtRow.hidden && !document.querySelector('#tweaks-crt-effects')?.disabled);
+  window.toggleTweaksCrtEffects?.(true);
+  await wait(20);
+  assert('CRT effects toggle persists visual mode', document.documentElement.dataset.crtEffects === 'on' && localStorage.getItem('labcharts-crt-effects') === 'true');
+  window.toggleTweaksCrtEffects?.(false);
+  window.selectTweaksTheme?.('dark');
+  await wait(80);
+  window.selectTweaksAccent?.('rose');
+  await wait(30);
+  const defaultSwatchAccent = document.querySelector('.tweaks-accent-btn[data-accent-id=""] .tweaks-accent-swatch')?.style.getPropertyValue('--tweak-accent')?.trim()?.toLowerCase();
+  const rootAccent = document.documentElement.style.getPropertyValue('--accent').trim().toLowerCase();
+  assert('Custom accent applies to the app', rootAccent === '#f43f5e', rootAccent);
+  assert('Theme default swatch stays on the theme default color', defaultSwatchAccent === '#4f8cff', defaultSwatchAccent);
+  window.closeTweaksPanel?.();
+  if (origAccentForTweaks) localStorage.setItem('labcharts-accent-override', origAccentForTweaks);
+  else localStorage.removeItem('labcharts-accent-override');
+  if (origSunsetForTweaks) window.setSunsetMode?.(true);
+  else window.setSunsetMode?.(false);
+  if (origCrtForTweaks) window.setCrtEffectsEnabled?.(true);
+  else window.setCrtEffectsEnabled?.(false);
+  window.setTheme(origThemeForTweaks);
+  window.applyAccentOverride?.(origAccentForTweaks || '');
 
   // Switch to data tab
   window.switchSettingsTab('data');
@@ -174,14 +271,16 @@ return (async function() {
   assert('Supplement has correct name', !!savedSupp);
   assert('Supplement has correct dosage', savedSupp?.dosage === '500mg');
 
-  // Verify dashboard updated
+  // Verify the optional dashboard widget can be shown after save
   window.closeModal();
   await wait(20);
   window.navigate('dashboard');
   await wait(50);
+  window.showDashboardWidget?.('supplements');
+  await wait(50);
   const suppSection = main.querySelector('.supp-timeline-section');
-  assert('Dashboard has supplement section after save', !!suppSection);
-  assert('Dashboard shows new supplement', suppSection?.innerHTML.includes('__UI_TEST_SUPP__'));
+  assert('Optional Supplements widget renders on dashboard after save', !!suppSection);
+  assert('Optional Supplements widget shows new supplement', suppSection?.innerHTML.includes('__UI_TEST_SUPP__'));
 
   // Delete the test supplement
   const testIdx = S.importedData.supplements.findIndex(s => s.name === '__UI_TEST_SUPP__');
@@ -286,6 +385,10 @@ return (async function() {
   await wait(50);
   assert('Diet editor opens', modalOverlay.classList.contains('show'));
   const editorModal = document.getElementById('detail-modal');
+  assert('Diet editor uses redesigned context modal shell',
+    editorModal.classList.contains('ctx-editor-modal') && editorModal.classList.contains('gb-form-modal'));
+  assert('Diet editor has accurate dialog label', editorModal.getAttribute('aria-label') === 'Diet & Digestion');
+  assert('Diet editor has redesigned modal header', !!editorModal.querySelector('.ctx-editor-head .gb-modal-title'));
   assert('Diet editor has pill buttons', !!editorModal.querySelector('.ctx-btn-group'));
 
   // Check editor has save/cancel actions
@@ -299,9 +402,11 @@ return (async function() {
   await wait(20);
   assert('Diet editor closes', !modalOverlay.classList.contains('show'));
 
-  // Verify context card exists on dashboard
+  // Verify optional Profile Context widget can render on dashboard
+  window.showDashboardWidget?.('profile-context');
+  await wait(80);
   const ctxCards = main.querySelectorAll('.context-card');
-  assert('Context cards rendered on dashboard', ctxCards.length >= 5);
+  assert('Profile Context widget renders on dashboard', ctxCards.length >= 5);
 
   // Check health dot structure
   const dot = main.querySelector('[id^="ctx-dot-"]');

@@ -79,6 +79,17 @@ await import('../js/light-tools.js');
   const html = window.renderLightTools();
   assert('renderLightTools returns a non-empty string',
     typeof html === 'string' && html.length > 100);
+  const firstLux = html.indexOf('Lux meter');
+  const firstFlicker = html.indexOf('Flicker detector');
+  const firstSpectrum = html.indexOf('What is this light?');
+  assert('renderLightTools recommended row orders lux, flicker, source',
+    firstLux >= 0 && firstFlicker > firstLux && firstSpectrum > firstFlicker);
+  for (const label of ['Lux meter', 'Flicker detector', 'What is this light?']) {
+    const count = (html.match(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    assert(`renderLightTools does not duplicate ${label}`, count === 1, `count ${count}`);
+  }
+  assert('renderLightTools drawers contain only secondary tools',
+    html.includes('Specialized checks') && html.includes('Color temp') && html.includes('Sleep darkness') && html.includes('Window check'));
 
   // ── 5. Camera-dependent openers (all 8) ──────────────────────────────
   // These need getUserMedia which isn't available in the test page. They

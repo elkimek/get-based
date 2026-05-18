@@ -97,7 +97,85 @@ const {
   }
   assert('fetchAtmosphere ran across 3 modes', true);
 
-  // ── 5. Selfhost mode → exercises _looksLikeOpenMeteoResponse ──────────
+  // ── 5. Auto mode must not reuse an Open-Meteo-only cache ───────────────
+  // Regression: if CAMS was temporarily unavailable, auto mode cached an
+  // open_meteo result for an hour. When CAMS came back, Conditions kept
+  // showing Open-Meteo until the TTL expired. Auto should retry CAMS instead.
+  purgeMeteoCache();
+  const cacheIso = '2026-05-12T12:30:00.000Z';
+  const omForecast = {
+    utc_offset_seconds: 0,
+    hourly: {
+      time: ['2026-05-12T12:00'],
+      uv_index: [4.1],
+      uv_index_clear_sky: [5.2],
+      cloud_cover: [18],
+      temperature_2m: [20],
+    },
+    daily: {
+      time: ['2026-05-12'],
+      sunrise: ['2026-05-12T05:10'],
+      sunset: ['2026-05-12T20:35'],
+      uv_index_max: [6.1],
+    },
+  };
+  const omAirQuality = {
+    utc_offset_seconds: 0,
+    hourly: {
+      time: ['2026-05-12T12:00'],
+      pm10: [11],
+      pm2_5: [6],
+      nitrogen_dioxide: [14],
+      aerosol_optical_depth: [0.08],
+      ozone: [70],
+    },
+    current: { pm2_5: 6, pm10: 11, european_aqi: 18 },
+  };
+  const responseJson = (json) => new Response(JSON.stringify(json), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+  saveMeteoConfig({ ...origCfg, mode: 'open-meteo' });
+  window.fetch = async (u) => String(u).includes('air-quality')
+    ? responseJson(omAirQuality)
+    : responseJson(omForecast);
+  const omAtm = await fetchAtmosphere({ lat: 51.23, lon: 14.56, isoTime: cacheIso });
+  assert('Open-Meteo fixture cached an open_meteo result', omAtm?.source === 'open_meteo');
+
+  let camsAttempted = false;
+  let openMeteoAfterAuto = false;
+  saveMeteoConfig({ ...origCfg, mode: 'auto' });
+  window.fetch = async (u) => {
+    if (u === '/api/proxy') {
+      camsAttempted = true;
+      return responseJson({
+        ...omForecast,
+        hourly: {
+          ...omForecast.hourly,
+          ozone_du: [312],
+          aod: [0.07],
+        },
+        airQuality: omAirQuality,
+        _camsMeta: { ageSec: 600 },
+        daily: {
+          ...omForecast.daily,
+          uv_index_max_cams: [6.3],
+          uv_index_max_cams_at: ['2026-05-12T13:00'],
+        },
+      });
+    }
+    if (String(u).includes('open-meteo')) openMeteoAfterAuto = true;
+    return responseJson(omForecast);
+  };
+  const autoAtm = await fetchAtmosphere({ lat: 51.23, lon: 14.56, isoTime: cacheIso });
+  assert('Auto mode bypasses open_meteo cache and retries CAMS', camsAttempted);
+  assert('Auto mode returns CAMS after bypassing downgraded cache',
+    autoAtm?.source === 'cams' && autoAtm.ozoneDU === 312,
+    JSON.stringify(autoAtm));
+  assert('Auto mode did not need Open-Meteo fallback when CAMS succeeded',
+    !openMeteoAfterAuto);
+
+  // ── 6. Selfhost mode → exercises _looksLikeOpenMeteoResponse ──────────
   // The selfhost provider validates that the upstream response matches
   // Open-Meteo's structural shape before trusting the payload. Stub fetch
   // to return a valid OM-shaped JSON; selfhost.fetch invokes
@@ -115,7 +193,7 @@ const {
   await withTimeout(() => fetchAtmosphere({ lat: 50, lon: 14, isoTime: '2026-05-12T01:30:00Z', noCache: true }));
   assert('fetchAtmosphere selfhost mode validated OM-shaped payload (_looksLikeOpenMeteoResponse fired)', true);
 
-  // ── 6. NOAA mode → exercises shapeNoaaResponse ────────────────────────
+  // ── 7. NOAA mode → exercises shapeNoaaResponse ────────────────────────
   // NOAA endpoint returns its own shape — shapeNoaaResponse is the per-
   // provider adapter. Stub fetch to return a NOAA-shaped payload with a
   // numeric uv_index; the shaper extracts uvIndex / ozone.
@@ -126,7 +204,7 @@ const {
   await withTimeout(() => fetchAtmosphere({ lat: 40, lon: -100, isoTime: '2026-05-12T18:00:00Z', noCache: true }));
   assert('fetchAtmosphere noaa mode shaped the NOAA response (shapeNoaaResponse fired)', true);
 
-  // ── 7. readStaleCache fallback ────────────────────────────────────────
+  // ── 8. readStaleCache fallback ────────────────────────────────────────
   // When all providers fail, fetchAtmosphere falls back to a stale-cache
   // lookup. Seed localStorage with a matching cache entry, then drive
   // fetchAtmosphere with all providers blocked → readStaleCache fires.

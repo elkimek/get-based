@@ -1,9 +1,24 @@
 // charts.js — Chart.js plugins, chart creation, marker descriptions
 
 import { state } from './state.js';
-import { getStatus, formatValue } from './utils.js';
+import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './data.js';
+
+let _chartJsLoad = null;
+
+export async function ensureChartJs() {
+  if (window.Chart) return window.Chart;
+  if (!_chartJsLoad) {
+    _chartJsLoad = loadScriptOnce('/vendor/chart.min.js')
+      .then(() => loadScriptOnce('/vendor/chartjs-adapter-native.js'))
+      .then(() => {
+        if (!window.Chart) throw new Error('Chart.js did not initialize');
+        return window.Chart;
+      });
+  }
+  return _chartJsLoad;
+}
 
 // Chart.js plugin for reference range band
 export const refBandPlugin = {
@@ -421,6 +436,12 @@ export const phaseBandPlugin = {
 export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels) {
   const canvas = document.getElementById("chart-" + id);
   if (!canvas) return;
+  if (!window.Chart) {
+    ensureChartJs().then(() => {
+      if (document.getElementById("chart-" + id)) createLineChart(id, marker, dateLabels, chartDates, phaseLabels);
+    }).catch(() => {});
+    return;
+  }
   const tc = getChartColors();
   let dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : dateLabels;
   let values = marker.values;
@@ -517,7 +538,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
         ticks: { color: tc.tickColor, font: { size: 11 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 },
         grid: { display: false } }
     : { ticks: { color: tc.tickColor, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } };
-  state.chartInstances[id] = new Chart(canvas, {
+  state.chartInstances[id] = new window.Chart(canvas, {
     type: "line",
     data: { labels: chartLabels, datasets },
     options: { responsive:true, maintainAspectRatio:false,
@@ -606,4 +627,4 @@ export function getMarkerDescription(markerId) {
   return cache[markerId] || null;
 }
 
-Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription });
+Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription, ensureChartJs });

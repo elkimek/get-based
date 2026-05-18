@@ -17,35 +17,35 @@ export function openFeedbackModal() {
   const typeOptions = FEEDBACK_TYPES.map(t => `<option value="${t.value}">${escapeHTML(t.label)}</option>`).join('');
   modal.className = 'modal gb-form-modal feedback-redesign-modal';
   modal.innerHTML = `
-    <div class="gb-modal-head">
+    <div class="gb-modal-head feedback-modal-head">
       <div>
         <div class="gb-modal-kicker">GitHub issue</div>
         <div class="gb-modal-title">Send Feedback</div>
       </div>
-      <button class="modal-close" aria-label="Close" onclick="closeFeedbackModal()">&times;</button>
+      <button type="button" class="modal-close" aria-label="Close" onclick="closeFeedbackModal()">&times;</button>
     </div>
-    <div class="gb-form-body">
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div>
-        <label style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;display:block">Type</label>
-        <select class="api-key-input" id="feedback-type" onchange="window._updateFeedbackPlaceholder()">
+    <div class="gb-form-body feedback-form-body">
+    <form class="feedback-form" onsubmit="event.preventDefault();submitFeedback()">
+      <div class="feedback-field">
+        <label class="feedback-label" for="feedback-type">Type</label>
+        <select class="feedback-select" id="feedback-type" onchange="window._updateFeedbackPlaceholder()">
           ${typeOptions}
         </select>
       </div>
-      <div>
-        <label style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;display:block">Title</label>
-        <input class="ctx-note-input" id="feedback-title" placeholder="${escapeHTML(FEEDBACK_TYPES[0].placeholder)}" required>
+      <div class="feedback-field">
+        <label class="feedback-label" for="feedback-title">Title</label>
+        <input class="feedback-input" id="feedback-title" placeholder="${escapeHTML(FEEDBACK_TYPES[0].placeholder)}" required>
       </div>
-      <div>
-        <label style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;display:block">Description</label>
-        <textarea class="ctx-notes-textarea" id="feedback-desc" style="min-height:120px" placeholder="Provide details, steps to reproduce, or any context that helps..."></textarea>
+      <div class="feedback-field">
+        <label class="feedback-label" for="feedback-desc">Description</label>
+        <textarea class="feedback-textarea" id="feedback-desc" placeholder="Provide details, steps to reproduce, or any context that helps..."></textarea>
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
-        <button class="import-btn import-btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
-        <button class="import-btn import-btn-primary" onclick="submitFeedback()">Submit</button>
+      <p class="feedback-notice">Opens a GitHub issue in a new tab. Requires a GitHub account.</p>
+      <div class="feedback-actions">
+        <button type="button" class="feedback-action-btn feedback-action-secondary" onclick="closeFeedbackModal()">Cancel</button>
+        <button type="submit" class="feedback-action-btn feedback-action-primary">Submit</button>
       </div>
-      <p class="api-key-notice" style="margin:0">Opens a GitHub issue in a new tab. Requires a GitHub account.</p>
-    </div>
+    </form>
     </div>`;
   overlay.classList.add('show');
   // Focus the title input

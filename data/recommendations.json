@@ -1,1 +1,2692 @@
-../../getbased-tools/data/recommendations.json
+{
+  "region": "CZSK",
+  "countries": [
+    "czechia",
+    "czech republic",
+    "česko",
+    "slovakia",
+    "slovensko"
+  ],
+  "slots": {
+    "vitamins.vitaminD": {
+      "freeActions": [
+        "Midday sun with maximum skin exposed (UVB peaks 10am-2pm)",
+        "Ground barefoot while sunbathing (electrons + photons together)",
+        "Morning sun without sunscreen builds tolerance gradually — start with 10-15 min based on your skin type",
+        "Cold exposure after sun (CT upregulates vitamin D receptors)"
+      ],
+      "productForms": [
+        "UVB light panel",
+        "Red light + UVB combo panel"
+      ],
+      "foodForms": [
+        "Fatty fish (salmon, sardines)",
+        "Cod liver oil",
+        "Pasture-raised egg yolks"
+      ],
+      "forms": [
+        "D3 + K2 combo",
+        "D3 liquid drops",
+        "D3 high-dose"
+      ],
+      "label": "Vitamin D3",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/32972636/"
+      ],
+      "formRefs": {
+        "D3 + K2 combo": "https://pubmed.ncbi.nlm.nih.gov/32219282/",
+        "D3 liquid drops": "https://pubmed.ncbi.nlm.nih.gov/32357579/",
+        "D3 high-dose": "https://pubmed.ncbi.nlm.nih.gov/38257146/"
+      }
+    },
+    "vitamins.vitaminA": {
+      "foodForms": [
+        "Beef/lamb liver",
+        "Cod liver oil",
+        "Pasture-raised egg yolks"
+      ],
+      "forms": [
+        "Retinyl palmitate",
+        "Cod liver oil (supplement)",
+        "Beta-carotene"
+      ],
+      "label": "Vitamin A",
+      "freeActions": [
+        "Morning sunlight (vitamin A and D work synergistically with light)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/35294044/"
+      ],
+      "formRefs": {
+        "Retinyl palmitate": "https://pubmed.ncbi.nlm.nih.gov/3907818/",
+        "Cod liver oil (supplement)": "https://pubmed.ncbi.nlm.nih.gov/25325252/",
+        "Beta-carotene": "https://pubmed.ncbi.nlm.nih.gov/20980645/"
+      }
+    },
+    "electrolytes.magnesium": {
+      "freeActions": [
+        "Ground barefoot on earth (electrons + mineral exchange)",
+        "Epsom salt baths (transdermal magnesium absorption)",
+        "Drink spring water (natural mineral content)"
+      ],
+      "foodForms": [
+        "Pumpkin seeds",
+        "Dark chocolate (85%+)",
+        "Almonds",
+        "Spinach/Swiss chard"
+      ],
+      "forms": [
+        "Magnesium Glycinate",
+        "Magnesium L-Threonate",
+        "Magnesium Taurate",
+        "Magnesium Citrate",
+        "Magnesium Malate"
+      ],
+      "label": "Magnesium",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/34111673/"
+      ],
+      "formRefs": {
+        "Magnesium Glycinate": "https://pubmed.ncbi.nlm.nih.gov/7815675/",
+        "Magnesium L-Threonate": "https://pubmed.ncbi.nlm.nih.gov/39252819/",
+        "Magnesium Taurate": "https://pubmed.ncbi.nlm.nih.gov/8692051/",
+        "Magnesium Citrate": "https://pubmed.ncbi.nlm.nih.gov/14596323/",
+        "Magnesium Malate": "https://pubmed.ncbi.nlm.nih.gov/8587088/"
+      }
+    },
+    "electrolytes.potassium": {
+      "foodForms": [
+        "Avocado",
+        "Potato (with skin)",
+        "Coconut water",
+        "Sweet potato"
+      ],
+      "forms": [
+        "Potassium citrate — use with medical supervision; excess can cause cardiac events",
+        "Potassium bicarbonate — use with medical supervision; excess can cause cardiac events",
+        "Potassium chloride — use with medical supervision; excess can cause cardiac events"
+      ],
+      "label": "Potassium",
+      "freeActions": [
+        "Drink spring water (natural electrolyte balance)",
+        "Ground barefoot (earth connection supports mineral homeostasis)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/28024910/"
+      ],
+      "formRefs": {
+        "Potassium citrate — use with medical supervision; excess can cause cardiac events": "https://pubmed.ncbi.nlm.nih.gov/26439475/",
+        "Potassium bicarbonate — use with medical supervision; excess can cause cardiac events": "https://pubmed.ncbi.nlm.nih.gov/25990255/",
+        "Potassium chloride — use with medical supervision; excess can cause cardiac events": "https://pubmed.ncbi.nlm.nih.gov/28024910/"
+      }
+    },
+    "electrolytes.zinc": {
+      "foodForms": [
+        "Oysters",
+        "Beef (grass-fed)",
+        "Pumpkin seeds",
+        "Dark chocolate (85%+)"
+      ],
+      "forms": [
+        "Zinc picolinate",
+        "Zinc carnosine",
+        "Zinc bisglycinate"
+      ],
+      "label": "Zinc",
+      "freeActions": [
+        "Morning sunlight (supports zinc-dependent enzyme activation)",
+        "Reduce nnEMF (zinc is depleted by oxidative stress from EMF)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/3630857/"
+      ],
+      "formRefs": {
+        "Zinc picolinate": "https://pubmed.ncbi.nlm.nih.gov/3630857/",
+        "Zinc carnosine": "https://pubmed.ncbi.nlm.nih.gov/16777920/",
+        "Zinc bisglycinate": "https://pubmed.ncbi.nlm.nih.gov/18271278/"
+      }
+    },
+    "electrolytes.copper": {
+      "foodForms": [
+        "Beef liver",
+        "Oysters",
+        "Dark chocolate (85%+)",
+        "Cashews"
+      ],
+      "forms": [
+        "Copper bisglycinate",
+        "Copper sebacate"
+      ],
+      "label": "Copper",
+      "freeActions": [
+        "Morning sunlight (copper-dependent enzymes like ceruloplasmin are light-activated)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/22444781/"
+      ],
+      "formRefs": {
+        "Copper bisglycinate": "https://pubmed.ncbi.nlm.nih.gov/22444781/",
+        "Copper sebacate": "https://pubmed.ncbi.nlm.nih.gov/12055353/"
+      }
+    },
+    "iron.ferritin": {
+      "freeActions": [
+        "Cook in cast iron (leaches bioavailable iron into food)",
+        "Morning sunlight (light supports iron recycling via hepcidin)"
+      ],
+      "foodForms": [
+        "Beef liver",
+        "Red meat (grass-fed)",
+        "Sardines",
+        "Dark poultry (thigh)"
+      ],
+      "forms": [
+        "Iron Bisglycinate (only if deficient)",
+        "Heme iron polypeptide (only if deficient)",
+        "Lactoferrin + iron (only if deficient)"
+      ],
+      "label": "Iron",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36728680/"
+      ],
+      "formRefs": {
+        "Iron Bisglycinate (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/36728680/",
+        "Heme iron polypeptide (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/23514036/",
+        "Lactoferrin + iron (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/35276902/"
+      }
+    },
+    "lipids.hdl": {
+      "freeActions": [
+        "Cold exposure — CT raises HDL naturally",
+        "Regular movement in sunlight (outdoor exercise > gym)",
+        "Reduce refined carbs and seed oils"
+      ],
+      "foodForms": [
+        "Wild salmon",
+        "Sardines (canned, olive oil)",
+        "Mackerel",
+        "Anchovies"
+      ],
+      "forms": [
+        "Triglyceride-form fish oil",
+        "High-EPA concentrate",
+        "High-DHA concentrate",
+        "Algal DHA/EPA"
+      ],
+      "label": "Omega-3 (HDL)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/37264945/"
+      ],
+      "formRefs": {
+        "Triglyceride-form fish oil": "https://pubmed.ncbi.nlm.nih.gov/21063431/",
+        "High-EPA concentrate": "https://pubmed.ncbi.nlm.nih.gov/31422671/",
+        "High-DHA concentrate": "https://pubmed.ncbi.nlm.nih.gov/32060571/",
+        "Algal DHA/EPA": "https://pubmed.ncbi.nlm.nih.gov/28417511/"
+      }
+    },
+    "lipids.triglycerides": {
+      "freeActions": [
+        "Cut sugar and refined carbs (biggest dietary driver of high TG)",
+        "Cold exposure (activates fat burning pathways)",
+        "Eat within daylight hours — no late-night eating"
+      ],
+      "foodForms": [
+        "Fatty fish (salmon, sardines, mackerel)"
+      ],
+      "forms": [
+        "High-EPA fish oil",
+        "Algal EPA"
+      ],
+      "label": "Omega-3 (Triglycerides)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/18774613/"
+      ],
+      "formRefs": {
+        "High-EPA fish oil": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "Algal EPA": "https://pubmed.ncbi.nlm.nih.gov/25123060/"
+      }
+    },
+    "lipids.ldl": {
+      "freeActions": [
+        "Morning sunlight + daily outdoor movement",
+        "Reduce oxidative stress — seed oils, nnEMF, blue light at night all oxidize LDL",
+        "Cold exposure (improves lipid metabolism)"
+      ],
+      "foodForms": [
+        "Oats/soluble fiber",
+        "Cruciferous vegetables"
+      ],
+      "forms": [
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Plant sterols/stanols",
+        "Citrus bergamot"
+      ],
+      "label": "LDL support",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/23512497/"
+      ],
+      "formRefs": {
+        "Plant sterols/stanols": "https://pubmed.ncbi.nlm.nih.gov/24780090/",
+        "Citrus bergamot": "https://pubmed.ncbi.nlm.nih.gov/31670973/",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/23512497/"
+      }
+    },
+    "thyroid.tsh": {
+      "foodForms": [
+        "Brazil nuts (2/day)",
+        "Sardines",
+        "Organ meats"
+      ],
+      "forms": [
+        "Selenomethionine",
+        "Selenium + Zinc combo"
+      ],
+      "label": "Selenium (Thyroid)",
+      "freeActions": [
+        "Morning sunlight within 30 min of waking",
+        "Cold exposure (stimulates thyroid activity)",
+        "Reduce nnEMF — WiFi off at night, phone away from thyroid"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/38243784/"
+      ],
+      "formRefs": {
+        "Selenomethionine": "https://pubmed.ncbi.nlm.nih.gov/38243784/",
+        "Selenium + Zinc combo": "https://pubmed.ncbi.nlm.nih.gov/25758370/"
+      }
+    },
+    "thyroid.ft3": {
+      "freeActions": [
+        "Morning sunlight (light drives thyroid hormone conversion)",
+        "Cold exposure (CT activates thyroid, increases T3)",
+        "Reduce nnEMF (non-native EMF disrupts thyroid)",
+        "Sleep 7-9h (T4→T3 conversion peaks during sleep)"
+      ],
+      "foodForms": [
+        "Brazil nuts + pumpkin seeds",
+        "Oysters"
+      ],
+      "forms": [
+        "Selenomethionine + Zinc picolinate",
+        "Ashwagandha (KSM-66) — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication"
+      ],
+      "label": "T4→T3 conversion",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/25758370/"
+      ],
+      "formRefs": {
+        "Selenomethionine + Zinc picolinate": "https://pubmed.ncbi.nlm.nih.gov/30818086/",
+        "Ashwagandha (KSM-66) — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication": "https://pubmed.ncbi.nlm.nih.gov/31517876/"
+      }
+    },
+    "hormones.testosterone": {
+      "freeActions": [
+        "Morning sunlight on skin within 30 min of waking (sets circadian T production)",
+        "Cold exposure — cold shower, ice bath, or cold water immersion",
+        "Heavy compound lifts (squat, deadlift, press)",
+        "Sleep 7-9h in a pitch-dark, cold room (below 19°C)",
+        "Reduce nnEMF — phone out of bedroom, WiFi off at night"
+      ],
+      "foodForms": [
+        "Oysters",
+        "Beef liver",
+        "Whole eggs (pasture-raised)",
+        "Pomegranate"
+      ],
+      "forms": [
+        "Tongkat Ali",
+        "Ashwagandha (KSM-66) — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication",
+        "Boron"
+      ],
+      "label": "Testosterone support",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36013514/"
+      ],
+      "formRefs": {
+        "Tongkat Ali": "https://pubmed.ncbi.nlm.nih.gov/36013514/",
+        "Boron": "https://pubmed.ncbi.nlm.nih.gov/21129941/",
+        "Ashwagandha (KSM-66) — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication": "https://pubmed.ncbi.nlm.nih.gov/35873404/"
+      }
+    },
+    "hormones.shbg": {
+      "freeActions": [
+        "Morning sunlight (circadian rhythm regulates SHBG)",
+        "Cold exposure (acutely lowers SHBG)"
+      ],
+      "foodForms": [
+        "Boron-rich foods — raisins, prunes, avocado",
+        "Magnesium-rich foods — pumpkin seeds, dark chocolate",
+        "Zinc-rich foods — oysters, beef"
+      ],
+      "forms": [
+        "Boron (calcium fructoborate)",
+        "Stinging nettle root"
+      ],
+      "label": "SHBG",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/30037620/"
+      ],
+      "formRefs": {
+        "Boron (calcium fructoborate)": "https://pubmed.ncbi.nlm.nih.gov/30037620/",
+        "Stinging nettle root": "https://pubmed.ncbi.nlm.nih.gov/7700987/"
+      }
+    },
+    "hormones.dheaS": {
+      "freeActions": [
+        "Morning sunlight (light drives adrenal hormone production)",
+        "Sleep 7-9h in complete darkness (DHEA produced during deep sleep)",
+        "Cold exposure (stimulates adrenal function)",
+        "Reduce chronic stress (cortisol steals the same precursor)"
+      ],
+      "foodForms": [
+        "Healthy fats — egg yolks, avocado, olive oil (cholesterol is DHEA precursor)",
+        "Wild-caught salmon (omega-3 supports adrenal function)",
+        "Sweet potato and yams (diosgenin, a phyto-steroid precursor)"
+      ],
+      "forms": [
+        "7-Keto DHEA"
+      ],
+      "label": "DHEA (body makes)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36566478/"
+      ],
+      "formRefs": {
+        "7-Keto DHEA": "https://pubmed.ncbi.nlm.nih.gov/36566478/"
+      }
+    },
+    "hormones.estradiol": {
+      "freeActions": [
+        "Cold exposure (improves estrogen metabolism)",
+        "Reduce body fat (adipose tissue aromatizes T → estrogen)",
+        "Morning sunlight (circadian rhythm regulates sex hormones)",
+        "Reduce alcohol (impairs estrogen clearance)"
+      ],
+      "foodForms": [
+        "Cruciferous vegetables",
+        "Citrus fruits"
+      ],
+      "forms": [
+        "DIM",
+        "Calcium D-Glucarate",
+        "DIM + CDG combo"
+      ],
+      "label": "Estrogen metabolism",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/28560655/"
+      ],
+      "formRefs": {
+        "DIM": "https://pubmed.ncbi.nlm.nih.gov/28560655/",
+        "Calcium D-Glucarate": "https://pubmed.ncbi.nlm.nih.gov/12197785/",
+        "DIM + CDG combo": "https://pubmed.ncbi.nlm.nih.gov/36111381/"
+      }
+    },
+    "hormones.insulin": {
+      "freeActions": [
+        "Morning sunlight — sets circadian clock, improves insulin sensitivity",
+        "Walk 15 min after meals (most effective glucose intervention)",
+        "Cold exposure — cold activates GLUT4 transporters without insulin",
+        "Eat within daylight hours only (circadian-aligned eating)",
+        "Eat protein/fat before carbs (blunts glucose spike)"
+      ],
+      "foodForms": [
+        "Fatty fish (omega-3 improves insulin receptor sensitivity)",
+        "Avocado (monounsaturated fat improves insulin signaling)",
+        "Nuts and seeds (magnesium supports insulin sensitivity)",
+        "Fermented foods (gut microbiome modulates insulin response)"
+      ],
+      "forms": [
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Dihydroberberine — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Chromium picolinate",
+        "Ceylon cinnamon extract"
+      ],
+      "label": "Insulin / glucose",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/34956436/"
+      ],
+      "formRefs": {
+        "Chromium picolinate": "https://pubmed.ncbi.nlm.nih.gov/32730903/",
+        "Ceylon cinnamon extract": "https://pubmed.ncbi.nlm.nih.gov/31425768/",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/33981233/",
+        "Dihydroberberine — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/35010998/"
+      }
+    },
+    "hormones.igf1": {
+      "freeActions": [
+        "Resistance training (strongest natural IGF-1 stimulus)",
+        "Sleep 7-9h in cold, dark room (GH/IGF-1 axis peaks during deep sleep)",
+        "Morning sunlight (circadian GH release)"
+      ],
+      "foodForms": [
+        "Adequate protein (1.6-2.2g/kg)"
+      ],
+      "forms": [
+        "Colostrum"
+      ],
+      "label": "IGF-1 (body makes)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/9338422/"
+      ],
+      "formRefs": {
+        "Colostrum": "https://pubmed.ncbi.nlm.nih.gov/9338422/"
+      }
+    },
+    "biochemistry.glucose": {
+      "freeActions": [
+        "Morning sunlight — sets circadian clock, improves insulin sensitivity",
+        "Post-meal walks (blunts glucose spike)",
+        "Cold exposure — activates GLUT4 without insulin",
+        "Eat within daylight hours only",
+        "Resistance training"
+      ],
+      "foodForms": [
+        "Apple cider vinegar",
+        "Berries",
+        "Ceylon cinnamon",
+        "Fiber-rich meals"
+      ],
+      "forms": [
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Dihydroberberine — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Chromium picolinate",
+        "Alpha Lipoic Acid"
+      ],
+      "label": "Glucose support",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36467075/"
+      ],
+      "formRefs": {
+        "Chromium picolinate": "https://pubmed.ncbi.nlm.nih.gov/32730903/",
+        "Alpha Lipoic Acid": "https://pubmed.ncbi.nlm.nih.gov/37630823/",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/33981233/",
+        "Dihydroberberine — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/35010998/"
+      }
+    },
+    "biochemistry.ast": {
+      "freeActions": [
+        "Reduce/eliminate alcohol",
+        "Morning sunlight + grounding (supports liver detox pathways)",
+        "Cold exposure (reduces liver inflammation)",
+        "Avoid unnecessary medications (esp. NSAIDs, acetaminophen)"
+      ],
+      "foodForms": [
+        "Cruciferous vegetables",
+        "Garlic/onion (alliums)",
+        "Pasture-raised eggs"
+      ],
+      "forms": [
+        "NAC (N-Acetyl Cysteine)",
+        "Milk Thistle (Silymarin)",
+        "TUDCA"
+      ],
+      "label": "Liver support",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/38313355/"
+      ],
+      "formRefs": {
+        "NAC (N-Acetyl Cysteine)": "https://pubmed.ncbi.nlm.nih.gov/34912495/",
+        "Milk Thistle (Silymarin)": "https://pubmed.ncbi.nlm.nih.gov/38579127/",
+        "TUDCA": "https://pubmed.ncbi.nlm.nih.gov/23592128/"
+      }
+    },
+    "biochemistry.ggt": {
+      "freeActions": [
+        "Eliminate alcohol (GGT is the most sensitive alcohol marker)",
+        "Morning sunlight + grounding (glutathione recycling is light-dependent)",
+        "Cold exposure (upregulates glutathione synthesis)"
+      ],
+      "foodForms": [
+        "Cruciferous vegetables (broccoli, cauliflower, kale)",
+        "Garlic and onions (alliums)",
+        "Pasture-raised eggs",
+        "Avocado"
+      ],
+      "forms": [
+        "NAC",
+        "Milk Thistle"
+      ],
+      "label": "Glutathione / GGT",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/32726657/"
+      ],
+      "formRefs": {
+        "NAC": "https://pubmed.ncbi.nlm.nih.gov/33654365/",
+        "Milk Thistle": "https://pubmed.ncbi.nlm.nih.gov/38021897/"
+      }
+    },
+    "biochemistry.uricAcid": {
+      "freeActions": [
+        "Hydrate with spring water (dilutes uric acid, aids excretion)",
+        "Ground barefoot (electrons help neutralize uric acid crystals)",
+        "Reduce fructose (biggest dietary driver of uric acid)"
+      ],
+      "foodForms": [
+        "Tart cherries/juice",
+        "Vitamin C foods (bell pepper, citrus, kiwi)"
+      ],
+      "forms": [
+        "Vitamin C",
+        "Tart cherry extract",
+        "Quercetin"
+      ],
+      "label": "Uric acid",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/21671418/"
+      ],
+      "formRefs": {
+        "Vitamin C": "https://pubmed.ncbi.nlm.nih.gov/21671418/",
+        "Tart cherry extract": "https://pubmed.ncbi.nlm.nih.gov/31885677/",
+        "Quercetin": "https://pubmed.ncbi.nlm.nih.gov/26785820/"
+      }
+    },
+    "biochemistry.alt": {
+      "freeActions": [
+        "Eliminate or strictly limit alcohol (single biggest modifiable driver of elevated ALT)",
+        "Morning sunlight + grounding (supports hepatic glutathione recycling — light-dependent pathway)",
+        "Lose visceral fat — even 5-7% weight loss significantly reduces ALT in fatty liver (PMID 29683979)",
+        "Sleep 7-9h in complete darkness (sleep deprivation raises ALT up to 58% — PMID 1478242)",
+        "Avoid unnecessary hepatotoxic drugs (acetaminophen, NSAIDs, statins — check with physician)"
+      ],
+      "foodForms": [
+        "Coffee (2-3 cups/day — dose-dependent ALT reduction, PMID 15633120)",
+        "Cruciferous vegetables (sulforaphane upregulates phase II liver detox enzymes)",
+        "Garlic and onions (allicin supports glutathione synthesis)",
+        "Beets (betaine supports liver methylation and fat metabolism)"
+      ],
+      "forms": [
+        "NAC (N-Acetyl Cysteine)",
+        "Milk Thistle (Silymarin)",
+        "TUDCA",
+        "Alpha Lipoic Acid"
+      ],
+      "label": "Liver support (ALT)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/38021897/"
+      ],
+      "formRefs": {
+        "NAC (N-Acetyl Cysteine)": "https://pubmed.ncbi.nlm.nih.gov/34912495/",
+        "Milk Thistle (Silymarin)": "https://pubmed.ncbi.nlm.nih.gov/38579127/",
+        "TUDCA": "https://pubmed.ncbi.nlm.nih.gov/23592128/",
+        "Alpha Lipoic Acid": "https://pubmed.ncbi.nlm.nih.gov/37630823/"
+      }
+    },
+    "biochemistry.ldh": {
+      "freeActions": [
+        "Adequate recovery between intense training sessions (LDH peaks 24-72h post-exercise, PMID 28804100)",
+        "Sleep 7-9h (tissue repair and LDH clearance happen during deep sleep)",
+        "Cold water immersion post-exercise (reduces exercise-induced muscle damage markers)",
+        "Grounding barefoot after training (anti-inflammatory electron transfer reduces tissue inflammation)"
+      ],
+      "foodForms": [
+        "Tart cherry juice (260ml/day — reduces muscle damage markers and inflammation, meta-analysis PMC 11918606)",
+        "Fatty fish (omega-3 reduces exercise-induced muscle damage with long-term intake)",
+        "Turmeric with black pepper (curcumin reduces LDH post-exercise, PMID 34584659)",
+        "Berries (anthocyanins reduce oxidative muscle damage)"
+      ],
+      "forms": [
+        "Curcumin (liposomal)",
+        "Omega-3 (high-EPA)",
+        "Tart cherry extract",
+        "CoQ10"
+      ],
+      "label": "Recovery / LDH",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/33174301/"
+      ],
+      "formRefs": {
+        "Curcumin (liposomal)": "https://pubmed.ncbi.nlm.nih.gov/33174301/",
+        "Omega-3 (high-EPA)": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "Tart cherry extract": "https://pubmed.ncbi.nlm.nih.gov/31885677/",
+        "CoQ10": "https://pubmed.ncbi.nlm.nih.gov/38479900/"
+      }
+    },
+    "biochemistry.bilirubinTotal": {
+      "freeActions": [
+        "Stay well hydrated (dehydration concentrates bilirubin)",
+        "Don't skip meals — fasting significantly raises unconjugated bilirubin (Gilbert syndrome trigger)",
+        "Morning sunlight (phototherapy breaks down bilirubin — the same mechanism used in neonatal jaundice)",
+        "Moderate exercise (supports healthy RBC turnover and liver conjugation)"
+      ],
+      "foodForms": [
+        "Cruciferous vegetables (support liver glucuronidation — the conjugation pathway for bilirubin clearance)",
+        "Beets and bitter greens (stimulate bile flow, support bilirubin excretion)",
+        "Turmeric (curcumin supports bile production and liver function)",
+        "Lemon water (citric acid supports liver detox pathways)"
+      ],
+      "forms": [
+        "Milk Thistle (Silymarin)",
+        "TUDCA",
+        "NAC"
+      ],
+      "label": "Bilirubin metabolism",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/28785154/"
+      ],
+      "formRefs": {
+        "Milk Thistle (Silymarin)": "https://pubmed.ncbi.nlm.nih.gov/38021897/",
+        "TUDCA": "https://pubmed.ncbi.nlm.nih.gov/8674405/",
+        "NAC": "https://pubmed.ncbi.nlm.nih.gov/33654365/"
+      }
+    },
+    "biochemistry.creatinine": {
+      "freeActions": [
+        "Stay well hydrated with spring water (adequate hydration supports renal filtration — GFR declines with dehydration)",
+        "Sleep 7-9h (circadian disruption directly damages kidney function — short sleep RR 1.63 for CKD, PMC 4868793)",
+        "Moderate protein intake (excess protein increases intraglomerular pressure and BUN/creatinine)",
+        "Regular aerobic exercise (improves renal blood flow — lifestyle interventions improve creatinine, PMC 10205767)",
+        "Reduce nnEMF and environmental toxin exposure (oxidative stress impairs nephron function)"
+      ],
+      "foodForms": [
+        "Berries and dark leafy greens (antioxidants protect nephrons from oxidative damage)",
+        "Fatty fish (omega-3 reduces renal inflammation and improves BUN/creatinine, PMC 12206260)",
+        "Celery and cucumber (natural diuretics, support hydration)",
+        "Garlic (allicin has renal protective antioxidant effects)"
+      ],
+      "forms": [
+        "Omega-3 (EPA/DHA)",
+        "CoQ10",
+        "Astragalus root",
+        "NAC"
+      ],
+      "label": "Kidney support (creatinine)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/28226034/"
+      ],
+      "formRefs": {
+        "Omega-3 (EPA/DHA)": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "CoQ10": "https://pubmed.ncbi.nlm.nih.gov/37159264/",
+        "Astragalus root": "https://pubmed.ncbi.nlm.nih.gov/35300298/",
+        "NAC": "https://pubmed.ncbi.nlm.nih.gov/33654365/"
+      }
+    },
+    "biochemistry.urea": {
+      "freeActions": [
+        "Hydrate adequately — urea excretion requires 40-60ml water per gram urea nitrogen (dehydration is the #1 cause of elevated BUN)",
+        "Moderate protein intake if consistently elevated (high protein increases urea production proportionally)",
+        "Morning sunlight + circadian alignment (kidney filtration follows circadian rhythm)",
+        "Regular moderate exercise (improves renal blood flow and filtration)"
+      ],
+      "foodForms": [
+        "Spring water throughout the day (proper hydration is the single most important dietary factor)",
+        "Watermelon, cucumber, celery (high water content + natural diuretic support)",
+        "Berries (antioxidants protect kidney filtration capacity)",
+        "Reduce processed/cured meats (concentrated protein + sodium burden on kidneys)"
+      ],
+      "forms": [
+        "Omega-3 (EPA/DHA)",
+        "Probiotics",
+        "CoQ10"
+      ],
+      "label": "Kidney / hydration (BUN)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/30905498/"
+      ],
+      "formRefs": {
+        "Omega-3 (EPA/DHA)": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "Probiotics": "https://pubmed.ncbi.nlm.nih.gov/20721651/",
+        "CoQ10": "https://pubmed.ncbi.nlm.nih.gov/37159264/"
+      }
+    },
+    "diabetes.hba1c": {
+      "freeActions": [
+        "Morning sunlight within 30 min of waking (sets circadian insulin sensitivity — glucose tolerance is highest in the morning)",
+        "Post-meal walks 15-30 min (single most effective acute glucose intervention — blunts postprandial spikes that drive HbA1c)",
+        "Cold exposure (cold activates GLUT4 transporters independent of insulin, activates brown fat glucose uptake)",
+        "Time-restricted eating aligned with daylight (TRE + exercise reduced HbA1c in RCT, PMID 36198292)",
+        "Resistance training 2-3x/week (structured exercise reduces HbA1c by 0.59%, meta-analysis)"
+      ],
+      "foodForms": [
+        "Apple cider vinegar before meals (acetic acid improves postprandial glucose response)",
+        "Fiber-rich meals — eat protein and fat before carbs (blunts glucose spike that glycates hemoglobin)",
+        "Berries (low glycemic, polyphenols improve insulin sensitivity)",
+        "Ceylon cinnamon (modest HbA1c reduction in meta-analysis, SMD -0.26)"
+      ],
+      "forms": [
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Dihydroberberine — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Chromium picolinate",
+        "Alpha Lipoic Acid"
+      ],
+      "label": "HbA1c / long-term glucose",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/33981233/"
+      ],
+      "formRefs": {
+        "Chromium picolinate": "https://pubmed.ncbi.nlm.nih.gov/32730903/",
+        "Alpha Lipoic Acid": "https://pubmed.ncbi.nlm.nih.gov/37630823/",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/33981233/",
+        "Dihydroberberine — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/35010998/"
+      }
+    },
+    "hematology.hemoglobin": {
+      "freeActions": [
+        "Morning sunlight (light drives hepcidin regulation — the master iron-recycling hormone)",
+        "Cook in cast iron cookware (leaches bioavailable iron — meaningful contribution, especially for plant-based diets)",
+        "Pair iron-rich foods with vitamin C foods at the same meal (ascorbic acid is the strongest enhancer of non-heme iron absorption)",
+        "Avoid tea, coffee, and calcium supplements with iron-rich meals (polyphenols and calcium inhibit both heme and non-heme iron absorption)",
+        "Regular exercise (stimulates erythropoiesis — but avoid overtraining which causes hemolysis)"
+      ],
+      "foodForms": [
+        "Beef/lamb liver (most bioavailable heme iron source)",
+        "Red meat + organ meats (heme iron absorbed 15-35% vs 2-20% for non-heme)",
+        "Sardines and dark poultry (heme iron + B12 for erythropoiesis)",
+        "Dark leafy greens + bell pepper (non-heme iron + vitamin C for maximum absorption)"
+      ],
+      "forms": [
+        "Iron Bisglycinate (only if deficient)",
+        "Heme iron polypeptide (only if deficient)",
+        "Lactoferrin + iron (only if deficient)",
+        "B12 + Folate combo"
+      ],
+      "label": "Hemoglobin / iron",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36728680/"
+      ],
+      "formRefs": {
+        "Iron Bisglycinate (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/36728680/",
+        "Heme iron polypeptide (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/23514036/",
+        "Lactoferrin + iron (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/35276902/",
+        "B12 + Folate combo": "https://pubmed.ncbi.nlm.nih.gov/28223907/"
+      }
+    },
+    "hormones.freeTestosterone": {
+      "freeActions": [
+        "Morning sunlight on skin within 30 min of waking (UV triggers pregnenolone synthesis, precursor to all sex hormones)",
+        "Heavy compound lifts — squat, deadlift, press (acute T spike + chronic SHBG reduction with resistance training)",
+        "Cold exposure — cold water immersion raises LH and free T; cold also lowers SHBG acutely",
+        "Sleep 7-9h in pitch-dark cold room (free T peaks during deep sleep; sleep debt lowers it within days)",
+        "Reduce body fat to 12-18% (adipose aromatase converts T to estrogen and raises SHBG)"
+      ],
+      "foodForms": [
+        "Oysters (zinc inhibits aromatase, lowers SHBG)",
+        "Whole eggs, pasture-raised (cholesterol is the direct precursor to testosterone)",
+        "Cruciferous vegetables (DIM metabolites lower estrogen, indirectly freeing more T)",
+        "Pomegranate (reduces cortisol ~12%, cortisol competes with T for receptors)"
+      ],
+      "forms": [
+        "Boron",
+        "Tongkat Ali",
+        "Stinging Nettle Root",
+        "Magnesium"
+      ],
+      "label": "Free Testosterone",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/21129941/"
+      ],
+      "formRefs": {
+        "Boron": "https://pubmed.ncbi.nlm.nih.gov/21129941/",
+        "Tongkat Ali": "https://pubmed.ncbi.nlm.nih.gov/36013514/",
+        "Stinging Nettle Root": "https://pubmed.ncbi.nlm.nih.gov/7700987/",
+        "Magnesium": "https://pubmed.ncbi.nlm.nih.gov/34111673/"
+      }
+    },
+    "thyroid.ft4": {
+      "freeActions": [
+        "Morning sunlight (light drives thyroid hormone production; TSH has a strong circadian rhythm set by light)",
+        "Cold exposure (activates thyroid — cold increases TSH and T4 output to drive thermogenesis)",
+        "Reduce nnEMF exposure — phone away from neck/thyroid, WiFi off at night (thyroid is radiation-sensitive; RF-EMF associated with altered TSH/FT4)",
+        "Sleep 7-9h in complete darkness (thyroid hormone production peaks during deep sleep)",
+        "Avoid fluoride and chlorine in water (displace iodine from the thyroid; use filtered water)"
+      ],
+      "foodForms": [
+        "Seaweed — kelp, dulse, nori (richest natural iodine source; T4 = thyronine + 4 iodine atoms)",
+        "Brazil nuts (2/day — selenium required for deiodinase enzymes that activate T4)",
+        "Oysters and pumpkin seeds (zinc needed for TSH receptor function and T4 synthesis)"
+      ],
+      "forms": [
+        "Selenomethionine",
+        "Zinc picolinate",
+        "Iodine — only if deficient AND no autoimmune thyroid disease; excess can cause thyroid crisis"
+      ],
+      "label": "Free T4 (Thyroid)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/19403637/"
+      ],
+      "formRefs": {
+        "Selenomethionine": "https://pubmed.ncbi.nlm.nih.gov/38243784/",
+        "Zinc picolinate": "https://pubmed.ncbi.nlm.nih.gov/3630857/",
+        "Iodine — only if deficient AND no autoimmune thyroid disease; excess can cause thyroid crisis": "https://pubmed.ncbi.nlm.nih.gov/24088547/"
+      }
+    },
+    "proteins.albumin": {
+      "freeActions": [
+        "Morning sunlight + outdoor movement (light supports liver protein synthesis; exercise increases albumin production)",
+        "Sleep 7-9h (liver albumin synthesis peaks during rest; sleep deprivation impairs hepatic protein production)",
+        "Reduce chronic inflammation (inflammation diverts liver to acute-phase proteins at albumin's expense — albumin is a negative acute-phase reactant)",
+        "Stay well-hydrated (dehydration concentrates albumin artificially; chronic dehydration stresses kidneys)"
+      ],
+      "foodForms": [
+        "Pasture-raised eggs (complete amino acid profile, highly bioavailable protein for liver synthesis)",
+        "Bone broth (glycine and proline support liver function and protein synthesis)",
+        "Grass-fed beef and organ meats (complete protein with B vitamins for liver support)",
+        "Wild-caught fish (easily digestible complete protein)"
+      ],
+      "forms": [
+        "Collagen peptides",
+        "NAC",
+        "Digestive enzymes / Betaine HCl"
+      ],
+      "label": "Albumin (protein status)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/35187864/"
+      ],
+      "formRefs": {
+        "Collagen peptides": "https://pubmed.ncbi.nlm.nih.gov/34491424/",
+        "NAC": "https://pubmed.ncbi.nlm.nih.gov/33654365/",
+        "Digestive enzymes / Betaine HCl": "https://pubmed.ncbi.nlm.nih.gov/37976892/"
+      }
+    },
+    "proteins.totalProtein": {
+      "freeActions": [
+        "Eat adequate protein — 1.6-2.2g/kg bodyweight (most common cause of low total protein is insufficient intake)",
+        "Morning sunlight (supports circadian liver function; liver produces albumin, the largest protein fraction)",
+        "Resistance training (stimulates muscle protein synthesis, upregulates whole-body protein turnover)",
+        "Address gut health — chew thoroughly, eat slowly, manage stress before meals (malabsorption is a hidden cause)"
+      ],
+      "foodForms": [
+        "Pasture-raised eggs (highest biological value protein — near 100% utilization)",
+        "Grass-fed beef and organ meats (complete amino acid profile with cofactors)",
+        "Wild-caught fish (easily digestible complete protein)",
+        "Bone broth (collagen amino acids plus minerals; supports gut lining for better absorption)"
+      ],
+      "forms": [
+        "Digestive enzymes + Betaine HCl",
+        "Collagen peptides",
+        "L-Glutamine"
+      ],
+      "label": "Total Protein",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/28698222/"
+      ],
+      "formRefs": {
+        "Digestive enzymes + Betaine HCl": "https://pubmed.ncbi.nlm.nih.gov/37976892/",
+        "Collagen peptides": "https://pubmed.ncbi.nlm.nih.gov/34491424/",
+        "L-Glutamine": "https://pubmed.ncbi.nlm.nih.gov/39397201/"
+      }
+    },
+    "lipids.cholesterol": {
+      "freeActions": [
+        "Morning sunlight — UVB converts 7-dehydrocholesterol to vitamin D (a primary cholesterol utilization pathway; low sun = less cholesterol consumed = higher serum levels)",
+        "Cold exposure (activates brown fat and bile acid metabolism, both consume cholesterol)",
+        "Regular outdoor movement (exercise raises HDL and shifts LDL to large buoyant pattern)",
+        "Reduce seed oils and ultra-processed food (oxidized LDL, not total cholesterol, drives atherosclerosis)"
+      ],
+      "foodForms": [
+        "Fatty fish — salmon, sardines, mackerel (omega-3s improve the HDL fraction within total cholesterol)",
+        "Oats and soluble fiber (bind bile acids, forcing liver to use cholesterol to make more)",
+        "Cruciferous vegetables (support liver bile and estrogen metabolism, both linked to cholesterol clearance)"
+      ],
+      "forms": [
+        "Citrus Bergamot",
+        "Plant sterols/stanols",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician"
+      ],
+      "label": "Total Cholesterol",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/31670973/"
+      ],
+      "formRefs": {
+        "Citrus Bergamot": "https://pubmed.ncbi.nlm.nih.gov/31670973/",
+        "Plant sterols/stanols": "https://pubmed.ncbi.nlm.nih.gov/24780090/",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/23512497/"
+      }
+    },
+    "hormones.progesterone": {
+      "freeActions": [
+        "Morning sunlight — light drives the HPG axis; progesterone production requires proper circadian signaling",
+        "Sleep 7-9h in complete darkness (melatonin and progesterone are synergistic; light at night impairs both)",
+        "Reduce chronic stress (cortisol and progesterone share pregnenolone precursor — chronic stress causes 'pregnenolone steal')",
+        "Cold exposure (reduces inflammation and cortisol, freeing up the progesterone pathway)",
+        "Avoid xenoestrogens — plastics, BPA, parabens (environmental estrogens disrupt estrogen-progesterone balance)"
+      ],
+      "foodForms": [
+        "Zinc-rich foods — oysters, pumpkin seeds (zinc required for corpus luteum to produce progesterone)",
+        "Vitamin B6-rich foods — poultry, pistachios, sunflower seeds (B6 supports corpus luteum function)",
+        "Vitamin C-rich foods — bell peppers, kiwi, citrus (raised progesterone in luteal phase in clinical studies)",
+        "Healthy fats — avocado, olive oil, egg yolks (cholesterol is the raw material for all steroid hormones)"
+      ],
+      "forms": [
+        "Vitex / Chasteberry — may reduce hormonal contraceptive efficacy",
+        "Vitamin B6 (P5P)",
+        "Vitamin C",
+        "Magnesium Glycinate"
+      ],
+      "label": "Progesterone",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/23136064/"
+      ],
+      "formRefs": {
+        "Vitamin B6 (P5P)": "https://pubmed.ncbi.nlm.nih.gov/6684167/",
+        "Vitamin C": "https://pubmed.ncbi.nlm.nih.gov/15934094/",
+        "Magnesium Glycinate": "https://pubmed.ncbi.nlm.nih.gov/7815675/",
+        "Vitex / Chasteberry — may reduce hormonal contraceptive efficacy": "https://pubmed.ncbi.nlm.nih.gov/23136064/"
+      }
+    },
+    "hematology.wbc": {
+      "freeActions": [
+        "Morning sunlight (sets circadian immune rhythm; WBC count has strong diurnal variation driven by cortisol and melatonin)",
+        "Cold exposure — brief cold stress acutely mobilizes WBC, especially neutrophils and lymphocytes",
+        "Ground barefoot on earth (earthing reduces chronic inflammation markers, helping normalize elevated WBC)",
+        "Sleep 7-9h in complete darkness (sleep deprivation raises WBC via inflammatory signaling)",
+        "Regular moderate exercise — walking, swimming, hiking (intense overtraining suppresses WBC; moderate optimizes it)"
+      ],
+      "foodForms": [
+        "Garlic (allicin stimulates leukocyte activity and modulates WBC production)",
+        "Citrus fruits and bell peppers (vitamin C supports WBC production and function)",
+        "Mushrooms — shiitake, maitake, reishi (beta-glucans activate innate immune cells)",
+        "Bone broth (glycine and minerals support bone marrow, where WBCs are produced)"
+      ],
+      "forms": [
+        "Vitamin C",
+        "Vitamin D3",
+        "Zinc picolinate",
+        "Beta-Glucan"
+      ],
+      "label": "WBC (immune function)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/29099763/"
+      ],
+      "formRefs": {
+        "Vitamin C": "https://pubmed.ncbi.nlm.nih.gov/15934094/",
+        "Vitamin D3": "https://pubmed.ncbi.nlm.nih.gov/32972636/",
+        "Zinc picolinate": "https://pubmed.ncbi.nlm.nih.gov/3630857/",
+        "Beta-Glucan": "https://pubmed.ncbi.nlm.nih.gov/25081694/"
+      }
+    },
+    "proteins.hsCRP": {
+      "freeActions": [
+        "Morning sunlight (sets anti-inflammatory circadian rhythm)",
+        "Cold thermogenesis — cold is a potent anti-inflammatory",
+        "Ground barefoot on earth 15-30 min (electrons neutralize free radicals)",
+        "Sleep 7-9h in complete darkness (sleep deprivation raises CRP)",
+        "Reduce seed oils and ultra-processed food"
+      ],
+      "foodForms": [
+        "Fatty fish",
+        "Turmeric + black pepper",
+        "Ginger",
+        "Dark leafy greens"
+      ],
+      "forms": [
+        "High-EPA fish oil",
+        "Curcumin (liposomal)",
+        "NAC",
+        "SPMs"
+      ],
+      "label": "Inflammation (hs-CRP)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/35914448/"
+      ],
+      "formRefs": {
+        "High-EPA fish oil": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "Curcumin (liposomal)": "https://pubmed.ncbi.nlm.nih.gov/36804260/",
+        "NAC": "https://pubmed.ncbi.nlm.nih.gov/33654365/",
+        "SPMs": "https://pubmed.ncbi.nlm.nih.gov/28002074/"
+      }
+    },
+    "vitamins.vitaminB12": {
+      "freeActions": [
+        "Morning sunlight (supports methylation and B12 utilization pathways)"
+      ],
+      "foodForms": [
+        "Beef/lamb liver",
+        "Sardines",
+        "Wild salmon",
+        "Pasture-raised eggs"
+      ],
+      "forms": [
+        "Methylcobalamin (sublingual)",
+        "Hydroxocobalamin",
+        "Adenosylcobalamin"
+      ],
+      "label": "Vitamin B12",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/33809274/"
+      ],
+      "formRefs": {
+        "Methylcobalamin (sublingual)": "https://pubmed.ncbi.nlm.nih.gov/34871525/",
+        "Hydroxocobalamin": "https://pubmed.ncbi.nlm.nih.gov/3604755/",
+        "Adenosylcobalamin": "https://pubmed.ncbi.nlm.nih.gov/28223907/"
+      }
+    },
+    "vitamins.folate": {
+      "freeActions": [
+        "Morning sunlight (supports folate-dependent methylation)",
+        "Reduce nnEMF (oxidative stress depletes folate)"
+      ],
+      "foodForms": [
+        "Dark leafy greens (spinach, kale)",
+        "Beef liver",
+        "Asparagus",
+        "Legumes (lentils, chickpeas)"
+      ],
+      "forms": [
+        "5-MTHF (Methylfolate)",
+        "Folinic acid (leucovorin)",
+        "5-MTHF + B12 combo"
+      ],
+      "label": "Folate",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/34794190/"
+      ],
+      "formRefs": {
+        "5-MTHF (Methylfolate)": "https://pubmed.ncbi.nlm.nih.gov/34794190/",
+        "Folinic acid (leucovorin)": "https://pubmed.ncbi.nlm.nih.gov/34834493/",
+        "5-MTHF + B12 combo": "https://pubmed.ncbi.nlm.nih.gov/29498933/"
+      }
+    },
+    "coagulation.homocysteine": {
+      "foodForms": [
+        "Beef liver",
+        "Dark leafy greens (folate)",
+        "Eggs (choline)",
+        "Beets (betaine)"
+      ],
+      "forms": [
+        "B12 + Folate + B6 (P5P)",
+        "TMG (Betaine)",
+        "Riboflavin (B2)"
+      ],
+      "label": "Homocysteine / methylation",
+      "freeActions": [
+        "Morning sunlight (supports methylation pathways)",
+        "Reduce nnEMF (oxidative stress depletes B vitamins)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/11339443/"
+      ],
+      "formRefs": {
+        "B12 + Folate + B6 (P5P)": "https://pubmed.ncbi.nlm.nih.gov/11339443/",
+        "TMG (Betaine)": "https://pubmed.ncbi.nlm.nih.gov/14652361/",
+        "Riboflavin (B2)": "https://pubmed.ncbi.nlm.nih.gov/16380544/"
+      }
+    },
+    "hematology.mcv": {
+      "foodForms": [
+        "B12 foods (liver, sardines)",
+        "Folate foods (leafy greens, legumes)"
+      ],
+      "forms": [
+        "Methylcobalamin sublingual",
+        "5-MTHF (Methylfolate)",
+        "B12 + Folate combo"
+      ],
+      "label": "MCV (macrocytic)",
+      "freeActions": [
+        "Morning sunlight (supports B12 and folate metabolism)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/19202968/"
+      ],
+      "formRefs": {
+        "Methylcobalamin sublingual": "https://pubmed.ncbi.nlm.nih.gov/34871525/",
+        "5-MTHF (Methylfolate)": "https://pubmed.ncbi.nlm.nih.gov/34794190/",
+        "B12 + Folate combo": "https://pubmed.ncbi.nlm.nih.gov/28223907/"
+      }
+    },
+    "hematology.rdwcv": {
+      "freeActions": [
+        "Morning sunlight (supports healthy red blood cell production and iron recycling)"
+      ],
+      "foodForms": [
+        "Beef liver (richest source of B12, folate, and heme iron — all RDW drivers)",
+        "Dark leafy greens — spinach, kale (folate + non-heme iron)",
+        "Sardines (B12 + heme iron in one food)"
+      ],
+      "forms": [
+        "Iron Bisglycinate (only if deficient)",
+        "B12 + Folate",
+        "Iron + B12 + Folate combo (only if deficient)"
+      ],
+      "label": "RDW-CV (red cell variation)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/23639779/"
+      ],
+      "formRefs": {
+        "Iron Bisglycinate (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/36728680/",
+        "B12 + Folate": "https://pubmed.ncbi.nlm.nih.gov/28223907/",
+        "Iron + B12 + Folate combo (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/36728680/"
+      }
+    },
+    "fattyAcids.omega3Index": {
+      "foodForms": [
+        "Wild salmon",
+        "Sardines",
+        "Mackerel",
+        "Anchovies"
+      ],
+      "forms": [
+        "Triglyceride-form fish oil",
+        "High-EPA concentrate",
+        "High-DHA concentrate",
+        "Algal DHA/EPA"
+      ],
+      "label": "Omega-3 Index",
+      "freeActions": [
+        "Eat seafood 3-5x/week — DHA from fish is fundamentally different from fish oil pills",
+        "Morning sunlight (DHA in cell membranes converts photons to DC electric current)",
+        "Cold exposure (cold activates DHA-rich brown fat)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36742439/"
+      ],
+      "formRefs": {
+        "Triglyceride-form fish oil": "https://pubmed.ncbi.nlm.nih.gov/21063431/",
+        "High-EPA concentrate": "https://pubmed.ncbi.nlm.nih.gov/31422671/",
+        "High-DHA concentrate": "https://pubmed.ncbi.nlm.nih.gov/32060571/",
+        "Algal DHA/EPA": "https://pubmed.ncbi.nlm.nih.gov/28417511/"
+      }
+    },
+    "boneMetabolism.osteocalcin": {
+      "freeActions": [
+        "Weight-bearing exercise (walking, running, lifting — stimulates osteoblasts)"
+      ],
+      "foodForms": [
+        "Natto",
+        "Hard aged cheese (Gouda)",
+        "Pasture-raised egg yolks",
+        "Grass-fed butter/ghee"
+      ],
+      "forms": [
+        "K2 MK-7",
+        "K2 MK-4 (high-dose)",
+        "D3 + K2 combo"
+      ],
+      "label": "Vitamin K2 (bone)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/26875489/"
+      ],
+      "formRefs": {
+        "K2 MK-7": "https://pubmed.ncbi.nlm.nih.gov/26875489/",
+        "K2 MK-4 (high-dose)": "https://pubmed.ncbi.nlm.nih.gov/17287908/",
+        "D3 + K2 combo": "https://pubmed.ncbi.nlm.nih.gov/32219282/"
+      }
+    },
+    "calculatedRatios.tgHdlRatio": {
+      "freeActions": [
+        "Cut sugar/refined carbs + cold exposure (addresses both sides)",
+        "Outdoor exercise in sunlight",
+        "Circadian-aligned eating — no food after sunset"
+      ],
+      "foodForms": [
+        "Fatty fish + reduce refined carbs"
+      ],
+      "forms": [
+        "High-EPA fish oil + Berberine",
+        "Omega-3 alone",
+        "Berberine alone"
+      ],
+      "label": "TG/HDL ratio",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/37264945/"
+      ],
+      "formRefs": {
+        "High-EPA fish oil + Berberine": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "Omega-3 alone": "https://pubmed.ncbi.nlm.nih.gov/18774613/",
+        "Berberine alone": "https://pubmed.ncbi.nlm.nih.gov/30466986/"
+      }
+    },
+    "calculatedRatios.copperZincRatio": {
+      "foodForms": [
+        "Oysters (balanced Cu+Zn)",
+        "Pumpkin seeds + dark chocolate (zinc-dominant)"
+      ],
+      "forms": [
+        "Zinc picolinate"
+      ],
+      "label": "Cu/Zn ratio",
+      "freeActions": [
+        "Morning sunlight (copper enzymes are light-activated)",
+        "Reduce nnEMF (zinc depleted by EMF-driven oxidative stress)"
+      ],
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/23289009/"
+      ],
+      "formRefs": {
+        "Zinc picolinate": "https://pubmed.ncbi.nlm.nih.gov/3630857/"
+      }
+    },
+    "calculatedRatios.nlr": {
+      "freeActions": [
+        "Morning sunlight (sets anti-inflammatory circadian rhythm)",
+        "Cold thermogenesis — cold reduces systemic inflammation",
+        "Ground barefoot on earth 15-30 min",
+        "Sleep 7-9h in complete darkness",
+        "Reduce seed oils and ultra-processed food"
+      ],
+      "foodForms": [
+        "Garlic (modulates neutrophil-lymphocyte balance)",
+        "Mushrooms — shiitake, reishi (beta-glucans boost lymphocyte activity)",
+        "Fermented foods — sauerkraut, kefir (gut microbiome drives immune cell ratios)",
+        "Berries (polyphenols reduce neutrophil activation)"
+      ],
+      "forms": [
+        "Omega-3 (high-EPA)",
+        "Curcumin (liposomal)",
+        "Vitamin D3"
+      ],
+      "label": "NLR (inflammation)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/35033882/"
+      ],
+      "formRefs": {
+        "Omega-3 (high-EPA)": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "Curcumin (liposomal)": "https://pubmed.ncbi.nlm.nih.gov/36804260/",
+        "Vitamin D3": "https://pubmed.ncbi.nlm.nih.gov/32972636/"
+      }
+    },
+    "light.blueBlockers": {
+      "freeActions": [
+        "After sunset: candles, firelight, or dim incandescent bulbs only",
+        "No screens 1-2h before bed — or use blue-blocking glasses as compromise",
+        "Remove/cover all LED standby lights in bedroom"
+      ],
+      "card": "Light & Circadian",
+      "forms": [
+        "Blue light glasses (evening/red)",
+        "Blue light glasses (daytime/clear)",
+        "Red/amber book light"
+      ],
+      "label": "Blue light blocking",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/20030543/"
+      ],
+      "formRefs": {
+        "Blue light glasses (evening/red)": "https://pubmed.ncbi.nlm.nih.gov/20030543/",
+        "Blue light glasses (daytime/clear)": "https://pubmed.ncbi.nlm.nih.gov/37593770/",
+        "Red/amber book light": "https://pubmed.ncbi.nlm.nih.gov/30311830/"
+      }
+    },
+    "light.morningLight": {
+      "freeActions": [
+        "Go outside within 30 min of waking — no sunglasses (light enters through eyes)",
+        "Face the sun with eyes open (not staring — ambient light through retina)",
+        "Even an overcast sky provides 10,000+ lux — far more than any indoor light"
+      ],
+      "card": "Light & Circadian",
+      "forms": [
+        "10,000 lux light therapy lamp",
+        "Dawn simulator alarm clock"
+      ],
+      "label": "Morning light therapy",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/26606319/"
+      ],
+      "formRefs": {
+        "10,000 lux light therapy lamp": "https://pubmed.ncbi.nlm.nih.gov/31574513/",
+        "Dawn simulator alarm clock": "https://pubmed.ncbi.nlm.nih.gov/17151164/"
+      }
+    },
+    "light.coldExposure": {
+      "freeActions": [
+        "Cold shower — start with 30s cold at the end, build to full cold",
+        "Face dunking in ice water (triggers mammalian dive reflex)",
+        "Progress to cold baths/lake/ocean swims",
+        "CT after sunlight is the optimal sequence"
+      ],
+      "card": "Light & Circadian",
+      "forms": [
+        "Cold plunge tub",
+        "Portable ice bath barrel",
+        "Cold face immersion bowl"
+      ],
+      "label": "Cold exposure",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/39879231/"
+      ],
+      "formRefs": {
+        "Cold plunge tub": "https://pubmed.ncbi.nlm.nih.gov/39879231/",
+        "Portable ice bath barrel": "https://pubmed.ncbi.nlm.nih.gov/35157264/",
+        "Cold face immersion bowl": "https://pubmed.ncbi.nlm.nih.gov/36527593/"
+      }
+    },
+    "light.grounding": {
+      "freeActions": [
+        "Walk barefoot on grass, soil, sand, or concrete for 15-30 min",
+        "Wet ground is more conductive — after rain or morning dew is ideal",
+        "Combine with sunlight for maximum benefit (photons + electrons)"
+      ],
+      "card": "Light & Circadian",
+      "forms": [
+        "Grounding mat (desk/floor)",
+        "Grounding sheet (bed)",
+        "Grounding shoes"
+      ],
+      "label": "Grounding / Earthing",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/25848315/"
+      ],
+      "formRefs": {
+        "Grounding mat (desk/floor)": "https://pubmed.ncbi.nlm.nih.gov/25848315/",
+        "Grounding sheet (bed)": "https://pubmed.ncbi.nlm.nih.gov/22291721/",
+        "Grounding shoes": "https://pubmed.ncbi.nlm.nih.gov/28987038/"
+      }
+    },
+    "light.screenTime": {
+      "freeActions": [
+        "Get outside between screen sessions — natural light resets the damage",
+        "20-20-20 rule (every 20 min, look 20 feet away for 20 sec)",
+        "Work near a window — indoor lighting is 100-500 lux vs 10,000+ outdoors"
+      ],
+      "card": "Light & Circadian",
+      "forms": [
+        "Daytime blue light glasses",
+        "Monitor light bar",
+        "E-ink monitor/tablet"
+      ],
+      "label": "Screen time mitigation",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/35809192/"
+      ],
+      "formRefs": {
+        "Daytime blue light glasses": "https://pubmed.ncbi.nlm.nih.gov/37593770/",
+        "Monitor light bar": "https://pubmed.ncbi.nlm.nih.gov/30311830/",
+        "E-ink monitor/tablet": "https://pubmed.ncbi.nlm.nih.gov/25535358/"
+      }
+    },
+    "sleep.blackout": {
+      "freeActions": [
+        "Complete darkness — if you can see your hand, it is not dark enough",
+        "Cover all LED standby lights with tape",
+        "No phone/screens in the bedroom"
+      ],
+      "card": "Sleep & Rest",
+      "forms": [
+        "Blackout curtains",
+        "Sleep mask (contoured)"
+      ],
+      "label": "Blackout / light blocking",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/21193540/"
+      ],
+      "formRefs": {
+        "Blackout curtains": "https://pubmed.ncbi.nlm.nih.gov/21193540/",
+        "Sleep mask (contoured)": "https://pubmed.ncbi.nlm.nih.gov/36521010/"
+      }
+    },
+    "sleep.mouthTape": {
+      "freeActions": [
+        "Practice nasal breathing during the day to build the habit",
+        "Clear sinuses before bed (steam, saline rinse)"
+      ],
+      "card": "Sleep & Rest",
+      "forms": [
+        "Sleep mouth tape (hypoallergenic)"
+      ],
+      "label": "Nasal breathing (sleep)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36141367/"
+      ],
+      "formRefs": {
+        "Sleep mouth tape (hypoallergenic)": "https://pubmed.ncbi.nlm.nih.gov/36141367/"
+      }
+    },
+    "sleep.cooling": {
+      "freeActions": [
+        "Bedroom below 19°C / 66°F (cold triggers melatonin release)",
+        "Sleep naked or minimal clothing (let body thermoregulate)",
+        "Open window year-round if safe"
+      ],
+      "card": "Sleep & Rest",
+      "forms": [
+        "Cooling mattress pad (water-based)",
+        "Cooling pillow",
+        "Bedroom fan"
+      ],
+      "label": "Sleep cooling",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/22738673/"
+      ],
+      "formRefs": {
+        "Cooling mattress pad (water-based)": "https://pubmed.ncbi.nlm.nih.gov/38671774/",
+        "Cooling pillow": "https://pubmed.ncbi.nlm.nih.gov/8917933/",
+        "Bedroom fan": "https://pubmed.ncbi.nlm.nih.gov/22738673/"
+      }
+    },
+    "env.waterFilter": {
+      "freeActions": [
+        "Spring water is the gold standard — find a local spring (findaspring.com)",
+        "If filtering: know your local water report first, then filter accordingly"
+      ],
+      "card": "Environment",
+      "forms": [
+        "Reverse osmosis (under-sink)",
+        "Gravity-fed filter",
+        "Countertop RO",
+        "Shower filter"
+      ],
+      "label": "Water filtration",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/28596086/"
+      ],
+      "formRefs": {
+        "Reverse osmosis (under-sink)": "https://pubmed.ncbi.nlm.nih.gov/33908956/",
+        "Gravity-fed filter": "https://pubmed.ncbi.nlm.nih.gov/28596086/",
+        "Countertop RO": "https://pubmed.ncbi.nlm.nih.gov/18408264/",
+        "Shower filter": "https://pubmed.ncbi.nlm.nih.gov/34597567/"
+      }
+    },
+    "env.cookware": {
+      "freeActions": [
+        "Check existing pans for scratched or peeling non-stick coatings — replace immediately",
+        "Never heat non-stick pans above medium or use metal utensils on them",
+        "Use glass or ceramic bakeware for oven cooking"
+      ],
+      "card": "Environment",
+      "forms": [
+        "Cast iron skillet",
+        "Stainless steel cookware",
+        "Carbon steel pan"
+      ],
+      "label": "PFAS-free cookware",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/28913736/"
+      ],
+      "formRefs": {
+        "Cast iron skillet": "https://pubmed.ncbi.nlm.nih.gov/28913736/",
+        "Stainless steel cookware": "https://pubmed.ncbi.nlm.nih.gov/28913736/",
+        "Carbon steel pan": "https://pubmed.ncbi.nlm.nih.gov/28913736/"
+      }
+    },
+    "env.glassContainers": {
+      "freeActions": [
+        "Never microwave food in plastic",
+        "Reuse glass jars from store-bought food"
+      ],
+      "card": "Environment",
+      "forms": [
+        "Glass food storage containers",
+        "Stainless steel containers",
+        "Glass water bottle"
+      ],
+      "label": "Glass/steel food storage",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/34601394/"
+      ],
+      "formRefs": {
+        "Glass food storage containers": "https://pubmed.ncbi.nlm.nih.gov/34601394/",
+        "Stainless steel containers": "https://pubmed.ncbi.nlm.nih.gov/21400322/",
+        "Glass water bottle": "https://pubmed.ncbi.nlm.nih.gov/24380980/"
+      }
+    },
+    "env.wifiTimer": {
+      "freeActions": [
+        "Turn WiFi router off at night (or use a timer)",
+        "Hardwire ethernet where possible — WiFi off entirely is ideal",
+        "Phone on airplane mode while sleeping, outside the bedroom",
+        "No electronics in the bedroom"
+      ],
+      "card": "Environment",
+      "forms": [
+        "WiFi outlet timer",
+        "Ethernet adapter + cable"
+      ],
+      "label": "EMF reduction (WiFi)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/35648738/"
+      ],
+      "formRefs": {
+        "WiFi outlet timer": "https://pubmed.ncbi.nlm.nih.gov/35648738/",
+        "Ethernet adapter + cable": "https://pubmed.ncbi.nlm.nih.gov/23051584/"
+      }
+    },
+    "_internal.emfMeters": {
+      "label": "EMF measurement meters",
+      "_emfMitigationTag": null,
+      "_internal": true
+    },
+    "_internal.lightDevices": {
+      "label": "Light therapy devices",
+      "_internal": true
+    },
+    "env.shieldingPaint": {
+      "label": "RF shielding paint (rooms with cell tower exposure)",
+      "card": "Environment",
+      "_emfMitigationTag": "shielding paint (Yshield)",
+      "freeActions": [
+        "Apply Yshield paint to bedroom-side walls; ground to your electrical panel."
+      ],
+      "forms": [
+        "Yshield Y-Series",
+        "Y Shield HSF44"
+      ]
+    },
+    "env.shieldingFabric": {
+      "label": "Bed canopies & shielding fabric",
+      "card": "Environment",
+      "_emfMitigationTag": "shielding fabric / canopy",
+      "freeActions": [
+        "A bed canopy is the highest-leverage RF mitigation when external sources (cell towers, neighbors' WiFi) dominate."
+      ],
+      "forms": [
+        "Naturell",
+        "Swiss Shield",
+        "Daylite"
+      ]
+    },
+    "env.dirtyElectricity": {
+      "label": "Dirty electricity filters",
+      "card": "Environment",
+      "_emfMitigationTag": "Stetzerizer filters",
+      "freeActions": [
+        "Plug filters into outlets nearest dimmers, LED drivers, and switching power supplies."
+      ],
+      "forms": [
+        "Stetzerizer GS-1",
+        "Greenwave"
+      ]
+    },
+    "env.demandSwitch": {
+      "label": "Demand switches (Netzfreischalter)",
+      "card": "Environment",
+      "_emfMitigationTag": "demand switch (Netzfreischalter)",
+      "freeActions": [
+        "Cuts a bedroom circuit when no current is drawn — eliminates 50/60 Hz electric fields without thinking about it."
+      ]
+    },
+    "env.shieldedCables": {
+      "label": "Shielded power & ethernet cables",
+      "card": "Environment",
+      "_emfMitigationTag": "shielded cables",
+      "freeActions": [
+        "Reduces near-field AC electric exposure from bedroom lamps and chargers without rewiring."
+      ]
+    },
+    "env.grounding": {
+      "label": "Grounding kits",
+      "card": "Environment",
+      "_emfMitigationTag": "grounding rod",
+      "freeActions": [
+        "Required for shielding paint or fabric to actually attenuate — bonds the shield to earth."
+      ]
+    },
+    "env.airPurifier": {
+      "freeActions": [
+        "Open windows regularly for cross-ventilation",
+        "Keep houseplants (snake plant, pothos, peace lily)"
+      ],
+      "card": "Environment",
+      "forms": [
+        "HEPA air purifier",
+        "Air quality monitor"
+      ],
+      "label": "Air purification",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/33121763/"
+      ],
+      "formRefs": {
+        "HEPA air purifier": "https://pubmed.ncbi.nlm.nih.gov/34449285/",
+        "Air quality monitor": "https://pubmed.ncbi.nlm.nih.gov/33121763/"
+      }
+    },
+    "env.moldTest": {
+      "freeActions": [
+        "Visually inspect wet areas (bathroom, kitchen, basement, window frames)",
+        "Fix any water leaks promptly — mold needs moisture"
+      ],
+      "card": "Environment",
+      "forms": [
+        "ERMI / HERTSMI-2 mold test kit",
+        "HEPA + carbon filter purifier"
+      ],
+      "label": "Mold testing",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/17661925/"
+      ],
+      "formRefs": {
+        "ERMI / HERTSMI-2 mold test kit": "https://pubmed.ncbi.nlm.nih.gov/17661925/",
+        "HEPA + carbon filter purifier": "https://pubmed.ncbi.nlm.nih.gov/34449285/"
+      }
+    },
+    "env.lighting": {
+      "freeActions": [
+        "Replace LEDs with incandescent or halogen bulbs (full spectrum, low blue)",
+        "After sunset: candles, firelight, or salt lamps only",
+        "No overhead lighting at night — one dim side lamp at most"
+      ],
+      "card": "Environment",
+      "forms": [
+        "Incandescent bulbs",
+        "Low-blue LED bulbs (<2700K)",
+        "Red LED bulbs"
+      ],
+      "label": "Healthier indoor lighting",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/30311830/"
+      ],
+      "formRefs": {
+        "Incandescent bulbs": "https://pubmed.ncbi.nlm.nih.gov/30311830/",
+        "Low-blue LED bulbs (<2700K)": "https://pubmed.ncbi.nlm.nih.gov/30311830/",
+        "Red LED bulbs": "https://pubmed.ncbi.nlm.nih.gov/30311830/"
+      }
+    },
+    "exercise.standingDesk": {
+      "freeActions": [
+        "Set a timer — stand and walk for 2 min every 30 min",
+        "Take phone calls standing or walking",
+        "Stack books to create a makeshift standing desk"
+      ],
+      "card": "Exercise",
+      "forms": [
+        "Standing desk converter",
+        "Under-desk walking pad"
+      ],
+      "label": "Movement at desk",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/39626101/"
+      ],
+      "formRefs": {
+        "Standing desk converter": "https://pubmed.ncbi.nlm.nih.gov/39626101/",
+        "Under-desk walking pad": "https://pubmed.ncbi.nlm.nih.gov/34774020/"
+      }
+    },
+    "diet.digestiveEnzymes": {
+      "freeActions": [
+        "Eat in sunlight when possible (light activates digestive enzymes)",
+        "Chew food thoroughly (digestion starts in the mouth)",
+        "Don't drink large amounts of water with meals",
+        "Eat slowly, without screens, seated"
+      ],
+      "card": "Diet & Digestion",
+      "forms": [
+        "Broad-spectrum digestive enzymes",
+        "Betaine HCl + Pepsin",
+        "Ox bile supplement"
+      ],
+      "label": "Digestive enzyme support",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/37976892/"
+      ],
+      "formRefs": {
+        "Broad-spectrum digestive enzymes": "https://pubmed.ncbi.nlm.nih.gov/37976892/",
+        "Betaine HCl + Pepsin": "https://pubmed.ncbi.nlm.nih.gov/23980906/",
+        "Ox bile supplement": "https://pubmed.ncbi.nlm.nih.gov/9869597/"
+      }
+    },
+    "diet.lactase": {
+      "freeActions": [
+        "Try fermented dairy first (yogurt, kefir, aged cheese — bacteria pre-digest lactose)"
+      ],
+      "card": "Diet & Digestion",
+      "forms": [
+        "Lactase enzyme"
+      ],
+      "label": "Lactose/dairy support",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/20404262/"
+      ],
+      "formRefs": {
+        "Lactase enzyme": "https://pubmed.ncbi.nlm.nih.gov/20404262/"
+      }
+    },
+    "diet.dao": {
+      "freeActions": [
+        "Eat food fresh — histamine builds up in leftovers and aged foods",
+        "Morning sunlight (DAO enzyme production is circadian-linked)",
+        "Keep a food diary to identify personal triggers"
+      ],
+      "card": "Diet & Digestion",
+      "forms": [
+        "DAO enzyme supplement",
+        "Quercetin + Vitamin C"
+      ],
+      "label": "Histamine intolerance",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/31807350/"
+      ],
+      "formRefs": {
+        "DAO enzyme supplement": "https://pubmed.ncbi.nlm.nih.gov/31807350/",
+        "Quercetin + Vitamin C": "https://pubmed.ncbi.nlm.nih.gov/27187333/"
+      }
+    },
+    "diet.reflux": {
+      "freeActions": [
+        "Don't eat within 3h of lying down",
+        "Elevate head of bed 15-20cm (gravity keeps acid down)",
+        "Eat smaller meals, chew thoroughly"
+      ],
+      "card": "Diet & Digestion",
+      "forms": [
+        "Betaine HCl + Pepsin",
+        "DGL (Deglycyrrhizinated Licorice)",
+        "Zinc Carnosine"
+      ],
+      "label": "Reflux support",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/23980906/"
+      ],
+      "formRefs": {
+        "Betaine HCl + Pepsin": "https://pubmed.ncbi.nlm.nih.gov/23980906/",
+        "DGL (Deglycyrrhizinated Licorice)": "https://pubmed.ncbi.nlm.nih.gov/4584640/",
+        "Zinc Carnosine": "https://pubmed.ncbi.nlm.nih.gov/16777920/"
+      }
+    },
+    "stress.adaptogens": {
+      "freeActions": [
+        "Morning sunlight (resets cortisol rhythm naturally)",
+        "Cold exposure (hormetic stress that builds resilience)",
+        "Ground barefoot in nature (measurably lowers cortisol)",
+        "Box breathing (4-4-4-4) — free, instant cortisol reduction"
+      ],
+      "card": "Stress",
+      "forms": [
+        "Ashwagandha (KSM-66) — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication",
+        "L-Theanine",
+        "Magnesium Glycinate",
+        "HRV biofeedback device"
+      ],
+      "label": "Stress / HPA axis",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/39348746/"
+      ],
+      "formRefs": {
+        "L-Theanine": "https://pubmed.ncbi.nlm.nih.gov/31758301/",
+        "Magnesium Glycinate": "https://pubmed.ncbi.nlm.nih.gov/7815675/",
+        "HRV biofeedback device": "https://pubmed.ncbi.nlm.nih.gov/28478782/",
+        "Ashwagandha (KSM-66) — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication": "https://pubmed.ncbi.nlm.nih.gov/39348746/"
+      }
+    },
+    "electrolytes.sodium": {
+      "freeActions": [
+        "Don't overhydrate — drink to thirst, not a fixed quota (overhydration is the #1 cause of mild low sodium in active people)",
+        "Add unrefined salt to water and meals (Celtic sea salt, Himalayan pink salt — contains sodium + trace minerals)",
+        "Morning sunlight (cortisol rises with light; cortisol drives aldosterone, which retains sodium via the kidney)",
+        "Support adrenal function — sleep 7-9h in complete darkness, reduce chronic stress (cortisol deficiency → low aldosterone → sodium wasting)",
+        "Avoid excessive plain water around exercise — use electrolyte-balanced hydration for sessions >60 min"
+      ],
+      "foodForms": [
+        "Bone broth (naturally rich in sodium + minerals — 300-500mg sodium per cup)",
+        "Olives and olive brine (whole-food sodium source with polyphenols)",
+        "Fermented vegetables — sauerkraut, pickles, kimchi (sodium + probiotics)",
+        "Celery (natural sodium source, ~80mg per stalk)"
+      ],
+      "forms": [
+        "Electrolyte mix (sodium + potassium + magnesium — balanced ratio)",
+        "Sodium chloride + sodium bicarbonate (for heavy sweaters)",
+        "Celtic sea salt or Redmond Real Salt capsules"
+      ],
+      "label": "Sodium (low support)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/25683094/"
+      ],
+      "formRefs": {
+        "Electrolyte mix (sodium + potassium + magnesium — balanced ratio)": "https://pubmed.ncbi.nlm.nih.gov/17277604/",
+        "Sodium chloride + sodium bicarbonate (for heavy sweaters)": "https://pubmed.ncbi.nlm.nih.gov/10919961/",
+        "Celtic sea salt or Redmond Real Salt capsules": "https://pubmed.ncbi.nlm.nih.gov/25683094/"
+      }
+    },
+    "electrolytes.calciumTotal": {
+      "freeActions": [
+        "Morning sunlight — UVB drives vitamin D synthesis, which is required for intestinal calcium absorption (calcitriol upregulates calbindin)",
+        "Weight-bearing exercise — walking, running, lifting (mechanical loading stimulates osteoblast activity and calcium deposition into bone)",
+        "Cold exposure (CT stimulates thyroid and parathyroid function, regulating calcium homeostasis)",
+        "Reduce caffeine and excess sodium (both increase urinary calcium excretion)"
+      ],
+      "foodForms": [
+        "Sardines with bones (300mg calcium per can + vitamin D + omega-3)",
+        "Dark leafy greens — kale, bok choy, broccoli (high calcium bioavailability, unlike spinach which has oxalate-bound calcium)",
+        "Raw dairy — yogurt, kefir, aged cheese (calcium + K2 from fermentation)",
+        "Bone broth (calcium + collagen + minerals in bioavailable form)"
+      ],
+      "forms": [
+        "D3 + K2 combo",
+        "Calcium hydroxyapatite (MCHC)",
+        "Magnesium + calcium combo"
+      ],
+      "label": "Calcium balance",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/32219282/"
+      ],
+      "formRefs": {
+        "D3 + K2 combo": "https://pubmed.ncbi.nlm.nih.gov/32219282/",
+        "Calcium hydroxyapatite (MCHC)": "https://pubmed.ncbi.nlm.nih.gov/25274192/",
+        "Magnesium + calcium combo": "https://pubmed.ncbi.nlm.nih.gov/34111673/"
+      }
+    },
+    "biochemistry.alp": {
+      "freeActions": [
+        "Morning sunlight (supports vitamin D → calcium/phosphate metabolism; ALP is involved in bone mineralization)",
+        "Weight-bearing exercise (stimulates bone-specific ALP isoenzyme via osteoblast activation)",
+        "Reduce alcohol (liver ALP rises with hepatic damage; alcohol is directly hepatotoxic)",
+        "Ensure adequate zinc and magnesium intake — ALP active site contains 2 Zn²⁺ + 1 Mg²⁺ (zinc deficiency directly reduces ALP activity — PMID 20535396)"
+      ],
+      "foodForms": [
+        "Oysters (richest zinc food — zinc is the primary ALP cofactor; 6 oysters = ~50mg zinc)",
+        "Beef liver (zinc + copper + B vitamins for liver and bone ALP support)",
+        "Pumpkin seeds (zinc + magnesium — both ALP cofactors in one food)",
+        "Dark chocolate 85%+ (magnesium + zinc)"
+      ],
+      "forms": [
+        "Zinc picolinate",
+        "Magnesium glycinate",
+        "D3 + K2"
+      ],
+      "label": "ALP (zinc cofactor)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/11787985/"
+      ],
+      "formRefs": {
+        "Zinc picolinate": "https://pubmed.ncbi.nlm.nih.gov/3630857/",
+        "Magnesium glycinate": "https://pubmed.ncbi.nlm.nih.gov/7815675/",
+        "D3 + K2": "https://pubmed.ncbi.nlm.nih.gov/32219282/"
+      }
+    },
+    "biochemistry.creatineKinase": {
+      "freeActions": [
+        "Adequate recovery between intense sessions — CK peaks 24-72h post-exercise; retest after 7 days rest (70% normalize, PMID 27107876)",
+        "Sleep 7-9h (tissue repair and CK clearance happen during deep sleep — growth hormone peaks in N3 sleep)",
+        "Cold water immersion post-exercise (reduces exercise-induced muscle damage markers)",
+        "Grounding barefoot after training (anti-inflammatory electron transfer — reduces tissue inflammation)",
+        "Ensure vitamin D sufficiency — deficient (<30 ng/mL) subjects had 2x greater CK rise with eccentric exercise (PMC4029611)"
+      ],
+      "foodForms": [
+        "Tart cherry juice (anthocyanins reduce muscle damage markers — same mechanism as LDH, meta-analysis PMC 11918606)",
+        "Fatty fish (omega-3 reduces exercise-induced muscle damage with sustained intake)",
+        "Turmeric with black pepper (curcumin reduces CK post-exercise, PMID 34584659)",
+        "Berries (anthocyanins reduce oxidative muscle damage)"
+      ],
+      "forms": [
+        "Creatine monohydrate",
+        "Taurine",
+        "Magnesium",
+        "CoQ10"
+      ],
+      "label": "Recovery / CK",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/33631721/"
+      ],
+      "formRefs": {
+        "Creatine monohydrate": "https://pubmed.ncbi.nlm.nih.gov/33631721/",
+        "Taurine": "https://pubmed.ncbi.nlm.nih.gov/25833543/",
+        "Magnesium": "https://pubmed.ncbi.nlm.nih.gov/34111673/",
+        "CoQ10": "https://pubmed.ncbi.nlm.nih.gov/38479900/"
+      }
+    },
+    "hematology.rbc": {
+      "freeActions": [
+        "Morning sunlight (light drives hepcidin regulation — the master iron-recycling hormone that gates erythropoiesis)",
+        "Regular endurance exercise (stimulates EPO production and erythropoiesis — reticulocyte elevation within 1-2 days, PMC3824146)",
+        "Altitude exposure or altitude training (hypoxia triggers EPO → increased RBC production; steady-state hematocrit reached in weeks)",
+        "Cook in cast iron cookware (leaches bioavailable iron — meaningful for plant-based diets)",
+        "Pair iron foods with vitamin C at the same meal (ascorbic acid is the strongest enhancer of non-heme iron absorption)"
+      ],
+      "foodForms": [
+        "Beef/lamb liver (heme iron + B12 + folate — the three pillars of erythropoiesis in one food, PMID 15189115)",
+        "Red meat + organ meats (heme iron absorbed 15-35% vs 2-20% for non-heme)",
+        "Sardines and dark poultry (heme iron + B12)",
+        "Dark leafy greens + bell pepper (non-heme iron + vitamin C for maximum absorption)"
+      ],
+      "forms": [
+        "Iron Bisglycinate (only if deficient)",
+        "B12 + Folate combo",
+        "Copper + B6"
+      ],
+      "label": "RBC production",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36728680/"
+      ],
+      "formRefs": {
+        "Iron Bisglycinate (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/36728680/",
+        "B12 + Folate combo": "https://pubmed.ncbi.nlm.nih.gov/28223907/",
+        "Copper + B6": "https://pubmed.ncbi.nlm.nih.gov/22444781/"
+      }
+    },
+    "hematology.hematocrit": {
+      "freeActions": [
+        "Stay properly hydrated — drink to thirst (dehydration falsely elevates hematocrit by concentrating blood; rehydrate and retest if borderline high)",
+        "Avoid overhydration (dilutional low hematocrit — same mechanism as low sodium; drink to thirst, not a quota)",
+        "Regular endurance exercise (increases true red cell mass over time via EPO stimulation)",
+        "Morning sunlight (supports hepcidin rhythm and iron recycling for healthy erythropoiesis)",
+        "Altitude exposure (hypoxia-induced EPO raises both RBC mass and hematocrit — acclimatization in 3-4 weeks)"
+      ],
+      "foodForms": [
+        "Iron-rich foods — liver, red meat, sardines (same as RBC/hemoglobin support)",
+        "B12 + folate foods — liver, eggs, dark leafy greens (support red cell maturation)",
+        "Adequate protein (1.6-2.2g/kg — amino acids needed for hemoglobin and red cell synthesis)",
+        "Spring water (proper mineral-balanced hydration prevents both dehydration and dilution artifacts)"
+      ],
+      "forms": [
+        "Iron Bisglycinate (only if deficient)",
+        "B12 + Folate",
+        "Electrolyte mix"
+      ],
+      "label": "Hematocrit (hydration check)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/22932280/"
+      ],
+      "formRefs": {
+        "Iron Bisglycinate (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/36728680/",
+        "B12 + Folate": "https://pubmed.ncbi.nlm.nih.gov/28223907/",
+        "Electrolyte mix": "https://pubmed.ncbi.nlm.nih.gov/17277604/"
+      }
+    },
+    "hematology.platelets": {
+      "freeActions": [
+        "Morning sunlight (immune and hematopoietic cells follow circadian rhythms set by light)",
+        "Reduce chronic inflammation — cold exposure, grounding, sleep (reactive thrombocytosis is most often driven by inflammation or infection)",
+        "Regular moderate exercise (extreme overtraining can suppress bone marrow; moderate exercise optimizes hematopoiesis)",
+        "Reduce alcohol (heavy drinking directly suppresses platelet production via bone marrow toxicity)",
+        "Address underlying infections or inflammation if platelets are persistently elevated (rule out iron deficiency — common cause of reactive thrombocytosis)"
+      ],
+      "foodForms": [
+        "Fatty fish — salmon, sardines, mackerel (omega-3 modulates platelet function and thromboxane/prostacyclin ratio — PMC6242736)",
+        "Garlic (allicin modulates platelet aggregation and WBC production)",
+        "Dark leafy greens (folate supports megakaryocyte maturation in bone marrow)",
+        "Berries (anthocyanins reduce platelet activation via COX-1 pathway)"
+      ],
+      "forms": [
+        "Omega-3 (EPA/DHA)",
+        "Vitamin D3",
+        "Folate + B12"
+      ],
+      "label": "Platelet balance",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/23153623/"
+      ],
+      "formRefs": {
+        "Omega-3 (EPA/DHA)": "https://pubmed.ncbi.nlm.nih.gov/37264945/",
+        "Vitamin D3": "https://pubmed.ncbi.nlm.nih.gov/32972636/",
+        "Folate + B12": "https://pubmed.ncbi.nlm.nih.gov/28223907/"
+      }
+    },
+    "iron.iron": {
+      "freeActions": [
+        "Test serum iron in the morning — hepcidin has a circadian rhythm, rising during the day; morning values most reliable (PMID 23232066)",
+        "Pair iron-rich meals with vitamin C foods (ascorbic acid overcomes all dietary iron inhibitors — strongest single enhancer, PMID 15743017)",
+        "Avoid tea, coffee, and calcium with iron-rich meals (polyphenols and calcium inhibit both heme and non-heme iron absorption)",
+        "Cook in cast iron cookware (leaches bioavailable iron into food)",
+        "Morning sunlight (light regulates hepcidin — the master hormone that gates iron absorption via ferroportin)"
+      ],
+      "foodForms": [
+        "Beef/lamb liver (richest heme iron source — heme iron absorbed 15-35% vs 2-20% for non-heme)",
+        "Red meat and dark poultry (heme iron not affected by phytates or polyphenols)",
+        "Sardines (heme iron + B12 + vitamin D in one food)",
+        "Dark leafy greens + bell pepper (non-heme iron + vitamin C at same meal for maximum absorption)"
+      ],
+      "forms": [
+        "Iron Bisglycinate (only if deficient)",
+        "Heme iron polypeptide (only if deficient)",
+        "Lactoferrin + iron (only if deficient)",
+        "Vitamin C (take with iron)"
+      ],
+      "label": "Serum Iron",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/24152889/"
+      ],
+      "formRefs": {
+        "Iron Bisglycinate (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/36728680/",
+        "Heme iron polypeptide (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/23514036/",
+        "Lactoferrin + iron (only if deficient)": "https://pubmed.ncbi.nlm.nih.gov/35276902/",
+        "Vitamin C (take with iron)": "https://pubmed.ncbi.nlm.nih.gov/21671418/"
+      }
+    },
+    "lipids.apoB": {
+      "freeActions": [
+        "Mediterranean diet pattern (RCT: reduced ApoB and ApoB/ApoA-I ratio in high-risk individuals — PMID 21640348)",
+        "Regular aerobic exercise — walking, cycling, swimming (exercise reduced ApoB in overweight men independent of diet — PMID 17645591)",
+        "Reduce refined carbs and sugar (drives hepatic VLDL overproduction → more ApoB particles)",
+        "Reduce seed oils and ultra-processed food (oxidized lipids increase small dense LDL particle count)",
+        "Cold exposure (activates brown fat and bile acid metabolism, both consume cholesterol and reduce particle production)"
+      ],
+      "foodForms": [
+        "Oats and soluble fiber (bind bile acids in gut, forcing liver to clear LDL particles to make more bile — reduces ApoB, PMC4223745)",
+        "Fatty fish — salmon, sardines, mackerel (omega-3 reduces hepatic VLDL secretion, lowering ApoB particle count)",
+        "Extra virgin olive oil (Mediterranean diet cornerstone — polyphenols reduce oxidized LDL and improve ApoA-I)",
+        "Cruciferous vegetables (support bile acid metabolism and estrogen clearance, both linked to ApoB particle clearance)"
+      ],
+      "forms": [
+        "Citrus Bergamot",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician",
+        "Plant sterols/stanols"
+      ],
+      "label": "ApoB (particle count)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/36941490/"
+      ],
+      "formRefs": {
+        "Citrus Bergamot": "https://pubmed.ncbi.nlm.nih.gov/31670973/",
+        "Plant sterols/stanols": "https://pubmed.ncbi.nlm.nih.gov/24780090/",
+        "Berberine HCl — interacts with metformin, statins, and cyclosporine; consult physician": "https://pubmed.ncbi.nlm.nih.gov/36941490/"
+      }
+    },
+    "hormones.lh": {
+      "freeActions": [
+        "Morning sunlight on skin (UV triggers pregnenolone synthesis in the skin; light sets the circadian HPG axis that pulses GnRH → LH)",
+        "Sleep 7-9h in pitch-dark, cold room (LH pulsatility peaks during sleep; sleep debt disrupts GnRH pulse generator within days)",
+        "Heavy compound lifts — squat, deadlift, press (resistance training acutely stimulates LH release)",
+        "Reduce chronic stress (cortisol suppresses GnRH pulse generator at the hypothalamic level, reducing LH output — pregnenolone steal)",
+        "Reduce nnEMF — phone away from gonads, WiFi off at night (RF-EMF associated with altered gonadotropin levels)"
+      ],
+      "foodForms": [
+        "Zinc-rich foods — oysters, beef, pumpkin seeds (zinc deficiency impairs Leydig cell response to LH and suppresses gonadotropin secretion — PMID 779495)",
+        "Healthy fats — egg yolks, avocado, olive oil (cholesterol is the precursor to all steroid hormones downstream of LH)",
+        "Cruciferous vegetables (DIM supports estrogen metabolism, preventing negative feedback suppression of LH)",
+        "Pomegranate (reduces cortisol ~12%, relieving HPA-mediated GnRH suppression)"
+      ],
+      "forms": [
+        "Tongkat Ali",
+        "Ashwagandha KSM-66 — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication",
+        "Zinc picolinate",
+        "Vitamin D3"
+      ],
+      "label": "LH (pituitary→gonad)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/33559971/"
+      ],
+      "formRefs": {
+        "Tongkat Ali": "https://pubmed.ncbi.nlm.nih.gov/33559971/",
+        "Zinc picolinate": "https://pubmed.ncbi.nlm.nih.gov/3630857/",
+        "Vitamin D3": "https://pubmed.ncbi.nlm.nih.gov/32972636/",
+        "Ashwagandha KSM-66 — may stimulate thyroid; avoid with hyperthyroidism or thyroid medication": "https://pubmed.ncbi.nlm.nih.gov/39348746/"
+      }
+    },
+    "hormones.fsh": {
+      "freeActions": [
+        "Morning sunlight (circadian light exposure regulates the HPG axis; FSH has pulsatile secretion gated by GnRH)",
+        "Sleep 7-9h in complete darkness (FSH pulsatility is sleep-dependent; melatonin modulates GnRH)",
+        "Reduce chronic stress (cortisol suppresses GnRH, reducing both FSH and LH output)",
+        "Regular moderate exercise (supports healthy HPG axis signaling; extreme overtraining can suppress FSH)",
+        "Reduce xenoestrogen exposure — avoid plastics, BPA, parabens (environmental estrogens disrupt the feedback loop that regulates FSH)"
+      ],
+      "foodForms": [
+        "Zinc-rich foods — oysters, pumpkin seeds (zinc supports pituitary gonadotropin production and gonadal function)",
+        "Antioxidant-rich foods — berries, dark leafy greens (oxidative stress impairs gonadal function, causing compensatory FSH elevation)",
+        "Healthy fats — wild salmon, avocado, olive oil (steroid hormone precursors support downstream feedback to pituitary)",
+        "Cruciferous vegetables (support estrogen metabolism — proper estrogen clearance normalizes FSH feedback)"
+      ],
+      "forms": [
+        "Myo-inositol",
+        "CoQ10",
+        "Vitamin D3",
+        "Folate + B12"
+      ],
+      "label": "FSH (pituitary→gonad)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/38163998/"
+      ],
+      "formRefs": {
+        "Myo-inositol": "https://pubmed.ncbi.nlm.nih.gov/38163998/",
+        "CoQ10": "https://pubmed.ncbi.nlm.nih.gov/38479900/",
+        "Vitamin D3": "https://pubmed.ncbi.nlm.nih.gov/32972636/",
+        "Folate + B12": "https://pubmed.ncbi.nlm.nih.gov/28223907/"
+      }
+    },
+    "hormones.prolactin": {
+      "freeActions": [
+        "Reduce chronic stress (prolactin is a stress hormone — released by stressful stimulation and mediated via the HPA axis)",
+        "Morning sunlight (sets circadian dopamine rhythm; dopamine is the primary prolactin inhibitor via D2 receptors on lactotrophs)",
+        "Sleep 7-9h in complete darkness (prolactin normally rises during sleep; chronic sleep disruption alters the prolactin rhythm)",
+        "Cold exposure (hormetic stress builds stress resilience, reducing chronic HPA-driven prolactin elevation)",
+        "Review medications with physician — many drugs cause hyperprolactinemia (antipsychotics, SSRIs, metoclopramide block D2 receptors)"
+      ],
+      "foodForms": [
+        "Vitamin B6-rich foods — poultry, pistachios, sunflower seeds, banana (B6/PLP is the cofactor for L-DOPA decarboxylase, the enzyme that produces dopamine)",
+        "Mucuna pruriens seeds or extract-containing foods (natural L-DOPA source — increases dopamine, reduces prolactin, PMID 18973898)",
+        "Zinc-rich foods — oysters, beef, pumpkin seeds (zinc inhibits prolactin release from pituitary cells in vitro)",
+        "Dark chocolate (contains phenylethylamine, a dopamine precursor; also magnesium for HPA axis calming)"
+      ],
+      "forms": [
+        "Vitamin B6 (P5P) — low dose only; high doses cause nerve damage",
+        "Vitex / Chasteberry — may reduce hormonal contraceptive efficacy",
+        "Mucuna pruriens — interacts with psychiatric medications; consult physician",
+        "Vitamin E"
+      ],
+      "label": "Prolactin (dopamine link)",
+      "references": [
+        "https://pubmed.ncbi.nlm.nih.gov/31464546/"
+      ],
+      "formRefs": {
+        "Vitamin B6 (P5P) — low dose only; high doses cause nerve damage": "https://pubmed.ncbi.nlm.nih.gov/28716455/",
+        "Mucuna pruriens — interacts with psychiatric medications; consult physician": "https://pubmed.ncbi.nlm.nih.gov/18973898/",
+        "Vitamin E": "https://pubmed.ncbi.nlm.nih.gov/1490755/",
+        "Vitex / Chasteberry — may reduce hormonal contraceptive efficacy": "https://pubmed.ncbi.nlm.nih.gov/23136064/"
+      }
+    }
+  },
+  "shops": [],
+  "vendors": {
+    "slt": {
+      "name": "Safe Living Technologies",
+      "homepage": "https://safelivingtechnologies.com?aff=466",
+      "coupon": {
+        "code": "getbased",
+        "userDiscount": "10%"
+      },
+      "regions": [
+        "US",
+        "INTL"
+      ]
+    },
+    "mit": {
+      "name": "Mitochondriak",
+      "homepage": {
+        "CZ": "https://easylight.sk?a_box=z3fuqwwr",
+        "INTL": "http://www.mitochondriak.com?a_box=z3fuqwwr",
+        "SK": "https://easylight.sk?a_box=z3fuqwwr"
+      },
+      "coupon": {
+        "CZ": {
+          "code": "GETBASED",
+          "userDiscount": "10%"
+        },
+        "INTL": {
+          "code": "GETBASED",
+          "userDiscount": "10%"
+        },
+        "SK": {
+          "code": "GETBASED",
+          "userDiscount": "10%"
+        }
+      },
+      "regions": [
+        "CZ",
+        "SK",
+        "INTL"
+      ]
+    },
+    "chroma": {
+      "name": "Chroma",
+      "homepage": "https://getchroma.co?ref=getbased",
+      "coupon": null,
+      "regions": ["INTL"]
+    },
+    "pwl": {
+      "name": "Powerlogy",
+      "regions": [
+        "CZ",
+        "SK"
+      ],
+      "homepage": {
+        "CZ": "https://powerlogy.cz/",
+        "SK": "https://powerlogy.com/"
+      },
+      "coupon": {
+        "CZ": {
+          "code": "GETBASED5",
+          "userDiscount": "5%"
+        },
+        "SK": {
+          "code": "GETBASED5",
+          "userDiscount": "5%"
+        }
+      }
+    },
+    "gch": {
+      "name": "Getchroma",
+      "regions": [
+        "INTL"
+      ],
+      "homepage": "https://getchroma.co/GETBASED",
+      "coupon": {
+        "code": "GETBASED",
+        "userDiscount": "10%"
+      }
+    }
+  },
+  "products": {
+    "vitamins.vitaminD": [
+      {
+        "type": "product",
+        "form": "UVB light panel",
+        "brand": "Mitochondriak",
+        "name": "Infrapanel Mitochondriak Maxi UVB",
+        "shop": "easylight",
+        "url": {
+          "CZ": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/",
+          "SK": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/",
+          "INTL": "https://www.mitochondriak.com/mitochondriak-maxi-uvb/"
+        },
+        "affiliateUrl": {
+          "CZ": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/?a_box=z3fuqwwr",
+          "SK": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/?a_box=z3fuqwwr",
+          "INTL": "https://www.mitochondriak.com/mitochondriak-maxi-uvb/?a_box=z3fuqwwr"
+        },
+        "priceCZK": null,
+        "priceEUR": null,
+        "dosage": null,
+        "servings": null,
+        "certifications": null,
+        "notes": "Full-body UVB + infrared panel enabling endogenous vitamin D3 synthesis via skin UVB exposure; Maxi size variant",
+        "regions": [
+          "CZ",
+          "SK",
+          "INTL"
+        ],
+        "langUrls": {
+          "cs": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/",
+          "sk": "https://www.easylight.sk/sk/infrapanel-mitochondriak-maxi-uvb/"
+        },
+        "lastChecked": "2026-04-27T07:54:52.151Z",
+        "vendorKey": "mit"
+      },
+      {
+        "type": "product",
+        "form": "UVB Light",
+        "brand": "Chroma",
+        "name": "Trinity",
+        "shop": "",
+        "url": "https://getchroma.co/products/trinity?variant=50611172704534",
+        "affiliateUrl": null,
+        "priceCZK": null,
+        "priceEUR": null,
+        "dosage": null,
+        "servings": null,
+        "certifications": null,
+        "notes": null,
+        "regions": [
+          "INTL"
+        ],
+        "lastChecked": "2026-04-27T16:23:45.941Z",
+        "vendorKey": "gch"
+      }
+    ],
+    "_internal.emfMeters": [
+      {
+        "type": "product",
+        "form": "",
+        "brand": "",
+        "name": "Safe and Sound Pro II",
+        "shop": "",
+        "url": "https://safelivingtechnologies.com/products/safe-and-sound-pro-ii-rf-meter.html?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com/products/safe-and-sound-pro-ii-rf-meter.html?aff=466",
+        "priceCZK": null,
+        "priceEUR": null,
+        "dosage": null,
+        "servings": null,
+        "certifications": null,
+        "notes": null,
+        "regions": [
+          "US",
+          "INTL"
+        ],
+        "vendorKey": "slt",
+        "kind": "RF / microwave meter",
+        "blurb": "State-of-the-art consumer/semi-pro RF meter. Covers 200 MHz to 8 GHz — the band where WiFi, cellular, and Bluetooth live.",
+        "matchTypes": [
+          "rfMicrowave"
+        ],
+        "key": "slt-pro-ii",
+        "vendor": "Safe Living Technologies"
+      },
+      {
+        "type": "product",
+        "form": "",
+        "brand": "",
+        "name": "Safe and Sound EM3 Gauss Meter",
+        "shop": "",
+        "url": "https://safelivingtechnologies.com/products/safe-and-sound-em3-gauss-meter.html?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com/products/safe-and-sound-em3-gauss-meter.html?aff=466",
+        "priceCZK": null,
+        "priceEUR": null,
+        "dosage": null,
+        "servings": null,
+        "certifications": null,
+        "notes": null,
+        "regions": [
+          "US",
+          "INTL"
+        ],
+        "vendorKey": "slt",
+        "kind": "Electric / magnetic / body-voltage meter",
+        "blurb": "Reads AC electric fields, AC magnetic fields, and body voltage. Covers the rest of the SBM-2015 sleeping-area protocol.",
+        "matchTypes": [
+          "acElectric",
+          "acMagnetic"
+        ],
+        "key": "slt-em3",
+        "vendor": "Safe Living Technologies"
+      },
+      {
+        "type": "product",
+        "form": "",
+        "brand": "",
+        "name": "Line EMI Meter",
+        "shop": "",
+        "url": "https://safelivingtechnologies.com/products/line-emi-meter.html?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com/products/line-emi-meter.html?aff=466",
+        "priceCZK": null,
+        "priceEUR": null,
+        "dosage": null,
+        "servings": null,
+        "certifications": null,
+        "notes": null,
+        "regions": [
+          "US",
+          "INTL"
+        ],
+        "vendorKey": "slt",
+        "kind": "Dirty electricity meter",
+        "blurb": "Measures high-frequency voltage transients (\"dirty electricity\") on house wiring — the noise from dimmers, LED drivers, switching power supplies, and solar inverters that filters can't fix until you know where it lives.",
+        "matchTypes": [
+          "dirtyElectricity"
+        ],
+        "key": "slt-line-emi",
+        "vendor": "Safe Living Technologies"
+      }
+    ],
+    "env.shieldingPaint": [
+      {
+        "type": "product",
+        "name": "RF shielding paint",
+        "vendor": "Safe Living Technologies",
+        "vendorKey": "slt",
+        "blurb": "Yshield Y-line conductive paint. Apply to walls, then ground to your electrical panel. Reduces RF transmission by 30+ dB.",
+        "url": "https://safelivingtechnologies.com?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com?aff=466",
+        "regions": [
+          "US",
+          "INTL"
+        ]
+      }
+    ],
+    "env.shieldingFabric": [
+      {
+        "type": "product",
+        "name": "Bed canopies & shielding fabric",
+        "vendor": "Safe Living Technologies",
+        "vendorKey": "slt",
+        "blurb": "Naturell, Swiss Shield, Daylite. The single most effective intervention if outside RF (cell tower, neighbor's WiFi) is the dominant source.",
+        "url": "https://safelivingtechnologies.com?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com?aff=466",
+        "regions": [
+          "US",
+          "INTL"
+        ]
+      }
+    ],
+    "env.dirtyElectricity": [
+      {
+        "type": "product",
+        "name": "Dirty electricity filters",
+        "vendor": "Safe Living Technologies",
+        "vendorKey": "slt",
+        "blurb": "Stetzerizer / Greenwave plug-in filters that absorb high-frequency noise on house wiring. Plug into outlets nearest to dimmers, LED drivers, and switching power supplies.",
+        "url": "https://safelivingtechnologies.com?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com?aff=466",
+        "regions": [
+          "US",
+          "INTL"
+        ]
+      }
+    ],
+    "env.demandSwitch": [
+      {
+        "type": "product",
+        "name": "Demand switches",
+        "vendor": "Safe Living Technologies",
+        "vendorKey": "slt",
+        "blurb": "Disconnects a bedroom circuit at night when no current is drawn, then reconnects when you flip a light. Eliminates 50/60 Hz electric fields without thinking about it.",
+        "url": "https://safelivingtechnologies.com?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com?aff=466",
+        "regions": [
+          "US",
+          "INTL"
+        ]
+      }
+    ],
+    "env.shieldedCables": [
+      {
+        "type": "product",
+        "name": "Shielded power & ethernet cables",
+        "vendor": "Safe Living Technologies",
+        "vendorKey": "slt",
+        "blurb": "Reduces near-field AC electric exposure from bedroom lamps, charging bricks, and desk equipment without needing to rewire the room.",
+        "url": "https://safelivingtechnologies.com?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com?aff=466",
+        "regions": [
+          "US",
+          "INTL"
+        ]
+      }
+    ],
+    "env.grounding": [
+      {
+        "type": "product",
+        "name": "Grounding kits",
+        "vendor": "Safe Living Technologies",
+        "vendorKey": "slt",
+        "blurb": "Rod + wire + adapters to properly ground shielding paint or fabric to earth. Required for paint and canopies to actually work.",
+        "url": "https://safelivingtechnologies.com?aff=466",
+        "affiliateUrl": "https://safelivingtechnologies.com?aff=466",
+        "regions": [
+          "US",
+          "INTL"
+        ]
+      }
+    ],
+    "_internal.lightDevices": [
+      {
+        "type": "product",
+        "key": "mitochondriak-pulse",
+        "name": "Mitochondriak Pulse",
+        "vendor": "Mitochondriak",
+        "vendorKey": "mit",
+        "kind": "Handheld PBM torch",
+        "blurb": "5-wavelength laser/torch — red 630/670 + NIR 850/900 + blue 460. Targeted PBM in a 12.5 cm wand.",
+        "url": "https://www.mitochondriak.com/laser-torch-mitochondriak-pulse/",
+        "affiliateUrl": "https://www.mitochondriak.com/laser-torch-mitochondriak-pulse/?a_box=z3fuqwwr",
+        "regions": ["CZ", "SK", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "mitochondriak-bulb",
+        "name": "Mitochondriak LED RED + NIR bulb",
+        "vendor": "Mitochondriak",
+        "vendorKey": "mit",
+        "kind": "Screw-in PBM bulb",
+        "blurb": "12×12 cm screw-in bulb with holder. 6 wavelengths red + NIR. 56 W targeted PBM.",
+        "url": "https://www.mitochondriak.com/led-bulb-mitochondriak/",
+        "affiliateUrl": "https://www.mitochondriak.com/led-bulb-mitochondriak/?a_box=z3fuqwwr",
+        "regions": ["CZ", "SK", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "mitochondriak-mini",
+        "name": "Mitochondriak Mini",
+        "vendor": "Mitochondriak",
+        "vendorKey": "mit",
+        "kind": "Quarter-body PBM panel",
+        "blurb": "32×22 cm portable panel. 7 wavelengths incl. long-NIR 940. 210 W. Quarter-body coverage.",
+        "url": "https://www.mitochondriak.com/infrapanel-mitochondriak-mini/",
+        "affiliateUrl": "https://www.mitochondriak.com/infrapanel-mitochondriak-mini/?a_box=z3fuqwwr",
+        "regions": ["CZ", "SK", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "mitochondriak-office-upgraded",
+        "name": "Mitochondriak Office Upgraded",
+        "vendor": "Mitochondriak",
+        "vendorKey": "mit",
+        "kind": "Quarter-body PBM panel",
+        "blurb": "Stationary desk panel. 7 wavelengths red + NIR + 940. 310 W.",
+        "url": "https://www.mitochondriak.com/mitochondriak-office/",
+        "affiliateUrl": "https://www.mitochondriak.com/mitochondriak-office/?a_box=z3fuqwwr",
+        "regions": ["CZ", "SK", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "mitochondriak-uv-portable",
+        "name": "Mitochondriak UV portable",
+        "vendor": "Mitochondriak",
+        "vendorKey": "mit",
+        "kind": "Portable UV + PBM panel",
+        "blurb": "15×23 cm portable panel adding UVA 360/366 nm on top of red + NIR. No UVB. 36 W.",
+        "url": "https://www.mitochondriak.com/mitochondriak-uv-portable/",
+        "affiliateUrl": "https://www.mitochondriak.com/mitochondriak-uv-portable/?a_box=z3fuqwwr",
+        "regions": ["CZ", "SK", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "mitochondriak-maxi-upgraded",
+        "name": "Mitochondriak Maxi Upgraded",
+        "vendor": "Mitochondriak",
+        "vendorKey": "mit",
+        "kind": "Half-body PBM panel",
+        "blurb": "90×30 cm half-body panel. 7 wavelengths red + NIR + 940. 900 W. No UV.",
+        "url": "https://www.mitochondriak.com/mitochondriak-maxi/",
+        "affiliateUrl": "https://www.mitochondriak.com/mitochondriak-maxi/?a_box=z3fuqwwr",
+        "regions": ["CZ", "SK", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "mitochondriak-maxi-uvb",
+        "name": "Mitochondriak Maxi UVB",
+        "vendor": "Mitochondriak",
+        "vendorKey": "mit",
+        "kind": "Half-body broad-spectrum panel",
+        "blurb": "90×30 cm broad-spectrum panel. UVB 295 + UVA 380 + blue 480 + red + NIR. 900 W. Independent UV+blue toggle.",
+        "url": {
+          "CZ": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/",
+          "SK": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/",
+          "INTL": "https://www.mitochondriak.com/mitochondriak-maxi-uvb/"
+        },
+        "affiliateUrl": {
+          "CZ": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/?a_box=z3fuqwwr",
+          "SK": "https://www.easylight.sk/cs/infrapanel-mitochondriak-maxi-uvb/?a_box=z3fuqwwr",
+          "INTL": "https://www.mitochondriak.com/mitochondriak-maxi-uvb/?a_box=z3fuqwwr"
+        },
+        "regions": ["CZ", "SK", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "chroma-trinity",
+        "name": "Chroma Trinity",
+        "vendor": "Chroma",
+        "vendorKey": "chroma",
+        "kind": "Handheld broad-spectrum panel",
+        "blurb": "11-wavelength handheld with three modular modes — Ironforge (red+NIR), Lux Vital (cyan/violet/UVA + extended NIR), D-Light (UVB 297 nm). ~310 W combined.",
+        "url": "https://getchroma.co/products/trinity",
+        "affiliateUrl": "https://getchroma.co/products/trinity?ref=getbased",
+        "regions": ["INTL"]
+      },
+      {
+        "type": "product",
+        "key": "chroma-ironforge",
+        "name": "Chroma Ironforge",
+        "vendor": "Chroma",
+        "vendorKey": "chroma",
+        "kind": "Compact handheld PBM",
+        "blurb": "5-wavelength PBM handheld — 630/670 red + 760/810/850 NIR (850-dominant for deep tissue). 200 W.",
+        "url": "https://getchroma.co/products/ironforge",
+        "affiliateUrl": "https://getchroma.co/products/ironforge?ref=getbased",
+        "regions": ["INTL"]
+      },
+      {
+        "type": "product",
+        "key": "chroma-ironforge-mini",
+        "name": "Chroma Ironforge Mini",
+        "vendor": "Chroma",
+        "vendorKey": "chroma",
+        "kind": "Pocket handheld PBM",
+        "blurb": "Yoga-block-sized handheld with the same 5-wavelength split as Ironforge. 200 W.",
+        "url": "https://getchroma.co/products/ironforge-mini",
+        "affiliateUrl": "https://getchroma.co/products/ironforge-mini?ref=getbased",
+        "regions": ["INTL"]
+      },
+      {
+        "type": "product",
+        "key": "chroma-radiance",
+        "name": "Chroma Radiance",
+        "vendor": "Chroma",
+        "vendorKey": "chroma",
+        "kind": "Compact 4-band handheld",
+        "blurb": "405 nm violet + 630/660 red + 810 NIR. Adds eye/skin OPN5 effects beyond pure PBM. 50 W.",
+        "url": "https://getchroma.co/products/radiance",
+        "affiliateUrl": "https://getchroma.co/products/radiance?ref=getbased",
+        "regions": ["INTL"]
+      },
+      {
+        "type": "product",
+        "key": "chroma-red-portal",
+        "name": "Chroma Red Portal",
+        "vendor": "Chroma",
+        "vendorKey": "chroma",
+        "kind": "Desk / wall ambient PBM lamp",
+        "blurb": "Workspace ambient red light. 670 + 810 nm. 40 W. Lower irradiance, all-day exposure model.",
+        "url": "https://getchroma.co/products/red-portal",
+        "affiliateUrl": "https://getchroma.co/products/red-portal?ref=getbased",
+        "regions": ["INTL"]
+      },
+      {
+        "type": "product",
+        "key": "chroma-sky-portal",
+        "name": "Chroma Sky Portal 2.1",
+        "vendor": "Chroma",
+        "vendorKey": "chroma",
+        "kind": "Circadian desk lamp",
+        "blurb": "Day mode: violet 415 + cyan 480 + balanced NIR (>10,000 melanopic lux @ 10 inches). Night mode: deep red 660 + 1300 K warm glow.",
+        "url": "https://getchroma.co/products/sky-portal",
+        "affiliateUrl": "https://getchroma.co/products/sky-portal?ref=getbased",
+        "regions": ["INTL"]
+      },
+      {
+        "type": "product",
+        "key": "chroma-chromatorch",
+        "name": "Chroma Chromatorch",
+        "vendor": "Chroma",
+        "vendorKey": "chroma",
+        "kind": "Pocket PBM torch",
+        "blurb": "226 g torch. Three-band split (~33% each at 670/810/850 nm). 800+ hr battery.",
+        "url": "https://getchroma.co/products/chromatorch",
+        "affiliateUrl": "https://getchroma.co/products/chromatorch?ref=getbased",
+        "regions": ["INTL"]
+      },
+      {
+        "type": "product",
+        "key": "emr-tek-inferno",
+        "name": "EMR-Tek Inferno",
+        "vendor": "EMR-Tek",
+        "kind": "Full-body PBM panel",
+        "blurb": "1400 W full-body panel. 630/670 red + 830 NIR. 132 LEDs + 5 COB modules.",
+        "url": "https://emr-tek.com/products/inferno",
+        "affiliateUrl": null,
+        "regions": ["US", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "emr-tek-firedragon",
+        "name": "EMR-Tek Firedragon",
+        "vendor": "EMR-Tek",
+        "kind": "Desktop PBM panel",
+        "blurb": "Mid-size 504 W panel. 6 wavelengths (630/660/670 + 810/830/850). COB architecture with adjustable stand.",
+        "url": "https://emr-tek.com/products/firedragon",
+        "affiliateUrl": null,
+        "regions": ["US", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "emr-tek-firewave-compact",
+        "name": "EMR-Tek Firewave Compact",
+        "vendor": "EMR-Tek",
+        "kind": "Desktop COB PBM device",
+        "blurb": "200 W chip-on-board device. 1400 mW/cm² at the panel face — effective output at 20 inches matches a standard panel at 6 inches.",
+        "url": "https://emr-tek.com/products/firewave",
+        "affiliateUrl": null,
+        "regions": ["US", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "emr-tek-firewave-pro",
+        "name": "EMR-Tek Firewave Pro",
+        "vendor": "EMR-Tek",
+        "kind": "Desktop PBM panel",
+        "blurb": "350 W desktop panel. 630/670 red + 830 NIR.",
+        "url": "https://emr-tek.com/products/firewave-pro-300-watts-red-and-near-infrared-light",
+        "affiliateUrl": null,
+        "regions": ["US", "INTL"]
+      },
+      {
+        "type": "product",
+        "key": "emr-tek-firefly",
+        "name": "EMR-Tek Firefly Portable",
+        "vendor": "EMR-Tek",
+        "kind": "USB-C battery-powered handheld",
+        "blurb": "Battery-powered portable. 1.5 hr runtime per charge. 630/670 red + 830 NIR.",
+        "url": "https://emr-tek.com/products/firefly-1",
+        "affiliateUrl": null,
+        "regions": ["US", "INTL"]
+      }
+    ]
+  },
+  "exportedAt": "2026-04-28T04:37:20.648Z"
+}

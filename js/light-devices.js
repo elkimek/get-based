@@ -692,7 +692,7 @@ export function openDeviceSessionDetail(id) {
       const tlabel = tierLabel(t);
       const unitText = formatChannelUnit(k, v, sess.durationMin || 0, 'III', null, null, false, _sessBodyFrac);
       const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
-      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
+      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
         <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
         <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
         <span class="sun-detail-channel-value">${escapeHTML(unitText || '')}</span>
@@ -703,7 +703,7 @@ export function openDeviceSessionDetail(id) {
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
-  overlay.innerHTML = `<div class="modal sun-detail-modal" role="dialog" aria-label="Device session details">
+  overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="device" role="dialog" aria-label="Device session details">
     <div class="modal-header">
       <h3>Device session — ${escapeHTML(start)}</h3>
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>

@@ -255,6 +255,12 @@ assert('creates block when none exists', enriched2.includes('[section:interpreti
 assert('new block at top when none existed', enriched2.indexOf('[section:interpretiveLens]') < enriched2.indexOf('Profile info'));
 const passthrough = window.injectLensChunks(ctxWithLens, null);
 assert('null lens result is passthrough', passthrough === ctxWithLens);
+const enrichedLong = window.injectLensChunks('Profile info', {
+  chunks: [{ text: 'x'.repeat(5000), source: 'Large doc' }],
+  sourceName: 'BigLens',
+});
+assert('long lens chunk is trimmed before prompt injection', enrichedLong.includes('[trimmed]'));
+assert('long lens chunk does not inject full excerpt', !enrichedLong.includes('x'.repeat(2500)));
 
 // ─── 8. Status pub/sub ───
 console.log('\n8. Status pub/sub');
@@ -287,6 +293,8 @@ console.log('\n11. lab-context.js helper');
 const lcSrc = read('js/lab-context.js');
 assert('exports injectLensChunks', lcSrc.includes('export function injectLensChunks('));
 assert('injectLensChunks handles close tag', lcSrc.includes('[/section:interpretiveLens]'));
+assert('injectLensChunks caps prompt chunk length', lcSrc.includes('LENS_PROMPT_CHUNK_CHAR_LIMIT'));
+assert('injectLensChunks caps total prompt text', lcSrc.includes('LENS_PROMPT_CHUNK_TOTAL_LIMIT'));
 assert('window exports injectLensChunks', lcSrc.includes('injectLensChunks,'));
 
 // ─── 12. Wiring: sync.js registration ───

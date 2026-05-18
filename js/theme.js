@@ -1,6 +1,10 @@
 // theme.js — Theme management, chart colors, time format
 
 const VALID_THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+const CRT_EFFECT_THEMES = new Set(['cyberterm', 'synth-sunrise', 'neuromancer']);
+const SUNSET_MODE_KEY = 'labcharts-sunset-mode';
+const CRT_EFFECTS_KEY = 'labcharts-crt-effects';
+const SUNSET_THEME_COLOR = '#120504';
 const THEME_BAR_COLORS = {
   dark: '#0a0a12',
   light: '#ffffff',
@@ -59,7 +63,54 @@ export function getTheme() {
 }
 
 export function getThemeColor(theme = getTheme()) {
+  if (isSunsetMode()) return SUNSET_THEME_COLOR;
   return THEME_BAR_COLORS[theme] || THEME_BAR_COLORS.dark;
+}
+
+export function isSunsetMode() {
+  return localStorage.getItem(SUNSET_MODE_KEY) === 'true';
+}
+
+export function isCrtEffectsEnabled() {
+  return localStorage.getItem(CRT_EFFECTS_KEY) === 'true';
+}
+
+export function supportsCrtEffects(theme = getTheme()) {
+  return CRT_EFFECT_THEMES.has(theme);
+}
+
+function applyCrtEffectsAttr(enabled = isCrtEffectsEnabled()) {
+  if (typeof document === 'undefined') return;
+  if (enabled) document.documentElement.dataset.crtEffects = 'on';
+  else delete document.documentElement.dataset.crtEffects;
+}
+
+export function setSunsetMode(enabled) {
+  const on = !!enabled;
+  if (on) localStorage.setItem(SUNSET_MODE_KEY, 'true');
+  else localStorage.removeItem(SUNSET_MODE_KEY);
+  if (on) document.documentElement.dataset.sunsetMode = 'on';
+  else delete document.documentElement.dataset.sunsetMode;
+  document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
+    meta.content = getThemeColor(getTheme());
+  });
+  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+    window.dispatchEvent(new CustomEvent('labcharts-themechange', {
+      detail: { theme: getTheme(), sunsetMode: on },
+    }));
+  }
+}
+
+export function setCrtEffectsEnabled(enabled) {
+  const on = !!enabled;
+  if (on) localStorage.setItem(CRT_EFFECTS_KEY, 'true');
+  else localStorage.removeItem(CRT_EFFECTS_KEY);
+  applyCrtEffectsAttr(on);
+  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+    window.dispatchEvent(new CustomEvent('labcharts-themechange', {
+      detail: { theme: getTheme(), crtEffects: on },
+    }));
+  }
 }
 
 export function setTheme(theme) {
@@ -88,42 +139,17 @@ function refreshThemeDependents() {
   }
 }
 
-let toggleThemeFrame = 0;
-let toggleThemeTimer = 0;
 let toggleReturnTheme = 'dark';
-function cancelScheduledThemeCommit() {
-  if (toggleThemeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(toggleThemeFrame);
-  if (toggleThemeTimer) clearTimeout(toggleThemeTimer);
-  toggleThemeFrame = 0;
-  toggleThemeTimer = 0;
-}
-function scheduleThemeCommit(theme) {
-  cancelScheduledThemeCommit();
-  const commit = () => {
-    toggleThemeTimer = 0;
-    setTheme(theme);
-    refreshThemeDependents();
-  };
-  if (typeof window.requestAnimationFrame === 'function') {
-    toggleThemeFrame = window.requestAnimationFrame(() => {
-      toggleThemeFrame = window.requestAnimationFrame(() => {
-        toggleThemeFrame = 0;
-        commit();
-      });
-    });
-  } else {
-    toggleThemeTimer = setTimeout(commit, 0);
-  }
-}
 
 export function toggleTheme() {
   const current = getTheme();
-  cancelScheduledThemeCommit();
   const next = current === 'light' ? (VALID_THEMES.includes(toggleReturnTheme) ? toggleReturnTheme : 'dark') : 'light';
   if (current !== 'light') toggleReturnTheme = current;
   setTheme(next);
   refreshThemeDependents();
 }
+
+applyCrtEffectsAttr();
 
 export function getChartColors() {
   const s = getComputedStyle(document.documentElement);
@@ -140,4 +166,4 @@ export function getChartColors() {
   };
 }
 
-Object.assign(window, { getTheme, getThemeColor, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });
+Object.assign(window, { getTheme, getThemeColor, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });

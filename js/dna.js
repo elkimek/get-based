@@ -3,7 +3,7 @@
 // Runs the heavy parsing in a Web Worker (inline blob) to keep UI responsive
 
 import { state } from './state.js';
-import { escapeHTML, hashString, showNotification } from './utils.js';
+import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 
 // ═══════════════════════════════════════════════
@@ -188,6 +188,29 @@ function createWorker() {
 let _snpTable = null;
 let _snpTablePromise = null;
 
+export const SNP_CATEGORY_LABELS = {
+  methylation: 'Methylation',
+  iron: 'Iron',
+  lipids: 'Lipids',
+  vitaminD: 'Vitamin D',
+  vitaminB12: 'Vitamin B12',
+  bilirubin: 'Bilirubin',
+  thyroid: 'Thyroid',
+  fattyAcids: 'Fatty Acids',
+  bloodSugar: 'Blood Sugar',
+  sexHormones: 'Sex Hormones',
+  alcohol: 'Alcohol',
+  caffeine: 'Caffeine',
+  bodyComposition: 'Body Composition',
+  skin: 'Skin & Sun',
+  other: 'Other'
+};
+
+export function getSnpCategoryLabel(category) {
+  if (!category) return SNP_CATEGORY_LABELS.other;
+  return SNP_CATEGORY_LABELS[category] || String(category);
+}
+
 function loadSNPTable({ forceFresh = false } = {}) {
   // Page-lifetime cache short-circuit. Bypass with forceFresh=true so a
   // re-import after a catalog version bump always sees the latest entries
@@ -254,7 +277,7 @@ export async function parseDNAFile(file) {
   // curated, only the specific allele call isn't a valid variant.
   const enriched = {};
   for (const [rsid, genotype] of Object.entries(result.matches)) {
-    const entry = snpTable[rsid];
+    const entry = snpTable?.[rsid];
     if (!entry) continue;
     const genotypeInfo = findGenotypeInfo(entry, genotype);
     if (!genotypeInfo) continue;
@@ -412,6 +435,8 @@ export function saveGeneticsData(profileData, parseResult) {
       genotype: data.genotype,
       gene: data.gene,
       variant: data.variant,
+      category: data.category || null,
+      markers: data.markers || [],
       effect: data.effect,
       valence: data.valence,
       note: data.note,
@@ -479,38 +504,37 @@ export function buildGeneticsContext(genetics, activeMarkerKeys) {
     lines.push(`APOE: ${genetics.apoe}`);
   }
 
+  // Group SNPs by functional category — skip raw APOE component SNPs
+  // (haplotype shown instead). Prefer catalog metadata when loaded, but fall
+  // back to stored metadata so AI context still preserves categories from
+  // imported/exported profile data before the catalog cache is ready.
   const snpTable = _snpTable;
-  if (!snpTable || !genetics.snps) {
-    if (lines.length === 0) return '';
-    const parts = [];
-    if (genetics.mtdna) parts.push(`mtDNA ${genetics.mtdna.haplogroup}`);
-    if (genetics.source) parts.push(genetics.source);
-    return `GENETICS (${parts.join(', ')}):\n${lines.map(l => '- ' + l).join('\n')}`;
-  }
-
-  // Group SNPs by category — skip raw APOE component SNPs (haplotype shown instead)
   const apoeRsids = new Set(['rs429358', 'rs7412']);
   const byCategory = {};
-  for (const [rsid, stored] of Object.entries(genetics.snps)) {
+  for (const [rsid, stored] of Object.entries(genetics.snps || {})) {
     if (genetics.apoe && apoeRsids.has(rsid)) continue; // haplotype covers these
-    const entry = snpTable[rsid];
-    if (!entry) continue;
-    const genotypeInfo = findGenotypeInfo(entry, stored.genotype);
-    if (!genotypeInfo || genotypeInfo.effect === 'none') continue;
+    const entry = snpTable?.[rsid];
+    const genotypeInfo = entry ? findGenotypeInfo(entry, stored.genotype) : {
+      effect: stored.effect,
+      note: stored.note,
+      valence: stored.valence,
+    };
+    if (!genotypeInfo || (genotypeInfo.effect === 'none' && genotypeInfo.valence !== 'protective')) continue;
 
     // Filter to SNPs relevant to active markers (if provided)
     if (activeMarkerKeys && activeMarkerKeys.length > 0) {
-      const hasRelevantMarker = (entry.markers || []).some(m => activeMarkerKeys.includes(m));
+      const markerKeys = entry?.markers || stored.markers || [];
+      const hasRelevantMarker = markerKeys.some(m => activeMarkerKeys.includes(m));
       if (!hasRelevantMarker) continue;
     }
 
-    const cat = entry.category || 'other';
+    const cat = entry?.category || stored.category || 'other';
     if (!byCategory[cat]) byCategory[cat] = [];
     byCategory[cat].push(`${stored.gene} ${stored.variant}: ${stored.genotype} — ${genotypeInfo.note}`);
   }
 
   for (const [cat, entries] of Object.entries(byCategory)) {
-    lines.push(...entries);
+    lines.push(`${getSnpCategoryLabel(cat)} (${entries.length}): ${entries.join('; ')}`);
   }
 
   if (lines.length === 0) return '';
@@ -557,18 +581,27 @@ export function renderGeneticsSection() {
   const apoe = genetics.apoe;
   const collapsed = localStorage.getItem('labcharts-genetics-collapsed') === '1';
 
-  // Group findings by category, skip "none"
+  const primaryImpactFor = (effect, valence) => {
+    if (valence === 'protective') return true;
+    if (valence === 'neutral') return false;
+    return effect === 'significant' || effect === 'moderate' || effect === 'mild';
+  };
+
+  // Group findings by category. Only meaningful impact tiers are shown up
+  // front; normal / neutral rows stay available in a collapsed group.
   const byCat = {};
+  const otherByCat = {};
   const apoeRsids = new Set(['rs429358', 'rs7412']);
   for (const [rsid, stored] of Object.entries(genetics.snps || {})) {
     if (apoe && apoeRsids.has(rsid)) continue;
     const entry = snpTable?.[rsid];
     if (!entry) continue;
     const info = findGenotypeInfo(entry, stored.genotype);
-    if (!info || info.effect === 'none') continue;
+    if (!info) continue;
     const cat = entry.category || 'other';
-    if (!byCat[cat]) byCat[cat] = [];
-    byCat[cat].push({ rsid, gene: stored.gene, variant: stored.variant, genotype: stored.genotype, effect: info.effect, valence: info.valence || 'risk', note: info.note, references: entry.references || [] });
+    const target = primaryImpactFor(info.effect, info.valence) ? byCat : otherByCat;
+    if (!target[cat]) target[cat] = [];
+    target[cat].push({ rsid, gene: stored.gene || entry.gene, variant: stored.variant || entry.variant, genotype: stored.genotype, effect: info.effect, valence: info.valence || 'risk', note: info.note, references: entry.references || [] });
   }
 
   // Sort categories by the weight of the heaviest finding in each — significant
@@ -580,20 +613,31 @@ export function renderGeneticsSection() {
   const _heaviest = (findings) => Math.min(...findings.map(f => _effectRank[f.effect] ?? 3));
   const catOrder = Object.entries(byCat).sort(([, a], [, b]) => _heaviest(a) - _heaviest(b));
   const totalFindings = catOrder.reduce((n, [, fs]) => n + fs.length, 0);
+  const otherCatOrder = Object.entries(otherByCat).sort(([, a], [, b]) => _heaviest(a) - _heaviest(b));
+  const otherFindings = otherCatOrder.reduce((n, [, fs]) => n + fs.length, 0);
 
   // Two-axis dot: severity x valence. Protective = green regardless of magnitude;
-  // neutral = white circle (lab-artifact / informational, neither bad nor good).
-  // Risk severity scales by warmth (significant -> red, moderate -> yellow, mild -> orange).
+  // neutral = white circle (lab-artifact / neutral, neither bad nor good).
+  // Risk severity scales by warmth (significant -> red, moderate -> orange, mild -> yellow).
   const dotFor = (effect, valence) => {
-    if (effect === 'none') return '';
     if (valence === 'protective') return '\uD83D\uDFE2';
     if (valence === 'neutral') return '\u26AA';
+    if (effect === 'none') return '\u26AA';
     if (effect === 'significant') return '\uD83D\uDD34';
-    if (effect === 'moderate') return '\uD83D\uDFE1';
-    if (effect === 'mild') return '\uD83D\uDFE0';
+    if (effect === 'moderate') return '\uD83D\uDFE0';
+    if (effect === 'mild') return '\uD83D\uDFE1';
     return '';
   };
-  const catLabels = { methylation: 'Methylation', iron: 'Iron', lipids: 'Lipids', vitaminD: 'Vitamin D', vitaminB12: 'Vitamin B12', bilirubin: 'Bilirubin', thyroid: 'Thyroid', fattyAcids: 'Fatty Acids', bloodSugar: 'Blood Sugar', sexHormones: 'Sex Hormones', alcohol: 'Alcohol', caffeine: 'Caffeine', bodyComposition: 'Body Composition', skin: 'Skin & Sun' };
+  const impactFor = (effect, valence) => {
+    if (valence === 'protective') return { label: 'beneficial', tone: 'beneficial', rank: 3 };
+    if (valence === 'neutral') return { label: 'neutral', tone: 'informational', rank: 4 };
+    if (effect === 'significant') return { label: 'significant', tone: 'significant', rank: 0 };
+    if (effect === 'moderate') return { label: 'moderate', tone: 'moderate', rank: 1 };
+    if (effect === 'mild') return { label: 'mild', tone: 'mild', rank: 2 };
+    if (effect === 'none') return { label: 'normal', tone: 'normal', rank: 5 };
+    return { label: 'unclassified', tone: 'informational', rank: 6 };
+  };
+  const catLabels = SNP_CATEGORY_LABELS;
 
   const metaParts = [];
   if (genetics.source) metaParts.push(escapeHTML(genetics.source));
@@ -611,6 +655,39 @@ export function renderGeneticsSection() {
     </div>`;
 
   html += `<div class="genetics-body${collapsed ? ' hidden' : ''}">`;
+
+  const overviewCards = [
+    {
+      label: 'Imported SNPs',
+      value: hasSnps ? snpCount.toLocaleString() : '0',
+      sub: genetics.source || 'Autosomal raw data'
+    },
+    {
+      label: 'Findings',
+      value: String(totalFindings),
+      sub: totalFindings ? 'Interpreted from known SNPs' : 'No interpreted findings'
+    },
+    apoe ? {
+      label: 'APOE',
+      value: apoe,
+      sub: 'Haplotype context'
+    } : null,
+    hasMtdna ? {
+      label: 'mtDNA',
+      value: genetics.mtdna.haplogroup,
+      sub: genetics.mtdna.coupling?.shortLabel || 'Maternal lineage'
+    } : null
+  ].filter(Boolean);
+
+  html += '<div class="genetics-overview-grid">';
+  overviewCards.forEach(card => {
+    html += `<div class="genetics-overview-card">
+      <span class="genetics-overview-label">${escapeHTML(card.label)}</span>
+      <strong>${escapeHTML(card.value)}</strong>
+      <small>${escapeHTML(card.sub)}</small>
+    </div>`;
+  });
+  html += '</div>';
 
   // mtDNA Haplogroup — prominent display
   if (hasMtdna) {
@@ -641,29 +718,39 @@ export function renderGeneticsSection() {
     const INITIAL_LIMIT = 8;
     html += `<div class="genetics-findings">`;
     // Legend — explain the dot scheme so users can read severity AND valence at a glance.
-    html += `<div class="genetics-legend" title="What the dots mean">
-      <span><span class="genetics-legend-dot">🔴</span> significant risk</span>
-      <span><span class="genetics-legend-dot">🟡</span> moderate risk</span>
-      <span><span class="genetics-legend-dot">🟠</span> mild risk</span>
-      <span><span class="genetics-legend-dot">🟢</span> beneficial</span>
-      <span><span class="genetics-legend-dot">⚪</span> informational</span>
+    html += `<div class="genetics-legend" title="What the dots mean" aria-label="Genetics significance legend">
+      <span class="genetics-legend-item genetics-legend-significant"><span class="genetics-legend-dot">🔴</span> significant risk</span>
+      <span class="genetics-legend-item genetics-legend-moderate"><span class="genetics-legend-dot">🟠</span> moderate risk</span>
+      <span class="genetics-legend-item genetics-legend-mild"><span class="genetics-legend-dot">🟡</span> mild risk</span>
+      <span class="genetics-legend-item genetics-legend-beneficial"><span class="genetics-legend-dot">🟢</span> beneficial</span>
+      <span class="genetics-legend-item genetics-legend-informational"><span class="genetics-legend-dot">⚪</span> neutral</span>
     </div>`;
     for (const [cat, findings] of catOrder) {
-      // Within-category: severity descending (significant → moderate → mild)
-      findings.sort((a, b) => (_effectRank[a.effect] ?? 3) - (_effectRank[b.effect] ?? 3));
+      // Within-category: severity descending, with beneficial and neutral
+      // entries still visible so the desktop section matches the mobile summary.
+      findings.sort((a, b) => impactFor(a.effect, a.valence).rank - impactFor(b.effect, b.valence).rank);
       const catLabel = catLabels[cat] || cat;
       const startHidden = shown >= INITIAL_LIMIT;
       html += `<div class="genetics-cat-group${startHidden ? ' genetics-extra' : ''}">`;
       html += `<div class="genetics-cat-label">${escapeHTML(catLabel)}</div>`;
       for (const f of findings) {
         const isExtra = shown >= INITIAL_LIMIT;
-        const refLink = f.references.length > 0 && /^https?:/.test(f.references[0]) ? ` <a href="${f.references[0].replace(/"/g, '&quot;')}" target="_blank" rel="noopener" class="detail-genetics-ref" title="Primary study (PubMed)">primary study</a>` : '';
-        const snpediaLink = ` <a href="https://www.snpedia.com/index.php/${f.rsid.charAt(0).toUpperCase() + f.rsid.slice(1)}" target="_blank" rel="noopener" class="detail-genetics-ref" title="All studies (SNPedia)">more studies</a>`;
-        html += `<div class="genetics-finding-row${isExtra && !startHidden ? ' genetics-extra' : ''}">
-          <span>${dotFor(f.effect, f.valence)}</span>
-          <span class="genetics-finding-gene">${escapeHTML(f.gene)} ${escapeHTML(f.variant)}</span>
+        const impact = impactFor(f.effect, f.valence);
+        const primaryRef = (f.references || []).find(ref => /^https?:\/\//i.test(String(ref || '')));
+        const refLink = primaryRef ? ` <a href="${escapeAttr(primaryRef)}" target="_blank" rel="noopener" class="detail-genetics-ref" title="Primary study (PubMed)">primary study</a>` : '';
+        const snpediaId = `${f.rsid.charAt(0).toUpperCase()}${f.rsid.slice(1)}`;
+        const snpediaLink = ` <a href="https://www.snpedia.com/index.php/${escapeAttr(encodeURIComponent(snpediaId))}" target="_blank" rel="noopener" class="detail-genetics-ref" title="All studies (SNPedia)">more studies</a>`;
+        const rowClasses = ['genetics-finding-row', `genetics-finding-${impact.tone}`];
+        if (isExtra && !startHidden) rowClasses.push('genetics-extra');
+        html += `<div class="${rowClasses.join(' ')}">
+          <span class="genetics-finding-dot">${dotFor(f.effect, f.valence)}</span>
+          <span class="genetics-finding-main">
+            <span class="genetics-finding-gene">${escapeHTML(f.gene || f.rsid)} ${escapeHTML(f.variant || '')}</span>
+            <span class="genetics-finding-rsid">${escapeHTML(f.rsid)} · ${escapeHTML(catLabel)}</span>
+          </span>
+          <span class="genetics-finding-impact genetics-impact-${impact.tone}">${escapeHTML(impact.label)}</span>
           <span class="genetics-finding-genotype">${escapeHTML(f.genotype)}</span>
-          <span class="genetics-finding-note">${escapeHTML(f.note)}${refLink}${snpediaLink}</span>
+          <span class="genetics-finding-note">${escapeHTML(f.note || 'Observed in your imported genotype.')}${refLink}${snpediaLink}</span>
         </div>`;
         shown++;
       }
@@ -673,6 +760,33 @@ export function renderGeneticsSection() {
       html += `<button class="genetics-show-all" onclick="toggleGeneticsExpand(this)">${totalFindings - INITIAL_LIMIT} more findings</button>`;
     }
     html += `</div>`;
+  }
+
+  if (otherFindings > 0) {
+    html += `<details class="genetics-other-snps">
+      <summary>Other imported SNPs (${otherFindings})</summary>
+      <div class="genetics-other-snps-list">`;
+    for (const [cat, findings] of otherCatOrder) {
+      findings.sort((a, b) => impactFor(a.effect, a.valence).rank - impactFor(b.effect, b.valence).rank);
+      const catLabel = catLabels[cat] || cat;
+      html += `<div class="genetics-cat-group genetics-cat-group-secondary">
+        <div class="genetics-cat-label">${escapeHTML(catLabel)}</div>`;
+      for (const f of findings) {
+        const impact = impactFor(f.effect, f.valence);
+        html += `<div class="genetics-finding-row genetics-finding-${impact.tone}">
+          <span class="genetics-finding-dot">${dotFor(f.effect, f.valence)}</span>
+          <span class="genetics-finding-main">
+            <span class="genetics-finding-gene">${escapeHTML(f.gene || f.rsid)} ${escapeHTML(f.variant || '')}</span>
+            <span class="genetics-finding-rsid">${escapeHTML(f.rsid)} · ${escapeHTML(catLabel)}</span>
+          </span>
+          <span class="genetics-finding-impact genetics-impact-${impact.tone}">${escapeHTML(impact.label)}</span>
+          <span class="genetics-finding-genotype">${escapeHTML(f.genotype)}</span>
+          <span class="genetics-finding-note">${escapeHTML(f.note || 'Observed in your imported genotype.')}</span>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div></details>`;
   }
 
   const _staleHint = _geneticsStalenessHint(genetics);
@@ -755,26 +869,27 @@ function showDNAImportPreview(result, fileName) {
   // curated effect tier \u2014 significant / moderate / mild / none. No "unknown"
   // bucket: surfacing those as "Genotype not in lookup" was misleading because
   // the rsID *is* curated, only the specific allele call was bad data.
-  const significant = [], moderate = [], mild = [], none = [];
+  const significant = [], moderate = [], mild = [], beneficial = [], none = [];
   for (const [rsid, m] of Object.entries(result.matches)) {
     if (apoeRsids.has(rsid)) continue;
-    const item = { rsid, ...m };
-    if (m.effect === 'significant') significant.push(item);
+    const item = { rsid, ...m, impact: m.valence === 'protective' ? 'beneficial' : m.effect };
+    if (item.impact === 'beneficial') beneficial.push(item);
+    else if (m.effect === 'significant') significant.push(item);
     else if (m.effect === 'moderate') moderate.push(item);
     else if (m.effect === 'mild') mild.push(item);
     else none.push(item);
   }
 
-  const effectIcon = { significant: '\uD83D\uDD34', moderate: '\uD83D\uDFE1', mild: '\uD83D\uDFE0', none: '\uD83D\uDFE2' };
-  const effectLabel = { significant: 'Significant impact', moderate: 'Moderate impact', mild: 'Mild impact', none: 'Normal / no impact' };
+  const effectIcon = { significant: '\uD83D\uDD34', moderate: '\uD83D\uDFE0', mild: '\uD83D\uDFE1', beneficial: '\uD83D\uDFE2', none: '\u26AA' };
+  const effectLabel = { significant: 'Significant impact', moderate: 'Moderate impact', mild: 'Mild impact', beneficial: 'Beneficial', none: 'Normal / no impact' };
 
   function renderGroup(items, label) {
     if (items.length === 0) return '';
     return `<div class="dna-preview-group">
       <div class="dna-preview-group-title">${label} (${items.length})</div>
       ${items.map(m => `<div class="dna-preview-row">
-        <span class="dna-preview-icon">${effectIcon[m.effect] || '\u2753'}</span>
-        <span class="dna-preview-gene">${escapeHTML(m.gene)} <span class="dna-preview-variant">${escapeHTML(m.variant)}</span></span>
+        <span class="dna-preview-icon">${effectIcon[m.impact || m.effect] || '\u2753'}</span>
+        <span class="dna-preview-gene">${escapeHTML(m.gene)} <span class="dna-preview-variant">${escapeHTML(m.variant)}</span> <span class="dna-preview-category">${escapeHTML(getSnpCategoryLabel(m.category))}</span></span>
         <span class="dna-preview-genotype">${escapeHTML(m.genotype)}</span>
       </div>
       <div class="dna-preview-note">${escapeHTML(m.note)}</div>`).join('')}
@@ -789,8 +904,8 @@ function showDNAImportPreview(result, fileName) {
       </div>
       <div class="dna-preview-collapsed-items">
         ${items.map(m => `<div class="dna-preview-row">
-          <span class="dna-preview-icon">${effectIcon[m.effect] || '\u2753'}</span>
-          <span class="dna-preview-gene">${escapeHTML(m.gene)} <span class="dna-preview-variant">${escapeHTML(m.variant)}</span></span>
+          <span class="dna-preview-icon">${effectIcon[m.impact || m.effect] || '\u2753'}</span>
+          <span class="dna-preview-gene">${escapeHTML(m.gene)} <span class="dna-preview-variant">${escapeHTML(m.variant)}</span> <span class="dna-preview-category">${escapeHTML(getSnpCategoryLabel(m.category))}</span></span>
           <span class="dna-preview-genotype">${escapeHTML(m.genotype)}</span>
         </div>`).join('')}
       </div>
@@ -805,9 +920,10 @@ function showDNAImportPreview(result, fileName) {
     </div>
     <div class="dna-preview-body">
       ${renderGroup(significant, '\uD83D\uDD34 Significant findings')}
-      ${renderGroup(moderate, '\uD83D\uDFE1 Moderate findings')}
-      ${renderCollapsedGroup(mild, '\uD83D\uDFE0 Mild findings')}
-      ${renderCollapsedGroup(none, '\uD83D\uDFE2 Normal')}
+      ${renderGroup(moderate, '\uD83D\uDFE0 Moderate findings')}
+      ${renderGroup(mild, '\uD83D\uDFE1 Mild findings')}
+      ${renderGroup(beneficial, '\uD83D\uDFE2 Beneficial findings')}
+      ${renderCollapsedGroup(none, '\u26AA Other imported SNPs')}
     </div>
     <div class="dna-preview-disclaimer">
       Processed locally \u2014 your DNA file was never transmitted. Only matched SNPs are stored.
@@ -1216,6 +1332,8 @@ Object.assign(window, {
   confirmDNAImport,
   confirmDeleteDNA,
   deleteGeneticsData,
+  getSnpCategoryLabel,
+  SNP_CATEGORY_LABELS,
   toggleGeneticsCollapse,
   toggleGeneticsExpand,
   reimportDNA,

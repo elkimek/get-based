@@ -315,5 +315,53 @@ if (apiKeyListMatch) {
 // it isn't, so only the source-string check above runs. The puppeteer
 // suite (which has the full crypto stack) exercises the runtime path.
 
+// ─── 20. Streaming finish_reason length is surfaced ───
+console.log('\n20. Streaming finish_reason length');
+const savedProviderStream = localStorage.getItem('labcharts-ai-provider');
+const savedUrlStream = localStorage.getItem('labcharts-custom-url');
+const savedKeyStream = localStorage.getItem('labcharts-custom-key');
+const savedRuntimeKeyStream = window.getCustomApiKey ? window.getCustomApiKey() : '';
+const savedModelStream = localStorage.getItem('labcharts-custom-model');
+const savedFetch = globalThis.fetch;
+try {
+  window.setAIProvider('custom');
+  window.setCustomApiUrl('http://localhost:9999/v1');
+  window.setCustomApiModel('stream-test-model');
+  window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', 'test-key');
+
+  const encoder = new TextEncoder();
+  globalThis.fetch = async () => new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"partial sentence"},"finish_reason":null}]}\n\n'));
+      controller.enqueue(encoder.encode('data: {"choices":[{"delta":{},"finish_reason":"length"}],"usage":{"prompt_tokens":10,"completion_tokens":16}}\n\n'));
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    }
+  }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+
+  let streamed = '';
+  const result = await window.callCustomAPI({
+    system: '',
+    messages: [{ role: 'user', content: 'test' }],
+    maxTokens: 16,
+    onStream(text) { streamed = text; },
+  });
+  assert('stream callback received content', streamed === 'partial sentence', streamed);
+  assert('stream result preserves text', result.text === 'partial sentence', result.text);
+  assert('stream result preserves finishReason', result.finishReason === 'length', result.finishReason);
+  assert('stream result marks truncated', result.truncated === true, String(result.truncated));
+} finally {
+  globalThis.fetch = savedFetch;
+  if (savedProviderStream) localStorage.setItem('labcharts-ai-provider', savedProviderStream);
+  else localStorage.removeItem('labcharts-ai-provider');
+  if (savedUrlStream) localStorage.setItem('labcharts-custom-url', savedUrlStream);
+  else localStorage.removeItem('labcharts-custom-url');
+  if (savedKeyStream) localStorage.setItem('labcharts-custom-key', savedKeyStream);
+  else localStorage.removeItem('labcharts-custom-key');
+  window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', savedRuntimeKeyStream);
+  if (savedModelStream) localStorage.setItem('labcharts-custom-model', savedModelStream);
+  else localStorage.removeItem('labcharts-custom-model');
+}
+
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

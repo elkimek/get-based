@@ -28,6 +28,8 @@ import { onChatSaved } from './sync.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 
 const MAX_THREADS = 50;
+const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
 
 export function getChatThreadsKey() {
   return `labcharts-${state.currentProfile}-chat-threads`;
@@ -264,8 +266,8 @@ export function renderThreadList(filter) {
         <span>${t.messageCount} msg${t.messageCount !== 1 ? 's' : ''}</span>
       </div>
       <div class="chat-thread-item-actions">
-        <button class="chat-thread-item-action" onclick="event.stopPropagation();renameThreadPrompt('${escapeHTML(t.id)}')" title="Rename" aria-label="Rename thread">&#9998;</button>
-        <button class="chat-thread-item-action delete" onclick="event.stopPropagation();deleteThread('${escapeHTML(t.id)}')" title="Delete" aria-label="Delete thread">&#10005;</button>
+        <button class="chat-thread-item-action" onclick="event.stopPropagation();renameThreadPrompt('${escapeHTML(t.id)}')" title="Rename" aria-label="Rename thread">${THREAD_ICON_EDIT}</button>
+        <button class="chat-thread-item-action delete" onclick="event.stopPropagation();deleteThread('${escapeHTML(t.id)}')" title="Delete" aria-label="Delete thread">${THREAD_ICON_DELETE}</button>
       </div>
     </div>`;
   }).join('');

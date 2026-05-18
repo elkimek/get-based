@@ -388,7 +388,16 @@ const {
   // gets caught by the streaming byte-counter cap. Source-inspection +
   // a runtime probe through the actual fetchJson path.
   {
-    const uvSrc = (await import('node:fs')).default.readFileSync(new URL('../js/sun-uvdata.js', import.meta.url), 'utf-8');
+    const fs = (await import('node:fs')).default;
+    const uvSrc = fs.readFileSync(new URL('../js/sun-uvdata.js', import.meta.url), 'utf-8');
+    const apiProxySrc = fs.readFileSync(new URL('../api/proxy.js', import.meta.url), 'utf-8');
+    const viewsSrc = fs.readFileSync(new URL('../js/views.js', import.meta.url), 'utf-8');
+    assert('Vercel CAMS proxy defaults to hosted getbased-uvdata',
+      /DEFAULT_UVDATA_UPSTREAM\s*=\s*'https:\/\/uvdata\.getbased\.health'/.test(apiProxySrc));
+    assert('Vercel CAMS proxy surfaces missing hosted bearer explicitly',
+      /CAMS hosted relay requires UVDATA_BEARER/.test(apiProxySrc));
+    assert('Light explainer says CAMS is the default atmosphere source',
+      /<strong>Atmosphere data\.<\/strong> CAMS by default/.test(viewsSrc));
     assert('fetchJson defines _UV_RESPONSE_CAP_BYTES',
       /_UV_RESPONSE_CAP_BYTES\s*=\s*256\s*\*\s*1024/.test(uvSrc));
     assert('fetchJson does Content-Length pre-check',

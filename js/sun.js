@@ -1602,18 +1602,19 @@ export function _wireBackdropClose(overlay, closeFn) {
 //      doesn't scroll under the modal on touch / wheel input.
 //   4. Bind Escape-to-close so keyboard users can dismiss without mousing.
 //
-// Stacks correctly with nested overlays via a refcount on the body lock —
+// Stacks correctly with nested overlays by tracking the active overlay nodes:
 // only the outermost teardown restores `body.style.overflow`.
-let _modalScrollLockCount = 0;
+const _modalScrollLocks = new Set();
 let _modalPriorOverflow = '';
 export function trapModalFocus(overlay) {
   const previouslyFocused = document.activeElement;
-  // Body scroll lock — refcount so nested modals don't unlock the outer.
-  if (_modalScrollLockCount === 0) {
+  // Body scroll lock: node tracking so stale teardown observers can't unlock
+  // the page while another overlay is still mounted.
+  if (_modalScrollLocks.size === 0) {
     _modalPriorOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
   }
-  _modalScrollLockCount++;
+  _modalScrollLocks.add(overlay);
+  document.body.style.overflow = 'hidden';
   let teardown = false;
   // Defer until after the browser paints — innerHTML may be set right
   // after appendChild, and querySelector before paint can race.
@@ -1641,9 +1642,11 @@ export function trapModalFocus(overlay) {
     if (teardown) return;
     teardown = true;
     document.removeEventListener('keydown', onKeydown);
-    _modalScrollLockCount = Math.max(0, _modalScrollLockCount - 1);
-    if (_modalScrollLockCount === 0) {
+    _modalScrollLocks.delete(overlay);
+    if (_modalScrollLocks.size === 0) {
       document.body.style.overflow = _modalPriorOverflow;
+    } else {
+      document.body.style.overflow = 'hidden';
     }
     if (previouslyFocused && typeof previouslyFocused.focus === 'function'
         && document.contains(previouslyFocused)) {
@@ -2628,7 +2631,7 @@ export function renderSunSessionRow(sess) {
     : '';
   // Click anywhere on the card (except the × delete) to open the detail
   // modal. Each delete button stops propagation so it only deletes.
-  return `<div class="sun-session" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}" style="cursor:pointer">
+  return `<div class="sun-session light-session-row light-session-sun" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}">
     <div class="sun-session-head">
       <span class="light-session-icon" aria-hidden="true">☀</span>
       <span class="sun-session-date">${start}</span>
@@ -2730,7 +2733,7 @@ export function openSunSessionDetail(id) {
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
     const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null);
     const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
-    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
+    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
       <span class="sun-detail-channel-value"${pctOfTarget != null && !unitText ? ` title="${escapeAttr(pctOfTarget + '% of typical-active-day target — calibrated to roughly 30-60 min of moderate-body-fraction midday exposure (skin channels) or 10-30 min eye-direct outdoor light (eye channels). Over 100% means you got more than typical, NOT more than safe — burn risk is the % MED chip, not this. Targets are dosing references, not exposure ceilings.')}"` : ''}>${unitText || (pctOfTarget != null ? `${pctOfTarget}%` : '')}</span>
@@ -2845,7 +2848,7 @@ export function openSunSessionDetail(id) {
     if (surfLabel) modifierBits.push(surfLabel.split(' (')[0]); // drop the "(~25%)" suffix
   }
 
-  overlay.innerHTML = `<div class="modal sun-detail-modal" role="dialog" aria-label="Sun session details">
+  overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="sun" role="dialog" aria-label="Sun session details">
     <div class="modal-header">
       <h3>Sun session · ${escapeHTML(fmtTitleDate(start))}</h3>
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>

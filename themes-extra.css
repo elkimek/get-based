@@ -94,7 +94,7 @@
   --shadow-glow: 0 0 0 1px var(--accent), 0 8px 24px rgba(201,134,255,0.25);
   --radius: 22px;
   --radius-sm: 14px;
-  --font-display: 'Fraunces', Georgia, serif;
+  --font-display: 'Outfit', 'Inter', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 [data-theme="glass"] body {
@@ -125,6 +125,19 @@
 [data-theme="glass"] .trend-alert-card,
 [data-theme="glass"] .supp-timeline,
 [data-theme="glass"] .alert-card,
+[data-theme="glass"] .light-today-strip,
+[data-theme="glass"] .light-conditions-now-wrap,
+[data-theme="glass"] .light-setup-card,
+[data-theme="glass"] .light-setup-summary,
+[data-theme="glass"] .light-setup-prompt,
+[data-theme="glass"] .light-channels-section,
+[data-theme="glass"] .light-collapsed-section,
+[data-theme="glass"] .light-channel-detail,
+[data-theme="glass"] .light-device-card,
+[data-theme="glass"] .light-explainer,
+[data-theme="glass"] .light-data-source-details,
+[data-theme="glass"] .conditions-now-cell,
+[data-theme="glass"] .sun-session,
 [data-theme="glass"] .modal,
 [data-theme="glass"] .header,
 [data-theme="glass"] .sidebar {
@@ -171,15 +184,15 @@
   --shadow-glow: 0 0 0 1px var(--accent), 0 0 24px rgba(255,43,214,0.4);
   --radius: 4px;
   --radius-sm: 2px;
-  --font-display: 'Orbitron', 'Outfit', sans-serif;
-  --font-mono: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 [data-theme="synth-sunrise"] body {
   background:
     radial-gradient(60% 80% at 50% 95%, #ff7a18 0%, #ff2bd6 22%, #7c3aed 42%, #1c0a4a 70%, #0d0524 100%);
   background-attachment: scroll;
   position: relative;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-family: 'Outfit', 'Inter', sans-serif;
 }
 [data-theme="synth-sunrise"] body::before {
   content: "";
@@ -255,13 +268,13 @@
   --shadow-glow: 0 0 0 1px var(--accent), 0 0 24px rgba(0,229,255,0.45);
   --radius: 0px;
   --radius-sm: 0px;
-  --font-display: 'Major Mono Display', 'Share Tech Mono', ui-monospace, monospace;
-  --font-mono: 'Share Tech Mono', ui-monospace, monospace;
+  --font-display: 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 [data-theme="neuromancer"] body {
   background-color: #050608;
   position: relative;
-  font-family: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 /* Subtle dataspace grid */
 [data-theme="neuromancer"] body::before {
@@ -283,8 +296,8 @@
 
 
 /* ------------------------------------------------------------
-   Font preconnects - add these <link>s to <head> if you want
-   the new themes' fonts to load. (See README.)
+   Fonts stay local: index.html loads vendor/fonts/fonts.css only, so the
+   theme switcher never leaks a page view to a third-party font host.
    ------------------------------------------------------------ */
 
 
@@ -347,6 +360,8 @@
 [data-theme="cyberterm"] .brand-mark::before {
   content: "$ ";
   color: var(--text-muted);
+  background: none;
+  -webkit-text-fill-color: var(--text-muted);
 }
 
 [data-theme="synth-sunrise"] .header {
@@ -399,7 +414,7 @@
 [data-theme="neuromancer"] .brand-mark,
 [data-theme="neuromancer"] .header h1.brand-mark,
 [data-theme="neuromancer"] .app-footer-logo {
-  font-family: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-caps: normal;
   letter-spacing: 0;
   text-transform: lowercase;
@@ -464,6 +479,132 @@
   background: rgba(0, 0, 0, 0.82);
 }
 
+[data-theme="glass"] .import-preview-modal,
+[data-theme="glass"] .feedback-redesign-modal,
+[data-theme="glass"] .pii-diff-modal,
+[data-theme="glass"] .ctx-editor-modal {
+  background: rgba(24, 18, 48, 0.96);
+}
+
+[data-theme="synth-sunrise"] .import-preview-modal,
+[data-theme="synth-sunrise"] .feedback-redesign-modal,
+[data-theme="synth-sunrise"] .pii-diff-modal,
+[data-theme="synth-sunrise"] .ctx-editor-modal {
+  background: rgba(21, 8, 48, 0.97);
+}
+
+[data-theme="neuromancer"] .import-preview-modal,
+[data-theme="neuromancer"] .feedback-redesign-modal,
+[data-theme="neuromancer"] .pii-diff-modal,
+[data-theme="neuromancer"] .ctx-editor-modal {
+  background: rgba(10, 13, 18, 0.97);
+}
+
+[data-theme="glass"] .import-preview-head,
+[data-theme="glass"] .import-review-actions,
+[data-theme="glass"] .feedback-modal-head,
+[data-theme="glass"] .feedback-actions,
+[data-theme="glass"] .pii-review-head,
+[data-theme="glass"] .pii-review-actions,
+[data-theme="glass"] .ctx-editor-head,
+[data-theme="glass"] .ctx-editor-actions,
+[data-theme="synth-sunrise"] .import-preview-head,
+[data-theme="synth-sunrise"] .import-review-actions,
+[data-theme="synth-sunrise"] .feedback-modal-head,
+[data-theme="synth-sunrise"] .feedback-actions,
+[data-theme="synth-sunrise"] .pii-review-head,
+[data-theme="synth-sunrise"] .pii-review-actions,
+[data-theme="synth-sunrise"] .ctx-editor-head,
+[data-theme="synth-sunrise"] .ctx-editor-actions,
+[data-theme="neuromancer"] .import-preview-head,
+[data-theme="neuromancer"] .import-review-actions,
+[data-theme="neuromancer"] .feedback-modal-head,
+[data-theme="neuromancer"] .feedback-actions,
+[data-theme="neuromancer"] .pii-review-head,
+[data-theme="neuromancer"] .pii-review-actions,
+[data-theme="neuromancer"] .ctx-editor-head,
+[data-theme="neuromancer"] .ctx-editor-actions {
+  background: color-mix(in srgb, var(--bg-secondary) 97%, var(--bg-card));
+}
+
+[data-theme="glass"] .dashboard-widget[data-widget-id="profile-context"] {
+  background: rgba(24, 18, 48, 0.86);
+}
+
+[data-theme="glass"] .dashboard-widget[data-widget-id="profile-context"] .context-card,
+[data-theme="glass"] .dashboard-widget[data-widget-id="profile-context"] .ctx-notes-textarea {
+  background: rgba(24, 18, 48, 0.84);
+}
+
+[data-theme="glass"] .ctx-editor-head,
+[data-theme="glass"] .ctx-editor-actions {
+  background: rgba(24, 18, 48, 0.98);
+}
+
+[data-theme="synth-sunrise"] .ctx-editor-head,
+[data-theme="synth-sunrise"] .ctx-editor-actions {
+  background: rgba(21, 8, 48, 0.98);
+}
+
+[data-theme="neuromancer"] .ctx-editor-head,
+[data-theme="neuromancer"] .ctx-editor-actions {
+  background: rgba(10, 13, 18, 0.98);
+}
+
+[data-theme="glass"] .feedback-select,
+[data-theme="glass"] .feedback-input,
+[data-theme="glass"] .feedback-textarea,
+[data-theme="glass"] .feedback-notice {
+  background: rgba(24, 18, 48, 0.94);
+}
+
+[data-theme="glass"] .import-filter-btn:not(.active),
+[data-theme="glass"] .import-review-search,
+[data-theme="glass"] .import-map-select,
+[data-theme="glass"] .import-map-input {
+  background: rgba(24, 18, 48, 0.94);
+}
+
+[data-theme="glass"] .import-filter-btn.active {
+  background: color-mix(in srgb, var(--accent) 20%, rgba(24, 18, 48, 0.96));
+}
+
+[data-theme="synth-sunrise"] .feedback-select,
+[data-theme="synth-sunrise"] .feedback-input,
+[data-theme="synth-sunrise"] .feedback-textarea,
+[data-theme="synth-sunrise"] .feedback-notice {
+  background: rgba(21, 8, 48, 0.95);
+}
+
+[data-theme="synth-sunrise"] .import-filter-btn:not(.active),
+[data-theme="synth-sunrise"] .import-review-search,
+[data-theme="synth-sunrise"] .import-map-select,
+[data-theme="synth-sunrise"] .import-map-input {
+  background: rgba(21, 8, 48, 0.95);
+}
+
+[data-theme="synth-sunrise"] .import-filter-btn.active {
+  background: color-mix(in srgb, var(--accent) 20%, rgba(21, 8, 48, 0.96));
+}
+
+[data-theme="neuromancer"] .feedback-select,
+[data-theme="neuromancer"] .feedback-input,
+[data-theme="neuromancer"] .feedback-textarea,
+[data-theme="neuromancer"] .feedback-notice {
+  background: rgba(10, 13, 18, 0.95);
+}
+
+[data-theme="neuromancer"] .import-filter-btn:not(.active),
+[data-theme="neuromancer"] .import-review-search,
+[data-theme="neuromancer"] .import-map-select,
+[data-theme="neuromancer"] .import-map-input {
+  background: rgba(10, 13, 18, 0.95);
+}
+
+[data-theme="neuromancer"] .import-filter-btn.active {
+  background: color-mix(in srgb, var(--accent) 20%, rgba(10, 13, 18, 0.96));
+}
+
 [data-theme="glass"] .status-normal,
 [data-theme="synth-sunrise"] .status-normal,
 [data-theme="neuromancer"] .status-normal {
@@ -490,10 +631,10 @@
   --font-body: 'Inter', system-ui, sans-serif;
 }
 [data-theme="synth-sunrise"] {
-  --font-body: 'Space Grotesk', 'Inter', sans-serif;
+  --font-body: 'Outfit', 'Inter', sans-serif;
 }
 [data-theme="neuromancer"] {
-  --font-body: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+  --font-body: 'JetBrains Mono', ui-monospace, monospace;
 }
 [data-theme="cyberterm"] body,
 [data-theme="glass"] body,
@@ -554,6 +695,204 @@
   background: color-mix(in srgb, var(--bg-card) 82%, transparent);
 }
 
+[data-theme="glass"] .chat-personality-options {
+  background: rgba(24, 18, 48, 0.96);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 26px 70px -26px rgba(0, 0, 0, 0.88),
+    0 0 0 1px rgba(201, 134, 255, 0.16);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+}
+
+[data-theme="synth-sunrise"] .chat-personality-options {
+  background: rgba(13, 5, 36, 0.97);
+  border-color: rgba(255, 43, 214, 0.46);
+  box-shadow:
+    0 26px 72px -26px rgba(0, 0, 0, 0.9),
+    0 0 34px -14px rgba(255, 43, 214, 0.65);
+}
+
+[data-theme="neuromancer"] .chat-personality-options {
+  background: rgba(5, 6, 8, 0.97);
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow:
+    0 28px 72px -28px rgba(0, 0, 0, 0.92),
+    0 0 36px -16px rgba(0, 229, 255, 0.62);
+}
+
+[data-theme="glass"] .chat-personality-opt,
+[data-theme="synth-sunrise"] .chat-personality-opt,
+[data-theme="neuromancer"] .chat-personality-opt,
+[data-theme="glass"] .chat-personality-add-btn,
+[data-theme="synth-sunrise"] .chat-personality-add-btn,
+[data-theme="neuromancer"] .chat-personality-add-btn {
+  background: rgba(5, 6, 12, 0.36);
+}
+
+[data-theme="glass"] .chat-personality-opt:hover,
+[data-theme="synth-sunrise"] .chat-personality-opt:hover,
+[data-theme="neuromancer"] .chat-personality-opt:hover,
+[data-theme="glass"] .chat-personality-add-btn:hover,
+[data-theme="synth-sunrise"] .chat-personality-add-btn:hover,
+[data-theme="neuromancer"] .chat-personality-add-btn:hover {
+  background: color-mix(in srgb, var(--accent) 18%, rgba(5, 6, 12, 0.88));
+}
+
+[data-theme="glass"] .chat-personality-opt.active,
+[data-theme="synth-sunrise"] .chat-personality-opt.active,
+[data-theme="neuromancer"] .chat-personality-opt.active {
+  background: color-mix(in srgb, var(--accent) 24%, rgba(5, 6, 12, 0.92));
+}
+
+[data-theme="glass"] .chat-personality-custom-name-input,
+[data-theme="glass"] .chat-personality-custom-textarea,
+[data-theme="synth-sunrise"] .chat-personality-custom-name-input,
+[data-theme="synth-sunrise"] .chat-personality-custom-textarea,
+[data-theme="neuromancer"] .chat-personality-custom-name-input,
+[data-theme="neuromancer"] .chat-personality-custom-textarea {
+  background: rgba(5, 6, 12, 0.72);
+}
+
+[data-theme="glass"] .client-list-modal,
+[data-theme="glass"] .client-list-modal .cl-tools-menu,
+[data-theme="glass"] .client-list-modal .cl-row-menu {
+  background: rgba(24, 18, 48, 0.96);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 34px 86px -30px rgba(0, 0, 0, 0.88),
+    0 0 0 1px rgba(201, 134, 255, 0.15);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+}
+
+[data-theme="glass"] .client-list-modal .cl-header,
+[data-theme="glass"] .client-list-modal .cl-form-actions {
+  background: rgba(34, 26, 66, 0.96);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="glass"] .client-list-modal .cl-search-wrap,
+[data-theme="glass"] .client-list-modal .cl-sort,
+[data-theme="glass"] .client-list-modal .cl-status-filter,
+[data-theme="glass"] .client-list-modal .cl-icon-btn,
+[data-theme="glass"] .client-list-modal .cl-form-input,
+[data-theme="glass"] .client-list-modal .cl-form-textarea,
+[data-theme="glass"] .client-list-modal .cl-tags-wrap {
+  background: rgba(5, 6, 12, 0.5);
+}
+
+[data-theme="glass"] .client-list-modal .cl-row:hover,
+[data-theme="glass"] .client-list-modal .cl-tools-item:hover,
+[data-theme="glass"] .client-list-modal .cl-menu-item:hover,
+[data-theme="glass"] .client-list-modal .cl-row-tag,
+[data-theme="glass"] .client-list-modal .cl-tag-pill {
+  background: rgba(48, 38, 88, 0.82);
+}
+
+[data-theme="glass"] .cycle-modal {
+  background: rgba(24, 18, 48, 0.96);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 34px 86px -30px rgba(0, 0, 0, 0.88),
+    0 0 0 1px rgba(201, 134, 255, 0.15);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+}
+
+[data-theme="synth-sunrise"] .cycle-modal {
+  background: rgba(13, 5, 36, 0.97);
+  border-color: rgba(255, 43, 214, 0.46);
+  box-shadow:
+    0 30px 78px -28px rgba(0, 0, 0, 0.9),
+    0 0 34px -14px rgba(255, 43, 214, 0.65);
+}
+
+[data-theme="neuromancer"] .cycle-modal {
+  background: rgba(5, 6, 8, 0.97);
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow:
+    0 30px 78px -28px rgba(0, 0, 0, 0.92),
+    0 0 36px -16px rgba(0, 229, 255, 0.62);
+}
+
+[data-theme="glass"] .cycle-modal .cycle-modal-head,
+[data-theme="glass"] .cycle-modal .cycle-modal-footer {
+  background: rgba(34, 26, 66, 0.96);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="synth-sunrise"] .cycle-modal .cycle-modal-head,
+[data-theme="synth-sunrise"] .cycle-modal .cycle-modal-footer,
+[data-theme="neuromancer"] .cycle-modal .cycle-modal-head,
+[data-theme="neuromancer"] .cycle-modal .cycle-modal-footer {
+  background: rgba(5, 6, 12, 0.82);
+}
+
+[data-theme="glass"] .cycle-modal .cycle-editor-section,
+[data-theme="glass"] .cycle-modal .cycle-log-item,
+[data-theme="glass"] .cycle-modal .cycle-field input,
+[data-theme="glass"] .cycle-modal .cycle-field select,
+[data-theme="glass"] .cycle-modal .cycle-auto-value,
+[data-theme="glass"] .cycle-modal .cycle-symptom-chip.ctx-tag,
+[data-theme="synth-sunrise"] .cycle-modal .cycle-editor-section,
+[data-theme="synth-sunrise"] .cycle-modal .cycle-log-item,
+[data-theme="synth-sunrise"] .cycle-modal .cycle-field input,
+[data-theme="synth-sunrise"] .cycle-modal .cycle-field select,
+[data-theme="synth-sunrise"] .cycle-modal .cycle-auto-value,
+[data-theme="synth-sunrise"] .cycle-modal .cycle-symptom-chip.ctx-tag,
+[data-theme="neuromancer"] .cycle-modal .cycle-editor-section,
+[data-theme="neuromancer"] .cycle-modal .cycle-log-item,
+[data-theme="neuromancer"] .cycle-modal .cycle-field input,
+[data-theme="neuromancer"] .cycle-modal .cycle-field select,
+[data-theme="neuromancer"] .cycle-modal .cycle-auto-value,
+[data-theme="neuromancer"] .cycle-modal .cycle-symptom-chip.ctx-tag {
+  background: rgba(5, 6, 12, 0.72);
+}
+
+[data-theme="glass"] .cycle-section .cycle-prompt,
+[data-theme="glass"] .cycle-section .cycle-summary-card,
+[data-theme="glass"] .cycle-section .cycle-draw-tag,
+[data-theme="glass"] .cycle-section .cycle-period-entry,
+[data-theme="glass"] .cycle-section .cycle-meta-tag,
+[data-theme="synth-sunrise"] .cycle-section .cycle-prompt,
+[data-theme="synth-sunrise"] .cycle-section .cycle-summary-card,
+[data-theme="synth-sunrise"] .cycle-section .cycle-draw-tag,
+[data-theme="synth-sunrise"] .cycle-section .cycle-period-entry,
+[data-theme="synth-sunrise"] .cycle-section .cycle-meta-tag,
+[data-theme="neuromancer"] .cycle-section .cycle-prompt,
+[data-theme="neuromancer"] .cycle-section .cycle-summary-card,
+[data-theme="neuromancer"] .cycle-section .cycle-draw-tag,
+[data-theme="neuromancer"] .cycle-section .cycle-period-entry,
+[data-theme="neuromancer"] .cycle-section .cycle-meta-tag {
+  background: rgba(5, 6, 12, 0.42);
+}
+
+[data-theme="glass"] .tweaks-overlay.show {
+  background: rgba(0, 0, 0, 0.72);
+}
+[data-theme="glass"] .tweaks-panel {
+  background: rgba(24, 18, 48, 0.94);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 36px 90px -28px rgba(0, 0, 0, 0.88), 0 0 0 1px rgba(201, 134, 255, 0.18);
+  backdrop-filter: blur(32px) saturate(155%);
+  -webkit-backdrop-filter: blur(32px) saturate(155%);
+}
+[data-theme="glass"] .tweaks-head {
+  background: rgba(34, 26, 66, 0.96);
+  border-bottom-color: rgba(255, 255, 255, 0.18);
+}
+[data-theme="glass"] .tweaks-body {
+  background: rgba(18, 13, 38, 0.82);
+}
+[data-theme="glass"] .tweaks-theme-btn,
+[data-theme="glass"] .tweaks-action-grid button,
+[data-theme="glass"] .tweaks-accent-btn,
+[data-theme="glass"] .tweaks-head .modal-close {
+  background: rgba(48, 38, 88, 0.9);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
 [data-theme="synth-sunrise"] .chat-panel {
   border-left-color: color-mix(in srgb, var(--accent) 45%, transparent);
   box-shadow: -18px 0 48px -24px rgba(255, 43, 214, 0.62), var(--shadow-lg);
@@ -597,13 +936,269 @@
   }
 }
 
+@media (max-width: 1024px) {
+  [data-theme] .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 360;
+  }
+}
+
 @media (max-width: 600px) {
   [data-theme="neuromancer"] .brand-mark,
-  [data-theme="neuromancer"] .header h1.brand-mark,
-  [data-theme="neuromancer"] .m-brand strong {
-    font-family: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+  [data-theme="neuromancer"] .header h1.brand-mark {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 17px;
     letter-spacing: 0;
     text-transform: lowercase;
+  }
+}
+
+/* ------------------------------------------------------------
+   SUNSET MODE
+   Cross-theme long-wavelength palette for red blue-blocking glasses.
+   ------------------------------------------------------------ */
+:root[data-sunset-mode="on"] {
+  color-scheme: dark;
+  --bg-primary: #0b0201;
+  --bg-secondary: #150503;
+  --bg-card: #21100a;
+  --bg-hover: #31170d;
+  --border: #663014;
+  --text-primary: #ffe8bb;
+  --text-secondary: #f7b46a;
+  --text-muted: #c9793f;
+  --accent: #ffb000;
+  --accent-light: #ffd166;
+  --on-accent: #180500;
+  --donate-accent: #ff9a26;
+  --on-donate-accent: #160400;
+  --accent-fill: rgba(255, 176, 0, 0.16);
+  --accent-gradient: linear-gradient(135deg, #ff5a2e 0%, #ffb000 58%, #ffd166 100%);
+  --green: #ffd166;
+  --green-bg: rgba(255, 209, 102, 0.13);
+  --red: #ff5a2e;
+  --red-bg: rgba(255, 90, 46, 0.16);
+  --yellow: #ffb000;
+  --yellow-bg: rgba(255, 176, 0, 0.14);
+  --orange: #ff7a1a;
+  --orange-bg: rgba(255, 122, 26, 0.15);
+  --purple: #ff9b54;
+  --purple-light: rgba(255, 155, 84, 0.18);
+  --cyan: rgba(255, 200, 87, 0.68);
+  --neutral-soft-bg: rgba(247, 180, 106, 0.10);
+  --alert-soft-bg: rgba(255, 90, 46, 0.12);
+  --ref-band: rgba(255, 176, 0, 0.08);
+  --ref-border: rgba(255, 176, 0, 0.30);
+  --chart-grid: rgba(102, 48, 20, 0.55);
+  --chart-tooltip-bg: rgba(21, 5, 3, 0.96);
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 52px -20px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 176, 0, 0.12);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 22px rgba(255, 122, 26, 0.18);
+  --status-high: var(--red);
+  --status-low: var(--yellow);
+  --status-normal: var(--green);
+}
+
+:root[data-sunset-mode="on"] body {
+  background:
+    radial-gradient(75% 55% at 50% 0%, rgba(255, 90, 46, 0.16), transparent 62%),
+    linear-gradient(180deg, #150503 0%, #0b0201 72%);
+  color: var(--text-primary);
+}
+
+:root[data-sunset-mode="on"] body::before,
+:root[data-sunset-mode="on"] .m-bg {
+  display: none !important;
+}
+
+:root[data-sunset-mode="on"] .chart-card,
+:root[data-sunset-mode="on"] .dashboard-widget,
+:root[data-sunset-mode="on"] .context-card,
+:root[data-sunset-mode="on"] .focus-card,
+:root[data-sunset-mode="on"] .lens-section,
+:root[data-sunset-mode="on"] .trend-alert-card,
+:root[data-sunset-mode="on"] .supp-timeline,
+:root[data-sunset-mode="on"] .alert-card,
+:root[data-sunset-mode="on"] .modal,
+:root[data-sunset-mode="on"] .header,
+:root[data-sunset-mode="on"] .sidebar,
+:root[data-sunset-mode="on"] .m-tabbar,
+:root[data-sunset-mode="on"] .m-stat-card,
+:root[data-sunset-mode="on"] .m-section,
+:root[data-sunset-mode="on"] .light-today-strip,
+:root[data-sunset-mode="on"] .light-conditions-now-wrap,
+:root[data-sunset-mode="on"] .light-channels-section,
+:root[data-sunset-mode="on"] .light-channel-detail,
+:root[data-sunset-mode="on"] .sun-session {
+  background-color: var(--bg-card);
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+:root[data-sunset-mode="on"] .header,
+:root[data-sunset-mode="on"] .sidebar,
+:root[data-sunset-mode="on"] .tweaks-panel,
+:root[data-sunset-mode="on"] .chat-panel {
+  background: color-mix(in srgb, var(--bg-secondary) 94%, #000);
+}
+
+:root[data-sunset-mode="on"] .status-normal,
+:root[data-sunset-mode="on"] .status-high,
+:root[data-sunset-mode="on"] .status-low,
+:root[data-sunset-mode="on"] .chart-card-status,
+:root[data-sunset-mode="on"] .sun-chip,
+:root[data-sunset-mode="on"] .light-pill,
+:root[data-sunset-mode="on"] .ctx-tag {
+  text-shadow: none;
+}
+
+:root[data-sunset-mode="on"] .sun-chip[data-channel],
+:root[data-sunset-mode="on"] .light-pill[data-channel],
+:root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel] {
+  --channel-accent: var(--orange);
+}
+
+:root[data-sunset-mode="on"] .sun-chip[data-channel="vitamin_d"],
+:root[data-sunset-mode="on"] .light-pill[data-channel="vitamin_d"],
+:root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="vitamin_d"] {
+  --channel-accent: var(--yellow);
+}
+
+:root[data-sunset-mode="on"] .sun-chip[data-channel="circadian"],
+:root[data-sunset-mode="on"] .light-pill[data-channel="circadian"],
+:root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="circadian"] {
+  --channel-accent: var(--accent);
+}
+
+:root[data-sunset-mode="on"] .sun-chip[data-channel="no_cv"],
+:root[data-sunset-mode="on"] .light-pill[data-channel="no_cv"],
+:root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="no_cv"] {
+  --channel-accent: var(--green);
+}
+
+/* ------------------------------------------------------------
+   CRT EFFECTS
+   Optional overlay for the terminal-style themes only.
+   ------------------------------------------------------------ */
+@keyframes crt-flicker {
+  50% { opacity: var(--crt-flicker-opacity, 0.68); }
+}
+
+@keyframes crt-sweep {
+  from {
+    background-position:
+      0 -190px,
+      0 0,
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      0 100vh,
+      0 0,
+      0 0,
+      0 0;
+  }
+}
+
+:root[data-crt-effects="on"][data-theme="cyberterm"],
+:root[data-crt-effects="on"][data-theme="synth-sunrise"],
+:root[data-crt-effects="on"][data-theme="neuromancer"] {
+  --crt-opacity: 0.82;
+  --crt-flicker-opacity: 0.66;
+  --crt-beam: rgba(140, 255, 210, 0.24);
+  --crt-line: rgba(255, 255, 255, 0.14);
+  --crt-gap: rgba(0, 0, 0, 0.24);
+  --crt-rgb-a: rgba(74, 222, 128, 0.08);
+  --crt-rgb-b: rgba(0, 255, 255, 0.07);
+  --crt-glow: rgba(74, 222, 128, 0.16);
+  --crt-text-glow: rgba(74, 222, 128, 0.20);
+}
+
+:root[data-crt-effects="on"][data-theme="synth-sunrise"] {
+  --crt-opacity: 0.76;
+  --crt-flicker-opacity: 0.60;
+  --crt-beam: rgba(255, 160, 255, 0.22);
+  --crt-line: rgba(255, 240, 255, 0.13);
+  --crt-gap: rgba(13, 5, 36, 0.22);
+  --crt-rgb-a: rgba(255, 20, 110, 0.08);
+  --crt-rgb-b: rgba(0, 255, 255, 0.07);
+  --crt-glow: rgba(255, 43, 214, 0.16);
+  --crt-text-glow: rgba(255, 43, 214, 0.20);
+}
+
+:root[data-crt-effects="on"][data-theme="neuromancer"] {
+  --crt-opacity: 0.80;
+  --crt-flicker-opacity: 0.64;
+  --crt-beam: rgba(140, 255, 255, 0.24);
+  --crt-line: rgba(225, 250, 255, 0.14);
+  --crt-gap: rgba(0, 0, 0, 0.25);
+  --crt-rgb-a: rgba(255, 20, 110, 0.075);
+  --crt-rgb-b: rgba(0, 255, 255, 0.085);
+  --crt-glow: rgba(0, 229, 255, 0.16);
+  --crt-text-glow: rgba(0, 229, 255, 0.20);
+}
+
+:root[data-crt-effects="on"][data-theme="cyberterm"] .brand-mark,
+:root[data-crt-effects="on"][data-theme="cyberterm"] .dashboard-widget-title,
+:root[data-crt-effects="on"][data-theme="cyberterm"] .m-section-title,
+:root[data-crt-effects="on"][data-theme="synth-sunrise"] .brand-mark,
+:root[data-crt-effects="on"][data-theme="synth-sunrise"] .dashboard-widget-title,
+:root[data-crt-effects="on"][data-theme="synth-sunrise"] .m-section-title,
+:root[data-crt-effects="on"][data-theme="neuromancer"] .brand-mark,
+:root[data-crt-effects="on"][data-theme="neuromancer"] .dashboard-widget-title,
+:root[data-crt-effects="on"][data-theme="neuromancer"] .m-section-title {
+  text-shadow:
+    0 0 1px var(--accent),
+    0 0 6px var(--crt-text-glow);
+}
+
+:root[data-crt-effects="on"][data-theme="cyberterm"] .dashboard-widget,
+:root[data-crt-effects="on"][data-theme="cyberterm"] .chart-card,
+:root[data-crt-effects="on"][data-theme="synth-sunrise"] .dashboard-widget,
+:root[data-crt-effects="on"][data-theme="synth-sunrise"] .chart-card,
+:root[data-crt-effects="on"][data-theme="neuromancer"] .dashboard-widget,
+:root[data-crt-effects="on"][data-theme="neuromancer"] .chart-card {
+  box-shadow:
+    var(--shadow),
+    inset 0 0 14px color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+:root[data-crt-effects="on"][data-theme="cyberterm"] body::after,
+:root[data-crt-effects="on"][data-theme="synth-sunrise"] body::after,
+:root[data-crt-effects="on"][data-theme="neuromancer"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, transparent 0%, var(--crt-beam) 49%, transparent 100%),
+    repeating-linear-gradient(to bottom, var(--crt-line) 0 1px, var(--crt-gap) 2px 4px),
+    linear-gradient(90deg, var(--crt-rgb-a), var(--crt-rgb-b)),
+    radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, 0.20) 100%);
+  background-size:
+    100% 190px,
+    100% 4px,
+    100% 100%,
+    100% 100%;
+  box-shadow:
+    inset 0 0 76px var(--crt-glow),
+    inset 0 0 140px rgba(0, 0, 0, 0.12);
+  mix-blend-mode: overlay;
+  opacity: var(--crt-opacity, 0.78);
+  animation:
+    crt-flicker 0.16s infinite steps(2),
+    crt-sweep 7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-crt-effects="on"][data-theme="cyberterm"] body::after,
+  :root[data-crt-effects="on"][data-theme="synth-sunrise"] body::after,
+  :root[data-crt-effects="on"][data-theme="neuromancer"] body::after {
+    animation: none;
   }
 }

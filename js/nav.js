@@ -9,6 +9,7 @@ function _iconSvg(name) {
   const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
   const icons = {
     search: `<svg ${attrs}><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>`,
+    dashboard: `<svg ${attrs}><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`,
     labs: `<svg ${attrs}><path d="M12 2.7s5 6.3 5 11.3a5 5 0 0 1-10 0c0-5 5-11.3 5-11.3z"></path></svg>`,
     genome: `<svg ${attrs}><path d="M4 4c4 3 12 3 16 0"></path><path d="M4 8c4 3 12 3 16 0"></path><path d="M4 12c4 3 12 3 16 0"></path><path d="M4 16c4 3 12 3 16 0"></path><path d="M4 20c4 3 12 3 16 0"></path></svg>`,
     body: `<svg ${attrs}><circle cx="12" cy="12" r="6"></circle><path d="M12 9v3l1.5 1.5"></path><path d="M16 4l-2 2"></path><path d="M8 4l2 2"></path><path d="M16 20l-2-2"></path><path d="M8 20l2-2"></path></svg>`,
@@ -19,27 +20,15 @@ function _iconSvg(name) {
     recommendations: `<svg ${attrs}><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M4.93 4.93l2.83 2.83"></path><path d="M16.24 16.24l2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="M4.93 19.07l2.83-2.83"></path><path d="M16.24 7.76l2.83-2.83"></path></svg>`,
     knowledge: `<svg ${attrs}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path></svg>`,
     plus: `<svg ${attrs}><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>`,
-    supplements: `<svg ${attrs}><path d="M10 21l8-8a4.24 4.24 0 0 0-6-6l-8 8a4.24 4.24 0 0 0 6 6z"></path><path d="M8.5 8.5l7 7"></path></svg>`,
-    cycle: `<svg ${attrs}><path d="M12 3a9 9 0 1 0 9 9"></path><path d="M21 3v6h-6"></path><path d="M21 9A9 9 0 0 0 12 3"></path></svg>`,
     emf: `<svg ${attrs}><path d="M5 12.5a7 7 0 0 1 14 0"></path><path d="M8 12.5a4 4 0 0 1 8 0"></path><path d="M12 12.5v.01"></path><path d="M12 17v4"></path></svg>`,
   };
   return icons[name] || escapeHTML(String(name || ''));
 }
 
-// Render a conditional sidebar entry (e.g. Light & Sun, Wearables, Cycle, EMF, Genetics).
-// Appears only when the predicate yields data. Soft-promote via scroll-selector +
-// optional expand callback; hard-promote via dedicated `navigate` target.
-function _renderConditionalNavItem({ key, icon, label, navigate = 'dashboard', badge, scrollSelector, expandFn }) {
+// Render a compact sidebar entry for modules whose visibility depends on data.
+function _renderConditionalNavItem({ key, icon, label, navigate = 'dashboard', badge }) {
   let onclick;
-  if (scrollSelector) {
-    // Escape backslashes BEFORE quotes — otherwise a selector containing
-    // a literal `\'` would survive as `\\'` (backslash + quote) and break
-    // out of the JS string. CodeQL flags this even though scrollSelector
-    // is a hardcoded module constant, never user input.
-    const sel = scrollSelector.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const expand = expandFn ? `;const b=el.querySelector('${expandFn.selector || '.collapsed'}');if(b&&b.classList.contains('hidden'))window.${expandFn.name}&&window.${expandFn.name}()` : '';
-    onclick = `window.navigate('${navigate}');setTimeout(()=>{const el=document.querySelector('${sel}');if(el){const y=el.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:y,behavior:'smooth'})${expand};}},100)`;
-  } else if (navigate.startsWith('fn:')) {
+  if (navigate.startsWith('fn:')) {
     onclick = navigate.slice(3); // raw JS fragment
   } else {
     onclick = `window.navigate('${navigate}')`;
@@ -49,6 +38,10 @@ function _renderConditionalNavItem({ key, icon, label, navigate = 'dashboard', b
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg(icon)}</span>
     <span class="nav-item-label">${escapeHTML(label)}</span>
     ${badgeHtml}</div>`;
+}
+
+export function openRecommendationsFromSidebar() {
+  if (window.navigate) window.navigate('recommendations');
 }
 
 function _buildNavItem(key, cat) {
@@ -88,16 +81,19 @@ export function buildSidebar(data) {
     <span class="sidebar-search-icon" aria-hidden="true">${_iconSvg('search')}</span>
     <input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search markers..." oninput="filterSidebar()">
   </div>`;
-  html += `<div class="nav-section">Lenses</div>`;
+  html += `<div class="nav-section">Home</div>`;
   html += `<div class="nav-item active is-active" data-category="dashboard" tabindex="0" role="button" onclick="window.navigate('dashboard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('dashboard')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('dashboard')}</span>
+    <span class="nav-item-label">Dashboard</span>
+    <span class="nav-item-count">${counts}</span></div>`;
+  html += `<div class="nav-section">Lenses</div>`;
+  html += `<div class="nav-item" data-category="labs" tabindex="0" role="button" onclick="window.navigate('labs')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('labs')}">
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('labs')}</span>
     <span class="nav-item-label">Labs</span>
     <span class="nav-item-count">${counts}</span></div>`;
 
-  // \u2500\u2500\u2500 Conditional module entries \u2014 only render when the module has data.
-  // Order: most-used first; new modules (Light & Sun) at the top to highlight discovery.
-  // All except Light & Sun soft-promote (scroll + expand on dashboard); Light & Sun
-  // hard-promotes to its dedicated view.
+  // Lens entries route to dedicated views; compact summary widgets remain
+  // available on the dashboard.
 
   const genetics = state.importedData?.genetics;
   const hasGeneticsData = genetics && ((genetics.snps && Object.keys(genetics.snps).length > 0) || genetics.mtdna);
@@ -136,42 +132,20 @@ export function buildSidebar(data) {
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('insight')}</span>
     <span class="nav-item-label">Insight</span>
     <span class="nav-item-dot"></span></div>`;
+  html += `<div class="nav-item" data-category="recommendations" tabindex="0" role="button" onclick="window.navigate('recommendations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('recommendations')}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('recommendations')}</span><span class="nav-item-label">Recommendations</span><span class="nav-item-dot"></span></div>`;
 
-  html += `<div class="nav-section">Tools</div>`;
+  html += `<div class="nav-section">Analysis tools</div>`;
   html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" onclick="window.navigate('compare')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('compare')}">
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('compare')}</span><span class="nav-item-label">Compare dates</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="correlations" tabindex="0" role="button" onclick="window.navigate('correlations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('correlations')}">
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('correlations')}</span><span class="nav-item-label">Correlations</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="recommendations" tabindex="0" role="button" onclick="window.navigate('dashboard');setTimeout(()=>{const el=document.querySelector('.rec-section,.recommendation-section,.rec-card');if(el){const y=el.getBoundingClientRect().top+window.scrollY-60;window.scrollTo({top:y,behavior:'smooth'});}else{window.openSettingsModal&&window.openSettingsModal('display');}},100)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('recommendations')}</span><span class="nav-item-label">Recommendations</span><span class="nav-item-dot"></span></div>`;
+
+  html += `<div class="nav-section">Manage</div>`;
   html += `<div class="nav-item" data-category="knowledge" tabindex="0" role="button" onclick="window.openKnowledgeBaseModal&&window.openKnowledgeBaseModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge</span><span class="nav-item-dot"></span></div>`;
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" onclick="window.openCreateMarkerModal&&window.openCreateMarkerModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
-
-  // \uD83D\uDC8A Supplements \u2014 soft-promote
-  const supps = state.importedData?.supplements;
-  if (Array.isArray(supps) && supps.length > 0) {
-    html += _renderConditionalNavItem({
-      key: 'supplements',
-      icon: 'supplements',
-      label: 'Supplements',
-      scrollSelector: '.supp-timeline-section',
-      badge: supps.length,
-    });
-  }
-
-  // \uD83C\uDF38 Cycle \u2014 female profiles with cycle data
-  const sex = state.profileSex;
-  const mc = state.importedData?.menstrualCycle;
-  if (sex === 'female' && mc) {
-    html += _renderConditionalNavItem({
-      key: 'cycle',
-      icon: 'cycle',
-      label: 'Cycle',
-      scrollSelector: '.cycle-section',
-    });
-  }
 
   // \uD83D\uDCE1 EMF \u2014 opens editor directly (no dedicated dashboard section)
   const emfAssessments = state.importedData?.emfAssessment?.assessments;
@@ -200,12 +174,10 @@ export function buildSidebar(data) {
     }
   }
 
-  // Render blood work categories
-  html += `<div class="nav-section sidebar-title">Categories <button class="sidebar-add-marker" onclick="event.stopPropagation();openCreateMarkerModal()" title="Create custom biomarker">+</button></div>`;
-  html += `<div class="nav-item nav-item-all" data-category="all" tabindex="0" role="button" onclick="window.navigate('dashboard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('dashboard')}">
-    <span class="nav-item-dot" aria-hidden="true"></span>
-    <span class="nav-item-label">All</span>
-    <span class="nav-item-count">${counts}</span></div>`;
+  // Lab category shortcuts stay in the sidebar because they are the fastest
+  // way to jump into a biomarker table, but the Labs lens itself is the
+  // all-biomarker entry point.
+  html += `<div class="nav-section sidebar-title">Lab categories <button class="sidebar-add-marker" onclick="event.stopPropagation();openCreateMarkerModal()" title="Create custom biomarker">+</button></div>`;
   for (const item of bloodWork) html += item.html;
 
   // Render specialty groups
@@ -290,7 +262,7 @@ export function filterSidebar() {
   // When searching: show matching items, expand groups with matches, hide empty groups
   items.forEach(el => {
     const cat = el.dataset.category;
-    if (cat === 'dashboard' || cat === 'all' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'knowledge' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'supplements' || cat === 'cycle' || cat === 'emf' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
+    if (cat === 'dashboard' || cat === 'labs' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'knowledge' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
     const label = el.textContent.toLowerCase();
     const markers = (el.dataset.markers || '').toLowerCase();
     el.style.display = (label.includes(query) || markers.includes(query)) ? '' : 'none';
@@ -360,4 +332,4 @@ export function closeMobileSidebar() {
   document.body.style.overflow = '';
 }
 
-Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, toggleMobileSidebar, closeMobileSidebar });
+Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar });

@@ -71,6 +71,18 @@ index.html
 
 `main.js` registers the `DOMContentLoaded` listener, attaches global keyboard and event handlers, and calls the initial `navigate()` to render the dashboard.
 
+## Navigation and dashboard IA
+
+The sidebar has three conceptual groups:
+
+- Home: `dashboard`, the customizable cross-lens overview.
+- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. These route to dedicated pages in `views.js`.
+- Tools: focused utilities such as compare dates, correlations, knowledge base, custom markers, and EMF assessment entry points.
+
+The dashboard is not a replacement for lens pages. It is a user-composed overview made from lens/tool widgets. Default widgets are ordered for a new user as: Current Focus, Biological Age, Trends & Alerts, Recommended Next Steps, Marker Spotlight, Quick Markers, Biometrics Overview, Light Today, and Key Trends. Users can reorder, hide, reset, clear, and add widgets. Lens pages expose Add/Remove Dashboard toggles for widgets that can appear in the overview.
+
+Recommendations have both a dashboard widget and a dedicated `recommendations` route. The page aggregates data-linked recommendation candidates from Labs, Body, Light, and Genome signals, while product option rendering and affiliate disclosure remain owned by `recommendations.js`.
+
 ## 6-layer dependency graph
 
 Modules in a higher layer may import from lower layers. Modules in the same layer must not import from each other — cross-layer calls within the same layer use `window.fn()` to avoid circular dependencies.
@@ -121,8 +133,14 @@ The main tension is between `views.js` (which renders everything) and modules li
 
 ```js
 // main.js
+import { state } from './state.js';
 import { registerRefreshCallback } from './data.js';
-registerRefreshCallback(() => window.refreshDashboard());
+import { buildSidebar } from './nav.js';
+
+registerRefreshCallback(() => {
+  buildSidebar();
+  window.navigate(state.currentView || 'dashboard');
+});
 ```
 
 **`window.fn()` calls** — functions exposed via `Object.assign(window, {...})` are callable from any module without creating an import edge:
