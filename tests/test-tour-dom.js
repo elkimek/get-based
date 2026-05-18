@@ -15,6 +15,19 @@ return (async function() {
     else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
   }
   function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function firstVisible(selector) {
+    return Array.from(document.querySelectorAll(selector)).find(el => {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return rect.width > 0 &&
+        rect.height > 0 &&
+        rect.right > 0 &&
+        rect.left < window.innerWidth &&
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        style.opacity !== '0';
+    }) || null;
+  }
 
   console.log('%c Guided Tour DOM Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
@@ -70,9 +83,9 @@ return (async function() {
   assert('Description mentions five lenses framing', tooltip.querySelector('p')?.textContent.includes('five lenses on your biology'));
 
   const dots = tooltip.querySelectorAll('.tour-dot');
-  assert('8 progress dots rendered', dots.length === 8);
+  assert('9 progress dots rendered', dots.length === 9);
   assert('First dot is active', dots[0]?.classList.contains('active'));
-  assert('Other dots are inactive', !dots[1]?.classList.contains('active') && !dots[7]?.classList.contains('active'));
+  assert('Other dots are inactive', !dots[1]?.classList.contains('active') && !dots[8]?.classList.contains('active'));
 
   const btns = tooltip.querySelectorAll('.tour-btn');
   assert('Two buttons on welcome step', btns.length === 2);
@@ -90,7 +103,7 @@ return (async function() {
   await wait(100);
 
   const tooltip2 = document.getElementById('tour-tooltip');
-  assert('Step 1 title is "Import More Labs"', tooltip2?.querySelector('h4')?.textContent === 'Import More Labs');
+  assert('Step 1 title is "Import Health Data"', tooltip2?.querySelector('h4')?.textContent === 'Import Health Data');
 
   const dots2 = tooltip2.querySelectorAll('.tour-dot');
   assert('Second dot active on step 1', dots2[1]?.classList.contains('active'));
@@ -105,21 +118,20 @@ return (async function() {
   const sl2 = document.getElementById('tour-spotlight');
   assert('Spotlight visible on step 1', sl2 && sl2.style.display === 'block');
 
-  const importFab = document.getElementById('import-fab');
-  if (importFab) {
-    importFab.classList.remove('hidden');
-    importFab.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+  const importTarget = firstVisible('.header-import-btn, #import-fab, #drop-zone');
+  if (importTarget) {
+    importTarget.scrollIntoView({ behavior: 'instant', block: 'nearest' });
     window._tourGoToStep(1);
     await wait(150);
-    const fabRect = importFab.getBoundingClientRect();
+    const fabRect = importTarget.getBoundingClientRect();
     const slLeft = parseFloat(sl2.style.left);
     const slTop = parseFloat(sl2.style.top);
-    assert('Spotlight left near import-fab', Math.abs(slLeft - (fabRect.left - 8)) < 2, `sl=${slLeft} fab=${fabRect.left - 8}`);
-    assert('Spotlight top near import-fab', Math.abs(slTop - (fabRect.top - 8)) < 2, `sl=${slTop} fab=${fabRect.top - 8}`);
-    assert('Spotlight width = import-fab + 16px padding', Math.abs(parseFloat(sl2.style.width) - (fabRect.width + 16)) < 2);
-    assert('Spotlight height = import-fab + 16px padding', Math.abs(parseFloat(sl2.style.height) - (fabRect.height + 16)) < 2);
+    assert('Spotlight left near import target', Math.abs(slLeft - (fabRect.left - 8)) < 2, `sl=${slLeft} target=${fabRect.left - 8}`);
+    assert('Spotlight top near import target', Math.abs(slTop - (fabRect.top - 8)) < 2, `sl=${slTop} target=${fabRect.top - 8}`);
+    assert('Spotlight width = import target + 16px padding', Math.abs(parseFloat(sl2.style.width) - (fabRect.width + 16)) < 2);
+    assert('Spotlight height = import target + 16px padding', Math.abs(parseFloat(sl2.style.height) - (fabRect.height + 16)) < 2);
   } else {
-    assert('Import FAB exists for spotlight test', false, '#import-fab not found');
+    assert('Visible import target exists for spotlight test', false, 'no visible .header-import-btn, #import-fab, or #drop-zone');
   }
 
   // ═══════════════════════════════════════
@@ -141,20 +153,20 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. Last Step — Done ', 'font-weight:bold;color:#f59e0b');
 
-  window._tourGoToStep(7);
+  window._tourGoToStep(8);
   await wait(100);
 
   const tooltip4 = document.getElementById('tour-tooltip');
-  assert('Step 7 title is "Ask AI"', tooltip4?.querySelector('h4')?.textContent === 'Ask AI');
+  assert('Step 8 title is "Ask AI"', tooltip4?.querySelector('h4')?.textContent === 'Ask AI');
 
   const btns4 = tooltip4.querySelectorAll('.tour-btn');
   assert('Last step has Back button', btns4[0]?.textContent.trim() === 'Back');
   assert('Last step has Done button (not Next)', btns4[1]?.textContent.trim() === 'Done');
   assert('Done calls endTour()', btns4[1]?.getAttribute('onclick')?.includes('endTour'));
-  assert('Back calls _tourGoToStep(6)', btns4[0]?.getAttribute('onclick')?.includes('_tourGoToStep(6)'));
+  assert('Back calls _tourGoToStep(7)', btns4[0]?.getAttribute('onclick')?.includes('_tourGoToStep(7)'));
 
   const dots4 = tooltip4.querySelectorAll('.tour-dot');
-  assert('Last dot (8th) is active on step 7', dots4[7]?.classList.contains('active'));
+  assert('Last dot (9th) is active on step 8', dots4[8]?.classList.contains('active'));
 
   // ═══════════════════════════════════════
   // 9. End tour — cleanup
@@ -243,28 +255,29 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 16. Tour Step Targets in DOM ', 'font-weight:bold;color:#f59e0b');
 
-  assert('#drop-zone exists', !!document.getElementById('drop-zone'));
-  assert('#sidebar-nav exists', !!document.getElementById('sidebar-nav'));
+  assert('Import tour fallback target exists', !!document.querySelector('.header-import-btn, #import-fab, #drop-zone'));
+  assert('Lens navigation fallback target exists', !!document.querySelector('.nav-item[data-category="labs"], #sidebar-toggle, .m-tabbar'));
   assert('.settings-btn exists', !!document.querySelector('.settings-btn'));
-  assert('.feedback-btn exists', !!document.querySelector('.feedback-btn'));
-  assert('#chat-fab exists', !!document.getElementById('chat-fab'));
-  assert('.profile-context-cards exists', !!document.querySelector('.profile-context-cards'));
+  assert('.tweaks-btn exists', !!document.querySelector('.tweaks-btn'));
+  assert('Dashboard fallback target exists', !!document.querySelector('.dashboard-greeting, .welcome-primary-panel'));
+  assert('Widget/customize fallback target exists', !!document.querySelector('.dashboard-sticky-actions, .demo-cards'));
+  assert('Chat fallback target exists', !!document.querySelector('#chat-fab, .m-chat-fab, #chat-panel, .welcome-primary-actions .welcome-action-btn'));
 
   // ═══════════════════════════════════════
-  // 17. Full walkthrough (all 8 titles + dots)
+  // 17. Full walkthrough (all 9 titles + dots)
   // ═══════════════════════════════════════
-  console.log('%c 17. Full Walkthrough (Steps 0-6) ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 17. Full Walkthrough (Steps 0-8) ', 'font-weight:bold;color:#f59e0b');
 
   const expectedTitles = [
-    'Welcome to getbased', 'Import More Labs', 'Your Profile', 'Category Navigation',
-    'Lifestyle Context', 'Settings', 'Send Feedback', 'Ask AI'
+    'Welcome to getbased', 'Import Health Data', 'Profiles & Demo Data', 'Five Lenses',
+    'Dashboard Overview', 'Customize Widgets', 'Display Tweaks', 'Settings & Connections', 'Ask AI'
   ];
 
   localStorage.removeItem(tourKey);
   window.startTour(false);
   await wait(50);
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < expectedTitles.length; i++) {
     window._tourGoToStep(i);
     await wait(100);
     const tt = document.getElementById('tour-tooltip');

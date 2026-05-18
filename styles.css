@@ -9715,6 +9715,26 @@ body.import-focus .welcome-hero > .drop-zone {
 @media (max-width: 480px) {
   #tour-tooltip { max-width: calc(100vw - 32px); }
 }
+@media (max-width: 480px), (pointer: coarse) {
+  #tour-tooltip {
+    width: calc(100vw - 32px);
+    padding: 16px;
+  }
+  .tour-nav {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tour-dots {
+    flex-wrap: wrap;
+  }
+  .tour-btns {
+    justify-content: flex-end;
+  }
+  .tour-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+}
 /* Recommendation sections */
 .rec-section { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
 .rec-section-header { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; }

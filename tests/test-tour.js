@@ -40,6 +40,7 @@ assert('tour.js has endTour export', tourSrc.includes('export function endTour')
 assert('tour.js has goToStep function', tourSrc.includes('function goToStep'));
 assert('tour.js has positionTooltip function', tourSrc.includes('function positionTooltip'));
 assert('tour.js has isTourCompleted function', tourSrc.includes('function isTourCompleted'));
+assert('tour.js has visible target helper', tourSrc.includes('function getTourTargetElement'));
 assert('tour.js has TOUR_STEPS array', tourSrc.includes('const TOUR_STEPS'));
 assert('tour.js imports state', tourSrc.includes("import { state } from './state.js'"));
 assert('tour.js imports profileStorageKey', tourSrc.includes("import { profileStorageKey } from './profile.js'"));
@@ -50,18 +51,19 @@ assert('endTour stores completed in localStorage', tourSrc.includes("'completed'
 assert('Overlay click dismisses tour', tourSrc.includes('if (e.target === overlay) endTour()'));
 
 // ═══════════════════════════════════════
-// 2. TOUR_STEPS content (9 entries — 8 labelled steps checked below)
+// 2. TOUR_STEPS content (9 entries checked below)
 // ═══════════════════════════════════════
 console.log('2. Tour Steps Content');
 
 assert('Step 1: Welcome (null target)', tourSrc.includes("target: null, title: 'Welcome to getbased'"));
-assert('Step 2: Import FAB', tourSrc.includes("target: '#import-fab', title: 'Import More Labs'"));
-assert('Step 3: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Your Profile'"));
-assert('Step 4: Sidebar nav', tourSrc.includes("target: '#sidebar-nav', title: 'Category Navigation'"));
-assert('Step 5: Context cards', tourSrc.includes("target: '.profile-context-cards', title: 'Lifestyle Context'"));
-assert('Step 6: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings'"));
-assert('Step 7: Feedback', tourSrc.includes("target: '.feedback-btn', title: 'Send Feedback'"));
-assert('Step 8: Chat FAB', tourSrc.includes("target: '#chat-fab', title: 'Ask AI'"));
+assert('Step 2: Import controls', tourSrc.includes("target: '.header-import-btn, #import-fab, #drop-zone', title: 'Import Health Data'"));
+assert('Step 3: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles & Demo Data'"));
+assert('Step 4: Lens navigation', tourSrc.includes("target: '.nav-item[data-category=\"labs\"], #sidebar-toggle, .m-tabbar', title: 'Five Lenses'"));
+assert('Step 5: Dashboard overview', tourSrc.includes("target: '.dashboard-greeting, .welcome-primary-panel', title: 'Dashboard Overview'"));
+assert('Step 6: Widget customization', tourSrc.includes("target: '.dashboard-sticky-actions, .demo-cards', title: 'Customize Widgets'"));
+assert('Step 7: Display tweaks', tourSrc.includes("target: '.tweaks-btn', title: 'Display Tweaks'"));
+assert('Step 8: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
+assert('Step 9: Chat targets', tourSrc.includes("target: '#chat-fab, .m-chat-fab, #chat-panel.open, .welcome-primary-actions .welcome-action-btn:not(.welcome-action-primary)', title: 'Ask AI'"));
 
 const tourStepsStart = tourSrc.indexOf('const TOUR_STEPS');
 const cycleStepsStart = tourSrc.indexOf('const CYCLE_TOUR_STEPS');
@@ -83,6 +85,7 @@ console.log('13. Target Not Found — Skip Behavior');
 assert('Skips to next step when target missing', tourSrc.includes('if (!isLast) goToStep(index + 1)'));
 assert('Ends tour if last step target missing', tourSrc.includes('else endTour()'));
 assert('Uses scrollIntoView on target', tourSrc.includes('scrollIntoView'));
+assert('Filters hidden/offscreen targets', tourSrc.includes('getTourTargetElement(s.target)') && tourSrc.includes('rect.right > 0'));
 
 // ═══════════════════════════════════════
 // 14. Viewport clamping logic
@@ -127,6 +130,7 @@ assert('CSS has .tour-btn base', cssSrc.includes('.tour-btn {'));
 assert('CSS has .tour-btn-primary (gradient)', cssSrc.includes('.tour-btn-primary'));
 assert('CSS has .tour-btn-secondary (transparent)', cssSrc.includes('.tour-btn-secondary'));
 assert('CSS has mobile tooltip override (480px)', cssSrc.includes('#tour-tooltip { max-width: calc(100vw - 32px)'));
+assert('CSS has mobile/coarse tour button touch target', cssSrc.includes('.tour-btn') && cssSrc.includes('min-height: 44px'));
 
 // ═══════════════════════════════════════
 // 19. main.js wiring
