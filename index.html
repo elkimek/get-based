@@ -33,9 +33,11 @@
     })();
   </script>
   <style>#main-content{min-height:calc(100vh - 64px + 180px)}</style>
-  <link rel="stylesheet" href="vendor/fonts/fonts.css">
+  <link rel="preload" href="vendor/fonts/fonts.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="vendor/fonts/fonts.css"></noscript>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="themes-extra.css">
+  <link rel="preload" href="themes-extra.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="themes-extra.css"></noscript>
 </head>
 <body>
 
@@ -225,7 +227,7 @@
   <input type="file" id="pdf-input" aria-label="Import PDF or data file" accept=".pdf,.json,.txt,.csv,.jpg,.jpeg,.png,.webp" style="display:none" multiple>
   <div class="notification-container" id="notification-container" aria-live="polite" role="status"></div>
 
-  <script src="version.js"></script>
+  <script src="version.js" defer></script>
   <script type="module" src="js/main.js"></script>
   <script>
     // Cookieless Umami analytics — opt-out via Settings → Privacy. Skips on

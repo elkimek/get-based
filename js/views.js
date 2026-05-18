@@ -6032,8 +6032,9 @@ export function showDashboard(data) {
 
   setupDropZone();
 
-  // Non-blocking: load focus card and context health dots after DOM is ready
-  if (hasData) loadFocusCard();
+  // Non-blocking: hydrate cached focus text for LCP, but don't replace stale
+  // cached text with a fresh AI response during startup.
+  if (hasData) loadFocusCard({ refreshStale: false });
   loadContextHealthDots();
   if (window.loadContextCardTips) window.loadContextCardTips();
   loadCommitHash();
@@ -6203,9 +6204,10 @@ export function buildFocusContext() {
   return ctx;
 }
 
-export async function loadFocusCard() {
+export async function loadFocusCard(opts = {}) {
   const el = document.getElementById('focus-card-body');
   if (!el) return;
+  const refreshStale = opts.refreshStale !== false;
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
   const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey)); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
@@ -6218,6 +6220,7 @@ export async function loadFocusCard() {
     // own write path below, so this branch never matches them.
     if (!cached.fingerprint) return;
     if (cached.fingerprint === fp || !hasAIProvider()) return;
+    if (!refreshStale) return;
   }
   if (!hasAIProvider()) {
     if (!cached?.text) el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">Enable AI to generate insights</span>`;

@@ -348,7 +348,7 @@ await import('../js/settings.js');
   console.log('7. Main Integration');
 
   assert('main.js imports initSync', mainSrc.includes("initSync") && mainSrc.includes("from './sync.js'"));
-  assert('main.js calls initSync()', mainSrc.includes('await initSync()'));
+  assert('main.js defers initSync after first paint', /requestAnimationFrame\([\s\S]{0,300}initSync\(\)/.test(mainSrc));
 
   // getSyncBlocker must NOT check SharedWorker — Evolu uses dedicated
   // Workers + BroadcastChannel + navigator.locks, not the SharedWorker

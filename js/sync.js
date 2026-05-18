@@ -216,6 +216,7 @@ let profileQuery = null;
 let tombstoneQuery = null;
 let itemRowQuery = null;
 let _syncEnabled = false;
+let _syncStatePrimed = false;
 let _syncing = false;
 // Tracks when _syncing was last set so a hung push (Evolu onComplete never
 // fires) can be detected and the flag cleared on the next push attempt
@@ -280,7 +281,15 @@ const SYNC_RELAY_KEY = 'labcharts-sync-relay';
 const DEFAULT_RELAY = 'wss://sync.getbased.health';
 const ONION_RELAY = 'ws://udou6gehyfpfccdjpibmuttaoauawmh5cgzszffnskbvczppvr2sfjad.onion';
 
-export function isSyncEnabled() { return _syncEnabled; }
+export function primeSyncState() {
+  if (!_syncStatePrimed) {
+    _syncEnabled = localStorage.getItem(SYNC_STORAGE_KEY) === 'true';
+    _syncStatePrimed = true;
+  }
+  return _syncEnabled;
+}
+
+export function isSyncEnabled() { return _syncStatePrimed ? _syncEnabled : primeSyncState(); }
 
 export function getSyncRelay() {
   const custom = localStorage.getItem(SYNC_RELAY_KEY);
@@ -329,7 +338,7 @@ export function getSyncBlocker() {
 }
 
 export async function initSync() {
-  _syncEnabled = localStorage.getItem(SYNC_STORAGE_KEY) === 'true';
+  primeSyncState();
   if (!_syncEnabled) return;
 
   // Fail fast if the webview doesn't have what Evolu needs. Otherwise the

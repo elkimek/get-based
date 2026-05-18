@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 
 export const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 
@@ -371,12 +372,16 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
-function serveFile(res, filePath) {
+const COMPRESSIBLE_EXTENSIONS = new Set([
+  '.html', '.css', '.js', '.mjs', '.json', '.svg', '.txt', '.xml', '.webmanifest',
+]);
+
+function serveFile(req, res, filePath) {
   const resolved = path.resolve(filePath);
   fs.readFile(resolved, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }
     const ext = path.extname(resolved).toLowerCase();
-    res.writeHead(200, {
+    const headers = {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless',
@@ -385,8 +390,36 @@ function serveFile(res, filePath) {
       // its own schedule. Forcing no-store makes every reload pick up
       // the freshest JS/CSS/HTML.
       'Cache-Control': 'no-store, must-revalidate',
-    });
-    res.end(data);
+    };
+    const acceptEncoding = String(req.headers['accept-encoding'] || '');
+    const shouldCompress = data.length > 1024 && COMPRESSIBLE_EXTENSIONS.has(ext);
+    const sendRaw = () => {
+      res.writeHead(200, headers);
+      res.end(data);
+    };
+    if (!shouldCompress) {
+      sendRaw();
+      return;
+    }
+    const finish = (body, encoding) => {
+      res.writeHead(200, {
+        ...headers,
+        'Content-Encoding': encoding,
+        'Vary': 'Accept-Encoding',
+      });
+      res.end(body);
+    };
+    if (acceptEncoding.includes('br')) {
+      zlib.brotliCompress(data, {
+        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 },
+      }, (e, body) => e ? sendRaw() : finish(body, 'br'));
+      return;
+    }
+    if (acceptEncoding.includes('gzip')) {
+      zlib.gzip(data, { level: 6 }, (e, body) => e ? sendRaw() : finish(body, 'gzip'));
+      return;
+    }
+    sendRaw();
   });
 }
 
@@ -1032,8 +1065,8 @@ const server = http.createServer((req, res) => {
 
   // Route: / → landing page (if site repo found) or app
   if (pathname === '/') {
-    if (hasSite) return serveFile(res, SITE_INDEX);
-    return serveFile(res, path.join(ROOT, 'index.html'));
+    if (hasSite) return serveFile(req, res, SITE_INDEX);
+    return serveFile(req, res, path.join(ROOT, 'index.html'));
   }
 
   // Route: /app → index.html (redirect trailing slash to avoid broken relative paths)
@@ -1041,7 +1074,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(301, { 'Location': '/app' }); res.end(); return;
   }
   if (pathname === '/app') {
-    return serveFile(res, path.join(ROOT, 'index.html'));
+    return serveFile(req, res, path.join(ROOT, 'index.html'));
   }
 
   // Route: /docs/* → 301 to docs.getbased.health (docs moved to Mintlify;
@@ -1056,12 +1089,12 @@ const server = http.createServer((req, res) => {
 
   // Route: /blog → blog.html, /blog/{slug} → blog/{slug}/index.html (mirrors Vercel rewrites)
   if (hasSite && pathname === '/blog') {
-    return serveFile(res, path.join(SITE_DIR, 'blog.html'));
+    return serveFile(req, res, path.join(SITE_DIR, 'blog.html'));
   }
   if (hasSite && /^\/blog\/[^/]+$/.test(pathname)) {
     let slugIndex = path.join(SITE_DIR, pathname, 'index.html');
-    if (fs.existsSync(slugIndex)) return serveFile(res, slugIndex);
-    return serveFile(res, path.join(SITE_DIR, 'blog.html'));
+    if (fs.existsSync(slugIndex)) return serveFile(req, res, slugIndex);
+    return serveFile(req, res, path.join(SITE_DIR, 'blog.html'));
   }
 
   // Static files from site repo (e.g. /thank-you.html, /icon.svg)
@@ -1071,11 +1104,11 @@ const server = http.createServer((req, res) => {
     let appFile = path.join(ROOT, pathname);
     // Only serve from site if the file doesn't also exist in the app root
     if (fs.existsSync(siteFile) && fs.statSync(siteFile).isFile() && !(fs.existsSync(appFile) && fs.statSync(appFile).isFile())) {
-      return serveFile(res, siteFile);
+      return serveFile(req, res, siteFile);
     }
     // Clean URL: try .html append (only for site-specific pages like /thank-you)
     if (fs.existsSync(siteFile + '.html') && !(fs.existsSync(appFile + '.html'))) {
-      return serveFile(res, siteFile + '.html');
+      return serveFile(req, res, siteFile + '.html');
     }
   }
 
@@ -1106,7 +1139,7 @@ const server = http.createServer((req, res) => {
   // Static files from root
   let filePath = path.join(ROOT, pathname);
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    return serveFile(res, filePath);
+    return serveFile(req, res, filePath);
   }
 
   res.writeHead(404); res.end('Not found');

@@ -64,7 +64,7 @@ import { buildSidebar, renderProfileDropdown } from './nav.js';
 import './client-list.js';
 import './views.js';
 import { initEncryption, initBroadcastChannel, initFolderBackup, encryptedGetItem, maybeShowBackupNudge } from './crypto.js';
-import { initSync, renderSyncIndicator } from './sync.js';
+import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 import { initMeteoConfigCache } from './sun-uvdata.js';
 
 // ═══════════════════════════════════════════════
@@ -208,11 +208,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Initialize Evolu sync after profile is loaded (needs state.currentProfile)
-  await initSync();
-  renderSyncIndicator();
-  ensureSNPTable(); // Eagerly load SNP table if genetics data exists (e.g. after JSON import)
-  ensureHaplogroupTable(); // Eagerly load haplogroup table if mtDNA data exists
+  // Prime sync state for UI, but let Evolu boot after first paint. Its
+  // worker/OPFS startup is expensive and should not block dashboard LCP.
+  primeSyncState();
   const savedUnits = localStorage.getItem(profileStorageKey(state.currentProfile, 'units'));
   if (savedUnits === 'US') state.unitSystem = 'US';
   const savedRange = localStorage.getItem(profileStorageKey(state.currentProfile, 'rangeMode'));
@@ -235,7 +233,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const vTextEl = document.getElementById('app-version-text');
   if (vTextEl) vTextEl.textContent = window.APP_VERSION || '';
   buildSidebar();
+  renderSyncIndicator();
   window.navigate(window.getInitialView?.() || 'dashboard');
+  requestAnimationFrame(() => setTimeout(() => {
+    initSync()
+      .then(() => renderSyncIndicator())
+      .catch(e => console.warn('[sync] deferred init failed:', e));
+    ensureSNPTable(); // Eagerly load SNP table if genetics data exists (e.g. after JSON import)
+    ensureHaplogroupTable(); // Eagerly load haplogroup table if mtDNA data exists
+  }, 0));
   maybeShowChangelog();
   // First-launch transparency banner about anonymous analytics — appears once,
   // never again after the user clicks either "Got it" or "Turn off".
