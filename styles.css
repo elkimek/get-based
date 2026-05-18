@@ -17285,6 +17285,36 @@ body.chat-autostart-reserved.chat-fullscreen:has(#chat-thread-rail.open) .main {
   }
 }
 
+@media (max-width: 768px), (pointer: coarse) {
+  .logo-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .profile-compact-btn {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 8px;
+  }
+  .dashboard-widget-tool,
+  .lens-widget-dashboard-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    height: auto;
+    padding: 0 12px;
+    line-height: 1.25;
+  }
+  .lens-widget-dashboard-toggle {
+    padding-inline: 14px;
+  }
+  .analytics-consent-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
