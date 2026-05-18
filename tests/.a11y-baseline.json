@@ -1,11 +1,8 @@
 {
   "_axeVersion": "4.10.0",
   "critical": {},
-  "serious": {
-    "color-contrast": 125,
-    "nested-interactive": 40
-  },
+  "serious": {},
   "moderate": {},
   "minor": {},
-  "_note": "Baseline counts of axe-core violations as of v1.7.6 (mild-tier UI surface in the genetics section adds one orange-on-bg legend element vs v1.7.5). The CI gate fails when any critical/serious rule INCREASES vs these numbers. Refresh: `A11Y_REBASELINE=1 ./run-tests.sh` (run-tests.js wires the env var into the page; copy the printed `▶ {...}` JSON over the critical/serious/moderate/minor blocks below). Don't lower these numbers without an actual fix — the gate would lock in the new lower bound. _axeVersion pins the runtime axe-core load (cdnjs URL); rule-rename across versions would otherwise look like a regression. Remaining: color-contrast (white-on-accent buttons + status-pill rgba blends + a few dim accents incl. the new mild-risk pill) and nested-interactive (light-env disclosure heads). Both tracked for follow-up."
+  "_note": "Baseline counts of axe-core violations as of v1.7.135 after resolving the remaining serious color-contrast and nested-interactive findings. The CI gate fails when any critical/serious rule INCREASES vs these numbers. Refresh intentionally with `A11Y_REBASELINE=1 ./run-tests.sh` after verified fixes. _axeVersion pins the runtime axe-core load (cdnjs URL); rule renames across versions would otherwise look like a regression."
 }

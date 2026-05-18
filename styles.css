@@ -14329,7 +14329,13 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   color: var(--text-primary);
   font-weight: 650;
 }
-.conditions-now-event-past { opacity: 0.58; }
+.conditions-now-event-past .conditions-now-event-dot,
+.conditions-now-event-past .conditions-now-event-icon {
+  opacity: 0.62;
+}
+.conditions-now-event-past .conditions-now-event-time {
+  color: var(--text-secondary);
+}
 
 /* Cloud + peak chips on the UVI hero — replace the comma-joined sub-line */
 .conditions-now-chips {
