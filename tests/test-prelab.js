@@ -226,6 +226,8 @@ const labCtxSrc = read('js/lab-context.js');
     'No-provider users should continue into context first unless they ask to connect AI');
   assert('Chat onboarding embeds context cards when AI is not connected', chatSrc.includes("import { renderProfileContextCards } from './context-cards.js'") && chatSrc.includes('chat-context-cards'),
     'No-provider users should still be able to add context inside chat');
+  assert('Chat onboarding lab import CTA handles no-provider state', chatSrc.includes('startOnboardingLabImport') && chatSrc.includes('requestOnboardingLabImportProvider') && chatSrc.includes('Connect AI to import labs'),
+    'No-provider lab-import CTA should explain AI setup instead of focusing hidden import controls');
   assert('Chat onboarding hides composer while active', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-input-area') && cssSrc.includes('display: none'),
     'Onboarding steps should not compete with the disabled composer on mobile');
   assert('Chat onboarding uses solid active surfaces', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-msg.chat-ai') && cssSrc.includes('var(--bg-card) 94%'),

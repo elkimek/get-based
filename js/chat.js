@@ -1408,7 +1408,7 @@ export function renderChatMessages() {
             ${hasAIProvider()
               ? `<button class="chat-prompt-btn" onclick="useChatPrompt('Based on my full profile, what blood tests should I get and why?')">What tests should I get?</button>
                  <button class="chat-prompt-btn" onclick="useChatPrompt('What can you tell about my health from my lifestyle info?')">Analyze my lifestyle</button>`
-              : `<button class="chat-onboard-cta" onclick="window.setOnboardingFocus('import')">Import a lab file</button>
+              : `<button class="chat-onboard-cta" onclick="window.requestOnboardingLabImportProvider()">Connect AI to import labs</button>
                  <button class="chat-prompt-btn" onclick="window.openChatProviderQuiz()">Connect AI for recommendations</button>`}
           </div>
         </div>`;
@@ -1447,14 +1447,15 @@ export function renderChatMessages() {
         <div class="chat-msg chat-ai">
           ${_renderOnboardCrumbs(4)}
           <p>You're ready to go, ${escapeHTML(name)}. Tell me what you have or what you want to understand, and I'll guide the next step.</p>
-          <p style="font-size:13px;margin:4px 0"><strong>Have lab results?</strong> Import them directly and I'll build the dashboard.</p>
+          <p style="font-size:13px;margin:4px 0"><strong>Have lab results?</strong> ${hasAIProvider() ? "Import them directly and I'll build the dashboard." : 'Connect AI first for lab PDFs or photos. JSON and DNA files can still be imported from the header.'}</p>
           <p style="font-size:13px;margin:4px 0"><strong>No labs yet?</strong> ${hasAIProvider() ? 'I can ask for the useful context here and recommend what to test first.' : 'Add useful context below, then connect AI when you want recommendations.'}</p>
           <div class="chat-onboard-actions">
-            <button class="chat-onboard-cta" onclick="window.setOnboardingFocus('import')">Import a lab file</button>
             ${hasAIProvider()
-              ? `<button class="chat-onboard-cta" onclick="useChatPrompt('Help me build my health context before labs. Ask me one question at a time.')">Build my context in chat</button>
+              ? `<button class="chat-onboard-cta" onclick="window.startOnboardingLabImport()">Import a lab file</button>
+                 <button class="chat-onboard-cta" onclick="useChatPrompt('Help me build my health context before labs. Ask me one question at a time.')">Build my context in chat</button>
                  <button class="chat-prompt-btn" onclick="useChatPrompt('I don\\'t have any labs yet. Based on my profile, what blood tests should I get and why?')">Just tell me what to test</button>`
-              : `<button class="chat-onboard-cta" onclick="document.querySelector('.chat-context-cards')?.scrollIntoView({behavior:'smooth',block:'start'})">Add context below</button>
+              : `<button class="chat-onboard-cta" onclick="window.requestOnboardingLabImportProvider()">Connect AI to import labs</button>
+                 <button class="chat-onboard-cta" onclick="document.querySelector('.chat-context-cards')?.scrollIntoView({behavior:'smooth',block:'start'})">Add context below</button>
                  <button class="chat-prompt-btn" onclick="window.openChatProviderQuiz()">Connect AI when ready</button>`}
           </div>
           ${!hasAIProvider() ? `<div class="chat-context-cards">${renderProfileContextCards()}</div>` : ''}
@@ -1582,6 +1583,37 @@ export function useChatPrompt(text) {
   }
   const input = document.getElementById('chat-input');
   if (input) { input.value = text; sendChatMessage(); }
+}
+
+export function requestOnboardingLabImportProvider() {
+  showNotification('Lab PDFs and photos need an AI provider first. Connect AI, then import the file.', 'info');
+  if (window.openChatProviderQuiz) {
+    window.openChatProviderQuiz();
+    return;
+  }
+  sessionStorage.setItem(`chat-onboard-provider-requested-${state.currentProfile}`, '1');
+  renderChatMessages();
+}
+
+export function startOnboardingLabImport() {
+  if (isAIPaused()) {
+    showNotification('AI features are paused. Re-enable AI to import lab PDFs or report photos.', 'info');
+    closeChatPanel();
+    window.openSettingsModal?.('ai');
+    return;
+  }
+  if (!hasAIProvider()) {
+    requestOnboardingLabImportProvider();
+    return;
+  }
+  const input = document.getElementById('pdf-input');
+  if (!input) {
+    showNotification('Import control is not available on this screen.', 'error');
+    return;
+  }
+  closeChatPanel();
+  input.value = '';
+  input.click();
 }
 
 // ═══════════════════════════════════════════════
@@ -3050,6 +3082,8 @@ Object.assign(window, {
   toggleChatPanel,
   openChatPanel,
   closeChatPanel,
+  startOnboardingLabImport,
+  requestOnboardingLabImportProvider,
   sendChatMessage,
   handleChatKeydown,
   startDiscussion,
