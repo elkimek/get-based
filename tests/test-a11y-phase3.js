@@ -138,6 +138,20 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const indexSrc = read('/index.html');
   assert('theme-color has light-mode variant',
     indexSrc.includes('media="(prefers-color-scheme: light)"'));
+  assert('saved theme applies browser chrome color before app boot',
+    indexSrc.includes("'synth-sunrise': '#0d0524'") &&
+    indexSrc.includes("document.documentElement.style.colorScheme") &&
+    indexSrc.includes("document.querySelectorAll('meta[name=\"theme-color\"]')"),
+    'mobile system bars should not wait for main.js to pick up the stored app theme');
+  const themeSrc = read('/js/theme.js');
+  assert('runtime theme changes update browser chrome color scheme',
+    themeSrc.includes('function applyThemeChrome') &&
+    themeSrc.includes('getThemeColorScheme') &&
+    themeSrc.includes('document.documentElement.style.colorScheme'),
+    'custom dark themes need dark system controls after switching themes');
+  assert('document root defaults to dark browser controls outside light theme',
+    /html\s*\{[^}]*background:\s*var\(--bg-primary\)[^}]*color-scheme:\s*dark/.test(cssSrc) &&
+    /\[data-theme="light"\]\s*\{[^}]*color-scheme:\s*light/.test(cssSrc));
   assert('footer drops the heart emoji',
     !indexSrc.includes('Built with ❤️') && indexSrc.includes('Built by'));
   assert('header brand wordmark keeps theme gradient like footer',

@@ -67,6 +67,18 @@ export function getThemeColor(theme = getTheme()) {
   return THEME_BAR_COLORS[theme] || THEME_BAR_COLORS.dark;
 }
 
+export function getThemeColorScheme(theme = getTheme()) {
+  return !isSunsetMode() && theme === 'light' ? 'light' : 'dark';
+}
+
+function applyThemeChrome(theme = getTheme()) {
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
+    meta.content = getThemeColor(theme);
+  });
+  document.documentElement.style.colorScheme = getThemeColorScheme(theme);
+}
+
 export function isSunsetMode() {
   return localStorage.getItem(SUNSET_MODE_KEY) === 'true';
 }
@@ -91,9 +103,7 @@ export function setSunsetMode(enabled) {
   else localStorage.removeItem(SUNSET_MODE_KEY);
   if (on) document.documentElement.dataset.sunsetMode = 'on';
   else delete document.documentElement.dataset.sunsetMode;
-  document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
-    meta.content = getThemeColor(getTheme());
-  });
+  applyThemeChrome(getTheme());
   if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
     window.dispatchEvent(new CustomEvent('labcharts-themechange', {
       detail: { theme: getTheme(), sunsetMode: on },
@@ -118,9 +128,7 @@ export function setTheme(theme) {
   localStorage.setItem('labcharts-theme', theme);
   if (theme === 'dark') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
-  document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
-    meta.content = getThemeColor(theme);
-  });
+  applyThemeChrome(theme);
   if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
     window.dispatchEvent(new CustomEvent('labcharts-themechange', { detail: { theme } }));
   }
@@ -150,6 +158,7 @@ export function toggleTheme() {
 }
 
 applyCrtEffectsAttr();
+applyThemeChrome();
 
 export function getChartColors() {
   const s = getComputedStyle(document.documentElement);
@@ -166,4 +175,4 @@ export function getChartColors() {
   };
 }
 
-Object.assign(window, { getTheme, getThemeColor, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });
+Object.assign(window, { getTheme, getThemeColor, getThemeColorScheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });

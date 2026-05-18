@@ -19,17 +19,33 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script>
     (() => {
+      const themeColors = {
+        dark: '#0a0a12',
+        light: '#ffffff',
+        cyberterm: '#0b0d0b',
+        glass: '#0a0817',
+        'synth-sunrise': '#0d0524',
+        neuromancer: '#050608',
+      };
+      const valid = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+      let theme = 'dark';
+      let sunsetMode = false;
       try {
-        const theme = localStorage.getItem('labcharts-theme');
-        const valid = ['light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+        theme = localStorage.getItem('labcharts-theme') || 'dark';
+        if (!valid.includes(theme)) theme = 'dark';
         if (valid.includes(theme)) document.documentElement.dataset.theme = theme;
         if (localStorage.getItem('labcharts-sunset-mode') === 'true') {
+          sunsetMode = true;
           document.documentElement.dataset.sunsetMode = 'on';
         }
         if (localStorage.getItem('labcharts-crt-effects') === 'true') {
           document.documentElement.dataset.crtEffects = 'on';
         }
       } catch {}
+      if (theme === 'dark') delete document.documentElement.dataset.theme;
+      document.documentElement.style.colorScheme = !sunsetMode && theme === 'light' ? 'light' : 'dark';
+      const themeColor = sunsetMode ? '#120504' : (themeColors[theme] || themeColors.dark);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(meta => { meta.content = themeColor; });
     })();
   </script>
   <style>#main-content{min-height:calc(100vh - 64px + 180px)}</style>

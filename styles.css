@@ -47,6 +47,7 @@
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
 }
 [data-theme="light"] {
+  color-scheme: light;
   --bg-primary: #f5f6fa;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
@@ -115,7 +116,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-html { overflow-x: hidden; }
+html { overflow-x: hidden; background: var(--bg-primary); color-scheme: dark; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 body {
   font-family: var(--font-body);
