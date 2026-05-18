@@ -683,13 +683,19 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     viewsSrc.includes('renderLabsPriorityBanner(ctx)'));
   const dashboardDefaultOrderBlock = (viewsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardWidgetsBlock = (viewsSrc.match(/const DASHBOARD_WIDGETS = \[([\s\S]*?)\];/) || [null, ''])[1];
-  assert('Dashboard default order is action-first and keeps full lens workspaces optional',
-    dashboardDefaultOrderBlock.indexOf("'focus'") >= 0 &&
-    dashboardDefaultOrderBlock.indexOf("'focus'") < dashboardDefaultOrderBlock.indexOf("'bio-age'") &&
-    dashboardDefaultOrderBlock.indexOf("'recommendations'") < dashboardDefaultOrderBlock.indexOf("'spotlight'") &&
-    dashboardDefaultOrderBlock.indexOf("'quick-markers'") < dashboardDefaultOrderBlock.indexOf("'wearables'") &&
-    dashboardDefaultOrderBlock.indexOf("'wearables'") < dashboardDefaultOrderBlock.indexOf("'light-today'") &&
-    dashboardDefaultOrderBlock.indexOf("'light-today'") < dashboardDefaultOrderBlock.indexOf("'key-trends'") &&
+  const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
+  assert('Dashboard default order is evidence-first for new users',
+    JSON.stringify(dashboardDefaultOrder) === JSON.stringify([
+      'focus',
+      'spotlight',
+      'quick-markers',
+      'key-trends',
+      'recommendations',
+      'profile-context',
+      'wearables',
+      'bio-age',
+    ]) &&
+    !dashboardDefaultOrderBlock.includes("'light-today'") &&
     !dashboardDefaultOrderBlock.includes("'alerts'") &&
     !dashboardDefaultOrderBlock.includes("'markers'") &&
     !dashboardDefaultOrderBlock.includes("'genome'") &&

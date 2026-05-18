@@ -3115,13 +3115,13 @@ const DASHBOARD_WIDGETS = [
 const DASHBOARD_WIDGET_SOURCE_ORDER = ['Labs', 'Genome', 'Body', 'Light', 'Insight', 'Tools'];
 const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'focus',
-  'bio-age',
-  'recommendations',
   'spotlight',
   'quick-markers',
-  'wearables',
-  'light-today',
   'key-trends',
+  'recommendations',
+  'profile-context',
+  'wearables',
+  'bio-age',
 ];
 
 function dashboardWidgetStorageKey() {
