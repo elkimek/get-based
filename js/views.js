@@ -3120,6 +3120,7 @@ const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'key-trends',
   'recommendations',
   'profile-context',
+  'cycle',
   'wearables',
   'bio-age',
 ];

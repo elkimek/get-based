@@ -692,6 +692,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
       'key-trends',
       'recommendations',
       'profile-context',
+      'cycle',
       'wearables',
       'bio-age',
     ]) &&
