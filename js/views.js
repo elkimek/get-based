@@ -3115,12 +3115,12 @@ const DASHBOARD_WIDGETS = [
 const DASHBOARD_WIDGET_SOURCE_ORDER = ['Labs', 'Genome', 'Body', 'Light', 'Insight', 'Tools'];
 const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'focus',
+  'cycle',
   'spotlight',
   'quick-markers',
   'key-trends',
   'recommendations',
   'profile-context',
-  'cycle',
   'wearables',
   'bio-age',
 ];

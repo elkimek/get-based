@@ -687,12 +687,12 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   assert('Dashboard default order is evidence-first for new users',
     JSON.stringify(dashboardDefaultOrder) === JSON.stringify([
       'focus',
+      'cycle',
       'spotlight',
       'quick-markers',
       'key-trends',
       'recommendations',
       'profile-context',
-      'cycle',
       'wearables',
       'bio-age',
     ]) &&
