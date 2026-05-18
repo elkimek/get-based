@@ -241,7 +241,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   maybeShowChangelog();
   // First-launch transparency banner about anonymous analytics — appears once,
   // never again after the user clicks either "Got it" or "Turn off".
-  window.maybeShowAnalyticsConsent?.();
+  setTimeout(() => window.maybeShowAnalyticsConsent?.(), 800);
   setTimeout(() => {
     const overlay = document.getElementById('passphrase-overlay');
     if (overlay && overlay.style.display === 'flex') return;
@@ -265,7 +265,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("pdf-input").addEventListener("change", async e => {
     if (window.isImportRunning && window.isImportRunning()) { e.target.value = ''; return; }
     if (e.target.files.length > 0) {
-      const importMod = await loadPdfImport();
+      let importMod;
+      try {
+        importMod = await loadPdfImport();
+      } catch (err) {
+        showNotification('Could not load import module - check your connection and try again.', 'error');
+        e.target.value = '';
+        return;
+      }
       const files = Array.from(e.target.files);
       const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await importMod.classifyImportFiles(files);
       if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {

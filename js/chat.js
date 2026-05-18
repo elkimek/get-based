@@ -1152,7 +1152,7 @@ function _isLikelyIncompleteResponse(text) {
   if (!lastLine) return false;
   if (/^#{1,6}\s+/.test(lastLine)) return true;
   if (/[:,;]$/.test(t)) return true;
-  if (/\b(and|or|but|because|with|without|low|high|given|especially|that|the|a|an|to|for|of|in|on|by|from)$/i.test(t)) return true;
+  if (/\b(and|or|but|because|with|without|given|especially|that|the|a|an|to|for|of|in|on|by|from)$/i.test(t)) return true;
   return false;
 }
 

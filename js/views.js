@@ -43,7 +43,13 @@ function setupDropZone() {
     }
     const files = Array.from(e.dataTransfer?.files || []);
     if (files.length === 0) return;
-    const importMod = await loadPdfImport();
+    let importMod;
+    try {
+      importMod = await loadPdfImport();
+    } catch (err) {
+      window.showNotification?.('Could not load import module - check your connection and try again.', 'error');
+      return;
+    }
     const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await importMod.classifyImportFiles(files);
     if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
       window.showNotification?.("Unsupported file type. Use PDF, text, image, JSON, or DNA raw data (.txt/.csv).", "error");
