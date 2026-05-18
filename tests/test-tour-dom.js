@@ -88,9 +88,9 @@ return (async function() {
   assert('Description mentions fresh profile framing', tooltip.querySelector('p')?.textContent.includes('fresh profile'));
 
   const dots = tooltip.querySelectorAll('.tour-dot');
-  assert('6 progress dots rendered', dots.length === 6);
+  assert('5 progress dots rendered', dots.length === 5);
   assert('First dot is active', dots[0]?.classList.contains('active'));
-  assert('Other dots are inactive', !dots[1]?.classList.contains('active') && !dots[5]?.classList.contains('active'));
+  assert('Other dots are inactive', !dots[1]?.classList.contains('active') && !dots[4]?.classList.contains('active'));
 
   const btns = tooltip.querySelectorAll('.tour-btn');
   assert('Two buttons on welcome step', btns.length === 2);
@@ -108,7 +108,7 @@ return (async function() {
   await wait(100);
 
   const tooltip2 = document.getElementById('tour-tooltip');
-  assert('Step 1 title is "Start Here"', tooltip2?.querySelector('h4')?.textContent === 'Start Here');
+  assert('Step 1 title is "Start Guided Chat"', tooltip2?.querySelector('h4')?.textContent === 'Start Guided Chat');
 
   const dots2 = tooltip2.querySelectorAll('.tour-dot');
   assert('Second dot active on step 1', dots2[1]?.classList.contains('active'));
@@ -123,7 +123,7 @@ return (async function() {
   const sl2 = document.getElementById('tour-spotlight');
   assert('Spotlight visible on step 1', sl2 && sl2.style.display === 'block');
 
-  const startTarget = firstVisible('.welcome-primary-panel, #drop-zone');
+  const startTarget = firstVisible('.welcome-primary-panel');
   if (startTarget) {
     startTarget.scrollIntoView({ behavior: 'instant', block: 'nearest' });
     window._tourGoToStep(1);
@@ -158,20 +158,20 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 8. Last Step — Done ', 'font-weight:bold;color:#f59e0b');
 
-  window._tourGoToStep(5);
+  window._tourGoToStep(4);
   await wait(100);
 
   const tooltip4 = document.getElementById('tour-tooltip');
-  assert('Step 5 title is "Settings & Connections"', tooltip4?.querySelector('h4')?.textContent === 'Settings & Connections');
+  assert('Step 4 title is "Settings & Connections"', tooltip4?.querySelector('h4')?.textContent === 'Settings & Connections');
 
   const btns4 = tooltip4.querySelectorAll('.tour-btn');
   assert('Last step has Back button', btns4[0]?.textContent.trim() === 'Back');
   assert('Last step has Done button (not Next)', btns4[1]?.textContent.trim() === 'Done');
   assert('Done calls endTour()', btns4[1]?.getAttribute('onclick')?.includes('endTour'));
-  assert('Back calls _tourGoToStep(4)', btns4[0]?.getAttribute('onclick')?.includes('_tourGoToStep(4)'));
+  assert('Back calls _tourGoToStep(3)', btns4[0]?.getAttribute('onclick')?.includes('_tourGoToStep(3)'));
 
   const dots4 = tooltip4.querySelectorAll('.tour-dot');
-  assert('Last dot (6th) is active on step 5', dots4[5]?.classList.contains('active'));
+  assert('Last dot (5th) is active on step 4', dots4[4]?.classList.contains('active'));
 
   // ═══════════════════════════════════════
   // 9. End tour — cleanup
@@ -262,18 +262,18 @@ return (async function() {
 
   assert('Empty start target exists', !!document.querySelector('.welcome-primary-panel, #drop-zone'));
   assert('Empty demo cards target exists', !!document.querySelector('.demo-cards'));
-  assert('Empty context details target exists', !!document.querySelector('.welcome-context-summary'));
+  assert('Empty context details are not shown as a first-run task', !document.querySelector('.welcome-context-summary'));
   assert('.profile-compact-btn exists', !!document.querySelector('.profile-compact-btn'));
   assert('.settings-btn exists', !!document.querySelector('.settings-btn'));
 
   // ═══════════════════════════════════════
-  // 17. Empty tour full walkthrough (all 6 titles + dots)
+  // 17. Empty tour full walkthrough (all 5 titles + dots)
   // ═══════════════════════════════════════
-  console.log('%c 17. Empty Tour Full Walkthrough (Steps 0-5) ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 17. Empty Tour Full Walkthrough (Steps 0-4) ', 'font-weight:bold;color:#f59e0b');
 
   const expectedTitles = [
-    'Welcome to getbased', 'Start Here', 'Try a Populated Profile',
-    'Add Context Before Labs', 'Profiles Stay Separate', 'Settings & Connections'
+    'Welcome to getbased', 'Start Guided Chat', 'Try a Populated Profile',
+    'Profiles Stay Separate', 'Settings & Connections'
   ];
 
   localStorage.removeItem(emptyTourKey);

@@ -5912,7 +5912,7 @@ export function showDashboard(data) {
     return;
   }
 
-  // ── Empty state: welcome hero + collapsed context ──
+  // ── Empty state: chat-first welcome hero ──
   if (!hasData) {
     document.body.classList.add('empty-dashboard-active');
     document.body.classList.remove('chat-autostart-reserved');
@@ -5920,38 +5920,25 @@ export function showDashboard(data) {
     const aiPaused = isAIPaused();
     const importReady = aiReady && !aiPaused;
     const heroClass = importReady ? 'welcome-hero welcome-hero-ready' : 'welcome-hero welcome-hero-noai';
-    const primaryAction = "closeChatPanel();window.openSettingsModal('ai')";
-    const guideAction = importReady
-      ? "window.openChatPanel && window.openChatPanel()"
-      : "window.openChatProviderQuiz ? window.openChatProviderQuiz() : window.openChatPanel && window.openChatPanel()";
-    const primaryLabel = aiPaused ? 'Re-enable AI' : 'Set up AI import';
-    const primaryTitle = aiPaused ? 'AI is paused' : (aiReady ? 'Import your first report' : 'Set up AI, then import your report');
+    const chatAction = "window.openChatPanel && window.openChatPanel()";
+    const primaryTitle = aiPaused ? 'Resume guided chat' : 'Start with guided chat';
     const primaryCopy = aiPaused
-      ? 'Re-enable AI in Settings so getbased can read reports and turn them into private, structured health data.'
+      ? 'Chat will walk you through re-enabling AI before you add files, connect sources, or ask for recommendations.'
       : (aiReady
-        ? 'Drop a lab PDF, report photo, getbased JSON export, or DNA raw data file. Imports stay local to this profile.'
-        : 'One short provider setup unlocks lab parsing, guided review, and personalized next-step recommendations.');
-    const primaryPanel = importReady
-      ? `<div class="welcome-primary-panel welcome-import-panel drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Import health data" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
-        <span class="welcome-primary-kicker">Start here</span>
-        <strong>${escapeHTML(primaryTitle)}</strong>
-        <p>${escapeHTML(primaryCopy)}</p>
-        <div class="welcome-import-formats" aria-hidden="true">
-          <span>PDF/photo labs</span>
-          <span>JSON export</span>
-          <span>DNA raw data</span>
-        </div>
-      </div>
-      <div class="welcome-helper-actions">
-        <button type="button" class="welcome-action-btn" onclick="${guideAction}">Ask AI to guide me</button>
-      </div>`
-      : `<div class="welcome-primary-panel welcome-setup-panel">
+        ? 'Chat will ask for context only when it helps, then route you to labs, DNA, wearables, light, or first-test planning.'
+        : 'Chat starts with the basics, then guides AI setup only when it is needed for import or recommendations.');
+    const secondaryAction = aiPaused
+      ? `<button type="button" class="welcome-action-btn" onclick="closeChatPanel();window.openSettingsModal('ai')">Re-enable AI</button>`
+      : (importReady
+        ? `<button type="button" class="welcome-action-btn welcome-direct-import-btn" onclick="document.getElementById('pdf-input')?.click()">Import directly</button>`
+        : '');
+    const primaryPanel = `<div class="welcome-primary-panel welcome-chat-panel">
         <span class="welcome-primary-kicker">Start here</span>
         <strong>${escapeHTML(primaryTitle)}</strong>
         <p>${escapeHTML(primaryCopy)}</p>
         <div class="welcome-primary-actions">
-          <button type="button" class="welcome-action-btn welcome-action-primary" onclick="${primaryAction}">${escapeHTML(primaryLabel)}</button>
-          <button type="button" class="welcome-action-btn" onclick="${guideAction}">Ask AI to guide me</button>
+          <button type="button" class="welcome-action-btn welcome-action-primary" onclick="${chatAction}">Start guided chat</button>
+          ${secondaryAction}
         </div>
       </div>
       <div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
@@ -5974,25 +5961,7 @@ export function showDashboard(data) {
           </button>
         </div>
       </div>
-      <div class="welcome-secondary-grid">
-        <button type="button" class="welcome-secondary-card" onclick="window.openSettingsModal('wearables')">
-          <span class="welcome-secondary-icon" aria-hidden="true">⧬</span>
-          <span><strong>Connect wearables</strong><small>Oura, Withings, Fitbit, Polar, or Apple Health trends.</small></span>
-        </button>
-        <button type="button" class="welcome-secondary-card" onclick="window.navigate && window.navigate('light')">
-          <span class="welcome-secondary-icon" aria-hidden="true">☀</span>
-          <span><strong>Set up Light &amp; Sun</strong><small>Track daylight, devices, circadian timing, and UV context.</small></span>
-        </button>
-      </div>
     </div>`;
-    const detailsOpen = sessionStorage.getItem('welcome-details-open') === '1';
-    html += `<details class="welcome-context-details"${detailsOpen ? ' open' : ''}>
-      <summary class="welcome-context-summary" onclick="setTimeout(()=>sessionStorage.setItem('welcome-details-open',document.querySelector('.welcome-context-details')?.open?'1':'0'),0)">Don\u2019t have labs yet? Tell the AI about yourself</summary>
-      <div class="welcome-context-body">`;
-    html += renderProfileContextCards();
-    if (state.profileSex === 'female') html += renderMenstrualCycleSection(data);
-    html += renderSupplementsSection();
-    html += `</div></details>`;
     main.innerHTML = html;
     setupDropZone();
     // First visit starts the empty-state tour from the welcome screen.
@@ -6486,26 +6455,24 @@ export function setOnboardingFocus(mode) {
     localStorage.setItem('labcharts-chat-fullscreen', 'false');
   }
   if (mode === 'cards') {
-    // Empty-state cards live inside <details class="welcome-context-details">;
-    // has-data cards render as `.profile-context-cards` (no details wrapper).
-    // Prefer the welcome details when it's present, fall back to the has-data
-    // section so the button works in both dashboards.
-    const details = document.querySelector('.welcome-context-details');
-    if (details) {
-      if (!details.open) details.setAttribute('open', '');
-      sessionStorage.setItem('welcome-details-open', '1');
-      setTimeout(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    } else {
-      const cards = document.querySelector('.profile-context-cards');
-      setTimeout(() => cards?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    const cards = document.querySelector('.profile-context-cards');
+    if (cards) {
+      setTimeout(() => cards.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } else if (window.openChatPanel) {
+      body.classList.remove('cards-focus');
+      const prefill = hasAIProvider()
+        ? 'Help me collect the health context you need before I import labs. Ask me one question at a time.'
+        : undefined;
+      window.openChatPanel(prefill);
     }
   } else if (mode === 'import') {
-    setTimeout(() => document.querySelector('.welcome-hero .drop-zone:not(.drop-zone-hidden), .welcome-primary-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    setTimeout(() => document.querySelector('.welcome-direct-import-btn, .welcome-primary-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   }
 }
 
-// Re-open the chat provider quiz: clear the skipped flag so the chat
-// renders Stage 2, then open the chat panel. Also clear any
+// Open the chat provider quiz when the user explicitly asks for AI setup.
+// Clear the skipped flag so the chat renders that setup branch, then open
+// the chat panel. Also clear any
 // sub-branch the user landed on before skipping — a user clicking
 // "Connect now" wants to re-evaluate the four options, not get
 // dropped back into the specific provider they previously bounced
@@ -6513,6 +6480,7 @@ export function setOnboardingFocus(mode) {
 export function openChatProviderQuiz() {
   const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
   localStorage.removeItem(skipKey);
+  sessionStorage.setItem(`chat-onboard-provider-requested-${state.currentProfile}`, '1');
   sessionStorage.removeItem(`chat-onboard-provider-branch-${state.currentProfile}`);
   if (window.openChatPanel) window.openChatPanel();
   else if (window.toggleChatPanel) window.toggleChatPanel();

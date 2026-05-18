@@ -89,8 +89,8 @@ await import('../js/export.js');
       assert('Demo card has pointer cursor', cardStyle.cursor === 'pointer');
     }
 
-    const importPanel = document.querySelector('.welcome-import-panel, .welcome-setup-panel');
-    assert('Primary empty-state panel exists', !!importPanel);
+    const chatPanel = document.querySelector('.welcome-chat-panel');
+    assert('Primary chat-first empty-state panel exists', !!chatPanel);
   } else {
     console.log('  ⚠️  Empty dashboard not visible (data already loaded) — skipping DOM checks');
   }

@@ -60,11 +60,11 @@ assert('Overlay click dismisses tour', tourSrc.includes('if (e.target === overla
 console.log('2. Empty Tour Steps Content');
 
 assert('Empty step 1: Welcome (null target)', tourSrc.includes("target: null, title: 'Welcome to getbased'"));
-assert('Empty step 2: Start panel', tourSrc.includes("target: '.welcome-primary-panel, #drop-zone', title: 'Start Here'"));
+assert('Empty step 2: Guided chat panel', tourSrc.includes("target: '.welcome-primary-panel', title: 'Start Guided Chat'"));
 assert('Empty step 3: Demo cards', tourSrc.includes("target: '.demo-cards', title: 'Try a Populated Profile'"));
-assert('Empty step 4: Context details', tourSrc.includes("target: '.welcome-context-summary', title: 'Add Context Before Labs'"));
-assert('Empty step 5: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles Stay Separate'"));
-assert('Empty step 6: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
+assert('Empty step 4: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles Stay Separate'"));
+assert('Empty step 5: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
+assert('Empty tour opens chat after completion', tourSrc.includes("activeTour?.storageKey === profileKey('emptyTour')") && tourSrc.includes('window.openChatPanel?.()'));
 
 const emptyStepsStart = tourSrc.indexOf('const EMPTY_TOUR_STEPS');
 const appStepsStart = tourSrc.indexOf('const TOUR_STEPS');
@@ -72,7 +72,7 @@ const emptyStepsSection = emptyStepsStart >= 0 && appStepsStart > emptyStepsStar
   ? tourSrc.slice(emptyStepsStart, appStepsStart)
   : tourSrc.slice(emptyStepsStart, emptyStepsStart + 2000);
 const emptyStepMatches = emptyStepsSection.match(/\{ target:/g);
-assert('Exactly 6 steps in EMPTY_TOUR_STEPS', emptyStepMatches && emptyStepMatches.length === 6, `found ${emptyStepMatches ? emptyStepMatches.length : 0}`);
+assert('Exactly 5 steps in EMPTY_TOUR_STEPS', emptyStepMatches && emptyStepMatches.length === 5, `found ${emptyStepMatches ? emptyStepMatches.length : 0}`);
 
 // ═══════════════════════════════════════
 // 2b. TOUR_STEPS content (data dashboard, 9 entries checked below)

@@ -4,10 +4,9 @@ import { state } from './state.js';
 import { profileStorageKey } from './profile.js';
 
 const EMPTY_TOUR_STEPS = [
-  { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. Import data, try a demo, or add context before labs arrive.', position: 'center' },
-  { target: '.welcome-primary-panel, #drop-zone', title: 'Start Here', text: 'This is the main path: set up AI import when needed, or drop your first report once import is ready.', position: 'bottom' },
+  { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.', position: 'center' },
+  { target: '.welcome-primary-panel', title: 'Start Guided Chat', text: 'Chat is the main path for new profiles. It asks for context only when useful and routes you to import or setup when needed.', position: 'bottom' },
   { target: '.demo-cards', title: 'Try a Populated Profile', text: 'Demo profiles show the full dashboard without adding your own data.', position: 'top' },
-  { target: '.welcome-context-summary', title: 'Add Context Before Labs', text: 'Open this section to record diet, exercise, sleep, environment, supplements, genetics, and medical history.', position: 'top' },
   { target: '.profile-compact-btn', title: 'Profiles Stay Separate', text: 'Switch or manage profiles here. Each profile keeps its own data, settings, and tour progress.', position: 'bottom' },
   { target: '.settings-btn', title: 'Settings & Connections', text: 'Configure privacy, AI providers, wearables, sync, and data controls here.', position: 'bottom' },
 ];
@@ -253,6 +252,9 @@ export function startCycleTour(auto) {
 }
 
 export function endTour() {
+  const shouldOpenEmptyChat = activeTour?.storageKey === profileKey('emptyTour') &&
+    !state.importedData?.entries?.length &&
+    state.chatHistory.length === 0;
   if (activeTour) {
     localStorage.setItem(activeTour.storageKey, 'completed');
   }
@@ -263,6 +265,12 @@ export function endTour() {
   if (overlay) overlay.remove();
   if (spotlight) spotlight.remove();
   if (tooltip) tooltip.remove();
+  if (shouldOpenEmptyChat) {
+    setTimeout(() => {
+      const panel = document.getElementById('chat-panel');
+      if (!panel?.classList.contains('open')) window.openChatPanel?.();
+    }, 250);
+  }
 }
 
 // Internal navigation helper exposed for onclick

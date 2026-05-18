@@ -222,6 +222,10 @@ const labCtxSrc = read('js/lab-context.js');
     'Optional height/weight/location fields should not crowd the first mobile onboarding step');
   assert('Chat onboarding has compact optional task cards', chatSrc.includes('chat-onboard-task-grid') && chatSrc.includes('chat-onboard-dna'),
     'Optional setup should use compact cards and preserve DNA import update hook');
+  assert('Chat onboarding makes AI provider setup explicit', chatSrc.includes('chat-onboard-provider-requested') && !chatSrc.includes('!providerSkipped'),
+    'No-provider users should continue into context first unless they ask to connect AI');
+  assert('Chat onboarding embeds context cards when AI is not connected', chatSrc.includes("import { renderProfileContextCards } from './context-cards.js'") && chatSrc.includes('chat-context-cards'),
+    'No-provider users should still be able to add context inside chat');
   assert('Chat onboarding hides composer while active', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-input-area') && cssSrc.includes('display: none'),
     'Onboarding steps should not compete with the disabled composer on mobile');
   assert('Chat onboarding uses solid active surfaces', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-msg.chat-ai') && cssSrc.includes('var(--bg-card) 94%'),
@@ -310,18 +314,8 @@ const labCtxSrc = read('js/lab-context.js');
     'Hero heading should use display font');
   assert('.welcome-hero-subtitle in CSS', cssSrc.includes('.welcome-hero-subtitle'),
     'Subtitle class should exist');
-  assert('.welcome-context-details in CSS', cssSrc.includes('.welcome-context-details'),
-    'Details wrapper should be styled');
-  assert('.welcome-context-summary in CSS with dashed border', cssSrc.includes('.welcome-context-summary') && cssSrc.includes('border: 1px dashed'),
-    'Summary should have dashed border');
-  assert('Custom disclosure triangle via ::before', cssSrc.includes(".welcome-context-summary::before") && cssSrc.includes("content: '\\25B8'"),
-    'Should use custom triangle character');
-  assert('Open state rotates triangle', cssSrc.includes('.welcome-context-details[open] > .welcome-context-summary::before') && cssSrc.includes('rotate(90deg)'),
-    'Triangle should rotate when open');
-  assert('Default marker hidden', cssSrc.includes('.welcome-context-summary::-webkit-details-marker') && cssSrc.includes('display: none'),
-    'Default disclosure marker should be hidden');
-  assert('Closed welcome context body is hidden', cssSrc.includes('.welcome-context-details:not([open]) > .welcome-context-body') && cssSrc.includes('display: none !important'),
-    'Closed details content should not leak visible context cards');
+  assert('Empty-state manual context details removed from CSS', !cssSrc.includes('.welcome-context-details') && !cssSrc.includes('.welcome-context-summary'),
+    'Manual context details should not be a first-run empty-state surface');
   assert('Mobile override at 480px', cssSrc.includes('.welcome-hero { padding: 28px 14px 24px; }'),
     'Welcome hero should have compact mobile padding');
 
@@ -336,26 +330,24 @@ const labCtxSrc = read('js/lab-context.js');
     'Empty state should use welcome-hero class');
   assert('No onboarding-step1 in views.js', !viewsSrc.includes('onboarding-step1'),
     'Old onboarding step1 should be removed from views');
-  assert('Drop zone inside welcome hero', (() => {
+  assert('Hidden drop zone remains available for import progress', (() => {
     const heroStart = viewsSrc.indexOf('welcome-hero');
     const heroEnd = viewsSrc.indexOf('</div>\\n    </div>`;', heroStart);
     const dropZoneInHero = viewsSrc.indexOf('id="drop-zone"', heroStart);
     return heroStart !== -1 && dropZoneInHero !== -1 && dropZoneInHero > heroStart;
-  })(), 'Drop zone should be inside welcome hero');
-  assert('Welcome hero has a primary start panel', viewsSrc.includes('welcome-primary-panel') && viewsSrc.includes('Set up AI import'),
-    'Empty state should lead with one clear setup/import path');
+  })(), 'Hidden drop zone should remain inside welcome hero');
+  assert('Welcome hero has a chat-first start panel', viewsSrc.includes('welcome-chat-panel') && viewsSrc.includes('Start guided chat'),
+    'Empty state should lead with guided chat');
+  assert('Welcome guided chat button opens chat, not provider setup', viewsSrc.includes('const chatAction = "window.openChatPanel && window.openChatPanel()"'),
+    'AI setup should be routed from chat only when needed');
   assert('Demo cards inside welcome hero', (() => {
     const heroStart = viewsSrc.indexOf('welcome-hero');
-    const detailsStart = viewsSrc.indexOf('welcome-context-details', heroStart);
-    const demoBetween = viewsSrc.substring(heroStart, detailsStart);
-    return demoBetween.includes('demo-cards');
-  })(), 'Demo cards should be inside welcome hero, before details');
-  assert('renderProfileContextCards inside details', (() => {
-    const detailsStart = viewsSrc.indexOf('welcome-context-details');
-    const detailsEnd = viewsSrc.indexOf('</details>', detailsStart);
-    const renderBetween = viewsSrc.substring(detailsStart, detailsEnd);
-    return renderBetween.includes('renderProfileContextCards()');
-  })(), 'Context cards should be inside collapsed details');
+    const demoStart = viewsSrc.indexOf('welcome-demo-section', heroStart);
+    const renderEnd = viewsSrc.indexOf('main.innerHTML = html', heroStart);
+    return heroStart !== -1 && demoStart > heroStart && demoStart < renderEnd;
+  })(), 'Demo cards should be inside welcome hero');
+  assert('No manual context cards in empty state', !viewsSrc.includes('welcome-context-details') && !viewsSrc.includes('welcome-context-summary'),
+    'Empty state should route context collection through chat');
   assert('Category header only in hasData path', (() => {
     const catHeader = viewsSrc.indexOf('Dashboard Overview');
     const hasDataComment = viewsSrc.indexOf('Has data: full dashboard');
