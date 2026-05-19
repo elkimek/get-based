@@ -57,15 +57,16 @@ assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-
 assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
 
 // ═══════════════════════════════════════
-// 3. XSS: escapeHTML in views.js
+// 3. XSS: escapeHTML in views/dashboard renderer surfaces
 // ═══════════════════════════════════════
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
-assert('Trend alert name escaped', viewsSrc.includes('escapeHTML(alert.name)'));
-assert('Trend alert category escaped', viewsSrc.includes('escapeHTML(alert.category)'));
-assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(viewsSrc));
+const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
+assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
+assert('Trend alert category escaped', dashboardRenderersSrc.includes('escapeHTML(alert.category)'));
+assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardRenderersSrc));
 assert('Category label escaped in header', viewsSrc.includes('escapeHTML(cat.label)'));
 assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(viewsSrc));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(viewsSrc));
@@ -126,7 +127,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'dashboard-widget-renderers.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
@@ -205,7 +206,7 @@ assert('Dead overview-card CSS removed', !cssSrc.includes('.overview-card'));
 assert('Light page uses scoped layout wrapper', viewsSrc.includes('class="light-page"'));
 const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
 const lightSessionLogStart = viewsSrc.indexOf('function renderLightSessionLogActions');
-const lightSessionLogEnd = viewsSrc.indexOf('function renderDashboardLightConditionsWidget', lightSessionLogStart);
+const lightSessionLogEnd = viewsSrc.indexOf('function renderLightWidgetPrompt', lightSessionLogStart);
 const lightSessionLogBlock = lightSessionLogStart >= 0 && lightSessionLogEnd > lightSessionLogStart
   ? viewsSrc.slice(lightSessionLogStart, lightSessionLogEnd)
   : '';
@@ -243,15 +244,15 @@ assert('Light dashboard registry exposes only dashboard-safe Light widgets',
   !dashboardWidgetsBlock.includes("id: 'light-tools'") &&
   !dashboardWidgetsBlock.includes("id: 'light-methods'"));
 assert('Dashboard Light Today uses the same hero surface as the Light page',
-  viewsSrc.includes('function renderDashboardLightTodayWidget()') &&
-  viewsSrc.includes('window.renderLightTodayHero()') &&
+  dashboardRenderersSrc.includes('function renderDashboardLightTodayWidget()') &&
+  dashboardRenderersSrc.includes('window.renderLightTodayHero()') &&
   /id: 'light-today'[\s\S]*?render: renderers\.renderDashboardLightTodayWidget/.test(dashboardWidgetsBlock) &&
   !/id: 'light-today'[\s\S]*?render:\s*\(\)\s*=>\s*renderLightTodayStrip\(\)/.test(dashboardWidgetsBlock));
 assert('Dashboard Light Today uses the full Conditions timeline renderer',
-  viewsSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-light-today-widget' })") &&
+  dashboardRenderersSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-light-today-widget' })") &&
   cssSrc.includes('.dashboard-widget[data-widget-id="light-today"] .light-conditions-now-wrap'));
 assert('Dashboard Conditions Now uses the full Light page timeline layout',
-  viewsSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' })") &&
+  dashboardRenderersSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' })") &&
   /id: 'light-conditions-now'[\s\S]*?size: 'full'/.test(dashboardWidgetsBlock));
 assert('Light page dashboard toggles are explicitly scoped',
   viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-today' }") &&

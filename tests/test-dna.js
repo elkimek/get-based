@@ -351,16 +351,17 @@ const pdfSrc = await fetchWithRetry('js/pdf-import.js');
 assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
 
 const viewsSrc = await fetchWithRetry('js/views.js');
+const dashboardRenderersSrc = await fetchWithRetry('js/dashboard-widget-renderers.js');
 const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
-assert('views.js imports SNP category labels', viewsSrc.includes('getSnpCategoryLabel'));
-assert('dashboard genome widget waits for SNP catalog before rows', viewsSrc.includes('Loading SNP interpretations'));
-assert('dashboard genome widget refreshes itself after catalog load', viewsSrc.includes('refreshDashboardGenomeWidgetWhenSNPTableReady') && viewsSrc.includes('body.innerHTML = renderDashboardGenomeWidget()'));
-assert('dashboard genome widget no longer gates refresh on currentView', !viewsSrc.includes("state.currentView === 'dashboard' && window.navigate"));
-assert('dashboard genome rows include category label', viewsSrc.includes('categoryLabel'));
-assert('dashboard genome only shows priority SNP tiers up front', viewsSrc.includes('DASHBOARD_VISIBLE_SNP_TONES') && viewsSrc.includes("['significant', 'moderate', 'mild', 'beneficial']"));
-assert('dashboard genome groups priority SNPs by category', viewsSrc.includes('groupDashboardGenomeFindings') && viewsSrc.includes('db-genome-category'));
-assert('dashboard genome collapses low-priority SNP calls', viewsSrc.includes('db-genome-secondary') && viewsSrc.includes('Other imported SNPs'));
-assert('dashboard genome collapsed SNPs reuse category groups', viewsSrc.includes('secondaryGroups.map(group => renderDashboardGenomeGroup'));
+assert('dashboard widget renderers import SNP category labels', dashboardRenderersSrc.includes('getSnpCategoryLabel'));
+assert('dashboard genome widget waits for SNP catalog before rows', dashboardRenderersSrc.includes('Loading SNP interpretations'));
+assert('dashboard genome widget refreshes itself after catalog load', dashboardRenderersSrc.includes('refreshDashboardGenomeWidgetWhenSNPTableReady') && dashboardRenderersSrc.includes('body.innerHTML = renderDashboardGenomeWidget()'));
+assert('dashboard genome widget no longer gates refresh on currentView', !dashboardRenderersSrc.includes("state.currentView === 'dashboard' && window.navigate"));
+assert('dashboard genome rows include category label', dashboardRenderersSrc.includes('categoryLabel'));
+assert('dashboard genome only shows priority SNP tiers up front', dashboardRenderersSrc.includes('DASHBOARD_VISIBLE_SNP_TONES') && dashboardRenderersSrc.includes("['significant', 'moderate', 'mild', 'beneficial']"));
+assert('dashboard genome groups priority SNPs by category', dashboardRenderersSrc.includes('groupDashboardGenomeFindings') && dashboardRenderersSrc.includes('db-genome-category'));
+assert('dashboard genome collapses low-priority SNP calls', dashboardRenderersSrc.includes('db-genome-secondary') && dashboardRenderersSrc.includes('Other imported SNPs'));
+assert('dashboard genome collapsed SNPs reuse category groups', dashboardRenderersSrc.includes('secondaryGroups.map(group => renderDashboardGenomeGroup'));
 assert('Genome lens avoids duplicated full genetics surfaces',
   lensPagesSrc.includes('Actionable Genetic Modifiers') &&
   lensPagesSrc.includes('renderGenomeImportDetailsWidget') &&

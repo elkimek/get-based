@@ -32,14 +32,15 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 2. Clickable divs gain role+tabindex ───
   const viewsSrc = read('/js/views.js');
+  const dashboardRenderersSrc = read('/js/dashboard-widget-renderers.js');
   assert('chart-card has role and tabindex',
     viewsSrc.match(/<div class="chart-card" role="button" tabindex="0"/));
   assert('trend-alert-card has role and tabindex',
-    viewsSrc.includes('class="trend-alert-card ${cls}" role="button" tabindex="0"'));
+    dashboardRenderersSrc.includes('class="trend-alert-card ${cls}" role="button" tabindex="0"'));
   assert('alert-card (critical) has role and tabindex',
-    viewsSrc.includes('class="alert-card ${cls}" role="button" tabindex="0"'));
+    dashboardRenderersSrc.includes('class="alert-card ${cls}" role="button" tabindex="0"'));
   assert('note-card has role and tabindex',
-    viewsSrc.includes('class="note-card" role="button" tabindex="0"'));
+    dashboardRenderersSrc.includes('class="note-card" role="button" tabindex="0"'));
   assert('heatmap header td has role+tabindex',
     viewsSrc.includes('<tr><td role="button" tabindex="0"'));
   assert('heatmap cell td has role+tabindex',

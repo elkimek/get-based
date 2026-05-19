@@ -544,7 +544,7 @@ Dedicated page renderers for Labs, Genome, Body, Insight, and Recommendations. T
 
 ### `dashboard-widgets.js`
 
-Dashboard widget registry and persistence helpers. `views.js` supplies renderer functions to `createDashboardWidgetRegistry()` so widget metadata, defaults, availability gates, per-profile widget preferences, custom marker widget IDs, and visible-entry generation can live outside the main views module.
+Dashboard widget registry and persistence helpers. `views.js` supplies renderer functions from `dashboard-widget-renderers.js` to `createDashboardWidgetRegistry()` so widget metadata, defaults, availability gates, per-profile widget preferences, custom marker widget IDs, and visible-entry generation can live outside the main views module.
 
 **Key exports:**
 - `createDashboardWidgetRegistry(renderers, opts?)` — returns dashboard widget definitions plus preference/order helpers
@@ -563,9 +563,18 @@ Dashboard widget picker, widget chrome, layout actions, and drag/reorder control
 
 ---
 
+### `dashboard-widget-renderers.js`
+
+Dashboard widget body renderers and shared recommendation helpers. `views.js` creates the renderer layer with Light helper and mobile-summary dependencies, then passes the returned renderers to `dashboard-widgets.js`, `dashboard-widget-controls.js`, and `lens-pages.js`.
+
+**Key exports:**
+- `createDashboardWidgetRenderers(deps)` — returns dashboard body renderers, dashboard context builders, biometrics helpers, custom marker renderer support, and recommendation helper functions
+
+---
+
 ### `views.js`
 
-Dashboard, Light page, tool page, category, and modal rendering. Public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Dashboard composition, Light page, tool page, category, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
@@ -637,7 +646,7 @@ Client List modal for managing multiple profiles.
 
 ### `recommendations.js`
 
-Supplement, lifestyle, light-device, and EMF affiliate recommendations driven by a lazy-loaded catalog. Region-aware: products + URLs + coupons are filtered by user country via a single hierarchy chain (CZ → EU → INTL etc.). The global Recommendations page is rendered by `lens-pages.js`, while `dashboard-widgets.js` registers the dashboard surface and `views.js` owns its renderer; this module owns catalog loading, slot rendering, disclosure state, product filtering, and DNA/wearable slot helpers.
+Supplement, lifestyle, light-device, and EMF affiliate recommendations driven by a lazy-loaded catalog. Region-aware: products + URLs + coupons are filtered by user country via a single hierarchy chain (CZ → EU → INTL etc.). The global Recommendations page is rendered by `lens-pages.js`, while `dashboard-widgets.js` registers the dashboard surface and `dashboard-widget-renderers.js` owns its dashboard renderer; this module owns catalog loading, slot rendering, disclosure state, product filtering, and DNA/wearable slot helpers.
 
 **Key exports:**
 - `loadCatalog()` — lazy-loads `data/recommendations.json` on first call
