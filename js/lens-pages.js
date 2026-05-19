@@ -8,11 +8,15 @@ import { renderSupplementsSection } from './supplements.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
 
+function markerHasData(marker) {
+  return marker.values?.some(v => v !== null) ?? false;
+}
+
 function hasAnyLabData(data) {
   if (!data) return false;
   if (data.dates?.length) return true;
   return Object.values(data.categories || {}).some(cat =>
-    cat.singleDate || Object.values(cat.markers || {}).some(marker => marker.values?.some(v => v !== null))
+    cat.singleDate || Object.values(cat.markers || {}).some(markerHasData)
   );
 }
 
