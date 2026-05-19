@@ -106,6 +106,9 @@ assert('SW has offline navigation fallback for /app',
   swSrc.includes("caches.match('/app')") &&
   swSrc.includes("caches.match('/index.html')"),
   'installed PWA start_url=/app needs a cached document while offline');
+assert('SW does not cache HTTP error responses',
+  /if \(!response \|\| response\.status === 206 \|\| !response\.ok\) return Promise\.resolve\(\);/.test(swSrc),
+  'transient 4xx/5xx responses must not overwrite a valid cached app shell');
 assert('PDF import lazy loader is shared by main.js and views.js',
   mainSrc.includes("from './import-loader.js'") &&
   viewsSrc.includes("from './import-loader.js'") &&

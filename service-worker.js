@@ -161,7 +161,7 @@ const APP_SHELL = [
 ];
 
 function cacheResponse(request, response) {
-  if (!response || response.status === 206) return Promise.resolve();
+  if (!response || response.status === 206 || !response.ok) return Promise.resolve();
   const clone = response.clone();
   return resolveCacheName()
     .then((name) => caches.open(name))
