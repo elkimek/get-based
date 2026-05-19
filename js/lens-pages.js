@@ -226,7 +226,7 @@ export function createLensPageHandlers(deps) {
       widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source}-Driven`, description: `Recommendations originating from ${source}`, body: `<div class="rec-next-list">${rows.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
     }
     if (saved.length) {
-      widgets.push({ id: 'recommendations-saved', title: 'Saved', description: 'Recommendations saved for later', body: `<div class="rec-next-list">${saved.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
+      widgets.push({ id: 'recommendations-bookmarks', title: 'Bookmarks', description: 'Recommendations bookmarked for later', body: `<div class="rec-next-list">${saved.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
     }
     if (dismissed.length) {
       widgets.push({ id: 'recommendations-dismissed', title: 'Dismissed', description: 'Currently dismissed recommendations from active data', body: `<div class="rec-next-list">${dismissed.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });

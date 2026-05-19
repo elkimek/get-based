@@ -230,7 +230,7 @@ export function createDashboardWidgetRenderers(deps) {
     const markerBtn = candidate.markerId
       ? `<button type="button" class="dashboard-action-btn" onclick="${markerCall}">View marker</button>`
       : '';
-    const saveLabel = candidate.saved ? 'Saved' : 'Save';
+    const saveLabel = candidate.saved ? 'Bookmarked' : 'Bookmark';
     return `<article class="rec-next-card${compact ? ' rec-next-card-compact' : ''}${savedClass}" data-rec-id="${escapeAttr(candidate.id)}">
       <div class="rec-next-head">
         <span class="rec-next-source">${escapeHTML(candidate.source)}</span>
