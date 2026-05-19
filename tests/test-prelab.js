@@ -161,6 +161,16 @@ const labCtxSrc = read('js/lab-context.js');
     const cardEnd = insightSrc.indexOf('\n', cardStart);
     return cardStart !== -1 && insightSrc.substring(cardStart, cardEnd).includes("size: 'full'");
   })(), 'Insight page should not cram Profile Context into a half-width column');
+  assert('Settings modal content owns vertical scroll', (() => {
+    const block = (cssSrc.match(/\.settings-modal \.settings-content\s*{([\s\S]*?)}/) || [null, ''])[1];
+    return block.includes('min-height: 0') && block.includes('overflow-y: auto');
+  })(), 'Long settings sections should scroll inside the modal instead of being clipped');
+  assert('Settings modal layout shrinks to viewport height', (() => {
+    const block = (cssSrc.match(/\.settings-modal \.settings-layout\s*{([\s\S]*?)}/) || [null, ''])[1];
+    return block.includes('height: min(560px, calc(90vh - 78px))') &&
+      block.includes('height: min(560px, calc(90dvh - 78px))') &&
+      block.includes('min-height: 0');
+  })(), 'Short desktop viewports should not clip long settings panels');
 
   // ═══════════════════════════════════════
   // 5. Health dots sentinel fix

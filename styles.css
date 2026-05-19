@@ -2485,8 +2485,11 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .settings-modal .settings-layout {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
-  min-height: 560px;
+  height: min(560px, calc(90vh - 78px));
+  height: min(560px, calc(90dvh - 78px));
+  min-height: 0;
   max-height: calc(90vh - 78px);
+  max-height: calc(90dvh - 78px);
   gap: 0;
 }
 .settings-modal .settings-tabs-bar {
@@ -2531,6 +2534,7 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   position: relative;
   z-index: 1;
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 18px 24px 24px;
