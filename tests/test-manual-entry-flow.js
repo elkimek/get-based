@@ -119,11 +119,18 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /let cancelled = false/.test(markerDetailSrc) ||
     /editMarkerValue[\s\S]{0,1500}cancelled\s*=\s*false/.test(markerDetailSrc));
   assert('save() short-circuits when cancelled is true',
-    /const save = \(\) => \{[\s\S]{0,200}if \(cancelled\) return/.test(markerDetailSrc));
+    /const save = async \(\) => \{[\s\S]{0,200}if \(cancelled\) return/.test(markerDetailSrc));
   assert('Escape handler sets cancelled = true before re-rendering',
     /else if \(e\.key === 'Escape'\) \{ cancelled = true; showDetailModal/.test(markerDetailSrc));
   assert("No-change save short-circuits (no manual flip on a same-value edit)",
     /newValue === parseFloat\(currentValue\)\)/.test(markerDetailSrc));
+  assert('Enter saves inline edits directly instead of relying on blur',
+    /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); void save\(\); \}/.test(markerDetailSrc));
+  assert('Inline edit guards against double saves from Enter + blur',
+    /let saveStarted = false/.test(markerDetailSrc) &&
+    /if \(saveStarted\) return;[\s\S]{0,80}saveStarted = true/.test(markerDetailSrc));
+  assert('Inline edit awaits persistence before refreshing the modal',
+    /await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailSrc));
   assert('editMarkerValue calls injected navigate() to rebuild Table/Heatmap after save',
     /editMarkerValue[\s\S]{0,2500}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
   assert('revertMarkerValue also calls injected navigate() to rebuild the underlying view',

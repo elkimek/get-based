@@ -1056,8 +1056,11 @@ export function editMarkerValue(id, date, currentValue, event) {
   input.focus();
   input.select();
   let cancelled = false;
-  const save = () => {
+  let saveStarted = false;
+  const save = async () => {
     if (cancelled) return;
+    if (saveStarted) return;
+    saveStarted = true;
     const newValue = parseFloat(input.value);
     if (isNaN(newValue)) { showDetailModal(id); return; }
     // No-op if the value didn't change — don't flip provenance to manual.
@@ -1078,14 +1081,14 @@ export function editMarkerValue(id, date, currentValue, event) {
     if (!entry.markerSources) entry.markerSources = {};
     entry.markerSources[dotKey] = { file: null, at: Date.now() };
     if (dotKey === 'hormones.insulin') { entry.markers['diabetes.insulin_d'] = storedValue; if (entry.markerSources) entry.markerSources['diabetes.insulin_d'] = entry.markerSources[dotKey]; recalculateHOMAIR(entry); }
-    saveImportedData();
+    await saveImportedData();
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
     markerDetailDeps.navigate(state.currentView || 'dashboard');
     showDetailModal(id);
   };
-  input.addEventListener('blur', save);
+  input.addEventListener('blur', () => { void save(); });
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Enter') { e.preventDefault(); void save(); }
     else if (e.key === 'Escape') { cancelled = true; showDetailModal(id); }
   });
 }
