@@ -2818,9 +2818,7 @@ function getSunCoordsHint() {
 
 let dashboardWidgetControls;
 
-let dashboardWidgetRenderers;
-
-dashboardWidgetRenderers = createDashboardWidgetRenderers({
+const dashboardWidgetRenderers = createDashboardWidgetRenderers({
   markerHasData,
   renderDashboardLightChannelPills,
   renderLightConditionsWidgetBody,

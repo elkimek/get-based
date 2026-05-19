@@ -5,7 +5,7 @@ import { DEFAULT_METRIC_ORDER, canonicalMetric, metricsForSources } from './wear
 import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
 import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './dna.js';
 import { profileStorageKey } from './profile.js';
-import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId } from './utils.js';
+import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId, showNotification } from './utils.js';
 import { detectTrendAlerts, filterDatesByRange, getActiveData, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex, renderDateRangeFilter } from './data.js';
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
@@ -1319,7 +1319,7 @@ export function createDashboardWidgetRenderers(deps) {
         : alert.concern === 'past_low' ? 'Below range & falling'
         : alert.concern === 'approaching_high' ? 'Approaching upper limit'
         : 'Approaching lower limit';
-      html += `<div class="trend-alert-card ${cls}" role="button" tabindex="0" aria-label="${escapeHTML(alert.name)} \u2014 ${label}" onclick="showDetailModal('${alert.id}')">
+      html += `<div class="trend-alert-card ${cls}" role="button" tabindex="0" aria-label="${escapeHTML(alert.name)} \u2014 ${label}" onclick="window.showDetailModal && window.showDetailModal('${alert.id}')">
         <span class="trend-alert-arrow">${arrow}</span>
         <div class="trend-alert-info">
           <div class="trend-alert-name">${escapeHTML(alert.name)} <span class="trend-alert-cat">${escapeHTML(alert.category)}</span></div>
@@ -1331,7 +1331,7 @@ export function createDashboardWidgetRenderers(deps) {
     for (const f of criticalFlags) {
       const cls = f.status === "high" ? "alert-high" : "alert-low";
       const label = f.status === "high" ? "\u25B2 CRITICAL HIGH" : "\u25BC CRITICAL LOW";
-      html += `<div class="alert-card ${cls}" role="button" tabindex="0" aria-label="${label}: ${escapeHTML(f.name)} ${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}" onclick="navigate('${f.categoryKey}')">
+      html += `<div class="alert-card ${cls}" role="button" tabindex="0" aria-label="${label}: ${escapeHTML(f.name)} ${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}" onclick="window.navigate && window.navigate('${f.categoryKey}')">
         <span class="alert-indicator">${label}</span>
         <span class="alert-name">${escapeHTML(f.name)}</span>
         <span class="alert-value">${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}</span>
