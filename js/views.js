@@ -105,6 +105,7 @@ const _navigate = createNavigate({
     category: showCategory,
   },
   syncMobileBottomNav,
+  destroyAllCharts,
 });
 
 export function navigate(category, data) {

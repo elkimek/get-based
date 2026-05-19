@@ -219,6 +219,12 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     // instead of re-capturing AFTER the jump.
     assert('views-router.js: _activeAnchor reuse for rapid same-anchor navigates',
       /_activeAnchor[\s\S]{0,200}\.selector\s*===\s*data\.scrollAnchor/.test(routerSrc));
+    assert('views-router.js: anchor state is scoped to createNavigate instances',
+      /export function createNavigate\(\{[\s\S]{0,300}let _navAnchorToken\s*=\s*0;[\s\S]{0,300}let _activeAnchor\s*=\s*null;/.test(routerSrc));
+    assert('views-router.js: chart teardown is injected instead of imported',
+      !/import\s*\{[^}]*destroyAllCharts/.test(routerSrc)
+      && /createNavigate\(\{[\s\S]{0,160}destroyAllCharts/.test(routerSrc)
+      && /destroyAllCharts\?\.\(\)/.test(routerSrc));
     // v1.6.12: explicit anchor element gone → skip auto-pick fallback.
     assert('views-router.js: skip auto-pick when explicit anchor not found',
       /explicitAnchorRequested[\s\S]{0,400}!explicitAnchorRequested/.test(routerSrc)

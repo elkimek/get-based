@@ -1,7 +1,7 @@
 // views-router.js — route validation, route persistence, and scroll anchoring
 
 import { state } from './state.js';
-import { getActiveData, destroyAllCharts } from './data.js';
+import { getActiveData } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { safeMarkerId } from './utils.js';
 
@@ -44,7 +44,16 @@ export function getInitialView() {
   return isKnownRoute(saved) ? saved : 'dashboard';
 }
 
-export function createNavigate({ routeHandlers, syncMobileBottomNav }) {
+export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllCharts }) {
+  // Monotonic counter for in-flight anchor-restore loops. Each navigate
+  // captures a new token; older loops compare and bail when the user
+  // has moved on.
+  let _navAnchorToken = 0;
+  // Currently-active anchor for this navigator — rapid same-selector
+  // re-navigates reuse the original captured viewportTop instead of
+  // re-capturing AFTER the jump that the original was trying to prevent.
+  let _activeAnchor = null;
+
   return function navigate(category, data) {
     const requestedCategory = String(category || 'dashboard');
     const routeCategory = isKnownRoute(requestedCategory, data) ? requestedCategory : 'dashboard';
@@ -102,7 +111,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav }) {
       document.body.classList.remove('mobile-dashboard-active', 'empty-dashboard-active');
     }
     if (window.syncImportStatusFab) window.syncImportStatusFab();
-    destroyAllCharts();
+    destroyAllCharts?.();
     if (routeCategory === "dashboard") routeHandlers.dashboard?.(data);
     else if (routeCategory === "labs") routeHandlers.labs?.(data);
     else if (routeCategory === "genome") routeHandlers.genome?.(data);
@@ -163,15 +172,6 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav }) {
     }
   };
 }
-
-// Monotonic counter for in-flight anchor-restore loops. Each navigate
-// captures a new token; older loops compare and bail when the user
-// has moved on.
-let _navAnchorToken = 0;
-// Currently-active anchor — exposed so rapid same-selector re-navigates
-// reuse the original captured viewportTop instead of re-capturing AFTER
-// the jump that the original was trying to prevent.
-let _activeAnchor = null;
 
 // Capture identity + viewport position of the most reasonable scroll
 // anchor for the current interaction. Priority:
