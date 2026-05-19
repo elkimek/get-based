@@ -70,6 +70,14 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /already exists for \$\{date\}\. Overwrite\?/.test(markerDetailSrc));
   assert('Duplicate check uses display-unit value (marker.values[dateIdx]) not raw SI',
     /const dateIdx = data\.dates\.indexOf\(date\)[\s\S]{0,300}marker\.values\[dateIdx\]/.test(markerDetailSrc));
+  assert('Manual overwrite remembers imported original for revert',
+    /function _rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailSrc) &&
+    /state\.importedData\.manualValues\[mvKey\] = hasImportedOriginal \? current : true/.test(markerDetailSrc) &&
+    /saveManualEntry[\s\S]{0,3500}_rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailSrc));
+  assert('Clickable manual badge reverts to imported value when original exists',
+    /manual \\u00d7/.test(markerDetailSrc) &&
+    /Revert manual value to imported value/.test(markerDetailSrc) &&
+    /revertMarkerValue\('\$\{id\}','\$\{rawDate\}'\)/.test(markerDetailSrc));
 
   // ═══════════════════════════════════════
   // 4. Save & Add Another flow
@@ -131,10 +139,12 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /if \(saveStarted\) return;[\s\S]{0,80}saveStarted = true/.test(markerDetailSrc));
   assert('Inline edit awaits persistence before refreshing the modal',
     /await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailSrc));
+  assert('revertMarkerValue awaits persistence before refreshing the modal',
+    /export async function revertMarkerValue\(id, date\)[\s\S]{0,900}await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailSrc));
   assert('editMarkerValue calls injected navigate() to rebuild Table/Heatmap after save',
     /editMarkerValue[\s\S]{0,2500}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
   assert('revertMarkerValue also calls injected navigate() to rebuild the underlying view',
-    /revertMarkerValue[\s\S]{0,800}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
+    /revertMarkerValue[\s\S]{0,1200}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
 
   // ═══════════════════════════════════════
   // 7. Input width fix

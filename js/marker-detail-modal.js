@@ -302,7 +302,7 @@ export function showDetailModal(id, opts = {}) {
     const isManual = manualVal !== undefined && manualVal !== null;
     const canRevert = isManual && manualVal !== true;
     const manualBadge = canRevert
-      ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert edited value" title="Edited — click to revert" onclick="event.stopPropagation();revertMarkerValue('${id}','${rawDate}')">edited \u00d7</span>`
+      ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert manual value to imported value" title="Manual — click to revert to imported value" onclick="event.stopPropagation();revertMarkerValue('${id}','${rawDate}')">manual \u00d7</span>`
       : isManual ? ' <span class="ref-edited-badge" title="Manually entered">manual</span>' : '';
     const deleteBtn = `<button class="mv-delete" onclick="event.stopPropagation();deleteMarkerValue('${id}','${rawDate}')" title="Remove this value">&times;</button>`;
     const editClick = rawDate ? ` onclick="event.stopPropagation();editMarkerValue('${id}','${rawDate}',${v},event)" title="Click to edit" style="cursor:pointer"` : '';
@@ -684,6 +684,25 @@ function _insulinMirrorNoteKey(dotKey, date) {
   return null;
 }
 
+function _entryHasImportedSource(entry, dotKey) {
+  if (!entry) return false;
+  const markerSource = entry.markerSources?.[dotKey];
+  return !!(markerSource?.file || entry.sourceFile);
+}
+
+function _rememberManualOriginal(dotKey, date, entry) {
+  if (!entry || !dotKey || !date) return;
+  if (!state.importedData.manualValues) state.importedData.manualValues = {};
+  const mvKey = dotKey + ':' + date;
+  const current = entry.markers?.[dotKey];
+  const hasImportedOriginal = current != null && _entryHasImportedSource(entry, dotKey);
+  if (!(mvKey in state.importedData.manualValues)) {
+    state.importedData.manualValues[mvKey] = hasImportedOriginal ? current : true;
+  } else if (state.importedData.manualValues[mvKey] === true && hasImportedOriginal) {
+    state.importedData.manualValues[mvKey] = current;
+  }
+}
+
 export async function saveManualEntry(id, opts = {}) {
   const { keepOpen = false } = opts;
   const dateInput = document.getElementById('me-date');
@@ -753,17 +772,17 @@ export async function saveManualEntry(id, opts = {}) {
   const storedValue = usingAltUnit
     ? convertUserInputToSI(dotKey, value, inputUnit)
     : convertDisplayToSI(dotKey, value);
+  _rememberManualOriginal(dotKey, date, entry);
   entry.markers[dotKey] = storedValue;
   if (!entry.markerSources) entry.markerSources = {};
   entry.markerSources[dotKey] = { file: null, at: Date.now() };
-  if (!state.importedData.manualValues) state.importedData.manualValues = {};
-  state.importedData.manualValues[dotKey + ':' + date] = true;
   // Per-value note: store on save when non-empty; clear when emptied.
   if (!state.importedData.markerValueNotes) state.importedData.markerValueNotes = {};
   const noteKey = dotKey + ':' + date;
   if (noteText) state.importedData.markerValueNotes[noteKey] = noteText;
   else delete state.importedData.markerValueNotes[noteKey];
   if (dotKey === 'hormones.insulin') {
+    _rememberManualOriginal('diabetes.insulin_d', date, entry);
     entry.markers['diabetes.insulin_d'] = storedValue;
     entry.markerSources['diabetes.insulin_d'] = entry.markerSources[dotKey];
   }
@@ -777,7 +796,7 @@ export async function saveManualEntry(id, opts = {}) {
     else delete state.importedData.markerValueNotes[insulinNoteMirror];
   }
   recalculateHOMAIR(entry);
-  saveImportedData();
+  await saveImportedData();
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
   window.buildSidebar();
@@ -1069,12 +1088,7 @@ export function editMarkerValue(id, date, currentValue, event) {
     const entry = state.importedData.entries?.find(e => e.date === date);
     if (!entry) return;
     // Track as manually edited — store original value for revert (true = manual entry with no original)
-    if (!state.importedData.manualValues) state.importedData.manualValues = {};
-    const mvKey = dotKey + ':' + date;
-    if (!(mvKey in state.importedData.manualValues)) {
-      // First edit — save original SI value for revert
-      state.importedData.manualValues[mvKey] = entry.markers[dotKey] != null ? entry.markers[dotKey] : true;
-    }
+    _rememberManualOriginal(dotKey, date, entry);
     const storedValue = convertDisplayToSI(dotKey, newValue);
     entry.markers[dotKey] = storedValue;
     // Update provenance to reflect manual edit
@@ -1093,7 +1107,7 @@ export function editMarkerValue(id, date, currentValue, event) {
   });
 }
 
-export function revertMarkerValue(id, date) {
+export async function revertMarkerValue(id, date) {
   const dotKey = id.replace('_', '.');
   const mvKey = dotKey + ':' + date;
   const original = state.importedData.manualValues?.[mvKey];
@@ -1101,9 +1115,15 @@ export function revertMarkerValue(id, date) {
   const entry = state.importedData.entries?.find(e => e.date === date);
   if (!entry) return;
   entry.markers[dotKey] = original;
-  if (dotKey === 'hormones.insulin') { entry.markers['diabetes.insulin_d'] = original; recalculateHOMAIR(entry); }
+  if (entry.markerSources) delete entry.markerSources[dotKey];
+  if (dotKey === 'hormones.insulin') {
+    entry.markers['diabetes.insulin_d'] = original;
+    if (entry.markerSources) delete entry.markerSources['diabetes.insulin_d'];
+    delete state.importedData.manualValues['diabetes.insulin_d:' + date];
+    recalculateHOMAIR(entry);
+  }
   delete state.importedData.manualValues[mvKey];
-  saveImportedData();
+  await saveImportedData();
   // Rebuild the underlying view so Table/Heatmap/Chart reflect the revert.
   markerDetailDeps.navigate(state.currentView || 'dashboard');
   showDetailModal(id);
