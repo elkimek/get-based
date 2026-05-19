@@ -618,6 +618,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
 
   const viewsSrc = read('js/views.js');
   const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
+  const dashboardControlsSrc = read('js/dashboard-widget-controls.js');
   const lensPagesSrc = read('js/lens-pages.js');
   const routerSrc = read('js/views-router.js');
   assert('Marker Spotlight uses explicit priority scoring', viewsSrc.includes('function scoreDashboardSpotlightHit') && viewsSrc.includes('priorityScore'));
@@ -643,16 +644,16 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     viewsSrc.includes('toggleDashboardQuickMarkerPin') &&
     viewsSrc.includes('DASHBOARD_QUICK_MARKER_GOAL_RULES'));
   assert('Dashboard supports user-added single marker widgets',
-    viewsSrc.includes('dashboardMarkerWidgetId') &&
-    viewsSrc.includes('addDashboardMarkerWidget') &&
+    dashboardControlsSrc.includes('dashboardMarkerWidgetId') &&
+    dashboardControlsSrc.includes('addDashboardMarkerWidget') &&
     viewsSrc.includes('renderDashboardSingleMarkerWidget') &&
-    viewsSrc.includes('dashboard-marker-widget-option'));
+    dashboardControlsSrc.includes('dashboard-marker-widget-option'));
   assert('Dashboard widget insert uses viewport position',
-    viewsSrc.includes('getDashboardViewportTargetWidgetId') &&
-    viewsSrc.includes('insertDashboardWidgetAtViewport') &&
-    viewsSrc.includes('scrollDashboardWidgetIntoView'));
+    dashboardControlsSrc.includes('getDashboardViewportTargetWidgetId') &&
+    dashboardControlsSrc.includes('insertDashboardWidgetAtViewport') &&
+    dashboardControlsSrc.includes('scrollDashboardWidgetIntoView'));
   assert('Dashboard widget controls float without consuming widget layout space',
-    viewsSrc.includes('renderDashboardStickyControls') &&
+    dashboardControlsSrc.includes('renderDashboardStickyControls') &&
     read('styles.css').includes('.dashboard-sticky-actions') &&
     read('styles.css').includes('position: fixed'));
   assert('Dashboard no longer duplicates top and sticky widget controls',
@@ -725,12 +726,13 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     dashboardWidgetsSrc.includes("title: 'Genetic Modifiers'") &&
     dashboardWidgetsSrc.includes("description: 'Actionable SNP context relevant to labs and goals'"));
   assert('Dashboard adds biometrics inside the Biometrics Overview widget',
-    viewsSrc.includes('dashboardBiometricSelectionKey') &&
-    viewsSrc.includes('addDashboardBiometricMetric') &&
-    viewsSrc.includes('removeDashboardBiometricMetric') &&
+    dashboardControlsSrc.includes('dashboardBiometricSelectionKey') &&
+    dashboardControlsSrc.includes('addDashboardBiometricMetric') &&
+    dashboardControlsSrc.includes('removeDashboardBiometricMetric') &&
     dashboardWidgetsSrc.includes("'wearables',") &&
-    viewsSrc.includes('Add to Biometrics Overview') &&
-    !viewsSrc.includes("`biometric_${"));
+    dashboardControlsSrc.includes('Add to Biometrics Overview') &&
+    !viewsSrc.includes("`biometric_${") &&
+    !dashboardControlsSrc.includes("`biometric_${"));
   assert('Dashboard treats biometric summaries as dashboard data',
     viewsSrc.includes('const hasWearableData = Object.values(wearableMetrics).some') &&
     viewsSrc.includes('data.dates.length > 0 || hasWearableData'));
@@ -754,7 +756,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     dashboardWidgetsSrc.includes("id: 'recommendations'") &&
     lensPagesSrc.includes('showRecommendations') &&
     viewsSrc.includes('renderDashboardRecommendationsWidget') &&
-    dashboardWidgetsSrc.includes('DASHBOARD_WIDGET_SOURCE_ORDER'));
+    dashboardControlsSrc.includes('DASHBOARD_WIDGET_SOURCE_ORDER'));
 
   // =======================================
   // Summary

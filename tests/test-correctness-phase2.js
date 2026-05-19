@@ -78,6 +78,7 @@ const pwaAppShellAssets = [
   '/js/views-router.js',
   '/js/lens-pages.js',
   '/js/dashboard-widgets.js',
+  '/js/dashboard-widget-controls.js',
   '/js/light-devices.js',
   '/js/light-env.js',
   '/js/light-tools.js',

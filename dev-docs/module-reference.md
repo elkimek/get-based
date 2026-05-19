@@ -554,6 +554,15 @@ Dashboard widget registry and persistence helpers. `views.js` supplies renderer 
 
 ---
 
+### `dashboard-widget-controls.js`
+
+Dashboard widget picker, widget chrome, layout actions, and drag/reorder controls. `views.js` creates the control layer with registry, marker, and biometrics dependencies, then re-exports the public handlers for existing `window.*` integrations.
+
+**Key exports:**
+- `createDashboardWidgetControls(deps)` — returns render helpers and dashboard widget action handlers
+
+---
+
 ### `views.js`
 
 Dashboard, Light page, tool page, category, and modal rendering. Public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
@@ -563,7 +572,7 @@ Dashboard, Light page, tool page, category, and modal rendering. Public navigati
 - `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
 - `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - compatibility facades delegated to `lens-pages.js`
 - `showCompare(data?)` / `showCorrelations(data?)` - focused tool pages
-- Dashboard widget controls: `openDashboardWidgetPicker()`, `toggleDashboardOrganizeMode()`, `resetDashboardWidgets()`, `clearDashboardWidgets()`, `addDashboardWidgetFromLens()`, `removeDashboardWidgetFromLens()`
+- Dashboard widget controls: compatibility facades backed by `dashboard-widget-controls.js`, including `openDashboardWidgetPicker()`, `toggleDashboardOrganizeMode()`, `resetDashboardWidgets()`, `clearDashboardWidgets()`, `addDashboardWidgetFromLens()`, and `removeDashboardWidgetFromLens()`
 - `showDetailModal(markerKey, data?)` — opens the marker detail modal
 
 **Window exports:** `navigate`, `showDashboard`, `showLabs`, `showGenomeLens`, `showBodyLens`, `showInsightLens`, `showRecommendations`, `showCategory`, `showDetailModal`, dashboard widget controls, and recommendation page helpers (`openRecommendationDetail`, `discussRecommendation`, `saveRecommendation`, `dismissRecommendation`)

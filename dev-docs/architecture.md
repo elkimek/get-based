@@ -56,6 +56,7 @@ js/
   views-router.js   — route validation, last-view persistence, scroll-anchor navigation
   lens-pages.js     — Labs, Genome, Body, Insight, and Recommendations page renderers
   dashboard-widgets.js — dashboard widget registry, defaults, widget prefs
+  dashboard-widget-controls.js — widget picker, layout actions, drag/reorder controls
   views.js          — dashboard renderers, Light/category views, modals, manual entry, onboarding
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
@@ -124,7 +125,8 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  L6 — Orchestration                                                 │
-│  dashboard-widgets.js  views.js  main.js  tour.js  changelog.js    │
+│  dashboard-widgets.js  dashboard-widget-controls.js  views.js      │
+│  main.js  tour.js  changelog.js                                    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

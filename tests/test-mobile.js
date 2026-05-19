@@ -39,6 +39,7 @@ return (async function() {
     css.includes('position: fixed') &&
     css.includes('z-index: 360'));
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const dashboardControlsSrc = await fetchWithRetry('js/dashboard-widget-controls.js');
   const routerSrc = await fetchWithRetry('js/views-router.js');
   assert('mobile landing does not auto-open fullscreen chat',
     viewsSrc.includes('isDesktopChatOnboardingViewport') &&
@@ -60,8 +61,10 @@ return (async function() {
     viewsSrc.includes('function renderMobileDashboardWidgetStack(ctx)') &&
     viewsSrc.includes('getVisibleDashboardWidgetEntries(ctx, prefs') &&
     viewsSrc.includes('m-dashboard-widget-actions') &&
-    viewsSrc.includes('renderDashboardControlButtons({ includeReset: _dashboardOrganizeMode })') &&
+    viewsSrc.includes('renderDashboardControlButtons({ includeReset: dashboardWidgetControls.isOrganizeMode() })') &&
+    dashboardControlsSrc.includes('function renderDashboardControlButtons') &&
     viewsSrc.includes('renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
+    dashboardControlsSrc.includes('function renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
     viewsSrc.includes('${mobileWidgetStack}') &&
     css.includes('.m-dashboard-widgets'));
   assert('mobile dashboard no longer has static duplicate dashboard sections',

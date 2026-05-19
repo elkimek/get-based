@@ -130,6 +130,10 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
     localStorage.setItem(dashboardWidgetStorageKey(), JSON.stringify({ order, hidden }));
   }
 
+  function resetDashboardWidgetPrefs() {
+    localStorage.removeItem(dashboardWidgetStorageKey());
+  }
+
   function getDashboardWidgetDefinition(id, ctx = null) {
     const fixed = dashboardWidgets.find(w => w.id === id);
     if (fixed) return isDashboardFixedWidgetAvailable(fixed) ? fixed : null;
@@ -158,6 +162,7 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
     isDashboardMarkerWidgetId,
     getDashboardWidgetPrefs,
     saveDashboardWidgetPrefs,
+    resetDashboardWidgetPrefs,
     getDashboardWidgetDefinition,
     getOrderedDashboardWidgets,
     getVisibleDashboardWidgetEntries,
