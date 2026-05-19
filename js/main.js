@@ -312,7 +312,7 @@ document.addEventListener("wheel", e => {
   const overlay = e.target.closest(".modal-overlay.show, .chat-backdrop.open");
   if (!overlay) return;
   // Allow scroll inside scrollable children (modal content, chat messages)
-  const scrollable = e.target.closest(".light-setup-focus-body, .settings-content, .modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form-body, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body");
+  const scrollable = e.target.closest(".light-setup-focus-body, .settings-content, .dashboard-marker-widget-grid, .dashboard-biometric-widget-grid, .modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form-body, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body");
   if (scrollable) {
     const atTop = scrollable.scrollTop <= 0 && e.deltaY < 0;
     const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight && e.deltaY > 0;

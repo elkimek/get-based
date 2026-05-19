@@ -178,6 +178,13 @@ const labCtxSrc = read('js/lab-context.js');
     const block = wheelStart >= 0 && wheelEnd >= 0 ? mainSrc.slice(wheelStart, wheelEnd) : '';
     return block.includes('.settings-content') && block.includes('e.preventDefault()');
   })(), 'Settings content must be whitelisted before the modal overflow guard prevents wheel events');
+  assert('Dashboard biometric picker wheel scrolling is not blocked by global wheel guard', (() => {
+    const mainSrc = read('js/main.js');
+    const wheelStart = mainSrc.indexOf('document.addEventListener("wheel"');
+    const wheelEnd = mainSrc.indexOf('}, { passive: false });', wheelStart);
+    const block = wheelStart >= 0 && wheelEnd >= 0 ? mainSrc.slice(wheelStart, wheelEnd) : '';
+    return block.includes('.dashboard-biometric-widget-grid') && block.includes('.dashboard-marker-widget-grid') && block.includes('e.preventDefault()');
+  })(), 'Dashboard picker grids must be whitelisted before the modal overflow guard prevents wheel events');
 
   // ═══════════════════════════════════════
   // 5. Health dots sentinel fix
