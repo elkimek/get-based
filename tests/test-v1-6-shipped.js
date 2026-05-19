@@ -208,32 +208,32 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 6. v1.6.9..v1.6.13 Scroll anchor system ────────────────────────
   console.log('%c 6. Scroll-anchor system ', 'font-weight:bold;color:#0891b2');
   {
-    const viewsSrc = fetchSrc('js/views.js');
-    assert('views.js: _captureScrollAnchor exists', /function _captureScrollAnchor/.test(viewsSrc));
-    assert('views.js: _restoreScrollAnchor exists', /function _restoreScrollAnchor/.test(viewsSrc));
-    assert('views.js: two-tier heuristic (containingBest + centerBest)',
-      /containingBest[\s\S]{0,500}centerBest/.test(viewsSrc));
-    assert('views.js: containing-tier picks SMALLEST area (innermost)',
-      /containsCenter[\s\S]{0,300}area\s*<\s*containingBestArea/.test(viewsSrc));
+    const routerSrc = fetchSrc('js/views-router.js');
+    assert('views-router.js: _captureScrollAnchor exists', /function _captureScrollAnchor/.test(routerSrc));
+    assert('views-router.js: _restoreScrollAnchor exists', /function _restoreScrollAnchor/.test(routerSrc));
+    assert('views-router.js: two-tier heuristic (containingBest + centerBest)',
+      /containingBest[\s\S]{0,500}centerBest/.test(routerSrc));
+    assert('views-router.js: containing-tier picks SMALLEST area (innermost)',
+      /containsCenter[\s\S]{0,300}area\s*<\s*containingBestArea/.test(routerSrc));
     // v1.6.11: rapid same-anchor navigates reuse the original capture
     // instead of re-capturing AFTER the jump.
-    assert('views.js: _activeAnchor reuse for rapid same-anchor navigates',
-      /_activeAnchor[\s\S]{0,200}\.selector\s*===\s*data\.scrollAnchor/.test(viewsSrc));
+    assert('views-router.js: _activeAnchor reuse for rapid same-anchor navigates',
+      /_activeAnchor[\s\S]{0,200}\.selector\s*===\s*data\.scrollAnchor/.test(routerSrc));
     // v1.6.12: explicit anchor element gone → skip auto-pick fallback.
-    assert('views.js: skip auto-pick when explicit anchor not found',
-      /explicitAnchorRequested[\s\S]{0,400}!explicitAnchorRequested/.test(viewsSrc)
-      || /explicitAnchorRequested\s*=\s*!!\(data/.test(viewsSrc));
+    assert('views-router.js: skip auto-pick when explicit anchor not found',
+      /explicitAnchorRequested[\s\S]{0,400}!explicitAnchorRequested/.test(routerSrc)
+      || /explicitAnchorRequested\s*=\s*!!\(data/.test(routerSrc));
     // v1.6.10: 1.2s RAF re-anchor loop.
-    assert('views.js: RAF re-anchor loop runs for ~1.2s',
-      /1200/.test(viewsSrc) && /requestAnimationFrame\(reapply\)/.test(viewsSrc));
+    assert('views-router.js: RAF re-anchor loop runs for ~1.2s',
+      /1200/.test(routerSrc) && /requestAnimationFrame\(reapply\)/.test(routerSrc));
     // v1.6.10: user-input cancel for the loop.
-    assert('views.js: anchor loop cancels on wheel/touchstart/keydown',
-      /addEventListener\('wheel'/.test(viewsSrc)
-      && /addEventListener\('touchstart'/.test(viewsSrc)
-      && /addEventListener\('keydown'/.test(viewsSrc));
+    assert('views-router.js: anchor loop cancels on wheel/touchstart/keydown',
+      /addEventListener\('wheel'/.test(routerSrc)
+      && /addEventListener\('touchstart'/.test(routerSrc)
+      && /addEventListener\('keydown'/.test(routerSrc));
     // v1.6.10: token cancellation across navigates.
-    assert('views.js: _navAnchorToken bumped per navigate, old loops bail',
-      /_navAnchorToken/.test(viewsSrc) && /myToken\s*!==\s*_navAnchorToken/.test(viewsSrc));
+    assert('views-router.js: _navAnchorToken bumped per navigate, old loops bail',
+      /_navAnchorToken/.test(routerSrc) && /myToken\s*!==\s*_navAnchorToken/.test(routerSrc));
     // v1.6.13: _refreshSurfaces debounce.
     const sunSrc = fetchSrc('js/sun.js');
     assert('sun.js: _refreshSurfaces debounces via _refreshSurfacesTimer',
@@ -480,14 +480,18 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     const mainSrc = fetchSrc('js/main.js');
     const profileSrc = fetchSrc('js/profile.js');
     const viewsSrc = fetchSrc('js/views.js');
-    assert('views.js: last route is stored per active profile',
-      /profileStorageKey\(state\.currentProfile \|\| 'default',\s*'lastViewV1'\)/.test(viewsSrc)
-      && /localStorage\.setItem\(_lastViewStorageKey\(\),\s*route\)/.test(viewsSrc));
-    assert('views.js: saved route is validated before restore',
+    const routerSrc = fetchSrc('js/views-router.js');
+    assert('views-router.js: last route is stored per active profile',
+      /profileStorageKey\(state\.currentProfile \|\| 'default',\s*'lastViewV1'\)/.test(routerSrc)
+      && /localStorage\.setItem\(_lastViewStorageKey\(\),\s*route\)/.test(routerSrc));
+    assert('views-router.js: saved route is validated before restore',
+      /export function getInitialView\(\)/.test(routerSrc)
+      && /return isKnownRoute\(saved\) \? saved : 'dashboard'/.test(routerSrc));
+    assert('views-router.js: navigate falls back when a saved category is stale',
+      /const routeCategory\s*=\s*isKnownRoute\(requestedCategory,\s*data\)\s*\? requestedCategory : 'dashboard'/.test(routerSrc));
+    assert('views.js: exposes router-backed getInitialView wrapper',
       /export function getInitialView\(\)/.test(viewsSrc)
-      && /return _isKnownRoute\(saved\) \? saved : 'dashboard'/.test(viewsSrc));
-    assert('views.js: navigate falls back when a saved category is stale',
-      /const routeCategory\s*=\s*_isKnownRoute\(requestedCategory,\s*data\)\s*\? requestedCategory : 'dashboard'/.test(viewsSrc));
+      && /return getRouterInitialView\(\)/.test(viewsSrc));
     assert('main.js: boot navigates to stored route instead of hard Dashboard',
       /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(mainSrc)
       && !/window\.showDashboard\(\);/.test(mainSrc));

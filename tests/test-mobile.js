@@ -39,11 +39,12 @@ return (async function() {
     css.includes('position: fixed') &&
     css.includes('z-index: 360'));
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const routerSrc = await fetchWithRetry('js/views-router.js');
   assert('mobile landing does not auto-open fullscreen chat',
     viewsSrc.includes('isDesktopChatOnboardingViewport') &&
     viewsSrc.includes('if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return'));
   assert('mobile bottom tabs persist outside dashboard shell',
-    viewsSrc.includes('syncMobileBottomNav(routeCategory)') &&
+    routerSrc.includes('syncMobileBottomNav?.(routeCategory)') &&
     viewsSrc.includes("id: 'mobile-bottom-tabs'") &&
     viewsSrc.includes('renderMobileBottomTabs(activeTab'));
   assert('mobile dashboard home uses the shared header chrome',

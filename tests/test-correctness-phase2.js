@@ -75,6 +75,7 @@ const pwaAppShellAssets = [
   '/js/import-loader.js',
   '/js/blob-storage.js',
   '/js/data-merge.js',
+  '/js/views-router.js',
   '/js/light-devices.js',
   '/js/light-env.js',
   '/js/light-tools.js',

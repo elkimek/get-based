@@ -522,12 +522,23 @@ Sidebar navigation, profile switcher, and mobile sidebar shell.
 
 ## Layer 6 — Orchestration
 
-### `views.js`
+### `views-router.js`
 
-All dashboard, lens page, tool page, category, and modal rendering. The largest module.
+Route validation, per-profile last-view persistence, mobile tab sync handoff, and element-anchor scroll preservation. `views.js` creates the concrete navigator by passing render handlers into `createNavigate()`.
 
 **Key exports:**
-- `navigate(section, params)` — main router; calls the appropriate render function
+- `createNavigate({ routeHandlers, syncMobileBottomNav })` — builds the app-level `navigate()` function without importing page renderers
+- `getInitialView()` — restores the active profile's last valid route, falling back to `dashboard`
+- `isKnownRoute(route, data?)` — validates fixed routes and data-backed lab category routes
+
+---
+
+### `views.js`
+
+All dashboard, lens page, tool page, category, and modal rendering. The largest module. Public navigation remains exported here for compatibility, backed by `views-router.js`.
+
+**Key exports:**
+- `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
 - `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Biological Age, Trends & Alerts, Recommended Next Steps, Marker Spotlight, Quick Markers, Biometrics Overview, Light Today, and Key Trends
 - `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - dedicated lens/action pages
 - `showCompare(data?)` / `showCorrelations(data?)` - focused tool pages

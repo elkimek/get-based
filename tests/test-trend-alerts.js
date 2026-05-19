@@ -617,6 +617,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   assert('linearRegression handles denom=0', utilsSrc.includes('denom === 0'));
 
   const viewsSrc = read('js/views.js');
+  const routerSrc = read('js/views-router.js');
   assert('Marker Spotlight uses explicit priority scoring', viewsSrc.includes('function scoreDashboardSpotlightHit') && viewsSrc.includes('priorityScore'));
   assert('Marker Spotlight scores range distance', viewsSrc.includes('getDashboardSpotlightRangeSignal') && viewsSrc.includes('rangeSignal.outside'));
   assert('Marker Spotlight scores trend alert severity', viewsSrc.includes('DASHBOARD_SPOTLIGHT_ALERT_SCORE') && viewsSrc.includes('sudden_high: 90'));
@@ -745,7 +746,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !viewsSrc.includes("id: 'lens', title: 'AI Lens'"));
   assert('Recommendations are a first-class route and dashboard widget',
     viewsSrc.includes('showRecommendations') &&
-    viewsSrc.includes('routeCategory === "recommendations"') &&
+    routerSrc.includes('routeCategory === "recommendations"') &&
     viewsSrc.includes("id: 'recommendations'") &&
     viewsSrc.includes('renderDashboardRecommendationsWidget') &&
     viewsSrc.includes('DASHBOARD_WIDGET_SOURCE_ORDER'));
