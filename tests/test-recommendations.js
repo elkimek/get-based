@@ -40,6 +40,7 @@ globalThis.fetch = async (url, opts) => {
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSrc = await fetchWithRetry('js/chat.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const markerDetailSrc = await fetchWithRetry('js/marker-detail-modal.js');
   const dashboardWidgetsSrc = await fetchWithRetry('js/dashboard-widgets.js');
   const contextSrc = await fetchWithRetry('js/context-cards.js');
   const navSrc = await fetchWithRetry('js/nav.js');
@@ -190,16 +191,16 @@ globalThis.fetch = async (url, opts) => {
   console.log('%c 9. Integration Wiring ', 'font-weight:bold;color:#f59e0b');
 
   assert('main.js imports recommendations.js', mainSrc.includes("import './recommendations.js'"));
-  assert('views.js has rec-modal placeholder', viewsSrc.includes('rec-modal-'));
-  assert('views.js calls renderRecommendationSection', viewsSrc.includes('renderRecommendationSection'));
-  assert('views.js shows recs for any marker with catalog slot', viewsSrc.includes('isProductRecsEnabled'));
+  assert('marker-detail-modal.js has rec-modal placeholder', markerDetailSrc.includes('rec-modal-'));
+  assert('marker-detail-modal.js calls renderRecommendationSection', markerDetailSrc.includes('renderRecommendationSection'));
+  assert('marker-detail-modal.js shows recs for any marker with catalog slot', markerDetailSrc.includes('isProductRecsEnabled'));
   assert('chat.js calls detectSupplementSlots', chatSrc.includes('detectSupplementSlots'));
   assert('chat.js detects recSlots for live rendering', chatSrc.includes('_recSlots'));
   assert('chat.js has rec-chat-wrapper class', chatSrc.includes('rec-chat-wrapper'));
   assert('views.js has chart-rec placeholder in header', viewsSrc.includes('chart-rec-'));
   assert('views.js keeps chart title text separate from tips host', viewsSrc.includes('chart-card-title-text') && viewsSrc.includes('chart-card-tips-host'));
   assert('views.js has loadChartCardRecs function', viewsSrc.includes('function loadChartCardRecs'));
-  assert('views.js scrollToRec auto-opens details', viewsSrc.includes('scrollToRec'));
+  assert('marker-detail-modal.js scrollToRec auto-opens details', markerDetailSrc.includes('scrollToRec'));
   assert('loadCatalog on window', typeof window.loadCatalog === 'function');
   assert('nav.js exposes recommendations sidebar helper', navSrc.includes('openRecommendationsFromSidebar'));
   const recNavMarkup = navSrc.match(/data-category="recommendations"[\s\S]{0,500}/)?.[0] || '';

@@ -32,6 +32,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 2. Clickable divs gain role+tabindex ───
   const viewsSrc = read('/js/views.js');
+  const markerDetailSrc = read('/js/marker-detail-modal.js');
   const dashboardRenderersSrc = read('/js/dashboard-widget-renderers.js');
   assert('chart-card has role and tabindex',
     viewsSrc.match(/<div class="chart-card" role="button" tabindex="0"/));
@@ -48,7 +49,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('fa-card has role+tabindex',
     viewsSrc.includes('class="fa-card" role="button" tabindex="0"'));
   assert('ref-editable span has role+tabindex',
-    viewsSrc.includes('class="ref-editable" role="button" tabindex="0"'));
+    markerDetailSrc.includes('class="ref-editable" role="button" tabindex="0"'));
   assert('focus-card refresh has aria-label',
     viewsSrc.includes('class="focus-card-refresh" onclick="refreshFocusCard()" aria-label="Regenerate insight"'));
 

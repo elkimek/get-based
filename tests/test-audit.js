@@ -62,13 +62,14 @@ assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
+const markerDetailSrc = read('js/marker-detail-modal.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
 assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
 assert('Trend alert category escaped', dashboardRenderersSrc.includes('escapeHTML(alert.category)'));
 assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardRenderersSrc));
 assert('Category label escaped in header', viewsSrc.includes('escapeHTML(cat.label)'));
-assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(viewsSrc));
+assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(markerDetailSrc));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(viewsSrc));
 
 const chatSrc = read('js/chat.js');
@@ -99,7 +100,7 @@ assert('showCategory guards on safeMarkerId(categoryKey) at function entry',
 assert('switchView guards on safeMarkerId(categoryKey) at function entry',
   /export function switchView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
 assert('showDetailModal guards on safeMarkerId(id) at function entry',
-  /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(viewsSrc));
+  /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(markerDetailSrc));
 assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + category)',
   /export function renderChartCard[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return\s*''/.test(viewsSrc));
 assert('renderFattyAcidsView returns "" on unsafe categoryKey',
@@ -127,7 +128,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'dashboard-widget-renderers.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');

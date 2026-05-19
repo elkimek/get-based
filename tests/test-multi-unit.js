@@ -219,31 +219,31 @@ console.log('\n-- new conversions reachable via helpers --');
 console.log('\n-- source-shape pins (UI wiring) --');
 {
   const fs = await import('node:fs');
-  const views = fs.readFileSync(new URL('../js/views.js', import.meta.url), 'utf8');
+  const markerDetail = fs.readFileSync(new URL('../js/marker-detail-modal.js', import.meta.url), 'utf8');
   const settings = fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
   const data = fs.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
   const state = fs.readFileSync(new URL('../js/state.js', import.meta.url), 'utf8');
   const profile = fs.readFileSync(new URL('../js/profile.js', import.meta.url), 'utf8');
 
   // Detail modal gates alt rendering on state.showAltUnits
-  assert('views.js gates alt-unit summary on state.showAltUnits',
-    /hasConv && state\.showAltUnits/.test(views));
-  assert('views.js gates per-value alt line on state.showAltUnits',
-    /\(hasConv && state\.showAltUnits\) \? getAlternateUnit/.test(views));
+  assert('marker-detail-modal.js gates alt-unit summary on state.showAltUnits',
+    /hasConv && state\.showAltUnits/.test(markerDetail));
+  assert('marker-detail-modal.js gates per-value alt line on state.showAltUnits',
+    /\(hasConv && state\.showAltUnits\) \? getAlternateUnit/.test(markerDetail));
   // openManualEntryForm rebuilds the unit picker on every open + renders the <select id="me-unit">
-  assert('views.js manual-entry form renders #me-unit select when conversion exists',
-    /<select id="me-unit" class="me-unit-select"/.test(views));
+  assert('marker-detail-modal.js manual-entry form renders #me-unit select when conversion exists',
+    /<select id="me-unit" class="me-unit-select"/.test(markerDetail));
   // saveManualEntry reads the unit picker + branches to convertUserInputToSI
-  assert('views.js saveManualEntry reads #me-unit + branches to convertUserInputToSI on alt-unit input',
-    /document\.getElementById\('me-unit'\)[\s\S]{0,6000}convertUserInputToSI\(dotKey, value, inputUnit\)/.test(views));
+  assert('marker-detail-modal.js saveManualEntry reads #me-unit + branches to convertUserInputToSI on alt-unit input',
+    /document\.getElementById\('me-unit'\)[\s\S]{0,6000}convertUserInputToSI\(dotKey, value, inputUnit\)/.test(markerDetail));
   // Stale-marker fix: openManualEntryForm always reads from getActiveData (not state.markerRegistry)
   assert('openManualEntryForm always re-resolves from getActiveData (no markerRegistry fallback first)',
-    /export function openManualEntryForm[\s\S]{0,800}const data = getActiveData\(\);\s+const marker = data\.categories/.test(views));
+    /export function openManualEntryForm[\s\S]{0,800}const data = getActiveData\(\);\s+const marker = data\.categories/.test(markerDetail));
   // Greptile P1 fix: closeModal must clear state._activeDetailMarkerId so a
   // toggleAltUnits fired from Settings → Display after the user closed the
   // detail modal doesn't re-open it on top of Settings.
   assert('closeModal clears state._activeDetailMarkerId',
-    /export function closeModal\(\)[\s\S]{0,1000}state\._activeDetailMarkerId = null/.test(views));
+    /export function closeModal\(\)[\s\S]{0,1000}state\._activeDetailMarkerId = null/.test(markerDetail));
 
   // Settings → Display has the Alternate Units row + both buttons
   assert('settings.js renders Alternate Units row in Display tab',

@@ -30,18 +30,18 @@ assert('New markers get markerSources', pdfSrc.includes('entry.markerSources[m.s
 
 // ─── 2. Manual Entry Provenance ───
 console.log('\n2. Manual Entry Provenance');
-const viewsSrc = read('js/views.js');
-assert('saveManualEntry inits markerSources', viewsSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
-assert('saveManualEntry sets file:null', viewsSrc.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
-const editSection = viewsSrc.split('function editMarkerValue')[1] || '';
+const markerDetailSrc = read('js/marker-detail-modal.js');
+assert('saveManualEntry inits markerSources', markerDetailSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
+assert('saveManualEntry sets file:null', markerDetailSrc.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
+const editSection = markerDetailSrc.split('function editMarkerValue')[1] || '';
 assert('editMarkerValue sets provenance', editSection.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
 
 // ─── 3. Detail Modal Display ───
 console.log('\n3. Detail Modal Display');
-assert('Detail modal reads markerSources', viewsSrc.includes('srcEntry?.markerSources?.[dotKey]'));
-assert('Detail modal has mv-source class', viewsSrc.includes('class="mv-source"'));
-assert('Detail modal shows manual entry label', viewsSrc.includes('mv-source-manual'));
-assert('Detail modal falls back to sourceFile', viewsSrc.includes('srcEntry?.sourceFile'));
+assert('Detail modal reads markerSources', markerDetailSrc.includes('srcEntry?.markerSources?.[dotKey]'));
+assert('Detail modal has mv-source class', markerDetailSrc.includes('class="mv-source"'));
+assert('Detail modal shows manual entry label', markerDetailSrc.includes('mv-source-manual'));
+assert('Detail modal falls back to sourceFile', markerDetailSrc.includes('srcEntry?.sourceFile'));
 
 // ─── 4. CSS Styles ───
 console.log('\n4. CSS Styles');
@@ -51,7 +51,7 @@ assert('mv-source-manual style exists', cssSrc.includes('.mv-source-manual'));
 
 // ─── 5. Backward Compatibility ───
 console.log('\n5. Backward Compatibility');
-assert('Optional chaining on markerSources', viewsSrc.includes('markerSources?.[dotKey]'));
+assert('Optional chaining on markerSources', markerDetailSrc.includes('markerSources?.[dotKey]'));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

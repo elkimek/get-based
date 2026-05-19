@@ -515,6 +515,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 19. category marker card redesign ', 'font-weight:bold;color:#0891b2');
   {
     const viewsSrc = fetchSrc('js/views.js');
+    const markerDetailSrc = fetchSrc('js/marker-detail-modal.js');
     const dataSrc = fetchSrc('js/data.js');
     const cssSrc = fetchSrc('styles.css');
     assert('views.js: marker cards render latest-value summary before chart',
@@ -562,38 +563,38 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('styles.css: category glyph has redesigned non-emoji treatment',
       /\.category-glyph\s*\{[\s\S]{0,520}font-family:\s*var\(--font-mono\)/.test(cssSrc)
       && /\.compare-category-label\s*\{/.test(cssSrc));
-    assert('views.js: marker detail modal uses compact redesigned sections',
-      /stat-card-range-controls/.test(viewsSrc)
-      && /marker-history-list/.test(viewsSrc)
-      && /marker-history-row/.test(viewsSrc)
-      && /gb-detail-actions/.test(viewsSrc)
-      && !/&#128221;/.test(viewsSrc));
-    assert('views.js: marker modal history defaults to last three with inline expansion',
-      /MARKER_HISTORY_DEFAULT_CAP\s*=\s*3/.test(viewsSrc)
-      && /MARKER_HISTORY_EXPANDED_CAP\s*=\s*40/.test(viewsSrc)
-      && /modalPoints\.slice\(-MARKER_HISTORY_DEFAULT_CAP\)/.test(viewsSrc)
-      && /modalPoints\.slice\(-expandedHistoryLimit\)/.test(viewsSrc)
-      && /historyLimit:\s*\$\{nextHistoryLimit\}/.test(viewsSrc)
-      && /View more history \(\$\{modalPoints\.length\} values\)/.test(viewsSrc)
-      && /Show \$\{showCount\} older/.test(viewsSrc)
-      && /Show last \$\{MARKER_HISTORY_DEFAULT_CAP\} values/.test(viewsSrc));
-    assert('views.js: marker range band uses reference scale instead of full-width optimal green',
-      /const refMin\s*=\s*numericOrNull\(marker\.refMin\)/.test(viewsSrc)
-      && /const effMin\s*=\s*numericOrNull\(latestRange\.min\)/.test(viewsSrc)
-      && /const baseMin\s*=\s*refMin \?\? effMin/.test(viewsSrc)
-      && /const hasOptimalBand\s*=\s*optMin != null && optMax != null/.test(viewsSrc)
-      && /const goodMin\s*=\s*hasOptimalBand \? Math\.min\(optMin, optMax\) : Math\.min\(baseMin, baseMax\)/.test(viewsSrc)
-      && /const zonePad\s*=\s*goodSpan \* 0\.1/.test(viewsSrc)
-      && /for \(const value of \[goodMin, goodMax, latestValue\]\)/.test(viewsSrc)
-      && /if \(latestValue >= max\) max \+= span \* 0\.08/.test(viewsSrc)
-      && /const referenceDisplay\s*=/.test(viewsSrc)
-      && /const referenceMetaLabel\s*=\s*hasReferenceRange \? 'Ref' : 'Range'/.test(viewsSrc)
-      && /const rangeMainDisplay\s*=\s*hasOptimalRange \? optimalDisplay : referenceDisplay/.test(viewsSrc));
-    assert('views.js/styles.css: marker range band colors non-optimal zones',
-      /gb-range-band-zone-low/.test(viewsSrc)
-      && /gb-range-band-zone-high/.test(viewsSrc)
-      && /const lowZoneWidth\s*=/.test(viewsSrc)
-      && /const highZoneWidth\s*=/.test(viewsSrc)
+    assert('marker-detail-modal.js: marker detail modal uses compact redesigned sections',
+      /stat-card-range-controls/.test(markerDetailSrc)
+      && /marker-history-list/.test(markerDetailSrc)
+      && /marker-history-row/.test(markerDetailSrc)
+      && /gb-detail-actions/.test(markerDetailSrc)
+      && !/&#128221;/.test(markerDetailSrc));
+    assert('marker-detail-modal.js: marker modal history defaults to last three with inline expansion',
+      /MARKER_HISTORY_DEFAULT_CAP\s*=\s*3/.test(markerDetailSrc)
+      && /MARKER_HISTORY_EXPANDED_CAP\s*=\s*40/.test(markerDetailSrc)
+      && /modalPoints\.slice\(-MARKER_HISTORY_DEFAULT_CAP\)/.test(markerDetailSrc)
+      && /modalPoints\.slice\(-expandedHistoryLimit\)/.test(markerDetailSrc)
+      && /historyLimit:\s*\$\{nextHistoryLimit\}/.test(markerDetailSrc)
+      && /View more history \(\$\{modalPoints\.length\} values\)/.test(markerDetailSrc)
+      && /Show \$\{showCount\} older/.test(markerDetailSrc)
+      && /Show last \$\{MARKER_HISTORY_DEFAULT_CAP\} values/.test(markerDetailSrc));
+    assert('marker-detail-modal.js: marker range band uses reference scale instead of full-width optimal green',
+      /const refMin\s*=\s*numericOrNull\(marker\.refMin\)/.test(markerDetailSrc)
+      && /const effMin\s*=\s*numericOrNull\(latestRange\.min\)/.test(markerDetailSrc)
+      && /const baseMin\s*=\s*refMin \?\? effMin/.test(markerDetailSrc)
+      && /const hasOptimalBand\s*=\s*optMin != null && optMax != null/.test(markerDetailSrc)
+      && /const goodMin\s*=\s*hasOptimalBand \? Math\.min\(optMin, optMax\) : Math\.min\(baseMin, baseMax\)/.test(markerDetailSrc)
+      && /const zonePad\s*=\s*goodSpan \* 0\.1/.test(markerDetailSrc)
+      && /for \(const value of \[goodMin, goodMax, latestValue\]\)/.test(markerDetailSrc)
+      && /if \(latestValue >= max\) max \+= span \* 0\.08/.test(markerDetailSrc)
+      && /const referenceDisplay\s*=/.test(markerDetailSrc)
+      && /const referenceMetaLabel\s*=\s*hasReferenceRange \? 'Ref' : 'Range'/.test(markerDetailSrc)
+      && /const rangeMainDisplay\s*=\s*hasOptimalRange \? optimalDisplay : referenceDisplay/.test(markerDetailSrc));
+    assert('marker-detail-modal.js/styles.css: marker range band colors non-optimal zones',
+      /gb-range-band-zone-low/.test(markerDetailSrc)
+      && /gb-range-band-zone-high/.test(markerDetailSrc)
+      && /const lowZoneWidth\s*=/.test(markerDetailSrc)
+      && /const highZoneWidth\s*=/.test(markerDetailSrc)
       && /\.gb-range-band-zone-low\s*\{[\s\S]{0,120}var\(--yellow\)/.test(cssSrc)
       && /\.gb-range-band-zone-high\s*\{[\s\S]{0,120}var\(--red\)/.test(cssSrc));
     assert('styles.css: marker detail modal has opaque sticky header and compact history',
