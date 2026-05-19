@@ -542,13 +542,25 @@ Dedicated page renderers for Labs, Genome, Body, Insight, and Recommendations. T
 
 ---
 
+### `dashboard-widgets.js`
+
+Dashboard widget registry and persistence helpers. `views.js` supplies renderer functions to `createDashboardWidgetRegistry()` so widget metadata, defaults, availability gates, per-profile widget preferences, custom marker widget IDs, and visible-entry generation can live outside the main views module.
+
+**Key exports:**
+- `createDashboardWidgetRegistry(renderers, opts?)` — returns dashboard widget definitions plus preference/order helpers
+- `DASHBOARD_WIDGET_SOURCE_ORDER` — Lens/source ordering for the widget picker
+- `DASHBOARD_WIDGET_DEFAULT_IDS` — new-profile dashboard default order
+- `DASHBOARD_MANUAL_BIOMETRIC_METRICS` and `dashboardBiometricSelectionKey()` — biometrics widget selection helpers
+
+---
+
 ### `views.js`
 
 Dashboard, Light page, tool page, category, and modal rendering. Public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
-- `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Biological Age, Trends & Alerts, Recommended Next Steps, Marker Spotlight, Quick Markers, Biometrics Overview, Light Today, and Key Trends
+- `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
 - `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - compatibility facades delegated to `lens-pages.js`
 - `showCompare(data?)` / `showCorrelations(data?)` - focused tool pages
 - Dashboard widget controls: `openDashboardWidgetPicker()`, `toggleDashboardOrganizeMode()`, `resetDashboardWidgets()`, `clearDashboardWidgets()`, `addDashboardWidgetFromLens()`, `removeDashboardWidgetFromLens()`
@@ -616,7 +628,7 @@ Client List modal for managing multiple profiles.
 
 ### `recommendations.js`
 
-Supplement, lifestyle, light-device, and EMF affiliate recommendations driven by a lazy-loaded catalog. Region-aware: products + URLs + coupons are filtered by user country via a single hierarchy chain (CZ → EU → INTL etc.). The global Recommendations page is rendered by `lens-pages.js` and the dashboard widget helpers live in `views.js`; this module owns catalog loading, slot rendering, disclosure state, product filtering, and DNA/wearable slot helpers.
+Supplement, lifestyle, light-device, and EMF affiliate recommendations driven by a lazy-loaded catalog. Region-aware: products + URLs + coupons are filtered by user country via a single hierarchy chain (CZ → EU → INTL etc.). The global Recommendations page is rendered by `lens-pages.js`, while `dashboard-widgets.js` registers the dashboard surface and `views.js` owns its renderer; this module owns catalog loading, slot rendering, disclosure state, product filtering, and DNA/wearable slot helpers.
 
 **Key exports:**
 - `loadCatalog()` — lazy-loads `data/recommendations.json` on first call

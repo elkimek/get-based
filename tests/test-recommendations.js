@@ -40,6 +40,7 @@ globalThis.fetch = async (url, opts) => {
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSrc = await fetchWithRetry('js/chat.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const dashboardWidgetsSrc = await fetchWithRetry('js/dashboard-widgets.js');
   const contextSrc = await fetchWithRetry('js/context-cards.js');
   const navSrc = await fetchWithRetry('js/nav.js');
   const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
@@ -205,7 +206,7 @@ globalThis.fetch = async (url, opts) => {
   assert('Recommendations sidebar routes to dedicated page', recNavMarkup.includes("window.navigate('recommendations')"));
   assert('Recommendations sidebar item does not open Settings', !recNavMarkup.includes('openSettingsModal'));
   assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('export function showRecommendations') && viewsSrc.includes('openRecommendationDetail'));
-  assert('dashboard has Recommendations widget surface', viewsSrc.includes("id: 'recommendations'") && viewsSrc.includes('renderDashboardRecommendationsWidget'));
+  assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
   assert('Recommendations page header directly toggles its dashboard widget',
     lensPagesSrc.includes("inlineHandlerCall(dashboardAction, 'recommendations')") &&
     !viewsSrc.includes("openDashboardWidgetPicker && window.openDashboardWidgetPicker()\">Add to Dashboard"));

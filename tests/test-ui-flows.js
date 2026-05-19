@@ -44,6 +44,7 @@ return (async function() {
   // is: rememberModalTrigger() captures activeElement on open,
   // closeModal() restores it. Exposed on window for wearables.js to call.
   const viewsSrc = await fetch('js/views.js').then(r => r.text());
+  const dashboardWidgetsSrc = await fetch('js/dashboard-widgets.js').then(r => r.text());
   const wearablesSrc = await fetch('js/wearables.js').then(r => r.text());
   assert('views.js defines rememberModalTrigger', /function rememberModalTrigger\s*\(/.test(viewsSrc));
   assert('views.js defines restoreModalTrigger', /function restoreModalTrigger\s*\(/.test(viewsSrc));
@@ -63,8 +64,8 @@ return (async function() {
 
   assert('Dashboard has main content', main.innerHTML.length > 500);
   assert('Dashboard has Focus summary', main.innerHTML.includes('Current Focus'));
-  assert('Dashboard keeps Profile Context available as optional widget', viewsSrc.includes("id: 'profile-context'"));
-  assert('Dashboard keeps Supplements available as optional widget', viewsSrc.includes("id: 'supplements'"));
+  assert('Dashboard keeps Profile Context available as optional widget', dashboardWidgetsSrc.includes("id: 'profile-context'"));
+  assert('Dashboard keeps Supplements available as optional widget', dashboardWidgetsSrc.includes("id: 'supplements'"));
   assert('Dashboard labels the spotlight widget as Current Priority',
     !!main.querySelector('.dashboard-widget[data-widget-id="spotlight"]') && main.textContent.includes('Current Priority'));
   assert('Dashboard does not show standalone Needs Attention by default',

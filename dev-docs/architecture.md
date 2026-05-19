@@ -55,7 +55,8 @@ js/
   nav.js            — Sidebar, date range filter, chart layers dropdown
   views-router.js   — route validation, last-view persistence, scroll-anchor navigation
   lens-pages.js     — Labs, Genome, Body, Insight, and Recommendations page renderers
-  views.js          — dashboard, Light/category views, modals, manual entry, onboarding
+  dashboard-widgets.js — dashboard widget registry, defaults, widget prefs
+  views.js          — dashboard renderers, Light/category views, modals, manual entry, onboarding
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
   lab-context.js     — buildLabContext() central AI context serializer (extracted from chat.js)
@@ -81,7 +82,7 @@ The sidebar has three conceptual groups:
 - Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; the Light page remains in `views.js` with the light-specific helpers it depends on.
 - Tools: focused utilities such as compare dates, correlations, knowledge base, custom markers, and EMF assessment entry points.
 
-The dashboard is not a replacement for lens pages. It is a user-composed overview made from lens/tool widgets. Default widgets are ordered for a new user as: Current Focus, Biological Age, Trends & Alerts, Recommended Next Steps, Marker Spotlight, Quick Markers, Biometrics Overview, Light Today, and Key Trends. Users can reorder, hide, reset, clear, and add widgets. Lens pages expose Add/Remove Dashboard toggles for widgets that can appear in the overview.
+The dashboard is not a replacement for lens pages. It is a user-composed overview made from lens/tool widgets. Default widgets are ordered for a new user as: Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age. Users can reorder, hide, reset, clear, and add widgets. Lens pages expose Add/Remove Dashboard toggles for widgets that can appear in the overview.
 
 Recommendations have both a dashboard widget and a dedicated `recommendations` route. The page aggregates data-linked recommendation candidates from Labs, Body, Light, and Genome signals, while product option rendering and affiliate disclosure remain owned by `recommendations.js`.
 
@@ -123,7 +124,7 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  L6 — Orchestration                                                 │
-│  views.js   main.js   tour.js   changelog.js                       │
+│  dashboard-widgets.js  views.js  main.js  tour.js  changelog.js    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

@@ -77,6 +77,7 @@ const pwaAppShellAssets = [
   '/js/data-merge.js',
   '/js/views-router.js',
   '/js/lens-pages.js',
+  '/js/dashboard-widgets.js',
   '/js/light-devices.js',
   '/js/light-env.js',
   '/js/light-tools.js',

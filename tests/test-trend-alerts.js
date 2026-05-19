@@ -617,6 +617,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   assert('linearRegression handles denom=0', utilsSrc.includes('denom === 0'));
 
   const viewsSrc = read('js/views.js');
+  const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
   const lensPagesSrc = read('js/lens-pages.js');
   const routerSrc = read('js/views-router.js');
   assert('Marker Spotlight uses explicit priority scoring', viewsSrc.includes('function scoreDashboardSpotlightHit') && viewsSrc.includes('priorityScore'));
@@ -630,7 +631,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     viewsSrc.includes("'Watch closely'") &&
     !viewsSrc.includes('`Priority ${'));
   assert('Dashboard has dynamic Quick Markers widget',
-    viewsSrc.includes("id: 'quick-markers'") &&
+    dashboardWidgetsSrc.includes("id: 'quick-markers'") &&
     viewsSrc.includes('renderDashboardQuickMarkersWidget') &&
     !viewsSrc.includes("id: 'stat-vitd'"));
   assert('Quick Markers use priority scoring and avoid Spotlight duplication',
@@ -658,9 +659,10 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !viewsSrc.includes('class="dashboard-actions"') &&
     read('styles.css').includes('width: max-content'));
   assert('Dashboard default widget sizes avoid half-plus-third grid gaps',
-    /id: 'focus'[\s\S]*?size: 'half'/.test(viewsSrc) &&
-    /id: 'insights'[\s\S]*?size: 'half'/.test(viewsSrc));
+    /id: 'focus'[\s\S]*?size: 'half'/.test(dashboardWidgetsSrc) &&
+    /id: 'insights'[\s\S]*?size: 'half'/.test(dashboardWidgetsSrc));
   assert('Dashboard does not expose duplicate All Biomarkers widget',
+    !dashboardWidgetsSrc.includes("title: 'All Biomarkers'") &&
     !viewsSrc.includes("title: 'All Biomarkers'") &&
     !viewsSrc.includes('renderDashboardMarkerListWidget') &&
     !read('styles.css').includes('.db-marker-row'));
@@ -672,8 +674,8 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !keyTrendsWidgetBlock.includes('renderChartLayersDropdown') &&
     read('styles.css').includes('.db-key-trend-row'));
   assert('Current Priority is the user-facing spotlight label',
-    viewsSrc.includes("id: 'spotlight'") &&
-    viewsSrc.includes("title: 'Current Priority'") &&
+    dashboardWidgetsSrc.includes("id: 'spotlight'") &&
+    dashboardWidgetsSrc.includes("title: 'Current Priority'") &&
     viewsSrc.includes('renderLabsPriorityBanner') &&
     read('styles.css').includes('.labs-priority-banner'));
   const labsWidgetsBlock = (lensPagesSrc.match(/renderLensPageWidgets\('labs', \[([\s\S]*?)\]\);/) || [null, ''])[1];
@@ -683,8 +685,8 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !labsWidgetsBlock.includes("id: 'alerts'") &&
     !labsWidgetsBlock.includes("id: 'spotlight'") &&
     lensPagesSrc.includes('renderLabsPriorityBanner(ctx)'));
-  const dashboardDefaultOrderBlock = (viewsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
-  const dashboardWidgetsBlock = (viewsSrc.match(/const DASHBOARD_WIDGETS = \[([\s\S]*?)\];/) || [null, ''])[1];
+  const dashboardDefaultOrderBlock = (dashboardWidgetsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
+  const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
   assert('Dashboard default order prioritizes female cycle context and evidence',
     JSON.stringify(dashboardDefaultOrder) === JSON.stringify([
@@ -719,21 +721,22 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !dashboardWidgetsBlock.includes("id: 'light-tools'") &&
     !dashboardWidgetsBlock.includes("id: 'light-methods'"));
   assert('Genome dashboard widget copy describes modifiers, not import management',
-    viewsSrc.includes("id: 'genome'") &&
-    viewsSrc.includes("title: 'Genetic Modifiers'") &&
-    viewsSrc.includes("description: 'Actionable SNP context relevant to labs and goals'"));
+    dashboardWidgetsSrc.includes("id: 'genome'") &&
+    dashboardWidgetsSrc.includes("title: 'Genetic Modifiers'") &&
+    dashboardWidgetsSrc.includes("description: 'Actionable SNP context relevant to labs and goals'"));
   assert('Dashboard adds biometrics inside the Biometrics Overview widget',
     viewsSrc.includes('dashboardBiometricSelectionKey') &&
     viewsSrc.includes('addDashboardBiometricMetric') &&
     viewsSrc.includes('removeDashboardBiometricMetric') &&
-    viewsSrc.includes("'wearables',") &&
+    dashboardWidgetsSrc.includes("'wearables',") &&
     viewsSrc.includes('Add to Biometrics Overview') &&
     !viewsSrc.includes("`biometric_${"));
   assert('Dashboard treats biometric summaries as dashboard data',
     viewsSrc.includes('const hasWearableData = Object.values(wearableMetrics).some') &&
     viewsSrc.includes('data.dates.length > 0 || hasWearableData'));
   assert('Dashboard removes separate Wearable Connections widget',
-    viewsSrc.includes("title: 'Biometrics Overview'") &&
+    dashboardWidgetsSrc.includes("title: 'Biometrics Overview'") &&
+    !dashboardWidgetsSrc.includes("title: 'Wearable Connections'") &&
     !viewsSrc.includes("title: 'Wearable Connections'") &&
     !viewsSrc.includes("renderWearableStrip"));
   assert('Dashboard biometric sync button only appears for stale data',
@@ -741,17 +744,17 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     viewsSrc.includes('DASHBOARD_BIOMETRIC_STALE_MS') &&
     viewsSrc.includes("syncState.showSync ? `<button"));
   assert('Cycle widget is gated to female profiles',
-    viewsSrc.includes("id: 'cycle'") &&
-    viewsSrc.includes("isAvailable: () => state.profileSex === 'female'"));
+    dashboardWidgetsSrc.includes("id: 'cycle'") &&
+    dashboardWidgetsSrc.includes("isAvailable: () => state.profileSex === 'female'"));
   assert('AI Lens is not a dashboard widget',
-    !viewsSrc.includes("id: 'lens', title: 'AI Lens'"));
+    !dashboardWidgetsSrc.includes("id: 'lens', title: 'AI Lens'"));
   assert('Recommendations are a first-class route and dashboard widget',
     viewsSrc.includes('showRecommendations') &&
     routerSrc.includes('routeCategory === "recommendations"') &&
-    viewsSrc.includes("id: 'recommendations'") &&
+    dashboardWidgetsSrc.includes("id: 'recommendations'") &&
     lensPagesSrc.includes('showRecommendations') &&
     viewsSrc.includes('renderDashboardRecommendationsWidget') &&
-    viewsSrc.includes('DASHBOARD_WIDGET_SOURCE_ORDER'));
+    dashboardWidgetsSrc.includes('DASHBOARD_WIDGET_SOURCE_ORDER'));
 
   // =======================================
   // Summary
