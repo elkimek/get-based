@@ -124,10 +124,10 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /else if \(e\.key === 'Escape'\) \{ cancelled = true; showDetailModal/.test(markerDetailSrc));
   assert("No-change save short-circuits (no manual flip on a same-value edit)",
     /newValue === parseFloat\(currentValue\)\)/.test(markerDetailSrc));
-  assert('editMarkerValue calls navigate() to rebuild Table/Heatmap after save',
-    /editMarkerValue[\s\S]{0,2500}window\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
-  assert('revertMarkerValue also calls navigate() to rebuild the underlying view',
-    /revertMarkerValue[\s\S]{0,800}window\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
+  assert('editMarkerValue calls injected navigate() to rebuild Table/Heatmap after save',
+    /editMarkerValue[\s\S]{0,2500}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
+  assert('revertMarkerValue also calls injected navigate() to rebuild the underlying view',
+    /revertMarkerValue[\s\S]{0,800}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
 
   // ═══════════════════════════════════════
   // 7. Input width fix

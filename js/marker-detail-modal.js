@@ -1080,7 +1080,7 @@ export function editMarkerValue(id, date, currentValue, event) {
     if (dotKey === 'hormones.insulin') { entry.markers['diabetes.insulin_d'] = storedValue; if (entry.markerSources) entry.markerSources['diabetes.insulin_d'] = entry.markerSources[dotKey]; recalculateHOMAIR(entry); }
     saveImportedData();
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
-    window.navigate(state.currentView || 'dashboard');
+    markerDetailDeps.navigate(state.currentView || 'dashboard');
     showDetailModal(id);
   };
   input.addEventListener('blur', save);
@@ -1102,7 +1102,7 @@ export function revertMarkerValue(id, date) {
   delete state.importedData.manualValues[mvKey];
   saveImportedData();
   // Rebuild the underlying view so Table/Heatmap/Chart reflect the revert.
-  window.navigate(state.currentView || 'dashboard');
+  markerDetailDeps.navigate(state.currentView || 'dashboard');
   showDetailModal(id);
 }
 
@@ -1187,7 +1187,7 @@ export function editRefRange(id, type, evt) {
   form.querySelector('#ref-edit-min').focus();
 
   // Enter to save
-  form.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); window.saveRefRange(id, type); } });
+  form.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveRefRange(id, type); } });
   // Escape to cancel
   form.addEventListener('keydown', e => { if (e.key === 'Escape') showDetailModal(id); });
 }
