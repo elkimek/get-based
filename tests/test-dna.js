@@ -351,6 +351,7 @@ const pdfSrc = await fetchWithRetry('js/pdf-import.js');
 assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
 
 const viewsSrc = await fetchWithRetry('js/views.js');
+const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
 assert('views.js imports SNP category labels', viewsSrc.includes('getSnpCategoryLabel'));
 assert('dashboard genome widget waits for SNP catalog before rows', viewsSrc.includes('Loading SNP interpretations'));
 assert('dashboard genome widget refreshes itself after catalog load', viewsSrc.includes('refreshDashboardGenomeWidgetWhenSNPTableReady') && viewsSrc.includes('body.innerHTML = renderDashboardGenomeWidget()'));
@@ -361,10 +362,10 @@ assert('dashboard genome groups priority SNPs by category', viewsSrc.includes('g
 assert('dashboard genome collapses low-priority SNP calls', viewsSrc.includes('db-genome-secondary') && viewsSrc.includes('Other imported SNPs'));
 assert('dashboard genome collapsed SNPs reuse category groups', viewsSrc.includes('secondaryGroups.map(group => renderDashboardGenomeGroup'));
 assert('Genome lens avoids duplicated full genetics surfaces',
-  viewsSrc.includes('Actionable Genetic Modifiers') &&
-  viewsSrc.includes('renderGenomeImportDetailsWidget') &&
-  viewsSrc.includes("id: 'genome-import', title: 'Import Details'") &&
-  viewsSrc.includes("renderLensPageWidgets('genome'") &&
+  lensPagesSrc.includes('Actionable Genetic Modifiers') &&
+  lensPagesSrc.includes('renderGenomeImportDetailsWidget') &&
+  lensPagesSrc.includes("id: 'genome-import', title: 'Import Details'") &&
+  lensPagesSrc.includes("renderLensPageWidgets('genome'") &&
   !viewsSrc.includes('Imported Genome Data'));
 
 const stylesSrc = await fetchWithRetry('styles.css');

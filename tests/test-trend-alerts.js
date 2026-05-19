@@ -617,6 +617,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   assert('linearRegression handles denom=0', utilsSrc.includes('denom === 0'));
 
   const viewsSrc = read('js/views.js');
+  const lensPagesSrc = read('js/lens-pages.js');
   const routerSrc = read('js/views-router.js');
   assert('Marker Spotlight uses explicit priority scoring', viewsSrc.includes('function scoreDashboardSpotlightHit') && viewsSrc.includes('priorityScore'));
   assert('Marker Spotlight scores range distance', viewsSrc.includes('getDashboardSpotlightRangeSignal') && viewsSrc.includes('rangeSignal.outside'));
@@ -675,13 +676,13 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     viewsSrc.includes("title: 'Current Priority'") &&
     viewsSrc.includes('renderLabsPriorityBanner') &&
     read('styles.css').includes('.labs-priority-banner'));
-  const labsWidgetsBlock = (viewsSrc.match(/renderLensPageWidgets\('labs', \[([\s\S]*?)\]\);/) || [null, ''])[1];
+  const labsWidgetsBlock = (lensPagesSrc.match(/renderLensPageWidgets\('labs', \[([\s\S]*?)\]\);/) || [null, ''])[1];
   assert('Labs page demotes standalone alerts and full spotlight sections',
     labsWidgetsBlock.includes("id: 'quick-markers'") &&
     labsWidgetsBlock.includes("id: 'key-trends'") &&
     !labsWidgetsBlock.includes("id: 'alerts'") &&
     !labsWidgetsBlock.includes("id: 'spotlight'") &&
-    viewsSrc.includes('renderLabsPriorityBanner(ctx)'));
+    lensPagesSrc.includes('renderLabsPriorityBanner(ctx)'));
   const dashboardDefaultOrderBlock = (viewsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardWidgetsBlock = (viewsSrc.match(/const DASHBOARD_WIDGETS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
@@ -748,6 +749,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     viewsSrc.includes('showRecommendations') &&
     routerSrc.includes('routeCategory === "recommendations"') &&
     viewsSrc.includes("id: 'recommendations'") &&
+    lensPagesSrc.includes('showRecommendations') &&
     viewsSrc.includes('renderDashboardRecommendationsWidget') &&
     viewsSrc.includes('DASHBOARD_WIDGET_SOURCE_ORDER'));
 

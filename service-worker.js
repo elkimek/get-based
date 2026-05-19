@@ -59,6 +59,7 @@ const APP_SHELL = [
   '/js/client-list.js',
   '/js/nav.js',
   '/js/views-router.js',
+  '/js/lens-pages.js',
   '/js/views.js',
   '/js/recommendations.js',
   '/js/crypto.js',

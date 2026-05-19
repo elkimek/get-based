@@ -42,6 +42,7 @@ globalThis.fetch = async (url, opts) => {
   const viewsSrc = await fetchWithRetry('js/views.js');
   const contextSrc = await fetchWithRetry('js/context-cards.js');
   const navSrc = await fetchWithRetry('js/nav.js');
+  const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const constantsSrc = await fetchWithRetry('js/constants.js');
   const swSrc = await fetchWithRetry('service-worker.js');
@@ -206,7 +207,7 @@ globalThis.fetch = async (url, opts) => {
   assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('export function showRecommendations') && viewsSrc.includes('openRecommendationDetail'));
   assert('dashboard has Recommendations widget surface', viewsSrc.includes("id: 'recommendations'") && viewsSrc.includes('renderDashboardRecommendationsWidget'));
   assert('Recommendations page header directly toggles its dashboard widget',
-    viewsSrc.includes("inlineHandlerCall(dashboardAction, 'recommendations')") &&
+    lensPagesSrc.includes("inlineHandlerCall(dashboardAction, 'recommendations')") &&
     !viewsSrc.includes("openDashboardWidgetPicker && window.openDashboardWidgetPicker()\">Add to Dashboard"));
 
   // ═══════════════════════════════════════

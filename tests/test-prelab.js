@@ -155,8 +155,8 @@ const labCtxSrc = read('js/lab-context.js');
       themeSrc.includes('rgba(24, 18, 48, 0.98)');
   })(), 'Glass theme should not leave context widget/editor chrome translucent');
   assert('Insight Profile Context widget is full-width', (() => {
-    const insightSrc = read('js/views.js');
-    const lensStart = insightSrc.indexOf('export function showInsightLens');
+    const insightSrc = read('js/lens-pages.js');
+    const lensStart = insightSrc.indexOf('function showInsightLens');
     const cardStart = insightSrc.indexOf("id: 'profile-context'", lensStart);
     const cardEnd = insightSrc.indexOf('\n', cardStart);
     return cardStart !== -1 && insightSrc.substring(cardStart, cardEnd).includes("size: 'full'");
