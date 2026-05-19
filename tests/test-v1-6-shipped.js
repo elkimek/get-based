@@ -487,6 +487,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     const profileSrc = fetchSrc('js/profile.js');
     const viewsSrc = fetchSrc('js/views.js');
     const routerSrc = fetchSrc('js/views-router.js');
+    const navSrc = fetchSrc('js/nav.js');
     assert('views-router.js: last route is stored per active profile',
       /profileStorageKey\(state\.currentProfile \|\| 'default',\s*'lastViewV1'\)/.test(routerSrc)
       && /localStorage\.setItem\(_lastViewStorageKey\(\),\s*route\)/.test(routerSrc));
@@ -503,6 +504,11 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && !/window\.showDashboard\(\);/.test(mainSrc));
     assert('profile.js: profile switch restores that profile route',
       /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(profileSrc));
+    assert('nav.js: sidebar rebuild preserves current route selection',
+      /export function syncSidebarActive/.test(navSrc)
+      && /nav\.innerHTML\s*=\s*html;\s*syncSidebarActive\(state\.currentView \|\| 'dashboard'\)/.test(navSrc));
+    assert('views-router.js: route renderer rebuilds cannot leave Dashboard selected',
+      /_syncSidebarActive\(activeCategory\)[\s\S]{0,1000}routeHandlers\.[\s\S]{0,1000}_syncSidebarActive\(routeCategory\)/.test(routerSrc));
   }
 
   // ─── 19. Category marker card redesign ──────────────────────────────

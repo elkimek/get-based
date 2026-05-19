@@ -44,6 +44,17 @@ export function openRecommendationsFromSidebar() {
   if (window.navigate) window.navigate('recommendations');
 }
 
+export function syncSidebarActive(route = state.currentView || 'dashboard') {
+  const activeRoute = String(route || 'dashboard');
+  document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
+    const isActive = el.dataset.category === activeRoute;
+    el.classList.toggle('active', isActive);
+    el.classList.toggle('is-active', isActive);
+    if (isActive) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
+  });
+}
+
 function _buildNavItem(key, cat) {
   const markers = Object.values(cat.markers).filter(m => !m.hidden);
   const withData = markers.filter(m => m.values && m.values.some(v => v !== null)).length;
@@ -207,6 +218,7 @@ export function buildSidebar(data) {
   }
 
   nav.innerHTML = html;
+  syncSidebarActive(state.currentView || 'dashboard');
 }
 
 function _getGroupCollapsed(groupName) {
@@ -332,4 +344,4 @@ export function closeMobileSidebar() {
   document.body.style.overflow = '';
 }
 
-Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar });
+Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar });

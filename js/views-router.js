@@ -100,11 +100,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
         anchor = _captureScrollAnchor();
       }
     }
-    document.querySelectorAll(".nav-item").forEach(el => {
-      const isActive = el.dataset.category === activeCategory;
-      el.classList.toggle("active", isActive);
-      el.classList.toggle("is-active", isActive);
-    });
+    _syncSidebarActive(activeCategory);
     // Close mobile sidebar on navigation
     if (window.closeMobileSidebar) window.closeMobileSidebar();
     if (routeCategory !== "dashboard" && typeof document !== 'undefined') {
@@ -125,6 +121,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     state.currentView = routeCategory;
     _persistCurrentView(routeCategory);
     syncMobileBottomNav?.(routeCategory);
+    _syncSidebarActive(routeCategory);
 
     if (anchor) {
       // Force synchronous layout so getBoundingClientRect is accurate.
@@ -171,6 +168,17 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
       requestAnimationFrame(reapply);
     }
   };
+}
+
+function _syncSidebarActive(routeCategory) {
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll(".nav-item").forEach(el => {
+    const isActive = el.dataset.category === routeCategory;
+    el.classList.toggle("active", isActive);
+    el.classList.toggle("is-active", isActive);
+    if (isActive) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
+  });
 }
 
 // Capture identity + viewport position of the most reasonable scroll
