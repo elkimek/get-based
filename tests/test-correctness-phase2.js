@@ -143,8 +143,12 @@ assert('footer commit hash loader lives in its own module and remains wired',
   && /_cachedCommitHash/.test(commitHashSrc)
   && /app-commit-hash/.test(commitHashSrc)
   && /import \{ escapeHTML \} from '\.\/utils\.js'/.test(commitHashSrc)
-  && /escapeHTML\(_cachedCommitHash\)/.test(commitHashSrc)
-  && /sha\.trim\(\)\.slice\(0,\s*7\)/.test(commitHashSrc)
+  && /fetch\('\/api\/commit'\)/.test(commitHashSrc)
+  && /https:\/\/api\.github\.com\/repos\/elkimek\/get-based\/commits\/main/.test(commitHashSrc)
+  && /_cachedCommitRef/.test(commitHashSrc)
+  && /escapeHTML\(full\)/.test(commitHashSrc)
+  && /escapeHTML\(short\)/.test(commitHashSrc)
+  && /escapeHTML\(ref\)/.test(commitHashSrc)
   && viewsSrc.includes("from './commit-hash.js'"));
 
 // ─── 5. Polar OAuth callback returns true + clears connection ───
