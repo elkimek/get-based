@@ -27,7 +27,7 @@ console.log('=== v1.6.7–v1.6.16 Regression Tests ===\n');
 
 // Load modules whose window-exposed handlers are checked below:
 // sun.js → dailyVitaminDIUBreakdown, light-tools.js → saveMeasurement,
-// views.js → _openAllSessionsModal.
+// light-sessions-view.js → _openAllSessionsModal.
 await import('../js/state.js');
 await import('../js/sun.js');
 await import('../js/light-tools.js');
@@ -359,19 +359,22 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 13. v1.6.15 + v1.6.16 Sessions list cap + "View all" modal ─────
   console.log('%c 13. Sessions list: 3 inline + View all modal ', 'font-weight:bold;color:#0891b2');
   {
+    const sessionsSrc = fetchSrc('js/light-sessions-view.js');
     const viewsSrc = fetchSrc('js/views.js');
-    assert('views.js: SESSIONS_DEFAULT_CAP = 3',
-      /SESSIONS_DEFAULT_CAP\s*=\s*3/.test(viewsSrc));
-    assert('views.js: _openAllSessionsModal exists',
-      /function _openAllSessionsModal/.test(viewsSrc));
-    assert('views.js: _collectUnifiedSessionRows shared helper',
-      /function _collectUnifiedSessionRows/.test(viewsSrc));
-    assert('views.js: _renderSessionRowsHTML shared row renderer',
-      /function _renderSessionRowsHTML/.test(viewsSrc));
-    assert('views.js: "View all N sessions" button replaces inline expand',
-      /View all \$\{totalCount\} sessions/.test(viewsSrc));
-    assert('views.js: _toggleAllSessions and _showAllSessions removed',
-      !/_toggleAllSessions/.test(viewsSrc) && !/_showAllSessions/.test(viewsSrc));
+    assert('light-sessions-view.js: SESSIONS_DEFAULT_CAP = 3',
+      /SESSIONS_DEFAULT_CAP\s*=\s*3/.test(sessionsSrc));
+    assert('light-sessions-view.js: _openAllSessionsModal exists',
+      /function _openAllSessionsModal/.test(sessionsSrc));
+    assert('light-sessions-view.js: _collectUnifiedSessionRows shared helper',
+      /function _collectUnifiedSessionRows/.test(sessionsSrc));
+    assert('light-sessions-view.js: _renderSessionRowsHTML shared row renderer',
+      /function _renderSessionRowsHTML/.test(sessionsSrc));
+    assert('light-sessions-view.js: "View all N sessions" button replaces inline expand',
+      /View all \$\{totalCount\} sessions/.test(sessionsSrc));
+    assert('views.js imports light sessions view module',
+      viewsSrc.includes("from './light-sessions-view.js'"));
+    assert('light sessions view: _toggleAllSessions and _showAllSessions removed',
+      !/_toggleAllSessions/.test(sessionsSrc) && !/_showAllSessions/.test(sessionsSrc));
     // First: existence check — should pass in both node + browser
     // (sun.js / views.js exposes the function via Object.assign(window,...)).
     assert('window._openAllSessionsModal exposed on window',

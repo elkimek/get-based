@@ -65,6 +65,7 @@ const APP_SHELL = [
   '/js/dashboard-widget-renderers.js',
   '/js/marker-detail-modal.js',
   '/js/light-conditions-now.js',
+  '/js/light-sessions-view.js',
   '/js/compare-correlations.js',
   '/js/mobile-dashboard.js',
   '/js/views.js',

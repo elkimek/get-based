@@ -64,6 +64,7 @@ console.log('3. XSS Prevention');
 const viewsSrc = read('js/views.js');
 const compareCorrelationsSrc = read('js/compare-correlations.js');
 const markerDetailSrc = read('js/marker-detail-modal.js');
+const lightSessionsViewSrc = read('js/light-sessions-view.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
 assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
@@ -129,7 +130,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
@@ -300,8 +301,8 @@ assert('Light channel detail charts inherit activated channel accent',
   /\.light-channel-weekchart\s*\{[\s\S]*color-mix\(in srgb, var\(--channel-accent\) 8%, transparent\)/.test(cssSrc));
 assert('Light recent session rows and modals use session/channel accents',
   sunSrc.includes('class="sun-session light-session-row light-session-sun"') &&
-  viewsSrc.includes('function _renderLightSessionChannelChips') &&
-  viewsSrc.includes('${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}') &&
+  lightSessionsViewSrc.includes('function _renderLightSessionChannelChips') &&
+  lightSessionsViewSrc.includes('${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}') &&
   sunSrc.includes('class="modal sun-detail-modal" data-session-kind="sun"') &&
   lightDevicesSrc.includes('class="modal sun-detail-modal" data-session-kind="device"') &&
   /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(sunSrc) &&
