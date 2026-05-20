@@ -568,6 +568,9 @@
     const hasCompareCorrelationsJs = sw.includes('/js/compare-correlations.js');
     assert('Service worker caches js/compare-correlations.js', hasCompareCorrelationsJs);
 
+    const hasMobileDashboardJs = sw.includes('/js/mobile-dashboard.js');
+    assert('Service worker caches js/mobile-dashboard.js', hasMobileDashboardJs);
+
     const hasSchemaJs = sw.includes('/js/schema.js');
     assert('Service worker caches js/schema.js', hasSchemaJs);
 

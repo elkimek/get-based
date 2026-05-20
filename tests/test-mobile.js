@@ -39,6 +39,7 @@ return (async function() {
     css.includes('position: fixed') &&
     css.includes('z-index: 360'));
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const mobileDashboardSrc = await fetchWithRetry('js/mobile-dashboard.js');
   const dashboardControlsSrc = await fetchWithRetry('js/dashboard-widget-controls.js');
   const routerSrc = await fetchWithRetry('js/views-router.js');
   assert('mobile landing does not auto-open fullscreen chat',
@@ -46,35 +47,35 @@ return (async function() {
     viewsSrc.includes('if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return'));
   assert('mobile bottom tabs persist outside dashboard shell',
     routerSrc.includes('syncMobileBottomNav?.(routeCategory)') &&
-    viewsSrc.includes("id: 'mobile-bottom-tabs'") &&
-    viewsSrc.includes('renderMobileBottomTabs(activeTab'));
+    mobileDashboardSrc.includes("id: 'mobile-bottom-tabs'") &&
+    mobileDashboardSrc.includes('renderMobileBottomTabs(activeTab'));
   assert('mobile dashboard home uses the shared header chrome',
     css.includes('body.mobile-dashboard-active .header') &&
     css.includes('display: flex') &&
-    !viewsSrc.includes('class="m-topbar"'));
+    !mobileDashboardSrc.includes('class="m-topbar"'));
   assert('mobile dashboard no longer ships dead private topbar styles',
     !css.includes('.m-topbar-actions') &&
     !css.includes('.m-avatar-btn') &&
     !css.includes('.m-icon-btn') &&
-    !viewsSrc.includes('getMobileAvatar'));
+    !mobileDashboardSrc.includes('getMobileAvatar'));
   assert('mobile dashboard renders the same registered widget stack as desktop',
-    viewsSrc.includes('function renderMobileDashboardWidgetStack(ctx)') &&
-    viewsSrc.includes('getVisibleDashboardWidgetEntries(ctx, prefs') &&
-    viewsSrc.includes('m-dashboard-widget-actions') &&
-    viewsSrc.includes('renderDashboardControlButtons({ includeReset: dashboardWidgetControls.isOrganizeMode() })') &&
+    mobileDashboardSrc.includes('function renderMobileDashboardWidgetStack(ctx)') &&
+    mobileDashboardSrc.includes('getVisibleDashboardWidgetEntries(ctx, prefs') &&
+    mobileDashboardSrc.includes('m-dashboard-widget-actions') &&
+    mobileDashboardSrc.includes('renderDashboardControlButtons({ includeReset: mobileDashboardDeps.isDashboardOrganizeMode() })') &&
     dashboardControlsSrc.includes('function renderDashboardControlButtons') &&
-    viewsSrc.includes('renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
+    mobileDashboardSrc.includes('renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
     dashboardControlsSrc.includes('function renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
-    viewsSrc.includes('${mobileWidgetStack}') &&
+    mobileDashboardSrc.includes('${mobileWidgetStack}') &&
     css.includes('.m-dashboard-widgets'));
   assert('mobile dashboard no longer has static duplicate dashboard sections',
-    !viewsSrc.includes('id="mobile-light-section"') &&
-    !viewsSrc.includes('id="mobile-body-section"') &&
-    !viewsSrc.includes('id="mobile-genome-section"') &&
-    !viewsSrc.includes('const lightHtml = renderLightTodayStrip();') &&
-    !viewsSrc.includes('stats.map(renderMobileStatCard)') &&
-    !viewsSrc.includes('insights.map(renderMobileInsightCard)') &&
-    !viewsSrc.includes('markers.slice(0, 7).map(renderMobileMarkerRow)'));
+    !mobileDashboardSrc.includes('id="mobile-light-section"') &&
+    !mobileDashboardSrc.includes('id="mobile-body-section"') &&
+    !mobileDashboardSrc.includes('id="mobile-genome-section"') &&
+    !mobileDashboardSrc.includes('const lightHtml = renderLightTodayStrip();') &&
+    !mobileDashboardSrc.includes('stats.map(renderMobileStatCard)') &&
+    !mobileDashboardSrc.includes('insights.map(renderMobileInsightCard)') &&
+    !mobileDashboardSrc.includes('markers.slice(0, 7).map(renderMobileMarkerRow)'));
   const themesSrc = await fetchWithRetry('themes-extra.css');
   assert('glass tweaks panel is opaque enough to read',
     themesSrc.includes('[data-theme="glass"] .tweaks-panel') &&
