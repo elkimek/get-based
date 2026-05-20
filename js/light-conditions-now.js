@@ -1021,8 +1021,3 @@ export function _formatElapsedShort(ms) {
   if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
   return `${m}:${pad(s)}`;
 }
-
-// True if current time is within ±2h of sunrise / midday / sunset.
-// Uses a simple geographic estimate from the active profile's country (or
-// 50°N if unset). Browser locale doesn't carry lat/lon, so we fall back to
-// time-of-day heuristics: 5–9am, 11am–2pm, 4–8pm.
