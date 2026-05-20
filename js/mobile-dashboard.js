@@ -194,54 +194,6 @@ export function getMobileDashboardMarkers(ctx) {
   return summaries.slice(0, 10);
 }
 
-function renderMobileSparkline(values, status) {
-  const points = (values || []).filter(v => v !== null && Number.isFinite(Number(v))).slice(-7).map(Number);
-  if (points.length < 2) return `<span class="m-spark m-spark-empty" aria-hidden="true"></span>`;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const span = max - min || 1;
-  const coords = points.map((value, index) => {
-    const x = points.length === 1 ? 50 : (index / (points.length - 1)) * 100;
-    const y = 28 - ((value - min) / span) * 24;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  return `<svg class="m-spark m-spark-${escapeAttr(status)}" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
-    <polyline points="${escapeAttr(coords)}"></polyline>
-  </svg>`;
-}
-
-function renderMobileStatCard(item) {
-  if (item.type === 'summary') {
-    const summaryLabel = `${item.label}: ${item.value}, ${item.meta}`;
-    return `<div class="m-stat-card m-stat-summary" role="group" aria-label="${escapeAttr(summaryLabel)}">
-      <div class="m-stat-head"><span class="m-marker-dot" aria-hidden="true"></span><span class="m-stat-label">${escapeHTML(item.label)}</span></div>
-      <strong>${escapeHTML(item.value)}</strong>
-      <span class="m-stat-meta">${escapeHTML(item.meta)}</span>
-    </div>`;
-  }
-  return `<button type="button" class="m-stat-card m-stat-${escapeAttr(item.status)}" onclick="window.showDetailModal('${item.id}')" aria-label="${escapeAttr(item.name + ': ' + item.value + ' ' + item.unit + ', ' + item.statusLabel)}">
-    <div class="m-stat-head"><span class="m-marker-dot m-marker-${escapeAttr(item.status)}" aria-hidden="true"></span><span class="m-stat-label">${escapeHTML(item.name)}</span></div>
-    <strong>${escapeHTML(item.value)}${item.unit ? `<small>${escapeHTML(item.unit)}</small>` : ''}</strong>
-    <span class="m-stat-meta">${escapeHTML(item.statusLabel)}${item.trend?.arrow ? ` · ${escapeHTML(item.trend.arrow)}` : ''}</span>
-  </button>`;
-}
-
-function getMobileDashboardStats(data, ctx, markers) {
-  const counts = getMobileDashboardCounts(data);
-  const cards = markers.slice(0, 4).map(marker => ({ ...marker, type: 'marker' }));
-  const summaryCards = [
-    { type: 'summary', label: 'Attention', value: String((ctx.trendAlerts?.length || 0) + counts.flagged), meta: 'active flags' },
-    { type: 'summary', label: 'In range', value: `${counts.inRange}/${counts.markerCount || 0}`, meta: 'latest values' },
-    { type: 'summary', label: 'Last labs', value: counts.latestDate ? formatDate(counts.latestDate, 'short') : 'N/A', meta: `${data.dates?.length || 0} dates` },
-    { type: 'summary', label: 'Markers', value: String(counts.markerCount), meta: 'tracked' },
-  ];
-  for (const card of summaryCards) {
-    if (cards.length >= 4) break;
-    cards.push(card);
-  }
-  return cards.slice(0, 4);
-}
-
 export function getMobileDashboardInsights(ctx, markers) {
   const insights = [];
   for (const flag of ctx.criticalFlags.slice(0, 2)) {
@@ -276,32 +228,6 @@ export function getMobileDashboardInsights(ctx, markers) {
     });
   }
   return insights.slice(0, 3);
-}
-
-function renderMobileInsightCard(insight) {
-  const body = `<span class="m-insight-eyebrow">${escapeHTML(insight.eyebrow)}</span>
-    <strong>${escapeHTML(insight.title)}</strong>
-    <span>${escapeHTML(insight.body)}</span>
-    ${insight.meta ? `<small>${escapeHTML(insight.meta)}</small>` : ''}`;
-  if (insight.id && safeMarkerId(insight.id)) {
-    return `<button type="button" class="m-insight m-insight-${escapeAttr(insight.tone)}" onclick="window.showDetailModal('${insight.id}')">${body}</button>`;
-  }
-  return `<div class="m-insight m-insight-${escapeAttr(insight.tone)}">${body}</div>`;
-}
-
-function renderMobileMarkerRow(marker) {
-  return `<button type="button" class="m-marker-row" onclick="window.showDetailModal('${marker.id}')" aria-label="${escapeAttr(marker.name + ': ' + marker.value + ' ' + marker.unit)}">
-    <span class="m-marker-dot m-marker-${escapeAttr(marker.status)}" aria-hidden="true"></span>
-    <span class="m-marker-main">
-      <strong>${escapeHTML(marker.name)}</strong>
-      <small>${escapeHTML(marker.category)} · ${escapeHTML(marker.date)}</small>
-    </span>
-    ${renderMobileSparkline(marker.values, marker.status)}
-    <span class="m-marker-value">
-      <strong>${escapeHTML(marker.value)}</strong>
-      ${marker.unit ? `<small>${escapeHTML(marker.unit)}</small>` : ''}
-    </span>
-  </button>`;
 }
 
 export function getMobileWearablePriority() {
@@ -365,23 +291,6 @@ export function getMobileWearableTiles() {
     if (tiles.length >= 4) break;
   }
   return tiles;
-}
-
-function renderMobileWearableTiles(tiles) {
-  if (!tiles.length) {
-    return `<div class="m-wear-empty">
-      <strong>Connect body data</strong>
-      <span>HRV, sleep, steps, recovery and body composition can sit next to your labs.</span>
-      <button type="button" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">Connect</button>
-    </div>`;
-  }
-  return `<div class="m-wear-strip">
-    ${tiles.map(tile => `<button type="button" class="m-wear-tile" onclick="window.openWearableDetail ? window.openWearableDetail('${escapeAttr(tile.id)}') : window.openSettingsModal?.('wearables')" aria-label="${escapeAttr(tile.label + ': ' + tile.value + ' ' + tile.unit)}">
-      <span class="m-wear-label">${escapeHTML(tile.label)}</span>
-      <strong>${escapeHTML(tile.value)}${tile.unit ? `<small>${escapeHTML(tile.unit)}</small>` : ''}</strong>
-      <span class="m-wear-change">${escapeHTML(tile.change || 'latest')}</span>
-    </button>`).join('')}
-  </div>`;
 }
 
 function renderMobileSectionHead(title, count, actionLabel = '', action = '') {

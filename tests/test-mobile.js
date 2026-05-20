@@ -73,6 +73,11 @@ return (async function() {
     !mobileDashboardSrc.includes('id="mobile-body-section"') &&
     !mobileDashboardSrc.includes('id="mobile-genome-section"') &&
     !mobileDashboardSrc.includes('const lightHtml = renderLightTodayStrip();') &&
+    !mobileDashboardSrc.includes('function renderMobileStatCard') &&
+    !mobileDashboardSrc.includes('function getMobileDashboardStats') &&
+    !mobileDashboardSrc.includes('function renderMobileInsightCard') &&
+    !mobileDashboardSrc.includes('function renderMobileMarkerRow') &&
+    !mobileDashboardSrc.includes('function renderMobileWearableTiles') &&
     !mobileDashboardSrc.includes('stats.map(renderMobileStatCard)') &&
     !mobileDashboardSrc.includes('insights.map(renderMobileInsightCard)') &&
     !mobileDashboardSrc.includes('markers.slice(0, 7).map(renderMobileMarkerRow)'));
