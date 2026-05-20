@@ -589,9 +589,9 @@ return (async function() {
       assert('demo JSON ships focusCard.text',
         typeof demo.focusCard?.text === 'string' && demo.focusCard.text.length > 50,
         `got ${typeof demo.focusCard?.text} (${demo.focusCard?.text?.length || 0} chars)`);
-      const viewsSrc = await fetch('/js/views.js').then(r => r.text());
+      const focusCardSrc = await fetch('/js/focus-card.js').then(r => r.text());
       assert('loadFocusCard early-returns when cache has no fingerprint (demo prefill marker)',
-        viewsSrc.includes('if (!cached.fingerprint) return;'),
+        focusCardSrc.includes('if (!cached.fingerprint) return;'),
         'loadFocusCard must skip AI refresh when cached.fingerprint is missing');
       const exportSrcLive = await fetch('/js/export.js').then(r => r.text());
       assert('loadDemoData writes focusCard to localStorage (demo-only by code path)',

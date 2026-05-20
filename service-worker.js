@@ -47,6 +47,7 @@ const APP_SHELL = [
   '/js/supplements.js',
   '/js/cycle.js',
   '/js/context-cards.js',
+  '/js/focus-card.js',
   '/js/emf.js',
   '/js/image-utils.js',
   '/js/pdf-import.js',

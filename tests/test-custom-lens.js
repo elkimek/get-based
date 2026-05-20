@@ -281,12 +281,14 @@ assert('main send calls queryLensMulti with user text', /await queryLensMulti\(t
 assert('multi-persona calls queryLensMulti with msgText', /await queryLensMulti\(msgText,/.test(chatSrc));
 assert('openChatPanel calls updateLensIndicator', chatSrc.includes('updateLensIndicator()'));
 
-// ─── 10. Wiring: views.js focus card ───
-console.log('\n10. views.js wiring');
+// ─── 10. Wiring: focus-card.js lens integration ───
+console.log('\n10. focus-card.js wiring');
 const viewsSrc = read('js/views.js');
-assert('views imports hasLens + queryLens', viewsSrc.includes('hasLens') && viewsSrc.includes('queryLens'));
-assert('views imports injectLensChunks', viewsSrc.includes('injectLensChunks'));
-assert('focus card calls hasLens', /if \(hasLens\(\)\) \{[\s\S]{0,800}await queryLens/.test(viewsSrc));
+const focusCardSrc = read('js/focus-card.js');
+assert('views imports focus card module', viewsSrc.includes("from './focus-card.js'"));
+assert('focus-card imports hasLens + queryLens', focusCardSrc.includes('hasLens') && focusCardSrc.includes('queryLens'));
+assert('focus-card imports injectLensChunks', focusCardSrc.includes('injectLensChunks'));
+assert('focus card calls hasLens', /if \(hasLens\(\)\) \{[\s\S]{0,800}await queryLens/.test(focusCardSrc));
 
 // ─── 11. Wiring: lab-context.js helper ───
 console.log('\n11. lab-context.js helper');

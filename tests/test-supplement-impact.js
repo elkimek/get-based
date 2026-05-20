@@ -215,8 +215,8 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   assert('Falls back without AI', suppSrc.includes('Set up an AI provider'));
 
   // Focus card integration
-  const viewsSrc = read('js/views.js');
-  assert('Focus card uses computeAllImpacts', viewsSrc.includes('computeAllImpacts'));
+  const focusCardSrc = read('js/focus-card.js');
+  assert('Focus card uses computeAllImpacts', focusCardSrc.includes('computeAllImpacts'));
 
   // CSS
   const cssSrc = read('styles.css');

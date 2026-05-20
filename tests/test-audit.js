@@ -62,6 +62,7 @@ assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
+const focusCardSrc = read('js/focus-card.js');
 const compareCorrelationsSrc = read('js/compare-correlations.js');
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const lightSessionsViewSrc = read('js/light-sessions-view.js');
@@ -130,7 +131,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
@@ -528,7 +529,7 @@ assert('buildLabContext has global staleness daysSince', labCtxSrc.includes('day
 assert('buildLabContext has global staleness months ago', labCtxSrc.includes('months ago'));
 assert('buildLabContext has per-category staleness', labCtxSrc.includes('catDaysSince') && labCtxSrc.includes('catMonthsAgo'));
 assert('Per-category staleness uses warning marker', labCtxSrc.includes('⚠ Last tested'));
-assert('buildFocusContext has last labs date', viewsSrc.includes('last labs'));
+assert('buildFocusContext has last labs date', focusCardSrc.includes('last labs'));
 
 const hccCount = (labCtxSrc.match(/hasCardContent\(/g) || []).length;
 assert('lab-context.js uses hasCardContent for 7 card gates', hccCount >= 7, `found ${hccCount}`);
@@ -557,9 +558,10 @@ assert('Health goals at top of Priority Context', constSrc.indexOf('Health goals
 
 assert('Persona placed after lab data', chatSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));
 
-assert('buildFocusContext exists in views.js', viewsSrc.includes('function buildFocusContext()'));
-assert('Focus card uses buildFocusContext', viewsSrc.includes('buildFocusContext()'));
-assert('Focus card context-aware system prompt', viewsSrc.includes("this person's goals/conditions"));
+assert('buildFocusContext exists in focus-card.js', focusCardSrc.includes('function buildFocusContext()'));
+assert('views.js imports focus card module', viewsSrc.includes("from './focus-card.js'"));
+assert('Focus card uses buildFocusContext', focusCardSrc.includes('buildFocusContext()'));
+assert('Focus card context-aware system prompt', focusCardSrc.includes("this person's goals/conditions"));
 
 assert('askAIAboutMarker uses marker.refMin/refMax', chatSrc.includes('${marker.refMin}') && chatSrc.includes('${marker.refMax}'));
 assert('askAIAboutMarker has trend direction', chatSrc.includes("Trend: ${dir}"));

@@ -559,6 +559,9 @@
     const hasViewsJs = sw.includes('/js/views.js');
     assert('Service worker caches js/views.js', hasViewsJs);
 
+    const hasFocusCardJs = sw.includes('/js/focus-card.js');
+    assert('Service worker caches js/focus-card.js', hasFocusCardJs);
+
     const hasMarkerDetailModalJs = sw.includes('/js/marker-detail-modal.js');
     assert('Service worker caches js/marker-detail-modal.js', hasMarkerDetailModalJs);
 
