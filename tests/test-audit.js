@@ -78,6 +78,8 @@ assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardRend
 assert('Category label escaped in header', viewsSrc.includes('escapeHTML(cat.label)'));
 assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(markerDetailSrc));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
+assert('Light channel device names escaped before next-move HTML',
+  /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
 
 const chatSrc = read('js/chat.js');
 const markdownSrc = read('js/markdown.js');

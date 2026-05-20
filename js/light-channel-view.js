@@ -543,7 +543,7 @@ function _renderChannelSourceMix(sun, dev) {
 // devices + current sun conditions.
 function _channelNextMove(channelKey, t7, totalCurrent, devices, atm) {
   const matchingDevice = (devices || []).find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
-  const dev = matchingDevice ? `${matchingDevice.brand} ${matchingDevice.model}` : '';
+  const dev = matchingDevice ? escapeHTML(`${matchingDevice.brand} ${matchingDevice.model}`) : '';
   const uvi = atm?.uvIndex ?? null;
   const peakTime = atm?.daily?.peakAt || null;
   const peakUVI = atm?.daily?.uvIndexMax ?? null;
