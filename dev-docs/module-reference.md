@@ -535,10 +535,23 @@ Route validation, per-profile last-view persistence, mobile tab sync handoff, an
 
 ### `lens-pages.js`
 
-Dedicated page renderers for Labs, Genome, Body, Insight, and Recommendations. The module receives dashboard and recommendation helper functions from `views.js` through `createLensPageHandlers()` so page rendering can move out of the main views module without creating new import cycles.
+Dedicated page renderers for Labs, Genome, Body, Insight, and Recommendations. The module receives dashboard, recommendation, and lens shell helper functions from `views.js` through `createLensPageHandlers()` so page rendering can move out of the main views module without creating new import cycles.
 
 **Key exports:**
 - `createLensPageHandlers(deps)` — returns `showLabs`, `showGenomeLens`, `showBodyLens`, `showInsightLens`, and `showRecommendations`
+
+---
+
+### `lens-page-shell.js`
+
+Shared lens page chrome and ordering helpers used by `views.js` and `lens-pages.js`. The module owns lens headers, reorderable page widget wrappers, per-profile lens widget order persistence, page-section move controls, dashboard add/remove toggles, and quote-safe inline handler generation.
+
+**Key exports:**
+- `configureLensPageShell(deps)` — injects dashboard widget visibility helpers without importing dashboard modules directly
+- `renderLensHeader(title, subtitle, actions?)` — renders the shared lens page header
+- `renderLensPageWidgets(route, widgets)` / `renderLensWidget(...)` — render reorderable page widgets and their chrome
+- `moveLensPageWidget(route, id, direction)` — persists per-profile page section order and refreshes the active route
+- `inlineHandlerCall(fnName, ...args)` — builds escaped `window.*` inline handlers for existing template surfaces
 
 ---
 
@@ -585,7 +598,7 @@ Category chart card, table, heatmap, and fatty-acid profile renderers. `views.js
 
 ### `views.js`
 
-Dashboard composition, Light page, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Dashboard composition, Light page, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function

@@ -55,6 +55,7 @@ js/
   nav.js            — Sidebar, date range filter, chart layers dropdown
   views-router.js   — route validation, last-view persistence, scroll-anchor navigation
   lens-pages.js     — Labs, Genome, Body, Insight, and Recommendations page renderers
+  lens-page-shell.js — shared lens header, widget chrome, ordering, dashboard toggles
   dashboard-widgets.js — dashboard widget registry, defaults, widget prefs
   dashboard-widget-controls.js — widget picker, layout actions, drag/reorder controls
   dashboard-widget-renderers.js — dashboard widget body renderers and recommendation helpers
@@ -82,7 +83,7 @@ index.html
 The sidebar has three conceptual groups:
 
 - Home: `dashboard`, the customizable cross-lens overview.
-- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; the Light page remains in `views.js` with the light-specific helpers it depends on.
+- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; shared lens page chrome and ordering live in `lens-page-shell.js`; the Light page remains in `views.js` with the light-specific helpers it depends on.
 - Tools: focused utilities such as compare dates, correlations, knowledge base, custom markers, and EMF assessment entry points.
 
 The dashboard is not a replacement for lens pages. It is a user-composed overview made from lens/tool widgets. Default widgets are ordered for a new user as: Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age. Users can reorder, hide, reset, clear, and add widgets. Lens pages expose Add/Remove Dashboard toggles for widgets that can appear in the overview.
@@ -128,7 +129,8 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
 ┌─────────────────────────────────────────────────────────────────────┐
 │  L6 — Orchestration                                                 │
 │  dashboard-widgets.js  dashboard-widget-controls.js                 │
-│  dashboard-widget-renderers.js  views.js  main.js  tour.js         │
+│  dashboard-widget-renderers.js  lens-page-shell.js  views.js       │
+│  main.js  tour.js                                                   │
 │  changelog.js                                                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```

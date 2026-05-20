@@ -62,6 +62,7 @@ assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
+const lensPageShellSrc = read('js/lens-page-shell.js');
 const categoryViewRenderersSrc = read('js/category-view-renderers.js');
 const focusCardSrc = read('js/focus-card.js');
 const compareCorrelationsSrc = read('js/compare-correlations.js');
@@ -273,7 +274,7 @@ assert('Light page dashboard toggles are explicitly scoped',
   /id: 'light-environment'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
   /id: 'light-tools'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
   /id: 'light-methods'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
-  viewsSrc.includes("Object.prototype.hasOwnProperty.call(opts, 'dashboardId')"));
+  lensPageShellSrc.includes("Object.prototype.hasOwnProperty.call(opts, 'dashboardId')"));
 assert('Light operation widgets deframe nested operation surfaces',
   /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-wrap,[\s\S]*\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(cssSrc));
 assert('Light page workbench is split into page-only redesigned widgets',

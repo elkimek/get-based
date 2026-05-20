@@ -559,6 +559,9 @@
     const hasViewsJs = sw.includes('/js/views.js');
     assert('Service worker caches js/views.js', hasViewsJs);
 
+    const hasLensPageShellJs = sw.includes('/js/lens-page-shell.js');
+    assert('Service worker caches js/lens-page-shell.js', hasLensPageShellJs);
+
     const hasChartCardRecsJs = sw.includes('/js/chart-card-recs.js');
     assert('Service worker caches js/chart-card-recs.js', hasChartCardRecsJs);
 

@@ -62,6 +62,7 @@ const APP_SHELL = [
   '/js/nav.js',
   '/js/views-router.js',
   '/js/lens-pages.js',
+  '/js/lens-page-shell.js',
   '/js/dashboard-widgets.js',
   '/js/dashboard-widget-controls.js',
   '/js/dashboard-widget-renderers.js',
