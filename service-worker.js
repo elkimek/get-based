@@ -68,6 +68,7 @@ const APP_SHELL = [
   '/js/dashboard-widget-renderers.js',
   '/js/chart-card-recs.js',
   '/js/category-glyphs.js',
+  '/js/category-page-view.js',
   '/js/category-view-renderers.js',
   '/js/category-customization.js',
   '/js/commit-hash.js',

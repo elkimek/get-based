@@ -568,6 +568,9 @@
     const hasCategoryGlyphsJs = sw.includes('/js/category-glyphs.js');
     assert('Service worker caches js/category-glyphs.js', hasCategoryGlyphsJs);
 
+    const hasCategoryPageViewJs = sw.includes('/js/category-page-view.js');
+    assert('Service worker caches js/category-page-view.js', hasCategoryPageViewJs);
+
     const hasCategoryCustomizationJs = sw.includes('/js/category-customization.js');
     assert('Service worker caches js/category-customization.js', hasCategoryCustomizationJs);
 

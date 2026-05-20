@@ -32,6 +32,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 2. Clickable divs gain role+tabindex ───
   const viewsSrc = read('/js/views.js');
+  const categoryPageViewSrc = read('/js/category-page-view.js');
   const lightChannelViewSrc = read('/js/light-channel-view.js');
   const categoryViewRenderersSrc = read('/js/category-view-renderers.js');
   const focusCardSrc = read('/js/focus-card.js');
@@ -39,7 +40,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const markerDetailSrc = read('/js/marker-detail-modal.js');
   const dashboardRenderersSrc = read('/js/dashboard-widget-renderers.js');
   assert('chart-card has role and tabindex',
-    viewsSrc.match(/<div class="chart-card" role="button" tabindex="0"/));
+    categoryViewRenderersSrc.match(/<div class="chart-card[^"]*" role="button" tabindex="0"/));
   assert('trend-alert-card has role and tabindex',
     dashboardRenderersSrc.includes('class="trend-alert-card ${cls}" role="button" tabindex="0"'));
   assert('alert-card (critical) has role and tabindex',
@@ -99,7 +100,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const ariaSelMatches = (settingsSrc.match(/aria-selected="\$\{_activeSettingsTab/g) || []).length;
   assert('all 6 settings tabs have runtime aria-selected', ariaSelMatches === 6, `found ${ariaSelMatches}`);
   assert('view-toggle (Charts/Table/Heatmap) is a tablist',
-    viewsSrc.includes('class="view-toggle" role="tablist"'));
+    categoryPageViewSrc.includes('class="view-toggle" role="tablist"'));
 
   // ─── 6. Chart layers dropdown ARIA ───
   const dataSrc = read('/js/data.js');

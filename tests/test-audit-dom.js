@@ -1,6 +1,6 @@
 // test-audit-dom.js — Functional safeMarkerId-guard assertions extracted from
 // test-audit.js's section 3b. Stays in the puppeteer runner: it proves the
-// XSS guards in views.js no-op on adversarial input AT RUNTIME, which needs a
+// XSS guards in category-page-view.js no-op on adversarial input AT RUNTIME, which needs a
 // live DOM (rendered category header, modal-overlay) + a populated state.
 // The section-3b *source-inspection* asserts (guard wiring present) live in
 // test-audit.js (Vitest).
@@ -50,7 +50,7 @@ return (async function() {
       safeRender.includes('biochemistry_glucose') && safeRender.includes('chart-card'));
   } else {
     assert('window.showCategory + populated state available for functional guard test', false,
-      'views.js handlers or _labState.importedData missing — cannot run runtime guard probes');
+      'category handlers or _labState.importedData missing — cannot run runtime guard probes');
   }
 
   console.log(`\n%c Audit DOM: ${pass} passed, ${fail} failed `, fail > 0 ? 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');

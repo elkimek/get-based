@@ -279,11 +279,11 @@ await import('../js/charts.js');
     assert('Plugin has ovulatory color', chartsSrc.includes('ovulatory') && chartsSrc.includes('rgba(168, 85, 247'));
     assert('Plugin has luteal color', chartsSrc.includes('luteal') && chartsSrc.includes('rgba(245, 158, 11'));
 
-    // views.js and marker-detail-modal.js pass phaseLabels
-    const viewsSrc = read('js/views.js');
+    // category-page-view.js and marker-detail-modal.js pass phaseLabels
+    const categoryPageViewSrc = read('js/category-page-view.js');
     const markerDetailSrc = read('js/marker-detail-modal.js');
-    const phasePassCount = (viewsSrc.match(/phaseLabels/g) || []).length + (markerDetailSrc.match(/phaseLabels/g) || []).length;
-    assert('views.js + marker-detail-modal.js pass phaseLabels to createLineChart', phasePassCount >= 4, `found ${phasePassCount} references`);
+    const phasePassCount = (categoryPageViewSrc.match(/phaseLabels/g) || []).length + (markerDetailSrc.match(/phaseLabels/g) || []).length;
+    assert('category-page-view.js + marker-detail-modal.js pass phaseLabels to createLineChart', phasePassCount >= 4, `found ${phasePassCount} references`);
 
     // lab-context.js includes symptom + alert context (extracted from chat.js)
     const labCtxSrc = read('js/lab-context.js');

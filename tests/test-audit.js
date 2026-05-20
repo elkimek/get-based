@@ -63,6 +63,7 @@ console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
 const lensPageShellSrc = read('js/lens-page-shell.js');
+const categoryPageViewSrc = read('js/category-page-view.js');
 const categoryViewRenderersSrc = read('js/category-view-renderers.js');
 const categoryCustomizationSrc = read('js/category-customization.js');
 const focusCardSrc = read('js/focus-card.js');
@@ -76,7 +77,7 @@ const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
 assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
 assert('Trend alert category escaped', dashboardRenderersSrc.includes('escapeHTML(alert.category)'));
 assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardRenderersSrc));
-assert('Category label escaped in header', viewsSrc.includes('escapeHTML(cat.label)'));
+assert('Category label escaped in header', categoryPageViewSrc.includes('escapeHTML(cat.label)'));
 assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(markerDetailSrc));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
 assert('Light channel device names escaped before next-move HTML',
@@ -91,8 +92,8 @@ assert('Clipboard has navigator.clipboard guard', chatSrc.includes('if (!navigat
 // 3b. Marker-key allowlist guards (source-inspection)
 // ═══════════════════════════════════════
 // PDF AI extraction is sanitized at the parse boundary by _sanitizeAIMarker,
-// but legacy data and sync pulls can still feed unsafe keys into views.js
-// — five entry points interpolate keys into onclick="…('${id}')" handlers.
+// but legacy data and sync pulls can still feed unsafe keys into category
+// views — five entry points interpolate keys into onclick="…('${id}')" handlers.
 // safeMarkerId in utils.js gates each one. The *functional* proof that the
 // guards no-op on adversarial input lives in test-audit-dom.js (needs a
 // live DOM); here we pin the guard *wiring*.
@@ -103,14 +104,14 @@ assert('utils.js exports safeMarkerId',
   /export\s+function\s+safeMarkerId\s*\(/.test(utilsXssSrc));
 assert('safeMarkerId proto-pollution guard set covers __proto__/constructor/prototype',
   /_PROTO_PARTS\s*=\s*new\s+Set\s*\(\s*\[\s*['"]__proto__['"]\s*,\s*['"]constructor['"]\s*,\s*['"]prototype['"]\s*\]\s*\)/.test(utilsXssSrc));
-assert('views.js imports safeMarkerId from utils',
-  /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(viewsSrc));
+assert('category-page-view.js imports safeMarkerId from utils',
+  /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(categoryPageViewSrc));
 assert('category-view-renderers.js imports safeMarkerId from utils',
   /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(categoryViewRenderersSrc));
 assert('showCategory guards on safeMarkerId(categoryKey) at function entry',
-  /export function showCategory[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+  /export function showCategory[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(categoryPageViewSrc));
 assert('switchView guards on safeMarkerId(categoryKey) at function entry',
-  /export function switchView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
+  /export function switchView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(categoryPageViewSrc));
 assert('showDetailModal guards on safeMarkerId(id) at function entry',
   /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(markerDetailSrc));
 assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + category)',
@@ -118,7 +119,7 @@ assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + cate
 assert('renderFattyAcidsView returns "" on unsafe categoryKey',
   /export function renderFattyAcidsView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return\s*''/.test(categoryViewRenderersSrc));
 assert('showCategory chart-cards loop skips legacy customMarkers with unsafe keys',
-  /for\s*\(\s*const\s*\[\s*key\s*,\s*marker\s*\]\s+of\s+withData\s*\)\s*\{\s*[\s\S]{0,200}if\s*\(\s*!safeMarkerId\(key\)\s*\)\s*continue/.test(viewsSrc));
+  /for\s*\(\s*const\s*\[\s*key\s*,\s*marker\s*\]\s+of\s+withData\s*\)\s*\{\s*[\s\S]{0,200}if\s*\(\s*!safeMarkerId\(key\)\s*\)\s*continue/.test(categoryPageViewSrc));
 assert('category-customization.js owns rename/icon helpers',
   /export async function renameCategory/.test(categoryCustomizationSrc) &&
   /export async function renameMarker/.test(categoryCustomizationSrc) &&
@@ -145,7 +146,7 @@ console.log('3c. innerHTML sanitizer sweep');
 
 const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
 const _SAFE_HELPERS = new Set([
-  // views.js + category-view-renderers.js
+  // views.js + category-page-view.js + category-view-renderers.js
   'renderChartCard', 'renderTableView', 'renderHeatmapView',
   'renderFattyAcidsView', 'renderCompareTable', 'renderChannelDetailPanel',
   'renderChannelPills', 'renderConditionsHTML', 'renderLightTools',
@@ -153,7 +154,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');

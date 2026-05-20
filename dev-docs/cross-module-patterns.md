@@ -129,7 +129,7 @@ state.importedData.notes.push({ date: today, text: 'New note' });
 `getActiveData()` is not cheap — it deep-clones the full marker schema and processes all entries. Rendering functions that might be called from multiple contexts accept an optional `data` parameter:
 
 ```js
-// views.js
+// category-page-view.js
 export function showCategory(catKey, data) {
   // Reuse passed data if available, otherwise compute once
   const d = data || getActiveData();

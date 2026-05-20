@@ -59,11 +59,12 @@ js/
   dashboard-widgets.js — dashboard widget registry, defaults, widget prefs
   dashboard-widget-controls.js — widget picker, layout actions, drag/reorder controls
   dashboard-widget-renderers.js — dashboard widget body renderers and recommendation helpers
+  category-page-view.js — category route shell, view switching, card-order preservation
   category-view-renderers.js — category chart cards, table/heatmap shells, fatty-acid renderers
   category-customization.js — category/marker rename helpers and category icon picker
   light-page-view.js — Light & Sun page shell, Light Today strip, dashboard Light pills
   light-channel-view.js — Light channel pill rows, detail panels, citations, suggestions
-  views.js          — dashboard composition, category orchestration, modals, manual entry, onboarding
+  views.js          — dashboard composition, route wiring, modals, manual entry, onboarding
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
   lab-context.js     — buildLabContext() central AI context serializer (extracted from chat.js)
@@ -86,7 +87,7 @@ index.html
 The sidebar has three conceptual groups:
 
 - Home: `dashboard`, the customizable cross-lens overview.
-- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; shared lens page chrome and ordering live in `lens-page-shell.js`; the Light page shell lives in `light-page-view.js`, while channel pills and drill-down panels live in `light-channel-view.js`.
+- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. Lab category routes render through `category-page-view.js`; Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; shared lens page chrome and ordering live in `lens-page-shell.js`; the Light page shell lives in `light-page-view.js`, while channel pills and drill-down panels live in `light-channel-view.js`.
 - Tools: focused utilities such as compare dates, correlations, knowledge base, custom markers, and EMF assessment entry points.
 
 The dashboard is not a replacement for lens pages. It is a user-composed overview made from lens/tool widgets. Default widgets are ordered for a new user as: Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age. Users can reorder, hide, reset, clear, and add widgets. Lens pages expose Add/Remove Dashboard toggles for widgets that can appear in the overview.
@@ -132,8 +133,8 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
 ┌─────────────────────────────────────────────────────────────────────┐
 │  L6 — Orchestration                                                 │
 │  dashboard-widgets.js  dashboard-widget-controls.js                 │
-│  dashboard-widget-renderers.js  lens-page-shell.js  light-page-view.js │
-│  views.js  main.js  tour.js                                          │
+│  dashboard-widget-renderers.js  lens-page-shell.js                    │
+│  category-page-view.js  light-page-view.js  views.js  main.js  tour.js │
 │  changelog.js                                                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```

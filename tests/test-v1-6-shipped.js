@@ -519,6 +519,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 19. category marker card redesign ', 'font-weight:bold;color:#0891b2');
   {
     const viewsSrc = fetchSrc('js/views.js');
+    const categoryPageViewSrc = fetchSrc('js/category-page-view.js');
     const categoryViewRenderersSrc = fetchSrc('js/category-view-renderers.js');
     const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
     const categoryGlyphsSrc = fetchSrc('js/category-glyphs.js');
@@ -552,9 +553,9 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('range mode refresh preserves current category card order',
       /function _captureCategoryCardOrderForRangeRefresh\(route\)/.test(dataSrc)
       && /state\._preserveCategoryCardOrder\s*=\s*preservedOrder/.test(dataSrc)
-      && /function sortCategoryChartEntries\(entries,\s*categoryKey\)/.test(viewsSrc)
-      && /preserved\?\.categoryKey === categoryKey/.test(viewsSrc)
-      && /delete state\._preserveCategoryCardOrder/.test(viewsSrc));
+      && /function sortCategoryChartEntries\(entries,\s*categoryKey\)/.test(categoryPageViewSrc)
+      && /preserved\?\.categoryKey === categoryKey/.test(categoryPageViewSrc)
+      && /delete state\._preserveCategoryCardOrder/.test(categoryPageViewSrc));
     assert('data.js: header range toggle patches existing buttons',
       /const canPatch\s*=/.test(dataSrc)
       && /btn\.classList\.toggle\('active',\s*active\)/.test(dataSrc)
@@ -573,11 +574,11 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /export function renderCategoryGlyph\(categoryKey,\s*label/.test(categoryGlyphsSrc)
       && /getCategoryGlyphCode\(categoryKey,\s*label\)/.test(categoryGlyphsSrc)
       && /CATEGORY_GLYPH_CODES/.test(categoryGlyphsSrc)
-      && viewsSrc.includes("from './category-glyphs.js'")
-      && /renderCategoryGlyph\(categoryKey,\s*cat\.label\)/.test(viewsSrc)
-      && /empty-state-icon-category/.test(viewsSrc)
+      && categoryPageViewSrc.includes("from './category-glyphs.js'")
+      && /renderCategoryGlyph\(categoryKey,\s*cat\.label\)/.test(categoryPageViewSrc)
+      && /empty-state-icon-category/.test(categoryPageViewSrc)
       && /compare-category-label/.test(compareCorrelationsSrc)
-      && !/Click to change icon/.test(viewsSrc));
+      && !/Click to change icon/.test(categoryPageViewSrc));
     assert('styles.css: category glyph has redesigned non-emoji treatment',
       /\.category-glyph\s*\{[\s\S]{0,520}font-family:\s*var\(--font-mono\)/.test(cssSrc)
       && /\.compare-category-label\s*\{/.test(cssSrc));

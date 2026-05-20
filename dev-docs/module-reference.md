@@ -587,12 +587,22 @@ Dashboard widget body renderers and shared recommendation helpers. `views.js` cr
 
 ### `category-view-renderers.js`
 
-Category chart card, table, heatmap, and fatty-acid profile renderers. `views.js` imports and re-exports these helpers so existing module and `window.*` integrations stay stable while category-specific rendering lives outside the main view orchestrator.
+Category chart card, table, heatmap, and fatty-acid profile renderers. `category-page-view.js` calls these helpers for category route content, while `views.js` imports and re-exports them so existing module and `window.*` integrations stay stable.
 
 **Key exports:**
 - `renderChartCard(id, marker, dateLabels)` — renders one category/dashboard marker card and registers it for the detail modal
 - `renderTableView(cat, dateLabels, categoryKey, dates)` / `renderHeatmapView(cat, dateLabels, dates, categoryKey)` — render category table shells with empty-value add affordances
 - `renderFattyAcidsView(cat, categoryKey)` / `renderFattyAcidsCharts(cat)` — render the single-date fatty-acid profile cards and bar chart
+
+---
+
+### `category-page-view.js`
+
+Category route shell and view-mode orchestration. The module owns `showCategory()`, `switchView()`, category card sorting, range-toggle order preservation, chart hydration, and chart-card recommendation loading. It depends on `category-view-renderers.js` for HTML fragments and keeps `views.js` as a thin router/compatibility facade.
+
+**Key exports:**
+- `showCategory(categoryKey, data?)` — renders the category header, view tabs, date/layer controls, chart grid, empty marker affordances, and saved table/heatmap mode
+- `switchView(view, categoryKey, btn)` — switches between chart, table, and heatmap modes, updates tab ARIA state, destroys stale charts, and rehydrates charts when needed
 
 ---
 
@@ -610,12 +620,13 @@ Category and marker display override helpers. The module owns category rename, m
 
 ### `views.js`
 
-Dashboard composition, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Dashboard composition, tool page routing, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category route orchestration lives in `category-page-view.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
 - `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
 - `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - compatibility facades delegated to `lens-pages.js`
+- `showCategory(categoryKey, data?)` - compatibility facade imported from `category-page-view.js`
 - `showLight(data?)`, `renderLightTodayStrip()`, `renderLightChannelsLive()` - compatibility facades imported from `light-page-view.js`
 - `showCompare(data?)` / `showCorrelations(data?)` - focused tool pages
 - Dashboard widget controls: compatibility facades backed by `dashboard-widget-controls.js`, including `openDashboardWidgetPicker()`, `toggleDashboardOrganizeMode()`, `resetDashboardWidgets()`, `clearDashboardWidgets()`, `addDashboardWidgetFromLens()`, and `removeDashboardWidgetFromLens()`
