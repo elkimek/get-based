@@ -111,11 +111,8 @@ function renderLightMethodsWidgetBody() {
   return `<div class="light-methods-stack">${html}</div>`;
 }
 
-// Render only when the user has logged sessions OR we're in a solar window
-// (sunrise/midday/sunset ±2h) and the user has labs — encourages discovery.
 export function renderLightTodayStrip() {
   const sessions = (window.getSessions && window.getSessions()) || [];
-  const hasData = sessions.length > 0;
   const inSolarWindow = isSolarWindow();
   // Always render — even a fresh user outside a solar window needs to see
   // that the Light lens exists. The CTA copy adapts to the situation.
