@@ -307,6 +307,7 @@ const cssSource = read('styles.css');
   // ═══════════════════════════════════════
   console.log('Section 14: views.js source inspection');
   const viewsSource = read('js/views.js');
+  const compareCorrelationsSource = read('js/compare-correlations.js');
   const markerDetailSource = read('js/marker-detail-modal.js');
   assert('views.js imports getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate'));
   assert('renderChartCard uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, latestIdx)'));
@@ -315,7 +316,7 @@ const cssSource = read('styles.css');
   assert('showDetailModal shows phase label', markerDetailSource.includes('mv-phase'));
   assert('renderTableView uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('renderHeatmapView uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, i)'));
-  assert('renderCompareTable uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, idx'));
+  assert('renderCompareTable uses getEffectiveRangeForDate', compareCorrelationsSource.includes('getEffectiveRangeForDate(marker, idx'));
 
   // ═══════════════════════════════════════
   // 15. chat.js source inspection

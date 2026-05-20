@@ -516,6 +516,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 19. category marker card redesign ', 'font-weight:bold;color:#0891b2');
   {
     const viewsSrc = fetchSrc('js/views.js');
+    const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal.js');
     const dataSrc = fetchSrc('js/data.js');
     const cssSrc = fetchSrc('styles.css');
@@ -559,7 +560,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /function renderCategoryGlyph\(categoryKey,\s*label/.test(viewsSrc)
       && /renderCategoryGlyph\(categoryKey,\s*cat\.label\)/.test(viewsSrc)
       && /empty-state-icon-category/.test(viewsSrc)
-      && /compare-category-label/.test(viewsSrc)
+      && /compare-category-label/.test(compareCorrelationsSrc)
       && !/Click to change icon/.test(viewsSrc));
     assert('styles.css: category glyph has redesigned non-emoji treatment',
       /\.category-glyph\s*\{[\s\S]{0,520}font-family:\s*var\(--font-mono\)/.test(cssSrc)

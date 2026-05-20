@@ -62,6 +62,7 @@ assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
+const compareCorrelationsSrc = read('js/compare-correlations.js');
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
@@ -70,7 +71,7 @@ assert('Trend alert category escaped', dashboardRenderersSrc.includes('escapeHTM
 assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardRenderersSrc));
 assert('Category label escaped in header', viewsSrc.includes('escapeHTML(cat.label)'));
 assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(markerDetailSrc));
-assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(viewsSrc));
+assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
 
 const chatSrc = read('js/chat.js');
 const markdownSrc = read('js/markdown.js');
@@ -128,7 +129,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'compare-correlations.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
@@ -330,12 +331,12 @@ assert('Mobile quick marker grid override comes after base grid',
   /\.db-quick-marker-grid\s*\{[\s\S]*grid-template-columns:\s*1fr;/.test(cssSrc.slice(quickMarkerMobileIndex, quickMarkerMobileIndex + 1800)));
 assert('Mobile compare tables scroll instead of clipping columns',
   /@media \(max-width:\s*768px\)\s*\{[\s\S]*\.data-table-wrapper,\s*[\s\S]*\.compare-table-wrapper,\s*[\s\S]*\.heatmap-wrapper\s*\{[\s\S]*overflow-x:\s*auto;[\s\S]*overflow-y:\s*clip;/.test(cssSrc) &&
-  viewsSrc.includes('class="compare-date-field"'));
+  compareCorrelationsSrc.includes('class="compare-date-field"'));
 assert('Compare and correlations headings are text-only',
-  viewsSrc.includes('<h2>Compare Dates</h2>') &&
-  viewsSrc.includes('<h2>Correlations</h2>') &&
-  !viewsSrc.includes('<h2>\\u2194 Compare Dates</h2>') &&
-  !viewsSrc.includes('<h2>\\uD83D\\uDCC8 Correlations</h2>'));
+  compareCorrelationsSrc.includes('<h2>Compare Dates</h2>') &&
+  compareCorrelationsSrc.includes('<h2>Correlations</h2>') &&
+  !compareCorrelationsSrc.includes('<h2>\\u2194 Compare Dates</h2>') &&
+  !compareCorrelationsSrc.includes('<h2>\\uD83D\\uDCC8 Correlations</h2>'));
 const themesExtraSrc = read('themes-extra.css');
 assert('Glass theme includes Light page surfaces',
   themesExtraSrc.includes('[data-theme="glass"] .light-setup-card') &&
