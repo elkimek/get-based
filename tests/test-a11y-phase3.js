@@ -32,6 +32,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 2. Clickable divs gain role+tabindex ───
   const viewsSrc = read('/js/views.js');
+  const lightChannelViewSrc = read('/js/light-channel-view.js');
   const categoryViewRenderersSrc = read('/js/category-view-renderers.js');
   const focusCardSrc = read('/js/focus-card.js');
   const onboardingViewSrc = read('/js/onboarding-view.js');
@@ -196,21 +197,21 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // own aria-label. Hidden text in .sr-only carries the qualitative tier
   // for screen readers since the dots are aria-hidden.
   assert('pill is a <button> with aria-expanded + aria-controls',
-    /class="light-pill light-pill-tier-\$\{t7\} light-pill-interactive"[\s\S]{0,300}aria-expanded="false"[\s\S]{0,300}aria-controls="\$\{detailId\}"/.test(viewsSrc));
+    /class="light-pill light-pill-tier-\$\{t7\} light-pill-interactive"[\s\S]{0,300}aria-expanded="false"[\s\S]{0,300}aria-controls="\$\{detailId\}"/.test(lightChannelViewSrc));
   assert('pill sparkline is aria-hidden (qualitative info already in sr-only span)',
-    viewsSrc.includes('class="light-pill-sparkline"') &&
-    /<svg class="light-pill-sparkline"[^>]*aria-hidden="true"/.test(viewsSrc));
+    lightChannelViewSrc.includes('class="light-pill-sparkline"') &&
+    /<svg class="light-pill-sparkline"[^>]*aria-hidden="true"/.test(lightChannelViewSrc));
   assert('pill carries sr-only tier + day-count label for assistive tech',
-    /class="sr-only">\$\{tlabel\(t7\)\}, \$\{dc\.n\} of 7 days hit target/.test(viewsSrc));
+    /class="sr-only">\$\{tlabel\(t7\)\}, \$\{dc\.n\} of 7 days hit target/.test(lightChannelViewSrc));
   assert('detail panel is role=region with aria-label',
-    /class="light-channel-detail"[\s\S]{0,200}role="region" aria-label="\$\{escapeHTML\(meta\.label/.test(viewsSrc));
+    /class="light-channel-detail"[\s\S]{0,200}role="region" aria-label="\$\{escapeHTML\(meta\.label/.test(lightChannelViewSrc));
   assert('detail close button has aria-label',
-    /class="light-channel-detail-close" aria-label="Close \$\{escapeAttr\(meta\.label/.test(viewsSrc));
+    /class="light-channel-detail-close" aria-label="Close \$\{escapeAttr\(meta\.label/.test(lightChannelViewSrc));
   assert('_toggleChannelDetail flips aria-expanded on the active pill',
-    /p\.setAttribute\('aria-expanded', 'true'\)/.test(viewsSrc) &&
-    /p\.setAttribute\('aria-expanded', 'false'\)/.test(viewsSrc));
+    /p\.setAttribute\('aria-expanded', 'true'\)/.test(lightChannelViewSrc) &&
+    /p\.setAttribute\('aria-expanded', 'false'\)/.test(lightChannelViewSrc));
   assert('_toggleChannelDetail moves focus into the opened panel',
-    viewsSrc.includes('panel.focus(') && /tabindex.*-1/.test(viewsSrc));
+    lightChannelViewSrc.includes('panel.focus(') && /tabindex.*-1/.test(lightChannelViewSrc));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) console.log('Failures:', fails);

@@ -610,7 +610,7 @@ Category and marker display override helpers. The module owns category rename, m
 
 ### `views.js`
 
-Dashboard composition, Light page, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Dashboard composition, Light page shell, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
@@ -621,6 +621,18 @@ Dashboard composition, Light page, tool page, category orchestration, and modal 
 - `showDetailModal(markerKey, data?)` — opens the marker detail modal
 
 **Window exports:** `navigate`, `showDashboard`, `showLabs`, `showGenomeLens`, `showBodyLens`, `showInsightLens`, `showRecommendations`, `showCategory`, `showDetailModal`, dashboard widget controls, and recommendation page helpers (`openRecommendationDetail`, `discussRecommendation`, `saveRecommendation`, `dismissRecommendation`)
+
+---
+
+### `light-channel-view.js`
+
+Light channel pill rows, seven-day sparklines, dashboard-to-Light channel navigation, per-channel drill-down panels, citations, source mix, and channel suggestions. `views.js` imports these helpers and keeps the legacy `window._toggleChannelDetail` / `window._openChannelOnLightPage` wiring for inline handlers and dashboard widgets.
+
+**Key exports:**
+- `mergeTotals(a, b)` — combines sun and device channel totals
+- `renderChannelPills(totals7d, totals30d)` — renders the interactive Light page channel row and detail slot
+- `_toggleChannelDetail(channelKey)` / `_openChannelOnLightPage(channelKey)` — compatibility handlers for expanding channel detail panels
+- `renderSuggestion(totals7d)` — fallback channel-guidance copy when AI synthesis is unavailable
 
 ---
 

@@ -50,6 +50,12 @@ function _coordKey(coords) {
   return `${k(coords.lat)}_${k(coords.lon)}`;
 }
 
+export function getCachedConditionsAtmosphere() {
+  const coords = (typeof window !== 'undefined' && window.getSunCoords && window.getSunCoords()) || null;
+  const key = _coordKey(coords);
+  return (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
+}
+
 function _centerConditionsNowMarker(slotOrId) {
   if (typeof document === 'undefined') return;
   const slot = typeof slotOrId === 'string' ? document.getElementById(slotOrId) : slotOrId;

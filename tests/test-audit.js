@@ -69,6 +69,7 @@ const focusCardSrc = read('js/focus-card.js');
 const compareCorrelationsSrc = read('js/compare-correlations.js');
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const lightSessionsViewSrc = read('js/light-sessions-view.js');
+const lightChannelViewSrc = read('js/light-channel-view.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
 assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
@@ -149,7 +150,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-channel-view.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
@@ -313,8 +314,8 @@ assert('Light channel pills use redesigned channel tile treatment',
   /\.light-channels-section \.light-pill\s*\{[\s\S]*grid-template-areas:[\s\S]*"icon label count"[\s\S]*"icon spark spark";[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc) &&
   cssSrc.includes('.light-channels-section .light-pill[data-channel="violet_eye"] { --channel-accent: var(--purple); }'));
 assert('Light channel detail charts inherit activated channel accent',
-  viewsSrc.includes('class="light-channel-detail" data-channel="${escapeAttr(channelKey)}"') &&
-  viewsSrc.includes("return 'var(--channel-accent, var(--accent))';") &&
+  lightChannelViewSrc.includes('class="light-channel-detail" data-channel="${escapeAttr(channelKey)}"') &&
+  lightChannelViewSrc.includes("return 'var(--channel-accent, var(--accent))';") &&
   /\.light-channel-detail\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*border:\s*1px solid color-mix\(in srgb, var\(--channel-accent\)/.test(cssSrc) &&
   cssSrc.includes('.light-channel-detail[data-channel="violet_eye"] { --channel-accent: var(--purple); }') &&
   /\.light-channel-weekchart\s*\{[\s\S]*color-mix\(in srgb, var\(--channel-accent\) 8%, transparent\)/.test(cssSrc));

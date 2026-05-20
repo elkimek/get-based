@@ -442,7 +442,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 17. v1.6.7 Light & Sun copy fixes ──────────────────────────────
   console.log('%c 17. v1.6.7 copy fixes ', 'font-weight:bold;color:#0891b2');
   {
-    const viewsSrc = fetchSrc('js/views.js');
+    const lightChannelViewSrc = fetchSrc('js/light-channel-view.js');
     const conditionsSrc = fetchSrc('js/light-conditions-now.js');
     const cssSrc = fetchSrc('styles.css');
     const tooltipSrc = fetchSrc('js/touch-tooltip.js');
@@ -477,8 +477,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /EU air quality index/.test(conditionsSrc));
     assert('light-conditions-now.js: cloud chip uses "clear-sky max UVI"',
       /clear-sky max UVI/.test(conditionsSrc));
-    assert('views.js: zero-hit channel pill shows 0/7 not em-dash',
-      /return \{ txt: `\$\{n\}\/7`/.test(viewsSrc));
+    assert('light-channel-view.js: zero-hit channel pill shows 0/7 not em-dash',
+      /return \{ txt: `\$\{n\}\/7`/.test(lightChannelViewSrc));
     const sunSrc = fetchSrc('js/sun.js');
     assert('sun.js: Eyes-mode option shortened ("never stare at sun")',
       /Eyes uncovered \(never stare at sun\)/.test(sunSrc));

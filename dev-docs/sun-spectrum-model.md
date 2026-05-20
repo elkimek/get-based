@@ -174,7 +174,7 @@ Targets are deliberately rough. They're not normative — they're a translation 
 2. Add an action-spectrum function to `js/sun-spectrum.js`
 3. Append to the `CHANNELS` array in the same file with `{ id, key, fn, label }`
 4. Add a row to `data/sun-action-spectra.json`'s `channels` block with the citation
-5. Add to the dashboard pill / page card render order in `js/views.js` (`order` arrays)
+5. Add to the dashboard pill order in `js/views.js` and the page/detail render order in `js/light-channel-view.js`
 6. Update `js/sun-correlations.js` if the channel should be biomarker-correlated
 7. Update `tests/test-sun-spectrum.js` — assert the channel is in `SUN_CHANNELS` and has non-zero dose at noon
 
