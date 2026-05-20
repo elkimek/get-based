@@ -5,10 +5,16 @@ import { escapeHTML, showNotification } from './utils.js';
 import { getActiveData, saveImportedData } from './data.js';
 import { showDetailModal } from './marker-detail-modal.js';
 
-let _navigate = (route) => window.navigate?.(route);
+let _navigate = (route, data) => window.navigate?.(route, data);
 
 export function configureCategoryCustomization(deps = {}) {
   if (typeof deps.navigate === 'function') _navigate = deps.navigate;
+}
+
+function _refreshActiveView(fallbackRoute, opts = {}) {
+  const data = getActiveData();
+  window.buildSidebar?.(data);
+  _navigate(opts.forceRoute || state.currentView || fallbackRoute, data);
 }
 
 export async function renameCategory(categoryKey) {
@@ -31,9 +37,8 @@ export async function renameCategory(categoryKey) {
   for (const [k, def] of Object.entries(cms)) {
     if (k.startsWith(categoryKey + '.')) def.categoryLabel = trimmed;
   }
-  saveImportedData();
-  window.buildSidebar();
-  _navigate(categoryKey);
+  await saveImportedData();
+  _refreshActiveView(categoryKey, { forceRoute: categoryKey });
   showNotification(`Category renamed to "${trimmed}"`, 'info');
 }
 
@@ -53,7 +58,8 @@ export async function renameMarker(id) {
   const dotKey = catKey + '.' + mKey;
   if (!state.importedData.markerLabels) state.importedData.markerLabels = {};
   state.importedData.markerLabels[dotKey] = trimmed;
-  saveImportedData();
+  await saveImportedData();
+  _refreshActiveView(catKey);
   showDetailModal(id);
   showNotification(`Marker renamed to "${trimmed}"`, 'info');
 }
@@ -65,6 +71,7 @@ export function revertMarkerName(id) {
   delete state.importedData.markerLabels[dotKey];
   if (Object.keys(state.importedData.markerLabels).length === 0) delete state.importedData.markerLabels;
   saveImportedData();
+  _refreshActiveView(id.slice(0, idx));
   showDetailModal(id);
   showNotification('Marker name reverted', 'info');
 }
@@ -162,8 +169,7 @@ export function changeCategoryIcon(categoryKey) {
       }
     }
     saveImportedData();
-    window.buildSidebar();
-    _navigate(categoryKey);
+    _refreshActiveView(categoryKey, { forceRoute: categoryKey });
     showNotification(emoji === null ? 'Icon reset to default' : 'Icon updated', 'info');
   }, { showReset: !!hasOverride });
 }
