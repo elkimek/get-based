@@ -550,16 +550,35 @@ return (async function() {
 
   window.navigate('dashboard');
   await wait(50);
-  const allNavItems = sidebar.querySelectorAll('.nav-item:not([data-category="dashboard"])');
+  const staticNavCategories = new Set([
+    'dashboard', 'labs', 'correlations', 'compare', 'recommendations',
+    'knowledge', 'custom-markers', 'light', 'body', 'wearables', 'emf',
+    'genome', 'genetics', 'insight',
+  ]);
+  const getFilterableNavItems = () => [...sidebar.querySelectorAll('.nav-item')]
+    .filter(el => !staticNavCategories.has(el.dataset.category || ''));
+  const findSidebarSearchTerm = items => {
+    const textFor = el => `${el.textContent || ''} ${el.dataset.markers || ''}`.toLowerCase();
+    for (const item of items) {
+      const tokens = textFor(item).match(/[a-z0-9]{3,}/g) || [];
+      for (const token of tokens) {
+        const matches = items.filter(el => textFor(el).includes(token)).length;
+        if (matches > 0 && matches < items.length) return token;
+      }
+    }
+    return '';
+  };
+  const allNavItems = getFilterableNavItems();
   const totalBefore = allNavItems.length;
   const sidebarSearch = document.getElementById('sidebar-search');
+  const searchTerm = findSidebarSearchTerm(allNavItems);
 
-  if (totalBefore >= 3 && sidebarSearch) {
-    // Filter with a term that should match few items
-    sidebarSearch.value = 'lipid';
+  if (totalBefore >= 2 && sidebarSearch && searchTerm) {
+    // Filter with a term taken from an item that is eligible to hide.
+    sidebarSearch.value = searchTerm;
     window.filterSidebar();
     await wait(20);
-    const hiddenNav = sidebar.querySelectorAll('.nav-item:not([data-category="dashboard"])[style*="display: none"], .nav-item:not([data-category="dashboard"])[style*="display:none"]');
+    const hiddenNav = getFilterableNavItems().filter(el => el.style.display === 'none');
     assert('Sidebar search filters items', hiddenNav.length > 0);
     assert('Sidebar search shows matches', hiddenNav.length < totalBefore);
 
@@ -567,10 +586,10 @@ return (async function() {
     sidebarSearch.value = '';
     window.filterSidebar();
     await wait(20);
-    const afterClear = sidebar.querySelectorAll('.nav-item:not([data-category="dashboard"])[style*="display: none"]');
+    const afterClear = getFilterableNavItems().filter(el => el.style.display === 'none');
     assert('Sidebar search clear restores all', afterClear.length === 0);
   } else {
-    assert('Sidebar search filters items', true, 'skip — < 3 nav items');
+    assert('Sidebar search filters items', true, 'skip — < 2 filterable nav items');
     assert('Sidebar search shows matches', true, 'skip');
     assert('Sidebar search clear restores all', true, 'skip');
   }
