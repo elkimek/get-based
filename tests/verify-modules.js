@@ -565,6 +565,9 @@
     const hasCategoryGlyphsJs = sw.includes('/js/category-glyphs.js');
     assert('Service worker caches js/category-glyphs.js', hasCategoryGlyphsJs);
 
+    const hasCommitHashJs = sw.includes('/js/commit-hash.js');
+    assert('Service worker caches js/commit-hash.js', hasCommitHashJs);
+
     const hasFocusCardJs = sw.includes('/js/focus-card.js');
     assert('Service worker caches js/focus-card.js', hasFocusCardJs);
 

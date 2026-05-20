@@ -19,6 +19,7 @@ import { renderFocusCard, buildFocusContext, loadFocusCard, refreshFocusCard } f
 import { configureOnboardingView, renderOnboardingBanner, renderAIConnectionReminder, dismissAIReminder, openChatProviderQuiz, setOnboardingFocus, completeOnboardingSex, completeOnboardingProfile, dismissOnboarding } from './onboarding-view.js';
 import { loadChartCardRecs } from './chart-card-recs.js';
 import { renderCategoryGlyph } from './category-glyphs.js';
+import { loadCommitHash } from './commit-hash.js';
 import { renderLightConditionsWidgetBody, renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi, _formatElapsedShort } from './light-conditions-now.js';
 import { renderUnifiedSessionsList, _openAllSessionsModal } from './light-sessions-view.js';
 import {
@@ -2262,22 +2263,6 @@ export function showDashboard(data) {
   if (_hasProfile && hasData) {
     if (window.startTour) window.startTour(true);
   }
-}
-
-// ── Commit Hash ──
-
-let _cachedCommitHash = null;
-
-function loadCommitHash() {
-  const vEl = document.getElementById('app-version-text');
-  if (vEl && !vEl.textContent) vEl.textContent = window.APP_VERSION || '';
-  const el = document.getElementById('app-commit-hash');
-  if (!el) return;
-  if (_cachedCommitHash) { el.innerHTML = `<a href="https://github.com/elkimek/get-based/commit/${_cachedCommitHash}" target="_blank" rel="noopener">${_cachedCommitHash}</a>`; return; }
-  fetch('https://api.github.com/repos/elkimek/get-based/commits/main', { headers: { Accept: 'application/vnd.github.sha' } })
-    .then(r => r.ok ? r.text() : Promise.reject())
-    .then(sha => { _cachedCommitHash = sha.slice(0, 7); const e = document.getElementById('app-commit-hash'); if (e) e.innerHTML = `<a href="https://github.com/elkimek/get-based/commit/${_cachedCommitHash}" target="_blank" rel="noopener">${_cachedCommitHash}</a>`; })
-    .catch(() => {});
 }
 
 // ═══════════════════════════════════════════════

@@ -59,6 +59,7 @@ const swSrc = read('service-worker.js');
 const mainSrc = read('js/main.js');
 const viewsSrc = read('js/views.js');
 const importLoaderSrc = read('js/import-loader.js');
+const commitHashSrc = read('js/commit-hash.js');
 const pwaAppShellAssets = [
   '/app',
   '/vendor/qrcode-generator.js',
@@ -82,6 +83,7 @@ const pwaAppShellAssets = [
   '/js/dashboard-widget-renderers.js',
   '/js/chart-card-recs.js',
   '/js/category-glyphs.js',
+  '/js/commit-hash.js',
   '/js/focus-card.js',
   '/js/onboarding-view.js',
   '/js/light-conditions-now.js',
@@ -136,6 +138,11 @@ assert('PDF lazy import failure notifies from drop zone',
 assert('analytics consent remains deferred after first paint',
   /setTimeout\(\(\)\s*=>\s*window\.maybeShowAnalyticsConsent\?\.\(\),\s*800\)/.test(mainSrc),
   'first-run banner should not stack into the same tick as tour/startup work');
+assert('footer commit hash loader lives in its own module and remains wired',
+  /export function loadCommitHash\(\)/.test(commitHashSrc)
+  && /_cachedCommitHash/.test(commitHashSrc)
+  && /app-commit-hash/.test(commitHashSrc)
+  && viewsSrc.includes("from './commit-hash.js'"));
 
 // ─── 5. Polar OAuth callback returns true + clears connection ───
 console.log('\n5. Polar OAuth callback');
