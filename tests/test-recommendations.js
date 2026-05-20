@@ -128,6 +128,25 @@ globalThis.fetch = async (url, opts) => {
   // Catalog file may not exist — should gracefully return ''
   const noFileResult = await window.renderRecommendationSection('nonexistent.marker', { label: 'Test' });
   assert('renderRecommendationSection returns empty for unknown slot', noFileResult === '' || typeof noFileResult === 'string');
+  const originalRenderRecommendationSection = window.renderRecommendationSection;
+  window.renderRecommendationSection = undefined;
+  const { createRecommendationActions } = await import('../js/recommendation-actions.js');
+  const originalGetElementById = document.getElementById;
+  const modalStub = { className: 'modal', innerHTML: '' };
+  const overlayStub = { classList: { add: () => {} } };
+  document.getElementById = (id) => id === 'detail-modal' ? modalStub : id === 'modal-overlay' ? overlayStub : null;
+  createRecommendationActions({
+    getActiveData: () => ({}),
+    buildDashboardWidgetContext: () => ({}),
+    getCachedRecommendationsCatalog: () => ({}),
+    getGlobalRecommendationCandidates: () => [],
+    setRecommendationState: () => {},
+  }).openRecommendationDetail('missing.slot', 'Missing section');
+  await Promise.resolve();
+  assert('openRecommendationDetail handles missing renderRecommendationSection without stuck loading',
+    modalStub.innerHTML.includes('No recommendation details available for this slot.'));
+  document.getElementById = originalGetElementById;
+  window.renderRecommendationSection = originalRenderRecommendationSection;
   // Restore
   if (origRec === null) localStorage.removeItem('labcharts-show-product-recs');
   else localStorage.setItem('labcharts-show-product-recs', origRec);

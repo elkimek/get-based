@@ -24,7 +24,7 @@ export function createRecommendationActions({
       <h3>${escapeHTML(label || 'Recommendation')}</h3>
       <div class="dashboard-widget-empty">Loading options...</div>`;
     overlay.classList.add("show");
-    window.renderRecommendationSection?.(slotKey, { label: 'Options', maxProducts: 4, markerStatus })
+    Promise.resolve(window.renderRecommendationSection?.(slotKey, { label: 'Options', maxProducts: 4, markerStatus }))
       .then(html => {
         modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
           <h3>${escapeHTML(label || 'Recommendation')}</h3>
