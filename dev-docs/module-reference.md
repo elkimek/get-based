@@ -434,9 +434,18 @@ Full PDF-to-lab-data import pipeline.
 - `handleBatchPDFs(files)` — sequential multi-file import with per-file confirm/skip
 - `showImportPreview(parsed)` — modal with matched (green), new custom (blue), unmatched (yellow) markers. All numeric results are captured — unknowns become custom markers rather than being silently dropped
 - `confirmImport(parsed)` — merges parsed data into `importedData.entries`
-- `initDropZone()` — wires the drag-and-drop zone for PDF and JSON files
+- `setupDropZone()` — legacy eager drop-zone binding retained for compatibility; page shells use `import-drop-zone.js` so the PDF import module stays lazy-loaded
 
 **Window exports:** `confirmImport`, `skipImport`, `importNextPDF`, `syncImportStatusFab`, `handleImportStatusClick`, `isImportRunning`
+
+---
+
+### `import-drop-zone.js`
+
+Lazy drop-zone event binding shared by Dashboard, Labs, and mobile dashboard shells. It imports `loadPdfImport()` from `import-loader.js`, classifies dropped files only after interaction, and routes JSON, lab PDFs/images, text imports, and DNA files to the same handlers used by the file input path.
+
+**Key exports:**
+- `setupDropZone()` — idempotently binds click, drag, and drop handlers to `#drop-zone`
 
 ---
 

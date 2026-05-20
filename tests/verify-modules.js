@@ -559,6 +559,9 @@
     const hasViewsJs = sw.includes('/js/views.js');
     assert('Service worker caches js/views.js', hasViewsJs);
 
+    const hasImportDropZoneJs = sw.includes('/js/import-drop-zone.js');
+    assert('Service worker caches js/import-drop-zone.js', hasImportDropZoneJs);
+
     const hasDashboardPageViewJs = sw.includes('/js/dashboard-page-view.js');
     assert('Service worker caches js/dashboard-page-view.js', hasDashboardPageViewJs);
 

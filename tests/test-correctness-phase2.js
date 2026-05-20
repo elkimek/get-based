@@ -59,6 +59,7 @@ const swSrc = read('service-worker.js');
 const mainSrc = read('js/main.js');
 const viewsSrc = read('js/views.js');
 const importLoaderSrc = read('js/import-loader.js');
+const importDropZoneSrc = read('js/import-drop-zone.js');
 const commitHashSrc = read('js/commit-hash.js');
 const pwaAppShellAssets = [
   '/app',
@@ -74,6 +75,7 @@ const pwaAppShellAssets = [
   '/vendor/evolu/sqlite3.wasm',
   '/js/ai-verdict-engine.js',
   '/js/import-loader.js',
+  '/js/import-drop-zone.js',
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/views-router.js',
@@ -136,16 +138,16 @@ assert('SW handles same-origin localhost app shell while bypassing cross-origin 
   /NETWORK_ONLY_HOSTS\.has\(h\)\s*\|\|\s*\(!sameOrigin && isLocalOrPrivateHost\(h\)\)/.test(swSrc) &&
   /if \(!sameOrigin\) return;/.test(swSrc),
   'local offline testing should not bypass the SW just because the app origin is localhost');
-assert('PDF import lazy loader is shared by main.js and views.js',
+assert('PDF import lazy loader is shared by main.js and import-drop-zone.js',
   mainSrc.includes("from './import-loader.js'") &&
-  viewsSrc.includes("from './import-loader.js'") &&
+  importDropZoneSrc.includes("from './import-loader.js'") &&
   importLoaderSrc.includes("import('./pdf-import.js')"),
   'separate per-module promise caches can issue duplicate first-use imports');
 assert('PDF lazy import failure notifies from file input and clears selection',
   /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(mainSrc),
   'file-picker import path should fail loudly and clear stale selection');
 assert('PDF lazy import failure notifies from drop zone',
-  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(viewsSrc),
+  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
 assert('analytics consent remains deferred after first paint',
   /setTimeout\(\(\)\s*=>\s*window\.maybeShowAnalyticsConsent\?\.\(\),\s*800\)/.test(mainSrc),

@@ -42,7 +42,8 @@ js/
   supplements.js    — Supplement editor and rendering
   cycle.js          — Menstrual cycle helpers, editor, dashboard rendering
   context-cards.js  — 9 context card editors, health dots, AI tips, summaries
-  pdf-import.js     — PDF pipeline, batch import, import preview, drop zone
+  pdf-import.js     — PDF pipeline, batch import, import preview
+  import-drop-zone.js — lazy import drop-zone binding shared by page shells
   export.js         — JSON export/import (single, per-client, database bundle), PDF report, clearAllData
   chat.js           — Chat panel, personalities, per-marker AI
   client-list.js    — Client List modal: search/sort/filter profiles, inline CRUD, archive/flag/pin
