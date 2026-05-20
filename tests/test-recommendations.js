@@ -40,6 +40,7 @@ globalThis.fetch = async (url, opts) => {
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSrc = await fetchWithRetry('js/chat.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const recommendationActionsSrc = await fetchWithRetry('js/recommendation-actions.js');
   const categoryPageViewSrc = await fetchWithRetry('js/category-page-view.js');
   const categoryViewRenderersSrc = await fetchWithRetry('js/category-view-renderers.js');
   const chartCardRecsSrc = await fetchWithRetry('js/chart-card-recs.js');
@@ -211,6 +212,9 @@ globalThis.fetch = async (url, opts) => {
   assert('Recommendations sidebar routes to dedicated page', recNavMarkup.includes("window.navigate('recommendations')"));
   assert('Recommendations sidebar item does not open Settings', !recNavMarkup.includes('openSettingsModal'));
   assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('export function showRecommendations') && viewsSrc.includes('openRecommendationDetail'));
+  assert('views.js delegates recommendation actions to recommendation-actions.js',
+    viewsSrc.includes("from './recommendation-actions.js'") &&
+    recommendationActionsSrc.includes('export function createRecommendationActions'));
   assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
   assert('Recommendations page header directly toggles its dashboard widget',
     lensPagesSrc.includes("inlineHandlerCall(dashboardAction, 'recommendations')") &&
@@ -241,6 +245,7 @@ globalThis.fetch = async (url, opts) => {
   console.log('%c 12. Infrastructure ', 'font-weight:bold;color:#f59e0b');
 
   assert('SW includes recommendations.js', swSrc.includes('/js/recommendations.js'));
+  assert('SW includes recommendation-actions.js', swSrc.includes('/js/recommendation-actions.js'));
 
   // Node port: read styles.css directly. Browser styleSheets walk is
   // brittle (cross-origin, parsing race); source inspection is more reliable.

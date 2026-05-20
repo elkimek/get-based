@@ -562,6 +562,9 @@
     const hasImportDropZoneJs = sw.includes('/js/import-drop-zone.js');
     assert('Service worker caches js/import-drop-zone.js', hasImportDropZoneJs);
 
+    const hasRecommendationActionsJs = sw.includes('/js/recommendation-actions.js');
+    assert('Service worker caches js/recommendation-actions.js', hasRecommendationActionsJs);
+
     const hasDashboardPageViewJs = sw.includes('/js/dashboard-page-view.js');
     assert('Service worker caches js/dashboard-page-view.js', hasDashboardPageViewJs);
 

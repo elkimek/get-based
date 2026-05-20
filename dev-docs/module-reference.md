@@ -638,7 +638,7 @@ Category and marker display override helpers. The module owns category rename, m
 
 ### `views.js`
 
-Tool page routing, compatibility exports, and modal rendering. Dashboard route composition lives in `dashboard-page-view.js`; dashboard widget body renderers live in `dashboard-widget-renderers.js`; category route orchestration lives in `category-page-view.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to route modules where applicable.
+Tool page routing and compatibility exports. Dashboard route composition lives in `dashboard-page-view.js`; dashboard widget body renderers live in `dashboard-widget-renderers.js`; recommendation action handlers live in `recommendation-actions.js`; category route orchestration lives in `category-page-view.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to route modules where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
@@ -651,6 +651,15 @@ Tool page routing, compatibility exports, and modal rendering. Dashboard route c
 - `showDetailModal(markerKey, data?)` — opens the marker detail modal
 
 **Window exports:** `navigate`, `showDashboard`, `showLabs`, `showGenomeLens`, `showBodyLens`, `showInsightLens`, `showRecommendations`, `showLight`, `showCategory`, `showDetailModal`, dashboard widget controls, and recommendation page helpers (`openRecommendationDetail`, `discussRecommendation`, `saveRecommendation`, `dismissRecommendation`)
+
+---
+
+### `recommendation-actions.js`
+
+Recommendation modal and action handlers shared by dashboard cards and the Recommendations page. It keeps option-detail rendering, chat prompts, saved/bookmarked state, and dismissed state out of the main route facade.
+
+**Key exports:**
+- `createRecommendationActions(deps)` — returns `openRecommendationDetail()`, `discussRecommendation()`, `saveRecommendation()`, and `dismissRecommendation()`
 
 ---
 

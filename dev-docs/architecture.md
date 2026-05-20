@@ -61,12 +61,13 @@ js/
   dashboard-widgets.js — dashboard widget registry, defaults, widget prefs
   dashboard-widget-controls.js — widget picker, layout actions, drag/reorder controls
   dashboard-widget-renderers.js — dashboard widget body renderers and recommendation helpers
+  recommendation-actions.js — recommendation modal/chat/save/dismiss handlers
   category-page-view.js — category route shell, view switching, card-order preservation
   category-view-renderers.js — category chart cards, table/heatmap shells, fatty-acid renderers
   category-customization.js — category/marker rename helpers and category icon picker
   light-page-view.js — Light & Sun page shell, Light Today strip, dashboard Light pills
   light-channel-view.js — Light channel pill rows, detail panels, citations, suggestions
-  views.js          — route wiring, compatibility exports, modals, manual entry, onboarding
+  views.js          — route wiring and compatibility exports
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
   lab-context.js     — buildLabContext() central AI context serializer (extracted from chat.js)

@@ -1,10 +1,10 @@
 // views.js — Navigate, dashboard, and shared view composition
 
 import { state } from './state.js';
-import { escapeHTML } from './utils.js';
 import { getActiveData, destroyAllCharts, getEffectiveRangeForDate, getLatestValueIndex } from './data.js';
 import { canonicalMetric } from './wearable-adapters.js';
 import { setupDropZone } from './import-drop-zone.js';
+import { createRecommendationActions } from './recommendation-actions.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
 import { createDashboardPageView } from './dashboard-page-view.js';
 import { createLensPageHandlers } from './lens-pages.js';
@@ -153,12 +153,6 @@ export {
 };
 
 function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
-function setDetailModalShell(...classes) {
-  const modal = document.getElementById('detail-modal');
-  if (!modal) return null;
-  modal.className = ['modal', ...classes.filter(Boolean)].join(' ');
-  return modal;
-}
 
 // ═══════════════════════════════════════════════
 // NAVIGATE (router)
@@ -412,44 +406,18 @@ const lensPageHandlers = createLensPageHandlers({
   renderLensWidget,
 });
 
-export function openRecommendationDetail(slotKey, label = 'Recommendation', markerStatus = '') {
-  const modal = setDetailModalShell('recommendation-detail-modal');
-  const overlay = document.getElementById("modal-overlay");
-  if (!modal || !overlay) return;
-  modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
-    <h3>${escapeHTML(label || 'Recommendation')}</h3>
-    <div class="dashboard-widget-empty">Loading options...</div>`;
-  overlay.classList.add("show");
-  window.renderRecommendationSection?.(slotKey, { label: 'Options', maxProducts: 4, markerStatus })
-    .then(html => {
-      modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
-        <h3>${escapeHTML(label || 'Recommendation')}</h3>
-        ${html || '<div class="dashboard-widget-empty">No recommendation details available for this slot.</div>'}`;
-    })
-    .catch(() => {
-      modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
-        <h3>${escapeHTML(label || 'Recommendation')}</h3>
-        <div class="dashboard-widget-empty">Could not load recommendation details.</div>`;
-    });
-}
+const recommendationActions = createRecommendationActions({
+  getActiveData,
+  buildDashboardWidgetContext,
+  getCachedRecommendationsCatalog,
+  getGlobalRecommendationCandidates,
+  setRecommendationState: (...args) => dashboardWidgetRenderers.setRecommendationState(...args),
+});
 
-export function discussRecommendation(id) {
-  const catalog = getCachedRecommendationsCatalog();
-  const ctx = buildDashboardWidgetContext(getActiveData());
-  const candidate = getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed: true }).find(c => c.id === id);
-  const prompt = candidate
-    ? `Help me evaluate this recommendation from getbased.\nSource: ${candidate.source}\nRecommendation: ${candidate.label}\nReason: ${candidate.reason}\nSuggested first action: ${candidate.primaryAction || 'none listed'}\nWhat are the pros, cons, and safer non-product alternatives?`
-    : 'Help me evaluate my current getbased recommendations. Which should I prioritize and why?';
-  window.openChatPanel?.(prompt);
-}
-
-export function saveRecommendation(id, on = true) {
-  dashboardWidgetRenderers.setRecommendationState('saved', id, !!on);
-}
-
-export function dismissRecommendation(id) {
-  dashboardWidgetRenderers.setRecommendationState('dismissed', id, true);
-}
+export function openRecommendationDetail(...args) { return recommendationActions.openRecommendationDetail(...args); }
+export function discussRecommendation(...args) { return recommendationActions.discussRecommendation(...args); }
+export function saveRecommendation(...args) { return recommendationActions.saveRecommendation(...args); }
+export function dismissRecommendation(...args) { return recommendationActions.dismissRecommendation(...args); }
 
 function rerenderDashboardFromWidgetChange() {
   if (state.currentView === 'dashboard') window.navigate?.('dashboard');
