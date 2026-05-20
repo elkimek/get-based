@@ -27,6 +27,7 @@ export async function loadChartCardRecs() {
     el.appendChild(badge);
   }
 
+  // Reorder chart cards: those with tips badges first (within each grid)
   for (const grid of document.querySelectorAll('.charts-grid')) {
     const cards = Array.from(grid.querySelectorAll('.chart-card'));
     const withRec = cards.filter(c => c.querySelector('.ctx-tips-badge'));
@@ -34,6 +35,7 @@ export async function loadChartCardRecs() {
     for (const c of [...withRec, ...without]) grid.appendChild(c);
   }
 
+  // One-time nudge (must query after badges are added)
   const recLinks = document.querySelectorAll('[id^="chart-rec-"] .ctx-tips-badge');
   const modalOpen = !!document.querySelector('.modal-overlay.show');
   if (recLinks.length > 0 && !modalOpen && !localStorage.getItem('labcharts-rec-nudge-seen')) {
