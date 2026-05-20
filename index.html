@@ -266,19 +266,21 @@
     }
   </script>
   <script>
-  // Skip SW registration entirely on dev hosts — even though the SW's fetch
-  // handler skips localhost, WebKit's HTTP cache layer still serves stale
-  // module bytes after a normal F5 reload (no "hard reload" bypass exists
-  // in Tauri's webkit2gtk webview). Net effect: developer edits a JS file,
-  // dev-server returns the new bytes, but the Tauri window keeps running
+  // Skip SW registration on dev hosts by default — even though the SW's fetch
+  // handler can handle same-origin localhost, WebKit's HTTP cache layer still
+  // serves stale module bytes after a normal F5 reload (no "hard reload" bypass
+  // exists in Tauri's webkit2gtk webview). Net effect: developer edits a JS
+  // file, dev-server returns the new bytes, but the Tauri window keeps running
   // the old version forever until manual cache purge. Skipping registration
-  // here means dev mode is never SW-controlled.
+  // here means normal dev mode is never SW-controlled. Use ?dev-sw=1 for an
+  // explicit local offline smoke test.
   // Production hosts (anything not localhost / 127.0.0.1 / .local — Tauri
   // bundled apps use https://tauri.localhost) get the normal registration.
   var _isDevHost = location.hostname === 'localhost'
                 || location.hostname === '127.0.0.1'
                 || location.hostname.endsWith('.local');
-  if ('serviceWorker' in navigator && !_isDevHost) {
+  var _allowDevSW = /(?:^|[?&])dev-sw=1(?:&|$)/.test(location.search);
+  if ('serviceWorker' in navigator && (!_isDevHost || _allowDevSW)) {
     navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
       // When a new SW takes over, reload to get fresh assets
       var refreshing = false;

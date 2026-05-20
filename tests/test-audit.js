@@ -50,6 +50,8 @@ console.log('2. Service Worker Registration');
 const indexSrc = read('index.html');
 assert('SW registration uses absolute path', indexSrc.includes("'/service-worker.js'") || indexSrc.includes('"/service-worker.js"'));
 assert('SW registration has catch handler', indexSrc.includes('.catch('));
+assert('SW has explicit dev-host offline test opt-in',
+  indexSrc.includes('dev-sw=1') && indexSrc.includes("(!_isDevHost || _allowDevSW)"));
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));

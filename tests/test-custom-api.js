@@ -256,7 +256,10 @@ assert('pdf-import handles custom in tryAutoSwitchModel', pdfSrc.includes("provi
 // ─── 16. Service worker bypass ───
 console.log('\n16. Service worker');
 const swSrc = read('service-worker.js');
-assert('SW bypasses cross-origin GETs', swSrc.includes('url.hostname !== self.location.hostname'));
+assert('SW bypasses cross-origin GETs by origin', swSrc.includes('url.origin === self.location.origin') && swSrc.includes('if (!sameOrigin) return;'));
+assert('SW keeps same-origin localhost eligible for offline app-shell handling',
+  swSrc.includes('Same-origin localhost app files still need SW handling for local offline testing') &&
+  /NETWORK_ONLY_HOSTS\.has\(h\)\s*\|\|\s*\(!sameOrigin && isLocalOrPrivateHost\(h\)\)/.test(swSrc));
 
 // ─── 17. Proxy supports GET passthrough ───
 console.log('\n17. Proxy GET support');

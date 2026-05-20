@@ -104,7 +104,7 @@ The service worker uses three caching strategies:
 | AI API calls (OpenRouter, Routstr, PPQ, Venice, Local AI) | **Bypass** — `return` without `event.respondWith`. Streaming ReadableStreams must go directly to the page without SW IPC buffering |
 | App shell (HTML, CSS, JS, vendor libs, fonts, images) | **Stale-while-revalidate** — serve cached, update in background |
 
-The API bypass is critical for streaming. If the service worker intercepts a streaming SSE response, the IPC pipe between the SW and the page buffers the chunks, breaking the streaming experience. The bypass (returning without calling `event.respondWith`) routes requests directly to the network.
+The API bypass is critical for streaming. If the service worker intercepts a streaming SSE response, the IPC pipe between the SW and the page buffers the chunks, breaking the streaming experience. The bypass (returning without calling `event.respondWith`) routes requests directly to the network. Local/private hosts are bypassed only when they are cross-origin, so same-origin app-shell requests can still be cached. Normal localhost development unregisters the SW to avoid stale module caches; use `/app?dev-sw=1` for an explicit local offline smoke test.
 
 ## PWA manifest
 

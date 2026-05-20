@@ -130,6 +130,11 @@ assert('SW has offline navigation fallback for /app',
 assert('SW does not cache HTTP error responses',
   /if \(!response \|\| response\.status === 206 \|\| !response\.ok\) return Promise\.resolve\(\);/.test(swSrc),
   'transient 4xx/5xx responses must not overwrite a valid cached app shell');
+assert('SW handles same-origin localhost app shell while bypassing cross-origin Local AI',
+  /const sameOrigin\s*=\s*url\.origin === self\.location\.origin/.test(swSrc) &&
+  /NETWORK_ONLY_HOSTS\.has\(h\)\s*\|\|\s*\(!sameOrigin && isLocalOrPrivateHost\(h\)\)/.test(swSrc) &&
+  /if \(!sameOrigin\) return;/.test(swSrc),
+  'local offline testing should not bypass the SW just because the app origin is localhost');
 assert('PDF import lazy loader is shared by main.js and views.js',
   mainSrc.includes("from './import-loader.js'") &&
   viewsSrc.includes("from './import-loader.js'") &&

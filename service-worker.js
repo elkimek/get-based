@@ -201,6 +201,27 @@ function cachedAppShell() {
   return caches.match('/app').then((cachedApp) => cachedApp || caches.match('/index.html'));
 }
 
+const NETWORK_ONLY_HOSTS = new Set([
+  'openrouter.ai',
+  'api.venice.ai',
+  'api.routstr.com',
+  'api.ppq.ai',
+  'api.github.com',
+  'umami-iota-olive.vercel.app',
+  'sync.getbased.health',
+  'free.evoluhq.com',
+]);
+
+function isLocalOrPrivateHost(hostname) {
+  return hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '[::1]' ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+}
+
 // Install: pre-cache app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -226,15 +247,17 @@ self.addEventListener('activate', (event) => {
 // Fetch: route-based caching strategies
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  const sameOrigin = url.origin === self.location.origin;
 
   // Skip non-http(s) schemes (chrome-extension://, etc.) — Cache API only supports http/https
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
 
   // Network-only: API calls (OpenRouter, Venice, Routstr, PPQ, Ollama) — do NOT
   // intercept so streaming ReadableStream goes directly to the page without SW IPC buffering
-  // Also skip private/LAN IPs (Local AI on another machine)
+  // Also skip cross-origin private/LAN IPs (Local AI on another machine).
+  // Same-origin localhost app files still need SW handling for local offline testing.
   const h = url.hostname;
-  if (h === 'openrouter.ai' || h === 'api.venice.ai' || h === 'api.routstr.com' || h === 'api.ppq.ai' || h === 'api.github.com' || h === 'umami-iota-olive.vercel.app' || h === 'sync.getbased.health' || h === 'free.evoluhq.com' || h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.startsWith('192.168.') || h.startsWith('10.') || /^172\.(1[6-9]|2\d|3[01])\./.test(h)) {
+  if (NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h))) {
     return;
   }
 
@@ -250,7 +273,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   // Skip cross-origin GETs (e.g. Custom API /models) — only cache same-origin app shell
-  if (url.hostname !== self.location.hostname) return;
+  if (!sameOrigin) return;
 
   // Navigation fallback: installed PWAs launch at /app. When offline, serve the
   // cached app document for /app and any refreshed same-origin navigation.
