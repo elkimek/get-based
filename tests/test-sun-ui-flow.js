@@ -55,10 +55,9 @@ return (async function() {
     hero && /Today's light/.test(hero.innerHTML));
   assert('Dashboard Light Today does not embed compact Conditions Now',
     !todayWidget?.querySelector('.conditions-now-compact'));
-  assert('Dashboard Light Today embeds the full Conditions sun timeline',
-    !!todayWidget?.querySelector('.conditions-now-full .conditions-now-events-wrap') ||
-    !!todayWidget?.querySelector('#cond-now-dashboard-light-today-widget.conditions-now-full'),
-    'expected the Light Today widget to reuse the full Conditions timeline renderer');
+  assert('Dashboard Light Today does not embed Conditions Now',
+    !todayWidget?.querySelector('.light-conditions-now-wrap') &&
+    !todayWidget?.querySelector('.conditions-now-full'));
 
   // ─── 2. Logging a session keeps the dashboard hero surface stable ────
   console.log('%c 2. Logging a session keeps the dashboard hero ', 'font-weight:bold;color:#6366f1');
@@ -81,8 +80,9 @@ return (async function() {
     !!todayWidgetAfter?.querySelector('.light-today-hero'));
   assert('Logged-session dashboard hero does not regress to the old strip',
     !todayWidgetAfter?.querySelector('.light-today-strip'));
-  assert('Logged-session dashboard keeps the full Conditions timeline surface',
-    !!todayWidgetAfter?.querySelector('.conditions-now-full'));
+  assert('Logged-session dashboard hero stays separate from Conditions Now',
+    !todayWidgetAfter?.querySelector('.light-conditions-now-wrap') &&
+    !todayWidgetAfter?.querySelector('.conditions-now-full'));
 
   // ─── 3. /light page renders Light & Sun list ─────────────────────────
   console.log('%c 3. /light dedicated page ', 'font-weight:bold;color:#6366f1');
@@ -102,14 +102,18 @@ return (async function() {
   assert('Light page widgets expose reorder controls',
     !!lightWidgetRoute?.querySelector('.dashboard-widget-tool[aria-label="Move page section down"]'));
   const dashboardSafeLightWidgets = ['light-conditions-now', 'light-session-log', 'light-channels'];
+  const optionalDashboardSafeLightWidgets = ['light-today'];
   const pageOnlyLightWidgets = ['light-setup', 'light-guidance', 'light-sessions', 'light-devices', 'light-environment', 'light-tools', 'light-methods'];
   const addableMissing = dashboardSafeLightWidgets.filter(id =>
+    !lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`));
+  const optionalAddableMissing = optionalDashboardSafeLightWidgets.filter(id =>
+    lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"]`) &&
     !lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`));
   const pageOnlyWithToggle = pageOnlyLightWidgets.filter(id =>
     !!lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`));
   assert('Light page exposes dashboard toggles only on dashboard-safe widgets',
-    addableMissing.length === 0 && pageOnlyWithToggle.length === 0,
-    `missing addable: ${addableMissing.join(',') || 'none'}; page-only toggles: ${pageOnlyWithToggle.join(',') || 'none'}`);
+    addableMissing.length === 0 && optionalAddableMissing.length === 0 && pageOnlyWithToggle.length === 0,
+    `missing addable: ${addableMissing.join(',') || 'none'}; optional missing: ${optionalAddableMissing.join(',') || 'none'}; page-only toggles: ${pageOnlyWithToggle.join(',') || 'none'}`);
   assert('Light page has the channel pill section',
     main.querySelector('.light-channels-section') !== null);
   assert('Light page lists at least one session row',

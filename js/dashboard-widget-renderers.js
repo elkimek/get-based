@@ -288,7 +288,7 @@ export function createDashboardWidgetRenderers(deps) {
         <button class="sun-session-ai-refresh" onclick="window.navigate && window.navigate('light')">Open Light &amp; Sun</button>
       </div>
     </div>`;
-    return `${heroHtml}${renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-light-today-widget' })}`;
+    return heroHtml;
   }
 
   function renderDashboardLightConditionsWidget() {

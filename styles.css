@@ -10960,7 +10960,6 @@ body.import-focus .welcome-hero > .drop-zone {
 .light-page .dashboard-widget[data-widget-id="light-setup"] .dashboard-widget-body {
   gap: 0;
 }
-.dashboard-widget[data-widget-id="light-today"] .light-conditions-now-wrap,
 .dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap,
 .dashboard-widget[data-widget-id="light-session-log"] .light-quicklog-row,
 .light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-card,

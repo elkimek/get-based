@@ -274,9 +274,10 @@ assert('Dashboard Light Today uses the same hero surface as the Light page',
   dashboardRenderersSrc.includes('window.renderLightTodayHero()') &&
   /id: 'light-today'[\s\S]*?render: renderers\.renderDashboardLightTodayWidget/.test(dashboardWidgetsBlock) &&
   !/id: 'light-today'[\s\S]*?render:\s*\(\)\s*=>\s*renderLightTodayStrip\(\)/.test(dashboardWidgetsBlock));
-assert('Dashboard Light Today uses the full Conditions timeline renderer',
-  dashboardRenderersSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-light-today-widget' })") &&
-  cssSrc.includes('.dashboard-widget[data-widget-id="light-today"] .light-conditions-now-wrap'));
+assert('Dashboard Light Today stays separate from Conditions Now',
+  dashboardRenderersSrc.includes('return heroHtml;') &&
+  !dashboardRenderersSrc.includes('cond-now-dashboard-light-today-widget') &&
+  !cssSrc.includes('.dashboard-widget[data-widget-id="light-today"] .light-conditions-now-wrap'));
 assert('Dashboard Conditions Now uses the full Light page timeline layout',
   dashboardRenderersSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' })") &&
   /id: 'light-conditions-now'[\s\S]*?size: 'full'/.test(dashboardWidgetsBlock));
