@@ -61,14 +61,14 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 2. v1.6.7 Live UVI > daily peak sanity warning ──────────────────
   console.log('%c 2. UVI > forecast peak sanity warning ', 'font-weight:bold;color:#0891b2');
   {
-    const viewsSrc = fetchSrc('js/views.js');
-    assert('views.js: _sanityCheckAtmosphere flags UVI > peak × 1.2',
-      /atm\.uvIndex\s*>\s*peak\s*\*\s*1\.2/.test(viewsSrc));
-    assert('views.js: sanity message mentions forecast peak + stale data',
-      /exceeds today's forecast peak[\s\S]{0,80}stale data/.test(viewsSrc));
+    const conditionsSrc = fetchSrc('js/light-conditions-now.js');
+    assert('light-conditions-now.js: _sanityCheckAtmosphere flags UVI > peak × 1.2',
+      /atm\.uvIndex\s*>\s*peak\s*\*\s*1\.2/.test(conditionsSrc));
+    assert('light-conditions-now.js: sanity message mentions forecast peak + stale data',
+      /exceeds today's forecast peak[\s\S]{0,80}stale data/.test(conditionsSrc));
     // The 16 / extreme branch must still exist alongside (defense-in-depth).
-    assert('views.js: still flags UVI > 16 as extreme',
-      /atm\.uvIndex\s*>\s*16/.test(viewsSrc));
+    assert('light-conditions-now.js: still flags UVI > 16 as extreme',
+      /atm\.uvIndex\s*>\s*16/.test(conditionsSrc));
   }
 
   // ─── 3. v1.6.7 Body-region picker render race (overlay caching) ─────
@@ -440,12 +440,13 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 17. v1.6.7 copy fixes ', 'font-weight:bold;color:#0891b2');
   {
     const viewsSrc = fetchSrc('js/views.js');
+    const conditionsSrc = fetchSrc('js/light-conditions-now.js');
     const cssSrc = fetchSrc('styles.css');
     const tooltipSrc = fetchSrc('js/touch-tooltip.js');
-    assert('views.js: "Today\'s sun timeline" replaces "TODAY\'S SUN ARC"',
-      /Today's sun timeline/.test(viewsSrc) && !/Today's sun arc/.test(viewsSrc));
-    assert('views.js: sun timeline renders as a rail with dots',
-      /conditions-now-events-rail/.test(viewsSrc) && /conditions-now-event-dot/.test(viewsSrc));
+    assert('light-conditions-now.js: "Today\'s sun timeline" replaces "TODAY\'S SUN ARC"',
+      /Today's sun timeline/.test(conditionsSrc) && !/Today's sun arc/.test(conditionsSrc));
+    assert('light-conditions-now.js: sun timeline renders as a rail with dots',
+      /conditions-now-events-rail/.test(conditionsSrc) && /conditions-now-event-dot/.test(conditionsSrc));
     assert('styles.css: sun timeline rail scrolls instead of wrapping',
       /\.conditions-now-events\s*\{[\s\S]{0,180}overflow-x:\s*auto/.test(cssSrc)
       && /conditions-now-events-rail/.test(cssSrc));
@@ -454,9 +455,9 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('styles.css: Conditions Now grid responds to widget width',
       /container-name:\s*conditions-now/.test(cssSrc)
       && /@container conditions-now \(max-width:\s*300px\)/.test(cssSrc));
-    assert('views.js: Conditions Now uses data tooltips instead of native timeline titles',
-      /data-conditions-tooltip/.test(viewsSrc)
-      && !/conditions-now-event[\s\S]{0,220}title=/.test(viewsSrc));
+    assert('light-conditions-now.js: Conditions Now uses data tooltips instead of native timeline titles',
+      /data-conditions-tooltip/.test(conditionsSrc)
+      && !/conditions-now-event[\s\S]{0,220}title=/.test(conditionsSrc));
     assert('touch-tooltip.js: app-wide tooltip handles title and data tooltip attrs',
       /data-app-tooltip/.test(tooltipSrc)
       && /data-conditions-tooltip/.test(tooltipSrc)
@@ -469,10 +470,10 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('styles.css: app tooltip overlay is fixed and unclipped',
       /\.app-tooltip\s*\{[\s\S]{0,160}position:\s*fixed/.test(cssSrc)
       && /\.app-tooltip\.is-visible/.test(cssSrc));
-    assert('views.js: EAQI label rendered as "EU air quality index"',
-      /EU air quality index/.test(viewsSrc));
-    assert('views.js: cloud chip uses "clear-sky max UVI"',
-      /clear-sky max UVI/.test(viewsSrc));
+    assert('light-conditions-now.js: EAQI label rendered as "EU air quality index"',
+      /EU air quality index/.test(conditionsSrc));
+    assert('light-conditions-now.js: cloud chip uses "clear-sky max UVI"',
+      /clear-sky max UVI/.test(conditionsSrc));
     assert('views.js: zero-hit channel pill shows 0/7 not em-dash',
       /return \{ txt: `\$\{n\}\/7`/.test(viewsSrc));
     const sunSrc = fetchSrc('js/sun.js');
