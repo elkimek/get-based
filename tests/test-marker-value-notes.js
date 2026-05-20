@@ -85,6 +85,7 @@ const state = (await import('../js/state.js')).state;
   console.log('%c 4. saveManualEntry stores note ', 'font-weight:bold;color:#f59e0b');
 
   const viewsSrc = read('js/views.js');
+  const categoryViewRenderersSrc = read('js/category-view-renderers.js');
   const markerDetailSrc = read('js/marker-detail-modal.js');
   assert('saveManualEntry reads me-note from the form',
     /const\s+noteInput\s*=\s*document\.getElementById\('me-note'\)/.test(markerDetailSrc));
@@ -162,7 +163,7 @@ const state = (await import('../js/state.js')).state;
   // CodeQL js/xss-through-dom: empty-cell onclick must use JSON.stringify
   // so interpolated id/date survive the HTML-attr → JS-string round-trip.
   assert('Empty-cell onclick uses JSON.stringify(id), JSON.stringify(colDate)',
-    /openManualEntryForm\(\$\{escapeHTML\(JSON\.stringify\(id\)\)\},\$\{escapeHTML\(JSON\.stringify\(colDate\)\)\}\)/.test(viewsSrc));
+    /openManualEntryForm\(\$\{escapeHTML\(JSON\.stringify\(id\)\)\},\$\{escapeHTML\(JSON\.stringify\(colDate\)\)\}\)/.test(categoryViewRenderersSrc));
 
   // ═══════════════════════════════════════
   // 7. Value-card rendering

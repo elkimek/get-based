@@ -265,12 +265,12 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('13. Both-range display');
 
-  const viewsSrc = read('/js/views.js');
+  const categoryViewRenderersSrc = read('/js/category-view-renderers.js');
   // Chart card should show both ranges
   assert('Chart card handles both mode',
-    viewsSrc.includes("state.rangeMode === 'both'") && viewsSrc.includes('marker.optimalMin') && viewsSrc.includes('marker.refMin'));
+    categoryViewRenderersSrc.includes("state.rangeMode === 'both'") && categoryViewRenderersSrc.includes('marker.optimalMin') && categoryViewRenderersSrc.includes('marker.refMin'));
   // FA card should show both ranges
-  assert('FA card handles both mode', viewsSrc.includes('faRangeText'));
+  assert('FA card handles both mode', categoryViewRenderersSrc.includes('faRangeText'));
 
   // ═══════════════════════════════════════
   // 14. Onboarding trim fix

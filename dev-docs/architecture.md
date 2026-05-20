@@ -58,7 +58,8 @@ js/
   dashboard-widgets.js — dashboard widget registry, defaults, widget prefs
   dashboard-widget-controls.js — widget picker, layout actions, drag/reorder controls
   dashboard-widget-renderers.js — dashboard widget body renderers and recommendation helpers
-  views.js          — dashboard composition, Light/category views, modals, manual entry, onboarding
+  category-view-renderers.js — category chart cards, table/heatmap shells, fatty-acid renderers
+  views.js          — dashboard composition, Light/category orchestration, modals, manual entry, onboarding
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
   lab-context.js     — buildLabContext() central AI context serializer (extracted from chat.js)

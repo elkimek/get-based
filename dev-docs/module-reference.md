@@ -572,9 +572,20 @@ Dashboard widget body renderers and shared recommendation helpers. `views.js` cr
 
 ---
 
+### `category-view-renderers.js`
+
+Category chart card, table, heatmap, and fatty-acid profile renderers. `views.js` imports and re-exports these helpers so existing module and `window.*` integrations stay stable while category-specific rendering lives outside the main view orchestrator.
+
+**Key exports:**
+- `renderChartCard(id, marker, dateLabels)` — renders one category/dashboard marker card and registers it for the detail modal
+- `renderTableView(cat, dateLabels, categoryKey, dates)` / `renderHeatmapView(cat, dateLabels, dates, categoryKey)` — render category table shells with empty-value add affordances
+- `renderFattyAcidsView(cat, categoryKey)` / `renderFattyAcidsCharts(cat)` — render the single-date fatty-acid profile cards and bar chart
+
+---
+
 ### `views.js`
 
-Dashboard composition, Light page, tool page, category, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Dashboard composition, Light page, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function

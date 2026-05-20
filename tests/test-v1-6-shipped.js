@@ -519,16 +519,17 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 19. category marker card redesign ', 'font-weight:bold;color:#0891b2');
   {
     const viewsSrc = fetchSrc('js/views.js');
+    const categoryViewRenderersSrc = fetchSrc('js/category-view-renderers.js');
     const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
     const categoryGlyphsSrc = fetchSrc('js/category-glyphs.js');
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal.js');
     const dataSrc = fetchSrc('js/data.js');
     const cssSrc = fetchSrc('styles.css');
-    assert('views.js: marker cards render latest-value summary before chart',
-      /chart-card-snapshot/.test(viewsSrc)
-      && /chart-card-latest-value/.test(viewsSrc)
-      && /visibleValueIndexes\.length > 4 \? visibleValueIndexes\.slice\(-4\)/.test(viewsSrc));
+    assert('category-view-renderers.js: marker cards render latest-value summary before chart',
+      /chart-card-snapshot/.test(categoryViewRenderersSrc)
+      && /chart-card-latest-value/.test(categoryViewRenderersSrc)
+      && /visibleValueIndexes\.length > 4 \? visibleValueIndexes\.slice\(-4\)/.test(categoryViewRenderersSrc));
     assert('styles.css: category chart content uses full available width',
       /#view-content\s*\{[\s\S]{0,80}width:\s*100%/.test(cssSrc)
       && /\.charts-grid\s*\{[\s\S]{0,180}width:\s*100%/.test(cssSrc));

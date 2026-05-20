@@ -32,6 +32,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 2. Clickable divs gain role+tabindex ───
   const viewsSrc = read('/js/views.js');
+  const categoryViewRenderersSrc = read('/js/category-view-renderers.js');
   const focusCardSrc = read('/js/focus-card.js');
   const onboardingViewSrc = read('/js/onboarding-view.js');
   const markerDetailSrc = read('/js/marker-detail-modal.js');
@@ -45,11 +46,11 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('note-card has role and tabindex',
     dashboardRenderersSrc.includes('class="note-card" role="button" tabindex="0"'));
   assert('heatmap header td has role+tabindex',
-    viewsSrc.includes('<tr><td role="button" tabindex="0"'));
+    categoryViewRenderersSrc.includes('<tr><td role="button" tabindex="0"'));
   assert('heatmap cell td has role+tabindex',
-    viewsSrc.match(/heatmap-\$\{s\}" role="button" tabindex="0"/));
+    categoryViewRenderersSrc.match(/heatmap-\$\{s\}" role="button" tabindex="0"/));
   assert('fa-card has role+tabindex',
-    viewsSrc.includes('class="fa-card" role="button" tabindex="0"'));
+    categoryViewRenderersSrc.includes('class="fa-card" role="button" tabindex="0"'));
   assert('ref-editable span has role+tabindex',
     markerDetailSrc.includes('class="ref-editable" role="button" tabindex="0"'));
   assert('focus-card refresh has aria-label',

@@ -40,6 +40,7 @@ globalThis.fetch = async (url, opts) => {
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSrc = await fetchWithRetry('js/chat.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const categoryViewRenderersSrc = await fetchWithRetry('js/category-view-renderers.js');
   const chartCardRecsSrc = await fetchWithRetry('js/chart-card-recs.js');
   const markerDetailSrc = await fetchWithRetry('js/marker-detail-modal.js');
   const dashboardWidgetsSrc = await fetchWithRetry('js/dashboard-widgets.js');
@@ -198,8 +199,8 @@ globalThis.fetch = async (url, opts) => {
   assert('chat.js calls detectSupplementSlots', chatSrc.includes('detectSupplementSlots'));
   assert('chat.js detects recSlots for live rendering', chatSrc.includes('_recSlots'));
   assert('chat.js has rec-chat-wrapper class', chatSrc.includes('rec-chat-wrapper'));
-  assert('views.js has chart-rec placeholder in header', viewsSrc.includes('chart-rec-'));
-  assert('views.js keeps chart title text separate from tips host', viewsSrc.includes('chart-card-title-text') && viewsSrc.includes('chart-card-tips-host'));
+  assert('category-view-renderers.js has chart-rec placeholder in header', categoryViewRenderersSrc.includes('chart-rec-'));
+  assert('category-view-renderers.js keeps chart title text separate from tips host', categoryViewRenderersSrc.includes('chart-card-title-text') && categoryViewRenderersSrc.includes('chart-card-tips-host'));
   assert('views.js imports chart card recommendation module', viewsSrc.includes("from './chart-card-recs.js'"));
   assert('chart-card-recs.js has loadChartCardRecs function', chartCardRecsSrc.includes('function loadChartCardRecs'));
   assert('marker-detail-modal.js scrollToRec auto-opens details', markerDetailSrc.includes('scrollToRec'));

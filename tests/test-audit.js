@@ -62,6 +62,7 @@ assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
+const categoryViewRenderersSrc = read('js/category-view-renderers.js');
 const focusCardSrc = read('js/focus-card.js');
 const compareCorrelationsSrc = read('js/compare-correlations.js');
 const markerDetailSrc = read('js/marker-detail-modal.js');
@@ -98,6 +99,8 @@ assert('safeMarkerId proto-pollution guard set covers __proto__/constructor/prot
   /_PROTO_PARTS\s*=\s*new\s+Set\s*\(\s*\[\s*['"]__proto__['"]\s*,\s*['"]constructor['"]\s*,\s*['"]prototype['"]\s*\]\s*\)/.test(utilsXssSrc));
 assert('views.js imports safeMarkerId from utils',
   /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(viewsSrc));
+assert('category-view-renderers.js imports safeMarkerId from utils',
+  /import\s*\{[^}]*\bsafeMarkerId\b[^}]*\}\s*from\s*['"]\.\/utils\.js['"]/.test(categoryViewRenderersSrc));
 assert('showCategory guards on safeMarkerId(categoryKey) at function entry',
   /export function showCategory[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return/.test(viewsSrc));
 assert('switchView guards on safeMarkerId(categoryKey) at function entry',
@@ -105,9 +108,9 @@ assert('switchView guards on safeMarkerId(categoryKey) at function entry',
 assert('showDetailModal guards on safeMarkerId(id) at function entry',
   /export function showDetailModal[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return/.test(markerDetailSrc));
 assert('renderChartCard returns "" on unsafe id (chokepoint for dashboard + category)',
-  /export function renderChartCard[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return\s*''/.test(viewsSrc));
+  /export function renderChartCard[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(id\)\s*\)\s*return\s*''/.test(categoryViewRenderersSrc));
 assert('renderFattyAcidsView returns "" on unsafe categoryKey',
-  /export function renderFattyAcidsView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return\s*''/.test(viewsSrc));
+  /export function renderFattyAcidsView[^{]*\{[\s\S]{0,400}if\s*\(\s*!safeMarkerId\(categoryKey\)\s*\)\s*return\s*''/.test(categoryViewRenderersSrc));
 assert('showCategory chart-cards loop skips legacy customMarkers with unsafe keys',
   /for\s*\(\s*const\s*\[\s*key\s*,\s*marker\s*\]\s+of\s+withData\s*\)\s*\{\s*[\s\S]{0,200}if\s*\(\s*!safeMarkerId\(key\)\s*\)\s*continue/.test(viewsSrc));
 
@@ -123,7 +126,7 @@ console.log('3c. innerHTML sanitizer sweep');
 
 const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
 const _SAFE_HELPERS = new Set([
-  // views.js
+  // views.js + category-view-renderers.js
   'renderChartCard', 'renderTableView', 'renderHeatmapView',
   'renderFattyAcidsView', 'renderCompareTable', 'renderChannelDetailPanel',
   'renderChannelPills', 'renderConditionsHTML', 'renderLightTools',
@@ -131,7 +134,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'category-view-renderers.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');

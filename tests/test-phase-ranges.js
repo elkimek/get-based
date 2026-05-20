@@ -307,15 +307,16 @@ const cssSource = read('styles.css');
   // ═══════════════════════════════════════
   console.log('Section 14: views.js source inspection');
   const viewsSource = read('js/views.js');
+  const categoryViewRenderersSource = read('js/category-view-renderers.js');
   const compareCorrelationsSource = read('js/compare-correlations.js');
   const markerDetailSource = read('js/marker-detail-modal.js');
   assert('views.js imports getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate'));
-  assert('renderChartCard uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, latestIdx)'));
-  assert('renderChartCard per-value uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, i)'));
+  assert('renderChartCard uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, latestIdx)'));
+  assert('renderChartCard per-value uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('showDetailModal uses getEffectiveRangeForDate', markerDetailSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('showDetailModal shows phase label', markerDetailSource.includes('mv-phase'));
-  assert('renderTableView uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, i)'));
-  assert('renderHeatmapView uses getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate(marker, i)'));
+  assert('renderTableView uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
+  assert('renderHeatmapView uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('renderCompareTable uses getEffectiveRangeForDate', compareCorrelationsSource.includes('getEffectiveRangeForDate(marker, idx'));
 
   // ═══════════════════════════════════════

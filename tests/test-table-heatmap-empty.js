@@ -88,11 +88,11 @@ const views = await import('../js/views.js');
   // 3. Source-grep — filter logic shape
   // ═══════════════════════════════════════
   console.log('%c 3. Filter logic shape ', 'font-weight:bold;color:#f59e0b');
-  const viewsSrc = read('js/views.js');
+  const categoryViewRenderersSrc = read('js/category-view-renderers.js');
   assert('renderTableView filters with m.values.some(v => v !== null)',
-    /renderTableView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(viewsSrc));
+    /renderTableView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(categoryViewRenderersSrc));
   assert('renderHeatmapView filters with m.values.some(v => v !== null)',
-    /renderHeatmapView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(viewsSrc));
+    /renderHeatmapView[\s\S]{0,800}m\.values\.some\(v => v !== null\)/.test(categoryViewRenderersSrc));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
