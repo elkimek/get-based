@@ -565,6 +565,9 @@
     const hasRecommendationActionsJs = sw.includes('/js/recommendation-actions.js');
     assert('Service worker caches js/recommendation-actions.js', hasRecommendationActionsJs);
 
+    const hasDashboardCompositionJs = sw.includes('/js/dashboard-view-composition.js');
+    assert('Service worker caches js/dashboard-view-composition.js', hasDashboardCompositionJs);
+
     const hasDashboardPageViewJs = sw.includes('/js/dashboard-page-view.js');
     assert('Service worker caches js/dashboard-page-view.js', hasDashboardPageViewJs);
 

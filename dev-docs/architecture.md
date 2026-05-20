@@ -55,6 +55,7 @@ js/
   tour.js           — Guided tour spotlight engine (app tour + cycle tour)
   nav.js            — Sidebar, date range filter, chart layers dropdown
   views-router.js   — route validation, last-view persistence, scroll-anchor navigation
+  dashboard-view-composition.js — dashboard route/widget/control wiring
   dashboard-page-view.js — dashboard route shell, empty-state onboarding, widget page composition
   lens-pages.js     — Labs, Genome, Body, Insight, and Recommendations page renderers
   lens-page-shell.js — shared lens header, widget chrome, ordering, dashboard toggles
@@ -90,7 +91,7 @@ index.html
 The sidebar has three conceptual groups:
 
 - Home: `dashboard`, the customizable cross-lens overview.
-- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. The dashboard route shell renders through `dashboard-page-view.js`; lab category routes render through `category-page-view.js`; Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; shared lens page chrome and ordering live in `lens-page-shell.js`; the Light page shell lives in `light-page-view.js`, while channel pills and drill-down panels live in `light-channel-view.js`.
+- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. Dashboard route/widget wiring is composed in `dashboard-view-composition.js`, with the dashboard shell rendered through `dashboard-page-view.js`; lab category routes render through `category-page-view.js`; Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; shared lens page chrome and ordering live in `lens-page-shell.js`; the Light page shell lives in `light-page-view.js`, while channel pills and drill-down panels live in `light-channel-view.js`.
 - Tools: focused utilities such as compare dates, correlations, knowledge base, custom markers, and EMF assessment entry points.
 
 The dashboard is not a replacement for lens pages. It is a user-composed overview made from lens/tool widgets. Default widgets are ordered for a new user as: Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age. Users can reorder, hide, reset, clear, and add widgets. Lens pages expose Add/Remove Dashboard toggles for widgets that can appear in the overview.

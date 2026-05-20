@@ -553,10 +553,19 @@ Dedicated page renderers for Labs, Genome, Body, Insight, and Recommendations. T
 
 ### `dashboard-page-view.js`
 
-Dashboard route shell and page-level dashboard orchestration. `views.js` creates it with `createDashboardPageView()` after wiring dashboard widget renderers, controls, and registry helpers, so the dashboard route can live outside the main compatibility module without importing the widget control layer directly.
+Dashboard route shell and page-level dashboard orchestration. `dashboard-view-composition.js` creates it with `createDashboardPageView()` after wiring dashboard widget renderers, controls, and registry helpers, so the dashboard route can live outside the main compatibility module without importing the widget control layer directly.
 
 **Key exports:**
 - `createDashboardPageView(deps)` — returns `showDashboard(data?)`; owns the populated dashboard shell, empty welcome/demo state, import drop-zone setup calls, mobile dashboard handoff, focus-card hydration, context-dot hydration, and first-visit tour triggers
+
+---
+
+### `dashboard-view-composition.js`
+
+Dashboard route, widget, mobile handoff, marker-modal, and lens-shell composition wiring. `views.js` creates this layer once and keeps compatibility facades, while this module wires `dashboard-page-view.js`, `dashboard-widgets.js`, `dashboard-widget-controls.js`, `dashboard-widget-renderers.js`, and mobile dashboard dependencies together.
+
+**Key exports:**
+- `createDashboardViewComposition(deps)` — returns `showDashboard`, dashboard widget control handlers, recommendation helpers, and dashboard render helpers needed by lens pages and recommendation actions
 
 ---
 
@@ -575,7 +584,7 @@ Shared lens page chrome and ordering helpers used by `views.js` and `lens-pages.
 
 ### `dashboard-widgets.js`
 
-Dashboard widget registry and persistence helpers. `views.js` supplies renderer functions from `dashboard-widget-renderers.js` to `createDashboardWidgetRegistry()` so widget metadata, defaults, availability gates, per-profile widget preferences, custom marker widget IDs, and visible-entry generation can live outside the main views module.
+Dashboard widget registry and persistence helpers. `dashboard-view-composition.js` supplies renderer functions from `dashboard-widget-renderers.js` to `createDashboardWidgetRegistry()` so widget metadata, defaults, availability gates, per-profile widget preferences, custom marker widget IDs, and visible-entry generation can live outside the main views module.
 
 **Key exports:**
 - `createDashboardWidgetRegistry(renderers, opts?)` — returns dashboard widget definitions plus preference/order helpers
@@ -587,7 +596,7 @@ Dashboard widget registry and persistence helpers. `views.js` supplies renderer 
 
 ### `dashboard-widget-controls.js`
 
-Dashboard widget picker, widget chrome, layout actions, and drag/reorder controls. `views.js` creates the control layer with registry, marker, and biometrics dependencies, then re-exports the public handlers for existing `window.*` integrations.
+Dashboard widget picker, widget chrome, layout actions, and drag/reorder controls. `dashboard-view-composition.js` creates the control layer with registry, marker, and biometrics dependencies; `views.js` re-exports the public handlers for existing `window.*` integrations.
 
 **Key exports:**
 - `createDashboardWidgetControls(deps)` — returns render helpers and dashboard widget action handlers
@@ -596,7 +605,7 @@ Dashboard widget picker, widget chrome, layout actions, and drag/reorder control
 
 ### `dashboard-widget-renderers.js`
 
-Dashboard widget body renderers and shared recommendation helpers. `views.js` creates the renderer layer with Light helper and mobile-summary dependencies, then passes the returned renderers to `dashboard-widgets.js`, `dashboard-widget-controls.js`, and `lens-pages.js`.
+Dashboard widget body renderers and shared recommendation helpers. `dashboard-view-composition.js` creates the renderer layer with Light helper and mobile-summary dependencies, then passes the returned renderers to `dashboard-widgets.js`, `dashboard-widget-controls.js`, and `lens-pages.js`.
 
 **Key exports:**
 - `createDashboardWidgetRenderers(deps)` — returns dashboard body renderers, dashboard context builders, biometrics helpers, custom marker renderer support, and recommendation helper functions
@@ -638,11 +647,11 @@ Category and marker display override helpers. The module owns category rename, m
 
 ### `views.js`
 
-Tool page routing and compatibility exports. Dashboard route composition lives in `dashboard-page-view.js`; dashboard widget body renderers live in `dashboard-widget-renderers.js`; recommendation action handlers live in `recommendation-actions.js`; category route orchestration lives in `category-page-view.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to route modules where applicable.
+Tool page routing and compatibility exports. Dashboard composition lives in `dashboard-view-composition.js`; dashboard route shell lives in `dashboard-page-view.js`; dashboard widget body renderers live in `dashboard-widget-renderers.js`; recommendation action handlers live in `recommendation-actions.js`; category route orchestration lives in `category-page-view.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to route modules where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
-- `showDashboard(data?)` - compatibility facade backed by `dashboard-page-view.js`; renders the customizable widget dashboard whose default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
+- `showDashboard(data?)` - compatibility facade backed by `dashboard-view-composition.js` and `dashboard-page-view.js`; renders the customizable widget dashboard whose default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
 - `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - compatibility facades delegated to `lens-pages.js`
 - `showCategory(categoryKey, data?)` - compatibility facade imported from `category-page-view.js`
 - `showLight(data?)`, `renderLightTodayStrip()`, `renderLightChannelsLive()` - compatibility facades imported from `light-page-view.js`

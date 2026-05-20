@@ -58,6 +58,7 @@ console.log('\n4. SW precache');
 const swSrc = read('service-worker.js');
 const mainSrc = read('js/main.js');
 const viewsSrc = read('js/views.js');
+const dashboardCompositionSrc = read('js/dashboard-view-composition.js');
 const importLoaderSrc = read('js/import-loader.js');
 const importDropZoneSrc = read('js/import-drop-zone.js');
 const commitHashSrc = read('js/commit-hash.js');
@@ -79,6 +80,7 @@ const pwaAppShellAssets = [
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/views-router.js',
+  '/js/dashboard-view-composition.js',
   '/js/dashboard-page-view.js',
   '/js/lens-pages.js',
   '/js/lens-page-shell.js',
@@ -163,7 +165,12 @@ assert('footer commit hash loader lives in its own module and remains wired',
   && /escapeHTML\(full\)/.test(commitHashSrc)
   && /escapeHTML\(short\)/.test(commitHashSrc)
   && !/_cachedCommitRef|escapeHTML\(ref\)|app-commit-hash[\s\S]{0,360}<span/.test(commitHashSrc)
-  && viewsSrc.includes("from './commit-hash.js'"));
+  && dashboardCompositionSrc.includes("from './commit-hash.js'"));
+assert('views.js delegates dashboard wiring to dashboard-view-composition.js',
+  viewsSrc.includes("from './dashboard-view-composition.js'") &&
+  dashboardCompositionSrc.includes('export function createDashboardViewComposition') &&
+  dashboardCompositionSrc.includes('createDashboardWidgetRenderers') &&
+  dashboardCompositionSrc.includes('createDashboardWidgetControls'));
 
 // ─── 5. Polar OAuth callback returns true + clears connection ───
 console.log('\n5. Polar OAuth callback');

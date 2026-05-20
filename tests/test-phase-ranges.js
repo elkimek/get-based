@@ -303,14 +303,14 @@ const cssSource = read('styles.css');
   assert('charts.js ref band uses envelope', chartsSource.includes('getPhaseRefEnvelope(marker)'));
 
   // ═══════════════════════════════════════
-  // 14. views.js / marker detail source inspection
+  // 14. dashboard composition / marker detail source inspection
   // ═══════════════════════════════════════
-  console.log('Section 14: views.js source inspection');
-  const viewsSource = read('js/views.js');
+  console.log('Section 14: dashboard composition source inspection');
+  const dashboardCompositionSource = read('js/dashboard-view-composition.js');
   const categoryViewRenderersSource = read('js/category-view-renderers.js');
   const compareCorrelationsSource = read('js/compare-correlations.js');
   const markerDetailSource = read('js/marker-detail-modal.js');
-  assert('views.js imports getEffectiveRangeForDate', viewsSource.includes('getEffectiveRangeForDate'));
+  assert('dashboard composition imports getEffectiveRangeForDate', dashboardCompositionSource.includes('getEffectiveRangeForDate'));
   assert('renderChartCard uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, latestIdx)'));
   assert('renderChartCard per-value uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('showDetailModal uses getEffectiveRangeForDate', markerDetailSource.includes('getEffectiveRangeForDate(marker, i)'));
