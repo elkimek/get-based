@@ -200,7 +200,3 @@ export function _openAllSessionsModal() {
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
 }
-
-if (typeof window !== 'undefined') {
-  window._openAllSessionsModal = _openAllSessionsModal;
-}
