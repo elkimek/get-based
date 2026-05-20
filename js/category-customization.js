@@ -22,6 +22,7 @@ export async function renameCategory(categoryKey) {
   });
   if (!newLabel || newLabel === currentLabel) return;
   const trimmed = newLabel.trim();
+  if (!trimmed) return;
   // Store label override
   if (!state.importedData.categoryLabels) state.importedData.categoryLabels = {};
   state.importedData.categoryLabels[categoryKey] = trimmed;
@@ -48,6 +49,7 @@ export async function renameMarker(id) {
   });
   if (!newName || newName === marker.name) return;
   const trimmed = newName.trim();
+  if (!trimmed) return;
   const dotKey = catKey + '.' + mKey;
   if (!state.importedData.markerLabels) state.importedData.markerLabels = {};
   state.importedData.markerLabels[dotKey] = trimmed;

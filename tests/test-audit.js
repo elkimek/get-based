@@ -120,6 +120,10 @@ assert('category-customization.js owns rename/icon helpers',
   /export async function renameMarker/.test(categoryCustomizationSrc) &&
   /export function changeCategoryIcon/.test(categoryCustomizationSrc) &&
   /export function showEmojiPicker/.test(categoryCustomizationSrc));
+assert('category rename rejects whitespace-only labels after trim',
+  /export async function renameCategory[^{]*\{[\s\S]{0,700}const trimmed = newLabel\.trim\(\);\s*if\s*\(\s*!trimmed\s*\)\s*return/.test(categoryCustomizationSrc));
+assert('marker rename rejects whitespace-only labels after trim',
+  /export async function renameMarker[^{]*\{[\s\S]{0,700}const trimmed = newName\.trim\(\);\s*if\s*\(\s*!trimmed\s*\)\s*return/.test(categoryCustomizationSrc));
 
 // ═══════════════════════════════════════
 // 3c. Sweep guard — every innerHTML site in production JS is sanitized
