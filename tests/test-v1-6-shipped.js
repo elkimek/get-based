@@ -544,7 +544,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('chart-card-recs.js: tips nudge does not cover open marker modal',
       /const modalOpen\s*=\s*!!document\.querySelector\('\.modal-overlay\.show'\)/.test(chartCardRecsSrc)
       && /recLinks\.length > 0 && !modalOpen/.test(chartCardRecsSrc));
-    assert('data.js: range mode switch paints the active pill before heavy rebuild',
+    assert('data.js: range mode switch paints the active pill before view refresh',
       /function _afterNextPaint\(fn\)/.test(dataSrc)
       && /window\.requestAnimationFrame\(\(\) => setTimeout\(fn,\s*0\)\)/.test(dataSrc)
       && /const token\s*=\s*\+\+_rangeModeRefreshToken/.test(dataSrc)
@@ -561,7 +561,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && /wearableWeightLatest/.test(dataSrc)
       && /legacyWeightStamp/.test(dataSrc)
       && /saveImportedData\(\)[\s\S]{0,120}invalidateActiveDataCache\(\)/.test(dataSrc)
-      && /switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataSrc));
+      && !/_makeActiveDataCacheMeta\(\)[\s\S]{0,900}rangeMode:\s*state\.rangeMode/.test(dataSrc)
+      && !/switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataSrc));
     assert('category-glyphs.js: marker category surfaces use coded glyphs instead of emoji icons',
       /export function renderCategoryGlyph\(categoryKey,\s*label/.test(categoryGlyphsSrc)
       && /getCategoryGlyphCode\(categoryKey,\s*label\)/.test(categoryGlyphsSrc)

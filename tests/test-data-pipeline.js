@@ -189,6 +189,22 @@ const S = window._labState;
   const hbUS = usData.categories.hematology.markers.hemoglobin;
   assert('hemoglobin US unit is g/dl', hbUS.unit === 'g/dl', `got "${hbUS.unit}"`);
 
+  // Range mode changes which band/status is displayed, but marker values and
+  // units are unit-system concerns. Keep range toggles out of the data cache
+  // key so the header Optimal/Reference switch cannot rebuild converted data.
+  const usDataBeforeRangeToggle = window.getActiveData();
+  const gBeforeRangeToggle = usDataBeforeRangeToggle.categories.biochemistry.markers.glucose;
+  S.rangeMode = 'reference';
+  const usDataAfterRangeToggle = window.getActiveData();
+  const gAfterRangeToggle = usDataAfterRangeToggle.categories.biochemistry.markers.glucose;
+  assert('range mode changes do not rebuild active marker data',
+    usDataAfterRangeToggle === usDataBeforeRangeToggle);
+  assert('range mode preserves displayed unit and value',
+    gAfterRangeToggle.unit === gBeforeRangeToggle.unit &&
+      gAfterRangeToggle.values[usIdx] === gBeforeRangeToggle.values[usIdx],
+    `before=${gBeforeRangeToggle.values[usIdx]} ${gBeforeRangeToggle.unit}, after=${gAfterRangeToggle.values[usIdx]} ${gAfterRangeToggle.unit}`);
+  S.rangeMode = 'optimal';
+
   // Switch back to EU
   S.unitSystem = 'EU';
 
