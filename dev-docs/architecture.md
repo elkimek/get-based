@@ -60,6 +60,7 @@ js/
   dashboard-widget-controls.js — widget picker, layout actions, drag/reorder controls
   dashboard-widget-renderers.js — dashboard widget body renderers and recommendation helpers
   category-view-renderers.js — category chart cards, table/heatmap shells, fatty-acid renderers
+  category-customization.js — category/marker rename helpers and category icon picker
   views.js          — dashboard composition, Light/category orchestration, modals, manual entry, onboarding
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore

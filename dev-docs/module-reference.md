@@ -596,9 +596,21 @@ Category chart card, table, heatmap, and fatty-acid profile renderers. `views.js
 
 ---
 
+### `category-customization.js`
+
+Category and marker display override helpers. The module owns category rename, marker rename/revert, the emoji picker, and category icon override persistence while `views.js` keeps compatibility exports and injects navigation via `configureCategoryCustomization()`.
+
+**Key exports:**
+- `configureCategoryCustomization(deps)` — injects the app-level `navigate()` function without importing `views.js`
+- `renameCategory(categoryKey)` / `renameMarker(id)` / `revertMarkerName(id)` — persist display-name overrides into `importedData.categoryLabels` and `importedData.markerLabels`
+- `showEmojiPicker(anchorEl, callback, opts?)` — shared category/custom-marker emoji picker used by category views and the marker creation modal
+- `changeCategoryIcon(categoryKey)` — persists `importedData.categoryIcons` overrides and mirrors custom marker category icon metadata
+
+---
+
 ### `views.js`
 
-Dashboard composition, Light page, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Dashboard composition, Light page, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function

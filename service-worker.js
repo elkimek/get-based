@@ -69,6 +69,7 @@ const APP_SHELL = [
   '/js/chart-card-recs.js',
   '/js/category-glyphs.js',
   '/js/category-view-renderers.js',
+  '/js/category-customization.js',
   '/js/commit-hash.js',
   '/js/marker-detail-modal.js',
   '/js/light-conditions-now.js',
