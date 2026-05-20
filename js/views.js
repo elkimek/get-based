@@ -200,6 +200,32 @@ function setupDropZone() {
 }
 
 function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
+function sortCategoryChartEntries(entries, categoryKey) {
+  const preserved = state._preserveCategoryCardOrder;
+  if (preserved?.categoryKey === categoryKey && Array.isArray(preserved.markerKeys)) {
+    const order = new Map(preserved.markerKeys.map((key, index) => [key, index]));
+    entries.sort(([ka], [kb]) => (order.get(ka) ?? Number.MAX_SAFE_INTEGER) - (order.get(kb) ?? Number.MAX_SAFE_INTEGER));
+    delete state._preserveCategoryCardOrder;
+    return;
+  }
+  delete state._preserveCategoryCardOrder;
+
+  // Default category landing sort: markers with catalog slots first, then
+  // by status (out-of-range before normal).
+  const catalog = window._cachedCatalog;
+  const hasSlot = (k) => catalog?.slots?.[categoryKey + '.' + k] ? 0 : 1;
+  const statusOrder = { high: 0, low: 0, normal: 1, missing: 2 };
+  entries.sort(([ka, a], [kb, b]) => {
+    const slotDiff = hasSlot(ka) - hasSlot(kb);
+    if (slotDiff !== 0) return slotDiff;
+    const ai = getLatestValueIndex(a.values), bi = getLatestValueIndex(b.values);
+    const ar = ai !== -1 ? getEffectiveRangeForDate(a, ai) : { min: null, max: null };
+    const br = bi !== -1 ? getEffectiveRangeForDate(b, bi) : { min: null, max: null };
+    const as = ai !== -1 ? getStatus(a.values[ai], ar.min, ar.max) : 'missing';
+    const bs = bi !== -1 ? getStatus(b.values[bi], br.min, br.max) : 'missing';
+    return (statusOrder[as] ?? 2) - (statusOrder[bs] ?? 2);
+  });
+}
 function setDetailModalShell(...classes) {
   const modal = document.getElementById('detail-modal');
   if (!modal) return null;
@@ -2309,20 +2335,7 @@ export function showCategory(categoryKey, preData) {
   } else if (cat.singleDate) {
     html += renderFattyAcidsView(cat, categoryKey);
   } else {
-    // Sort: markers with catalog slots first, then by status (out-of-range before normal)
-    const catalog = window._cachedCatalog;
-    const hasSlot = (k) => catalog?.slots?.[categoryKey + '.' + k] ? 0 : 1;
-    const statusOrder = { high: 0, low: 0, normal: 1, missing: 2 };
-    withData.sort(([ka, a], [kb, b]) => {
-      const slotDiff = hasSlot(ka) - hasSlot(kb);
-      if (slotDiff !== 0) return slotDiff;
-      const ai = getLatestValueIndex(a.values), bi = getLatestValueIndex(b.values);
-      const ar = ai !== -1 ? getEffectiveRangeForDate(a, ai) : { min: null, max: null };
-      const br = bi !== -1 ? getEffectiveRangeForDate(b, bi) : { min: null, max: null };
-      const as = ai !== -1 ? getStatus(a.values[ai], ar.min, ar.max) : 'missing';
-      const bs = bi !== -1 ? getStatus(b.values[bi], br.min, br.max) : 'missing';
-      return (statusOrder[as] ?? 2) - (statusOrder[bs] ?? 2);
-    });
+    sortCategoryChartEntries(withData, categoryKey);
     html += `<div class="charts-grid">`;
     for (const [key, marker] of withData) {
       // Skip legacy customMarkers with unsafe keys — they can't be safely

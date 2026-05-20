@@ -549,6 +549,12 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && /window\.requestAnimationFrame\(\(\) => setTimeout\(fn,\s*0\)\)/.test(dataSrc)
       && /const token\s*=\s*\+\+_rangeModeRefreshToken/.test(dataSrc)
       && /_afterNextPaint\(\(\) => \{[\s\S]{0,500}window\.navigate\(state\.currentView \|\| 'dashboard',\s*data\)/.test(dataSrc));
+    assert('range mode refresh preserves current category card order',
+      /function _captureCategoryCardOrderForRangeRefresh\(route\)/.test(dataSrc)
+      && /state\._preserveCategoryCardOrder\s*=\s*preservedOrder/.test(dataSrc)
+      && /function sortCategoryChartEntries\(entries,\s*categoryKey\)/.test(viewsSrc)
+      && /preserved\?\.categoryKey === categoryKey/.test(viewsSrc)
+      && /delete state\._preserveCategoryCardOrder/.test(viewsSrc));
     assert('data.js: header range toggle patches existing buttons',
       /const canPatch\s*=/.test(dataSrc)
       && /btn\.classList\.toggle\('active',\s*active\)/.test(dataSrc)

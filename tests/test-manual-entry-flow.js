@@ -192,9 +192,10 @@ console.log('=== Manual Entry Flow Tests ===\n');
   assert('switchUnitSystem uses state.currentView (no .nav-item.active query)',
     /switchUnitSystem[\s\S]{0,800}window\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
     !/switchUnitSystem[\s\S]{0,800}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
+  const switchRangeModeBody = dataSrc.match(/export function switchRangeMode\(mode\)[\s\S]*?\n}\n\nexport function updateHeaderDates/)?.[0] || '';
   assert('switchRangeMode uses state.currentView (no .nav-item.active query)',
-    /switchRangeMode[\s\S]{0,800}window\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
-    !/switchRangeMode[\s\S]{0,800}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
+    /window\.navigate\(state\.currentView \|\| 'dashboard'/.test(switchRangeModeBody) &&
+    !/document\.querySelector\(["']\.nav-item\.active["']\)/.test(switchRangeModeBody));
   assert('setDateRange uses state.currentView',
     /setDateRange[\s\S]{0,1500}navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc));
 

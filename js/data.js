@@ -982,6 +982,19 @@ export function getPhaseRefEnvelope(marker) {
 
 let _rangeModeRefreshToken = 0;
 
+function _captureCategoryCardOrderForRangeRefresh(route) {
+  if (typeof document === 'undefined' || !route) return null;
+  const grid = document.querySelector('#view-content .charts-grid');
+  if (!grid) return null;
+  const prefix = `${route}_`;
+  const markerKeys = Array.from(grid.querySelectorAll('canvas[id^="chart-"]'))
+    .map(canvas => String(canvas.id || '').slice('chart-'.length))
+    .filter(id => id.startsWith(prefix))
+    .map(id => id.slice(prefix.length))
+    .filter(Boolean);
+  return markerKeys.length ? { categoryKey: route, markerKeys } : null;
+}
+
 function _afterNextPaint(fn) {
   if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
     setTimeout(fn, 0);
@@ -999,6 +1012,9 @@ export function switchRangeMode(mode) {
   // Capture before the view refresh: an open detail modal would otherwise
   // keep stale range bands behind the unchanged overlay.
   const openId = state._activeDetailMarkerId;
+  const preservedOrder = _captureCategoryCardOrderForRangeRefresh(state.currentView);
+  if (preservedOrder) state._preserveCategoryCardOrder = preservedOrder;
+  else delete state._preserveCategoryCardOrder;
   const token = ++_rangeModeRefreshToken;
   _afterNextPaint(() => {
     if (token !== _rangeModeRefreshToken || state.rangeMode !== nextMode) return;
