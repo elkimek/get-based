@@ -562,6 +562,9 @@
     const hasFocusCardJs = sw.includes('/js/focus-card.js');
     assert('Service worker caches js/focus-card.js', hasFocusCardJs);
 
+    const hasOnboardingViewJs = sw.includes('/js/onboarding-view.js');
+    assert('Service worker caches js/onboarding-view.js', hasOnboardingViewJs);
+
     const hasMarkerDetailModalJs = sw.includes('/js/marker-detail-modal.js');
     assert('Service worker caches js/marker-detail-modal.js', hasMarkerDetailModalJs);
 

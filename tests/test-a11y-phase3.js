@@ -33,6 +33,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // ─── 2. Clickable divs gain role+tabindex ───
   const viewsSrc = read('/js/views.js');
   const focusCardSrc = read('/js/focus-card.js');
+  const onboardingViewSrc = read('/js/onboarding-view.js');
   const markerDetailSrc = read('/js/marker-detail-modal.js');
   const dashboardRenderersSrc = read('/js/dashboard-widget-renderers.js');
   assert('chart-card has role and tabindex',
@@ -83,8 +84,8 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const settingsSrc = read('/js/settings.js');
   assert('settings.js privacy copy uses "I" not "we"',
     !settingsSrc.includes('We track cookieless') && settingsSrc.includes('I track cookieless'));
-  assert('views.js onboarding drops "us show" framing',
-    !viewsSrc.includes('help us show the right reference ranges'));
+  assert('onboarding-view.js drops "us show" framing',
+    !onboardingViewSrc.includes('help us show the right reference ranges'));
   const importSrc = read('/js/pdf-import.js');
   assert('pdf-import dialog drops "We don\'t fully" / "We\'d love"',
     !importSrc.includes("We don't fully support") && !importSrc.includes("We'd love to support"));

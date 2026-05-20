@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, getStatus, getRangePosition, formatValue, getTrend, showNotification, formatDate, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
-import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, countFlagged, statusIcon, saveImportedData, updateHeaderDates, renderDateRangeFilter, renderChartLayersDropdown } from './data.js';
+import { getActiveData, filterDatesByRange, destroyAllCharts, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, countFlagged, statusIcon, saveImportedData, renderDateRangeFilter, renderChartLayersDropdown } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { createLineChart, ensureChartJs } from './charts.js';
 import { canonicalMetric } from './wearable-adapters.js';
@@ -16,6 +16,7 @@ import { createDashboardWidgetRegistry } from './dashboard-widgets.js';
 import { createDashboardWidgetControls } from './dashboard-widget-controls.js';
 import { createDashboardWidgetRenderers } from './dashboard-widget-renderers.js';
 import { renderFocusCard, buildFocusContext, loadFocusCard, refreshFocusCard } from './focus-card.js';
+import { configureOnboardingView, renderOnboardingBanner, renderAIConnectionReminder, dismissAIReminder, openChatProviderQuiz, setOnboardingFocus, completeOnboardingSex, completeOnboardingProfile, dismissOnboarding } from './onboarding-view.js';
 import { renderLightConditionsWidgetBody, renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi, _formatElapsedShort } from './light-conditions-now.js';
 import { renderUnifiedSessionsList, _openAllSessionsModal } from './light-sessions-view.js';
 import {
@@ -88,6 +89,14 @@ export {
   buildFocusContext,
   loadFocusCard,
   refreshFocusCard,
+  renderOnboardingBanner,
+  renderAIConnectionReminder,
+  dismissAIReminder,
+  openChatProviderQuiz,
+  setOnboardingFocus,
+  completeOnboardingSex,
+  completeOnboardingProfile,
+  dismissOnboarding,
   showCompare,
   setCompareDate1,
   setCompareDate2,
@@ -224,6 +233,8 @@ const _navigate = createNavigate({
 export function navigate(category, data) {
   return _navigate(category, data);
 }
+
+configureOnboardingView({ navigate });
 
 // ═══════════════════════════════════════════════
 // LIGHT TODAY STRIP — legacy compact surface used by welcome/embedded views
@@ -2305,174 +2316,6 @@ async function loadChartCardRecs() {
     localStorage.setItem('labcharts-rec-nudge-seen', '1');
     showNotification(`${recLinks.length} marker${recLinks.length > 1 ? 's have' : ' has'} actionable tips \u2014 look for the Tips badge on your chart cards`, 'info');
   }
-}
-
-// ── Onboarding ──
-
-export function renderOnboardingBanner() {
-  const onboarded = localStorage.getItem(profileStorageKey(state.currentProfile, 'onboarded'));
-  if (onboarded) return '';
-  if (state.profileSex && state.profileDob) {
-    localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'profile-set');
-    return '';
-  }
-  return `<div class="onboarding-banner" id="onboarding-banner">
-    <div class="onboarding-steps">
-      <span class="onboarding-step completed">\u2713</span>
-      <span class="onboarding-step-line"></span>
-      <span class="onboarding-step active">2</span>
-      <span class="onboarding-step-line"></span>
-      <span class="onboarding-step">3</span>
-    </div>
-    <div class="onboarding-step-labels">
-      <span class="onboarding-step-label">Import</span>
-      <span class="onboarding-step-label active">Profile</span>
-      <span class="onboarding-step-label">Ready</span>
-    </div>
-    <h3 class="onboarding-title">Set up your profile</h3>
-    <p class="onboarding-subtitle">Sex and date of birth pick the right reference ranges for your results.</p>
-    <div class="onboarding-form">
-      <div class="onboarding-field">
-        <label class="onboarding-label">Sex</label>
-        <div class="onboarding-sex-toggle">
-          <button class="onboarding-sex-btn${state.profileSex === 'male' ? ' active' : ''}" onclick="completeOnboardingSex('male')">Male</button>
-          <button class="onboarding-sex-btn${state.profileSex === 'female' ? ' active' : ''}" onclick="completeOnboardingSex('female')">Female</button>
-        </div>
-      </div>
-      <div class="onboarding-field">
-        <label class="onboarding-label">Date of Birth</label>
-        <input type="date" class="onboarding-dob-input" id="onboarding-dob" value="${state.profileDob || ''}" />
-      </div>
-      <div class="onboarding-actions">
-        <button class="onboarding-save-btn" onclick="completeOnboardingProfile()">Save & Continue</button>
-        <button class="onboarding-skip-btn" onclick="dismissOnboarding()">Skip for now</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-export function completeOnboardingSex(sex) {
-  document.querySelectorAll('.onboarding-sex-btn').forEach(b => b.classList.remove('active'));
-  const btns = document.querySelectorAll('.onboarding-sex-btn');
-  if (sex === 'male' && btns[0]) btns[0].classList.add('active');
-  if (sex === 'female' && btns[1]) btns[1].classList.add('active');
-}
-
-export function completeOnboardingProfile() {
-  const activeSexBtn = document.querySelector('.onboarding-sex-btn.active');
-  const sex = activeSexBtn ? (activeSexBtn.textContent.trim().toLowerCase()) : null;
-  const dobInput = document.getElementById('onboarding-dob');
-  const dob = dobInput ? dobInput.value : null;
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'profile-set');
-  if (sex) { state.profileSex = sex; setProfileSex(state.currentProfile, sex); }
-  if (dob) { state.profileDob = dob; setProfileDob(state.currentProfile, dob); }
-  const data = getActiveData();
-  window.buildSidebar(data);
-  updateHeaderDates(data);
-  navigate('dashboard', data);
-  showNotification("Profile set up — you're all set!", 'success');
-}
-
-export function dismissOnboarding() {
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'dismissed');
-  const banner = document.getElementById('onboarding-banner');
-  if (banner) {
-    banner.style.transition = 'opacity 0.3s, transform 0.3s';
-    banner.style.opacity = '0';
-    banner.style.transform = 'translateY(-10px)';
-    setTimeout(() => banner.remove(), 300);
-  }
-  showNotification('You can set sex and DOB anytime in Settings.', 'info');
-}
-
-// Lightweight reminder shown to users who skipped the AI provider setup
-// during onboarding. Without it, "Skip for now" leads to a chat panel
-// with a disabled input and no obvious way back into setup. Renders
-// only when: provider was explicitly skipped, no AI is currently
-// configured, and the user hasn't dismissed this banner. Dismissal is
-// per-profile (so a fresh profile still sees it).
-export function renderAIConnectionReminder() {
-  if (hasAIProvider()) return '';
-  const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
-  const skipped = localStorage.getItem(skipKey);
-  if (!skipped) return '';
-  const dismissKey = profileStorageKey(state.currentProfile, 'ai-reminder-dismissed');
-  if (localStorage.getItem(dismissKey)) return '';
-  return `<div class="ai-reminder-banner" id="ai-reminder-banner" role="region" aria-label="Connect AI to unlock lab analysis">
-    <span class="ai-reminder-icon" aria-hidden="true">&#129504;</span>
-    <span class="ai-reminder-body">
-      <strong>Connect AI to unlock lab analysis</strong>
-      <span>PDF import, trend insights, and chat all need an AI provider. About 30 seconds.</span>
-    </span>
-    <button type="button" class="ai-reminder-cta" onclick="window.openChatProviderQuiz()">Connect now</button>
-    <button type="button" class="ai-reminder-dismiss" onclick="window.dismissAIReminder()" aria-label="Dismiss">&times;</button>
-  </div>`;
-}
-
-export function dismissAIReminder() {
-  const dismissKey = profileStorageKey(state.currentProfile, 'ai-reminder-dismissed');
-  localStorage.setItem(dismissKey, '1');
-  const banner = document.getElementById('ai-reminder-banner');
-  if (banner) {
-    banner.style.transition = 'opacity 0.3s, transform 0.3s';
-    banner.style.opacity = '0';
-    banner.style.transform = 'translateY(-10px)';
-    setTimeout(() => banner.remove(), 300);
-  }
-}
-
-// Focus mode for onboarding — dims everything on the empty dashboard
-// except the section the user is meant to interact with, while keeping
-// the chat panel open as a guide. Mode is 'cards' (highlight lifestyle
-// cards) or 'import' (highlight PDF drop zone), or null to clear.
-//
-// Force chat out of fullscreen so the highlighted section is visible
-// alongside the chat panel. Scroll the target into view so the user
-// doesn't have to hunt for it.
-export function setOnboardingFocus(mode) {
-  const body = document.body;
-  body.classList.remove('cards-focus', 'import-focus');
-  if (!mode) return;
-  if (mode === 'cards') {
-    body.classList.add('cards-focus');
-  } else if (mode === 'import') {
-    body.classList.add('import-focus');
-  }
-  if (body.classList.contains('chat-fullscreen')) {
-    body.classList.remove('chat-fullscreen');
-    localStorage.setItem('labcharts-chat-fullscreen', 'false');
-  }
-  if (mode === 'cards') {
-    const cards = document.querySelector('.profile-context-cards');
-    if (cards) {
-      setTimeout(() => cards.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    } else if (window.openChatPanel) {
-      body.classList.remove('cards-focus');
-      const prefill = hasAIProvider()
-        ? 'Help me collect the health context you need before I import labs. Ask me one question at a time.'
-        : undefined;
-      window.openChatPanel(prefill);
-    }
-  } else if (mode === 'import') {
-    setTimeout(() => document.querySelector('.welcome-direct-import-btn, .welcome-primary-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-  }
-}
-
-// Open the chat provider quiz when the user explicitly asks for AI setup.
-// Clear the skipped flag so the chat renders that setup branch, then open
-// the chat panel. Also clear any
-// sub-branch the user landed on before skipping — a user clicking
-// "Connect now" wants to re-evaluate the four options, not get
-// dropped back into the specific provider they previously bounced
-// off of (mirrors what skipProviderSetup does on entry).
-export function openChatProviderQuiz() {
-  const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
-  localStorage.removeItem(skipKey);
-  sessionStorage.setItem(`chat-onboard-provider-requested-${state.currentProfile}`, '1');
-  sessionStorage.removeItem(`chat-onboard-provider-branch-${state.currentProfile}`);
-  if (window.openChatPanel) window.openChatPanel();
-  else if (window.toggleChatPanel) window.toggleChatPanel();
-  if (window.renderChatMessages) window.renderChatMessages();
 }
 
 // ═══════════════════════════════════════════════

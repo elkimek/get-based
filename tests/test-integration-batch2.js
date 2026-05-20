@@ -277,7 +277,8 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('14. Onboarding trim');
 
-  assert('Sex extraction uses .trim()', viewsSrc.includes('.textContent.trim().toLowerCase()'));
+  const onboardingViewSrc = read('/js/onboarding-view.js');
+  assert('Sex extraction uses .trim()', onboardingViewSrc.includes('.textContent.trim().toLowerCase()'));
 
   // ═══════════════════════════════════════
   // 15. Conversion factor spot checks
