@@ -171,22 +171,22 @@ const confirmEscIdx = mainSrc.indexOf('confirm-dialog-overlay');
 assert('Tour Escape check before confirm dialog', tourEscIdx > 0 && tourEscIdx < confirmEscIdx);
 
 // ═══════════════════════════════════════
-// 20. views.js auto-trigger
+// 20. dashboard-page-view.js auto-trigger
 // ═══════════════════════════════════════
-console.log('20. views.js Auto-Trigger');
+console.log('20. dashboard-page-view.js Auto-Trigger');
 
-const viewsSrc = read('js/views.js');
+const dashboardPageViewSrc = read('js/dashboard-page-view.js');
 
-assert('views.js calls window.startTour(true)', viewsSrc.includes('window.startTour(true)'));
-assert('views.js guards with if (window.startTour)', viewsSrc.includes('if (window.startTour)'));
-assert('views.js calls window.startEmptyTour(true)', viewsSrc.includes('window.startEmptyTour?.(true)'));
+assert('dashboard-page-view.js calls window.startTour(true)', dashboardPageViewSrc.includes('window.startTour(true)'));
+assert('dashboard-page-view.js guards with if (window.startTour)', dashboardPageViewSrc.includes('if (window.startTour)'));
+assert('dashboard-page-view.js calls window.startEmptyTour(true)', dashboardPageViewSrc.includes('window.startEmptyTour?.(true)'));
 assert('Empty first visit starts empty tour before chat onboarding',
-  viewsSrc.includes("const shouldAutoStartEmptyTour = !!window.startEmptyTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
-  viewsSrc.includes("setTimeout(() => window.startEmptyTour?.(true), 100)") &&
-  viewsSrc.includes('if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0)'));
-const setupIdx = viewsSrc.indexOf('setupDropZone()');
-const emptyTourIdx = viewsSrc.indexOf('startEmptyTour');
-const tourIdx = viewsSrc.indexOf('startTour(true)');
+  dashboardPageViewSrc.includes("const shouldAutoStartEmptyTour = !!window.startEmptyTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
+  dashboardPageViewSrc.includes("setTimeout(() => window.startEmptyTour?.(true), 100)") &&
+  dashboardPageViewSrc.includes('if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0)'));
+const setupIdx = dashboardPageViewSrc.indexOf('setupDropZone()');
+const emptyTourIdx = dashboardPageViewSrc.indexOf('startEmptyTour');
+const tourIdx = dashboardPageViewSrc.indexOf('startTour(true)');
 assert('startEmptyTour called after setupDropZone', setupIdx > 0 && emptyTourIdx > setupIdx);
 assert('startTour called after setupDropZone', setupIdx > 0 && tourIdx > setupIdx);
 

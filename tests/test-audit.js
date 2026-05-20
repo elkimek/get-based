@@ -64,6 +64,7 @@ assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
+const dashboardPageViewSrc = read('js/dashboard-page-view.js');
 const lensPageShellSrc = read('js/lens-page-shell.js');
 const categoryPageViewSrc = read('js/category-page-view.js');
 const categoryViewRenderersSrc = read('js/category-view-renderers.js');
@@ -156,7 +157,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');

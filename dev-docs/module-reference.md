@@ -542,6 +542,15 @@ Dedicated page renderers for Labs, Genome, Body, Insight, and Recommendations. T
 
 ---
 
+### `dashboard-page-view.js`
+
+Dashboard route shell and page-level dashboard orchestration. `views.js` creates it with `createDashboardPageView()` after wiring dashboard widget renderers, controls, and registry helpers, so the dashboard route can live outside the main compatibility module without importing the widget control layer directly.
+
+**Key exports:**
+- `createDashboardPageView(deps)` — returns `showDashboard(data?)`; owns the populated dashboard shell, empty welcome/demo state, import drop-zone setup calls, mobile dashboard handoff, focus-card hydration, context-dot hydration, and first-visit tour triggers
+
+---
+
 ### `lens-page-shell.js`
 
 Shared lens page chrome and ordering helpers used by `views.js` and `lens-pages.js`. The module owns lens headers, reorderable page widget wrappers, per-profile lens widget order persistence, page-section move controls, dashboard add/remove toggles, and quote-safe inline handler generation.
@@ -620,11 +629,11 @@ Category and marker display override helpers. The module owns category rename, m
 
 ### `views.js`
 
-Dashboard composition, tool page routing, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category route orchestration lives in `category-page-view.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Tool page routing, compatibility exports, and modal rendering. Dashboard route composition lives in `dashboard-page-view.js`; dashboard widget body renderers live in `dashboard-widget-renderers.js`; category route orchestration lives in `category-page-view.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to route modules where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
-- `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
+- `showDashboard(data?)` - compatibility facade backed by `dashboard-page-view.js`; renders the customizable widget dashboard whose default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
 - `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - compatibility facades delegated to `lens-pages.js`
 - `showCategory(categoryKey, data?)` - compatibility facade imported from `category-page-view.js`
 - `showLight(data?)`, `renderLightTodayStrip()`, `renderLightChannelsLive()` - compatibility facades imported from `light-page-view.js`

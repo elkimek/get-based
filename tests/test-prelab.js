@@ -331,7 +331,7 @@ const labCtxSrc = read('js/lab-context.js');
   // ═══════════════════════════════════════
   console.log('%c 9. Welcome Hero (Empty State) ', 'font-weight:bold;color:#f59e0b');
 
-  const viewsSrc = read('js/views.js');
+  const dashboardPageViewSrc = read('js/dashboard-page-view.js');
 
   // CSS checks
   assert('.welcome-hero in CSS with text-align: center', cssSrc.includes('.welcome-hero') && cssSrc.includes('text-align: center'),
@@ -352,31 +352,31 @@ const labCtxSrc = read('js/lab-context.js');
     'Old import button styles should be removed');
 
   // Source structure checks
-  assert('!hasData branch renders welcome-hero', viewsSrc.includes("class=\"welcome-hero\"") && viewsSrc.includes('if (!hasData)'),
+  assert('!hasData branch renders welcome-hero', dashboardPageViewSrc.includes("class=\"welcome-hero\"") && dashboardPageViewSrc.includes('if (!hasData)'),
     'Empty state should use welcome-hero class');
-  assert('No onboarding-step1 in views.js', !viewsSrc.includes('onboarding-step1'),
-    'Old onboarding step1 should be removed from views');
+  assert('No onboarding-step1 in dashboard-page-view.js', !dashboardPageViewSrc.includes('onboarding-step1'),
+    'Old onboarding step1 should be removed from the dashboard page view');
   assert('Hidden drop zone remains available for import progress', (() => {
-    const heroStart = viewsSrc.indexOf('welcome-hero');
-    const heroEnd = viewsSrc.indexOf('</div>\\n    </div>`;', heroStart);
-    const dropZoneInHero = viewsSrc.indexOf('id="drop-zone"', heroStart);
+    const heroStart = dashboardPageViewSrc.indexOf('welcome-hero');
+    const heroEnd = dashboardPageViewSrc.indexOf('</div>\\n      </div>`;', heroStart);
+    const dropZoneInHero = dashboardPageViewSrc.indexOf('id="drop-zone"', heroStart);
     return heroStart !== -1 && dropZoneInHero !== -1 && dropZoneInHero > heroStart;
   })(), 'Hidden drop zone should remain inside welcome hero');
-  assert('Welcome hero has a chat-first start panel', viewsSrc.includes('welcome-chat-panel') && viewsSrc.includes('Start guided chat'),
+  assert('Welcome hero has a chat-first start panel', dashboardPageViewSrc.includes('welcome-chat-panel') && dashboardPageViewSrc.includes('Start guided chat'),
     'Empty state should lead with guided chat');
-  assert('Welcome guided chat button opens chat, not provider setup', viewsSrc.includes('const chatAction = "window.openChatPanel && window.openChatPanel()"'),
+  assert('Welcome guided chat button opens chat, not provider setup', dashboardPageViewSrc.includes('const chatAction = "window.openChatPanel && window.openChatPanel()"'),
     'AI setup should be routed from chat only when needed');
   assert('Demo cards inside welcome hero', (() => {
-    const heroStart = viewsSrc.indexOf('welcome-hero');
-    const demoStart = viewsSrc.indexOf('welcome-demo-section', heroStart);
-    const renderEnd = viewsSrc.indexOf('main.innerHTML = html', heroStart);
+    const heroStart = dashboardPageViewSrc.indexOf('welcome-hero');
+    const demoStart = dashboardPageViewSrc.indexOf('welcome-demo-section', heroStart);
+    const renderEnd = dashboardPageViewSrc.indexOf('main.innerHTML = html', heroStart);
     return heroStart !== -1 && demoStart > heroStart && demoStart < renderEnd;
   })(), 'Demo cards should be inside welcome hero');
-  assert('No manual context cards in empty state', !viewsSrc.includes('welcome-context-details') && !viewsSrc.includes('welcome-context-summary'),
+  assert('No manual context cards in empty state', !dashboardPageViewSrc.includes('welcome-context-details') && !dashboardPageViewSrc.includes('welcome-context-summary'),
     'Empty state should route context collection through chat');
   assert('Category header only in hasData path', (() => {
-    const catHeader = viewsSrc.indexOf('Dashboard Overview');
-    const hasDataComment = viewsSrc.indexOf('Has data: full dashboard');
+    const catHeader = dashboardPageViewSrc.indexOf('Dashboard Overview');
+    const hasDataComment = dashboardPageViewSrc.indexOf('Has data: full dashboard');
     return catHeader > hasDataComment;
   })(), 'Dashboard Overview header should only appear in hasData path');
 

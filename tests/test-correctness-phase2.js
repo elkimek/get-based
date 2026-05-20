@@ -77,6 +77,7 @@ const pwaAppShellAssets = [
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/views-router.js',
+  '/js/dashboard-page-view.js',
   '/js/lens-pages.js',
   '/js/lens-page-shell.js',
   '/js/dashboard-widgets.js',

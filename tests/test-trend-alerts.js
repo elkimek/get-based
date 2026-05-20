@@ -617,6 +617,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   assert('linearRegression handles denom=0', utilsSrc.includes('denom === 0'));
 
   const viewsSrc = read('js/views.js');
+  const dashboardPageViewSrc = read('js/dashboard-page-view.js');
   const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
   const dashboardControlsSrc = read('js/dashboard-widget-controls.js');
   const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
@@ -736,8 +737,8 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !dashboardControlsSrc.includes("`biometric_${") &&
     !dashboardRenderersSrc.includes("`biometric_${"));
   assert('Dashboard treats biometric summaries as dashboard data',
-    viewsSrc.includes('const hasWearableData = Object.values(wearableMetrics).some') &&
-    viewsSrc.includes('data.dates.length > 0 || hasWearableData'));
+    dashboardPageViewSrc.includes('const hasWearableData = Object.values(wearableMetrics).some') &&
+    dashboardPageViewSrc.includes('data.dates.length > 0 || hasWearableData'));
   assert('Dashboard removes separate Wearable Connections widget',
     dashboardWidgetsSrc.includes("title: 'Biometrics Overview'") &&
     !dashboardWidgetsSrc.includes("title: 'Wearable Connections'") &&

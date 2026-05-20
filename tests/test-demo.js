@@ -24,22 +24,22 @@ console.log('=== Demo Data Onboarding Tests ===\n');
 await import('../js/state.js');
 await import('../js/export.js');
 
-  // ── 1. Source: views.js ──
-  console.log('\n1. views.js — Onboarding HTML');
-  const viewsSrc = read('js/views.js');
-  assert('Has welcome-demo-section', viewsSrc.includes('welcome-demo-section'));
-  assert('Has welcome-section-label', viewsSrc.includes('welcome-section-label'));
-  assert('Old onboarding divider markup removed', !viewsSrc.includes('onboarding-divider'));
-  assert('Has demo-cards container', viewsSrc.includes('demo-cards'));
-  assert('Has demo-card class', viewsSrc.includes('demo-card'));
-  assert('Has female card with loadDemoData(\'female\')', viewsSrc.includes("loadDemoData('female')"));
-  assert('Has male card with loadDemoData(\'male\')', viewsSrc.includes("loadDemoData('male')"));
-  assert('Has Sarah, 34 label', viewsSrc.includes('Sarah, 34'));
-  assert('Has Alex, 38 label', viewsSrc.includes('Alex, 38'));
-  assert('Has demo-card-avatar', viewsSrc.includes('demo-card-avatar'));
-  assert('Has demo-card-name', viewsSrc.includes('demo-card-name'));
-  assert('Has demo-card-desc', viewsSrc.includes('demo-card-desc'));
-  assert('No old onboarding-demo-btn', !viewsSrc.includes('onboarding-demo-btn'));
+  // ── 1. Source: dashboard-page-view.js ──
+  console.log('\n1. dashboard-page-view.js — Onboarding HTML');
+  const dashboardPageViewSrc = read('js/dashboard-page-view.js');
+  assert('Has welcome-demo-section', dashboardPageViewSrc.includes('welcome-demo-section'));
+  assert('Has welcome-section-label', dashboardPageViewSrc.includes('welcome-section-label'));
+  assert('Old onboarding divider markup removed', !dashboardPageViewSrc.includes('onboarding-divider'));
+  assert('Has demo-cards container', dashboardPageViewSrc.includes('demo-cards'));
+  assert('Has demo-card class', dashboardPageViewSrc.includes('demo-card'));
+  assert('Has female card with loadDemoData(\'female\')', dashboardPageViewSrc.includes("loadDemoData('female')"));
+  assert('Has male card with loadDemoData(\'male\')', dashboardPageViewSrc.includes("loadDemoData('male')"));
+  assert('Has Sarah, 34 label', dashboardPageViewSrc.includes('Sarah, 34'));
+  assert('Has Alex, 38 label', dashboardPageViewSrc.includes('Alex, 38'));
+  assert('Has demo-card-avatar', dashboardPageViewSrc.includes('demo-card-avatar'));
+  assert('Has demo-card-name', dashboardPageViewSrc.includes('demo-card-name'));
+  assert('Has demo-card-desc', dashboardPageViewSrc.includes('demo-card-desc'));
+  assert('No old onboarding-demo-btn', !dashboardPageViewSrc.includes('onboarding-demo-btn'));
 
   // ── 2. Source: export.js ──
   console.log('\n2. export.js — loadDemoData(sex)');

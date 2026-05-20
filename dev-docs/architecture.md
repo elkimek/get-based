@@ -54,6 +54,7 @@ js/
   tour.js           — Guided tour spotlight engine (app tour + cycle tour)
   nav.js            — Sidebar, date range filter, chart layers dropdown
   views-router.js   — route validation, last-view persistence, scroll-anchor navigation
+  dashboard-page-view.js — dashboard route shell, empty-state onboarding, widget page composition
   lens-pages.js     — Labs, Genome, Body, Insight, and Recommendations page renderers
   lens-page-shell.js — shared lens header, widget chrome, ordering, dashboard toggles
   dashboard-widgets.js — dashboard widget registry, defaults, widget prefs
@@ -64,7 +65,7 @@ js/
   category-customization.js — category/marker rename helpers and category icon picker
   light-page-view.js — Light & Sun page shell, Light Today strip, dashboard Light pills
   light-channel-view.js — Light channel pill rows, detail panels, citations, suggestions
-  views.js          — dashboard composition, route wiring, modals, manual entry, onboarding
+  views.js          — route wiring, compatibility exports, modals, manual entry, onboarding
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
   lab-context.js     — buildLabContext() central AI context serializer (extracted from chat.js)
@@ -87,7 +88,7 @@ index.html
 The sidebar has three conceptual groups:
 
 - Home: `dashboard`, the customizable cross-lens overview.
-- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. Lab category routes render through `category-page-view.js`; Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; shared lens page chrome and ordering live in `lens-page-shell.js`; the Light page shell lives in `light-page-view.js`, while channel pills and drill-down panels live in `light-channel-view.js`.
+- Lenses: `labs`, `genome`, `body`, `light`, `insight`, and `recommendations`. `views-router.js` validates and dispatches these routes. The dashboard route shell renders through `dashboard-page-view.js`; lab category routes render through `category-page-view.js`; Labs, Genome, Body, Insight, and Recommendations pages are rendered through `lens-pages.js`; shared lens page chrome and ordering live in `lens-page-shell.js`; the Light page shell lives in `light-page-view.js`, while channel pills and drill-down panels live in `light-channel-view.js`.
 - Tools: focused utilities such as compare dates, correlations, knowledge base, custom markers, and EMF assessment entry points.
 
 The dashboard is not a replacement for lens pages. It is a user-composed overview made from lens/tool widgets. Default widgets are ordered for a new user as: Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age. Users can reorder, hide, reset, clear, and add widgets. Lens pages expose Add/Remove Dashboard toggles for widgets that can appear in the overview.
@@ -134,14 +135,15 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
 │  L6 — Orchestration                                                 │
 │  dashboard-widgets.js  dashboard-widget-controls.js                 │
 │  dashboard-widget-renderers.js  lens-page-shell.js                    │
-│  category-page-view.js  light-page-view.js  views.js  main.js  tour.js │
+│  dashboard-page-view.js  category-page-view.js  light-page-view.js      │
+│  views.js  main.js  tour.js                                             │
 │  changelog.js                                                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Circular dependency avoidance
 
-The main tension is between `views.js` (which renders everything) and modules like `data.js` and `charts.js` (which views depend on but which also need to trigger re-renders). Two mechanisms break cycles:
+The main tension is between `views.js` (the compatibility/router facade) and modules like `data.js` and `charts.js` (which view modules depend on but which also need to trigger re-renders). Two mechanisms break cycles:
 
 **`registerRefreshCallback(fn)` in `data.js`** — `main.js` registers the refresh function after init, so `data.js` can trigger re-renders without importing `views.js`:
 
