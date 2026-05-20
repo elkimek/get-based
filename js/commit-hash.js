@@ -3,20 +3,17 @@
 import { escapeHTML } from './utils.js';
 
 let _cachedCommitHash = null;
-let _cachedCommitRef = '';
 
-function renderCommitHash(el, sha, ref = '') {
+function renderCommitHash(el, sha) {
   const full = String(sha || '').trim();
   if (!full) return;
   const short = full.slice(0, 7);
-  const suffix = ref && ref !== 'main' ? ` <span style="color:var(--text-muted);opacity:0.7">(${escapeHTML(ref)})</span>` : '';
-  el.innerHTML = `<a href="https://github.com/elkimek/get-based/commit/${escapeHTML(full)}" target="_blank" rel="noopener">${escapeHTML(short)}</a>${suffix}`;
+  el.innerHTML = `<a href="https://github.com/elkimek/get-based/commit/${escapeHTML(full)}" target="_blank" rel="noopener">${escapeHTML(short)}</a>`;
 }
 
-function cacheAndRenderCommitHash(el, sha, ref = '') {
+function cacheAndRenderCommitHash(el, sha) {
   _cachedCommitHash = String(sha || '').trim();
-  _cachedCommitRef = ref || '';
-  renderCommitHash(el, _cachedCommitHash, _cachedCommitRef);
+  renderCommitHash(el, _cachedCommitHash);
 }
 
 export function loadCommitHash() {
@@ -25,20 +22,20 @@ export function loadCommitHash() {
   const el = document.getElementById('app-commit-hash');
   if (!el) return;
   if (_cachedCommitHash) {
-    renderCommitHash(el, _cachedCommitHash, _cachedCommitRef);
+    renderCommitHash(el, _cachedCommitHash);
     return;
   }
   fetch('/api/commit')
     .then(r => r.ok ? r.json() : Promise.reject())
-    .then(({ sha, ref }) => {
+    .then(({ sha }) => {
       const e = document.getElementById('app-commit-hash');
-      if (e) cacheAndRenderCommitHash(e, sha, ref);
+      if (e) cacheAndRenderCommitHash(e, sha);
     })
     .catch(() => fetch('https://api.github.com/repos/elkimek/get-based/commits/main', { headers: { Accept: 'application/vnd.github.sha' } })
       .then(r => r.ok ? r.text() : Promise.reject())
       .then(sha => {
         const e = document.getElementById('app-commit-hash');
-        if (e) cacheAndRenderCommitHash(e, sha, 'main');
+        if (e) cacheAndRenderCommitHash(e, sha);
       })
       .catch(() => {}));
 }
