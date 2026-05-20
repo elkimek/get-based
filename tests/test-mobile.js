@@ -38,13 +38,13 @@ return (async function() {
     css.includes('[data-theme] .sidebar') &&
     css.includes('position: fixed') &&
     css.includes('z-index: 360'));
-  const viewsSrc = await fetchWithRetry('js/views.js');
+  const dashboardPageViewSrc = await fetchWithRetry('js/dashboard-page-view.js');
   const mobileDashboardSrc = await fetchWithRetry('js/mobile-dashboard.js');
   const dashboardControlsSrc = await fetchWithRetry('js/dashboard-widget-controls.js');
   const routerSrc = await fetchWithRetry('js/views-router.js');
   assert('mobile landing does not auto-open fullscreen chat',
-    viewsSrc.includes('isDesktopChatOnboardingViewport') &&
-    viewsSrc.includes('if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return'));
+    dashboardPageViewSrc.includes('isDesktopChatOnboardingViewport') &&
+    dashboardPageViewSrc.includes('if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return'));
   assert('mobile bottom tabs persist outside dashboard shell',
     routerSrc.includes('syncMobileBottomNav?.(routeCategory)') &&
     mobileDashboardSrc.includes("id: 'mobile-bottom-tabs'") &&
