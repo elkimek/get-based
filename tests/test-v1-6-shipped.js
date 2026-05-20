@@ -520,6 +520,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   {
     const viewsSrc = fetchSrc('js/views.js');
     const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
+    const categoryGlyphsSrc = fetchSrc('js/category-glyphs.js');
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal.js');
     const dataSrc = fetchSrc('js/data.js');
@@ -560,8 +561,11 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && /legacyWeightStamp/.test(dataSrc)
       && /saveImportedData\(\)[\s\S]{0,120}invalidateActiveDataCache\(\)/.test(dataSrc)
       && /switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataSrc));
-    assert('views.js: marker category surfaces use coded glyphs instead of emoji icons',
-      /function renderCategoryGlyph\(categoryKey,\s*label/.test(viewsSrc)
+    assert('category-glyphs.js: marker category surfaces use coded glyphs instead of emoji icons',
+      /export function renderCategoryGlyph\(categoryKey,\s*label/.test(categoryGlyphsSrc)
+      && /getCategoryGlyphCode\(categoryKey,\s*label\)/.test(categoryGlyphsSrc)
+      && /CATEGORY_GLYPH_CODES/.test(categoryGlyphsSrc)
+      && viewsSrc.includes("from './category-glyphs.js'")
       && /renderCategoryGlyph\(categoryKey,\s*cat\.label\)/.test(viewsSrc)
       && /empty-state-icon-category/.test(viewsSrc)
       && /compare-category-label/.test(compareCorrelationsSrc)

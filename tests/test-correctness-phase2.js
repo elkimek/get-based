@@ -81,6 +81,7 @@ const pwaAppShellAssets = [
   '/js/dashboard-widget-controls.js',
   '/js/dashboard-widget-renderers.js',
   '/js/chart-card-recs.js',
+  '/js/category-glyphs.js',
   '/js/focus-card.js',
   '/js/onboarding-view.js',
   '/js/light-conditions-now.js',

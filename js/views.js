@@ -18,6 +18,7 @@ import { createDashboardWidgetRenderers } from './dashboard-widget-renderers.js'
 import { renderFocusCard, buildFocusContext, loadFocusCard, refreshFocusCard } from './focus-card.js';
 import { configureOnboardingView, renderOnboardingBanner, renderAIConnectionReminder, dismissAIReminder, openChatProviderQuiz, setOnboardingFocus, completeOnboardingSex, completeOnboardingProfile, dismissOnboarding } from './onboarding-view.js';
 import { loadChartCardRecs } from './chart-card-recs.js';
+import { renderCategoryGlyph } from './category-glyphs.js';
 import { renderLightConditionsWidgetBody, renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi, _formatElapsedShort } from './light-conditions-now.js';
 import { renderUnifiedSessionsList, _openAllSessionsModal } from './light-sessions-view.js';
 import {
@@ -2282,45 +2283,6 @@ function loadCommitHash() {
 // ═══════════════════════════════════════════════
 // CATEGORY VIEWS
 // ═══════════════════════════════════════════════
-
-const CATEGORY_GLYPH_CODES = Object.freeze({
-  biochemistry: 'BC',
-  hormones: 'HR',
-  electrolytes: 'EM',
-  lipids: 'LP',
-  iron: 'FE',
-  proteins: 'IN',
-  thyroid: 'TH',
-  vitamins: 'VT',
-  diabetes: 'GL',
-  tumorMarkers: 'TM',
-  coagulation: 'CG',
-  hematology: 'CB',
-  wbcDifferential: 'WB',
-  bone: 'BN',
-  urinalysis: 'UR',
-  bodyComposition: 'BD',
-  boneDensity: 'DX',
-  calculatedRatios: 'RT',
-});
-
-function _categoryGlyphCode(categoryKey, label = '') {
-  if (CATEGORY_GLYPH_CODES[categoryKey]) return CATEGORY_GLYPH_CODES[categoryKey];
-  const words = String(label || categoryKey || '')
-    .replace(/&/g, ' ')
-    .replace(/[^A-Za-z0-9 ]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  const compact = String(label || categoryKey || 'M').replace(/[^A-Za-z0-9]+/g, '');
-  return (compact.slice(0, 2) || 'M').toUpperCase();
-}
-
-function renderCategoryGlyph(categoryKey, label, { large = false } = {}) {
-  const code = _categoryGlyphCode(categoryKey, label);
-  return `<span class="category-glyph${large ? ' category-glyph-large' : ''}" aria-hidden="true">${escapeHTML(code)}</span>`;
-}
 
 export function showCategory(categoryKey, preData) {
   // categoryKey is interpolated into inline-onclick handlers below (rename,

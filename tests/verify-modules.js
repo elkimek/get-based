@@ -562,6 +562,9 @@
     const hasChartCardRecsJs = sw.includes('/js/chart-card-recs.js');
     assert('Service worker caches js/chart-card-recs.js', hasChartCardRecsJs);
 
+    const hasCategoryGlyphsJs = sw.includes('/js/category-glyphs.js');
+    assert('Service worker caches js/category-glyphs.js', hasCategoryGlyphsJs);
+
     const hasFocusCardJs = sw.includes('/js/focus-card.js');
     assert('Service worker caches js/focus-card.js', hasFocusCardJs);
 
