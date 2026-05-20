@@ -519,6 +519,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 19. category marker card redesign ', 'font-weight:bold;color:#0891b2');
   {
     const viewsSrc = fetchSrc('js/views.js');
+    const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal.js');
     const dataSrc = fetchSrc('js/data.js');
@@ -538,9 +539,9 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /\.chart-card-snapshot\s*\{/.test(cssSrc)
       && /\.chart-container\s*\{[^\}]*height:\s*150px/.test(cssSrc)
       && /\.chart-values\s*\{[\s\S]{0,140}grid-template-columns:\s*repeat\(4/.test(cssSrc));
-    assert('views.js: tips nudge does not cover open marker modal',
-      /const modalOpen\s*=\s*!!document\.querySelector\('\.modal-overlay\.show'\)/.test(viewsSrc)
-      && /recLinks\.length > 0 && !modalOpen/.test(viewsSrc));
+    assert('chart-card-recs.js: tips nudge does not cover open marker modal',
+      /const modalOpen\s*=\s*!!document\.querySelector\('\.modal-overlay\.show'\)/.test(chartCardRecsSrc)
+      && /recLinks\.length > 0 && !modalOpen/.test(chartCardRecsSrc));
     assert('data.js: range mode switch paints the active pill before heavy rebuild',
       /function _afterNextPaint\(fn\)/.test(dataSrc)
       && /window\.requestAnimationFrame\(\(\) => setTimeout\(fn,\s*0\)\)/.test(dataSrc)

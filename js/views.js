@@ -17,6 +17,7 @@ import { createDashboardWidgetControls } from './dashboard-widget-controls.js';
 import { createDashboardWidgetRenderers } from './dashboard-widget-renderers.js';
 import { renderFocusCard, buildFocusContext, loadFocusCard, refreshFocusCard } from './focus-card.js';
 import { configureOnboardingView, renderOnboardingBanner, renderAIConnectionReminder, dismissAIReminder, openChatProviderQuiz, setOnboardingFocus, completeOnboardingSex, completeOnboardingProfile, dismissOnboarding } from './onboarding-view.js';
+import { loadChartCardRecs } from './chart-card-recs.js';
 import { renderLightConditionsWidgetBody, renderConditionsNow, _refreshConditionsNow, _inspectConditionsNow, _setManualUvi, _clearManualUvi, _formatElapsedShort } from './light-conditions-now.js';
 import { renderUnifiedSessionsList, _openAllSessionsModal } from './light-sessions-view.js';
 import {
@@ -2276,46 +2277,6 @@ function loadCommitHash() {
     .then(r => r.ok ? r.text() : Promise.reject())
     .then(sha => { _cachedCommitHash = sha.slice(0, 7); const e = document.getElementById('app-commit-hash'); if (e) e.innerHTML = `<a href="https://github.com/elkimek/get-based/commit/${_cachedCommitHash}" target="_blank" rel="noopener">${_cachedCommitHash}</a>`; })
     .catch(() => {});
-}
-
-// ── Chart Card Recommendation Links ──
-async function loadChartCardRecs() {
-  if (!window.isProductRecsEnabled || !window.isProductRecsEnabled()) return;
-  if (!window.loadCatalog) return;
-  const catalog = await window.loadCatalog();
-  if (!catalog || !catalog.slots) return;
-
-  const els = document.querySelectorAll('[id^="chart-rec-"]');
-  for (const el of els) {
-    if (el.children.length > 0) continue;
-    const id = el.id.replace('chart-rec-', '');
-    const slotKey = id.replace('_', '.');
-    const slot = catalog.slots[slotKey];
-    if (!slot) continue;
-    const badge = document.createElement('span');
-    badge.className = 'ctx-tips-badge';
-    badge.textContent = 'Tips';
-    badge.title = 'What can help';
-    badge.onclick = e => {
-      e.stopPropagation();
-      showDetailModal(id, { scrollToRec: true });
-    };
-    el.appendChild(badge);
-  }
-  // Reorder chart cards: those with tips badges first (within each grid)
-  for (const grid of document.querySelectorAll('.charts-grid')) {
-    const cards = Array.from(grid.querySelectorAll('.chart-card'));
-    const withRec = cards.filter(c => c.querySelector('.ctx-tips-badge'));
-    const without = cards.filter(c => !c.querySelector('.ctx-tips-badge'));
-    for (const c of [...withRec, ...without]) grid.appendChild(c);
-  }
-  // One-time nudge (must query after badges are added)
-  const recLinks = document.querySelectorAll('[id^="chart-rec-"] .ctx-tips-badge');
-  const modalOpen = !!document.querySelector('.modal-overlay.show');
-  if (recLinks.length > 0 && !modalOpen && !localStorage.getItem('labcharts-rec-nudge-seen')) {
-    localStorage.setItem('labcharts-rec-nudge-seen', '1');
-    showNotification(`${recLinks.length} marker${recLinks.length > 1 ? 's have' : ' has'} actionable tips \u2014 look for the Tips badge on your chart cards`, 'info');
-  }
 }
 
 // ═══════════════════════════════════════════════
