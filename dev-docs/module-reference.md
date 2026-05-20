@@ -610,23 +610,37 @@ Category and marker display override helpers. The module owns category rename, m
 
 ### `views.js`
 
-Dashboard composition, Light page shell, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
+Dashboard composition, tool page, category orchestration, and modal rendering. Dashboard widget body renderers live in `dashboard-widget-renderers.js`; category card/table/heatmap renderers live in `category-view-renderers.js`; category display overrides live in `category-customization.js`; the Light page shell lives in `light-page-view.js`; Light channel pills and drill-down panels live in `light-channel-view.js`; shared lens page chrome lives in `lens-page-shell.js`; public navigation and lens page functions remain exported here for compatibility, backed by `views-router.js` and delegated to `lens-pages.js` where applicable.
 
 **Key exports:**
 - `navigate(section, params)` — router facade created from `views-router.js`; calls the appropriate render function
 - `showDashboard(data?)` - renders the customizable widget dashboard; default widgets are Current Focus, Cycle when available, Current Priority, Quick Markers, Key Trends, Recommended Next Steps, Profile Context, Biometrics Overview, and Biological Age
 - `showLabs(data?)`, `showGenomeLens()`, `showBodyLens()`, `showInsightLens(data?)`, `showRecommendations(data?)` - compatibility facades delegated to `lens-pages.js`
+- `showLight(data?)`, `renderLightTodayStrip()`, `renderLightChannelsLive()` - compatibility facades imported from `light-page-view.js`
 - `showCompare(data?)` / `showCorrelations(data?)` - focused tool pages
 - Dashboard widget controls: compatibility facades backed by `dashboard-widget-controls.js`, including `openDashboardWidgetPicker()`, `toggleDashboardOrganizeMode()`, `resetDashboardWidgets()`, `clearDashboardWidgets()`, `addDashboardWidgetFromLens()`, and `removeDashboardWidgetFromLens()`
 - `showDetailModal(markerKey, data?)` — opens the marker detail modal
 
-**Window exports:** `navigate`, `showDashboard`, `showLabs`, `showGenomeLens`, `showBodyLens`, `showInsightLens`, `showRecommendations`, `showCategory`, `showDetailModal`, dashboard widget controls, and recommendation page helpers (`openRecommendationDetail`, `discussRecommendation`, `saveRecommendation`, `dismissRecommendation`)
+**Window exports:** `navigate`, `showDashboard`, `showLabs`, `showGenomeLens`, `showBodyLens`, `showInsightLens`, `showRecommendations`, `showLight`, `showCategory`, `showDetailModal`, dashboard widget controls, and recommendation page helpers (`openRecommendationDetail`, `discussRecommendation`, `saveRecommendation`, `dismissRecommendation`)
+
+---
+
+### `light-page-view.js`
+
+Light & Sun page shell, Light Today strip, dashboard Light channel pills, Light session log actions, page widget assembly, and async population of page-only Light workbench sections. It imports shared lens chrome from `lens-page-shell.js`, condition rendering from `light-conditions-now.js`, session history from `light-sessions-view.js`, and channel rows/suggestions from `light-channel-view.js`.
+
+**Key exports:**
+- `showLight(data?)` — renders the reorderable Light & Sun page widgets
+- `renderLightTodayStrip()` — legacy compact Light strip used by embedded/welcome surfaces
+- `renderLightChannelsLive()` — refreshes the live channel-pills slot after session updates
+- `renderDashboardLightChannelPills()` / `renderLightSessionLogActions()` — dashboard widget helper bodies shared through `dashboard-widget-renderers.js`
+- `_expandLightToolsSection()` — compatibility handler for expanding the collapsed Light tools placeholder
 
 ---
 
 ### `light-channel-view.js`
 
-Light channel pill rows, seven-day sparklines, dashboard-to-Light channel navigation, per-channel drill-down panels, citations, source mix, and channel suggestions. `views.js` imports these helpers and keeps the legacy `window._toggleChannelDetail` / `window._openChannelOnLightPage` wiring for inline handlers and dashboard widgets.
+Light channel pill rows, seven-day sparklines, dashboard-to-Light channel navigation, per-channel drill-down panels, citations, source mix, and channel suggestions. `light-page-view.js` imports the render helpers; `views.js` keeps the legacy `window._toggleChannelDetail` / `window._openChannelOnLightPage` wiring for inline handlers and dashboard widgets.
 
 **Key exports:**
 - `mergeTotals(a, b)` — combines sun and device channel totals

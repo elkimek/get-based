@@ -73,6 +73,7 @@ const APP_SHELL = [
   '/js/commit-hash.js',
   '/js/marker-detail-modal.js',
   '/js/light-conditions-now.js',
+  '/js/light-page-view.js',
   '/js/light-channel-view.js',
   '/js/light-sessions-view.js',
   '/js/compare-correlations.js',

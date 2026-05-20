@@ -1351,7 +1351,7 @@ await import('../js/settings.js');
 
   // Dead-code cleanup: dots/tlabel removed from renderLightTodayStrip
   assert('Dead `dots` var removed from renderLightTodayStrip',
-    await fetchWithRetry('js/views.js').then(s => {
+    await fetchWithRetry('js/light-page-view.js').then(s => {
       // Find the renderLightTodayStrip function and check it no longer
       // declares `const dots = window.tierDots`
       const startIdx = s.indexOf('function renderLightTodayStrip') >= 0

@@ -69,6 +69,7 @@ const focusCardSrc = read('js/focus-card.js');
 const compareCorrelationsSrc = read('js/compare-correlations.js');
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const lightSessionsViewSrc = read('js/light-sessions-view.js');
+const lightPageViewSrc = read('js/light-page-view.js');
 const lightChannelViewSrc = read('js/light-channel-view.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
@@ -152,7 +153,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-channel-view.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'compare-correlations.js', 'mobile-dashboard.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
@@ -228,34 +229,34 @@ assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
 assert('No var(--text) without suffix', !/(var\(--text\))(?!-)/.test(cssSrc));
 assert('Dead overview-grid CSS removed', !cssSrc.includes('.overview-grid'));
 assert('Dead overview-card CSS removed', !cssSrc.includes('.overview-card'));
-assert('Light page uses scoped layout wrapper', viewsSrc.includes('class="light-page"'));
+assert('Light page uses scoped layout wrapper', lightPageViewSrc.includes('class="light-page"'));
 const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
-const lightSessionLogStart = viewsSrc.indexOf('function renderLightSessionLogActions');
-const lightSessionLogEnd = viewsSrc.indexOf('function renderLightWidgetPrompt', lightSessionLogStart);
+const lightSessionLogStart = lightPageViewSrc.indexOf('function renderLightSessionLogActions');
+const lightSessionLogEnd = lightPageViewSrc.indexOf('function renderLightWidgetPrompt', lightSessionLogStart);
 const lightSessionLogBlock = lightSessionLogStart >= 0 && lightSessionLogEnd > lightSessionLogStart
-  ? viewsSrc.slice(lightSessionLogStart, lightSessionLogEnd)
+  ? lightPageViewSrc.slice(lightSessionLogStart, lightSessionLogEnd)
   : '';
 assert('Light page renders as a reorderable page widget route',
-  viewsSrc.includes("renderLensPageWidgets('light', widgets)") &&
-  viewsSrc.includes("id: 'light-conditions-now'") &&
-  viewsSrc.includes("id: 'light-session-log'") &&
-  viewsSrc.includes("id: 'light-setup'") &&
-  viewsSrc.includes("id: 'light-channels'") &&
-  viewsSrc.includes("id: 'light-devices'") &&
-  viewsSrc.includes("id: 'light-environment'") &&
-  viewsSrc.includes("id: 'light-tools'") &&
-  viewsSrc.includes("id: 'light-methods'") &&
-  !viewsSrc.includes("id: 'light-workbench'") &&
-  !viewsSrc.includes("id: 'light-now-log'"));
+  lightPageViewSrc.includes("renderLensPageWidgets('light', widgets)") &&
+  lightPageViewSrc.includes("id: 'light-conditions-now'") &&
+  lightPageViewSrc.includes("id: 'light-session-log'") &&
+  lightPageViewSrc.includes("id: 'light-setup'") &&
+  lightPageViewSrc.includes("id: 'light-channels'") &&
+  lightPageViewSrc.includes("id: 'light-devices'") &&
+  lightPageViewSrc.includes("id: 'light-environment'") &&
+  lightPageViewSrc.includes("id: 'light-tools'") &&
+  lightPageViewSrc.includes("id: 'light-methods'") &&
+  !lightPageViewSrc.includes("id: 'light-workbench'") &&
+  !lightPageViewSrc.includes("id: 'light-now-log'"));
 assert('Light page uses full workspace width',
   /\.light-page\s*\{[\s\S]*width:\s*100%;[\s\S]*max-width:\s*none;/.test(cssSrc));
 assert('Light page grid uses zero-min track for mobile',
   /\.light-page\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*min-width:\s*0;/.test(cssSrc) &&
   /\.light-page > \*\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/.test(cssSrc));
 assert('Light page splits conditions, logging, and setup into separate widgets',
-  !viewsSrc.includes('class="light-top-grid"') &&
-  viewsSrc.indexOf("id: 'light-conditions-now'") < viewsSrc.indexOf("id: 'light-session-log'") &&
-  viewsSrc.indexOf("id: 'light-session-log'") < viewsSrc.indexOf("id: 'light-setup'"));
+  !lightPageViewSrc.includes('class="light-top-grid"') &&
+  lightPageViewSrc.indexOf("id: 'light-conditions-now'") < lightPageViewSrc.indexOf("id: 'light-session-log'") &&
+  lightPageViewSrc.indexOf("id: 'light-session-log'") < lightPageViewSrc.indexOf("id: 'light-setup'"));
 assert('Light dashboard registry exposes only dashboard-safe Light widgets',
   dashboardWidgetsBlock.includes("id: 'light-today'") &&
   dashboardWidgetsBlock.includes("id: 'light-conditions-now'") &&
@@ -280,37 +281,37 @@ assert('Dashboard Conditions Now uses the full Light page timeline layout',
   dashboardRenderersSrc.includes("renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' })") &&
   /id: 'light-conditions-now'[\s\S]*?size: 'full'/.test(dashboardWidgetsBlock));
 assert('Light page dashboard toggles are explicitly scoped',
-  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-today' }") &&
-  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-conditions-now' }") &&
-  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-session-log' }") &&
-  viewsSrc.includes("opts: { source: 'Light', dashboardId: 'light-channels' }") &&
-  /id: 'light-setup'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
-  /id: 'light-guidance'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
-  /id: 'light-sessions'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
-  /id: 'light-devices'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
-  /id: 'light-environment'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
-  /id: 'light-tools'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
-  /id: 'light-methods'[\s\S]*?dashboardId: ''/.test(viewsSrc) &&
+  lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-today' }") &&
+  lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-conditions-now' }") &&
+  lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-session-log' }") &&
+  lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-channels' }") &&
+  /id: 'light-setup'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
+  /id: 'light-guidance'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
+  /id: 'light-sessions'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
+  /id: 'light-devices'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
+  /id: 'light-environment'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
+  /id: 'light-tools'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
+  /id: 'light-methods'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
   lensPageShellSrc.includes("Object.prototype.hasOwnProperty.call(opts, 'dashboardId')"));
 assert('Light operation widgets deframe nested operation surfaces',
   /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-wrap,[\s\S]*\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(cssSrc));
 assert('Light page workbench is split into page-only redesigned widgets',
-  viewsSrc.includes("id: 'light-devices'") &&
-  viewsSrc.includes("id: 'light-environment'") &&
-  viewsSrc.includes("id: 'light-tools'") &&
-  viewsSrc.includes("id: 'light-methods'") &&
-  viewsSrc.includes('renderLightWidgetPrompt') &&
+  lightPageViewSrc.includes("id: 'light-devices'") &&
+  lightPageViewSrc.includes("id: 'light-environment'") &&
+  lightPageViewSrc.includes("id: 'light-tools'") &&
+  lightPageViewSrc.includes("id: 'light-methods'") &&
+  lightPageViewSrc.includes('renderLightWidgetPrompt') &&
   cssSrc.includes('.light-widget-prompt') &&
   cssSrc.includes('.light-setup-fields-grid') &&
   lightSessionLogBlock.includes('dashboard-action-btn') &&
   !lightSessionLogBlock.includes('import-btn') &&
-  !viewsSrc.includes('function renderCollapsedSubsection'));
+  !lightPageViewSrc.includes('function renderCollapsedSubsection'));
 assert('Light conditions grid stays compact on phones',
   /@media \(max-width:\s*600px\)\s*\{[\s\S]*\.conditions-now-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/.test(cssSrc) &&
   /\.conditions-now-cell-hero\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1;/.test(cssSrc));
 assert('Light page sun data source avoids inline card styling',
-  viewsSrc.includes('class="light-data-source-details"') &&
-  !viewsSrc.includes('light-data-source-details" style='));
+  lightPageViewSrc.includes('class="light-data-source-details"') &&
+  !lightPageViewSrc.includes('light-data-source-details" style='));
 assert('Light channel pills use redesigned channel tile treatment',
   /\.light-channels-section \.light-pills-row\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(174px,\s*100%\),\s*1fr\)\);/.test(cssSrc) &&
   /\.light-channels-section \.light-pill\s*\{[\s\S]*grid-template-areas:[\s\S]*"icon label count"[\s\S]*"icon spark spark";[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc) &&
