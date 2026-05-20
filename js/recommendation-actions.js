@@ -51,8 +51,8 @@ export function createRecommendationActions({
     setRecommendationState('saved', id, !!on);
   }
 
-  function dismissRecommendation(id) {
-    setRecommendationState('dismissed', id, true);
+  function dismissRecommendation(id, on = true) {
+    setRecommendationState('dismissed', id, !!on);
   }
 
   return {

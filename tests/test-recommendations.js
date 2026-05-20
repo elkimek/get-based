@@ -46,6 +46,7 @@ globalThis.fetch = async (url, opts) => {
   const chartCardRecsSrc = await fetchWithRetry('js/chart-card-recs.js');
   const markerDetailSrc = await fetchWithRetry('js/marker-detail-modal.js');
   const dashboardWidgetsSrc = await fetchWithRetry('js/dashboard-widgets.js');
+  const dashboardWidgetRenderersSrc = await fetchWithRetry('js/dashboard-widget-renderers.js');
   const contextSrc = await fetchWithRetry('js/context-cards.js');
   const navSrc = await fetchWithRetry('js/nav.js');
   const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
@@ -235,6 +236,11 @@ globalThis.fetch = async (url, opts) => {
     viewsSrc.includes("from './recommendation-actions.js'") &&
     recommendationActionsSrc.includes('export function createRecommendationActions'));
   assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
+  assert('dismissed recommendations render a Restore action',
+    dashboardWidgetRenderersSrc.includes("candidate.dismissed ? 'Restore' : 'Dismiss'") &&
+    dashboardWidgetRenderersSrc.includes("window.dismissRecommendation(${inlineJsString(candidate.id)}, ${candidate.dismissed ? 'false' : 'true'})"));
+  assert('dismissRecommendation can restore a dismissed recommendation',
+    /function dismissRecommendation\(id, on = true\)[\s\S]{0,120}setRecommendationState\('dismissed', id, !!on\)/.test(recommendationActionsSrc));
   assert('Recommendations page header directly toggles its dashboard widget',
     lensPagesSrc.includes("inlineHandlerCall(dashboardAction, 'recommendations')") &&
     !viewsSrc.includes("openDashboardWidgetPicker && window.openDashboardWidgetPicker()\">Add to Dashboard"));

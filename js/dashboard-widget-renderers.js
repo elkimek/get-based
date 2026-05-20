@@ -226,11 +226,12 @@ export function createDashboardWidgetRenderers(deps) {
     const detailCall = inlineHandlerCall('openRecommendationDetail', candidate.slotKey, candidate.label, candidate.markerStatus || '');
     const discussCall = inlineHandlerCall('discussRecommendation', candidate.id);
     const saveCall = escapeAttr(`window.saveRecommendation(${inlineJsString(candidate.id)}, ${candidate.saved ? 'false' : 'true'})`);
-    const dismissCall = inlineHandlerCall('dismissRecommendation', candidate.id);
+    const dismissCall = escapeAttr(`window.dismissRecommendation(${inlineJsString(candidate.id)}, ${candidate.dismissed ? 'false' : 'true'})`);
     const markerBtn = candidate.markerId
       ? `<button type="button" class="dashboard-action-btn" onclick="${markerCall}">View marker</button>`
       : '';
     const saveLabel = candidate.saved ? 'Bookmarked' : 'Bookmark';
+    const dismissLabel = candidate.dismissed ? 'Restore' : 'Dismiss';
     return `<article class="rec-next-card${compact ? ' rec-next-card-compact' : ''}${savedClass}" data-rec-id="${escapeAttr(candidate.id)}">
       <div class="rec-next-head">
         <span class="rec-next-source">${escapeHTML(candidate.source)}</span>
@@ -244,7 +245,7 @@ export function createDashboardWidgetRenderers(deps) {
         ${markerBtn}
         <button type="button" class="dashboard-action-btn" onclick="${discussCall}">Discuss</button>
         <button type="button" class="dashboard-action-btn" onclick="${saveCall}">${saveLabel}</button>
-        ${compact ? '' : `<button type="button" class="dashboard-action-btn" onclick="${dismissCall}">Dismiss</button>`}
+        ${compact ? '' : `<button type="button" class="dashboard-action-btn" onclick="${dismissCall}">${dismissLabel}</button>`}
       </div>
     </article>`;
   }
