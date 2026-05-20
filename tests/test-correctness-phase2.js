@@ -142,6 +142,9 @@ assert('footer commit hash loader lives in its own module and remains wired',
   /export function loadCommitHash\(\)/.test(commitHashSrc)
   && /_cachedCommitHash/.test(commitHashSrc)
   && /app-commit-hash/.test(commitHashSrc)
+  && /import \{ escapeHTML \} from '\.\/utils\.js'/.test(commitHashSrc)
+  && /escapeHTML\(_cachedCommitHash\)/.test(commitHashSrc)
+  && /sha\.trim\(\)\.slice\(0,\s*7\)/.test(commitHashSrc)
   && viewsSrc.includes("from './commit-hash.js'"));
 
 // ─── 5. Polar OAuth callback returns true + clears connection ───
