@@ -1079,7 +1079,7 @@ export function renderChatMessages() {
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {
         const mId = msg.modelId || getActiveModelId();
-        const mProvider = msg.modelId ? (msg.modelId.includes('/') ? 'openrouter' : getAIProvider()) : getAIProvider();
+        const mProvider = msg.provider || (msg.modelId ? (msg.modelId.includes('/') ? 'openrouter' : getAIProvider()) : getAIProvider());
         const cost = calculateCost(mProvider, mId, msg.usage.inputTokens, msg.usage.outputTokens);
         const totalTokens = (msg.usage.inputTokens || 0) + (msg.usage.outputTokens || 0);
         const mName = msg.modelDisplay || getActiveModelDisplay();
@@ -1830,7 +1830,11 @@ export async function sendChatMessage() {
 
   // Snapshot context areas before sending
   const contextSnapshot = getContextSummary();
-  const webSearchSupported = supportsWebSearch();
+  const _msgProvider = getAIProvider();
+  const _msgModelId = getActiveModelId(_msgProvider);
+  const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
+  const _msgE2EE = _msgProvider === 'venice' && isVeniceE2EEActive();
+  const webSearchSupported = supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
 
   try {
@@ -1847,8 +1851,7 @@ export async function sendChatMessage() {
     const currentPersonaName = personality.name;
     const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
     const multiPersonaInstruction = buildMultiPersonaInstruction(state.chatHistory, currentPersonaName);
-    const _isE2EE = getAIProvider() === 'venice' && isVeniceE2EEActive();
-    const webHint = buildWebSearchHint({ isE2EE: _isE2EE, webSearchEnabled, webSearchSupported });
+    const webHint = buildWebSearchHint({ isE2EE: _msgE2EE, webSearchEnabled, webSearchSupported });
     const systemPrompt = buildChatSystemPrompt({
       basePrompt: CHAT_SYSTEM_PROMPT,
       labContext,
@@ -1863,11 +1866,10 @@ export async function sendChatMessage() {
     // Inject vision content into the last user message if images were attached
     if (attachments.length > 0 && apiMessages.length > 0) {
       const lastUserIdx = apiMessages.length - 1;
-      const provider = getAIProvider();
-      const imageBlocks = attachments.map(att => formatImageBlock(att.base64, att.mediaType, provider));
+      const imageBlocks = attachments.map(att => formatImageBlock(att.base64, att.mediaType, _msgProvider));
       apiMessages[lastUserIdx] = {
         role: 'user',
-        content: buildVisionContent(imageBlocks, apiMessages[lastUserIdx].content, provider)
+        content: buildVisionContent(imageBlocks, apiMessages[lastUserIdx].content, _msgProvider)
       };
     }
 
@@ -1879,12 +1881,6 @@ export async function sendChatMessage() {
       labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
       container.appendChild(labelEl);
     }
-
-    // Capture model info before API call (user may switch models mid-conversation)
-    const _msgModelId = getActiveModelId();
-    const _msgModelDisplay = getActiveModelDisplay();
-    const _msgProvider = getAIProvider();
-    const _msgE2EE = _isE2EE;
 
     // Create AI message placeholder
     const aiMsgEl = document.createElement('div');
@@ -1900,7 +1896,8 @@ export async function sendChatMessage() {
       maxTokens: CHAT_RESPONSE_MAX_TOKENS,
       signal: _chatAbortController ? _chatAbortController.signal : undefined,
       onStream(text) { typewriter.update(text); },
-      webSearch: webSearchEnabled
+      webSearch: webSearchEnabled,
+      provider: _msgProvider
     });
     const { text: fullText, usage } = aiResult;
     const responseTruncated = isAIResponseTruncated(aiResult);
@@ -1926,7 +1923,7 @@ export async function sendChatMessage() {
     }
 
     // Build assistant message object with context snapshot
-    const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
+    const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
@@ -2222,11 +2219,11 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const personality = getActivePersonality();
       const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
       const multiPersonaInstruction = buildMultiPersonaInstruction(state.chatHistory, personality.name);
-      const _dMsgModelId = getActiveModelId();
-      const _dMsgModelDisplay = getActiveModelDisplay();
       const _dMsgProvider = getAIProvider();
+      const _dMsgModelId = getActiveModelId(_dMsgProvider);
+      const _dMsgModelDisplay = getActiveModelDisplay(_dMsgProvider);
       const _dMsgE2EE = _dMsgProvider === 'venice' && isVeniceE2EEActive();
-      const _dWebSearchSupported = supportsWebSearch();
+      const _dWebSearchSupported = supportsWebSearch(_dMsgProvider);
       const _dWebSearch = getChatWebSearchEnabled() && _dWebSearchSupported;
 
       const webHint = buildWebSearchHint({
@@ -2262,7 +2259,8 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: _chatAbortController.signal,
         onStream(text) { typewriter.update(text); },
-        webSearch: _dWebSearch
+        webSearch: _dWebSearch,
+        provider: _dMsgProvider
       });
       const { text: fullText, usage } = aiResult;
       const responseTruncated = isAIResponseTruncated(aiResult);
@@ -2285,7 +2283,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         aiMsgEl.appendChild(footnote);
       }
 
-      const assistantMsg = { role: 'assistant', content: fullText, personalityName: personality.name, personalityIcon: personality.icon, modelId: _dMsgModelId, modelDisplay: _dMsgModelDisplay };
+      const assistantMsg = { role: 'assistant', content: fullText, personalityName: personality.name, personalityIcon: personality.icon, provider: _dMsgProvider, modelId: _dMsgModelId, modelDisplay: _dMsgModelDisplay };
       if (responseTruncated) {
         assistantMsg.truncated = true;
         assistantMsg.finishReason = aiResult.finishReason || 'length';

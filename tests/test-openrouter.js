@@ -141,6 +141,7 @@ window.refreshWebSearchToggle = () => { webToggleRefreshCount += 1; };
 window.setAIProvider('openrouter');
 assert('setAIProvider refreshes chat header', headerRefreshCount === 1, `count=${headerRefreshCount}`);
 assert('setAIProvider refreshes web-search state', webToggleRefreshCount === 1, `count=${webToggleRefreshCount}`);
+assert('setAIProvider marks AI settings as local', Number(sessionStorage.getItem('labcharts-ai-settings-local-lock-until') || 0) > Date.now());
 window.setOpenRouterModel('anthropic/claude-sonnet-4.6');
 assert('setOpenRouterModel refreshes chat header', headerRefreshCount === 2, `count=${headerRefreshCount}`);
 assert('setOpenRouterModel refreshes web-search state', webToggleRefreshCount === 2, `count=${webToggleRefreshCount}`);
@@ -157,6 +158,7 @@ else localStorage.removeItem('labcharts-openrouter-model');
 console.log('\n4. chat.js source inspection');
 const chatSrc = read('js/chat.js');
 assert('chat.js uses getActiveModelId for model resolution', chatSrc.includes('getActiveModelId'));
+assert('chat.js snapshots provider for sends', chatSrc.includes('const _msgProvider = getAIProvider()') && chatSrc.includes('provider: _msgProvider'));
 
 // ─── 5. pdf-import.js source inspection ───
 console.log('\n5. pdf-import.js source inspection');
@@ -285,6 +287,10 @@ assert('startup-oauth-callbacks.js marks fresh OpenRouter settings local for syn
 const syncSrc = read('js/sync.js');
 assert('sync preserves fresh OpenRouter OAuth provider/key against stale pull',
   syncSrc.includes('shouldKeepLocalOpenRouterOAuthSetting') && syncSrc.includes("'labcharts-openrouter-key'"));
+assert('sync preserves fresh local AI settings against stale pull',
+  syncSrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalAISetting(key)'));
+assert('sync refreshes AI header after remote AI settings apply',
+  syncSrc.includes('window.updateChatHeaderModel?.()') && syncSrc.includes('window.refreshWebSearchToggle?.()'));
 assert('startup sync reconciliation pushes local AI setting drift',
   syncSrc.includes('newer local AI settings') && syncSrc.includes('collectAISettings()'));
 const cssSrc = read('styles.css');

@@ -59,6 +59,7 @@ export async function saveOllamaConfig(config) {
   const json = JSON.stringify(config);
   await encryptedSetItem('labcharts-ollama', json);
   updateKeyCache('labcharts-ollama', json);
+  window.markAISettingsLocal?.();
 }
 
 export async function checkOllama(url) {

@@ -53,6 +53,7 @@ function notifyAISelectionChanged() {
 export function getAIProvider() { return localStorage.getItem('labcharts-ai-provider') || 'openrouter'; }
 export function setAIProvider(provider) {
   localStorage.setItem('labcharts-ai-provider', provider);
+  markAISettingsLocal();
   notifyAISelectionChanged();
 }
 export function isAIPaused() { return localStorage.getItem('labcharts-ai-paused') === 'true'; }
@@ -60,10 +61,18 @@ export function setAIPaused(v) { localStorage.setItem('labcharts-ai-paused', v ?
 
 const OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY = 'or_previous_ai_provider';
 const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
+const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
 const OPENROUTER_OAUTH_PROVIDERS = new Set(['openrouter', 'venice', 'routstr', 'ppq', 'custom', 'ollama']);
 
 function _isValidAIProvider(provider) {
   return typeof provider === 'string' && OPENROUTER_OAUTH_PROVIDERS.has(provider);
+}
+
+export function markAISettingsLocal() {
+  try {
+    sessionStorage.setItem(AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY, String(Date.now() + 5 * 60 * 1000));
+  } catch {}
+  try { window.dispatchEvent(new CustomEvent('labcharts-ai-settings-local-changed')); } catch {}
 }
 
 export function hasAIProvider() {
@@ -80,15 +89,22 @@ export function hasAIProvider() {
 export function getOllamaMainModel() { return localStorage.getItem('labcharts-ollama-model') || window.getOllamaConfig().model || 'llama3.2'; }
 export function setOllamaMainModel(model) {
   localStorage.setItem('labcharts-ollama-model', model);
+  markAISettingsLocal();
   notifyAISelectionChanged();
 }
 export function getOllamaPIIUrl() { return localStorage.getItem('labcharts-ollama-pii-url') || window.getOllamaConfig().url; }
-export function setOllamaPIIUrl(url) { localStorage.setItem('labcharts-ollama-pii-url', url); }
+export function setOllamaPIIUrl(url) {
+  localStorage.setItem('labcharts-ollama-pii-url', url);
+  markAISettingsLocal();
+}
 export function getOllamaPIIModel() { return localStorage.getItem('labcharts-ollama-pii-model') || getOllamaMainModel(); }
-export function setOllamaPIIModel(model) { localStorage.setItem('labcharts-ollama-pii-model', model); }
+export function setOllamaPIIModel(model) {
+  localStorage.setItem('labcharts-ollama-pii-model', model);
+  markAISettingsLocal();
+}
 
 export function getVeniceKey() { return getCachedKey('labcharts-venice-key') || ''; }
-export async function saveVeniceKey(key) { await encryptedSetItem('labcharts-venice-key', key); updateKeyCache('labcharts-venice-key', key); }
+export async function saveVeniceKey(key) { await encryptedSetItem('labcharts-venice-key', key); updateKeyCache('labcharts-venice-key', key); markAISettingsLocal(); }
 export function hasVeniceKey() { return !!getVeniceKey(); }
 export async function getVeniceBalance() {
   const key = getVeniceKey();
@@ -111,6 +127,7 @@ export async function getVeniceBalance() {
 export function getVeniceModel() { return localStorage.getItem('labcharts-venice-model') || 'llama-3.3-70b'; }
 export function setVeniceModel(model) {
   localStorage.setItem('labcharts-venice-model', model);
+  markAISettingsLocal();
   notifyAISelectionChanged();
 }
 
@@ -186,10 +203,13 @@ export function getVeniceModelDisplay() {
 }
 
 export function getVeniceE2EE() { return localStorage.getItem('labcharts-venice-e2ee') === 'on'; }
-export function setVeniceE2EE(on) { localStorage.setItem('labcharts-venice-e2ee', on ? 'on' : 'off'); }
+export function setVeniceE2EE(on) {
+  localStorage.setItem('labcharts-venice-e2ee', on ? 'on' : 'off');
+  markAISettingsLocal();
+}
 
 export function getOpenRouterKey() { return getCachedKey('labcharts-openrouter-key') || ''; }
-export async function saveOpenRouterKey(key) { await encryptedSetItem('labcharts-openrouter-key', key); updateKeyCache('labcharts-openrouter-key', key); }
+export async function saveOpenRouterKey(key) { await encryptedSetItem('labcharts-openrouter-key', key); updateKeyCache('labcharts-openrouter-key', key); markAISettingsLocal(); }
 export function hasOpenRouterKey() { return !!getOpenRouterKey(); }
 export async function getOpenRouterBalance() {
   const key = getOpenRouterKey();
@@ -208,11 +228,12 @@ export async function getOpenRouterBalance() {
 
 // ─── Routstr ───
 export function getRoutstrKey() { return getCachedKey('labcharts-routstr-key') || ''; }
-export async function saveRoutstrKey(key) { await encryptedSetItem('labcharts-routstr-key', key); updateKeyCache('labcharts-routstr-key', key); }
+export async function saveRoutstrKey(key) { await encryptedSetItem('labcharts-routstr-key', key); updateKeyCache('labcharts-routstr-key', key); markAISettingsLocal(); }
 export function hasRoutstrKey() { return !!getRoutstrKey(); }
 export function getRoutstrModel() { return localStorage.getItem('labcharts-routstr-model') || 'claude-sonnet-4.6'; }
 export function setRoutstrModel(model) {
   localStorage.setItem('labcharts-routstr-model', model);
+  markAISettingsLocal();
   notifyAISelectionChanged();
 }
 export function getRoutstrModelDisplay() {
@@ -224,11 +245,12 @@ export function getRoutstrModelDisplay() {
 
 // ─── PPQ (PayPerQ — pay-per-prompt, crypto + fiat) ───
 export function getPpqKey() { return getCachedKey('labcharts-ppq-key') || ''; }
-export async function savePpqKey(key) { await encryptedSetItem('labcharts-ppq-key', key); updateKeyCache('labcharts-ppq-key', key); }
+export async function savePpqKey(key) { await encryptedSetItem('labcharts-ppq-key', key); updateKeyCache('labcharts-ppq-key', key); markAISettingsLocal(); }
 export function hasPpqKey() { return !!getPpqKey(); }
 export function getPpqModel() { return localStorage.getItem('labcharts-ppq-model') || 'claude-sonnet-4.6'; }
 export function setPpqModel(model) {
   localStorage.setItem('labcharts-ppq-model', model);
+  markAISettingsLocal();
   notifyAISelectionChanged();
 }
 export function getPpqModelDisplay() {
@@ -238,17 +260,24 @@ export function getPpqModelDisplay() {
   return m ? (m.name || m.id) : id;
 }
 export function getPpqCreditId() { return localStorage.getItem('labcharts-ppq-credit-id') || ''; }
-export function savePpqCreditId(id) { localStorage.setItem('labcharts-ppq-credit-id', id); }
+export function savePpqCreditId(id) {
+  localStorage.setItem('labcharts-ppq-credit-id', id);
+  markAISettingsLocal();
+}
 
 // ─── Custom API (any OpenAI-compatible endpoint) ───
 export function getCustomApiUrl() { return localStorage.getItem('labcharts-custom-url') || ''; }
-export function setCustomApiUrl(url) { localStorage.setItem('labcharts-custom-url', url); }
+export function setCustomApiUrl(url) {
+  localStorage.setItem('labcharts-custom-url', url);
+  markAISettingsLocal();
+}
 export function getCustomApiKey() { return getCachedKey('labcharts-custom-key') || ''; }
-export async function saveCustomApiKey(key) { await encryptedSetItem('labcharts-custom-key', key); updateKeyCache('labcharts-custom-key', key); }
+export async function saveCustomApiKey(key) { await encryptedSetItem('labcharts-custom-key', key); updateKeyCache('labcharts-custom-key', key); markAISettingsLocal(); }
 export function hasCustomApiKey() { return !!getCustomApiKey(); }
 export function getCustomApiModel() { return localStorage.getItem('labcharts-custom-model') || ''; }
 export function setCustomApiModel(model) {
   localStorage.setItem('labcharts-custom-model', model);
+  markAISettingsLocal();
   notifyAISelectionChanged();
 }
 export function getCustomApiModelDisplay() {
@@ -266,6 +295,7 @@ export function getOpenRouterModel() {
 }
 export function setOpenRouterModel(model) {
   localStorage.setItem('labcharts-openrouter-model', model);
+  markAISettingsLocal();
   notifyAISelectionChanged();
 }
 export function getOpenRouterModelDisplay() {
@@ -329,6 +359,7 @@ export function hasPendingOpenRouterOAuthSession() {
 }
 
 export function markOpenRouterOAuthSettingsLocal() {
+  markAISettingsLocal();
   sessionStorage.setItem(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY, String(Date.now() + 5 * 60 * 1000));
 }
 
@@ -408,8 +439,7 @@ export function isRecommendedModel(provider, modelId) {
   if (provider === 'ppq') return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelId.startsWith(r); });
   return false; // Ollama — local models, can't tier
 }
-export function getActiveModelId() {
-  const provider = getAIProvider();
+export function getActiveModelId(provider = getAIProvider()) {
   if (provider === 'venice') return getVeniceModel();
   if (provider === 'openrouter') return getOpenRouterModel();
   if (provider === 'routstr') return getRoutstrModel();
@@ -417,8 +447,7 @@ export function getActiveModelId() {
   if (provider === 'custom') return getCustomApiModel();
   return getOllamaMainModel();
 }
-export function getActiveModelDisplay() {
-  const provider = getAIProvider();
+export function getActiveModelDisplay(provider = getAIProvider()) {
   if (provider === 'venice') return getVeniceModelDisplay();
   if (provider === 'openrouter') return getOpenRouterModelDisplay();
   if (provider === 'routstr') return getRoutstrModelDisplay();
@@ -677,8 +706,7 @@ async function _fetchWithRetry(url, options, retries = 2, useProxy = true) {
 // ═══════════════════════════════════════════════
 // WEB SEARCH SUPPORT
 // ═══════════════════════════════════════════════
-export function supportsWebSearch() {
-  const provider = getAIProvider();
+export function supportsWebSearch(provider = getAIProvider()) {
   if (provider === 'venice') return !isVeniceE2EEActive();
   if (provider === 'routstr') return false;
   if (provider === 'ppq') return true;
@@ -1428,8 +1456,7 @@ export async function callCustomAPI(opts) {
   );
 }
 
-export async function callClaudeAPI(opts) {
-  const provider = getAIProvider();
+export async function callClaudeAPI(opts, provider = getAIProvider()) {
   if (provider === 'ollama') return callOpenAICompatibleLocalAPI(opts);
   if (provider === 'venice') return callVeniceAPI(opts);
   if (provider === 'openrouter') return callOpenRouterAPI(opts);
@@ -1463,7 +1490,7 @@ Object.assign(window, {
   isRecommendedModel,
   getActiveModelId, getActiveModelDisplay,
   renderModelPricingHint,
-  getAIProvider, setAIProvider, hasAIProvider,
+  getAIProvider, setAIProvider, hasAIProvider, markAISettingsLocal,
   supportsVision, supportsWebSearch, isE2EEModel, isVeniceE2EEActive, getVeniceE2EE, setVeniceE2EE,
   validateVeniceKey, validateOpenRouterKey, validateRoutstrKey, validatePpqKey, validateCustomApiKey,
   getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey, hasCustomApiKey,

@@ -45,8 +45,8 @@ function mergeAIUsage(total = {}, next = {}) {
   };
 }
 
-export async function callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch }) {
-  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch });
+export async function callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch, provider }) {
+  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch }, provider);
   let fullText = result.text || '';
   let usage = result.usage || {};
   let continued = 0;
@@ -68,7 +68,7 @@ export async function callChatAPIWithContinuation({ system, messages, maxTokens,
         if (onStream) onStream(priorText + partial);
       },
       webSearch,
-    });
+    }, provider);
     fullText += result.text || '';
     usage = mergeAIUsage(usage, result.usage || {});
   }

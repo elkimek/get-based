@@ -238,6 +238,7 @@ let _queryLoaded = null;
 // timer was overwritten. Keyed by profileId so each profile's pending push
 // survives until it fires.
 const _debounceTimers = new Map();
+let _aiSettingsPushTimer = null;
 let _pollInterval = null;
 let _lastPollRowCount = -1;
 let _subscriptionFireCount = 0;
@@ -900,6 +901,16 @@ const AI_SETTINGS_KEYS = [
 
 const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
 const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
+const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
+
+function hasLocalAISettingsLock() {
+  try {
+    const until = Number(sessionStorage.getItem(AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY) || '0');
+    return Number.isFinite(until) && Date.now() < until;
+  } catch {
+    return false;
+  }
+}
 
 function shouldKeepLocalOpenRouterOAuthSetting(key) {
   if (!OPENROUTER_OAUTH_LOCAL_SETTING_KEYS.has(key)) return false;
@@ -909,6 +920,11 @@ function shouldKeepLocalOpenRouterOAuthSetting(key) {
   } catch {
     return false;
   }
+}
+
+function shouldKeepLocalAISetting(key) {
+  return shouldKeepLocalOpenRouterOAuthSetting(key)
+    || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
 }
 
 async function collectAISettings() {
@@ -924,15 +940,23 @@ const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', '
 
 async function applyAISettings(settings) {
   if (!settings) return;
+  let changed = false;
   for (const [key, val] of Object.entries(settings)) {
     if (!AI_SETTINGS_KEYS.includes(key)) continue;
     if (typeof val !== 'string' || val.length > 10000) continue; // sanity check
-    if (shouldKeepLocalOpenRouterOAuthSetting(key)) continue;
+    if (shouldKeepLocalAISetting(key)) continue;
+    const before = await encryptedGetItem(key);
+    if (before === val) continue;
     if (ENCRYPTED_AI_KEYS.includes(key)) {
       await encryptedSetItem(key, val);
     } else {
       localStorage.setItem(key, val);
     }
+    changed = true;
+  }
+  if (changed) {
+    window.updateChatHeaderModel?.();
+    window.refreshWebSearchToggle?.();
   }
 }
 
@@ -2936,6 +2960,19 @@ async function pushProfile(profileId, importedData, opts = {}) {
 export async function pushCurrentProfile() {
   await pushProfile(state.currentProfile, state.importedData);
   pushContextToGateway();
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('labcharts-ai-settings-local-changed', () => {
+    if (!_syncEnabled || !state.currentProfile || !state.importedData) return;
+    if (_aiSettingsPushTimer) clearTimeout(_aiSettingsPushTimer);
+    const profileId = state.currentProfile;
+    const importedData = state.importedData;
+    _aiSettingsPushTimer = setTimeout(() => {
+      _aiSettingsPushTimer = null;
+      pushProfile(profileId, importedData).catch(() => {});
+    }, 250);
+  });
 }
 
 // "Clean storage" — emergency localStorage compaction. The 'imported'

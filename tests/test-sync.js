@@ -307,6 +307,9 @@ await import('../js/settings.js');
   assert('collectAISettings uses encryptedGetItem', syncSrc.includes('encryptedGetItem(key)'));
   assert('applyAISettings has allowlist check', syncSrc.includes('AI_SETTINGS_KEYS.includes(key)'));
   assert('applyAISettings has size guard', syncSrc.includes('val.length > 10000'));
+  assert('applyAISettings honors fresh local AI setting lock', syncSrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalAISetting(key)'));
+  assert('applyAISettings refreshes chat provider UI on remote changes', syncSrc.includes('window.updateChatHeaderModel?.()') && syncSrc.includes('window.refreshWebSearchToggle?.()'));
+  assert('AI setting changes schedule a sync push', syncSrc.includes("labcharts-ai-settings-local-changed") && syncSrc.includes('pushProfile(profileId, importedData)'));
 
   // ═══════════════════════════════════════
   // 4. MNEMONIC RESTORE
