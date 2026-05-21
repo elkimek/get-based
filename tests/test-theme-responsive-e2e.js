@@ -72,6 +72,35 @@ async function waitForApp(page) {
 async function seedDemoData(page) {
   await page.evaluate(async () => {
     const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(r => r.json());
+    const profileId = window._labState.currentProfile || 'default';
+    const profiles = window.getProfiles?.() || [];
+    let profile = profiles.find(p => p.id === profileId);
+    if (!profile) {
+      profile = { id: profileId, name: 'Test Profile' };
+      profiles.push(profile);
+    }
+    profile.location = { country: 'united states', zip: '10001' };
+    await window.saveProfiles?.(profiles);
+    window.fetchAtmosphere = async () => {
+      const now = Date.now();
+      return {
+        uvIndex: 6,
+        uvClearSky: 7.2,
+        ozoneDU: 310,
+        cloudCover: 18,
+        temperatureC: 22,
+        airQuality: { pm25: 6, pm10: 11, no2: 18, surfaceOzoneUgM3: 72, european_aqi: 1 },
+        daily: {
+          sunrise: new Date(now - 5 * 3600000).toISOString(),
+          sunset: new Date(now + 6 * 3600000).toISOString(),
+          uvIndexMax: 7.2,
+          peakAt: new Date(now + 90 * 60000).toISOString(),
+        },
+        source: 'manual_entry',
+        confidence: 1,
+        fetchedAt: now,
+      };
+    };
     window._labState.importedData = demo;
     window._labState.profileSex = 'male';
     window._labState.profileDob = '1987-11-22';
