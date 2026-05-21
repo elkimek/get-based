@@ -568,6 +568,9 @@
     const hasStartupMaintenanceJs = sw.includes('/js/startup-maintenance.js');
     assert('Service worker caches js/startup-maintenance.js', hasStartupMaintenanceJs);
 
+    const hasStartupUiJs = sw.includes('/js/startup-ui.js');
+    assert('Service worker caches js/startup-ui.js', hasStartupUiJs);
+
     const hasViewsJs = sw.includes('/js/views.js');
     assert('Service worker caches js/views.js', hasViewsJs);
 

@@ -34,7 +34,7 @@ await import('../js/settings.js');
   const syncSrc = await fetchWithRetry('js/sync.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const dataSrc = await fetchWithRetry('js/data.js');
-  const mainSrc = await fetchWithRetry('js/main.js');
+  const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 
   // ═══════════════════════════════════════
   // 1. MODULE EXPORTS
@@ -343,12 +343,12 @@ await import('../js/settings.js');
   assert('saveImportedData calls onDataSaved()', dataSrc.includes('onDataSaved()'));
 
   // ═══════════════════════════════════════
-  // 7. MAIN.JS INTEGRATION
+  // 7. STARTUP UI INTEGRATION
   // ═══════════════════════════════════════
-  console.log('7. Main Integration');
+  console.log('7. Startup UI Integration');
 
-  assert('main.js imports initSync', mainSrc.includes("initSync") && mainSrc.includes("from './sync.js'"));
-  assert('main.js defers initSync after first paint', /requestAnimationFrame\([\s\S]{0,300}initSync\(\)/.test(mainSrc));
+  assert('startup-ui.js imports initSync', startupUiSrc.includes("initSync") && startupUiSrc.includes("from './sync.js'"));
+  assert('startup-ui.js defers initSync after first paint', /requestAnimationFrame\([\s\S]{0,300}initSync\(\)/.test(startupUiSrc));
 
   // getSyncBlocker must NOT check SharedWorker — Evolu uses dedicated
   // Workers + BroadcastChannel + navigator.locks, not the SharedWorker

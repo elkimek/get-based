@@ -33,7 +33,7 @@ await import('../js/changelog.js');
 
 const changelogSrc = await fetchWithRetry('js/changelog.js');
 const utilsSrc = await fetchWithRetry('js/utils.js');
-const mainSrc = await fetchWithRetry('js/main.js');
+const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
 const settingsSrc = await fetchWithRetry('js/settings.js');
 const swSrc = await fetchWithRetry('service-worker.js');
@@ -96,12 +96,12 @@ assert('changelog modal has role=dialog', indexSrc.includes('changelog-modal') &
 assert('changelog modal has aria-label', indexSrc.includes('aria-label="What\'s New"'));
 
 // ═══════════════════════════════════════
-// 4. main.js wiring
+// 4. Startup UI wiring
 // ═══════════════════════════════════════
-console.log('4. main.js Wiring');
+console.log('4. Startup UI Wiring');
 
-assert('main.js imports maybeShowChangelog', mainSrc.includes("import { maybeShowChangelog } from './changelog.js'"));
-assert('main.js calls maybeShowChangelog', mainSrc.includes('maybeShowChangelog()'));
+assert('startup-ui.js imports maybeShowChangelog', startupUiSrc.includes("import { maybeShowChangelog } from './changelog.js'"));
+assert('startup-ui.js calls maybeShowChangelog', startupUiSrc.includes('maybeShowChangelog()'));
 assert('app-event-listeners.js has changelog overlay click handler', appEventsSrc.includes('changelog-modal-overlay') && appEventsSrc.includes('closeChangelog'));
 assert('app-event-listeners.js has changelog Escape handler', appEventsSrc.includes('changelogOverlay'));
 assert('app-event-listeners.js focus trap includes changelog', appEventsSrc.includes('"changelog-modal-overlay"'));

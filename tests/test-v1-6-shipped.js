@@ -487,7 +487,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 18. Refresh restores the active view ───────────────────────────
   console.log('%c 18. refresh restores active view ', 'font-weight:bold;color:#0891b2');
   {
-    const mainSrc = fetchSrc('js/main.js');
+    const startupUiSrc = fetchSrc('js/startup-ui.js');
     const profileSrc = fetchSrc('js/profile.js');
     const viewsSrc = fetchSrc('js/views.js');
     const routerSrc = fetchSrc('js/views-router.js');
@@ -503,9 +503,9 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('views.js: exposes router-backed getInitialView wrapper',
       /export function getInitialView\(\)/.test(viewsSrc)
       && /return getRouterInitialView\(\)/.test(viewsSrc));
-    assert('main.js: boot navigates to stored route instead of hard Dashboard',
-      /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(mainSrc)
-      && !/window\.showDashboard\(\);/.test(mainSrc));
+    assert('startup-ui.js: boot navigates to stored route instead of hard Dashboard',
+      /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(startupUiSrc)
+      && !/window\.showDashboard\(\);/.test(startupUiSrc));
     assert('profile.js: profile switch restores that profile route',
       /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(profileSrc));
     assert('nav.js: sidebar rebuild preserves current route selection',

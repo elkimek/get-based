@@ -141,15 +141,16 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
   }
 
   // ═══════════════════════════════════════════════
-  // 9. main.js calls initFolderBackup and maybeShowBackupNudge
+  // 9. Startup calls initFolderBackup and maybeShowBackupNudge
   // ═══════════════════════════════════════════════
   try {
-    const src = read('/js/main.js');
-    assert('main.js imports initFolderBackup', src.includes('initFolderBackup'));
-    assert('main.js awaits initFolderBackup', src.includes('await initFolderBackup()'));
-    assert('main.js imports maybeShowBackupNudge', src.includes('maybeShowBackupNudge'));
+    const mainSrc = read('/js/main.js');
+    const startupUiSrc = read('/js/startup-ui.js');
+    assert('main.js imports initFolderBackup', mainSrc.includes('initFolderBackup'));
+    assert('main.js awaits initFolderBackup', mainSrc.includes('await initFolderBackup()'));
+    assert('startup-ui.js imports maybeShowBackupNudge', startupUiSrc.includes('maybeShowBackupNudge'));
   } catch (e) {
-    assert('main.js folder backup init', false, e.message);
+    assert('startup folder backup init', false, e.message);
   }
 
   // ═══════════════════════════════════════════════

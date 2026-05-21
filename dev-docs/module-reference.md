@@ -713,12 +713,11 @@ Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 
 **Responsibilities:**
 - Imports all feature modules (side-effect imports for window exports)
-- Initializes encryption, backup, sync, and startup profile data
+- Initializes encryption, backup, and startup profile data
 - Delegates startup service boot and post-profile maintenance to `startup-maintenance.js`
 - Delegates wearable/OpenRouter callback routing to `startup-oauth-callbacks.js`
+- Delegates first-render UI bootstrap to `startup-ui.js`
 - Installs app-wide event and refresh wiring through `app-event-listeners.js`
-- Binds hidden file-picker import routing through `import-file-input.js`
-- Calls initial `navigate('dashboard')`
 
 **Window exports:** none (all exports come from other modules)
 
@@ -754,6 +753,17 @@ Non-blocking startup maintenance extracted from `main.js`: wearable runtime conf
 **Key exports:**
 - `initializeStartupServices()` — starts wearable runtime config loading and scheduler setup before profile data loads
 - `runPostProfileStartupMaintenance()` — schedules post-profile maintenance jobs without blocking OAuth callbacks or first render
+
+**Window exports:** none
+
+---
+
+### `startup-ui.js`
+
+First-render UI bootstrap extracted from `main.js`: profile display state, theme, footer version, sidebar, sync indicator, initial navigation, deferred sync/catalog warmup, changelog, startup nudges, deferred settings/chat opens, header chrome, chat attachment handlers, and file-picker import binding.
+
+**Key exports:**
+- `renderStartupUI()` — runs the initial UI render and schedules non-blocking startup UI work after profile/OAuth startup completes
 
 **Window exports:** none
 

@@ -32,6 +32,7 @@ js/
   startup-profile.js — Profile migration, active-profile load, and display-state bootstrap
   startup-oauth-callbacks.js — Wearable/OpenRouter callback routing during startup
   startup-maintenance.js — Wearable startup services and post-profile maintenance jobs
+  startup-ui.js    — First-render UI bootstrap after profile/OAuth startup
   schema.js         — MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES
   constants.js      — Option arrays, CHAT_PERSONALITIES, fake data, COUNTRY_LATITUDES
   state.js          — Single shared mutable state object
@@ -89,7 +90,7 @@ index.html
         └── imports all other modules (directly or transitively)
 ```
 
-`main.js` registers the `DOMContentLoaded` listener and calls the initial `navigate()` to render the dashboard. Profile migration, cache warmup, active-profile data loading, and profile display state are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; app-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`; file-picker import routing lives in `import-file-input.js`.
+`main.js` registers the `DOMContentLoaded` listener and orders the startup phases. Profile migration, cache warmup, and active-profile data loading are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; initial theme/sidebar/navigation/sync/changelog/header/chat/file-input UI bootstrap lives in `startup-ui.js`; app-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`.
 
 ## Navigation and dashboard IA
 

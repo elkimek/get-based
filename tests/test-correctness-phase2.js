@@ -56,7 +56,7 @@ assert('cacheGet re-inserts on hit',
 // ─── 4. Service worker precaches dynamic modules ───
 console.log('\n4. SW precache');
 const swSrc = read('service-worker.js');
-const mainSrc = read('js/main.js');
+const startupUiSrc = read('js/startup-ui.js');
 const viewsSrc = read('js/views.js');
 const dashboardCompositionSrc = read('js/dashboard-view-composition.js');
 const importLoaderSrc = read('js/import-loader.js');
@@ -79,6 +79,7 @@ const pwaAppShellAssets = [
   '/js/startup-profile.js',
   '/js/startup-oauth-callbacks.js',
   '/js/startup-maintenance.js',
+  '/js/startup-ui.js',
   '/js/ai-verdict-engine.js',
   '/js/import-loader.js',
   '/js/import-file-input.js',
@@ -148,7 +149,7 @@ assert('SW handles same-origin localhost app shell while bypassing cross-origin 
   /if \(!sameOrigin\) return;/.test(swSrc),
   'local offline testing should not bypass the SW just because the app origin is localhost');
 assert('PDF import lazy loader is shared by file input and import-drop-zone.js',
-  mainSrc.includes("from './import-file-input.js'") &&
+  startupUiSrc.includes("from './import-file-input.js'") &&
   importFileInputSrc.includes("from './import-loader.js'") &&
   importDropZoneSrc.includes("from './import-loader.js'") &&
   importLoaderSrc.includes("import('./pdf-import.js')"),
@@ -160,7 +161,7 @@ assert('PDF lazy import failure notifies from drop zone',
   /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
 assert('analytics consent remains deferred after first paint',
-  /setTimeout\(\(\)\s*=>\s*window\.maybeShowAnalyticsConsent\?\.\(\),\s*800\)/.test(mainSrc),
+  /setTimeout\(\(\)\s*=>\s*window\.maybeShowAnalyticsConsent\?\.\(\),\s*800\)/.test(startupUiSrc),
   'first-run banner should not stack into the same tick as tour/startup work');
 assert('footer commit hash loader lives in its own module and remains wired',
   /export function loadCommitHash\(\)/.test(commitHashSrc)
