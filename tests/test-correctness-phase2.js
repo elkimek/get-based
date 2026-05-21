@@ -129,6 +129,7 @@ const pwaAppShellAssets = [
   '/js/chat-threads.js',
   '/js/chat-icons.js',
   '/js/chat-continuation.js',
+  '/js/chat-prompt-context.js',
   '/js/chat-summaries.js',
   '/js/lens.js',
   '/js/lens-local.js',

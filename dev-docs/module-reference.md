@@ -517,6 +517,16 @@ Response limit detection and automatic continuation wrapper for chat and discuss
 
 ---
 
+### `chat-prompt-context.js`
+
+Pure prompt/message helpers shared by direct chat sends and multi-persona discussion rounds. Centralizes persona prompt additions, cross-persona API-message tagging, web-search/E2EE system hints, system-prompt assembly, and persisted lens-source serialization.
+
+**Key exports:** `buildPersonalityPrompt`, `buildMultiPersonaInstruction`, `buildTaggedChatMessages`, `buildWebSearchHint`, `buildChatSystemPrompt`, `serializeLensSources`, `attachLensSources`
+
+**Window exports:** none
+
+---
+
 ### `chat-summaries.js`
 
 Conversation summary generation, saved-summary profile storage, and summary modal actions extracted from `chat.js`.

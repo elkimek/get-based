@@ -34,6 +34,9 @@ await import('../js/state.js');
 await import('../js/lab-context.js');
 await import('../js/chat.js');
 const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
+const {
+  attachLensSources, buildMultiPersonaInstruction, buildTaggedChatMessages, buildWebSearchHint,
+} = await import('../js/chat-prompt-context.js');
 
 const S = window._labState;
 const hasState = S && typeof S === 'object';
@@ -159,6 +162,7 @@ const chatSrc = read('js/chat.js');
 const chatIconsSrc = read('js/chat-icons.js');
 const chatSummariesSrc = read('js/chat-summaries.js');
 const chatContinuationSrc = read('js/chat-continuation.js');
+const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js has buildActionBar', chatSrc.includes('function buildActionBar'), 'found');
@@ -184,8 +188,30 @@ assert('chat-summaries.js exports summarizeThread', chatSummariesSrc.includes('e
 assert('chat-summaries.js sends one transcript message', chatSummariesSrc.includes('buildSummaryTranscript(state.chatHistory)') && chatSummariesSrc.includes("role: 'user'"), 'found');
 assert('chat.js imports continuation helpers', chatSrc.includes("from './chat-continuation.js'"), 'found');
 assert('chat-continuation.js exports continuation helper', chatContinuationSrc.includes('export async function callChatAPIWithContinuation'), 'found');
+assert('chat.js imports prompt context helpers', chatSrc.includes("from './chat-prompt-context.js'"), 'found');
+assert('chat-prompt-context.js exports tagged messages helper', chatPromptContextSrc.includes('export function buildTaggedChatMessages'), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
-assert('API messages tag other personas', chatSrc.includes('Response from') && chatSrc.includes('personalityName'), 'tags messages from different personas');
+assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
+
+// ─── Section 17a: Chat prompt-context helpers ───
+console.log('Section 17a: Chat prompt-context helpers');
+const taggedMessages = buildTaggedChatMessages([
+  { joined: true, joinName: 'Analyst' },
+  { role: 'user', content: 'Review this' },
+  { role: 'assistant', personalityName: 'Analyst', content: 'First opinion' },
+  { role: 'assistant', personalityName: 'House', content: 'Current opinion' },
+], 'House');
+assert('prompt context skips joined messages', taggedMessages.length === 3, JSON.stringify(taggedMessages));
+assert('prompt context tags other assistant personas', taggedMessages[1]?.content.startsWith('[Response from Analyst]'), taggedMessages[1]?.content);
+assert('prompt context leaves current persona untagged', taggedMessages[2]?.content === 'Current opinion', taggedMessages[2]?.content);
+const multiPersonaInstruction = buildMultiPersonaInstruction([
+  { role: 'assistant', personalityName: 'Analyst', content: 'First opinion' },
+  { role: 'assistant', personalityName: 'House', content: 'Current opinion' },
+], 'House');
+assert('prompt context instruction names other persona', multiPersonaInstruction.includes('Analyst') && !multiPersonaInstruction.includes('(House)'), multiPersonaInstruction);
+assert('prompt context E2EE hint wins', buildWebSearchHint({ isE2EE: true, webSearchEnabled: true }).includes('E2EE mode'), 'found');
+const lensAttached = attachLensSources({}, { sourceName: 'Library', chunks: [{ text: 'x'.repeat(1600), source: 'doc.md', score: 0.91 }] });
+assert('prompt context serializes capped lens sources', lensAttached.lensSources?.[0]?.text.length === 1500 && lensAttached.lensSourceName === 'Library', JSON.stringify(lensAttached));
 
 // ─── Section 17b: Summary transcript normalization ───
 console.log('Section 17b: Summary transcript normalization');

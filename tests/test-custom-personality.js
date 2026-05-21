@@ -33,6 +33,7 @@ console.log('=== Multiple Custom Personalities Tests ===\n');
 // chat.js exposes the personality + discussion handlers via Object.assign(window).
 await import('../js/state.js');
 await import('../js/chat.js');
+const { buildPersonalityPrompt } = await import('../js/chat-prompt-context.js');
 
 const profileId = localStorage.getItem('labcharts-current-profile') || 'default';
 const key = `labcharts-${profileId}-chatPersonalityCustom`;
@@ -166,10 +167,12 @@ assert('CHAT_PERSONALITIES no custom entry', !constantsSrc.includes("id: 'custom
 // Sections 11, 12, 17, 21 (DOM-runtime) live in test-custom-personality-dom.js.
 
 // ── 13. sendChatMessage uses custom_ prefix check ──
-console.log('13. sendChatMessage custom_ prefix');
+console.log('13. custom personality prompt context');
 const sendSrc = window.sendChatMessage.toString();
-assert('sendChatMessage checks custom_ prefix', sendSrc.includes("startsWith('custom_')") || sendSrc.includes('startsWith("custom_")'));
-assert('sendChatMessage uses Persona: prefix', sendSrc.includes('Persona:'));
+const promptContextSrc = read('js/chat-prompt-context.js');
+assert('sendChatMessage delegates personality prompt helper', sendSrc.includes('buildPersonalityPrompt'));
+assert('prompt context checks custom_ prefix', promptContextSrc.includes("startsWith('custom_')") || promptContextSrc.includes('startsWith("custom_")'));
+assert('prompt context uses Persona: prefix', buildPersonalityPrompt({ id: 'custom_abc' }, { promptText: 'Be direct.' }).includes('Persona: Be direct.'));
 
 // ── 14. Thread metadata ──
 console.log('14. Thread metadata');

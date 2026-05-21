@@ -29,6 +29,10 @@ import {
   CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
   isAIResponseTruncated, responseLimitNote,
 } from './chat-continuation.js';
+import {
+  attachLensSources, buildChatSystemPrompt, buildMultiPersonaInstruction,
+  buildPersonalityPrompt, buildTaggedChatMessages, buildWebSearchHint,
+} from './chat-prompt-context.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -1856,7 +1860,8 @@ export async function sendChatMessage() {
 
   // Snapshot context areas before sending
   const contextSnapshot = getContextSummary();
-  const webSearchEnabled = getChatWebSearchEnabled() && supportsWebSearch();
+  const webSearchSupported = supportsWebSearch();
+  const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
 
   try {
     let labContext = buildLabContext({ userMessage: text });
@@ -1869,45 +1874,21 @@ export async function sendChatMessage() {
       }
     }
     const personality = getActivePersonality();
-    let personalityPrompt = '';
-    if (personality.id && personality.id.startsWith('custom_')) {
-      const cp = getCustomPersonality();
-      if (cp.promptText) {
-        personalityPrompt = `\n\nPersona: ${cp.promptText}`;
-      }
-    } else if (personality.promptAddition) {
-      personalityPrompt = '\n\n' + personality.promptAddition;
-    }
-    // Check if other personas have responded in this thread
     const currentPersonaName = personality.name;
-    const otherPersonas = new Set();
-    for (const m of state.chatHistory) {
-      if (m.role === 'assistant' && m.personalityName && m.personalityName !== currentPersonaName) {
-        otherPersonas.add(m.personalityName);
-      }
-    }
-    let multiPersonaInstruction = '';
-    if (otherPersonas.size > 0) {
-      multiPersonaInstruction = `\n\nThis conversation includes responses from other AI personalities (${[...otherPersonas].join(', ')}). Messages marked [Response from ...] were written by a different persona — treat them as a separate analyst's opinion, not your own. You may agree or disagree with their analysis, but never claim you wrote their responses.`;
-    }
+    const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
+    const multiPersonaInstruction = buildMultiPersonaInstruction(state.chatHistory, currentPersonaName);
     const _isE2EE = getAIProvider() === 'venice' && isVeniceE2EEActive();
-    let webHint = '';
-    if (_isE2EE) {
-      webHint = '\n\n[NO WEB ACCESS — E2EE mode] Do not generate URLs. Suggest disabling E2EE for web-enabled queries.';
-    } else if (webSearchEnabled) {
-      webHint = '\n\n[WEB SEARCH ACTIVE] You can search the internet. Always include direct URLs to specific products/pages when the user asks. Do not give generic advice without links when the user names a specific website.';
-    } else if (supportsWebSearch()) {
-      webHint = '\n\n[NO WEB ACCESS] Do not fabricate URLs. The user can enable web search via the "Web" toggle in the chat header.';
-    }
-    const systemPrompt = CHAT_SYSTEM_PROMPT + webHint + '\n\nCurrent lab data:\n' + labContext + personalityPrompt + multiPersonaInstruction;
+    const webHint = buildWebSearchHint({ isE2EE: _isE2EE, webSearchEnabled, webSearchSupported });
+    const systemPrompt = buildChatSystemPrompt({
+      basePrompt: CHAT_SYSTEM_PROMPT,
+      labContext,
+      personalityPrompt,
+      multiPersonaInstruction,
+      webHint,
+    });
 
     // Send last 30 messages for context — tag messages from other personas
-    const apiMessages = state.chatHistory.filter(m => !m.joined && m.role).slice(-30).map(m => {
-      if (m.role === 'assistant' && m.personalityName && m.personalityName !== currentPersonaName) {
-        return { role: m.role, content: `[Response from ${m.personalityName}]\n${m.content}` };
-      }
-      return { role: m.role, content: m.content };
-    });
+    const apiMessages = buildTaggedChatMessages(state.chatHistory, currentPersonaName);
 
     // Inject vision content into the last user message if images were attached
     if (attachments.length > 0 && apiMessages.length > 0) {
@@ -1982,19 +1963,7 @@ export async function sendChatMessage() {
     }
     if (webSearchEnabled) assistantMsg.webSearch = true;
     if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = window._veniceAttestation || null; }
-    if (_lensResultForMsg && _lensResultForMsg.chunks?.length) {
-      // Persist the retrieved excerpts on the message itself so the UI can
-      // show a collapsible Sources block and the user can verify what the
-      // AI actually saw. Cap text length per chunk to keep the chat
-      // history record from ballooning if a future model returns very
-      // long excerpts.
-      assistantMsg.lensSources = _lensResultForMsg.chunks.slice(0, 10).map(c => ({
-        text: typeof c.text === 'string' ? c.text.slice(0, 1500) : '',
-        source: c.source || '',
-        score: typeof c.score === 'number' ? c.score : null,
-      }));
-      assistantMsg.lensSourceName = _lensResultForMsg.sourceName || '';
-    }
+    attachLensSources(assistantMsg, _lensResultForMsg);
     if (usage && (usage.inputTokens || usage.outputTokens)) {
       assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
       trackUsage(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
@@ -2281,39 +2250,30 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         }
       }
       const personality = getActivePersonality();
-      let personalityPrompt = '';
-      if (personality.id && personality.id.startsWith('custom_')) {
-        const cp = getCustomPersonality();
-        if (cp.promptText) {
-          personalityPrompt = `\n\nPersona: ${cp.promptText}`;
-        }
-      } else if (personality.promptAddition) {
-        personalityPrompt = '\n\n' + personality.promptAddition;
-      }
-      const otherNames = new Set();
-      for (const m of state.chatHistory) {
-        if (m.role === 'assistant' && m.personalityName && m.personalityName !== personality.name) {
-          otherNames.add(m.personalityName);
-        }
-      }
-      let multiPersonaInstruction = '';
-      if (otherNames.size > 0) {
-        multiPersonaInstruction = `\n\nThis conversation includes responses from other AI personalities (${[...otherNames].join(', ')}). Messages marked [Response from ...] were written by a different persona — treat them as a separate analyst's opinion, not your own. You may agree or disagree with their analysis, but never claim you wrote their responses.`;
-      }
+      const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
+      const multiPersonaInstruction = buildMultiPersonaInstruction(state.chatHistory, personality.name);
       const _dMsgModelId = getActiveModelId();
       const _dMsgModelDisplay = getActiveModelDisplay();
       const _dMsgProvider = getAIProvider();
       const _dMsgE2EE = _dMsgProvider === 'venice' && isVeniceE2EEActive();
+      const _dWebSearchSupported = supportsWebSearch();
+      const _dWebSearch = getChatWebSearchEnabled() && _dWebSearchSupported;
 
-      const e2eeInstruction = _dMsgE2EE ? '\n\n[NO WEB ACCESS — E2EE mode] Do not generate URLs. Suggest disabling E2EE for web-enabled queries.' : '';
-      const systemPrompt = CHAT_SYSTEM_PROMPT + e2eeInstruction + '\n\nCurrent lab data:\n' + labContext + personalityPrompt + multiPersonaInstruction;
-
-      const apiMessages = state.chatHistory.filter(m => !m.joined && m.role).slice(-30).map(m => {
-        if (m.role === 'assistant' && m.personalityName && m.personalityName !== personality.name) {
-          return { role: m.role, content: `[Response from ${m.personalityName}]\n${m.content}` };
-        }
-        return { role: m.role, content: m.content };
+      const webHint = buildWebSearchHint({
+        isE2EE: _dMsgE2EE,
+        webSearchEnabled: _dWebSearch,
+        webSearchSupported: _dWebSearchSupported,
+        includeActiveSearchHints: false,
       });
+      const systemPrompt = buildChatSystemPrompt({
+        basePrompt: CHAT_SYSTEM_PROMPT,
+        labContext,
+        personalityPrompt,
+        multiPersonaInstruction,
+        webHint,
+      });
+
+      const apiMessages = buildTaggedChatMessages(state.chatHistory, personality.name);
 
       const labelEl = document.createElement('div');
       labelEl.className = 'chat-persona-label';
@@ -2332,7 +2292,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: _chatAbortController.signal,
         onStream(text) { typewriter.update(text); },
-        webSearch: getChatWebSearchEnabled() && supportsWebSearch()
+        webSearch: _dWebSearch
       });
       const { text: fullText, usage } = aiResult;
       const responseTruncated = isAIResponseTruncated(aiResult);
@@ -2344,7 +2304,6 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       aiMsgEl.innerHTML = renderMarkdown(fullText);
       if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
 
-      const _dWebSearch = getChatWebSearchEnabled() && supportsWebSearch();
       if (usage && (usage.inputTokens || usage.outputTokens)) {
         const cost = calculateCost(_dMsgProvider, _dMsgModelId, usage.inputTokens, usage.outputTokens);
         const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
@@ -2363,14 +2322,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       }
       if (_dWebSearch) assistantMsg.webSearch = true;
       if (_dMsgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = window._veniceAttestation || null; }
-      if (_lensResultForMsg && _lensResultForMsg.chunks?.length) {
-        assistantMsg.lensSources = _lensResultForMsg.chunks.slice(0, 10).map(c => ({
-          text: typeof c.text === 'string' ? c.text.slice(0, 1500) : '',
-          source: c.source || '',
-          score: typeof c.score === 'number' ? c.score : null,
-        }));
-        assistantMsg.lensSourceName = _lensResultForMsg.sourceName || '';
-      }
+      attachLensSources(assistantMsg, _lensResultForMsg);
       if (usage && (usage.inputTokens || usage.outputTokens)) {
         assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
         trackUsage(_dMsgProvider, _dMsgModelId, usage.inputTokens, usage.outputTokens);

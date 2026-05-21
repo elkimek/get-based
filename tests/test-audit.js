@@ -87,6 +87,7 @@ assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
 
 const chatSrc = read('js/chat.js');
+const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const markdownSrc = read('js/markdown.js');
 assert('Markdown URL has quote escaping', markdownSrc.includes('.replace(/"/g, \'&quot;\')'));
 assert('Clipboard has navigator.clipboard guard', chatSrc.includes('if (!navigator.clipboard)'));
@@ -583,7 +584,8 @@ assert('System prompt has cortisol cross-cutting note', constSrc.includes('corti
 assert('System prompt has Style section', constSrc.includes('## Style'));
 assert('Health goals at top of Priority Context', constSrc.indexOf('Health goals:') < constSrc.indexOf('Medical conditions:'));
 
-assert('Persona placed after lab data', chatSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));
+assert('chat.js delegates prompt assembly to chat-prompt-context', chatSrc.includes('buildChatSystemPrompt'));
+assert('Persona placed after lab data', chatPromptContextSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));
 
 assert('buildFocusContext exists in focus-card.js', focusCardSrc.includes('function buildFocusContext()'));
 assert('views.js imports focus card module', viewsSrc.includes("from './focus-card.js'"));
