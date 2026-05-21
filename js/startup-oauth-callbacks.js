@@ -6,6 +6,10 @@ import {
   setAIProvider,
   fetchOpenRouterModels,
   getOpenRouterBalance,
+  restoreOpenRouterOAuthPreviousProvider,
+  clearOpenRouterOAuthSession,
+  hasPendingOpenRouterOAuthSession,
+  markOpenRouterOAuthSettingsLocal,
 } from './api.js';
 import { handleOAuthCallbackOnLoad } from './wearables-connect.js';
 
@@ -15,7 +19,9 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
   try {
     const key = await exchangeOpenRouterCode(oauthCode, oauthState);
     await saveOpenRouterKey(key);
+    markOpenRouterOAuthSettingsLocal();
     setAIProvider('openrouter');
+    clearOpenRouterOAuthSession();
     fetchOpenRouterModels(key);
     window._openChatAfterInit = true;
     window.showNotification('Connected to OpenRouter successfully!', 'success');
@@ -30,7 +36,22 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
       }
     } catch {}
   } catch (e) {
+    restoreOpenRouterOAuthPreviousProvider();
+    clearOpenRouterOAuthSession();
     window.showNotification('OpenRouter connection failed: ' + e.message, 'error', 6000);
+  }
+}
+
+function handleOpenRouterOAuthError(error, description) {
+  history.replaceState(null, '', window.location.pathname);
+  restoreOpenRouterOAuthPreviousProvider();
+  clearOpenRouterOAuthSession();
+
+  if (error === 'access_denied') {
+    window.showNotification('OpenRouter authorization was cancelled', 'info', 4000);
+  } else {
+    const detail = description || error || 'Authorization failed';
+    window.showNotification('OpenRouter authorization failed: ' + detail, 'error', 6000);
   }
 }
 
@@ -43,6 +64,11 @@ export async function handleStartupOAuthCallbacks() {
   const urlParams = new URLSearchParams(window.location.search);
   const oauthCode = urlParams.get('code');
   const oauthState = urlParams.get('state');
+  const oauthError = urlParams.get('error');
+  if (!wearableHandled && oauthError && hasPendingOpenRouterOAuthSession()) {
+    handleOpenRouterOAuthError(oauthError, urlParams.get('error_description'));
+    return;
+  }
   if (!wearableHandled && oauthCode) {
     await handleOpenRouterOAuthCallback(oauthCode, oauthState);
   }

@@ -619,15 +619,20 @@ async function _reconcileLocalStorageWithEvolu() {
   // (onDataSaved or enableSync) will handle it. Skip.
   if (!existing) return;
   let remoteImported;
+  let localAiSettingsDiffer = false;
   try {
     const parsed = await parseSyncPayload(existing.dataJson);
     remoteImported = parsed?.importedData || null;
+    const remoteAiSettings = parsed?.aiSettings || {};
+    const localAiSettings = await collectAISettings();
+    localAiSettingsDiffer = Object.entries(localAiSettings)
+      .some(([key, val]) => remoteAiSettings?.[key] !== val);
   } catch {
     // Malformed row → reconciliation can't reason about it. The user can
     // still recover via the Force Resend button.
     return;
   }
-  if (!remoteImported) return;
+  if (!remoteImported && !localAiSettingsDiffer) return;
 
   // Reuse the rebroadcast helper — same semantic ("local has anything remote
   // doesn't reflect"), same id-keyed array list, same pickTimestamp tiebreak.
@@ -635,13 +640,14 @@ async function _reconcileLocalStorageWithEvolu() {
   // local has remote lacks. Without (b) the start-then-stop-then-close sequence
   // strands the stop on the phone forever — relay row keeps endedAt=null and
   // every other device shows the session as still running.
-  const localHasUnsynced = localHasRowsRemoteLacks(state.importedData, remoteImported);
-  if (!localHasUnsynced) {
-    dbg('Startup reconciliation: localStorage and Evolu row match — nothing to do');
+  const localHasUnsynced = remoteImported ? localHasRowsRemoteLacks(state.importedData, remoteImported) : false;
+  if (!localHasUnsynced && !localAiSettingsDiffer) {
+    dbg('Startup reconciliation: localStorage, AI settings, and Evolu row match — nothing to do');
     return;
   }
-  dbg('Startup reconciliation: localStorage has unsynced rows (new ids or higher-ts same-id) vs Evolu row');
-  _logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} — local has unsynced rows (lost-debounce catch-up)`);
+  const reason = localHasUnsynced ? 'unsynced rows' : 'newer local AI settings';
+  dbg(`Startup reconciliation: localStorage has ${reason} vs Evolu row`);
+  _logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} — local has ${reason}`);
   // Force-push so the next watchdog cycle can't lose us a clearly-needed
   // catch-up. Bypasses the _syncing guard if it was wedged from a prior
   // session — the same wedge that caused the divergence in the first place.
@@ -892,6 +898,19 @@ const AI_SETTINGS_KEYS = [
   'labcharts-lens-key',               // Custom Knowledge Source API key (encrypted)
 ];
 
+const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
+const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
+
+function shouldKeepLocalOpenRouterOAuthSetting(key) {
+  if (!OPENROUTER_OAUTH_LOCAL_SETTING_KEYS.has(key)) return false;
+  try {
+    const until = Number(sessionStorage.getItem(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY) || '0');
+    return Number.isFinite(until) && Date.now() < until;
+  } catch {
+    return false;
+  }
+}
+
 async function collectAISettings() {
   const settings = {};
   for (const key of AI_SETTINGS_KEYS) {
@@ -908,6 +927,7 @@ async function applyAISettings(settings) {
   for (const [key, val] of Object.entries(settings)) {
     if (!AI_SETTINGS_KEYS.includes(key)) continue;
     if (typeof val !== 'string' || val.length > 10000) continue; // sanity check
+    if (shouldKeepLocalOpenRouterOAuthSetting(key)) continue;
     if (ENCRYPTED_AI_KEYS.includes(key)) {
       await encryptedSetItem(key, val);
     } else {

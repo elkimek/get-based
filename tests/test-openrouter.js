@@ -123,6 +123,10 @@ assert('window exports handleSaveOpenRouterKey', ppSrc.includes('handleSaveOpenR
 assert('window exports handleRemoveOpenRouterKey', ppSrc.includes('handleRemoveOpenRouterKey,'));
 assert('window exports renderOpenRouterModelDropdown', ppSrc.includes('renderOpenRouterModelDropdown,'));
 assert('window exports updateOpenRouterModelPricing', ppSrc.includes('updateOpenRouterModelPricing,'));
+assert('OpenRouter OAuth remembers previous provider before empty-key switch',
+  ppSrc.includes('rememberOpenRouterOAuthPreviousProvider(previousProvider)'));
+assert('manual OpenRouter key save clears pending OAuth restore state',
+  ppSrc.includes('clearOpenRouterOAuthSession();'));
 
 // ─── 4. chat.js source inspection ───
 console.log('\n4. chat.js source inspection');
@@ -233,10 +237,26 @@ assert('startOpenRouterOAuth stores verifier in sessionStorage', apiSrc.includes
 assert('exchangeOpenRouterCode reads verifier from sessionStorage', apiSrc.includes("sessionStorage.getItem('or_pkce_verifier'"));
 assert('startOpenRouterOAuth redirects to openrouter.ai/auth', apiSrc.includes('openrouter.ai/auth?callback_url='));
 assert('exchangeOpenRouterCode posts to auth/keys endpoint', apiSrc.includes('openrouter.ai/api/v1/auth/keys'));
+const startOAuthFn = apiSrc.match(/export async function startOpenRouterOAuth\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+assert('startOpenRouterOAuth preserves the previous provider for cancel/deny',
+  startOAuthFn.includes('OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY') && startOAuthFn.includes('getAIProvider()'));
+assert('startOpenRouterOAuth does not persist OpenRouter before callback success',
+  !startOAuthFn.includes("setAIProvider('openrouter')"));
 const startupOAuthSrc = read('js/startup-oauth-callbacks.js');
 assert('startup-oauth-callbacks.js checks for code URL param', startupOAuthSrc.includes("urlParams.get('code')") || startupOAuthSrc.includes("get('code')"));
 assert('startup-oauth-callbacks.js calls exchangeOpenRouterCode', startupOAuthSrc.includes('exchangeOpenRouterCode('));
 assert('startup-oauth-callbacks.js cleans URL via replaceState', startupOAuthSrc.includes('history.replaceState'));
+assert('startup-oauth-callbacks.js handles OpenRouter authorization denial',
+  startupOAuthSrc.includes("urlParams.get('error')") && startupOAuthSrc.includes('restoreOpenRouterOAuthPreviousProvider()'));
+assert('startup-oauth-callbacks.js clears pending OAuth state after callback',
+  startupOAuthSrc.includes('clearOpenRouterOAuthSession()'));
+assert('startup-oauth-callbacks.js marks fresh OpenRouter settings local for sync',
+  startupOAuthSrc.includes('markOpenRouterOAuthSettingsLocal()'));
+const syncSrc = read('js/sync.js');
+assert('sync preserves fresh OpenRouter OAuth provider/key against stale pull',
+  syncSrc.includes('shouldKeepLocalOpenRouterOAuthSetting') && syncSrc.includes("'labcharts-openrouter-key'"));
+assert('startup sync reconciliation pushes local AI setting drift',
+  syncSrc.includes('newer local AI settings') && syncSrc.includes('collectAISettings()'));
 const cssSrc = read('styles.css');
 assert('CSS: .or-oauth-btn defined', cssSrc.includes('.or-oauth-btn'));
 assert('CSS: .or-oauth-divider defined', cssSrc.includes('.or-oauth-divider'));

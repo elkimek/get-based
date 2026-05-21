@@ -2,7 +2,7 @@
 
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, loadScriptOnce } from './utils.js';
 import {
-  getVeniceKey, saveVeniceKey, getOpenRouterKey, saveOpenRouterKey, setAIProvider,
+  getVeniceKey, saveVeniceKey, getOpenRouterKey, saveOpenRouterKey, getAIProvider, setAIProvider,
   getVeniceModel, setVeniceModel, getOpenRouterModel, setOpenRouterModel,
   getOllamaMainModel, setOllamaMainModel, getOllamaPIIModel, setOllamaPIIModel,
   getOllamaPIIUrl, setOllamaPIIUrl,
@@ -18,7 +18,8 @@ import {
   getCustomApiModel, setCustomApiModel, fetchCustomApiModels, validateCustomApiKey,
   getPpqKey, savePpqKey, getPpqModel, setPpqModel, getPpqModelDisplay,
   fetchPpqModels, validatePpqKey, createPpqAccount, getPpqBalance, savePpqCreditId,
-  createPpqTopup, checkPpqTopupStatus
+  createPpqTopup, checkPpqTopupStatus,
+  rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession
 } from './api.js';
 import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, setOllamaPIIEnabled } from './pii.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
@@ -343,6 +344,12 @@ export function toggleAIPause(enabled) {
 }
 
 export function switchAIProvider(provider) {
+  const previousProvider = getAIProvider();
+  if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
+    rememberOpenRouterOAuthPreviousProvider(previousProvider);
+  } else if (provider !== 'openrouter') {
+    clearOpenRouterOAuthSession();
+  }
   setAIProvider(provider);
   // Clean up any running topup poll/countdown timers
   if (_ppqTopupPollTimer) { clearInterval(_ppqTopupPollTimer); _ppqTopupPollTimer = null; }
@@ -908,6 +915,7 @@ export async function handleSaveOpenRouterKey() {
   const result = await validateOpenRouterKey(key);
   if (result.valid) {
     await saveOpenRouterKey(key);
+    clearOpenRouterOAuthSession();
     status.innerHTML = '<span style="color:var(--green)">Connected — loading models\u2026</span>';
     const models = await fetchOpenRouterModels(key);
     if (models.length) {

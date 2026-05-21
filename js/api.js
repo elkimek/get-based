@@ -50,6 +50,14 @@ export function setAIProvider(provider) { localStorage.setItem('labcharts-ai-pro
 export function isAIPaused() { return localStorage.getItem('labcharts-ai-paused') === 'true'; }
 export function setAIPaused(v) { localStorage.setItem('labcharts-ai-paused', v ? 'true' : 'false'); }
 
+const OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY = 'or_previous_ai_provider';
+const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
+const OPENROUTER_OAUTH_PROVIDERS = new Set(['openrouter', 'venice', 'routstr', 'ppq', 'custom', 'ollama']);
+
+function _isValidAIProvider(provider) {
+  return typeof provider === 'string' && OPENROUTER_OAUTH_PROVIDERS.has(provider);
+}
+
 export function hasAIProvider() {
   if (isAIPaused()) return false;
   const provider = getAIProvider();
@@ -195,13 +203,42 @@ function _generateOAuthState() {
 export async function startOpenRouterOAuth() {
   const { codeVerifier, codeChallenge } = await generatePKCE();
   const state = _generateOAuthState();
+  const previousProvider = sessionStorage.getItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY) || getAIProvider();
+  if (_isValidAIProvider(previousProvider)) sessionStorage.setItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY, previousProvider);
   sessionStorage.setItem('or_pkce_verifier', codeVerifier);
   sessionStorage.setItem('or_oauth_state', state);
-  setAIProvider('openrouter');
   const callbackUrl = window.location.origin + window.location.pathname;
   // PKCE verifier-mismatch alone catches code-injection but not login-CSRF;
   // `state` binds the redirect to the tab that initiated it.
   window.location.href = 'https://openrouter.ai/auth?callback_url=' + encodeURIComponent(callbackUrl) + '&code_challenge=' + encodeURIComponent(codeChallenge) + '&code_challenge_method=S256&state=' + encodeURIComponent(state);
+}
+
+export function rememberOpenRouterOAuthPreviousProvider(provider = getAIProvider()) {
+  if (_isValidAIProvider(provider)) sessionStorage.setItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY, provider);
+}
+
+export function restoreOpenRouterOAuthPreviousProvider() {
+  const previousProvider = sessionStorage.getItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY);
+  sessionStorage.removeItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY);
+  if (_isValidAIProvider(previousProvider)) setAIProvider(previousProvider);
+}
+
+export function clearOpenRouterOAuthSession() {
+  sessionStorage.removeItem('or_pkce_verifier');
+  sessionStorage.removeItem('or_oauth_state');
+  sessionStorage.removeItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY);
+}
+
+export function hasPendingOpenRouterOAuthSession() {
+  return !!(
+    sessionStorage.getItem('or_pkce_verifier')
+    || sessionStorage.getItem('or_oauth_state')
+    || sessionStorage.getItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY)
+  );
+}
+
+export function markOpenRouterOAuthSettingsLocal() {
+  sessionStorage.setItem(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY, String(Date.now() + 5 * 60 * 1000));
 }
 
 export async function exchangeOpenRouterCode(code, returnedState) {
