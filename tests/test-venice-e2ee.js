@@ -44,6 +44,7 @@ assert('undefined is not E2EE', !window.isE2EEModel(undefined));
 
 // 3. venice-e2ee.js module loads and exports
 const e2eeMod = await import('../vendor/venice-e2ee.js');
+const chatAttestationMod = await import('../js/chat-attestation.js');
 assert('createVeniceE2EE exported', typeof e2eeMod.createVeniceE2EE === 'function');
 assert('generateKeypair exported', typeof e2eeMod.generateKeypair === 'function');
 assert('deriveAESKey exported', typeof e2eeMod.deriveAESKey === 'function');
@@ -54,6 +55,19 @@ assert('verifyAttestation exported', typeof e2eeMod.verifyAttestation === 'funct
 assert('isE2EEModel exported', typeof e2eeMod.isE2EEModel === 'function');
 assert('toHex exported', typeof e2eeMod.toHex === 'function');
 assert('fromHex exported', typeof e2eeMod.fromHex === 'function');
+assert('attestationTooltip exported', typeof chatAttestationMod.attestationTooltip === 'function');
+assert('e2eeLockHTML exported', typeof chatAttestationMod.e2eeLockHTML === 'function');
+assert('e2eeLockFootnote exported', typeof chatAttestationMod.e2eeLockFootnote === 'function');
+assert('attestationTooltip null-safe', chatAttestationMod.attestationTooltip(null) === 'TEE attestation: no data');
+const maliciousAttestation = {
+  nonceVerified: true,
+  signingKeyBound: true,
+  debugMode: false,
+  dcap: { status: '"><img src=x onerror=alert(1)>' }
+};
+const maliciousLock = chatAttestationMod.e2eeLockHTML(maliciousAttestation);
+assert('chat attestation title escapes quotes', maliciousLock.includes('&quot;&gt;&lt;img src=x onerror=alert(1)&gt;'), maliciousLock);
+assert('chat attestation title does not inject raw image tag', !maliciousLock.includes('"><img'), maliciousLock);
 
 // 4. noble-secp256k1 is bundled inside venice-e2ee.js
 assert('generateKeypair works (noble bundled)', typeof e2eeMod.generateKeypair() === 'object');
