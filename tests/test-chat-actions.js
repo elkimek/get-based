@@ -155,6 +155,7 @@ assert('CSS .chat-action-btn.active removed', !cssSrc.includes('.chat-action-btn
 // ─── Section 17: Source inspection — chat.js ───
 console.log('Section 17: Source inspection');
 const chatSrc = read('js/chat.js');
+const chatIconsSrc = read('js/chat-icons.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js has buildActionBar', chatSrc.includes('function buildActionBar'), 'found');
@@ -173,6 +174,8 @@ assert('chat renders output-limit note', chatSrc.includes('output limit reached'
 assert('chat persists truncated assistant state', chatSrc.includes('assistantMsg.truncated = true'), 'found');
 assert('renderChatMessages restores truncated note', chatSrc.includes('msg.truncated') && chatSrc.includes('_responseLimitNote()'), 'found');
 assert('regenerateLastMessage checks _chatAbortController', chatSrc.includes('_chatAbortController') && chatSrc.includes('regenerateLastMessage'), 'found');
+assert('chat.js imports chat icon helpers', chatSrc.includes("from './chat-icons.js'"), 'found');
+assert('chat-icons.js exports button content helper', chatIconsSrc.includes('export function setIconButtonContent'), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatSrc.includes('Response from') && chatSrc.includes('personalityName'), 'tags messages from different personas');
 

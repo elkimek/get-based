@@ -127,6 +127,7 @@ const pwaAppShellAssets = [
   '/js/sun-uvdata.js',
   '/js/chat-images.js',
   '/js/chat-threads.js',
+  '/js/chat-icons.js',
   '/js/lens.js',
   '/js/lens-local.js',
   '/js/lens-local-worker.js',

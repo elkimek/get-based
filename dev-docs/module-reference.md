@@ -497,6 +497,16 @@ AI chat panel and streaming.
 
 ---
 
+### `chat-icons.js`
+
+Shared chat SVG icon strings and icon-button DOM helper extracted from `chat.js`. Keeps `buildActionBar()` and streaming send/stop button state changes using the same symbols without keeping SVG construction code in the chat orchestration module.
+
+**Key exports:** `CHAT_ICON_COPY`, `CHAT_ICON_REFRESH`, `CHAT_ICON_EDIT`, `CHAT_ICON_X`, `setIconButtonContent`
+
+**Window exports:** none
+
+---
+
 ### `settings.js`
 
 Settings modal with 6 sections.

@@ -20,66 +20,11 @@ import { buildLabContext, getContextSummary, injectLensChunks } from './lab-cont
 import { hasLens, queryLensMulti, updateLensIndicator } from './lens.js';
 import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 import { renderProfileContextCards } from './context-cards.js';
+import { CHAT_ICON_COPY, CHAT_ICON_EDIT, CHAT_ICON_REFRESH, CHAT_ICON_X, setIconButtonContent } from './chat-icons.js';
 
 const CHAT_RESPONSE_MAX_TOKENS = 16384;
 const CHAT_AUTO_CONTINUE_LIMIT = 2;
 const CHAT_CONTINUE_PROMPT = 'Continue exactly where you stopped. Do not repeat anything already written. Finish the interrupted sentence first, then complete the answer.';
-const CHAT_ICON_SEND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
-const CHAT_ICON_STOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>';
-const CHAT_ICON_COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-const CHAT_ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
-const CHAT_ICON_REFRESH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.6 6.1"/><path d="M3 12A9 9 0 0 1 18.6 5.9"/><path d="M18 2v4h4"/><path d="M6 22v-4H2"/></svg>';
-const CHAT_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-const CHAT_ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-
-function _createChatIcon(kind) {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  const path = (d) => {
-    const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    el.setAttribute('d', d);
-    svg.appendChild(el);
-  };
-  if (kind === 'send') {
-    path('m22 2-7 20-4-9-9-4Z');
-    path('M22 2 11 13');
-  } else if (kind === 'stop') {
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', '7');
-    rect.setAttribute('y', '7');
-    rect.setAttribute('width', '10');
-    rect.setAttribute('height', '10');
-    rect.setAttribute('rx', '1');
-    svg.appendChild(rect);
-  } else if (kind === 'copy') {
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', '9');
-    rect.setAttribute('y', '9');
-    rect.setAttribute('width', '13');
-    rect.setAttribute('height', '13');
-    rect.setAttribute('rx', '2');
-    svg.appendChild(rect);
-    path('M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1');
-  } else if (kind === 'check') {
-    path('M20 6 9 17l-5-5');
-  } else {
-    path('M18 6 6 18');
-    path('m6 6 12 12');
-  }
-  return svg;
-}
-
-function _setIconButtonContent(btn, kind, label = '') {
-  if (!btn) return;
-  const nodes = [_createChatIcon(kind)];
-  if (label) {
-    const span = document.createElement('span');
-    span.textContent = label;
-    nodes.push(span);
-  }
-  btn.replaceChildren(...nodes);
-}
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -232,14 +177,14 @@ export function copyMessage(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg) return;
   const btn = document.getElementById(`chat-copy-btn-${msgIndex}`);
-  if (!navigator.clipboard) { if (btn) { _setIconButtonContent(btn, 'x', 'Not supported'); setTimeout(() => { _setIconButtonContent(btn, 'copy', 'Copy'); }, 1500); } return; }
+  if (!navigator.clipboard) { if (btn) { setIconButtonContent(btn, 'x', 'Not supported'); setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500); } return; }
   navigator.clipboard.writeText(msg.content).then(() => {
     if (btn) {
-      _setIconButtonContent(btn, 'check', 'Copied');
-      setTimeout(() => { _setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);
+      setIconButtonContent(btn, 'check', 'Copied');
+      setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);
     }
   }).catch(() => {
-    if (btn) { _setIconButtonContent(btn, 'x', 'Failed'); setTimeout(() => { _setIconButtonContent(btn, 'copy', 'Copy'); }, 1500); }
+    if (btn) { setIconButtonContent(btn, 'x', 'Failed'); setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500); }
   });
 }
 
@@ -2192,11 +2137,11 @@ function setSendButtonMode(btn, mode) {
   if (!btn) return;
   if (mode === 'streaming') {
     btn.disabled = false;
-    _setIconButtonContent(btn, 'stop');
+    setIconButtonContent(btn, 'stop');
     btn.classList.add('streaming');
   } else {
     btn.disabled = false;
-    _setIconButtonContent(btn, 'send');
+    setIconButtonContent(btn, 'send');
     btn.classList.remove('streaming');
   }
 }
