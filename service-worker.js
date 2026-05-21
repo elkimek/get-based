@@ -30,6 +30,7 @@ const APP_SHELL = [
   '/themes-extra.css',
   '/js/main.js',
   '/js/app-feature-modules.js',
+  '/js/app-health-data-modules.js',
   '/js/app-light-sun-modules.js',
   '/js/app-event-listeners.js',
   '/js/startup-orchestrator.js',

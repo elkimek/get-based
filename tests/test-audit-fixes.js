@@ -347,6 +347,7 @@ return (async function () {
     // app-feature-modules.js no longer imports it.
     const main = await fetchSrc('js/main.js');
     const appFeatures = await fetchSrc('js/app-feature-modules.js');
+    const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
     assert('main.js delegates feature side-effect imports',
       /import\s+['"]\.\/app-feature-modules\.js['"]/.test(main));
@@ -356,6 +357,10 @@ return (async function () {
       !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(main));
     assert('app-feature-modules.js delegates Light & Sun imports',
       /import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js delegates Health & Data imports',
+      /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
+    assert('app-health-data-modules.js retains wearables import',
+      /import\s+['"]\.\/wearables\.js['"]/.test(appHealthDataFeatures));
     // light-device-ai-analysis is still wired (the live version).
     assert('app-light-sun-modules.js retains light-device-ai-analysis import',
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));

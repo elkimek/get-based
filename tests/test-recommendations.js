@@ -215,8 +215,10 @@ globalThis.fetch = async (url, opts) => {
   console.log('%c 9. Integration Wiring ', 'font-weight:bold;color:#f59e0b');
 
   const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
+  const appHealthDataModulesSrc = await fetchWithRetry('js/app-health-data-modules.js');
   assert('main.js imports app-feature-modules.js', mainSrc.includes("import './app-feature-modules.js'"));
-  assert('app-feature-modules.js imports recommendations.js', appFeatureModulesSrc.includes("import './recommendations.js'"));
+  assert('app-feature-modules.js delegates health data modules', appFeatureModulesSrc.includes("import './app-health-data-modules.js'"));
+  assert('app-health-data-modules.js imports recommendations.js', appHealthDataModulesSrc.includes("import './recommendations.js'"));
   assert('marker-detail-modal.js has rec-modal placeholder', markerDetailSrc.includes('rec-modal-'));
   assert('marker-detail-modal.js calls renderRecommendationSection', markerDetailSrc.includes('renderRecommendationSection'));
   assert('marker-detail-modal.js shows recs for any marker with catalog slot', markerDetailSrc.includes('isProductRecsEnabled'));

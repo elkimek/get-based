@@ -29,6 +29,7 @@ tests/
 js/
   main.js           — Thin module entry point
   app-feature-modules.js — Startup-loaded feature side-effect imports/window exports
+  app-health-data-modules.js — Startup-loaded Health & Data feature side-effect imports
   app-light-sun-modules.js — Startup-loaded Light & Sun feature side-effect imports
   app-event-listeners.js — App-wide modal, keyboard, shortcut, and refresh wiring
   startup-orchestrator.js — Startup global wiring and phase ordering
@@ -95,7 +96,7 @@ index.html
         └── imports all other modules (directly or transitively)
 ```
 
-`main.js` imports startup-loaded feature modules from `app-feature-modules.js` and starts `startup-orchestrator.js`. Light & Sun startup feature imports are grouped behind `app-light-sun-modules.js`. The orchestrator installs startup globals, the lazy EMF facade, app-wide event listeners, and the refresh callback, then registers the `DOMContentLoaded` sequence. Encryption unlock, meteo cache hydration, cross-tab broadcast, and folder backup setup are delegated to `startup-foundation.js`; profile migration, cache warmup, and active-profile data loading are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; initial theme/sidebar/navigation/sync/changelog/header/chat/file-input UI bootstrap lives in `startup-ui.js`.
+`main.js` imports startup-loaded feature modules from `app-feature-modules.js` and starts `startup-orchestrator.js`. Health & Data startup feature imports are grouped behind `app-health-data-modules.js`; Light & Sun startup feature imports are grouped behind `app-light-sun-modules.js`. The orchestrator installs startup globals, the lazy EMF facade, app-wide event listeners, and the refresh callback, then registers the `DOMContentLoaded` sequence. Encryption unlock, meteo cache hydration, cross-tab broadcast, and folder backup setup are delegated to `startup-foundation.js`; profile migration, cache warmup, and active-profile data loading are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; initial theme/sidebar/navigation/sync/changelog/header/chat/file-input UI bootstrap lives in `startup-ui.js`.
 
 ## Navigation and dashboard IA
 

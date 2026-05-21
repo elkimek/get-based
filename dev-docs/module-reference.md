@@ -721,11 +721,21 @@ Thin module entry point. Imports startup feature side effects, then starts the s
 
 ### `app-feature-modules.js`
 
-Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration. The Light & Sun feature cluster is grouped behind `app-light-sun-modules.js`.
+Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration. The Health & Data feature cluster is grouped behind `app-health-data-modules.js`; the Light & Sun feature cluster is grouped behind `app-light-sun-modules.js`.
 
 **Key exports:** none
 
 **Window exports:** none directly; imported feature modules attach their existing compatibility handlers.
+
+---
+
+### `app-health-data-modules.js`
+
+Startup-loaded Health & Data feature side-effect imports extracted from `app-feature-modules.js`. This module preserves the previous charts/notes/supplements/recommendations/cycle/context/DNA/wearables import order while keeping the top-level feature list easier to scan.
+
+**Key exports:** none
+
+**Window exports:** none directly; imported Health & Data modules attach their existing compatibility handlers.
 
 ---
 
