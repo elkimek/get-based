@@ -1462,10 +1462,6 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   }
   body.mobile-dashboard-active .app-footer { display: none; }
   body.mobile-dashboard-active #chat-fab { display: none; }
-  body.mobile-dashboard-active #import-fab {
-    right: 16px;
-    bottom: calc(92px + env(safe-area-inset-bottom));
-  }
   .m-shell {
     position: relative;
     display: block;
@@ -1978,11 +1974,8 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   body.mobile-tabs-active #chat-fab {
     bottom: calc(92px + env(safe-area-inset-bottom));
   }
-  body.mobile-tabs-active #import-fab {
-    bottom: calc(148px + env(safe-area-inset-bottom));
-  }
   body.mobile-tabs-active #import-status-fab {
-    bottom: calc(204px + env(safe-area-inset-bottom));
+    bottom: calc(148px + env(safe-area-inset-bottom));
   }
   [data-theme="cyberterm"] .dashboard-greeting h1::before,
   [data-theme="cyberterm"] .m-greeting h1::before {
@@ -6205,21 +6198,8 @@ details[open] > .cl-archived-header::before { content: '\25BE '; }
 .settings-theme-swatch-glass { background: linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%); border-radius: 12px; }
 .settings-theme-swatch-synth-sunrise { background: linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%); border-radius: 2px; }
 .settings-theme-swatch-neuromancer { background: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%); border-radius: 0; }
-/* Chat FAB */
-.import-fab {
-  position: fixed; bottom: 92px; right: 24px; z-index: 240;
-  width: 44px; height: 44px; border-radius: 50%;
-  background: var(--bg-card); color: var(--text-muted);
-  cursor: pointer; box-shadow: var(--shadow-lg); border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  transition: transform 0.15s, box-shadow 0.15s, color 0.15s, border-color 0.15s;
-}
-.import-fab:hover { transform: scale(1.08); color: var(--accent); border-color: var(--accent); box-shadow: 0 4px 20px rgba(79,140,255,0.2); }
-.import-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.import-fab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.import-fab.hidden { display: none; }
 .import-status-fab {
-  position: fixed; bottom: 160px; right: 24px; z-index: 1001;
+  position: fixed; bottom: 92px; right: 24px; z-index: 1001;
   height: 36px; border-radius: 18px; padding: 0 12px 0 10px;
   background: var(--bg-card); color: var(--text-muted);
   cursor: pointer; box-shadow: var(--shadow-lg); border: 1px solid var(--border);
@@ -9446,9 +9426,7 @@ body.import-focus .welcome-hero > .drop-zone {
   .notification-container { right: 8px; left: 8px; }
   .notification-toast { min-width: 0; width: 100%; }
   .confirm-dialog { padding: 22px 18px; }
-  .import-fab { width: 40px; height: 40px; bottom: 72px; right: 16px; }
-  .import-fab svg { width: 18px; height: 18px; }
-  .import-status-fab { bottom: 128px; right: 16px; height: 32px; padding: 0 10px 0 8px; }
+  .import-status-fab { bottom: 72px; right: 16px; height: 32px; padding: 0 10px 0 8px; }
   .import-status-fab svg { width: 12px; height: 12px; }
   .chat-fab { width: 48px; height: 48px; bottom: 16px; right: 16px; }
   .chat-fab svg { width: 22px; height: 22px; }

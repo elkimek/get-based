@@ -80,7 +80,7 @@ assert('Exactly 5 steps in EMPTY_TOUR_STEPS', emptyStepMatches && emptyStepMatch
 console.log('2b. Data Tour Steps Content');
 
 assert('Step 1: Welcome (null target)', tourSrc.includes("target: null, title: 'Welcome to getbased'"));
-assert('Step 2: Import controls', tourSrc.includes("target: '.header-import-btn, #import-fab, #drop-zone', title: 'Import Health Data'"));
+assert('Step 2: Import controls', tourSrc.includes("target: '.header-import-btn, #drop-zone', title: 'Import Health Data'"));
 assert('Step 3: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles & Demo Data'"));
 assert('Step 4: Lens navigation', tourSrc.includes("target: '.nav-item[data-category=\"labs\"], #sidebar-toggle, .m-tabbar', title: 'Five Lenses'"));
 assert('Step 5: Dashboard overview', tourSrc.includes("target: '.dashboard-greeting', title: 'Dashboard Overview'"));

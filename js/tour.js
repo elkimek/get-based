@@ -13,7 +13,7 @@ const EMPTY_TOUR_STEPS = [
 
 const TOUR_STEPS = [
   { target: null, title: 'Welcome to getbased', text: 'Health intelligence that\'s actually yours \u2014 five lenses on your biology, one private dashboard. Let\'s take a quick look around.', position: 'center' },
-  { target: '.header-import-btn, #import-fab, #drop-zone', title: 'Import Health Data', text: 'Import lab PDFs, report photos, DNA raw data, or getbased JSON. You can also drop files directly onto the page.', position: 'bottom' },
+  { target: '.header-import-btn, #drop-zone', title: 'Import Health Data', text: 'Import lab PDFs, report photos, DNA raw data, or getbased JSON. You can also drop files directly onto the page.', position: 'bottom' },
   { target: '.profile-compact-btn', title: 'Profiles & Demo Data', text: 'Switch profiles, manage clients, or load demo data from here. Each profile keeps its own data, settings, and tour progress.', position: 'bottom' },
   { target: '.nav-item[data-category="labs"], #sidebar-toggle, .m-tabbar', title: 'Five Lenses', text: 'Move between Dashboard, Labs, Genome, Body, Light, Insight, and Recommendations. Desktop uses the sidebar; smaller screens use tabs and the menu.', position: 'right' },
   { target: '.dashboard-greeting', title: 'Dashboard Overview', text: 'The dashboard summarizes the current profile. After import, widgets surface focus areas, priorities, recommendations, body data, and light context.', position: 'bottom' },

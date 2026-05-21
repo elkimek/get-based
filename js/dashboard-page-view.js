@@ -111,10 +111,6 @@ export function createDashboardPageView(deps) {
     const hasWearableData = Object.values(wearableMetrics).some(metric => metric?.latest != null);
     const hasData = data.dates.length > 0 || hasWearableData || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
 
-    // Show/hide import FAB based on whether dashboard has data
-    const importFab = document.getElementById('import-fab');
-    if (importFab) importFab.classList.toggle('hidden', !hasData);
-
     // Clear any onboarding focus mode once the user has data — the
     // welcome-hero / context-details targets no longer exist in the
     // data view, so the dimmed-peer rules would be no-ops anyway,

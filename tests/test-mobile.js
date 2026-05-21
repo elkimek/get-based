@@ -86,9 +86,9 @@ return (async function() {
     themesSrc.includes('[data-theme="glass"] .tweaks-panel') &&
     themesSrc.includes('rgba(24, 18, 48, 0.94)') &&
     themesSrc.includes('[data-theme="glass"] .tweaks-overlay.show'));
-  assert('mobile FABs clear persistent bottom tabs',
+  assert('mobile floating controls clear persistent bottom tabs',
     css.includes('body.mobile-tabs-active #chat-fab') &&
-    css.includes('body.mobile-tabs-active #import-fab'));
+    css.includes('body.mobile-tabs-active #import-status-fab'));
   assert('mobile consent banner clears persistent bottom tabs',
     css.includes('body.mobile-tabs-active .analytics-consent-banner') &&
     css.includes('bottom: calc(96px + env(safe-area-inset-bottom))'));

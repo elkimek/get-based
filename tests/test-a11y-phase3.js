@@ -136,13 +136,14 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('import-progress updates aria-valuenow',
     importSrc.includes("bar.setAttribute('aria-valuenow', String(pct))"));
 
-  // ─── 10. import-fab focus-visible ───
+  // ─── 10. Header import button remains the import entry point ───
   const cssSrc = read('/styles.css');
-  assert('.import-fab has :focus-visible outline',
-    cssSrc.includes('.import-fab:focus-visible { outline: 2px solid var(--accent)'));
 
   // ─── 11. theme-color light variant + footer emoji removed ───
   const indexSrc = read('/index.html');
+  assert('header import button is present and floating import FAB is removed',
+    indexSrc.includes('class="header-icon-btn header-import-btn"') &&
+    !indexSrc.includes('id="import-fab"'));
   assert('theme-color has light-mode variant',
     indexSrc.includes('media="(prefers-color-scheme: light)"'));
   assert('saved theme applies browser chrome color before app boot',

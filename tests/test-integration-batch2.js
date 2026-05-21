@@ -150,8 +150,8 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // Count TOUR_STEPS entries
   const stepMatches = tourSrc.match(/\{ target:/g);
   assert('8 tour steps', stepMatches?.length >= 8, `found ${stepMatches?.length}`);
-  // Import FAB step
-  assert('Tour has #import-fab step', tourSrc.includes("#import-fab"));
+  // Import entry point step
+  assert('Tour has header import step', tourSrc.includes(".header-import-btn"));
   // Profile button step
   assert('Tour has profile button step', tourSrc.includes('.profile-compact-btn'));
 
