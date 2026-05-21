@@ -507,6 +507,16 @@ Shared chat SVG icon strings and icon-button DOM helper extracted from `chat.js`
 
 ---
 
+### `chat-attestation.js`
+
+Venice E2EE attestation display helpers shared by the chat header and assistant-message cost footnotes. Keeps lock glyph, attestation tooltip, and verified/failed mark formatting out of the chat orchestration module.
+
+**Key exports:** `attestationTooltip`, `e2eeLockHTML`, `e2eeLockFootnote`
+
+**Window exports:** none
+
+---
+
 ### `chat-continuation.js`
 
 Response limit detection and automatic continuation wrapper for chat and discussion calls. Centralizes token-headroom constants, incomplete-response heuristics, continuation prompt construction, and usage merging.

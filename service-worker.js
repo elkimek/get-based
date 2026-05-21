@@ -71,6 +71,7 @@ const APP_SHELL = [
   '/js/pdf-import.js',
   '/js/export.js',
   '/js/chat.js',
+  '/js/chat-attestation.js',
   '/js/chat-icons.js',
   '/js/chat-continuation.js',
   '/js/chat-prompt-context.js',

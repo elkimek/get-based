@@ -150,8 +150,10 @@ assert('provider-panels has venice-e2ee-toggle', providerSrc.includes('venice-e2
 assert('provider-panels has venice-e2ee-indicator', providerSrc.includes('venice-e2ee-indicator'));
 assert('provider-panels has toggleVeniceE2EE', providerSrc.includes('toggleVeniceE2EE'));
 const chatSrc = read('js/chat.js');
+const chatAttestationSrc = read('js/chat-attestation.js');
 assert('chat uses isVeniceE2EEActive', chatSrc.includes('isVeniceE2EEActive'));
-assert('chat shows lock emoji for E2EE', chatSrc.includes('\\uD83D\\uDD12'));
+assert('chat imports E2EE attestation helpers', chatSrc.includes("from './chat-attestation.js'"));
+assert('chat attestation shows lock emoji for E2EE', chatAttestationSrc.includes('\\uD83D\\uDD12'));
 assert('chat exports refreshWebSearchToggle', chatSrc.includes('refreshWebSearchToggle'));
 
 console.log(results.join('\n'));

@@ -159,6 +159,7 @@ assert('CSS .chat-action-btn.active removed', !cssSrc.includes('.chat-action-btn
 // ─── Section 17: Source inspection — chat.js ───
 console.log('Section 17: Source inspection');
 const chatSrc = read('js/chat.js');
+const chatAttestationSrc = read('js/chat-attestation.js');
 const chatIconsSrc = read('js/chat-icons.js');
 const chatSummariesSrc = read('js/chat-summaries.js');
 const chatContinuationSrc = read('js/chat-continuation.js');
@@ -190,6 +191,8 @@ assert('chat.js imports continuation helpers', chatSrc.includes("from './chat-co
 assert('chat-continuation.js exports continuation helper', chatContinuationSrc.includes('export async function callChatAPIWithContinuation'), 'found');
 assert('chat.js imports prompt context helpers', chatSrc.includes("from './chat-prompt-context.js'"), 'found');
 assert('chat-prompt-context.js exports tagged messages helper', chatPromptContextSrc.includes('export function buildTaggedChatMessages'), 'found');
+assert('chat.js imports attestation helpers', chatSrc.includes("from './chat-attestation.js'"), 'found');
+assert('chat-attestation.js exports E2EE lock footnote helper', chatAttestationSrc.includes('export function e2eeLockFootnote'), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 
