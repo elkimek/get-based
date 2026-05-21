@@ -713,13 +713,25 @@ Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 
 **Responsibilities:**
 - Imports all feature modules (side-effect imports for window exports)
-- Initializes encryption, backup, and startup profile data
+- Delegates encryption, backup, and meteo bootstrap to `startup-foundation.js`
+- Initializes startup profile data
 - Delegates startup service boot and post-profile maintenance to `startup-maintenance.js`
 - Delegates wearable/OpenRouter callback routing to `startup-oauth-callbacks.js`
 - Delegates first-render UI bootstrap to `startup-ui.js`
 - Installs app-wide event and refresh wiring through `app-event-listeners.js`
 
 **Window exports:** none (all exports come from other modules)
+
+---
+
+### `startup-foundation.js`
+
+Blocking startup foundation extracted from `main.js`: encryption unlock, decrypted meteo config cache hydration, cross-tab broadcast setup, and folder backup handle restoration.
+
+**Key exports:**
+- `initializeStartupFoundation()` — runs the blocking security/storage bootstrap before wearable services or profile data load
+
+**Window exports:** none
 
 ---
 

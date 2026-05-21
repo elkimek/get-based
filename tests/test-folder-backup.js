@@ -144,10 +144,10 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
   // 9. Startup calls initFolderBackup and maybeShowBackupNudge
   // ═══════════════════════════════════════════════
   try {
-    const mainSrc = read('/js/main.js');
+    const foundationSrc = read('/js/startup-foundation.js');
     const startupUiSrc = read('/js/startup-ui.js');
-    assert('main.js imports initFolderBackup', mainSrc.includes('initFolderBackup'));
-    assert('main.js awaits initFolderBackup', mainSrc.includes('await initFolderBackup()'));
+    assert('startup-foundation.js imports initFolderBackup', foundationSrc.includes('initFolderBackup'));
+    assert('startup-foundation.js awaits initFolderBackup', foundationSrc.includes('await initFolderBackup()'));
     assert('startup-ui.js imports maybeShowBackupNudge', startupUiSrc.includes('maybeShowBackupNudge'));
   } catch (e) {
     assert('startup folder backup init', false, e.message);

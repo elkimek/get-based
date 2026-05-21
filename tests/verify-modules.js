@@ -559,6 +559,9 @@
     const hasAppEventListenersJs = sw.includes('/js/app-event-listeners.js');
     assert('Service worker caches js/app-event-listeners.js', hasAppEventListenersJs);
 
+    const hasStartupFoundationJs = sw.includes('/js/startup-foundation.js');
+    assert('Service worker caches js/startup-foundation.js', hasStartupFoundationJs);
+
     const hasStartupProfileJs = sw.includes('/js/startup-profile.js');
     assert('Service worker caches js/startup-profile.js', hasStartupProfileJs);
 

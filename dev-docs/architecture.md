@@ -29,6 +29,7 @@ tests/
 js/
   main.js           — Entry point: DOMContentLoaded startup orchestration
   app-event-listeners.js — App-wide modal, keyboard, shortcut, and refresh wiring
+  startup-foundation.js — Encryption, meteo cache, broadcast, and folder backup bootstrap
   startup-profile.js — Profile migration, active-profile load, and display-state bootstrap
   startup-oauth-callbacks.js — Wearable/OpenRouter callback routing during startup
   startup-maintenance.js — Wearable startup services and post-profile maintenance jobs
@@ -90,7 +91,7 @@ index.html
         └── imports all other modules (directly or transitively)
 ```
 
-`main.js` registers the `DOMContentLoaded` listener and orders the startup phases. Profile migration, cache warmup, and active-profile data loading are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; initial theme/sidebar/navigation/sync/changelog/header/chat/file-input UI bootstrap lives in `startup-ui.js`; app-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`.
+`main.js` registers the `DOMContentLoaded` listener and orders the startup phases. Encryption unlock, meteo cache hydration, cross-tab broadcast, and folder backup setup are delegated to `startup-foundation.js`; profile migration, cache warmup, and active-profile data loading are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; initial theme/sidebar/navigation/sync/changelog/header/chat/file-input UI bootstrap lives in `startup-ui.js`; app-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`.
 
 ## Navigation and dashboard IA
 

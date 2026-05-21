@@ -5,6 +5,7 @@ window._getActiveProfileId = () => state.currentProfile;
 import './schema.js';
 import './constants.js';
 import './utils.js';
+import { initializeStartupFoundation } from './startup-foundation.js';
 import { initializeProfileData } from './startup-profile.js';
 import { handleStartupOAuthCallbacks } from './startup-oauth-callbacks.js';
 import { renderStartupUI } from './startup-ui.js';
@@ -55,8 +56,6 @@ import './touch-tooltip.js';
 import { installGlobalEventListeners, registerAppRefreshCallback } from './app-event-listeners.js';
 import './client-list.js';
 import './views.js';
-import { initEncryption, initBroadcastChannel, initFolderBackup } from './crypto.js';
-import { initMeteoConfigCache } from './sun-uvdata.js';
 
 installGlobalEventListeners();
 registerAppRefreshCallback();
@@ -65,17 +64,7 @@ registerAppRefreshCallback();
 // INIT
 // ═══════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", async () => {
-  // Initialize encryption (shows passphrase modal if enabled, blocks until unlocked)
-  await initEncryption();
-  // Decrypt the meteo config (selfhostBearer is sensitive at-rest — see
-  // sun-uvdata.js header note). Run AFTER initEncryption so the session
-  // key is available to encryptedGetItem; the cache is then sync-readable
-  // by getMeteoConfig() callers (sun-context.js, settings.js, providers).
-  await initMeteoConfigCache();
-  // Initialize cross-tab sync
-  initBroadcastChannel();
-  // Initialize folder backup (restore persisted handle, check permission)
-  await initFolderBackup();
+  await initializeStartupFoundation();
 
   initializeStartupServices();
 

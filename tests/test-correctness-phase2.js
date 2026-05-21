@@ -76,6 +76,7 @@ const pwaAppShellAssets = [
   '/vendor/evolu/sqlite3-worker1-bundler-friendly.mjs',
   '/vendor/evolu/sqlite3.wasm',
   '/js/app-event-listeners.js',
+  '/js/startup-foundation.js',
   '/js/startup-profile.js',
   '/js/startup-oauth-callbacks.js',
   '/js/startup-maintenance.js',

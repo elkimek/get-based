@@ -433,12 +433,15 @@ try {
 console.log('18. startup async init');
 try {
   const src = await fetchWithRetry('js/main.js');
+  const foundationSrc = await fetchWithRetry('js/startup-foundation.js');
   assert('DOMContentLoaded is async', src.includes('async ()'));
-  assert('main.js awaits initEncryption', src.includes('await initEncryption()'));
-  assert('main.js calls initBroadcastChannel', src.includes('initBroadcastChannel()'));
+  assert('main.js awaits initializeStartupFoundation', src.includes('await initializeStartupFoundation()'));
   assert('main.js awaits initializeProfileData', src.includes('await initializeProfileData()'));
+  assert('main.js imports startup-foundation.js', src.includes("from './startup-foundation.js'"));
   assert('main.js imports startup-profile.js', src.includes("from './startup-profile.js'"));
-  assert('main.js imports from crypto.js', src.includes("from './crypto.js'"));
+  assert('startup-foundation.js awaits initEncryption', foundationSrc.includes('await initEncryption()'));
+  assert('startup-foundation.js calls initBroadcastChannel', foundationSrc.includes('initBroadcastChannel()'));
+  assert('startup-foundation.js imports from crypto.js', foundationSrc.includes("from './crypto.js'"));
 
   const startupSrc = await fetchWithRetry('js/startup-profile.js');
   assert('startup-profile.js exports initializeProfileData', startupSrc.includes('export async function initializeProfileData'));

@@ -36,6 +36,7 @@ const APP_SHELL = [
   '/js/utils.js',
   '/js/theme.js',
   '/js/api.js',
+  '/js/startup-foundation.js',
   '/js/startup-profile.js',
   '/js/startup-oauth-callbacks.js',
   '/js/startup-maintenance.js',
