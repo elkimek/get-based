@@ -170,9 +170,9 @@ assert('chat raises response token headroom', chatContinuationSrc.includes('CHAT
 assert('chat auto-continues token-limit stops', chatContinuationSrc.includes('CHAT_AUTO_CONTINUE_LIMIT') && chatContinuationSrc.includes('callChatAPIWithContinuation'), 'found');
 assert('chat auto-continues likely mid-sentence stops', chatContinuationSrc.includes('isLikelyIncompleteResponse') && chatContinuationSrc.includes('shouldAutoContinueResponse'), 'found');
 assert('chat incomplete heuristic does not continue solely because final line is long',
-  !chatSrc.includes('return lastLine.length > 60'), 'length-only fallback removed');
+  !chatSrc.includes('return lastLine.length > 60') && !chatContinuationSrc.includes('return lastLine.length > 60'), 'length-only fallback removed');
 assert('chat incomplete heuristic does not continue on terminal high/low adjectives',
-  !chatSrc.includes('low|high') && !chatSrc.includes('high|low'), 'medical adjectives removed from trailing-word fallback');
+  !chatSrc.includes('low|high') && !chatSrc.includes('high|low') && !chatContinuationSrc.includes('low|high') && !chatContinuationSrc.includes('high|low'), 'medical adjectives removed from trailing-word fallback');
 assert('chat renders output-limit note', chatContinuationSrc.includes('output limit reached'), 'found');
 assert('chat persists truncated assistant state', chatSrc.includes('assistantMsg.truncated = true'), 'found');
 assert('renderChatMessages restores truncated note', chatSrc.includes('msg.truncated') && chatSrc.includes('responseLimitNote()'), 'found');
