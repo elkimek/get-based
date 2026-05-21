@@ -85,7 +85,7 @@ function removeConnection(adapterId) {
 // ─────────────────────────────────────────────────────────
 
 // Starts the OAuth flow. Navigates away from the current page — control
-// returns via the redirect handler in main.js (see `handleOAuthCallbackOnLoad`).
+// returns via the redirect handler in startup-oauth-callbacks.js.
 export function beginConnectOAuth(adapterId) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);

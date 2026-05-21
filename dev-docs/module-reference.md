@@ -714,6 +714,7 @@ Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 **Responsibilities:**
 - Imports all feature modules (side-effect imports for window exports)
 - Initializes encryption, backup, sync, wearable scheduler, and startup profile data
+- Delegates wearable/OpenRouter callback routing to `startup-oauth-callbacks.js`
 - Installs app-wide event and refresh wiring through `app-event-listeners.js`
 - Binds hidden file-picker import routing through `import-file-input.js`
 - Calls initial `navigate('dashboard')`
@@ -729,6 +730,17 @@ Profile startup bootstrap extracted from `main.js`: legacy v1 profile migration,
 **Key exports:**
 - `initializeProfileData()` — creates the default profile for legacy users, migrates old imported data through encrypted storage, warms the profile cache, sets `state.currentProfile`, and loads active imported data before OAuth callbacks can persist profile-scoped data
 - `applyProfileDisplayState()` — applies saved units/range mode plus sex/DOB metadata to `state` and the startup toggle controls
+
+**Window exports:** none
+
+---
+
+### `startup-oauth-callbacks.js`
+
+Startup OAuth callback routing extracted from `main.js`. Wearable callbacks run first after profile load; if they do not consume the URL code, OpenRouter OAuth handles the same `?code=`/`state` pair.
+
+**Key exports:**
+- `handleStartupOAuthCallbacks()` — delegates wearable OAuth callback handling, exchanges OpenRouter codes with state verification, stores the OpenRouter key, switches the active AI provider, and opens chat after init
 
 **Window exports:** none
 
@@ -911,7 +923,7 @@ Connect/disconnect/backfill orchestration. OAuth dispatch table, scheduled stale
 **Key exports:**
 - `OAUTH_DISPATCH` — `{adapterId: {begin, isCallback, complete, withFreshToken, fetchAccountInfo, fetchRange, displayName, postConnect?, commitAfterWrite?}}` — generic OAuth orchestration table
 - `beginConnectOAuth(adapterId)` — kicks off the auth flow; reads `clientId` via `getOAuthClientId(adapter)`
-- `handleOAuthCallbackOnLoad()` — runs in `main.js` init; reads `pending.clientId` from sessionStorage (set at begin time, NOT from runtime config)
+- `handleOAuthCallbackOnLoad()` — runs via `startup-oauth-callbacks.js` init; reads `pending.clientId` from sessionStorage (set at begin time, NOT from runtime config)
 - `getConnection(adapterId)` / `listConnectedSources()` / `disconnectAdapter(adapterId)`
 - `syncNow(adapterId, opts?)` / `forceBackfill(adapterId, days)`
 - `initWearableScheduler()` — visibility-change + 6h interval poll; awaits `runtimeConfigReady()` before first sync to prevent race against override fetch

@@ -37,6 +37,7 @@ const APP_SHELL = [
   '/js/theme.js',
   '/js/api.js',
   '/js/startup-profile.js',
+  '/js/startup-oauth-callbacks.js',
   '/js/import-loader.js',
   '/js/import-file-input.js',
   '/js/import-drop-zone.js',

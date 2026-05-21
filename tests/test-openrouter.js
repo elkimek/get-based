@@ -233,10 +233,10 @@ assert('startOpenRouterOAuth stores verifier in sessionStorage', apiSrc.includes
 assert('exchangeOpenRouterCode reads verifier from sessionStorage', apiSrc.includes("sessionStorage.getItem('or_pkce_verifier'"));
 assert('startOpenRouterOAuth redirects to openrouter.ai/auth', apiSrc.includes('openrouter.ai/auth?callback_url='));
 assert('exchangeOpenRouterCode posts to auth/keys endpoint', apiSrc.includes('openrouter.ai/api/v1/auth/keys'));
-const mainSrc = read('js/main.js');
-assert('main.js checks for code URL param', mainSrc.includes("urlParams.get('code')") || mainSrc.includes("get('code')"));
-assert('main.js calls exchangeOpenRouterCode', mainSrc.includes('exchangeOpenRouterCode('));
-assert('main.js cleans URL via replaceState', mainSrc.includes('history.replaceState'));
+const startupOAuthSrc = read('js/startup-oauth-callbacks.js');
+assert('startup-oauth-callbacks.js checks for code URL param', startupOAuthSrc.includes("urlParams.get('code')") || startupOAuthSrc.includes("get('code')"));
+assert('startup-oauth-callbacks.js calls exchangeOpenRouterCode', startupOAuthSrc.includes('exchangeOpenRouterCode('));
+assert('startup-oauth-callbacks.js cleans URL via replaceState', startupOAuthSrc.includes('history.replaceState'));
 const cssSrc = read('styles.css');
 assert('CSS: .or-oauth-btn defined', cssSrc.includes('.or-oauth-btn'));
 assert('CSS: .or-oauth-divider defined', cssSrc.includes('.or-oauth-divider'));

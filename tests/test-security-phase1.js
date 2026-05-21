@@ -69,9 +69,9 @@ assert('exchangeOpenRouterCode verifies returned state',
   apiSrc.includes('returnedState !== expectedState'));
 assert('exchangeOpenRouterCode clears state on success and on mismatch',
   (apiSrc.match(/sessionStorage\.removeItem\('or_oauth_state'\)/g) || []).length >= 2);
-const mainSrc = read('js/main.js');
-assert('main.js forwards state to exchangeOpenRouterCode',
-  mainSrc.includes('exchangeOpenRouterCode(oauthCode, oauthState)'));
+const startupOAuthSrc = read('js/startup-oauth-callbacks.js');
+assert('startup-oauth-callbacks.js forwards state to exchangeOpenRouterCode',
+  startupOAuthSrc.includes('exchangeOpenRouterCode(oauthCode, oauthState)'));
 
 // ─── 4. Wearable OAuth pending-state expiry ───
 console.log('\n4. Wearable OAuth expiry');

@@ -6,10 +6,10 @@ import './schema.js';
 import './constants.js';
 import './utils.js';
 import { getTheme, setTheme } from './theme.js';
-import { exchangeOpenRouterCode, saveOpenRouterKey, setAIProvider, fetchOpenRouterModels } from './api.js';
 import { updateHeaderDates, updateHeaderRangeToggle } from './data.js';
 import { bindImportFileInput } from './import-file-input.js';
 import { initializeProfileData, applyProfileDisplayState } from './startup-profile.js';
+import { handleStartupOAuthCallbacks } from './startup-oauth-callbacks.js';
 import './pii.js';
 import './charts.js';
 import './notes.js';
@@ -24,7 +24,7 @@ for (const fn of _emfFns) {
 }
 import { ensureSNPTable, ensureHaplogroupTable } from './dna.js';
 import './wearables.js';
-import { initWearableScheduler, handleOAuthCallbackOnLoad, loadWearableRuntimeConfig } from './wearables-connect.js';
+import { initWearableScheduler, loadWearableRuntimeConfig } from './wearables-connect.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
 import './sun-uvdata.js';
 import './sun-spectrum.js';
@@ -141,41 +141,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     })
     .catch(() => { /* non-fatal; Safari can refuse IDB in some contexts */ });
 
-  // Handle wearable OAuth2 callback (Oura / Withings / Ultrahuman / WHOOP / Fitbit) — must run
-  // AFTER profile load so saveConnection writes to the active profile's state + localStorage.
-  // Distinguishable by presence of a pending state entry in sessionStorage; if handled we skip
-  // the OpenRouter path below so the same code isn't double-processed.
-  const ouraHandled = await handleOAuthCallbackOnLoad();
-
-  // Handle OpenRouter OAuth callback (?code=...)
-  const urlParams = new URLSearchParams(window.location.search);
-  const oauthCode = urlParams.get('code');
-  const oauthState = urlParams.get('state');
-  if (!ouraHandled && oauthCode) {
-    history.replaceState(null, '', window.location.pathname);
-    try {
-      const key = await exchangeOpenRouterCode(oauthCode, oauthState);
-      await saveOpenRouterKey(key);
-      setAIProvider('openrouter');
-      fetchOpenRouterModels(key);
-      window._openChatAfterInit = true;
-      window.showNotification('Connected to OpenRouter successfully!', 'success');
-      // Proactive zero-balance check: a brand-new OpenRouter account has
-      // no credits, and the user otherwise discovers this via a vanishing
-      // 402 toast on their first AI call. Show the persistent dialog now
-      // so they can add credits or pick a free model before getting lost.
-      try {
-        const { getOpenRouterBalance } = await import('./api.js');
-        const balance = await getOpenRouterBalance();
-        const remaining = balance?.remaining;
-        if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && window.showInsufficientBalanceDialog) {
-          setTimeout(() => window.showInsufficientBalanceDialog(), 1500);
-        }
-      } catch {}
-    } catch (e) {
-      window.showNotification('OpenRouter connection failed: ' + e.message, 'error', 6000);
-    }
-  }
+  await handleStartupOAuthCallbacks();
 
   // Prime sync state for UI, but let Evolu boot after first paint. Its
   // worker/OPFS startup is expensive and should not block dashboard LCP.
