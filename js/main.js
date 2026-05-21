@@ -9,6 +9,7 @@ import { initializeStartupFoundation } from './startup-foundation.js';
 import { initializeProfileData } from './startup-profile.js';
 import { handleStartupOAuthCallbacks } from './startup-oauth-callbacks.js';
 import { renderStartupUI } from './startup-ui.js';
+import { installEMFLazyFacade } from './emf-facade.js';
 import './pii.js';
 import './charts.js';
 import './notes.js';
@@ -16,11 +17,6 @@ import './supplements.js';
 import './recommendations.js';
 import './cycle.js';
 import './context-cards.js';
-// emf.js is lazy-loaded on first use (1053 lines, only needed when user opens EMF editor)
-const _emfFns = ['openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment','selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment','updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','saveEMFExplicit','toggleEMFCompare','interpretEMFAssessment','interpretEMFComparison','closeEMFInterpretation','discussEMFInterpretation','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','handleEMFPDF'];
-for (const fn of _emfFns) {
-  window[fn] = async function(...args) { const mod = await import('./emf.js'); for (const f of _emfFns) window[f] = mod[f]; return mod[fn](...args); };
-}
 import './dna.js';
 import './wearables.js';
 import { initializeStartupServices, runPostProfileStartupMaintenance } from './startup-maintenance.js';
@@ -57,6 +53,7 @@ import { installGlobalEventListeners, registerAppRefreshCallback } from './app-e
 import './client-list.js';
 import './views.js';
 
+installEMFLazyFacade();
 installGlobalEventListeners();
 registerAppRefreshCallback();
 

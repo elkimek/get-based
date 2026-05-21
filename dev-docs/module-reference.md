@@ -719,8 +719,21 @@ Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 - Delegates wearable/OpenRouter callback routing to `startup-oauth-callbacks.js`
 - Delegates first-render UI bootstrap to `startup-ui.js`
 - Installs app-wide event and refresh wiring through `app-event-listeners.js`
+- Installs lazy EMF window handlers through `emf-facade.js`
 
 **Window exports:** none (all exports come from other modules)
+
+---
+
+### `emf-facade.js`
+
+Lazy window facade for the EMF assessment module extracted from `main.js`. It installs async `window.*` handlers for EMF editor and assessment actions, then imports `emf.js` on first use and replaces the facade handlers with the real module exports.
+
+**Key exports:**
+- `EMF_LAZY_WINDOW_FUNCTIONS` — list of EMF window handlers covered by the lazy facade
+- `installEMFLazyFacade()` — installs lazy handlers during app startup
+
+**Window exports:** EMF handler names from `EMF_LAZY_WINDOW_FUNCTIONS`
 
 ---
 

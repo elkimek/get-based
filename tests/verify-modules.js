@@ -574,6 +574,9 @@
     const hasStartupUiJs = sw.includes('/js/startup-ui.js');
     assert('Service worker caches js/startup-ui.js', hasStartupUiJs);
 
+    const hasEmfFacadeJs = sw.includes('/js/emf-facade.js');
+    assert('Service worker caches js/emf-facade.js', hasEmfFacadeJs);
+
     const hasViewsJs = sw.includes('/js/views.js');
     assert('Service worker caches js/views.js', hasViewsJs);
 

@@ -15,6 +15,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+
 let pass = 0, _failCount = 0, _skipCount = 0;
 const assert = (name, condition, detail) => {
   if (condition) { pass++; console.log(`  PASS: ${name}`); }
@@ -123,9 +126,19 @@ assert('44. Bedroom in room presets', EMF_ROOM_PRESETS.includes('Bedroom'));
 
 // ── Lazy-load stub sync check ──
 const emfMod = await import('../js/emf.js');
+const emfFacadeMod = await import('../js/emf-facade.js');
 const emfWindowFns = ['openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment','selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment','updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','saveEMFExplicit','toggleEMFCompare','interpretEMFAssessment','interpretEMFComparison','closeEMFInterpretation','discussEMFInterpretation','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','handleEMFPDF'];
 const missingExports = emfWindowFns.filter(fn => typeof emfMod[fn] !== 'function');
 assert('45. All lazy-stub fns exist in emf.js exports', missingExports.length === 0, missingExports.join(', '));
+assert('45a. EMF lazy facade exports installer', typeof emfFacadeMod.installEMFLazyFacade === 'function');
+assert('45b. EMF lazy facade list matches expected window functions',
+  Array.isArray(emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS) &&
+  emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS.length === emfWindowFns.length &&
+  emfWindowFns.every(fn => emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS.includes(fn)));
+const mainSrc = read('js/main.js');
+assert('45c. main.js imports the EMF lazy facade', mainSrc.includes("from './emf-facade.js'"));
+assert('45d. main.js installs the EMF lazy facade', mainSrc.includes('installEMFLazyFacade()'));
+assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('const _emfFns'));
 
 // ── EMF affiliate catalog (Safe Living Technologies) ──
 const recsMod = await import('../js/recommendations.js');
@@ -138,8 +151,6 @@ assert('50. renderEMFMitigationRecs exported', typeof recsMod.renderEMFMitigatio
 // loadEMFCatalog fetches data/recommendations.json — install an fs-backed
 // fetch shim so the relative path resolves in Node. (fs/path/url imports
 // are grouped at the top of the file.)
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 const _realFetch = globalThis.fetch;
 globalThis.fetch = async (url, opts) => {
   if (typeof url === 'string' && !/^https?:/.test(url)) {

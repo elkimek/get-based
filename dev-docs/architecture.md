@@ -34,6 +34,7 @@ js/
   startup-oauth-callbacks.js — Wearable/OpenRouter callback routing during startup
   startup-maintenance.js — Wearable startup services and post-profile maintenance jobs
   startup-ui.js    — First-render UI bootstrap after profile/OAuth startup
+  emf-facade.js    — Lazy window facade for the EMF assessment module
   schema.js         — MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES
   constants.js      — Option arrays, CHAT_PERSONALITIES, fake data, COUNTRY_LATITUDES
   state.js          — Single shared mutable state object
