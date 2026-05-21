@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled } from './utils.js';
 import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
-import { getAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
+import { getAIProvider, setAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel, getOpenRouterKey, rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession } from './api.js';
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICompatible } from './pii.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { isSyncEnabled, enableSync, disableSync, getMnemonic, getMnemonicResolutionError, getSyncBlocker, restoreFromMnemonic, getSyncRelay, setSyncRelay, checkRelayConnection, isMessengerEnabled, getMessengerToken, generateMessengerToken, revokeMessengerToken, pushContextToGateway } from './sync.js';
@@ -38,16 +38,41 @@ function installProviderPanelBridge(name) {
   window[name] = bridge;
 }
 
+function setProviderButtonState(provider) {
+  document.querySelectorAll('.ai-provider-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.provider === provider);
+  });
+}
+
+function switchAIProviderBridge(provider) {
+  const previousProvider = getAIProvider();
+  if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
+    rememberOpenRouterOAuthPreviousProvider(previousProvider);
+  } else if (provider !== 'openrouter') {
+    clearOpenRouterOAuthSession();
+  }
+  setAIProvider(provider);
+  setProviderButtonState(provider);
+  const panel = document.getElementById('ai-provider-panel');
+  if (panel) panel.innerHTML = '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
+  loadProviderPanels().then(() => {
+    const fn = window.switchAIProvider;
+    if (typeof fn === 'function' && fn !== switchAIProviderBridge) return fn(provider);
+    if (panel && typeof window.renderAIProviderPanel === 'function') panel.innerHTML = window.renderAIProviderPanel(provider);
+  }).catch(() => {});
+}
+
 window.renderAIProviderPanel = renderAIProviderPanelBridge;
+window.switchAIProvider = switchAIProviderBridge;
 [
   'toggleAIPause',
-  'switchAIProvider',
   'initSettingsModelFetch',
   'initSettingsOllamaCheck',
   'testOllamaConnection',
   'testPIIOllamaConnection',
   'refreshVeniceBalance',
   'updateVeniceModelPricing',
+  'onVeniceModelDropdownChange',
   'toggleVeniceE2EE',
   'updateOpenRouterModelPricing',
   'updateRoutstrModelPricing',

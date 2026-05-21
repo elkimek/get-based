@@ -45,8 +45,16 @@ export function deduplicateModels(models, familyFn) {
     return true;
   });
 }
+function notifyAISelectionChanged() {
+  window.updateChatHeaderModel?.();
+  window.refreshWebSearchToggle?.();
+}
+
 export function getAIProvider() { return localStorage.getItem('labcharts-ai-provider') || 'openrouter'; }
-export function setAIProvider(provider) { localStorage.setItem('labcharts-ai-provider', provider); }
+export function setAIProvider(provider) {
+  localStorage.setItem('labcharts-ai-provider', provider);
+  notifyAISelectionChanged();
+}
 export function isAIPaused() { return localStorage.getItem('labcharts-ai-paused') === 'true'; }
 export function setAIPaused(v) { localStorage.setItem('labcharts-ai-paused', v ? 'true' : 'false'); }
 
@@ -70,7 +78,10 @@ export function hasAIProvider() {
 }
 
 export function getOllamaMainModel() { return localStorage.getItem('labcharts-ollama-model') || window.getOllamaConfig().model || 'llama3.2'; }
-export function setOllamaMainModel(model) { localStorage.setItem('labcharts-ollama-model', model); }
+export function setOllamaMainModel(model) {
+  localStorage.setItem('labcharts-ollama-model', model);
+  notifyAISelectionChanged();
+}
 export function getOllamaPIIUrl() { return localStorage.getItem('labcharts-ollama-pii-url') || window.getOllamaConfig().url; }
 export function setOllamaPIIUrl(url) { localStorage.setItem('labcharts-ollama-pii-url', url); }
 export function getOllamaPIIModel() { return localStorage.getItem('labcharts-ollama-pii-model') || getOllamaMainModel(); }
@@ -98,7 +109,10 @@ export async function getVeniceBalance() {
   } catch { return null; }
 }
 export function getVeniceModel() { return localStorage.getItem('labcharts-venice-model') || 'llama-3.3-70b'; }
-export function setVeniceModel(model) { localStorage.setItem('labcharts-venice-model', model); }
+export function setVeniceModel(model) {
+  localStorage.setItem('labcharts-venice-model', model);
+  notifyAISelectionChanged();
+}
 
 function readStoredArray(key) {
   try {
@@ -193,7 +207,10 @@ export function getRoutstrKey() { return getCachedKey('labcharts-routstr-key') |
 export async function saveRoutstrKey(key) { await encryptedSetItem('labcharts-routstr-key', key); updateKeyCache('labcharts-routstr-key', key); }
 export function hasRoutstrKey() { return !!getRoutstrKey(); }
 export function getRoutstrModel() { return localStorage.getItem('labcharts-routstr-model') || 'claude-sonnet-4.6'; }
-export function setRoutstrModel(model) { localStorage.setItem('labcharts-routstr-model', model); }
+export function setRoutstrModel(model) {
+  localStorage.setItem('labcharts-routstr-model', model);
+  notifyAISelectionChanged();
+}
 export function getRoutstrModelDisplay() {
   const id = getRoutstrModel();
   let cached = []; try { cached = JSON.parse(localStorage.getItem('labcharts-routstr-models') || '[]'); } catch(e) {}
@@ -206,7 +223,10 @@ export function getPpqKey() { return getCachedKey('labcharts-ppq-key') || ''; }
 export async function savePpqKey(key) { await encryptedSetItem('labcharts-ppq-key', key); updateKeyCache('labcharts-ppq-key', key); }
 export function hasPpqKey() { return !!getPpqKey(); }
 export function getPpqModel() { return localStorage.getItem('labcharts-ppq-model') || 'claude-sonnet-4.6'; }
-export function setPpqModel(model) { localStorage.setItem('labcharts-ppq-model', model); }
+export function setPpqModel(model) {
+  localStorage.setItem('labcharts-ppq-model', model);
+  notifyAISelectionChanged();
+}
 export function getPpqModelDisplay() {
   const id = getPpqModel();
   let cached = []; try { cached = JSON.parse(localStorage.getItem('labcharts-ppq-models') || '[]'); } catch(e) {}
@@ -223,7 +243,10 @@ export function getCustomApiKey() { return getCachedKey('labcharts-custom-key') 
 export async function saveCustomApiKey(key) { await encryptedSetItem('labcharts-custom-key', key); updateKeyCache('labcharts-custom-key', key); }
 export function hasCustomApiKey() { return !!getCustomApiKey(); }
 export function getCustomApiModel() { return localStorage.getItem('labcharts-custom-model') || ''; }
-export function setCustomApiModel(model) { localStorage.setItem('labcharts-custom-model', model); }
+export function setCustomApiModel(model) {
+  localStorage.setItem('labcharts-custom-model', model);
+  notifyAISelectionChanged();
+}
 export function getCustomApiModelDisplay() {
   const id = getCustomApiModel();
   if (!id) return '(no model selected)';
@@ -237,7 +260,10 @@ export function getOpenRouterModel() {
   if (m === 'anthropic/claude-sonnet-4-6') { m = 'anthropic/claude-sonnet-4.6'; localStorage.setItem('labcharts-openrouter-model', m); }
   return m || 'anthropic/claude-sonnet-4.6';
 }
-export function setOpenRouterModel(model) { localStorage.setItem('labcharts-openrouter-model', model); }
+export function setOpenRouterModel(model) {
+  localStorage.setItem('labcharts-openrouter-model', model);
+  notifyAISelectionChanged();
+}
 export function getOpenRouterModelDisplay() {
   const id = getOpenRouterModel();
   let cached = []; try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models') || '[]'); } catch(e) {}

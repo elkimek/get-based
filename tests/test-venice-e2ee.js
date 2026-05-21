@@ -147,6 +147,23 @@ if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
 if (savedE2EE) localStorage.setItem('labcharts-venice-e2ee', savedE2EE);
 else localStorage.removeItem('labcharts-venice-e2ee');
 
+// 13b. Model setters refresh active chat UI immediately
+let veniceHeaderRefreshCount = 0;
+let veniceWebToggleRefreshCount = 0;
+const savedHeaderRefresh = window.updateChatHeaderModel;
+const savedWebToggleRefresh = window.refreshWebSearchToggle;
+window.updateChatHeaderModel = () => { veniceHeaderRefreshCount += 1; };
+window.refreshWebSearchToggle = () => { veniceWebToggleRefreshCount += 1; };
+window.setVeniceModel('llama-3.3-70b');
+assert('setVeniceModel refreshes chat header', veniceHeaderRefreshCount === 1, `count=${veniceHeaderRefreshCount}`);
+assert('setVeniceModel refreshes web-search state', veniceWebToggleRefreshCount === 1, `count=${veniceWebToggleRefreshCount}`);
+if (savedHeaderRefresh) window.updateChatHeaderModel = savedHeaderRefresh;
+else delete window.updateChatHeaderModel;
+if (savedWebToggleRefresh) window.refreshWebSearchToggle = savedWebToggleRefresh;
+else delete window.refreshWebSearchToggle;
+if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
+else localStorage.removeItem('labcharts-venice-model');
+
 // 14. supportsWebSearch respects E2EE model
 const savedProvider = localStorage.getItem('labcharts-ai-provider');
 window.setAIProvider('venice');
@@ -211,6 +228,8 @@ const providerSrc = read('js/provider-panels.js');
 assert('provider-panels has venice-e2ee-toggle', providerSrc.includes('venice-e2ee-toggle'));
 assert('provider-panels has venice-e2ee-indicator', providerSrc.includes('venice-e2ee-indicator'));
 assert('provider-panels has toggleVeniceE2EE', providerSrc.includes('toggleVeniceE2EE'));
+assert('provider-panels has Venice model change handler', providerSrc.includes('function onVeniceModelDropdownChange'));
+assert('Venice model dropdown uses change handler', providerSrc.includes('onchange="onVeniceModelDropdownChange(this.value)"'));
 const chatSrc = read('js/chat.js');
 const chatAttestationSrc = read('js/chat-attestation.js');
 assert('chat uses isVeniceE2EEActive', chatSrc.includes('isVeniceE2EEActive'));
