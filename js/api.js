@@ -99,9 +99,70 @@ export async function getVeniceBalance() {
 }
 export function getVeniceModel() { return localStorage.getItem('labcharts-venice-model') || 'llama-3.3-70b'; }
 export function setVeniceModel(model) { localStorage.setItem('labcharts-venice-model', model); }
+
+function readStoredArray(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function modelListHasId(models, id) {
+  return models.some(function(m) { return m && m.id === id; });
+}
+
+function modelSupportsVeniceE2EE(model) {
+  const supports = model?.model_spec?.capabilities?.supportsE2EE;
+  if (supports === true) return true;
+  if (supports === false) return false;
+  return typeof model?.id === 'string' && model.id.startsWith('e2ee-');
+}
+
+function preferredVeniceModelId(models, savedId, preferLlama = false) {
+  if (!models.length) return '';
+  if (savedId && modelListHasId(models, savedId)) return savedId;
+  if (preferLlama) {
+    const llama = models.find(function(m) { return m.id && m.id.includes('llama-3.3-70b'); });
+    if (llama) return llama.id;
+  }
+  return models[0].id;
+}
+
+function syncVeniceModelSelection(regularModels, e2eeModels) {
+  const current = getVeniceModel();
+  const e2eeOn = getVeniceE2EE();
+  if (e2eeOn) {
+    if (e2eeModels.length) {
+      if (!modelListHasId(e2eeModels, current)) {
+        const next = preferredVeniceModelId(e2eeModels, localStorage.getItem('labcharts-venice-model-e2ee'));
+        if (next) {
+          setVeniceModel(next);
+          localStorage.setItem('labcharts-venice-model-e2ee', next);
+        }
+      }
+      return;
+    }
+    if (regularModels.length) setVeniceE2EE(false);
+  }
+  if (regularModels.length && !modelListHasId(regularModels, getVeniceModel())) {
+    const next = preferredVeniceModelId(regularModels, localStorage.getItem('labcharts-venice-model-regular'), true);
+    if (next) setVeniceModel(next);
+  }
+}
+
+function veniceModelsCacheStale() {
+  const fetchedAt = Number(localStorage.getItem('labcharts-venice-models-fetched-at') || 0);
+  return !fetchedAt || Date.now() - fetchedAt > 60 * 60 * 1000;
+}
+
 export function getVeniceModelDisplay() {
   const id = getVeniceModel();
-  let cached = []; try { cached = JSON.parse(localStorage.getItem('labcharts-venice-models') || '[]'); } catch(e) {}
+  const cached = [
+    ...readStoredArray('labcharts-venice-models'),
+    ...readStoredArray('labcharts-venice-e2ee-models')
+  ];
   const m = cached.find(function(x) { return x.id === id; });
   return m ? (m.name || m.id) : id;
 }
@@ -454,10 +515,12 @@ export async function fetchVeniceModels(key) {
     const json = await res.json();
     // Sort descending so latest version comes first per family
     const allText = (json.data || []).filter(function(m) { return m.id && m.type === 'text'; }).sort(function(a, b) { return b.id.localeCompare(a.id); });
-    // Cache E2EE models separately
-    const e2eeList = allText.filter(function(m) { return m.id.startsWith('e2ee-'); });
+    // Cache E2EE models separately. The capability flag is authoritative;
+    // keep a prefix fallback for older Venice responses that did not include it.
+    const e2eeList = allText.filter(modelSupportsVeniceE2EE);
     localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify(e2eeList));
-    const all = allText.filter(function(m) { return !m.id.startsWith('e2ee-'); });
+    const e2eeIds = new Set(e2eeList.map(function(m) { return m.id; }));
+    const all = allText.filter(function(m) { return !e2eeIds.has(m.id) && !m.id.startsWith('e2ee-'); });
     // Deduplicate: Venice curates Claude models (no date-stamped variants), so keep all.
     // For others, strip size/date suffixes to collapse duplicates.
     const models = deduplicateModels(all, function(id) {
@@ -478,10 +541,8 @@ export async function fetchVeniceModels(key) {
     const visionIds = allText.filter(m => m.model_spec?.capabilities?.supportsVision).map(m => m.id);
     localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-venice-models', JSON.stringify(models));
-    if (!localStorage.getItem('labcharts-venice-model') && models.length) {
-      const llama = models.find(function(m) { return m.id.includes('llama-3.3-70b'); });
-      if (llama) setVeniceModel(llama.id);
-    }
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    syncVeniceModelSelection(models, e2eeList);
     return models;
   } catch (e) { return []; }
 }
@@ -596,7 +657,10 @@ export function supportsWebSearch() {
 }
 
 export function isE2EEModel(modelId) {
-  return typeof modelId === 'string' && modelId.startsWith('e2ee-');
+  if (typeof modelId !== 'string') return false;
+  const e2eeModels = readStoredArray('labcharts-venice-e2ee-models');
+  if (e2eeModels.length) return modelListHasId(e2eeModels, modelId);
+  return modelId.startsWith('e2ee-');
 }
 
 // Is Venice E2EE currently active?
@@ -908,7 +972,18 @@ export async function callOpenAICompatibleLocalAPI(opts) {
 export async function callVeniceAPI(opts) {
   const key = getVeniceKey();
   if (!key) throw new Error('No Venice API key configured. Add your key in Settings.');
-  const modelId = getVeniceModel();
+  const e2eeRequested = getVeniceE2EE() || getVeniceModel().startsWith('e2ee-');
+  const regularModels = readStoredArray('labcharts-venice-models');
+  const e2eeModels = readStoredArray('labcharts-venice-e2ee-models');
+  if (regularModels.length || e2eeModels.length) syncVeniceModelSelection(regularModels, e2eeModels);
+  let modelId = getVeniceModel();
+  if (isE2EEModel(modelId) && veniceModelsCacheStale()) {
+    await fetchVeniceModels(key);
+    modelId = getVeniceModel();
+  }
+  if (e2eeRequested && !isE2EEModel(modelId)) {
+    throw new Error('Venice E2EE is enabled, but no current Venice E2EE model is available. Refresh Venice models in Settings and choose an E2EE model.');
+  }
 
   if (!isE2EEModel(modelId)) {
     const extraBody = opts.webSearch ? { venice_parameters: { enable_web_search: 'on' } } : {};

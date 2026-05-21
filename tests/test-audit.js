@@ -394,7 +394,7 @@ if (apoMatch) {
 console.log('7. Error Handling');
 
 const apiSrc = read('js/api.js');
-assert('Venice models JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-venice-models')"));
+assert('Venice models JSON.parse guarded', apiSrc.includes('function readStoredArray(key)'));
 assert('OpenRouter models JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models')"));
 assert('OpenRouter pricing JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-pricing')"));
 

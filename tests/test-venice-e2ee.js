@@ -158,7 +158,55 @@ if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
 if (savedProvider) window.setAIProvider(savedProvider);
 else localStorage.removeItem('labcharts-ai-provider');
 
-// 15. Settings + Chat source checks
+// 15. Venice model cache handles stale E2EE selections
+const savedVeniceModels = localStorage.getItem('labcharts-venice-models');
+const savedVeniceE2EEModels = localStorage.getItem('labcharts-venice-e2ee-models');
+const savedVeniceFetchedAt = localStorage.getItem('labcharts-venice-models-fetched-at');
+const savedVeniceModelRegular = localStorage.getItem('labcharts-venice-model-regular');
+const savedVeniceModelE2EE = localStorage.getItem('labcharts-venice-model-e2ee');
+const originalFetch = globalThis.fetch;
+try {
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      data: [
+        { id: 'e2ee-qwen3-30b-a3b-p', name: 'Old E2EE Qwen', type: 'text', model_spec: { capabilities: { supportsE2EE: false } } },
+        { id: 'e2ee-qwen3-5-122b-a10b', name: 'Current E2EE Qwen', type: 'text', model_spec: { capabilities: { supportsE2EE: true } } },
+        { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', type: 'text', model_spec: { capabilities: { supportsE2EE: false } } },
+      ]
+    })
+  });
+  window.setVeniceE2EE(true);
+  window.setVeniceModel('e2ee-qwen3-30b-a3b-p');
+  await window.fetchVeniceModels('test-key');
+  const cachedE2EE = JSON.parse(localStorage.getItem('labcharts-venice-e2ee-models') || '[]');
+  const cachedRegular = JSON.parse(localStorage.getItem('labcharts-venice-models') || '[]');
+  assert('fetchVeniceModels uses supportsE2EE capability', cachedE2EE.length === 1 && cachedE2EE[0].id === 'e2ee-qwen3-5-122b-a10b', JSON.stringify(cachedE2EE.map(m => m.id)));
+  assert('unsupported e2ee prefix is not cached as regular Venice model', !cachedRegular.some(m => m.id === 'e2ee-qwen3-30b-a3b-p'), JSON.stringify(cachedRegular.map(m => m.id)));
+  assert('stale E2EE model replaced with current E2EE model', window.getVeniceModel() === 'e2ee-qwen3-5-122b-a10b', window.getVeniceModel());
+  assert('stale E2EE prefix no longer active after capability cache', !window.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
+} catch (e) {
+  assert('Venice E2EE model cache refresh threw no error', false, e.message);
+} finally {
+  if (originalFetch) globalThis.fetch = originalFetch;
+  else delete globalThis.fetch;
+  if (savedVeniceModels) localStorage.setItem('labcharts-venice-models', savedVeniceModels);
+  else localStorage.removeItem('labcharts-venice-models');
+  if (savedVeniceE2EEModels) localStorage.setItem('labcharts-venice-e2ee-models', savedVeniceE2EEModels);
+  else localStorage.removeItem('labcharts-venice-e2ee-models');
+  if (savedVeniceFetchedAt) localStorage.setItem('labcharts-venice-models-fetched-at', savedVeniceFetchedAt);
+  else localStorage.removeItem('labcharts-venice-models-fetched-at');
+  if (savedVeniceModelRegular) localStorage.setItem('labcharts-venice-model-regular', savedVeniceModelRegular);
+  else localStorage.removeItem('labcharts-venice-model-regular');
+  if (savedVeniceModelE2EE) localStorage.setItem('labcharts-venice-model-e2ee', savedVeniceModelE2EE);
+  else localStorage.removeItem('labcharts-venice-model-e2ee');
+  if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
+  else localStorage.removeItem('labcharts-venice-model');
+  if (savedE2EE) localStorage.setItem('labcharts-venice-e2ee', savedE2EE);
+  else localStorage.removeItem('labcharts-venice-e2ee');
+}
+
+// 16. Settings + Chat source checks
 const providerSrc = read('js/provider-panels.js');
 assert('provider-panels has venice-e2ee-toggle', providerSrc.includes('venice-e2ee-toggle'));
 assert('provider-panels has venice-e2ee-indicator', providerSrc.includes('venice-e2ee-indicator'));

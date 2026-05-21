@@ -854,6 +854,7 @@ export function handleRemoveVeniceKey() {
   localStorage.removeItem('labcharts-venice-key');
   updateKeyCache('labcharts-venice-key', null);
   localStorage.removeItem('labcharts-venice-models');
+  localStorage.removeItem('labcharts-venice-models-fetched-at');
   localStorage.removeItem('labcharts-venice-model');
   localStorage.removeItem('labcharts-venice-e2ee');
   localStorage.removeItem('labcharts-venice-e2ee-models');
