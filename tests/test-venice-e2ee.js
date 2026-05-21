@@ -24,6 +24,7 @@ console.log('=== Venice E2EE Tests ===\n');
 // Import api.js so its `Object.assign(window, ...)` exposes the
 // isE2EEModel / setVeniceE2EE / getVeniceE2EE / etc. handlers.
 await import('../js/api.js');
+const cryptoMod = await import('../js/crypto.js');
 
 // 1. Source: api.js has isE2EEModel and E2EE branch
 const apiSrc = read('js/api.js');
@@ -221,6 +222,133 @@ try {
   else localStorage.removeItem('labcharts-venice-model');
   if (savedE2EE) localStorage.setItem('labcharts-venice-e2ee', savedE2EE);
   else localStorage.removeItem('labcharts-venice-e2ee');
+}
+
+// 15b. callVeniceAPI reconciles E2EE capability cache before guarding
+{
+  const savedVeniceModelsB = localStorage.getItem('labcharts-venice-models');
+  const savedVeniceE2EEModelsB = localStorage.getItem('labcharts-venice-e2ee-models');
+  const savedVeniceFetchedAtB = localStorage.getItem('labcharts-venice-models-fetched-at');
+  const savedVeniceModelRegularB = localStorage.getItem('labcharts-venice-model-regular');
+  const savedVeniceModelE2EEB = localStorage.getItem('labcharts-venice-model-e2ee');
+  const savedVeniceKeyB = localStorage.getItem('labcharts-venice-key');
+  const savedVeniceCachedKeyB = cryptoMod.getCachedKey('labcharts-venice-key');
+  const originalFetchB = globalThis.fetch;
+  try {
+    cryptoMod.updateKeyCache('labcharts-venice-key', 'test-key');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([
+      { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', type: 'text', model_spec: { capabilities: { supportsE2EE: false } } }
+    ]));
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    localStorage.removeItem('labcharts-venice-model-regular');
+    localStorage.removeItem('labcharts-venice-model-e2ee');
+    window.setVeniceE2EE(false);
+    window.setVeniceModel('e2ee-qwen3-30b-a3b-p');
+
+    let capturedModel = '';
+    globalThis.fetch = async (_url, options) => {
+      capturedModel = JSON.parse(options.body).model;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 }
+        })
+      };
+    };
+
+    await window.callVeniceAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
+    assert('deprecated E2EE prefix migrates to regular Venice model', capturedModel === 'llama-3.3-70b', capturedModel);
+    assert('deprecated E2EE prefix is inactive with empty capability cache', !window.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
+    assert('deprecated E2EE prefix does not enable Venice E2EE', window.getVeniceE2EE() === false);
+  } catch (e) {
+    assert('deprecated E2EE prefix Venice call threw no error', false, e.message);
+  } finally {
+    if (originalFetchB) globalThis.fetch = originalFetchB;
+    else delete globalThis.fetch;
+    if (savedVeniceModelsB) localStorage.setItem('labcharts-venice-models', savedVeniceModelsB);
+    else localStorage.removeItem('labcharts-venice-models');
+    if (savedVeniceE2EEModelsB) localStorage.setItem('labcharts-venice-e2ee-models', savedVeniceE2EEModelsB);
+    else localStorage.removeItem('labcharts-venice-e2ee-models');
+    if (savedVeniceFetchedAtB) localStorage.setItem('labcharts-venice-models-fetched-at', savedVeniceFetchedAtB);
+    else localStorage.removeItem('labcharts-venice-models-fetched-at');
+    if (savedVeniceModelRegularB) localStorage.setItem('labcharts-venice-model-regular', savedVeniceModelRegularB);
+    else localStorage.removeItem('labcharts-venice-model-regular');
+    if (savedVeniceModelE2EEB) localStorage.setItem('labcharts-venice-model-e2ee', savedVeniceModelE2EEB);
+    else localStorage.removeItem('labcharts-venice-model-e2ee');
+    if (savedVeniceKeyB) localStorage.setItem('labcharts-venice-key', savedVeniceKeyB);
+    else localStorage.removeItem('labcharts-venice-key');
+    if (savedVeniceCachedKeyB) cryptoMod.updateKeyCache('labcharts-venice-key', savedVeniceCachedKeyB);
+    else cryptoMod.updateKeyCache('labcharts-venice-key', null);
+    if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
+    else localStorage.removeItem('labcharts-venice-model');
+    if (savedE2EE) localStorage.setItem('labcharts-venice-e2ee', savedE2EE);
+    else localStorage.removeItem('labcharts-venice-e2ee');
+  }
+}
+
+// 15c. Missing current E2EE models must fail without mutating the toggle
+{
+  const savedVeniceModelsC = localStorage.getItem('labcharts-venice-models');
+  const savedVeniceE2EEModelsC = localStorage.getItem('labcharts-venice-e2ee-models');
+  const savedVeniceFetchedAtC = localStorage.getItem('labcharts-venice-models-fetched-at');
+  const savedVeniceKeyC = localStorage.getItem('labcharts-venice-key');
+  const savedVeniceCachedKeyC = cryptoMod.getCachedKey('labcharts-venice-key');
+  const originalFetchC = globalThis.fetch;
+  try {
+    cryptoMod.updateKeyCache('labcharts-venice-key', 'test-key');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([
+      { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', type: 'text', model_spec: { capabilities: { supportsE2EE: false } } }
+    ]));
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    window.setVeniceE2EE(true);
+    window.setVeniceModel('llama-3.3-70b');
+
+    let completionCalls = 0;
+    globalThis.fetch = async () => {
+      completionCalls += 1;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 }
+        })
+      };
+    };
+
+    let errorMessage = '';
+    try {
+      await window.callVeniceAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
+    } catch (e) {
+      errorMessage = e.message;
+    }
+    assert('missing Venice E2EE models blocks unencrypted fallback', errorMessage.includes('no current Venice E2EE model'), errorMessage);
+    assert('missing Venice E2EE models preserves E2EE toggle', window.getVeniceE2EE() === true);
+    assert('missing Venice E2EE models skips completion request', completionCalls === 0, `calls=${completionCalls}`);
+  } catch (e) {
+    assert('missing Venice E2EE model guard threw no unexpected error', false, e.message);
+  } finally {
+    if (originalFetchC) globalThis.fetch = originalFetchC;
+    else delete globalThis.fetch;
+    if (savedVeniceModelsC) localStorage.setItem('labcharts-venice-models', savedVeniceModelsC);
+    else localStorage.removeItem('labcharts-venice-models');
+    if (savedVeniceE2EEModelsC) localStorage.setItem('labcharts-venice-e2ee-models', savedVeniceE2EEModelsC);
+    else localStorage.removeItem('labcharts-venice-e2ee-models');
+    if (savedVeniceFetchedAtC) localStorage.setItem('labcharts-venice-models-fetched-at', savedVeniceFetchedAtC);
+    else localStorage.removeItem('labcharts-venice-models-fetched-at');
+    if (savedVeniceKeyC) localStorage.setItem('labcharts-venice-key', savedVeniceKeyC);
+    else localStorage.removeItem('labcharts-venice-key');
+    if (savedVeniceCachedKeyC) cryptoMod.updateKeyCache('labcharts-venice-key', savedVeniceCachedKeyC);
+    else cryptoMod.updateKeyCache('labcharts-venice-key', null);
+    if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
+    else localStorage.removeItem('labcharts-venice-model');
+    if (savedE2EE) localStorage.setItem('labcharts-venice-e2ee', savedE2EE);
+    else localStorage.removeItem('labcharts-venice-e2ee');
+  }
 }
 
 // 16. Settings + Chat source checks

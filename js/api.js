@@ -127,6 +127,10 @@ function modelListHasId(models, id) {
   return models.some(function(m) { return m && m.id === id; });
 }
 
+function veniceE2EEModelsCacheKnown() {
+  return localStorage.getItem('labcharts-venice-e2ee-models') !== null;
+}
+
 function modelSupportsVeniceE2EE(model) {
   const supports = model?.model_spec?.capabilities?.supportsE2EE;
   if (supports === true) return true;
@@ -158,7 +162,7 @@ function syncVeniceModelSelection(regularModels, e2eeModels) {
       }
       return;
     }
-    if (regularModels.length) setVeniceE2EE(false);
+    return;
   }
   if (regularModels.length && !modelListHasId(regularModels, getVeniceModel())) {
     const next = preferredVeniceModelId(regularModels, localStorage.getItem('labcharts-venice-model-regular'), true);
@@ -685,7 +689,7 @@ export function supportsWebSearch() {
 export function isE2EEModel(modelId) {
   if (typeof modelId !== 'string') return false;
   const e2eeModels = readStoredArray('labcharts-venice-e2ee-models');
-  if (e2eeModels.length) return modelListHasId(e2eeModels, modelId);
+  if (veniceE2EEModelsCacheKnown()) return modelListHasId(e2eeModels, modelId);
   return modelId.startsWith('e2ee-');
 }
 
@@ -998,14 +1002,15 @@ export async function callOpenAICompatibleLocalAPI(opts) {
 export async function callVeniceAPI(opts) {
   const key = getVeniceKey();
   if (!key) throw new Error('No Venice API key configured. Add your key in Settings.');
-  const e2eeRequested = getVeniceE2EE() || getVeniceModel().startsWith('e2ee-');
   const regularModels = readStoredArray('labcharts-venice-models');
   const e2eeModels = readStoredArray('labcharts-venice-e2ee-models');
   if (regularModels.length || e2eeModels.length) syncVeniceModelSelection(regularModels, e2eeModels);
   let modelId = getVeniceModel();
-  if (isE2EEModel(modelId) && veniceModelsCacheStale()) {
+  let e2eeRequested = getVeniceE2EE() || isE2EEModel(modelId);
+  if (e2eeRequested && veniceModelsCacheStale()) {
     await fetchVeniceModels(key);
     modelId = getVeniceModel();
+    e2eeRequested = getVeniceE2EE() || isE2EEModel(modelId);
   }
   if (e2eeRequested && !isE2EEModel(modelId)) {
     throw new Error('Venice E2EE is enabled, but no current Venice E2EE model is available. Refresh Venice models in Settings and choose an E2EE model.');
