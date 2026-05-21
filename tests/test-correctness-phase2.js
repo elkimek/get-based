@@ -78,6 +78,7 @@ const pwaAppShellAssets = [
   '/js/app-feature-modules.js',
   '/js/app-health-data-modules.js',
   '/js/app-light-sun-modules.js',
+  '/js/app-ai-interaction-modules.js',
   '/js/app-ui-shell-modules.js',
   '/js/app-event-listeners.js',
   '/js/startup-orchestrator.js',

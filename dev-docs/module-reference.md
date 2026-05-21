@@ -721,7 +721,7 @@ Thin module entry point. Imports startup feature side effects, then starts the s
 
 ### `app-feature-modules.js`
 
-Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration. The Health & Data feature cluster is grouped behind `app-health-data-modules.js`; the Light & Sun feature cluster is grouped behind `app-light-sun-modules.js`; the UI shell feature cluster is grouped behind `app-ui-shell-modules.js`.
+Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration. The Health & Data feature cluster is grouped behind `app-health-data-modules.js`; the Light & Sun feature cluster is grouped behind `app-light-sun-modules.js`; the AI/chat/settings feature cluster is grouped behind `app-ai-interaction-modules.js`; the UI shell feature cluster is grouped behind `app-ui-shell-modules.js`.
 
 **Key exports:** none
 
@@ -746,6 +746,16 @@ Startup-loaded Light & Sun feature side-effect imports extracted from `app-featu
 **Key exports:** none
 
 **Window exports:** none directly; imported Light & Sun modules attach their existing compatibility handlers.
+
+---
+
+### `app-ai-interaction-modules.js`
+
+Startup-loaded AI/chat/settings feature side-effect imports extracted from `app-feature-modules.js`. This module preserves the previous chat/image/settings/lens/provider helper import order while keeping the top-level feature list easier to scan.
+
+**Key exports:** none
+
+**Window exports:** none directly; imported AI interaction modules attach their existing compatibility handlers.
 
 ---
 

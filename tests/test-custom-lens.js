@@ -312,12 +312,14 @@ const cryptoSrc = read('js/crypto.js');
 assert('SENSITIVE_PATTERNS includes lens-key', cryptoSrc.includes('labcharts-lens-key'));
 assert('API_KEY_LS_KEYS includes lens-key', /API_KEY_LS_KEYS[\s\S]{0,500}labcharts-lens-key/.test(cryptoSrc));
 
-// ─── 14. Wiring: app-feature-modules.js imports lens ───
-console.log('\n14. app-feature-modules.js imports lens');
+// ─── 14. Wiring: app-feature-modules.js delegates lens startup import ───
+console.log('\n14. app-feature-modules.js delegates lens startup import');
 const mainSrc = read('js/main.js');
 const appFeatureModulesSrc = read('js/app-feature-modules.js');
+const appAiInteractionModulesSrc = read('js/app-ai-interaction-modules.js');
 assert("main.js imports './app-feature-modules.js'", mainSrc.includes("import './app-feature-modules.js'"));
-assert("app-feature-modules.js imports './lens.js'", appFeatureModulesSrc.includes("import './lens.js'"));
+assert("app-feature-modules.js imports './app-ai-interaction-modules.js'", appFeatureModulesSrc.includes("import './app-ai-interaction-modules.js'"));
+assert("app-ai-interaction-modules.js imports './lens.js'", appAiInteractionModulesSrc.includes("import './lens.js'"));
 
 // Sections 15 (chat-header indicator DOM) and 16 (KB modal DOM) live in
 // test-custom-lens-dom.js — they need a live browser DOM.

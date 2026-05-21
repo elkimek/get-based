@@ -349,6 +349,7 @@ return (async function () {
     const appFeatures = await fetchSrc('js/app-feature-modules.js');
     const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
+    const appAiInteractionFeatures = await fetchSrc('js/app-ai-interaction-modules.js');
     const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
     assert('main.js delegates feature side-effect imports',
       /import\s+['"]\.\/app-feature-modules\.js['"]/.test(main));
@@ -360,6 +361,8 @@ return (async function () {
       /import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates Health & Data imports',
       /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js delegates AI interaction imports',
+      /import\s+['"]\.\/app-ai-interaction-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates UI shell imports',
       /import\s+['"]\.\/app-ui-shell-modules\.js['"]/.test(appFeatures));
     assert('app-health-data-modules.js retains wearables import',
@@ -367,6 +370,8 @@ return (async function () {
     // light-device-ai-analysis is still wired (the live version).
     assert('app-light-sun-modules.js retains light-device-ai-analysis import',
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));
+    assert('app-ai-interaction-modules.js retains chat import',
+      /import\s+['"]\.\/chat\.js['"]/.test(appAiInteractionFeatures));
     assert('app-ui-shell-modules.js retains views import',
       /import\s+['"]\.\/views\.js['"]/.test(appUiShellFeatures));
   }
