@@ -33,6 +33,7 @@ console.log('=== Chat Actions Tests ===\n');
 await import('../js/state.js');
 await import('../js/lab-context.js');
 await import('../js/chat.js');
+const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
 
 const S = window._labState;
 const hasState = S && typeof S === 'object';
@@ -179,8 +180,22 @@ assert('chat.js imports chat icon helpers', chatSrc.includes("from './chat-icons
 assert('chat-icons.js exports button content helper', chatIconsSrc.includes('export function setIconButtonContent'), 'found');
 assert('chat.js imports chat summary helpers', chatSrc.includes("from './chat-summaries.js'"), 'found');
 assert('chat-summaries.js exports summarizeThread', chatSummariesSrc.includes('export async function summarizeThread'), 'found');
+assert('chat-summaries.js sends one transcript message', chatSummariesSrc.includes('buildSummaryTranscript(state.chatHistory)') && chatSummariesSrc.includes("role: 'user'"), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatSrc.includes('Response from') && chatSrc.includes('personalityName'), 'tags messages from different personas');
+
+// ─── Section 17b: Summary transcript normalization ───
+console.log('Section 17b: Summary transcript normalization');
+const transcript = buildSummaryTranscript([
+  { role: 'assistant', content: 'Initial assistant note', personalityName: 'Analyst' },
+  { role: 'assistant', content: '', personalityName: 'Second analyst' },
+  { role: 'user', content: [{ type: 'text', text: 'Here is a screenshot' }, { type: 'image_url' }] },
+  { role: 'system', content: 'ignored' },
+  { role: 'assistant', content: 'Follow-up opinion', personalityName: 'House' }
+]);
+assert('summary transcript labels assistant personas', transcript.includes('Assistant (Analyst):') && transcript.includes('Assistant (House):'), transcript);
+assert('summary transcript preserves user text attachments', transcript.includes('User:') && transcript.includes('Here is a screenshot') && transcript.includes('[image attached]'), transcript);
+assert('summary transcript skips empty/system messages', !transcript.includes('Second analyst') && !transcript.includes('ignored'), transcript);
 
 // ─── Section 18: Regenerate only on last AI message ───
 console.log('Section 18: Regenerate placement');

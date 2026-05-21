@@ -29,6 +29,35 @@ RULES:
 let _summaryAbortController = null;
 let _activeSummary = null;
 
+function _contentToText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content.map(part => {
+      if (!part) return '';
+      if (typeof part === 'string') return part;
+      if (part.type === 'text') return part.text || '';
+      if (part.type === 'image_url' || part.type === 'image') return '[image attached]';
+      return '';
+    }).filter(Boolean).join('\n');
+  }
+  if (content == null) return '';
+  return String(content);
+}
+
+export function buildSummaryTranscript(history = []) {
+  const chunks = [];
+  for (const msg of history) {
+    if (!msg || (msg.role !== 'user' && msg.role !== 'assistant')) continue;
+    const content = _contentToText(msg.content).trim();
+    if (!content) continue;
+    const speaker = msg.role === 'assistant'
+      ? `Assistant${msg.personalityName ? ` (${msg.personalityName})` : ''}`
+      : 'User';
+    chunks.push(`${speaker}:\n${content}`);
+  }
+  return chunks.join('\n\n---\n\n') || 'No substantive messages were available.';
+}
+
 export async function summarizeThread() {
   if (!state.chatHistory || state.chatHistory.length < 4) {
     showNotification('Need at least 4 messages to summarize', 'info');
@@ -60,9 +89,11 @@ async function _generateSummary() {
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
   if (!thread) return;
 
-  const messages = state.chatHistory
-    .filter(m => m.role === 'user' || m.role === 'assistant')
-    .map(m => ({ role: m.role, content: m.content }));
+  const transcript = buildSummaryTranscript(state.chatHistory);
+  const messages = [{
+    role: 'user',
+    content: `Summarize this conversation transcript:\n\n${transcript}`
+  }];
 
   _showSummaryModal(null, thread, true);
 
