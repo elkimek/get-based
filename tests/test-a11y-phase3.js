@@ -166,6 +166,8 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const themesSrc = read('/themes-extra.css');
   assert('cyberterm brand prompt stays visible over gradient wordmark',
     /\[data-theme="cyberterm"\] \.brand-mark::before[\s\S]*?-webkit-text-fill-color:\s*var\(--text-muted\)/.test(themesSrc));
+  assert('synth sunrise primary import buttons use white hover text',
+    /\[data-theme="synth-sunrise"\]\s+\.import-btn-primary:hover\s*\{[^}]*color:\s*#fff/.test(themesSrc));
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');
