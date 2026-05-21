@@ -166,8 +166,12 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const themesSrc = read('/themes-extra.css');
   assert('cyberterm brand prompt stays visible over gradient wordmark',
     /\[data-theme="cyberterm"\] \.brand-mark::before[\s\S]*?-webkit-text-fill-color:\s*var\(--text-muted\)/.test(themesSrc));
-  assert('synth sunrise primary import buttons use white hover text',
-    /\[data-theme="synth-sunrise"\]\s+\.import-btn-primary:hover\s*\{[^}]*color:\s*#fff/.test(themesSrc));
+  const synthPrimaryHoverRule = themesSrc.match(/\[data-theme="synth-sunrise"\]\s+\.dashboard-action-btn-primary:hover,[\s\S]*?\{[^}]*color:\s*#fff/);
+  assert('synth sunrise primary button hovers use white text',
+    !!synthPrimaryHoverRule &&
+    synthPrimaryHoverRule[0].includes('.light-today-cta:not(.light-today-cta-secondary):hover') &&
+    synthPrimaryHoverRule[0].includes('.sun-session-ctl-stop:hover') &&
+    synthPrimaryHoverRule[0].includes('.import-btn-primary:hover'));
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');

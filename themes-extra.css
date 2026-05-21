@@ -355,6 +355,9 @@
 /* #ff2bd6 with white foreground is under AA for normal text; this dark
    foreground keeps synth active controls readable. */
 [data-theme="synth-sunrise"] { --on-accent: #0d0524; }
+[data-theme="synth-sunrise"] .dashboard-action-btn-primary:hover,
+[data-theme="synth-sunrise"] .light-today-cta:not(.light-today-cta-secondary):hover,
+[data-theme="synth-sunrise"] .sun-session-ctl-stop:hover,
 [data-theme="synth-sunrise"] .import-btn-primary:hover { color: #fff; }
 [data-theme="neuromancer"] { --on-accent: #050608; }
 
