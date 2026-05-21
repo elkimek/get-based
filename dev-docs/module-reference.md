@@ -721,11 +721,21 @@ Thin module entry point. Imports startup feature side effects, then starts the s
 
 ### `app-feature-modules.js`
 
-Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration.
+Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration. The Light & Sun feature cluster is grouped behind `app-light-sun-modules.js`.
 
 **Key exports:** none
 
 **Window exports:** none directly; imported feature modules attach their existing compatibility handlers.
+
+---
+
+### `app-light-sun-modules.js`
+
+Startup-loaded Light & Sun feature side-effect imports extracted from `app-feature-modules.js`. This module preserves the previous Light & Sun import order while keeping the top-level feature list easier to scan.
+
+**Key exports:** none
+
+**Window exports:** none directly; imported Light & Sun modules attach their existing compatibility handlers.
 
 ---
 

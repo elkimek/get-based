@@ -559,6 +559,9 @@
     const hasAppFeatureModulesJs = sw.includes('/js/app-feature-modules.js');
     assert('Service worker caches js/app-feature-modules.js', hasAppFeatureModulesJs);
 
+    const hasAppLightSunModulesJs = sw.includes('/js/app-light-sun-modules.js');
+    assert('Service worker caches js/app-light-sun-modules.js', hasAppLightSunModulesJs);
+
     const hasAppEventListenersJs = sw.includes('/js/app-event-listeners.js');
     assert('Service worker caches js/app-event-listeners.js', hasAppEventListenersJs);
 
