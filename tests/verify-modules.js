@@ -556,8 +556,14 @@
     const hasMainJs = sw.includes('/js/main.js');
     assert('Service worker caches js/main.js', hasMainJs);
 
+    const hasAppEventListenersJs = sw.includes('/js/app-event-listeners.js');
+    assert('Service worker caches js/app-event-listeners.js', hasAppEventListenersJs);
+
     const hasViewsJs = sw.includes('/js/views.js');
     assert('Service worker caches js/views.js', hasViewsJs);
+
+    const hasImportFileInputJs = sw.includes('/js/import-file-input.js');
+    assert('Service worker caches js/import-file-input.js', hasImportFileInputJs);
 
     const hasImportDropZoneJs = sw.includes('/js/import-drop-zone.js');
     assert('Service worker caches js/import-drop-zone.js', hasImportDropZoneJs);

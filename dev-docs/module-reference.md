@@ -449,6 +449,16 @@ Lazy drop-zone event binding shared by Dashboard, Labs, and mobile dashboard she
 
 ---
 
+### `import-file-input.js`
+
+Lazy file-picker import binding for the hidden `#pdf-input`. It shares `loadPdfImport()` with the drop-zone path, classifies files on change, clears stale selections on failure, and routes JSON, lab PDFs/images, text imports, and DNA files through the import/DNA handlers exposed on `window`.
+
+**Key exports:**
+- `bindImportFileInput()` — idempotently binds `#pdf-input` change handling and document-level drag/drop prevention
+- `handleImportInputChange(e)` — routes one file-picker change event through the lazy import classifier
+
+---
+
 ### `export.js`
 
 Data export, import, and reset.
@@ -699,15 +709,25 @@ Light channel pill rows, seven-day sparklines, dashboard-to-Light channel naviga
 
 ### `main.js`
 
-Entry point. Runs once on `DOMContentLoaded`.
+Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 
 **Responsibilities:**
 - Imports all feature modules (side-effect imports for window exports)
-- Registers a refresh callback that rebuilds the sidebar and re-renders `state.currentView` through `navigate()`
-- Attaches global event listeners: keyboard shortcuts, modal backdrop clicks, drop zone, profile selector
+- Installs app-wide event and refresh wiring through `app-event-listeners.js`
+- Binds hidden file-picker import routing through `import-file-input.js`
 - Calls initial `navigate('dashboard')`
 
 **Window exports:** none (all exports come from other modules)
+
+---
+
+### `app-event-listeners.js`
+
+App-wide browser event wiring that used to live in `main.js`: modal wheel guards, backdrop click handling, global role-button keyboard activation, Escape/Tab modal behavior, app shortcuts, and the `registerRefreshCallback()` bridge back into `navigate(state.currentView || 'dashboard')`.
+
+**Key exports:**
+- `installGlobalEventListeners()` — idempotently installs document-level modal, keyboard, shortcut, and click handlers
+- `registerAppRefreshCallback()` — registers the data refresh callback that rebuilds sidebar state and re-renders the active route
 
 ---
 

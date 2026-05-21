@@ -442,8 +442,8 @@ assert('Nav items have role=button', navSrc.includes('role="button"'));
 assert('Nav items have keyboard handler', navSrc.includes('onkeydown'));
 assert('Category labels escaped in sidebar', navSrc.includes('escapeHTML(label)') || navSrc.includes('escapeHTML(cat.label)'));
 
-const mainSrc = read('js/main.js');
-assert('Focus trap for modals', mainSrc.includes('e.key === "Tab"') && mainSrc.includes('focusable'));
+const appEventsSrc = read('js/app-event-listeners.js');
+assert('Focus trap for modals', appEventsSrc.includes('e.key === "Tab"') && appEventsSrc.includes('focusable'));
 
 // ═══════════════════════════════════════
 // 11. Event listener leak fix

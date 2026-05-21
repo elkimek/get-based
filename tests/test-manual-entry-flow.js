@@ -203,9 +203,9 @@ console.log('=== Manual Entry Flow Tests ===\n');
   assert('BroadcastChannel cross-tab reload uses state.currentView',
     /state\.currentView \|\| 'dashboard'/.test(cryptoSrc));
 
-  const mainSrc = read('js/main.js');
+  const appEventsSrc = read('js/app-event-listeners.js');
   assert('registerRefreshCallback uses state.currentView',
-    /registerRefreshCallback[\s\S]{0,800}state\.currentView \|\| 'dashboard'/.test(mainSrc));
+    /registerRefreshCallback[\s\S]{0,800}state\.currentView \|\| 'dashboard'/.test(appEventsSrc));
 
   const pdfSrc = read('js/pdf-import.js');
   assert('pdf-import.js no longer uses the buildSidebar+querySelector(.active) antipattern',

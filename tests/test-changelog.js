@@ -34,6 +34,7 @@ await import('../js/changelog.js');
 const changelogSrc = await fetchWithRetry('js/changelog.js');
 const utilsSrc = await fetchWithRetry('js/utils.js');
 const mainSrc = await fetchWithRetry('js/main.js');
+const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
 const settingsSrc = await fetchWithRetry('js/settings.js');
 const swSrc = await fetchWithRetry('service-worker.js');
 // Original test fetched '/app' (dev-server alias for index.html); read
@@ -101,9 +102,9 @@ console.log('4. main.js Wiring');
 
 assert('main.js imports maybeShowChangelog', mainSrc.includes("import { maybeShowChangelog } from './changelog.js'"));
 assert('main.js calls maybeShowChangelog', mainSrc.includes('maybeShowChangelog()'));
-assert('main.js has changelog overlay click handler', mainSrc.includes('changelog-modal-overlay') && mainSrc.includes('closeChangelog'));
-assert('main.js has changelog Escape handler', mainSrc.includes('changelogOverlay'));
-assert('main.js focus trap includes changelog', mainSrc.includes('"changelog-modal-overlay"'));
+assert('app-event-listeners.js has changelog overlay click handler', appEventsSrc.includes('changelog-modal-overlay') && appEventsSrc.includes('closeChangelog'));
+assert('app-event-listeners.js has changelog Escape handler', appEventsSrc.includes('changelogOverlay'));
+assert('app-event-listeners.js focus trap includes changelog', appEventsSrc.includes('"changelog-modal-overlay"'));
 
 // ═══════════════════════════════════════
 // 5. Settings: What's New button

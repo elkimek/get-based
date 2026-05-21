@@ -60,6 +60,7 @@ const mainSrc = read('js/main.js');
 const viewsSrc = read('js/views.js');
 const dashboardCompositionSrc = read('js/dashboard-view-composition.js');
 const importLoaderSrc = read('js/import-loader.js');
+const importFileInputSrc = read('js/import-file-input.js');
 const importDropZoneSrc = read('js/import-drop-zone.js');
 const commitHashSrc = read('js/commit-hash.js');
 const pwaAppShellAssets = [
@@ -74,8 +75,10 @@ const pwaAppShellAssets = [
   '/vendor/evolu/sqlite3-opfs-async-proxy.js',
   '/vendor/evolu/sqlite3-worker1-bundler-friendly.mjs',
   '/vendor/evolu/sqlite3.wasm',
+  '/js/app-event-listeners.js',
   '/js/ai-verdict-engine.js',
   '/js/import-loader.js',
+  '/js/import-file-input.js',
   '/js/import-drop-zone.js',
   '/js/blob-storage.js',
   '/js/data-merge.js',
@@ -141,13 +144,14 @@ assert('SW handles same-origin localhost app shell while bypassing cross-origin 
   /NETWORK_ONLY_HOSTS\.has\(h\)\s*\|\|\s*\(!sameOrigin && isLocalOrPrivateHost\(h\)\)/.test(swSrc) &&
   /if \(!sameOrigin\) return;/.test(swSrc),
   'local offline testing should not bypass the SW just because the app origin is localhost');
-assert('PDF import lazy loader is shared by main.js and import-drop-zone.js',
-  mainSrc.includes("from './import-loader.js'") &&
+assert('PDF import lazy loader is shared by file input and import-drop-zone.js',
+  mainSrc.includes("from './import-file-input.js'") &&
+  importFileInputSrc.includes("from './import-loader.js'") &&
   importDropZoneSrc.includes("from './import-loader.js'") &&
   importLoaderSrc.includes("import('./pdf-import.js')"),
   'separate per-module promise caches can issue duplicate first-use imports');
 assert('PDF lazy import failure notifies from file input and clears selection',
-  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(mainSrc),
+  /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(importFileInputSrc),
   'file-picker import path should fail loudly and clear stale selection');
 assert('PDF lazy import failure notifies from drop zone',
   /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(importDropZoneSrc),

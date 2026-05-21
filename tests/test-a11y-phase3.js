@@ -23,12 +23,12 @@ function assert(name, cond, detail) {
 }
 console.log('=== Phase 3 A11y Tests ===\n');
   // ─── 1. Global keyboard delegation ───
-  const mainSrc = read('/js/main.js');
-  assert('main.js installs global Enter/Space delegation for role=button',
-    mainSrc.includes("if (e.key !== \"Enter\" && e.key !== \" \") return") &&
-    mainSrc.includes("getAttribute('role') !== 'button'"));
+  const appEventsSrc = read('/js/app-event-listeners.js');
+  assert('app-event-listeners.js installs global Enter/Space delegation for role=button',
+    appEventsSrc.includes("if (e.key !== \"Enter\" && e.key !== \" \") return") &&
+    appEventsSrc.includes("getAttribute('role') !== 'button'"));
   assert('global delegation skips native interactives',
-    mainSrc.includes("tag === 'BUTTON' || tag === 'A' || tag === 'INPUT'"));
+    appEventsSrc.includes("tag === 'BUTTON' || tag === 'A' || tag === 'INPUT'"));
 
   // ─── 2. Clickable divs gain role+tabindex ───
   const viewsSrc = read('/js/views.js');

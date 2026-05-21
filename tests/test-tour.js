@@ -162,12 +162,13 @@ assert('CSS has mobile/coarse tour button touch target', cssSrc.includes('.tour-
 console.log('19. main.js Wiring');
 
 const mainSrc = read('js/main.js');
+const appEventsSrc = read('js/app-event-listeners.js');
 
 assert('main.js imports tour.js', mainSrc.includes("import './tour.js'"));
-assert('main.js Escape checks #tour-overlay', mainSrc.includes('tour-overlay'));
-assert('main.js Escape calls window.endTour()', mainSrc.includes('window.endTour()'));
-const tourEscIdx = mainSrc.indexOf('tour-overlay');
-const confirmEscIdx = mainSrc.indexOf('confirm-dialog-overlay');
+assert('app-event-listeners.js Escape checks #tour-overlay', appEventsSrc.includes('tour-overlay'));
+assert('app-event-listeners.js Escape calls window.endTour()', appEventsSrc.includes('window.endTour()'));
+const tourEscIdx = appEventsSrc.indexOf('tour-overlay');
+const confirmEscIdx = appEventsSrc.indexOf('confirm-dialog-overlay');
 assert('Tour Escape check before confirm dialog', tourEscIdx > 0 && tourEscIdx < confirmEscIdx);
 
 // ═══════════════════════════════════════

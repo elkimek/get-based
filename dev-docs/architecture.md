@@ -27,7 +27,8 @@ tests/
   verify-modules.js — Module integrity assertions
 
 js/
-  main.js           — Entry point: DOMContentLoaded init, global event listeners
+  main.js           — Entry point: DOMContentLoaded startup orchestration
+  app-event-listeners.js — App-wide modal, keyboard, shortcut, and refresh wiring
   schema.js         — MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES
   constants.js      — Option arrays, CHAT_PERSONALITIES, fake data, COUNTRY_LATITUDES
   state.js          — Single shared mutable state object
@@ -43,6 +44,7 @@ js/
   cycle.js          — Menstrual cycle helpers, editor, dashboard rendering
   context-cards.js  — 9 context card editors, health dots, AI tips, summaries
   pdf-import.js     — PDF pipeline, batch import, import preview
+  import-file-input.js — lazy file-picker import binding and import routing
   import-drop-zone.js — lazy import drop-zone binding shared by page shells
   export.js         — JSON export/import (single, per-client, database bundle), PDF report, clearAllData
   chat.js           — Chat panel, personalities, per-marker AI
@@ -84,7 +86,7 @@ index.html
         └── imports all other modules (directly or transitively)
 ```
 
-`main.js` registers the `DOMContentLoaded` listener, attaches global keyboard and event handlers, and calls the initial `navigate()` to render the dashboard.
+`main.js` registers the `DOMContentLoaded` listener and calls the initial `navigate()` to render the dashboard. App-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`; file-picker import routing lives in `import-file-input.js`.
 
 ## Navigation and dashboard IA
 
@@ -148,10 +150,10 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
 
 The main tension is between `views.js` (the compatibility/router facade) and modules like `data.js` and `charts.js` (which view modules depend on but which also need to trigger re-renders). Two mechanisms break cycles:
 
-**`registerRefreshCallback(fn)` in `data.js`** — `main.js` registers the refresh function after init, so `data.js` can trigger re-renders without importing `views.js`:
+**`registerRefreshCallback(fn)` in `data.js`** — `app-event-listeners.js` registers the refresh function at startup, so `data.js` can trigger re-renders without importing `views.js`:
 
 ```js
-// main.js
+// app-event-listeners.js
 import { state } from './state.js';
 import { registerRefreshCallback } from './data.js';
 import { buildSidebar } from './nav.js';

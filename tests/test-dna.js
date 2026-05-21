@@ -341,11 +341,12 @@ console.log('12. Source Integration');
 const mainSrc = await fetchWithRetry('js/main.js');
 assert('main.js imports dna.js', mainSrc.includes("'./dna.js'"));
 // DNA detection in the file-input path is now delegated to
-// classifyImportFiles (pdf-import.js); main.js consumes the returned
+// classifyImportFiles (pdf-import.js); import-file-input.js consumes the returned
 // dnaFiles bucket. The downstream isDNAFile check still lives in the
 // classifier and is asserted below.
-assert('main.js routes DNA files via classifier', mainSrc.includes('classifyImportFiles') && mainSrc.includes('dnaFiles'));
-assert('main.js calls handleDNAFile', mainSrc.includes('handleDNAFile'));
+const importFileInputSrc = await fetchWithRetry('js/import-file-input.js');
+assert('import-file-input.js routes DNA files via classifier', importFileInputSrc.includes('classifyImportFiles') && importFileInputSrc.includes('dnaFiles'));
+assert('import-file-input.js calls handleDNAFile', importFileInputSrc.includes('handleDNAFile'));
 
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');
 assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
