@@ -271,12 +271,12 @@ export function getCustomPersonalityText() {
   return getCustomPersonality().promptText;
 }
 
-export async function setChatPersonality(id) {
+export async function setChatPersonality(id, opts = {}) {
   const prev = state.currentChatPersonality;
   if (prev === id) {
     // Collapse bar if same personality clicked
     const bar = document.querySelector('.chat-personality-bar');
-    if (bar) bar.classList.remove('open');
+    if (bar && !opts.keepPickerOpen) bar.classList.remove('open');
     return;
   }
   _editingPersonalityId = null;
@@ -302,7 +302,7 @@ export async function setChatPersonality(id) {
   const personality = getActivePersonality();
   showNotification(`Switched to ${personality.name}`, 'info');
   const bar = document.querySelector('.chat-personality-bar');
-  if (bar) bar.classList.remove('open');
+  if (bar && !opts.keepPickerOpen) bar.classList.remove('open');
 }
 
 export function loadChatPersonality() {
@@ -547,7 +547,7 @@ export function editCustomPersonality(id) {
   _editingPersonalityId = id;
   // Select the persona if not already active
   if (state.currentChatPersonality !== id) {
-    setChatPersonality(id);
+    setChatPersonality(id, { keepPickerOpen: true });
   }
   updatePersonalityBar();
 }

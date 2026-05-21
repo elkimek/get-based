@@ -61,6 +61,14 @@ return (async function() {
   assert('Save button exists', !!saveBtn);
   assert('Editor name populated', nameInput && nameInput.value === 'Longevity Expert');
   assert('Editor textarea populated', textarea && textarea.value === 'Expert prompt');
+  const bar = document.querySelector('.chat-personality-bar');
+  bar && bar.classList.add('open');
+  const inactiveEditBtn = section && section.querySelectorAll('.chat-personality-edit')[1];
+  inactiveEditBtn && inactiveEditBtn.click();
+  await Promise.resolve();
+  assert('Editing inactive custom keeps picker open', bar && bar.classList.contains('open'));
+  assert('Editing inactive custom loads name', document.getElementById('chat-personality-custom-name')?.value === 'Functional Doc');
+  assert('Editing inactive custom loads prompt', document.querySelector('.chat-personality-custom-textarea')?.value === 'Functional prompt');
 
   // ── 12. CSS classes for new elements ──
   console.log('%c 12. CSS classes ', 'font-weight:bold;color:#f59e0b');
