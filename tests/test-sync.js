@@ -470,6 +470,15 @@ await import('../js/settings.js');
   assert('collectChatData reads per-thread messages', syncSrc.includes('chat-t_${t.id}'));
   assert('collectChatData includes custom personalities', syncSrc.includes('chatPersonalityCustom'));
   assert('applyChatData writes threads', syncSrc.includes('applyChatData'));
+  assert('applyChatData skips stale remote chat while local save is fresh',
+    syncSrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalChatData(profileId)'));
+  assert('active chat reload only runs after chatData is applied',
+    syncSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
+      && syncSrc.includes('if (chatApplied)'));
+  const onChatSavedSrc = syncSrc.slice(syncSrc.indexOf('export function onChatSaved'), syncSrc.indexOf('export function onChatSaved') + 600);
+  assert('onChatSaved marks local chat before debounce',
+    onChatSavedSrc.includes('markChatDataLocal();')
+      && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_syncEnabled || !evolu) return;'));
   assert('Display prefs synced', syncSrc.includes('DISPLAY_PREF_SUFFIXES') && syncSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', syncSrc.includes('export function onChatSaved'));
   assert('onChatSaved has debounce', syncSrc.includes('_chatSyncTimer') && syncSrc.includes('10000'));

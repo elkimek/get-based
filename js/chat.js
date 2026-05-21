@@ -1808,7 +1808,7 @@ export async function sendChatMessage() {
   input.style.height = '';
   clearAttachments();
   renderChatMessages();
-  saveChatHistory(); // persist immediately so messages survive API failures
+  await saveChatHistory(); // persist immediately so messages survive API failures
 
   if (isFirstMessage) {
     autoNameThread(state.currentThreadId, text);
@@ -1978,6 +1978,8 @@ export async function sendChatMessage() {
       } catch {}
     })();
 
+    await saveChatHistory(); // persist before any sync-triggered chat reload can repaint older storage
+
     // Append action bar
     const msgIndex = state.chatHistory.length - 1;
     const actionBarHtml = buildActionBar(msgIndex);
@@ -2017,7 +2019,6 @@ export async function sendChatMessage() {
     }
 
     container.scrollTop = container.scrollHeight;
-    saveChatHistory();
   } catch (err) {
     if (typingEl.parentNode) typingEl.remove();
 
@@ -2031,7 +2032,7 @@ export async function sendChatMessage() {
         aiMsgEl.innerHTML = renderMarkdown(partialText) + '<div class="chat-stopped-note">[stopped]</div>';
         const personality = getActivePersonality();
         state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, stopped: true });
-        saveChatHistory();
+        await saveChatHistory();
       }
     } else if (!err?._modalShown) {
       // Skip inline error rendering when a modal already surfaced the
@@ -2196,7 +2197,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const autoMsg = { role: 'user', content: msgText, auto: true, hidden: !!opts.hideAutoMsg };
       state.chatHistory.push(autoMsg);
       renderChatMessages();
-      saveChatHistory();
+      await saveChatHistory();
 
       const typingEl = document.createElement('div');
       typingEl.className = 'typing-indicator';
@@ -2296,7 +2297,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         trackUsage(_dMsgProvider, _dMsgModelId, usage.inputTokens, usage.outputTokens);
       }
       state.chatHistory.push(assistantMsg);
-      saveChatHistory();
+      await saveChatHistory();
       container.scrollTop = container.scrollHeight;
     }
   } catch (err) {

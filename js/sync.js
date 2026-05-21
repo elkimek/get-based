@@ -902,6 +902,8 @@ const AI_SETTINGS_KEYS = [
 const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
 const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
 const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
+const CHAT_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-local-lock-until';
+const CHAT_LOCAL_LOCK_MS = 5 * 60 * 1000;
 
 function hasLocalAISettingsLock() {
   try {
@@ -925,6 +927,22 @@ function shouldKeepLocalOpenRouterOAuthSetting(key) {
 function shouldKeepLocalAISetting(key) {
   return shouldKeepLocalOpenRouterOAuthSetting(key)
     || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
+}
+
+function markChatDataLocal() {
+  try {
+    sessionStorage.setItem(CHAT_LOCAL_LOCK_UNTIL_KEY, String(Date.now() + CHAT_LOCAL_LOCK_MS));
+  } catch {}
+}
+
+function shouldKeepLocalChatData(profileId) {
+  if (profileId !== state.currentProfile) return false;
+  try {
+    const until = Number(sessionStorage.getItem(CHAT_LOCAL_LOCK_UNTIL_KEY) || '0');
+    return Number.isFinite(until) && Date.now() < until;
+  } catch {
+    return false;
+  }
 }
 
 async function collectAISettings() {
@@ -991,7 +1009,12 @@ async function collectChatData(profileId) {
 }
 
 async function applyChatData(profileId, chatData) {
-  if (!chatData || !chatData.threads) return;
+  if (!chatData || !chatData.threads) return false;
+  if (shouldKeepLocalChatData(profileId)) {
+    dbg(`Skipped chatData for ${profileId.slice(0,8)} — local chat has newer unsynced changes`);
+    _logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0,8)} — local changes pending`);
+    return false;
+  }
   // Thread index: always plain localStorage (matches saveChatThreadIndex in chat.js).
   // encryptAllSensitiveKeys handles at-rest encryption when session ends.
   const threadsKey = `labcharts-${profileId}-chat-threads`;
@@ -1013,6 +1036,7 @@ async function applyChatData(profileId, chatData) {
   if (chatData.activePersonality) {
     localStorage.setItem(`labcharts-${profileId}-chatPersonality`, chatData.activePersonality);
   }
+  return true;
 }
 
 // Per-profile display preferences to sync
@@ -3556,7 +3580,7 @@ async function onSyncReceived() {
         }
 
         // Apply chat data and display preferences
-        if (chatData) await applyChatData(profileId, chatData);
+        const chatApplied = chatData ? await applyChatData(profileId, chatData) : false;
         if (displayPrefs) applyDisplayPrefs(profileId, displayPrefs);
 
         // If this is the active profile, update in-memory state
@@ -3564,7 +3588,7 @@ async function onSyncReceived() {
           state.importedData = merged;
           migrateProfileData(state.importedData);
           // Reload chat threads + active thread messages into memory and re-render
-          if (chatData) {
+          if (chatApplied) {
             window.loadChatThreads?.();
             window.renderThreadList?.();
             window.loadChatHistory?.(); // reloads state.chatHistory from localStorage + renders
@@ -3710,6 +3734,7 @@ export function onDataSaved() {
 // changes. Mirrors the same pattern as onDataSaved's _debounceTimers.
 const _chatSyncTimers = new Map();
 export function onChatSaved() {
+  markChatDataLocal();
   if (!_syncEnabled || !evolu) return;
   // Capture the active profile + data at QUEUE time so a mid-window
   // profile switch doesn't repoint the push.

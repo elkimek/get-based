@@ -172,6 +172,9 @@ assert('chat.js does NOT have readAloud', !chatSrc.includes('function readAloud'
 assert('chat.js has copyMessage', chatSrc.includes('function copyMessage'), 'found');
 assert('sendChatMessage snapshots context', chatSrc.includes('contextSnapshot'), 'found');
 assert('sendChatMessage snapshots provider for API call', chatSrc.includes('const _msgProvider = getAIProvider()') && chatSrc.includes('provider: _msgProvider'), 'found');
+assert('sendChatMessage awaits chat saves before repaint-sensitive work',
+  chatSrc.includes('await saveChatHistory(); // persist immediately so messages survive API failures')
+    && chatSrc.includes('await saveChatHistory(); // persist before any sync-triggered chat reload can repaint older storage'), 'found');
 assert('chat raises response token headroom', chatContinuationSrc.includes('CHAT_RESPONSE_MAX_TOKENS = 16384'), 'found');
 assert('chat auto-continues token-limit stops', chatContinuationSrc.includes('CHAT_AUTO_CONTINUE_LIMIT') && chatContinuationSrc.includes('callChatAPIWithContinuation'), 'found');
 assert('chat continuation uses provider snapshot', chatContinuationSrc.includes('provider })') && chatContinuationSrc.includes('}, provider)'), 'found');
