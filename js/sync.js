@@ -903,7 +903,7 @@ const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_
 const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
 const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
 const CHAT_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-local-lock-until';
-const CHAT_LOCAL_LOCK_MS = 5 * 60 * 1000;
+const CHAT_LOCAL_LOCK_MS = 90 * 1000;
 
 function hasLocalAISettingsLock() {
   try {

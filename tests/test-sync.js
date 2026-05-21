@@ -472,6 +472,8 @@ await import('../js/settings.js');
   assert('applyChatData writes threads', syncSrc.includes('applyChatData'));
   assert('applyChatData skips stale remote chat while local save is fresh',
     syncSrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalChatData(profileId)'));
+  assert('chat freshness lock is shorter than two minutes',
+    syncSrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
   assert('active chat reload only runs after chatData is applied',
     syncSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
       && syncSrc.includes('if (chatApplied)'));
