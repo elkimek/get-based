@@ -7,9 +7,9 @@ import './constants.js';
 import './utils.js';
 import { getTheme, setTheme } from './theme.js';
 import { exchangeOpenRouterCode, saveOpenRouterKey, setAIProvider, fetchOpenRouterModels } from './api.js';
-import { saveProfiles, getActiveProfileId, setActiveProfileId, getProfileSex, getProfileDob, profileStorageKey, migrateProfileData, initProfilesCache } from './profile.js';
 import { updateHeaderDates, updateHeaderRangeToggle } from './data.js';
 import { bindImportFileInput } from './import-file-input.js';
+import { initializeProfileData, applyProfileDisplayState } from './startup-profile.js';
 import './pii.js';
 import './charts.js';
 import './notes.js';
@@ -60,7 +60,7 @@ import { buildSidebar, renderProfileDropdown } from './nav.js';
 import { installGlobalEventListeners, registerAppRefreshCallback } from './app-event-listeners.js';
 import './client-list.js';
 import './views.js';
-import { initEncryption, initBroadcastChannel, initFolderBackup, encryptedGetItem, maybeShowBackupNudge } from './crypto.js';
+import { initEncryption, initBroadcastChannel, initFolderBackup, maybeShowBackupNudge } from './crypto.js';
 import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 import { initMeteoConfigCache } from './sun-uvdata.js';
 
@@ -91,38 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Scheduled wearable sync (only fires when a source is connected)
   initWearableScheduler();
 
-  // Migrate legacy data to profile system on first load
-  if (!localStorage.getItem('labcharts-profiles')) {
-    const profiles = [{ id: 'default', name: 'Default' }];
-    await saveProfiles(profiles);
-    setActiveProfileId('default');
-    const oldImported = localStorage.getItem('labcharts-imported');
-    if (oldImported) {
-      // Route through encryptedSetItem so the destination key
-      // (`labcharts-default-imported`) lands in IndexedDB rather than
-      // localStorage. Otherwise this v1→v2 migration could fail when
-      // the legacy blob is large enough to exceed the localStorage cap
-      // even though it just barely fit at the old key.
-      const { encryptedSetItem } = await import('./crypto.js');
-      await encryptedSetItem(profileStorageKey('default', 'imported'), oldImported);
-      localStorage.removeItem('labcharts-imported');
-    }
-    const oldUnits = localStorage.getItem('labcharts-units');
-    if (oldUnits) {
-      localStorage.setItem(profileStorageKey('default', 'units'), oldUnits);
-      localStorage.removeItem('labcharts-units');
-    }
-  }
-  // Populate profiles cache from (possibly encrypted) storage
-  await initProfilesCache();
-  // Load active profile BEFORE any OAuth callback handling — the callback
-  // writes into state.importedData (wearableConnections for Oura) and
-  // persists via saveImportedData, which keys off state.currentProfile. If
-  // the callback runs first, saves land in the wrong profile's localStorage
-  // and get orphaned the moment we swap profiles here.
-  state.currentProfile = getActiveProfileId();
-  const savedImported = await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'));
-  if (savedImported) { try { state.importedData = JSON.parse(savedImported); if (!state.importedData.notes) state.importedData.notes = []; migrateProfileData(state.importedData); } catch(e) {} }
+  await initializeProfileData();
 
   // Self-heal sun-session doses + safety after engine math fixes. The
   // engineVersion stamp on each session lets us detect data computed
@@ -211,23 +180,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Prime sync state for UI, but let Evolu boot after first paint. Its
   // worker/OPFS startup is expensive and should not block dashboard LCP.
   primeSyncState();
-  const savedUnits = localStorage.getItem(profileStorageKey(state.currentProfile, 'units'));
-  if (savedUnits === 'US') state.unitSystem = 'US';
-  const savedRange = localStorage.getItem(profileStorageKey(state.currentProfile, 'rangeMode'));
-  state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';
-  state.profileSex = getProfileSex(state.currentProfile);
-  state.profileDob = getProfileDob(state.currentProfile);
-  document.querySelectorAll('.unit-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.unit === state.unitSystem);
-  });
-  document.querySelectorAll('.sex-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sex === state.profileSex);
-  });
-  document.querySelectorAll('.range-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.range === state.rangeMode);
-  });
-  const dobInputInit = document.getElementById('dob-input');
-  if (dobInputInit) dobInputInit.value = state.profileDob || '';
+  applyProfileDisplayState();
   setTheme(getTheme());
   // Populate footer version early (doesn't depend on dashboard render)
   const vTextEl = document.getElementById('app-version-text');

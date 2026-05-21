@@ -428,19 +428,25 @@ try {
 }
 
 // ═══════════════════════════════════════════════
-// 18. main.js async init
+// 18. startup async init
 // ═══════════════════════════════════════════════
-console.log('18. main.js async init');
+console.log('18. startup async init');
 try {
   const src = await fetchWithRetry('js/main.js');
   assert('DOMContentLoaded is async', src.includes('async ()'));
   assert('main.js awaits initEncryption', src.includes('await initEncryption()'));
   assert('main.js calls initBroadcastChannel', src.includes('initBroadcastChannel()'));
-  assert('main.js awaits initProfilesCache', src.includes('await initProfilesCache()'));
-  assert('main.js awaits encryptedGetItem', src.includes('await encryptedGetItem'));
+  assert('main.js awaits initializeProfileData', src.includes('await initializeProfileData()'));
+  assert('main.js imports startup-profile.js', src.includes("from './startup-profile.js'"));
   assert('main.js imports from crypto.js', src.includes("from './crypto.js'"));
+
+  const startupSrc = await fetchWithRetry('js/startup-profile.js');
+  assert('startup-profile.js exports initializeProfileData', startupSrc.includes('export async function initializeProfileData'));
+  assert('startup-profile.js awaits initProfilesCache', startupSrc.includes('await initProfilesCache()'));
+  assert('startup-profile.js awaits encryptedGetItem', startupSrc.includes('await encryptedGetItem'));
+  assert('startup-profile.js migrates legacy imported data through encryptedSetItem', startupSrc.includes('await encryptedSetItem'));
 } catch (e) {
-  assert('main.js async check', false, e.message);
+  assert('startup async check', false, e.message);
 }
 
 // ═══════════════════════════════════════════════

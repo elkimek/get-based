@@ -29,6 +29,7 @@ tests/
 js/
   main.js           — Entry point: DOMContentLoaded startup orchestration
   app-event-listeners.js — App-wide modal, keyboard, shortcut, and refresh wiring
+  startup-profile.js — Profile migration, active-profile load, and display-state bootstrap
   schema.js         — MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES
   constants.js      — Option arrays, CHAT_PERSONALITIES, fake data, COUNTRY_LATITUDES
   state.js          — Single shared mutable state object
@@ -86,7 +87,7 @@ index.html
         └── imports all other modules (directly or transitively)
 ```
 
-`main.js` registers the `DOMContentLoaded` listener and calls the initial `navigate()` to render the dashboard. App-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`; file-picker import routing lives in `import-file-input.js`.
+`main.js` registers the `DOMContentLoaded` listener and calls the initial `navigate()` to render the dashboard. Profile migration, cache warmup, active-profile data loading, and profile display state are delegated to `startup-profile.js`; app-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`; file-picker import routing lives in `import-file-input.js`.
 
 ## Navigation and dashboard IA
 

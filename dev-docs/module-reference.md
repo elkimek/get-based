@@ -256,7 +256,7 @@ The central data pipeline. Every view gets its data from `getActiveData()`.
 - `getEffectiveRange(marker)` — returns `{ refMin, refMax }` respecting `state.rangeMode`
 - `getEffectiveRangeForDate(marker, dateIndex)` — phase-aware range lookup; falls back to `getEffectiveRange()`
 - `getPhaseRefEnvelope(marker)` — widest span across all cycle phases for chart ref bands
-- `registerRefreshCallback(fn)` — registers the refresh function from `main.js`
+- `registerRefreshCallback(fn)` — registers the refresh function from `app-event-listeners.js`
 - `detectTrendAlerts(data)` — sudden-change (25% of ref range, 2+ values) and linear-regression (slope >0.02, R²>0.5 for 4+ points) alerts
 - `getAllFlaggedMarkers(data)` — markers >50% of reference range width past their boundary
 - `getFocusCardFingerprint()` — djb2 hash of all entries + all 9 context cards + sex + DOB
@@ -713,11 +713,24 @@ Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 
 **Responsibilities:**
 - Imports all feature modules (side-effect imports for window exports)
+- Initializes encryption, backup, sync, wearable scheduler, and startup profile data
 - Installs app-wide event and refresh wiring through `app-event-listeners.js`
 - Binds hidden file-picker import routing through `import-file-input.js`
 - Calls initial `navigate('dashboard')`
 
 **Window exports:** none (all exports come from other modules)
+
+---
+
+### `startup-profile.js`
+
+Profile startup bootstrap extracted from `main.js`: legacy v1 profile migration, encrypted profile-cache warmup, active-profile imported-data load, and unit/sex/range/DOB display state.
+
+**Key exports:**
+- `initializeProfileData()` — creates the default profile for legacy users, migrates old imported data through encrypted storage, warms the profile cache, sets `state.currentProfile`, and loads active imported data before OAuth callbacks can persist profile-scoped data
+- `applyProfileDisplayState()` — applies saved units/range mode plus sex/DOB metadata to `state` and the startup toggle controls
+
+**Window exports:** none
 
 ---
 
