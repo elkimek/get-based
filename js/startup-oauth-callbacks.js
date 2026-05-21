@@ -5,6 +5,7 @@ import {
   saveOpenRouterKey,
   setAIProvider,
   fetchOpenRouterModels,
+  getOpenRouterBalance,
 } from './api.js';
 import { handleOAuthCallbackOnLoad } from './wearables-connect.js';
 
@@ -22,7 +23,6 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
     // A brand-new OpenRouter account can have zero credits. Show the
     // persistent dialog before the first AI call fails behind a transient toast.
     try {
-      const { getOpenRouterBalance } = await import('./api.js');
       const balance = await getOpenRouterBalance();
       const remaining = balance?.remaining;
       if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && window.showInsufficientBalanceDialog) {
