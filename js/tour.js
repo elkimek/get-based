@@ -42,7 +42,17 @@ function profileKey(suffix) {
 }
 
 function isTourCompleted(storageKey) {
-  return localStorage.getItem(storageKey) === 'completed';
+  const stored = localStorage.getItem(storageKey);
+  if (stored === 'completed') return true;
+  // Older encrypted installs could leave UI-only tour flags as ciphertext.
+  // Tour keys only ever persist the completed marker, so normalize the
+  // legacy wrapper instead of reopening the walkthrough after encryption is
+  // disabled.
+  if (typeof stored === 'string' && stored.startsWith('v1:')) {
+    try { localStorage.setItem(storageKey, 'completed'); } catch (_) {}
+    return true;
+  }
+  return false;
 }
 
 function _isActiveProfileDemo() {

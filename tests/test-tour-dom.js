@@ -198,6 +198,13 @@ return (async function() {
   assert('startEmptyTour(true) no-ops: no spotlight', !document.getElementById('tour-spotlight'));
   assert('startEmptyTour(true) no-ops: no tooltip', !document.getElementById('tour-tooltip'));
 
+  localStorage.setItem(emptyTourKey, 'v1:legacy-ciphertext:completed');
+  window.startEmptyTour(true);
+  await wait(50);
+
+  assert('Legacy encrypted empty tour flag no-ops auto tour', !document.getElementById('tour-overlay'));
+  assert('Legacy encrypted empty tour flag normalizes to completed', localStorage.getItem(emptyTourKey) === 'completed');
+
   // ═══════════════════════════════════════
   // 11. Re-trigger (startEmptyTour(false) ignores completion)
   // ═══════════════════════════════════════
