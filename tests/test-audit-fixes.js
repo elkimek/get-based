@@ -349,6 +349,7 @@ return (async function () {
     const appFeatures = await fetchSrc('js/app-feature-modules.js');
     const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
+    const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
     assert('main.js delegates feature side-effect imports',
       /import\s+['"]\.\/app-feature-modules\.js['"]/.test(main));
     assert('app-feature-modules.js drops device-session-ai-analysis import',
@@ -359,11 +360,15 @@ return (async function () {
       /import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates Health & Data imports',
       /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js delegates UI shell imports',
+      /import\s+['"]\.\/app-ui-shell-modules\.js['"]/.test(appFeatures));
     assert('app-health-data-modules.js retains wearables import',
       /import\s+['"]\.\/wearables\.js['"]/.test(appHealthDataFeatures));
     // light-device-ai-analysis is still wired (the live version).
     assert('app-light-sun-modules.js retains light-device-ai-analysis import',
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));
+    assert('app-ui-shell-modules.js retains views import',
+      /import\s+['"]\.\/views\.js['"]/.test(appUiShellFeatures));
   }
 
   // ─── Restore mutated globals ───────────────────────────────────────

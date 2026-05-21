@@ -163,10 +163,12 @@ console.log('19. main.js Wiring');
 
 const mainSrc = read('js/main.js');
 const appFeatureModulesSrc = read('js/app-feature-modules.js');
+const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const appEventsSrc = read('js/app-event-listeners.js');
 
 assert('main.js imports app-feature-modules.js', mainSrc.includes("import './app-feature-modules.js'"));
-assert('app-feature-modules.js imports tour.js', appFeatureModulesSrc.includes("import './tour.js'"));
+assert('app-feature-modules.js delegates UI shell modules', appFeatureModulesSrc.includes("import './app-ui-shell-modules.js'"));
+assert('app-ui-shell-modules.js imports tour.js', appUiShellModulesSrc.includes("import './tour.js'"));
 assert('app-event-listeners.js Escape checks #tour-overlay', appEventsSrc.includes('tour-overlay'));
 assert('app-event-listeners.js Escape calls window.endTour()', appEventsSrc.includes('window.endTour()'));
 const tourEscIdx = appEventsSrc.indexOf('tour-overlay');
