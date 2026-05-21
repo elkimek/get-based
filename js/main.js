@@ -1,4 +1,4 @@
-// main.js — Entry point and startup orchestration
+// main.js — Thin entry point
 
 import './app-feature-modules.js';
 import { startApp } from './startup-orchestrator.js';

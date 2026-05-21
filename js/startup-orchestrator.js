@@ -8,6 +8,7 @@ import { renderStartupUI } from './startup-ui.js';
 import { installEMFLazyFacade } from './emf-facade.js';
 import { initializeStartupServices, runPostProfileStartupMaintenance } from './startup-maintenance.js';
 import { installGlobalEventListeners, registerAppRefreshCallback } from './app-event-listeners.js';
+import { showNotification } from './utils.js';
 
 let appStarted = false;
 
@@ -25,6 +26,11 @@ async function runStartupSequence() {
   renderStartupUI();
 }
 
+function handleStartupSequenceError(error) {
+  console.error('Startup initialization failed', error);
+  showNotification('Startup failed. Try reloading the app.', 'error', 6000);
+}
+
 export function startApp() {
   if (appStarted) return;
   appStarted = true;
@@ -34,5 +40,7 @@ export function startApp() {
   installGlobalEventListeners();
   registerAppRefreshCallback();
 
-  document.addEventListener('DOMContentLoaded', runStartupSequence);
+  document.addEventListener('DOMContentLoaded', () => {
+    runStartupSequence().catch(handleStartupSequenceError);
+  });
 }

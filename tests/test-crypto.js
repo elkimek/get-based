@@ -437,7 +437,9 @@ try {
   const foundationSrc = await fetchWithRetry('js/startup-foundation.js');
   assert('main.js imports app-feature-modules.js', src.includes("import './app-feature-modules.js'"));
   assert('main.js starts the startup orchestrator', src.includes("from './startup-orchestrator.js'") && src.includes('startApp()'));
-  assert('startup-orchestrator.js registers DOMContentLoaded', orchestratorSrc.includes("document.addEventListener('DOMContentLoaded', runStartupSequence)"));
+  assert('startup-orchestrator.js registers DOMContentLoaded', orchestratorSrc.includes("document.addEventListener('DOMContentLoaded'"));
+  assert('startup-orchestrator.js catches startup failures', orchestratorSrc.includes('runStartupSequence().catch(handleStartupSequenceError)'));
+  assert('startup-orchestrator.js surfaces startup failures', orchestratorSrc.includes("from './utils.js'") && orchestratorSrc.includes('showNotification('));
   assert('startup-orchestrator.js awaits initializeStartupFoundation', orchestratorSrc.includes('await initializeStartupFoundation()'));
   assert('startup-orchestrator.js awaits initializeProfileData', orchestratorSrc.includes('await initializeProfileData()'));
   assert('startup-orchestrator.js imports startup-foundation.js', orchestratorSrc.includes("from './startup-foundation.js'"));
