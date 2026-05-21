@@ -713,7 +713,8 @@ Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 
 **Responsibilities:**
 - Imports all feature modules (side-effect imports for window exports)
-- Initializes encryption, backup, sync, wearable scheduler, and startup profile data
+- Initializes encryption, backup, sync, and startup profile data
+- Delegates startup service boot and post-profile maintenance to `startup-maintenance.js`
 - Delegates wearable/OpenRouter callback routing to `startup-oauth-callbacks.js`
 - Installs app-wide event and refresh wiring through `app-event-listeners.js`
 - Binds hidden file-picker import routing through `import-file-input.js`
@@ -741,6 +742,18 @@ Startup OAuth callback routing extracted from `main.js`. Wearable callbacks run 
 
 **Key exports:**
 - `handleStartupOAuthCallbacks()` — delegates wearable OAuth callback handling, exchanges OpenRouter codes with state verification, stores the OpenRouter key, switches the active AI provider, and opens chat after init
+
+**Window exports:** none
+
+---
+
+### `startup-maintenance.js`
+
+Non-blocking startup maintenance extracted from `main.js`: wearable runtime config/scheduler boot, sun session self-heal, light-device preset hydration, and legacy biometrics migration.
+
+**Key exports:**
+- `initializeStartupServices()` — starts wearable runtime config loading and scheduler setup before profile data loads
+- `runPostProfileStartupMaintenance()` — schedules post-profile maintenance jobs without blocking OAuth callbacks or first render
 
 **Window exports:** none
 

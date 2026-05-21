@@ -565,6 +565,9 @@
     const hasStartupOAuthCallbacksJs = sw.includes('/js/startup-oauth-callbacks.js');
     assert('Service worker caches js/startup-oauth-callbacks.js', hasStartupOAuthCallbacksJs);
 
+    const hasStartupMaintenanceJs = sw.includes('/js/startup-maintenance.js');
+    assert('Service worker caches js/startup-maintenance.js', hasStartupMaintenanceJs);
+
     const hasViewsJs = sw.includes('/js/views.js');
     assert('Service worker caches js/views.js', hasViewsJs);
 

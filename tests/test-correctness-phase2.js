@@ -78,6 +78,7 @@ const pwaAppShellAssets = [
   '/js/app-event-listeners.js',
   '/js/startup-profile.js',
   '/js/startup-oauth-callbacks.js',
+  '/js/startup-maintenance.js',
   '/js/ai-verdict-engine.js',
   '/js/import-loader.js',
   '/js/import-file-input.js',
