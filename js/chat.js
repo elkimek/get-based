@@ -25,10 +25,10 @@ import {
   closeSummaryModal, copySummary, deleteSavedSummary, downloadSummary,
   printSummary, renderSavedSummaries, summarizeThread, viewSavedSummary,
 } from './chat-summaries.js';
-
-const CHAT_RESPONSE_MAX_TOKENS = 16384;
-const CHAT_AUTO_CONTINUE_LIMIT = 2;
-const CHAT_CONTINUE_PROMPT = 'Continue exactly where you stopped. Do not repeat anything already written. Finish the interrupted sentence first, then complete the answer.';
+import {
+  CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
+  isAIResponseTruncated, responseLimitNote,
+} from './chat-continuation.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -780,81 +780,6 @@ function _renderLensSources(chunks, sourceName) {
   </details>`;
 }
 
-function _responseLimitNote() {
-  return '<div class="chat-stopped-note">[output limit reached - ask "continue" to finish]</div>';
-}
-
-function _isAIResponseTruncated(result) {
-  if (result?.truncated) return true;
-  const reason = String(result?.finishReason || '').toLowerCase();
-  return reason === 'length'
-    || reason === 'max_tokens'
-    || reason === 'max_completion_tokens'
-    || reason.includes('token_limit')
-    || reason.includes('max token');
-}
-
-function _isLikelyIncompleteResponse(text) {
-  const t = String(text || '').trim();
-  if (t.length < 500 || t.endsWith('```')) return false;
-  if (/[.!?)]$/.test(t)) return false;
-  const lines = t.split('\n').map(line => line.trim()).filter(Boolean);
-  const lastLine = lines[lines.length - 1] || '';
-  if (!lastLine) return false;
-  if (/^#{1,6}\s+/.test(lastLine)) return true;
-  if (/[:,;]$/.test(t)) return true;
-  if (/\b(and|or|but|because|with|without|given|especially|that|the|a|an|to|for|of|in|on|by|from)$/i.test(t)) return true;
-  return false;
-}
-
-function _shouldAutoContinueResponse(result, text) {
-  return _isAIResponseTruncated(result) || _isLikelyIncompleteResponse(text);
-}
-
-function _mergeAIUsage(total = {}, next = {}) {
-  return {
-    inputTokens: (total.inputTokens || 0) + (next.inputTokens || 0),
-    outputTokens: (total.outputTokens || 0) + (next.outputTokens || 0),
-  };
-}
-
-async function _callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch }) {
-  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch });
-  let fullText = result.text || '';
-  let usage = result.usage || {};
-  let continued = 0;
-
-  while (_shouldAutoContinueResponse(result, fullText) && continued < CHAT_AUTO_CONTINUE_LIMIT && !signal?.aborted) {
-    continued += 1;
-    const priorText = fullText;
-    const continuationMessages = [
-      ...messages,
-      { role: 'assistant', content: priorText },
-      { role: 'user', content: CHAT_CONTINUE_PROMPT },
-    ];
-    result = await callClaudeAPI({
-      system,
-      messages: continuationMessages,
-      maxTokens,
-      signal,
-      onStream(partial) {
-        if (onStream) onStream(priorText + partial);
-      },
-      webSearch,
-    });
-    fullText += result.text || '';
-    usage = _mergeAIUsage(usage, result.usage || {});
-  }
-
-  return {
-    ...result,
-    text: fullText,
-    usage,
-    continued,
-    truncated: _shouldAutoContinueResponse(result, fullText),
-  };
-}
-
 export function renderChatMessages() {
   const container = document.getElementById('chat-messages');
   if (!container) return;
@@ -1176,7 +1101,7 @@ export function renderChatMessages() {
       }
     }
     html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${renderMarkdown(msg.content)}${stoppedNote}`;
-    if (msg.role === 'assistant' && msg.truncated) html += _responseLimitNote();
+    if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {
         const mId = msg.modelId || getActiveModelId();
@@ -2018,7 +1943,7 @@ export async function sendChatMessage() {
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
     const typewriter = createTypewriter(aiMsgEl, typingEl, container);
 
-    const aiResult = await _callChatAPIWithContinuation({
+    const aiResult = await callChatAPIWithContinuation({
       system: systemPrompt,
       messages: apiMessages,
       maxTokens: CHAT_RESPONSE_MAX_TOKENS,
@@ -2027,7 +1952,7 @@ export async function sendChatMessage() {
       webSearch: webSearchEnabled
     });
     const { text: fullText, usage } = aiResult;
-    const responseTruncated = _isAIResponseTruncated(aiResult);
+    const responseTruncated = isAIResponseTruncated(aiResult);
 
     // Final render with full markdown
     typewriter.stop();
@@ -2036,7 +1961,7 @@ export async function sendChatMessage() {
     if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
 
     aiMsgEl.innerHTML = renderMarkdown(fullText);
-    if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', _responseLimitNote());
+    if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
     // Cost footnote
     if (usage && (usage.inputTokens || usage.outputTokens)) {
       const cost = calculateCost(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
@@ -2401,7 +2326,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
       const typewriter = createTypewriter(aiMsgEl, typingEl, container);
 
-      const aiResult = await _callChatAPIWithContinuation({
+      const aiResult = await callChatAPIWithContinuation({
         system: systemPrompt,
         messages: apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
@@ -2410,14 +2335,14 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         webSearch: getChatWebSearchEnabled() && supportsWebSearch()
       });
       const { text: fullText, usage } = aiResult;
-      const responseTruncated = _isAIResponseTruncated(aiResult);
+      const responseTruncated = isAIResponseTruncated(aiResult);
 
       typewriter.stop();
       aiMsgEl.style.whiteSpace = '';
       if (typingEl.parentNode) typingEl.remove();
       if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
       aiMsgEl.innerHTML = renderMarkdown(fullText);
-      if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', _responseLimitNote());
+      if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
 
       const _dWebSearch = getChatWebSearchEnabled() && supportsWebSearch();
       if (usage && (usage.inputTokens || usage.outputTokens)) {

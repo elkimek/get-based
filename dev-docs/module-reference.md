@@ -507,6 +507,16 @@ Shared chat SVG icon strings and icon-button DOM helper extracted from `chat.js`
 
 ---
 
+### `chat-continuation.js`
+
+Response limit detection and automatic continuation wrapper for chat and discussion calls. Centralizes token-headroom constants, incomplete-response heuristics, continuation prompt construction, and usage merging.
+
+**Key exports:** `CHAT_RESPONSE_MAX_TOKENS`, `callChatAPIWithContinuation`, `isAIResponseTruncated`, `responseLimitNote`
+
+**Window exports:** none
+
+---
+
 ### `chat-summaries.js`
 
 Conversation summary generation, saved-summary profile storage, and summary modal actions extracted from `chat.js`.
