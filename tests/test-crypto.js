@@ -433,13 +433,15 @@ try {
 console.log('18. startup async init');
 try {
   const src = await fetchWithRetry('js/main.js');
+  const orchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const foundationSrc = await fetchWithRetry('js/startup-foundation.js');
-  assert('DOMContentLoaded is async', src.includes('async ()'));
-  assert('main.js awaits initializeStartupFoundation', src.includes('await initializeStartupFoundation()'));
-  assert('main.js awaits initializeProfileData', src.includes('await initializeProfileData()'));
   assert('main.js imports app-feature-modules.js', src.includes("import './app-feature-modules.js'"));
-  assert('main.js imports startup-foundation.js', src.includes("from './startup-foundation.js'"));
-  assert('main.js imports startup-profile.js', src.includes("from './startup-profile.js'"));
+  assert('main.js starts the startup orchestrator', src.includes("from './startup-orchestrator.js'") && src.includes('startApp()'));
+  assert('startup-orchestrator.js registers DOMContentLoaded', orchestratorSrc.includes("document.addEventListener('DOMContentLoaded', runStartupSequence)"));
+  assert('startup-orchestrator.js awaits initializeStartupFoundation', orchestratorSrc.includes('await initializeStartupFoundation()'));
+  assert('startup-orchestrator.js awaits initializeProfileData', orchestratorSrc.includes('await initializeProfileData()'));
+  assert('startup-orchestrator.js imports startup-foundation.js', orchestratorSrc.includes("from './startup-foundation.js'"));
+  assert('startup-orchestrator.js imports startup-profile.js', orchestratorSrc.includes("from './startup-profile.js'"));
   assert('startup-foundation.js awaits initEncryption', foundationSrc.includes('await initEncryption()'));
   assert('startup-foundation.js calls initBroadcastChannel', foundationSrc.includes('initBroadcastChannel()'));
   assert('startup-foundation.js imports from crypto.js', foundationSrc.includes("from './crypto.js'"));

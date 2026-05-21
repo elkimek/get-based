@@ -31,6 +31,7 @@ const APP_SHELL = [
   '/js/main.js',
   '/js/app-feature-modules.js',
   '/js/app-event-listeners.js',
+  '/js/startup-orchestrator.js',
   '/js/schema.js',
   '/js/constants.js',
   '/js/state.js',

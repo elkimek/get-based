@@ -709,17 +709,11 @@ Light channel pill rows, seven-day sparklines, dashboard-to-Light channel naviga
 
 ### `main.js`
 
-Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
+Thin module entry point. Imports startup feature side effects, then starts the startup orchestrator.
 
 **Responsibilities:**
 - Imports `app-feature-modules.js` for startup-loaded feature side effects and window exports
-- Delegates encryption, backup, and meteo bootstrap to `startup-foundation.js`
-- Initializes startup profile data
-- Delegates startup service boot and post-profile maintenance to `startup-maintenance.js`
-- Delegates wearable/OpenRouter callback routing to `startup-oauth-callbacks.js`
-- Delegates first-render UI bootstrap to `startup-ui.js`
-- Installs app-wide event and refresh wiring through `app-event-listeners.js`
-- Installs lazy EMF window handlers through `emf-facade.js`
+- Calls `startApp()` from `startup-orchestrator.js`
 
 **Window exports:** none (all exports come from other modules)
 
@@ -732,6 +726,27 @@ Startup-loaded feature side-effect imports extracted from `main.js`. This module
 **Key exports:** none
 
 **Window exports:** none directly; imported feature modules attach their existing compatibility handlers.
+
+---
+
+### `startup-orchestrator.js`
+
+Startup global wiring and phase ordering. Runs once, installs app-wide startup hooks, and registers the `DOMContentLoaded` startup sequence.
+
+**Responsibilities:**
+- Sets the `_getActiveProfileId` startup global
+- Installs lazy EMF window handlers through `emf-facade.js`
+- Installs app-wide event and refresh wiring through `app-event-listeners.js`
+- Delegates encryption, backup, and meteo bootstrap to `startup-foundation.js`
+- Initializes startup profile data
+- Delegates startup service boot and post-profile maintenance to `startup-maintenance.js`
+- Delegates wearable/OpenRouter callback routing to `startup-oauth-callbacks.js`
+- Delegates first-render UI bootstrap to `startup-ui.js`
+
+**Key exports:**
+- `startApp()` — idempotently installs startup globals/listeners and registers the startup sequence
+
+**Window exports:** `_getActiveProfileId`
 
 ---
 

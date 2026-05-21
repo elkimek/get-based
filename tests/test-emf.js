@@ -136,8 +136,10 @@ assert('45b. EMF lazy facade list matches expected window functions',
   emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS.length === emfWindowFns.length &&
   emfWindowFns.every(fn => emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS.includes(fn)));
 const mainSrc = read('js/main.js');
-assert('45c. main.js imports the EMF lazy facade', mainSrc.includes("from './emf-facade.js'"));
-assert('45d. main.js installs the EMF lazy facade', mainSrc.includes('installEMFLazyFacade()'));
+const orchestratorSrc = read('js/startup-orchestrator.js');
+assert('45c. startup-orchestrator.js imports the EMF lazy facade', orchestratorSrc.includes("from './emf-facade.js'"));
+assert('45d. startup-orchestrator.js installs the EMF lazy facade', orchestratorSrc.includes('installEMFLazyFacade()'));
+assert('45d2. main.js starts the startup orchestrator', mainSrc.includes('startApp()'));
 assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('const _emfFns'));
 
 // ── EMF affiliate catalog (Safe Living Technologies) ──
