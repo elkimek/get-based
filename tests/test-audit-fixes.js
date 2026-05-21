@@ -347,8 +347,10 @@ return (async function () {
     // app-feature-modules.js no longer imports it.
     const main = await fetchSrc('js/main.js');
     const appFeatures = await fetchSrc('js/app-feature-modules.js');
+    const appFoundationFeatures = await fetchSrc('js/app-foundation-modules.js');
     const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');
     const appLightSunFeatures = await fetchSrc('js/app-light-sun-modules.js');
+    const appDataIoFeatures = await fetchSrc('js/app-data-io-modules.js');
     const appAiInteractionFeatures = await fetchSrc('js/app-ai-interaction-modules.js');
     const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
     assert('main.js delegates feature side-effect imports',
@@ -357,19 +359,29 @@ return (async function () {
       !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(appFeatures));
     assert('main.js drops device-session-ai-analysis import',
       !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(main));
+    assert('app-feature-modules.js delegates Foundation imports',
+      /import\s+['"]\.\/app-foundation-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates Light & Sun imports',
       /import\s+['"]\.\/app-light-sun-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates Health & Data imports',
       /import\s+['"]\.\/app-health-data-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js delegates Data I/O imports',
+      /import\s+['"]\.\/app-data-io-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates AI interaction imports',
       /import\s+['"]\.\/app-ai-interaction-modules\.js['"]/.test(appFeatures));
     assert('app-feature-modules.js delegates UI shell imports',
       /import\s+['"]\.\/app-ui-shell-modules\.js['"]/.test(appFeatures));
+    assert('app-feature-modules.js has no direct leaf imports',
+      !/import\s+['"]\.\/(?:schema|constants|utils|pii|export)\.js['"]/.test(appFeatures));
+    assert('app-foundation-modules.js retains pii import',
+      /import\s+['"]\.\/pii\.js['"]/.test(appFoundationFeatures));
     assert('app-health-data-modules.js retains wearables import',
       /import\s+['"]\.\/wearables\.js['"]/.test(appHealthDataFeatures));
     // light-device-ai-analysis is still wired (the live version).
     assert('app-light-sun-modules.js retains light-device-ai-analysis import',
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));
+    assert('app-data-io-modules.js retains export import',
+      /import\s+['"]\.\/export\.js['"]/.test(appDataIoFeatures));
     assert('app-ai-interaction-modules.js retains chat import',
       /import\s+['"]\.\/chat\.js['"]/.test(appAiInteractionFeatures));
     assert('app-ui-shell-modules.js retains views import',

@@ -721,11 +721,21 @@ Thin module entry point. Imports startup feature side effects, then starts the s
 
 ### `app-feature-modules.js`
 
-Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration. The Health & Data feature cluster is grouped behind `app-health-data-modules.js`; the Light & Sun feature cluster is grouped behind `app-light-sun-modules.js`; the AI/chat/settings feature cluster is grouped behind `app-ai-interaction-modules.js`; the UI shell feature cluster is grouped behind `app-ui-shell-modules.js`.
+Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration. Foundation/privacy imports are grouped behind `app-foundation-modules.js`; the Health & Data feature cluster is grouped behind `app-health-data-modules.js`; the Light & Sun feature cluster is grouped behind `app-light-sun-modules.js`; the import/export feature cluster is grouped behind `app-data-io-modules.js`; the AI/chat/settings feature cluster is grouped behind `app-ai-interaction-modules.js`; the UI shell feature cluster is grouped behind `app-ui-shell-modules.js`.
 
 **Key exports:** none
 
 **Window exports:** none directly; imported feature modules attach their existing compatibility handlers.
+
+---
+
+### `app-foundation-modules.js`
+
+Startup-loaded foundation/privacy side-effect imports extracted from `app-feature-modules.js`. This module preserves the previous schema/constants/utils/pii import order while keeping the top-level feature list as named startup clusters.
+
+**Key exports:** none
+
+**Window exports:** none directly; imported foundation modules attach their existing compatibility handlers.
 
 ---
 
@@ -746,6 +756,16 @@ Startup-loaded Light & Sun feature side-effect imports extracted from `app-featu
 **Key exports:** none
 
 **Window exports:** none directly; imported Light & Sun modules attach their existing compatibility handlers.
+
+---
+
+### `app-data-io-modules.js`
+
+Startup-loaded import/export feature side-effect imports extracted from `app-feature-modules.js`. This module owns the compatibility startup load for data export/import handlers while keeping the top-level feature list as named startup clusters.
+
+**Key exports:** none
+
+**Window exports:** none directly; imported data I/O modules attach their existing compatibility handlers.
 
 ---
 

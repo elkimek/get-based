@@ -559,11 +559,17 @@
     const hasAppFeatureModulesJs = sw.includes('/js/app-feature-modules.js');
     assert('Service worker caches js/app-feature-modules.js', hasAppFeatureModulesJs);
 
+    const hasAppFoundationModulesJs = sw.includes('/js/app-foundation-modules.js');
+    assert('Service worker caches js/app-foundation-modules.js', hasAppFoundationModulesJs);
+
     const hasAppHealthDataModulesJs = sw.includes('/js/app-health-data-modules.js');
     assert('Service worker caches js/app-health-data-modules.js', hasAppHealthDataModulesJs);
 
     const hasAppLightSunModulesJs = sw.includes('/js/app-light-sun-modules.js');
     assert('Service worker caches js/app-light-sun-modules.js', hasAppLightSunModulesJs);
+
+    const hasAppDataIoModulesJs = sw.includes('/js/app-data-io-modules.js');
+    assert('Service worker caches js/app-data-io-modules.js', hasAppDataIoModulesJs);
 
     const hasAppAiInteractionModulesJs = sw.includes('/js/app-ai-interaction-modules.js');
     assert('Service worker caches js/app-ai-interaction-modules.js', hasAppAiInteractionModulesJs);
