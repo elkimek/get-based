@@ -507,6 +507,16 @@ Shared chat SVG icon strings and icon-button DOM helper extracted from `chat.js`
 
 ---
 
+### `chat-summaries.js`
+
+Conversation summary generation, saved-summary profile storage, and summary modal actions extracted from `chat.js`.
+
+**Key exports:** `summarizeThread`, `renderSavedSummaries`, `viewSavedSummary`, `deleteSavedSummary`, `closeSummaryModal`, `copySummary`, `downloadSummary`, `printSummary`
+
+**Window exports:** assigned by `chat.js` for existing inline handlers.
+
+---
+
 ### `settings.js`
 
 Settings modal with 6 sections.

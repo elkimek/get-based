@@ -156,6 +156,7 @@ assert('CSS .chat-action-btn.active removed', !cssSrc.includes('.chat-action-btn
 console.log('Section 17: Source inspection');
 const chatSrc = read('js/chat.js');
 const chatIconsSrc = read('js/chat-icons.js');
+const chatSummariesSrc = read('js/chat-summaries.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js has buildActionBar', chatSrc.includes('function buildActionBar'), 'found');
@@ -176,6 +177,8 @@ assert('renderChatMessages restores truncated note', chatSrc.includes('msg.trunc
 assert('regenerateLastMessage checks _chatAbortController', chatSrc.includes('_chatAbortController') && chatSrc.includes('regenerateLastMessage'), 'found');
 assert('chat.js imports chat icon helpers', chatSrc.includes("from './chat-icons.js'"), 'found');
 assert('chat-icons.js exports button content helper', chatIconsSrc.includes('export function setIconButtonContent'), 'found');
+assert('chat.js imports chat summary helpers', chatSrc.includes("from './chat-summaries.js'"), 'found');
+assert('chat-summaries.js exports summarizeThread', chatSummariesSrc.includes('export async function summarizeThread'), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatSrc.includes('Response from') && chatSrc.includes('personalityName'), 'tags messages from different personas');
 
