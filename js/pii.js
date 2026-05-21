@@ -542,6 +542,19 @@ export function showPIIDiffViewer(originalText, obfuscatedText) {
 
 // extractPatientName dropped — too unreliable across PDF layouts
 
+function nudgePIIOverlay(overlay) {
+  const modal = overlay?.querySelector?.('.pii-diff-modal');
+  if (!modal) return;
+  modal.classList.add('modal-nudge');
+  modal.addEventListener('animationend', () => modal.classList.remove('modal-nudge'), { once: true });
+}
+
+function wirePIIOverlayNudge(overlay) {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) nudgePIIOverlay(overlay);
+  });
+}
+
 export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) {
   return new Promise(resolve => {
     const isStreaming = typeof streamFn === 'function';
@@ -586,6 +599,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
       </div>`;
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
+    wirePIIOverlayNudge(overlay);
     requestAnimationFrame(() => overlay.classList.add('show'));
 
     const searchInput = overlay.querySelector('#pii-search-input');

@@ -185,6 +185,11 @@ const piiSrc = read('js/pii.js');
     piiSrc.includes('pii-thinking-section'));
   assert('Thinking section collapses on completion',
     piiSrc.includes("'Thinking (done)'"));
+  assert('Privacy review backdrop click nudges instead of silently no-oping',
+    piiSrc.includes('function wirePIIOverlayNudge') &&
+    piiSrc.includes('e.target === overlay') &&
+    piiSrc.includes('modal-nudge') &&
+    piiSrc.includes('wirePIIOverlayNudge(overlay)'));
 
   // ═══════════════════════════════════════
   // 8. Ollama unload guard
