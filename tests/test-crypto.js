@@ -437,6 +437,7 @@ try {
   assert('DOMContentLoaded is async', src.includes('async ()'));
   assert('main.js awaits initializeStartupFoundation', src.includes('await initializeStartupFoundation()'));
   assert('main.js awaits initializeProfileData', src.includes('await initializeProfileData()'));
+  assert('main.js imports app-feature-modules.js', src.includes("import './app-feature-modules.js'"));
   assert('main.js imports startup-foundation.js', src.includes("from './startup-foundation.js'"));
   assert('main.js imports startup-profile.js', src.includes("from './startup-profile.js'"));
   assert('startup-foundation.js awaits initEncryption', foundationSrc.includes('await initEncryption()'));

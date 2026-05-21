@@ -344,13 +344,18 @@ return (async function () {
       .then(r => r.ok).catch(() => false);
     assert('device-session-ai-analysis.js no longer served', ghost === false);
 
-    // main.js no longer imports it.
+    // app-feature-modules.js no longer imports it.
     const main = await fetchSrc('js/main.js');
+    const appFeatures = await fetchSrc('js/app-feature-modules.js');
+    assert('main.js delegates feature side-effect imports',
+      /import\s+['"]\.\/app-feature-modules\.js['"]/.test(main));
+    assert('app-feature-modules.js drops device-session-ai-analysis import',
+      !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(appFeatures));
     assert('main.js drops device-session-ai-analysis import',
       !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(main));
     // light-device-ai-analysis is still wired (the live version).
-    assert('main.js retains light-device-ai-analysis import',
-      /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(main));
+    assert('app-feature-modules.js retains light-device-ai-analysis import',
+      /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appFeatures));
   }
 
   // ─── Restore mutated globals ───────────────────────────────────────

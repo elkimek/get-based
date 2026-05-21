@@ -75,6 +75,7 @@ const pwaAppShellAssets = [
   '/vendor/evolu/sqlite3-opfs-async-proxy.js',
   '/vendor/evolu/sqlite3-worker1-bundler-friendly.mjs',
   '/vendor/evolu/sqlite3.wasm',
+  '/js/app-feature-modules.js',
   '/js/app-event-listeners.js',
   '/js/startup-foundation.js',
   '/js/startup-profile.js',

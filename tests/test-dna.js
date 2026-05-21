@@ -339,7 +339,9 @@ assert('window.SNP_CATEGORY_LABELS exists', typeof window.SNP_CATEGORY_LABELS ==
 console.log('12. Source Integration');
 
 const mainSrc = await fetchWithRetry('js/main.js');
-assert('main.js imports dna.js', mainSrc.includes("'./dna.js'"));
+const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
+assert('main.js imports app-feature-modules.js', mainSrc.includes("'./app-feature-modules.js'"));
+assert('app-feature-modules.js imports dna.js', appFeatureModulesSrc.includes("'./dna.js'"));
 // DNA detection in the file-input path is now delegated to
 // classifyImportFiles (pdf-import.js); import-file-input.js consumes the returned
 // dnaFiles bucket. The downstream isDNAFile check still lives in the

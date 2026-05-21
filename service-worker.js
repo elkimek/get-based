@@ -29,6 +29,7 @@ const APP_SHELL = [
   '/styles.css',
   '/themes-extra.css',
   '/js/main.js',
+  '/js/app-feature-modules.js',
   '/js/app-event-listeners.js',
   '/js/schema.js',
   '/js/constants.js',

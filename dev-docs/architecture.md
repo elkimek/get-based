@@ -28,6 +28,7 @@ tests/
 
 js/
   main.js           — Entry point: DOMContentLoaded startup orchestration
+  app-feature-modules.js — Startup-loaded feature side-effect imports/window exports
   app-event-listeners.js — App-wide modal, keyboard, shortcut, and refresh wiring
   startup-foundation.js — Encryption, meteo cache, broadcast, and folder backup bootstrap
   startup-profile.js — Profile migration, active-profile load, and display-state bootstrap
@@ -92,7 +93,7 @@ index.html
         └── imports all other modules (directly or transitively)
 ```
 
-`main.js` registers the `DOMContentLoaded` listener and orders the startup phases. Encryption unlock, meteo cache hydration, cross-tab broadcast, and folder backup setup are delegated to `startup-foundation.js`; profile migration, cache warmup, and active-profile data loading are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; initial theme/sidebar/navigation/sync/changelog/header/chat/file-input UI bootstrap lives in `startup-ui.js`; app-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`.
+`main.js` registers the `DOMContentLoaded` listener and orders the startup phases. Startup-loaded feature modules and their window exports are grouped in `app-feature-modules.js`. Encryption unlock, meteo cache hydration, cross-tab broadcast, and folder backup setup are delegated to `startup-foundation.js`; profile migration, cache warmup, and active-profile data loading are delegated to `startup-profile.js`; wearable/OpenRouter callback routing lives in `startup-oauth-callbacks.js`; wearable runtime config/scheduler boot and non-blocking post-profile maintenance live in `startup-maintenance.js`; initial theme/sidebar/navigation/sync/changelog/header/chat/file-input UI bootstrap lives in `startup-ui.js`; app-wide keyboard/modal handlers and the refresh callback are installed through `app-event-listeners.js`.
 
 ## Navigation and dashboard IA
 

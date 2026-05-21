@@ -162,9 +162,11 @@ assert('CSS has mobile/coarse tour button touch target', cssSrc.includes('.tour-
 console.log('19. main.js Wiring');
 
 const mainSrc = read('js/main.js');
+const appFeatureModulesSrc = read('js/app-feature-modules.js');
 const appEventsSrc = read('js/app-event-listeners.js');
 
-assert('main.js imports tour.js', mainSrc.includes("import './tour.js'"));
+assert('main.js imports app-feature-modules.js', mainSrc.includes("import './app-feature-modules.js'"));
+assert('app-feature-modules.js imports tour.js', appFeatureModulesSrc.includes("import './tour.js'"));
 assert('app-event-listeners.js Escape checks #tour-overlay', appEventsSrc.includes('tour-overlay'));
 assert('app-event-listeners.js Escape calls window.endTour()', appEventsSrc.includes('window.endTour()'));
 const tourEscIdx = appEventsSrc.indexOf('tour-overlay');

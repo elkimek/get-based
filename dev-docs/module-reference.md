@@ -712,7 +712,7 @@ Light channel pill rows, seven-day sparklines, dashboard-to-Light channel naviga
 Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 
 **Responsibilities:**
-- Imports all feature modules (side-effect imports for window exports)
+- Imports `app-feature-modules.js` for startup-loaded feature side effects and window exports
 - Delegates encryption, backup, and meteo bootstrap to `startup-foundation.js`
 - Initializes startup profile data
 - Delegates startup service boot and post-profile maintenance to `startup-maintenance.js`
@@ -722,6 +722,16 @@ Entry point and startup orchestrator. Runs once on `DOMContentLoaded`.
 - Installs lazy EMF window handlers through `emf-facade.js`
 
 **Window exports:** none (all exports come from other modules)
+
+---
+
+### `app-feature-modules.js`
+
+Startup-loaded feature side-effect imports extracted from `main.js`. This module preserves the previous feature import order while keeping `main.js` focused on startup orchestration.
+
+**Key exports:** none
+
+**Window exports:** none directly; imported feature modules attach their existing compatibility handlers.
 
 ---
 
