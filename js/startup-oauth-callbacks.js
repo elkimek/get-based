@@ -16,6 +16,13 @@ import { handleOAuthCallbackOnLoad } from './wearables-connect.js';
 async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
   history.replaceState(null, '', window.location.pathname);
 
+  if (typeof oauthCode !== 'string' || !oauthCode) {
+    restoreOpenRouterOAuthPreviousProvider();
+    clearOpenRouterOAuthSession();
+    window.showNotification('OpenRouter connection failed: missing authorization code. Please try connecting again.', 'error', 6000);
+    return;
+  }
+
   try {
     const key = await exchangeOpenRouterCode(oauthCode, oauthState);
     await saveOpenRouterKey(key);
@@ -65,11 +72,12 @@ export async function handleStartupOAuthCallbacks() {
   const oauthCode = urlParams.get('code');
   const oauthState = urlParams.get('state');
   const oauthError = urlParams.get('error');
-  if (!wearableHandled && oauthError && hasPendingOpenRouterOAuthSession()) {
-    handleOpenRouterOAuthError(oauthError, urlParams.get('error_description'));
-    return;
-  }
-  if (!wearableHandled && oauthCode) {
+  const pendingOpenRouterOAuth = hasPendingOpenRouterOAuthSession();
+  if (!wearableHandled && pendingOpenRouterOAuth) {
+    if (oauthError) {
+      handleOpenRouterOAuthError(oauthError, urlParams.get('error_description'));
+      return;
+    }
     await handleOpenRouterOAuthCallback(oauthCode, oauthState);
   }
 }
