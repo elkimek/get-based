@@ -16,6 +16,7 @@ return (async function() {
   }
 
   console.log('%c Chat Actions DOM Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
+  const { buildActionBar } = await import('/js/chat-actions.js');
 
   const S = window._labState;
   const hasState = S && typeof S === 'object';
@@ -41,7 +42,7 @@ return (async function() {
       assert('Rendered AI messages have action bars', aiMsgs.length > 0 && aiMsgs[0].querySelector('.chat-action-bar') !== null, `${aiMsgs.length} AI msgs`);
       assert('User messages have NO action bars', userMsgs.length > 0 && userMsgs[0].querySelector('.chat-action-bar') === null, `${userMsgs.length} user msgs`);
     } else {
-      const bar1 = window.buildActionBar(1);
+      const bar1 = buildActionBar(1);
       const parser = new DOMParser();
       const doc = parser.parseFromString('<div class="chat-msg chat-ai">' + bar1 + '</div>', 'text/html');
       assert('Action bar HTML has .chat-action-bar div', doc.querySelector('.chat-action-bar') !== null, 'found in parsed HTML');

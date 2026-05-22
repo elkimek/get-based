@@ -34,6 +34,10 @@ export function buildActionBar(msgIndex) {
 export function regenerateLastMessage() {
   if (state.chatHistory.length < 2) return;
   if (window.isChatStreaming?.()) return;
+  const renderChatMessages = window.renderChatMessages;
+  const sendChatMessage = window.sendChatMessage;
+  if (typeof renderChatMessages !== 'function' || typeof sendChatMessage !== 'function') return;
+
   state.chatHistory.pop();
   const lastUserMsg = state.chatHistory[state.chatHistory.length - 1];
   if (!lastUserMsg || lastUserMsg.role !== 'user') return;
@@ -41,8 +45,8 @@ export function regenerateLastMessage() {
   if (input) input.value = lastUserMsg.content;
   state.chatHistory.pop();
   void saveChatHistory();
-  window.renderChatMessages?.();
-  window.sendChatMessage?.();
+  renderChatMessages();
+  sendChatMessage();
 }
 
 export function copyMessage(msgIndex) {
@@ -79,7 +83,6 @@ export function toggleContextDetails(msgIndex) {
 }
 
 Object.assign(window, {
-  buildActionBar,
   regenerateLastMessage,
   copyMessage,
   toggleContextDetails,
