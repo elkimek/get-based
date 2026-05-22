@@ -478,21 +478,32 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat streaming, image send integration, and direct-message orchestration. Chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+Chat window wiring plus marker/correlation entry points. Direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
-- `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
+- `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
 - `renderChatMessages()` — re-exported from `chat-render.js` for existing callers
 - `askAIAboutMarker(markerKey)` — per-marker AI explanation, opens the chat panel with a marker-specific prompt
+- `askAIAboutCorrelations()` — opens chat with a selected-marker correlation prompt
 - Thread management: `createNewThread()`, `loadThread(id)`, `deleteThread(id)`, `renameThread(id)`
 
 **Window exports:** `sendChatMessage`, `setChatPersonality`, `openChatPanel`, `closeChatPanel`, `createNewThread`, `loadThread`, `deleteThread`, `renameThread`, `generateCustomPersonality`, `saveCustomPersonality`, `askAIAboutMarker`, `addImageAttachment`, `toggleHDMode`
 
 ---
 
+### `chat-send.js`
+
+Direct chat send and streaming state. Owns `sendChatMessage()`, Enter-key handling, stop-button abort state, send-button icon mode, typewriter trickle, image attachment payload injection, API message assembly, usage footnotes, live EMF/product recommendation injection, and partial-message persistence on abort. It is imported by `chat.js`, which re-exports its public entry points and passes its typewriter/abort helpers to `chat-discussion.js`.
+
+**Key exports:** `sendChatMessage`, `handleChatKeydown`, `isChatStreaming`, `createTypewriter`, `getChatAbortController`, `setChatAbortController`, `setSendButtonMode`, `updateSendButtonState`
+
+**Window exports:** `updateSendButtonState` is assigned by this module for `chat-images.js`; other user-facing handlers are assigned by `chat.js`.
+
+---
+
 ### `chat-render.js`
 
-Chat rendering and empty-state/onboarding message composition. Owns `renderChatMessages()`, no-data prompt selection, lens-source disclosure rendering, persisted assistant footnotes, image badges, EMF hints, and persisted recommendation sections. It imports rendering dependencies directly and keeps `chat.js` focused on send/stream orchestration.
+Chat rendering and empty-state/onboarding message composition. Owns `renderChatMessages()`, no-data prompt selection, lens-source disclosure rendering, persisted assistant footnotes, image badges, EMF hints, and persisted recommendation sections. It imports rendering dependencies directly and keeps rendering details out of the chat window wiring module.
 
 **Key exports:** `renderChatMessages`, `_getNoDataPrompts`, `_renderLensSources`
 

@@ -269,17 +269,17 @@ window.getLensStatus();
 assert('subscribeLensStatus returns function', typeof unsub === 'function');
 unsub();
 
-// ─── 9. Wiring: chat.js main send ───
-console.log('\n9. chat.js wiring');
-const chatSrc = read('js/chat.js');
+// ─── 9. Wiring: chat-send.js main send ───
+console.log('\n9. chat-send.js wiring');
+const chatSendSrc = read('js/chat-send.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatPanelSrc = read('js/chat-panel.js');
-assert("imports hasLens from './lens.js'", chatSrc.includes("from './lens.js'"));
-assert('imports queryLens', chatSrc.includes('queryLens'));
-assert('imports injectLensChunks', chatSrc.includes('injectLensChunks'));
+assert("imports hasLens from './lens.js'", chatSendSrc.includes("from './lens.js'"));
+assert('imports queryLens', chatSendSrc.includes('queryLens'));
+assert('imports injectLensChunks', chatSendSrc.includes('injectLensChunks'));
 assert('chat-panel imports updateLensIndicator', chatPanelSrc.includes('updateLensIndicator'));
-assert('main send calls hasLens()', chatSrc.includes('if (hasLens())'));
-assert('main send calls queryLensMulti with user text', /await queryLensMulti\(text,/.test(chatSrc));
+assert('main send calls hasLens()', chatSendSrc.includes('if (hasLens())'));
+assert('main send calls queryLensMulti with user text', /await queryLensMulti\(text,/.test(chatSendSrc));
 assert('multi-persona calls queryLensMulti with msgText', /await queryLensMulti\(msgText,/.test(chatDiscussionSrc));
 assert('openChatPanel calls updateLensIndicator', chatPanelSrc.includes('updateLensIndicator()'));
 

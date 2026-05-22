@@ -87,6 +87,7 @@ assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
 
 const chatSrc = read('js/chat.js');
+const chatSendSrc = read('js/chat-send.js');
 const chatActionsSrc = read('js/chat-actions.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const markdownSrc = read('js/markdown.js');
@@ -585,7 +586,7 @@ assert('System prompt has cortisol cross-cutting note', constSrc.includes('corti
 assert('System prompt has Style section', constSrc.includes('## Style'));
 assert('Health goals at top of Priority Context', constSrc.indexOf('Health goals:') < constSrc.indexOf('Medical conditions:'));
 
-assert('chat.js delegates prompt assembly to chat-prompt-context', chatSrc.includes('buildChatSystemPrompt'));
+assert('chat-send.js delegates prompt assembly to chat-prompt-context', chatSendSrc.includes('buildChatSystemPrompt'));
 assert('Persona placed after lab data', chatPromptContextSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));
 
 assert('buildFocusContext exists in focus-card.js', focusCardSrc.includes('function buildFocusContext()'));

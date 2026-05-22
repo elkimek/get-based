@@ -124,10 +124,10 @@ console.log('=== Phase 3 A11y Tests ===\n');
     tourSrc.includes('id="tour-tooltip-heading"'));
 
   // ─── 8. Chat typing indicator aria-live ───
-  const chatSrc = read('/js/chat.js');
+  const chatSendSrc = read('/js/chat-send.js');
   const chatDiscussionSrc = read('/js/chat-discussion.js');
   const ariaLiveCount = (
-    chatSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
+    chatSendSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
   ).length + (
     chatDiscussionSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
   ).length;

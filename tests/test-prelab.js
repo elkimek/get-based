@@ -24,6 +24,7 @@ const chatSrc = read('js/chat.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const chatRenderSrc = read('js/chat-render.js');
+const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
 
   assert('No sentinel return string', !labCtxSrc.includes("return 'No lab data is currently loaded for this profile.'"),
@@ -270,8 +271,8 @@ const labCtxSrc = read('js/lab-context.js');
       chatOnboardingSrc.includes('export function startOnboardingLabImport'),
     'Provider quiz and onboarding handlers should be extracted from chat.js');
   assert('sendChatMessage guards no provider', (() => {
-    const fnStart = chatSrc.indexOf('export async function sendChatMessage()');
-    const fnBody = chatSrc.substring(fnStart, fnStart + 300);
+    const fnStart = chatSendSrc.indexOf('export async function sendChatMessage()');
+    const fnBody = chatSendSrc.substring(fnStart, fnStart + 300);
     return fnBody.includes('if (!hasAIProvider())');
   })(), 'sendChatMessage should check for provider and re-render setup guide');
 

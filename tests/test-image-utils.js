@@ -126,23 +126,23 @@ assert('supportsVision function in api.js', apiSrc.includes('export function sup
 assert('Vision models cached in fetchOpenRouterModels', apiSrc.includes('labcharts-openrouter-vision-models'));
 assert('Ollama image normalization', apiSrc.includes('ollamaMsg.images = images'));
 
-const chatSrc = await fetchWithRetry('js/chat.js');
 const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
+const chatSendSrc = await fetchWithRetry('js/chat-send.js');
 // Image-attachment flow was extracted to js/chat-images.js in v1.21.9.
-// chat.js keeps the image-utils import for send-time helpers
+// chat-send.js keeps the image-utils import for send-time helpers
 // (buildVisionContent / formatImageBlock) and consumes the pending
 // queue via chat-images.js.
 const chatImagesSrc = await fetchWithRetry('js/chat-images.js');
 assert('chat-images imports supportsVision', chatImagesSrc.includes('supportsVision'));
-assert('chat.js imports image-utils for send-time helpers', chatSrc.includes("from './image-utils.js'"));
-assert('chat.js imports from chat-images for pending-queue access',
-  chatSrc.includes("from './chat-images.js'") && chatSrc.includes('getPendingAttachments'));
+assert('chat-send.js imports image-utils for send-time helpers', chatSendSrc.includes("from './image-utils.js'"));
+assert('chat-send.js imports from chat-images for pending-queue access',
+  chatSendSrc.includes("from './chat-images.js'") && chatSendSrc.includes('getPendingAttachments'));
 assert('Pending attachments variable lives in chat-images.js',
   chatImagesSrc.includes('_pendingAttachments'));
 assert('chat-images.js imports isValidImageType + resizeImage',
   chatImagesSrc.includes('isValidImageType') && chatImagesSrc.includes('resizeImage'));
 assert('Image badge in renderChatMessages', chatRenderSrc.includes('chat-image-badge'));
-assert('buildVisionContent used in sendChatMessage', chatSrc.includes('buildVisionContent(imageBlocks'));
+assert('buildVisionContent used in sendChatMessage', chatSendSrc.includes('buildVisionContent(imageBlocks'));
 
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');
 assert('assessTextQuality in pdf-import', pdfSrc.includes('export function assessTextQuality'));

@@ -154,12 +154,12 @@ else localStorage.removeItem('labcharts-ai-provider');
 if (oldOpenRouterModelForRefresh) localStorage.setItem('labcharts-openrouter-model', oldOpenRouterModelForRefresh);
 else localStorage.removeItem('labcharts-openrouter-model');
 
-// ─── 4. chat.js source inspection ───
-console.log('\n4. chat.js source inspection');
-const chatSrc = read('js/chat.js');
+// ─── 4. chat-send.js source inspection ───
+console.log('\n4. chat-send.js source inspection');
+const chatSendSrc = read('js/chat-send.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
-assert('chat.js uses getActiveModelId for model resolution', chatSrc.includes('getActiveModelId'));
-assert('chat.js snapshots provider for sends', chatSrc.includes('const _msgProvider = getAIProvider()') && chatSrc.includes('provider: _msgProvider'));
+assert('chat-send.js uses getActiveModelId for model resolution', chatSendSrc.includes('getActiveModelId'));
+assert('chat-send.js snapshots provider for sends', chatSendSrc.includes('const _msgProvider = getAIProvider()') && chatSendSrc.includes('provider: _msgProvider'));
 
 // ─── 5. pdf-import.js source inspection ───
 console.log('\n5. pdf-import.js source inspection');

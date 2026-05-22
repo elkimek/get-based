@@ -359,9 +359,10 @@ assert('provider-panels has toggleVeniceE2EE', providerSrc.includes('toggleVenic
 assert('provider-panels has Venice model change handler', providerSrc.includes('function onVeniceModelDropdownChange'));
 assert('Venice model dropdown uses change handler', providerSrc.includes('onchange="onVeniceModelDropdownChange(this.value)"'));
 const chatSrc = read('js/chat.js');
+const chatSendSrc = read('js/chat-send.js');
 const chatAttestationSrc = read('js/chat-attestation.js');
-assert('chat uses isVeniceE2EEActive', chatSrc.includes('isVeniceE2EEActive'));
-assert('chat imports E2EE attestation helpers', chatSrc.includes("from './chat-attestation.js'"));
+assert('chat send uses isVeniceE2EEActive', chatSendSrc.includes('isVeniceE2EEActive'));
+assert('chat send imports E2EE attestation helpers', chatSendSrc.includes("from './chat-attestation.js'"));
 assert('chat attestation shows lock emoji for E2EE', chatAttestationSrc.includes('\\uD83D\\uDD12'));
 assert('chat exports refreshWebSearchToggle', chatSrc.includes('refreshWebSearchToggle'));
 
