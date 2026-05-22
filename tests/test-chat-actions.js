@@ -164,6 +164,7 @@ const chatIconsSrc = read('js/chat-icons.js');
 const chatSummariesSrc = read('js/chat-summaries.js');
 const chatContinuationSrc = read('js/chat-continuation.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
+const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js has buildActionBar', chatSrc.includes('function buildActionBar'), 'found');
@@ -197,6 +198,8 @@ assert('chat.js imports prompt context helpers', chatSrc.includes("from './chat-
 assert('chat-prompt-context.js exports tagged messages helper', chatPromptContextSrc.includes('export function buildTaggedChatMessages'), 'found');
 assert('chat.js imports attestation helpers', chatSrc.includes("from './chat-attestation.js'"), 'found');
 assert('chat-attestation.js exports E2EE lock footnote helper', chatAttestationSrc.includes('export function e2eeLockFootnote'), 'found');
+assert('chat.js imports personality helpers', chatSrc.includes("from './chat-personalities.js'"), 'found');
+assert('chat-personalities.js exports header model helper', chatPersonalitiesSrc.includes('export function updateChatHeaderModel'), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 
@@ -257,10 +260,10 @@ if (hasState) {
 // (the original's `if (hasState)` gate was a carry-over from when chatSrc
 // came from a fetch that could be absent before state was ready).
 console.log('Section 19: setChatPersonality thread behavior');
-assert('setChatPersonality is async', chatSrc.includes('async function setChatPersonality'), 'found in source');
-assert('setChatPersonality switches in-place', chatSrc.includes('state.currentChatPersonality = id'), 'found');
-assert('Updates thread personality in-place', chatSrc.includes('thread.personality = id'), 'found in setChatPersonality');
-assert('Updates thread metadata on switch', chatSrc.includes('thread.personalityName') && chatSrc.includes('thread.personalityIcon'), 'found');
+assert('setChatPersonality is async', chatPersonalitiesSrc.includes('async function setChatPersonality'), 'found in source');
+assert('setChatPersonality switches in-place', chatPersonalitiesSrc.includes('state.currentChatPersonality = id'), 'found');
+assert('Updates thread personality in-place', chatPersonalitiesSrc.includes('thread.personality = id'), 'found in setChatPersonality');
+assert('Updates thread metadata on switch', chatPersonalitiesSrc.includes('thread.personalityName') && chatPersonalitiesSrc.includes('thread.personalityIcon'), 'found');
 
 // ─── Section 20: state.js exposes _labState ───
 console.log('Section 20: State exposure');

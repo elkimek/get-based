@@ -478,22 +478,27 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat panel and streaming.
+AI chat panel, streaming, thread orchestration, onboarding chat flows, image send integration, and multi-persona discussion rounds. Personality selection and custom persona editing live in `chat-personalities.js`; chat image attachment state lives in `chat-images.js`; thread storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
 - `askAIAboutMarker(markerKey)` — per-marker AI explanation, streams into the chat panel
 - Thread management: `createNewThread()`, `loadThread(id)`, `deleteThread(id)`, `renameThread(id)`
-- `setChatPersonality(id)` — switches personality, updates system prompt
-- `getCustomPersonality()` — returns `{ name, icon, promptText, evidenceBased }` from storage
-- `generateCustomPersonality()` — AI-powered persona generation from a name (2048 tokens, streamed)
-- `pickPersonaIcon(name)` — djb2 hash into 10-emoji palette
-
 - `addImageAttachment(file)` — resizes + attaches image (max 5), shows quality warnings
 - `toggleHDMode()` — toggles HD image mode (1024px↔2048px), persisted in localStorage
 - `updateAttachButtonVisibility()` — shows/hides attach + HD buttons based on vision support
 
 **Window exports:** `sendChatMessage`, `setChatPersonality`, `openChatPanel`, `closeChatPanel`, `createNewThread`, `loadThread`, `deleteThread`, `renameThread`, `generateCustomPersonality`, `saveCustomPersonality`, `askAIAboutMarker`, `addImageAttachment`, `toggleHDMode`
+
+---
+
+### `chat-personalities.js`
+
+Chat personality storage, personality picker rendering, custom persona editor, AI-powered persona generation, and chat header title/model status. The module imports thread index helpers directly and calls back to `window.renderChatMessages?.()` for the two places that need to repaint chat content without creating a `chat.js` import cycle.
+
+**Key exports:** `getActivePersonality`, `getCustomPersonalities`, `saveCustomPersonalities`, `getCustomPersonality`, `getCustomPersonalityText`, `pickPersonaIcon`, `setChatPersonality`, `loadChatPersonality`, `updateChatHeaderTitle`, `updateChatHeaderModel`, `updateSummaryButton`, `updatePersonalityBar`, `togglePersonalityBar`, `generateCustomPersonality`, `saveCustomPersonality`, `startNewCustomPersonality`, `editCustomPersonality`, `deleteCustomPersonality`, `autoResizePersonaTextarea`, `markPersonalityDirty`, `snapshotPersonalityClean`
+
+**Window exports:** assigned by `chat.js` for existing inline handlers and cross-module callbacks.
 
 ---
 

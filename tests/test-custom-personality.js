@@ -2,7 +2,7 @@
 // test-custom-personality.js — Multiple Custom Personalities. Window-export
 // checks, pickPersonaIcon determinism, getCustomPersonalities array storage +
 // migrations, compat shim, getActivePersonality, loadChatPersonality
-// validation, plus `.toString()` source-inspection of chat.js handlers and
+// validation, plus `.toString()` source-inspection of chat module handlers and
 // file-read checks of constants.js / backup.js / service-worker.js / api.js /
 // styles.css.
 //
