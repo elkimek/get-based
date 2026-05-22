@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat panel, streaming, thread orchestration, onboarding chat flows, image send integration, and multi-persona discussion rounds. Personality selection and custom persona editing live in `chat-personalities.js`; chat image attachment state lives in `chat-images.js`; thread storage and rail rendering live in `chat-threads.js`.
+AI chat panel, streaming, thread orchestration, onboarding chat flows, image send integration, and multi-persona discussion rounds. Personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
@@ -499,6 +499,16 @@ Chat personality storage, personality picker rendering, custom persona editor, A
 **Key exports:** `getActivePersonality`, `getCustomPersonalities`, `saveCustomPersonalities`, `getCustomPersonality`, `getCustomPersonalityText`, `pickPersonaIcon`, `setChatPersonality`, `loadChatPersonality`, `updateChatHeaderTitle`, `updateChatHeaderModel`, `updateSummaryButton`, `updatePersonalityBar`, `togglePersonalityBar`, `generateCustomPersonality`, `saveCustomPersonality`, `startNewCustomPersonality`, `editCustomPersonality`, `deleteCustomPersonality`, `autoResizePersonaTextarea`, `markPersonalityDirty`, `snapshotPersonalityClean`
 
 **Window exports:** assigned by `chat.js` for existing inline handlers and cross-module callbacks.
+
+---
+
+### `chat-history.js`
+
+Thread-aware chat message persistence and clearing. The module owns the legacy storage key helper, encrypted/plain thread message load/save, thread metadata updates, saved-summary cleanup, and the clear-history confirmation flow. It uses `window.renderChatMessages?.()` and `window.updateDiscussButton?.()` callbacks for repaint/discussion hooks that would otherwise create a `chat.js` import cycle.
+
+**Key exports:** `getChatStorageKey`, `loadChatHistory`, `saveChatHistory`, `clearChatHistory`
+
+**Window exports:** assigned by `chat.js` for existing inline handlers and `chat-threads.js` callbacks.
 
 ---
 

@@ -165,6 +165,7 @@ const chatSummariesSrc = read('js/chat-summaries.js');
 const chatContinuationSrc = read('js/chat-continuation.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const chatPersonalitiesSrc = read('js/chat-personalities.js');
+const chatHistorySrc = read('js/chat-history.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js has buildActionBar', chatSrc.includes('function buildActionBar'), 'found');
@@ -200,6 +201,8 @@ assert('chat.js imports attestation helpers', chatSrc.includes("from './chat-att
 assert('chat-attestation.js exports E2EE lock footnote helper', chatAttestationSrc.includes('export function e2eeLockFootnote'), 'found');
 assert('chat.js imports personality helpers', chatSrc.includes("from './chat-personalities.js'"), 'found');
 assert('chat-personalities.js exports header model helper', chatPersonalitiesSrc.includes('export function updateChatHeaderModel'), 'found');
+assert('chat.js imports history helpers', chatSrc.includes("from './chat-history.js'"), 'found');
+assert('chat-history.js exports save/load helpers', chatHistorySrc.includes('export async function saveChatHistory') && chatHistorySrc.includes('export async function loadChatHistory'), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 

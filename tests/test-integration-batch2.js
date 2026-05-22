@@ -169,7 +169,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('9. Chat clear fixes');
 
-  const chatSrc = read('/js/chat.js');
+  const chatSrc = read('/js/chat-history.js');
   // clearChatHistory should call updateChatHeaderTitle
   const clearIdx = chatSrc.indexOf('function clearChatHistory');
   const clearBlock = chatSrc.substring(clearIdx, chatSrc.indexOf('\n}', clearIdx));

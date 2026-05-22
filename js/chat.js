@@ -3,9 +3,8 @@
 import { state } from './state.js';
 import { CHAT_PERSONALITIES, CHAT_SYSTEM_PROMPT, LATITUDE_BANDS } from './constants.js';
 import { calculateCost, formatCost, trackUsage } from './schema.js';
-import { escapeHTML, showNotification, showConfirmDialog, formatValue, getStatus, hasCardContent } from './utils.js';
+import { escapeHTML, showNotification, formatValue, getStatus, hasCardContent } from './utils.js';
 import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, saveImportedData } from './data.js';
-import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { getProfileLocation, setProfileLocation, getLatitudeFromLocation, getLocationCache, latitudeToBand, detectLatitudeWithAI, getProfiles, renameProfile, setProfileSex, setProfileDob } from './profile.js';
 import { callClaudeAPI, hasAIProvider, isAIPaused, setAIPaused, getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch, isVeniceE2EEActive } from './api.js';
 import { formatImageBlock, buildVisionContent } from './image-utils.js';
@@ -13,7 +12,7 @@ import { getPendingAttachments, hasPendingAttachments, clearAttachments } from '
 import {
   loadChatThreads, saveChatThreadIndex, ensureActiveThread, createNewThread,
   autoNameThread,
-  renderThreadList, invalidateThreadContentCache,
+  renderThreadList,
   restoreRailState, getChatThreadKey, getChatThreadsKey,
 } from './chat-threads.js';
 import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
@@ -43,6 +42,9 @@ import {
   startNewCustomPersonality, togglePersonalityBar, updateChatHeaderModel,
   updateChatHeaderTitle, updatePersonalityBar, updateSummaryButton,
 } from './chat-personalities.js';
+import {
+  clearChatHistory, getChatStorageKey, loadChatHistory, saveChatHistory,
+} from './chat-history.js';
 export {
   autoResizePersonaTextarea, deleteCustomPersonality, editCustomPersonality,
   generateCustomPersonality, getActivePersonality, getCustomPersonalities,
@@ -52,6 +54,9 @@ export {
   startNewCustomPersonality, togglePersonalityBar, updateChatHeaderModel,
   updateChatHeaderTitle, updatePersonalityBar, updateSummaryButton,
 } from './chat-personalities.js';
+export {
+  clearChatHistory, getChatStorageKey, loadChatHistory, saveChatHistory,
+} from './chat-history.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -222,89 +227,6 @@ export function toggleContextDetails(msgIndex) {
   const open = details.style.display !== 'none';
   details.style.display = open ? 'none' : 'flex';
   if (arrow) arrow.textContent = open ? '\u25B8' : '\u25BE';
-}
-
-
-// ═══════════════════════════════════════════════
-// LEGACY STORAGE KEY (for migration detection)
-// ═══════════════════════════════════════════════
-export function getChatStorageKey() {
-  return `labcharts-${state.currentProfile}-chat`;
-}
-
-// ═══════════════════════════════════════════════
-// CHAT HISTORY (now thread-aware)
-// ═══════════════════════════════════════════════
-export async function loadChatHistory() {
-  if (!state.currentThreadId) {
-    state.chatHistory = [];
-    renderChatMessages();
-    return;
-  }
-  try {
-    const key = getChatThreadKey(state.currentThreadId);
-    const stored = await encryptedGetItem(key);
-    state.chatHistory = stored ? JSON.parse(stored) : [];
-  } catch { state.chatHistory = []; }
-  renderChatMessages();
-}
-
-export async function saveChatHistory() {
-  if (!state.currentThreadId) return;
-  invalidateThreadContentCache();
-  // No message limit per thread (API still sends last 10)
-  const key = getChatThreadKey(state.currentThreadId);
-  const value = JSON.stringify(state.chatHistory);
-  if (getEncryptionEnabled()) {
-    await encryptedSetItem(key, value);
-  } else {
-    localStorage.setItem(key, value);
-  }
-  // Update thread index metadata
-  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
-  if (thread) {
-    // Only bump timestamp if messages changed (avoids reordering on thread switch)
-    if (thread.messageCount !== state.chatHistory.length) thread.updatedAt = new Date().toISOString();
-    thread.messageCount = state.chatHistory.length;
-    thread.personality = state.currentChatPersonality;
-    const p = getActivePersonality();
-    thread.personalityName = p.name;
-    thread.personalityIcon = p.icon;
-    saveChatThreadIndex();
-    renderThreadList();
-  }
-}
-
-export async function clearChatHistory() {
-  // Sister "delete thread" confirms; this one used to wipe immediately.
-  if (await showConfirmDialog("Clear all messages in this conversation? This can't be undone.")) {
-    state.chatHistory = [];
-    if (state.currentThreadId) {
-      localStorage.removeItem(getChatThreadKey(state.currentThreadId));
-      // Update thread metadata
-      const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
-      if (thread) {
-        thread.messageCount = 0;
-        thread.updatedAt = new Date().toISOString();
-        delete thread.summary;
-        delete thread.summaryDate;
-        delete thread.summaryModel;
-        delete thread.summaryCost;
-        saveChatThreadIndex();
-        renderThreadList();
-        // Remove saved summary
-        if (state.importedData.chatSummaries) {
-          state.importedData.chatSummaries = state.importedData.chatSummaries.filter(s => s.threadId !== state.currentThreadId);
-          saveImportedData();
-        }
-        renderSavedSummaries();
-      }
-    }
-    renderChatMessages();
-    updateChatHeaderTitle();
-    updateDiscussButton();
-    showNotification('Chat history cleared', 'info');
-  }
 }
 
 // ═══════════════════════════════════════════════
