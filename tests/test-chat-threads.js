@@ -281,12 +281,16 @@ assert('deleteProfile removes chat-t_ keys', profileSrc.includes('chat-t_'));
 assert('deleteProfile removes chatRailOpen', profileSrc.includes('chatRailOpen'));
 assert('loadProfile resets chatThreads', profileSrc.includes('state.chatThreads = []'));
 assert('loadProfile resets currentThreadId', profileSrc.includes('state.currentThreadId = null'));
+assert('loadProfile reloads active profile chat threads', profileSrc.includes('window.loadChatThreads?.()'));
+assert('loadProfile reloads active profile chat history', profileSrc.includes('await window.loadChatHistory?.()'));
+assert('loadProfile rerenders chat rail after profile switch', profileSrc.includes('window.renderThreadList?.()'));
 
 // ═══════════════════════════════════════════════
 // 16. CSS Inspection
 // ═══════════════════════════════════════════════
 console.log('16. CSS Inspection');
 const cssSrc = read('styles.css');
+const indexSrc = read('index.html');
 assert('CSS has .chat-thread-rail', cssSrc.includes('.chat-thread-rail'));
 assert('CSS has .chat-thread-rail.open', cssSrc.includes('.chat-thread-rail.open'));
 assert('CSS has .chat-thread-item', cssSrc.includes('.chat-thread-item'));
@@ -295,6 +299,8 @@ assert('CSS has .chat-panel-conversation', cssSrc.includes('.chat-panel-conversa
 assert('CSS has .chat-rail-toggle', cssSrc.includes('.chat-rail-toggle'));
 assert('CSS has .chat-thread-item-actions', cssSrc.includes('.chat-thread-item-actions'));
 assert('CSS has mobile rail overlay', cssSrc.includes('.chat-thread-rail.open') && cssSrc.includes('768px'));
+assert('chat thread list is keyboard focusable', indexSrc.includes('id="chat-thread-list" tabindex="0"'));
+assert('CSS has focus-visible thread list outline', cssSrc.includes('.chat-thread-list:focus-visible'));
 
 // ═══════════════════════════════════════════════
 // 17. ensureActiveThread

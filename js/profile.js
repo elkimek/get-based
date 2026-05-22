@@ -367,6 +367,14 @@ export async function loadProfile(profileId) {
   state.currentThreadId = null;
   state.markerRegistry = {};
   window.loadChatPersonality();
+  window.loadChatThreads?.();
+  if (state.chatThreads.length > 0) window.ensureActiveThread?.();
+  await window.loadChatHistory?.();
+  if (state.currentProfile !== profileId) return;
+  window.renderThreadList?.();
+  window.updateChatHeaderTitle?.();
+  window.updatePersonalityBar?.();
+  window.updateDiscussButton?.();
   window.destroyAllCharts();
   window.buildSidebar();
   window.navigate(window.getInitialView?.() || 'dashboard');

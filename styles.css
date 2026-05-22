@@ -6316,6 +6316,10 @@ details[open] > .cl-archived-header::before { content: '\25BE '; }
 .chat-thread-list {
   flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 10px;
 }
+.chat-thread-list:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 .chat-thread-item {
   display: flex; flex-direction: column; gap: 2px;
   padding: 8px 10px; border-radius: 6px; cursor: pointer;
