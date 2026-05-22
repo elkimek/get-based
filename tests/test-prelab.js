@@ -21,6 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Pre-Lab Onboarding Tests ===\n');
 
 const chatSrc = read('js/chat.js');
+const chatPanelSrc = read('js/chat-panel.js');
 const labCtxSrc = read('js/lab-context.js');
 
   assert('No sentinel return string', !labCtxSrc.includes("return 'No lab data is currently loaded for this profile.'"),
@@ -225,9 +226,9 @@ const labCtxSrc = read('js/lab-context.js');
   console.log('%c 7. Chat Setup Guide (No Provider) ', 'font-weight:bold;color:#f59e0b');
 
   assert('openChatPanel has no hasAIProvider gate', !(() => {
-    const fnStart = chatSrc.indexOf('export async function openChatPanel(');
-    const fnEnd = chatSrc.indexOf('\nexport', fnStart + 10);
-    const fnBody = chatSrc.substring(fnStart, fnEnd);
+    const fnStart = chatPanelSrc.indexOf('export async function openChatPanel(');
+    const fnEnd = chatPanelSrc.indexOf('\nexport', fnStart + 10);
+    const fnBody = chatPanelSrc.substring(fnStart, fnEnd);
     // Check if hasAIProvider is called before the panel opens
     const providerCheck = fnBody.indexOf('hasAIProvider()');
     const panelOpen = fnBody.indexOf("panel.classList.add('open')");
@@ -311,12 +312,12 @@ const labCtxSrc = read('js/lab-context.js');
   })(), 'FAB should shrink to 48px at 480px breakpoint');
 
   // JS checks
-  assert('openChatPanel hides FAB', chatSrc.includes("getElementById('chat-fab')") && chatSrc.includes("fab.classList.add('hidden')"),
+  assert('openChatPanel hides FAB', chatPanelSrc.includes("getElementById('chat-fab')") && chatPanelSrc.includes("fab.classList.add('hidden')"),
     'openChatPanel should add .hidden to FAB');
   assert('closeChatPanel shows FAB', (() => {
-    const closeStart = chatSrc.indexOf('export function closeChatPanel()');
-    const closeEnd = chatSrc.indexOf('\n// ═══', closeStart);
-    const closeBody = chatSrc.substring(closeStart, closeEnd);
+    const closeStart = chatPanelSrc.indexOf('export function closeChatPanel()');
+    const closeEnd = chatPanelSrc.indexOf('\n// ═══', closeStart);
+    const closeBody = chatPanelSrc.substring(closeStart, closeEnd);
     return closeBody.includes("fab.classList.remove('hidden')");
   })(), 'closeChatPanel should remove .hidden from FAB');
 

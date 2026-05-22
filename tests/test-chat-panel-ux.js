@@ -141,7 +141,7 @@ return (async function() {
       // closeChatPanel used to restore overflow; verify the comment
       // is in place so future readers don't accidentally re-add the
       // body-overflow lock.
-      const chatSrc = await fetch('js/chat.js').then(r => r.text());
+      const chatSrc = await fetch('js/chat-panel.js').then(r => r.text());
       assert('closeChatPanel comment notes body.style.overflow is no longer set',
         /body\.style\.overflow no longer set on open/.test(chatSrc));
     }

@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat panel, streaming, thread orchestration, onboarding chat flows, image send integration, and multi-persona discussion rounds. Personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+AI chat streaming, message rendering, onboarding chat flows, image send integration, and multi-persona discussion rounds. Panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
@@ -489,6 +489,16 @@ AI chat panel, streaming, thread orchestration, onboarding chat flows, image sen
 - `updateAttachButtonVisibility()` — shows/hides attach + HD buttons based on vision support
 
 **Window exports:** `sendChatMessage`, `setChatPersonality`, `openChatPanel`, `closeChatPanel`, `createNewThread`, `loadThread`, `deleteThread`, `renameThread`, `generateCustomPersonality`, `saveCustomPersonality`, `askAIAboutMarker`, `addImageAttachment`, `toggleHDMode`
+
+---
+
+### `chat-panel.js`
+
+Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, persisted fullscreen preference, web-search toggle persistence/visibility, composer disabled state, and FAB nudge stages. It imports thread/history/personality helpers directly and receives the active-discussion continue prompt through `configureChatPanel()` to avoid importing `chat.js`.
+
+**Key exports:** `configureChatPanel`, `toggleChatPanel`, `toggleChatFullscreen`, `openChatPanel`, `closeChatPanel`, `updateChatInputState`, `getChatWebSearchEnabled`, `setChatWebSearchEnabled`, `refreshWebSearchToggle`, `setChatNudge`, `updateChatNudge`
+
+**Window exports:** assigned by `chat.js` for existing inline handlers and cross-module callbacks.
 
 ---
 

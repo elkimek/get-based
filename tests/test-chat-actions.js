@@ -168,6 +168,7 @@ const chatContinuationSrc = read('js/chat-continuation.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const chatHistorySrc = read('js/chat-history.js');
+const chatPanelSrc = read('js/chat-panel.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
@@ -214,6 +215,9 @@ assert('chat-history.js exports save/load helpers', chatHistorySrc.includes('exp
 assert('chat-actions.js saves regenerated history through chat-history helper', chatActionsSrc.includes('saveChatHistory'), 'found');
 assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
+assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');
+assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');
+assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('export function getChatWebSearchEnabled') && chatPanelSrc.includes('export function setChatWebSearchEnabled'), 'found');
 
 // ─── Section 17a: Chat prompt-context helpers ───
 console.log('Section 17a: Chat prompt-context helpers');

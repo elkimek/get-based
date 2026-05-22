@@ -10,13 +10,11 @@ import { callClaudeAPI, hasAIProvider, isAIPaused, setAIPaused, getAIProvider, g
 import { formatImageBlock, buildVisionContent } from './image-utils.js';
 import { getPendingAttachments, hasPendingAttachments, clearAttachments } from './chat-images.js';
 import {
-  loadChatThreads, saveChatThreadIndex, ensureActiveThread, createNewThread,
-  autoNameThread,
-  renderThreadList,
-  restoreRailState, getChatThreadKey, getChatThreadsKey,
+  saveChatThreadIndex, createNewThread, autoNameThread, getChatThreadKey,
+  getChatThreadsKey,
 } from './chat-threads.js';
 import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
-import { hasLens, queryLensMulti, updateLensIndicator } from './lens.js';
+import { hasLens, queryLensMulti } from './lens.js';
 import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 import { renderProfileContextCards } from './context-cards.js';
 import { setIconButtonContent } from './chat-icons.js';
@@ -48,6 +46,12 @@ import {
 import {
   buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
 } from './chat-actions.js';
+import {
+  closeChatPanel, configureChatPanel, getChatWebSearchEnabled,
+  refreshWebSearchToggle, setChatNudge, setChatWebSearchEnabled,
+  toggleChatFullscreen, toggleChatPanel, openChatPanel, updateChatInputState,
+  updateChatNudge,
+} from './chat-panel.js';
 export {
   autoResizePersonaTextarea, deleteCustomPersonality, editCustomPersonality,
   generateCustomPersonality, getActivePersonality, getCustomPersonalities,
@@ -63,6 +67,11 @@ export {
 export {
   buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
 } from './chat-actions.js';
+export {
+  closeChatPanel, getChatWebSearchEnabled, refreshWebSearchToggle,
+  setChatNudge, setChatWebSearchEnabled, toggleChatFullscreen,
+  toggleChatPanel, openChatPanel, updateChatInputState, updateChatNudge,
+} from './chat-panel.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -146,23 +155,11 @@ Object.assign(window, { updateSendButtonState });
 // calls back into chat.js via window.fn() for the render/load/save
 // helpers (renderChatMessages, updateChatHeaderTitle, etc.).
 
-// ═══════════════════════════════════════════════
-// WEB SEARCH
-// ═══════════════════════════════════════════════
-export function getChatWebSearchEnabled() {
-  return localStorage.getItem('labcharts-chat-websearch') === 'on';
-}
-
-export function setChatWebSearchEnabled(val) {
-  localStorage.setItem('labcharts-chat-websearch', val ? 'on' : 'off');
-  _updateWebSearchToggleVisibility();
-}
-
-function _updateWebSearchToggleVisibility() {
-  const label = document.querySelector('.chat-websearch-toggle-label');
-  if (label) label.style.display = supportsWebSearch() ? '' : 'none';
-}
-export function refreshWebSearchToggle() { _updateWebSearchToggleVisibility(); }
+// Panel chrome (open/close/fullscreen, web-search toggle, input disabled state,
+// FAB nudge) lives in chat-panel.js as of v1.8.82. chat.js wires the one
+// discussion-prompt callback at the bottom of this file; the panel module owns
+// the DOM behavior, including the no-scroll-lock note that body.style.overflow
+// is no longer set on open.
 
 // ═══════════════════════════════════════════════
 // MESSAGE RENDERING
@@ -592,7 +589,7 @@ export function renderChatMessages() {
   container.scrollTop = container.scrollHeight;
   updateDiscussButton();
   updateChatHeaderTitle();
-  _updateChatInputState();
+  updateChatInputState();
 }
 
 export function useChatPrompt(text) {
@@ -638,172 +635,6 @@ export function startOnboardingLabImport() {
 // ═══════════════════════════════════════════════
 // MARKDOWN — extracted to js/markdown.js
 // ═══════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════
-// PANEL OPEN/CLOSE
-// ═══════════════════════════════════════════════
-export function toggleChatPanel() {
-  const panel = document.getElementById('chat-panel');
-  if (panel.classList.contains('open')) {
-    closeChatPanel();
-  } else {
-    openChatPanel();
-  }
-}
-
-// Toggle the chat panel between its default side-rail width (560-1060px
-// depending on viewport) and full-viewport width. Mirrors the class on
-// <body> so the dashboard-auto-shift CSS can suppress the side-rail
-// padding when fullscreen takes over. Persists across sessions.
-export function toggleChatFullscreen() {
-  const panel = document.getElementById('chat-panel');
-  if (!panel) return;
-  const next = !panel.classList.contains('chat-panel-fullscreen');
-  panel.classList.toggle('chat-panel-fullscreen', next);
-  document.body.classList.toggle('chat-fullscreen', next);
-  localStorage.setItem('labcharts-chat-fullscreen', next ? 'true' : 'false');
-}
-
-export async function openChatPanel(prefillMessage) {
-  const panel = document.getElementById('chat-panel');
-  const backdrop = document.getElementById('chat-backdrop');
-  panel.classList.add('open');
-  // Restore the user's last fullscreen preference. Persisted in
-  // localStorage so reopening chat keeps the mode they chose last.
-  // Use toggle(force) so previous-session state is fully overwritten —
-  // not just additive — when localStorage flips to false.
-  const fullscreen = localStorage.getItem('labcharts-chat-fullscreen') === 'true';
-  panel.classList.toggle('chat-panel-fullscreen', fullscreen);
-  // Body classes drive the dashboard auto-shift — `.chat-open` adds
-  // padding-right matching the chat panel's responsive width so the
-  // dashboard reflows instead of hiding behind the panel; `.chat-
-  // fullscreen` cancels the shift since fullscreen covers everything.
-  document.body.classList.add('chat-open');
-  document.body.classList.remove('chat-autostart-reserved');
-  document.body.classList.toggle('chat-fullscreen', fullscreen);
-  backdrop.classList.add('open');
-  // Backdrop is now pointer-events: none — opening chat no longer
-  // locks scrolling on the dashboard. Removed `body.style.overflow=hidden`
-  // (which would also break the dashboard's scroll affordance).
-  const fab = document.getElementById('chat-fab');
-  if (fab) fab.classList.add('hidden');
-  // Dismiss current nudge stage (but not 'profile' — user must complete the form)
-  const currentNudge = localStorage.getItem('labcharts-chat-nudge');
-  if (currentNudge && currentNudge !== 'profile') {
-    localStorage.setItem(`labcharts-chat-nudge-dismissed-${state.currentProfile}`, currentNudge);
-    setChatNudge(null);
-  }
-  loadChatPersonality();
-  updateChatHeaderTitle();
-  updateLensIndicator();
-  updatePersonalityBar();
-  // Sync web search toggle
-  const wsCb = document.getElementById('chat-websearch-checkbox');
-  if (wsCb) wsCb.checked = getChatWebSearchEnabled();
-  _updateWebSearchToggleVisibility();
-  // Load threads and ensure active thread
-  loadChatThreads();
-  ensureActiveThread();
-  restoreRailState();
-  renderThreadList();
-  renderSavedSummaries();
-  await loadChatHistory();
-  // Restore discussion continue prompt if this thread had an active discussion
-  const activeThread = state.chatThreads.find(t => t.id === state.currentThreadId);
-  if (activeThread && activeThread.discussionPersonas) {
-    showDiscussContinuePrompt(activeThread.discussionPersonas, activeThread.discussionOriginalPersonality);
-  }
-  _updateChatInputState();
-  if (prefillMessage) {
-    const input = document.getElementById('chat-input');
-    if (input) { input.value = prefillMessage; input.focus(); }
-  } else {
-    const input = document.getElementById('chat-input');
-    if (input) input.focus();
-  }
-}
-
-function _updateChatInputState() {
-  const input = document.getElementById('chat-input');
-  const sendBtn = document.getElementById('chat-send-btn');
-  const noAI = !hasAIProvider();
-  if (input) {
-    input.disabled = noAI;
-    input.placeholder = noAI ? (isAIPaused() ? 'AI features are paused' : 'Connect an AI provider in Settings to chat') : 'Ask about your lab results...';
-  }
-  if (sendBtn) sendBtn.disabled = noAI;
-  _updateWebSearchToggleVisibility();
-}
-
-export function closeChatPanel() {
-  document.getElementById('chat-panel').classList.remove('open');
-  document.getElementById('chat-backdrop').classList.remove('open');
-  // body.style.overflow no longer set on open (so nothing to restore)
-  // Drop the dashboard-shift body classes so the layout reflows back.
-  document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus', 'chat-autostart-reserved');
-  const fab = document.getElementById('chat-fab');
-  if (fab) fab.classList.remove('hidden');
-  window.refreshMobileDashboardActiveTab?.();
-}
-
-// ═══════════════════════════════════════════════
-// CHAT NUDGE (unread badge on FAB)
-// ═══════════════════════════════════════════════
-
-/**
- * Show/hide the unread badge + gentle pulse on the chat FAB.
- * Stages:
- *   'profile' — no name/sex set yet (first visit)
- *   'api'     — no AI provider connected
- *   'data'    — API connected but no lab data imported
- *   'context' — data imported, nudge to fill context cards
- *   null      — clear the nudge
- */
-export function setChatNudge(stage) {
-  const fab = document.getElementById('chat-fab');
-  if (!fab) return;
-  let badge = fab.querySelector('.chat-fab-badge');
-  if (stage) {
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'chat-fab-badge';
-      fab.appendChild(badge);
-    }
-    fab.classList.add('chat-fab-nudge');
-    localStorage.setItem('labcharts-chat-nudge', stage);
-  } else {
-    if (badge) badge.remove();
-    fab.classList.remove('chat-fab-nudge');
-    localStorage.removeItem('labcharts-chat-nudge');
-  }
-}
-
-/** Check state and show appropriate nudge if user hasn't dismissed it. */
-export function updateChatNudge() {
-  const dismissed = localStorage.getItem(`labcharts-chat-nudge-dismissed-${state.currentProfile}`);
-  const hasData = state.importedData?.entries?.length > 0;
-  const currentP = getProfiles().find(p => p.id === state.currentProfile);
-  const hasProfile = currentP?.name && currentP.name !== 'Default' && state.profileSex;
-
-  if (!hasProfile) {
-    // Stage 0: no profile — always nudge (can't dismiss)
-    setChatNudge('profile');
-  } else if (!hasAIProvider()) {
-    if (dismissed !== 'api') setChatNudge('api');
-    else setChatNudge(null);
-  } else if (!hasData) {
-    if (dismissed !== 'data') setChatNudge('data');
-    else setChatNudge(null);
-  } else {
-    const filledCards = ['diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'healthGoals']
-      .filter(k => {
-        const v = state.importedData?.[k];
-        return v && typeof v === 'object' && Object.values(v).some(f => f != null && f !== '' && !(Array.isArray(f) && f.length === 0));
-      }).length;
-    if (filledCards < 3 && dismissed !== 'context') setChatNudge('context');
-    else setChatNudge(null);
-  }
-}
 
 // ═══════════════════════════════════════════════
 // CHAT ONBOARDING PROFILE FORM HELPERS
@@ -2000,8 +1831,10 @@ async function _runDiscussion(personas) {
 function _resumeAI() {
   setAIPaused(false);
   renderChatMessages();
-  _updateChatInputState();
+  updateChatInputState();
 }
+
+configureChatPanel({ showDiscussContinuePrompt });
 
 Object.assign(window, {
   _resumeAI,
@@ -2058,6 +1891,8 @@ Object.assign(window, {
   continueDiscussion,
   endDiscussion,
   editCustomPersonality,
+  showDiscussContinuePrompt,
+  cleanupDiscussionState,
   removeDiscussContinuePrompt,
   updateDiscussButton,
   getThreadPersonaCount,
