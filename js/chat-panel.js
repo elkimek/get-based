@@ -14,7 +14,7 @@ import { renderSavedSummaries } from './chat-summaries.js';
 import { updateLensIndicator } from './lens.js';
 
 const panelCallbacks = {
-  showDiscussContinuePrompt: null,
+  restoreDiscussionContinuePrompt: null,
 };
 
 export function configureChatPanel(callbacks = {}) {
@@ -34,7 +34,7 @@ export function setChatWebSearchEnabled(val) {
 }
 
 function updateWebSearchToggleVisibility() {
-  const label = document.querySelector('.chat-websearch-toggle-label');
+  const label = document.querySelector('#chat-panel .chat-websearch-toggle-label');
   if (label) label.style.display = supportsWebSearch() ? '' : 'none';
 }
 
@@ -103,7 +103,7 @@ export async function openChatPanel(prefillMessage) {
   updateLensIndicator();
   updatePersonalityBar();
   // Sync web search toggle
-  const wsCb = document.getElementById('chat-websearch-checkbox');
+  const wsCb = panel.querySelector('#chat-websearch-checkbox');
   if (wsCb) wsCb.checked = getChatWebSearchEnabled();
   updateWebSearchToggleVisibility();
   // Load threads and ensure active thread
@@ -113,14 +113,7 @@ export async function openChatPanel(prefillMessage) {
   renderThreadList();
   renderSavedSummaries();
   await loadChatHistory();
-  // Restore discussion continue prompt if this thread had an active discussion
-  const activeThread = state.chatThreads.find(t => t.id === state.currentThreadId);
-  if (activeThread && activeThread.discussionPersonas) {
-    panelCallbacks.showDiscussContinuePrompt?.(
-      activeThread.discussionPersonas,
-      activeThread.discussionOriginalPersonality
-    );
-  }
+  panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   const input = document.getElementById('chat-input');
   if (input) {

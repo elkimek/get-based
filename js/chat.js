@@ -1066,18 +1066,6 @@ export async function sendChatMessage() {
     return;
   }
 
-  // Clear any pending discussion continue prompt
-  removeDiscussContinuePrompt();
-  delete state._discussionPersonas;
-  delete state._discussionOriginalPersonality;
-  // Clear persisted discussion state
-  const curThread = state.chatThreads.find(t => t.id === state.currentThreadId);
-  if (curThread && curThread.discussionPersonas) {
-    delete curThread.discussionPersonas;
-    delete curThread.discussionOriginalPersonality;
-    saveChatThreadIndex();
-  }
-
   const input = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send-btn');
   const container = document.getElementById('chat-messages');
@@ -1092,6 +1080,8 @@ export async function sendChatMessage() {
   if (!state.currentThreadId) {
     createNewThread();
   }
+
+  const discussionState = text && !hasImages ? getCurrentDiscussionState() : null;
 
   // Auto-name thread from first user message
   const isFirstMessage = state.chatHistory.length === 0;
@@ -1112,6 +1102,13 @@ export async function sendChatMessage() {
 
   if (isFirstMessage) {
     autoNameThread(state.currentThreadId, text);
+  }
+
+  if (discussionState && !isFirstMessage) {
+    removeDiscussContinuePrompt();
+    await runDiscussionRound(discussionState.personas, text, { suppressAutoMsg: true });
+    _finishDiscussionRound(discussionState.personas, discussionState.originalPersonality);
+    return;
   }
 
   // Show typing indicator
@@ -1467,6 +1464,47 @@ function collectDiscussionPersonas() {
   return personas;
 }
 
+function getCurrentThread() {
+  return state.chatThreads.find(t => t.id === state.currentThreadId) || null;
+}
+
+function getCurrentDiscussionState({ allowHistoryFallback = true } = {}) {
+  const thread = getCurrentThread();
+  if (thread?.discussionEnded) return null;
+
+  if (Array.isArray(state._discussionPersonas) && state._discussionPersonas.length >= 2) {
+    return {
+      personas: state._discussionPersonas,
+      originalPersonality: state._discussionOriginalPersonality || thread?.discussionOriginalPersonality || state.currentChatPersonality,
+    };
+  }
+
+  if (Array.isArray(thread?.discussionPersonas) && thread.discussionPersonas.length >= 2) {
+    return {
+      personas: thread.discussionPersonas,
+      originalPersonality: thread.discussionOriginalPersonality || state.currentChatPersonality,
+    };
+  }
+
+  if (allowHistoryFallback) {
+    const personas = collectDiscussionPersonas();
+    if (personas.length >= 2) {
+      return {
+        personas,
+        originalPersonality: thread?.discussionOriginalPersonality || state.currentChatPersonality,
+      };
+    }
+  }
+
+  return null;
+}
+
+function restoreDiscussionContinuePrompt() {
+  const discussionState = getCurrentDiscussionState();
+  if (!discussionState) return;
+  showDiscussContinuePrompt(discussionState.personas, discussionState.originalPersonality);
+}
+
 const DEFAULT_DISCUSS_PROMPT = 'Respond to the other analyst\'s points above. Where do you agree or disagree? Add any insights they may have missed.';
 
 async function runDiscussionRound(personas, steerPrompt, opts = {}) {
@@ -1494,10 +1532,12 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const msgText = isFirstEver
         ? (steerPrompt || 'Share your analysis and interpretation of these lab results.')
         : promptText;
-      const autoMsg = { role: 'user', content: msgText, auto: true, hidden: !!opts.hideAutoMsg };
-      state.chatHistory.push(autoMsg);
-      renderChatMessages();
-      await saveChatHistory();
+      if (!opts.suppressAutoMsg) {
+        const autoMsg = { role: 'user', content: msgText, auto: true, hidden: !!opts.hideAutoMsg };
+        state.chatHistory.push(autoMsg);
+        renderChatMessages();
+        await saveChatHistory();
+      }
 
       const typingEl = document.createElement('div');
       typingEl.className = 'typing-indicator';
@@ -1645,6 +1685,7 @@ function showDiscussContinuePrompt(personas, originalPersonality) {
   if (thread) {
     thread.discussionPersonas = personas;
     thread.discussionOriginalPersonality = originalPersonality;
+    delete thread.discussionEnded;
     saveChatThreadIndex();
   }
 }
@@ -1656,18 +1697,22 @@ export function removeDiscussContinuePrompt() {
   if (el) el.remove();
 }
 
-function cleanupDiscussionState() {
+function cleanupDiscussionState({ clearThread = false, markEnded = false } = {}) {
   removeDiscussContinuePrompt();
   const picker = document.querySelector('.discuss-persona-picker');
   if (picker) picker.remove();
   delete state._discussionPersonas;
   delete state._discussionOriginalPersonality;
 
-  // Clear persisted discussion state from thread metadata
+  // Only clear persisted discussion state when the user explicitly ends it.
+  // Thread switches and new-thread creation should remove transient UI state
+  // without erasing the old thread's Continue prompt metadata.
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
-  if (thread && thread.discussionPersonas) {
+  if (thread && (clearThread || markEnded)) {
     delete thread.discussionPersonas;
     delete thread.discussionOriginalPersonality;
+    if (markEnded) thread.discussionEnded = true;
+    else delete thread.discussionEnded;
     saveChatThreadIndex();
   }
 }
@@ -1687,7 +1732,7 @@ export async function continueDiscussion() {
 
 export function endDiscussion() {
   const orig = state._discussionOriginalPersonality;
-  cleanupDiscussionState();
+  cleanupDiscussionState({ clearThread: true, markEnded: true });
   if (orig) {
     state.currentChatPersonality = orig;
     localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, orig);
@@ -1702,6 +1747,11 @@ export async function startDiscussion() {
     // Already have 2+ personas — run another round
     const personas = collectDiscussionPersonas();
     if (personas.length < 2) return;
+    const thread = getCurrentThread();
+    if (thread?.discussionEnded) {
+      delete thread.discussionEnded;
+      saveChatThreadIndex();
+    }
     return _runDiscussion(personas);
   }
 
@@ -1834,7 +1884,7 @@ function _resumeAI() {
   updateChatInputState();
 }
 
-configureChatPanel({ showDiscussContinuePrompt });
+configureChatPanel({ restoreDiscussionContinuePrompt });
 
 Object.assign(window, {
   _resumeAI,
@@ -1892,6 +1942,7 @@ Object.assign(window, {
   endDiscussion,
   editCustomPersonality,
   showDiscussContinuePrompt,
+  restoreDiscussionContinuePrompt,
   cleanupDiscussionState,
   removeDiscussContinuePrompt,
   updateDiscussButton,

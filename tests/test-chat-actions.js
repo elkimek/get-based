@@ -218,6 +218,7 @@ assert('API messages tag other personas', chatPromptContextSrc.includes('Respons
 assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');
 assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');
 assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('export function getChatWebSearchEnabled') && chatPanelSrc.includes('export function setChatWebSearchEnabled'), 'found');
+assert('chat-panel scopes web-search selector to chat panel', chatPanelSrc.includes("querySelector('#chat-panel .chat-websearch-toggle-label')"), 'found');
 
 // ─── Section 17a: Chat prompt-context helpers ───
 console.log('Section 17a: Chat prompt-context helpers');

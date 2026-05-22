@@ -494,7 +494,7 @@ AI chat streaming, message rendering, onboarding chat flows, image send integrat
 
 ### `chat-panel.js`
 
-Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, persisted fullscreen preference, web-search toggle persistence/visibility, composer disabled state, and FAB nudge stages. It imports thread/history/personality helpers directly and receives the active-discussion continue prompt through `configureChatPanel()` to avoid importing `chat.js`.
+Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, persisted fullscreen preference, web-search toggle persistence/visibility, composer disabled state, and FAB nudge stages. It imports thread/history/personality helpers directly and receives the active-discussion restore callback through `configureChatPanel()` to avoid importing `chat.js`.
 
 **Key exports:** `configureChatPanel`, `toggleChatPanel`, `toggleChatFullscreen`, `openChatPanel`, `closeChatPanel`, `updateChatInputState`, `getChatWebSearchEnabled`, `setChatWebSearchEnabled`, `refreshWebSearchToggle`, `setChatNudge`, `updateChatNudge`
 

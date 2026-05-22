@@ -15,8 +15,9 @@
 //   window.loadChatHistory          — hydrate state.chatHistory
 //   window.saveChatHistory          — persist state.chatHistory
 //   window.showDiscussContinuePrompt — resume an in-flight discussion
+//   window.restoreDiscussionContinuePrompt — rebuild discussion prompt from active thread/history
 //   window.renderSavedSummaries     — summaries panel refresh
-//   window.cleanupDiscussionState   — tear down discussion flag
+//   window.cleanupDiscussionState   — remove transient discussion UI state
 //   window.getActivePersonality     — personality lookup (chat.js)
 //   window.showPromptDialog         — shared dialog helper
 
@@ -148,10 +149,7 @@ export async function switchToThread(threadId) {
     window.updateChatHeaderTitle?.();
     window.updatePersonalityBar?.();
   }
-  // Restore discussion state if this thread had an active discussion
-  if (thread && thread.discussionPersonas) {
-    window.showDiscussContinuePrompt?.(thread.discussionPersonas, thread.discussionOriginalPersonality);
-  }
+  window.restoreDiscussionContinuePrompt?.();
   renderThreadList();
 }
 
