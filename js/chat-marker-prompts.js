@@ -4,6 +4,21 @@ import { state } from './state.js';
 import { formatValue, getStatus } from './utils.js';
 import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex } from './data.js';
 import { openChatPanel } from './chat-panel.js';
+import { createNewThread, ensureActiveThread, loadChatThreads, renameThread } from './chat-threads.js';
+import { loadChatHistory, saveChatHistory } from './chat-history.js';
+
+async function openSourcePrompt(prompt, threadName, { closeModal = false } = {}) {
+  if (closeModal) window.closeModal?.();
+  loadChatThreads();
+  ensureActiveThread();
+  await loadChatHistory();
+  if (state.chatHistory.length > 0) {
+    await saveChatHistory();
+    createNewThread();
+  }
+  renameThread(state.currentThreadId, threadName);
+  await openChatPanel(prompt);
+}
 
 export function askAIAboutMarker(markerId) {
   const marker = state.markerRegistry[markerId];
@@ -37,8 +52,7 @@ export function askAIAboutMarker(markerId) {
     }
   }
   prompt += ' What does this mean and should I be concerned about anything?';
-  window.closeModal();
-  openChatPanel(prompt);
+  void openSourcePrompt(prompt, marker.name, { closeModal: true });
 }
 
 export function askAIAboutCorrelations() {
@@ -61,5 +75,5 @@ export function askAIAboutCorrelations() {
     return data.categories[catKey]?.markers[markerKey]?.name || key;
   });
   const prompt = `Analyze the correlation between these biomarkers: ${names.join(', ')}.\n\nHere are my values:\n${parts.join('\n')}\n\nHow do these markers relate to each other? Are there any patterns, imbalances, or concerns based on their combined trends?`;
-  openChatPanel(prompt);
+  void openSourcePrompt(prompt, `Correlations: ${names.join(' + ')}`);
 }

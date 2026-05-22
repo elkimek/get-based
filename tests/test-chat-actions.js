@@ -230,6 +230,14 @@ assert('chat-marker-prompts.js exports marker and correlation prompts',
   chatMarkerPromptsSrc.includes('export function askAIAboutMarker') &&
     chatMarkerPromptsSrc.includes('export function askAIAboutCorrelations'),
   'found');
+assert('chat marker prompts create a fresh thread when current thread has history',
+  chatMarkerPromptsSrc.includes('state.chatHistory.length > 0') &&
+    chatMarkerPromptsSrc.includes('createNewThread()'),
+  'found');
+assert('chat marker prompts name the target thread from the source',
+  chatMarkerPromptsSrc.includes('renameThread(state.currentThreadId, threadName)') &&
+    chatMarkerPromptsSrc.includes('Correlations: ${names.join'),
+  'found');
 assert('renderChatMessages calls buildActionBar', chatRenderSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');
