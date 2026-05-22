@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`; thread rail message search and match highlighting live in `chat-thread-search.js`.
 
 **Key exports:**
 - `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
@@ -588,6 +588,16 @@ Thread-aware chat message persistence and clearing. The module owns the legacy s
 **Key exports:** `getChatStorageKey`, `loadChatHistory`, `saveChatHistory`, `clearChatHistory`
 
 **Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and `chat-threads.js` callbacks.
+
+---
+
+### `chat-thread-search.js`
+
+Thread rail message-content search and match highlighting. It owns the debounced per-thread content search, encrypted/plain message reads, result rendering, cache invalidation, jump-to-result behavior, and in-message mark/highlight cleanup while receiving thread key, rail render, and switch callbacks from `chat-threads.js`.
+
+**Key exports:** `configureChatThreadSearch`, `filterThreadList`, `invalidateThreadContentCache`, `jumpToSearchResult`
+
+**Window exports:** re-exported and assigned by `chat-threads.js` for existing inline handlers.
 
 ---
 
@@ -1252,7 +1262,7 @@ Each connected source ships as a pair: `wearables-<vendor>.js` (read API) + `wea
 Not separately documented because their exports are best read from source — kept thin on purpose.
 
 - `chat-images.js` — image attachment lifecycle (`getPendingAttachments`, `clearAttachments`, etc.). Owns the `_pendingAttachments` queue. Extracted from `chat.js` in v1.21.9.
-- `chat-threads.js` — conversation thread CRUD, list rendering, autoname, `onChatSaved` debounce trigger. Also extracted in v1.21.9.
+- `chat-threads.js` — conversation thread CRUD, list rendering, autoname, `onChatSaved` debounce trigger. Extracted in v1.21.9.
 - `markdown.js` — XSS-safe markdown rendering (`applyInlineMarkdown` for spans, `renderMarkdown` for full blocks). 34 dedicated XSS test assertions.
 - `lab-context.js` — lab-data → AI-prompt context assembly; memoized via fingerprint that includes wearable summary, change history, and all 9 context cards.
 - `provider-panels.js` — Settings → AI per-provider panels (Venice / OpenRouter / Routstr / PPQ / Local AI / Custom) plus shared model-advisor.

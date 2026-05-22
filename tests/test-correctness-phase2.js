@@ -128,6 +128,7 @@ const pwaAppShellAssets = [
   '/js/chat-window-bindings.js',
   '/js/chat-images.js',
   '/js/chat-threads.js',
+  '/js/chat-thread-search.js',
   '/js/chat-marker-prompts.js',
   '/js/chat-attestation.js',
   '/js/chat-actions.js',

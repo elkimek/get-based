@@ -65,6 +65,8 @@ js/
   chat-window-bindings.js — Chat callback wiring and legacy window exports
   chat-marker-prompts.js — Per-marker and selected-correlation AI prompt builders
   chat-empty-state.js — Empty chat and onboarding message renderer
+  chat-threads.js    — Chat thread index CRUD and rail rendering
+  chat-thread-search.js — Thread rail message search and match highlighting
   client-list.js    — Client List modal: search/sort/filter profiles, inline CRUD, archive/flag/pin
   recommendations.js — Supplement & lifestyle recommendations, lazy catalog, 3 touchpoints
   cashu-wallet.js   — In-app Cashu eCash wallet: BIP-39 seed, IndexedDB proofs, Lightning fund/withdraw

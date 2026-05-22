@@ -3,7 +3,8 @@
 // shape, thread CRUD (create / auto-name / rename / delete), legacy
 // migration, save/load round-trip, 50-thread pruning, backup snapshot,
 // encryption-pattern matching, ensureActiveThread, thread-personality
-// inheritance, plus source-inspection of profile.js / styles.css.
+// inheritance, plus source-inspection of profile.js / chat-thread-search.js /
+// styles.css.
 //
 // Run: node tests/test-chat-threads.js  (or via npm test)
 //
@@ -286,9 +287,31 @@ assert('loadProfile reloads active profile chat history', profileSrc.includes('a
 assert('loadProfile rerenders chat rail after profile switch', profileSrc.includes('window.renderThreadList?.()'));
 
 // ═══════════════════════════════════════════════
-// 16. CSS Inspection
+// 16. Thread Search Extraction (source inspection)
 // ═══════════════════════════════════════════════
-console.log('16. CSS Inspection');
+console.log('16. Thread Search Extraction (source inspection)');
+const chatThreadsSrc = read('js/chat-threads.js');
+const chatThreadSearchSrc = read('js/chat-thread-search.js');
+assert('chat-threads imports search module',
+  chatThreadsSrc.includes("from './chat-thread-search.js'"));
+assert('chat-threads configures search callbacks',
+  chatThreadsSrc.includes('configureChatThreadSearch({') &&
+  chatThreadsSrc.includes('getChatThreadKey') &&
+  chatThreadsSrc.includes('switchToThread'));
+assert('chat-threads re-exports search public handlers',
+  chatThreadsSrc.includes('export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult }'));
+assert('chat-thread-search owns filterThreadList',
+  chatThreadSearchSrc.includes('export function filterThreadList'));
+assert('chat-thread-search owns jumpToSearchResult',
+  chatThreadSearchSrc.includes('export async function jumpToSearchResult'));
+assert('chat-thread-search reads encrypted per-thread messages',
+  chatThreadSearchSrc.includes("from './crypto.js'") &&
+  chatThreadSearchSrc.includes('encryptedGetItem'));
+
+// ═══════════════════════════════════════════════
+// 17. CSS Inspection
+// ═══════════════════════════════════════════════
+console.log('17. CSS Inspection');
 const cssSrc = read('styles.css');
 const indexSrc = read('index.html');
 assert('CSS has .chat-thread-rail', cssSrc.includes('.chat-thread-rail'));
@@ -303,9 +326,9 @@ assert('chat thread list is keyboard focusable', indexSrc.includes('id="chat-thr
 assert('CSS has focus-visible thread list outline', cssSrc.includes('.chat-thread-list:focus-visible'));
 
 // ═══════════════════════════════════════════════
-// 17. ensureActiveThread
+// 18. ensureActiveThread
 // ═══════════════════════════════════════════════
-console.log('17. ensureActiveThread');
+console.log('18. ensureActiveThread');
 st.chatThreads = [];
 st.currentThreadId = null;
 window.ensureActiveThread();
@@ -323,9 +346,9 @@ window.ensureActiveThread();
 assert('picks most recent thread', st.currentThreadId === 't_new');
 
 // ═══════════════════════════════════════════════
-// 18. Thread Personality
+// 19. Thread Personality
 // ═══════════════════════════════════════════════
-console.log('18. Thread Personality');
+console.log('19. Thread Personality');
 st.chatThreads = [];
 st.currentThreadId = null;
 st.currentChatPersonality = 'house';
