@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
@@ -523,11 +523,21 @@ Direct chat send and streaming state. Owns `sendChatMessage()`, Enter-key handli
 
 ### `chat-render.js`
 
-Chat rendering and empty-state/onboarding message composition. Owns `renderChatMessages()`, no-data prompt selection, lens-source disclosure rendering, persisted assistant footnotes, image badges, EMF hints, and persisted recommendation sections. It imports rendering dependencies directly and keeps rendering details out of the chat window wiring module.
+Chat transcript rendering. Owns `renderChatMessages()` for persisted messages, lens-source disclosure rendering, assistant footnotes, image badges, EMF hints, and persisted recommendation sections. It delegates empty chat and onboarding states to `chat-empty-state.js` and keeps rendering details out of the chat window wiring module.
 
 **Key exports:** `renderChatMessages`, `_getNoDataPrompts`, `_renderLensSources`
 
 **Window exports:** `renderChatMessages` is assigned by `chat-window-bindings.js` for existing inline handlers and cross-module callbacks.
+
+---
+
+### `chat-empty-state.js`
+
+Empty chat and chat-first onboarding message composition. Owns the profile setup bubble, paused-AI prompt, explicit provider quiz entry state, no-lab optional setup cards, no-data prompt selection, and the default empty prompt buttons used before a real thread has messages.
+
+**Key exports:** `renderEmptyChatState`, `_getNoDataPrompts`
+
+**Window exports:** none; called by `chat-render.js`.
 
 ---
 

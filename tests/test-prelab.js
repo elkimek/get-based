@@ -23,6 +23,7 @@ console.log('=== Pre-Lab Onboarding Tests ===\n');
 const chatSrc = read('js/chat.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
+const chatEmptyStateSrc = read('js/chat-empty-state.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
@@ -57,29 +58,31 @@ const labCtxSrc = read('js/lab-context.js');
   // ═══════════════════════════════════════
   console.log('%c 2. Context-Aware Chat Prompts ', 'font-weight:bold;color:#f59e0b');
 
-  assert('_getNoDataPrompts helper exists', chatRenderSrc.includes('function _getNoDataPrompts()'),
+  assert('_getNoDataPrompts helper exists', chatEmptyStateSrc.includes('function _getNoDataPrompts()'),
     'Module-private helper should exist');
-  assert('0-cards prompts: "What should I tell you"', chatRenderSrc.includes("'What should I tell you about myself first?'"),
+  assert('0-cards prompts: "What should I tell you"', chatEmptyStateSrc.includes("'What should I tell you about myself first?'"),
     'Should have card-filling encouragement prompt');
-  assert('0-cards prompts: "What blood tests"', chatRenderSrc.includes("'What blood tests are worth getting?'"),
+  assert('0-cards prompts: "What blood tests"', chatEmptyStateSrc.includes("'What blood tests are worth getting?'"),
     'Should have general test advice prompt');
-  assert('0-cards prompts: "Where do I start"', chatRenderSrc.includes("'Where do I start with optimizing my health?'"),
+  assert('0-cards prompts: "Where do I start"', chatEmptyStateSrc.includes("'Where do I start with optimizing my health?'"),
     'Should have getting-started prompt');
-  assert('Some-cards prompts: "Based on my profile"', chatRenderSrc.includes("'Based on my profile, what blood tests should I get?'"),
+  assert('Some-cards prompts: "Based on my profile"', chatEmptyStateSrc.includes("'Based on my profile, what blood tests should I get?'"),
     'Should have personalized recommendation prompt');
-  assert('Some-cards prompts: "What panels"', chatRenderSrc.includes("'What panels would help with my health goals?'"),
+  assert('Some-cards prompts: "What panels"', chatEmptyStateSrc.includes("'What panels would help with my health goals?'"),
     'Should have goals-based panel prompt');
-  assert('Some-cards prompts: "Tell my doctor"', chatRenderSrc.includes("'What should I tell my doctor to test for?'"),
+  assert('Some-cards prompts: "Tell my doctor"', chatEmptyStateSrc.includes("'What should I tell my doctor to test for?'"),
     'Should have doctor-facing prompt');
-  assert('Some-cards prompts: "Most relevant"', chatRenderSrc.includes("'Which markers are most relevant to my lifestyle?'"),
+  assert('Some-cards prompts: "Most relevant"', chatEmptyStateSrc.includes("'Which markers are most relevant to my lifestyle?'"),
     'Should have lifestyle-based prompt');
-  assert('renderChatMessages uses _getNoDataPrompts', chatRenderSrc.includes('const noDataPrompts = _getNoDataPrompts()'),
-    'renderChatMessages should call the helper');
-  assert('Prompts rendered dynamically', chatRenderSrc.includes('prompts.map(p =>'),
+  assert('renderChatMessages delegates empty state', chatRenderSrc.includes('renderEmptyChatState(container, panel)'),
+    'renderChatMessages should delegate empty/onboarding state');
+  assert('empty state uses _getNoDataPrompts', chatEmptyStateSrc.includes('const noDataPrompts = _getNoDataPrompts()'),
+    'Empty-state renderer should call the helper');
+  assert('Prompts rendered dynamically', chatEmptyStateSrc.includes('prompts.map(p =>'),
     'Prompt buttons should be generated from array');
-  assert('Has lab data returns null', chatRenderSrc.includes('if (hasLabs) return null'),
+  assert('Has lab data returns null', chatEmptyStateSrc.includes('if (hasLabs) return null'),
     '_getNoDataPrompts should return null when labs exist');
-  assert('Counts filled cards', chatRenderSrc.includes('filledCount === 0'),
+  assert('Counts filled cards', chatEmptyStateSrc.includes('filledCount === 0'),
     'Should branch on card fill count');
 
   // ═══════════════════════════════════════
@@ -238,17 +241,17 @@ const labCtxSrc = read('js/lab-context.js');
     return providerCheck !== -1 && providerCheck < panelOpen;
   })(), 'openChatPanel should let the panel open without a provider');
 
-  assert('Chat onboarding has profile form', chatRenderSrc.includes('chat-onboard-form') && chatRenderSrc.includes('chat-onboard-name'),
+  assert('Chat onboarding has profile form', chatEmptyStateSrc.includes('chat-onboard-form') && chatEmptyStateSrc.includes('chat-onboard-name'),
     'Should show profile setup form for new visitors');
-  assert('Chat onboarding keeps optional profile context collapsed', chatRenderSrc.includes('chat-onboard-more') && chatRenderSrc.includes('Optional body and location context'),
+  assert('Chat onboarding keeps optional profile context collapsed', chatEmptyStateSrc.includes('chat-onboard-more') && chatEmptyStateSrc.includes('Optional body and location context'),
     'Optional height/weight/location fields should not crowd the first mobile onboarding step');
-  assert('Chat onboarding has compact optional task cards', chatRenderSrc.includes('chat-onboard-task-grid') && chatRenderSrc.includes('chat-onboard-dna'),
+  assert('Chat onboarding has compact optional task cards', chatEmptyStateSrc.includes('chat-onboard-task-grid') && chatEmptyStateSrc.includes('chat-onboard-dna'),
     'Optional setup should use compact cards and preserve DNA import update hook');
-  assert('Chat onboarding makes AI provider setup explicit', chatRenderSrc.includes('chat-onboard-provider-requested') && !chatRenderSrc.includes('!providerSkipped'),
+  assert('Chat onboarding makes AI provider setup explicit', chatEmptyStateSrc.includes('chat-onboard-provider-requested') && !chatEmptyStateSrc.includes('!providerSkipped'),
     'No-provider users should continue into context first unless they ask to connect AI');
-  assert('Chat onboarding embeds context cards when AI is not connected', chatRenderSrc.includes("import { renderProfileContextCards } from './context-cards.js'") && chatRenderSrc.includes('chat-context-cards'),
+  assert('Chat onboarding embeds context cards when AI is not connected', chatEmptyStateSrc.includes("import { renderProfileContextCards } from './context-cards.js'") && chatEmptyStateSrc.includes('chat-context-cards'),
     'No-provider users should still be able to add context inside chat');
-  assert('Chat onboarding lab import CTA handles no-provider state', chatRenderSrc.includes('startOnboardingLabImport') && chatRenderSrc.includes('requestOnboardingLabImportProvider') && chatRenderSrc.includes('Connect AI to import labs'),
+  assert('Chat onboarding lab import CTA handles no-provider state', chatEmptyStateSrc.includes('startOnboardingLabImport') && chatEmptyStateSrc.includes('requestOnboardingLabImportProvider') && chatEmptyStateSrc.includes('Connect AI to import labs'),
     'No-provider lab-import CTA should explain AI setup instead of focusing hidden import controls');
   assert('Chat onboarding hides composer while active', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-input-area') && cssSrc.includes('display: none'),
     'Onboarding steps should not compete with the disabled composer on mobile');
