@@ -187,7 +187,7 @@ export function saveChatProfile(advance) {
     state.importedData.biometrics.weight = w.filter(e => e.date !== today);
     state.importedData.biometrics.weight.push({ date: today, value: weightRaw, unit: weightUnit, source: 'manual' });
     state.importedData.biometrics.weight.sort((a, b) => a.date.localeCompare(b.date));
-    window.saveImportedData();
+    saveImportedData();
   }
   saveChatLocation();
   window.renderProfileButton?.();
