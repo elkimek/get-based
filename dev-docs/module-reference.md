@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-Chat window wiring and compatibility exports. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
@@ -491,13 +491,23 @@ Chat window wiring and compatibility exports. Per-marker/correlation prompt buil
 
 ---
 
+### `chat-window-bindings.js`
+
+Chat callback wiring and legacy `window.*` compatibility exports. Owns `_resumeAI`, configures `chat-discussion.js`, `chat-onboarding.js`, and `chat-panel.js` callbacks, and exposes the chat handlers needed by inline HTML and cross-module `window.fn()` call sites.
+
+**Key exports:** none; loaded for side effects by `chat.js`.
+
+**Window exports:** `sendChatMessage`, `renderChatMessages`, `setChatPersonality`, `openChatPanel`, `closeChatPanel`, discussion handlers, onboarding handlers, summary handlers, action-bar handlers, and per-marker Ask AI handlers.
+
+---
+
 ### `chat-marker-prompts.js`
 
 Per-marker and selected-correlation chat prompt builders. Owns `askAIAboutMarker()` and `askAIAboutCorrelations()`, including phase-aware marker values, effective reference ranges, latest status, and trend text before opening the chat panel with a prefilled prompt.
 
 **Key exports:** `askAIAboutMarker`, `askAIAboutCorrelations`
 
-**Window exports:** assigned by `chat.js` for existing inline Ask AI buttons.
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline Ask AI buttons.
 
 ---
 
@@ -507,7 +517,7 @@ Direct chat send and streaming state. Owns `sendChatMessage()`, Enter-key handli
 
 **Key exports:** `sendChatMessage`, `handleChatKeydown`, `isChatStreaming`, `createTypewriter`, `getChatAbortController`, `setChatAbortController`, `setSendButtonMode`, `updateSendButtonState`
 
-**Window exports:** `updateSendButtonState` is assigned by this module for `chat-images.js`; other user-facing handlers are assigned by `chat.js`.
+**Window exports:** `updateSendButtonState` is assigned by this module for `chat-images.js`; other user-facing handlers are assigned by `chat-window-bindings.js`.
 
 ---
 
@@ -517,37 +527,37 @@ Chat rendering and empty-state/onboarding message composition. Owns `renderChatM
 
 **Key exports:** `renderChatMessages`, `_getNoDataPrompts`, `_renderLensSources`
 
-**Window exports:** `renderChatMessages` is assigned by `chat.js` for existing inline handlers and cross-module callbacks.
+**Window exports:** `renderChatMessages` is assigned by `chat-window-bindings.js` for existing inline handlers and cross-module callbacks.
 
 ---
 
 ### `chat-panel.js`
 
-Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, persisted fullscreen preference, web-search toggle persistence/visibility, composer disabled state, and FAB nudge stages. It imports thread/history/personality helpers directly and receives the active-discussion restore callback through `configureChatPanel()` to avoid importing `chat.js`.
+Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, persisted fullscreen preference, web-search toggle persistence/visibility, composer disabled state, and FAB nudge stages. It imports thread/history/personality helpers directly and receives the active-discussion restore callback through `configureChatPanel()` to avoid importing `chat-discussion.js`.
 
 **Key exports:** `configureChatPanel`, `toggleChatPanel`, `toggleChatFullscreen`, `openChatPanel`, `closeChatPanel`, `updateChatInputState`, `getChatWebSearchEnabled`, `setChatWebSearchEnabled`, `refreshWebSearchToggle`, `setChatNudge`, `updateChatNudge`
 
-**Window exports:** assigned by `chat.js` for existing inline handlers and cross-module callbacks.
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and cross-module callbacks.
 
 ---
 
 ### `chat-onboarding.js`
 
-Chat-first onboarding helpers. Owns the provider quiz render helper, onboarding progress crumbs, profile/location/cycle/supplement handlers, lab-import CTA behavior, context-card nudge callback, and prompt CTA helper. It receives `renderChatMessages`, `sendChatMessage`, `closeChatPanel`, and nudge callbacks from `chat.js` through `configureChatOnboarding()` so it can update the shared chat UI without importing `chat.js`.
+Chat-first onboarding helpers. Owns the provider quiz render helper, onboarding progress crumbs, profile/location/cycle/supplement handlers, lab-import CTA behavior, context-card nudge callback, and prompt CTA helper. It receives `renderChatMessages`, `sendChatMessage`, `closeChatPanel`, and nudge callbacks from `chat-window-bindings.js` through `configureChatOnboarding()` so it can update the shared chat UI without importing chat UI modules directly.
 
 **Key exports:** `configureChatOnboarding`, `useChatPrompt`, `requestOnboardingLabImportProvider`, `startOnboardingLabImport`, `_renderOnboardCrumbs`, `_renderProviderQuiz`, `_countFilledCards`, `setChatProfileSex`, `saveChatProfile`, `saveChatLocation`, `onboardHeightUnitChanged`, `saveChatPeriod`, `addChatSupplement`, `removeChatSupplement`, `setProviderQuizBranch`, `backToProviderQuiz`, `skipProviderSetup`, `skipOnboardingExtras`, `showCycleNoMensesOptions`, `showCyclePeriodEntry`, `saveCycleStatus`, `_updatePeriodBtn`, `onContextCardSaved`
 
-**Window exports:** assigned by `chat.js` for existing inline handlers and `context-cards.js` callbacks.
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and `context-cards.js` callbacks.
 
 ---
 
 ### `chat-discussion.js`
 
-Multi-persona discussion/debate orchestration. Owns the Discuss button state, persona picker, continuation prompt, persisted discussion thread metadata, manual-message discussion turns, and multi-persona API rounds. It imports prompt/history/personality helpers directly and receives streaming callbacks from `chat.js` through `configureChatDiscussion()` so stop-button state remains shared without a `chat.js` import cycle.
+Multi-persona discussion/debate orchestration. Owns the Discuss button state, persona picker, continuation prompt, persisted discussion thread metadata, manual-message discussion turns, and multi-persona API rounds. It imports prompt/history/personality helpers directly and receives streaming callbacks from `chat-window-bindings.js` through `configureChatDiscussion()` so stop-button state remains shared without importing `chat-send.js`.
 
 **Key exports:** `configureChatDiscussion`, `getThreadPersonaCount`, `updateDiscussButton`, `getCurrentDiscussionState`, `sendDiscussionUserTurn`, `restoreDiscussionContinuePrompt`, `showDiscussContinuePrompt`, `removeDiscussContinuePrompt`, `cleanupDiscussionState`, `startDiscussion`, `startDiscussionFromPicker`, `continueDiscussion`, `endDiscussion`
 
-**Window exports:** assigned by `chat.js` for existing inline handlers and `chat-threads.js` callbacks.
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and `chat-threads.js` callbacks.
 
 ---
 
@@ -557,7 +567,7 @@ Chat personality storage, personality picker rendering, custom persona editor, A
 
 **Key exports:** `getActivePersonality`, `getCustomPersonalities`, `saveCustomPersonalities`, `getCustomPersonality`, `getCustomPersonalityText`, `pickPersonaIcon`, `setChatPersonality`, `loadChatPersonality`, `updateChatHeaderTitle`, `updateChatHeaderModel`, `updateSummaryButton`, `updatePersonalityBar`, `togglePersonalityBar`, `generateCustomPersonality`, `saveCustomPersonality`, `startNewCustomPersonality`, `editCustomPersonality`, `deleteCustomPersonality`, `autoResizePersonaTextarea`, `markPersonalityDirty`, `snapshotPersonalityClean`
 
-**Window exports:** assigned by `chat.js` for existing inline handlers and cross-module callbacks.
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and cross-module callbacks.
 
 ---
 
@@ -567,7 +577,7 @@ Thread-aware chat message persistence and clearing. The module owns the legacy s
 
 **Key exports:** `getChatStorageKey`, `loadChatHistory`, `saveChatHistory`, `clearChatHistory`
 
-**Window exports:** assigned by `chat.js` for existing inline handlers and `chat-threads.js` callbacks.
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and `chat-threads.js` callbacks.
 
 ---
 
@@ -627,7 +637,7 @@ Conversation summary generation, saved-summary profile storage, and summary moda
 
 **Key exports:** `summarizeThread`, `renderSavedSummaries`, `viewSavedSummary`, `deleteSavedSummary`, `closeSummaryModal`, `copySummary`, `downloadSummary`, `printSummary`
 
-**Window exports:** assigned by `chat.js` for existing inline handlers.
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers.
 
 ---
 

@@ -61,7 +61,8 @@ js/
   import-file-input.js — lazy file-picker import binding and import routing
   import-drop-zone.js — lazy import drop-zone binding shared by page shells
   export.js         — JSON export/import (single, per-client, database bundle), PDF report, clearAllData
-  chat.js           — Chat compatibility exports and callback wiring
+  chat.js           — Chat public barrel and entry point
+  chat-window-bindings.js — Chat callback wiring and legacy window exports
   chat-marker-prompts.js — Per-marker and selected-correlation AI prompt builders
   client-list.js    — Client List modal: search/sort/filter profiles, inline CRUD, archive/flag/pin
   recommendations.js — Supplement & lifestyle recommendations, lazy catalog, 3 touchpoints

@@ -160,6 +160,7 @@ assert('CSS .chat-action-btn.active removed', !cssSrc.includes('.chat-action-btn
 // ─── Section 17: Source inspection — chat.js ───
 console.log('Section 17: Source inspection');
 const chatSrc = read('js/chat.js');
+const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatActionsSrc = read('js/chat-actions.js');
 const chatAttestationSrc = read('js/chat-attestation.js');
 const chatIconsSrc = read('js/chat-icons.js');
@@ -176,6 +177,7 @@ const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
+assert('chat.js loads window bindings entry', chatSrc.includes("import './chat-window-bindings.js'"), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
 assert('chat-actions.js exports buildActionBar', chatActionsSrc.includes('export function buildActionBar'), 'found');
 assert('chat-actions.js keeps buildActionBar off window', !chatActionsSrc.includes('  buildActionBar,'), 'not a window handler');
@@ -207,7 +209,8 @@ assert('regenerateLastMessage checks render/send callbacks before mutating',
     && chatActionsSrc.indexOf("typeof sendChatMessage !== 'function'") < chatActionsSrc.indexOf('state.chatHistory.pop()'), 'found');
 assert('chat-send.js imports chat icon helpers', chatSendSrc.includes("from './chat-icons.js'"), 'found');
 assert('chat-icons.js exports button content helper', chatIconsSrc.includes('export function setIconButtonContent'), 'found');
-assert('chat.js imports chat summary helpers', chatSrc.includes("from './chat-summaries.js'"), 'found');
+assert('chat window bindings import chat summary helpers',
+  chatWindowBindingsSrc.includes("from './chat-summaries.js'"), 'found');
 assert('chat-summaries.js exports summarizeThread', chatSummariesSrc.includes('export async function summarizeThread'), 'found');
 assert('chat-summaries.js sends one transcript message', chatSummariesSrc.includes('buildSummaryTranscript(state.chatHistory)') && chatSummariesSrc.includes("role: 'user'"), 'found');
 assert('chat-send.js imports continuation helpers', chatSendSrc.includes("from './chat-continuation.js'"), 'found');
@@ -256,10 +259,10 @@ assert('chat-onboarding.js owns onboarding handlers',
     chatOnboardingSrc.includes('export function saveChatProfile') &&
     chatOnboardingSrc.includes('export function _renderProviderQuiz'),
   'found');
-assert('chat.js configures onboarding callbacks',
-  chatSrc.includes('configureChatOnboarding') &&
-    chatSrc.includes('sendChatMessage') &&
-    chatSrc.includes('updateChatNudge'),
+assert('chat window bindings configure onboarding callbacks',
+  chatWindowBindingsSrc.includes('configureChatOnboarding') &&
+    chatWindowBindingsSrc.includes('sendChatMessage') &&
+    chatWindowBindingsSrc.includes('updateChatNudge'),
   'found');
 
 // ─── Section 17a: Chat prompt-context helpers ───

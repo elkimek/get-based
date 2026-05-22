@@ -125,6 +125,7 @@ const pwaAppShellAssets = [
   '/js/sun.js',
   '/js/sun-spectrum.js',
   '/js/sun-uvdata.js',
+  '/js/chat-window-bindings.js',
   '/js/chat-images.js',
   '/js/chat-threads.js',
   '/js/chat-marker-prompts.js',
