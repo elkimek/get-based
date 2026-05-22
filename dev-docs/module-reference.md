@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat streaming, message rendering, onboarding chat flows, image send integration, and direct-message orchestration. Multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+AI chat streaming, message rendering, image send integration, and direct-message orchestration. Chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
@@ -499,6 +499,16 @@ Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, 
 **Key exports:** `configureChatPanel`, `toggleChatPanel`, `toggleChatFullscreen`, `openChatPanel`, `closeChatPanel`, `updateChatInputState`, `getChatWebSearchEnabled`, `setChatWebSearchEnabled`, `refreshWebSearchToggle`, `setChatNudge`, `updateChatNudge`
 
 **Window exports:** assigned by `chat.js` for existing inline handlers and cross-module callbacks.
+
+---
+
+### `chat-onboarding.js`
+
+Chat-first onboarding helpers. Owns the provider quiz render helper, onboarding progress crumbs, profile/location/cycle/supplement handlers, lab-import CTA behavior, context-card nudge callback, and prompt CTA helper. It receives `renderChatMessages`, `sendChatMessage`, `closeChatPanel`, and nudge callbacks from `chat.js` through `configureChatOnboarding()` so it can update the shared chat UI without importing `chat.js`.
+
+**Key exports:** `configureChatOnboarding`, `useChatPrompt`, `requestOnboardingLabImportProvider`, `startOnboardingLabImport`, `_renderOnboardCrumbs`, `_renderProviderQuiz`, `_countFilledCards`, `setChatProfileSex`, `saveChatProfile`, `saveChatLocation`, `onboardHeightUnitChanged`, `saveChatPeriod`, `addChatSupplement`, `removeChatSupplement`, `setProviderQuizBranch`, `backToProviderQuiz`, `skipProviderSetup`, `skipOnboardingExtras`, `showCycleNoMensesOptions`, `showCyclePeriodEntry`, `saveCycleStatus`, `_updatePeriodBtn`, `onContextCardSaved`
+
+**Window exports:** assigned by `chat.js` for existing inline handlers and `context-cards.js` callbacks.
 
 ---
 

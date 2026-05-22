@@ -170,6 +170,7 @@ const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
+const chatOnboardingSrc = read('js/chat-onboarding.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
@@ -226,6 +227,17 @@ assert('chat-discussion.js typewriter callback degrades safely',
   !chatDiscussionSrc.includes('Chat discussion typewriter callback not configured') &&
     /function createTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionSrc),
   'fallback typewriter should no-op instead of throwing before cleanup');
+assert('chat.js imports onboarding helpers', chatSrc.includes("from './chat-onboarding.js'"), 'found');
+assert('chat-onboarding.js owns onboarding handlers',
+  chatOnboardingSrc.includes('export function startOnboardingLabImport') &&
+    chatOnboardingSrc.includes('export function saveChatProfile') &&
+    chatOnboardingSrc.includes('export function _renderProviderQuiz'),
+  'found');
+assert('chat.js configures onboarding callbacks',
+  chatSrc.includes('configureChatOnboarding') &&
+    chatSrc.includes('sendChatMessage') &&
+    chatSrc.includes('updateChatNudge'),
+  'found');
 
 // ─── Section 17a: Chat prompt-context helpers ───
 console.log('Section 17a: Chat prompt-context helpers');

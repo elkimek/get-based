@@ -157,6 +157,7 @@ else localStorage.removeItem('labcharts-openrouter-model');
 // ─── 4. chat.js source inspection ───
 console.log('\n4. chat.js source inspection');
 const chatSrc = read('js/chat.js');
+const chatOnboardingSrc = read('js/chat-onboarding.js');
 assert('chat.js uses getActiveModelId for model resolution', chatSrc.includes('getActiveModelId'));
 assert('chat.js snapshots provider for sends', chatSrc.includes('const _msgProvider = getAIProvider()') && chatSrc.includes('provider: _msgProvider'));
 
@@ -299,8 +300,8 @@ assert('CSS: .or-oauth-divider defined', cssSrc.includes('.or-oauth-divider'));
 assert('provider-panels renders or-oauth-btn in OpenRouter panel', ppSrc.includes('or-oauth-btn'));
 assert('provider-panels renders or-oauth-divider', ppSrc.includes('or-oauth-divider'));
 assert('OAuth button conditional on !currentKey', ppSrc.includes("currentKey ? '' : '<button class=\"or-oauth-btn\""));
-assert('Chat setup guide has or-oauth-btn', chatSrc.includes('or-oauth-btn'));
-assert('Chat setup guide has startOpenRouterOAuth onclick', chatSrc.includes("onclick=\"startOpenRouterOAuth()\""));
+assert('Chat setup guide has or-oauth-btn', chatOnboardingSrc.includes('or-oauth-btn'));
+assert('Chat setup guide has startOpenRouterOAuth onclick', chatOnboardingSrc.includes("onclick=\"startOpenRouterOAuth()\""));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

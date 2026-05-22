@@ -22,6 +22,7 @@ console.log('=== Pre-Lab Onboarding Tests ===\n');
 
 const chatSrc = read('js/chat.js');
 const chatPanelSrc = read('js/chat-panel.js');
+const chatOnboardingSrc = read('js/chat-onboarding.js');
 const labCtxSrc = read('js/lab-context.js');
 
   assert('No sentinel return string', !labCtxSrc.includes("return 'No lab data is currently loaded for this profile.'"),
@@ -251,17 +252,22 @@ const labCtxSrc = read('js/lab-context.js');
     'Onboarding steps should not compete with the disabled composer on mobile');
   assert('Chat onboarding uses solid active surfaces', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-msg.chat-ai') && cssSrc.includes('var(--bg-card) 94%'),
     'Onboarding cards should stay readable in glass/synth themes');
-  assert('Chat onboarding has OpenRouter OAuth', chatSrc.includes('startOpenRouterOAuth') && chatSrc.includes('paste a key manually'),
+  assert('Chat onboarding has OpenRouter OAuth', chatOnboardingSrc.includes('startOpenRouterOAuth') && chatOnboardingSrc.includes('paste a key manually'),
     'Should have OAuth button and manual key option for API step');
-  assert('Chat onboarding has PPQ', chatSrc.includes("switchAIProvider('ppq')"),
+  assert('Chat onboarding has PPQ', chatOnboardingSrc.includes("switchAIProvider('ppq')"),
     'Should have PPQ setup link');
   // Venice is intentionally NOT in the onboarding quiz — its
   // uncensored/E2EE positioning hurts non-tech onboarding clarity.
   // Reachable from Settings → AI (provider-panels.js + settings.js).
-  assert('Chat onboarding has Local AI', chatSrc.includes("switchAIProvider('ollama')"),
+  assert('Chat onboarding has Local AI', chatOnboardingSrc.includes("switchAIProvider('ollama')"),
     'Should have Local AI setup link');
-  assert('Chat onboarding has settings opener', chatSrc.includes("openSettingsModal('ai')"),
+  assert('Chat onboarding has settings opener', chatOnboardingSrc.includes("openSettingsModal('ai')"),
     'Should have link that opens AI settings tab directly');
+  assert('Chat onboarding helpers live in dedicated module',
+    chatSrc.includes("from './chat-onboarding.js'") &&
+      chatOnboardingSrc.includes('export function _renderProviderQuiz') &&
+      chatOnboardingSrc.includes('export function startOnboardingLabImport'),
+    'Provider quiz and onboarding handlers should be extracted from chat.js');
   assert('sendChatMessage guards no provider', (() => {
     const fnStart = chatSrc.indexOf('export async function sendChatMessage()');
     const fnBody = chatSrc.substring(fnStart, fnStart + 300);
