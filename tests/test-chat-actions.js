@@ -165,6 +165,7 @@ const chatAttestationSrc = read('js/chat-attestation.js');
 const chatIconsSrc = read('js/chat-icons.js');
 const chatSummariesSrc = read('js/chat-summaries.js');
 const chatContinuationSrc = read('js/chat-continuation.js');
+const chatMarkerPromptsSrc = read('js/chat-marker-prompts.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const chatHistorySrc = read('js/chat-history.js');
@@ -224,6 +225,11 @@ assert('chat.js imports chat render helpers', chatSrc.includes("from './chat-ren
 assert('chat-render.js exports renderChatMessages', chatRenderSrc.includes('export function renderChatMessages'), 'found');
 assert('chat.js imports chat send helpers', chatSrc.includes("from './chat-send.js'"), 'found');
 assert('chat-send.js exports sendChatMessage', chatSendSrc.includes('export async function sendChatMessage'), 'found');
+assert('chat.js imports marker prompt helpers', chatSrc.includes("from './chat-marker-prompts.js'"), 'found');
+assert('chat-marker-prompts.js exports marker and correlation prompts',
+  chatMarkerPromptsSrc.includes('export function askAIAboutMarker') &&
+    chatMarkerPromptsSrc.includes('export function askAIAboutCorrelations'),
+  'found');
 assert('renderChatMessages calls buildActionBar', chatRenderSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');

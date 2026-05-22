@@ -478,16 +478,26 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-Chat window wiring plus marker/correlation entry points. Direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+Chat window wiring and compatibility exports. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
 - `renderChatMessages()` — re-exported from `chat-render.js` for existing callers
-- `askAIAboutMarker(markerKey)` — per-marker AI explanation, opens the chat panel with a marker-specific prompt
-- `askAIAboutCorrelations()` — opens chat with a selected-marker correlation prompt
+- `askAIAboutMarker(markerKey)` — re-exported from `chat-marker-prompts.js`; opens chat with a marker-specific prompt
+- `askAIAboutCorrelations()` — re-exported from `chat-marker-prompts.js`; opens chat with a selected-marker correlation prompt
 - Thread management: `createNewThread()`, `loadThread(id)`, `deleteThread(id)`, `renameThread(id)`
 
 **Window exports:** `sendChatMessage`, `setChatPersonality`, `openChatPanel`, `closeChatPanel`, `createNewThread`, `loadThread`, `deleteThread`, `renameThread`, `generateCustomPersonality`, `saveCustomPersonality`, `askAIAboutMarker`, `addImageAttachment`, `toggleHDMode`
+
+---
+
+### `chat-marker-prompts.js`
+
+Per-marker and selected-correlation chat prompt builders. Owns `askAIAboutMarker()` and `askAIAboutCorrelations()`, including phase-aware marker values, effective reference ranges, latest status, and trend text before opening the chat panel with a prefilled prompt.
+
+**Key exports:** `askAIAboutMarker`, `askAIAboutCorrelations`
+
+**Window exports:** assigned by `chat.js` for existing inline Ask AI buttons.
 
 ---
 

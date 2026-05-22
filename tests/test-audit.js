@@ -87,6 +87,7 @@ assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
 
 const chatSrc = read('js/chat.js');
+const chatMarkerPromptsSrc = read('js/chat-marker-prompts.js');
 const chatSendSrc = read('js/chat-send.js');
 const chatActionsSrc = read('js/chat-actions.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
@@ -594,8 +595,8 @@ assert('views.js imports focus card module', viewsSrc.includes("from './focus-ca
 assert('Focus card uses buildFocusContext', focusCardSrc.includes('buildFocusContext()'));
 assert('Focus card context-aware system prompt', focusCardSrc.includes("this person's goals/conditions"));
 
-assert('askAIAboutMarker uses marker.refMin/refMax', chatSrc.includes('${marker.refMin}') && chatSrc.includes('${marker.refMax}'));
-assert('askAIAboutMarker has trend direction', chatSrc.includes("Trend: ${dir}"));
+assert('askAIAboutMarker uses marker.refMin/refMax', chatMarkerPromptsSrc.includes('${marker.refMin}') && chatMarkerPromptsSrc.includes('${marker.refMax}'));
+assert('askAIAboutMarker has trend direction', chatMarkerPromptsSrc.includes("Trend: ${dir}"));
 
 assert('Health dots JSON.parse has try-catch', ctxSrc.includes('try { parsed = JSON.parse(jsonMatch[0])'));
 

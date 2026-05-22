@@ -320,13 +320,13 @@ const cssSource = read('styles.css');
   assert('renderCompareTable uses getEffectiveRangeForDate', compareCorrelationsSource.includes('getEffectiveRangeForDate(marker, idx'));
 
   // ═══════════════════════════════════════
-  // 15. chat.js source inspection
+  // 15. chat marker prompt source inspection
   // ═══════════════════════════════════════
-  console.log('Section 15: chat.js source inspection');
-  const chatSource = read('js/chat.js');
-  assert('chat.js imports getEffectiveRangeForDate', chatSource.includes('getEffectiveRangeForDate'));
-  assert('buildLabContext phase-aware serialization', chatSource.includes('phaseRefRanges') && chatSource.includes('phaseLabels'));
-  assert('askAIAboutMarker phase context', chatSource.includes('phaseLabels') && chatSource.includes('phase-specific'));
+  console.log('Section 15: chat marker prompt source inspection');
+  const chatMarkerPromptsSource = read('js/chat-marker-prompts.js');
+  assert('chat-marker-prompts.js imports getEffectiveRangeForDate', chatMarkerPromptsSource.includes('getEffectiveRangeForDate'));
+  assert('askAIAboutMarker phase-aware serialization', chatMarkerPromptsSource.includes('phaseRefRanges') && chatMarkerPromptsSource.includes('phaseLabels'));
+  assert('askAIAboutMarker phase context', chatMarkerPromptsSource.includes('phaseLabels') && chatMarkerPromptsSource.includes('phase-specific'));
 
   // ═══════════════════════════════════════
   // 17. data.js countFlagged and getAllFlaggedMarkers

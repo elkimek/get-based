@@ -61,7 +61,8 @@ js/
   import-file-input.js — lazy file-picker import binding and import routing
   import-drop-zone.js — lazy import drop-zone binding shared by page shells
   export.js         — JSON export/import (single, per-client, database bundle), PDF report, clearAllData
-  chat.js           — Chat panel, personalities, per-marker AI
+  chat.js           — Chat compatibility exports and callback wiring
+  chat-marker-prompts.js — Per-marker and selected-correlation AI prompt builders
   client-list.js    — Client List modal: search/sort/filter profiles, inline CRUD, archive/flag/pin
   recommendations.js — Supplement & lifestyle recommendations, lazy catalog, 3 touchpoints
   cashu-wallet.js   — In-app Cashu eCash wallet: BIP-39 seed, IndexedDB proofs, Lightning fund/withdraw

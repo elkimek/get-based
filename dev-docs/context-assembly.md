@@ -598,9 +598,9 @@ Each entry documents:
 | `js/utils.js` | `hasCardContent()` — generic empty-card gate for context assembly |
 | `js/constants.js` | `CHAT_SYSTEM_PROMPT` — priority-tiered system prompt |
 | `js/lab-context.js` | `buildLabContext()` — central serializer (full context) |
-| `js/chat.js` | `sendChatMessage()` — chat prompt composition |
-| `js/chat.js` | `askAIAboutMarker()` — per-marker prompt (effective ranges + trend) |
-| `js/chat.js` | `generateCustomPersonality()` — persona generator prompt |
+| `js/chat-send.js` | `sendChatMessage()` — chat prompt composition |
+| `js/chat-marker-prompts.js` | `askAIAboutMarker()` — per-marker prompt (effective ranges + trend) |
+| `js/chat-personalities.js` | `generateCustomPersonality()` — persona generator prompt |
 | `js/views.js` | `buildFocusContext()` — lightweight focus card context (~200-400 tokens) |
 | `js/views.js` | `loadFocusCard()` — focus card prompt (health-goals-aware) |
 | `js/context-cards.js` | `recordChange(field)` — timestamps context field snapshots into `changeHistory` |
