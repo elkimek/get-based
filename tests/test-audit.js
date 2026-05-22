@@ -87,10 +87,11 @@ assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
 
 const chatSrc = read('js/chat.js');
+const chatActionsSrc = read('js/chat-actions.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const markdownSrc = read('js/markdown.js');
 assert('Markdown URL has quote escaping', markdownSrc.includes('.replace(/"/g, \'&quot;\')'));
-assert('Clipboard has navigator.clipboard guard', chatSrc.includes('if (!navigator.clipboard)'));
+assert('Clipboard has navigator.clipboard guard', chatActionsSrc.includes('if (!navigator.clipboard)'));
 
 // ═══════════════════════════════════════
 // 3b. Marker-key allowlist guards (source-inspection)

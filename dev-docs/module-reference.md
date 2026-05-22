@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat panel, streaming, thread orchestration, onboarding chat flows, image send integration, and multi-persona discussion rounds. Personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+AI chat panel, streaming, thread orchestration, onboarding chat flows, image send integration, and multi-persona discussion rounds. Personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
@@ -512,9 +512,19 @@ Thread-aware chat message persistence and clearing. The module owns the legacy s
 
 ---
 
+### `chat-actions.js`
+
+Chat message action bar rendering and message-level handlers. The module owns `Regenerate`, `Copy`, and context-details toggle behavior while calling back to `window.renderChatMessages?.()`, `window.sendChatMessage?.()`, and `window.isChatStreaming?.()` to avoid importing the streaming/rendering module.
+
+**Key exports:** `buildActionBar`, `regenerateLastMessage`, `copyMessage`, `toggleContextDetails`
+
+**Window exports:** assigned by the module directly and re-exported by `chat.js` for existing inline handlers.
+
+---
+
 ### `chat-icons.js`
 
-Shared chat SVG icon strings and icon-button DOM helper extracted from `chat.js`. Keeps `buildActionBar()` and streaming send/stop button state changes using the same symbols without keeping SVG construction code in the chat orchestration module.
+Shared chat SVG icon strings and icon-button DOM helper extracted from `chat.js`. Keeps action buttons and streaming send/stop button state changes using the same symbols without keeping SVG construction code in the chat orchestration module.
 
 **Key exports:** `CHAT_ICON_COPY`, `CHAT_ICON_REFRESH`, `CHAT_ICON_EDIT`, `CHAT_ICON_X`, `setIconButtonContent`
 
