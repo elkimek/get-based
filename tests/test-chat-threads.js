@@ -307,6 +307,10 @@ assert('chat-thread-search owns jumpToSearchResult',
 assert('chat-thread-search reads encrypted per-thread messages',
   chatThreadSearchSrc.includes("from './crypto.js'") &&
   chatThreadSearchSrc.includes('encryptedGetItem'));
+assert('chat-thread-search uses overflow sentinel before truncation banner',
+  chatThreadSearchSrc.includes('const SEARCH_RESULT_LIMIT = 30') &&
+  chatThreadSearchSrc.includes('results.length > SEARCH_RESULT_LIMIT') &&
+  chatThreadSearchSrc.includes('results.slice(0, SEARCH_RESULT_LIMIT)'));
 
 // ═══════════════════════════════════════════════
 // 17. CSS Inspection

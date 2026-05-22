@@ -10,6 +10,8 @@ const threadSearchCallbacks = {
   switchToThread: async () => {},
 };
 
+const SEARCH_RESULT_LIMIT = 30;
+
 let _threadSearchTimer = null;
 let _threadContentCache = null; // { profileId, threads: Map<threadId, messages[]> }
 
@@ -68,9 +70,9 @@ async function searchThreadContent(query) {
       const post = m.content.slice(idx + q.length, end) + (end < m.content.length ? '\u2026' : '');
       // Store content prefix for verification on jump
       results.push({ threadId: t.id, threadName: t.name, msgIndex: i, role: m.role, pre, match, post, contentPrefix: m.content.slice(0, 50) });
-      if (results.length >= 30) break;
+      if (results.length > SEARCH_RESULT_LIMIT) break;
     }
-    if (results.length >= 30) break;
+    if (results.length > SEARCH_RESULT_LIMIT) break;
   }
   // Re-check input hasn't changed
   const input = document.getElementById('chat-thread-search');
@@ -88,10 +90,10 @@ function showSearchResults(query, results) {
     }
     return;
   }
-  const cap = 30;
-  const truncated = results.length >= cap ? `<div style="padding:6px 10px;font-size:10px;color:var(--text-muted);text-align:center">Showing first ${cap} matches</div>` : '';
+  const visibleResults = results.slice(0, SEARCH_RESULT_LIMIT);
+  const truncated = results.length > SEARCH_RESULT_LIMIT ? `<div style="padding:6px 10px;font-size:10px;color:var(--text-muted);text-align:center">Showing first ${SEARCH_RESULT_LIMIT} matches</div>` : '';
   list.innerHTML = `<div class="chat-search-results-label">Messages</div>` +
-    results.map(r => {
+    visibleResults.map(r => {
       const icon = r.role === 'user' ? '\uD83D\uDCDD' : '\uD83E\uDD16';
       return `<div class="chat-search-result" data-prefix="${escapeHTML(r.contentPrefix)}" onclick="jumpToSearchResult('${escapeHTML(r.threadId)}',${r.msgIndex},this.dataset.prefix)">
         <div class="chat-search-result-thread">${escapeHTML(r.threadName)}</div>
