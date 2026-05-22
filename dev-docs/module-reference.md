@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat streaming, message rendering, onboarding chat flows, image send integration, and multi-persona discussion rounds. Panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+AI chat streaming, message rendering, onboarding chat flows, image send integration, and direct-message orchestration. Multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
@@ -499,6 +499,16 @@ Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, 
 **Key exports:** `configureChatPanel`, `toggleChatPanel`, `toggleChatFullscreen`, `openChatPanel`, `closeChatPanel`, `updateChatInputState`, `getChatWebSearchEnabled`, `setChatWebSearchEnabled`, `refreshWebSearchToggle`, `setChatNudge`, `updateChatNudge`
 
 **Window exports:** assigned by `chat.js` for existing inline handlers and cross-module callbacks.
+
+---
+
+### `chat-discussion.js`
+
+Multi-persona discussion/debate orchestration. Owns the Discuss button state, persona picker, continuation prompt, persisted discussion thread metadata, manual-message discussion turns, and multi-persona API rounds. It imports prompt/history/personality helpers directly and receives streaming callbacks from `chat.js` through `configureChatDiscussion()` so stop-button state remains shared without a `chat.js` import cycle.
+
+**Key exports:** `configureChatDiscussion`, `getThreadPersonaCount`, `updateDiscussButton`, `getCurrentDiscussionState`, `sendDiscussionUserTurn`, `restoreDiscussionContinuePrompt`, `showDiscussContinuePrompt`, `removeDiscussContinuePrompt`, `cleanupDiscussionState`, `startDiscussion`, `startDiscussionFromPicker`, `continueDiscussion`, `endDiscussion`
+
+**Window exports:** assigned by `chat.js` for existing inline handlers and `chat-threads.js` callbacks.
 
 ---
 

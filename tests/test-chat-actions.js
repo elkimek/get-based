@@ -169,6 +169,7 @@ const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
+const chatDiscussionSrc = read('js/chat-discussion.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
@@ -219,6 +220,8 @@ assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-pane
 assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');
 assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('export function getChatWebSearchEnabled') && chatPanelSrc.includes('export function setChatWebSearchEnabled'), 'found');
 assert('chat-panel scopes web-search selector to chat panel', chatPanelSrc.includes("querySelector('#chat-panel .chat-websearch-toggle-label')"), 'found');
+assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
+assert('chat-discussion.js owns debate rounds', chatDiscussionSrc.includes('async function runDiscussionRound') && chatDiscussionSrc.includes('export async function startDiscussion'), 'found');
 
 // ─── Section 17a: Chat prompt-context helpers ───
 console.log('Section 17a: Chat prompt-context helpers');

@@ -208,6 +208,7 @@ assert('sendChatMessage handles AbortError', sendSrc2.includes('AbortError'));
 console.log('19. Stop button CSS');
 const css = read('styles.css');
 const chatSrc = read('js/chat.js');
+const chatDiscussionSrc = read('js/chat-discussion.js');
 assert('CSS has .chat-send-btn.streaming', css.includes('.chat-send-btn.streaming'));
 assert('CSS has .chat-stopped-note', css.includes('.chat-stopped-note'));
 
@@ -260,8 +261,9 @@ assert('continueDiscussion reads steer input', contSrc.includes('chat-discuss-st
 const endSrc = window.endDiscussion.toString();
 assert('endDiscussion cleans up state', endSrc.includes('cleanupDiscussionState'));
 assert('endDiscussion marks discussion ended', endSrc.includes('markEnded: true'));
-assert('chat restores discussion prompt without thread metadata', chatSrc.includes('restoreDiscussionContinuePrompt') && chatSrc.includes('collectDiscussionPersonas()'));
-assert('manual messages in active discussion suppress duplicate auto prompt', chatSrc.includes('suppressAutoMsg: true'));
+assert('chat restores discussion prompt without thread metadata', chatDiscussionSrc.includes('restoreDiscussionContinuePrompt') && chatDiscussionSrc.includes('collectDiscussionPersonas()'));
+assert('manual messages in active discussion suppress duplicate auto prompt', chatDiscussionSrc.includes('suppressAutoMsg: true'));
+assert('chat.js configures discussion callbacks', chatSrc.includes('configureChatDiscussion') && chatSrc.includes('setChatAbortController'));
 assert('endDiscussion restores personality', endSrc.includes('currentChatPersonality'));
 
 // ── 27. Steer input CSS ──

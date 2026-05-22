@@ -125,7 +125,12 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 8. Chat typing indicator aria-live ───
   const chatSrc = read('/js/chat.js');
-  const ariaLiveCount = (chatSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []).length;
+  const chatDiscussionSrc = read('/js/chat-discussion.js');
+  const ariaLiveCount = (
+    chatSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
+  ).length + (
+    chatDiscussionSrc.match(/typingEl\.setAttribute\('aria-live', 'polite'\)/g) || []
+  ).length;
   assert('both typing-indicator sites have aria-live=polite',
     ariaLiveCount >= 2,
     `found ${ariaLiveCount}`);
