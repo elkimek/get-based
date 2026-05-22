@@ -127,6 +127,7 @@ assert('Vision models cached in fetchOpenRouterModels', apiSrc.includes('labchar
 assert('Ollama image normalization', apiSrc.includes('ollamaMsg.images = images'));
 
 const chatSrc = await fetchWithRetry('js/chat.js');
+const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
 // Image-attachment flow was extracted to js/chat-images.js in v1.21.9.
 // chat.js keeps the image-utils import for send-time helpers
 // (buildVisionContent / formatImageBlock) and consumes the pending
@@ -140,7 +141,7 @@ assert('Pending attachments variable lives in chat-images.js',
   chatImagesSrc.includes('_pendingAttachments'));
 assert('chat-images.js imports isValidImageType + resizeImage',
   chatImagesSrc.includes('isValidImageType') && chatImagesSrc.includes('resizeImage'));
-assert('Image badge in renderChatMessages', chatSrc.includes('chat-image-badge'));
+assert('Image badge in renderChatMessages', chatRenderSrc.includes('chat-image-badge'));
 assert('buildVisionContent used in sendChatMessage', chatSrc.includes('buildVisionContent(imageBlocks'));
 
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');

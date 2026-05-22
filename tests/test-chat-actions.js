@@ -171,6 +171,7 @@ const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
+const chatRenderSrc = read('js/chat-render.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
@@ -193,7 +194,7 @@ assert('chat incomplete heuristic does not continue on terminal high/low adjecti
   !chatSrc.includes('low|high') && !chatSrc.includes('high|low') && !chatContinuationSrc.includes('low|high') && !chatContinuationSrc.includes('high|low'), 'medical adjectives removed from trailing-word fallback');
 assert('chat renders output-limit note', chatContinuationSrc.includes('output limit reached'), 'found');
 assert('chat persists truncated assistant state', chatSrc.includes('assistantMsg.truncated = true'), 'found');
-assert('renderChatMessages restores truncated note', chatSrc.includes('msg.truncated') && chatSrc.includes('responseLimitNote()'), 'found');
+assert('renderChatMessages restores truncated note', chatRenderSrc.includes('msg.truncated') && chatRenderSrc.includes('responseLimitNote()'), 'found');
 assert('regenerateLastMessage checks streaming state via chat.js callback',
   chatActionsSrc.includes('window.isChatStreaming?.()') && chatSrc.includes('export function isChatStreaming'), 'found');
 assert('regenerateLastMessage checks render/send callbacks before mutating',
@@ -215,7 +216,9 @@ assert('chat-personalities.js exports header model helper', chatPersonalitiesSrc
 assert('chat.js imports history helpers', chatSrc.includes("from './chat-history.js'"), 'found');
 assert('chat-history.js exports save/load helpers', chatHistorySrc.includes('export async function saveChatHistory') && chatHistorySrc.includes('export async function loadChatHistory'), 'found');
 assert('chat-actions.js saves regenerated history through chat-history helper', chatActionsSrc.includes('saveChatHistory'), 'found');
-assert('renderChatMessages calls buildActionBar', chatSrc.includes('buildActionBar(i)'), 'found');
+assert('chat.js imports chat render helpers', chatSrc.includes("from './chat-render.js'"), 'found');
+assert('chat-render.js exports renderChatMessages', chatRenderSrc.includes('export function renderChatMessages'), 'found');
+assert('renderChatMessages calls buildActionBar', chatRenderSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');
 assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');

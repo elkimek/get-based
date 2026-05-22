@@ -478,17 +478,25 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-AI chat streaming, message rendering, image send integration, and direct-message orchestration. Chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
+AI chat streaming, image send integration, and direct-message orchestration. Chat transcript rendering and empty/onboarding message states live in `chat-render.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`.
 
 **Key exports:**
 - `sendChatMessage()` — sends user message (with optional image attachments) and last 30 messages to the active AI provider, streams response with typewriter trickle
-- `askAIAboutMarker(markerKey)` — per-marker AI explanation, streams into the chat panel
+- `renderChatMessages()` — re-exported from `chat-render.js` for existing callers
+- `askAIAboutMarker(markerKey)` — per-marker AI explanation, opens the chat panel with a marker-specific prompt
 - Thread management: `createNewThread()`, `loadThread(id)`, `deleteThread(id)`, `renameThread(id)`
-- `addImageAttachment(file)` — resizes + attaches image (max 5), shows quality warnings
-- `toggleHDMode()` — toggles HD image mode (1024px↔2048px), persisted in localStorage
-- `updateAttachButtonVisibility()` — shows/hides attach + HD buttons based on vision support
 
 **Window exports:** `sendChatMessage`, `setChatPersonality`, `openChatPanel`, `closeChatPanel`, `createNewThread`, `loadThread`, `deleteThread`, `renameThread`, `generateCustomPersonality`, `saveCustomPersonality`, `askAIAboutMarker`, `addImageAttachment`, `toggleHDMode`
+
+---
+
+### `chat-render.js`
+
+Chat rendering and empty-state/onboarding message composition. Owns `renderChatMessages()`, no-data prompt selection, lens-source disclosure rendering, persisted assistant footnotes, image badges, EMF hints, and persisted recommendation sections. It imports rendering dependencies directly and keeps `chat.js` focused on send/stream orchestration.
+
+**Key exports:** `renderChatMessages`, `_getNoDataPrompts`, `_renderLensSources`
+
+**Window exports:** `renderChatMessages` is assigned by `chat.js` for existing inline handlers and cross-module callbacks.
 
 ---
 

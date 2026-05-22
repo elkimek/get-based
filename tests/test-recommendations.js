@@ -39,6 +39,7 @@ globalThis.fetch = async (url, opts) => {
   const recSrc = await fetchWithRetry('js/recommendations.js');
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSrc = await fetchWithRetry('js/chat.js');
+  const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
   const recommendationActionsSrc = await fetchWithRetry('js/recommendation-actions.js');
   const categoryPageViewSrc = await fetchWithRetry('js/category-page-view.js');
@@ -224,7 +225,7 @@ globalThis.fetch = async (url, opts) => {
   assert('marker-detail-modal.js shows recs for any marker with catalog slot', markerDetailSrc.includes('isProductRecsEnabled'));
   assert('chat.js calls detectSupplementSlots', chatSrc.includes('detectSupplementSlots'));
   assert('chat.js detects recSlots for live rendering', chatSrc.includes('_recSlots'));
-  assert('chat.js has rec-chat-wrapper class', chatSrc.includes('rec-chat-wrapper'));
+  assert('chat-render.js has rec-chat-wrapper class', chatRenderSrc.includes('rec-chat-wrapper'));
   assert('category-view-renderers.js has chart-rec placeholder in header', categoryViewRenderersSrc.includes('chart-rec-'));
   assert('category-view-renderers.js keeps chart title text separate from tips host', categoryViewRenderersSrc.includes('chart-card-title-text') && categoryViewRenderersSrc.includes('chart-card-tips-host'));
   assert('category-page-view.js imports chart card recommendation module', categoryPageViewSrc.includes("from './chart-card-recs.js'"));
