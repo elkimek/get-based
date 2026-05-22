@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome and FAB nudge state live in `chat-panel.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`; thread rail message search and match highlighting live in `chat-thread-search.js`.
+Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`; panel chrome lives in `chat-panel.js`; FAB nudge state lives in `chat-nudge.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`; thread rail message search and match highlighting live in `chat-thread-search.js`.
 
 **Key exports:**
 - `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
@@ -543,9 +543,19 @@ Empty chat and chat-first onboarding message composition. Owns the profile setup
 
 ### `chat-panel.js`
 
-Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, persisted fullscreen preference, web-search toggle persistence/visibility, composer disabled state, and FAB nudge stages. It imports thread/history/personality helpers directly and receives the active-discussion restore callback through `configureChatPanel()` to avoid importing `chat-discussion.js`.
+Chat panel chrome and entry-state helpers. Owns open/close/fullscreen behavior, persisted fullscreen preference, web-search toggle persistence/visibility, and composer disabled state. It imports thread/history/personality helpers directly, delegates FAB nudge dismissal to `chat-nudge.js`, and receives the active-discussion restore callback through `configureChatPanel()` to avoid importing `chat-discussion.js`.
 
-**Key exports:** `configureChatPanel`, `toggleChatPanel`, `toggleChatFullscreen`, `openChatPanel`, `closeChatPanel`, `updateChatInputState`, `getChatWebSearchEnabled`, `setChatWebSearchEnabled`, `refreshWebSearchToggle`, `setChatNudge`, `updateChatNudge`
+**Key exports:** `configureChatPanel`, `toggleChatPanel`, `toggleChatFullscreen`, `openChatPanel`, `closeChatPanel`, `updateChatInputState`, `getChatWebSearchEnabled`, `setChatWebSearchEnabled`, `refreshWebSearchToggle`; also re-exports `setChatNudge` and `updateChatNudge` from `chat-nudge.js` for compatibility.
+
+**Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and cross-module callbacks.
+
+---
+
+### `chat-nudge.js`
+
+Chat FAB nudge badge state. Owns nudge stage persistence, per-profile dismissal, badge/pulse DOM updates, and the profile/API/data/context card readiness check used by startup, settings, onboarding, DNA import, and panel-open flows.
+
+**Key exports:** `setChatNudge`, `dismissCurrentChatNudge`, `updateChatNudge`
 
 **Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and cross-module callbacks.
 

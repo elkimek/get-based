@@ -171,6 +171,7 @@ const chatPromptContextSrc = read('js/chat-prompt-context.js');
 const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
+const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const chatRenderSrc = read('js/chat-render.js');
@@ -247,6 +248,10 @@ assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-pane
 assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');
 assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('export function getChatWebSearchEnabled') && chatPanelSrc.includes('export function setChatWebSearchEnabled'), 'found');
 assert('chat-panel scopes web-search selector to chat panel', chatPanelSrc.includes("querySelector('#chat-panel .chat-websearch-toggle-label')"), 'found');
+assert('chat.js imports chat nudge helpers', chatSrc.includes("from './chat-nudge.js'"), 'found');
+assert('chat-nudge.js owns FAB nudge state', chatNudgeSrc.includes('export function setChatNudge') && chatNudgeSrc.includes('export function updateChatNudge'), 'found');
+assert('chat-panel delegates nudge dismissal', chatPanelSrc.includes("from './chat-nudge.js'") && chatPanelSrc.includes('dismissCurrentChatNudge()'), 'found');
+assert('chat window bindings import chat nudge helpers', chatWindowBindingsSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
 assert('chat-discussion.js owns debate rounds', chatDiscussionSrc.includes('async function runDiscussionRound') && chatDiscussionSrc.includes('export async function startDiscussion'), 'found');
 assert('chat-discussion.js typewriter callback degrades safely',

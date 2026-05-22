@@ -327,7 +327,8 @@ const labCtxSrc = read('js/lab-context.js');
     'openChatPanel should add .hidden to FAB');
   assert('closeChatPanel shows FAB', (() => {
     const closeStart = chatPanelSrc.indexOf('export function closeChatPanel()');
-    const closeEnd = chatPanelSrc.indexOf('\n// ═══', closeStart);
+    const nextSection = chatPanelSrc.indexOf('\n// ═══', closeStart);
+    const closeEnd = nextSection === -1 ? chatPanelSrc.length : nextSection;
     const closeBody = chatPanelSrc.substring(closeStart, closeEnd);
     return closeBody.includes("fab.classList.remove('hidden')");
   })(), 'closeChatPanel should remove .hidden from FAB');

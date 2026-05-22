@@ -31,10 +31,10 @@ import {
 } from './chat-actions.js';
 import {
   closeChatPanel, configureChatPanel, getChatWebSearchEnabled,
-  refreshWebSearchToggle, setChatNudge, setChatWebSearchEnabled,
+  refreshWebSearchToggle, setChatWebSearchEnabled,
   toggleChatFullscreen, toggleChatPanel, openChatPanel, updateChatInputState,
-  updateChatNudge,
 } from './chat-panel.js';
+import { setChatNudge, updateChatNudge } from './chat-nudge.js';
 import {
   cleanupDiscussionState, configureChatDiscussion, continueDiscussion,
   endDiscussion, getThreadPersonaCount, removeDiscussContinuePrompt,
