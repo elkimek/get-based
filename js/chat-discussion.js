@@ -58,7 +58,10 @@ function setSendButtonMode(btn, mode) {
 
 function createTypewriter(el, typingEl, container) {
   if (!discussionCallbacks.createTypewriter) {
-    throw new Error('Chat discussion typewriter callback not configured');
+    return {
+      update() {},
+      stop() {},
+    };
   }
   return discussionCallbacks.createTypewriter(el, typingEl, container);
 }

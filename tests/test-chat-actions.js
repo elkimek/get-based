@@ -222,6 +222,10 @@ assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('expo
 assert('chat-panel scopes web-search selector to chat panel', chatPanelSrc.includes("querySelector('#chat-panel .chat-websearch-toggle-label')"), 'found');
 assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
 assert('chat-discussion.js owns debate rounds', chatDiscussionSrc.includes('async function runDiscussionRound') && chatDiscussionSrc.includes('export async function startDiscussion'), 'found');
+assert('chat-discussion.js typewriter callback degrades safely',
+  !chatDiscussionSrc.includes('Chat discussion typewriter callback not configured') &&
+    /function createTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionSrc),
+  'fallback typewriter should no-op instead of throwing before cleanup');
 
 // ─── Section 17a: Chat prompt-context helpers ───
 console.log('Section 17a: Chat prompt-context helpers');
