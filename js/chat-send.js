@@ -211,6 +211,7 @@ export async function sendChatMessage() {
   const _msgE2EE = _msgProvider === 'venice' && isVeniceE2EEActive();
   const webSearchSupported = supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
+  let aiMsgEl = null;
 
   try {
     let labContext = buildLabContext({ userMessage: text });
@@ -258,7 +259,7 @@ export async function sendChatMessage() {
     }
 
     // Create AI message placeholder
-    const aiMsgEl = document.createElement('div');
+    aiMsgEl = document.createElement('div');
     aiMsgEl.className = 'chat-msg chat-ai';
     aiMsgEl.style.whiteSpace = 'pre-wrap';
 
@@ -401,7 +402,7 @@ export async function sendChatMessage() {
     if (err.name === 'AbortError') {
       // Read partial text from the DOM (typewriter accumulates into textContent)
       const partialText = aiMsgEl?.textContent?.trim() || '';
-      if (partialText) {
+      if (partialText && aiMsgEl) {
         if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
         aiMsgEl.style.whiteSpace = '';
         aiMsgEl.innerHTML = renderMarkdown(partialText) + '<div class="chat-stopped-note">[stopped]</div>';

@@ -185,6 +185,9 @@ assert('sendChatMessage snapshots context', chatSendSrc.includes('contextSnapsho
 assert('sendChatMessage snapshots provider for API call', chatSendSrc.includes('const _msgProvider = getAIProvider()') && chatSendSrc.includes('provider: _msgProvider'), 'found');
 assert('sendChatMessage awaits chat saves before repaint-sensitive work',
   (chatSendSrc.match(/await saveChatHistory\(\)/g) || []).length >= 2, 'found');
+assert('sendChatMessage keeps AI placeholder in abort-handler scope',
+  chatSendSrc.includes('let aiMsgEl = null') && !chatSendSrc.includes('const aiMsgEl = document.createElement'),
+  'found');
 assert('chat raises response token headroom', chatContinuationSrc.includes('CHAT_RESPONSE_MAX_TOKENS = 16384'), 'found');
 assert('chat auto-continues token-limit stops', chatContinuationSrc.includes('CHAT_AUTO_CONTINUE_LIMIT') && chatContinuationSrc.includes('callChatAPIWithContinuation'), 'found');
 assert('chat continuation uses provider snapshot', chatContinuationSrc.includes('provider })') && chatContinuationSrc.includes('}, provider)'), 'found');
