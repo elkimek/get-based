@@ -38,6 +38,11 @@ const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
 const {
   attachLensSources, buildMultiPersonaInstruction, buildTaggedChatMessages, buildWebSearchHint,
 } = await import('../js/chat-prompt-context.js');
+const {
+  DEFAULT_DISCUSS_PROMPT, DISCUSSION_JOIN_PROMPT, INITIAL_DISCUSS_PROMPT,
+  buildDiscussionAutoMessage, buildDiscussionJoinMessage, getDiscussionPromptText,
+  hasExistingDiscussionResponses,
+} = await import('../js/chat-discussion-round-prompts.js');
 
 const S = window._labState;
 const hasState = S && typeof S === 'object';
@@ -126,6 +131,39 @@ if (hasState) {
 // Section 10 (navigator.clipboard) and Section 12 (context-toggle live DOM)
 // live in test-chat-actions-dom.js.
 
+// ─── Section 13: Discussion Round Prompt Helpers ───
+console.log('Section 13: Discussion round prompt helpers');
+assert('discussion first persona gets initial prompt',
+  getDiscussionPromptText({ hasExistingDebate: false, personaIndex: 0 }) === INITIAL_DISCUSS_PROMPT,
+  'fresh first turn');
+assert('discussion first persona honors steer prompt',
+  getDiscussionPromptText({ hasExistingDebate: false, personaIndex: 0, steerPrompt: 'Go deeper' }) === 'Go deeper',
+  'steered first turn');
+assert('discussion later persona gets default prompt',
+  getDiscussionPromptText({ hasExistingDebate: false, personaIndex: 1 }) === DEFAULT_DISCUSS_PROMPT,
+  'fresh later turn');
+assert('discussion existing debate gets default prompt',
+  getDiscussionPromptText({ hasExistingDebate: true, personaIndex: 0 }) === DEFAULT_DISCUSS_PROMPT,
+  'existing debate');
+assert('discussion existing debate honors steer prompt',
+  getDiscussionPromptText({ hasExistingDebate: true, personaIndex: 0, steerPrompt: 'Compare positions' }) === 'Compare positions',
+  'steered existing debate');
+assert('hasExistingDiscussionResponses ignores plain assistant messages',
+  !hasExistingDiscussionResponses([{ role: 'assistant', content: 'Direct chat reply' }]),
+  'plain assistant');
+assert('hasExistingDiscussionResponses detects persona assistant messages',
+  hasExistingDiscussionResponses([{ role: 'assistant', personalityName: 'Skeptic', content: 'Counterpoint' }]),
+  'persona assistant');
+assert('buildDiscussionAutoMessage creates hidden auto user message',
+  JSON.stringify(buildDiscussionAutoMessage('Continue', { hideAutoMsg: true })) === JSON.stringify({ role: 'user', content: 'Continue', auto: true, hidden: true }),
+  'hidden auto message');
+assert('buildDiscussionJoinMessage creates joined-persona marker',
+  JSON.stringify(buildDiscussionJoinMessage({ name: 'Analyst', icon: 'A' })) === JSON.stringify({ joined: true, joinName: 'Analyst', joinIcon: 'A' }),
+  'joined marker');
+assert('discussion join prompt remains available',
+  DISCUSSION_JOIN_PROMPT.includes('just joined this conversation'),
+  'join prompt');
+
 // ─── Section 14: Settings UI ───
 console.log('Section 14: Settings UI');
 const settingsSrc = read('js/settings.js');
@@ -174,6 +212,7 @@ const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionCallbacksSrc = read('js/chat-discussion-callbacks.js');
+const chatDiscussionRoundPromptsSrc = read('js/chat-discussion-round-prompts.js');
 const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js');
 const chatDiscussionRoundStateSrc = read('js/chat-discussion-round-state.js');
 const chatDiscussionRoundViewSrc = read('js/chat-discussion-round-view.js');
@@ -266,6 +305,15 @@ assert('chat-discussion-callbacks.js owns discussion callback bridge',
     chatDiscussionCallbacksSrc.includes('export function configureChatDiscussion') &&
     chatDiscussionCallbacksSrc.includes('export function getChatAbortController') &&
     chatDiscussionCallbacksSrc.includes('export function createDiscussionTypewriter'),
+  'found');
+assert('chat-discussion-round-prompts.js owns round prompt helpers',
+  chatDiscussionSrc.includes("from './chat-discussion-round-prompts.js'") &&
+    chatDiscussionRoundPromptsSrc.includes('export const DEFAULT_DISCUSS_PROMPT') &&
+    chatDiscussionRoundPromptsSrc.includes('export const INITIAL_DISCUSS_PROMPT') &&
+    chatDiscussionRoundPromptsSrc.includes('export const DISCUSSION_JOIN_PROMPT') &&
+    chatDiscussionRoundPromptsSrc.includes('export function getDiscussionPromptText') &&
+    chatDiscussionRoundPromptsSrc.includes('export function buildDiscussionAutoMessage') &&
+    chatDiscussionRoundPromptsSrc.includes('export function buildDiscussionJoinMessage'),
   'found');
 assert('chat-discussion-state.js owns persona state helpers',
   chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&

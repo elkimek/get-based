@@ -30,6 +30,10 @@ import {
   buildDiscussionAssistantMessage, buildDiscussionRoundRequest, trackDiscussionUsage,
 } from './chat-discussion-round-request.js';
 import {
+  buildDiscussionAutoMessage, buildDiscussionJoinMessage, DISCUSSION_JOIN_PROMPT,
+  getDiscussionPromptText, hasExistingDiscussionResponses,
+} from './chat-discussion-round-prompts.js';
+import {
   appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
   createDiscussionPersonaLabel, createDiscussionTypingIndicator, renderDiscussionRoundError,
   renderFinalDiscussionMessage,
@@ -58,8 +62,6 @@ export function restoreDiscussionContinuePrompt() {
   showDiscussContinuePrompt(discussionState.personas, discussionState.originalPersonality);
 }
 
-const DEFAULT_DISCUSS_PROMPT = 'Respond to the other analyst\'s points above. Where do you agree or disagree? Add any insights they may have missed.';
-
 async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   const container = document.getElementById('chat-messages');
   const sendBtn = document.getElementById('chat-send-btn');
@@ -71,10 +73,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   setChatAbortController(controller);
   setSendButtonMode(sendBtn, 'streaming');
 
-  const promptText = steerPrompt || DEFAULT_DISCUSS_PROMPT;
-
-  // Check if any persona has already responded in this thread
-  const hasExistingDebate = roundHistory.some(m => m.role === 'assistant' && m.personalityName);
+  const hasExistingDebate = hasExistingDiscussionResponses(roundHistory);
 
   try {
     for (let pi = 0; pi < personas.length; pi++) {
@@ -83,13 +82,13 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
       state.currentChatPersonality = persona.id;
 
-      // First persona in a fresh debate gets an open prompt, not a rebuttal prompt
-      const isFirstEver = !hasExistingDebate && pi === 0;
-      const msgText = isFirstEver
-        ? (steerPrompt || 'Share your analysis and interpretation of these lab results.')
-        : promptText;
+      const msgText = getDiscussionPromptText({
+        hasExistingDebate,
+        personaIndex: pi,
+        steerPrompt,
+      });
       if (!opts.suppressAutoMsg) {
-        const autoMsg = { role: 'user', content: msgText, auto: true, hidden: !!opts.hideAutoMsg };
+        const autoMsg = buildDiscussionAutoMessage(msgText, { hideAutoMsg: opts.hideAutoMsg });
         roundHistory.push(autoMsg);
         renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
         await saveRoundChatHistory(roundThreadId, roundHistory);
@@ -307,9 +306,8 @@ async function _runSingleTurn(persona, allPersonas) {
   const originalPersonality = state.currentChatPersonality;
   const threadId = state.currentThreadId;
   persistDiscussionThreadState(threadId, allPersonas, originalPersonality);
-  state.chatHistory.push({ joined: true, joinName: persona.name, joinIcon: persona.icon });
-  const joinPrompt = 'You\'ve just joined this conversation. Review the discussion above and weigh in with your perspective.';
-  await runDiscussionRound([persona], joinPrompt, { hideAutoMsg: true, threadId });
+  state.chatHistory.push(buildDiscussionJoinMessage(persona));
+  await runDiscussionRound([persona], DISCUSSION_JOIN_PROMPT, { hideAutoMsg: true, threadId });
   _finishDiscussionRound(allPersonas, originalPersonality, threadId);
 }
 
