@@ -26,7 +26,7 @@ export function showDiscussContinuePrompt(personas, originalPersonality, { onPer
 
   state._discussionPersonas = personas;
   state._discussionOriginalPersonality = originalPersonality;
-  onPersist?.(personas, originalPersonality);
+  onPersist?.();
 }
 
 export function removeDiscussContinuePrompt() {
