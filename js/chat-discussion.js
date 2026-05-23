@@ -81,6 +81,11 @@ function createTypewriter(el, typingEl, container) {
   return discussionCallbacks.createTypewriter(el, typingEl, container);
 }
 
+function appendRoundPersonaLabel(threadId, container, labelEl) {
+  if (!isRoundThreadActive(threadId) || labelEl.parentNode) return;
+  container.appendChild(labelEl);
+}
+
 export function updateDiscussButton() {
   const btn = document.getElementById('chat-discuss-btn');
   if (!btn) return;
@@ -186,7 +191,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const labelEl = document.createElement('div');
       labelEl.className = 'chat-persona-label';
       labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
-      if (isRoundThreadActive(roundThreadId)) container.appendChild(labelEl);
+      appendRoundPersonaLabel(roundThreadId, container, labelEl);
 
       const aiMsgEl = document.createElement('div');
       aiMsgEl.className = 'chat-msg chat-ai';
@@ -200,7 +205,10 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: controller.signal,
         onStream(text) {
-          if (isRoundThreadActive(roundThreadId)) typewriter.update(text);
+          if (isRoundThreadActive(roundThreadId)) {
+            appendRoundPersonaLabel(roundThreadId, container, labelEl);
+            typewriter.update(text);
+          }
         },
         webSearch: _dWebSearch,
         provider: _dMsgProvider
@@ -210,6 +218,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
       typewriter.stop();
       if (isRoundThreadActive(roundThreadId)) {
+        appendRoundPersonaLabel(roundThreadId, container, labelEl);
         aiMsgEl.style.whiteSpace = '';
         if (typingEl.parentNode) typingEl.remove();
         if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);

@@ -279,6 +279,11 @@ assert('chat discussion rounds stay bound to origin thread during streaming',
     chatDiscussionSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory)') &&
     chatDiscussionSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
   'prevents thread switches mid-stream from dropping the continue prompt');
+assert('chat discussion live stream restores persona label after thread switch',
+  chatDiscussionSrc.includes('function appendRoundPersonaLabel') &&
+    chatDiscussionSrc.includes('appendRoundPersonaLabel(roundThreadId, container, labelEl);') &&
+    /onStream\(text\)[\s\S]{0,180}appendRoundPersonaLabel\(roundThreadId, container, labelEl\);[\s\S]{0,80}typewriter\.update\(text\)/.test(chatDiscussionSrc),
+  're-entering the origin thread mid-stream should show whose response is streaming');
 assert('chat-discussion.js typewriter callback degrades safely',
   !chatDiscussionSrc.includes('Chat discussion typewriter callback not configured') &&
     /function createTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionSrc),
