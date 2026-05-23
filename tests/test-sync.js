@@ -163,6 +163,8 @@ await import('../js/settings.js');
     /refreshRelayStorage\(this\)/.test(syncSrc));
   assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
     /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncRelayHealthSrc));
+  assert('compactOwnerSelfServe catches fetch rejection before checking response status',
+    /compactOwnerSelfServe[\s\S]{0,1000}catch\s*\(\s*fetchErr\s*\)[\s\S]{0,400}Relay request failed[\s\S]{0,200}finally\s*\{\s*clearTimeout\(timer\);?\s*\}[\s\S]{0,120}if \(!r\.ok\)/.test(syncRelayHealthSrc));
   assert('fetchOwnerStorageFromRelay GETs /self/owner-storage with signed query',
     /fetchOwnerStorageFromRelay[\s\S]{0,800}\/self\/owner-storage\?ownerId=/.test(syncRelayHealthSrc));
   assert('_signSelfRequest uses HMAC-SHA256 over context:ownerId:timestamp',

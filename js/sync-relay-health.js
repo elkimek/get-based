@@ -142,6 +142,7 @@ export function getRelayHealthVerdict() {
   return { ..._lastVerifyVerdict };
 }
 
+// Exported for sync.js push acknowledgement wiring; not part of the public UI surface.
 export function notePushCommitted() {
   _lastPushCommittedAt = Date.now();
 }
@@ -214,6 +215,11 @@ export async function compactOwnerSelfServe() {
       body: JSON.stringify({ ownerId, timestamp, signature }),
       signal: ctrl.signal,
     });
+  } catch (fetchErr) {
+    const reason = fetchErr?.name === 'AbortError'
+      ? 'request timed out'
+      : (fetchErr?.message || fetchErr?.name || 'NetworkError');
+    throw new Error(`Relay request failed: ${reason}`);
   } finally { clearTimeout(timer); }
   if (!r.ok) {
     let detail = '';
