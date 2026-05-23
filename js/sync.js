@@ -13,6 +13,16 @@ import {
   disablePhase2CutoverFlag, enablePhase2CutoverFlag, isPhase2CutoverEnabled,
   parseSyncPayload,
 } from './sync-payload.js';
+import {
+  compactOwnerSelfServe, configureRelayHealth, fetchOwnerStorageFromRelay,
+  getRelayHealthVerdict, getRelayQuotaEstimate, notePushCommitted,
+  resetRelayQuotaEstimate, trackPushBytes, verifyPushLanded,
+} from './sync-relay-health.js';
+
+export {
+  compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
+  getRelayQuotaEstimate, resetRelayQuotaEstimate, verifyPushLanded,
+};
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
@@ -74,6 +84,19 @@ function _logSyncEvent(kind, text) {
   if (_syncEvents.length > _SYNC_EVENT_CAP) _syncEvents.shift();
 }
 export function getRecentSyncEvents() { return _syncEvents.slice(); }
+
+configureRelayHealth({
+  getAppOwner: () => _appOwner,
+  getSyncRelay,
+  onQuotaThreshold(q) {
+    if (q.level === 'red') {
+      _logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
+      try { showNotification(`Relay storage ${q.pct}% full — compact soon or pushes will start failing silently. See Settings → Sync → Diagnose.`, 'error'); } catch {}
+    } else {
+      try { showNotification(`Relay storage ${q.pct}% — plan a compaction in the next few days. See Sync diagnose.`, 'warning'); } catch {}
+    }
+  },
+});
 
 // Snapshot Evolu's current state for the in-popover Diagnose button. Used
 // when push/pull behave correctly per-device but cross-device convergence
@@ -1946,332 +1969,6 @@ async function _mergeItemRowsIntoImported(profileId, imported) {
 }
 
 // ═══════════════════════════════════════════════
-// RELAY QUOTA ESTIMATE (client-side, with optional real probe)
-// ═══════════════════════════════════════════════
-//
-// The relay caps each owner at 50 MB of evolu_message rows; once that
-// fills, writes are silently rejected and clients see "push committed"
-// with no actual durable write. The cumulative-bytes counter below is
-// the always-available fallback; getbased-relay 1.2.0+ exposes a real
-// probe at GET /self/owner-storage that returns the relay's
-// authoritative storedBytes (signed with the client's own writeKey, no
-// admin token involved). When that probe succeeds we mirror its result
-// into the same localStorage key so the rest of the UI stays
-// synchronous — see _maybeRefreshFromRelay below. The counter still
-// drives the UI when the probe is unreachable (older relay, offline,
-// CORS misroute), so the wedge-warning never goes blind.
-
-const RELAY_OWNER_QUOTA_BYTES = 50 * 1024 * 1024;
-function _ownerStorageKey() {
-  const owner = _appOwner?.id ? String(_appOwner.id) : 'unknown';
-  return `labcharts-relay-bytes-${owner}`;
-}
-function _trackPushBytes(bytes) {
-  if (!_appOwner?.id || !Number.isFinite(bytes) || bytes <= 0) return;
-  try {
-    const key = _ownerStorageKey();
-    const cur = parseInt(localStorage.getItem(key) || '0', 10) || 0;
-    localStorage.setItem(key, String(cur + bytes));
-  } catch {}
-  // After every successful push, check whether we crossed an alert
-  // threshold (80% amber, 95% red). One toast per transition so the user
-  // gets a single clear notice, not a per-push spammer.
-  _maybeWarnQuotaThreshold();
-}
-export function getRelayQuotaEstimate() {
-  if (!_appOwner?.id) return null;
-  let bytes = 0;
-  try { bytes = parseInt(localStorage.getItem(_ownerStorageKey()) || '0', 10) || 0; } catch {}
-  const cap = RELAY_OWNER_QUOTA_BYTES;
-  const pct = Math.min(100, Math.round((bytes / cap) * 100));
-  let level = 'green';
-  if (pct >= 95) level = 'red';
-  else if (pct >= 80) level = 'amber';
-  return { bytes, cap, pct, level };
-}
-export function resetRelayQuotaEstimate() {
-  if (!_appOwner?.id) return false;
-  try { localStorage.removeItem(_ownerStorageKey()); return true; } catch { return false; }
-}
-
-// Set the cached estimate to a known absolute value. Used by the relay
-// probe so the rest of the UI stays synchronous (no awaiting a network
-// roundtrip on every render).
-function _setRelayQuotaBytes(bytes) {
-  if (!_appOwner?.id || !Number.isFinite(bytes) || bytes < 0) return;
-  try { localStorage.setItem(_ownerStorageKey(), String(Math.round(bytes))); } catch {}
-}
-
-// ─── Relay self-service (writeKey-HMAC-authed) ─────────────
-//
-// Mirrors the /self/* endpoints introduced in getbased-relay 1.2.0.
-// Each request is HMAC-SHA256 signed with the user's own writeKey
-// (the same Evolu secret the client already holds for pushes), so no
-// admin token leaves the relay VM and one user can't ever act on
-// another user's owner. See packages/getbased-relay/src/lib/self-server.ts.
-
-// Derive the HTTP base URL for /self/* from the wss:// relay URL.
-// Production: wss://sync.getbased.health → https://sync.getbased.health
-// (Caddy routes /self/* to localhost:4003 alongside the WebSocket relay
-// at the root path.) Self-hosters who can't terminate TLS leave it as
-// http://; localhost dev uses ws://localhost:4000 → http://localhost:4003.
-//
-// A self-hoster who runs the relay on its native port (e.g.
-// `wss://relay.example.com:4000`) without a reverse proxy CAN'T have
-// /self/* path-routed onto the WebSocket port — they have to expose
-// 4003 separately. The localStorage override below lets them point
-// the client at the right URL without us trying to autodetect the
-// shape of every possible self-host topology.
-const SELF_URL_OVERRIDE_KEY = 'labcharts-self-url';
-function _getSelfBaseUrl() {
-  // Manual override — wins over autoderivation. Useful when the relay
-  // and self-service ports live on different hostnames or ports
-  // (e.g. self-host with no reverse proxy, or `self.example.com` on
-  // a dedicated subdomain).
-  try {
-    const override = localStorage.getItem(SELF_URL_OVERRIDE_KEY);
-    if (override && /^https?:\/\//i.test(override)) {
-      return override.replace(/\/+$/, '');
-    }
-  } catch {}
-  const wss = getSyncRelay();
-  if (typeof wss !== 'string' || !wss) return null;
-  try {
-    const u = new URL(wss);
-    if (u.protocol === 'wss:') u.protocol = 'https:';
-    else if (u.protocol === 'ws:') u.protocol = 'http:';
-    else return null;
-    // Strip path + query — relay URL might carry a /ping suffix from
-    // probe code. /self/* always lives at the root.
-    u.pathname = '';
-    u.search = '';
-    u.hash = '';
-    // Localhost dev: relay listens on 4000, self on 4003. In hosted
-    // (Caddy) deployments both ride the same hostname/port via path
-    // routing, so leave the port alone there.
-    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
-      u.port = '4003';
-    }
-    return u.toString().replace(/\/$/, '');
-  } catch { return null; }
-}
-
-// Sign {context}:{ownerId}:{timestamp} with the owner's writeKey. Returns
-// {ownerId, timestamp, signature} in the exact shape /self/* expects.
-// Throws if no owner / writeKey is loaded — caller catches.
-async function _signSelfRequest(context) {
-  if (!_appOwner?.id || !_appOwner?.writeKey) {
-    throw new Error('owner_not_ready');
-  }
-  if (!globalThis.crypto?.subtle?.importKey) {
-    throw new Error('subtle_crypto_unavailable');
-  }
-  const ownerId = String(_appOwner.id);
-  const timestamp = Date.now();
-  const message = `${context}:${ownerId}:${timestamp}`;
-  const key = await crypto.subtle.importKey(
-    'raw',
-    _appOwner.writeKey,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
-  const sig = Array.from(new Uint8Array(sigBuf))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-  return { ownerId, timestamp, signature: sig };
-}
-
-// Fetch the relay's authoritative storedBytes for our owner. On
-// success, mirrors the value into the local quota cache so the
-// synchronous getRelayQuotaEstimate() reflects ground truth. Returns
-// {storedBytes, quotaBytes, messageCount, lastWriteToken} or null on
-// any failure. The latter two are surfaced by relay >= 1.2.3 — older
-// relays return null for them, which the caller treats as "unknown"
-// (not an error condition).
-export async function fetchOwnerStorageFromRelay() {
-  const base = _getSelfBaseUrl();
-  if (!base) return null;
-  try {
-    const { ownerId, timestamp, signature } = await _signSelfRequest('storage');
-    const url = `${base}/self/owner-storage?ownerId=${encodeURIComponent(ownerId)}&timestamp=${timestamp}&signature=${signature}`;
-    // 5s timeout — old relay (404), unreachable, or CORS-misrouted
-    // shouldn't block the diagnose modal from rendering.
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 5000);
-    const r = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
-    if (!r.ok) return null;
-    const body = await r.json();
-    if (!body || typeof body.storedBytes !== 'number') return null;
-    _setRelayQuotaBytes(body.storedBytes);
-    return {
-      storedBytes: body.storedBytes,
-      quotaBytes: body.quotaBytes ?? null,
-      // Relay 1.2.3+: messageCount + lastWriteToken let us verify
-      // "did the relay actually persist my last push?". Older relays
-      // omit these → null. Code reading them must handle null = unknown.
-      messageCount: typeof body.messageCount === 'number' ? body.messageCount : null,
-      lastWriteToken: typeof body.lastWriteToken === 'string' ? body.lastWriteToken : null,
-    };
-  } catch { return null; }
-}
-
-// ─── Push verification (Evolu silent-reject detector) ────────────────
-// After every "push committed" event, we snapshot what the relay reports
-// for our owner and stash it. The NEXT verifyPushLanded() call hits
-// /self/owner-storage again and compares — if storedBytes hasn't
-// increased AND messageCount hasn't increased AND lastWriteToken
-// hasn't changed, the push was silently dropped server-side (the
-// Evolu silent-reject bug 2026-05-11: WS round-trip looks healthy,
-// relay acks "Push committed", but evolu_message gets zero rows
-// written). Three-state verdict so we can surface a colored dot
-// without false-alarming on transient errors or pre-1.2.3 relays:
-//   'healthy'  — relay advanced; push landed
-//   'wedged'   — relay didn't advance; push was silently dropped
-//   'unknown'  — couldn't probe (old relay, offline, no prior snapshot)
-let _lastRelaySnapshot = null;  // { storedBytes, messageCount, lastWriteToken, at }
-let _lastVerifyVerdict = { verdict: 'unknown', at: 0, reason: null };
-// Track the most recent local "push committed" event. The verifier only
-// reports 'wedged' if a push completed AFTER the last snapshot — without
-// this gate, two consecutive verify calls with no push between them
-// would always report 'wedged' (nothing changed on the relay because
-// nothing was pushed, but the user gets a misleading red dot).
-let _lastPushCommittedAt = 0;
-
-export function getRelayHealthVerdict() {
-  return { ..._lastVerifyVerdict };
-}
-
-// Called from onComplete inside the push pipeline once a "Push committed"
-// event has fired. Used by verifyPushLanded to gate the wedged verdict —
-// otherwise idle calls would always be 'wedged'.
-function notePushCommitted() {
-  _lastPushCommittedAt = Date.now();
-}
-
-// Verify that the most recent push actually advanced the relay's state.
-// Returns the verdict object. Caller is the diagnose modal renderer.
-export async function verifyPushLanded() {
-  // Old relay (< 1.2.3): messageCount + lastWriteToken come back null.
-  // We can still check storedBytes, but it can advance and then drop
-  // back to its prior value after a compaction, so it's a weaker signal.
-  // Treat the pre-1.2.3 case as 'unknown' to avoid false alarms.
-  const fresh = await fetchOwnerStorageFromRelay();
-  if (!fresh) {
-    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'relay-unreachable' };
-    return _lastVerifyVerdict;
-  }
-  // `messageCount` is the discriminator for relay version: v1.2.3+
-  // always returns an integer (0 for empty owners, > 0 otherwise);
-  // older relays omit the field and the fetcher maps the absence to
-  // null. We CANNOT use `lastWriteToken` here — it's null both for
-  // pre-1.2.3 AND for legit wedged owners (zero writes ever landed),
-  // which is exactly the state we want to detect. (Greptile follow-up.)
-  if (fresh.messageCount === null) {
-    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'pre-1.2.3-relay' };
-    return _lastVerifyVerdict;
-  }
-  // Absolute-value sanity check: if we've pushed at least once this
-  // session AND the relay reports zero messages, we're in the exact
-  // 2026-05-11 wedged-owner shape. No baseline needed — pushes
-  // succeeded locally, relay has nothing. Strongest signal we have.
-  if (_lastPushCommittedAt > 0 && fresh.messageCount === 0 && fresh.storedBytes === 0) {
-    _lastVerifyVerdict = {
-      verdict: 'wedged',
-      at: Date.now(),
-      reason: 'pushes committed locally but relay reports zero messages and zero bytes',
-    };
-    return _lastVerifyVerdict;
-  }
-  if (!_lastRelaySnapshot) {
-    // First call this session — snapshot now, can't verify yet.
-    _lastRelaySnapshot = {
-      storedBytes: fresh.storedBytes,
-      messageCount: fresh.messageCount,
-      lastWriteToken: fresh.lastWriteToken,
-      at: Date.now(),
-    };
-    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'no-baseline-yet' };
-    return _lastVerifyVerdict;
-  }
-  // Only report 'wedged' from a delta if a push happened SINCE the
-  // baseline was captured. Otherwise the relay has nothing to advance
-  // past and we'd be flagging idle-as-wedged.
-  if (_lastPushCommittedAt <= _lastRelaySnapshot.at) {
-    _lastVerifyVerdict = { verdict: 'unknown', at: Date.now(), reason: 'no-push-since-baseline' };
-    // Don't roll the baseline — we want the NEXT verify (after a real
-    // push) to compare against the same snapshot.
-    return _lastVerifyVerdict;
-  }
-  const advanced =
-    fresh.storedBytes > _lastRelaySnapshot.storedBytes
-    || fresh.messageCount > _lastRelaySnapshot.messageCount
-    || (fresh.lastWriteToken && fresh.lastWriteToken !== _lastRelaySnapshot.lastWriteToken);
-  if (advanced) {
-    _lastVerifyVerdict = { verdict: 'healthy', at: Date.now(), reason: null };
-  } else {
-    _lastVerifyVerdict = {
-      verdict: 'wedged',
-      at: Date.now(),
-      reason: `pushed at ${new Date(_lastPushCommittedAt).toISOString()} but relay still reports storedBytes=${fresh.storedBytes} messageCount=${fresh.messageCount}`,
-    };
-  }
-  // Roll the baseline forward so the next push-verify pair measures the
-  // next interval, not all of session-history.
-  _lastRelaySnapshot = {
-    storedBytes: fresh.storedBytes,
-    messageCount: fresh.messageCount,
-    lastWriteToken: fresh.lastWriteToken,
-    at: Date.now(),
-  };
-  return _lastVerifyVerdict;
-}
-
-// Hit POST /self/compact-owner — drops every evolu_message row for our
-// owner and zeroes the relay's stored-bytes counter. The local cache
-// is reset on success to match. Throws on any non-200 with a sanitized
-// message so the caller can surface it; never re-throws raw network
-// detail (might leak relay path / IP).
-export async function compactOwnerSelfServe() {
-  const base = _getSelfBaseUrl();
-  if (!base) throw new Error('No relay configured');
-  const { ownerId, timestamp, signature } = await _signSelfRequest('compact');
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 30000);
-  let r;
-  try {
-    r = await fetch(`${base}/self/compact-owner`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ownerId, timestamp, signature }),
-      signal: ctrl.signal,
-    });
-  } finally { clearTimeout(timer); }
-  if (!r.ok) {
-    let detail = '';
-    try { const body = await r.json(); detail = body?.error ? ` (${body.error})` : ''; } catch {}
-    throw new Error(`Relay returned ${r.status}${detail}`);
-  }
-  const body = await r.json();
-  // Reset local counter to whatever the relay reports as afterStoredBytes
-  // (typically 0). On parse trouble fall back to clearing the key
-  // outright — the relay state is the truth.
-  if (typeof body?.afterStoredBytes === 'number') {
-    _setRelayQuotaBytes(body.afterStoredBytes);
-  } else {
-    resetRelayQuotaEstimate();
-  }
-  // Clear "already toasted" markers so future thresholds re-warn.
-  try { localStorage.removeItem('labcharts-relay-quota-warned'); } catch {}
-  try {
-    localStorage.removeItem(`labcharts-${ownerId}-relay-quota-warned`);
-  } catch {}
-  return body;
-}
-
-// ═══════════════════════════════════════════════
 // PHASE 1 DELTA TELEMETRY (observability for cutover decision)
 // ═══════════════════════════════════════════════
 //
@@ -2607,7 +2304,7 @@ async function pushProfile(profileId, importedData, opts = {}) {
       // getRelayQuotaEstimate). Each successful push adds dataJson.length
       // to the cumulative — close enough to relay's storedBytes to warn
       // the user before the 50 MB wall.
-      _trackPushBytes((dataJson || '').length);
+      trackPushBytes((dataJson || '').length);
       // Phase 1 of CRDT-delta refactor: apply the planned per-array
       // deltas now that the blob committed. Snapshot is committed only
       // after the per-row mutations are queued — failure to apply a
@@ -4246,36 +3943,6 @@ async function confirmDisablePhase2(btn) {
   } else {
     try { showNotification('Could not disable Phase 2', 'error'); } catch {}
   }
-}
-
-// Toast users when they cross the 80% / 95% threshold the first time.
-// Uses a single-key marker so we don't re-fire on every push at the same
-// threshold; resets when the counter is reset (i.e. after compaction).
-// v1.7.14 audit fix: marker key is now owner-scoped — without this, a
-// `restoreFromMnemonic` to a different owner inherited the previous
-// owner's amber/red marker and silently suppressed the first warning
-// for the new owner. The legacy global key 'labcharts-relay-quota-warned'
-// is also cleaned up by disableSync/restoreFromMnemonic so pre-v1.7.14
-// state doesn't linger.
-function _maybeWarnQuotaThreshold() {
-  try {
-    const q = getRelayQuotaEstimate();
-    if (!q || q.level === 'green') return;
-    const owner = _appOwner?.id ? String(_appOwner.id) : 'unknown';
-    const key = `labcharts-${owner}-relay-quota-warned`;
-    const prev = localStorage.getItem(key) || '';
-    const want = q.level; // 'amber' or 'red'
-    // Only escalate (green→amber, amber→red), never re-fire same level.
-    const order = { '': 0, green: 0, amber: 1, red: 2 };
-    if (order[want] <= order[prev]) return;
-    localStorage.setItem(key, want);
-    if (q.level === 'red') {
-      _logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
-      try { showNotification(`Relay storage ${q.pct}% full — compact soon or pushes will start failing silently. See Settings → Sync → Diagnose.`, 'error'); } catch {}
-    } else {
-      try { showNotification(`Relay storage ${q.pct}% — plan a compaction in the next few days. See Sync diagnose.`, 'warning'); } catch {}
-    }
-  } catch {}
 }
 
 // Subscribe to status changes → repaint indicator + re-render the popover

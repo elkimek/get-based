@@ -33,6 +33,7 @@ await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
+  const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
@@ -140,13 +141,15 @@ await import('../js/settings.js');
   // endpoint needed). Warns the user before they hit the 50 MB per-owner
   // cap that silently rejects pushes.
   assert('Relay quota tracker exports getRelayQuotaEstimate',
-    /export function getRelayQuotaEstimate/.test(syncSrc));
+    /export\s+\{[\s\S]{0,200}getRelayQuotaEstimate/.test(syncSrc)
+      && /export function getRelayQuotaEstimate/.test(syncRelayHealthSrc));
   assert('Relay quota tracker exports resetRelayQuotaEstimate',
-    /export function resetRelayQuotaEstimate/.test(syncSrc));
-  assert('Push success path increments tracker via _trackPushBytes',
-    /Push committed[\s\S]{0,1500}_trackPushBytes\(\s*\(dataJson \|\| ''\)\.length/.test(syncSrc));
+    /export\s+\{[\s\S]{0,250}resetRelayQuotaEstimate/.test(syncSrc)
+      && /export function resetRelayQuotaEstimate/.test(syncRelayHealthSrc));
+  assert('Push success path increments tracker via trackPushBytes',
+    /Push committed[\s\S]{0,1500}trackPushBytes\(\s*\(dataJson \|\| ''\)\.length/.test(syncSrc));
   assert('Quota threshold warning fires on transition (amber → red)',
-    /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncSrc));
+    /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncRelayHealthSrc));
   assert('Quota indicator visible on popover (green/amber/red dot)',
     /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncSrc));
   // v1.7.21: "I just compacted" runbook button replaced by the real
@@ -159,19 +162,19 @@ await import('../js/settings.js');
   assert('Sync diagnose modal wires the Refresh-from-relay button',
     /refreshRelayStorage\(this\)/.test(syncSrc));
   assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
-    /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncSrc));
+    /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncRelayHealthSrc));
   assert('fetchOwnerStorageFromRelay GETs /self/owner-storage with signed query',
-    /fetchOwnerStorageFromRelay[\s\S]{0,800}\/self\/owner-storage\?ownerId=/.test(syncSrc));
+    /fetchOwnerStorageFromRelay[\s\S]{0,800}\/self\/owner-storage\?ownerId=/.test(syncRelayHealthSrc));
   assert('_signSelfRequest uses HMAC-SHA256 over context:ownerId:timestamp',
-    /_signSelfRequest[\s\S]{0,1000}\$\{context\}:\$\{ownerId\}:\$\{timestamp\}[\s\S]{0,400}name:\s*'HMAC',\s*hash:\s*'SHA-256'/.test(syncSrc));
+    /_signSelfRequest[\s\S]{0,1000}\$\{context\}:\$\{ownerId\}:\$\{timestamp\}[\s\S]{0,400}name:\s*'HMAC',\s*hash:\s*'SHA-256'/.test(syncRelayHealthSrc));
   assert('_signSelfRequest signs with the owner writeKey (not mnemonic)',
-    /_signSelfRequest[\s\S]{0,800}_appOwner\.writeKey/.test(syncSrc));
+    /_signSelfRequest[\s\S]{0,800}owner\.writeKey/.test(syncRelayHealthSrc));
   assert('_getSelfBaseUrl swaps wss → https and ws → http',
-    /_getSelfBaseUrl[\s\S]{0,800}wss:[\s\S]{0,100}https:[\s\S]{0,200}ws:[\s\S]{0,100}http:/.test(syncSrc));
+    /_getSelfBaseUrl[\s\S]{0,800}wss:[\s\S]{0,100}https:[\s\S]{0,200}ws:[\s\S]{0,100}http:/.test(syncRelayHealthSrc));
   assert('_getSelfBaseUrl honors labcharts-self-url localStorage override (self-host escape hatch)',
-    /SELF_URL_OVERRIDE_KEY\s*=\s*'labcharts-self-url'[\s\S]{0,800}_getSelfBaseUrl[\s\S]{0,400}getItem\(SELF_URL_OVERRIDE_KEY\)[\s\S]{0,200}\^https\?:/.test(syncSrc));
+    /SELF_URL_OVERRIDE_KEY\s*=\s*'labcharts-self-url'[\s\S]{0,800}_getSelfBaseUrl[\s\S]{0,400}getItem\(SELF_URL_OVERRIDE_KEY\)[\s\S]{0,200}\^https\?:/.test(syncRelayHealthSrc));
   assert('Cap is 50 MB (RELAY_OWNER_QUOTA_BYTES)',
-    /RELAY_OWNER_QUOTA_BYTES = 50 \* 1024 \* 1024/.test(syncSrc));
+    /RELAY_OWNER_QUOTA_BYTES = 50 \* 1024 \* 1024/.test(syncRelayHealthSrc));
 
   // Live tracker round-trip (browser side): set a fake owner, simulate
   // pushes by writing the same key the tracker writes, verify the
@@ -1324,12 +1327,12 @@ await import('../js/settings.js');
 
   // P2: warned-marker key now owner-scoped
   assert('_maybeWarnQuotaThreshold uses owner-scoped warned key',
-    /_maybeWarnQuotaThreshold[\s\S]{0,800}labcharts-\$\{owner\}-relay-quota-warned/.test(syncSrc));
+    /_maybeWarnQuotaThreshold[\s\S]{0,800}labcharts-\$\{owner\}-relay-quota-warned/.test(syncRelayHealthSrc));
   // v1.7.21: the owner-scoped warned-key clear moved into
   // compactOwnerSelfServe (the new self-serve compact path) — same
   // invariant, different home.
   assert('compactOwnerSelfServe clears owner-scoped warned key alongside legacy',
-    /compactOwnerSelfServe[\s\S]{0,1500}labcharts-\$\{ownerId\}-relay-quota-warned/.test(syncSrc));
+    /compactOwnerSelfServe[\s\S]{0,1500}labcharts-\$\{ownerId\}-relay-quota-warned/.test(syncRelayHealthSrc));
 
   // Live: synthesize a gzip-bomb payload and verify parseSyncPayload caps it
   if (typeof window !== 'undefined' && typeof CompressionStream !== 'undefined') {

@@ -139,6 +139,7 @@ const APP_SHELL = [
   '/js/hardware.js',
   '/js/sync.js',
   '/js/sync-payload.js',
+  '/js/sync-relay-health.js',
   '/js/adapters.js',
   '/js/supplement-warnings.js',
   '/js/food-contaminants.js',
