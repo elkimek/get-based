@@ -272,7 +272,7 @@ unsub();
 // ─── 9. Wiring: chat-send.js main send ───
 console.log('\n9. chat-send.js wiring');
 const chatSendSrc = read('js/chat-send.js');
-const chatDiscussionSrc = read('js/chat-discussion.js');
+const chatDiscussionRoundRunnerSrc = read('js/chat-discussion-round-runner.js');
 const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js');
 const chatPanelSrc = read('js/chat-panel.js');
 assert("imports hasLens from './lens.js'", chatSendSrc.includes("from './lens.js'"));
@@ -283,7 +283,7 @@ assert('main send calls hasLens()', chatSendSrc.includes('if (hasLens())'));
 assert('main send calls queryLensMulti with user text', /await queryLensMulti\(text,/.test(chatSendSrc));
 assert('multi-persona calls queryLensMulti with msgText',
   /await queryLensMulti\(msgText,/.test(chatDiscussionRoundRequestSrc) &&
-    chatDiscussionSrc.includes('buildDiscussionRoundRequest'));
+    chatDiscussionRoundRunnerSrc.includes('buildDiscussionRoundRequest'));
 assert('openChatPanel calls updateLensIndicator', chatPanelSrc.includes('updateLensIndicator()'));
 
 // ─── 10. Wiring: focus-card.js lens integration ───

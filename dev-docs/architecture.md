@@ -67,6 +67,7 @@ js/
   chat-continuation.js — Response limit detection and automatic continuation
   chat-discussion.js — Multi-persona discussion/debate orchestration
   chat-discussion-callbacks.js — Multi-persona discussion callback bridge
+  chat-discussion-round-runner.js — Multi-persona discussion round execution loop
   chat-discussion-round-prompts.js — Multi-persona discussion prompt helpers
   chat-discussion-round-request.js — Multi-persona discussion API request helpers
   chat-discussion-round-state.js — Multi-persona discussion round persistence helpers

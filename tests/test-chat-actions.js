@@ -346,6 +346,7 @@ const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionCallbacksSrc = read('js/chat-discussion-callbacks.js');
+const chatDiscussionRoundRunnerSrc = read('js/chat-discussion-round-runner.js');
 const chatDiscussionRoundPromptsSrc = read('js/chat-discussion-round-prompts.js');
 const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js');
 const chatDiscussionRoundStateSrc = read('js/chat-discussion-round-state.js');
@@ -432,7 +433,12 @@ assert('chat-nudge.js owns FAB nudge state', chatNudgeSrc.includes('export funct
 assert('chat-panel delegates nudge dismissal', chatPanelSrc.includes("from './chat-nudge.js'") && chatPanelSrc.includes('dismissCurrentChatNudge()'), 'found');
 assert('chat window bindings import chat nudge helpers', chatWindowBindingsSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
-assert('chat-discussion.js owns debate rounds', chatDiscussionSrc.includes('async function runDiscussionRound') && chatDiscussionSrc.includes('export async function startDiscussion'), 'found');
+assert('chat-discussion.js owns discussion flow handlers',
+  chatDiscussionSrc.includes("from './chat-discussion-round-runner.js'") &&
+    chatDiscussionSrc.includes('runDiscussionRound(') &&
+    chatDiscussionSrc.includes('export async function startDiscussion') &&
+    !chatDiscussionSrc.includes('async function runDiscussionRound'),
+  'found');
 assert('chat-discussion-callbacks.js owns discussion callback bridge',
   chatDiscussionSrc.includes("from './chat-discussion-callbacks.js'") &&
     chatDiscussionSrc.includes("export { configureChatDiscussion } from './chat-discussion-callbacks.js'") &&
@@ -448,6 +454,15 @@ assert('chat-discussion-round-prompts.js owns round prompt helpers',
     chatDiscussionRoundPromptsSrc.includes('export function getDiscussionPromptText') &&
     chatDiscussionRoundPromptsSrc.includes('export function buildDiscussionAutoMessage') &&
     chatDiscussionRoundPromptsSrc.includes('export function buildDiscussionJoinMessage'),
+  'found');
+assert('chat-discussion-round-runner.js owns per-persona round execution',
+  chatDiscussionRoundRunnerSrc.includes('export async function runDiscussionRound') &&
+    chatDiscussionRoundRunnerSrc.includes('callChatAPIWithContinuation') &&
+    chatDiscussionRoundRunnerSrc.includes('buildDiscussionRoundRequest') &&
+    chatDiscussionRoundRunnerSrc.includes('renderFinalDiscussionMessage') &&
+    chatDiscussionRoundRunnerSrc.includes('appendDiscussionUsageFootnote') &&
+    chatDiscussionRoundRunnerSrc.includes('setChatAbortController(null)') &&
+    !chatDiscussionSrc.includes('callChatAPIWithContinuation'),
   'found');
 assert('chat-discussion-state.js owns persona state helpers',
   chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&
@@ -476,7 +491,7 @@ assert('Discuss button does not duplicate inline Continue',
     !window.startDiscussion.toString().includes('_runDiscussion'),
   'opens persona picker instead of running another round directly');
 assert('chat-discussion-round-request.js owns round API request setup',
-  chatDiscussionSrc.includes("from './chat-discussion-round-request.js'") &&
+  chatDiscussionRoundRunnerSrc.includes("from './chat-discussion-round-request.js'") &&
     chatDiscussionRoundRequestSrc.includes('export async function buildDiscussionRoundRequest') &&
     chatDiscussionRoundRequestSrc.includes('queryLensMulti(msgText') &&
     chatDiscussionRoundRequestSrc.includes('buildTaggedChatMessages(roundHistory, personality.name)') &&
@@ -484,14 +499,14 @@ assert('chat-discussion-round-request.js owns round API request setup',
     chatDiscussionRoundRequestSrc.includes('export function trackDiscussionUsage'),
   'found');
 assert('chat-discussion-round-state.js owns thread-bound round persistence',
-  chatDiscussionSrc.includes("from './chat-discussion-round-state.js'") &&
+  chatDiscussionRoundRunnerSrc.includes("from './chat-discussion-round-state.js'") &&
     chatDiscussionRoundStateSrc.includes('export function isRoundThreadActive') &&
     chatDiscussionRoundStateSrc.includes('export function persistDiscussionThreadState') &&
     chatDiscussionRoundStateSrc.includes('export function renderRoundMessages') &&
     chatDiscussionRoundStateSrc.includes('export async function saveRoundChatHistory'),
   'found');
 assert('chat-discussion-round-view.js owns live discussion round DOM',
-  chatDiscussionSrc.includes("from './chat-discussion-round-view.js'") &&
+  chatDiscussionRoundRunnerSrc.includes("from './chat-discussion-round-view.js'") &&
     chatDiscussionRoundViewSrc.includes('export function createDiscussionTypingIndicator') &&
     chatDiscussionRoundViewSrc.includes('export function appendRoundPersonaLabel') &&
     chatDiscussionRoundViewSrc.includes('export function renderFinalDiscussionMessage') &&
@@ -499,14 +514,14 @@ assert('chat-discussion-round-view.js owns live discussion round DOM',
     chatDiscussionRoundViewSrc.includes('export function renderDiscussionRoundError'),
   'found');
 assert('chat discussion rounds stay bound to origin thread during streaming',
-  chatDiscussionSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&
-    chatDiscussionSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory)') &&
+  chatDiscussionRoundRunnerSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&
+    chatDiscussionRoundRunnerSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory)') &&
     chatDiscussionSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
   'prevents thread switches mid-stream from dropping the continue prompt');
 assert('chat discussion live stream restores persona label after thread switch',
   chatDiscussionRoundViewSrc.includes('export function appendRoundPersonaLabel') &&
-    chatDiscussionSrc.includes('appendRoundPersonaLabel(roundThreadId, container, labelEl);') &&
-    /onStream\(text\)[\s\S]{0,180}appendRoundPersonaLabel\(roundThreadId, container, labelEl\);[\s\S]{0,80}typewriter\.update\(text\)/.test(chatDiscussionSrc),
+    chatDiscussionRoundRunnerSrc.includes('appendRoundPersonaLabel(roundThreadId, container, labelEl);') &&
+    /onStream\(text\)[\s\S]{0,180}appendRoundPersonaLabel\(roundThreadId, container, labelEl\);[\s\S]{0,80}typewriter\.update\(text\)/.test(chatDiscussionRoundRunnerSrc),
   're-entering the origin thread mid-stream should show whose response is streaming');
 assert('chat-discussion.js typewriter callback degrades safely',
   !chatDiscussionCallbacksSrc.includes('Chat discussion typewriter callback not configured') &&
