@@ -275,7 +275,7 @@ export function showDiscussContinuePrompt(personas, originalPersonality) {
   state._discussionOriginalPersonality = originalPersonality;
 
   // Persist discussion state to thread metadata
-  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
+  const thread = getCurrentThread();
   if (thread) {
     thread.discussionPersonas = personas;
     thread.discussionOriginalPersonality = originalPersonality;
