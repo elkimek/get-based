@@ -39,6 +39,9 @@ const {
   attachLensSources, buildMultiPersonaInstruction, buildTaggedChatMessages, buildWebSearchHint,
 } = await import('../js/chat-prompt-context.js');
 const {
+  clearCurrentDiscussionThreadState, reopenCurrentDiscussionThread,
+} = await import('../js/chat-discussion-state.js');
+const {
   DEFAULT_DISCUSS_PROMPT, DISCUSSION_JOIN_PROMPT, INITIAL_DISCUSS_PROMPT,
   buildDiscussionAutoMessage, buildDiscussionJoinMessage, getDiscussionPromptText,
   hasExistingDiscussionResponses,
@@ -137,6 +140,57 @@ console.log('Section 1b: Discuss picker selection');
     'one added persona');
 
   document.querySelector = origQuerySelector;
+}
+
+// ─── Section 1c: Discussion Thread Lifecycle State ───
+console.log('Section 1c: Discussion thread lifecycle state');
+if (hasState) {
+  const origThreads = S.chatThreads;
+  const origThreadId = S.currentThreadId;
+  const threadIndexKey = `labcharts-${S.currentProfile}-chat-threads`;
+  const origThreadIndex = localStorage.getItem(threadIndexKey);
+
+  const thread = {
+    id: 'test-discussion-thread',
+    discussionPersonas: [{ id: 'a' }, { id: 'b' }],
+    discussionOriginalPersonality: 'default',
+  };
+  S.chatThreads = [thread];
+  S.currentThreadId = thread.id;
+
+  clearCurrentDiscussionThreadState();
+  assert('Discussion thread lifecycle no-ops without explicit clear/end',
+    Array.isArray(thread.discussionPersonas) && thread.discussionOriginalPersonality === 'default',
+    'keeps metadata');
+
+  clearCurrentDiscussionThreadState({ markEnded: true });
+  assert('Discussion thread lifecycle marks ended and clears metadata',
+    thread.discussionEnded === true &&
+      !('discussionPersonas' in thread) &&
+      !('discussionOriginalPersonality' in thread),
+    'ended');
+
+  reopenCurrentDiscussionThread();
+  assert('Discussion thread lifecycle reopens ended thread',
+    !('discussionEnded' in thread),
+    'reopened');
+
+  thread.discussionPersonas = [{ id: 'a' }, { id: 'b' }];
+  thread.discussionOriginalPersonality = 'default';
+  thread.discussionEnded = true;
+  clearCurrentDiscussionThreadState({ clearThread: true });
+  assert('Discussion thread lifecycle clears without marking ended',
+    !('discussionEnded' in thread) &&
+      !('discussionPersonas' in thread) &&
+      !('discussionOriginalPersonality' in thread),
+    'cleared');
+
+  S.chatThreads = origThreads;
+  S.currentThreadId = origThreadId;
+  if (origThreadIndex === null) localStorage.removeItem(threadIndexKey);
+  else localStorage.setItem(threadIndexKey, origThreadIndex);
+} else {
+  console.warn('Skipping discussion lifecycle state tests — _labState not available');
 }
 
 // ─── Section 2: getContextSummary() ───
@@ -398,7 +452,12 @@ assert('chat-discussion-round-prompts.js owns round prompt helpers',
 assert('chat-discussion-state.js owns persona state helpers',
   chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&
     chatDiscussionStateSrc.includes('export function getCurrentDiscussionState') &&
-    chatDiscussionStateSrc.includes('export function collectDiscussionPersonas'),
+    chatDiscussionStateSrc.includes('export function collectDiscussionPersonas') &&
+    chatDiscussionStateSrc.includes('export function clearCurrentDiscussionThreadState') &&
+    chatDiscussionStateSrc.includes('export function reopenCurrentDiscussionThread') &&
+    chatDiscussionSrc.includes('clearCurrentDiscussionThreadState({ clearThread, markEnded })') &&
+    chatDiscussionSrc.includes('reopenCurrentDiscussionThread()') &&
+    !chatDiscussionSrc.includes('saveChatThreadIndex'),
   'found');
 assert('chat-discussion-ui.js owns discussion DOM controls',
   chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&

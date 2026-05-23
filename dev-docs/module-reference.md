@@ -629,9 +629,9 @@ Multi-persona discussion DOM controls. Owns the Discuss button visibility/add-pe
 
 ### `chat-discussion-state.js`
 
-Multi-persona discussion state helpers. Owns per-thread active discussion detection, history fallback persona collection, current-thread lookup, and unique assistant-persona counts.
+Multi-persona discussion state helpers. Owns per-thread active discussion detection, history fallback persona collection, current-thread lookup, unique assistant-persona counts, and current-thread discussion lifecycle metadata.
 
-**Key exports:** `getThreadPersonaCount`, `collectDiscussionPersonas`, `getCurrentThread`, `getCurrentDiscussionState`
+**Key exports:** `getThreadPersonaCount`, `collectDiscussionPersonas`, `getCurrentThread`, `clearCurrentDiscussionThreadState`, `reopenCurrentDiscussionThread`, `getCurrentDiscussionState`
 
 **Window exports:** none directly; `chat-discussion.js` re-exports the public count/state helpers and `chat-window-bindings.js` assigns them.
 

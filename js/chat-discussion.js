@@ -1,7 +1,6 @@
 // chat-discussion.js — Multi-persona discussion/debate orchestration
 
 import { state } from './state.js';
-import { saveChatThreadIndex } from './chat-threads.js';
 import {
   updateChatHeaderTitle,
 } from './chat-personalities.js';
@@ -10,7 +9,8 @@ import {
   isAIResponseTruncated,
 } from './chat-continuation.js';
 import {
-  getCurrentDiscussionState, getCurrentThread,
+  clearCurrentDiscussionThreadState, getCurrentDiscussionState, getCurrentThread,
+  reopenCurrentDiscussionThread,
 } from './chat-discussion-state.js';
 import {
   createDiscussionTypewriter, getChatAbortController, renderChatMessages,
@@ -195,14 +195,7 @@ export function cleanupDiscussionState({ clearThread = false, markEnded = false 
   // Only clear persisted discussion state when the user explicitly ends it.
   // Thread switches and new-thread creation should remove transient UI state
   // without erasing the old thread's Continue prompt metadata.
-  const thread = getCurrentThread();
-  if (thread && (clearThread || markEnded)) {
-    delete thread.discussionPersonas;
-    delete thread.discussionOriginalPersonality;
-    if (markEnded) thread.discussionEnded = true;
-    else delete thread.discussionEnded;
-    saveChatThreadIndex();
-  }
+  clearCurrentDiscussionThreadState({ clearThread, markEnded });
 }
 
 export async function continueDiscussion() {
@@ -234,11 +227,7 @@ export function endDiscussion() {
 export async function startDiscussion() {
   if (getChatAbortController()) return; // already streaming
 
-  const thread = getCurrentThread();
-  if (thread?.discussionEnded) {
-    delete thread.discussionEnded;
-    saveChatThreadIndex();
-  }
+  reopenCurrentDiscussionThread();
 
   showDiscussPersonaPicker();
 }

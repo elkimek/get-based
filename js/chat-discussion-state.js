@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { getCustomPersonalities } from './chat-personalities.js';
+import { saveChatThreadIndex } from './chat-threads.js';
 
 export function getThreadPersonaCount() {
   const names = new Set();
@@ -40,6 +41,25 @@ export function collectDiscussionPersonas() {
 
 export function getCurrentThread() {
   return state.chatThreads.find(t => t.id === state.currentThreadId) || null;
+}
+
+export function clearCurrentDiscussionThreadState({ clearThread = false, markEnded = false } = {}) {
+  const thread = getCurrentThread();
+  if (!thread || (!clearThread && !markEnded)) return;
+
+  delete thread.discussionPersonas;
+  delete thread.discussionOriginalPersonality;
+  if (markEnded) thread.discussionEnded = true;
+  else delete thread.discussionEnded;
+  saveChatThreadIndex();
+}
+
+export function reopenCurrentDiscussionThread() {
+  const thread = getCurrentThread();
+  if (!thread?.discussionEnded) return thread;
+  delete thread.discussionEnded;
+  saveChatThreadIndex();
+  return thread;
 }
 
 export function getCurrentDiscussionState({ allowHistoryFallback = true } = {}) {
