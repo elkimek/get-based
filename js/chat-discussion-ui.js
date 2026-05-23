@@ -15,7 +15,7 @@ export function updateDiscussButton() {
   const count = getThreadPersonaCount();
   btn.style.opacity = count >= 2 ? '1' : '0.5';
   btn.title = count >= 2
-    ? 'Continue the debate'
+    ? 'Add another persona to the debate'
     : 'Add another persona for a second opinion';
 }
 
@@ -79,33 +79,31 @@ export function showDiscussPersonaPicker() {
       }
     }
   }
-  const hasActive = activePersonaIds.size > 0;
-  const needsOne = hasActive && activePersonaIds.size < 2;
+  const addingToExisting = activePersonaIds.size > 0;
 
   const picker = document.createElement('div');
   picker.className = 'discuss-persona-picker';
   picker.innerHTML = `
-    <div class="discuss-picker-header">${needsOne ? 'Add another persona to the debate' : 'Pick two personas to debate'}</div>
+    <div class="discuss-picker-header">${addingToExisting ? 'Add another persona to the debate' : 'Pick two personas to debate'}</div>
     <div class="discuss-picker-list">
       ${allPersonas.map(p => {
         const isActive = activePersonaIds.has(p.id);
         const checked = isActive ? ' checked' : '';
-        const locked = isActive && needsOne;
+        const locked = isActive && addingToExisting;
         return `<label class="discuss-picker-item${locked ? ' locked' : ''}">
         <input type="checkbox" value="${escapeHTML(p.id)}" data-name="${escapeHTML(p.name)}" data-icon="${escapeHTML(p.icon)}"${checked}${locked ? ' disabled' : ''} data-locked="${locked ? '1' : ''}">
         <span>${p.icon} ${escapeHTML(p.name)}</span>
       </label>`;
       }).join('')}
     </div>
-    <button class="discuss-picker-start"${needsOne ? '' : ' disabled'} onclick="startDiscussionFromPicker()">${needsOne ? 'Add to Discussion' : 'Start Debate'}</button>`;
+    <button class="discuss-picker-start" disabled onclick="startDiscussionFromPicker()">${addingToExisting ? 'Add to Discussion' : 'Start Debate'}</button>`;
 
   function updatePickerState() {
-    const lockedCount = picker.querySelectorAll('input[data-locked="1"]').length;
     const checkedCount = picker.querySelectorAll('input:checked:not([data-locked="1"])').length;
-    const total = lockedCount + checkedCount;
+    const maxNewSelections = addingToExisting ? 1 : 2;
     const startBtn = picker.querySelector('.discuss-picker-start');
-    startBtn.disabled = total !== 2;
-    if (total >= 2) {
+    startBtn.disabled = checkedCount !== maxNewSelections;
+    if (checkedCount >= maxNewSelections) {
       picker.querySelectorAll('input:not(:checked):not([data-locked="1"])').forEach(cb => cb.disabled = true);
     } else {
       picker.querySelectorAll('input:not([data-locked="1"])').forEach(cb => cb.disabled = false);

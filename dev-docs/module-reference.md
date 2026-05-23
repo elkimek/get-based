@@ -621,7 +621,7 @@ Live discussion round DOM helpers. Owns typing indicators, persona labels, strea
 
 ### `chat-discussion-ui.js`
 
-Multi-persona discussion DOM controls. Owns the Discuss button visibility/active state, continuation prompt, persona picker markup, picker checkbox limiting, and transient state handoff used by `continueDiscussion()` and `endDiscussion()`.
+Multi-persona discussion DOM controls. Owns the Discuss button visibility/add-persona state, continuation prompt, persona picker markup, picker checkbox limiting, and transient state handoff used by `continueDiscussion()` and `endDiscussion()`.
 
 **Key exports:** `updateDiscussButton`, `showDiscussContinuePrompt`, `removeDiscussContinuePrompt`, `removeDiscussPersonaPicker`, `showDiscussPersonaPicker`
 

@@ -81,7 +81,7 @@ if (hasState) {
     { role: 'assistant', personalityName: 'Analyst B', content: 'Second' },
   ];
   window.updateDiscussButton();
-  assert('Discuss button is active for two discussion personas', btn.style.opacity === '1' && btn.title.includes('Continue the debate'), btn.title);
+  assert('Discuss button adds another persona for two discussion personas', btn.style.opacity === '1' && btn.title.includes('Add another persona'), btn.title);
 
   S.chatHistory = origHistory;
   document.getElementById = origGetElementById;
@@ -355,8 +355,14 @@ assert('chat-discussion-ui.js owns discussion DOM controls',
     chatDiscussionUiSrc.includes('export function updateDiscussButton') &&
     chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
     chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker') &&
+    chatDiscussionUiSrc.includes('const addingToExisting = activePersonaIds.size > 0') &&
+    chatDiscussionUiSrc.includes('checkedCount !== maxNewSelections') &&
     !chatDiscussionSrc.includes('export function updateDiscussButton'),
   'found');
+assert('Discuss button does not duplicate inline Continue',
+  window.startDiscussion.toString().includes('showDiscussPersonaPicker') &&
+    !window.startDiscussion.toString().includes('_runDiscussion'),
+  'opens persona picker instead of running another round directly');
 assert('chat-discussion-round-request.js owns round API request setup',
   chatDiscussionSrc.includes("from './chat-discussion-round-request.js'") &&
     chatDiscussionRoundRequestSrc.includes('export async function buildDiscussionRoundRequest') &&
