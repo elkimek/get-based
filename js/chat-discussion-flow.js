@@ -1,66 +1,36 @@
-// chat-discussion-flow.js - public discussion start/continue/end handlers
+// chat-discussion-flow.js - public discussion user-action handlers
 
 import { state } from './state.js';
 import {
-  updateChatHeaderTitle,
-} from './chat-personalities.js';
-import {
-  clearCurrentDiscussionThreadState, getCurrentDiscussionState, getCurrentThread,
-  reopenCurrentDiscussionThread,
+  getCurrentDiscussionState, reopenCurrentDiscussionThread,
 } from './chat-discussion-state.js';
 import {
   getChatAbortController,
 } from './chat-discussion-callbacks.js';
 import {
   readDiscussPersonaPickerSelection, removeDiscussContinuePrompt, removeDiscussPersonaPicker,
-  showDiscussContinuePrompt as showDiscussContinuePromptUI,
-  showDiscussPersonaPicker, updateDiscussButton,
+  showDiscussPersonaPicker,
 } from './chat-discussion-ui.js';
 import {
-  runDiscussionRound,
-} from './chat-discussion-round-runner.js';
-import {
-  isRoundThreadActive, persistDiscussionThreadState,
-} from './chat-discussion-round-state.js';
-import {
-  buildDiscussionJoinMessage, DISCUSSION_JOIN_PROMPT,
-} from './chat-discussion-round-prompts.js';
+  runDiscussion, runDiscussionContinuation, runSingleDiscussionTurn,
+} from './chat-discussion-turns.js';
 
-export function restoreDiscussionContinuePrompt() {
-  const discussionState = getCurrentDiscussionState();
-  if (!discussionState) return;
-  showDiscussContinuePrompt(discussionState.personas, discussionState.originalPersonality);
-}
+export {
+  cleanupDiscussionState, endDiscussion, restoreDiscussionContinuePrompt,
+  showDiscussContinuePrompt,
+} from './chat-discussion-lifecycle.js';
 
 export async function sendDiscussionUserTurn(text, discussionState = getCurrentDiscussionState()) {
   if (!discussionState) return;
   if (getChatAbortController()) return;
   const threadId = state.currentThreadId;
   removeDiscussContinuePrompt();
-  persistDiscussionThreadState(threadId, discussionState.personas, discussionState.originalPersonality);
-  await runDiscussionRound(discussionState.personas, text, { suppressAutoMsg: true, threadId });
-  finishDiscussionRound(discussionState.personas, discussionState.originalPersonality, threadId);
-}
-
-export function showDiscussContinuePrompt(personas, originalPersonality) {
-  showDiscussContinuePromptUI(personas, originalPersonality, {
-    onPersist() {
-      const thread = getCurrentThread();
-      if (thread) persistDiscussionThreadState(thread.id, personas, originalPersonality);
-    },
-  });
-}
-
-export function cleanupDiscussionState({ clearThread = false, markEnded = false } = {}) {
-  removeDiscussContinuePrompt();
-  removeDiscussPersonaPicker();
-  delete state._discussionPersonas;
-  delete state._discussionOriginalPersonality;
-
-  // Only clear persisted discussion state when the user explicitly ends it.
-  // Thread switches and new-thread creation should remove transient UI state
-  // without erasing the old thread's Continue prompt metadata.
-  clearCurrentDiscussionThreadState({ clearThread, markEnded });
+  await runDiscussionContinuation(
+    discussionState.personas,
+    discussionState.originalPersonality,
+    text,
+    { suppressAutoMsg: true, threadId }
+  );
 }
 
 export async function continueDiscussion() {
@@ -73,19 +43,7 @@ export async function continueDiscussion() {
   const originalPersonality = state._discussionOriginalPersonality;
   if (!personas || personas.length < 2) return;
 
-  persistDiscussionThreadState(threadId, personas, originalPersonality);
-  await runDiscussionRound(personas, steerText || null, { threadId });
-  finishDiscussionRound(personas, originalPersonality, threadId);
-}
-
-export function endDiscussion() {
-  const orig = state._discussionOriginalPersonality;
-  cleanupDiscussionState({ clearThread: true, markEnded: true });
-  if (orig) {
-    state.currentChatPersonality = orig;
-    localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, orig);
-  }
-  updateDiscussButton();
+  await runDiscussionContinuation(personas, originalPersonality, steerText || null, { threadId });
 }
 
 export async function startDiscussion() {
@@ -107,33 +65,4 @@ export async function startDiscussionFromPicker() {
     return runSingleDiscussionTurn(newPersonas[0], allPersonas);
   }
   return runDiscussion(allPersonas);
-}
-
-function finishDiscussionRound(personas, originalPersonality, threadId = state.currentThreadId) {
-  persistDiscussionThreadState(threadId, personas, originalPersonality);
-  if (!isRoundThreadActive(threadId)) return;
-  state.currentChatPersonality = originalPersonality;
-  localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, originalPersonality);
-  updateDiscussButton();
-  updateChatHeaderTitle();
-  if (!getChatAbortController()) {
-    showDiscussContinuePrompt(personas, originalPersonality);
-  }
-}
-
-async function runSingleDiscussionTurn(persona, allPersonas) {
-  const originalPersonality = state.currentChatPersonality;
-  const threadId = state.currentThreadId;
-  persistDiscussionThreadState(threadId, allPersonas, originalPersonality);
-  state.chatHistory.push(buildDiscussionJoinMessage(persona));
-  await runDiscussionRound([persona], DISCUSSION_JOIN_PROMPT, { hideAutoMsg: true, threadId });
-  finishDiscussionRound(allPersonas, originalPersonality, threadId);
-}
-
-async function runDiscussion(personas) {
-  const originalPersonality = state.currentChatPersonality;
-  const threadId = state.currentThreadId;
-  persistDiscussionThreadState(threadId, personas, originalPersonality);
-  await runDiscussionRound(personas, null, { threadId });
-  finishDiscussionRound(personas, originalPersonality, threadId);
 }

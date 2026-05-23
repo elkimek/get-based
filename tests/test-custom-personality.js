@@ -258,7 +258,7 @@ const pickerSrc = window.startDiscussionFromPicker.toString();
 assert('startDiscussionFromPicker delegates to runDiscussion', pickerSrc.includes('runDiscussion'));
 const contSrc = window.continueDiscussion.toString();
 assert('continueDiscussion removes prompt', contSrc.includes('removeDiscussContinuePrompt'));
-assert('continueDiscussion runs another round', contSrc.includes('runDiscussionRound'));
+assert('continueDiscussion runs another round', contSrc.includes('runDiscussionContinuation'));
 assert('continueDiscussion reads steer input', contSrc.includes('chat-discuss-steer'));
 const endSrc = window.endDiscussion.toString();
 assert('endDiscussion cleans up state', endSrc.includes('cleanupDiscussionState'));

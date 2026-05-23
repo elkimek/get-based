@@ -347,6 +347,8 @@ const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionCallbacksSrc = read('js/chat-discussion-callbacks.js');
 const chatDiscussionFlowSrc = read('js/chat-discussion-flow.js');
+const chatDiscussionLifecycleSrc = read('js/chat-discussion-lifecycle.js');
+const chatDiscussionTurnsSrc = read('js/chat-discussion-turns.js');
 const chatDiscussionRoundRunnerSrc = read('js/chat-discussion-round-runner.js');
 const chatDiscussionRoundPromptsSrc = read('js/chat-discussion-round-prompts.js');
 const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js');
@@ -435,12 +437,31 @@ assert('chat-nudge.js owns FAB nudge state', chatNudgeSrc.includes('export funct
 assert('chat-panel delegates nudge dismissal', chatPanelSrc.includes("from './chat-nudge.js'") && chatPanelSrc.includes('dismissCurrentChatNudge()'), 'found');
 assert('chat window bindings import chat nudge helpers', chatWindowBindingsSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
-assert('chat-discussion-flow.js owns discussion flow handlers',
+assert('chat-discussion-flow.js owns discussion user-action handlers',
   chatDiscussionSrc.includes("from './chat-discussion-flow.js'") &&
-    chatDiscussionFlowSrc.includes("from './chat-discussion-round-runner.js'") &&
-    chatDiscussionFlowSrc.includes('runDiscussionRound(') &&
+    chatDiscussionFlowSrc.includes("from './chat-discussion-turns.js'") &&
+    chatDiscussionFlowSrc.includes("from './chat-discussion-lifecycle.js'") &&
     chatDiscussionFlowSrc.includes('export async function startDiscussion') &&
+    chatDiscussionFlowSrc.includes('export async function continueDiscussion') &&
+    chatDiscussionFlowSrc.includes('export async function sendDiscussionUserTurn') &&
+    !chatDiscussionFlowSrc.includes('runDiscussionRound(') &&
     !chatDiscussionSrc.includes('async function runDiscussionRound'),
+  'found');
+assert('chat-discussion-lifecycle.js owns discussion cleanup and completion',
+  chatDiscussionLifecycleSrc.includes('export function restoreDiscussionContinuePrompt') &&
+    chatDiscussionLifecycleSrc.includes('export function showDiscussContinuePrompt') &&
+    chatDiscussionLifecycleSrc.includes('export function cleanupDiscussionState') &&
+    chatDiscussionLifecycleSrc.includes('export function endDiscussion') &&
+    chatDiscussionLifecycleSrc.includes('export function finishDiscussionRound') &&
+    chatDiscussionLifecycleSrc.includes('updateChatHeaderTitle()'),
+  'found');
+assert('chat-discussion-turns.js owns discussion round turn execution',
+  chatDiscussionTurnsSrc.includes("from './chat-discussion-round-runner.js'") &&
+    chatDiscussionTurnsSrc.includes('export async function runDiscussionContinuation') &&
+    chatDiscussionTurnsSrc.includes('export async function runSingleDiscussionTurn') &&
+    chatDiscussionTurnsSrc.includes('export async function runDiscussion') &&
+    chatDiscussionTurnsSrc.includes('runDiscussionRound(') &&
+    chatDiscussionTurnsSrc.includes('finishDiscussionRound('),
   'found');
 assert('chat-discussion-callbacks.js owns discussion callback bridge',
   chatDiscussionSrc.includes("from './chat-discussion-callbacks.js'") &&
@@ -450,7 +471,7 @@ assert('chat-discussion-callbacks.js owns discussion callback bridge',
     chatDiscussionCallbacksSrc.includes('export function createDiscussionTypewriter'),
   'found');
 assert('chat-discussion-round-prompts.js owns round prompt helpers',
-  chatDiscussionFlowSrc.includes("from './chat-discussion-round-prompts.js'") &&
+  chatDiscussionTurnsSrc.includes("from './chat-discussion-round-prompts.js'") &&
     chatDiscussionRoundPromptsSrc.includes('export const DEFAULT_DISCUSS_PROMPT') &&
     chatDiscussionRoundPromptsSrc.includes('export const INITIAL_DISCUSS_PROMPT') &&
     chatDiscussionRoundPromptsSrc.includes('export const DISCUSSION_JOIN_PROMPT') &&
@@ -470,11 +491,12 @@ assert('chat-discussion-round-runner.js owns per-persona round execution',
 assert('chat-discussion-state.js owns persona state helpers',
   chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&
     chatDiscussionFlowSrc.includes("from './chat-discussion-state.js'") &&
+    chatDiscussionLifecycleSrc.includes("from './chat-discussion-state.js'") &&
     chatDiscussionStateSrc.includes('export function getCurrentDiscussionState') &&
     chatDiscussionStateSrc.includes('export function collectDiscussionPersonas') &&
     chatDiscussionStateSrc.includes('export function clearCurrentDiscussionThreadState') &&
     chatDiscussionStateSrc.includes('export function reopenCurrentDiscussionThread') &&
-    chatDiscussionFlowSrc.includes('clearCurrentDiscussionThreadState({ clearThread, markEnded })') &&
+    chatDiscussionLifecycleSrc.includes('clearCurrentDiscussionThreadState({ clearThread, markEnded })') &&
     chatDiscussionFlowSrc.includes('reopenCurrentDiscussionThread()') &&
     !chatDiscussionSrc.includes('saveChatThreadIndex'),
   'found');
@@ -527,7 +549,7 @@ assert('chat-discussion-round-view.js owns live discussion round DOM',
 assert('chat discussion rounds stay bound to origin thread during streaming',
   chatDiscussionRoundRunnerSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&
     chatDiscussionRoundRunnerSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory)') &&
-    chatDiscussionFlowSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
+    chatDiscussionTurnsSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
   'prevents thread switches mid-stream from dropping the continue prompt');
 assert('chat discussion live stream restores persona label after thread switch',
   chatDiscussionRoundViewSrc.includes('export function appendRoundPersonaLabel') &&
