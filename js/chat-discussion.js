@@ -1,28 +1,14 @@
 // chat-discussion.js — Multi-persona discussion/debate orchestration
 
 import { state } from './state.js';
-import { CHAT_SYSTEM_PROMPT } from './constants.js';
-import { trackUsage } from './schema.js';
-import {
-  getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
-  isVeniceE2EEActive,
-} from './api.js';
 import { saveChatThreadIndex } from './chat-threads.js';
-import { buildLabContext, injectLensChunks } from './lab-context.js';
-import { hasLens, queryLensMulti } from './lens.js';
 import {
-  getActivePersonality, getCustomPersonality,
   updateChatHeaderTitle,
 } from './chat-personalities.js';
 import {
   CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
   isAIResponseTruncated,
 } from './chat-continuation.js';
-import {
-  attachLensSources, buildChatSystemPrompt, buildMultiPersonaInstruction,
-  buildPersonalityPrompt, buildTaggedChatMessages, buildWebSearchHint,
-} from './chat-prompt-context.js';
-import { getChatWebSearchEnabled } from './chat-panel.js';
 import {
   collectDiscussionPersonas, getCurrentDiscussionState, getCurrentThread,
   getThreadPersonaCount,
@@ -36,6 +22,9 @@ import {
   isRoundThreadActive, persistDiscussionThreadState, renderRoundMessages,
   saveRoundChatHistory,
 } from './chat-discussion-round-state.js';
+import {
+  buildDiscussionAssistantMessage, buildDiscussionRoundRequest, trackDiscussionUsage,
+} from './chat-discussion-round-request.js';
 import {
   appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
   createDiscussionPersonaLabel, createDiscussionTypingIndicator, renderDiscussionRoundError,
@@ -145,42 +134,13 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         container.scrollTop = container.scrollHeight;
       }
 
-      let labContext = buildLabContext({ userMessage: msgText });
-      let _lensResultForMsg = null;
-      if (hasLens()) {
-        const lensResult = await queryLensMulti(msgText, { signal: controller.signal });
-        if (lensResult) {
-          labContext = injectLensChunks(labContext, lensResult);
-          _lensResultForMsg = lensResult;
-        }
-      }
-      const personality = getActivePersonality();
-      const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
-      const multiPersonaInstruction = buildMultiPersonaInstruction(roundHistory, personality.name);
-      const _dMsgProvider = getAIProvider();
-      const _dMsgModelId = getActiveModelId(_dMsgProvider);
-      const _dMsgModelDisplay = getActiveModelDisplay(_dMsgProvider);
-      const _dMsgE2EE = _dMsgProvider === 'venice' && isVeniceE2EEActive();
-      const _dWebSearchSupported = supportsWebSearch(_dMsgProvider);
-      const _dWebSearch = getChatWebSearchEnabled() && _dWebSearchSupported;
-
-      const webHint = buildWebSearchHint({
-        isE2EE: _dMsgE2EE,
-        webSearchEnabled: _dWebSearch,
-        webSearchSupported: _dWebSearchSupported,
-        includeActiveSearchHints: false,
-      });
-      const systemPrompt = buildChatSystemPrompt({
-        basePrompt: CHAT_SYSTEM_PROMPT,
-        labContext,
-        personalityPrompt,
-        multiPersonaInstruction,
-        webHint,
+      const request = await buildDiscussionRoundRequest({
+        msgText,
+        roundHistory,
+        signal: controller.signal,
       });
 
-      const apiMessages = buildTaggedChatMessages(roundHistory, personality.name);
-
-      const labelEl = createDiscussionPersonaLabel(personality);
+      const labelEl = createDiscussionPersonaLabel(request.personality);
       appendRoundPersonaLabel(roundThreadId, container, labelEl);
 
       const aiMsgEl = createDiscussionAiMessage();
@@ -188,8 +148,8 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const typewriter = createTypewriter(aiMsgEl, typingEl, container);
 
       const aiResult = await callChatAPIWithContinuation({
-        system: systemPrompt,
-        messages: apiMessages,
+        system: request.systemPrompt,
+        messages: request.apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: controller.signal,
         onStream(text) {
@@ -198,8 +158,8 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
             typewriter.update(text);
           }
         },
-        webSearch: _dWebSearch,
-        provider: _dMsgProvider
+        webSearch: request.webSearch,
+        provider: request.provider,
       });
       const { text: fullText, usage } = aiResult;
       const responseTruncated = isAIResponseTruncated(aiResult);
@@ -218,26 +178,25 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       appendDiscussionUsageFootnote({
         threadId: roundThreadId,
         aiMsgEl,
-        provider: _dMsgProvider,
-        modelId: _dMsgModelId,
-        modelDisplay: _dMsgModelDisplay,
+        provider: request.provider,
+        modelId: request.modelId,
+        modelDisplay: request.modelDisplay,
         usage,
-        webSearch: _dWebSearch,
-        e2ee: _dMsgE2EE,
+        webSearch: request.webSearch,
+        e2ee: request.e2ee,
         attestation: window._veniceAttestation,
       });
 
-      const assistantMsg = { role: 'assistant', content: fullText, personalityName: personality.name, personalityIcon: personality.icon, provider: _dMsgProvider, modelId: _dMsgModelId, modelDisplay: _dMsgModelDisplay };
-      if (responseTruncated) {
-        assistantMsg.truncated = true;
-        assistantMsg.finishReason = aiResult.finishReason || 'length';
-      }
-      if (_dWebSearch) assistantMsg.webSearch = true;
-      if (_dMsgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = window._veniceAttestation || null; }
-      attachLensSources(assistantMsg, _lensResultForMsg);
+      const assistantMsg = buildDiscussionAssistantMessage({
+        fullText,
+        request,
+        aiResult,
+        responseTruncated,
+        attestation: window._veniceAttestation,
+      });
       if (usage && (usage.inputTokens || usage.outputTokens)) {
         assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
-        trackUsage(_dMsgProvider, _dMsgModelId, usage.inputTokens, usage.outputTokens);
+        trackDiscussionUsage(request, usage);
       }
       roundHistory.push(assistantMsg);
       await saveRoundChatHistory(roundThreadId, roundHistory);

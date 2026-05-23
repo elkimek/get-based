@@ -135,6 +135,7 @@ const pwaAppShellAssets = [
   '/js/chat-nudge.js',
   '/js/chat-panel.js',
   '/js/chat-discussion.js',
+  '/js/chat-discussion-round-request.js',
   '/js/chat-discussion-round-state.js',
   '/js/chat-discussion-round-view.js',
   '/js/chat-discussion-state.js',

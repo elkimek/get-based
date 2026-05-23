@@ -173,6 +173,7 @@ const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
+const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js');
 const chatDiscussionRoundStateSrc = read('js/chat-discussion-round-state.js');
 const chatDiscussionRoundViewSrc = read('js/chat-discussion-round-view.js');
 const chatDiscussionStateSrc = read('js/chat-discussion-state.js');
@@ -267,6 +268,14 @@ assert('chat-discussion-ui.js owns discussion DOM controls',
   chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&
     chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
     chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker'),
+  'found');
+assert('chat-discussion-round-request.js owns round API request setup',
+  chatDiscussionSrc.includes("from './chat-discussion-round-request.js'") &&
+    chatDiscussionRoundRequestSrc.includes('export async function buildDiscussionRoundRequest') &&
+    chatDiscussionRoundRequestSrc.includes('queryLensMulti(msgText') &&
+    chatDiscussionRoundRequestSrc.includes('buildTaggedChatMessages(roundHistory, personality.name)') &&
+    chatDiscussionRoundRequestSrc.includes('export function buildDiscussionAssistantMessage') &&
+    chatDiscussionRoundRequestSrc.includes('export function trackDiscussionUsage'),
   'found');
 assert('chat-discussion-round-state.js owns thread-bound round persistence',
   chatDiscussionSrc.includes("from './chat-discussion-round-state.js'") &&

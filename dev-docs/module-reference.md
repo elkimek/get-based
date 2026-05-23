@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`, with persona/thread state helpers in `chat-discussion-state.js`, thread-bound round persistence in `chat-discussion-round-state.js`, live round message DOM helpers in `chat-discussion-round-view.js`, and picker/continue controls in `chat-discussion-ui.js`; panel chrome lives in `chat-panel.js`; FAB nudge state lives in `chat-nudge.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`; thread rail message search and match highlighting live in `chat-thread-search.js`.
+Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion rounds live in `chat-discussion.js`, with persona/thread state helpers in `chat-discussion-state.js`, round API request helpers in `chat-discussion-round-request.js`, thread-bound round persistence in `chat-discussion-round-state.js`, live round message DOM helpers in `chat-discussion-round-view.js`, and picker/continue controls in `chat-discussion-ui.js`; panel chrome lives in `chat-panel.js`; FAB nudge state lives in `chat-nudge.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`; thread rail message search and match highlighting live in `chat-thread-search.js`.
 
 **Key exports:**
 - `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
@@ -573,11 +573,19 @@ Chat-first onboarding helpers. Owns the provider quiz render helper, onboarding 
 
 ### `chat-discussion.js`
 
-Multi-persona discussion/debate orchestration. Owns the Discuss button state, manual-message discussion turns, and multi-persona API rounds. It delegates picker and continuation prompt DOM to `chat-discussion-ui.js`, delegates live message DOM to `chat-discussion-round-view.js`, delegates thread-bound round persistence to `chat-discussion-round-state.js`, imports prompt/history/personality helpers directly, re-exports persona/thread state helpers from `chat-discussion-state.js`, and receives streaming callbacks from `chat-window-bindings.js` through `configureChatDiscussion()` so stop-button state remains shared without importing `chat-send.js`.
+Multi-persona discussion/debate orchestration. Owns the Discuss button state, manual-message discussion turns, and multi-persona API rounds. It delegates picker and continuation prompt DOM to `chat-discussion-ui.js`, delegates live message DOM to `chat-discussion-round-view.js`, delegates round request preparation to `chat-discussion-round-request.js`, delegates thread-bound round persistence to `chat-discussion-round-state.js`, re-exports persona/thread state helpers from `chat-discussion-state.js`, and receives streaming callbacks from `chat-window-bindings.js` through `configureChatDiscussion()` so stop-button state remains shared without importing `chat-send.js`.
 
 **Key exports:** `configureChatDiscussion`, `getThreadPersonaCount`, `updateDiscussButton`, `getCurrentDiscussionState`, `sendDiscussionUserTurn`, `restoreDiscussionContinuePrompt`, `showDiscussContinuePrompt`, `removeDiscussContinuePrompt`, `cleanupDiscussionState`, `startDiscussion`, `startDiscussionFromPicker`, `continueDiscussion`, `endDiscussion`
 
 **Window exports:** assigned by `chat-window-bindings.js` for existing inline handlers and `chat-threads.js` callbacks.
+
+### `chat-discussion-round-request.js`
+
+Discussion round API request helpers. Owns lab-context and lens enrichment, active personality prompt assembly, provider/model/web-search snapshots, tagged history messages, assistant message metadata, and usage tracking for multi-persona rounds.
+
+**Key exports:** `buildDiscussionRoundRequest`, `buildDiscussionAssistantMessage`, `trackDiscussionUsage`
+
+**Window exports:** none.
 
 ### `chat-discussion-round-state.js`
 
