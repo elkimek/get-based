@@ -271,6 +271,7 @@ assert('chat-discussion-round-state.js owns thread-bound round persistence',
   chatDiscussionSrc.includes("from './chat-discussion-round-state.js'") &&
     chatDiscussionRoundStateSrc.includes('export function isRoundThreadActive') &&
     chatDiscussionRoundStateSrc.includes('export function persistDiscussionThreadState') &&
+    chatDiscussionRoundStateSrc.includes('export function renderRoundMessages') &&
     chatDiscussionRoundStateSrc.includes('export async function saveRoundChatHistory'),
   'found');
 assert('chat discussion rounds stay bound to origin thread during streaming',
