@@ -66,6 +66,7 @@ js/
   chat-marker-prompts.js — Per-marker and selected-correlation AI prompt builders
   chat-empty-state.js — Empty chat and onboarding message renderer
   chat-nudge.js      — Chat FAB nudge badge and dismissal state
+  chat-discussion-state.js — Multi-persona discussion persona/thread state helpers
   chat-threads.js    — Chat thread index CRUD and rail rendering
   chat-thread-search.js — Thread rail message search and match highlighting
   client-list.js    — Client List modal: search/sort/filter profiles, inline CRUD, archive/flag/pin

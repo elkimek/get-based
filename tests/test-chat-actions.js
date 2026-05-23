@@ -173,6 +173,7 @@ const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
+const chatDiscussionStateSrc = read('js/chat-discussion-state.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
@@ -254,6 +255,11 @@ assert('chat-panel delegates nudge dismissal', chatPanelSrc.includes("from './ch
 assert('chat window bindings import chat nudge helpers', chatWindowBindingsSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
 assert('chat-discussion.js owns debate rounds', chatDiscussionSrc.includes('async function runDiscussionRound') && chatDiscussionSrc.includes('export async function startDiscussion'), 'found');
+assert('chat-discussion-state.js owns persona state helpers',
+  chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&
+    chatDiscussionStateSrc.includes('export function getCurrentDiscussionState') &&
+    chatDiscussionStateSrc.includes('export function collectDiscussionPersonas'),
+  'found');
 assert('chat-discussion.js typewriter callback degrades safely',
   !chatDiscussionSrc.includes('Chat discussion typewriter callback not configured') &&
     /function createTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionSrc),

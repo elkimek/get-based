@@ -27,6 +27,12 @@ import {
 } from './chat-prompt-context.js';
 import { e2eeLockFootnote } from './chat-attestation.js';
 import { getChatWebSearchEnabled } from './chat-panel.js';
+import {
+  collectDiscussionPersonas, getCurrentDiscussionState, getCurrentThread,
+  getThreadPersonaCount,
+} from './chat-discussion-state.js';
+
+export { getCurrentDiscussionState, getThreadPersonaCount } from './chat-discussion-state.js';
 
 const discussionCallbacks = {
   createTypewriter: null,
@@ -66,14 +72,6 @@ function createTypewriter(el, typingEl, container) {
   return discussionCallbacks.createTypewriter(el, typingEl, container);
 }
 
-export function getThreadPersonaCount() {
-  const names = new Set();
-  for (const m of state.chatHistory) {
-    if (m.role === 'assistant' && m.personalityName) names.add(m.personalityName);
-  }
-  return names.size;
-}
-
 export function updateDiscussButton() {
   const btn = document.getElementById('chat-discuss-btn');
   if (!btn) return;
@@ -85,66 +83,6 @@ export function updateDiscussButton() {
   btn.title = count >= 2
     ? 'Continue the debate'
     : 'Add another persona for a second opinion';
-}
-
-function collectDiscussionPersonas() {
-  // Walk history backwards to find the 2 most recently active personas
-  const seenIds = new Set();
-  const personas = [];
-  for (let i = state.chatHistory.length - 1; i >= 0; i--) {
-    const m = state.chatHistory[i];
-    if (m.role === 'assistant' && m.personalityName) {
-      let pid = null;
-      const builtIn = CHAT_PERSONALITIES.find(p => p.name === m.personalityName);
-      if (builtIn) pid = builtIn.id;
-      else {
-        const customs = getCustomPersonalities();
-        const cp = customs.find(p => p.name === m.personalityName);
-        if (cp) pid = cp.id;
-      }
-      if (pid && !seenIds.has(pid)) {
-        seenIds.add(pid);
-        personas.unshift({ id: pid, name: m.personalityName, icon: m.personalityIcon });
-        if (personas.length === 2) break;
-      }
-    }
-  }
-  return personas;
-}
-
-function getCurrentThread() {
-  return state.chatThreads.find(t => t.id === state.currentThreadId) || null;
-}
-
-export function getCurrentDiscussionState({ allowHistoryFallback = true } = {}) {
-  const thread = getCurrentThread();
-  if (thread?.discussionEnded) return null;
-
-  if (Array.isArray(state._discussionPersonas) && state._discussionPersonas.length >= 2) {
-    return {
-      personas: state._discussionPersonas,
-      originalPersonality: state._discussionOriginalPersonality || thread?.discussionOriginalPersonality || state.currentChatPersonality,
-    };
-  }
-
-  if (Array.isArray(thread?.discussionPersonas) && thread.discussionPersonas.length >= 2) {
-    return {
-      personas: thread.discussionPersonas,
-      originalPersonality: thread.discussionOriginalPersonality || state.currentChatPersonality,
-    };
-  }
-
-  if (allowHistoryFallback) {
-    const personas = collectDiscussionPersonas();
-    if (personas.length >= 2) {
-      return {
-        personas,
-        originalPersonality: thread?.discussionOriginalPersonality || state.currentChatPersonality,
-      };
-    }
-  }
-
-  return null;
 }
 
 export function restoreDiscussionContinuePrompt() {
@@ -363,7 +301,7 @@ export function cleanupDiscussionState({ clearThread = false, markEnded = false 
   // Only clear persisted discussion state when the user explicitly ends it.
   // Thread switches and new-thread creation should remove transient UI state
   // without erasing the old thread's Continue prompt metadata.
-  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
+  const thread = getCurrentThread();
   if (thread && (clearThread || markEnded)) {
     delete thread.discussionPersonas;
     delete thread.discussionOriginalPersonality;
