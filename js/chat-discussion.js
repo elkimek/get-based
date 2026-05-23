@@ -2,8 +2,7 @@
 
 import { state } from './state.js';
 import { CHAT_SYSTEM_PROMPT } from './constants.js';
-import { calculateCost, formatCost, trackUsage } from './schema.js';
-import { escapeHTML } from './utils.js';
+import { trackUsage } from './schema.js';
 import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
   isVeniceE2EEActive,
@@ -11,20 +10,18 @@ import {
 import { saveChatThreadIndex } from './chat-threads.js';
 import { buildLabContext, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
-import { renderMarkdown } from './markdown.js';
 import {
   getActivePersonality, getCustomPersonality,
   updateChatHeaderTitle,
 } from './chat-personalities.js';
 import {
   CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
-  isAIResponseTruncated, responseLimitNote,
+  isAIResponseTruncated,
 } from './chat-continuation.js';
 import {
   attachLensSources, buildChatSystemPrompt, buildMultiPersonaInstruction,
   buildPersonalityPrompt, buildTaggedChatMessages, buildWebSearchHint,
 } from './chat-prompt-context.js';
-import { e2eeLockFootnote } from './chat-attestation.js';
 import { getChatWebSearchEnabled } from './chat-panel.js';
 import {
   collectDiscussionPersonas, getCurrentDiscussionState, getCurrentThread,
@@ -39,6 +36,11 @@ import {
   isRoundThreadActive, persistDiscussionThreadState, renderRoundMessages,
   saveRoundChatHistory,
 } from './chat-discussion-round-state.js';
+import {
+  appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
+  createDiscussionPersonaLabel, createDiscussionTypingIndicator, renderDiscussionRoundError,
+  renderFinalDiscussionMessage,
+} from './chat-discussion-round-view.js';
 
 export { getCurrentDiscussionState, getThreadPersonaCount } from './chat-discussion-state.js';
 export { removeDiscussContinuePrompt } from './chat-discussion-ui.js';
@@ -79,11 +81,6 @@ function createTypewriter(el, typingEl, container) {
     };
   }
   return discussionCallbacks.createTypewriter(el, typingEl, container);
-}
-
-function appendRoundPersonaLabel(threadId, container, labelEl) {
-  if (!isRoundThreadActive(threadId) || labelEl.parentNode) return;
-  container.appendChild(labelEl);
 }
 
 export function updateDiscussButton() {
@@ -142,12 +139,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         await saveRoundChatHistory(roundThreadId, roundHistory);
       }
 
-      const typingEl = document.createElement('div');
-      typingEl.className = 'typing-indicator';
-      typingEl.setAttribute('role', 'status');
-      typingEl.setAttribute('aria-live', 'polite');
-      typingEl.setAttribute('aria-label', 'AI is responding');
-      typingEl.innerHTML = '<span></span><span></span><span></span>';
+      const typingEl = createDiscussionTypingIndicator();
       if (isRoundThreadActive(roundThreadId)) {
         container.appendChild(typingEl);
         container.scrollTop = container.scrollHeight;
@@ -188,14 +180,10 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
       const apiMessages = buildTaggedChatMessages(roundHistory, personality.name);
 
-      const labelEl = document.createElement('div');
-      labelEl.className = 'chat-persona-label';
-      labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
+      const labelEl = createDiscussionPersonaLabel(personality);
       appendRoundPersonaLabel(roundThreadId, container, labelEl);
 
-      const aiMsgEl = document.createElement('div');
-      aiMsgEl.className = 'chat-msg chat-ai';
-      aiMsgEl.style.whiteSpace = 'pre-wrap';
+      const aiMsgEl = createDiscussionAiMessage();
 
       const typewriter = createTypewriter(aiMsgEl, typingEl, container);
 
@@ -217,25 +205,27 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const responseTruncated = isAIResponseTruncated(aiResult);
 
       typewriter.stop();
-      if (isRoundThreadActive(roundThreadId)) {
-        appendRoundPersonaLabel(roundThreadId, container, labelEl);
-        aiMsgEl.style.whiteSpace = '';
-        if (typingEl.parentNode) typingEl.remove();
-        if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
-        aiMsgEl.innerHTML = renderMarkdown(fullText);
-        if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
-      }
+      renderFinalDiscussionMessage({
+        threadId: roundThreadId,
+        container,
+        labelEl,
+        aiMsgEl,
+        typingEl,
+        fullText,
+        responseTruncated,
+      });
 
-      if (isRoundThreadActive(roundThreadId) && usage && (usage.inputTokens || usage.outputTokens)) {
-        const cost = calculateCost(_dMsgProvider, _dMsgModelId, usage.inputTokens, usage.outputTokens);
-        const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
-        const webTag = _dWebSearch ? ' \u00b7 \ud83c\udf10 web' : '';
-        const e2eeTag = _dMsgE2EE ? e2eeLockFootnote(window._veniceAttestation) : '';
-        const footnote = document.createElement('div');
-        footnote.className = 'chat-cost-footnote';
-        footnote.innerHTML = `${escapeHTML(_dMsgModelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
-        aiMsgEl.appendChild(footnote);
-      }
+      appendDiscussionUsageFootnote({
+        threadId: roundThreadId,
+        aiMsgEl,
+        provider: _dMsgProvider,
+        modelId: _dMsgModelId,
+        modelDisplay: _dMsgModelDisplay,
+        usage,
+        webSearch: _dWebSearch,
+        e2ee: _dMsgE2EE,
+        attestation: window._veniceAttestation,
+      });
 
       const assistantMsg = { role: 'assistant', content: fullText, personalityName: personality.name, personalityIcon: personality.icon, provider: _dMsgProvider, modelId: _dMsgModelId, modelDisplay: _dMsgModelDisplay };
       if (responseTruncated) {
@@ -256,12 +246,9 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   } catch (err) {
     if (err.name === 'AbortError') {
       // Partial text handled by DOM already
-    } else if (isRoundThreadActive(roundThreadId) && !err?._modalShown) {
+    } else if (!err?._modalShown) {
       // Skip when a modal already surfaced the condition (e.g., 402).
-      const errEl = document.createElement('div');
-      errEl.className = 'chat-msg chat-ai';
-      errEl.innerHTML = `<span style="color:var(--red)">Error: ${escapeHTML(err.message)}</span>`;
-      container.appendChild(errEl);
+      renderDiscussionRoundError({ threadId: roundThreadId, container, error: err });
     }
   }
 
