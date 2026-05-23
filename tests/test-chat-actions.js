@@ -260,6 +260,11 @@ assert('chat-discussion-state.js owns persona state helpers',
     chatDiscussionStateSrc.includes('export function getCurrentDiscussionState') &&
     chatDiscussionStateSrc.includes('export function collectDiscussionPersonas'),
   'found');
+assert('chat discussion rounds stay bound to origin thread during streaming',
+  chatDiscussionSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&
+    chatDiscussionSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory)') &&
+    chatDiscussionSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
+  'prevents thread switches mid-stream from dropping the continue prompt');
 assert('chat-discussion.js typewriter callback degrades safely',
   !chatDiscussionSrc.includes('Chat discussion typewriter callback not configured') &&
     /function createTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionSrc),

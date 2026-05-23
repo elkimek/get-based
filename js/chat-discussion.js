@@ -8,7 +8,11 @@ import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
   isVeniceE2EEActive,
 } from './api.js';
-import { saveChatThreadIndex } from './chat-threads.js';
+import {
+  getChatThreadKey, invalidateThreadContentCache, renderThreadList,
+  saveChatThreadIndex,
+} from './chat-threads.js';
+import { encryptedSetItem, getEncryptionEnabled } from './crypto.js';
 import { buildLabContext, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { renderMarkdown } from './markdown.js';
@@ -72,6 +76,55 @@ function createTypewriter(el, typingEl, container) {
   return discussionCallbacks.createTypewriter(el, typingEl, container);
 }
 
+function isRoundThreadActive(threadId) {
+  return !threadId || state.currentThreadId === threadId;
+}
+
+function getThreadById(threadId) {
+  return state.chatThreads.find(t => t.id === threadId) || null;
+}
+
+function persistDiscussionThreadState(threadId, personas, originalPersonality) {
+  const thread = getThreadById(threadId);
+  if (!thread) return;
+  thread.discussionPersonas = personas;
+  thread.discussionOriginalPersonality = originalPersonality;
+  delete thread.discussionEnded;
+  saveChatThreadIndex();
+}
+
+function renderRoundMessages(threadId, messages) {
+  if (!isRoundThreadActive(threadId)) return;
+  state.chatHistory = messages;
+  renderChatMessages();
+}
+
+async function saveRoundChatHistory(threadId, messages) {
+  if (!threadId) return;
+  if (isRoundThreadActive(threadId)) {
+    state.chatHistory = messages;
+    await saveChatHistory();
+    return;
+  }
+
+  invalidateThreadContentCache();
+  const value = JSON.stringify(messages);
+  const key = getChatThreadKey(threadId);
+  if (getEncryptionEnabled()) {
+    await encryptedSetItem(key, value);
+  } else {
+    localStorage.setItem(key, value);
+  }
+
+  const thread = getThreadById(threadId);
+  if (thread) {
+    if (thread.messageCount !== messages.length) thread.updatedAt = new Date().toISOString();
+    thread.messageCount = messages.length;
+    saveChatThreadIndex();
+    renderThreadList();
+  }
+}
+
 export function updateDiscussButton() {
   const btn = document.getElementById('chat-discuss-btn');
   if (!btn) return;
@@ -97,6 +150,8 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   const container = document.getElementById('chat-messages');
   const sendBtn = document.getElementById('chat-send-btn');
   if (!container) return;
+  const roundThreadId = opts.threadId || state.currentThreadId;
+  const roundHistory = state.chatHistory;
 
   const controller = new AbortController();
   setChatAbortController(controller);
@@ -105,7 +160,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   const promptText = steerPrompt || DEFAULT_DISCUSS_PROMPT;
 
   // Check if any persona has already responded in this thread
-  const hasExistingDebate = state.chatHistory.some(m => m.role === 'assistant' && m.personalityName);
+  const hasExistingDebate = roundHistory.some(m => m.role === 'assistant' && m.personalityName);
 
   try {
     for (let pi = 0; pi < personas.length; pi++) {
@@ -121,9 +176,9 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         : promptText;
       if (!opts.suppressAutoMsg) {
         const autoMsg = { role: 'user', content: msgText, auto: true, hidden: !!opts.hideAutoMsg };
-        state.chatHistory.push(autoMsg);
-        renderChatMessages();
-        await saveChatHistory();
+        roundHistory.push(autoMsg);
+        renderRoundMessages(roundThreadId, roundHistory);
+        await saveRoundChatHistory(roundThreadId, roundHistory);
       }
 
       const typingEl = document.createElement('div');
@@ -132,8 +187,10 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       typingEl.setAttribute('aria-live', 'polite');
       typingEl.setAttribute('aria-label', 'AI is responding');
       typingEl.innerHTML = '<span></span><span></span><span></span>';
-      container.appendChild(typingEl);
-      container.scrollTop = container.scrollHeight;
+      if (isRoundThreadActive(roundThreadId)) {
+        container.appendChild(typingEl);
+        container.scrollTop = container.scrollHeight;
+      }
 
       let labContext = buildLabContext({ userMessage: msgText });
       let _lensResultForMsg = null;
@@ -146,7 +203,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       }
       const personality = getActivePersonality();
       const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
-      const multiPersonaInstruction = buildMultiPersonaInstruction(state.chatHistory, personality.name);
+      const multiPersonaInstruction = buildMultiPersonaInstruction(roundHistory, personality.name);
       const _dMsgProvider = getAIProvider();
       const _dMsgModelId = getActiveModelId(_dMsgProvider);
       const _dMsgModelDisplay = getActiveModelDisplay(_dMsgProvider);
@@ -168,12 +225,12 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         webHint,
       });
 
-      const apiMessages = buildTaggedChatMessages(state.chatHistory, personality.name);
+      const apiMessages = buildTaggedChatMessages(roundHistory, personality.name);
 
       const labelEl = document.createElement('div');
       labelEl.className = 'chat-persona-label';
       labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
-      container.appendChild(labelEl);
+      if (isRoundThreadActive(roundThreadId)) container.appendChild(labelEl);
 
       const aiMsgEl = document.createElement('div');
       aiMsgEl.className = 'chat-msg chat-ai';
@@ -186,7 +243,9 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         messages: apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: controller.signal,
-        onStream(text) { typewriter.update(text); },
+        onStream(text) {
+          if (isRoundThreadActive(roundThreadId)) typewriter.update(text);
+        },
         webSearch: _dWebSearch,
         provider: _dMsgProvider
       });
@@ -194,13 +253,15 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const responseTruncated = isAIResponseTruncated(aiResult);
 
       typewriter.stop();
-      aiMsgEl.style.whiteSpace = '';
-      if (typingEl.parentNode) typingEl.remove();
-      if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
-      aiMsgEl.innerHTML = renderMarkdown(fullText);
-      if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
+      if (isRoundThreadActive(roundThreadId)) {
+        aiMsgEl.style.whiteSpace = '';
+        if (typingEl.parentNode) typingEl.remove();
+        if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
+        aiMsgEl.innerHTML = renderMarkdown(fullText);
+        if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
+      }
 
-      if (usage && (usage.inputTokens || usage.outputTokens)) {
+      if (isRoundThreadActive(roundThreadId) && usage && (usage.inputTokens || usage.outputTokens)) {
         const cost = calculateCost(_dMsgProvider, _dMsgModelId, usage.inputTokens, usage.outputTokens);
         const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
         const webTag = _dWebSearch ? ' \u00b7 \ud83c\udf10 web' : '';
@@ -223,14 +284,14 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
         trackUsage(_dMsgProvider, _dMsgModelId, usage.inputTokens, usage.outputTokens);
       }
-      state.chatHistory.push(assistantMsg);
-      await saveChatHistory();
-      container.scrollTop = container.scrollHeight;
+      roundHistory.push(assistantMsg);
+      await saveRoundChatHistory(roundThreadId, roundHistory);
+      if (isRoundThreadActive(roundThreadId)) container.scrollTop = container.scrollHeight;
     }
   } catch (err) {
     if (err.name === 'AbortError') {
       // Partial text handled by DOM already
-    } else if (!err?._modalShown) {
+    } else if (isRoundThreadActive(roundThreadId) && !err?._modalShown) {
       // Skip when a modal already surfaced the condition (e.g., 402).
       const errEl = document.createElement('div');
       errEl.className = 'chat-msg chat-ai';
@@ -245,9 +306,12 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
 export async function sendDiscussionUserTurn(text, discussionState = getCurrentDiscussionState()) {
   if (!discussionState) return;
+  if (getChatAbortController()) return;
+  const threadId = state.currentThreadId;
   removeDiscussContinuePrompt();
-  await runDiscussionRound(discussionState.personas, text, { suppressAutoMsg: true });
-  _finishDiscussionRound(discussionState.personas, discussionState.originalPersonality);
+  persistDiscussionThreadState(threadId, discussionState.personas, discussionState.originalPersonality);
+  await runDiscussionRound(discussionState.personas, text, { suppressAutoMsg: true, threadId });
+  _finishDiscussionRound(discussionState.personas, discussionState.originalPersonality, threadId);
 }
 
 export function showDiscussContinuePrompt(personas, originalPersonality) {
@@ -312,16 +376,19 @@ export function cleanupDiscussionState({ clearThread = false, markEnded = false 
 }
 
 export async function continueDiscussion() {
+  if (getChatAbortController()) return;
   // Read steer input before removing the prompt
   const steerInput = document.getElementById('chat-discuss-steer');
   const steerText = steerInput ? steerInput.value.trim() : '';
+  const threadId = state.currentThreadId;
   removeDiscussContinuePrompt();
   const personas = state._discussionPersonas;
   const originalPersonality = state._discussionOriginalPersonality;
   if (!personas || personas.length < 2) return;
 
-  await runDiscussionRound(personas, steerText || null);
-  _finishDiscussionRound(personas, originalPersonality);
+  persistDiscussionThreadState(threadId, personas, originalPersonality);
+  await runDiscussionRound(personas, steerText || null, { threadId });
+  _finishDiscussionRound(personas, originalPersonality, threadId);
 }
 
 export function endDiscussion() {
@@ -445,7 +512,9 @@ export async function startDiscussionFromPicker() {
   return _runDiscussion(allPersonas);
 }
 
-function _finishDiscussionRound(personas, originalPersonality) {
+function _finishDiscussionRound(personas, originalPersonality, threadId = state.currentThreadId) {
+  persistDiscussionThreadState(threadId, personas, originalPersonality);
+  if (!isRoundThreadActive(threadId)) return;
   state.currentChatPersonality = originalPersonality;
   localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, originalPersonality);
   updateDiscussButton();
@@ -457,14 +526,18 @@ function _finishDiscussionRound(personas, originalPersonality) {
 
 async function _runSingleTurn(persona, allPersonas) {
   const originalPersonality = state.currentChatPersonality;
+  const threadId = state.currentThreadId;
+  persistDiscussionThreadState(threadId, allPersonas, originalPersonality);
   state.chatHistory.push({ joined: true, joinName: persona.name, joinIcon: persona.icon });
   const joinPrompt = 'You\'ve just joined this conversation. Review the discussion above and weigh in with your perspective.';
-  await runDiscussionRound([persona], joinPrompt, { hideAutoMsg: true });
-  _finishDiscussionRound(allPersonas, originalPersonality);
+  await runDiscussionRound([persona], joinPrompt, { hideAutoMsg: true, threadId });
+  _finishDiscussionRound(allPersonas, originalPersonality, threadId);
 }
 
 async function _runDiscussion(personas) {
   const originalPersonality = state.currentChatPersonality;
-  await runDiscussionRound(personas);
-  _finishDiscussionRound(personas, originalPersonality);
+  const threadId = state.currentThreadId;
+  persistDiscussionThreadState(threadId, personas, originalPersonality);
+  await runDiscussionRound(personas, null, { threadId });
+  _finishDiscussionRound(personas, originalPersonality, threadId);
 }
