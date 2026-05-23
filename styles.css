@@ -3,6 +3,7 @@
   --bg-primary: #0f1117;
   --bg-secondary: #1a1d27;
   --bg-card: #222635;
+  --sync-popover-bg: #222635;
   --bg-hover: #2a2e3d;
   --border: #2e3348;
   --text-primary: #e8eaf0;
@@ -51,6 +52,7 @@
   --bg-primary: #f5f6fa;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
+  --sync-popover-bg: #ffffff;
   --bg-hover: #f0f1f5;
   --border: #e2e4ea;
   --text-primary: #1a1d27;
@@ -7728,7 +7730,8 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
 @keyframes sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .sync-popover {
   position: absolute; top: 100%; right: 0; z-index: 999;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--sync-popover-bg, var(--bg-card)); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius);
   padding: 14px 16px; min-width: 220px; box-shadow: var(--shadow-lg);
   margin-top: 6px;
 }

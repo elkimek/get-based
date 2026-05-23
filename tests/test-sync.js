@@ -37,6 +37,8 @@ await import('../js/settings.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
+  const stylesSrc = await fetchWithRetry('styles.css');
+  const themeExtraSrc = await fetchWithRetry('themes-extra.css');
 
   // ═══════════════════════════════════════
   // 1. MODULE EXPORTS
@@ -152,6 +154,12 @@ await import('../js/settings.js');
     /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncRelayHealthSrc));
   assert('Quota indicator visible on popover (green/amber/red dot)',
     /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncSrc));
+  assert('Sync popover uses dedicated opaque background token',
+    /\.sync-popover\s*\{[\s\S]{0,260}background:\s*var\(--sync-popover-bg,\s*var\(--bg-card\)\)/.test(stylesSrc));
+  assert('Transparent themes override sync popover background with solid panels',
+    themeExtraSrc.includes('--sync-popover-bg: #181230') &&
+    themeExtraSrc.includes('--sync-popover-bg: #150830') &&
+    themeExtraSrc.includes('--sync-popover-bg: #0a0d12'));
   // v1.7.21: "I just compacted" runbook button replaced by the real
   // self-serve compact via /self/compact-owner — HMAC-signed with the
   // owner's writeKey so any user can unwedge themselves at the cap
