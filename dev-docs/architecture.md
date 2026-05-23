@@ -65,7 +65,8 @@ js/
   chat-window-bindings.js — Chat callback wiring and legacy window exports
   chat-marker-prompts.js — Per-marker and selected-correlation AI prompt builders
   chat-continuation.js — Response limit detection and automatic continuation
-  chat-discussion.js — Multi-persona discussion/debate orchestration
+  chat-discussion.js — Multi-persona discussion public barrel
+  chat-discussion-flow.js — Multi-persona discussion start/continue/end flow
   chat-discussion-callbacks.js — Multi-persona discussion callback bridge
   chat-discussion-round-runner.js — Multi-persona discussion round execution loop
   chat-discussion-round-prompts.js — Multi-persona discussion prompt helpers

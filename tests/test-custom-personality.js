@@ -209,6 +209,7 @@ console.log('19. Stop button CSS');
 const css = read('styles.css');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
+const chatDiscussionFlowSrc = read('js/chat-discussion-flow.js');
 const chatDiscussionStateSrc = read('js/chat-discussion-state.js');
 assert('CSS has .chat-send-btn.streaming', css.includes('.chat-send-btn.streaming'));
 assert('CSS has .chat-stopped-note', css.includes('.chat-stopped-note'));
@@ -254,7 +255,7 @@ console.log('26. startDiscussion source');
 const discSrc = window.startDiscussion.toString();
 assert('startDiscussion shows persona picker', discSrc.includes('showDiscussPersonaPicker'));
 const pickerSrc = window.startDiscussionFromPicker.toString();
-assert('startDiscussionFromPicker delegates to _runDiscussion', pickerSrc.includes('_runDiscussion'));
+assert('startDiscussionFromPicker delegates to runDiscussion', pickerSrc.includes('runDiscussion'));
 const contSrc = window.continueDiscussion.toString();
 assert('continueDiscussion removes prompt', contSrc.includes('removeDiscussContinuePrompt'));
 assert('continueDiscussion runs another round', contSrc.includes('runDiscussionRound'));
@@ -264,8 +265,9 @@ assert('endDiscussion cleans up state', endSrc.includes('cleanupDiscussionState'
 assert('endDiscussion marks discussion ended', endSrc.includes('markEnded: true'));
 assert('chat restores discussion prompt without thread metadata',
   chatDiscussionSrc.includes('restoreDiscussionContinuePrompt') &&
+    chatDiscussionFlowSrc.includes('restoreDiscussionContinuePrompt') &&
     chatDiscussionStateSrc.includes('collectDiscussionPersonas()'));
-assert('manual messages in active discussion suppress duplicate auto prompt', chatDiscussionSrc.includes('suppressAutoMsg: true'));
+assert('manual messages in active discussion suppress duplicate auto prompt', chatDiscussionFlowSrc.includes('suppressAutoMsg: true'));
 assert('chat window bindings configure discussion callbacks',
   chatWindowBindingsSrc.includes('configureChatDiscussion') && chatWindowBindingsSrc.includes('setChatAbortController'));
 assert('endDiscussion restores personality', endSrc.includes('currentChatPersonality'));

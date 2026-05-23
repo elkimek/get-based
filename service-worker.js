@@ -79,6 +79,7 @@ const APP_SHELL = [
   '/js/chat-panel.js',
   '/js/chat-discussion.js',
   '/js/chat-discussion-callbacks.js',
+  '/js/chat-discussion-flow.js',
   '/js/chat-discussion-round-runner.js',
   '/js/chat-discussion-round-prompts.js',
   '/js/chat-discussion-round-request.js',

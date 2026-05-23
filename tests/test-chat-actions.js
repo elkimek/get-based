@@ -346,6 +346,7 @@ const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionCallbacksSrc = read('js/chat-discussion-callbacks.js');
+const chatDiscussionFlowSrc = read('js/chat-discussion-flow.js');
 const chatDiscussionRoundRunnerSrc = read('js/chat-discussion-round-runner.js');
 const chatDiscussionRoundPromptsSrc = read('js/chat-discussion-round-prompts.js');
 const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js');
@@ -433,10 +434,11 @@ assert('chat-nudge.js owns FAB nudge state', chatNudgeSrc.includes('export funct
 assert('chat-panel delegates nudge dismissal', chatPanelSrc.includes("from './chat-nudge.js'") && chatPanelSrc.includes('dismissCurrentChatNudge()'), 'found');
 assert('chat window bindings import chat nudge helpers', chatWindowBindingsSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
-assert('chat-discussion.js owns discussion flow handlers',
-  chatDiscussionSrc.includes("from './chat-discussion-round-runner.js'") &&
-    chatDiscussionSrc.includes('runDiscussionRound(') &&
-    chatDiscussionSrc.includes('export async function startDiscussion') &&
+assert('chat-discussion-flow.js owns discussion flow handlers',
+  chatDiscussionSrc.includes("from './chat-discussion-flow.js'") &&
+    chatDiscussionFlowSrc.includes("from './chat-discussion-round-runner.js'") &&
+    chatDiscussionFlowSrc.includes('runDiscussionRound(') &&
+    chatDiscussionFlowSrc.includes('export async function startDiscussion') &&
     !chatDiscussionSrc.includes('async function runDiscussionRound'),
   'found');
 assert('chat-discussion-callbacks.js owns discussion callback bridge',
@@ -447,7 +449,7 @@ assert('chat-discussion-callbacks.js owns discussion callback bridge',
     chatDiscussionCallbacksSrc.includes('export function createDiscussionTypewriter'),
   'found');
 assert('chat-discussion-round-prompts.js owns round prompt helpers',
-  chatDiscussionSrc.includes("from './chat-discussion-round-prompts.js'") &&
+  chatDiscussionFlowSrc.includes("from './chat-discussion-round-prompts.js'") &&
     chatDiscussionRoundPromptsSrc.includes('export const DEFAULT_DISCUSS_PROMPT') &&
     chatDiscussionRoundPromptsSrc.includes('export const INITIAL_DISCUSS_PROMPT') &&
     chatDiscussionRoundPromptsSrc.includes('export const DISCUSSION_JOIN_PROMPT') &&
@@ -466,23 +468,25 @@ assert('chat-discussion-round-runner.js owns per-persona round execution',
   'found');
 assert('chat-discussion-state.js owns persona state helpers',
   chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&
+    chatDiscussionFlowSrc.includes("from './chat-discussion-state.js'") &&
     chatDiscussionStateSrc.includes('export function getCurrentDiscussionState') &&
     chatDiscussionStateSrc.includes('export function collectDiscussionPersonas') &&
     chatDiscussionStateSrc.includes('export function clearCurrentDiscussionThreadState') &&
     chatDiscussionStateSrc.includes('export function reopenCurrentDiscussionThread') &&
-    chatDiscussionSrc.includes('clearCurrentDiscussionThreadState({ clearThread, markEnded })') &&
-    chatDiscussionSrc.includes('reopenCurrentDiscussionThread()') &&
+    chatDiscussionFlowSrc.includes('clearCurrentDiscussionThreadState({ clearThread, markEnded })') &&
+    chatDiscussionFlowSrc.includes('reopenCurrentDiscussionThread()') &&
     !chatDiscussionSrc.includes('saveChatThreadIndex'),
   'found');
 assert('chat-discussion-ui.js owns discussion DOM controls',
   chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&
+    chatDiscussionFlowSrc.includes("from './chat-discussion-ui.js'") &&
     chatDiscussionUiSrc.includes('export function updateDiscussButton') &&
     chatDiscussionUiSrc.includes('export function readDiscussPersonaPickerSelection') &&
     chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
     chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker') &&
     chatDiscussionUiSrc.includes('const addingToExisting = activePersonaIds.size > 0') &&
     chatDiscussionUiSrc.includes('checkedCount !== maxNewSelections') &&
-    chatDiscussionSrc.includes('readDiscussPersonaPickerSelection()') &&
+    chatDiscussionFlowSrc.includes('readDiscussPersonaPickerSelection()') &&
     !chatDiscussionSrc.includes("querySelector('.discuss-persona-picker')") &&
     !chatDiscussionSrc.includes('export function updateDiscussButton'),
   'found');
@@ -516,7 +520,7 @@ assert('chat-discussion-round-view.js owns live discussion round DOM',
 assert('chat discussion rounds stay bound to origin thread during streaming',
   chatDiscussionRoundRunnerSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&
     chatDiscussionRoundRunnerSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory)') &&
-    chatDiscussionSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
+    chatDiscussionFlowSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
   'prevents thread switches mid-stream from dropping the continue prompt');
 assert('chat discussion live stream restores persona label after thread switch',
   chatDiscussionRoundViewSrc.includes('export function appendRoundPersonaLabel') &&
