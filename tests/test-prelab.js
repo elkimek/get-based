@@ -106,6 +106,11 @@ const labCtxSrc = read('js/lab-context.js');
     'Should instruct AI about importance of demographics');
   assert('Urge to set sex/DOB in Settings', constSrc.includes('tell the user to set these in Settings'),
     'Should direct user to Settings for demographics');
+  assert('Menstrual timing is profile-gated',
+    constSrc.includes('only apply cycle-phase timing when a menstrualCycle context section is present') &&
+      constSrc.includes('For male') &&
+      constSrc.includes('do not recommend follicular/luteal/ovulatory timing'),
+    'Should not give cycle-phase timing to male/non-cycling profiles');
   assert('Never apologize instruction', constSrc.includes('Never apologize for missing lab data'),
     'Should not apologize');
   assert('Never pretend instruction', constSrc.includes('Never pretend to interpret lab results'),
