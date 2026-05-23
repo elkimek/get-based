@@ -173,6 +173,7 @@ const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
+const chatDiscussionCallbacksSrc = read('js/chat-discussion-callbacks.js');
 const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js');
 const chatDiscussionRoundStateSrc = read('js/chat-discussion-round-state.js');
 const chatDiscussionRoundViewSrc = read('js/chat-discussion-round-view.js');
@@ -259,6 +260,13 @@ assert('chat-panel delegates nudge dismissal', chatPanelSrc.includes("from './ch
 assert('chat window bindings import chat nudge helpers', chatWindowBindingsSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat.js imports discussion helpers', chatSrc.includes("from './chat-discussion.js'"), 'found');
 assert('chat-discussion.js owns debate rounds', chatDiscussionSrc.includes('async function runDiscussionRound') && chatDiscussionSrc.includes('export async function startDiscussion'), 'found');
+assert('chat-discussion-callbacks.js owns discussion callback bridge',
+  chatDiscussionSrc.includes("from './chat-discussion-callbacks.js'") &&
+    chatDiscussionSrc.includes("export { configureChatDiscussion } from './chat-discussion-callbacks.js'") &&
+    chatDiscussionCallbacksSrc.includes('export function configureChatDiscussion') &&
+    chatDiscussionCallbacksSrc.includes('export function getChatAbortController') &&
+    chatDiscussionCallbacksSrc.includes('export function createDiscussionTypewriter'),
+  'found');
 assert('chat-discussion-state.js owns persona state helpers',
   chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&
     chatDiscussionStateSrc.includes('export function getCurrentDiscussionState') &&
@@ -303,8 +311,8 @@ assert('chat discussion live stream restores persona label after thread switch',
     /onStream\(text\)[\s\S]{0,180}appendRoundPersonaLabel\(roundThreadId, container, labelEl\);[\s\S]{0,80}typewriter\.update\(text\)/.test(chatDiscussionSrc),
   're-entering the origin thread mid-stream should show whose response is streaming');
 assert('chat-discussion.js typewriter callback degrades safely',
-  !chatDiscussionSrc.includes('Chat discussion typewriter callback not configured') &&
-    /function createTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionSrc),
+  !chatDiscussionCallbacksSrc.includes('Chat discussion typewriter callback not configured') &&
+    /function createDiscussionTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionCallbacksSrc),
   'fallback typewriter should no-op instead of throwing before cleanup');
 assert('chat.js imports onboarding helpers', chatSrc.includes("from './chat-onboarding.js'"), 'found');
 assert('chat-onboarding.js owns onboarding handlers',

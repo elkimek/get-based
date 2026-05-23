@@ -66,6 +66,7 @@ js/
   chat-marker-prompts.js — Per-marker and selected-correlation AI prompt builders
   chat-continuation.js — Response limit detection and automatic continuation
   chat-discussion.js — Multi-persona discussion/debate orchestration
+  chat-discussion-callbacks.js — Multi-persona discussion callback bridge
   chat-discussion-round-request.js — Multi-persona discussion API request helpers
   chat-discussion-round-state.js — Multi-persona discussion round persistence helpers
   chat-discussion-round-view.js — Multi-persona discussion live message DOM helpers

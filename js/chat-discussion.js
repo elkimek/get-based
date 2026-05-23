@@ -14,6 +14,10 @@ import {
   getThreadPersonaCount,
 } from './chat-discussion-state.js';
 import {
+  createDiscussionTypewriter, getChatAbortController, renderChatMessages,
+  setChatAbortController, setSendButtonMode,
+} from './chat-discussion-callbacks.js';
+import {
   removeDiscussContinuePrompt, removeDiscussPersonaPicker,
   showDiscussContinuePrompt as showDiscussContinuePromptUI,
   showDiscussPersonaPicker,
@@ -32,45 +36,8 @@ import {
 } from './chat-discussion-round-view.js';
 
 export { getCurrentDiscussionState, getThreadPersonaCount } from './chat-discussion-state.js';
+export { configureChatDiscussion } from './chat-discussion-callbacks.js';
 export { removeDiscussContinuePrompt } from './chat-discussion-ui.js';
-
-const discussionCallbacks = {
-  createTypewriter: null,
-  getChatAbortController: () => null,
-  renderChatMessages: () => {},
-  setChatAbortController: () => {},
-  setSendButtonMode: () => {},
-};
-
-export function configureChatDiscussion(callbacks = {}) {
-  Object.assign(discussionCallbacks, callbacks);
-}
-
-function getChatAbortController() {
-  return discussionCallbacks.getChatAbortController?.() || null;
-}
-
-function setChatAbortController(controller) {
-  discussionCallbacks.setChatAbortController?.(controller);
-}
-
-function renderChatMessages() {
-  discussionCallbacks.renderChatMessages?.();
-}
-
-function setSendButtonMode(btn, mode) {
-  discussionCallbacks.setSendButtonMode?.(btn, mode);
-}
-
-function createTypewriter(el, typingEl, container) {
-  if (!discussionCallbacks.createTypewriter) {
-    return {
-      update() {},
-      stop() {},
-    };
-  }
-  return discussionCallbacks.createTypewriter(el, typingEl, container);
-}
 
 export function updateDiscussButton() {
   const btn = document.getElementById('chat-discuss-btn');
@@ -145,7 +112,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
 
       const aiMsgEl = createDiscussionAiMessage();
 
-      const typewriter = createTypewriter(aiMsgEl, typingEl, container);
+      const typewriter = createDiscussionTypewriter(aiMsgEl, typingEl, container);
 
       const aiResult = await callChatAPIWithContinuation({
         system: request.systemPrompt,
