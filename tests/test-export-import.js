@@ -418,8 +418,9 @@ return (async function() {
 
   // Sync also picks them up (cross-device parity)
   const syncSrc = await fetch('/js/sync.js').then(r => r.text());
-  assert('AI_SETTINGS_KEYS includes labcharts-custom-key', /AI_SETTINGS_KEYS[\s\S]{0,800}labcharts-custom-key/.test(syncSrc));
-  assert('AI_SETTINGS_KEYS includes labcharts-custom-url', /AI_SETTINGS_KEYS[\s\S]{0,800}labcharts-custom-url/.test(syncSrc));
+  const syncPayloadSrc = await fetch('/js/sync-payload.js').then(r => r.text());
+  assert('AI_SETTINGS_KEYS includes labcharts-custom-key', /AI_SETTINGS_KEYS[\s\S]{0,800}labcharts-custom-key/.test(syncPayloadSrc));
+  assert('AI_SETTINGS_KEYS includes labcharts-custom-url', /AI_SETTINGS_KEYS[\s\S]{0,800}labcharts-custom-url/.test(syncPayloadSrc));
   assert('ENCRYPTED_AI_KEYS includes labcharts-custom-key', /ENCRYPTED_AI_KEYS[\s\S]{0,400}labcharts-custom-key/.test(syncSrc));
 
   // ═══════════════════════════════════════

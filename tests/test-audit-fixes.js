@@ -233,14 +233,14 @@ return (async function () {
     window._aiConcurrencyCap = _origAICap;
   }
 
-  // ─── 5. sync.js collectChatData — per-thread try/catch ─────────────
+  // ─── 5. sync-payload.js collectChatData — per-thread try/catch ─────────────
   // Static check: the inner JSON.parse must be wrapped, otherwise one
   // corrupt thread silently nukes the entire chat-data collection
   // through the outer `try { … } catch { return null; }`.
   console.log('%c 5. collectChatData per-thread try/catch ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sync.js');
-    assert('sync.js loaded', src.length > 1000);
+    const src = await fetchSrc('js/sync-payload.js');
+    assert('sync-payload.js loaded', src.length > 1000);
     // Find the inner loop that reads per-thread message JSON.
     const collectIdx = src.indexOf('async function collectChatData');
     const block = src.slice(collectIdx, collectIdx + 1200);

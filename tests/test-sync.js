@@ -32,6 +32,7 @@ await import('../js/sync.js');
 await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
+  const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
@@ -84,34 +85,35 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('2. Sync Payload Format');
 
-  assert('buildSyncPayload still emits _v: 3 (default dual-write)', syncSrc.includes('cutover ? 4 : 3'));
-  assert('buildSyncPayload includes importedData', syncSrc.includes('importedData,') || syncSrc.includes('importedData:'));
-  assert('buildSyncPayload includes profile metadata', syncSrc.includes('profile: profile'));
-  assert('buildSyncPayload includes aiSettings', syncSrc.includes('aiSettings'));
-  assert('buildSyncPayload includes chatData', syncSrc.includes('chatData'));
-  assert('buildSyncPayload includes displayPrefs', syncSrc.includes('displayPrefs'));
+  assert('sync-payload.js owns buildSyncPayload', syncSrc.includes("from './sync-payload.js'") && syncPayloadSrc.includes('export async function buildSyncPayload'));
+  assert('buildSyncPayload still emits _v: 3 (default dual-write)', syncPayloadSrc.includes('cutover ? 4 : 3'));
+  assert('buildSyncPayload includes importedData', syncPayloadSrc.includes('importedData,') || syncPayloadSrc.includes('importedData:'));
+  assert('buildSyncPayload includes profile metadata', syncPayloadSrc.includes('profile: profile'));
+  assert('buildSyncPayload includes aiSettings', syncPayloadSrc.includes('aiSettings'));
+  assert('buildSyncPayload includes chatData', syncPayloadSrc.includes('chatData'));
+  assert('buildSyncPayload includes displayPrefs', syncPayloadSrc.includes('displayPrefs'));
 
-  assert('parseSyncPayload handles v3 format', syncSrc.includes('parsed._v === 3'));
-  assert('parseSyncPayload handles v2 compat', syncSrc.includes('parsed._v === 2'));
+  assert('parseSyncPayload handles v3 format', syncPayloadSrc.includes('parsed._v === 3'));
+  assert('parseSyncPayload handles v2 compat', syncPayloadSrc.includes('parsed._v === 2'));
   assert('parseSyncPayload has v1 backward compat (gated on importedData shape)',
-    syncSrc.includes('importedData: safe(parsed)'));
-  assert('parseSyncPayload validates payload size (5 MB cap)', syncSrc.includes('MAX_SYNC_PAYLOAD_BYTES'));
+    syncPayloadSrc.includes('importedData: safe(parsed)'));
+  assert('parseSyncPayload validates payload size (5 MB cap)', syncPayloadSrc.includes('MAX_SYNC_PAYLOAD_BYTES'));
   assert('parseSyncPayload strips wearableConnections from incoming blob (defence-in-depth)',
-    syncSrc.includes("'wearableConnections' in imp"));
+    syncPayloadSrc.includes("'wearableConnections' in imp"));
   assert('parseSyncPayload v1 compat rejects unknown shapes',
-    syncSrc.includes("Invalid sync payload: unknown shape"));
-  assert('parseSyncPayload validates payload type', syncSrc.includes("typeof dataJson !== 'string'"));
+    syncPayloadSrc.includes("Invalid sync payload: unknown shape"));
+  assert('parseSyncPayload validates payload type', syncPayloadSrc.includes("typeof dataJson !== 'string'"));
 
   // v1.6.3: gzip envelope. Pushes >1 KB get compressed before storing
   // in Evolu's CRDT log; cuts the per-message size ~3× and pushes the
   // per-owner quota wedge from "every 2 days" toward "weeks/months".
   assert('buildSyncPayload gzip envelope (>1 KB compressed)',
-    /CompressionStream/.test(syncSrc) && /GZ\|v1\|/.test(syncSrc) && /inner\.length > 1024/.test(syncSrc));
+    /CompressionStream/.test(syncPayloadSrc) && /GZ\|v1\|/.test(syncPayloadSrc) && /inner\.length > 1024/.test(syncPayloadSrc));
   assert('parseSyncPayload detects + decompresses gzip envelope',
-    /dataJson\.startsWith\('GZ\|v1\|'\)/.test(syncSrc) && /DecompressionStream/.test(syncSrc));
+    /dataJson\.startsWith\('GZ\|v1\|'\)/.test(syncPayloadSrc) && /DecompressionStream/.test(syncPayloadSrc));
   assert('parseSyncPayload caps decompressed size via streaming cap (zip-bomb guard)',
-    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncSrc));
-  assert('parseSyncPayload is async (gzip decode)', /async function parseSyncPayload/.test(syncSrc));
+    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadSrc));
+  assert('parseSyncPayload is async (gzip decode)', /async function parseSyncPayload/.test(syncPayloadSrc));
 
   // v1.6.6: recovery from compaction-induced empty profileId column.
   // After /compact-owner drops the original `evolu.insert` from the
@@ -300,11 +302,11 @@ await import('../js/settings.js');
     'labcharts-ppq-key', 'labcharts-ppq-model', 'labcharts-routstr-key', 'labcharts-routstr-model'
   ];
   for (const key of expectedKeys) {
-    assert(`AI_SETTINGS_KEYS includes ${key}`, syncSrc.includes(`'${key}'`));
+    assert(`AI_SETTINGS_KEYS includes ${key}`, syncPayloadSrc.includes(`'${key}'`));
   }
 
   assert('Encrypted keys use encryptedSetItem on apply', syncSrc.includes('ENCRYPTED_AI_KEYS') && syncSrc.includes('encryptedSetItem(key, val)'));
-  assert('collectAISettings uses encryptedGetItem', syncSrc.includes('encryptedGetItem(key)'));
+  assert('collectAISettings uses encryptedGetItem', syncPayloadSrc.includes('encryptedGetItem(key)'));
   assert('applyAISettings has allowlist check', syncSrc.includes('AI_SETTINGS_KEYS.includes(key)'));
   assert('applyAISettings has size guard', syncSrc.includes('val.length > 10000'));
   assert('applyAISettings honors fresh local AI setting lock', syncSrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalAISetting(key)'));
@@ -466,9 +468,9 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('11. Chat & Display Sync');
 
-  assert('collectChatData reads threads', syncSrc.includes('chat-threads') && syncSrc.includes('collectChatData'));
-  assert('collectChatData reads per-thread messages', syncSrc.includes('chat-t_${t.id}'));
-  assert('collectChatData includes custom personalities', syncSrc.includes('chatPersonalityCustom'));
+  assert('collectChatData reads threads', syncPayloadSrc.includes('chat-threads') && syncPayloadSrc.includes('collectChatData'));
+  assert('collectChatData reads per-thread messages', syncPayloadSrc.includes('chat-t_${t.id}'));
+  assert('collectChatData includes custom personalities', syncPayloadSrc.includes('chatPersonalityCustom'));
   assert('applyChatData writes threads', syncSrc.includes('applyChatData'));
   assert('applyChatData skips stale remote chat while local save is fresh',
     syncSrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalChatData(profileId)'));
@@ -481,7 +483,7 @@ await import('../js/settings.js');
   assert('onChatSaved marks local chat before debounce',
     onChatSavedSrc.includes('markChatDataLocal();')
       && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_syncEnabled || !evolu) return;'));
-  assert('Display prefs synced', syncSrc.includes('DISPLAY_PREF_SUFFIXES') && syncSrc.includes('collectDisplayPrefs'));
+  assert('Display prefs synced', syncPayloadSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', syncSrc.includes('export function onChatSaved'));
   assert('onChatSaved has debounce', syncSrc.includes('_chatSyncTimer') && syncSrc.includes('10000'));
   assert('chat-threads.js imports onChatSaved', await fetchWithRetry('js/chat-threads.js').then(s => s.includes("import { onChatSaved } from './sync.js'")));
@@ -522,8 +524,8 @@ await import('../js/settings.js');
   console.log('14. Wearable Connections Preserve');
 
   // Push side: stripWearableCredentials removes wearableConnections from the payload
-  assert('buildSyncPayload strips wearableConnections', syncSrc.includes('stripWearableCredentials(importedData)'));
-  assert('stripWearableCredentials drops wearableConnections key', syncSrc.includes('{ wearableConnections, ...rest } = importedData'));
+  assert('buildSyncPayload strips wearableConnections', syncPayloadSrc.includes('stripWearableCredentials(importedData)'));
+  assert('stripWearableCredentials drops wearableConnections key', syncPayloadSrc.includes('{ wearableConnections, ...rest } = importedData'));
 
   // Pull side: must re-inject local wearableConnections into incoming blob so it isn't clobbered.
   // The stripped remote payload arrives with no wearableConnections; without this preserve step
@@ -1029,21 +1031,21 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('14d. Phase 2 Cutover Flag (gated)');
 
-  assert('isPhase2CutoverEnabled exported', /export function isPhase2CutoverEnabled/.test(syncSrc));
+  assert('isPhase2CutoverEnabled exported', /export\s+\{\s*isPhase2CutoverEnabled\s*\}/.test(syncSrc));
   assert('enablePhase2Cutover exported', /export function enablePhase2Cutover/.test(syncSrc));
   assert('disablePhase2Cutover exported', /export function disablePhase2Cutover/.test(syncSrc));
   assert('enablePhase2Cutover gated by getDeltaCutoverReadiness',
     /enablePhase2Cutover[\s\S]{0,400}getDeltaCutoverReadiness\(profileId\)[\s\S]{0,200}!r\.ready[\s\S]{0,200}reason:\s*'not-ready'/.test(syncSrc));
   assert('disablePhase2Cutover always allowed (escape hatch)',
-    /disablePhase2Cutover[\s\S]{0,300}removeItem\(_cutoverFlagKey/.test(syncSrc));
+    /disablePhase2Cutover[\s\S]{0,300}disablePhase2CutoverFlag/.test(syncSrc));
   assert('Cutover flag is per-profile (key includes profileId)',
-    /_cutoverFlagKey[\s\S]{0,200}labcharts-\$\{profileId\}-sync-cutover-v2/.test(syncSrc));
+    /_cutoverFlagKey[\s\S]{0,200}labcharts-\$\{profileId\}-sync-cutover-v2/.test(syncPayloadSrc));
   assert('buildSyncPayload checks isPhase2CutoverEnabled',
-    /buildSyncPayload[\s\S]{0,2000}isPhase2CutoverEnabled\(profileId\)/.test(syncSrc));
+    /buildSyncPayload[\s\S]{0,2000}isPhase2CutoverEnabled\(profileId\)/.test(syncPayloadSrc));
   assert('v4 payload omits importedData when cutover is on',
-    /cutover\s*\?\s*4\s*:\s*3[\s\S]{0,500}cutover\s*\?\s*undefined\s*:\s*safeImported/.test(syncSrc));
+    /cutover\s*\?\s*4\s*:\s*3[\s\S]{0,500}cutover\s*\?\s*undefined\s*:\s*safeImported/.test(syncPayloadSrc));
   assert('parseSyncPayload handles _v: 4 (importedData=null sentinel)',
-    /parsed\._v\s*===\s*4[\s\S]{0,400}importedData:\s*null/.test(syncSrc));
+    /parsed\._v\s*===\s*4[\s\S]{0,400}importedData:\s*null/.test(syncPayloadSrc));
   assert('Receive path treats v4 (importedData null) as legitimate, not malformed',
     /isV4Cutover\s*=\s*importedData\s*===\s*null[\s\S]{0,200}!isV4Cutover\s*&&\s*\(!importedData/.test(syncSrc));
   assert('Receive path uses local as baseline when v4 (no blob to merge)',
@@ -1169,9 +1171,9 @@ await import('../js/settings.js');
 
   // Decompression-bomb defence
   assert('_gunzipToStringCapped defined with size cap',
-    /_PER_ROW_DECOMPRESSED_CAP_BYTES\s*=\s*1024\s*\*\s*1024[\s\S]{0,500}async function _gunzipToStringCapped/.test(syncSrc));
+    /_PER_ROW_DECOMPRESSED_CAP_BYTES\s*=\s*1024\s*\*\s*1024[\s\S]{0,500}async function _gunzipToStringCapped/.test(syncPayloadSrc));
   assert('_gunzipToStringCapped throws on cap exceeded',
-    /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncSrc));
+    /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncPayloadSrc));
   assert('All 3 per-row gunzip sites use the capped variant',
     (syncSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length === 3);
   // Blob path also routes through _gunzipToStringCapped, with the
@@ -1179,9 +1181,9 @@ await import('../js/settings.js');
   // only gunzip entry point post-2026-05-10 audit (the bare
   // _gunzipToString wrapper was deleted as dead).
   assert('Blob path uses _gunzipToStringCapped with MAX_SYNC_PAYLOAD_BYTES',
-    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncSrc));
+    /_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadSrc));
   assert('Dead _gunzipToString wrapper removed (only capped variant remains)',
-    !/async function _gunzipToString\(bytes\)/.test(syncSrc));
+    !/async function _gunzipToString\(bytes\)/.test(syncSrc + syncPayloadSrc));
 
   // Runtime boundary test for the gunzip cap. Crafts a payload that
   // gunzips to (cap - 1) bytes and asserts it passes; then a payload
@@ -1306,9 +1308,9 @@ await import('../js/settings.js');
 
   // P1: parseSyncPayload now uses capped gunzip (decompression-bomb defence on blob path)
   assert('parseSyncPayload routes blob gunzip through _gunzipToStringCapped',
-    /parseSyncPayload[\s\S]{0,1500}_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncSrc));
+    /parseSyncPayload[\s\S]{0,1500}_gunzipToStringCapped\(bytes,\s*MAX_SYNC_PAYLOAD_BYTES\)/.test(syncPayloadSrc));
   assert('parseSyncPayload no longer post-buffers via uncapped _gunzipToString',
-    !/parseSyncPayload[\s\S]{0,1000}inner\s*=\s*await _gunzipToString\(bytes\)/.test(syncSrc));
+    !/parseSyncPayload[\s\S]{0,1000}inner\s*=\s*await _gunzipToString\(bytes\)/.test(syncPayloadSrc));
 
   // P1: -relay-bytes- and -relay-quota-warned cleared on owner change
   assert('disableSync clears -relay-bytes- keys on owner change',
@@ -1624,15 +1626,15 @@ await import('../js/settings.js');
 
   // Push-side strip: function exists + is called inside buildSyncPayload
   assert('stripGeneticsSnpsFromBlob defined',
-    /function stripGeneticsSnpsFromBlob\(/.test(syncSrc));
+    /function stripGeneticsSnpsFromBlob\(/.test(syncPayloadSrc));
   assert('buildSyncPayload calls stripGeneticsSnpsFromBlob on importedData',
-    /buildSyncPayload[\s\S]{0,3000}stripGeneticsSnpsFromBlob\(/.test(syncSrc));
+    /buildSyncPayload[\s\S]{0,3000}stripGeneticsSnpsFromBlob\(/.test(syncPayloadSrc));
   // Implementation uses rest-spread destructuring (`{ snps, ...rest }`)
   // rather than `delete` — both achieve the same semantic, but the
   // destructure also avoids mutating the caller's object. Match either.
   assert('stripGeneticsSnpsFromBlob removes .snps but keeps top-level genetics',
-    /stripGeneticsSnpsFromBlob[\s\S]{0,400}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*importedData\.genetics/.test(syncSrc)
-    || /stripGeneticsSnpsFromBlob[\s\S]{0,400}delete[\s\S]{0,80}\.snps/.test(syncSrc));
+    /stripGeneticsSnpsFromBlob[\s\S]{0,400}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*importedData\.genetics/.test(syncPayloadSrc)
+    || /stripGeneticsSnpsFromBlob[\s\S]{0,400}delete[\s\S]{0,80}\.snps/.test(syncPayloadSrc));
 
   // Push-side scalar plan: `genetics` scalar payload carries metadata
   // only (snps stripped from the {v: ...} wrapper).

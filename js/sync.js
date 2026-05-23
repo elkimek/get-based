@@ -7,6 +7,12 @@ import { showNotification, isDebugMode, escapeHTML, loadScriptOnce } from './uti
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt } from './data-merge.js';
+import {
+  AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, _base64ToBytes, _bytesToBase64,
+  _gzipString, _gunzipToStringCapped, buildSyncPayload, collectAISettings,
+  disablePhase2CutoverFlag, enablePhase2CutoverFlag, isPhase2CutoverEnabled,
+  parseSyncPayload,
+} from './sync-payload.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
@@ -871,34 +877,6 @@ export async function restoreFromMnemonic(mnemonic) {
 // SYNC PAYLOAD — wraps importedData + profile meta
 // ═══════════════════════════════════════════════
 
-// AI settings keys to sync (global, not per-profile)
-const AI_SETTINGS_KEYS = [
-  'labcharts-ai-provider',
-  'labcharts-openrouter-key',    // OpenRouter key (encrypted)
-  'labcharts-venice-key',        // Venice key (encrypted)
-  'labcharts-routstr-key',       // Routstr key (encrypted)
-  'labcharts-ppq-key',           // PPQ key (encrypted)
-  'labcharts-ppq-credit-id',     // PPQ credit ID (for balance/topup)
-  'labcharts-custom-key',        // Custom API key (encrypted)
-  'labcharts-custom-url',        // Custom API base URL
-  'labcharts-custom-model',      // Custom API selected model
-  'labcharts-custom-models',     // Custom API model list cache
-  'labcharts-ollama',            // Local AI server config (encrypted)
-  'labcharts-openrouter-model',
-  'labcharts-venice-model',
-  'labcharts-routstr-model',
-  'labcharts-ppq-model',
-  'labcharts-venice-e2ee',
-  'labcharts-ollama-model',
-  'labcharts-ollama-pii-url',
-  'labcharts-ollama-pii-model',
-  'labcharts-cashu-wallet-mnemonic',  // Wallet seed (encrypted)
-  'labcharts-cashu-wallet-mint',       // Wallet mint URL
-  'labcharts-routstr-node',           // Selected Routstr node
-  'labcharts-lens-config',            // Custom Knowledge Source config (name, url, enabled, topK)
-  'labcharts-lens-key',               // Custom Knowledge Source API key (encrypted)
-];
-
 const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
 const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
 const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
@@ -945,15 +923,6 @@ function shouldKeepLocalChatData(profileId) {
   }
 }
 
-async function collectAISettings() {
-  const settings = {};
-  for (const key of AI_SETTINGS_KEYS) {
-    const val = await encryptedGetItem(key);
-    if (val) settings[key] = val;
-  }
-  return settings;
-}
-
 const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic', 'labcharts-lens-key', 'labcharts-custom-key'];
 
 async function applyAISettings(settings) {
@@ -976,36 +945,6 @@ async function applyAISettings(settings) {
     window.updateChatHeaderModel?.();
     window.refreshWebSearchToggle?.();
   }
-}
-
-// Per-profile chat keys to sync
-async function collectChatData(profileId) {
-  const threadsKey = `labcharts-${profileId}-chat-threads`;
-  const threadsRaw = await encryptedGetItem(threadsKey) || localStorage.getItem(threadsKey);
-  if (!threadsRaw) return null;
-  try {
-    const threads = JSON.parse(threadsRaw);
-    if (!Array.isArray(threads) || threads.length === 0) return null;
-    const messages = {};
-    for (const t of threads) {
-      const msgKey = `labcharts-${profileId}-chat-t_${t.id}`;
-      const msgRaw = await encryptedGetItem(msgKey) || localStorage.getItem(msgKey);
-      if (!msgRaw) continue;
-      // Per-thread try/catch — a single corrupted thread payload must NOT
-      // nuke the entire chat-data collection (the outer try/catch returns
-      // null, silently dropping every other thread on the way out).
-      try { messages[t.id] = JSON.parse(msgRaw); } catch (_) {}
-    }
-    // Custom personalities
-    const customRaw = localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`);
-    const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);
-    return {
-      threads,
-      messages,
-      customPersonalities: customRaw ? JSON.parse(customRaw) : undefined,
-      activePersonality: personality || undefined,
-    };
-  } catch { return null; }
 }
 
 async function applyChatData(profileId, chatData) {
@@ -1039,18 +978,6 @@ async function applyChatData(profileId, chatData) {
   return true;
 }
 
-// Per-profile display preferences to sync
-const DISPLAY_PREF_SUFFIXES = ['units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay'];
-
-function collectDisplayPrefs(profileId) {
-  const prefs = {};
-  for (const suffix of DISPLAY_PREF_SUFFIXES) {
-    const val = localStorage.getItem(`labcharts-${profileId}-${suffix}`);
-    if (val != null) prefs[suffix] = val;
-  }
-  return Object.keys(prefs).length > 0 ? prefs : undefined;
-}
-
 function applyDisplayPrefs(profileId, prefs) {
   if (!prefs) return;
   for (const suffix of DISPLAY_PREF_SUFFIXES) {
@@ -1060,20 +987,8 @@ function applyDisplayPrefs(profileId, prefs) {
   }
 }
 
-// Phase 2 cutover flag — when set, buildSyncPayload omits importedData
-// from the blob entirely. Per-row CRDT deltas (DELTA_ARRAYS / DELTA_MAPS /
-// DELTA_SCALARS) carry every field instead. Per-profile because different
-// profiles may bake at different rates (e.g. a sun-only profile may be
-// READY before a labs+sun+context-cards profile). Set via the diagnose UI
-// only when getDeltaCutoverReadiness reports READY — see enablePhase2Cutover
-// below for the gated setter.
-function _cutoverFlagKey(profileId) {
-  return `labcharts-${profileId}-sync-cutover-v2`;
-}
-export function isPhase2CutoverEnabled(profileId) {
-  if (!profileId) return false;
-  try { return localStorage.getItem(_cutoverFlagKey(profileId)) === '1'; } catch { return false; }
-}
+export { isPhase2CutoverEnabled };
+
 // Gated setter — refuses to enable cutover when readiness check finds
 // blockers. Returns { ok, reason, blockerCount } so the UI can render
 // a useful error. Disable is always allowed (escape hatch).
@@ -1083,217 +998,11 @@ export function enablePhase2Cutover(profileId) {
   if (!r || !r.ready) {
     return { ok: false, reason: 'not-ready', blockerCount: r?.blockerCount || -1 };
   }
-  try { localStorage.setItem(_cutoverFlagKey(profileId), '1'); return { ok: true }; }
-  catch (e) { return { ok: false, reason: 'storage', error: String(e?.message || e) }; }
+  if (enablePhase2CutoverFlag(profileId)) return { ok: true };
+  return { ok: false, reason: 'storage' };
 }
 export function disablePhase2Cutover(profileId) {
-  if (!profileId) return false;
-  try { localStorage.removeItem(_cutoverFlagKey(profileId)); return true; } catch { return false; }
-}
-
-async function buildSyncPayload(profileId, importedData) {
-  const profiles = getProfiles();
-  const profile = profiles.find(p => p.id === profileId);
-  const aiSettings = await collectAISettings();
-  const chatData = await collectChatData(profileId);
-  const displayPrefs = collectDisplayPrefs(profileId);
-  // Strip wearable OAuth credentials before sync. Per-row LWW would let a stale
-  // device resurrect a disconnected vendor or overwrite a freshly-rotated
-  // refresh token. Wearable summary (the L2 dashboard data) still syncs; the
-  // tokens stay local. Users connect each wearable per-device — see the note
-  // in the Settings → Integrations panel.
-  const safeImported = stripGeneticsSnpsFromBlob(stripWearableCredentials(importedData));
-  // Phase 2: when cutover is enabled (readiness-gated), drop importedData
-  // from the blob. Per-row deltas carry every field. The blob still
-  // ships the small profile/aiSettings/chatData/displayPrefs envelope
-  // because those don't have a per-row datapath (they're multi-key,
-  // cross-cutting client config — different responsibility than the
-  // data the user is tracking). Net push size drops from ~150 KB
-  // (gzipped blob) to ~5–10 KB (envelope only) + per-row deltas.
-  const cutover = isPhase2CutoverEnabled(profileId);
-  const inner = JSON.stringify({
-    _v: cutover ? 4 : 3,
-    importedData: cutover ? undefined : safeImported,
-    profile: profile || null,
-    aiSettings: Object.keys(aiSettings).length > 0 ? aiSettings : undefined,
-    chatData: chatData || undefined,
-    displayPrefs: displayPrefs || undefined,
-  });
-  // Gzip + base64 envelope. v3 plain-JSON pushes were averaging ~500 KB,
-  // hitting the relay's 50 MB per-owner cap in ~95 pushes (≈2 days of
-  // moderate use) since Evolu stores every CRDT message in evolu_message
-  // and (when Phase 2 cutover is OFF) we ship the entire importedData
-  // blob each push. Gzip drops typical payloads ~70%, base64 reinflates
-  // ~33%, net ~3× more pushes per quota. With Phase 2 cutover ON the
-  // blob is omitted entirely (importedData absent above) and the inner
-  // payload shrinks to a few KB envelope — gzip is still cheap enough
-  // to stay on rather than special-case the smaller path.
-  // Discriminator: pre-existing v3 plain JSON starts with "{"; the new
-  // envelope starts with "GZ|" which is unambiguously not JSON. The
-  // 1 KB threshold avoids spending the round-trip on tiny payloads
-  // where gzip overhead dominates.
-  if (typeof CompressionStream !== 'undefined' && inner.length > 1024) {
-    try {
-      const gz = await _gzipString(inner);
-      return `GZ|v1|${_bytesToBase64(gz)}`;
-    } catch {
-      // Fall through to plain JSON. Never block a push on a compression
-      // glitch — the relay accepts both formats.
-    }
-  }
-  return inner;
-}
-
-async function _gzipString(str) {
-  const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
-  const buf = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buf);
-}
-
-// v1.7.12 audit fix: decompression-bomb defence for per-row payloads.
-// A relay-controlled itemRow.payload could be a tiny gzip envelope
-// (~few KB) that decompresses to hundreds of MB — gzip ratios above
-// 1000:1 are trivial. Multiplied across 31 surfaces × N rows per
-// surface, the tab OOMs. Per-row payloads are individual items
-// (sun session, marker note, scalar object) — 1 MB is comfortably
-// above any legitimate single-item size and well below any tab-killing
-// threshold. Stream-reads with an in-flight cap so a 100-MB bomb
-// fails fast instead of waiting for full decompression to OOM.
-const _PER_ROW_DECOMPRESSED_CAP_BYTES = 1024 * 1024;
-async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRESSED_CAP_BYTES) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let total = 0;
-  let out = '';
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBytes) {
-      try { await reader.cancel(); } catch {}
-      throw new Error(`per-row payload exceeds ${maxBytes} bytes after gunzip — refusing to trust (decompression-bomb defence)`);
-    }
-    out += decoder.decode(value, { stream: true });
-  }
-  out += decoder.decode();
-  return out;
-}
-
-// Test hook — exposes the cap helper for boundary regression tests.
-// Not a public API; consumers should never reach into this object.
-if (typeof window !== 'undefined') {
-  window._syncTestHooks = Object.assign(window._syncTestHooks || {}, {
-    gunzipCapped: _gunzipToStringCapped,
-    perRowCapBytes: _PER_ROW_DECOMPRESSED_CAP_BYTES,
-  });
-}
-
-function _bytesToBase64(bytes) {
-  let s = '';
-  // Chunked to avoid the call-stack-size cap on huge spreads (~100 KB+).
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(s);
-}
-
-function _base64ToBytes(b64) {
-  const s = atob(b64);
-  const out = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
-  return out;
-}
-
-function stripWearableCredentials(importedData) {
-  if (!importedData?.wearableConnections) return importedData;
-  const { wearableConnections, ...rest } = importedData;
-  return rest;
-}
-
-// Strip `genetics.snps` from the legacy blob payload so the only carrier
-// for SNP membership is the per-key `genetics.snps` DELTA_MAPS path.
-// Without this, mergeImportedData on pull treats genetics as a remote-
-// wins scalar and replays whatever snps blob was on the relay — which
-// can stomp a fresh local re-import. The per-row map merger that runs
-// after blob merge re-applies the relay's individual rsID rows; that's
-// the source of truth.
-function stripGeneticsSnpsFromBlob(importedData) {
-  if (!importedData?.genetics || typeof importedData.genetics !== 'object') return importedData;
-  const { snps, ...geneticsMetadata } = importedData.genetics;
-  return { ...importedData, genetics: geneticsMetadata };
-}
-
-// 5 MB cap. Pre-cap was 50 MB which let a pathological deeply-nested JSON
-// OOM the tab on parse — a normal payload is well under 1 MB, so 5 MB is
-// already 5× anticipated headroom. Unilateral lower bound on a malicious
-// relay's blast radius.
-const MAX_SYNC_PAYLOAD_BYTES = 5_000_000;
-
-async function parseSyncPayload(dataJson) {
-  if (typeof dataJson !== 'string' || dataJson.length > MAX_SYNC_PAYLOAD_BYTES) {
-    throw new Error('Invalid sync payload: bad type or too large');
-  }
-  // Gzip envelope: "GZ|v1|<base64>". Decompress before JSON.parse.
-  // Plain v3 payloads still start with "{" and skip this branch.
-  // v1.7.14 audit fix: routed through _gunzipToStringCapped so a
-  // gzip-bomb (max ratio ~1032×; pathological zero-fill achieves it)
-  // cannot decompress past MAX_SYNC_PAYLOAD_BYTES into memory before
-  // the size check fires. The previous post-decompression `inner.length`
-  // check ran *after* the full gunzipped output had been buffered, so
-  // a 5 MB compressed bomb could OOM the tab before failing the cap.
-  let inner = dataJson;
-  if (dataJson.startsWith('GZ|v1|')) {
-    if (typeof DecompressionStream === 'undefined') {
-      throw new Error('Invalid sync payload: gzip envelope but no DecompressionStream');
-    }
-    const b64 = dataJson.slice(6);
-    const bytes = _base64ToBytes(b64);
-    inner = await _gunzipToStringCapped(bytes, MAX_SYNC_PAYLOAD_BYTES);
-  }
-  const parsed = JSON.parse(inner);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Invalid sync payload');
-  }
-  // Defence-in-depth: strip `wearableConnections` from any incoming blob,
-  // regardless of producer version. Push side already strips this via
-  // stripWearableCredentials(), but a compromised relay could inject it
-  // back. With this strip an injected access_token never reaches the
-  // adapter dispatch — `wearableConnections` lives only in local state.
-  function safe(imp) {
-    if (!imp || typeof imp !== 'object') return imp;
-    if ('wearableConnections' in imp) {
-      const { wearableConnections: _drop, ...rest } = imp;
-      return rest;
-    }
-    return imp;
-  }
-  // v4 (Phase 2 cutover): importedData omitted — per-row CRDT deltas
-  // carry every field. The receiving merger sees `importedData: null`,
-  // skips its blob-merge step, and relies entirely on the per-row pull
-  // path (_mergeItemRowsIntoImported). v3 / v2 / v1 sources still merge
-  // both ways for back-compat — Phase 2 is per-profile, per-device opt-in.
-  if (parsed._v === 4) {
-    return { importedData: null, profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs };
-  }
-  // v3: includes chat data + display prefs
-  if (parsed._v === 3) {
-    return { importedData: safe(parsed.importedData), profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs };
-  }
-  // v2 compat: no chat data
-  if (parsed._v === 2) {
-    return { importedData: safe(parsed.importedData), profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: null, displayPrefs: null };
-  }
-  // v1 compat: raw importedData only. Reject if it doesn't look like an
-  // importedData shape at all — drops the catch-all "anything goes" branch
-  // that earlier let a malformed/malicious row land an arbitrary object
-  // into state.importedData wholesale.
-  if (parsed.entries || parsed.notes || parsed.supplements) {
-    return { importedData: safe(parsed), profile: null, aiSettings: null, chatData: null, displayPrefs: null };
-  }
-  throw new Error('Invalid sync payload: unknown shape');
+  return disablePhase2CutoverFlag(profileId);
 }
 
 // ═══════════════════════════════════════════════

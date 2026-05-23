@@ -1338,7 +1338,7 @@ Connect/disconnect/backfill orchestration. OAuth dispatch table, scheduled stale
 
 ### Wearables vendor adapters
 
-Each connected source ships as a pair: `wearables-<vendor>.js` (read API) + `wearables-<vendor>-auth.js` (OAuth dance). Apple Health and Manual skip the auth half — Apple is file-import only, Manual is fully local. Tokens never leave the device; `sync.js` strips `wearableConnections` from the synced payload (and again on pull as defense-in-depth).
+Each connected source ships as a pair: `wearables-<vendor>.js` (read API) + `wearables-<vendor>-auth.js` (OAuth dance). Apple Health and Manual skip the auth half — Apple is file-import only, Manual is fully local. Tokens never leave the device; `sync-payload.js` strips `wearableConnections` from the synced payload (and again on pull as defense-in-depth).
 
 **OAuth2 (server-side secret):** `wearables-oura.js` + `…-oura-auth.js`, `…-withings.js` + `…-withings-auth.js`, `…-ultrahuman.js` + `…-ultrahuman-auth.js`, `…-polar.js` + `…-polar-auth.js`. Secrets live in `.env.local` + `/api/proxy`.
 
@@ -1376,3 +1376,4 @@ Not separately documented because their exports are best read from source — ke
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
 - `sync.js` — Evolu CRDT sync orchestration; per-profile push debouncer, chat sync debouncer, relay status tracking, profile delete propagation, messenger token + push-context-to-gateway plumbing.
+- `sync-payload.js` — Evolu wire-payload helpers; outbound profile/config/chat/display envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.
