@@ -59,6 +59,36 @@ for (const fn of requiredExports) {
 }
 assert('window.readAloud removed', typeof window.readAloud === 'undefined', typeof window.readAloud);
 
+// ─── Section 1a: Discuss Button UI ───
+console.log('Section 1a: Discuss button UI');
+if (hasState) {
+  const origGetElementById = document.getElementById;
+  const origHistory = S.chatHistory;
+  const btn = { style: {}, title: '' };
+  document.getElementById = (id) => (id === 'chat-discuss-btn' ? btn : origGetElementById.call(document, id));
+
+  S.chatHistory = [{ role: 'user', content: 'No assistant yet' }];
+  window.updateDiscussButton();
+  assert('Discuss button hides without assistant messages', btn.style.display === 'none', btn.style.display);
+
+  S.chatHistory = [{ role: 'assistant', content: 'Direct reply' }];
+  window.updateDiscussButton();
+  assert('Discuss button shows after assistant response', btn.style.display === 'flex', btn.style.display);
+  assert('Discuss button prompts second opinion for one persona', btn.style.opacity === '0.5' && btn.title.includes('second opinion'), btn.title);
+
+  S.chatHistory = [
+    { role: 'assistant', personalityName: 'Analyst A', content: 'First' },
+    { role: 'assistant', personalityName: 'Analyst B', content: 'Second' },
+  ];
+  window.updateDiscussButton();
+  assert('Discuss button is active for two discussion personas', btn.style.opacity === '1' && btn.title.includes('Continue the debate'), btn.title);
+
+  S.chatHistory = origHistory;
+  document.getElementById = origGetElementById;
+} else {
+  console.warn('Skipping Discuss button UI tests — _labState not available');
+}
+
 // ─── Section 2: getContextSummary() ───
 console.log('Section 2: getContextSummary()');
 const summary = window.getContextSummary();
@@ -322,8 +352,10 @@ assert('chat-discussion-state.js owns persona state helpers',
   'found');
 assert('chat-discussion-ui.js owns discussion DOM controls',
   chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&
+    chatDiscussionUiSrc.includes('export function updateDiscussButton') &&
     chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
-    chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker'),
+    chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker') &&
+    !chatDiscussionSrc.includes('export function updateDiscussButton'),
   'found');
 assert('chat-discussion-round-request.js owns round API request setup',
   chatDiscussionSrc.includes("from './chat-discussion-round-request.js'") &&

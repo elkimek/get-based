@@ -20,7 +20,7 @@ import {
 import {
   removeDiscussContinuePrompt, removeDiscussPersonaPicker,
   showDiscussContinuePrompt as showDiscussContinuePromptUI,
-  showDiscussPersonaPicker,
+  showDiscussPersonaPicker, updateDiscussButton,
 } from './chat-discussion-ui.js';
 import {
   isRoundThreadActive, persistDiscussionThreadState, renderRoundMessages,
@@ -41,20 +41,7 @@ import {
 
 export { getCurrentDiscussionState, getThreadPersonaCount } from './chat-discussion-state.js';
 export { configureChatDiscussion } from './chat-discussion-callbacks.js';
-export { removeDiscussContinuePrompt } from './chat-discussion-ui.js';
-
-export function updateDiscussButton() {
-  const btn = document.getElementById('chat-discuss-btn');
-  if (!btn) return;
-  const hasAssistant = state.chatHistory && state.chatHistory.some(m => m.role === 'assistant');
-  if (!hasAssistant) { btn.style.display = 'none'; return; }
-  btn.style.display = 'flex';
-  const count = getThreadPersonaCount();
-  btn.style.opacity = count >= 2 ? '1' : '0.5';
-  btn.title = count >= 2
-    ? 'Continue the debate'
-    : 'Add another persona for a second opinion';
-}
+export { removeDiscussContinuePrompt, updateDiscussButton } from './chat-discussion-ui.js';
 
 export function restoreDiscussionContinuePrompt() {
   const discussionState = getCurrentDiscussionState();
