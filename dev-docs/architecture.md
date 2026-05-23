@@ -74,7 +74,8 @@ js/
   chat-discussion-round-state.js — Multi-persona discussion round persistence helpers
   chat-discussion-round-view.js — Multi-persona discussion live message DOM helpers
   chat-discussion-state.js — Multi-persona discussion persona/thread state helpers
-  chat-discussion-ui.js — Multi-persona discussion button, picker, and continuation controls
+  chat-discussion-picker.js — Multi-persona discussion persona picker controls
+  chat-discussion-ui.js — Multi-persona discussion button and continuation controls
   chat-empty-state.js — Empty chat and onboarding message renderer
   chat-nudge.js      — Chat FAB nudge badge and dismissal state
   chat-threads.js    — Chat thread index CRUD and rail rendering

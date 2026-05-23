@@ -353,6 +353,7 @@ const chatDiscussionRoundRequestSrc = read('js/chat-discussion-round-request.js'
 const chatDiscussionRoundStateSrc = read('js/chat-discussion-round-state.js');
 const chatDiscussionRoundViewSrc = read('js/chat-discussion-round-view.js');
 const chatDiscussionStateSrc = read('js/chat-discussion-state.js');
+const chatDiscussionPickerSrc = read('js/chat-discussion-picker.js');
 const chatDiscussionUiSrc = read('js/chat-discussion-ui.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const chatRenderSrc = read('js/chat-render.js');
@@ -477,18 +478,24 @@ assert('chat-discussion-state.js owns persona state helpers',
     chatDiscussionFlowSrc.includes('reopenCurrentDiscussionThread()') &&
     !chatDiscussionSrc.includes('saveChatThreadIndex'),
   'found');
-assert('chat-discussion-ui.js owns discussion DOM controls',
+assert('chat-discussion-ui.js owns discussion button and continuation controls',
   chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&
     chatDiscussionFlowSrc.includes("from './chat-discussion-ui.js'") &&
+    chatDiscussionUiSrc.includes("from './chat-discussion-picker.js'") &&
     chatDiscussionUiSrc.includes('export function updateDiscussButton') &&
-    chatDiscussionUiSrc.includes('export function readDiscussPersonaPickerSelection') &&
     chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
-    chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker') &&
-    chatDiscussionUiSrc.includes('const addingToExisting = activePersonaIds.size > 0') &&
-    chatDiscussionUiSrc.includes('checkedCount !== maxNewSelections') &&
+    chatDiscussionUiSrc.includes('export function removeDiscussContinuePrompt') &&
     chatDiscussionFlowSrc.includes('readDiscussPersonaPickerSelection()') &&
     !chatDiscussionSrc.includes("querySelector('.discuss-persona-picker')") &&
     !chatDiscussionSrc.includes('export function updateDiscussButton'),
+  'found');
+assert('chat-discussion-picker.js owns discussion picker DOM and selection',
+  chatDiscussionPickerSrc.includes('export function removeDiscussPersonaPicker') &&
+    chatDiscussionPickerSrc.includes('export function readDiscussPersonaPickerSelection') &&
+    chatDiscussionPickerSrc.includes('export function showDiscussPersonaPicker') &&
+    chatDiscussionPickerSrc.includes('const addingToExisting = activePersonaIds.size > 0') &&
+    chatDiscussionPickerSrc.includes('checkedCount !== maxNewSelections') &&
+    !chatDiscussionUiSrc.includes("querySelector('.discuss-persona-picker')"),
   'found');
 assert('Discuss button does not duplicate inline Continue',
   window.startDiscussion.toString().includes('showDiscussPersonaPicker') &&

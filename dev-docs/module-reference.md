@@ -478,7 +478,7 @@ Data export, import, and reset.
 
 ### `chat.js`
 
-Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion exports live in `chat-discussion.js`, with flow handlers in `chat-discussion-flow.js`, callback bridging in `chat-discussion-callbacks.js`, persona/thread state helpers in `chat-discussion-state.js`, round execution in `chat-discussion-round-runner.js`, round prompt helpers in `chat-discussion-round-prompts.js`, round API request helpers in `chat-discussion-round-request.js`, thread-bound round persistence in `chat-discussion-round-state.js`, live round message DOM helpers in `chat-discussion-round-view.js`, and Discuss button/picker/continue controls in `chat-discussion-ui.js`; panel chrome lives in `chat-panel.js`; FAB nudge state lives in `chat-nudge.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`; thread rail message search and match highlighting live in `chat-thread-search.js`.
+Chat public barrel and startup entry point. Importing this module installs `chat-window-bindings.js` for legacy inline handlers, then re-exports the public chat helpers from the feature modules. Per-marker/correlation prompt builders live in `chat-marker-prompts.js`; direct send/streaming and image send integration live in `chat-send.js`; chat transcript rendering lives in `chat-render.js`; empty/onboarding message states live in `chat-empty-state.js`; chat-first onboarding handlers and provider quiz helpers live in `chat-onboarding.js`; multi-persona discussion exports live in `chat-discussion.js`, with flow handlers in `chat-discussion-flow.js`, callback bridging in `chat-discussion-callbacks.js`, persona/thread state helpers in `chat-discussion-state.js`, round execution in `chat-discussion-round-runner.js`, round prompt helpers in `chat-discussion-round-prompts.js`, round API request helpers in `chat-discussion-round-request.js`, thread-bound round persistence in `chat-discussion-round-state.js`, live round message DOM helpers in `chat-discussion-round-view.js`, persona picker controls in `chat-discussion-picker.js`, and Discuss button/continue controls in `chat-discussion-ui.js`; panel chrome lives in `chat-panel.js`; FAB nudge state lives in `chat-nudge.js`; personality selection and custom persona editing live in `chat-personalities.js`; current-thread history persistence lives in `chat-history.js`; message action bars live in `chat-actions.js`; chat image attachment state lives in `chat-images.js`; thread index storage and rail rendering live in `chat-threads.js`; thread rail message search and match highlighting live in `chat-thread-search.js`.
 
 **Key exports:**
 - `sendChatMessage()` — re-exported from `chat-send.js` for existing callers
@@ -581,7 +581,7 @@ Multi-persona discussion public barrel. Re-exports discussion flow handlers from
 
 ### `chat-discussion-flow.js`
 
-Multi-persona discussion flow handlers. Owns manual-message discussion turns, active-discussion restore, continuation prompt persistence, cleanup/end lifecycle, picker decisions, single-persona add-on turns, and discussion round completion handoff. It delegates picker/prompt DOM to `chat-discussion-ui.js`, per-persona execution to `chat-discussion-round-runner.js`, and thread-bound persistence to `chat-discussion-round-state.js`.
+Multi-persona discussion flow handlers. Owns manual-message discussion turns, active-discussion restore, continuation prompt persistence, cleanup/end lifecycle, picker decisions, single-persona add-on turns, and discussion round completion handoff. It delegates picker/prompt DOM through `chat-discussion-ui.js`, per-persona execution to `chat-discussion-round-runner.js`, and thread-bound persistence to `chat-discussion-round-state.js`.
 
 **Key exports:** `sendDiscussionUserTurn`, `restoreDiscussionContinuePrompt`, `showDiscussContinuePrompt`, `cleanupDiscussionState`, `startDiscussion`, `startDiscussionFromPicker`, `continueDiscussion`, `endDiscussion`
 
@@ -637,11 +637,19 @@ Live discussion round DOM helpers. Owns typing indicators, persona labels, strea
 
 ### `chat-discussion-ui.js`
 
-Multi-persona discussion DOM controls. Owns the Discuss button visibility/add-persona state, continuation prompt, persona picker markup, picker checkbox limiting, picker selection reads, and transient state handoff used by `continueDiscussion()` and `endDiscussion()`.
+Multi-persona discussion button and continuation prompt controls. Owns the Discuss button visibility/add-persona state and transient state handoff used by `continueDiscussion()` and `endDiscussion()`. Re-exports picker helpers from `chat-discussion-picker.js` so existing discussion flow imports stay stable.
 
 **Key exports:** `updateDiscussButton`, `showDiscussContinuePrompt`, `removeDiscussContinuePrompt`, `removeDiscussPersonaPicker`, `readDiscussPersonaPickerSelection`, `showDiscussPersonaPicker`
 
 **Window exports:** none directly; `chat-discussion.js` wraps/re-exports public controls and `chat-window-bindings.js` assigns the compatibility handlers.
+
+### `chat-discussion-picker.js`
+
+Multi-persona discussion picker controls. Owns persona picker markup, active-persona locking, checkbox limiting, and picker selection reads.
+
+**Key exports:** `removeDiscussPersonaPicker`, `readDiscussPersonaPickerSelection`, `showDiscussPersonaPicker`
+
+**Window exports:** none.
 
 ### `chat-discussion-state.js`
 
