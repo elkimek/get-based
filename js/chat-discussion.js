@@ -8,11 +8,7 @@ import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
   isVeniceE2EEActive,
 } from './api.js';
-import {
-  getChatThreadKey, invalidateThreadContentCache, renderThreadList,
-  saveChatThreadIndex,
-} from './chat-threads.js';
-import { encryptedSetItem, getEncryptionEnabled } from './crypto.js';
+import { saveChatThreadIndex } from './chat-threads.js';
 import { buildLabContext, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { renderMarkdown } from './markdown.js';
@@ -20,7 +16,6 @@ import {
   getActivePersonality, getCustomPersonality,
   updateChatHeaderTitle,
 } from './chat-personalities.js';
-import { saveChatHistory } from './chat-history.js';
 import {
   CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
   isAIResponseTruncated, responseLimitNote,
@@ -40,6 +35,10 @@ import {
   showDiscussContinuePrompt as showDiscussContinuePromptUI,
   showDiscussPersonaPicker,
 } from './chat-discussion-ui.js';
+import {
+  isRoundThreadActive, persistDiscussionThreadState, renderRoundMessages,
+  saveRoundChatHistory,
+} from './chat-discussion-round-state.js';
 
 export { getCurrentDiscussionState, getThreadPersonaCount } from './chat-discussion-state.js';
 export { removeDiscussContinuePrompt } from './chat-discussion-ui.js';
@@ -80,55 +79,6 @@ function createTypewriter(el, typingEl, container) {
     };
   }
   return discussionCallbacks.createTypewriter(el, typingEl, container);
-}
-
-function isRoundThreadActive(threadId) {
-  return !threadId || state.currentThreadId === threadId;
-}
-
-function getThreadById(threadId) {
-  return state.chatThreads.find(t => t.id === threadId) || null;
-}
-
-function persistDiscussionThreadState(threadId, personas, originalPersonality) {
-  const thread = getThreadById(threadId);
-  if (!thread) return;
-  thread.discussionPersonas = personas;
-  thread.discussionOriginalPersonality = originalPersonality;
-  delete thread.discussionEnded;
-  saveChatThreadIndex();
-}
-
-function renderRoundMessages(threadId, messages) {
-  if (!isRoundThreadActive(threadId)) return;
-  state.chatHistory = messages;
-  renderChatMessages();
-}
-
-async function saveRoundChatHistory(threadId, messages) {
-  if (!threadId) return;
-  if (isRoundThreadActive(threadId)) {
-    state.chatHistory = messages;
-    await saveChatHistory();
-    return;
-  }
-
-  invalidateThreadContentCache();
-  const value = JSON.stringify(messages);
-  const key = getChatThreadKey(threadId);
-  if (getEncryptionEnabled()) {
-    await encryptedSetItem(key, value);
-  } else {
-    localStorage.setItem(key, value);
-  }
-
-  const thread = getThreadById(threadId);
-  if (thread) {
-    if (thread.messageCount !== messages.length) thread.updatedAt = new Date().toISOString();
-    thread.messageCount = messages.length;
-    saveChatThreadIndex();
-    renderThreadList();
-  }
 }
 
 export function updateDiscussButton() {
@@ -183,7 +133,7 @@ async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       if (!opts.suppressAutoMsg) {
         const autoMsg = { role: 'user', content: msgText, auto: true, hidden: !!opts.hideAutoMsg };
         roundHistory.push(autoMsg);
-        renderRoundMessages(roundThreadId, roundHistory);
+        renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
         await saveRoundChatHistory(roundThreadId, roundHistory);
       }
 

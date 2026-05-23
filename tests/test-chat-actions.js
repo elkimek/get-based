@@ -173,6 +173,7 @@ const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
+const chatDiscussionRoundStateSrc = read('js/chat-discussion-round-state.js');
 const chatDiscussionStateSrc = read('js/chat-discussion-state.js');
 const chatDiscussionUiSrc = read('js/chat-discussion-ui.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
@@ -265,6 +266,12 @@ assert('chat-discussion-ui.js owns discussion DOM controls',
   chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&
     chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
     chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker'),
+  'found');
+assert('chat-discussion-round-state.js owns thread-bound round persistence',
+  chatDiscussionSrc.includes("from './chat-discussion-round-state.js'") &&
+    chatDiscussionRoundStateSrc.includes('export function isRoundThreadActive') &&
+    chatDiscussionRoundStateSrc.includes('export function persistDiscussionThreadState') &&
+    chatDiscussionRoundStateSrc.includes('export async function saveRoundChatHistory'),
   'found');
 assert('chat discussion rounds stay bound to origin thread during streaming',
   chatDiscussionSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&
