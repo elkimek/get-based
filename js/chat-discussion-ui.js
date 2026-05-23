@@ -55,6 +55,29 @@ export function removeDiscussPersonaPicker() {
   if (picker) picker.remove();
 }
 
+export function readDiscussPersonaPickerSelection() {
+  const picker = document.querySelector('.discuss-persona-picker');
+  if (!picker) return null;
+
+  const lockedInputs = picker.querySelectorAll('input[data-locked="1"]');
+  const checkedInputs = picker.querySelectorAll('input:checked:not([data-locked="1"])');
+  const allSelected = [...lockedInputs, ...checkedInputs];
+  if (lockedInputs.length > 0) {
+    if (checkedInputs.length !== 1) return null;
+  } else if (allSelected.length !== 2) {
+    return null;
+  }
+
+  const lockedIds = new Set(Array.from(lockedInputs).map(cb => cb.value));
+  const allPersonas = allSelected.map(cb => ({
+    id: cb.value,
+    name: cb.dataset.name,
+    icon: cb.dataset.icon
+  }));
+  const newPersonas = allPersonas.filter(p => !lockedIds.has(p.id));
+  return { allPersonas, newPersonas };
+}
+
 export function showDiscussPersonaPicker() {
   const allPersonas = [
     ...CHAT_PERSONALITIES.map(p => ({ id: p.id, name: p.name, icon: p.icon })),

@@ -43,6 +43,7 @@ const {
   buildDiscussionAutoMessage, buildDiscussionJoinMessage, getDiscussionPromptText,
   hasExistingDiscussionResponses,
 } = await import('../js/chat-discussion-round-prompts.js');
+const { readDiscussPersonaPickerSelection } = await import('../js/chat-discussion-ui.js');
 
 const S = window._labState;
 const hasState = S && typeof S === 'object';
@@ -87,6 +88,55 @@ if (hasState) {
   document.getElementById = origGetElementById;
 } else {
   console.warn('Skipping Discuss button UI tests — _labState not available');
+}
+
+// ─── Section 1b: Discuss Picker Selection ───
+console.log('Section 1b: Discuss picker selection');
+{
+  const origQuerySelector = document.querySelector;
+  const makeInput = (id, name = id, icon = id[0].toUpperCase()) => ({
+    value: id,
+    dataset: { name, icon },
+  });
+  const withPicker = (locked, checked, fn) => {
+    const picker = {
+      querySelectorAll(selector) {
+        if (selector === 'input[data-locked="1"]') return locked;
+        if (selector === 'input:checked:not([data-locked="1"])') return checked;
+        return [];
+      },
+    };
+    document.querySelector = (selector) => (selector === '.discuss-persona-picker' ? picker : origQuerySelector.call(document, selector));
+    return fn();
+  };
+
+  assert('Picker selection returns null when no picker exists',
+    readDiscussPersonaPickerSelection() === null,
+    'no picker');
+  assert('Picker selection requires two new personas for a fresh debate',
+    withPicker([], [makeInput('a', 'Analyst A')], () => readDiscussPersonaPickerSelection() === null),
+    'one fresh selection');
+  assert('Picker selection reads two fresh debate personas',
+    withPicker([], [makeInput('a', 'Analyst A'), makeInput('b', 'Analyst B')], () => {
+      const selection = readDiscussPersonaPickerSelection();
+      return selection?.allPersonas.length === 2 &&
+        selection?.newPersonas.length === 2 &&
+        selection.allPersonas[0].name === 'Analyst A';
+    }),
+    'two fresh selections');
+  assert('Picker selection requires one new persona for an active debate',
+    withPicker([makeInput('a'), makeInput('b')], [], () => readDiscussPersonaPickerSelection() === null),
+    'locked without new selection');
+  assert('Picker selection reads one added persona for an active debate',
+    withPicker([makeInput('a'), makeInput('b')], [makeInput('c', 'Analyst C')], () => {
+      const selection = readDiscussPersonaPickerSelection();
+      return selection?.allPersonas.length === 3 &&
+        selection?.newPersonas.length === 1 &&
+        selection.newPersonas[0].id === 'c';
+    }),
+    'one added persona');
+
+  document.querySelector = origQuerySelector;
 }
 
 // ─── Section 2: getContextSummary() ───
@@ -353,10 +403,13 @@ assert('chat-discussion-state.js owns persona state helpers',
 assert('chat-discussion-ui.js owns discussion DOM controls',
   chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&
     chatDiscussionUiSrc.includes('export function updateDiscussButton') &&
+    chatDiscussionUiSrc.includes('export function readDiscussPersonaPickerSelection') &&
     chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
     chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker') &&
     chatDiscussionUiSrc.includes('const addingToExisting = activePersonaIds.size > 0') &&
     chatDiscussionUiSrc.includes('checkedCount !== maxNewSelections') &&
+    chatDiscussionSrc.includes('readDiscussPersonaPickerSelection()') &&
+    !chatDiscussionSrc.includes("querySelector('.discuss-persona-picker')") &&
     !chatDiscussionSrc.includes('export function updateDiscussButton'),
   'found');
 assert('Discuss button does not duplicate inline Continue',

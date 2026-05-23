@@ -17,7 +17,7 @@ import {
   setChatAbortController, setSendButtonMode,
 } from './chat-discussion-callbacks.js';
 import {
-  removeDiscussContinuePrompt, removeDiscussPersonaPicker,
+  readDiscussPersonaPickerSelection, removeDiscussContinuePrompt, removeDiscussPersonaPicker,
   showDiscussContinuePrompt as showDiscussContinuePromptUI,
   showDiscussPersonaPicker, updateDiscussButton,
 } from './chat-discussion-ui.js';
@@ -244,30 +244,13 @@ export async function startDiscussion() {
 }
 
 export async function startDiscussionFromPicker() {
-  const picker = document.querySelector('.discuss-persona-picker');
-  if (!picker) return;
-  // Collect locked (already in thread) and newly checked personas
-  const lockedInputs = picker.querySelectorAll('input[data-locked="1"]');
-  const checkedInputs = picker.querySelectorAll('input:checked:not([data-locked="1"])');
-  const allSelected = [...lockedInputs, ...checkedInputs];
-  if (lockedInputs.length > 0) {
-    if (checkedInputs.length !== 1) return;
-  } else if (allSelected.length !== 2) {
-    return;
-  }
-
-  const lockedIds = new Set(Array.from(lockedInputs).map(cb => cb.value));
-  const allPersonas = allSelected.map(cb => ({
-    id: cb.value,
-    name: cb.dataset.name,
-    icon: cb.dataset.icon
-  }));
-  // Only the NEW persona (not locked) responds — they're joining the conversation
-  const newPersonas = allPersonas.filter(p => !lockedIds.has(p.id));
-  picker.remove();
+  const selection = readDiscussPersonaPickerSelection();
+  if (!selection) return;
+  const { allPersonas, newPersonas } = selection;
+  removeDiscussPersonaPicker();
 
   if (newPersonas.length > 0) {
-    // Adding a second persona — only they respond (one turn)
+    // Adding a new persona — only they respond (one turn)
     return _runSingleTurn(newPersonas[0], allPersonas);
   }
   // Shouldn't happen, but fallback
