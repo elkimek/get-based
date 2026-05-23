@@ -174,6 +174,7 @@ const chatPanelSrc = read('js/chat-panel.js');
 const chatNudgeSrc = read('js/chat-nudge.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionStateSrc = read('js/chat-discussion-state.js');
+const chatDiscussionUiSrc = read('js/chat-discussion-ui.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
@@ -259,6 +260,11 @@ assert('chat-discussion-state.js owns persona state helpers',
   chatDiscussionSrc.includes("from './chat-discussion-state.js'") &&
     chatDiscussionStateSrc.includes('export function getCurrentDiscussionState') &&
     chatDiscussionStateSrc.includes('export function collectDiscussionPersonas'),
+  'found');
+assert('chat-discussion-ui.js owns discussion DOM controls',
+  chatDiscussionSrc.includes("from './chat-discussion-ui.js'") &&
+    chatDiscussionUiSrc.includes('export function showDiscussContinuePrompt') &&
+    chatDiscussionUiSrc.includes('export function showDiscussPersonaPicker'),
   'found');
 assert('chat discussion rounds stay bound to origin thread during streaming',
   chatDiscussionSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&

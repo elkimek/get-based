@@ -1,7 +1,7 @@
 // chat-discussion.js — Multi-persona discussion/debate orchestration
 
 import { state } from './state.js';
-import { CHAT_PERSONALITIES, CHAT_SYSTEM_PROMPT } from './constants.js';
+import { CHAT_SYSTEM_PROMPT } from './constants.js';
 import { calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML } from './utils.js';
 import {
@@ -17,7 +17,7 @@ import { buildLabContext, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { renderMarkdown } from './markdown.js';
 import {
-  getActivePersonality, getCustomPersonalities, getCustomPersonality,
+  getActivePersonality, getCustomPersonality,
   updateChatHeaderTitle,
 } from './chat-personalities.js';
 import { saveChatHistory } from './chat-history.js';
@@ -35,8 +35,14 @@ import {
   collectDiscussionPersonas, getCurrentDiscussionState, getCurrentThread,
   getThreadPersonaCount,
 } from './chat-discussion-state.js';
+import {
+  removeDiscussContinuePrompt, removeDiscussPersonaPicker,
+  showDiscussContinuePrompt as showDiscussContinuePromptUI,
+  showDiscussPersonaPicker,
+} from './chat-discussion-ui.js';
 
 export { getCurrentDiscussionState, getThreadPersonaCount } from './chat-discussion-state.js';
+export { removeDiscussContinuePrompt } from './chat-discussion-ui.js';
 
 const discussionCallbacks = {
   createTypewriter: null,
@@ -315,50 +321,17 @@ export async function sendDiscussionUserTurn(text, discussionState = getCurrentD
 }
 
 export function showDiscussContinuePrompt(personas, originalPersonality) {
-  const container = document.getElementById('chat-messages');
-  if (!container) return;
-  // Remove any existing continue prompt
-  const existing = container.querySelector('.chat-discuss-continue');
-  if (existing) existing.remove();
-
-  const prompt = document.createElement('div');
-  prompt.className = 'chat-discuss-continue';
-  prompt.innerHTML = '<input type="text" class="chat-discuss-steer" id="chat-discuss-steer" autocomplete="off" placeholder="Steer the debate (optional)..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();continueDiscussion()}">' +
-    '<div class="chat-discuss-continue-actions">' +
-    '<button class="chat-discuss-continue-btn" onclick="continueDiscussion()">Continue</button>' +
-    '<button class="chat-discuss-done-btn" onclick="endDiscussion()">Done</button>' +
-    '</div>';
-  container.appendChild(prompt);
-  container.scrollTop = container.scrollHeight;
-  // Focus the steer input
-  const steerInput = prompt.querySelector('.chat-discuss-steer');
-  if (steerInput) steerInput.focus();
-
-  // Stash state for continue/done
-  state._discussionPersonas = personas;
-  state._discussionOriginalPersonality = originalPersonality;
-
-  // Persist discussion state to thread metadata
-  const thread = getCurrentThread();
-  if (thread) {
-    thread.discussionPersonas = personas;
-    thread.discussionOriginalPersonality = originalPersonality;
-    delete thread.discussionEnded;
-    saveChatThreadIndex();
-  }
-}
-
-export function removeDiscussContinuePrompt() {
-  const container = document.getElementById('chat-messages');
-  if (!container) return;
-  const el = container.querySelector('.chat-discuss-continue');
-  if (el) el.remove();
+  showDiscussContinuePromptUI(personas, originalPersonality, {
+    onPersist() {
+      const thread = getCurrentThread();
+      if (thread) persistDiscussionThreadState(thread.id, personas, originalPersonality);
+    },
+  });
 }
 
 export function cleanupDiscussionState({ clearThread = false, markEnded = false } = {}) {
   removeDiscussContinuePrompt();
-  const picker = document.querySelector('.discuss-persona-picker');
-  if (picker) picker.remove();
+  removeDiscussPersonaPicker();
   delete state._discussionPersonas;
   delete state._discussionOriginalPersonality;
 
@@ -416,73 +389,7 @@ export async function startDiscussion() {
     return _runDiscussion(personas);
   }
 
-  // Only 1 persona — show picker to add a second
   showDiscussPersonaPicker();
-}
-
-function showDiscussPersonaPicker() {
-  const allPersonas = [
-    ...CHAT_PERSONALITIES.map(p => ({ id: p.id, name: p.name, icon: p.icon })),
-    ...getCustomPersonalities().map(p => ({ id: p.id, name: p.name, icon: p.icon || '✏️' }))
-  ];
-  if (allPersonas.length < 2) return;
-
-  // Remove existing picker
-  const existing = document.querySelector('.discuss-persona-picker');
-  if (existing) { existing.remove(); return; }
-
-  const container = document.querySelector('.chat-input-area');
-  if (!container) return;
-
-  // Find which persona is already active in this thread
-  const activePersonaIds = new Set();
-  for (const m of state.chatHistory) {
-    if (m.role === 'assistant' && m.personalityName) {
-      const bp = CHAT_PERSONALITIES.find(p => p.name === m.personalityName);
-      if (bp) activePersonaIds.add(bp.id);
-      else {
-        const cp = getCustomPersonalities().find(p => p.name === m.personalityName);
-        if (cp) activePersonaIds.add(cp.id);
-      }
-    }
-  }
-  const hasActive = activePersonaIds.size > 0;
-  const needsOne = hasActive && activePersonaIds.size < 2;
-
-  const picker = document.createElement('div');
-  picker.className = 'discuss-persona-picker';
-  picker.innerHTML = `
-    <div class="discuss-picker-header">${needsOne ? 'Add another persona to the debate' : 'Pick two personas to debate'}</div>
-    <div class="discuss-picker-list">
-      ${allPersonas.map(p => {
-        const isActive = activePersonaIds.has(p.id);
-        const checked = isActive ? ' checked' : '';
-        const locked = isActive && needsOne;
-        return `<label class="discuss-picker-item${locked ? ' locked' : ''}">
-        <input type="checkbox" value="${escapeHTML(p.id)}" data-name="${escapeHTML(p.name)}" data-icon="${escapeHTML(p.icon)}"${checked}${locked ? ' disabled' : ''} data-locked="${locked ? '1' : ''}">
-        <span>${p.icon} ${escapeHTML(p.name)}</span>
-      </label>`;
-      }).join('')}
-    </div>
-    <button class="discuss-picker-start"${needsOne ? '' : ' disabled'} onclick="startDiscussionFromPicker()">${needsOne ? 'Add to Discussion' : 'Start Debate'}</button>`;
-
-  function updatePickerState() {
-    const lockedCount = picker.querySelectorAll('input[data-locked="1"]').length;
-    const checkedCount = picker.querySelectorAll('input:checked:not([data-locked="1"])').length;
-    const total = lockedCount + checkedCount;
-    const startBtn = picker.querySelector('.discuss-picker-start');
-    startBtn.disabled = total !== 2;
-    // Limit to 2 total
-    if (total >= 2) {
-      picker.querySelectorAll('input:not(:checked):not([data-locked="1"])').forEach(cb => cb.disabled = true);
-    } else {
-      picker.querySelectorAll('input:not([data-locked="1"])').forEach(cb => cb.disabled = false);
-    }
-  }
-  picker.addEventListener('change', updatePickerState);
-  updatePickerState();
-
-  container.insertBefore(picker, container.firstChild);
 }
 
 export async function startDiscussionFromPicker() {

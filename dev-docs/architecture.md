@@ -67,6 +67,7 @@ js/
   chat-continuation.js — Response limit detection and automatic continuation
   chat-discussion.js — Multi-persona discussion/debate orchestration
   chat-discussion-state.js — Multi-persona discussion persona/thread state helpers
+  chat-discussion-ui.js — Multi-persona discussion picker and continuation controls
   chat-empty-state.js — Empty chat and onboarding message renderer
   chat-nudge.js      — Chat FAB nudge badge and dismissal state
   chat-threads.js    — Chat thread index CRUD and rail rendering
