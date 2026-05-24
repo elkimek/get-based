@@ -2043,6 +2043,22 @@ await import('../js/settings.js');
           Object.keys(plan.next || {}).length === rows.length);
         assert('genetics.snps row fallback avoids false tombstone-storm warning',
           tombstoneStormWarned === false);
+        tombstoneStormWarned = false;
+        const emptyMapPlan = await syncDelta._planKeyedMapDelta(profileId, 'genetics.snps', {});
+        assert('genetics.snps empty blob map falls back to live itemRows',
+          Object.keys(emptyMapPlan.next || {}).length === rows.length);
+        assert('genetics.snps empty-map fallback avoids false tombstone-storm warning',
+          tombstoneStormWarned === false);
+        syncDelta.configureSyncDelta({
+          getEvolu: () => ({ getQueryRows: () => [] }),
+          getItemRowQuery: () => ({}),
+        });
+        tombstoneStormWarned = false;
+        const noRowsPlan = await syncDelta._planKeyedMapDelta(profileId, 'genetics.snps', {});
+        assert('genetics.snps empty map with unavailable itemRows preserves previous snapshot',
+          Object.keys(noRowsPlan.next || {}).length === rows.length && noRowsPlan.ops.length === 0);
+        assert('genetics.snps empty map with unavailable itemRows avoids false warning',
+          tombstoneStormWarned === false);
       } finally {
         console.warn = oldWarn;
         syncDelta.configureSyncDelta({ getEvolu: () => null, getItemRowQuery: () => null });

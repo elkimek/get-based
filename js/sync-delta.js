@@ -484,12 +484,13 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
 
   let obj = (mapObj && typeof mapObj === 'object' && !Array.isArray(mapObj)) ? mapObj : {};
-  if (mapName === 'genetics.snps' && Object.keys(obj).length === 0 && mapObj == null) {
+  if (mapName === 'genetics.snps' && Object.keys(obj).length === 0) {
     // The blob/scalar paths intentionally strip genetics.snps; per-row
     // itemRows are the source of truth. If local importedData was hydrated
-    // from a metadata-only genetics blob before the per-row overlay ran,
-    // don't interpret the absent map as "delete every SNP" on the next
-    // unrelated save. Rebuild the planning input from live rows instead.
+    // from a metadata-only genetics blob, or from an empty placeholder
+    // object, before the per-row overlay ran, don't interpret that as
+    // "delete every SNP" on the next unrelated save. Rebuild the
+    // planning input from live rows instead.
     const fromRows = Object.create(null);
     for (const row of matching) {
       if (!row || row.isDeleted) continue;
@@ -507,6 +508,9 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
       } catch {}
     }
     if (Object.keys(fromRows).length > 0) obj = fromRows;
+    else if (Object.keys(prev).length > 0) {
+      return { ops, next: prev, plannedAt };
+    }
   }
   for (const [rawKey, value] of Object.entries(obj)) {
     const itemId = keyIdFn(rawKey);
