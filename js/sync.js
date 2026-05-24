@@ -8,8 +8,8 @@ import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadP
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt } from './data-merge.js';
 import {
-  AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, _base64ToBytes, _bytesToBase64,
-  _gzipString, _gunzipToStringCapped, buildSyncPayload, collectAISettings,
+  _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped,
+  buildSyncPayload, collectAISettings,
   disablePhase2CutoverFlag, enablePhase2CutoverFlag, isPhase2CutoverEnabled,
   parseSyncPayload,
 } from './sync-payload.js';
@@ -23,6 +23,7 @@ import {
   getSyncDisplayState as getSyncDisplayStateFromStatus, getSyncStatus,
   logSyncEvent, resetSyncStatus, subscribeSyncStatus, updateSyncStatus,
 } from './sync-state.js';
+import { applyAISettings, applyChatData, applyDisplayPrefs, markChatDataLocal } from './sync-apply.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -839,120 +840,6 @@ export async function restoreFromMnemonic(mnemonic) {
     console.error('[sync] Restore failed:', e);
     showNotification('Invalid mnemonic', 'error');
     return false;
-  }
-}
-
-// ═══════════════════════════════════════════════
-// SYNC PAYLOAD — wraps importedData + profile meta
-// ═══════════════════════════════════════════════
-
-const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
-const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
-const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
-const CHAT_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-local-lock-until';
-const CHAT_LOCAL_LOCK_MS = 90 * 1000;
-
-function hasLocalAISettingsLock() {
-  try {
-    const until = Number(sessionStorage.getItem(AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY) || '0');
-    return Number.isFinite(until) && Date.now() < until;
-  } catch {
-    return false;
-  }
-}
-
-function shouldKeepLocalOpenRouterOAuthSetting(key) {
-  if (!OPENROUTER_OAUTH_LOCAL_SETTING_KEYS.has(key)) return false;
-  try {
-    const until = Number(sessionStorage.getItem(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY) || '0');
-    return Number.isFinite(until) && Date.now() < until;
-  } catch {
-    return false;
-  }
-}
-
-function shouldKeepLocalAISetting(key) {
-  return shouldKeepLocalOpenRouterOAuthSetting(key)
-    || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
-}
-
-function markChatDataLocal() {
-  try {
-    sessionStorage.setItem(CHAT_LOCAL_LOCK_UNTIL_KEY, String(Date.now() + CHAT_LOCAL_LOCK_MS));
-  } catch {}
-}
-
-function shouldKeepLocalChatData(profileId) {
-  if (profileId !== state.currentProfile) return false;
-  try {
-    const until = Number(sessionStorage.getItem(CHAT_LOCAL_LOCK_UNTIL_KEY) || '0');
-    return Number.isFinite(until) && Date.now() < until;
-  } catch {
-    return false;
-  }
-}
-
-const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic', 'labcharts-lens-key', 'labcharts-custom-key'];
-
-async function applyAISettings(settings) {
-  if (!settings) return;
-  let changed = false;
-  for (const [key, val] of Object.entries(settings)) {
-    if (!AI_SETTINGS_KEYS.includes(key)) continue;
-    if (typeof val !== 'string' || val.length > 10000) continue; // sanity check
-    if (shouldKeepLocalAISetting(key)) continue;
-    const before = await encryptedGetItem(key);
-    if (before === val) continue;
-    if (ENCRYPTED_AI_KEYS.includes(key)) {
-      await encryptedSetItem(key, val);
-    } else {
-      localStorage.setItem(key, val);
-    }
-    changed = true;
-  }
-  if (changed) {
-    window.updateChatHeaderModel?.();
-    window.refreshWebSearchToggle?.();
-  }
-}
-
-async function applyChatData(profileId, chatData) {
-  if (!chatData || !chatData.threads) return false;
-  if (shouldKeepLocalChatData(profileId)) {
-    dbg(`Skipped chatData for ${profileId.slice(0,8)} — local chat has newer unsynced changes`);
-    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0,8)} — local changes pending`);
-    return false;
-  }
-  // Thread index: always plain localStorage (matches saveChatThreadIndex in chat.js).
-  // encryptAllSensitiveKeys handles at-rest encryption when session ends.
-  const threadsKey = `labcharts-${profileId}-chat-threads`;
-  localStorage.setItem(threadsKey, JSON.stringify(chatData.threads));
-  if (chatData.messages) {
-    for (const [threadId, msgs] of Object.entries(chatData.messages)) {
-      const msgKey = `labcharts-${profileId}-chat-t_${threadId}`;
-      const msgJson = JSON.stringify(msgs);
-      if (getEncryptionEnabled()) {
-        await encryptedSetItem(msgKey, msgJson);
-      } else {
-        localStorage.setItem(msgKey, msgJson);
-      }
-    }
-  }
-  if (chatData.customPersonalities) {
-    localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, JSON.stringify(chatData.customPersonalities));
-  }
-  if (chatData.activePersonality) {
-    localStorage.setItem(`labcharts-${profileId}-chatPersonality`, chatData.activePersonality);
-  }
-  return true;
-}
-
-function applyDisplayPrefs(profileId, prefs) {
-  if (!prefs) return;
-  for (const suffix of DISPLAY_PREF_SUFFIXES) {
-    if (suffix in prefs) {
-      localStorage.setItem(`labcharts-${profileId}-${suffix}`, prefs[suffix]);
-    }
   }
 }
 

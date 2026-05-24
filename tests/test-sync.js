@@ -32,6 +32,7 @@ await import('../js/sync.js');
 await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
+  const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -65,6 +66,14 @@ await import('../js/settings.js');
       && syncStateSrc.includes('export function consumeRebroadcastBudget'));
   assert('service worker precaches sync-state.js',
     serviceWorkerSrc.includes("'/js/sync-state.js'"));
+  assert('sync-apply.js owns inbound AI/chat/display apply helpers',
+    syncSrc.includes("from './sync-apply.js'")
+      && syncApplySrc.includes('export async function applyAISettings')
+      && syncApplySrc.includes('export async function applyChatData')
+      && syncApplySrc.includes('export function applyDisplayPrefs')
+      && syncApplySrc.includes('export function markChatDataLocal'));
+  assert('service worker precaches sync-apply.js',
+    serviceWorkerSrc.includes("'/js/sync-apply.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -334,12 +343,12 @@ await import('../js/settings.js');
     assert(`AI_SETTINGS_KEYS includes ${key}`, syncPayloadSrc.includes(`'${key}'`));
   }
 
-  assert('Encrypted keys use encryptedSetItem on apply', syncSrc.includes('ENCRYPTED_AI_KEYS') && syncSrc.includes('encryptedSetItem(key, val)'));
+  assert('Encrypted keys use encryptedSetItem on apply', syncApplySrc.includes('ENCRYPTED_AI_KEYS') && syncApplySrc.includes('encryptedSetItem(key, val)'));
   assert('collectAISettings uses encryptedGetItem', syncPayloadSrc.includes('encryptedGetItem(key)'));
-  assert('applyAISettings has allowlist check', syncSrc.includes('AI_SETTINGS_KEYS.includes(key)'));
-  assert('applyAISettings has size guard', syncSrc.includes('val.length > 10000'));
-  assert('applyAISettings honors fresh local AI setting lock', syncSrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalAISetting(key)'));
-  assert('applyAISettings refreshes chat provider UI on remote changes', syncSrc.includes('window.updateChatHeaderModel?.()') && syncSrc.includes('window.refreshWebSearchToggle?.()'));
+  assert('applyAISettings has allowlist check', syncApplySrc.includes('AI_SETTINGS_KEYS.includes(key)'));
+  assert('applyAISettings has size guard', syncApplySrc.includes('val.length > 10000'));
+  assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
+  assert('applyAISettings refreshes chat provider UI on remote changes', syncApplySrc.includes('window.updateChatHeaderModel?.()') && syncApplySrc.includes('window.refreshWebSearchToggle?.()'));
   assert('AI setting changes schedule a sync push', syncSrc.includes("labcharts-ai-settings-local-changed") && syncSrc.includes('pushProfile(profileId, importedData)'));
 
   // ═══════════════════════════════════════
@@ -449,7 +458,7 @@ await import('../js/settings.js');
   assert('disableSync reloads page after reset to kill Worker', syncSrc.includes('window.location.reload()'));
   assert('disableSync clears sync timestamps', syncSrc.includes("'-sync-ts'") && syncSrc.indexOf("'-sync-ts'") < restoreIdx);
   assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
-    syncSrc.includes("localStorage.setItem(threadsKey, JSON.stringify(chatData.threads)"));
+    syncApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(chatData.threads)"));
 
   // ═══════════════════════════════════════
   // 9. SETTINGS UI
@@ -500,11 +509,11 @@ await import('../js/settings.js');
   assert('collectChatData reads threads', syncPayloadSrc.includes('chat-threads') && syncPayloadSrc.includes('collectChatData'));
   assert('collectChatData reads per-thread messages', syncPayloadSrc.includes('chat-t_${t.id}'));
   assert('collectChatData includes custom personalities', syncPayloadSrc.includes('chatPersonalityCustom'));
-  assert('applyChatData writes threads', syncSrc.includes('applyChatData'));
+  assert('applyChatData writes threads', syncApplySrc.includes('applyChatData'));
   assert('applyChatData skips stale remote chat while local save is fresh',
-    syncSrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncSrc.includes('shouldKeepLocalChatData(profileId)'));
+    syncApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalChatData(profileId)'));
   assert('chat freshness lock is shorter than two minutes',
-    syncSrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
+    syncApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
   assert('active chat reload only runs after chatData is applied',
     syncSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
       && syncSrc.includes('if (chatApplied)'));
