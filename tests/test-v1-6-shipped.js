@@ -295,10 +295,10 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /addEventListener\('offline'/.test(syncRecoverySrc));
     assert('sync-recovery.js: listens for online event + kicks sync',
       /addEventListener\('online'[\s\S]{0,200}_kickSync\('online'\)/.test(syncRecoverySrc));
-    assert('sync-recovery.js: offline toast mentions "saved locally"',
-      /saved locally and will sync when you reconnect/.test(syncRecoverySrc));
-    assert('sync-recovery.js: online toast mentions "syncing"',
-      /Back online[\s\S]{0,80}syncing your changes/i.test(syncRecoverySrc));
+    assert('sync-recovery.js: offline toast copy matches shipped em-dash wording',
+      syncRecoverySrc.includes('Offline — changes are saved locally and will sync when you reconnect.'));
+    assert('sync-recovery.js: online toast copy matches shipped em-dash wording',
+      syncRecoverySrc.includes('Back online — syncing your changes.'));
     assert('sync-recovery.js: toast guarded against double-firing',
       /_lastNetState/.test(syncRecoverySrc));
   }

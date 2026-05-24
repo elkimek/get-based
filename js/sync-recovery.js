@@ -63,13 +63,13 @@ export function bindSyncRecoveryEvents() {
       _kickSync('online');
       if (!_lastNetState) {
         _lastNetState = true;
-        _notify('Back online - syncing your changes.', 'success', 3000);
+        _notify('Back online — syncing your changes.', 'success', 3000);
       }
     });
 
     window.addEventListener('offline', () => {
       _lastNetState = false;
-      _notify('Offline - changes are saved locally and will sync when you reconnect.', 'info', 5000);
+      _notify('Offline — changes are saved locally and will sync when you reconnect.', 'info', 5000);
     });
   }
 }
