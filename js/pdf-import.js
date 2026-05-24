@@ -708,7 +708,7 @@ export function showImportPreview(parseResult) {
       </div>
       <div class="import-review-file">
         <span class="import-review-label">Collection date</span>
-        <strong>${escapeHTML(dateFormatted)}</strong>
+        <input type="date" id="import-manual-date" value="${escapeHTML(date || '')}" onchange="applyManualImportDate(this.value)" aria-label="Collection date">
       </div>
       <div class="import-review-stats" aria-label="Import mapping summary">
         <span class="import-review-stat import-review-stat-matched"><strong>${matched.length}</strong> matched</span>
@@ -725,8 +725,7 @@ export function showImportPreview(parseResult) {
   }
   if (!date) {
     html += `<div class="import-review-warning import-review-date-warning">
-      Could not extract collection date from PDF. Please enter it manually:
-      <input type="date" id="import-manual-date" onchange="applyManualImportDate(this.value)" aria-label="Manual collection date"></div>`;
+      Could not extract collection date from PDF. Please set it above before importing.</div>`;
   }
   // Build reference lookup (used for unmatched dropdown + range comparison)
   const refLookup = buildMarkerReference();
