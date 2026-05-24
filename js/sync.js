@@ -3,7 +3,7 @@
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
 
 import { state } from './state.js';
-import { showNotification, isDebugMode, escapeHTML } from './utils.js';
+import { showNotification, isDebugMode } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, getAt } from './data-merge.js';
@@ -24,7 +24,7 @@ import {
 } from './sync-state.js';
 import {
   applyAISettings, applyChatData, applyDisplayPrefs,
-  getChatDataLocalLockRemainingMs, markChatDataLocal,
+  getChatDataLocalLockRemainingMs,
 } from './sync-apply.js';
 import {
   DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS,
@@ -61,6 +61,11 @@ import {
   confirmRotateIdentity, copySyncDiagnose, refreshRelayStorage,
   showSyncDiagnose,
 } from './sync-diagnose-ui.js';
+import {
+  bindSyncActionEvents, cleanStorage, clearSyncActionTimers,
+  configureSyncActions, forceResendCurrentProfile, onChatSaved,
+  onDataSaved, pushAllProfiles, pushCurrentProfile, syncNow,
+} from './sync-actions.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -75,6 +80,8 @@ export {
   getEvoluDiagnostics,
   renderSyncIndicator, updateSyncIndicator, toggleSyncDetail, copySyncEvents,
   showSyncDiagnose,
+  cleanStorage, forceResendCurrentProfile, onChatSaved, onDataSaved,
+  pushCurrentProfile, syncNow,
 };
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
@@ -108,13 +115,7 @@ let _appOwner = null;
 let _appOwnerError = null;
 let _readyPromise = null;
 let _queryLoaded = null;
-// Per-profile debounce timers. Switching profiles mid-debounce previously
-// dropped the pending push for the prior profile because the single shared
-// timer was overwritten. Keyed by profileId so each profile's pending push
-// survives until it fires.
-const _debounceTimers = new Map();
 const _chatPullRetryTimers = new Map();
-let _aiSettingsPushTimer = null;
 let _pollInterval = null;
 let _lastPollRowCount = -1;
 let _lastPollTombstoneCount = -1;
@@ -168,6 +169,15 @@ configureSyncDiagnoseUI({
   disablePhase2Cutover,
   isPhase2CutoverEnabled,
 });
+
+configureSyncActions({
+  pushProfile,
+  forcePull: _forcePull,
+  isSyncEnabled: () => _syncEnabled,
+  isEvoluReady: () => !!evolu,
+  isSyncing: () => _syncing,
+});
+bindSyncActionEvents();
 
 // ═══════════════════════════════════════════════
 // SETTINGS
@@ -565,8 +575,7 @@ export async function disableSync() {
 
   // Stop background timers + reset status (UI feedback before the reload)
   if (_relayProbeInterval) { clearInterval(_relayProbeInterval); _relayProbeInterval = null; }
-  for (const t of _debounceTimers.values()) clearTimeout(t);
-  _debounceTimers.clear();
+  clearSyncActionTimers();
   for (const t of _chatPullRetryTimers.values()) clearTimeout(t);
   _chatPullRetryTimers.clear();
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
@@ -942,123 +951,6 @@ async function pushProfile(profileId, importedData, opts = {}) {
   // earlier synchronous `finally { _syncing = false }` released it before
   // Evolu's async replication completed, so the concurrent-push guard the
   // outer 60s stale-clear logic relies on was effectively cosmetic.
-}
-
-export async function pushCurrentProfile() {
-  await pushProfile(state.currentProfile, state.importedData);
-  pushContextToGateway();
-}
-
-if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  window.addEventListener('labcharts-ai-settings-local-changed', () => {
-    if (!_syncEnabled || !state.currentProfile || !state.importedData) return;
-    if (_aiSettingsPushTimer) clearTimeout(_aiSettingsPushTimer);
-    const profileId = state.currentProfile;
-    const importedData = state.importedData;
-    _aiSettingsPushTimer = setTimeout(() => {
-      _aiSettingsPushTimer = null;
-      pushProfile(profileId, importedData).catch(() => {});
-    }, 250);
-  });
-}
-
-// "Clean storage" — emergency localStorage compaction. The 'imported'
-// blob can grow past the browser's 5 MB localStorage cap (caps were
-// bypassed by the cross-device merge before the data-merge.js fix).
-// When that happens every saveImportedData() throws QuotaExceededError
-// and pushes wedge silently. This trims changeHistory to its intended
-// 200-cap, drops cached model lists (re-fetched on demand), and reports
-// before/after sizes via showNotification. Reachable from the sync
-// popover so a phone user can run it without dev-tools access.
-export async function cleanStorage() {
-  let beforeBytes = 0;
-  for (const key of Object.keys(localStorage)) beforeBytes += new Blob([localStorage.getItem(key) || '']).size;
-
-  // 1. Drop ephemeral model-list caches — safe, will re-fetch on next API use
-  const cacheKeys = [
-    'labcharts-openrouter-models',
-    'labcharts-venice-models',
-    'labcharts-ppq-models',
-    'labcharts-routstr-models',
-    'labcharts-venice-e2ee-models',
-  ];
-  let cachesCleared = 0;
-  for (const k of cacheKeys) {
-    if (localStorage.getItem(k) != null) { localStorage.removeItem(k); cachesCleared++; }
-  }
-
-  // 2. Cap changeHistory in state.importedData if it's grown past 200
-  let historyTrimmed = 0;
-  if (Array.isArray(state.importedData?.changeHistory) && state.importedData.changeHistory.length > 200) {
-    historyTrimmed = state.importedData.changeHistory.length - 200;
-    state.importedData.changeHistory = state.importedData.changeHistory.slice(-200);
-    // Persist immediately so localStorage shrinks
-    try {
-      const { saveImportedData } = await import('./data.js');
-      await saveImportedData();
-    } catch (e) {
-      console.warn('[sync] cleanStorage: saveImportedData failed:', e?.message || e);
-    }
-  }
-
-  let afterBytes = 0;
-  for (const key of Object.keys(localStorage)) afterBytes += new Blob([localStorage.getItem(key) || '']).size;
-  const freedKB = ((beforeBytes - afterBytes) / 1024).toFixed(0);
-  const beforeMB = (beforeBytes / 1024 / 1024).toFixed(2);
-  const afterMB = (afterBytes / 1024 / 1024).toFixed(2);
-
-  const msg = `Storage: ${beforeMB} MB → ${afterMB} MB (freed ${freedKB} KB). ` +
-              `Caches cleared: ${cachesCleared}. ` +
-              `History trimmed: ${historyTrimmed}.`;
-  logSyncEvent('cleanup', msg);
-  showNotification(msg, freedKB > 0 ? 'success' : 'info');
-  return { beforeBytes, afterBytes, freedKB: +freedKB, cachesCleared, historyTrimmed };
-}
-
-// "Force resend" — bypasses the _syncing guard so a wedged in-flight flag
-// doesn't silently no-op the push. Use when the local Evolu DB row is
-// out of date with state.importedData and a normal Sync now isn't
-// reaching evolu.update (most common cause: previous push set _syncing
-// and Evolu's onComplete never fired, so subsequent pushes bail).
-export async function forceResendCurrentProfile() {
-  if (!evolu || !_syncEnabled) {
-    showNotification('Sync is not enabled — nothing to push.', 'warning');
-    return;
-  }
-  logSyncEvent('forced', `Force resend ${state.currentProfile?.slice(0,8) || '?'}`);
-  await pushProfile(state.currentProfile, state.importedData, { force: true });
-  pushContextToGateway();
-}
-
-// User-triggered "Sync now" — pushes our local writes, then forces a pull so
-// rows other devices pushed land here even if Evolu's auto-replication
-// missed them. Symmetric — merge is order-independent.
-export async function syncNow() {
-  await pushCurrentProfile();
-  _forcePull();
-}
-
-// Push all profiles on first enable
-async function pushAllProfiles() {
-  const profiles = getProfiles();
-  for (const p of profiles) {
-    try {
-      const storageKey = profileStorageKey(p.id, 'imported');
-      let dataJson;
-      if (p.id === state.currentProfile) {
-        dataJson = state.importedData;
-      } else {
-        const raw = getEncryptionEnabled()
-          ? await encryptedGetItem(storageKey)
-          : localStorage.getItem(storageKey);
-        if (!raw) continue;
-        dataJson = JSON.parse(raw);
-      }
-      if (dataJson) await pushProfile(p.id, dataJson);
-    } catch (e) {
-      console.error('[sync] Push failed for profile:', p.id, e);
-    }
-  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1463,70 +1355,6 @@ async function onSyncReceived() {
     _pulling = false;
     updateSyncStatus({ pull: 'received', pullReceivedAt: Date.now() });
   }
-}
-
-// ═══════════════════════════════════════════════
-// HOOK — called from saveImportedData()
-// ═══════════════════════════════════════════════
-
-export function onDataSaved() {
-  // Evolu sync
-  if (_syncEnabled && evolu) {
-    const profileId = state.currentProfile;
-    const data = state.importedData;
-    // Earlier versions pre-bumped local-sync-ts to Date.now() here, to keep a
-    // pull firing during the debounce window from clobbering a fresh local
-    // write (back when pull did wholesale-replace). With the per-array merge
-    // (data-merge.js mergeImportedData) the clobber is gone — pull now does
-    // a union-by-id, and incidental local saves (re-renders, derived caches)
-    // were silently shifting the watermark above incoming remote rows so
-    // pulls skipped with `remoteUpdated <= localUpdated`. Letting pull run
-    // and merge is correct: cross-device adds converge instead of skipping.
-    // pushProfile still bumps sync-ts after a successful push.
-    if (profileId) {
-      const prev = _debounceTimers.get(profileId);
-      if (prev) clearTimeout(prev);
-      const timer = setTimeout(() => {
-        _debounceTimers.delete(profileId);
-        if (_syncing) {
-          setTimeout(() => { pushProfile(profileId, data).catch(() => {}); }, 1000);
-        } else {
-          pushProfile(profileId, data).catch(() => {});
-        }
-      }, 10_000);
-      _debounceTimers.set(profileId, timer);
-    }
-  }
-  // Messenger context push
-  pushContextToGateway();
-}
-
-// Called from chat.js when threads/messages change. Per-profile keyed
-// timers — earlier draft used a single module-scoped timer that captured
-// state.currentProfile + state.importedData at FIRE TIME. Switching
-// profile within the 10s window pushed the new profile's data with the
-// new profile's id, silently dropping the original profile's chat
-// changes. Mirrors the same pattern as onDataSaved's _debounceTimers.
-const _chatSyncTimers = new Map();
-export function onChatSaved() {
-  markChatDataLocal();
-  if (!_syncEnabled || !evolu) return;
-  // Capture the active profile + data at QUEUE time so a mid-window
-  // profile switch doesn't repoint the push.
-  const profileId = state.currentProfile;
-  const data = state.importedData;
-  if (!profileId) return;
-  const prev = _chatSyncTimers.get(profileId);
-  if (prev) clearTimeout(prev);
-  const timer = setTimeout(() => {
-    _chatSyncTimers.delete(profileId);
-    if (_syncing) {
-      setTimeout(() => { pushProfile(profileId, data).catch(() => {}); }, 1000);
-    } else {
-      pushProfile(profileId, data).catch(() => {});
-    }
-  }, 10000); // 10s debounce — chat saves are frequent during streaming
-  _chatSyncTimers.set(profileId, timer);
 }
 
 // ═══════════════════════════════════════════════

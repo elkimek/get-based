@@ -256,16 +256,16 @@ return (async function () {
   // unhandled-rejection toasts in browsers + leave the UI confused.
   console.log('%c 6. debounce pushProfile .catch() ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sync.js');
+    const src = await fetchSrc('js/sync-actions.js');
     // Both onDataSaved + onChatSaved have a (sync? defer : immediate) split.
     // Each branch must terminate the chain with .catch.
     const onSaved = src.slice(src.indexOf('export function onDataSaved'),
                               src.indexOf('export function onChatSaved'));
     const onChat = src.slice(src.indexOf('export function onChatSaved'),
                               src.indexOf('export function onChatSaved') + 1500);
-    assert('onDataSaved deferred push has .catch', /pushProfile\(profileId, data\)\.catch/.test(onSaved));
+    assert('onDataSaved deferred push has .catch', /_pushProfile\(profileId, data\)\.catch/.test(onSaved));
     assert('onDataSaved immediate push has .catch', (onSaved.match(/\.catch\(\(\)\s*=>\s*\{\}\)/g) || []).length >= 2);
-    assert('onChatSaved deferred push has .catch', /pushProfile\(profileId, data\)\.catch/.test(onChat));
+    assert('onChatSaved deferred push has .catch', /_pushProfile\(profileId, data\)\.catch/.test(onChat));
     assert('onChatSaved immediate push has .catch', (onChat.match(/\.catch\(\(\)\s*=>\s*\{\}\)/g) || []).length >= 2);
   }
 

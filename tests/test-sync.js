@@ -41,6 +41,7 @@ await import('../js/settings.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
+  const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
@@ -168,6 +169,21 @@ await import('../js/settings.js');
     /export async function copySyncDiagnose[\s\S]{0,1200}document\.execCommand\('copy'\)/.test(syncDiagnoseUiSrc)
       && /navigator\.clipboard\?\.writeText/.test(rotateCopyHandler)
       && /document\.execCommand\('copy'\)/.test(rotateCopyHandler));
+  assert('sync-actions.js owns user sync actions and save hooks',
+    syncSrc.includes("from './sync-actions.js'")
+      && syncActionsSrc.includes('export function configureSyncActions')
+      && syncActionsSrc.includes('export function bindSyncActionEvents')
+      && syncActionsSrc.includes('export function clearSyncActionTimers')
+      && syncActionsSrc.includes('export async function pushCurrentProfile')
+      && syncActionsSrc.includes('export async function forceResendCurrentProfile')
+      && syncActionsSrc.includes('export async function cleanStorage')
+      && syncActionsSrc.includes('export async function syncNow')
+      && syncActionsSrc.includes('export async function pushAllProfiles')
+      && syncActionsSrc.includes('export function onDataSaved')
+      && syncActionsSrc.includes('export function onChatSaved')
+      && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved']));
+  assert('service worker precaches sync-actions.js',
+    serviceWorkerSrc.includes("'/js/sync-actions.js'"));
   assert('sync-ui.js owns header sync status UI helpers',
     syncSrc.includes("from './sync-ui.js'")
       && syncUiSrc.includes('export function configureSyncUI')
@@ -464,7 +480,9 @@ await import('../js/settings.js');
   assert('applyAISettings has size guard', syncApplySrc.includes('val.length > 10000'));
   assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
   assert('applyAISettings refreshes chat provider UI on remote changes', syncApplySrc.includes('window.updateChatHeaderModel?.()') && syncApplySrc.includes('window.refreshWebSearchToggle?.()'));
-  assert('AI setting changes schedule a sync push', syncSrc.includes("labcharts-ai-settings-local-changed") && syncSrc.includes('pushProfile(profileId, importedData)'));
+  assert('AI setting changes schedule a sync push',
+    syncActionsSrc.includes("labcharts-ai-settings-local-changed")
+      && syncActionsSrc.includes('_pushProfile(profileId, importedData)'));
 
   // ═══════════════════════════════════════
   // 4. MNEMONIC RESTORE
@@ -537,9 +555,9 @@ await import('../js/settings.js');
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
   // blob (~500 KB pre-gzip), so coalescing editing bursts directly reduces
   // the rate at which the relay's per-owner quota fills.
-  assert('onDataSaved has 10s debounce', syncSrc.includes('}, 10_000)'));
-  assert('onDataSaved captures profileId at schedule time', syncSrc.includes('const profileId = state.currentProfile') && syncSrc.includes('pushProfile(profileId'));
-  assert('onDataSaved retries if _syncing', syncSrc.includes('if (_syncing)') && syncSrc.includes('pushProfile(profileId, data)'));
+  assert('onDataSaved has 10s debounce', syncActionsSrc.includes('}, 10_000)'));
+  assert('onDataSaved captures profileId at schedule time', syncActionsSrc.includes('const profileId = state.currentProfile') && syncActionsSrc.includes('_pushProfile(profileId'));
+  assert('onDataSaved retries if syncing', syncActionsSrc.includes('if (_isSyncing())') && syncActionsSrc.includes('_pushProfile(profileId, data)'));
   // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip
   // and hash-skip caused users to miss cross-device data (clock-skew
   // and stale hash keys from prior code versions). The mergeImportedData
@@ -557,7 +575,8 @@ await import('../js/settings.js');
   // instead of just showing a "Data updated" toast).
   assert('Pull re-renders the active view', syncSrc.includes('window.navigate?.(cat)'));
   assert('Pull calls migrateProfileData', syncSrc.includes('migrateProfileData(state.importedData)'));
-  assert('pushAllProfiles pushes all profiles on first enable', syncSrc.includes('async function pushAllProfiles'));
+  assert('pushAllProfiles pushes all profiles on first enable',
+    syncSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
   assert('disableSync clears _appOwner', syncSrc.includes('_appOwner = null'));
   // disableSync intentionally NO LONGER waits for in-flight ops or awaits
   // Evolu reset — both introduced hang risks (Evolu worker stuck on OPFS
@@ -674,13 +693,13 @@ await import('../js/settings.js');
       else sessionStorage.setItem('labcharts-chat-local-lock-until', oldLock);
     }
   }
-  const onChatSavedSrc = syncSrc.slice(syncSrc.indexOf('export function onChatSaved'), syncSrc.indexOf('export function onChatSaved') + 600);
+  const onChatSavedSrc = syncActionsSrc.slice(syncActionsSrc.indexOf('export function onChatSaved'), syncActionsSrc.indexOf('export function onChatSaved') + 600);
   assert('onChatSaved marks local chat before debounce',
     onChatSavedSrc.includes('markChatDataLocal();')
-      && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_syncEnabled || !evolu) return;'));
+      && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_isSyncEnabled() || !_isEvoluReady()) return;'));
   assert('Display prefs synced', syncPayloadSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadSrc.includes('collectDisplayPrefs'));
-  assert('onChatSaved exported', syncSrc.includes('export function onChatSaved'));
-  assert('onChatSaved has debounce', syncSrc.includes('_chatSyncTimer') && syncSrc.includes('10000'));
+  assert('onChatSaved exported', exportBlockIncludes(syncSrc, ['onChatSaved']));
+  assert('onChatSaved has debounce', syncActionsSrc.includes('_chatSyncTimers') && syncActionsSrc.includes('10000'));
   assert('chat-threads.js imports onChatSaved', await fetchWithRetry('js/chat-threads.js').then(s => s.includes("import { onChatSaved } from './sync.js'")));
 
   // ═══════════════════════════════════════

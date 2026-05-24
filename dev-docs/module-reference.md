@@ -1384,6 +1384,7 @@ Not separately documented because their exports are best read from source — ke
 - `sync-identity.js` — BIP-39/QR lazy loaders plus mnemonic read/restore helpers for Evolu owner identity.
 - `sync-diagnostics.js` — Evolu row diagnostics snapshot and copy-text formatting for the Sync Diagnose modal.
 - `sync-diagnose-ui.js` — Sync Diagnose modal rendering, relay-storage actions, identity rotation UI, telemetry reset, and lean-sync cutover/backfill handlers.
+- `sync-actions.js` — user-triggered sync actions, local storage cleanup, all-profile initial push, save debouncing, chat debouncing, and AI-setting push scheduling.
 - `sync-ui.js` — header sync badge, popover rendering, status subscription, and activity-log copy helpers.
 - `sync-payload.js` — Evolu wire-payload helpers; outbound profile/config/chat/display envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.
 - `sync-relay-health.js` — Evolu relay helper boundary; client-side quota estimate, signed `/self/owner-storage` and `/self/compact-owner` calls, and push-landed health verdict for the silent-reject detector.

@@ -28,15 +28,16 @@ console.log('=== Phase 2 Correctness Tests ===\n');
 // ─── 1. Per-profile sync debouncer ───
 console.log('1. Per-profile sync debouncer');
 const syncSrc = read('js/sync.js');
-assert('sync.js declares per-profile timer Map',
-  syncSrc.includes('const _debounceTimers = new Map()'),
+const syncActionsSrc = read('js/sync-actions.js');
+assert('sync-actions.js declares per-profile timer Map',
+  syncActionsSrc.includes('const _debounceTimers = new Map()'),
   'shared single timer dropped pending push when user swapped profile mid-debounce');
-assert('sync.js no longer has single _debounceTimer',
-  !/\blet _debounceTimer\b/.test(syncSrc));
-assert('sync.js looks up timer by profileId',
-  syncSrc.includes('_debounceTimers.get(profileId)') && syncSrc.includes('_debounceTimers.set(profileId'));
-assert('sync.js clears all timers on disable',
-  syncSrc.includes('for (const t of _debounceTimers.values()) clearTimeout(t)'));
+assert('sync-actions.js no longer has single _debounceTimer',
+  !/\blet _debounceTimer\b/.test(syncActionsSrc));
+assert('sync-actions.js looks up timer by profileId',
+  syncActionsSrc.includes('_debounceTimers.get(profileId)') && syncActionsSrc.includes('_debounceTimers.set(profileId'));
+assert('sync.js clears action timers on disable',
+  syncSrc.includes('clearSyncActionTimers()') && syncActionsSrc.includes('for (const t of _debounceTimers.values()) clearTimeout(t)'));
 
 // ─── 2. Lab-context fingerprint includes wearableSummary ───
 console.log('\n2. Lab-context cache fingerprint');
