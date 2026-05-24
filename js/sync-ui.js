@@ -1,7 +1,7 @@
 // sync-ui.js - header sync badge, popover, and activity-log copy helpers.
 
 import { showNotification, isDebugMode, escapeHTML } from './utils.js';
-import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
+import { getSyncRelay } from './sync-environment.js';
 import { getRelayQuotaEstimate } from './sync-relay-health.js';
 import {
   getRecentSyncEvents,
