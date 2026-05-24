@@ -75,6 +75,10 @@ import {
   clearSyncPullTimers, configureSyncPull, forcePull as _forcePull,
   isSyncPulling, onSyncReceived,
 } from './sync-pull.js';
+import {
+  bindSyncSubscriptions, clearSyncSubscriptionTimers, configureSyncSubscriptions,
+  getSyncSubscriptionFireCount, startRelayProbe,
+} from './sync-subscriptions.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -119,11 +123,6 @@ let _appOwner = null;
 let _appOwnerError = null;
 let _readyPromise = null;
 let _queryLoaded = null;
-let _pollInterval = null;
-let _lastPollRowCount = -1;
-let _lastPollTombstoneCount = -1;
-let _subscriptionFireCount = 0;
-let _relayProbeInterval = null;
 
 configureSyncDelta({
   getEvolu: () => evolu,
@@ -144,6 +143,15 @@ configureSyncPull({
   getProfileQuery: () => profileQuery,
   isSyncPushInFlight,
   pushProfile,
+  debug: dbg,
+});
+
+configureSyncSubscriptions({
+  isSyncing: isSyncPushInFlight,
+  isPulling: isSyncPulling,
+  onSyncReceived,
+  checkRelayConnection,
+  updateSyncStatus,
   debug: dbg,
 });
 
@@ -173,7 +181,7 @@ configureSyncDiagnostics({
   getTombstoneQuery: () => tombstoneQuery,
   getAppOwner: () => _appOwner,
   isSyncEnabled,
-  getSubscriptionFireCount: () => _subscriptionFireCount,
+  getSubscriptionFireCount: getSyncSubscriptionFireCount,
   isSyncing: isSyncPushInFlight,
   isPulling: isSyncPulling,
 });
@@ -260,29 +268,7 @@ export async function initSync() {
 
     ({ profileQuery, tombstoneQuery, itemRowQuery } = createSyncQueries(evolu));
 
-    // Subscribe to sync updates
-    evolu.subscribeQuery(profileQuery)(() => {
-      _subscriptionFireCount++;
-      const syncing = isSyncPushInFlight();
-      const pulling = isSyncPulling();
-      dbg(`subscription fired (#${_subscriptionFireCount}), syncing: ${syncing}, pulling: ${pulling}`);
-      if (!syncing && !pulling) onSyncReceived();
-    });
-    // Tombstone rows live outside profileQuery's "isDeleted is not 1"
-    // filter. Evolu refreshes subscribed queries after remote mutations,
-    // so this subscription is required for device B to see device A's
-    // profile-delete tombstone without waiting for a full reload.
-    evolu.subscribeQuery(tombstoneQuery)(() => {
-      if (!isSyncPushInFlight() && !isSyncPulling()) onSyncReceived();
-    });
-    // itemRow rows arriving asynchronously must also retrigger the merge
-    // — without this, a per-row push from device A would only land on
-    // device B after the next blob-driven pull tick (which v1.6.4's 10s
-    // debounce stretches out). Subscribing here gives near-real-time
-    // delta propagation, which is half the point of Phase 1.
-    evolu.subscribeQuery(itemRowQuery)(() => {
-      if (!isSyncPushInFlight() && !isSyncPulling()) onSyncReceived();
-    });
+    bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery });
 
     // Load initial data — store promise for enableSync to await
     _queryLoaded = Promise.all([
@@ -323,39 +309,8 @@ export async function initSync() {
       };
     }
 
-    // Poll every 30s as safety net — subscribeQuery may miss remote changes
-    _pollInterval = setInterval(() => {
-      if (!evolu || !profileQuery || !tombstoneQuery || isSyncPushInFlight() || isSyncPulling()) return;
-      const rows = evolu.getQueryRows(profileQuery);
-      const tombstones = evolu.getQueryRows(tombstoneQuery);
-      const count = rows?.length ?? 0;
-      const tombstoneCount = tombstones?.length ?? 0;
-      if (count !== _lastPollRowCount || tombstoneCount !== _lastPollTombstoneCount) {
-        dbg(`poll: row/tombstone count changed ${_lastPollRowCount}/${_lastPollTombstoneCount} -> ${count}/${tombstoneCount}, triggering onSyncReceived`);
-        _lastPollRowCount = count;
-        _lastPollTombstoneCount = tombstoneCount;
-        onSyncReceived();
-      }
-    }, 30000);
-
-    // Subscribe to Evolu errors — catches relay connection failures
-    evolu.subscribeError((error) => {
-      if (!error) return;
-      const type = error?.type || 'unknown';
-      dbg('Evolu error:', type);
-      if (type.startsWith('WebSocket')) {
-        updateSyncStatus({ relay: 'unreachable', lastError: { type, message: type, at: Date.now() } });
-      }
-    });
-
     // Initial relay probe + periodic 60s health check
-    checkRelayConnection().then(ok => {
-      updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
-    });
-    _relayProbeInterval = setInterval(async () => {
-      const ok = await checkRelayConnection();
-      updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
-    }, 60000);
+    startRelayProbe();
 
     bindSyncRecoveryEvents();
 
@@ -433,10 +388,9 @@ export async function disableSync() {
   _appOwnerError = null;
 
   // Stop background timers + reset status (UI feedback before the reload)
-  if (_relayProbeInterval) { clearInterval(_relayProbeInterval); _relayProbeInterval = null; }
   clearSyncActionTimers();
   clearSyncPullTimers();
-  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+  clearSyncSubscriptionTimers();
   resetSyncStatus();
   renderSyncIndicator();
 

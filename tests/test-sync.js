@@ -50,6 +50,7 @@ await import('../js/settings.js');
   const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
+  const syncSubscriptionsSrc = await fetchWithRetry('js/sync-subscriptions.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
@@ -237,7 +238,7 @@ await import('../js/settings.js');
       && syncPushSrc.includes('export function configureSyncPush')
       && syncPushSrc.includes('export function isSyncPushInFlight')
       && syncPushSrc.includes('export async function pushProfile')
-      && syncSrc.includes('isSyncPushInFlight()')
+      && syncSrc.includes('isSyncing: isSyncPushInFlight')
       && syncSrc.includes('configureSyncPush({'));
   assert('service worker precaches sync-push.js',
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
@@ -270,6 +271,25 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncPull({'));
   assert('service worker precaches sync-pull.js',
     serviceWorkerSrc.includes("'/js/sync-pull.js'"));
+  assert('sync-subscriptions.js owns Evolu subscription and polling helpers',
+    syncSrc.includes("from './sync-subscriptions.js'")
+      && syncSubscriptionsSrc.includes('export function configureSyncSubscriptions')
+      && syncSubscriptionsSrc.includes('export function bindSyncSubscriptions')
+      && syncSubscriptionsSrc.includes('export function clearSyncSubscriptionTimers')
+      && syncSubscriptionsSrc.includes('export function getSyncSubscriptionFireCount')
+      && syncSubscriptionsSrc.includes('export function startRelayProbe')
+      && syncSubscriptionsSrc.includes('evolu.subscribeQuery(profileQuery)')
+      && syncSubscriptionsSrc.includes('evolu.subscribeQuery(tombstoneQuery)')
+      && syncSubscriptionsSrc.includes('evolu.subscribeQuery(itemRowQuery)')
+      && syncSubscriptionsSrc.includes('evolu.subscribeError')
+      && syncSubscriptionsSrc.includes('setInterval')
+      && syncSubscriptionsSrc.includes('_checkRelayConnection()')
+      && syncSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
+      && syncSrc.includes('startRelayProbe();')
+      && syncSrc.includes('clearSyncSubscriptionTimers();')
+      && syncSrc.includes('getSubscriptionFireCount: getSyncSubscriptionFireCount'));
+  assert('service worker precaches sync-subscriptions.js',
+    serviceWorkerSrc.includes("'/js/sync-subscriptions.js'"));
   assert('sync-cutover.js owns Phase 2 cutover flag actions',
     syncSrc.includes("from './sync-cutover.js'")
       && syncCutoverSrc.includes('export { isPhase2CutoverEnabled }')
@@ -325,10 +345,10 @@ await import('../js/settings.js');
   assert('sync-schema.js declares a tombstoneQuery selecting isDeleted = 1 rows',
     /tombstoneQuery\s*=\s*evolu\.createQuery[\s\S]{0,300}isDeleted[",\s]+=[",\s]+1/.test(syncSchemaSrc));
   assert('tombstoneQuery subscription retriggers onSyncReceived',
-    /evolu\.subscribeQuery\(tombstoneQuery\)\([\s\S]{0,250}onSyncReceived\(\)/.test(syncSrc));
+    /evolu\.subscribeQuery\(tombstoneQuery\)\([\s\S]{0,250}_onSyncReceived\(\)/.test(syncSubscriptionsSrc));
   assert('poll safety tracks tombstone count as well as live rows',
-    syncSrc.includes('_lastPollTombstoneCount')
-      && /getQueryRows\(tombstoneQuery\)[\s\S]{0,300}tombstoneCount/.test(syncSrc));
+    syncSubscriptionsSrc.includes('_lastPollTombstoneCount')
+      && /getQueryRows\(tombstoneQuery\)[\s\S]{0,300}tombstoneCount/.test(syncSubscriptionsSrc));
   assert('Sync diagnose includes tombstone rows and deleted-state column',
     /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSrc)
       && syncDiagnoseUiSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
@@ -483,7 +503,7 @@ await import('../js/settings.js');
   assert('itemRowQuery loaded with profileQuery + tombstoneQuery',
     /Promise\.all\(\[[\s\S]{0,400}evolu\.loadQuery\(itemRowQuery\)/.test(syncSrc));
   assert('itemRow subscription retriggers onSyncReceived',
-    /evolu\.subscribeQuery\(itemRowQuery\)\([\s\S]{0,200}onSyncReceived\(\)/.test(syncSrc));
+    /evolu\.subscribeQuery\(itemRowQuery\)\([\s\S]{0,200}_onSyncReceived\(\)/.test(syncSubscriptionsSrc));
 
   // DELTA_ARRAYS list (high-velocity arrays)
   assert('DELTA_ARRAYS includes sunSessions + lightDevices',
