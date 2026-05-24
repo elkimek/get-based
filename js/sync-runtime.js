@@ -24,25 +24,25 @@ export function setSyncEvolu(evolu) {
 }
 
 export function setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery } = {}) {
-  _profileQuery = profileQuery || null;
-  _tombstoneQuery = tombstoneQuery || null;
-  _itemRowQuery = itemRowQuery || null;
+  _profileQuery = profileQuery ?? null;
+  _tombstoneQuery = tombstoneQuery ?? null;
+  _itemRowQuery = itemRowQuery ?? null;
 }
 
 export function setSyncAppOwner(owner) {
-  _appOwner = owner || null;
+  _appOwner = owner ?? null;
 }
 
 export function setSyncAppOwnerError(error) {
-  _appOwnerError = error || null;
+  _appOwnerError = error ?? null;
 }
 
 export function setSyncReadyPromise(promise) {
-  _readyPromise = promise || null;
+  _readyPromise = promise ?? null;
 }
 
 export function setSyncQueryLoadedPromise(promise) {
-  _queryLoadedPromise = promise || null;
+  _queryLoadedPromise = promise ?? null;
 }
 
 export function clearSyncRuntimeState() {
