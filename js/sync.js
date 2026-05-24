@@ -42,7 +42,7 @@ import {
   restoreFromMnemonic,
 } from './sync-identity.js';
 import {
-  _syncDiag, configureSyncDiagnostics, getEvoluDiagnostics,
+  configureSyncDiagnostics, getEvoluDiagnostics,
 } from './sync-diagnostics.js';
 import {
   bindSyncUIStatusUpdates, configureSyncUI, copySyncEvents,
@@ -79,6 +79,9 @@ import {
   bindSyncSubscriptions, clearSyncSubscriptionTimers, configureSyncSubscriptions,
   getSyncSubscriptionFireCount, startRelayProbe,
 } from './sync-subscriptions.js';
+import {
+  bindSyncWindowActions,
+} from './sync-window-bindings.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -431,57 +434,4 @@ export async function disableSync() {
   setTimeout(() => window.location.reload(), 250);
 }
 
-// ═══════════════════════════════════════════════
-// EXPORTS for window binding
-// ═══════════════════════════════════════════════
-
-Object.assign(window, {
-  enableSync,
-  disableSync,
-  getMnemonic,
-  getMnemonicResolutionError,
-  getSyncBlocker,
-  restoreFromMnemonic,
-  isSyncEnabled,
-  pushCurrentProfile,
-  forceResendCurrentProfile,
-  cleanStorage,
-  syncNow,
-  showSyncDiagnose,
-  deleteProfileFromRelay,
-  listPendingTombstones,
-  applyPendingTombstone,
-  rejectPendingTombstone,
-  checkRelayConnection,
-  isMessengerEnabled,
-  getMessengerToken,
-  generateMessengerToken,
-  revokeMessengerToken,
-  pushContextToGateway,
-  _syncDiag,
-  _forcePull,
-  renderSyncIndicator,
-  updateSyncIndicator,
-  toggleSyncDetail,
-  copySyncEvents,
-  copySyncDiagnose,
-  confirmCompactRelay,
-  confirmRotateIdentity,
-  refreshRelayStorage,
-  fetchOwnerStorageFromRelay,
-  verifyPushLanded,
-  getRelayHealthVerdict,
-  compactOwnerSelfServe,
-  getRelayQuotaEstimate,
-  resetRelayQuotaEstimate,
-  getDeltaTelemetry,
-  resetDeltaTelemetry,
-  confirmResetDeltaTelemetry,
-  getDeltaCutoverReadiness,
-  isPhase2CutoverEnabled,
-  enablePhase2Cutover,
-  disablePhase2Cutover,
-  confirmEnablePhase2,
-  confirmDisablePhase2,
-  confirmBackfillBlockers,
-});
+bindSyncWindowActions({ enableSync, disableSync });

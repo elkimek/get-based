@@ -155,6 +155,7 @@ const APP_SHELL = [
   '/js/sync-reconcile.js',
   '/js/sync-pull.js',
   '/js/sync-subscriptions.js',
+  '/js/sync-window-bindings.js',
   '/js/sync-cutover.js',
   '/js/sync-ui.js',
   '/js/sync-payload.js',

@@ -25,8 +25,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Cross-Device Sync Tests ===\n');
 
-// Load sync.js + settings.js so their Object.assign(window, ...) calls
-// populate window.enableSync, window.toggleSync, etc.
+// Load sync.js + settings.js so their window bindings populate
+// window.enableSync, window.toggleSync, etc.
 const { state } = await import('../js/state.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
@@ -51,6 +51,7 @@ await import('../js/settings.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncSubscriptionsSrc = await fetchWithRetry('js/sync-subscriptions.js');
+  const syncWindowBindingsSrc = await fetchWithRetry('js/sync-window-bindings.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
@@ -63,7 +64,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -292,6 +293,15 @@ await import('../js/settings.js');
       && syncSrc.includes('getSubscriptionFireCount: getSyncSubscriptionFireCount'));
   assert('service worker precaches sync-subscriptions.js',
     serviceWorkerSrc.includes("'/js/sync-subscriptions.js'"));
+  assert('sync-window-bindings.js owns browser global sync actions',
+    syncSrc.includes("from './sync-window-bindings.js'")
+      && syncWindowBindingsSrc.includes('export function bindSyncWindowActions')
+      && syncWindowBindingsSrc.includes('Object.assign(window')
+      && syncWindowBindingsSrc.includes('_forcePull: forcePull')
+      && syncWindowBindingsSrc.includes('confirmBackfillBlockers')
+      && syncSrc.includes('bindSyncWindowActions({ enableSync, disableSync });'));
+  assert('service worker precaches sync-window-bindings.js',
+    serviceWorkerSrc.includes("'/js/sync-window-bindings.js'"));
   assert('sync-cutover.js owns Phase 2 cutover flag actions',
     syncSrc.includes("from './sync-cutover.js'")
       && syncCutoverSrc.includes('export { isPhase2CutoverEnabled }')
