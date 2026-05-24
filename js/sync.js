@@ -20,6 +20,9 @@ import {
   isSyncEnabled, primeSyncState, setSyncEnabled,
 } from './sync-settings-state.js';
 import {
+  clearSyncDisableStorage,
+} from './sync-disable-cleanup.js';
+import {
   configureSyncDelta, getDeltaCutoverReadiness, getDeltaTelemetry,
   resetDeltaTelemetry,
 } from './sync-delta.js';
@@ -437,12 +440,6 @@ export async function disableSync() {
   resetSyncStatus();
   renderSyncIndicator();
 
-  // Clear sync timestamps so a fresh pull can happen after re-enable
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const key = localStorage.key(i);
-    if (key && key.endsWith('-sync-ts')) localStorage.removeItem(key);
-  }
-
   // v1.7.11 audit fix: clear per-array delta snapshots too. After a
   // re-enable (which may bring a different Evolu owner via mnemonic
   // change), the OLD snapshot would tell the planner "I already pushed
@@ -451,13 +448,7 @@ export async function disableSync() {
   // so the next push re-emits everything as inserts (relay starts
   // empty under the new owner anyway). Same for telemetry + cutover
   // flag (cutover was profile-scoped to the previous owner).
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const key = localStorage.key(i);
-    if (!key) continue;
-    if (key.includes('-delta-') || key.includes('-sync-cutover-v2') || key.includes('-relay-bytes-') || key === 'labcharts-relay-quota-warned') {
-      localStorage.removeItem(key);
-    }
-  }
+  clearSyncDisableStorage();
 
   // Fire-and-forget the Evolu reset. We can't trust this await: if the
   // worker is hung (OPFS / lock contention), `resetAppOwner` never

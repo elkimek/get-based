@@ -36,6 +36,7 @@ await import('../js/settings.js');
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
+  const syncDisableCleanupSrc = await fetchWithRetry('js/sync-disable-cleanup.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
@@ -102,6 +103,18 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['isSyncEnabled', 'primeSyncState']));
   assert('service worker precaches sync-settings-state.js',
     serviceWorkerSrc.includes("'/js/sync-settings-state.js'"));
+  assert('sync-disable-cleanup.js owns disable localStorage cleanup',
+    syncSrc.includes("from './sync-disable-cleanup.js'")
+      && syncSrc.includes('clearSyncDisableStorage();')
+      && syncDisableCleanupSrc.includes('export function clearSyncDisableStorage')
+      && syncDisableCleanupSrc.includes('export function isSyncDisableCleanupKey')
+      && syncDisableCleanupSrc.includes("key.endsWith('-sync-ts')")
+      && syncDisableCleanupSrc.includes("key.includes('-delta-')")
+      && syncDisableCleanupSrc.includes("key.includes('-sync-cutover-v2')")
+      && syncDisableCleanupSrc.includes("key.includes('-relay-bytes-')")
+      && syncDisableCleanupSrc.includes("key === 'labcharts-relay-quota-warned'"));
+  assert('service worker precaches sync-disable-cleanup.js',
+    serviceWorkerSrc.includes("'/js/sync-disable-cleanup.js'"));
   assert('sync-schema.js owns Evolu schema/query helpers',
     syncSrc.includes("from './sync-schema.js'")
       && syncSchemaSrc.includes('export function createSyncSchema')
@@ -708,7 +721,8 @@ await import('../js/settings.js');
   assert('disableSync resets Evolu identity for mnemonic regeneration', syncSrc.includes('evolu.resetAppOwner('));
   assert('disableSync reloads page after reset to kill Worker', syncSrc.includes('window.location.reload()'));
   assert('disableSync clears sync timestamps',
-    /disableSync[\s\S]{0,3000}key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncSrc));
+    disableSyncSrc.includes('clearSyncDisableStorage();')
+      && /key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));
   assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
     syncApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(mergedThreads))"));
 
@@ -1504,9 +1518,12 @@ await import('../js/settings.js');
 
   // Snapshot rotation on owner change
   assert('disableSync clears delta snapshots',
-    /disableSync[\s\S]{0,3000}key\.includes\('-delta-'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(deltaSearchSrc));
+    disableSyncSrc.includes('clearSyncDisableStorage();')
+      && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-delta-'\)/.test(syncDisableCleanupSrc)
+      && /clearSyncDisableStorage[\s\S]{0,800}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));
   assert('disableSync clears cutover flag',
-    /disableSync[\s\S]{0,3000}-sync-cutover-v2/.test(deltaSearchSrc));
+    disableSyncSrc.includes('clearSyncDisableStorage();')
+      && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears delta snapshots',
     /restoreFromMnemonic[\s\S]{0,1000}key\.includes\('-delta-'\)/.test(syncIdentitySrc));
   assert('restoreFromMnemonic clears cutover flag',
@@ -1673,9 +1690,11 @@ await import('../js/settings.js');
 
   // P1: -relay-bytes- and -relay-quota-warned cleared on owner change
   assert('disableSync clears -relay-bytes- keys on owner change',
-    /disableSync[\s\S]{0,3000}key\.includes\('-relay-bytes-'\)/.test(deltaSearchSrc));
+    disableSyncSrc.includes('clearSyncDisableStorage();')
+      && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-relay-bytes-'\)/.test(syncDisableCleanupSrc));
   assert('disableSync clears legacy global quota-warned key',
-    /disableSync[\s\S]{0,3000}key\s*===\s*'labcharts-relay-quota-warned'/.test(deltaSearchSrc));
+    disableSyncSrc.includes('clearSyncDisableStorage();')
+      && /isSyncDisableCleanupKey[\s\S]{0,300}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears -relay-bytes- keys',
     /restoreFromMnemonic[\s\S]{0,1500}key\.includes\('-relay-bytes-'\)/.test(syncIdentitySrc));
   assert('restoreFromMnemonic clears legacy global quota-warned key',
