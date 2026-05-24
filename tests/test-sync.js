@@ -29,6 +29,7 @@ console.log('=== Cross-Device Sync Tests ===\n');
 // populate window.enableSync, window.toggleSync, etc.
 const { state } = await import('../js/state.js');
 const syncApply = await import('../js/sync-apply.js');
+const syncDelta = await import('../js/sync-delta.js');
 await import('../js/sync.js');
 await import('../js/settings.js');
 
@@ -1047,7 +1048,7 @@ await import('../js/settings.js');
   assert('DELTA_MAP_CONFIG defines manualValues keyIdFn (doubling-escape)',
     /DELTA_MAP_CONFIG\s*=\s*\{[\s\S]{0,1500}manualValues:[\s\S]{0,500}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta uses cfg.keyIdFn when present',
-    /_planKeyedMapDelta[\s\S]{0,2000}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,1500}keyIdFn\(rawKey\)/.test(deltaSearchSrc));
+    /_planKeyedMapDelta[\s\S]{0,3500}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,3500}keyIdFn\(rawKey\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta payload preserves the ORIGINAL raw key (not the synth)',
     /payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(deltaSearchSrc));
   assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
@@ -1082,9 +1083,9 @@ await import('../js/settings.js');
   assert('_planKeyedMapDelta defined',
     /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta validates key allowlist (no weird itemIds)',
-    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
+    /_planKeyedMapDelta[\s\S]{0,3500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta wraps payload as {k, v} for itemId verification on pull',
-    /_planKeyedMapDelta[\s\S]{0,2200}payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(deltaSearchSrc));
+    /_planKeyedMapDelta[\s\S]{0,4200}payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta emits tombstones when keys are removed',
     /_planKeyedMapDelta[\s\S]{0,3500}kind:\s*'tombstone'/.test(deltaSearchSrc));
   assert('pushProfile loops DELTA_MAPS after DELTA_ARRAYS',
@@ -1414,7 +1415,7 @@ await import('../js/settings.js');
   assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
     /_planArrayDelta[\s\S]{0,1500}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta uses _isAllowlistSafeId on derived itemId',
-    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
+    /_planKeyedMapDelta[\s\S]{0,3500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
   assert('Map-shape pull wraps keyIdFn with _isAllowlistSafeId guard',
     /rawKeyIdFn[\s\S]{0,200}keyIdFn\s*=\s*\(k\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
   assert('Array-shape pull wraps itemIdFn with _isAllowlistSafeId guard',
@@ -1426,7 +1427,7 @@ await import('../js/settings.js');
   assert('_planArrayDelta resurrects tombstoned row by clearing isDeleted',
     /_planArrayDelta[\s\S]{0,2500}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta resurrects tombstoned row by clearing isDeleted',
-    /_planKeyedMapDelta[\s\S]{0,2700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+    /_planKeyedMapDelta[\s\S]{0,4700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planScalarDelta resurrects tombstoned row by clearing isDeleted',
     /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
 
@@ -1477,8 +1478,8 @@ await import('../js/settings.js');
     /_PER_ROW_DECOMPRESSED_CAP_BYTES\s*=\s*1024\s*\*\s*1024[\s\S]{0,500}async function _gunzipToStringCapped/.test(syncPayloadSrc));
   assert('_gunzipToStringCapped throws on cap exceeded',
     /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncPayloadSrc));
-  assert('All 3 per-row gunzip sites use the capped variant',
-    (syncDeltaSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length === 3);
+  assert('All per-row gunzip sites use the capped variant',
+    (syncDeltaSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length >= 4);
   // Blob path also routes through _gunzipToStringCapped, with the
   // 5 MB MAX_SYNC_PAYLOAD_BYTES cap — a single capped helper is the
   // only gunzip entry point post-2026-05-10 audit (the bare
@@ -1963,6 +1964,8 @@ await import('../js/settings.js');
   // despite live rows in the per-row layer.
   assert('Pull-side genetics scalar TOMBSTONE branch preserves .snps when present',
     /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,1500}arrayName\s*===\s*'genetics'[\s\S]{0,500}imported\.genetics\s*=\s*\{\s*snps:\s*imported\.genetics\.snps\s*\}/.test(deltaSearchSrc));
+  assert('Genetics SNP planner rebuilds missing map input from itemRows',
+    /mapName\s*===\s*'genetics\.snps'[\s\S]{0,1600}fromRows\[parsed\.k\]\s*=\s*parsed\.v/.test(deltaSearchSrc));
 
   // Sidebar rebuild after every pull — conditional nav items (Genetics,
   // Wearables, etc.) gate on data presence, and per-row CRDT deltas can
@@ -2003,6 +2006,52 @@ await import('../js/settings.js');
     assert('strip simulator does not mutate input',
       'snps' in before.genetics
       && Object.keys(before.genetics.snps).length === 2);
+
+    {
+      const profileId = 'sync-test-genetics-row-fallback';
+      const snapshotKey = `labcharts-${profileId}-delta-genetics.snps`;
+      const metaKey = `${snapshotKey}-meta`;
+      const rows = Array.from({ length: 43 }, (_, i) => {
+        const rsid = `rs${100000 + i}`;
+        return {
+          profileId,
+          arrayName: 'genetics.snps',
+          itemId: rsid,
+          payload: JSON.stringify({ k: rsid, v: { genotype: 'AA', gene: `G${i}` } }),
+          syncedAt: '2026-05-24T12:00:00.000Z',
+          isDeleted: null,
+        };
+      });
+      const prevSnapshot = Object.fromEntries(rows.map(r => [r.itemId, 'old']));
+      const oldSnapshot = localStorage.getItem(snapshotKey);
+      const oldMeta = localStorage.getItem(metaKey);
+      const oldWarn = console.warn;
+      let tombstoneStormWarned = false;
+      try {
+        localStorage.setItem(snapshotKey, JSON.stringify(prevSnapshot));
+        localStorage.removeItem(metaKey);
+        syncDelta.configureSyncDelta({
+          getEvolu: () => ({ getQueryRows: () => rows }),
+          getItemRowQuery: () => ({}),
+        });
+        console.warn = (...args) => {
+          if (String(args[0] || '').includes('refused tombstone storm for genetics.snps')) tombstoneStormWarned = true;
+          oldWarn.apply(console, args);
+        };
+        const plan = await syncDelta._planKeyedMapDelta(profileId, 'genetics.snps', undefined);
+        assert('genetics.snps missing blob map falls back to live itemRows',
+          Object.keys(plan.next || {}).length === rows.length);
+        assert('genetics.snps row fallback avoids false tombstone-storm warning',
+          tombstoneStormWarned === false);
+      } finally {
+        console.warn = oldWarn;
+        syncDelta.configureSyncDelta({ getEvolu: () => null, getItemRowQuery: () => null });
+        if (oldSnapshot === null) localStorage.removeItem(snapshotKey);
+        else localStorage.setItem(snapshotKey, oldSnapshot);
+        if (oldMeta === null) localStorage.removeItem(metaKey);
+        else localStorage.setItem(metaKey, oldMeta);
+      }
+    }
   }
 
   // ═══════════════════════════════════════

@@ -483,7 +483,31 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   const matching = allItemRows.filter(r => r.profileId === profileId && r.arrayName === mapName);
   const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
 
-  const obj = (mapObj && typeof mapObj === 'object' && !Array.isArray(mapObj)) ? mapObj : {};
+  let obj = (mapObj && typeof mapObj === 'object' && !Array.isArray(mapObj)) ? mapObj : {};
+  if (mapName === 'genetics.snps' && Object.keys(obj).length === 0 && mapObj == null) {
+    // The blob/scalar paths intentionally strip genetics.snps; per-row
+    // itemRows are the source of truth. If local importedData was hydrated
+    // from a metadata-only genetics blob before the per-row overlay ran,
+    // don't interpret the absent map as "delete every SNP" on the next
+    // unrelated save. Rebuild the planning input from live rows instead.
+    const fromRows = Object.create(null);
+    for (const row of matching) {
+      if (!row || row.isDeleted) continue;
+      try {
+        let json = row.payload;
+        if (typeof json === 'string' && json.startsWith('GZ|v1|')) {
+          if (typeof DecompressionStream === 'undefined') continue;
+          json = await _gunzipToStringCapped(_base64ToBytes(json.slice(6)));
+        }
+        const parsed = JSON.parse(json);
+        if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
+        if (keyIdFn(parsed.k) !== row.itemId) continue;
+        if (_PROTO_POLLUTION_KEYS.has(parsed.k)) continue;
+        fromRows[parsed.k] = parsed.v;
+      } catch {}
+    }
+    if (Object.keys(fromRows).length > 0) obj = fromRows;
+  }
   for (const [rawKey, value] of Object.entries(obj)) {
     const itemId = keyIdFn(rawKey);
     // Defence-in-depth: even if cfg.keyIdFn returns a string that passes
