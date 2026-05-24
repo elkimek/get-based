@@ -27,7 +27,8 @@ console.log('=== Cross-Device Sync Tests ===\n');
 
 // Load sync.js + settings.js so their Object.assign(window, ...) calls
 // populate window.enableSync, window.toggleSync, etc.
-await import('../js/state.js');
+const { state } = await import('../js/state.js');
+const syncApply = await import('../js/sync-apply.js');
 await import('../js/sync.js');
 await import('../js/settings.js');
 
@@ -509,14 +510,55 @@ await import('../js/settings.js');
   assert('collectChatData reads threads', syncPayloadSrc.includes('chat-threads') && syncPayloadSrc.includes('collectChatData'));
   assert('collectChatData reads per-thread messages', syncPayloadSrc.includes('chat-t_${t.id}'));
   assert('collectChatData includes custom personalities', syncPayloadSrc.includes('chatPersonalityCustom'));
+  assert('collectChatData emits empty messages for cleared zero-message threads',
+    syncPayloadSrc.includes('messageCount') && syncPayloadSrc.includes('messages[t.id] = []'));
   assert('applyChatData writes threads', syncApplySrc.includes('applyChatData'));
+  assert('applyChatData removes message keys for remotely deleted threads',
+    syncApplySrc.includes('incomingThreadIds') && syncApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${t.id}`)'));
   assert('applyChatData skips stale remote chat while local save is fresh',
     syncApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalChatData(profileId)'));
   assert('chat freshness lock is shorter than two minutes',
     syncApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
+  assert('skipped chat pulls retry after the local freshness lock expires',
+    syncSrc.includes('scheduleChatPullRetry') && syncSrc.includes('getChatDataLocalLockRemainingMs(profileId)'));
   assert('active chat reload only runs after chatData is applied',
     syncSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
       && syncSrc.includes('if (chatApplied)'));
+  assert('active chat thread is reselected after remote thread deletion',
+    syncSrc.includes('window.loadChatThreads?.();') && syncSrc.includes('window.ensureActiveThread?.();'));
+  {
+    const prevProfileId = state.currentProfile;
+    const profileId = 'syncapplydel';
+    const threadsKey = `labcharts-${profileId}-chat-threads`;
+    const keepKey = `labcharts-${profileId}-chat-t_keep`;
+    const goneKey = `labcharts-${profileId}-chat-t_gone`;
+    const oldLock = sessionStorage.getItem('labcharts-chat-local-lock-until');
+    try {
+      state.currentProfile = profileId;
+      sessionStorage.removeItem('labcharts-chat-local-lock-until');
+      localStorage.setItem(threadsKey, JSON.stringify([
+        { id: 'keep', messageCount: 1 },
+        { id: 'gone', messageCount: 1 },
+      ]));
+      localStorage.setItem(keepKey, JSON.stringify([{ role: 'user', content: 'old' }]));
+      localStorage.setItem(goneKey, JSON.stringify([{ role: 'user', content: 'delete me' }]));
+      const applied = await syncApply.applyChatData(profileId, {
+        threads: [{ id: 'keep', messageCount: 1 }],
+        messages: { keep: [{ role: 'assistant', content: 'new' }] },
+      });
+      assert('applyChatData functional: remote thread index applied', applied === true);
+      assert('applyChatData functional: deleted thread message key removed', localStorage.getItem(goneKey) === null);
+      assert('applyChatData functional: kept thread messages overwritten',
+        JSON.parse(localStorage.getItem(keepKey) || '[]')?.[0]?.content === 'new');
+    } finally {
+      state.currentProfile = prevProfileId;
+      localStorage.removeItem(threadsKey);
+      localStorage.removeItem(keepKey);
+      localStorage.removeItem(goneKey);
+      if (oldLock === null) sessionStorage.removeItem('labcharts-chat-local-lock-until');
+      else sessionStorage.setItem('labcharts-chat-local-lock-until', oldLock);
+    }
+  }
   const onChatSavedSrc = syncSrc.slice(syncSrc.indexOf('export function onChatSaved'), syncSrc.indexOf('export function onChatSaved') + 600);
   assert('onChatSaved marks local chat before debounce',
     onChatSavedSrc.includes('markChatDataLocal();')

@@ -54,7 +54,10 @@ export async function collectChatData(profileId) {
     for (const t of threads) {
       const msgKey = `labcharts-${profileId}-chat-t_${t.id}`;
       const msgRaw = await encryptedGetItem(msgKey) || localStorage.getItem(msgKey);
-      if (!msgRaw) continue;
+      if (!msgRaw) {
+        if ((Number(t.messageCount) || 0) === 0) messages[t.id] = [];
+        continue;
+      }
       // Per-thread try/catch — a single corrupted thread payload must NOT
       // nuke the entire chat-data collection.
       try { messages[t.id] = JSON.parse(msgRaw); } catch (_) {}

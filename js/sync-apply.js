@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { isDebugMode } from './utils.js';
-import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
+import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload.js';
 import { logSyncEvent } from './sync-state.js';
 
@@ -44,14 +44,22 @@ export function markChatDataLocal() {
   } catch {}
 }
 
-function shouldKeepLocalChatData(profileId) {
-  if (profileId !== state.currentProfile) return false;
+function getLocalChatLockUntil(profileId) {
+  if (profileId !== state.currentProfile) return 0;
   try {
     const until = Number(sessionStorage.getItem(CHAT_LOCAL_LOCK_UNTIL_KEY) || '0');
-    return Number.isFinite(until) && Date.now() < until;
+    return Number.isFinite(until) ? until : 0;
   } catch {
-    return false;
+    return 0;
   }
+}
+
+export function getChatDataLocalLockRemainingMs(profileId) {
+  return Math.max(0, getLocalChatLockUntil(profileId) - Date.now());
+}
+
+function shouldKeepLocalChatData(profileId) {
+  return getChatDataLocalLockRemainingMs(profileId) > 0;
 }
 
 const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic', 'labcharts-lens-key', 'labcharts-custom-key'];
@@ -79,7 +87,7 @@ export async function applyAISettings(settings) {
 }
 
 export async function applyChatData(profileId, chatData) {
-  if (!chatData || !chatData.threads) return false;
+  if (!chatData || !Array.isArray(chatData.threads)) return false;
   if (shouldKeepLocalChatData(profileId)) {
     dbg(`Skipped chatData for ${profileId.slice(0, 8)} - local chat has newer unsynced changes`);
     logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - local changes pending`);
@@ -88,6 +96,20 @@ export async function applyChatData(profileId, chatData) {
   // Thread index: always plain localStorage (matches saveChatThreadIndex in chat.js).
   // encryptAllSensitiveKeys handles at-rest encryption when session ends.
   const threadsKey = `labcharts-${profileId}-chat-threads`;
+  const existingRaw = await encryptedGetItem(threadsKey) || localStorage.getItem(threadsKey);
+  const incomingThreadIds = new Set(chatData.threads.map(t => t?.id).filter(id => typeof id === 'string'));
+  if (existingRaw) {
+    try {
+      const existingThreads = JSON.parse(existingRaw);
+      if (Array.isArray(existingThreads)) {
+        for (const t of existingThreads) {
+          if (typeof t?.id === 'string' && !incomingThreadIds.has(t.id)) {
+            await encryptedRemoveItem(`labcharts-${profileId}-chat-t_${t.id}`);
+          }
+        }
+      }
+    } catch {}
+  }
   localStorage.setItem(threadsKey, JSON.stringify(chatData.threads));
   if (chatData.messages) {
     for (const [threadId, msgs] of Object.entries(chatData.messages)) {

@@ -23,7 +23,10 @@ import {
   getSyncDisplayState as getSyncDisplayStateFromStatus, getSyncStatus,
   logSyncEvent, resetSyncStatus, subscribeSyncStatus, updateSyncStatus,
 } from './sync-state.js';
-import { applyAISettings, applyChatData, applyDisplayPrefs, markChatDataLocal } from './sync-apply.js';
+import {
+  applyAISettings, applyChatData, applyDisplayPrefs,
+  getChatDataLocalLockRemainingMs, markChatDataLocal,
+} from './sync-apply.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -246,6 +249,7 @@ let _queryLoaded = null;
 // timer was overwritten. Keyed by profileId so each profile's pending push
 // survives until it fires.
 const _debounceTimers = new Map();
+const _chatPullRetryTimers = new Map();
 let _aiSettingsPushTimer = null;
 let _pollInterval = null;
 let _lastPollRowCount = -1;
@@ -689,6 +693,8 @@ export async function disableSync() {
   if (_relayProbeInterval) { clearInterval(_relayProbeInterval); _relayProbeInterval = null; }
   for (const t of _debounceTimers.values()) clearTimeout(t);
   _debounceTimers.clear();
+  for (const t of _chatPullRetryTimers.values()) clearTimeout(t);
+  _chatPullRetryTimers.clear();
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
   resetSyncStatus();
   renderSyncIndicator();
@@ -2571,6 +2577,24 @@ function _onceClearStaleSyncHashes() {
   } catch (e) {}
 }
 
+function scheduleChatPullRetry(profileId, delayMs) {
+  if (!profileId || delayMs <= 0) return;
+  const prev = _chatPullRetryTimers.get(profileId);
+  if (prev) clearTimeout(prev);
+  const waitMs = Math.min(Math.max(delayMs + 250, 1000), 120000);
+  const timer = setTimeout(() => {
+    _chatPullRetryTimers.delete(profileId);
+    if (!evolu || !profileQuery) return;
+    if (_syncing || _pulling) {
+      scheduleChatPullRetry(profileId, 1000);
+      return;
+    }
+    dbg(`Retrying chat pull for ${profileId.slice(0, 8)} after local freshness lock`);
+    onSyncReceived();
+  }, waitMs);
+  _chatPullRetryTimers.set(profileId, timer);
+}
+
 async function onSyncReceived() {
   if (!evolu || !profileQuery || _pulling) {
     dbg('onSyncReceived skipped:', !evolu ? 'no evolu' : !profileQuery ? 'no query' : 'already pulling');
@@ -2820,6 +2844,9 @@ async function onSyncReceived() {
 
         // Apply chat data and display preferences
         const chatApplied = chatData ? await applyChatData(profileId, chatData) : false;
+        if (chatData && !chatApplied) {
+          scheduleChatPullRetry(profileId, getChatDataLocalLockRemainingMs(profileId));
+        }
         if (displayPrefs) applyDisplayPrefs(profileId, displayPrefs);
 
         // If this is the active profile, update in-memory state
@@ -2829,6 +2856,7 @@ async function onSyncReceived() {
           // Reload chat threads + active thread messages into memory and re-render
           if (chatApplied) {
             window.loadChatThreads?.();
+            window.ensureActiveThread?.();
             window.renderThreadList?.();
             window.loadChatHistory?.(); // reloads state.chatHistory from localStorage + renders
           }
