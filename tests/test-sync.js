@@ -45,6 +45,7 @@ await import('../js/settings.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
+  const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
@@ -64,7 +65,7 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('1. Module Exports');
 
-  const requiredExports = ['isSyncEnabled', 'initSync', 'enableSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'getSyncRelay', 'setSyncRelay', 'onDataSaved', 'pushCurrentProfile', 'deleteProfileFromRelay'];
+  const requiredExports = ['isSyncEnabled', 'initSync', 'enableSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'getSyncRelay', 'setSyncRelay', 'onDataSaved', 'onProfileSaved', 'pushCurrentProfile', 'deleteProfileFromRelay'];
   for (const fn of requiredExports) {
     assert(`sync.js exports ${fn}`,
       syncSrc.includes(`export function ${fn}`)
@@ -184,7 +185,8 @@ await import('../js/settings.js');
       && syncActionsSrc.includes('export async function pushAllProfiles')
       && syncActionsSrc.includes('export function onDataSaved')
       && syncActionsSrc.includes('export function onChatSaved')
-      && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved']));
+      && syncActionsSrc.includes('export function onProfileSaved')
+      && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved', 'onProfileSaved']));
   assert('service worker precaches sync-actions.js',
     serviceWorkerSrc.includes("'/js/sync-actions.js'"));
   assert('sync-push.js owns outbound profile push and push watchdog state',
@@ -234,9 +236,27 @@ await import('../js/settings.js');
     /deleteProfileFromRelay[\s\S]{0,1200}evolu\.update\([\s\S]{0,400}isDeleted:\s*1/.test(syncTombstonesSrc));
   assert('deleteProfileFromRelay is idempotent on missing rows (returns no-row reason)',
     /deleteProfileFromRelay[\s\S]{0,500}reason:\s*'no-row'/.test(syncTombstonesSrc));
-  const profileSrc = read('/js/profile.js');
   assert('deleteProfile in profile.js calls deleteProfileFromRelay',
     /deleteProfile\([\s\S]+?deleteProfileFromRelay/.test(profileSrc));
+  assert('profile.js exposes default importedData factory',
+    profileSrc.includes('export function createDefaultProfileData')
+      && profileSrc.includes('entries: []')
+      && profileSrc.includes('sunSessions: []'));
+  assert('createProfile queues profile sync with default importedData',
+    /createProfile[\s\S]{0,1200}queueProfileSync\(id,\s*createDefaultProfileData\(\)\)/.test(profileSrc));
+  assert('profile metadata changes queue profile sync',
+    /renameProfile[\s\S]{0,500}queueProfileSync\(profileId\)/.test(profileSrc)
+      && /updateProfileMeta[\s\S]{0,800}queueProfileSync\(profileId\)/.test(profileSrc)
+      && /setProfileLocation[\s\S]{0,500}queueProfileSync\(p\.id\)/.test(profileSrc));
+  assert('sync-actions exports profile metadata sync hook',
+    syncActionsSrc.includes('export function onProfileSaved')
+      && syncActionsSrc.includes('const _profileSyncTimers = new Map()')
+      && syncActionsSrc.includes('readProfileImportedData(profileId, importedData)')
+      && exportBlockIncludes(syncSrc, ['onProfileSaved']));
+  assert('profile metadata sync retries while Evolu is busy or not ready',
+    syncActionsSrc.includes('function scheduleProfilePush')
+      && /scheduleProfilePush[\s\S]{0,600}attempt < 60/.test(syncActionsSrc)
+      && /scheduleProfilePush[\s\S]{0,1000}_pushProfile\(profileId,\s*data\)/.test(syncActionsSrc));
 
   // Tombstone-aware pull: a remote delete from another device wipes the
   // local copy on next sync, so multi-device cleanup completes itself.
@@ -611,6 +631,10 @@ await import('../js/settings.js');
   assert('Pull calls migrateProfileData', syncPullSrc.includes('migrateProfileData(state.importedData)'));
   assert('pushAllProfiles pushes all profiles on first enable',
     syncSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
+  assert('pushAllProfiles pushes metadata-only profiles with default data',
+    syncActionsSrc.includes('createDefaultProfileData()')
+      && /pushAllProfiles[\s\S]{0,800}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
+      && !/pushAllProfiles[\s\S]{0,800}if \(!raw\) continue/.test(syncActionsSrc));
   assert('disableSync clears _appOwner', syncSrc.includes('_appOwner = null'));
   // disableSync intentionally NO LONGER waits for in-flight ops or awaits
   // Evolu reset — both introduced hang risks (Evolu worker stuck on OPFS

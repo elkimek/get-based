@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { showNotification } from './utils.js';
-import { profileStorageKey, getProfiles } from './profile.js';
+import { profileStorageKey, getProfiles, createDefaultProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
 import { markChatDataLocal } from './sync-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
@@ -20,6 +20,7 @@ let _isSyncing = () => false;
 // survives until it fires.
 const _debounceTimers = new Map();
 const _chatSyncTimers = new Map();
+const _profileSyncTimers = new Map();
 let _aiSettingsPushTimer = null;
 let _eventsBound = false;
 
@@ -57,10 +58,64 @@ export function clearSyncActionTimers() {
   _debounceTimers.clear();
   for (const t of _chatSyncTimers.values()) clearTimeout(t);
   _chatSyncTimers.clear();
+  for (const t of _profileSyncTimers.values()) clearTimeout(t);
+  _profileSyncTimers.clear();
   if (_aiSettingsPushTimer) {
     clearTimeout(_aiSettingsPushTimer);
     _aiSettingsPushTimer = null;
   }
+}
+
+async function readProfileImportedData(profileId, fallback = null) {
+  if (fallback && typeof fallback === 'object') return fallback;
+  if (profileId === state.currentProfile && state.importedData) return state.importedData;
+  try {
+    const storageKey = profileStorageKey(profileId, 'imported');
+    const raw = getEncryptionEnabled()
+      ? await encryptedGetItem(storageKey)
+      : localStorage.getItem(storageKey);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn('[sync] Could not read profile importedData for profile sync:', e?.message || e);
+  }
+  return createDefaultProfileData();
+}
+
+function scheduleProfilePush(profileId, data, attempt = 0) {
+  if (!_isSyncEnabled()) {
+    _profileSyncTimers.delete(profileId);
+    return;
+  }
+  if (!_isEvoluReady() || _isSyncing()) {
+    if (attempt < 60) {
+      const retry = setTimeout(() => {
+        if (_profileSyncTimers.get(profileId) === retry) _profileSyncTimers.delete(profileId);
+        scheduleProfilePush(profileId, data, attempt + 1);
+      }, 1000);
+      _profileSyncTimers.set(profileId, retry);
+      return;
+    }
+  }
+  if (!_isEvoluReady()) {
+    _profileSyncTimers.delete(profileId);
+    return;
+  }
+  _profileSyncTimers.delete(profileId);
+  _pushProfile(profileId, data).catch(() => {});
+}
+
+export function onProfileSaved(profileId, importedData = null) {
+  if (!profileId) return;
+  if (!_isSyncEnabled()) return;
+  const prev = _profileSyncTimers.get(profileId);
+  if (prev) clearTimeout(prev);
+  const timer = setTimeout(async () => {
+    if (_profileSyncTimers.get(profileId) === timer) _profileSyncTimers.delete(profileId);
+    if (!_isSyncEnabled()) return;
+    const data = await readProfileImportedData(profileId, importedData);
+    scheduleProfilePush(profileId, data);
+  }, 250);
+  _profileSyncTimers.set(profileId, timer);
 }
 
 export async function pushCurrentProfile() {
@@ -142,16 +197,11 @@ export async function pushAllProfiles() {
   const profiles = getProfiles();
   for (const p of profiles) {
     try {
-      const storageKey = profileStorageKey(p.id, 'imported');
       let dataJson;
       if (p.id === state.currentProfile) {
-        dataJson = state.importedData;
+        dataJson = state.importedData || createDefaultProfileData();
       } else {
-        const raw = getEncryptionEnabled()
-          ? await encryptedGetItem(storageKey)
-          : localStorage.getItem(storageKey);
-        if (!raw) continue;
-        dataJson = JSON.parse(raw);
+        dataJson = await readProfileImportedData(p.id);
       }
       if (dataJson) await _pushProfile(p.id, dataJson);
     } catch (e) {

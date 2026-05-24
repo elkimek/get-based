@@ -53,7 +53,7 @@ import {
 import {
   bindSyncActionEvents, cleanStorage, clearSyncActionTimers,
   configureSyncActions, forceResendCurrentProfile, onChatSaved,
-  onDataSaved, pushAllProfiles, pushCurrentProfile, syncNow,
+  onDataSaved, onProfileSaved, pushAllProfiles, pushCurrentProfile, syncNow,
 } from './sync-actions.js';
 import {
   configureSyncPush, isSyncPushInFlight, pushProfile,
@@ -80,6 +80,7 @@ export {
   renderSyncIndicator, updateSyncIndicator, toggleSyncDetail, copySyncEvents,
   showSyncDiagnose,
   cleanStorage, forceResendCurrentProfile, onChatSaved, onDataSaved,
+  onProfileSaved,
   pushCurrentProfile, syncNow,
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 };

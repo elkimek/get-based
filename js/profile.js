@@ -66,6 +66,51 @@ export function profileStorageKey(profileId, suffix) {
   return `labcharts-${profileId}-${suffix}`;
 }
 
+export function createDefaultProfileData() {
+  return {
+    entries: [],
+    notes: [],
+    supplements: [],
+    healthGoals: [],
+    diagnoses: null,
+    diet: null,
+    exercise: null,
+    sleepRest: null,
+    lightCircadian: null,
+    stress: null,
+    loveLife: null,
+    environment: null,
+    interpretiveLens: '',
+    contextNotes: '',
+    menstrualCycle: null,
+    emfAssessment: null,
+    customMarkers: {},
+    changeHistory: [],
+    genetics: null,
+    biometrics: null,
+    manualValues: {},
+    sunSessions: [],
+    deviceSessions: [],
+    lightDevices: [],
+    lightEnvironment: null,
+    lightMeasurements: [],
+    lightAudits: [],
+    sunCorrelations: null,
+    lifelightProfile: null,
+    sunDefaults: null
+  };
+}
+
+function queueProfileSync(profileId, importedData = null) {
+  if (!profileId) return;
+  try {
+    if (localStorage.getItem('labcharts-sync-enabled') !== 'true') return;
+  } catch {
+    return;
+  }
+  import('./sync.js').then(m => m.onProfileSaved?.(profileId, importedData)).catch(() => {});
+}
+
 export function migrateProfileData(data) {
   // Migrate sleepCircadian → sleepRest (sleep fields go to sleepRest, circadian items to lightCircadian)
   if (data.sleepCircadian && !data.sleepRest) {
@@ -310,7 +355,7 @@ export async function loadProfile(profileId) {
   state.currentProfile = profileId;
   setActiveProfileId(profileId);
   const savedImported = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
-  const defaultData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, customMarkers: {}, changeHistory: [], genetics: null, biometrics: null, manualValues: {}, sunSessions: [], deviceSessions: [], lightDevices: [], lightEnvironment: null, lightMeasurements: [], lightAudits: [], sunCorrelations: null, lifelightProfile: null, sunDefaults: null };
+  const defaultData = createDefaultProfileData();
   state.importedData = savedImported ? (function() {
     try {
       const d = JSON.parse(savedImported);
@@ -424,13 +469,14 @@ export function createProfile(name, opts = {}) {
     pinned: false
   });
   saveProfiles(profiles);
+  queueProfileSync(id, createDefaultProfileData());
   return id;
 }
 
 export function renameProfile(profileId, newName) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
-  if (p) { p.name = newName; p.lastUpdated = Date.now(); saveProfiles(profiles); }
+  if (p) { p.name = newName; p.lastUpdated = Date.now(); saveProfiles(profiles); queueProfileSync(profileId); }
 }
 
 export function updateProfileMeta(profileId, updates) {
@@ -443,6 +489,7 @@ export function updateProfileMeta(profileId, updates) {
   }
   p.lastUpdated = Date.now();
   saveProfiles(profiles);
+  queueProfileSync(profileId);
 }
 
 export function getAllTags() {
@@ -548,7 +595,7 @@ export function getProfileSex(profileId) {
 export function setProfileSex(profileId, sex) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
-  if (p) { p.sex = sex; saveProfiles(profiles); }
+  if (p) { p.sex = sex; saveProfiles(profiles); queueProfileSync(profileId); }
 }
 
 export function getProfileDob(profileId) {
@@ -560,7 +607,7 @@ export function getProfileDob(profileId) {
 export function setProfileDob(profileId, dob) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
-  if (p) { p.dob = dob || null; saveProfiles(profiles); }
+  if (p) { p.dob = dob || null; saveProfiles(profiles); queueProfileSync(profileId); }
 }
 
 export function getProfileLocation(profileId) {
@@ -572,7 +619,11 @@ export function getProfileLocation(profileId) {
 export function setProfileLocation(profileId, country, zip) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
-  if (p) { p.location = { country: (country || '').trim(), zip: (zip || '').trim() }; saveProfiles(profiles); }
+  if (p) {
+    p.location = { country: (country || '').trim(), zip: (zip || '').trim() };
+    saveProfiles(profiles);
+    queueProfileSync(p.id);
+  }
 }
 
 export function getProfileHeight(profileId) {
@@ -584,7 +635,13 @@ export function getProfileHeight(profileId) {
 export function setProfileHeight(profileId, height, unit) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
-  if (p) { p.height = height; p.heightUnit = unit || 'cm'; p.lastUpdated = Date.now(); saveProfiles(profiles); }
+  if (p) {
+    p.height = height;
+    p.heightUnit = unit || 'cm';
+    p.lastUpdated = Date.now();
+    saveProfiles(profiles);
+    queueProfileSync(p.id);
+  }
 }
 
 // AI-powered latitude detection with hardcoded fallback
@@ -711,6 +768,7 @@ Object.assign(window, {
   getProfiles,
   saveProfiles,
   initProfilesCache,
+  createDefaultProfileData,
   createProfile,
   deleteProfile,
   renameProfile,

@@ -164,10 +164,10 @@
     'getOllamaConfig','checkOllama'
   ];
 
-  // profile.js (27)
+  // profile.js (28)
   const profileExports = [
     'profileStorageKey',
-    'getProfiles','saveProfiles','createProfile','deleteProfile','renameProfile','switchProfile',
+    'getProfiles','saveProfiles','createDefaultProfileData','createProfile','deleteProfile','renameProfile','switchProfile',
     'migrateProfileData',
     'getProfileSex','setProfileSex','getProfileDob','setProfileDob',
     'getProfileLocation','setProfileLocation',
