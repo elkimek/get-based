@@ -5,13 +5,37 @@ import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './data.js';
 
+const CHART_JS_SRC = '/vendor/chart.min.js';
+const CHART_DATE_ADAPTER_SRC = '/vendor/chartjs-adapter-native.js';
+
 let _chartJsLoad = null;
+let _chartDateAdapterLoad = null;
+
+export function isChartDateAdapterReady() {
+  return window.__labChartDateAdapterLoaded === true;
+}
+
+function ensureChartDateAdapter() {
+  if (isChartDateAdapterReady()) return Promise.resolve(window.Chart);
+  if (!_chartDateAdapterLoad) {
+    _chartDateAdapterLoad = loadScriptOnce(CHART_DATE_ADAPTER_SRC)
+      .then(() => {
+        window.__labChartDateAdapterLoaded = true;
+        return window.Chart;
+      })
+      .catch(err => {
+        _chartDateAdapterLoad = null;
+        throw err;
+      });
+  }
+  return _chartDateAdapterLoad;
+}
 
 export async function ensureChartJs() {
-  if (window.Chart) return window.Chart;
+  if (window.Chart) return ensureChartDateAdapter();
   if (!_chartJsLoad) {
-    _chartJsLoad = loadScriptOnce('/vendor/chart.min.js')
-      .then(() => loadScriptOnce('/vendor/chartjs-adapter-native.js'))
+    _chartJsLoad = loadScriptOnce(CHART_JS_SRC)
+      .then(() => ensureChartDateAdapter())
       .then(() => {
         if (!window.Chart) throw new Error('Chart.js did not initialize');
         return window.Chart;
@@ -627,4 +651,4 @@ export function getMarkerDescription(markerId) {
   return cache[markerId] || null;
 }
 
-Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription, ensureChartJs });
+Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription, ensureChartJs, isChartDateAdapterReady });

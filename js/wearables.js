@@ -36,7 +36,7 @@ import { getActiveProfileId } from './profile.js';
 import { getDailyRange } from './wearables-store.js';
 import { MANUAL_METRICS } from './wearables-manual.js';
 import { getChartColors } from './theme.js';
-import { ensureChartJs } from './charts.js';
+import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
 import { isoDay } from './wearables-oura.js';
 
 // ─────────────────────────────────────────────────────────
@@ -1034,7 +1034,7 @@ function _buildEMFSleepHint(metricId, m) {
 }
 
 function renderWearableChart(canvas, canon, m, series) {
-  if (!window.Chart) {
+  if (!window.Chart || !isChartDateAdapterReady()) {
     ensureChartJs().then(() => {
       const currentCanvas = document.getElementById(canvas.id);
       if (currentCanvas) renderWearableChart(currentCanvas, canon, m, series);
