@@ -1,6 +1,9 @@
 // sync-identity.js - BIP-39/QR loading and mnemonic restore helpers.
 
 import { loadScriptOnce, showNotification } from './utils.js';
+import {
+  clearSyncDisableStorage,
+} from './sync-disable-cleanup.js';
 
 let _bip39Load = null;
 let _qrCodeLoad = null;
@@ -71,18 +74,11 @@ export async function restoreFromMnemonic(mnemonic) {
   if (!evolu) return false;
   try {
     await evolu.restoreAppOwner(mnemonic);
-    // Clear sync timestamps + per-array delta snapshots + cutover flag.
     // After mnemonic restore, the new Evolu owner has zero rows; the old
     // delta snapshot would tell the planner "I already pushed these items",
     // leaving the new owner's relay empty. Drop snapshots so the first push
     // under the new identity re-emits everything as inserts.
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      if (key.endsWith('-sync-ts') || key.includes('-delta-') || key.includes('-sync-cutover-v2') || key.includes('-relay-bytes-') || key === 'labcharts-relay-quota-warned') {
-        localStorage.removeItem(key);
-      }
-    }
+    clearSyncDisableStorage();
     showNotification('Restored from mnemonic — reloading…', 'success');
     // Reload so the app re-initializes from the restored CRDT identity.
     setTimeout(() => window.location.reload(), 500);
