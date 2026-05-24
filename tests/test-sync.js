@@ -40,6 +40,7 @@ await import('../js/settings.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
+  const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -145,6 +146,17 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['getEvoluDiagnostics']));
   assert('service worker precaches sync-diagnostics.js',
     serviceWorkerSrc.includes("'/js/sync-diagnostics.js'"));
+  assert('sync-ui.js owns header sync status UI helpers',
+    syncSrc.includes("from './sync-ui.js'")
+      && syncUiSrc.includes('export function configureSyncUI')
+      && syncUiSrc.includes('export function bindSyncUIStatusUpdates')
+      && syncUiSrc.includes('export function renderSyncIndicator')
+      && syncUiSrc.includes('export function updateSyncIndicator')
+      && syncUiSrc.includes('export function toggleSyncDetail')
+      && syncUiSrc.includes('export async function copySyncEvents')
+      && exportBlockIncludes(syncSrc, ['renderSyncIndicator', 'updateSyncIndicator', 'toggleSyncDetail', 'copySyncEvents']));
+  assert('service worker precaches sync-ui.js',
+    serviceWorkerSrc.includes("'/js/sync-ui.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -259,7 +271,7 @@ await import('../js/settings.js');
   assert('Quota threshold warning fires on transition (amber → red)',
     /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncRelayHealthSrc));
   assert('Quota indicator visible on popover (green/amber/red dot)',
-    /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncSrc));
+    /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncUiSrc));
   assert('Sync popover uses dedicated opaque background token',
     /\.sync-popover\s*\{[\s\S]{0,260}background:\s*var\(--sync-popover-bg,\s*var\(--bg-card\)\)/.test(stylesSrc));
   assert('Transparent themes override sync popover background with solid panels',

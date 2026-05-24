@@ -1375,7 +1375,7 @@ Not separately documented because their exports are best read from source — ke
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
-- `sync.js` — Evolu CRDT sync orchestration; per-profile push debouncer, chat sync debouncer, pull/push flow, and relay status rendering.
+- `sync.js` — Evolu CRDT sync orchestration; per-profile push debouncer, chat sync debouncer, and pull/push flow.
 - `sync-delta.js` — per-row CRDT delta boundary; DELTA_ARRAYS/MAPS/SCALARS registration, array/map/scalar planners, itemRow merge overlay, delta telemetry, snapshot advancement gates, and Phase 2 cutover readiness.
 - `sync-apply.js` — inbound sync apply helpers for AI provider settings, chat thread/message data, display prefs, and local freshness locks that protect just-edited local chat/settings from stale remote rows.
 - `sync-tombstones.js` — remote profile delete propagation helpers, inbound tombstone application, batched-delete quarantine, and apply/reject pending tombstone actions for Settings.
@@ -1383,6 +1383,7 @@ Not separately documented because their exports are best read from source — ke
 - `sync-environment.js` — relay URL selection, relay connectivity probing, and browser capability checks for Evolu sync.
 - `sync-identity.js` — BIP-39/QR lazy loaders plus mnemonic read/restore helpers for Evolu owner identity.
 - `sync-diagnostics.js` — Evolu row diagnostics snapshot and copy-text formatting for the Sync Diagnose modal.
+- `sync-ui.js` — header sync badge, popover rendering, status subscription, and activity-log copy helpers.
 - `sync-payload.js` — Evolu wire-payload helpers; outbound profile/config/chat/display envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.
 - `sync-relay-health.js` — Evolu relay helper boundary; client-side quota estimate, signed `/self/owner-storage` and `/self/compact-owner` calls, and push-landed health verdict for the silent-reject detector.
 - `sync-state.js` — in-memory sync status pub-sub, header badge display-state derivation, recent sync activity ring buffer, and per-profile rebroadcast budget guard.
