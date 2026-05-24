@@ -290,17 +290,17 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 8. v1.6.7 Sync offline/online toast affordance ─────────────────
   console.log('%c 8. Sync offline/online toast affordance ', 'font-weight:bold;color:#0891b2');
   {
-    const syncSrc = fetchSrc('js/sync.js');
-    assert('sync.js: listens for offline event',
-      /addEventListener\('offline'/.test(syncSrc));
-    assert('sync.js: listens for online event + kicks sync',
-      /addEventListener\('online'[\s\S]{0,200}_kickSync\('online'\)/.test(syncSrc));
-    assert('sync.js: offline toast mentions "saved locally"',
-      /saved locally and will sync when you reconnect/.test(syncSrc));
-    assert('sync.js: online toast mentions "syncing"',
-      /Back online[\s\S]{0,80}syncing your changes/i.test(syncSrc));
-    assert('sync.js: toast guarded against double-firing',
-      /_lastNetState/.test(syncSrc));
+    const syncRecoverySrc = fetchSrc('js/sync-recovery.js');
+    assert('sync-recovery.js: listens for offline event',
+      /addEventListener\('offline'/.test(syncRecoverySrc));
+    assert('sync-recovery.js: listens for online event + kicks sync',
+      /addEventListener\('online'[\s\S]{0,200}_kickSync\('online'\)/.test(syncRecoverySrc));
+    assert('sync-recovery.js: offline toast mentions "saved locally"',
+      /saved locally and will sync when you reconnect/.test(syncRecoverySrc));
+    assert('sync-recovery.js: online toast mentions "syncing"',
+      /Back online[\s\S]{0,80}syncing your changes/i.test(syncRecoverySrc));
+    assert('sync-recovery.js: toast guarded against double-firing',
+      /_lastNetState/.test(syncRecoverySrc));
   }
 
   // ─── 9. v1.6.14 Sync pull reads view from state, not DOM ────────────

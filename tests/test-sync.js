@@ -45,6 +45,7 @@ await import('../js/settings.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
+  const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
@@ -209,6 +210,18 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncPush({'));
   assert('service worker precaches sync-push.js',
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
+  assert('sync-recovery.js owns tab resume and network recovery hooks',
+    syncSrc.includes("from './sync-recovery.js'")
+      && syncRecoverySrc.includes('export function configureSyncRecovery')
+      && syncRecoverySrc.includes('export function bindSyncRecoveryEvents')
+      && syncRecoverySrc.includes("document.addEventListener('visibilitychange'")
+      && syncRecoverySrc.includes("window.addEventListener('pageshow'")
+      && syncRecoverySrc.includes("window.addEventListener('online'")
+      && syncRecoverySrc.includes("window.addEventListener('offline'")
+      && syncSrc.includes('configureSyncRecovery({')
+      && syncSrc.includes('bindSyncRecoveryEvents();'));
+  assert('service worker precaches sync-recovery.js',
+    serviceWorkerSrc.includes("'/js/sync-recovery.js'"));
   assert('sync-reconcile.js owns startup reconciliation helper',
     syncSrc.includes("from './sync-reconcile.js'")
       && syncReconcileSrc.includes('export function configureSyncReconcile')

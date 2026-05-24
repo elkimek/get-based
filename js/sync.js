@@ -57,6 +57,9 @@ import {
   configureSyncPush, isSyncPushInFlight, pushProfile,
 } from './sync-push.js';
 import {
+  bindSyncRecoveryEvents, configureSyncRecovery,
+} from './sync-recovery.js';
+import {
   configureSyncReconcile, reconcileLocalStorageWithEvolu,
 } from './sync-reconcile.js';
 import {
@@ -190,6 +193,17 @@ configureSyncActions({
   isSyncing: isSyncPushInFlight,
 });
 bindSyncActionEvents();
+
+configureSyncRecovery({
+  isSyncEnabled: () => _syncEnabled,
+  isEvoluReady: () => !!evolu,
+  pushCurrentProfile,
+  forcePull: _forcePull,
+  debug: dbg,
+  notify: (...args) => {
+    try { showNotification(...args); } catch {}
+  },
+});
 
 configureSyncReconcile({
   getEvolu: () => evolu,
@@ -352,63 +366,7 @@ export async function initSync() {
       updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
     }, 60000);
 
-    // Resume-from-suspended-tab recovery — Android browsers (Brave/Chrome on
-    // mobile) aggressively kill background tab processes to save battery.
-    // The renderer + Evolu's WebSocket worker get evicted; on resume we
-    // come back with a stale (or no) WS, and Evolu's reconnect loop doesn't
-    // automatically drain the push queue or trigger a fresh pull. Without
-    // this hook the user has to swipe-to-refresh after every screen-off
-    // cycle to converge — observed in production on Brave Android where
-    // the device shows up in chrome://inspect/#devices, sync indicator
-    // stays yellow, then disappears entirely once the renderer is reaped.
-    //
-    // Throttled to once per 30s — multiple visibility flips in quick
-    // succession (notifications, recents-pane peeks) shouldn't pile up
-    // pushes, and the existing 30s poll covers the steady-state case.
-    let _lastVisibleSyncAt = 0;
-    const _kickSync = (reason) => {
-      if (!_syncEnabled || !evolu) return;
-      const now = Date.now();
-      if (now - _lastVisibleSyncAt < 30_000) return;
-      _lastVisibleSyncAt = now;
-      dbg(`Tab resume (${reason}) — kicking syncNow`);
-      // Schedule via setTimeout so the visibilitychange handler returns
-      // before any heavy push/pull work starts (browsers occasionally
-      // throttle long-running sync work in the visibility transition).
-      setTimeout(() => {
-        pushCurrentProfile().catch(() => {});
-        _forcePull();
-      }, 100);
-    };
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') _kickSync('visibilitychange');
-      });
-    }
-    if (typeof window !== 'undefined') {
-      // pageshow fires when the tab is restored from the back/forward cache
-      // or after the renderer was killed and the page is rehydrating.
-      window.addEventListener('pageshow', (e) => {
-        if (e.persisted) _kickSync('pageshow-persisted');
-      });
-      // Network came back — drain any pending pushes + toast the user.
-      // Evolu queues writes locally while offline; the user has no other
-      // signal that their edits are safely persisted (vs. lost). The
-      // toasts are throttled — only one fires per offline → online
-      // transition, not per visibilitychange.
-      let _lastNetState = navigator.onLine ?? true;
-      window.addEventListener('online', () => {
-        _kickSync('online');
-        if (!_lastNetState) {
-          _lastNetState = true;
-          if (window.showNotification) window.showNotification('Back online — syncing your changes.', 'success', 3000);
-        }
-      });
-      window.addEventListener('offline', () => {
-        _lastNetState = false;
-        if (window.showNotification) window.showNotification('Offline — changes are saved locally and will sync when you reconnect.', 'info', 5000);
-      });
-    }
+    bindSyncRecoveryEvents();
 
     dbg('Initialized, relay:', relay);
 
