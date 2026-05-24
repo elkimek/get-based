@@ -4,8 +4,8 @@
 
 import { state } from './state.js';
 import { showNotification, isDebugMode, escapeHTML, loadScriptOnce } from './utils.js';
-import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData, loadProfile } from './profile.js';
-import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
+import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
+import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, getAt } from './data-merge.js';
 import {
   buildSyncPayload, collectAISettings,
@@ -33,11 +33,17 @@ import {
   _writeDeltaSnapshot, configureSyncDelta, getDeltaCutoverReadiness,
   getDeltaTelemetry, resetDeltaTelemetry,
 } from './sync-delta.js';
+import {
+  applyPendingTombstone, applyRemoteTombstones, configureSyncTombstones,
+  deleteProfileFromRelay, listPendingTombstones, rejectPendingTombstone,
+} from './sync-tombstones.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
   getRelayQuotaEstimate, resetRelayQuotaEstimate, verifyPushLanded,
   getRecentSyncEvents, subscribeSyncStatus,
+  applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
+  rejectPendingTombstone,
 };
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
@@ -102,8 +108,13 @@ export async function getEvoluDiagnostics() {
     activeImported: { sunSessions: 0, lightDevices: 0 },
   };
   try {
-    const rows = (evolu && profileQuery) ? evolu.getQueryRows(profileQuery) : [];
-    for (const row of rows || []) {
+    const liveRows = (evolu && profileQuery) ? evolu.getQueryRows(profileQuery) : [];
+    const tombstoneRows = (evolu && tombstoneQuery) ? evolu.getQueryRows(tombstoneQuery) : [];
+    const rows = [
+      ...(liveRows || []).map(r => ({ ...r, isDeleted: false })),
+      ...(tombstoneRows || []).map(r => ({ ...r, isDeleted: true })),
+    ];
+    for (const row of rows) {
       let sun = 0, dev = 0, payloadProfileId = null, format = 'plain';
       try {
         // parseSyncPayload routes plain JSON + the v1.6.4 GZ envelope.
@@ -131,6 +142,7 @@ export async function getEvoluDiagnostics() {
         syncedAt: row.syncedAt,
         syncedAtMs: row.syncedAt ? new Date(row.syncedAt).getTime() : 0,
         sun, dev, format,
+        isDeleted: !!row.isDeleted,
         bytes: (row.dataJson || '').length,
       });
     }
@@ -168,16 +180,17 @@ function _evoluDiagnosticsText(d) {
   if (!d.rows.length) {
     lines.push('  (none)');
   } else {
-    lines.push('  profileId         syncedAtMs       sun  dev  size       fmt   src');
+    lines.push('  profileId         del  syncedAtMs       sun  dev  size       fmt   src');
     for (const r of d.rows) {
       const pid = String(r.profileId || '?').padEnd(17);
+      const del = r.isDeleted ? 'yes' : 'no ';
       const ts = String(r.syncedAtMs).padEnd(16);
       const sun = String(r.sun).padStart(3);
       const dev = String(r.dev).padStart(3);
       const size = String(r.bytes + 'b').padStart(9);
       const fmt = String(r.format || '?').padEnd(5);
       const src = String(r.profileIdSource || '?');
-      lines.push(`  ${pid} ${ts} ${sun}  ${dev}  ${size}  ${fmt} ${src}`);
+      lines.push(`  ${pid} ${del}  ${ts} ${sun}  ${dev}  ${size}  ${fmt} ${src}`);
     }
   }
   if (d.rowsError) lines.push(`Rows read error: ${d.rowsError}`);
@@ -259,12 +272,22 @@ const _chatPullRetryTimers = new Map();
 let _aiSettingsPushTimer = null;
 let _pollInterval = null;
 let _lastPollRowCount = -1;
+let _lastPollTombstoneCount = -1;
 let _subscriptionFireCount = 0;
 let _relayProbeInterval = null;
 
 configureSyncDelta({
   getEvolu: () => evolu,
   getItemRowQuery: () => itemRowQuery,
+});
+
+configureSyncTombstones({
+  getEvolu: () => evolu,
+  getProfileQuery: () => profileQuery,
+  getTombstoneQuery: () => tombstoneQuery,
+  isSyncEnabled: () => _syncEnabled,
+  pushProfile,
+  debug: dbg,
 });
 
 function getSyncDisplayState() {
@@ -432,6 +455,13 @@ export async function initSync() {
       dbg(`subscription fired (#${_subscriptionFireCount}), syncing: ${_syncing}, pulling: ${_pulling}`);
       if (!_syncing && !_pulling) onSyncReceived();
     });
+    // Tombstone rows live outside profileQuery's "isDeleted is not 1"
+    // filter. Evolu refreshes subscribed queries after remote mutations,
+    // so this subscription is required for device B to see device A's
+    // profile-delete tombstone without waiting for a full reload.
+    evolu.subscribeQuery(tombstoneQuery)(() => {
+      if (!_syncing && !_pulling) onSyncReceived();
+    });
     // itemRow rows arriving asynchronously must also retrigger the merge
     // — without this, a per-row push from device A would only land on
     // device B after the next blob-driven pull tick (which v1.6.4's 10s
@@ -482,12 +512,15 @@ export async function initSync() {
 
     // Poll every 30s as safety net — subscribeQuery may miss remote changes
     _pollInterval = setInterval(() => {
-      if (!evolu || !profileQuery || _syncing || _pulling) return;
+      if (!evolu || !profileQuery || !tombstoneQuery || _syncing || _pulling) return;
       const rows = evolu.getQueryRows(profileQuery);
+      const tombstones = evolu.getQueryRows(tombstoneQuery);
       const count = rows?.length ?? 0;
-      if (count !== _lastPollRowCount) {
-        dbg(`poll: row count changed ${_lastPollRowCount} → ${count}, triggering onSyncReceived`);
+      const tombstoneCount = tombstones?.length ?? 0;
+      if (count !== _lastPollRowCount || tombstoneCount !== _lastPollTombstoneCount) {
+        dbg(`poll: row/tombstone count changed ${_lastPollRowCount}/${_lastPollTombstoneCount} -> ${count}/${tombstoneCount}, triggering onSyncReceived`);
         _lastPollRowCount = count;
+        _lastPollTombstoneCount = tombstoneCount;
         onSyncReceived();
       }
     }, 30000);
@@ -1227,35 +1260,6 @@ export async function syncNow() {
   _forcePull();
 }
 
-// Soft-delete a profile's row on the relay so other devices stop seeing it.
-// Local wipe alone is insufficient — without this, the Evolu row keeps its
-// full dataJson and any device that pulls (or any device the user re-syncs
-// to later) resurrects the profile. Idempotent: missing row → no-op.
-export async function deleteProfileFromRelay(profileId) {
-  if (!evolu || !_syncEnabled) return { skipped: true, reason: 'sync-off' };
-  if (!profileId || typeof profileId !== 'string') return { skipped: true, reason: 'bad-id' };
-  try {
-    const rows = evolu.getQueryRows(profileQuery);
-    const row = rows?.find(r => r.profileId === profileId);
-    if (!row) return { skipped: true, reason: 'no-row' };
-    // Evolu's soft-delete idiom: set isDeleted=1; the local query filters
-    // these out (see profileQuery's .where clause), and the row replicates
-    // to peers carrying the tombstone — they apply the same filter and
-    // stop seeing the profile. CRDT LWW means a stale device that hasn't
-    // pulled yet won't accidentally resurrect the row, because its newer
-    // tombstone wins on next pull-merge.
-    // profileId carried explicitly so post-compaction replicas of this
-    // tombstone still know which local profile to wipe.
-    evolu.update('profileData', { id: row.id, profileId, isDeleted: 1, syncedAt: new Date().toISOString() });
-    localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
-    dbg('Soft-deleted on relay:', profileId);
-    return { ok: true };
-  } catch (e) {
-    console.error('[sync] Profile delete propagation failed:', e);
-    return { ok: false, error: e.message };
-  }
-}
-
 // Push all profiles on first enable
 async function pushAllProfiles() {
   const profiles = getProfiles();
@@ -1282,187 +1286,6 @@ async function pushAllProfiles() {
 // ═══════════════════════════════════════════════
 // PULL — Evolu → localStorage
 // ═══════════════════════════════════════════════
-
-// Wipe local copies of any profiles that were tombstoned on the relay (by
-// this or another device). Mirrors the local-wipe steps in
-// profile.js:deleteProfile so a tombstoned profile is fully gone — not just
-// hidden by the active-rows query. The user's local profiles list is the
-// source of truth for "what shows in the UI"; without this loop a remote
-// delete would leave the entry there indefinitely.
-// localStorage key for the per-profile "tombstone seen" marker. Used to
-// decide whether a tombstone is auto-applied (we already saw it once and
-// the user dismissed the confirm dialog by accepting) vs queued for review.
-const TOMBSTONE_QUARANTINE_KEY = (profileId) => `labcharts-tombstone-pending-${profileId}`;
-const TOMBSTONE_BATCH_THRESHOLD = 2; // ≥2 tombstones at once = require confirm
-
-async function applyRemoteTombstones() {
-  if (!tombstoneQuery) return;
-  const tombs = evolu.getQueryRows(tombstoneQuery) || [];
-  if (tombs.length === 0) return;
-  const profiles = getProfiles();
-  // Same payload-fallback as onSyncReceived: a tombstone row whose
-  // profileId column was lost to compaction still carries profile.id
-  // inside dataJson, so we recover it before deciding what to wipe.
-  const tombIdsArr = [];
-  for (const t of tombs) {
-    if (t.profileId) { tombIdsArr.push(t.profileId); continue; }
-    try {
-      const parsed = await parseSyncPayload(t.dataJson || '{}');
-      const candidate = parsed?.profile?.id;
-      if (typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate)) {
-        tombIdsArr.push(candidate);
-      }
-    } catch {}
-  }
-  const tombIds = new Set(tombIdsArr);
-  const survivors = profiles.filter(p => !tombIds.has(p.id));
-  if (survivors.length === profiles.length) return; // nothing local to wipe
-
-  // CRDT safety: never wipe the last profile out from under the user. If
-  // every local profile is tombstoned (mass-delete from another device),
-  // keep the active one as a safety landing pad — the user can finish
-  // deleting it themselves once they confirm.
-  if (survivors.length === 0) {
-    dbg('All profiles tombstoned remotely — keeping active profile as safety');
-    return;
-  }
-
-  // Quarantine: a remote-driven mass-delete (≥ TOMBSTONE_BATCH_THRESHOLD
-  // local profiles tombstoned at once) is auth'd only by the BIP-39
-  // mnemonic. If the mnemonic leaks, an attacker could publish tombstones
-  // for every profileId and silently wipe paired devices. For a single
-  // tombstone, auto-apply (most common: user just deleted on another
-  // device). For batches, require the user to confirm before wiping.
-  const localToWipe = profiles.filter(p => tombIds.has(p.id)).map(p => p.id);
-  if (localToWipe.length >= TOMBSTONE_BATCH_THRESHOLD) {
-    // Mark each as pending; surface a confirm UI in Settings → Sync (the
-    // user's next visit there will offer to apply or reject).
-    const pending = localToWipe.filter(id => !localStorage.getItem(TOMBSTONE_QUARANTINE_KEY(id)));
-    for (const id of pending) {
-      localStorage.setItem(TOMBSTONE_QUARANTINE_KEY(id), JSON.stringify({ at: Date.now(), source: 'remote' }));
-    }
-    dbg(`Quarantined ${pending.length} tombstone(s) — require user confirm before wipe:`, pending.join(','));
-    showNotification?.(
-      `${localToWipe.length} profiles deleted on another device — open Settings → Sync to confirm`,
-      'info', 6000
-    );
-    return;
-  }
-
-  const wipedIds = [];
-  for (const tombId of tombIds) {
-    if (!profiles.find(p => p.id === tombId)) continue; // not local — nothing to wipe
-    // Mirror profile.js:deleteProfile's local cleanup. Doing it inline here
-    // (instead of calling deleteProfile) avoids the confirm dialog and the
-    // recursive deleteProfileFromRelay call — the tombstone is already on
-    // the relay, that's how we got here. The `-imported` blob lives in
-    // IndexedDB now → encryptedRemoveItem hits both backends.
-    await encryptedRemoveItem(profileStorageKey(tombId, 'imported'));
-    localStorage.removeItem(profileStorageKey(tombId, 'units'));
-    localStorage.removeItem(profileStorageKey(tombId, 'suppOverlay'));
-    localStorage.removeItem(profileStorageKey(tombId, 'noteOverlay'));
-    localStorage.removeItem(profileStorageKey(tombId, 'rangeMode'));
-    localStorage.removeItem(profileStorageKey(tombId, 'suppImpact'));
-    localStorage.removeItem(`labcharts-${tombId}-chat`);
-    localStorage.removeItem(`labcharts-${tombId}-chat-threads`);
-    localStorage.removeItem(`labcharts-${tombId}-chatRailOpen`);
-    localStorage.removeItem(`labcharts-${tombId}-chatPersonality`);
-    localStorage.removeItem(`labcharts-${tombId}-chatPersonalityCustom`);
-    localStorage.removeItem(`labcharts-${tombId}-focusCard`);
-    localStorage.removeItem(`labcharts-${tombId}-contextHealth`);
-    localStorage.removeItem(`labcharts-${tombId}-onboarded`);
-    localStorage.removeItem(`labcharts-${tombId}-emptyTour`);
-    localStorage.removeItem(`labcharts-${tombId}-tour`);
-    localStorage.removeItem(`labcharts-${tombId}-cycleTour`);
-    localStorage.removeItem(`labcharts-${tombId}-phaseOverlay`);
-    localStorage.removeItem(`labcharts-${tombId}-sync-ts`);
-    try {
-      const wsMod = await import('./wearables-store.js');
-      await wsMod.deleteWearablesDB(tombId).catch(() => {});
-    } catch { /* wearables-store optional */ }
-    wipedIds.push(tombId);
-  }
-
-  if (wipedIds.length === 0) return;
-  await saveProfiles(survivors);
-  // Clear any pending quarantine markers for ids we just wiped so the
-  // confirm UI doesn't keep re-prompting on the next sync.
-  for (const id of wipedIds) localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(id));
-  dbg(`Applied ${wipedIds.length} remote tombstone(s):`, wipedIds.join(', '));
-
-  // If the active profile got tombstoned remotely, swap to a survivor so
-  // the UI doesn't dereference a wiped profile. loadProfile rehydrates
-  // state.importedData from localStorage of the new id.
-  if (wipedIds.includes(state.currentProfile)) {
-    showNotification?.(`Profile was deleted on another device — switching to "${survivors[0].name || 'next'}"`, 'info', 3500);
-    loadProfile(survivors[0].id);
-  }
-}
-
-// Returns the list of profileIds with pending remote tombstones the user
-// hasn't confirmed yet. Settings → Sync surfaces these with Apply / Reject
-// buttons so the user can authorise the wipe out-of-band.
-export function listPendingTombstones() {
-  const out = [];
-  const profiles = getProfiles();
-  for (const p of profiles) {
-    const raw = localStorage.getItem(TOMBSTONE_QUARANTINE_KEY(p.id));
-    if (!raw) continue;
-    try { out.push({ id: p.id, name: p.name || p.id, ...(JSON.parse(raw) || {}) }); }
-    catch { out.push({ id: p.id, name: p.name || p.id }); }
-  }
-  return out;
-}
-
-// User confirmed: apply the wipe locally and clear the marker. The relay
-// row is already isDeleted=1; we just propagate the consequence.
-export async function applyPendingTombstone(profileId) {
-  const profiles = getProfiles();
-  const survivors = profiles.filter(p => p.id !== profileId);
-  if (survivors.length === 0) return { ok: false, reason: 'last-profile' };
-  // Mirror the inline cleanup from applyRemoteTombstones. The
-  // `-imported` blob lives in IndexedDB now → encryptedRemoveItem
-  // hits both backends so the IDB residue is also wiped.
-  await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
-  for (const k of ['units','suppOverlay','noteOverlay','rangeMode','suppImpact']) {
-    localStorage.removeItem(profileStorageKey(profileId, k));
-  }
-  for (const k of ['chat','chat-threads','chatRailOpen','chatPersonality','chatPersonalityCustom','focusCard','contextHealth','onboarded','emptyTour','tour','cycleTour','phaseOverlay','sync-ts']) {
-    localStorage.removeItem(`labcharts-${profileId}-${k}`);
-  }
-  try {
-    const wsMod = await import('./wearables-store.js');
-    await wsMod.deleteWearablesDB(profileId).catch(() => {});
-  } catch {}
-  await saveProfiles(survivors);
-  localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
-  if (state.currentProfile === profileId) loadProfile(survivors[0].id);
-  return { ok: true };
-}
-
-// User rejected the tombstone (suspicious mass-delete). Re-publishes the
-// profile to the relay using the existing local data — the next pull on
-// any device will resurrect the profile via the live-row branch. The
-// previous tombstone row stays isDeleted=1 but loses to the new live row
-// because Evolu LWW. Returns ok if the re-push succeeded.
-export async function rejectPendingTombstone(profileId) {
-  if (!evolu || !_syncEnabled) return { ok: false, reason: 'sync-off' };
-  const localKey = profileStorageKey(profileId, 'imported');
-  const raw = getEncryptionEnabled()
-    ? await encryptedGetItem(localKey)
-    : localStorage.getItem(localKey);
-  if (!raw) {
-    localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
-    return { ok: false, reason: 'no-local-data' };
-  }
-  let data;
-  try { data = JSON.parse(raw); } catch { return { ok: false, reason: 'bad-local-json' }; }
-  // Re-insert as a new row (don't reuse the tombstoned row id) so the
-  // live record cleanly replaces the tombstone in the local query view.
-  await pushProfile(profileId, data);
-  localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
-  return { ok: true };
-}
 
 // One-time cleanup: the v1.6.0–v1.6.2 hash-skip mechanism wrote
 // `labcharts-{profileId}-sync-hash` keys; v1.6.3 removed the skip
@@ -2134,9 +1957,10 @@ export async function showSyncDiagnose() {
         // a divergence between desktop + phone diagnose tables is legible.
         const pidNote = r.profileIdSource === 'payload' ? ' <span style="color:var(--orange);font-size:10px" title="profileId column empty; recovered from payload">*</span>' : '';
         const fmtCell = r.format === 'gz' ? '<span title="gzip envelope (v1.6.4)" style="color:var(--green)">gz</span>' : 'plain';
-        return `<tr><td style="padding:4px 8px;font-family:monospace;font-size:11px">${pidCell}${pidNote}</td><td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.syncedAtMs}</td><td style="padding:4px 8px;text-align:right">${r.sun}</td><td style="padding:4px 8px;text-align:right">${r.dev}</td><td style="padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px">${r.bytes}b</td><td style="padding:4px 8px;text-align:right;font-size:11px">${fmtCell}</td></tr>`;
+        const delCell = r.isDeleted ? '<span style="color:var(--orange);font-weight:600">yes</span>' : 'no';
+        return `<tr><td style="padding:4px 8px;font-family:monospace;font-size:11px">${pidCell}${pidNote}</td><td style="padding:4px 8px;text-align:right;font-size:11px">${delCell}</td><td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.syncedAtMs}</td><td style="padding:4px 8px;text-align:right">${r.sun}</td><td style="padding:4px 8px;text-align:right">${r.dev}</td><td style="padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px">${r.bytes}b</td><td style="padding:4px 8px;text-align:right;font-size:11px">${fmtCell}</td></tr>`;
       }).join('')
-    : '<tr><td colspan="6" style="padding:8px;color:var(--text-muted);text-align:center">No rows in local Evolu DB</td></tr>';
+    : '<tr><td colspan="7" style="padding:8px;color:var(--text-muted);text-align:center">No rows in local Evolu DB</td></tr>';
   // Stash diagnostics text on the modal node so the Copy button can read
   // the same snapshot the user is staring at (avoids racing a re-fetch).
   const copyText = _evoluDiagnosticsText(d);
@@ -2308,10 +2132,10 @@ export async function showSyncDiagnose() {
       <div>
         <b>Rows in this device's local Evolu DB:</b>
         <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
-          <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th><th style="padding:4px 8px;text-align:right">fmt</th></tr></thead>
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px 8px">profileId</th><th style="padding:4px 8px;text-align:right">deleted</th><th style="padding:4px 8px">syncedAt(ms)</th><th style="padding:4px 8px;text-align:right">sun</th><th style="padding:4px 8px;text-align:right">dev</th><th style="padding:4px 8px;text-align:right">size</th><th style="padding:4px 8px;text-align:right">fmt</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same deleted state, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
         <button class="ctx-btn-option" onclick="window.copySyncDiagnose(this)" title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>

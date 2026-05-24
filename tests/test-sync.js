@@ -35,6 +35,7 @@ await import('../js/settings.js');
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
+  const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -45,6 +46,8 @@ await import('../js/settings.js');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
   const deltaSearchSrc = `${syncSrc}\n${syncDeltaSrc}`;
+  const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
+    .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
   // ═══════════════════════════════════════
   // 1. MODULE EXPORTS
@@ -53,7 +56,10 @@ await import('../js/settings.js');
 
   const requiredExports = ['isSyncEnabled', 'initSync', 'enableSync', 'disableSync', 'getMnemonic', 'restoreFromMnemonic', 'getSyncRelay', 'setSyncRelay', 'onDataSaved', 'pushCurrentProfile', 'deleteProfileFromRelay'];
   for (const fn of requiredExports) {
-    assert(`sync.js exports ${fn}`, syncSrc.includes(`export function ${fn}`) || syncSrc.includes(`export async function ${fn}`));
+    assert(`sync.js exports ${fn}`,
+      syncSrc.includes(`export function ${fn}`)
+        || syncSrc.includes(`export async function ${fn}`)
+        || exportBlockIncludes(syncSrc, [fn]));
   }
 
   assert('sync-state.js owns sync status pub-sub',
@@ -85,14 +91,23 @@ await import('../js/settings.js');
       && syncDeltaSrc.includes('export function getDeltaCutoverReadiness'));
   assert('service worker precaches sync-delta.js',
     serviceWorkerSrc.includes("'/js/sync-delta.js'"));
+  assert('sync-tombstones.js owns remote profile delete helpers',
+    syncSrc.includes("from './sync-tombstones.js'")
+      && syncTombstonesSrc.includes('export async function deleteProfileFromRelay')
+      && syncTombstonesSrc.includes('export async function applyRemoteTombstones')
+      && syncTombstonesSrc.includes('export function listPendingTombstones')
+      && syncTombstonesSrc.includes('export async function applyPendingTombstone')
+      && syncTombstonesSrc.includes('export async function rejectPendingTombstone'));
+  assert('service worker precaches sync-tombstones.js',
+    serviceWorkerSrc.includes("'/js/sync-tombstones.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
   // and other devices kept seeing the deleted profile).
   assert('deleteProfileFromRelay sets isDeleted=1 via evolu.update',
-    /deleteProfileFromRelay[\s\S]{0,1200}evolu\.update\([\s\S]{0,400}isDeleted:\s*1/.test(syncSrc));
+    /deleteProfileFromRelay[\s\S]{0,1200}evolu\.update\([\s\S]{0,400}isDeleted:\s*1/.test(syncTombstonesSrc));
   assert('deleteProfileFromRelay is idempotent on missing rows (returns no-row reason)',
-    /deleteProfileFromRelay[\s\S]{0,500}reason:\s*'no-row'/.test(syncSrc));
+    /deleteProfileFromRelay[\s\S]{0,500}reason:\s*'no-row'/.test(syncTombstonesSrc));
   const profileSrc = read('/js/profile.js');
   assert('deleteProfile in profile.js calls deleteProfileFromRelay',
     /deleteProfile\([\s\S]+?deleteProfileFromRelay/.test(profileSrc));
@@ -101,23 +116,33 @@ await import('../js/settings.js');
   // local copy on next sync, so multi-device cleanup completes itself.
   assert('sync.js declares a tombstoneQuery selecting isDeleted = 1 rows',
     /tombstoneQuery\s*=\s*evolu\.createQuery[\s\S]{0,300}isDeleted[",\s]+=[",\s]+1/.test(syncSrc));
+  assert('tombstoneQuery subscription retriggers onSyncReceived',
+    /evolu\.subscribeQuery\(tombstoneQuery\)\([\s\S]{0,250}onSyncReceived\(\)/.test(syncSrc));
+  assert('poll safety tracks tombstone count as well as live rows',
+    syncSrc.includes('_lastPollTombstoneCount')
+      && /getQueryRows\(tombstoneQuery\)[\s\S]{0,300}tombstoneCount/.test(syncSrc));
+  assert('Sync diagnose includes tombstone rows and deleted-state column',
+    /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncSrc)
+      && syncSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
-    /applyRemoteTombstones[\s\S]{0,4000}encryptedRemoveItem\(profileStorageKey\(tombId,\s*'imported'\)\)/.test(syncSrc));
+    /applyRemoteTombstones[\s\S]{0,4000}wipeProfileLocal\(tombId\)/.test(syncTombstonesSrc)
+      && /wipeProfileLocal[\s\S]{0,800}encryptedRemoveItem\(profileStorageKey\(profileId,\s*'imported'\)\)/.test(syncTombstonesSrc));
   // Quarantine: a remote-driven mass-delete (≥ 2 profiles tombstoned at
   // once) is auth'd only by the BIP-39 mnemonic. If the mnemonic leaks,
   // an attacker could publish tombstones for every profileId. Single-
   // profile deletes auto-apply (most common: user just deleted on
   // another device); batched deletes require user confirm.
   assert('applyRemoteTombstones quarantines batches >= TOMBSTONE_BATCH_THRESHOLD',
-    syncSrc.includes('TOMBSTONE_BATCH_THRESHOLD') && syncSrc.includes('Quarantined'));
+    syncTombstonesSrc.includes('TOMBSTONE_BATCH_THRESHOLD') && syncTombstonesSrc.includes('Quarantined'));
   assert('Settings can apply / reject pending tombstones (out-of-band confirm)',
-    syncSrc.includes('export function listPendingTombstones')
-      && syncSrc.includes('export async function applyPendingTombstone')
-      && syncSrc.includes('export async function rejectPendingTombstone'));
+    syncTombstonesSrc.includes('export function listPendingTombstones')
+      && syncTombstonesSrc.includes('export async function applyPendingTombstone')
+      && syncTombstonesSrc.includes('export async function rejectPendingTombstone')
+      && exportBlockIncludes(syncSrc, ['listPendingTombstones', 'applyPendingTombstone', 'rejectPendingTombstone']));
   assert('applyRemoteTombstones runs before the active-rows pass in onSyncReceived',
     /async function onSyncReceived[\s\S]{0,800}await\s+applyRemoteTombstones[\s\S]{0,400}getQueryRows\(profileQuery\)/.test(syncSrc));
   assert('applyRemoteTombstones keeps at least one survivor (mass-delete safety)',
-    /survivors\.length\s*===\s*0[\s\S]{0,200}return/.test(syncSrc));
+    /survivors\.length\s*===\s*0[\s\S]{0,200}return/.test(syncTombstonesSrc));
 
   // ═══════════════════════════════════════
   // 2. SYNC PAYLOAD FORMAT
@@ -167,11 +192,11 @@ await import('../js/settings.js');
   assert('pushProfile evolu.update carries profileId',
     /evolu\.update\("profileData",\s*\{\s*id:\s*existing\.id,\s*profileId\s*,\s*dataJson/.test(syncSrc));
   assert('deleteProfileFromRelay tombstone update carries profileId',
-    /evolu\.update\('profileData',\s*\{\s*id:\s*row\.id,\s*profileId\s*,\s*isDeleted/.test(syncSrc));
+    /evolu\.update\('profileData',\s*\{\s*id:\s*row\.id,\s*profileId\s*,\s*isDeleted/.test(syncTombstonesSrc));
   assert('onSyncReceived recovers profileId from payload when column is empty',
     /enrichedRows[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncSrc));
   assert('applyRemoteTombstones recovers profileId from payload',
-    /tombIdsArr[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncSrc));
+    /tombIdsArr[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncTombstonesSrc));
   assert('Recovered profileId still validated against allowlist regex',
     /\^\[a-zA-Z0-9_-\]\+\$/.test(syncSrc));
 

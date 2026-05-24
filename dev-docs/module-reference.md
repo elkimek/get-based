@@ -1375,9 +1375,10 @@ Not separately documented because their exports are best read from source — ke
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
-- `sync.js` — Evolu CRDT sync orchestration; per-profile push debouncer, chat sync debouncer, pull/push flow, relay status rendering, profile delete propagation, messenger token + push-context-to-gateway plumbing.
+- `sync.js` — Evolu CRDT sync orchestration; per-profile push debouncer, chat sync debouncer, pull/push flow, relay status rendering, messenger token + push-context-to-gateway plumbing.
 - `sync-delta.js` — per-row CRDT delta boundary; DELTA_ARRAYS/MAPS/SCALARS registration, array/map/scalar planners, itemRow merge overlay, delta telemetry, snapshot advancement gates, and Phase 2 cutover readiness.
 - `sync-apply.js` — inbound sync apply helpers for AI provider settings, chat thread/message data, display prefs, and local freshness locks that protect just-edited local chat/settings from stale remote rows.
+- `sync-tombstones.js` — remote profile delete propagation helpers, inbound tombstone application, batched-delete quarantine, and apply/reject pending tombstone actions for Settings.
 - `sync-payload.js` — Evolu wire-payload helpers; outbound profile/config/chat/display envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.
 - `sync-relay-health.js` — Evolu relay helper boundary; client-side quota estimate, signed `/self/owner-storage` and `/self/compact-owner` calls, and push-landed health verdict for the silent-reject detector.
 - `sync-state.js` — in-memory sync status pub-sub, header badge display-state derivation, recent sync activity ring buffer, and per-profile rebroadcast budget guard.
