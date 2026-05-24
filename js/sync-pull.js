@@ -8,7 +8,8 @@ import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
 import {
   applyAISettings, applyChatData, applyDisplayPrefs,
-  getChatDataLocalLockRemainingMs,
+  getChatDataLocalLockRemainingMs, getImportedDataLocalLockRemainingMs,
+  shouldKeepLocalImportedData,
 } from './sync-apply.js';
 import { _mergeItemRowsIntoImported } from './sync-delta.js';
 import { applyRemoteTombstones } from './sync-tombstones.js';
@@ -237,6 +238,11 @@ export async function onSyncReceived() {
           // v1.7.15 audit fix: log so a chronically-corrupted row is
           // visible in the activity log instead of silently disappearing.
           logSyncEvent('skip', `Pull ${profileId.slice(0, 8)} — malformed importedData shape, skipping row`);
+          continue;
+        }
+        if (shouldKeepLocalImportedData(profileId)) {
+          dbg(`Skipped importedData pull for ${profileId.slice(0, 8)} - local data has unsynced changes (${Math.ceil(getImportedDataLocalLockRemainingMs(profileId) / 1000)}s freshness lock)`);
+          logSyncEvent('skip', `Data pull skipped ${profileId.slice(0, 8)} - local changes pending`);
           continue;
         }
 

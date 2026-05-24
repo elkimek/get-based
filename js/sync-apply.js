@@ -13,6 +13,7 @@ const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'l
 const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
 const CHAT_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-local-lock-until';
 const CHAT_LOCAL_LOCK_MS = 90 * 1000;
+const IMPORTED_DATA_LOCAL_LOCK_MS = 90 * 1000;
 
 function hasLocalAISettingsLock() {
   try {
@@ -42,6 +43,44 @@ export function markChatDataLocal() {
   try {
     sessionStorage.setItem(CHAT_LOCAL_LOCK_UNTIL_KEY, String(Date.now() + CHAT_LOCAL_LOCK_MS));
   } catch {}
+}
+
+function importedDataLocalLockKey(profileId) {
+  return `labcharts-${profileId}-imported-data-local-lock-until`;
+}
+
+export function markImportedDataLocal(profileId = state.currentProfile) {
+  if (!profileId) return;
+  try {
+    sessionStorage.setItem(importedDataLocalLockKey(profileId), String(Date.now() + IMPORTED_DATA_LOCAL_LOCK_MS));
+  } catch {}
+}
+
+export function clearImportedDataLocal(profileId = state.currentProfile, clearIfMarkedAtOrBefore = Infinity) {
+  if (!profileId) return;
+  try {
+    const key = importedDataLocalLockKey(profileId);
+    if (Number.isFinite(clearIfMarkedAtOrBefore)) {
+      const until = Number(sessionStorage.getItem(key) || '0');
+      const markedAt = (Number.isFinite(until) ? until : 0) - IMPORTED_DATA_LOCAL_LOCK_MS;
+      if (markedAt > clearIfMarkedAtOrBefore) return;
+    }
+    sessionStorage.removeItem(key);
+  } catch {}
+}
+
+export function getImportedDataLocalLockRemainingMs(profileId) {
+  if (profileId !== state.currentProfile) return 0;
+  try {
+    const until = Number(sessionStorage.getItem(importedDataLocalLockKey(profileId)) || '0');
+    return Math.max(0, (Number.isFinite(until) ? until : 0) - Date.now());
+  } catch {
+    return 0;
+  }
+}
+
+export function shouldKeepLocalImportedData(profileId) {
+  return getImportedDataLocalLockRemainingMs(profileId) > 0;
 }
 
 function getLocalChatLockUntil(profileId) {

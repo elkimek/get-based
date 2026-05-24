@@ -92,7 +92,8 @@ await import('../js/settings.js');
       && syncApplySrc.includes('export async function applyAISettings')
       && syncApplySrc.includes('export async function applyChatData')
       && syncApplySrc.includes('export function applyDisplayPrefs')
-      && syncApplySrc.includes('export function markChatDataLocal'));
+      && syncApplySrc.includes('export function markChatDataLocal')
+      && syncApplySrc.includes('export function markImportedDataLocal'));
   assert('service worker precaches sync-apply.js',
     serviceWorkerSrc.includes("'/js/sync-apply.js'"));
   assert('sync-delta.js owns per-row delta helpers',
@@ -482,7 +483,12 @@ await import('../js/settings.js');
   assert('Delta snapshot key namespaced per (profile, arrayName)',
     /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
-    /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushSrc));
+    (() => {
+      const onCompleteIdx = syncPushSrc.indexOf('const onComplete = () => {');
+      const snapshotIdx = syncPushSrc.indexOf('_writeDeltaSnapshot(profileId, arrayName, plan.next, plan.plannedAt)', onCompleteIdx);
+      const updateIdx = syncPushSrc.indexOf('evolu.update("profileData"', onCompleteIdx);
+      return onCompleteIdx >= 0 && snapshotIdx > onCompleteIdx && snapshotIdx < updateIdx;
+    })());
 
   // Live diff sanity: confirm the diff logic respects content-equality
   if (typeof CompressionStream !== 'undefined') {
@@ -580,6 +586,9 @@ await import('../js/settings.js');
   console.log('6. Data Integration');
 
   assert('data.js imports onDataSaved from sync.js', dataSrc.includes("import { onDataSaved } from './sync.js'"));
+  assert('saveImportedData marks local importedData before async storage write',
+    dataSrc.includes("import { markImportedDataLocal } from './sync-apply.js'")
+      && dataSrc.indexOf('markImportedDataLocal(state.currentProfile);') < dataSrc.indexOf('await encryptedSetItem(key, value);'));
   assert('saveImportedData calls onDataSaved()', dataSrc.includes('onDataSaved()'));
 
   // ═══════════════════════════════════════
@@ -632,6 +641,16 @@ await import('../js/settings.js');
     syncActionsSrc.includes('function scheduleProfilePush(profileId, data, attempt = 0)')
       && syncActionsSrc.includes('!_isEvoluReady() || _isSyncing()')
       && syncActionsSrc.includes('attempt + 1'));
+  assert('onDataSaved marks importedData locally fresh so stale pulls cannot clobber debounce-window edits',
+    syncActionsSrc.includes('markImportedDataLocal(state.currentProfile)'));
+  assert('pushProfile clears importedData freshness lock after committed push when no newer queued push exists',
+    syncPushSrc.includes("from './sync-apply.js'")
+      && syncPushSrc.includes('const payloadStartedAt = Date.now()')
+      && syncPushSrc.includes('clearImportedDataLocal(profileId, payloadStartedAt)')
+      && syncPushSrc.includes('!_queuedPushes.has(profileId)'));
+  assert('clearImportedDataLocal keeps locks created after the committed push payload snapshot',
+    syncApplySrc.includes('clearIfMarkedAtOrBefore = Infinity')
+      && syncApplySrc.includes('markedAt > clearIfMarkedAtOrBefore'));
   // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip
   // and hash-skip caused users to miss cross-device data (clock-skew
   // and stale hash keys from prior code versions). The mergeImportedData
@@ -642,6 +661,10 @@ await import('../js/settings.js');
     !/if\s*\(\s*remoteUpdated\s*<\s*localUpdated\s*\)/.test(syncPullSrc),
     'skip-decisions before merge regress to clock-skew/stale-hash bugs');
   assert('onSyncReceived guards on _pulling', syncPullSrc.includes('_pulling') && syncPullSrc.includes('_pulling = true'));
+  assert('Pull skips active importedData merge while local save freshness lock is active',
+    syncPullSrc.includes('shouldKeepLocalImportedData(profileId)')
+      && syncPullSrc.includes('Skipped importedData pull')
+      && syncPullSrc.includes('Data pull skipped'));
   assert('Pull handles encryption', syncPullSrc.includes('getEncryptionEnabled()') && syncPullSrc.includes('encryptedSetItem(localKey'));
   assert('Pull merges profiles with allowlist', syncPullSrc.includes('PROFILE_MERGE_FIELDS') && syncPullSrc.includes('saveProfiles(profiles)'));
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard

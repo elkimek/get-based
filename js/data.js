@@ -6,6 +6,7 @@ import { hashString, getStatus, formatValue, linearRegression, showNotification 
 import { profileStorageKey, touchProfileTimestamp } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
+import { markImportedDataLocal } from './sync-apply.js';
 
 // ═══════════════════════════════════════════════
 // PRIVATE CYCLE PHASE HELPER (avoids circular dep with cycle.js)
@@ -104,6 +105,7 @@ function _makeActiveDataCacheMeta() {
 // ═══════════════════════════════════════════════
 export async function saveImportedData() {
   invalidateActiveDataCache();
+  markImportedDataLocal(state.currentProfile);
   try {
     const key = profileStorageKey(state.currentProfile, 'imported');
     const value = JSON.stringify(state.importedData);
