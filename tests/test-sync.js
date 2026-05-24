@@ -160,6 +160,14 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['showSyncDiagnose']));
   assert('service worker precaches sync-diagnose-ui.js',
     serviceWorkerSrc.includes("'/js/sync-diagnose-ui.js'"));
+  const rotateCopyHandler = syncDiagnoseUiSrc.slice(
+    syncDiagnoseUiSrc.indexOf("copyBtn?.addEventListener('click'"),
+    syncDiagnoseUiSrc.indexOf("check?.addEventListener('change'")
+  );
+  assert('sync diagnose copy paths include execCommand fallback',
+    /export async function copySyncDiagnose[\s\S]{0,1200}document\.execCommand\('copy'\)/.test(syncDiagnoseUiSrc)
+      && /navigator\.clipboard\?\.writeText/.test(rotateCopyHandler)
+      && /document\.execCommand\('copy'\)/.test(rotateCopyHandler));
   assert('sync-ui.js owns header sync status UI helpers',
     syncSrc.includes("from './sync-ui.js'")
       && syncUiSrc.includes('export function configureSyncUI')

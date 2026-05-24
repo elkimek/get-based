@@ -468,8 +468,27 @@ export async function confirmRotateIdentity(btn) {
   closeBtn?.addEventListener('click', cleanup);
   cancelBtn?.addEventListener('click', cleanup);
   copyBtn?.addEventListener('click', async () => {
+    const text = words.join(' ');
+    const fallbackCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    };
     try {
-      await navigator.clipboard.writeText(words.join(' '));
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          fallbackCopy();
+        }
+      } else {
+        fallbackCopy();
+      }
       copyBtn.textContent = '✓ Copied';
       setTimeout(() => { if (copyBtn) copyBtn.textContent = 'Copy mnemonic'; }, 1500);
     } catch {
