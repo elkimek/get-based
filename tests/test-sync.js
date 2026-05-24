@@ -44,6 +44,7 @@ await import('../js/settings.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
+  const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
@@ -208,6 +209,13 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncPull({'));
   assert('service worker precaches sync-pull.js',
     serviceWorkerSrc.includes("'/js/sync-pull.js'"));
+  assert('sync-reconcile.js owns startup reconciliation',
+    syncSrc.includes("from './sync-reconcile.js'")
+      && syncReconcileSrc.includes('export function configureSyncReconcile')
+      && syncReconcileSrc.includes('export async function reconcileLocalStorageWithEvolu')
+      && syncSrc.includes('configureSyncReconcile({'));
+  assert('service worker precaches sync-reconcile.js',
+    serviceWorkerSrc.includes("'/js/sync-reconcile.js'"));
   assert('sync-cutover.js owns Phase 2 cutover flag actions',
     syncSrc.includes("from './sync-cutover.js'")
       && syncCutoverSrc.includes('export { isPhase2CutoverEnabled }')
@@ -295,7 +303,9 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('2. Sync Payload Format');
 
-  assert('sync-payload.js owns buildSyncPayload', syncSrc.includes("from './sync-payload.js'") && syncPayloadSrc.includes('export async function buildSyncPayload'));
+  assert('sync-payload.js owns buildSyncPayload',
+    syncPushSrc.includes("from './sync-payload.js'")
+      && syncPayloadSrc.includes('export async function buildSyncPayload'));
   assert('buildSyncPayload still emits _v: 3 (default dual-write)', syncPayloadSrc.includes('cutover ? 4 : 3'));
   assert('buildSyncPayload includes importedData', syncPayloadSrc.includes('importedData,') || syncPayloadSrc.includes('importedData:'));
   assert('buildSyncPayload includes profile metadata', syncPayloadSrc.includes('profile: profile'));
@@ -2170,22 +2180,22 @@ await import('../js/settings.js');
 
   // Source-shape: the reconciliation function exists and routes through
   // the pickTimestamp-aware helper instead of bare id-set comparison.
-  assert('_reconcileLocalStorageWithEvolu defined',
-    /async function _reconcileLocalStorageWithEvolu\(\)/.test(syncSrc));
+  assert('reconcileLocalStorageWithEvolu defined',
+    /export async function reconcileLocalStorageWithEvolu\(\)/.test(syncReconcileSrc));
   assert('Reconciliation runs on initSync after appOwner + queries are ready',
-    /Promise\.all\(\[_readyPromise,\s*_queryLoaded\]\)[\s\S]{0,300}_reconcileLocalStorageWithEvolu/.test(syncSrc));
+    /Promise\.all\(\[_readyPromise,\s*_queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncSrc));
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
-    /_reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
-    /_reconcileLocalStorageWithEvolu[\s\S]{0,1500}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,2000}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncReconcileSrc));
   assert('Reconciliation force-pushes when local has unsynced rows',
-    /_reconcileLocalStorageWithEvolu[\s\S]{0,4000}pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true\s*\}\)/.test(syncSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,4000}_pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true\s*\}\)/.test(syncReconcileSrc));
   // Defence-in-depth: the regression we're guarding against was id-only
   // comparison, so explicitly assert the OLD shape is gone. Hard to write
   // without false-positives — this regex matches the v1.7.x id-set diff
   // pattern that was specifically replaced.
   assert('Reconciliation no longer relies on bare id-set diff (would miss within-id ts drift)',
-    !/_reconcileLocalStorageWithEvolu[\s\S]{0,1500}new Set\(local\.map\(r\s*=>\s*r\?\.id\)/.test(syncSrc));
+    !/reconcileLocalStorageWithEvolu[\s\S]{0,1500}new Set\(local\.map\(r\s*=>\s*r\?\.id\)/.test(syncReconcileSrc));
 
   // Live: simulate localHasRowsRemoteLacks's three-case decision with the
   // exact shape our reconciliation feeds it. Confirms the function still
