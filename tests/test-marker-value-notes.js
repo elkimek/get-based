@@ -50,6 +50,9 @@ const state = (await import('../js/state.js')).state;
     /markerValueNotes:\s*\{\s*keyIdFn:/m.test(syncDeltaSrc));
   assert('markerValueNotes keyIdFn uses the doubling-escape (matches manualValues)',
     /markerValueNotes:[\s\S]{0,300}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(syncDeltaSrc));
+  const syncPullSrc = read('js/sync-pull.js');
+  assert('pull blob baseline preserves local markerValueNotes until per-row tombstones arrive',
+    /_mergeDeltaMapBlobBaselines[\s\S]{0,1200}assignDeltaMapEntries\(next,\s*remoteMap\)[\s\S]{0,200}assignDeltaMapEntries\(next,\s*localMap\)/.test(syncPullSrc));
 
   // Simulate the escape locally to confirm a colon-bearing key produces
   // a distinct allowlist-safe id (the manualValues precedent).

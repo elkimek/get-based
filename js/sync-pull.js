@@ -4,14 +4,14 @@ import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
-import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
+import { mergeImportedData, localHasRowsRemoteLacks, getAt, setAt } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
 import {
   applyAISettings, applyChatData, applyDisplayPrefs,
   getChatDataLocalLockRemainingMs, getImportedDataLocalLockRemainingMs,
   shouldKeepLocalImportedData,
 } from './sync-apply.js';
-import { _mergeItemRowsIntoImported } from './sync-delta.js';
+import { DELTA_MAPS, _mergeItemRowsIntoImported } from './sync-delta.js';
 import { applyRemoteTombstones } from './sync-tombstones.js';
 import {
   consumeRebroadcastBudget, getSyncStatus, logSyncEvent, updateSyncStatus,
@@ -54,6 +54,51 @@ function isPushInFlight() {
 
 function dbg(...args) {
   try { _debug?.(...args); } catch {}
+}
+
+const _PROTO_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isPlainDeltaMap(v) {
+  return !!(v && typeof v === 'object' && !Array.isArray(v));
+}
+
+function readDeltaMap(data, path) {
+  if (!data || typeof data !== 'object') return null;
+  return path.includes('.') ? getAt(data, path) : data[path];
+}
+
+function writeDeltaMap(data, path, value) {
+  if (!data || typeof data !== 'object') return;
+  if (path.includes('.')) setAt(data, path, value);
+  else data[path] = value;
+}
+
+function assignDeltaMapEntries(target, source) {
+  if (!isPlainDeltaMap(source)) return;
+  for (const [key, value] of Object.entries(source)) {
+    if (_PROTO_POLLUTION_KEYS.has(key)) continue;
+    if (value === undefined) continue;
+    target[key] = value;
+  }
+}
+
+export function _mergeDeltaMapBlobBaselines(merged, localImported, remoteImported) {
+  if (!merged || typeof merged !== 'object') return merged;
+  for (const mapName of DELTA_MAPS) {
+    const localMap = readDeltaMap(localImported, mapName);
+    const remoteMap = readDeltaMap(remoteImported, mapName);
+    if (!isPlainDeltaMap(localMap) && !isPlainDeltaMap(remoteMap)) continue;
+
+    // The blob is only a compatibility baseline for delta-owned maps.
+    // It must not delete local keys while the per-row carrier is absent or
+    // still replicating; real deletes are represented by itemRow tombstones
+    // in _mergeItemRowsIntoImported below.
+    const next = Object.create(null);
+    assignDeltaMapEntries(next, remoteMap);
+    assignDeltaMapEntries(next, localMap);
+    writeDeltaMap(merged, mapName, next);
+  }
+  return merged;
 }
 
 export function isSyncPulling() {
@@ -325,6 +370,7 @@ export async function onSyncReceived() {
         let merged = localImportedForMerge
           ? (importedData ? mergeImportedData(localImportedForMerge, importedData) : localImportedForMerge)
           : (importedData || {});
+        merged = _mergeDeltaMapBlobBaselines(merged, localImportedForMerge, importedData);
         // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER
         // the blob merge. Per-row state is authoritative - a tombstone
         // here drops the corresponding item even if the blob (which is

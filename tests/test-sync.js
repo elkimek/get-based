@@ -30,6 +30,7 @@ console.log('=== Cross-Device Sync Tests ===\n');
 const { state } = await import('../js/state.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
+const syncPull = await import('../js/sync-pull.js');
 await import('../js/sync.js');
 await import('../js/settings.js');
 
@@ -464,6 +465,8 @@ await import('../js/settings.js');
   // Pull-side merge contract — per-row authoritative, blob fallback
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullSrc));
+  assert('onSyncReceived unions delta-owned map blobs before per-row overlay',
+    /_mergeDeltaMapBlobBaselines\(merged,\s*localImportedForMerge,\s*importedData\)[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncDeltaSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
@@ -1121,6 +1124,8 @@ await import('../js/settings.js');
     /'genetics\.snps'/.test(deltaSearchSrc));
   assert('Map-shape merge verifies via keyIdFn(parsed.k) === row.itemId (defence-in-depth, synth-aware)',
     /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(deltaSearchSrc));
+  assert('Pull blob baseline preserves delta-owned maps via remote/local union',
+    /function _mergeDeltaMapBlobBaselines\(merged,\s*localImported,\s*remoteImported\)[\s\S]{0,1200}assignDeltaMapEntries\(next,\s*remoteMap\)[\s\S]{0,200}assignDeltaMapEntries\(next,\s*localMap\)/.test(deltaSearchSrc));
 
   // Live: round-trip a synthetic markerNotes map through the planner
   // logic (replicated locally) — ensures the value/key contract is what
@@ -1136,6 +1141,31 @@ await import('../js/settings.js');
     // A pathological key with `:` or spaces should be skipped, not pushed
     assert('Key with colon fails allowlist (would be skipped by planner)',
       !/^[a-zA-Z0-9_.-]+$/.test('weird:key'));
+  }
+  if (typeof window !== 'undefined' && typeof syncPull._mergeDeltaMapBlobBaselines === 'function') {
+    const local = {
+      markerValueNotes: {
+        'biochemistry.glucose:2026-05-24': 'A note that has not reached itemRow yet',
+        'biochemistry.hdl:2026-05-24': 'local wins same key',
+      },
+      genetics: { snps: { rs1: { genotype: 'AG' } } },
+    };
+    const remote = {
+      markerValueNotes: {
+        'biochemistry.hdl:2026-05-24': 'remote stale same-key value',
+        'biochemistry.ldl:2026-05-24': 'remote-only note',
+      },
+      genetics: { snps: { rs2: { genotype: 'CC' } } },
+    };
+    const merged = syncPull._mergeDeltaMapBlobBaselines({ markerValueNotes: {}, genetics: {} }, local, remote);
+    assert('Delta-map blob baseline preserves local markerValueNotes missing from remote',
+      merged.markerValueNotes['biochemistry.glucose:2026-05-24'] === 'A note that has not reached itemRow yet');
+    assert('Delta-map blob baseline keeps remote-only markerValueNotes as fallback',
+      merged.markerValueNotes['biochemistry.ldl:2026-05-24'] === 'remote-only note');
+    assert('Delta-map blob baseline lets local markerValueNotes win same-key stale blob conflicts',
+      merged.markerValueNotes['biochemistry.hdl:2026-05-24'] === 'local wins same key');
+    assert('Delta-map blob baseline handles dotted maps like genetics.snps',
+      merged.genetics.snps.rs1.genotype === 'AG' && merged.genetics.snps.rs2.genotype === 'CC');
   }
 
   // ═══════════════════════════════════════
