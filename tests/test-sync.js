@@ -284,6 +284,8 @@ await import('../js/settings.js');
       && syncSubscriptionsSrc.includes('evolu.subscribeError')
       && syncSubscriptionsSrc.includes('setInterval')
       && syncSubscriptionsSrc.includes('_checkRelayConnection()')
+      && syncSubscriptionsSrc.includes('_subscriptionFireCount = 0')
+      && syncSubscriptionsSrc.includes('.catch(onRelayProbeError)')
       && syncSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
       && syncSrc.includes('startRelayProbe();')
       && syncSrc.includes('clearSyncSubscriptionTimers();')

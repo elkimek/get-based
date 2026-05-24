@@ -44,6 +44,7 @@ export function clearSyncSubscriptionTimers() {
   }
   _lastPollRowCount = -1;
   _lastPollTombstoneCount = -1;
+  _subscriptionFireCount = 0;
 }
 
 function canReceiveSync() {
@@ -52,6 +53,8 @@ function canReceiveSync() {
 
 export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery } = {}) {
   if (!evolu || !profileQuery || !tombstoneQuery || !itemRowQuery) return;
+
+  clearSyncSubscriptionTimers();
 
   evolu.subscribeQuery(profileQuery)(() => {
     _subscriptionFireCount++;
@@ -78,7 +81,6 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
     if (canReceiveSync()) _onSyncReceived();
   });
 
-  clearSyncSubscriptionTimers();
   // Poll every 30s as safety net - subscribeQuery may miss remote changes.
   _pollInterval = setInterval(() => {
     if (!evolu || !profileQuery || !tombstoneQuery || !canReceiveSync()) return;
@@ -105,13 +107,26 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   });
 }
 
-export function startRelayProbe() {
-  _checkRelayConnection().then(ok => {
-    _updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
+async function runRelayProbe() {
+  const ok = await _checkRelayConnection();
+  _updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
+}
+
+function onRelayProbeError(error) {
+  const message = error?.message || String(error);
+  const at = Date.now();
+  _debug('relay probe error:', error);
+  _updateSyncStatus({
+    relay: 'unreachable',
+    relayCheckedAt: at,
+    lastError: { type: 'RelayProbeError', message, at },
   });
+}
+
+export function startRelayProbe() {
+  runRelayProbe().catch(onRelayProbeError);
   if (_relayProbeInterval) clearInterval(_relayProbeInterval);
-  _relayProbeInterval = setInterval(async () => {
-    const ok = await _checkRelayConnection();
-    _updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
+  _relayProbeInterval = setInterval(() => {
+    runRelayProbe().catch(onRelayProbeError);
   }, 60000);
 }
