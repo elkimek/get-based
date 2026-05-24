@@ -663,6 +663,15 @@ await import('../js/settings.js');
     syncPullSrc.includes('shouldKeepLocalImportedData(profileId)')
       && syncPullSrc.includes('Skipped importedData pull')
       && syncPullSrc.includes('Data pull skipped'));
+  assert('importedData freshness lock does not skip chat/display/profile payloads',
+    /const\s+keepLocalImportedData\s*=\s*shouldKeepLocalImportedData\(profileId\)/.test(syncPullSrc)
+      && /if\s*\(\s*keepLocalImportedData\s*\)[\s\S]{0,500}scheduleImportedDataPullRetry\(profileId,\s*lockRemaining\);[\s\S]{0,120}\n\s*\}/.test(syncPullSrc)
+      && syncPullSrc.includes('if (!keepLocalImportedData)')
+      && syncPullSrc.includes('await encryptedSetItem(localKey, importedJson);')
+      && /const chatApplied = chatData \? await applyChatData\(profileId,\s*chatData\) : false/.test(syncPullSrc)
+      && /if \(displayPrefs\) applyDisplayPrefs\(profileId,\s*displayPrefs\);/.test(syncPullSrc)
+      && !/shouldKeepLocalImportedData\(profileId\)[\s\S]{0,500}continue;/.test(syncPullSrc),
+    'importedData lock must defer only importedData, not the whole row');
   assert('skipped importedData pulls retry after the local freshness lock expires',
     syncPullSrc.includes('scheduleImportedDataPullRetry')
       && syncPullSrc.includes('_importedDataPullRetryTimers')
@@ -797,6 +806,86 @@ await import('../js/settings.js');
       localStorage.removeItem(goneKey);
       if (oldLock === null) sessionStorage.removeItem('labcharts-chat-local-lock-until');
       else sessionStorage.setItem('labcharts-chat-local-lock-until', oldLock);
+    }
+  }
+  {
+    const prevProfileId = state.currentProfile;
+    const prevImportedData = state.importedData;
+    const prevProfiles = state.profiles;
+    const prevProfilesRaw = localStorage.getItem('labcharts-profiles');
+    const profileId = 'lockaux';
+    const keys = [
+      `labcharts-${profileId}-imported`,
+      `labcharts-${profileId}-chat-threads`,
+      `labcharts-${profileId}-chat-t_remote`,
+      `labcharts-${profileId}-units`,
+      `labcharts-${profileId}-sync-ts`,
+    ];
+    const prevValues = new Map(keys.map(k => [k, localStorage.getItem(k)]));
+    const lockKey = `labcharts-${profileId}-imported-data-local-lock-until`;
+    const prevLock = sessionStorage.getItem(lockKey);
+    try {
+      state.currentProfile = profileId;
+      state.importedData = { markerValueNotes: { 'biochemistry.glucose:2026-05-24': 'keep local note' } };
+      state.profiles = [{ id: profileId, name: 'Local', lastUpdated: 1 }];
+      localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
+      syncApply.markImportedDataLocal(profileId);
+      syncPull.configureSyncPull({
+        getEvolu: () => ({
+          getQueryRows: () => [{
+            id: 'row-lockaux',
+            profileId,
+            syncedAt: new Date(Date.now() + 1000).toISOString(),
+            dataJson: JSON.stringify({
+              _v: 3,
+              importedData: {
+                markerValueNotes: { 'biochemistry.glucose:2026-05-24': 'remote would clobber' },
+              },
+              profile: { id: profileId, name: 'Remote Locked' },
+              chatData: {
+                threads: [{ id: 'remote', title: 'Remote thread', messageCount: 1 }],
+                messages: { remote: [{ role: 'assistant', content: 'synced while importedData locked' }] },
+              },
+              displayPrefs: { units: 'us' },
+            }),
+          }],
+        }),
+        getProfileQuery: () => ({ table: 'profileData' }),
+        isSyncPushInFlight: () => false,
+        pushProfile: async () => {},
+        debug: () => {},
+      });
+      await syncPull.onSyncReceived();
+
+      assert('onSyncReceived leaves active importedData untouched while freshness-locked',
+        state.importedData.markerValueNotes['biochemistry.glucose:2026-05-24'] === 'keep local note');
+      assert('onSyncReceived still applies chat while importedData is freshness-locked',
+        JSON.parse(localStorage.getItem(`labcharts-${profileId}-chat-threads`) || '[]')?.[0]?.id === 'remote'
+          && JSON.parse(localStorage.getItem(`labcharts-${profileId}-chat-t_remote`) || '[]')?.[0]?.content === 'synced while importedData locked');
+      assert('onSyncReceived still applies display prefs while importedData is freshness-locked',
+        localStorage.getItem(`labcharts-${profileId}-units`) === 'us');
+      assert('onSyncReceived still merges profile metadata while importedData is freshness-locked',
+        state.profiles.find(p => p.id === profileId)?.name === 'Remote Locked');
+    } finally {
+      syncPull.clearSyncPullTimers();
+      syncPull.configureSyncPull({
+        getEvolu: () => null,
+        getProfileQuery: () => null,
+        isSyncPushInFlight: () => false,
+        pushProfile: async () => {},
+        debug: () => {},
+      });
+      state.currentProfile = prevProfileId;
+      state.importedData = prevImportedData;
+      state.profiles = prevProfiles;
+      if (prevProfilesRaw == null) localStorage.removeItem('labcharts-profiles');
+      else localStorage.setItem('labcharts-profiles', prevProfilesRaw);
+      for (const [key, value] of prevValues) {
+        if (value == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+      if (prevLock == null) sessionStorage.removeItem(lockKey);
+      else sessionStorage.setItem(lockKey, prevLock);
     }
   }
   const onChatSavedSrc = syncActionsSrc.slice(syncActionsSrc.indexOf('export function onChatSaved'), syncActionsSrc.indexOf('export function onChatSaved') + 600);

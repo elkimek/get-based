@@ -311,120 +311,129 @@ export async function onSyncReceived() {
           logSyncEvent('skip', `Pull ${profileId.slice(0, 8)} — malformed importedData shape, skipping row`);
           continue;
         }
-        if (shouldKeepLocalImportedData(profileId)) {
+        const keepLocalImportedData = shouldKeepLocalImportedData(profileId);
+        if (keepLocalImportedData) {
           const lockRemaining = getImportedDataLocalLockRemainingMs(profileId);
           dbg(`Skipped importedData pull for ${profileId.slice(0, 8)} - local data has unsynced changes (${Math.ceil(lockRemaining / 1000)}s freshness lock)`);
           logSyncEvent('skip', `Data pull skipped ${profileId.slice(0, 8)} - local changes pending`);
           scheduleImportedDataPullRetry(profileId, lockRemaining);
-          continue;
         }
 
-        // Preserve local wearableConnections - they're stripped from the push
-        // payload (tokens stay per-device), so the remote blob never carries
-        // them. Without this merge the pull would wipe this device's OAuth
-        // tokens and silently disconnect every connected vendor.
-        let localWearableConnections = null;
-        if (profileId === state.currentProfile) {
-          localWearableConnections = state.importedData?.wearableConnections || null;
-        } else {
-          try {
-            const rawLocal = getEncryptionEnabled()
-              ? await encryptedGetItem(localKey)
-              : localStorage.getItem(localKey);
-            if (rawLocal) {
-              const parsed = JSON.parse(rawLocal);
-              localWearableConnections = parsed?.wearableConnections || null;
+        let merged = null;
+        let needsRebroadcast = false;
+        let remoteBroughtNewRows = false;
+        let activeImportedChanged = false;
+        let importedDataApplied = false;
+
+        if (!keepLocalImportedData) {
+          // Preserve local wearableConnections - they're stripped from the push
+          // payload (tokens stay per-device), so the remote blob never carries
+          // them. Without this merge the pull would wipe this device's OAuth
+          // tokens and silently disconnect every connected vendor.
+          let localWearableConnections = null;
+          if (profileId === state.currentProfile) {
+            localWearableConnections = state.importedData?.wearableConnections || null;
+          } else {
+            try {
+              const rawLocal = getEncryptionEnabled()
+                ? await encryptedGetItem(localKey)
+                : localStorage.getItem(localKey);
+              if (rawLocal) {
+                const parsed = JSON.parse(rawLocal);
+                localWearableConnections = parsed?.wearableConnections || null;
+              }
+            } catch (e) {
+              dbg('Could not read local wearableConnections for preserve:', e.message);
             }
-          } catch (e) {
-            dbg('Could not read local wearableConnections for preserve:', e.message);
           }
-        }
-        if (localWearableConnections && importedData) {
-          importedData.wearableConnections = localWearableConnections;
-        }
+          if (localWearableConnections && importedData) {
+            importedData.wearableConnections = localWearableConnections;
+          }
 
-        // Per-array union merge for id-keyed append-only arrays (sun feature
-        // + a couple related). Without this, two devices each writing
-        // independent rows clobber each other on whole-blob LWW. Single-
-        // object subtrees and id-less arrays still LWW (handled inside
-        // mergeImportedData).
-        let localImportedForMerge = null;
-        if (profileId === state.currentProfile) {
-          localImportedForMerge = state.importedData || null;
-        } else {
+          // Per-array union merge for id-keyed append-only arrays (sun feature
+          // + a couple related). Without this, two devices each writing
+          // independent rows clobber each other on whole-blob LWW. Single-
+          // object subtrees and id-less arrays still LWW (handled inside
+          // mergeImportedData).
+          let localImportedForMerge = null;
+          if (profileId === state.currentProfile) {
+            localImportedForMerge = state.importedData || null;
+          } else {
+            try {
+              const rawLocal = getEncryptionEnabled()
+                ? await encryptedGetItem(localKey)
+                : localStorage.getItem(localKey);
+              if (rawLocal) localImportedForMerge = JSON.parse(rawLocal);
+            } catch (e) {
+              dbg('Could not read local importedData for merge:', e.message);
+            }
+          }
+          const activeImportedBeforeJson = profileId === state.currentProfile
+            ? JSON.stringify(localImportedForMerge || {})
+            : null;
+          // v4 cutover: importedData is null by design. Use local as the
+          // baseline; per-row overlay below fills in every field. v3 and
+          // older still merge blob-into-local as before.
+          merged = localImportedForMerge
+            ? (importedData ? mergeImportedData(localImportedForMerge, importedData) : localImportedForMerge)
+            : (importedData || {});
+          merged = _mergeDeltaMapBlobBaselines(merged, localImportedForMerge, importedData);
+          // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER
+          // the blob merge. Per-row state is authoritative - a tombstone
+          // here drops the corresponding item even if the blob (which is
+          // older or written by a pre-Phase-1 device) still carried it.
+          // Order matters: blob first establishes baseline, then per-row
+          // applies the up-to-date deltas on top. Idempotent: if the blob
+          // and per-row tables agree, the overlay is a no-op.
           try {
-            const rawLocal = getEncryptionEnabled()
-              ? await encryptedGetItem(localKey)
-              : localStorage.getItem(localKey);
-            if (rawLocal) localImportedForMerge = JSON.parse(rawLocal);
+            merged = await _mergeItemRowsIntoImported(profileId, merged) || merged;
           } catch (e) {
-            dbg('Could not read local importedData for merge:', e.message);
+            console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
           }
-        }
-        const activeImportedBeforeJson = profileId === state.currentProfile
-          ? JSON.stringify(localImportedForMerge || {})
-          : null;
-        // v4 cutover: importedData is null by design. Use local as the
-        // baseline; per-row overlay below fills in every field. v3 and
-        // older still merge blob-into-local as before.
-        let merged = localImportedForMerge
-          ? (importedData ? mergeImportedData(localImportedForMerge, importedData) : localImportedForMerge)
-          : (importedData || {});
-        merged = _mergeDeltaMapBlobBaselines(merged, localImportedForMerge, importedData);
-        // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER
-        // the blob merge. Per-row state is authoritative - a tombstone
-        // here drops the corresponding item even if the blob (which is
-        // older or written by a pre-Phase-1 device) still carried it.
-        // Order matters: blob first establishes baseline, then per-row
-        // applies the up-to-date deltas on top. Idempotent: if the blob
-        // and per-row tables agree, the overlay is a no-op.
-        try {
-          merged = await _mergeItemRowsIntoImported(profileId, merged) || merged;
-        } catch (e) {
-          console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
-        }
-        const _ct = (b, k) => Array.isArray(b?.[k]) ? b[k].length : 0;
-        const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${_ct(localImportedForMerge,'sunSessions')}/dev=${_ct(localImportedForMerge,'lightDevices')} · remote sun=${_ct(importedData,'sunSessions')}/dev=${_ct(importedData,'lightDevices')} · merged sun=${_ct(merged,'sunSessions')}/dev=${_ct(merged,'lightDevices')}`;
-        dbg(mergeMsg);
-        logSyncEvent('pull', mergeMsg);
-        // wearableConnections preservation already happened on `importedData`;
-        // mergeImportedData carries it through (since it's not in
-        // ID_KEYED_ARRAYS, it falls into the LWW path which takes remote -
-        // but `importedData` here was already patched with localWearableConnections).
+          const _ct = (b, k) => Array.isArray(b?.[k]) ? b[k].length : 0;
+          const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${_ct(localImportedForMerge,'sunSessions')}/dev=${_ct(localImportedForMerge,'lightDevices')} · remote sun=${_ct(importedData,'sunSessions')}/dev=${_ct(importedData,'lightDevices')} · merged sun=${_ct(merged,'sunSessions')}/dev=${_ct(merged,'lightDevices')}`;
+          dbg(mergeMsg);
+          logSyncEvent('pull', mergeMsg);
+          // wearableConnections preservation already happened on `importedData`;
+          // mergeImportedData carries it through (since it's not in
+          // ID_KEYED_ARRAYS, it falls into the LWW path which takes remote -
+          // but `importedData` here was already patched with localWearableConnections).
 
-        // If the merge added rows the remote didn't have (i.e. local had
-        // unsynced state - the canonical case is "phone logged C, desktop
-        // pushed Y first, neither sees the other"), the relay row still
-        // reflects only the remote side. We need to rebroadcast the merged
-        // result so the *other* device pulls our union next round. Without
-        // this, convergence stalls at the first cross-device race because
-        // pull-and-merge is local-only - nothing republishes the union.
-        // Use a structural id-set diff (not JSON.stringify equality) - JSON
-        // serialization order varies with merge-insertion order and would
-        // cause an infinite ping-pong rebroadcast across devices.
-        // v4 cutover: importedData is null, so the diff is meaningless
-        // (per-row deltas already drove the merge). Skip the rebroadcast
-        // gate - per-row pushes don't have the "local has rows remote
-        // lacks" pathology since each row is its own CRDT message.
-        const needsRebroadcast = !!localImportedForMerge && !!importedData
-          && localHasRowsRemoteLacks(localImportedForMerge, importedData);
-        // Same diff in the *other* direction: did REMOTE bring rows local
-        // didn't have? Used to gate the active-view re-render so we don't
-        // wipe an in-progress form input on every pull where the merge
-        // produced no observable change.
-        const remoteBroughtNewRows = !!localImportedForMerge && !!importedData
-          && localHasRowsRemoteLacks(importedData, localImportedForMerge);
-        const activeImportedChanged = profileId === state.currentProfile
-          && activeImportedBeforeJson !== JSON.stringify(merged || {});
+          // If the merge added rows the remote didn't have (i.e. local had
+          // unsynced state - the canonical case is "phone logged C, desktop
+          // pushed Y first, neither sees the other"), the relay row still
+          // reflects only the remote side. We need to rebroadcast the merged
+          // result so the *other* device pulls our union next round. Without
+          // this, convergence stalls at the first cross-device race because
+          // pull-and-merge is local-only - nothing republishes the union.
+          // Use a structural id-set diff (not JSON.stringify equality) - JSON
+          // serialization order varies with merge-insertion order and would
+          // cause an infinite ping-pong rebroadcast across devices.
+          // v4 cutover: importedData is null, so the diff is meaningless
+          // (per-row deltas already drove the merge). Skip the rebroadcast
+          // gate - per-row pushes don't have the "local has rows remote
+          // lacks" pathology since each row is its own CRDT message.
+          needsRebroadcast = !!localImportedForMerge && !!importedData
+            && localHasRowsRemoteLacks(localImportedForMerge, importedData);
+          // Same diff in the *other* direction: did REMOTE bring rows local
+          // didn't have? Used to gate the active-view re-render so we don't
+          // wipe an in-progress form input on every pull where the merge
+          // produced no observable change.
+          remoteBroughtNewRows = !!localImportedForMerge && !!importedData
+            && localHasRowsRemoteLacks(importedData, localImportedForMerge);
+          activeImportedChanged = profileId === state.currentProfile
+            && activeImportedBeforeJson !== JSON.stringify(merged || {});
 
-        // Persist the merged importedData. Always go through
-        // encryptedSetItem - it routes big-blob `-imported` keys to
-        // IndexedDB regardless of encryption state. Bypassing this
-        // (the old non-encryption branch did `localStorage.setItem`
-        // directly) re-introduces the 5 MB quota wall.
-        const importedJson = JSON.stringify(merged);
-        await encryptedSetItem(localKey, importedJson);
-        localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
+          // Persist the merged importedData. Always go through
+          // encryptedSetItem - it routes big-blob `-imported` keys to
+          // IndexedDB regardless of encryption state. Bypassing this
+          // (the old non-encryption branch did `localStorage.setItem`
+          // directly) re-introduces the 5 MB quota wall.
+          const importedJson = JSON.stringify(merged);
+          await encryptedSetItem(localKey, importedJson);
+          localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
+          importedDataApplied = true;
+        }
 
         // Merge profile into local profiles list (allowlisted fields only)
         if (profile && typeof profile === 'object') {
@@ -458,8 +467,10 @@ export async function onSyncReceived() {
 
         // If this is the active profile, update in-memory state
         if (profileId === state.currentProfile) {
-          state.importedData = merged;
-          migrateProfileData(state.importedData);
+          if (importedDataApplied) {
+            state.importedData = merged;
+            migrateProfileData(state.importedData);
+          }
           // Reload chat threads + active thread messages into memory and re-render
           if (chatApplied) {
             window.loadChatThreads?.();
@@ -467,46 +478,50 @@ export async function onSyncReceived() {
             window.renderThreadList?.();
             window.loadChatHistory?.(); // reloads state.chatHistory from localStorage + renders
           }
-          // Re-render whatever view the user is on so the merged state
-          // becomes visible - but ONLY when the merge actually produced
-          // new content from the remote side. `localImportedForMerge`
-          // already had everything => no observable change => skip the
-          // re-render so an in-progress form doesn't get wiped on pull.
-          // Source: state.currentView (canonical). DOM .nav-item.active
-          // is briefly absent during buildSidebar->navigate cycles and
-          // would yank the user to 'dashboard' on a pull landing in
-          // that gap (user-reported flicker/sync race).
-          const cat = state.currentView || document.querySelector('.nav-item.active')?.dataset?.category || 'dashboard';
-          // Sidebar nav items are conditional on data presence (e.g. the
-          // Genetics entry only renders when state.importedData.genetics
-          // exists). Per-row CRDT deltas can populate scalars/maps that
-          // localHasRowsRemoteLacks() doesn't see - it only diffs id-keyed
-          // arrays in the blob. Always rebuild the sidebar after a pull so
-          // those entries appear/disappear without waiting for the next
-          // local action. Cheap (~1ms) and doesn't disturb in-progress
-          // forms in the main pane.
-          if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-          if (!activeImportedChanged) {
-            // Remote brought nothing new (local was already a superset or
-            // identical after blob + per-row overlay). Profile-field / chat
-            // / displayPrefs handlers above already re-rendered their own
-            // surfaces; skip the global navigate() so an in-progress form
-            // (e.g. typing a duration into the session log dialog) survives.
-            dbg(`Pulled active profile ${profileId.slice(0,8)} — no importedData change from remote, skipping re-render of '${cat}'`);
-          } else {
-            window.navigate?.(cat);
-            if (cat !== 'dashboard') {
-              showNotification(remoteBroughtNewRows ? 'Data updated from another device' : 'Data changed on another device', 'success');
+          if (importedDataApplied) {
+            // Re-render whatever view the user is on so the merged state
+            // becomes visible - but ONLY when the merge actually produced
+            // new content from the remote side. `localImportedForMerge`
+            // already had everything => no observable change => skip the
+            // re-render so an in-progress form doesn't get wiped on pull.
+            // Source: state.currentView (canonical). DOM .nav-item.active
+            // is briefly absent during buildSidebar->navigate cycles and
+            // would yank the user to 'dashboard' on a pull landing in
+            // that gap (user-reported flicker/sync race).
+            const cat = state.currentView || document.querySelector('.nav-item.active')?.dataset?.category || 'dashboard';
+            // Sidebar nav items are conditional on data presence (e.g. the
+            // Genetics entry only renders when state.importedData.genetics
+            // exists). Per-row CRDT deltas can populate scalars/maps that
+            // localHasRowsRemoteLacks() doesn't see - it only diffs id-keyed
+            // arrays in the blob. Always rebuild the sidebar after a pull so
+            // those entries appear/disappear without waiting for the next
+            // local action. Cheap (~1ms) and doesn't disturb in-progress
+            // forms in the main pane.
+            if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
+            if (!activeImportedChanged) {
+              // Remote brought nothing new (local was already a superset or
+              // identical after blob + per-row overlay). Profile-field / chat
+              // / displayPrefs handlers above already re-rendered their own
+              // surfaces; skip the global navigate() so an in-progress form
+              // (e.g. typing a duration into the session log dialog) survives.
+              dbg(`Pulled active profile ${profileId.slice(0,8)} — no importedData change from remote, skipping re-render of '${cat}'`);
+            } else {
+              window.navigate?.(cat);
+              if (cat !== 'dashboard') {
+                showNotification(remoteBroughtNewRows ? 'Data updated from another device' : 'Data changed on another device', 'success');
+              }
+              dbg(`Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
             }
-            dbg(`Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
-          }
-          // Broadcast for any detached UI listening for cross-device
-          // updates (e.g., the All-Sessions modal in views.js). The
-          // navigate() above already rebuilt the inline page; this
-          // event covers floating modals that aren't part of the main
-          // tree. Greptile PR #178 P2 comment.
-          if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-            try { window.dispatchEvent(new CustomEvent('labcharts-sync-applied')); } catch (_) {}
+            // Broadcast for any detached UI listening for cross-device
+            // updates (e.g., the All-Sessions modal in views.js). The
+            // navigate() above already rebuilt the inline page; this
+            // event covers floating modals that aren't part of the main
+            // tree. Greptile PR #178 P2 comment.
+            if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+              try { window.dispatchEvent(new CustomEvent('labcharts-sync-applied')); } catch (_) {}
+            }
+          } else {
+            dbg(`Pulled active profile ${profileId.slice(0,8)} — importedData deferred by local freshness lock`);
           }
         } else {
           dbg('Pulled profile:', profileId);
