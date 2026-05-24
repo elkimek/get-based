@@ -139,6 +139,8 @@ const APP_SHELL = [
   '/js/hardware.js',
   '/js/sync.js',
   '/js/sync-settings-state.js',
+  '/js/sync-runtime.js',
+  '/js/sync-init.js',
   '/js/sync-disable-cleanup.js',
   '/js/sync-apply.js',
   '/js/sync-schema.js',

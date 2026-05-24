@@ -36,6 +36,8 @@ await import('../js/settings.js');
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
+  const syncRuntimeSrc = await fetchWithRetry('js/sync-runtime.js');
+  const syncInitSrc = await fetchWithRetry('js/sync-init.js');
   const syncDisableCleanupSrc = await fetchWithRetry('js/sync-disable-cleanup.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
@@ -105,6 +107,29 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['isSyncEnabled', 'primeSyncState']));
   assert('service worker precaches sync-settings-state.js',
     serviceWorkerSrc.includes("'/js/sync-settings-state.js'"));
+  assert('sync-runtime.js owns mutable Evolu runtime handles',
+    syncSrc.includes("from './sync-runtime.js'")
+      && syncRuntimeSrc.includes('let _evolu = null')
+      && syncRuntimeSrc.includes('export function getSyncEvolu')
+      && syncRuntimeSrc.includes('export function getSyncProfileQuery')
+      && syncRuntimeSrc.includes('export function getSyncAppOwner')
+      && syncRuntimeSrc.includes('export function clearSyncRuntimeState')
+      && syncSrc.includes('getEvolu: getSyncEvolu')
+      && syncSrc.includes('clearSyncRuntimeState();'));
+  assert('service worker precaches sync-runtime.js',
+    serviceWorkerSrc.includes("'/js/sync-runtime.js'"));
+  assert('sync-init.js owns Evolu startup orchestration',
+    syncSrc.includes("from './sync-init.js'")
+      && syncInitSrc.includes('export async function initSync')
+      && syncInitSrc.includes('createSyncSchema({')
+      && syncInitSrc.includes('createSyncQueries(evolu)')
+      && syncInitSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
+      && syncInitSrc.includes('startRelayProbe();')
+      && syncInitSrc.includes('bindSyncRecoveryEvents();')
+      && syncInitSrc.includes('setSyncEvolu(evolu)')
+      && syncInitSrc.includes('setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery })'));
+  assert('service worker precaches sync-init.js',
+    serviceWorkerSrc.includes("'/js/sync-init.js'"));
   assert('sync-disable-cleanup.js owns disable localStorage cleanup',
     syncSrc.includes("from './sync-disable-cleanup.js'")
       && syncIdentitySrc.includes("from './sync-disable-cleanup.js'")
@@ -120,11 +145,11 @@ await import('../js/settings.js');
   assert('service worker precaches sync-disable-cleanup.js',
     serviceWorkerSrc.includes("'/js/sync-disable-cleanup.js'"));
   assert('sync-schema.js owns Evolu schema/query helpers',
-    syncSrc.includes("from './sync-schema.js'")
+    syncInitSrc.includes("from './sync-schema.js'")
       && syncSchemaSrc.includes('export function createSyncSchema')
       && syncSchemaSrc.includes('export function createSyncQueries')
-      && syncSrc.includes('createSyncSchema({')
-      && syncSrc.includes('createSyncQueries(evolu)'));
+      && syncInitSrc.includes('createSyncSchema({')
+      && syncInitSrc.includes('createSyncQueries(evolu)'));
   assert('service worker precaches sync-schema.js',
     serviceWorkerSrc.includes("'/js/sync-schema.js'"));
   assert('sync-apply.js owns inbound AI/chat/display apply helpers',
@@ -252,7 +277,7 @@ await import('../js/settings.js');
       && syncRecoverySrc.includes("window.addEventListener('online'")
       && syncRecoverySrc.includes("window.addEventListener('offline'")
       && syncSrc.includes('configureSyncRecovery({')
-      && syncSrc.includes('bindSyncRecoveryEvents();'));
+      && syncInitSrc.includes('bindSyncRecoveryEvents();'));
   assert('service worker precaches sync-recovery.js',
     serviceWorkerSrc.includes("'/js/sync-recovery.js'"));
   assert('sync-reconcile.js owns startup reconciliation helper',
@@ -287,8 +312,8 @@ await import('../js/settings.js');
       && syncSubscriptionsSrc.includes('_checkRelayConnection()')
       && syncSubscriptionsSrc.includes('_subscriptionFireCount = 0')
       && syncSubscriptionsSrc.includes('.catch(onRelayProbeError)')
-      && syncSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
-      && syncSrc.includes('startRelayProbe();')
+      && syncInitSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
+      && syncInitSrc.includes('startRelayProbe();')
       && syncSrc.includes('clearSyncSubscriptionTimers();')
       && syncSrc.includes('getSubscriptionFireCount: getSyncSubscriptionFireCount'));
   assert('service worker precaches sync-subscriptions.js',
@@ -513,7 +538,7 @@ await import('../js/settings.js');
   assert('itemRowQuery created by sync-schema.js',
     /itemRowQuery\s*=\s*evolu\.createQuery\([\s\S]{0,200}selectFrom\("itemRow"\)/.test(syncSchemaSrc));
   assert('itemRowQuery loaded with profileQuery + tombstoneQuery',
-    /Promise\.all\(\[[\s\S]{0,400}evolu\.loadQuery\(itemRowQuery\)/.test(syncSrc));
+    /Promise\.all\(\[[\s\S]{0,400}evolu\.loadQuery\(itemRowQuery\)/.test(syncInitSrc));
   assert('itemRow subscription retriggers onSyncReceived',
     /evolu\.subscribeQuery\(itemRowQuery\)\([\s\S]{0,200}_onSyncReceived\(\)/.test(syncSubscriptionsSrc));
 
@@ -652,12 +677,12 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('5. Evolu Configuration');
 
-  assert('reloadUrl uses window.location.pathname', syncSrc.includes('reloadUrl: window.location.pathname'));
-  assert('enableLogging gated on debug mode', syncSrc.includes('enableLogging: isDebugMode()'));
+  assert('reloadUrl uses window.location.pathname', syncInitSrc.includes('reloadUrl: window.location.pathname'));
+  assert('enableLogging gated on debug mode', syncInitSrc.includes('enableLogging: isDebugMode()'));
   assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
-  assert('Transport uses plural "transports" array (not singular)', syncSrc.includes('transports: [{ type:') && !syncSrc.includes('transport: { type:'));
+  assert('Transport uses plural "transports" array (not singular)', syncInitSrc.includes('transports: [{ type:') && !syncInitSrc.includes('transport: { type:'));
   assert('COOP header in dev-server', await fetchWithRetry('dev-server.js').then(s => s.includes('Cross-Origin-Opener-Policy')));
-  assert('initSync has re-entrancy guard', syncSrc.includes('if (evolu) return'));
+  assert('initSync has re-entrancy guard', syncInitSrc.includes('if (getSyncEvolu()) return'));
   assert('checkRelayConnection exported', exportBlockIncludes(syncSrc, ['checkRelayConnection']));
 
   // ═══════════════════════════════════════
@@ -737,7 +762,9 @@ await import('../js/settings.js');
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,800}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && !/pushAllProfiles[\s\S]{0,800}if \(!raw\) continue/.test(syncActionsSrc));
-  assert('disableSync clears _appOwner', syncSrc.includes('_appOwner = null'));
+  assert('disableSync clears appOwner via runtime cleanup',
+    syncSrc.includes('clearSyncRuntimeState();')
+      && /clearSyncRuntimeState[\s\S]{0,500}_appOwner\s*=\s*null/.test(syncRuntimeSrc));
   // disableSync intentionally NO LONGER waits for in-flight ops or awaits
   // Evolu reset — both introduced hang risks (Evolu worker stuck on OPFS
   // or a Web Lock). The page reload below kills the worker process
@@ -749,7 +776,7 @@ await import('../js/settings.js');
   );
   assert('disableSync flips SYNC_STORAGE_KEY before any await',
     disableSyncSrc.includes('setSyncEnabled(false);')
-      && disableSyncSrc.indexOf('setSyncEnabled(false);') < disableSyncSrc.indexOf('_appOwnerError = null')
+      && disableSyncSrc.indexOf('setSyncEnabled(false);') < disableSyncSrc.indexOf('setSyncAppOwnerError(null)')
       && (!disableSyncSrc.includes('await ') || disableSyncSrc.indexOf('setSyncEnabled(false);') < disableSyncSrc.indexOf('await '))
       && syncSettingsStateSrc.includes("localStorage.setItem(SYNC_STORAGE_KEY, enabled ? 'true' : 'false')"));
   assert('disableSync does not block on Evolu reset (fire-and-forget)',
@@ -2384,7 +2411,7 @@ await import('../js/settings.js');
   assert('reconcileLocalStorageWithEvolu defined',
     /export async function reconcileLocalStorageWithEvolu\(\)/.test(syncReconcileSrc));
   assert('Reconciliation runs on initSync after appOwner + queries are ready',
-    /Promise\.all\(\[_readyPromise,\s*_queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncSrc));
+    /Promise\.all\(\[readyPromise,\s*queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncInitSrc));
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
     /reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
