@@ -39,6 +39,7 @@ await import('../js/settings.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
+  const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -48,7 +49,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncDeltaSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -136,6 +137,14 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
+  assert('sync-diagnostics.js owns Evolu diagnostics helpers',
+    syncSrc.includes("from './sync-diagnostics.js'")
+      && syncDiagnosticsSrc.includes('export async function getEvoluDiagnostics')
+      && syncDiagnosticsSrc.includes('export function _evoluDiagnosticsText')
+      && syncDiagnosticsSrc.includes('export function configureSyncDiagnostics')
+      && exportBlockIncludes(syncSrc, ['getEvoluDiagnostics']));
+  assert('service worker precaches sync-diagnostics.js',
+    serviceWorkerSrc.includes("'/js/sync-diagnostics.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -158,7 +167,7 @@ await import('../js/settings.js');
     syncSrc.includes('_lastPollTombstoneCount')
       && /getQueryRows\(tombstoneQuery\)[\s\S]{0,300}tombstoneCount/.test(syncSrc));
   assert('Sync diagnose includes tombstone rows and deleted-state column',
-    /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncSrc)
+    /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSrc)
       && syncSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
     /applyRemoteTombstones[\s\S]{0,4000}wipeProfileLocal\(tombId\)/.test(syncTombstonesSrc)
@@ -1109,9 +1118,9 @@ await import('../js/settings.js');
   assert('Cutover check iterates DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS',
     /getDeltaCutoverReadiness[\s\S]{0,3500}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,1000}for \(const mapName of DELTA_MAPS\)[\s\S]{0,1000}for \(const scalarName of DELTA_SCALARS\)/.test(deltaSearchSrc));
   assert('getEvoluDiagnostics includes cutoverReadiness',
-    /out\.cutoverReadiness\s*=\s*state\.currentProfile/.test(deltaSearchSrc));
+    /out\.cutoverReadiness\s*=\s*state\.currentProfile/.test(syncDiagnosticsSrc));
   assert('Diagnose Copy text includes Phase 2 readiness section',
-    /Phase 2 cutover readiness:/.test(deltaSearchSrc));
+    /Phase 2 cutover readiness:/.test(syncDiagnosticsSrc));
   assert('Diagnose modal renders cutover panel with blocker breakdown',
     /<b>Lean sync mode<\/b>/.test(deltaSearchSrc) && /haven't been re-pushed yet/.test(deltaSearchSrc));
 
