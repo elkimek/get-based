@@ -1645,7 +1645,7 @@ assert('recoverIfL1Empty short-circuits when conn.needsReauth is true',
 
 // pushContextToGateway dropped the profile-name list (was sent cleartext to
 // the relay alongside the context).
-const syncSrc2 = await fetch('/js/sync.js').then(r => r.text());
+const syncSrc2 = await fetch('/js/sync-messenger.js').then(r => r.text());
 assert('Gateway POST body does NOT include profile names array',
   /JSON\.stringify\(\{\s*context,\s*profileId\s*\}\)/.test(syncSrc2));
 assert('Gateway POST body NEVER references getProfiles().map for the relay payload',
@@ -1936,7 +1936,7 @@ labCtxAgent.setAgentWearableSeriesEnabled(false);  // restore default
 // Source-grep guards: pushContextToGateway must concat the series block.
 // v1.29.0: takes the user's chosen days (tri-state preference) instead of
 // a hardcoded 30. The variable is named `seriesDays`.
-const syncSrc = await fetch('/js/sync.js').then(r => r.text());
+const syncSrc = await fetch('/js/sync-messenger.js').then(r => r.text());
 assert('pushContextToGateway reads seriesDays from getAgentWearableSeriesDays',
   /seriesDays\s*=\s*getAgentWearableSeriesDays\(\)/.test(syncSrc));
 assert('pushContextToGateway awaits buildWearableSeriesSection(seriesDays)',

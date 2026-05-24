@@ -37,6 +37,10 @@ import {
   applyPendingTombstone, applyRemoteTombstones, configureSyncTombstones,
   deleteProfileFromRelay, listPendingTombstones, rejectPendingTombstone,
 } from './sync-tombstones.js';
+import {
+  configureSyncMessenger, generateMessengerToken, getMessengerToken,
+  isMessengerEnabled, pushContextToGateway, revokeMessengerToken,
+} from './sync-messenger.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -44,6 +48,8 @@ export {
   getRecentSyncEvents, subscribeSyncStatus,
   applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
   rejectPendingTombstone,
+  generateMessengerToken, getMessengerToken, isMessengerEnabled,
+  pushContextToGateway, revokeMessengerToken,
 };
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
@@ -287,6 +293,11 @@ configureSyncTombstones({
   getTombstoneQuery: () => tombstoneQuery,
   isSyncEnabled: () => _syncEnabled,
   pushProfile,
+  debug: dbg,
+});
+
+configureSyncMessenger({
+  getSyncRelay,
   debug: dbg,
 });
 
@@ -1749,76 +1760,6 @@ export function onChatSaved() {
     }
   }, 10000); // 10s debounce — chat saves are frequent during streaming
   _chatSyncTimers.set(profileId, timer);
-}
-
-// ═══════════════════════════════════════════════
-// MESSENGER ACCESS — push lab context to gateway
-// ═══════════════════════════════════════════════
-
-const MESSENGER_TOKEN_KEY = 'labcharts-messenger-token';
-const MESSENGER_ENABLED_KEY = 'labcharts-messenger-enabled';
-
-export function isMessengerEnabled() {
-  return localStorage.getItem(MESSENGER_ENABLED_KEY) === 'true';
-}
-
-export function getMessengerToken() {
-  return localStorage.getItem(MESSENGER_TOKEN_KEY) || null;
-}
-
-export function generateMessengerToken() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-  localStorage.setItem(MESSENGER_TOKEN_KEY, token);
-  localStorage.setItem(MESSENGER_ENABLED_KEY, 'true');
-  return token;
-}
-
-export function revokeMessengerToken() {
-  localStorage.removeItem(MESSENGER_TOKEN_KEY);
-  localStorage.setItem(MESSENGER_ENABLED_KEY, 'false');
-}
-
-let _contextPushTimer = null;
-export function pushContextToGateway() {
-  if (!isMessengerEnabled()) return;
-  const token = getMessengerToken();
-  if (!token) return;
-
-  clearTimeout(_contextPushTimer);
-  _contextPushTimer = setTimeout(async () => {
-    try {
-      const { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } = await import('./lab-context.js');
-      const baseContext = buildLabContext({ skipGroupFilter: true });
-      // Optional wearable daily-series section — user picks 0 (off) / 7 /
-      // 30 / 90 days in Settings → Integrations → Agent Access. Reads L1
-      // IDB on the browser; the gateway only ever sees the rendered string.
-      // Append AFTER the rest so the section parser treats it as a sibling.
-      const seriesDays = getAgentWearableSeriesDays();
-      const seriesBlock = seriesDays > 0
-        ? await buildWearableSeriesSection(seriesDays).catch(() => '')
-        : '';
-      const context = seriesBlock ? `${baseContext}\n${seriesBlock}\n` : baseContext;
-      const profileId = state.currentProfile || 'default';
-      // The gateway only needs the active profileId — DON'T leak the full
-      // profile-name list. Profile names can include real names; the relay
-      // is unencrypted (the rest of the agent payload is by design too,
-      // but profile names are gratuitous PII for the agent's needs).
-      const relay = getSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
-
-      await fetch(`${relay}/api/context`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ context, profileId }),
-      });
-      dbg(`Context pushed to gateway (profile: ${profileId}, series: ${seriesBlock ? 'yes' : 'no'})`);
-    } catch (e) {
-      console.warn('[sync] Context push failed:', e);
-    }
-  }, 5000); // 5s debounce — less urgent than sync
 }
 
 // ═══════════════════════════════════════════════

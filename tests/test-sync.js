@@ -36,6 +36,7 @@ await import('../js/settings.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
+  const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -100,6 +101,16 @@ await import('../js/settings.js');
       && syncTombstonesSrc.includes('export async function rejectPendingTombstone'));
   assert('service worker precaches sync-tombstones.js',
     serviceWorkerSrc.includes("'/js/sync-tombstones.js'"));
+  assert('sync-messenger.js owns Agent Access gateway helpers',
+    syncSrc.includes("from './sync-messenger.js'")
+      && syncMessengerSrc.includes('export function isMessengerEnabled')
+      && syncMessengerSrc.includes('export function getMessengerToken')
+      && syncMessengerSrc.includes('export function generateMessengerToken')
+      && syncMessengerSrc.includes('export function revokeMessengerToken')
+      && syncMessengerSrc.includes('export function pushContextToGateway')
+      && exportBlockIncludes(syncSrc, ['isMessengerEnabled', 'getMessengerToken', 'generateMessengerToken', 'revokeMessengerToken', 'pushContextToGateway']));
+  assert('service worker precaches sync-messenger.js',
+    serviceWorkerSrc.includes("'/js/sync-messenger.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -608,8 +619,8 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('12. Messenger Access');
 
-  assert('generateMessengerToken creates 64-char hex', syncSrc.includes('crypto.getRandomValues') && syncSrc.includes('MESSENGER_TOKEN_KEY'));
-  assert('pushContextToGateway exports', syncSrc.includes('export function pushContextToGateway'));
+  assert('generateMessengerToken creates 64-char hex', syncMessengerSrc.includes('crypto.getRandomValues') && syncMessengerSrc.includes('MESSENGER_TOKEN_KEY'));
+  assert('pushContextToGateway exports', exportBlockIncludes(syncSrc, ['pushContextToGateway']));
   assert('OpenClaw section in settings', settingsSrc.includes('renderMessengerSection') && settingsSrc.includes('OpenClaw'));
   assert('Token masked by default', settingsSrc.includes('messenger-token') && settingsSrc.includes('data-masked'));
 
