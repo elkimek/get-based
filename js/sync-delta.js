@@ -332,6 +332,14 @@ export function _writeDeltaSnapshot(profileId, arrayName, snap, plannedAt) {
   } catch { return false; }
 }
 
+export function clearDeltaSnapshot(profileId, arrayName) {
+  try {
+    localStorage.removeItem(_deltaSnapshotKey(profileId, arrayName));
+    localStorage.removeItem(`${_deltaSnapshotKey(profileId, arrayName)}-meta`);
+    return true;
+  } catch { return false; }
+}
+
 // Stable hash for content-equality detection. djb2 — fine for our
 // purpose (ferret out unchanged items so we don't re-push). Scoped
 // to this module; not exported.
@@ -1135,4 +1143,3 @@ export function getDeltaCutoverReadiness(profileId, importedData) {
     surfaces,
   };
 }
-

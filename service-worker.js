@@ -145,6 +145,7 @@ const APP_SHELL = [
   '/js/sync-environment.js',
   '/js/sync-identity.js',
   '/js/sync-diagnostics.js',
+  '/js/sync-diagnose-ui.js',
   '/js/sync-ui.js',
   '/js/sync-payload.js',
   '/js/sync-relay-health.js',

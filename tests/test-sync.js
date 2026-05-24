@@ -40,6 +40,7 @@ await import('../js/settings.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
+  const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
@@ -50,7 +51,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -146,6 +147,19 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['getEvoluDiagnostics']));
   assert('service worker precaches sync-diagnostics.js',
     serviceWorkerSrc.includes("'/js/sync-diagnostics.js'"));
+  assert('sync-diagnose-ui.js owns Sync Diagnose modal helpers',
+    syncSrc.includes("from './sync-diagnose-ui.js'")
+      && syncDiagnoseUiSrc.includes('export function configureSyncDiagnoseUI')
+      && syncDiagnoseUiSrc.includes('export async function showSyncDiagnose')
+      && syncDiagnoseUiSrc.includes('export async function copySyncDiagnose')
+      && syncDiagnoseUiSrc.includes('export async function confirmCompactRelay')
+      && syncDiagnoseUiSrc.includes('export async function refreshRelayStorage')
+      && syncDiagnoseUiSrc.includes('export async function confirmRotateIdentity')
+      && syncDiagnoseUiSrc.includes('export async function confirmEnablePhase2')
+      && syncDiagnoseUiSrc.includes('export async function confirmBackfillBlockers')
+      && exportBlockIncludes(syncSrc, ['showSyncDiagnose']));
+  assert('service worker precaches sync-diagnose-ui.js',
+    serviceWorkerSrc.includes("'/js/sync-diagnose-ui.js'"));
   assert('sync-ui.js owns header sync status UI helpers',
     syncSrc.includes("from './sync-ui.js'")
       && syncUiSrc.includes('export function configureSyncUI')
@@ -180,7 +194,7 @@ await import('../js/settings.js');
       && /getQueryRows\(tombstoneQuery\)[\s\S]{0,300}tombstoneCount/.test(syncSrc));
   assert('Sync diagnose includes tombstone rows and deleted-state column',
     /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSrc)
-      && syncSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
+      && syncDiagnoseUiSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
     /applyRemoteTombstones[\s\S]{0,4000}wipeProfileLocal\(tombId\)/.test(syncTombstonesSrc)
       && /wipeProfileLocal[\s\S]{0,800}encryptedRemoveItem\(profileStorageKey\(profileId,\s*'imported'\)\)/.test(syncTombstonesSrc));
@@ -284,9 +298,9 @@ await import('../js/settings.js');
   // without SSH access. Refresh probes /self/owner-storage to replace
   // the local estimate with the relay's authoritative value.
   assert('Sync diagnose modal wires the self-serve Compact storage button',
-    /confirmCompactRelay\(this\)/.test(syncSrc));
+    /confirmCompactRelay\(this\)/.test(syncDiagnoseUiSrc));
   assert('Sync diagnose modal wires the Refresh-from-relay button',
-    /refreshRelayStorage\(this\)/.test(syncSrc));
+    /refreshRelayStorage\(this\)/.test(syncDiagnoseUiSrc));
   assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
     /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncRelayHealthSrc));
   assert('compactOwnerSelfServe catches fetch rejection before checking response status',
@@ -1642,6 +1656,10 @@ await import('../js/settings.js');
     /_writeDeltaSnapshot[\s\S]{0,1200}return true[\s\S]{0,200}return false/.test(deltaSearchSrc));
   assert('Snapshot meta key derives from snapshot key (-meta suffix)',
     /\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta/.test(deltaSearchSrc));
+  assert('clearDeltaSnapshot clears both snapshot and metadata keys',
+    /export function clearDeltaSnapshot\(profileId,\s*arrayName\)/.test(syncDeltaSrc)
+      && /removeItem\(_deltaSnapshotKey\(profileId,\s*arrayName\)\)/.test(syncDeltaSrc)
+      && /removeItem\(`\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta`\)/.test(syncDeltaSrc));
   assert('All 3 planners stamp plannedAt at start (not end)',
     (syncDeltaSrc.match(/const plannedAt\s*=\s*Date\.now\(\);/g) || []).length >= 3);
   assert('All 3 planners return plan with plannedAt field',
