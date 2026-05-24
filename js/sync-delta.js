@@ -392,7 +392,12 @@ export async function _planArrayDelta(profileId, arrayName, items) {
     const json = JSON.stringify(item);
     const hash = _djb2(json);
     next[itemId] = hash;
-    if (prev[itemId] === hash) continue; // unchanged — skip push
+    const existing = rowByItemId.get(itemId);
+    // Snapshot drift repair: if localStorage says this item was already
+    // pushed but the actual CRDT row is missing or tombstoned, we still
+    // need to insert/resurrect it. Otherwise a stale peer tombstone can
+    // erase the local edit on the next pull even though the user just saved.
+    if (prev[itemId] === hash && existing && !existing.isDeleted) continue; // unchanged — skip push
 
     // Compress payload the same way buildSyncPayload does — itemRow.payload
     // is a NonEmptyString, gzip+base64 envelope keeps small items tiny.
@@ -400,7 +405,6 @@ export async function _planArrayDelta(profileId, arrayName, items) {
     if (typeof CompressionStream !== 'undefined' && json.length > 256) {
       try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
     }
-    const existing = rowByItemId.get(itemId);
     const syncedAt = new Date().toISOString();
     // v1.7.11 audit fix: when the existing row is tombstoned (user deleted
     // the item, then re-added it), evolu.update without isDeleted leaves
@@ -498,13 +502,15 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
     const json = JSON.stringify(payloadObj);
     const hash = _djb2(json);
     next[itemId] = hash;
-    if (prev[itemId] === hash) continue;
+    const existing = rowByItemId.get(itemId);
+    // Same repair as arrays: unchanged local content must still recreate
+    // or resurrect the per-row carrier when the row state drifted.
+    if (prev[itemId] === hash && existing && !existing.isDeleted) continue;
 
     let payload = json;
     if (typeof CompressionStream !== 'undefined' && json.length > 256) {
       try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
     }
-    const existing = rowByItemId.get(itemId);
     const syncedAt = new Date().toISOString();
     // v1.7.11 audit fix: resurrect a tombstoned row by explicitly clearing
     // isDeleted (otherwise the LWW register stays 1 and peers keep seeing
@@ -588,7 +594,7 @@ export async function _planScalarDelta(profileId, scalarName, scalarValue) {
     const json = JSON.stringify(payloadObj);
     const hash = _djb2(json);
     next[scalarName] = hash;
-    if (prev[scalarName] !== hash) {
+    if (prev[scalarName] !== hash || !canonical || canonical.isDeleted) {
       let payload = json;
       if (typeof CompressionStream !== 'undefined' && json.length > 256) {
         try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}

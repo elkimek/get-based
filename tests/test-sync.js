@@ -29,6 +29,7 @@ console.log('=== Cross-Device Sync Tests ===\n');
 // populate window.enableSync, window.toggleSync, etc.
 const { state } = await import('../js/state.js');
 const syncApply = await import('../js/sync-apply.js');
+const syncDelta = await import('../js/sync-delta.js');
 await import('../js/sync.js');
 await import('../js/settings.js');
 
@@ -440,7 +441,7 @@ await import('../js/settings.js');
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
-    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncDeltaSrc));
+    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1800}prev\[itemId\]\s*===\s*hash/.test(syncDeltaSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
     /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaSrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
@@ -1442,6 +1443,98 @@ await import('../js/settings.js');
     /_planKeyedMapDelta[\s\S]{0,2700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planScalarDelta resurrects tombstoned row by clearing isDeleted',
     /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+  assert('_planArrayDelta repairs missing/tombstoned rows even when snapshot hash matches',
+    /_planArrayDelta[\s\S]{0,2500}const existing = rowByItemId\.get\(itemId\);[\s\S]{0,700}prev\[itemId\]\s*===\s*hash\s*&&\s*existing\s*&&\s*!existing\.isDeleted/.test(deltaSearchSrc));
+  assert('_planKeyedMapDelta repairs missing/tombstoned rows even when snapshot hash matches',
+    /_planKeyedMapDelta[\s\S]{0,3000}const existing = rowByItemId\.get\(itemId\);[\s\S]{0,700}prev\[itemId\]\s*===\s*hash\s*&&\s*existing\s*&&\s*!existing\.isDeleted/.test(deltaSearchSrc));
+  assert('_planScalarDelta repairs missing/tombstoned row even when snapshot hash matches',
+    /_planScalarDelta[\s\S]{0,2500}prev\[scalarName\]\s*!==\s*hash\s*\|\|\s*!canonical\s*\|\|\s*canonical\.isDeleted/.test(deltaSearchSrc));
+
+  // Live planner probes for the exact drift case that made per-value notes
+  // disappear: snapshot hash says "already pushed", but the row carrier is
+  // missing or tombstoned, so the planner must still insert/resurrect.
+  if (typeof window !== 'undefined') {
+    const {
+      configureSyncDelta,
+      _planArrayDelta,
+      _planKeyedMapDelta,
+      _planScalarDelta,
+      _writeDeltaSnapshot,
+      clearDeltaSnapshot,
+    } = syncDelta;
+    const rows = [];
+    const query = {};
+    const profileId = '__planner_repair_test__';
+    const setRows = (...nextRows) => { rows.splice(0, rows.length, ...nextRows); };
+    configureSyncDelta({
+      getEvolu: () => ({ getQueryRows: () => rows }),
+      getItemRowQuery: () => query,
+    });
+    try {
+      const arrayName = 'sunSessions';
+      const arrayItem = { id: 'session1', startedAt: '2026-05-24T00:00:00Z' };
+      clearDeltaSnapshot(profileId, arrayName);
+      setRows();
+      let plan = await _planArrayDelta(profileId, arrayName, [arrayItem]);
+      _writeDeltaSnapshot(profileId, arrayName, plan.next, plan.plannedAt);
+      plan = await _planArrayDelta(profileId, arrayName, [arrayItem]);
+      assert('Array planner recreates missing row when snapshot hash matches',
+        plan.ops.length === 1 && plan.ops[0].kind === 'insert');
+      setRows({ id: 'row-array-1', profileId, arrayName, itemId: 'session1', payload: '{}', syncedAt: '2026-05-24T00:00:00.000Z', isDeleted: 1 });
+      plan = await _planArrayDelta(profileId, arrayName, [arrayItem]);
+      assert('Array planner resurrects tombstoned row when snapshot hash matches',
+        plan.ops.length === 1 && plan.ops[0].kind === 'update' && plan.ops[0].args.isDeleted === null);
+      setRows({ id: 'row-array-1', profileId, arrayName, itemId: 'session1', payload: '{}', syncedAt: '2026-05-24T00:00:01.000Z', isDeleted: null });
+      plan = await _planArrayDelta(profileId, arrayName, [arrayItem]);
+      assert('Array planner still no-ops live row when snapshot hash matches',
+        plan.ops.length === 0);
+
+      const mapName = 'markerValueNotes';
+      const rawKey = 'biochemistry.glucose:2026-05-24';
+      const itemId = rawKey.replace(/_/g, '__').replace(/:/g, '_');
+      const mapObj = { [rawKey]: 'same note' };
+      clearDeltaSnapshot(profileId, mapName);
+      setRows();
+      plan = await _planKeyedMapDelta(profileId, mapName, mapObj);
+      _writeDeltaSnapshot(profileId, mapName, plan.next, plan.plannedAt);
+      plan = await _planKeyedMapDelta(profileId, mapName, mapObj);
+      assert('Map planner recreates missing markerValueNotes row when snapshot hash matches',
+        plan.ops.length === 1 && plan.ops[0].kind === 'insert' && plan.ops[0].args.itemId === itemId);
+      setRows({ id: 'row-map-1', profileId, arrayName: mapName, itemId, payload: '{}', syncedAt: '2026-05-24T00:00:00.000Z', isDeleted: 1 });
+      plan = await _planKeyedMapDelta(profileId, mapName, mapObj);
+      assert('Map planner resurrects tombstoned markerValueNotes row when snapshot hash matches',
+        plan.ops.length === 1 && plan.ops[0].kind === 'update' && plan.ops[0].args.isDeleted === null);
+      setRows({ id: 'row-map-1', profileId, arrayName: mapName, itemId, payload: '{}', syncedAt: '2026-05-24T00:00:01.000Z', isDeleted: null });
+      plan = await _planKeyedMapDelta(profileId, mapName, mapObj);
+      assert('Map planner still no-ops live markerValueNotes row when snapshot hash matches',
+        plan.ops.length === 0);
+
+      const scalarName = 'contextNotes';
+      const scalarValue = 'same context';
+      clearDeltaSnapshot(profileId, scalarName);
+      setRows();
+      plan = await _planScalarDelta(profileId, scalarName, scalarValue);
+      _writeDeltaSnapshot(profileId, scalarName, plan.next, plan.plannedAt);
+      plan = await _planScalarDelta(profileId, scalarName, scalarValue);
+      assert('Scalar planner recreates missing row when snapshot hash matches',
+        plan.ops.length === 1 && plan.ops[0].kind === 'insert');
+      setRows({ id: 'row-scalar-1', profileId, arrayName: scalarName, itemId: scalarName, payload: '{}', syncedAt: '2026-05-24T00:00:00.000Z', isDeleted: 1 });
+      plan = await _planScalarDelta(profileId, scalarName, scalarValue);
+      assert('Scalar planner resurrects tombstoned row when snapshot hash matches',
+        plan.ops.length === 1 && plan.ops[0].kind === 'update' && plan.ops[0].args.isDeleted === null);
+      setRows({ id: 'row-scalar-1', profileId, arrayName: scalarName, itemId: scalarName, payload: '{}', syncedAt: '2026-05-24T00:00:01.000Z', isDeleted: null });
+      plan = await _planScalarDelta(profileId, scalarName, scalarValue);
+      assert('Scalar planner still no-ops live row when snapshot hash matches',
+        plan.ops.length === 0);
+    } catch (e) {
+      assert('Planner drift repair functional probes ran without exception', false, e?.message || String(e));
+    } finally {
+      clearDeltaSnapshot(profileId, 'sunSessions');
+      clearDeltaSnapshot(profileId, 'markerValueNotes');
+      clearDeltaSnapshot(profileId, 'contextNotes');
+      configureSyncDelta({ getEvolu: () => null, getItemRowQuery: () => null });
+    }
+  }
 
   // Phase 2 cutover scope — previously unenumerated importedData fields
   assert('DELTA_MAPS includes refOverrides (Phase 2 scope fix)',
