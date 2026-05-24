@@ -43,13 +43,13 @@ const state = (await import('../js/state.js')).state;
   // ═══════════════════════════════════════
   console.log('%c 2. Sync DELTA_MAPS Wiring ', 'font-weight:bold;color:#f59e0b');
 
-  const syncSrc = read('js/sync.js');
+  const syncDeltaSrc = read('js/sync-delta.js');
   assert('markerValueNotes present in DELTA_MAPS array',
-    /DELTA_MAPS\s*=\s*\[[^\]]*'markerValueNotes'/s.test(syncSrc));
+    /DELTA_MAPS\s*=\s*\[[^\]]*'markerValueNotes'/s.test(syncDeltaSrc));
   assert('markerValueNotes has DELTA_MAP_CONFIG.keyIdFn entry',
-    /markerValueNotes:\s*\{\s*keyIdFn:/m.test(syncSrc));
+    /markerValueNotes:\s*\{\s*keyIdFn:/m.test(syncDeltaSrc));
   assert('markerValueNotes keyIdFn uses the doubling-escape (matches manualValues)',
-    /markerValueNotes:[\s\S]{0,300}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(syncSrc));
+    /markerValueNotes:[\s\S]{0,300}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(syncDeltaSrc));
 
   // Simulate the escape locally to confirm a colon-bearing key produces
   // a distinct allowlist-safe id (the manualValues precedent).

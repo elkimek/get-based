@@ -34,6 +34,7 @@ await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
+  const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -43,6 +44,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
+  const deltaSearchSrc = `${syncSrc}\n${syncDeltaSrc}`;
 
   // ═══════════════════════════════════════
   // 1. MODULE EXPORTS
@@ -75,6 +77,14 @@ await import('../js/settings.js');
       && syncApplySrc.includes('export function markChatDataLocal'));
   assert('service worker precaches sync-apply.js',
     serviceWorkerSrc.includes("'/js/sync-apply.js'"));
+  assert('sync-delta.js owns per-row delta helpers',
+    syncSrc.includes("from './sync-delta.js'")
+      && syncDeltaSrc.includes('export const DELTA_ARRAYS')
+      && syncDeltaSrc.includes('export async function _planArrayDelta')
+      && syncDeltaSrc.includes('export async function _mergeItemRowsIntoImported')
+      && syncDeltaSrc.includes('export function getDeltaCutoverReadiness'));
+  assert('service worker precaches sync-delta.js',
+    serviceWorkerSrc.includes("'/js/sync-delta.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -242,23 +252,23 @@ await import('../js/settings.js');
 
   // DELTA_ARRAYS list (high-velocity arrays)
   assert('DELTA_ARRAYS includes sunSessions + lightDevices',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,400}'sunSessions'[\s\S]{0,400}'lightDevices'/.test(syncSrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,400}'sunSessions'[\s\S]{0,400}'lightDevices'/.test(syncDeltaSrc));
   assert('DELTA_ARRAYS includes entries + notes (high-importance lab data)',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,800}'entries'[\s\S]{0,400}'notes'/.test(syncSrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,800}'entries'[\s\S]{0,400}'notes'/.test(syncDeltaSrc));
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
-    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncSrc));
+    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncDeltaSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
-    /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncSrc));
+    /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaSrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
-    /json\.length > 256[\s\S]{0,200}GZ\|v1\|/.test(syncSrc));
+    /json\.length > 256[\s\S]{0,200}GZ\|v1\|/.test(syncDeltaSrc));
   assert('_planArrayDelta emits tombstones for items removed since last push',
-    /kind:\s*'tombstone'[\s\S]{0,200}isDeleted:\s*1/.test(syncSrc));
+    /kind:\s*'tombstone'[\s\S]{0,200}isDeleted:\s*1/.test(syncDeltaSrc));
   assert('_planArrayDelta is conservative on missing rows (no phantom delete)',
-    /safer to no-op[\s\S]{0,100}phantom delete/.test(syncSrc));
+    /safer to no-op[\s\S]{0,100}phantom delete/.test(syncDeltaSrc));
   assert('_applyArrayDelta dispatches insert/update/tombstone',
-    /_applyArrayDelta[\s\S]{0,300}evolu\.insert\("itemRow"[\s\S]{0,200}evolu\.update\("itemRow"/.test(syncSrc));
+    /_applyArrayDelta[\s\S]{0,400}evolu\.insert\("itemRow"[\s\S]{0,200}evolu\.update\("itemRow"/.test(syncDeltaSrc));
 
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
@@ -272,24 +282,24 @@ await import('../js/settings.js');
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncDeltaSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
   // pre-populate the row-side tombs Set, otherwise a peer pushing the
   // row back as live (before pulling our delete) re-inserts it locally.
   assert('_mergeItemRowsIntoImported seeds tombs from local blob _deleted before walking rows',
-    /imported\.\s*_deleted[\s\S]{0,200}\[arrayName\][\s\S]{0,200}tombs\.add/.test(syncSrc));
+    /imported\.\s*_deleted[\s\S]{0,200}\[arrayName\][\s\S]{0,200}tombs\.add/.test(syncDeltaSrc));
   assert('_mergeItemRowsIntoImported skips inserting items that match a blob-tombstoned itemId',
-    /tombs\.has\(itemId\)\)\s*continue/.test(syncSrc));
+    /tombs\.has\(itemId\)\)\s*continue/.test(syncDeltaSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
-    /idx\s*!==\s*undefined[\s\S]{0,200}nextArr\[idx\]\s*=\s*item/.test(syncSrc));
+    /idx\s*!==\s*undefined[\s\S]{0,200}nextArr\[idx\]\s*=\s*item/.test(syncDeltaSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads via capped variant',
-    /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncSrc));
+    /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncDeltaSrc));
   assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',
-    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
+    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncDeltaSrc));
 
   // Snapshot persistence contract
   assert('Delta snapshot key namespaced per (profile, arrayName)',
-    /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncSrc));
+    /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
     /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncSrc));
 
@@ -632,23 +642,23 @@ await import('../js/settings.js');
   console.log('14a. Delta Array Config');
 
   assert('changeHistory listed in DELTA_ARRAYS',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1000}'changeHistory'/.test(syncSrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1000}'changeHistory'/.test(deltaSearchSrc));
   assert('DELTA_ARRAY_CONFIG defines changeHistory itemIdFn',
-    /DELTA_ARRAY_CONFIG\s*=\s*\{[\s\S]{0,2000}changeHistory:\s*\{[\s\S]{0,800}itemIdFn:/.test(syncSrc));
+    /DELTA_ARRAY_CONFIG\s*=\s*\{[\s\S]{0,2000}changeHistory:\s*\{[\s\S]{0,800}itemIdFn:/.test(deltaSearchSrc));
   assert('changeHistory itemIdFn synth = field.dateMs (allowlist-safe numeric)',
-    /changeHistory:[\s\S]{0,800}\$\{it\.field\}\.\$\{ts\}[\s\S]{0,200}replace\(\/\[\^a-zA-Z0-9_\.-\]/.test(syncSrc));
+    /changeHistory:[\s\S]{0,800}\$\{it\.field\}\.\$\{ts\}[\s\S]{0,200}replace\(\/\[\^a-zA-Z0-9_\.-\]/.test(deltaSearchSrc));
   assert('changeHistory flagged noTombstones (cap-eviction safety)',
-    /changeHistory:[\s\S]{0,1200}noTombstones:\s*true/.test(syncSrc));
+    /changeHistory:[\s\S]{0,1200}noTombstones:\s*true/.test(deltaSearchSrc));
   assert('_planArrayDelta consults DELTA_ARRAY_CONFIG[arrayName]',
-    /_planArrayDelta[\s\S]{0,400}DELTA_ARRAY_CONFIG\[arrayName\]/.test(syncSrc));
+    /_planArrayDelta[\s\S]{0,400}DELTA_ARRAY_CONFIG\[arrayName\]/.test(deltaSearchSrc));
   assert('_planArrayDelta skips tombstones when cfg.noTombstones is set',
-    /if \(!cfg\.noTombstones\) \{[\s\S]{0,800}kind:\s*'tombstone'/.test(syncSrc));
+    /if \(!cfg\.noTombstones\) \{[\s\S]{0,800}kind:\s*'tombstone'/.test(deltaSearchSrc));
   assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',
-    /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(syncSrc));
+    /tuples\s*=\s*Array\.isArray\(items\)[\s\S]{0,300}itemIdFn\(it\)/.test(deltaSearchSrc));
   assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',
-    /_mergeItemRowsIntoImported[\s\S]{0,12000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,25000}itemIdFn\(nextArr\[i\]\)/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,12000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,25000}itemIdFn\(nextArr\[i\]\)/.test(deltaSearchSrc));
   assert('_mergeItemRowsIntoImported verifies payload itemId matches row column',
-    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncSrc));
+    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncDeltaSrc));
 
   // Live: round-trip the changeHistory itemIdFn — verify a synth itemId
   // for a realistic recordChange entry is allowlist-safe and stable.
@@ -686,31 +696,31 @@ await import('../js/settings.js');
   console.log('14a-1b. Cutover-blocker itemIdFns');
 
   assert('entries listed in DELTA_ARRAYS',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'entries'/.test(syncSrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'entries'/.test(deltaSearchSrc));
   assert('supplements listed in DELTA_ARRAYS',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'supplements'/.test(syncSrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'supplements'/.test(deltaSearchSrc));
   assert('healthGoals listed in DELTA_ARRAYS',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'healthGoals'/.test(syncSrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,1200}'healthGoals'/.test(deltaSearchSrc));
 
   assert('DELTA_ARRAY_CONFIG.entries defines itemIdFn (uses date as natural key)',
-    /entries:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,300}it\.date/.test(syncSrc));
+    /entries:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,300}it\.date/.test(deltaSearchSrc));
   assert('DELTA_ARRAY_CONFIG.supplements defines itemIdFn (content hash)',
-    /supplements:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2/.test(syncSrc));
+    /supplements:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2/.test(deltaSearchSrc));
   assert('DELTA_ARRAY_CONFIG.healthGoals defines itemIdFn (text hash)',
-    /healthGoals:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2\(it\.text\)/.test(syncSrc));
+    /healthGoals:\s*\{[\s\S]{0,400}itemIdFn:[\s\S]{0,400}_djb2\(it\.text\)/.test(deltaSearchSrc));
   // Notes — `{date, text}` with no `.id`. Without an itemIdFn override,
   // the planner emits zero rows (default itemIdFn requires `it.id`) and
   // Phase 2 cutover refuses to flip on any profile with saved notes.
   // Greptile re-review #175 caught this.
   assert('DELTA_ARRAY_CONFIG.notes defines itemIdFn (date+text hash)',
-    /notes:\s*\{[\s\S]{0,500}itemIdFn:[\s\S]{0,500}_djb2/.test(syncSrc));
+    /notes:\s*\{[\s\S]{0,500}itemIdFn:[\s\S]{0,500}_djb2/.test(deltaSearchSrc));
   // chatSummaries — `.id` is `s_<base36-timestamp>` (timestamp-unique per
   // device), so two devices summarising the same thread independently
   // create rows with different itemIds. Override keys by threadId so
   // concurrent same-thread summaries collapse cross-device (LWW). Greptile
   // re-review #175 caught this.
   assert('DELTA_ARRAY_CONFIG.chatSummaries defines itemIdFn (threadId hash)',
-    /chatSummaries:\s*\{[\s\S]{0,500}itemIdFn:[\s\S]{0,500}it\.threadId[\s\S]{0,200}_djb2/.test(syncSrc));
+    /chatSummaries:\s*\{[\s\S]{0,500}itemIdFn:[\s\S]{0,500}it\.threadId[\s\S]{0,200}_djb2/.test(deltaSearchSrc));
 
   // Live: round-trip the three itemIdFns to verify determinism + uniqueness
   if (typeof window !== 'undefined') {
@@ -808,31 +818,31 @@ await import('../js/settings.js');
   console.log('14a-2. Delta Maps (keyed-object shape)');
 
   assert('DELTA_MAPS list defined parallel to DELTA_ARRAYS',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'markerNotes'/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'markerNotes'/.test(deltaSearchSrc));
   assert('DELTA_MAPS includes customMarkers (v1.7.4)',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'customMarkers'/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'customMarkers'/.test(deltaSearchSrc));
   assert('DELTA_MAPS includes manualValues (v1.7.5)',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'manualValues'/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,500}'manualValues'/.test(deltaSearchSrc));
   // Light & Sun AI verdict singletons — without these in the delta lists,
   // Phase 2 cutover (`_v: 4` payloads omit importedData blob) silently
   // drops them on cross-device sync. lightDailyVerdicts is a map keyed
   // by ISO date; channelMixAI is a singleton scalar.
   assert('DELTA_MAPS includes lightDailyVerdicts (v1.7.x AI verdict surface)',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,2500}'lightDailyVerdicts'[\s\S]{0,200}\]/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,2500}'lightDailyVerdicts'[\s\S]{0,200}\]/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes channelMixAI (v1.7.x AI verdict surface)',
-    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'channelMixAI'[\s\S]{0,200}\]/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'channelMixAI'[\s\S]{0,200}\]/.test(deltaSearchSrc));
   assert('DELTA_MAP_CONFIG defines manualValues keyIdFn (doubling-escape)',
-    /DELTA_MAP_CONFIG\s*=\s*\{[\s\S]{0,1500}manualValues:[\s\S]{0,500}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(syncSrc));
+    /DELTA_MAP_CONFIG\s*=\s*\{[\s\S]{0,1500}manualValues:[\s\S]{0,500}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta uses cfg.keyIdFn when present',
-    /_planKeyedMapDelta[\s\S]{0,2000}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,1500}keyIdFn\(rawKey\)/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,2000}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,1500}keyIdFn\(rawKey\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta payload preserves the ORIGINAL raw key (not the synth)',
-    /payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(syncSrc));
+    /payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(deltaSearchSrc));
   assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
-    /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
+    /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(deltaSearchSrc));
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
-    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,500}curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
+    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,500}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
   assert('Map-shape pull guards rawKey against proto-pollution at write site',
-    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,400}_PROTO_POLLUTION_KEYS\.has\(rawKey\)[\s\S]{0,100}curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
+    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,400}_PROTO_POLLUTION_KEYS\.has\(rawKey\)[\s\S]{0,100}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
 
   // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
   // result is allowlist-safe, original key recoverable on pull via
@@ -857,33 +867,33 @@ await import('../js/settings.js');
       synthFn('biochemistry.glucose:2026-05-03') !== synthFn('biochemistry.sodium:2026-05-03'));
   }
   assert('_planKeyedMapDelta defined',
-    /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(syncSrc));
+    /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta validates key allowlist (no weird itemIds)',
-    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta wraps payload as {k, v} for itemId verification on pull',
-    /_planKeyedMapDelta[\s\S]{0,2200}payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,2200}payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta emits tombstones when keys are removed',
-    /_planKeyedMapDelta[\s\S]{0,3500}kind:\s*'tombstone'/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,3500}kind:\s*'tombstone'/.test(deltaSearchSrc));
   assert('pushProfile loops DELTA_MAPS after DELTA_ARRAYS',
-    /for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,800}for \(const mapName of DELTA_MAPS\)/.test(syncSrc));
+    /for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,800}for \(const mapName of DELTA_MAPS\)/.test(deltaSearchSrc));
   assert('pushProfile uses _planKeyedMapDelta for map shapes',
-    /_planKeyedMapDelta\(profileId,\s*mapName,\s*obj\)/.test(syncSrc));
+    /_planKeyedMapDelta\(profileId,\s*mapName,\s*obj\)/.test(deltaSearchSrc));
   assert('_mergeItemRowsIntoImported routes map vs array by DELTA_MAPS membership',
-    /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,6000}_DELTA_MAPS_SET\.has\(arrayName\)/.test(syncSrc));
+    /_DELTA_MAPS_SET\s*=\s*new Set\(DELTA_MAPS\)[\s\S]{0,6000}_DELTA_MAPS_SET\.has\(arrayName\)/.test(deltaSearchSrc));
   assert('Map-shape merge writes to the resolved map container (preserves original key, dotted-path-safe)',
-    /curMap\[rawKey\]\s*=\s*entry\.v/.test(syncSrc));
+    /curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
   assert('Map-shape merge deletes tombstoned keys from the resolved map via synth-id reverse-lookup',
-    /tombItemIds\.has\(synth\)[\s\S]{0,200}delete curMap\[k\]/.test(syncSrc));
+    /tombItemIds\.has\(synth\)[\s\S]{0,200}delete curMap\[k\]/.test(deltaSearchSrc));
   // Dotted-path support — required for genetics.snps and any other
   // nested map registered in DELTA_MAPS. Without isNestedMap → getAt
   // walk, per-key writes would land at a flat top-level sibling and
   // miss the nested structure entirely.
   assert('Map-shape merge resolves dotted-path entries via getAt/setAt',
-    /isNestedMap\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}getAt\(imported,\s*arrayName\)/.test(syncSrc));
+    /isNestedMap\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}getAt\(imported,\s*arrayName\)/.test(deltaSearchSrc));
   assert('genetics.snps registered as a per-key DELTA_MAP (not whole-blob LWW)',
-    /'genetics\.snps'/.test(syncSrc));
+    /'genetics\.snps'/.test(deltaSearchSrc));
   assert('Map-shape merge verifies via keyIdFn(parsed.k) === row.itemId (defence-in-depth, synth-aware)',
-    /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(syncSrc));
+    /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(deltaSearchSrc));
 
   // Live: round-trip a synthetic markerNotes map through the planner
   // logic (replicated locally) — ensures the value/key contract is what
@@ -907,61 +917,61 @@ await import('../js/settings.js');
   console.log('14a-3. Delta Scalars (singleton fields)');
 
   assert('DELTA_SCALARS list defined alongside DELTA_ARRAYS / DELTA_MAPS',
-    /const DELTA_SCALARS\s*=\s*\[/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes menstrualCycle (closes Phase 2 blocker)',
-    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,500}'menstrualCycle'/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,500}'menstrualCycle'/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes the 8 context cards',
-    /'diagnoses'/.test(syncSrc) && /'diet'/.test(syncSrc) && /'exercise'/.test(syncSrc) && /'sleepRest'/.test(syncSrc) && /'lightCircadian'/.test(syncSrc) && /'stress'/.test(syncSrc) && /'loveLife'/.test(syncSrc) && /'environment'/.test(syncSrc));
+    /'diagnoses'/.test(deltaSearchSrc) && /'diet'/.test(deltaSearchSrc) && /'exercise'/.test(deltaSearchSrc) && /'sleepRest'/.test(deltaSearchSrc) && /'lightCircadian'/.test(deltaSearchSrc) && /'stress'/.test(deltaSearchSrc) && /'loveLife'/.test(deltaSearchSrc) && /'environment'/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes domain modules (genetics, biometrics)',
-    /'genetics'/.test(syncSrc) && /'biometrics'/.test(syncSrc));
+    /'genetics'/.test(deltaSearchSrc) && /'biometrics'/.test(deltaSearchSrc));
   // lightEnvironment was promoted out of DELTA_SCALARS in v1.7.21:
   // its rooms/screens are nested arrays that need per-row CRDT or
   // cross-device edits silently regress to wholesale-LWW under the
   // Phase 2 cutover (which drops the blob path entirely).
   assert('lightEnvironment is NOT in DELTA_SCALARS (rooms/screens ride per-row CRDT)',
-    !/const DELTA_SCALARS\s*=\s*\[[\s\S]{0,1500}'lightEnvironment'/.test(syncSrc));
+    !/const DELTA_SCALARS\s*=\s*\[[\s\S]{0,1500}'lightEnvironment'/.test(deltaSearchSrc));
   assert('DELTA_ARRAYS includes lightEnvironment.rooms (nested per-row CRDT)',
-    /const DELTA_ARRAYS\s*=\s*\[[\s\S]{0,2000}'lightEnvironment\.rooms'/.test(syncSrc));
+    /const DELTA_ARRAYS\s*=\s*\[[\s\S]{0,2000}'lightEnvironment\.rooms'/.test(deltaSearchSrc));
   assert('DELTA_ARRAYS includes lightEnvironment.screens (nested per-row CRDT)',
-    /const DELTA_ARRAYS\s*=\s*\[[\s\S]{0,2000}'lightEnvironment\.screens'/.test(syncSrc));
+    /const DELTA_ARRAYS\s*=\s*\[[\s\S]{0,2000}'lightEnvironment\.screens'/.test(deltaSearchSrc));
   // Structural invariant: planner + readiness + merger all walk dotted
   // paths via getAt/setAt. Without these, a future "simplify" refactor
   // that reverts to flat-only access would silently re-introduce the
   // wholesale-LWW regression on rooms/screens.
   assert('pushProfile planner walks dotted DELTA_ARRAYS entries via getAt',
-    /pushProfile[\s\S]{0,4000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(syncSrc));
+    /pushProfile[\s\S]{0,4000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(deltaSearchSrc));
   assert('getDeltaCutoverReadiness walks dotted DELTA_ARRAYS entries via getAt',
-    /getDeltaCutoverReadiness[\s\S]{0,2000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(syncSrc));
+    /getDeltaCutoverReadiness[\s\S]{0,2000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(deltaSearchSrc));
   assert('_mergeItemRowsIntoImported writes nested arrays back via setAt',
-    /_mergeItemRowsIntoImported[\s\S]{0,12000}isNested\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}setAt\(imported,\s*arrayName,/.test(syncSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,12000}isNested\s*=\s*arrayName\.includes\('\.'\)[\s\S]{0,400}setAt\(imported,\s*arrayName,/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes free-form text fields',
-    /'interpretiveLens'/.test(syncSrc) && /'contextNotes'/.test(syncSrc));
+    /'interpretiveLens'/.test(deltaSearchSrc) && /'contextNotes'/.test(deltaSearchSrc));
   assert('_planScalarDelta defined',
-    /async function _planScalarDelta\(profileId,\s*scalarName,\s*scalarValue\)/.test(syncSrc));
+    /async function _planScalarDelta\(profileId,\s*scalarName,\s*scalarValue\)/.test(deltaSearchSrc));
   assert('_planScalarDelta wraps payload as {v: value}',
-    /_planScalarDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*v:\s*scalarValue\s*\}/.test(syncSrc));
+    /_planScalarDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*v:\s*scalarValue\s*\}/.test(deltaSearchSrc));
   assert('_planScalarDelta picks most-recently-synced when multiple rows exist',
-    /_planScalarDelta[\s\S]{0,800}sort\(\(a,\s*b\)\s*=>\s*String\(b\.syncedAt[\s\S]{0,200}\.localeCompare\(String\(a\.syncedAt/.test(syncSrc));
+    /_planScalarDelta[\s\S]{0,800}sort\(\(a,\s*b\)\s*=>\s*String\(b\.syncedAt[\s\S]{0,200}\.localeCompare\(String\(a\.syncedAt/.test(deltaSearchSrc));
   assert('_planScalarDelta emits tombstones only on non-null → null transition',
-    /_planScalarDelta[\s\S]{0,3000}prev\[scalarName\]\s*&&\s*canonical\s*&&\s*!canonical\.isDeleted[\s\S]{0,800}kind:\s*'tombstone'/.test(syncSrc));
+    /_planScalarDelta[\s\S]{0,3000}prev\[scalarName\]\s*&&\s*canonical\s*&&\s*!canonical\.isDeleted[\s\S]{0,800}kind:\s*'tombstone'/.test(deltaSearchSrc));
   assert('_planScalarDelta treats empty-string + null + undefined as absence (parity with blob)',
-    /_planScalarDelta[\s\S]{0,2000}hasValue\s*=\s*scalarValue\s*!==\s*null[\s\S]{0,200}!==\s*undefined[\s\S]{0,200}length\s*===\s*0/.test(syncSrc));
+    /_planScalarDelta[\s\S]{0,2000}hasValue\s*=\s*scalarValue\s*!==\s*null[\s\S]{0,200}!==\s*undefined[\s\S]{0,200}length\s*===\s*0/.test(deltaSearchSrc));
   assert('pushProfile loops DELTA_SCALARS after DELTA_MAPS',
-    /for \(const mapName of DELTA_MAPS\)[\s\S]{0,800}for \(const scalarName of DELTA_SCALARS\)/.test(syncSrc));
+    /for \(const mapName of DELTA_MAPS\)[\s\S]{0,800}for \(const scalarName of DELTA_SCALARS\)/.test(deltaSearchSrc));
   assert('pushProfile uses _planScalarDelta',
-    /_planScalarDelta\(profileId,\s*scalarName,\s*value\)/.test(syncSrc));
+    /_planScalarDelta\(profileId,\s*scalarName,\s*value\)/.test(deltaSearchSrc));
   assert('Pull-side branch routes scalars via _DELTA_SCALARS_SET',
-    /_DELTA_SCALARS_SET\s*=\s*new Set\(DELTA_SCALARS\)[\s\S]{0,800}_DELTA_SCALARS_SET\.has\(arrayName\)/.test(syncSrc));
+    /_DELTA_SCALARS_SET\s*=\s*new Set\(DELTA_SCALARS\)[\s\S]{0,800}_DELTA_SCALARS_SET\.has\(arrayName\)/.test(deltaSearchSrc));
   assert('Pull-side scalar branch ignores foreign rows in the same slot (defence-in-depth)',
-    /row\.itemId\s*!==\s*arrayName[\s\S]{0,80}continue/.test(syncSrc));
+    /row\.itemId\s*!==\s*arrayName[\s\S]{0,80}continue/.test(deltaSearchSrc));
   assert('Pull-side scalar tombstone wins LWW only when at-or-newer than live',
-    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,2500}imported\[arrayName\]\s*=\s*null/.test(syncSrc));
+    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,2500}imported\[arrayName\]\s*=\s*null/.test(deltaSearchSrc));
   assert('Dotted-path scalar tombstone clears just the leaf via setAt',
-    /isNestedScalar[\s\S]{0,400}setAt\(imported,\s*arrayName,\s*null\)/.test(syncSrc));
+    /isNestedScalar[\s\S]{0,400}setAt\(imported,\s*arrayName,\s*null\)/.test(deltaSearchSrc));
   assert('Dotted-path scalar live row writes via setAt',
-    /isNestedScalar[\s\S]{0,800}setAt\(imported,\s*arrayName,\s*chosen\.v\)/.test(syncSrc));
+    /isNestedScalar[\s\S]{0,800}setAt\(imported,\s*arrayName,\s*chosen\.v\)/.test(deltaSearchSrc));
   assert('Pull-side scalar live row writes imported[arrayName] = chosen.v',
-    /imported\[arrayName\]\s*=\s*chosen\.v/.test(syncSrc));
+    /imported\[arrayName\]\s*=\s*chosen\.v/.test(deltaSearchSrc));
 
   // ═══════════════════════════════════════
   // 14b. PHASE 1 DUAL-WRITE TELEMETRY (observability for cutover decision)
@@ -969,28 +979,28 @@ await import('../js/settings.js');
   console.log('14b. Phase 1 Dual-Write Telemetry');
 
   // Source-shape: helpers + exports + diagnose surface wiring
-  assert('getDeltaTelemetry exported', /export function getDeltaTelemetry/.test(syncSrc));
-  assert('resetDeltaTelemetry exported', /export function resetDeltaTelemetry/.test(syncSrc));
+  assert('getDeltaTelemetry exported', /export function getDeltaTelemetry/.test(deltaSearchSrc));
+  assert('resetDeltaTelemetry exported', /export function resetDeltaTelemetry/.test(deltaSearchSrc));
   assert('Telemetry key is profile-scoped',
-    /labcharts-\$\{profileId\}-delta-telemetry/.test(syncSrc));
+    /labcharts-\$\{profileId\}-delta-telemetry/.test(deltaSearchSrc));
   assert('_recordPushTelemetry counts ins/upd/tom per array + payload bytes',
-    /_recordPushTelemetry[\s\S]{0,800}op\.kind\s*===\s*'insert'[\s\S]{0,200}op\.kind\s*===\s*'update'[\s\S]{0,200}op\.kind\s*===\s*'tombstone'[\s\S]{0,300}op\.args\?\.payload/.test(syncSrc));
+    /_recordPushTelemetry[\s\S]{0,800}op\.kind\s*===\s*'insert'[\s\S]{0,200}op\.kind\s*===\s*'update'[\s\S]{0,200}op\.kind\s*===\s*'tombstone'[\s\S]{0,300}op\.args\?\.payload/.test(deltaSearchSrc));
   assert('Telemetry rolling window capped at 50 pushes',
-    /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(syncSrc));
+    /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(deltaSearchSrc));
   assert('pushProfile records telemetry from onComplete (not synchronously)',
-    /Push committed[\s\S]{0,3500}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(syncSrc));
+    /Push committed[\s\S]{0,3500}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(deltaSearchSrc));
   assert('Pull-side merge updates _pullDeltaSnapshot per array',
-    /_pullDeltaSnapshot\.perArray\[arrayName\]\s*=\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*tombs\.size\s*\}/.test(syncSrc));
+    /_pullDeltaSnapshot\.perArray\[arrayName\]\s*=\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*tombs\.size\s*\}/.test(deltaSearchSrc));
   assert('Pull snapshot resets profileId on each merge (no stale carry-over)',
-    /_pullDeltaSnapshot\.profileId\s*=\s*profileId[\s\S]{0,200}_pullDeltaSnapshot\.perArray\s*=\s*\{\}/.test(syncSrc));
+    /_pullDeltaSnapshot\.profileId\s*=\s*profileId[\s\S]{0,200}_pullDeltaSnapshot\.perArray\s*=\s*\{\}/.test(deltaSearchSrc));
   assert('Diagnose surface renders Phase 1 dual-write health section',
-    /Phase 1 dual-write health/.test(syncSrc));
+    /Phase 1 dual-write health/.test(deltaSearchSrc));
   assert('Diagnose Copy text includes ratio + cutover hint',
-    /ratio \(delta:blob\)[\s\S]{0,200}Phase 2 cutover safe/.test(syncSrc));
+    /ratio \(delta:blob\)[\s\S]{0,200}Phase 2 cutover safe/.test(deltaSearchSrc));
   assert('Reset window button confirms via showConfirmDialog',
-    /confirmResetDeltaTelemetry[\s\S]{0,1500}showConfirmDialog/.test(syncSrc));
+    /confirmResetDeltaTelemetry[\s\S]{0,1500}showConfirmDialog/.test(deltaSearchSrc));
   assert('Telemetry helpers exposed on window',
-    /window[\s\S]{0,4000}getDeltaTelemetry,\s*\n\s*resetDeltaTelemetry,\s*\n\s*confirmResetDeltaTelemetry/.test(syncSrc));
+    /window[\s\S]{0,4000}getDeltaTelemetry,\s*\n\s*resetDeltaTelemetry,\s*\n\s*confirmResetDeltaTelemetry/.test(deltaSearchSrc));
 
   // Live: write a synthetic telemetry blob, read it back, confirm shape +
   // ratio math + cap behaviour. Skips if window.getDeltaTelemetry isn't
@@ -1029,19 +1039,19 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('14c. Phase 2 Cutover Readiness');
 
-  assert('getDeltaCutoverReadiness exported', /export function getDeltaCutoverReadiness/.test(syncSrc));
+  assert('getDeltaCutoverReadiness exported', /export function getDeltaCutoverReadiness/.test(deltaSearchSrc));
   assert('getDeltaCutoverReadiness exposed on window',
-    /window[\s\S]{0,5000}getDeltaCutoverReadiness/.test(syncSrc));
+    /window[\s\S]{0,5000}getDeltaCutoverReadiness/.test(deltaSearchSrc));
   assert('Cutover check classifies missing-rows as blocker',
-    /missing-rows[\s\S]{0,200}blockers\+\+/.test(syncSrc));
+    /missing-rows[\s\S]{0,200}blockers\+\+/.test(deltaSearchSrc));
   assert('Cutover check iterates DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS',
-    /getDeltaCutoverReadiness[\s\S]{0,3500}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,1000}for \(const mapName of DELTA_MAPS\)[\s\S]{0,1000}for \(const scalarName of DELTA_SCALARS\)/.test(syncSrc));
+    /getDeltaCutoverReadiness[\s\S]{0,3500}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,1000}for \(const mapName of DELTA_MAPS\)[\s\S]{0,1000}for \(const scalarName of DELTA_SCALARS\)/.test(deltaSearchSrc));
   assert('getEvoluDiagnostics includes cutoverReadiness',
-    /out\.cutoverReadiness\s*=\s*state\.currentProfile/.test(syncSrc));
+    /out\.cutoverReadiness\s*=\s*state\.currentProfile/.test(deltaSearchSrc));
   assert('Diagnose Copy text includes Phase 2 readiness section',
-    /Phase 2 cutover readiness:/.test(syncSrc));
+    /Phase 2 cutover readiness:/.test(deltaSearchSrc));
   assert('Diagnose modal renders cutover panel with blocker breakdown',
-    /<b>Lean sync mode<\/b>/.test(syncSrc) && /haven't been re-pushed yet/.test(syncSrc));
+    /<b>Lean sync mode<\/b>/.test(deltaSearchSrc) && /haven't been re-pushed yet/.test(deltaSearchSrc));
 
   // Live: synthesize an importedData object and call the readiness check
   // through window.getDeltaCutoverReadiness with a known profile, verify
@@ -1111,13 +1121,13 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('14d. Phase 2 Cutover Flag (gated)');
 
-  assert('isPhase2CutoverEnabled exported', /export\s+\{\s*isPhase2CutoverEnabled\s*\}/.test(syncSrc));
-  assert('enablePhase2Cutover exported', /export function enablePhase2Cutover/.test(syncSrc));
-  assert('disablePhase2Cutover exported', /export function disablePhase2Cutover/.test(syncSrc));
+  assert('isPhase2CutoverEnabled exported', /export\s+\{\s*isPhase2CutoverEnabled\s*\}/.test(deltaSearchSrc));
+  assert('enablePhase2Cutover exported', /export function enablePhase2Cutover/.test(deltaSearchSrc));
+  assert('disablePhase2Cutover exported', /export function disablePhase2Cutover/.test(deltaSearchSrc));
   assert('enablePhase2Cutover gated by getDeltaCutoverReadiness',
-    /enablePhase2Cutover[\s\S]{0,400}getDeltaCutoverReadiness\(profileId\)[\s\S]{0,200}!r\.ready[\s\S]{0,200}reason:\s*'not-ready'/.test(syncSrc));
+    /enablePhase2Cutover[\s\S]{0,400}getDeltaCutoverReadiness\(profileId\)[\s\S]{0,200}!r\.ready[\s\S]{0,200}reason:\s*'not-ready'/.test(deltaSearchSrc));
   assert('disablePhase2Cutover always allowed (escape hatch)',
-    /disablePhase2Cutover[\s\S]{0,300}disablePhase2CutoverFlag/.test(syncSrc));
+    /disablePhase2Cutover[\s\S]{0,300}disablePhase2CutoverFlag/.test(deltaSearchSrc));
   assert('Cutover flag is per-profile (key includes profileId)',
     /_cutoverFlagKey[\s\S]{0,200}labcharts-\$\{profileId\}-sync-cutover-v2/.test(syncPayloadSrc));
   assert('buildSyncPayload checks isPhase2CutoverEnabled',
@@ -1127,17 +1137,17 @@ await import('../js/settings.js');
   assert('parseSyncPayload handles _v: 4 (importedData=null sentinel)',
     /parsed\._v\s*===\s*4[\s\S]{0,400}importedData:\s*null/.test(syncPayloadSrc));
   assert('Receive path treats v4 (importedData null) as legitimate, not malformed',
-    /isV4Cutover\s*=\s*importedData\s*===\s*null[\s\S]{0,200}!isV4Cutover\s*&&\s*\(!importedData/.test(syncSrc));
+    /isV4Cutover\s*=\s*importedData\s*===\s*null[\s\S]{0,200}!isV4Cutover\s*&&\s*\(!importedData/.test(deltaSearchSrc));
   assert('Receive path uses local as baseline when v4 (no blob to merge)',
-    /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localImportedForMerge,\s*importedData\)\s*:\s*localImportedForMerge/.test(syncSrc));
+    /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localImportedForMerge,\s*importedData\)\s*:\s*localImportedForMerge/.test(deltaSearchSrc));
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
-    /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(syncSrc));
+    /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(deltaSearchSrc));
   assert('Cutover modal button gated when not ready (disabled attribute)',
-    /confirmEnablePhase2[\s\S]{0,200}disabled/.test(syncSrc));
+    /confirmEnablePhase2[\s\S]{0,200}disabled/.test(deltaSearchSrc));
   assert('Cutover modal shows lean-mode ON badge when enabled',
-    /cutoverBadge\s*=\s*cutoverEnabled[\s\S]{0,400}>ON</.test(syncSrc));
+    /cutoverBadge\s*=\s*cutoverEnabled[\s\S]{0,400}>ON</.test(deltaSearchSrc));
   assert('Cutover handlers exposed on window',
-    /window[\s\S]{0,5500}confirmEnablePhase2,\s*\n\s*confirmDisablePhase2/.test(syncSrc));
+    /window[\s\S]{0,5500}confirmEnablePhase2,\s*\n\s*confirmDisablePhase2/.test(deltaSearchSrc));
 
   // Live: read/write/disable contract for the cutover flag. Skips the
   // enable() path here because enable consults getDeltaCutoverReadiness
@@ -1185,53 +1195,53 @@ await import('../js/settings.js');
 
   // Proto-pollution defence
   assert('_isAllowlistSafeId rejects __proto__ / constructor / prototype',
-    /_PROTO_POLLUTION_KEYS\s*=\s*new Set\(\['__proto__',\s*'constructor',\s*'prototype'\]\)/.test(syncSrc));
+    /_PROTO_POLLUTION_KEYS\s*=\s*new Set\(\['__proto__',\s*'constructor',\s*'prototype'\]\)/.test(deltaSearchSrc));
   assert('_isAllowlistSafeId combines regex + proto-key Set',
-    /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_PROTO_POLLUTION_KEYS\.has\(id\)/.test(syncSrc));
+    /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_PROTO_POLLUTION_KEYS\.has\(id\)/.test(deltaSearchSrc));
   assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
-    /_planArrayDelta[\s\S]{0,1500}_isAllowlistSafeId\(id\)/.test(syncSrc));
+    /_planArrayDelta[\s\S]{0,1500}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta uses _isAllowlistSafeId on derived itemId',
-    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,1500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
   assert('Map-shape pull wraps keyIdFn with _isAllowlistSafeId guard',
-    /rawKeyIdFn[\s\S]{0,200}keyIdFn\s*=\s*\(k\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(syncSrc));
+    /rawKeyIdFn[\s\S]{0,200}keyIdFn\s*=\s*\(k\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
   assert('Array-shape pull wraps itemIdFn with _isAllowlistSafeId guard',
-    /rawItemIdFn[\s\S]{0,200}itemIdFn\s*=\s*\(it\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(syncSrc));
+    /rawItemIdFn[\s\S]{0,200}itemIdFn\s*=\s*\(it\)\s*=>[\s\S]{0,200}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
   assert('Fresh map container uses Object.create(null) defence',
-    /curMap\s*=\s*Object\.create\(null\)/.test(syncSrc));
+    /curMap\s*=\s*Object\.create\(null\)/.test(deltaSearchSrc));
 
   // Resurrect-after-tombstone fix
   assert('_planArrayDelta resurrects tombstoned row by clearing isDeleted',
-    /_planArrayDelta[\s\S]{0,2500}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(syncSrc));
+    /_planArrayDelta[\s\S]{0,2500}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta resurrects tombstoned row by clearing isDeleted',
-    /_planKeyedMapDelta[\s\S]{0,2700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,2700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planScalarDelta resurrects tombstoned row by clearing isDeleted',
-    /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(syncSrc));
+    /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
 
   // Phase 2 cutover scope — previously unenumerated importedData fields
   assert('DELTA_MAPS includes refOverrides (Phase 2 scope fix)',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'refOverrides'/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'refOverrides'/.test(deltaSearchSrc));
   assert('DELTA_MAPS includes categoryLabels',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'categoryLabels'/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'categoryLabels'/.test(deltaSearchSrc));
   assert('DELTA_MAPS includes categoryIcons',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'categoryIcons'/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'categoryIcons'/.test(deltaSearchSrc));
   assert('DELTA_MAPS includes markerLabels',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'markerLabels'/.test(syncSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,800}'markerLabels'/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes wearableSummary (Phase 2 scope fix)',
-    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'wearableSummary'/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'wearableSummary'/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes wearableCardOrder',
-    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'wearableCardOrder'/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'wearableCardOrder'/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes lightEnvironment.burdenAI (dotted-path scalar)',
-    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'lightEnvironment\.burdenAI'/.test(syncSrc));
+    /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'lightEnvironment\.burdenAI'/.test(deltaSearchSrc));
 
   // Snapshot rotation on owner change
   assert('disableSync clears delta snapshots',
-    /disableSync[\s\S]{0,3000}key\.includes\('-delta-'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncSrc));
+    /disableSync[\s\S]{0,3000}key\.includes\('-delta-'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(deltaSearchSrc));
   assert('disableSync clears cutover flag',
-    /disableSync[\s\S]{0,3000}-sync-cutover-v2/.test(syncSrc));
+    /disableSync[\s\S]{0,3000}-sync-cutover-v2/.test(deltaSearchSrc));
   assert('restoreFromMnemonic clears delta snapshots',
-    /restoreFromMnemonic[\s\S]{0,1000}key\.includes\('-delta-'\)/.test(syncSrc));
+    /restoreFromMnemonic[\s\S]{0,1000}key\.includes\('-delta-'\)/.test(deltaSearchSrc));
   assert('restoreFromMnemonic clears cutover flag',
-    /restoreFromMnemonic[\s\S]{0,1000}-sync-cutover-v2/.test(syncSrc));
+    /restoreFromMnemonic[\s\S]{0,1000}-sync-cutover-v2/.test(deltaSearchSrc));
 
   // Live: proto-pollution defence — verify a malicious key is rejected
   if (typeof window !== 'undefined') {
@@ -1255,7 +1265,7 @@ await import('../js/settings.js');
   assert('_gunzipToStringCapped throws on cap exceeded',
     /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncPayloadSrc));
   assert('All 3 per-row gunzip sites use the capped variant',
-    (syncSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length === 3);
+    (syncDeltaSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length === 3);
   // Blob path also routes through _gunzipToStringCapped, with the
   // 5 MB MAX_SYNC_PAYLOAD_BYTES cap — a single capped helper is the
   // only gunzip entry point post-2026-05-10 audit (the bare
@@ -1320,22 +1330,22 @@ await import('../js/settings.js');
 
   // Snapshot-poisoning fix
   assert('_applyArrayDelta returns boolean success',
-    /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(syncSrc));
+    /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(deltaSearchSrc));
   assert('onComplete advances snapshot only when _applyArrayDelta returned true',
-    /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncSrc));
+    /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,500}_writeDeltaSnapshot/.test(deltaSearchSrc));
   assert('onComplete logs partial-failure ratio',
-    /snapshotsAdvanced\}\/\$\{deltaPlans\.length\}/.test(syncSrc));
+    /snapshotsAdvanced\}\/\$\{deltaPlans\.length\}/.test(deltaSearchSrc));
 
   // changeHistory cap on v4 overlay
   assert('COMPOSITE_KEYED_ARRAYS imported from data-merge.js',
-    /from '\.\/data-merge\.js'[\s\S]{0,300}COMPOSITE_KEYED_ARRAYS/.test(syncSrc) ||
-    /COMPOSITE_KEYED_ARRAYS[\s\S]{0,200}from '\.\/data-merge\.js'/.test(syncSrc));
+    /from '\.\/data-merge\.js'[\s\S]{0,300}COMPOSITE_KEYED_ARRAYS/.test(deltaSearchSrc) ||
+    /COMPOSITE_KEYED_ARRAYS[\s\S]{0,200}from '\.\/data-merge\.js'/.test(deltaSearchSrc));
   assert('COMPOSITE_KEYED_ARRAYS exported from data-merge.js',
     await fetchWithRetry('js/data-merge.js').then(s => /export const COMPOSITE_KEYED_ARRAYS/.test(s)));
   assert('Per-row array overlay re-applies cap after merge',
-    /COMPOSITE_KEYED_ARRAYS\.find\(c\s*=>\s*c\.path\s*===\s*arrayName\)\?\.cap[\s\S]{0,500}imported\[arrayName\]\.slice\(0,\s*cap\)/.test(syncSrc));
+    /COMPOSITE_KEYED_ARRAYS\.find\(c\s*=>\s*c\.path\s*===\s*arrayName\)\?\.cap[\s\S]{0,500}imported\[arrayName\]\.slice\(0,\s*cap\)/.test(deltaSearchSrc));
   assert('Cap trim sorts newest-first by updatedAt/createdAt/date',
-    /imported\[arrayName\]\.sort[\s\S]{0,400}updatedAt[\s\S]{0,100}createdAt[\s\S]{0,100}Date\.parse\(a\.date\)/.test(syncSrc));
+    /imported\[arrayName\]\.sort[\s\S]{0,400}updatedAt[\s\S]{0,100}createdAt[\s\S]{0,100}Date\.parse\(a\.date\)/.test(deltaSearchSrc));
 
   // ═══════════════════════════════════════
   // 14g. v1.7.13 P2 cleanup — comments + lat/lon + manualValues collision
@@ -1344,13 +1354,13 @@ await import('../js/settings.js');
 
   // Doc accuracy
   assert('Pull-order header comment matches actual code (blob first, per-row overlays)',
-    /Pull-side: blob merge establishes the baseline first[\s\S]{0,400}per-row state overlays on top/.test(syncSrc));
+    /Pull-side: blob merge establishes the baseline first[\s\S]{0,400}per-row state overlays on top/.test(deltaSearchSrc));
   assert('_djb2 false history claim removed',
-    !/already in utils\.js historically/.test(syncSrc));
+    !/already in utils\.js historically/.test(deltaSearchSrc));
 
   // manualValues collision fix
   assert('manualValues keyIdFn uses doubling-escape (unambiguous)',
-    /manualValues:[\s\S]{0,500}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(syncSrc));
+    /manualValues:[\s\S]{0,500}rawKey\.replace\(\/_\/g,\s*'__'\)\.replace\(\/:\/g,\s*'_'\)/.test(deltaSearchSrc));
   // Live test: distinct rawKeys → distinct synth itemIds (prove the
   // v1.7.5 collision case is closed)
   if (typeof window !== 'undefined') {
@@ -1394,13 +1404,13 @@ await import('../js/settings.js');
 
   // P1: -relay-bytes- and -relay-quota-warned cleared on owner change
   assert('disableSync clears -relay-bytes- keys on owner change',
-    /disableSync[\s\S]{0,3000}key\.includes\('-relay-bytes-'\)/.test(syncSrc));
+    /disableSync[\s\S]{0,3000}key\.includes\('-relay-bytes-'\)/.test(deltaSearchSrc));
   assert('disableSync clears legacy global quota-warned key',
-    /disableSync[\s\S]{0,3000}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncSrc));
+    /disableSync[\s\S]{0,3000}key\s*===\s*'labcharts-relay-quota-warned'/.test(deltaSearchSrc));
   assert('restoreFromMnemonic clears -relay-bytes- keys',
-    /restoreFromMnemonic[\s\S]{0,1500}key\.includes\('-relay-bytes-'\)/.test(syncSrc));
+    /restoreFromMnemonic[\s\S]{0,1500}key\.includes\('-relay-bytes-'\)/.test(deltaSearchSrc));
   assert('restoreFromMnemonic clears legacy global quota-warned key',
-    /restoreFromMnemonic[\s\S]{0,1500}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncSrc));
+    /restoreFromMnemonic[\s\S]{0,1500}key\s*===\s*'labcharts-relay-quota-warned'/.test(deltaSearchSrc));
 
   // P2: warned-marker key now owner-scoped
   assert('_maybeWarnQuotaThreshold uses owner-scoped warned key',
@@ -1466,11 +1476,11 @@ await import('../js/settings.js');
 
   // Telemetry on diagnose pre-pass parse failure
   assert('Diagnose pre-pass logs parse failures via logSyncEvent',
-    /Diagnose row[\s\S]{0,200}parse failed[\s\S]{0,200}logSyncEvent\('skip'/.test(syncSrc) ||
-    /logSyncEvent\('skip',\s*`Diagnose row/.test(syncSrc));
+    /Diagnose row[\s\S]{0,200}parse failed[\s\S]{0,200}logSyncEvent\('skip'/.test(deltaSearchSrc) ||
+    /logSyncEvent\('skip',\s*`Diagnose row/.test(deltaSearchSrc));
   // Telemetry on onSyncReceived malformed-row drop
   assert('onSyncReceived logs malformed-importedData skip via logSyncEvent',
-    /malformed importedData shape, skipping row/.test(syncSrc));
+    /malformed importedData shape, skipping row/.test(deltaSearchSrc));
 
   // Peak-finder DST + past_days anchor — derive todayPrefix from the
   // SESSION's local day (isoTime + utc_offset_seconds), then scan
@@ -1542,21 +1552,21 @@ await import('../js/settings.js');
   console.log('14j. v1.7.16 snapshot clobber fix');
 
   assert('_writeDeltaSnapshot accepts plannedAt 4th arg',
-    /function _writeDeltaSnapshot\(profileId,\s*arrayName,\s*snap,\s*plannedAt\)/.test(syncSrc));
+    /function _writeDeltaSnapshot\(profileId,\s*arrayName,\s*snap,\s*plannedAt\)/.test(deltaSearchSrc));
   assert('_writeDeltaSnapshot refuses to overwrite when existing meta plannedAt is newer (or equal)',
-    /m\?\.plannedAt\)\s*&&\s*m\.plannedAt\s*>=\s*plannedAt[\s\S]{0,400}return false/.test(syncSrc));
+    /m\?\.plannedAt\)\s*&&\s*m\.plannedAt\s*>=\s*plannedAt[\s\S]{0,400}return false/.test(deltaSearchSrc));
   assert('_writeDeltaSnapshot returns boolean (write-skipped vs written)',
-    /_writeDeltaSnapshot[\s\S]{0,1200}return true[\s\S]{0,200}return false/.test(syncSrc));
+    /_writeDeltaSnapshot[\s\S]{0,1200}return true[\s\S]{0,200}return false/.test(deltaSearchSrc));
   assert('Snapshot meta key derives from snapshot key (-meta suffix)',
-    /\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta/.test(syncSrc));
+    /\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta/.test(deltaSearchSrc));
   assert('All 3 planners stamp plannedAt at start (not end)',
-    (syncSrc.match(/const plannedAt\s*=\s*Date\.now\(\);/g) || []).length >= 3);
+    (syncDeltaSrc.match(/const plannedAt\s*=\s*Date\.now\(\);/g) || []).length >= 3);
   assert('All 3 planners return plan with plannedAt field',
-    (syncSrc.match(/return \{ ops, next, plannedAt \};/g) || []).length === 3);
+    (syncDeltaSrc.match(/return \{ ops, next, plannedAt \};/g) || []).length === 3);
   assert('onComplete passes plan.plannedAt to _writeDeltaSnapshot',
-    /_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncSrc));
+    /_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(deltaSearchSrc));
   assert('onComplete tracks wrote vs allOk separately (skip-clobber count)',
-    /const wrote = _writeDeltaSnapshot[\s\S]{0,200}if \(wrote\) snapshotsAdvanced\+\+/.test(syncSrc));
+    /const wrote = _writeDeltaSnapshot[\s\S]{0,200}if \(wrote\) snapshotsAdvanced\+\+/.test(deltaSearchSrc));
 
   // Live: round-trip the gate. Set a snapshot with a future plannedAt,
   // then try to write with a stale plannedAt — must be refused.
@@ -1619,7 +1629,7 @@ await import('../js/settings.js');
   // in a sibling const + report a false positive.
   const inList = (constName, entry) => {
     const re = new RegExp(`const ${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm');
-    const m = syncSrc.match(re);
+    const m = syncDeltaSrc.match(re);
     if (!m) return false;
     return m[1].includes(`'${entry}'`);
   };
@@ -1719,13 +1729,13 @@ await import('../js/settings.js');
   // Push-side scalar plan: `genetics` scalar payload carries metadata
   // only (snps stripped from the {v: ...} wrapper).
   assert('Genetics scalar plan strips .snps from payload before push',
-    /scalarName\s*===\s*'genetics'[\s\S]{0,500}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*value/.test(syncSrc)
-    || /scalarName\s*===\s*'genetics'[\s\S]{0,500}delete[\s\S]{0,80}\.snps/.test(syncSrc));
+    /scalarName\s*===\s*'genetics'[\s\S]{0,500}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*value/.test(deltaSearchSrc)
+    || /scalarName\s*===\s*'genetics'[\s\S]{0,500}delete[\s\S]{0,80}\.snps/.test(deltaSearchSrc));
 
   // Pull-side preserve: scalar merge sees `arrayName === 'genetics'` and
   // re-injects local snps before assigning back to importedData.
   assert('Pull-side genetics scalar merge preserves local .snps map',
-    /arrayName\s*===\s*'genetics'[\s\S]{0,800}localSnps\s*=\s*imported\.genetics\.snps[\s\S]{0,400}imported\.genetics\.snps\s*=\s*localSnps/.test(syncSrc));
+    /arrayName\s*===\s*'genetics'[\s\S]{0,800}localSnps\s*=\s*imported\.genetics\.snps[\s\S]{0,400}imported\.genetics\.snps\s*=\s*localSnps/.test(deltaSearchSrc));
 
   // Pull-side TOMBSTONE branch must mirror the live branch's snps-preserve.
   // Without this, byArray iteration order (relay-row-ordering-dependent)
@@ -1735,7 +1745,7 @@ await import('../js/settings.js');
   // tombstone-as-newest-syncedAt → wipes imported.genetics → snps gone
   // despite live rows in the per-row layer.
   assert('Pull-side genetics scalar TOMBSTONE branch preserves .snps when present',
-    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,1500}arrayName\s*===\s*'genetics'[\s\S]{0,500}imported\.genetics\s*=\s*\{\s*snps:\s*imported\.genetics\.snps\s*\}/.test(syncSrc));
+    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,1500}arrayName\s*===\s*'genetics'[\s\S]{0,500}imported\.genetics\s*=\s*\{\s*snps:\s*imported\.genetics\.snps\s*\}/.test(deltaSearchSrc));
 
   // Sidebar rebuild after every pull — conditional nav items (Genetics,
   // Wearables, etc.) gate on data presence, and per-row CRDT deltas can
@@ -1744,7 +1754,7 @@ await import('../js/settings.js');
   // refresh the page to see a Genetics nav entry land from a peer's DNA
   // import. Lives in onSyncReceived's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
-    /profileId\s*===\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,200}remoteBroughtNewRows/.test(syncSrc));
+    /profileId\s*===\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,200}remoteBroughtNewRows/.test(deltaSearchSrc));
 
   // Live: simulate the strip helper inline and prove shape preservation
   if (typeof window !== 'undefined') {
@@ -1789,14 +1799,14 @@ await import('../js/settings.js');
   console.log('14m. tombstone-storm guard');
 
   assert('Tombstone-storm guard exists in _planKeyedMapDelta',
-    /_planKeyedMapDelta[\s\S]{0,5000}refused tombstone storm/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,5000}refused tombstone storm/.test(deltaSearchSrc));
   // The guard should compare prev vs next sizes and require prev to be
   // above a floor before clamping (so the first ever push of an empty
   // map → first add still works as a normal insert path).
   assert('Tombstone-storm guard floors prev-count before clamping',
-    /_planKeyedMapDelta[\s\S]{0,5000}prevCount\s*>=\s*\d+/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,5000}prevCount\s*>=\s*\d+/.test(deltaSearchSrc));
   assert('Tombstone-storm guard logs the prev/next ratio at warn level',
-    /_planKeyedMapDelta[\s\S]{0,5000}console\.warn\([\s\S]{0,500}tombstone storm/.test(syncSrc));
+    /_planKeyedMapDelta[\s\S]{0,5000}console\.warn\([\s\S]{0,500}tombstone storm/.test(deltaSearchSrc));
   // Live: simulate the guard predicate inline. The exact numbers don't
   // matter — what matters is that the guard rejects "drop from N>=20 to
   // <50%" and accepts the inverse cases.
