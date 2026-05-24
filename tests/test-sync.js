@@ -38,6 +38,7 @@ await import('../js/settings.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
+  const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -125,6 +126,16 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['getSyncRelay', 'setSyncRelay', 'checkRelayConnection', 'getSyncBlocker']));
   assert('service worker precaches sync-environment.js',
     serviceWorkerSrc.includes("'/js/sync-environment.js'"));
+  assert('sync-identity.js owns mnemonic identity helpers',
+    syncSrc.includes("from './sync-identity.js'")
+      && syncIdentitySrc.includes('export async function ensureBip39')
+      && syncIdentitySrc.includes('export async function ensureQRCode')
+      && syncIdentitySrc.includes('export function getMnemonic')
+      && syncIdentitySrc.includes('export function getMnemonicResolutionError')
+      && syncIdentitySrc.includes('export async function restoreFromMnemonic')
+      && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
+  assert('service worker precaches sync-identity.js',
+    serviceWorkerSrc.includes("'/js/sync-identity.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -417,11 +428,11 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('4. Mnemonic Restore');
 
-  assert('restoreFromMnemonic clears sync-ts after success', syncSrc.includes("'-sync-ts'") && syncSrc.includes('localStorage.removeItem(key)'));
-  assert('restoreFromMnemonic calls evolu.restoreAppOwner', syncSrc.includes('evolu.restoreAppOwner(mnemonic)'));
+  assert('restoreFromMnemonic clears sync-ts after success', syncIdentitySrc.includes("'-sync-ts'") && syncIdentitySrc.includes('localStorage.removeItem(key)'));
+  assert('restoreFromMnemonic calls evolu.restoreAppOwner', syncIdentitySrc.includes('evolu.restoreAppOwner(mnemonic)'));
   // Verify timestamps are cleared AFTER restoreAppOwner within restoreFromMnemonic (not before)
-  const restoreIdx = syncSrc.indexOf('evolu.restoreAppOwner(mnemonic)');
-  const clearTsInRestore = syncSrc.indexOf("'-sync-ts'", restoreIdx);
+  const restoreIdx = syncIdentitySrc.indexOf('evolu.restoreAppOwner(mnemonic)');
+  const clearTsInRestore = syncIdentitySrc.indexOf("'-sync-ts'", restoreIdx);
   assert('Sync-ts cleared after restoreAppOwner (not before)', restoreIdx > 0 && clearTsInRestore > restoreIdx,
     `restoreAppOwner at ${restoreIdx}, sync-ts clear at ${clearTsInRestore}`);
 
@@ -467,10 +478,10 @@ await import('../js/settings.js');
   assert('Settings banner copy updated to "in this browser"',
     settingsSrc.includes('Sync unavailable in this browser') && !settingsSrc.includes('Sync unavailable in this build'));
   assert('BIP-39 lazy loader resets cached promise after failure',
-    /_bip39Load\s*=\s*null/.test(syncSrc),
+    /_bip39Load\s*=\s*null/.test(syncIdentitySrc),
     'transient script failure should not poison identity rotation for the full session');
   assert('QR lazy loader resets cached promise after failure',
-    /_qrCodeLoad\s*=\s*null/.test(syncSrc),
+    /_qrCodeLoad\s*=\s*null/.test(syncIdentitySrc),
     'transient script failure should not poison QR rendering for the full session');
 
   // ═══════════════════════════════════════
@@ -517,7 +528,8 @@ await import('../js/settings.js');
     'awaiting resetAppOwner blocks the toggle when Evolu worker is hung');
   assert('disableSync resets Evolu identity for mnemonic regeneration', syncSrc.includes('evolu.resetAppOwner('));
   assert('disableSync reloads page after reset to kill Worker', syncSrc.includes('window.location.reload()'));
-  assert('disableSync clears sync timestamps', syncSrc.includes("'-sync-ts'") && syncSrc.indexOf("'-sync-ts'") < restoreIdx);
+  assert('disableSync clears sync timestamps',
+    /disableSync[\s\S]{0,3000}key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncSrc));
   assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
     syncApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(chatData.threads)"));
 
@@ -1289,9 +1301,9 @@ await import('../js/settings.js');
   assert('disableSync clears cutover flag',
     /disableSync[\s\S]{0,3000}-sync-cutover-v2/.test(deltaSearchSrc));
   assert('restoreFromMnemonic clears delta snapshots',
-    /restoreFromMnemonic[\s\S]{0,1000}key\.includes\('-delta-'\)/.test(deltaSearchSrc));
+    /restoreFromMnemonic[\s\S]{0,1000}key\.includes\('-delta-'\)/.test(syncIdentitySrc));
   assert('restoreFromMnemonic clears cutover flag',
-    /restoreFromMnemonic[\s\S]{0,1000}-sync-cutover-v2/.test(deltaSearchSrc));
+    /restoreFromMnemonic[\s\S]{0,1000}-sync-cutover-v2/.test(syncIdentitySrc));
 
   // Live: proto-pollution defence — verify a malicious key is rejected
   if (typeof window !== 'undefined') {
@@ -1458,9 +1470,9 @@ await import('../js/settings.js');
   assert('disableSync clears legacy global quota-warned key',
     /disableSync[\s\S]{0,3000}key\s*===\s*'labcharts-relay-quota-warned'/.test(deltaSearchSrc));
   assert('restoreFromMnemonic clears -relay-bytes- keys',
-    /restoreFromMnemonic[\s\S]{0,1500}key\.includes\('-relay-bytes-'\)/.test(deltaSearchSrc));
+    /restoreFromMnemonic[\s\S]{0,1500}key\.includes\('-relay-bytes-'\)/.test(syncIdentitySrc));
   assert('restoreFromMnemonic clears legacy global quota-warned key',
-    /restoreFromMnemonic[\s\S]{0,1500}key\s*===\s*'labcharts-relay-quota-warned'/.test(deltaSearchSrc));
+    /restoreFromMnemonic[\s\S]{0,1500}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncIdentitySrc));
 
   // P2: warned-marker key now owner-scoped
   assert('_maybeWarnQuotaThreshold uses owner-scoped warned key',

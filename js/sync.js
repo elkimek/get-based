@@ -3,7 +3,7 @@
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
 
 import { state } from './state.js';
-import { showNotification, isDebugMode, escapeHTML, loadScriptOnce } from './utils.js';
+import { showNotification, isDebugMode, escapeHTML } from './utils.js';
 import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, getAt } from './data-merge.js';
@@ -44,6 +44,10 @@ import {
 import {
   checkRelayConnection, getSyncBlocker, getSyncRelay, setSyncRelay,
 } from './sync-environment.js';
+import {
+  configureSyncIdentity, ensureBip39, ensureQRCode, getMnemonic,
+  getMnemonicResolutionError, restoreFromMnemonic,
+} from './sync-identity.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -54,40 +58,10 @@ export {
   generateMessengerToken, getMessengerToken, isMessengerEnabled,
   pushContextToGateway, revokeMessengerToken,
   checkRelayConnection, getSyncBlocker, getSyncRelay, setSyncRelay,
+  getMnemonic, getMnemonicResolutionError, restoreFromMnemonic,
 };
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
-
-let _bip39Load = null;
-let _qrCodeLoad = null;
-
-async function ensureBip39() {
-  if (window.bip39) return window.bip39;
-  if (!_bip39Load) {
-    _bip39Load = loadScriptOnce('/vendor/bip39-minimal.js').then(() => {
-      if (!window.bip39) throw new Error('BIP-39 library did not initialize');
-      return window.bip39;
-    }).catch(err => {
-      _bip39Load = null;
-      throw err;
-    });
-  }
-  return _bip39Load;
-}
-
-async function ensureQRCode() {
-  if (typeof qrcode === 'function') return qrcode;
-  if (!_qrCodeLoad) {
-    _qrCodeLoad = loadScriptOnce('/vendor/qrcode-generator.js').then(() => {
-      if (typeof qrcode !== 'function') throw new Error('QR code library did not initialize');
-      return qrcode;
-    }).catch(err => {
-      _qrCodeLoad = null;
-      throw err;
-    });
-  }
-  return _qrCodeLoad;
-}
 
 configureRelayHealth({
   getAppOwner: () => _appOwner,
@@ -303,6 +277,12 @@ configureSyncTombstones({
 configureSyncMessenger({
   getSyncRelay,
   debug: dbg,
+});
+
+configureSyncIdentity({
+  getAppOwner: () => _appOwner,
+  getAppOwnerError: () => _appOwnerError,
+  getEvolu: () => evolu,
 });
 
 function getSyncDisplayState() {
@@ -809,58 +789,6 @@ function _forcePull() {
   dbg('Force pull triggered');
   onSyncReceived();
   return 'triggered';
-}
-
-// ═══════════════════════════════════════════════
-// MNEMONIC (identity)
-// ═══════════════════════════════════════════════
-
-export function getMnemonic() {
-  if (!_appOwner) return null;
-  return _appOwner.mnemonic || null;
-}
-
-/**
- * Returns the last Evolu owner-resolution error, or null. The Settings UI
- * uses this to show an actionable message instead of looping on "Resolving…"
- * for 30s when Evolu's worker fails to start (OPFS contention, locked
- * IndexedDB, missing relay, etc.).
- */
-export function getMnemonicResolutionError() {
-  return _appOwnerError;
-}
-
-export async function restoreFromMnemonic(mnemonic) {
-  if (!evolu) return false;
-  try {
-    await evolu.restoreAppOwner(mnemonic);
-    // Clear sync timestamps + per-array delta snapshots + cutover flag.
-    // After mnemonic restore, the new Evolu owner has zero rows; the OLD
-    // delta snapshot would tell the planner "I already pushed these
-    // items" → next push silently skips them, leaving the new owner's
-    // relay forever empty for those items. Drop the snapshots so the
-    // first push under the new identity re-emits everything as inserts.
-    // (v1.7.11 audit fix.)
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      if (key.endsWith('-sync-ts') || key.includes('-delta-') || key.includes('-sync-cutover-v2') || key.includes('-relay-bytes-') || key === 'labcharts-relay-quota-warned') {
-        localStorage.removeItem(key);
-      }
-    }
-    showNotification('Restored from mnemonic — reloading…', 'success');
-    // Reload so the app re-initializes from the now-restored CRDT identity.
-    // Without this, Evolu pulls remote records in the background but the
-    // running JS keeps using the previous in-memory state, so the user sees
-    // no UI change despite the toast saying "reloading…". Same pattern as
-    // disableSync above.
-    setTimeout(() => window.location.reload(), 500);
-    return true;
-  } catch (e) {
-    console.error('[sync] Restore failed:', e);
-    showNotification('Invalid mnemonic', 'error');
-    return false;
-  }
 }
 
 export { isPhase2CutoverEnabled };
