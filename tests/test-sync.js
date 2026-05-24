@@ -57,6 +57,8 @@ await import('../js/settings.js');
       && syncStateSrc.includes('export function updateSyncStatus')
       && syncStateSrc.includes('export function subscribeSyncStatus')
       && syncStateSrc.includes('export function getSyncDisplayState'));
+  assert('getSyncStatus returns a defensive copy',
+    /export function getSyncStatus\(\)\s*\{\s*return\s*\{\s*\.\.\._syncStatus\s*\};\s*\}/.test(syncStateSrc));
   assert('sync-state.js owns activity log and rebroadcast budget',
     syncStateSrc.includes('export function logSyncEvent')
       && syncStateSrc.includes('export function getRecentSyncEvents')

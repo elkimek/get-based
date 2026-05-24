@@ -53,7 +53,7 @@ export function getRecentSyncEvents() {
 }
 
 export function getSyncStatus() {
-  return _syncStatus;
+  return { ..._syncStatus };
 }
 
 export function updateSyncStatus(partial) {
