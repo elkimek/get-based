@@ -1151,7 +1151,7 @@ export async function editValueNote(id, date) {
   // versa.
   const mirror = _insulinMirrorNoteKey(dotKey, date);
   if (mirror) state.importedData.markerValueNotes[mirror] = capped;
-  saveImportedData();
+  await saveImportedData();
   showDetailModal(id);
 }
 
@@ -1165,7 +1165,7 @@ export async function deleteValueNote(id, date) {
     // Mirror cleanup in BOTH directions across the insulin dual-mapping.
     const mirror = _insulinMirrorNoteKey(dotKey, date);
     if (mirror) delete state.importedData.markerValueNotes[mirror];
-    saveImportedData();
+    await saveImportedData();
     showDetailModal(id);
   }
 }

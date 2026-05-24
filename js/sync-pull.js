@@ -24,6 +24,7 @@ let _pushProfile = async () => {};
 let _debug = () => {};
 let _pulling = false;
 const _chatPullRetryTimers = new Map();
+const _importedDataPullRetryTimers = new Map();
 
 export function configureSyncPull({
   getEvolu,
@@ -62,6 +63,8 @@ export function isSyncPulling() {
 export function clearSyncPullTimers() {
   for (const t of _chatPullRetryTimers.values()) clearTimeout(t);
   _chatPullRetryTimers.clear();
+  for (const t of _importedDataPullRetryTimers.values()) clearTimeout(t);
+  _importedDataPullRetryTimers.clear();
 }
 
 export function forcePull() {
@@ -114,6 +117,29 @@ function scheduleChatPullRetry(profileId, delayMs) {
     onSyncReceived();
   }, waitMs);
   _chatPullRetryTimers.set(profileId, timer);
+}
+
+function scheduleImportedDataPullRetry(profileId, delayMs) {
+  if (!profileId || delayMs <= 0) return;
+  const prev = _importedDataPullRetryTimers.get(profileId);
+  if (prev) clearTimeout(prev);
+  const waitMs = Math.min(Math.max(delayMs + 250, 1000), 120000);
+  const timer = setTimeout(() => {
+    _importedDataPullRetryTimers.delete(profileId);
+    if (!currentEvolu() || !currentProfileQuery()) return;
+    const remaining = getImportedDataLocalLockRemainingMs(profileId);
+    if (remaining > 0) {
+      scheduleImportedDataPullRetry(profileId, remaining);
+      return;
+    }
+    if (isPushInFlight() || _pulling) {
+      scheduleImportedDataPullRetry(profileId, 1000);
+      return;
+    }
+    dbg(`Retrying importedData pull for ${profileId.slice(0, 8)} after local freshness lock`);
+    onSyncReceived();
+  }, waitMs);
+  _importedDataPullRetryTimers.set(profileId, timer);
 }
 
 export async function onSyncReceived() {
@@ -241,8 +267,10 @@ export async function onSyncReceived() {
           continue;
         }
         if (shouldKeepLocalImportedData(profileId)) {
-          dbg(`Skipped importedData pull for ${profileId.slice(0, 8)} - local data has unsynced changes (${Math.ceil(getImportedDataLocalLockRemainingMs(profileId) / 1000)}s freshness lock)`);
+          const lockRemaining = getImportedDataLocalLockRemainingMs(profileId);
+          dbg(`Skipped importedData pull for ${profileId.slice(0, 8)} - local data has unsynced changes (${Math.ceil(lockRemaining / 1000)}s freshness lock)`);
           logSyncEvent('skip', `Data pull skipped ${profileId.slice(0, 8)} - local changes pending`);
+          scheduleImportedDataPullRetry(profileId, lockRemaining);
           continue;
         }
 

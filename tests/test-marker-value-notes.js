@@ -111,8 +111,12 @@ const state = (await import('../js/state.js')).state;
     viewsSrc.includes('deleteValueNote,'));
   assert('editValueNote re-renders the detail modal on save',
     /editValueNote[\s\S]{0,1500}showDetailModal\(id\)/.test(markerDetailSrc));
+  assert('editValueNote awaits saveImportedData before re-rendering',
+    /editValueNote[\s\S]{0,1500}await saveImportedData\(\);[\s\S]{0,120}showDetailModal\(id\)/.test(markerDetailSrc));
   assert('deleteValueNote confirms before removing',
     /deleteValueNote[\s\S]{0,400}showConfirmDialog\(/.test(markerDetailSrc));
+  assert('deleteValueNote awaits saveImportedData before re-rendering',
+    /deleteValueNote[\s\S]{0,900}await saveImportedData\(\);[\s\S]{0,120}showDetailModal\(id\)/.test(markerDetailSrc));
 
   // Direct state manipulation — verify the data model is what render code expects.
   state.importedData = state.importedData || {};

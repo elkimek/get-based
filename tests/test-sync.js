@@ -643,14 +643,8 @@ await import('../js/settings.js');
       && syncActionsSrc.includes('attempt + 1'));
   assert('onDataSaved marks importedData locally fresh so stale pulls cannot clobber debounce-window edits',
     syncActionsSrc.includes('markImportedDataLocal(state.currentProfile)'));
-  assert('pushProfile clears importedData freshness lock after committed push when no newer queued push exists',
-    syncPushSrc.includes("from './sync-apply.js'")
-      && syncPushSrc.includes('const payloadStartedAt = Date.now()')
-      && syncPushSrc.includes('clearImportedDataLocal(profileId, payloadStartedAt)')
-      && syncPushSrc.includes('!_queuedPushes.has(profileId)'));
-  assert('clearImportedDataLocal keeps locks created after the committed push payload snapshot',
-    syncApplySrc.includes('clearIfMarkedAtOrBefore = Infinity')
-      && syncApplySrc.includes('markedAt > clearIfMarkedAtOrBefore'));
+  assert('pushProfile does not clear importedData freshness lock immediately after blob commit',
+    !syncPushSrc.includes('clearImportedDataLocal'));
   // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip
   // and hash-skip caused users to miss cross-device data (clock-skew
   // and stale hash keys from prior code versions). The mergeImportedData
@@ -665,6 +659,10 @@ await import('../js/settings.js');
     syncPullSrc.includes('shouldKeepLocalImportedData(profileId)')
       && syncPullSrc.includes('Skipped importedData pull')
       && syncPullSrc.includes('Data pull skipped'));
+  assert('skipped importedData pulls retry after the local freshness lock expires',
+    syncPullSrc.includes('scheduleImportedDataPullRetry')
+      && syncPullSrc.includes('_importedDataPullRetryTimers')
+      && syncPullSrc.includes('getImportedDataLocalLockRemainingMs(profileId)'));
   assert('Pull handles encryption', syncPullSrc.includes('getEncryptionEnabled()') && syncPullSrc.includes('encryptedSetItem(localKey'));
   assert('Pull merges profiles with allowlist', syncPullSrc.includes('PROFILE_MERGE_FIELDS') && syncPullSrc.includes('saveProfiles(profiles)'));
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard

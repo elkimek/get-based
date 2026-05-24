@@ -1,7 +1,6 @@
 // sync-push.js - Evolu profile push path and in-flight watchdog state.
 
 import { getAt } from './data-merge.js';
-import { clearImportedDataLocal } from './sync-apply.js';
 import { buildSyncPayload } from './sync-payload.js';
 import {
   notePushCommitted, trackPushBytes,
@@ -119,7 +118,6 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     } catch (e) { /* readiness check failures are non-fatal */ }
   }
   try {
-    const payloadStartedAt = Date.now();
     const dataJson = await buildSyncPayload(profileId, importedData);
     const syncedAt = new Date().toISOString();
 
@@ -235,7 +233,6 @@ export async function pushProfile(profileId, importedData, opts = {}) {
       // Use syncedAt (same value stored in Evolu) so pulls see exact
       // equality and don't skip the row from 1ms clock drift.
       localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
-      if (!_queuedPushes.has(profileId)) clearImportedDataLocal(profileId, payloadStartedAt);
       // Track bytes for the local relay-storage estimate (see
       // getRelayQuotaEstimate). Each successful push adds dataJson.length
       // to the cumulative — close enough to relay's storedBytes to warn

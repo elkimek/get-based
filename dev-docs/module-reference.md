@@ -1377,8 +1377,8 @@ Not separately documented because their exports are best read from source — ke
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
 - `sync.js` — Evolu CRDT sync orchestration; lifecycle setup, enable/disable flow, and profile/table query wiring.
-- `sync-push.js` — outbound profile push path, in-flight push watchdog, follow-up push queue for saves made during an active push, local-data freshness lock clearing after committed pushes, Phase 2 drift auto-revert, per-row delta planning/application, and relay byte telemetry.
-- `sync-pull.js` — inbound pull path; profile-row dedupe, blob/per-row merge with active local-data freshness protection, profile/chat/display apply, active-view refresh for additions/deletions/id-less changes, and rebroadcast gating.
+- `sync-push.js` — outbound profile push path, in-flight push watchdog, follow-up push queue for saves made during an active push, Phase 2 drift auto-revert, per-row delta planning/application, and relay byte telemetry.
+- `sync-pull.js` — inbound pull path; profile-row dedupe, blob/per-row merge with active local-data freshness protection plus retry-after-lock, profile/chat/display apply, active-view refresh for additions/deletions/id-less changes, and rebroadcast gating.
 - `sync-reconcile.js` — startup local-vs-Evolu reconciliation; detects local rows/settings missed by a prior push and force-pushes the active profile.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
 - `sync-delta.js` — per-row CRDT delta boundary; DELTA_ARRAYS/MAPS/SCALARS registration, array/map/scalar planners, itemRow merge overlay, delta telemetry, snapshot advancement gates, and Phase 2 cutover readiness.

@@ -56,19 +56,6 @@ export function markImportedDataLocal(profileId = state.currentProfile) {
   } catch {}
 }
 
-export function clearImportedDataLocal(profileId = state.currentProfile, clearIfMarkedAtOrBefore = Infinity) {
-  if (!profileId) return;
-  try {
-    const key = importedDataLocalLockKey(profileId);
-    if (Number.isFinite(clearIfMarkedAtOrBefore)) {
-      const until = Number(sessionStorage.getItem(key) || '0');
-      const markedAt = (Number.isFinite(until) ? until : 0) - IMPORTED_DATA_LOCAL_LOCK_MS;
-      if (markedAt > clearIfMarkedAtOrBefore) return;
-    }
-    sessionStorage.removeItem(key);
-  } catch {}
-}
-
 export function getImportedDataLocalLockRemainingMs(profileId) {
   if (profileId !== state.currentProfile) return 0;
   try {
