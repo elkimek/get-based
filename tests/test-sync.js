@@ -34,11 +34,13 @@ await import('../js/settings.js');
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
+  const syncStateSrc = await fetchWithRetry('js/sync-state.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
+  const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
 
   // ═══════════════════════════════════════
   // 1. MODULE EXPORTS
@@ -49,6 +51,18 @@ await import('../js/settings.js');
   for (const fn of requiredExports) {
     assert(`sync.js exports ${fn}`, syncSrc.includes(`export function ${fn}`) || syncSrc.includes(`export async function ${fn}`));
   }
+
+  assert('sync-state.js owns sync status pub-sub',
+    syncSrc.includes("from './sync-state.js'")
+      && syncStateSrc.includes('export function updateSyncStatus')
+      && syncStateSrc.includes('export function subscribeSyncStatus')
+      && syncStateSrc.includes('export function getSyncDisplayState'));
+  assert('sync-state.js owns activity log and rebroadcast budget',
+    syncStateSrc.includes('export function logSyncEvent')
+      && syncStateSrc.includes('export function getRecentSyncEvents')
+      && syncStateSrc.includes('export function consumeRebroadcastBudget'));
+  assert('service worker precaches sync-state.js',
+    serviceWorkerSrc.includes("'/js/sync-state.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -1398,11 +1412,11 @@ await import('../js/settings.js');
   console.log('14i. v1.7.15 deferred-audit fixes');
 
   // Telemetry on diagnose pre-pass parse failure
-  assert('Diagnose pre-pass logs parse failures via _logSyncEvent',
-    /Diagnose row[\s\S]{0,200}parse failed[\s\S]{0,200}_logSyncEvent\('skip'/.test(syncSrc) ||
-    /_logSyncEvent\('skip',\s*`Diagnose row/.test(syncSrc));
+  assert('Diagnose pre-pass logs parse failures via logSyncEvent',
+    /Diagnose row[\s\S]{0,200}parse failed[\s\S]{0,200}logSyncEvent\('skip'/.test(syncSrc) ||
+    /logSyncEvent\('skip',\s*`Diagnose row/.test(syncSrc));
   // Telemetry on onSyncReceived malformed-row drop
-  assert('onSyncReceived logs malformed-importedData skip via _logSyncEvent',
+  assert('onSyncReceived logs malformed-importedData skip via logSyncEvent',
     /malformed importedData shape, skipping row/.test(syncSrc));
 
   // Peak-finder DST + past_days anchor — derive todayPrefix from the

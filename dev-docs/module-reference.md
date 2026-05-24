@@ -1378,3 +1378,4 @@ Not separately documented because their exports are best read from source — ke
 - `sync.js` — Evolu CRDT sync orchestration; per-profile push debouncer, chat sync debouncer, relay status rendering, profile delete propagation, messenger token + push-context-to-gateway plumbing.
 - `sync-payload.js` — Evolu wire-payload helpers; outbound profile/config/chat/display envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.
 - `sync-relay-health.js` — Evolu relay helper boundary; client-side quota estimate, signed `/self/owner-storage` and `/self/compact-owner` calls, and push-landed health verdict for the silent-reject detector.
+- `sync-state.js` — in-memory sync status pub-sub, header badge display-state derivation, recent sync activity ring buffer, and per-profile rebroadcast budget guard.

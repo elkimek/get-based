@@ -18,10 +18,16 @@ import {
   getRelayHealthVerdict, getRelayQuotaEstimate, notePushCommitted,
   resetRelayQuotaEstimate, trackPushBytes, verifyPushLanded,
 } from './sync-relay-health.js';
+import {
+  consumeRebroadcastBudget, getRecentSyncEvents,
+  getSyncDisplayState as getSyncDisplayStateFromStatus, getSyncStatus,
+  logSyncEvent, resetSyncStatus, subscribeSyncStatus, updateSyncStatus,
+} from './sync-state.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
   getRelayQuotaEstimate, resetRelayQuotaEstimate, verifyPushLanded,
+  getRecentSyncEvents, subscribeSyncStatus,
 };
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
@@ -57,40 +63,12 @@ async function ensureQRCode() {
   return _qrCodeLoad;
 }
 
-// Ring buffer of recent sync events — surfaced in the sync popover so phone
-// users can see push/pull payload counts without USB-debugging the console.
-// Each entry: { at: ms, kind: 'push'|'pull'|'skip'|'rebroadcast', text }.
-const _syncEvents = [];
-const _SYNC_EVENT_CAP = 12;
-// Per-profile rebroadcast counters with a 5-minute reset window.
-// Caps runaway rebroadcast loops if two devices' clocks skew enough
-// that same-id timestamp comparisons keep flipping which side "won".
-const _rebroadcastCounts = new Map(); // profileId → { count, since: ms }
-const _REBROADCAST_CAP = 3;
-const _REBROADCAST_WINDOW_MS = 5 * 60 * 1000;
-function _consumeRebroadcastBudget(profileId) {
-  const now = Date.now();
-  let entry = _rebroadcastCounts.get(profileId);
-  if (!entry || (now - entry.since) > _REBROADCAST_WINDOW_MS) {
-    entry = { count: 0, since: now };
-    _rebroadcastCounts.set(profileId, entry);
-  }
-  if (entry.count >= _REBROADCAST_CAP) return false;
-  entry.count++;
-  return true;
-}
-function _logSyncEvent(kind, text) {
-  _syncEvents.push({ at: Date.now(), kind, text });
-  if (_syncEvents.length > _SYNC_EVENT_CAP) _syncEvents.shift();
-}
-export function getRecentSyncEvents() { return _syncEvents.slice(); }
-
 configureRelayHealth({
   getAppOwner: () => _appOwner,
   getSyncRelay,
   onQuotaThreshold(q) {
     if (q.level === 'red') {
-      _logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
+      logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
       try { showNotification(`Relay storage ${q.pct}% full — compact soon or pushes will start failing silently. See Settings → Sync → Diagnose.`, 'error'); } catch {}
     } else {
       try { showNotification(`Relay storage ${q.pct}% — plan a compaction in the next few days. See Sync diagnose.`, 'warning'); } catch {}
@@ -135,7 +113,7 @@ export async function getEvoluDiagnostics() {
         // render the row as 0/0 — indistinguishable from a real empty row.
         // Log so triage can see which rows the parse path is rejecting
         // (gzip-bomb defence trips, malformed envelope, etc).
-        _logSyncEvent('skip', `Diagnose row ${String(row.id || '?').slice(0, 8)} parse failed: ${String(e?.message || e).slice(0, 80)}`);
+        logSyncEvent('skip', `Diagnose row ${String(row.id || '?').slice(0, 8)} parse failed: ${String(e?.message || e).slice(0, 80)}`);
       }
       out.rows.push({
         profileId: row.profileId || payloadProfileId,
@@ -273,39 +251,8 @@ let _lastPollRowCount = -1;
 let _subscriptionFireCount = 0;
 let _relayProbeInterval = null;
 
-// ═══════════════════════════════════════════════
-// SYNC STATUS — in-memory state + pub-sub
-// ═══════════════════════════════════════════════
-
-const _syncStatus = {
-  relay: 'unknown',        // 'unknown' | 'connected' | 'unreachable'
-  relayCheckedAt: null,
-  push: 'idle',            // 'idle' | 'pending' | 'confirmed' | 'error'
-  pushStartedAt: null,
-  pushConfirmedAt: null,
-  pull: 'idle',            // 'idle' | 'pulling' | 'received'
-  pullReceivedAt: null,
-  lastError: null,
-};
-const _syncStatusListeners = new Set();
-
-function updateSyncStatus(partial) {
-  Object.assign(_syncStatus, partial);
-  for (const fn of _syncStatusListeners) fn(_syncStatus);
-}
-
-export function subscribeSyncStatus(fn) {
-  _syncStatusListeners.add(fn);
-  return () => _syncStatusListeners.delete(fn);
-}
-
 function getSyncDisplayState() {
-  if (!_syncEnabled) return 'disabled';
-  if (_syncStatus.lastError && _syncStatus.push === 'error') return 'error';
-  if (_syncStatus.push === 'pending' && _syncStatus.pushStartedAt && Date.now() - _syncStatus.pushStartedAt > 8000) return 'error';
-  if (_syncStatus.relay === 'unreachable') return 'offline';
-  if (_syncStatus.push === 'pending' || _syncStatus.pull === 'pulling') return 'syncing';
-  return 'synced';
+  return getSyncDisplayStateFromStatus(_syncEnabled);
 }
 
 // ═══════════════════════════════════════════════
@@ -677,7 +624,7 @@ async function _reconcileLocalStorageWithEvolu() {
   }
   const reason = localHasUnsynced ? 'unsynced rows' : 'newer local AI settings';
   dbg(`Startup reconciliation: localStorage has ${reason} vs Evolu row`);
-  _logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} — local has ${reason}`);
+  logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} — local has ${reason}`);
   // Force-push so the next watchdog cycle can't lose us a clearly-needed
   // catch-up. Bypasses the _syncing guard if it was wedged from a prior
   // session — the same wedge that caused the divergence in the first place.
@@ -742,8 +689,7 @@ export async function disableSync() {
   for (const t of _debounceTimers.values()) clearTimeout(t);
   _debounceTimers.clear();
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
-  Object.assign(_syncStatus, { relay: 'unknown', relayCheckedAt: null, push: 'idle', pushStartedAt: null, pushConfirmedAt: null, pull: 'idle', pullReceivedAt: null, lastError: null });
-  for (const fn of _syncStatusListeners) fn(_syncStatus);
+  resetSyncStatus();
   renderSyncIndicator();
 
   // Clear sync timestamps so a fresh pull can happen after re-enable
@@ -974,7 +920,7 @@ async function applyChatData(profileId, chatData) {
   if (!chatData || !chatData.threads) return false;
   if (shouldKeepLocalChatData(profileId)) {
     dbg(`Skipped chatData for ${profileId.slice(0,8)} — local chat has newer unsynced changes`);
-    _logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0,8)} — local changes pending`);
+    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0,8)} — local changes pending`);
     return false;
   }
   // Thread index: always plain localStorage (matches saveChatThreadIndex in chat.js).
@@ -2181,7 +2127,7 @@ async function pushProfile(profileId, importedData, opts = {}) {
           .join(', ');
         console.warn(`[sync] Phase 2 cutover drift detected — auto-disabling. ${driftCheck.blockerCount} surface(s) lack per-row push history (e.g. ${blockerNames || 'unknown'}). This push will revert to v3 dual-write.`);
         disablePhase2Cutover(profileId);
-        _logSyncEvent('skip', `Cutover drift: ${driftCheck.blockerCount} surface(s) missing per-row history — auto-reverted to dual-write (${blockerNames || 'unknown'})`);
+        logSyncEvent('skip', `Cutover drift: ${driftCheck.blockerCount} surface(s) missing per-row history — auto-reverted to dual-write (${blockerNames || 'unknown'})`);
       }
     } catch (e) { /* readiness check failures are non-fatal */ }
   }
@@ -2194,7 +2140,7 @@ async function pushProfile(profileId, importedData, opts = {}) {
     const queueMsg = `Queued ${profileId.slice(0,8)} — sun=${sunCount} dev=${devCount}`;
     const queuedAt = Date.now();
     dbg(`${queueMsg} @ ${queuedAt}`);
-    _logSyncEvent('queue', queueMsg);
+    logSyncEvent('queue', queueMsg);
 
     // Phase 1 of CRDT-delta refactor: plan per-array deltas BEFORE the
     // blob update so the diff is computed against the same importedData
@@ -2285,7 +2231,7 @@ async function pushProfile(profileId, importedData, opts = {}) {
       updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now() });
       const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
       dbg(okMsg);
-      _logSyncEvent('push', okMsg);
+      logSyncEvent('push', okMsg);
       // Mark the moment a push committed locally so the relay-health
       // verifier (verifyPushLanded) can distinguish "no push happened
       // yet" from "push happened but relay didn't advance" (silent
@@ -2345,7 +2291,7 @@ async function pushProfile(profileId, importedData, opts = {}) {
       if (!completed) {
         const stuckMsg = `Push NOT committed after 30s ${profileId.slice(0,8)} — Evolu worker likely wedged`;
         console.warn(`[sync] ${stuckMsg}`);
-        _logSyncEvent('skip', `Push stuck >30s — try reloading`);
+        logSyncEvent('skip', `Push stuck >30s — try reloading`);
         updateSyncStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
         finish();
       }
@@ -2453,7 +2399,7 @@ export async function cleanStorage() {
   const msg = `Storage: ${beforeMB} MB → ${afterMB} MB (freed ${freedKB} KB). ` +
               `Caches cleared: ${cachesCleared}. ` +
               `History trimmed: ${historyTrimmed}.`;
-  _logSyncEvent('cleanup', msg);
+  logSyncEvent('cleanup', msg);
   showNotification(msg, freedKB > 0 ? 'success' : 'info');
   return { beforeBytes, afterBytes, freedKB: +freedKB, cachesCleared, historyTrimmed };
 }
@@ -2468,7 +2414,7 @@ export async function forceResendCurrentProfile() {
     showNotification('Sync is not enabled — nothing to push.', 'warning');
     return;
   }
-  _logSyncEvent('forced', `Force resend ${state.currentProfile?.slice(0,8) || '?'}`);
+  logSyncEvent('forced', `Force resend ${state.currentProfile?.slice(0,8) || '?'}`);
   await pushProfile(state.currentProfile, state.importedData, { force: true });
   pushContextToGateway();
 }
@@ -2857,7 +2803,7 @@ async function onSyncReceived() {
         if (!isV4Cutover && (!importedData || typeof importedData !== 'object')) {
           // v1.7.15 audit fix: log so a chronically-corrupted row is
           // visible in the activity log instead of silently disappearing.
-          _logSyncEvent('skip', `Pull ${profileId.slice(0, 8)} — malformed importedData shape, skipping row`);
+          logSyncEvent('skip', `Pull ${profileId.slice(0, 8)} — malformed importedData shape, skipping row`);
           continue;
         }
 
@@ -2924,7 +2870,7 @@ async function onSyncReceived() {
         const _ct = (b, k) => Array.isArray(b?.[k]) ? b[k].length : 0;
         const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${_ct(localImportedForMerge,'sunSessions')}/dev=${_ct(localImportedForMerge,'lightDevices')} · remote sun=${_ct(importedData,'sunSessions')}/dev=${_ct(importedData,'lightDevices')} · merged sun=${_ct(merged,'sunSessions')}/dev=${_ct(merged,'lightDevices')}`;
         dbg(mergeMsg);
-        _logSyncEvent('pull', mergeMsg);
+        logSyncEvent('pull', mergeMsg);
         // wearableConnections preservation already happened on `importedData`;
         // mergeImportedData carries it through (since it's not in
         // ID_KEYED_ARRAYS, it falls into the LWW path which takes remote —
@@ -3055,15 +3001,15 @@ async function onSyncReceived() {
           // sun=0/sun=1/sun=1 push storm seen in v1.7.5 diagnostics. Skip the
           // rebroadcast if a push is already pending; the next pull cycle
           // (after that push lands) will redo this check correctly.
-          if (_syncStatus.push === 'pending') {
+          if (getSyncStatus().push === 'pending') {
             dbg(`Row ${profileId.slice(0,8)}: rebroadcast deferred — push already pending`);
-            _logSyncEvent('skip', `Rebroadcast deferred — push pending`);
-          } else if (!_consumeRebroadcastBudget(profileId)) {
-            dbg(`Row ${profileId.slice(0,8)}: rebroadcast suppressed — ${_REBROADCAST_CAP} already in last 5min (clock skew?)`);
-            _logSyncEvent('skip', `Rebroadcast budget exhausted — possible clock skew`);
+            logSyncEvent('skip', `Rebroadcast deferred — push pending`);
+          } else if (!consumeRebroadcastBudget(profileId)) {
+            dbg(`Row ${profileId.slice(0,8)}: rebroadcast suppressed — budget exhausted in last 5min (clock skew?)`);
+            logSyncEvent('skip', `Rebroadcast budget exhausted — possible clock skew`);
           } else {
             dbg(`Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
-            _logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
+            logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
             // Snapshot importedData at SCHEDULE time and re-verify the
             // active profile when the timer fires. Without these, a profile
             // switch in the 100ms gap would push the new active profile's
@@ -3267,7 +3213,7 @@ export function toggleSyncDetail() {
   const btn = document.getElementById('sync-indicator-btn');
   if (!btn) return;
   const ds = getSyncDisplayState();
-  const s = _syncStatus;
+  const s = getSyncStatus();
   const relayUrl = getSyncRelay();
   const relayDot = s.relay === 'connected' ? '#22c55e' : s.relay === 'unreachable' ? 'var(--red)' : 'var(--text-muted)';
   const relayLabel = s.relay === 'connected' ? 'Connected to relay' : s.relay === 'unreachable' ? 'Relay unreachable' : 'Checking\u2026';
@@ -3877,7 +3823,7 @@ async function confirmEnablePhase2(btn) {
   const result = enablePhase2Cutover(state.currentProfile);
   if (result.ok) {
     try { showNotification('Phase 2 enabled — next push will use per-row only', 'success'); } catch {}
-    _logSyncEvent('cutover', `Phase 2 enabled for ${state.currentProfile.slice(0, 8)}`);
+    logSyncEvent('cutover', `Phase 2 enabled for ${state.currentProfile.slice(0, 8)}`);
     if (btn) {
       const overlay = btn.closest?.('.modal-overlay');
       if (overlay) overlay.remove();
@@ -3919,7 +3865,7 @@ async function confirmBackfillBlockers(btn) {
     return;
   }
   try { showNotification(`Backfilled ${cleared} surface${cleared === 1 ? '' : 's'} — re-open Diagnose to verify`, 'success'); } catch {}
-  _logSyncEvent('backfill', `Backfilled ${cleared} surface(s) for ${profileId.slice(0, 8)}: ${blockers.join(',')}`);
+  logSyncEvent('backfill', `Backfilled ${cleared} surface(s) for ${profileId.slice(0, 8)}: ${blockers.join(',')}`);
   if (btn) {
     const overlay = btn.closest?.('.modal-overlay');
     if (overlay) overlay.remove();
@@ -3935,7 +3881,7 @@ async function confirmDisablePhase2(btn) {
   if (!proceed) return;
   if (disablePhase2Cutover(state.currentProfile)) {
     try { showNotification('Phase 2 disabled — back to dual-write', 'success'); } catch {}
-    _logSyncEvent('cutover', `Phase 2 disabled for ${state.currentProfile.slice(0, 8)}`);
+    logSyncEvent('cutover', `Phase 2 disabled for ${state.currentProfile.slice(0, 8)}`);
     if (btn) {
       const overlay = btn.closest?.('.modal-overlay');
       if (overlay) overlay.remove();
