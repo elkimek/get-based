@@ -306,9 +306,9 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 9. v1.6.14 Sync pull reads view from state, not DOM ────────────
   console.log('%c 9. Sync pull-side current view source ', 'font-weight:bold;color:#0891b2');
   {
-    const syncSrc = fetchSrc('js/sync.js');
-    assert('sync.js: pull handler reads state.currentView first',
-      /const cat\s*=\s*state\.currentView\s*\|\|\s*document\.querySelector\('\.nav-item\.active'\)/.test(syncSrc));
+    const syncPullSrc = fetchSrc('js/sync-pull.js');
+    assert('sync-pull.js: pull handler reads state.currentView first',
+      /const cat\s*=\s*state\.currentView\s*\|\|\s*document\.querySelector\('\.nav-item\.active'\)/.test(syncPullSrc));
     // _refreshSurfaces gained the same fallback (audit P1.3): when
     // state.currentView is undefined during boot, fall back to DOM
     // instead of jumping straight to 'dashboard'.

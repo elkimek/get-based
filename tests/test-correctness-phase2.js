@@ -36,8 +36,10 @@ assert('sync-actions.js no longer has single _debounceTimer',
   !/\blet _debounceTimer\b/.test(syncActionsSrc));
 assert('sync-actions.js looks up timer by profileId',
   syncActionsSrc.includes('_debounceTimers.get(profileId)') && syncActionsSrc.includes('_debounceTimers.set(profileId'));
-assert('sync.js clears action timers on disable',
-  syncSrc.includes('clearSyncActionTimers()') && syncActionsSrc.includes('for (const t of _debounceTimers.values()) clearTimeout(t)'));
+assert('sync.js clears action and pull timers on disable',
+  syncSrc.includes('clearSyncActionTimers()')
+    && syncSrc.includes('clearSyncPullTimers()')
+    && syncActionsSrc.includes('for (const t of _debounceTimers.values()) clearTimeout(t)'));
 
 // ─── 2. Lab-context fingerprint includes wearableSummary ───
 console.log('\n2. Lab-context cache fingerprint');

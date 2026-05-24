@@ -43,6 +43,7 @@ await import('../js/settings.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
+  const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
@@ -54,7 +55,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -85,7 +86,7 @@ await import('../js/settings.js');
   assert('service worker precaches sync-state.js',
     serviceWorkerSrc.includes("'/js/sync-state.js'"));
   assert('sync-apply.js owns inbound AI/chat/display apply helpers',
-    syncSrc.includes("from './sync-apply.js'")
+    syncPullSrc.includes("from './sync-apply.js'")
       && syncApplySrc.includes('export async function applyAISettings')
       && syncApplySrc.includes('export async function applyChatData')
       && syncApplySrc.includes('export function applyDisplayPrefs')
@@ -195,6 +196,16 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncPush({'));
   assert('service worker precaches sync-push.js',
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
+  assert('sync-pull.js owns inbound pull merge helpers',
+    syncSrc.includes("from './sync-pull.js'")
+      && syncPullSrc.includes('export function configureSyncPull')
+      && syncPullSrc.includes('export async function onSyncReceived')
+      && syncPullSrc.includes('export function forcePull')
+      && syncPullSrc.includes('export function isSyncPulling')
+      && syncPullSrc.includes('export function clearSyncPullTimers')
+      && syncSrc.includes('configureSyncPull({'));
+  assert('service worker precaches sync-pull.js',
+    serviceWorkerSrc.includes("'/js/sync-pull.js'"));
   assert('sync-cutover.js owns Phase 2 cutover flag actions',
     syncSrc.includes("from './sync-cutover.js'")
       && syncCutoverSrc.includes('export { isPhase2CutoverEnabled }')
@@ -255,7 +266,7 @@ await import('../js/settings.js');
       && syncTombstonesSrc.includes('export async function rejectPendingTombstone')
       && exportBlockIncludes(syncSrc, ['listPendingTombstones', 'applyPendingTombstone', 'rejectPendingTombstone']));
   assert('applyRemoteTombstones runs before the active-rows pass in onSyncReceived',
-    /async function onSyncReceived[\s\S]{0,800}await\s+applyRemoteTombstones[\s\S]{0,400}getQueryRows\(profileQuery\)/.test(syncSrc));
+    /async function onSyncReceived[\s\S]{0,800}await\s+applyRemoteTombstones[\s\S]{0,400}getQueryRows\(profileQuery\)/.test(syncPullSrc));
   assert('applyRemoteTombstones keeps at least one survivor (mass-delete safety)',
     /survivors\.length\s*===\s*0[\s\S]{0,200}return/.test(syncTombstonesSrc));
 
@@ -309,11 +320,11 @@ await import('../js/settings.js');
   assert('deleteProfileFromRelay tombstone update carries profileId',
     /evolu\.update\('profileData',\s*\{\s*id:\s*row\.id,\s*profileId\s*,\s*isDeleted/.test(syncTombstonesSrc));
   assert('onSyncReceived recovers profileId from payload when column is empty',
-    /enrichedRows[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncSrc));
+    /enrichedRows[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncPullSrc));
   assert('applyRemoteTombstones recovers profileId from payload',
     /tombIdsArr[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncTombstonesSrc));
   assert('Recovered profileId still validated against allowlist regex',
-    /\^\[a-zA-Z0-9_-\]\+\$/.test(syncSrc));
+    /\^\[a-zA-Z0-9_-\]\+\$/.test(syncPullSrc));
 
   // v1.6.7: relay-storage estimate (local cumulative tracker, no relay
   // endpoint needed). Warns the user before they hit the 50 MB per-owner
@@ -420,7 +431,7 @@ await import('../js/settings.js');
 
   // Pull-side merge contract — per-row authoritative, blob fallback
   assert('onSyncReceived overlays per-row state AFTER blob merge',
-    /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncSrc));
+    /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncDeltaSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
@@ -587,17 +598,17 @@ await import('../js/settings.js');
   // pass is union-based + idempotent, so re-applying the same bytes is
   // a no-op when local already equals remote — cheaper than a sync bug.
   assert('onSyncReceived has no pre-merge skip path',
-    !syncSrc.includes('remoteContentHash === localContentHash') &&
-    !/if\s*\(\s*remoteUpdated\s*<\s*localUpdated\s*\)/.test(syncSrc),
+    !syncPullSrc.includes('remoteContentHash === localContentHash') &&
+    !/if\s*\(\s*remoteUpdated\s*<\s*localUpdated\s*\)/.test(syncPullSrc),
     'skip-decisions before merge regress to clock-skew/stale-hash bugs');
-  assert('onSyncReceived guards on _pulling', syncSrc.includes('_pulling') && syncSrc.includes('_pulling = true'));
-  assert('Pull handles encryption', syncSrc.includes('getEncryptionEnabled()') && syncSrc.includes('encryptedSetItem(localKey'));
-  assert('Pull merges profiles with allowlist', syncSrc.includes('PROFILE_MERGE_FIELDS') && syncSrc.includes('saveProfiles(profiles)'));
+  assert('onSyncReceived guards on _pulling', syncPullSrc.includes('_pulling') && syncPullSrc.includes('_pulling = true'));
+  assert('Pull handles encryption', syncPullSrc.includes('getEncryptionEnabled()') && syncPullSrc.includes('encryptedSetItem(localKey'));
+  assert('Pull merges profiles with allowlist', syncPullSrc.includes('PROFILE_MERGE_FIELDS') && syncPullSrc.includes('saveProfiles(profiles)'));
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
   // instead of just showing a "Data updated" toast).
-  assert('Pull re-renders the active view', syncSrc.includes('window.navigate?.(cat)'));
-  assert('Pull calls migrateProfileData', syncSrc.includes('migrateProfileData(state.importedData)'));
+  assert('Pull re-renders the active view', syncPullSrc.includes('window.navigate?.(cat)'));
+  assert('Pull calls migrateProfileData', syncPullSrc.includes('migrateProfileData(state.importedData)'));
   assert('pushAllProfiles pushes all profiles on first enable',
     syncSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
   assert('disableSync clears _appOwner', syncSrc.includes('_appOwner = null'));
@@ -677,12 +688,12 @@ await import('../js/settings.js');
   assert('chat freshness lock is shorter than two minutes',
     syncApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
   assert('skipped chat pulls retry after the local freshness lock expires',
-    syncSrc.includes('scheduleChatPullRetry') && syncSrc.includes('getChatDataLocalLockRemainingMs(profileId)'));
+    syncPullSrc.includes('scheduleChatPullRetry') && syncPullSrc.includes('getChatDataLocalLockRemainingMs(profileId)'));
   assert('active chat reload only runs after chatData is applied',
-    syncSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
-      && syncSrc.includes('if (chatApplied)'));
+    syncPullSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
+      && syncPullSrc.includes('if (chatApplied)'));
   assert('active chat thread is reselected after remote thread deletion',
-    syncSrc.includes('window.loadChatThreads?.();') && syncSrc.includes('window.ensureActiveThread?.();'));
+    syncPullSrc.includes('window.loadChatThreads?.();') && syncPullSrc.includes('window.ensureActiveThread?.();'));
   {
     const prevProfileId = state.currentProfile;
     const profileId = 'syncapplydel';
@@ -768,18 +779,18 @@ await import('../js/settings.js');
   // The stripped remote payload arrives with no wearableConnections; without this preserve step
   // the overwrite at setItem(localKey, importedJson) would wipe every device's OAuth tokens.
   assert('Pull preserves local wearableConnections (active profile)',
-    syncSrc.includes('state.importedData?.wearableConnections'));
+    syncPullSrc.includes('state.importedData?.wearableConnections'));
   assert('Pull preserves local wearableConnections (inactive profile)',
-    syncSrc.includes('parsed?.wearableConnections'));
+    syncPullSrc.includes('parsed?.wearableConnections'));
   assert('Pull re-injects preserved wearableConnections into pulled blob',
-    syncSrc.includes('importedData.wearableConnections = localWearableConnections'));
+    syncPullSrc.includes('importedData.wearableConnections = localWearableConnections'));
 
   // Guard: preserve branch must run before the storage write (otherwise stale).
   // Post-IDB-migration the write goes through encryptedSetItem (which routes
   // `-imported` keys to IndexedDB); the preserve-before-write invariant
   // applies to whichever underlying setter is used.
-  const preserveIdx = syncSrc.indexOf('importedData.wearableConnections = localWearableConnections');
-  const writeIdx = syncSrc.indexOf('encryptedSetItem(localKey, importedJson)');
+  const preserveIdx = syncPullSrc.indexOf('importedData.wearableConnections = localWearableConnections');
+  const writeIdx = syncPullSrc.indexOf('encryptedSetItem(localKey, importedJson)');
   assert('Preserve runs before localStorage write', preserveIdx > 0 && preserveIdx < writeIdx,
     `preserve at ${preserveIdx}, write at ${writeIdx}`);
 

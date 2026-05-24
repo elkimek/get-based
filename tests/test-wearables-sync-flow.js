@@ -353,13 +353,13 @@ try {
 // 9. wearableConnections preserve on Evolu pull
 // ═══════════════════════════════════════
 console.log('9. Pull-Side Token Preserve');
-const syncSrcContent = await fetch('/js/sync.js').then(r => r.text());
+const syncPullSrcContent = await fetch('/js/sync-pull.js').then(r => r.text());
 assert('Sync pull preserves localWearableConnections by reading from disk first',
-  /localWearableConnections\s*=\s*state\.importedData\?\.wearableConnections/.test(syncSrcContent));
+  /localWearableConnections\s*=\s*state\.importedData\?\.wearableConnections/.test(syncPullSrcContent));
 assert('Sync pull writes localWearableConnections back into the merged importedData',
-  /importedData\.wearableConnections\s*=\s*localWearableConnections/.test(syncSrcContent));
+  /importedData\.wearableConnections\s*=\s*localWearableConnections/.test(syncPullSrcContent));
 assert('Sync pull falls back to disk read when state.importedData is for a different profile',
-  /parsed\?\.wearableConnections/.test(syncSrcContent));
+  /parsed\?\.wearableConnections/.test(syncPullSrcContent));
 
 // ─────────────────────────────────────────────────────────
 // Cleanup — restore live state.
