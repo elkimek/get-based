@@ -68,7 +68,7 @@ export function pushContextToGateway() {
       // is unencrypted, and profile names are gratuitous PII here.
       const relay = currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
 
-      await fetch(`${relay}/api/context`, {
+      const res = await fetch(`${relay}/api/context`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -76,6 +76,7 @@ export function pushContextToGateway() {
         },
         body: JSON.stringify({ context, profileId }),
       });
+      if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
       dbg(`Context pushed to gateway (profile: ${profileId}, series: ${seriesBlock ? 'yes' : 'no'})`);
     } catch (e) {
       console.warn('[sync] Context push failed:', e);

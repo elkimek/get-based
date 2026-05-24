@@ -111,6 +111,10 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['isMessengerEnabled', 'getMessengerToken', 'generateMessengerToken', 'revokeMessengerToken', 'pushContextToGateway']));
   assert('service worker precaches sync-messenger.js',
     serviceWorkerSrc.includes("'/js/sync-messenger.js'"));
+  assert('pushContextToGateway treats gateway HTTP errors as failures',
+    /const\s+res\s*=\s*await\s+fetch\(`\$\{relay\}\/api\/context`/.test(syncMessengerSrc)
+      && /if\s*\(\s*!res\.ok\s*\)\s*throw\s+new\s+Error\(`Gateway returned \$\{res\.status\}`\)/.test(syncMessengerSrc)
+      && syncMessengerSrc.indexOf('if (!res.ok)') < syncMessengerSrc.indexOf('Context pushed to gateway'));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
