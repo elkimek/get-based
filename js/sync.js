@@ -9,7 +9,6 @@ import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './cryp
 import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
 import {
   collectAISettings,
-  disablePhase2CutoverFlag, enablePhase2CutoverFlag, isPhase2CutoverEnabled,
   parseSyncPayload,
 } from './sync-payload.js';
 import {
@@ -66,6 +65,9 @@ import {
 import {
   configureSyncPush, isSyncPushInFlight, pushProfile,
 } from './sync-push.js';
+import {
+  disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
+} from './sync-cutover.js';
 
 export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
@@ -82,6 +84,7 @@ export {
   showSyncDiagnose,
   cleanStorage, forceResendCurrentProfile, onChatSaved, onDataSaved,
   pushCurrentProfile, syncNow,
+  disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 };
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
@@ -683,24 +686,6 @@ function _forcePull() {
   dbg('Force pull triggered');
   onSyncReceived();
   return 'triggered';
-}
-
-export { isPhase2CutoverEnabled };
-
-// Gated setter — refuses to enable cutover when readiness check finds
-// blockers. Returns { ok, reason, blockerCount } so the UI can render
-// a useful error. Disable is always allowed (escape hatch).
-export function enablePhase2Cutover(profileId) {
-  if (!profileId) return { ok: false, reason: 'no-profile' };
-  const r = getDeltaCutoverReadiness(profileId);
-  if (!r || !r.ready) {
-    return { ok: false, reason: 'not-ready', blockerCount: r?.blockerCount || -1 };
-  }
-  if (enablePhase2CutoverFlag(profileId)) return { ok: true };
-  return { ok: false, reason: 'storage' };
-}
-export function disablePhase2Cutover(profileId) {
-  return disablePhase2CutoverFlag(profileId);
 }
 
 // Allowed fields when merging a synced profile into the local profiles list

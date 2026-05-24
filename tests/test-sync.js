@@ -43,6 +43,7 @@ await import('../js/settings.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
+  const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
@@ -53,7 +54,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -194,6 +195,15 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncPush({'));
   assert('service worker precaches sync-push.js',
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
+  assert('sync-cutover.js owns Phase 2 cutover flag actions',
+    syncSrc.includes("from './sync-cutover.js'")
+      && syncCutoverSrc.includes('export { isPhase2CutoverEnabled }')
+      && syncCutoverSrc.includes('export function enablePhase2Cutover')
+      && syncCutoverSrc.includes('export function disablePhase2Cutover')
+      && syncCutoverSrc.includes('getDeltaCutoverReadiness(profileId)')
+      && exportBlockIncludes(syncSrc, ['isPhase2CutoverEnabled', 'enablePhase2Cutover', 'disablePhase2Cutover']));
+  assert('service worker precaches sync-cutover.js',
+    serviceWorkerSrc.includes("'/js/sync-cutover.js'"));
   assert('sync-ui.js owns header sync status UI helpers',
     syncSrc.includes("from './sync-ui.js'")
       && syncUiSrc.includes('export function configureSyncUI')
