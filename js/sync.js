@@ -10,6 +10,9 @@ import {
   resetRelayQuotaEstimate, verifyPushLanded,
 } from './sync-relay-health.js';
 import {
+  createSyncQueries, createSyncSchema,
+} from './sync-schema.js';
+import {
   getRecentSyncEvents, logSyncEvent, resetSyncStatus,
   subscribeSyncStatus, updateSyncStatus,
 } from './sync-state.js';
@@ -237,40 +240,10 @@ export async function initSync() {
   await new Promise(r => setTimeout(r, 0));
 
   try {
-    const { createEvolu, id, nullOr, SimpleName, NonEmptyString1000, NonEmptyString, evoluWebDeps } =
+    const { createEvolu, id, nullOr, SimpleName, NonEmptyString, evoluWebDeps } =
       await import('../vendor/evolu/evolu-bundle.js');
 
-    const ProfileDataId = id("ProfileData");
-    const ItemRowId = id("ItemRow");
-    // Per-array delta table (Phase 1 of the CRDT-delta refactor — see
-    // memory/project_evolu_delta_refactor_plan.md). Each row holds ONE
-    // item from one of the importedData arrays (sunSessions, lightDevices,
-    // entries, …). Push side dual-writes: every successful pushProfile()
-    // also emits inserts/updates/tombstones for items that changed since
-    // the last successful push (snapshot diff). Pull side merges itemRow
-    // payloads into state.importedData BEFORE the fat-blob merge runs, so
-    // per-row data is authoritative when present and the blob acts as
-    // fallback for pre-Phase-1 device pushes.
-    //
-    // ONE table with arrayName discriminator instead of N tables: adding a
-    // new array doesn't require schema migration, single subscribeQuery
-    // covers everything, identical merge logic per array.
-    const Schema = {
-      profileData: {
-        id: ProfileDataId,
-        profileId: NonEmptyString,
-        dataJson: NonEmptyString,
-        syncedAt: nullOr(NonEmptyString),
-      },
-      itemRow: {
-        id: ItemRowId,
-        profileId: NonEmptyString,
-        arrayName: NonEmptyString,  // 'sunSessions' | 'lightDevices' | …
-        itemId: NonEmptyString,     // the item.id field, e.g. 'sun_1714780123456'
-        payload: NonEmptyString,    // gzip-base64-encoded JSON of one item
-        syncedAt: nullOr(NonEmptyString),
-      },
-    };
+    const Schema = createSyncSchema({ id, nullOr, NonEmptyString });
 
     const relay = getSyncRelay();
     evolu = createEvolu(evoluWebDeps)(Schema, {
@@ -280,31 +253,7 @@ export async function initSync() {
       transports: [{ type: "WebSocket", url: relay }],
     });
 
-    // Query all profile data rows
-    profileQuery = evolu.createQuery((db) =>
-      db.selectFrom("profileData")
-        .selectAll()
-        .where("isDeleted", "is not", 1)
-    );
-
-    // Companion query that returns ONLY tombstoned rows. Used during pull
-    // to apply remote deletes locally — when device A tombstones profile X,
-    // device B sees X here and wipes its local copy. Without this, B's
-    // local profiles list keeps showing X even though A "deleted" it.
-    tombstoneQuery = evolu.createQuery((db) =>
-      db.selectFrom("profileData")
-        .selectAll()
-        .where("isDeleted", "=", 1)
-    );
-
-    // Per-array delta rows (live + tombstoned). The merge logic in
-    // _mergeItemRowsIntoImported sorts on isDeleted, so a single query
-    // returning every itemRow is sufficient. profileId filter applied
-    // at merge time so subscribeQuery doesn't have to refire on each
-    // currentProfile change.
-    itemRowQuery = evolu.createQuery((db) =>
-      db.selectFrom("itemRow").selectAll()
-    );
+    ({ profileQuery, tombstoneQuery, itemRowQuery } = createSyncQueries(evolu));
 
     // Subscribe to sync updates
     evolu.subscribeQuery(profileQuery)(() => {

@@ -35,6 +35,7 @@ await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
+  const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
@@ -88,6 +89,14 @@ await import('../js/settings.js');
       && syncStateSrc.includes('export function consumeRebroadcastBudget'));
   assert('service worker precaches sync-state.js',
     serviceWorkerSrc.includes("'/js/sync-state.js'"));
+  assert('sync-schema.js owns Evolu schema/query helpers',
+    syncSrc.includes("from './sync-schema.js'")
+      && syncSchemaSrc.includes('export function createSyncSchema')
+      && syncSchemaSrc.includes('export function createSyncQueries')
+      && syncSrc.includes('createSyncSchema({')
+      && syncSrc.includes('createSyncQueries(evolu)'));
+  assert('service worker precaches sync-schema.js',
+    serviceWorkerSrc.includes("'/js/sync-schema.js'"));
   assert('sync-apply.js owns inbound AI/chat/display apply helpers',
     syncPullSrc.includes("from './sync-apply.js'")
       && syncApplySrc.includes('export async function applyAISettings')
@@ -269,8 +278,8 @@ await import('../js/settings.js');
 
   // Tombstone-aware pull: a remote delete from another device wipes the
   // local copy on next sync, so multi-device cleanup completes itself.
-  assert('sync.js declares a tombstoneQuery selecting isDeleted = 1 rows',
-    /tombstoneQuery\s*=\s*evolu\.createQuery[\s\S]{0,300}isDeleted[",\s]+=[",\s]+1/.test(syncSrc));
+  assert('sync-schema.js declares a tombstoneQuery selecting isDeleted = 1 rows',
+    /tombstoneQuery\s*=\s*evolu\.createQuery[\s\S]{0,300}isDeleted[",\s]+=[",\s]+1/.test(syncSchemaSrc));
   assert('tombstoneQuery subscription retriggers onSyncReceived',
     /evolu\.subscribeQuery\(tombstoneQuery\)\([\s\S]{0,250}onSyncReceived\(\)/.test(syncSrc));
   assert('poll safety tracks tombstone count as well as live rows',
@@ -424,9 +433,9 @@ await import('../js/settings.js');
 
   // Schema additions
   assert('Schema declares itemRow table',
-    /itemRow:\s*\{[\s\S]{0,300}arrayName:\s*NonEmptyString[\s\S]{0,300}itemId:\s*NonEmptyString[\s\S]{0,200}payload:\s*NonEmptyString/.test(syncSrc));
-  assert('itemRowQuery created on init',
-    /itemRowQuery\s*=\s*evolu\.createQuery\([\s\S]{0,200}selectFrom\("itemRow"\)/.test(syncSrc));
+    /itemRow:\s*\{[\s\S]{0,300}arrayName:\s*NonEmptyString[\s\S]{0,300}itemId:\s*NonEmptyString[\s\S]{0,200}payload:\s*NonEmptyString/.test(syncSchemaSrc));
+  assert('itemRowQuery created by sync-schema.js',
+    /itemRowQuery\s*=\s*evolu\.createQuery\([\s\S]{0,200}selectFrom\("itemRow"\)/.test(syncSchemaSrc));
   assert('itemRowQuery loaded with profileQuery + tombstoneQuery',
     /Promise\.all\(\[[\s\S]{0,400}evolu\.loadQuery\(itemRowQuery\)/.test(syncSrc));
   assert('itemRow subscription retriggers onSyncReceived',
