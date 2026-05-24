@@ -37,6 +37,7 @@ await import('../js/settings.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
+  const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -115,6 +116,15 @@ await import('../js/settings.js');
     /const\s+res\s*=\s*await\s+fetch\(`\$\{relay\}\/api\/context`/.test(syncMessengerSrc)
       && /if\s*\(\s*!res\.ok\s*\)\s*throw\s+new\s+Error\(`Gateway returned \$\{res\.status\}`\)/.test(syncMessengerSrc)
       && syncMessengerSrc.indexOf('if (!res.ok)') < syncMessengerSrc.indexOf('Context pushed to gateway'));
+  assert('sync-environment.js owns relay and capability helpers',
+    syncSrc.includes("from './sync-environment.js'")
+      && syncEnvironmentSrc.includes('export function getSyncRelay')
+      && syncEnvironmentSrc.includes('export function setSyncRelay')
+      && syncEnvironmentSrc.includes('export function checkRelayConnection')
+      && syncEnvironmentSrc.includes('export function getSyncBlocker')
+      && exportBlockIncludes(syncSrc, ['getSyncRelay', 'setSyncRelay', 'checkRelayConnection', 'getSyncBlocker']));
+  assert('service worker precaches sync-environment.js',
+    serviceWorkerSrc.includes("'/js/sync-environment.js'"));
 
   // Profile-delete propagation (closes the bug where deleting a profile in
   // getbased only wiped local state — the Evolu row stayed on the relay
@@ -422,11 +432,11 @@ await import('../js/settings.js');
 
   assert('reloadUrl uses window.location.pathname', syncSrc.includes('reloadUrl: window.location.pathname'));
   assert('enableLogging gated on debug mode', syncSrc.includes('enableLogging: isDebugMode()'));
-  assert('Default relay is wss://sync.getbased.health', syncSrc.includes("wss://sync.getbased.health"));
+  assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
   assert('Transport uses plural "transports" array (not singular)', syncSrc.includes('transports: [{ type:') && !syncSrc.includes('transport: { type:'));
   assert('COOP header in dev-server', await fetchWithRetry('dev-server.js').then(s => s.includes('Cross-Origin-Opener-Policy')));
   assert('initSync has re-entrancy guard', syncSrc.includes('if (evolu) return'));
-  assert('checkRelayConnection exported', syncSrc.includes('export function checkRelayConnection'));
+  assert('checkRelayConnection exported', exportBlockIncludes(syncSrc, ['checkRelayConnection']));
 
   // ═══════════════════════════════════════
   // 6. DATA.JS INTEGRATION
@@ -447,13 +457,13 @@ await import('../js/settings.js');
   // getSyncBlocker must NOT check SharedWorker — Evolu uses dedicated
   // Workers + BroadcastChannel + navigator.locks, not the SharedWorker
   // API. A SharedWorker gate wrongly blocked sync on Chrome for Android.
-  assert('getSyncBlocker is exported', syncSrc.includes('export function getSyncBlocker'));
-  assert('getSyncBlocker does not gate on SharedWorker', !/getSyncBlocker[\s\S]*?SharedWorker/.test(syncSrc),
+  assert('getSyncBlocker is exported', exportBlockIncludes(syncSrc, ['getSyncBlocker']));
+  assert('getSyncBlocker does not gate on SharedWorker', !/getSyncBlocker[\s\S]*?SharedWorker/.test(syncEnvironmentSrc),
     'Evolu does not use the SharedWorker API — gating on it blocks Chrome for Android unnecessarily');
-  assert('getSyncBlocker still gates on navigator.locks', /getSyncBlocker[\s\S]*?navigator\.locks/.test(syncSrc));
+  assert('getSyncBlocker still gates on navigator.locks', /getSyncBlocker[\s\S]*?navigator\.locks/.test(syncEnvironmentSrc));
   assert('getSyncBlocker still gates on OPFS (navigator.storage.getDirectory)',
-    /getSyncBlocker[\s\S]*?navigator\.storage\.getDirectory/.test(syncSrc));
-  assert('getSyncBlocker still gates on crypto.subtle', /getSyncBlocker[\s\S]*?crypto\?\.subtle/.test(syncSrc));
+    /getSyncBlocker[\s\S]*?navigator\.storage\.getDirectory/.test(syncEnvironmentSrc));
+  assert('getSyncBlocker still gates on crypto.subtle', /getSyncBlocker[\s\S]*?crypto\?\.subtle/.test(syncEnvironmentSrc));
   assert('Settings banner copy updated to "in this browser"',
     settingsSrc.includes('Sync unavailable in this browser') && !settingsSrc.includes('Sync unavailable in this build'));
   assert('BIP-39 lazy loader resets cached promise after failure',
