@@ -17,6 +17,9 @@ import {
   subscribeSyncStatus, updateSyncStatus,
 } from './sync-state.js';
 import {
+  isSyncEnabled, primeSyncState, setSyncEnabled,
+} from './sync-settings-state.js';
+import {
   configureSyncDelta, getDeltaCutoverReadiness, getDeltaTelemetry,
   resetDeltaTelemetry,
 } from './sync-delta.js';
@@ -74,6 +77,7 @@ export {
   compactOwnerSelfServe, fetchOwnerStorageFromRelay, getRelayHealthVerdict,
   getRelayQuotaEstimate, resetRelayQuotaEstimate, verifyPushLanded,
   getRecentSyncEvents, subscribeSyncStatus,
+  isSyncEnabled, primeSyncState,
   applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
   rejectPendingTombstone,
   generateMessengerToken, getMessengerToken, isMessengerEnabled,
@@ -108,8 +112,6 @@ let evolu = null;
 let profileQuery = null;
 let tombstoneQuery = null;
 let itemRowQuery = null;
-let _syncEnabled = false;
-let _syncStatePrimed = false;
 let _appOwner = null;
 let _appOwnerError = null;
 let _readyPromise = null;
@@ -128,7 +130,7 @@ configureSyncDelta({
 configureSyncPush({
   getEvolu: () => evolu,
   getProfileQuery: () => profileQuery,
-  isSyncEnabled: () => _syncEnabled,
+  isSyncEnabled,
   isPhase2CutoverEnabled,
   disablePhase2Cutover,
   debug: dbg,
@@ -146,7 +148,7 @@ configureSyncTombstones({
   getEvolu: () => evolu,
   getProfileQuery: () => profileQuery,
   getTombstoneQuery: () => tombstoneQuery,
-  isSyncEnabled: () => _syncEnabled,
+  isSyncEnabled,
   pushProfile,
   debug: dbg,
 });
@@ -167,11 +169,11 @@ configureSyncDiagnostics({
   getProfileQuery: () => profileQuery,
   getTombstoneQuery: () => tombstoneQuery,
   getAppOwner: () => _appOwner,
-  isSyncEnabled: () => _syncEnabled,
+  isSyncEnabled,
 });
 
 configureSyncUI({
-  isSyncEnabled: () => _syncEnabled,
+  isSyncEnabled,
 });
 bindSyncUIStatusUpdates();
 
@@ -188,14 +190,14 @@ configureSyncDiagnoseUI({
 configureSyncActions({
   pushProfile,
   forcePull: _forcePull,
-  isSyncEnabled: () => _syncEnabled,
+  isSyncEnabled,
   isEvoluReady: () => !!evolu,
   isSyncing: isSyncPushInFlight,
 });
 bindSyncActionEvents();
 
 configureSyncRecovery({
-  isSyncEnabled: () => _syncEnabled,
+  isSyncEnabled,
   isEvoluReady: () => !!evolu,
   pushCurrentProfile,
   forcePull: _forcePull,
@@ -208,34 +210,17 @@ configureSyncRecovery({
 configureSyncReconcile({
   getEvolu: () => evolu,
   getProfileQuery: () => profileQuery,
-  isSyncEnabled: () => _syncEnabled,
+  isSyncEnabled,
   pushProfile,
   debug: dbg,
 });
-
-// ═══════════════════════════════════════════════
-// SETTINGS
-// ═══════════════════════════════════════════════
-
-const SYNC_STORAGE_KEY = 'labcharts-sync-enabled';
-
-export function primeSyncState() {
-  if (!_syncStatePrimed) {
-    _syncEnabled = localStorage.getItem(SYNC_STORAGE_KEY) === 'true';
-    _syncStatePrimed = true;
-  }
-  return _syncEnabled;
-}
-
-export function isSyncEnabled() { return _syncStatePrimed ? _syncEnabled : primeSyncState(); }
 
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
 
 export async function initSync() {
-  primeSyncState();
-  if (!_syncEnabled) return;
+  if (!primeSyncState()) return;
 
   // Fail fast if the webview doesn't have what Evolu needs. Otherwise the
   // worker hangs forever on appOwner and the toggle/restore flow looks
@@ -386,7 +371,7 @@ export async function initSync() {
     });
   } catch (e) {
     console.error('[sync] Failed to initialize Evolu:', e);
-    _syncEnabled = false;
+    setSyncEnabled(false, { persist: false });
   }
 }
 
@@ -402,8 +387,7 @@ export async function enableSync({ skipPush = false } = {}) {
     showNotification(`Sync unavailable in this browser: ${blocker}`, 'error');
     return;
   }
-  localStorage.setItem(SYNC_STORAGE_KEY, 'true');
-  _syncEnabled = true;
+  setSyncEnabled(true);
   _appOwnerError = null;
   await initSync();
   if (!evolu || !_readyPromise) {
@@ -439,8 +423,7 @@ export async function disableSync() {
   // Flip the persisted flag FIRST, before any awaits. If anything below
   // hangs (Evolu worker stuck on OPFS or a Web Lock), a manual page
   // reload will still see sync as off.
-  localStorage.setItem(SYNC_STORAGE_KEY, 'false');
-  _syncEnabled = false;
+  setSyncEnabled(false);
   _appOwnerError = null;
 
   // Stop background timers + reset status (UI feedback before the reload)
@@ -506,7 +489,7 @@ export async function disableSync() {
 
 function _syncDiag() {
   const info = {
-    enabled: _syncEnabled,
+    enabled: isSyncEnabled(),
     evoluReady: !!evolu,
     relay: getSyncRelay(),
     mnemonic: _appOwner?.mnemonic ? '<set>' : null,

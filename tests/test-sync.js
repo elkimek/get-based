@@ -35,6 +35,7 @@ await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
+  const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
@@ -90,6 +91,17 @@ await import('../js/settings.js');
       && syncStateSrc.includes('export function consumeRebroadcastBudget'));
   assert('service worker precaches sync-state.js',
     serviceWorkerSrc.includes("'/js/sync-state.js'"));
+  assert('sync-settings-state.js owns persisted sync enabled flag',
+    syncSrc.includes("from './sync-settings-state.js'")
+      && syncSettingsStateSrc.includes("export const SYNC_STORAGE_KEY = 'labcharts-sync-enabled'")
+      && syncSettingsStateSrc.includes('export function primeSyncState')
+      && syncSettingsStateSrc.includes('export function isSyncEnabled')
+      && syncSettingsStateSrc.includes('export function setSyncEnabled')
+      && syncSettingsStateSrc.includes("localStorage.getItem(SYNC_STORAGE_KEY) === 'true'")
+      && syncSettingsStateSrc.includes("localStorage.setItem(SYNC_STORAGE_KEY, enabled ? 'true' : 'false')")
+      && exportBlockIncludes(syncSrc, ['isSyncEnabled', 'primeSyncState']));
+  assert('service worker precaches sync-settings-state.js',
+    serviceWorkerSrc.includes("'/js/sync-settings-state.js'"));
   assert('sync-schema.js owns Evolu schema/query helpers',
     syncSrc.includes("from './sync-schema.js'")
       && syncSchemaSrc.includes('export function createSyncSchema')
@@ -677,8 +689,15 @@ await import('../js/settings.js');
   // or a Web Lock). The page reload below kills the worker process
   // anyway. The persisted SYNC_STORAGE_KEY flips before any await so a
   // hard refresh always sees sync as off.
+  const disableSyncSrc = syncSrc.slice(
+    syncSrc.indexOf('export async function disableSync'),
+    syncSrc.indexOf('// ═══════════════════════════════════════════════\n// DIAGNOSTICS')
+  );
   assert('disableSync flips SYNC_STORAGE_KEY before any await',
-    /localStorage\.setItem\(SYNC_STORAGE_KEY,\s*['"]false['"]\)[\s\S]{0,200}_syncEnabled = false/.test(syncSrc));
+    disableSyncSrc.includes('setSyncEnabled(false);')
+      && disableSyncSrc.indexOf('setSyncEnabled(false);') < disableSyncSrc.indexOf('_appOwnerError = null')
+      && (!disableSyncSrc.includes('await ') || disableSyncSrc.indexOf('setSyncEnabled(false);') < disableSyncSrc.indexOf('await '))
+      && syncSettingsStateSrc.includes("localStorage.setItem(SYNC_STORAGE_KEY, enabled ? 'true' : 'false')"));
   assert('disableSync does not block on Evolu reset (fire-and-forget)',
     /Promise\.resolve\(evolu\.resetAppOwner/.test(syncSrc),
     'awaiting resetAppOwner blocks the toggle when Evolu worker is hung');
