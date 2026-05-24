@@ -39,7 +39,7 @@ import {
   restoreFromMnemonic,
 } from './sync-identity.js';
 import {
-  configureSyncDiagnostics, getEvoluDiagnostics,
+  _syncDiag, configureSyncDiagnostics, getEvoluDiagnostics,
 } from './sync-diagnostics.js';
 import {
   bindSyncUIStatusUpdates, configureSyncUI, copySyncEvents,
@@ -170,6 +170,9 @@ configureSyncDiagnostics({
   getTombstoneQuery: () => tombstoneQuery,
   getAppOwner: () => _appOwner,
   isSyncEnabled,
+  getSubscriptionFireCount: () => _subscriptionFireCount,
+  isSyncing: isSyncPushInFlight,
+  isPulling: isSyncPulling,
 });
 
 configureSyncUI({
@@ -481,44 +484,6 @@ export async function disableSync() {
   // Reload regardless of whether Evolu cooperated. ~250ms gives the toast
   // time to render before the page swaps.
   setTimeout(() => window.location.reload(), 250);
-}
-
-// ═══════════════════════════════════════════════
-// DIAGNOSTICS
-// ═══════════════════════════════════════════════
-
-function _syncDiag() {
-  const info = {
-    enabled: isSyncEnabled(),
-    evoluReady: !!evolu,
-    relay: getSyncRelay(),
-    mnemonic: _appOwner?.mnemonic ? '<set>' : null,
-    subscriptionFires: _subscriptionFireCount,
-    syncing: isSyncPushInFlight(),
-    pulling: isSyncPulling(),
-  };
-  if (evolu && profileQuery) {
-    const rows = evolu.getQueryRows(profileQuery);
-    info.evoluRows = (rows || []).map(r => ({
-      profileId: r.profileId,
-      syncedAt: r.syncedAt,
-      dataSize: r.dataJson?.length ?? 0,
-    }));
-  }
-  // Show local sync timestamps
-  const tsList = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.endsWith('-sync-ts')) {
-      tsList.push({ key, ts: parseInt(localStorage.getItem(key), 10), date: new Date(parseInt(localStorage.getItem(key), 10)).toISOString() });
-    }
-  }
-  info.localTimestamps = tsList;
-  if (isDebugMode()) {
-    console.table?.(info.evoluRows);
-    console.log('[sync] Diagnostics:', JSON.stringify(info, null, 2));
-  }
-  return info;
 }
 
 // ═══════════════════════════════════════════════

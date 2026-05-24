@@ -281,7 +281,7 @@ return (async function () {
   // ─── 7. _syncDiag — console output gated by isDebugMode() ──────────
   console.log('%c 7. _syncDiag debug-mode gate ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sync.js');
+    const src = await fetchSrc('js/sync-diagnostics.js');
     const fn = src.slice(src.indexOf('function _syncDiag'),
                           src.indexOf('function _syncDiag') + 2000);
     assert('_syncDiag function found', fn.indexOf('function _syncDiag') === 0);

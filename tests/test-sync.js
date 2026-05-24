@@ -172,7 +172,11 @@ await import('../js/settings.js');
     syncSrc.includes("from './sync-diagnostics.js'")
       && syncDiagnosticsSrc.includes('export async function getEvoluDiagnostics')
       && syncDiagnosticsSrc.includes('export function _evoluDiagnosticsText')
+      && syncDiagnosticsSrc.includes('export function _syncDiag')
       && syncDiagnosticsSrc.includes('export function configureSyncDiagnostics')
+      && syncDiagnosticsSrc.includes('getSubscriptionFireCount')
+      && syncDiagnosticsSrc.includes('isSyncing')
+      && syncDiagnosticsSrc.includes('isPulling')
       && exportBlockIncludes(syncSrc, ['getEvoluDiagnostics']));
   assert('service worker precaches sync-diagnostics.js',
     serviceWorkerSrc.includes("'/js/sync-diagnostics.js'"));

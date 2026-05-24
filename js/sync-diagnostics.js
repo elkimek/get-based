@@ -1,6 +1,7 @@
 // sync-diagnostics.js - Evolu row diagnostics snapshot and copy text helpers.
 
 import { state } from './state.js';
+import { isDebugMode } from './utils.js';
 import { getDeltaCutoverReadiness, getDeltaTelemetry } from './sync-delta.js';
 import { getSyncRelay } from './sync-environment.js';
 import { parseSyncPayload } from './sync-payload.js';
@@ -11,6 +12,9 @@ let _getProfileQuery = () => null;
 let _getTombstoneQuery = () => null;
 let _getAppOwner = () => null;
 let _isSyncEnabled = () => false;
+let _getSubscriptionFireCount = () => 0;
+let _isSyncing = () => false;
+let _isPulling = () => false;
 
 export function configureSyncDiagnostics({
   getEvolu,
@@ -18,12 +22,18 @@ export function configureSyncDiagnostics({
   getTombstoneQuery,
   getAppOwner,
   isSyncEnabled,
+  getSubscriptionFireCount,
+  isSyncing,
+  isPulling,
 } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof getTombstoneQuery === 'function') _getTombstoneQuery = getTombstoneQuery;
   if (typeof getAppOwner === 'function') _getAppOwner = getAppOwner;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
+  if (typeof getSubscriptionFireCount === 'function') _getSubscriptionFireCount = getSubscriptionFireCount;
+  if (typeof isSyncing === 'function') _isSyncing = isSyncing;
+  if (typeof isPulling === 'function') _isPulling = isPulling;
 }
 
 function currentEvolu() {
@@ -44,6 +54,54 @@ function currentAppOwner() {
 
 function currentSyncEnabled() {
   try { return !!_isSyncEnabled?.(); } catch { return false; }
+}
+
+function currentSubscriptionFireCount() {
+  try { return Number(_getSubscriptionFireCount?.() || 0); } catch { return 0; }
+}
+
+function currentSyncing() {
+  try { return !!_isSyncing?.(); } catch { return false; }
+}
+
+function currentPulling() {
+  try { return !!_isPulling?.(); } catch { return false; }
+}
+
+export function _syncDiag() {
+  const evolu = currentEvolu();
+  const profileQuery = currentProfileQuery();
+  const appOwner = currentAppOwner();
+  const info = {
+    enabled: currentSyncEnabled(),
+    evoluReady: !!evolu,
+    relay: getSyncRelay(),
+    mnemonic: appOwner?.mnemonic ? '<set>' : null,
+    subscriptionFires: currentSubscriptionFireCount(),
+    syncing: currentSyncing(),
+    pulling: currentPulling(),
+  };
+  if (evolu && profileQuery) {
+    const rows = evolu.getQueryRows(profileQuery);
+    info.evoluRows = (rows || []).map(r => ({
+      profileId: r.profileId,
+      syncedAt: r.syncedAt,
+      dataSize: r.dataJson?.length ?? 0,
+    }));
+  }
+  const tsList = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.endsWith('-sync-ts')) {
+      tsList.push({ key, ts: parseInt(localStorage.getItem(key), 10), date: new Date(parseInt(localStorage.getItem(key), 10)).toISOString() });
+    }
+  }
+  info.localTimestamps = tsList;
+  if (isDebugMode()) {
+    console.table?.(info.evoluRows);
+    console.log('[sync] Diagnostics:', JSON.stringify(info, null, 2));
+  }
+  return info;
 }
 
 // Snapshot Evolu's current state for the in-popover Diagnose button. Used
