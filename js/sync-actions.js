@@ -219,11 +219,7 @@ export function onDataSaved() {
       if (prev) clearTimeout(prev);
       const timer = setTimeout(() => {
         _debounceTimers.delete(profileId);
-        if (_isSyncing()) {
-          setTimeout(() => { _pushProfile(profileId, data).catch(() => {}); }, 1000);
-        } else {
-          _pushProfile(profileId, data).catch(() => {});
-        }
+        scheduleProfilePush(profileId, data);
       }, 10_000);
       _debounceTimers.set(profileId, timer);
     }
@@ -241,11 +237,7 @@ export function onChatSaved() {
   if (prev) clearTimeout(prev);
   const timer = setTimeout(() => {
     _chatSyncTimers.delete(profileId);
-    if (_isSyncing()) {
-      setTimeout(() => { _pushProfile(profileId, data).catch(() => {}); }, 1000);
-    } else {
-      _pushProfile(profileId, data).catch(() => {});
-    }
+    scheduleProfilePush(profileId, data);
   }, 10000);
   _chatSyncTimers.set(profileId, timer);
 }

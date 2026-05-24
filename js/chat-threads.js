@@ -24,6 +24,7 @@ import { state } from './state.js';
 import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { onChatSaved } from './sync.js';
+import { chatDeletedThreadsKey } from './sync-payload.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import {
   configureChatThreadSearch, filterThreadList,
@@ -35,6 +36,7 @@ export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
 const MAX_THREADS = 50;
 const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 export function getChatThreadsKey() {
   return `labcharts-${state.currentProfile}-chat-threads`;
@@ -42,6 +44,25 @@ export function getChatThreadsKey() {
 
 export function getChatThreadKey(threadId) {
   return `labcharts-${state.currentProfile}-chat-t_${threadId}`;
+}
+
+function recordDeletedChatThread(threadId, deletedAt = Date.now()) {
+  if (!state.currentProfile || !threadId) return;
+  if (CHAT_DELETED_PROTO_KEYS.has(threadId)) return;
+  try {
+    const key = chatDeletedThreadsKey(state.currentProfile);
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+    const deleted = Object.create(null);
+    for (const [id, ts] of Object.entries(parsed)) {
+      if (CHAT_DELETED_PROTO_KEYS.has(id)) continue;
+      const n = Number(ts);
+      if (typeof id === 'string' && id && Number.isFinite(n) && n > 0) deleted[id] = n;
+    }
+    deleted[threadId] = Math.max(Number(deleted[threadId]) || 0, deletedAt);
+    localStorage.setItem(key, JSON.stringify(deleted));
+  } catch {}
 }
 
 function generateThreadId() {
@@ -160,6 +181,7 @@ export async function switchToThread(threadId) {
 export async function deleteThread(threadId) {
   if (await showConfirmDialog('Delete this conversation? This cannot be undone.')) {
     invalidateThreadContentCache();
+    recordDeletedChatThread(threadId);
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
     saveChatThreadIndex();
@@ -226,6 +248,7 @@ export function pruneOldThreads() {
   const sorted = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const toRemove = sorted.slice(MAX_THREADS);
   for (const t of toRemove) {
+    recordDeletedChatThread(t.id);
     localStorage.removeItem(getChatThreadKey(t.id));
   }
   state.chatThreads = sorted.slice(0, MAX_THREADS);

@@ -243,7 +243,7 @@ return (async function () {
     assert('sync-payload.js loaded', src.length > 1000);
     // Find the inner loop that reads per-thread message JSON.
     const collectIdx = src.indexOf('async function collectChatData');
-    const block = src.slice(collectIdx, collectIdx + 1200);
+    const block = src.slice(collectIdx, collectIdx + 2200);
     assert('collectChatData function present', collectIdx !== -1);
     assert('per-thread parse wrapped in try/catch (skip-bad-msg pattern)',
       /try\s*\{\s*messages\[t\.id\]\s*=\s*JSON\.parse\(msgRaw\);?\s*\}\s*catch/.test(block));
@@ -257,16 +257,25 @@ return (async function () {
   console.log('%c 6. debounce pushProfile .catch() ', 'font-weight:bold;color:#0891b2');
   {
     const src = await fetchSrc('js/sync-actions.js');
-    // Both onDataSaved + onChatSaved have a (sync? defer : immediate) split.
-    // Each branch must terminate the chain with .catch.
+    // onDataSaved + onChatSaved route through scheduleProfilePush. The
+    // helper owns the retry loop and must still terminate the async push
+    // chain with .catch so rejected pushes do not leak as unhandled
+    // promise rejections.
+    const helper = src.slice(src.indexOf('function scheduleProfilePush'),
+                              src.indexOf('export function onProfileSaved'));
     const onSaved = src.slice(src.indexOf('export function onDataSaved'),
                               src.indexOf('export function onChatSaved'));
     const onChat = src.slice(src.indexOf('export function onChatSaved'),
                               src.indexOf('export function onChatSaved') + 1500);
-    assert('onDataSaved deferred push has .catch', /_pushProfile\(profileId, data\)\.catch/.test(onSaved));
-    assert('onDataSaved immediate push has .catch', (onSaved.match(/\.catch\(\(\)\s*=>\s*\{\}\)/g) || []).length >= 2);
-    assert('onChatSaved deferred push has .catch', /_pushProfile\(profileId, data\)\.catch/.test(onChat));
-    assert('onChatSaved immediate push has .catch', (onChat.match(/\.catch\(\(\)\s*=>\s*\{\}\)/g) || []).length >= 2);
+    assert('scheduleProfilePush retries while sync is busy',
+      /!_isEvoluReady\(\)\s*\|\|\s*_isSyncing\(\)/.test(helper)
+        && /attempt\s*<\s*60/.test(helper));
+    assert('scheduleProfilePush catches rejected push',
+      /_pushProfile\(profileId,\s*data\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(helper));
+    assert('onDataSaved routes through scheduleProfilePush',
+      /scheduleProfilePush\(profileId,\s*data\)/.test(onSaved));
+    assert('onChatSaved routes through scheduleProfilePush',
+      /scheduleProfilePush\(profileId,\s*data\)/.test(onChat));
   }
 
   // ─── 7. _syncDiag — console output gated by isDebugMode() ──────────

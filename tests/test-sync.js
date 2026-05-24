@@ -611,7 +611,10 @@ await import('../js/settings.js');
   // the rate at which the relay's per-owner quota fills.
   assert('onDataSaved has 10s debounce', syncActionsSrc.includes('}, 10_000)'));
   assert('onDataSaved captures profileId at schedule time', syncActionsSrc.includes('const profileId = state.currentProfile') && syncActionsSrc.includes('_pushProfile(profileId'));
-  assert('onDataSaved retries if syncing', syncActionsSrc.includes('if (_isSyncing())') && syncActionsSrc.includes('_pushProfile(profileId, data)'));
+  assert('onDataSaved retries while sync is not ready or a push is in-flight',
+    syncActionsSrc.includes('function scheduleProfilePush(profileId, data, attempt = 0)')
+      && syncActionsSrc.includes('!_isEvoluReady() || _isSyncing()')
+      && /export function onDataSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncActionsSrc));
   // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip
   // and hash-skip caused users to miss cross-device data (clock-skew
   // and stale hash keys from prior code versions). The mergeImportedData
@@ -651,7 +654,7 @@ await import('../js/settings.js');
   assert('disableSync clears sync timestamps',
     /disableSync[\s\S]{0,3000}key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncSrc));
   assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
-    syncApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(chatData.threads)"));
+    syncApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(mergedThreads))"));
 
   // ═══════════════════════════════════════
   // 9. SETTINGS UI
@@ -704,9 +707,18 @@ await import('../js/settings.js');
   assert('collectChatData includes custom personalities', syncPayloadSrc.includes('chatPersonalityCustom'));
   assert('collectChatData emits empty messages for cleared zero-message threads',
     syncPayloadSrc.includes('messageCount') && syncPayloadSrc.includes('messages[t.id] = []'));
+  assert('collectChatData includes explicit chat thread tombstones',
+    syncPayloadSrc.includes('chatDeletedThreadsKey')
+      && syncPayloadSrc.includes('deletedThreads'));
+  assert('chat thread tombstones reject proto-pollution keys',
+    syncApplySrc.includes('CHAT_DELETED_PROTO_KEYS')
+      && syncPayloadSrc.includes('CHAT_DELETED_PROTO_KEYS')
+      && await fetchWithRetry('js/chat-threads.js').then(s => s.includes('CHAT_DELETED_PROTO_KEYS.has(threadId)')));
   assert('applyChatData writes threads', syncApplySrc.includes('applyChatData'));
-  assert('applyChatData removes message keys for remotely deleted threads',
-    syncApplySrc.includes('incomingThreadIds') && syncApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${t.id}`)'));
+  assert('applyChatData preserves local-only threads unless an explicit tombstone wins',
+    syncApplySrc.includes('mergedById.set(thread.id, thread)')
+      && syncApplySrc.includes('normalizeDeletedThreads(chatData.deletedThreads)')
+      && syncApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${thread.id}`)'));
   assert('applyChatData skips stale remote chat while local save is fresh',
     syncApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalChatData(profileId)'));
   assert('chat freshness lock is shorter than two minutes',
@@ -724,29 +736,43 @@ await import('../js/settings.js');
     const threadsKey = `labcharts-${profileId}-chat-threads`;
     const keepKey = `labcharts-${profileId}-chat-t_keep`;
     const goneKey = `labcharts-${profileId}-chat-t_gone`;
+    const deletedKey = `labcharts-${profileId}-chat-deleted-threads`;
     const oldLock = sessionStorage.getItem('labcharts-chat-local-lock-until');
+    const oldDeleted = localStorage.getItem(deletedKey);
     try {
       state.currentProfile = profileId;
       sessionStorage.removeItem('labcharts-chat-local-lock-until');
       localStorage.setItem(threadsKey, JSON.stringify([
-        { id: 'keep', messageCount: 1 },
-        { id: 'gone', messageCount: 1 },
+        { id: 'keep', messageCount: 1, updatedAt: '2026-05-24T10:00:00.000Z' },
+        { id: 'gone', messageCount: 1, updatedAt: '2026-05-24T10:00:00.000Z' },
       ]));
       localStorage.setItem(keepKey, JSON.stringify([{ role: 'user', content: 'old' }]));
       localStorage.setItem(goneKey, JSON.stringify([{ role: 'user', content: 'delete me' }]));
       const applied = await syncApply.applyChatData(profileId, {
-        threads: [{ id: 'keep', messageCount: 1 }],
+        threads: [{ id: 'keep', messageCount: 1, updatedAt: '2026-05-24T10:05:00.000Z' }],
         messages: { keep: [{ role: 'assistant', content: 'new' }] },
       });
       assert('applyChatData functional: remote thread index applied', applied === true);
-      assert('applyChatData functional: deleted thread message key removed', localStorage.getItem(goneKey) === null);
+      assert('applyChatData functional: stale remote absence does not delete local-only thread',
+        JSON.parse(localStorage.getItem(threadsKey) || '[]').some(t => t.id === 'gone')
+          && localStorage.getItem(goneKey) !== null);
       assert('applyChatData functional: kept thread messages overwritten',
         JSON.parse(localStorage.getItem(keepKey) || '[]')?.[0]?.content === 'new');
+      await syncApply.applyChatData(profileId, {
+        threads: [{ id: 'keep', messageCount: 1, updatedAt: '2026-05-24T10:05:00.000Z' }],
+        messages: { keep: [{ role: 'assistant', content: 'newer' }] },
+        deletedThreads: { gone: Date.parse('2026-05-24T10:06:00.000Z') },
+      });
+      assert('applyChatData functional: explicit remote tombstone removes deleted thread message key',
+        localStorage.getItem(goneKey) === null
+          && !JSON.parse(localStorage.getItem(threadsKey) || '[]').some(t => t.id === 'gone'));
     } finally {
       state.currentProfile = prevProfileId;
       localStorage.removeItem(threadsKey);
       localStorage.removeItem(keepKey);
       localStorage.removeItem(goneKey);
+      if (oldDeleted === null) localStorage.removeItem(deletedKey);
+      else localStorage.setItem(deletedKey, oldDeleted);
       if (oldLock === null) sessionStorage.removeItem('labcharts-chat-local-lock-until');
       else sessionStorage.setItem('labcharts-chat-local-lock-until', oldLock);
     }
@@ -758,6 +784,11 @@ await import('../js/settings.js');
   assert('Display prefs synced', syncPayloadSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', exportBlockIncludes(syncSrc, ['onChatSaved']));
   assert('onChatSaved has debounce', syncActionsSrc.includes('_chatSyncTimers') && syncActionsSrc.includes('10000'));
+  assert('onChatSaved uses the profile push retry helper instead of one-shot push while syncing',
+    /export function onChatSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncActionsSrc));
+  assert('chat thread deletes record tombstones before syncing index',
+    await fetchWithRetry('js/chat-threads.js').then(s => s.includes('recordDeletedChatThread(threadId)')
+      && s.indexOf('recordDeletedChatThread(threadId)') < s.indexOf('state.chatThreads = state.chatThreads.filter')));
   assert('chat-threads.js imports onChatSaved', await fetchWithRetry('js/chat-threads.js').then(s => s.includes("import { onChatSaved } from './sync.js'")));
 
   // ═══════════════════════════════════════

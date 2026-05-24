@@ -33,6 +33,31 @@ export const AI_SETTINGS_KEYS = [
 
 export const DISPLAY_PREF_SUFFIXES = ['units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay'];
 
+export function chatDeletedThreadsKey(profileId) {
+  return `labcharts-${profileId}-chat-deleted-threads`;
+}
+
+const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function readChatDeletedThreads(profileId) {
+  try {
+    const raw = localStorage.getItem(chatDeletedThreadsKey(profileId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out = Object.create(null);
+    for (const [threadId, deletedAt] of Object.entries(parsed)) {
+      if (typeof threadId !== 'string' || !threadId) continue;
+      if (CHAT_DELETED_PROTO_KEYS.has(threadId)) continue;
+      const ts = Number(deletedAt);
+      if (Number.isFinite(ts) && ts > 0) out[threadId] = ts;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export async function collectAISettings() {
   const settings = {};
   for (const key of AI_SETTINGS_KEYS) {
@@ -45,11 +70,21 @@ export async function collectAISettings() {
 // Per-profile chat keys to sync
 export async function collectChatData(profileId) {
   const threadsKey = `labcharts-${profileId}-chat-threads`;
+  const deletedThreads = readChatDeletedThreads(profileId);
   const threadsRaw = await encryptedGetItem(threadsKey) || localStorage.getItem(threadsKey);
-  if (!threadsRaw) return null;
+  if (!threadsRaw) {
+    return Object.keys(deletedThreads).length > 0
+      ? { threads: [], messages: {}, deletedThreads }
+      : null;
+  }
   try {
     const threads = JSON.parse(threadsRaw);
-    if (!Array.isArray(threads) || threads.length === 0) return null;
+    if (!Array.isArray(threads)) {
+      return Object.keys(deletedThreads).length > 0
+        ? { threads: [], messages: {}, deletedThreads }
+        : null;
+    }
+    if (threads.length === 0 && Object.keys(deletedThreads).length === 0) return null;
     const messages = {};
     for (const t of threads) {
       const msgKey = `labcharts-${profileId}-chat-t_${t.id}`;
@@ -67,6 +102,7 @@ export async function collectChatData(profileId) {
     return {
       threads,
       messages,
+      deletedThreads: Object.keys(deletedThreads).length > 0 ? deletedThreads : undefined,
       customPersonalities: customRaw ? JSON.parse(customRaw) : undefined,
       activePersonality: personality || undefined,
     };
