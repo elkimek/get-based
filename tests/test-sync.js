@@ -44,6 +44,7 @@ await import('../js/settings.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
+  const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
@@ -57,7 +58,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -199,6 +200,13 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncPush({'));
   assert('service worker precaches sync-push.js',
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
+  assert('sync-reconcile.js owns startup reconciliation helper',
+    syncSrc.includes("from './sync-reconcile.js'")
+      && syncReconcileSrc.includes('export function configureSyncReconcile')
+      && syncReconcileSrc.includes('export async function reconcileLocalStorageWithEvolu')
+      && syncSrc.includes('configureSyncReconcile({'));
+  assert('service worker precaches sync-reconcile.js',
+    serviceWorkerSrc.includes("'/js/sync-reconcile.js'"));
   assert('sync-pull.js owns inbound pull merge helpers',
     syncSrc.includes("from './sync-pull.js'")
       && syncPullSrc.includes('export function configureSyncPull')
@@ -296,7 +304,9 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('2. Sync Payload Format');
 
-  assert('sync-payload.js owns buildSyncPayload', syncSrc.includes("from './sync-payload.js'") && syncPayloadSrc.includes('export async function buildSyncPayload'));
+  assert('sync-payload.js owns buildSyncPayload',
+    syncPushSrc.includes("from './sync-payload.js'")
+      && syncPayloadSrc.includes('export async function buildSyncPayload'));
   assert('buildSyncPayload still emits _v: 3 (default dual-write)', syncPayloadSrc.includes('cutover ? 4 : 3'));
   assert('buildSyncPayload includes importedData', syncPayloadSrc.includes('importedData,') || syncPayloadSrc.includes('importedData:'));
   assert('buildSyncPayload includes profile metadata', syncPayloadSrc.includes('profile: profile'));
@@ -2266,22 +2276,22 @@ await import('../js/settings.js');
 
   // Source-shape: the reconciliation function exists and routes through
   // the pickTimestamp-aware helper instead of bare id-set comparison.
-  assert('_reconcileLocalStorageWithEvolu defined',
-    /async function _reconcileLocalStorageWithEvolu\(\)/.test(syncSrc));
+  assert('reconcileLocalStorageWithEvolu defined',
+    /export async function reconcileLocalStorageWithEvolu\(\)/.test(syncReconcileSrc));
   assert('Reconciliation runs on initSync after appOwner + queries are ready',
-    /Promise\.all\(\[_readyPromise,\s*_queryLoaded\]\)[\s\S]{0,300}_reconcileLocalStorageWithEvolu/.test(syncSrc));
+    /Promise\.all\(\[_readyPromise,\s*_queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncSrc));
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
-    /_reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,800}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
-    /_reconcileLocalStorageWithEvolu[\s\S]{0,1500}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,2500}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncReconcileSrc));
   assert('Reconciliation force-pushes when local has unsynced rows',
-    /_reconcileLocalStorageWithEvolu[\s\S]{0,4000}pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true\s*\}\)/.test(syncSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,4000}_pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true\s*\}\)/.test(syncReconcileSrc));
   // Defence-in-depth: the regression we're guarding against was id-only
   // comparison, so explicitly assert the OLD shape is gone. Hard to write
   // without false-positives — this regex matches the v1.7.x id-set diff
   // pattern that was specifically replaced.
   assert('Reconciliation no longer relies on bare id-set diff (would miss within-id ts drift)',
-    !/_reconcileLocalStorageWithEvolu[\s\S]{0,1500}new Set\(local\.map\(r\s*=>\s*r\?\.id\)/.test(syncSrc));
+    !/reconcileLocalStorageWithEvolu[\s\S]{0,1500}new Set\(local\.map\(r\s*=>\s*r\?\.id\)/.test(syncReconcileSrc));
 
   // Live: simulate localHasRowsRemoteLacks's three-case decision with the
   // exact shape our reconciliation feeds it. Confirms the function still
