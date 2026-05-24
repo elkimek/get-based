@@ -282,6 +282,9 @@ export async function onSyncReceived() {
             dbg('Could not read local importedData for merge:', e.message);
           }
         }
+        const activeImportedBeforeJson = profileId === state.currentProfile
+          ? JSON.stringify(localImportedForMerge || {})
+          : null;
         // v4 cutover: importedData is null by design. Use local as the
         // baseline; per-row overlay below fills in every field. v3 and
         // older still merge blob-into-local as before.
@@ -331,6 +334,8 @@ export async function onSyncReceived() {
         // produced no observable change.
         const remoteBroughtNewRows = !!localImportedForMerge && !!importedData
           && localHasRowsRemoteLacks(importedData, localImportedForMerge);
+        const activeImportedChanged = profileId === state.currentProfile
+          && activeImportedBeforeJson !== JSON.stringify(merged || {});
 
         // Persist the merged importedData. Always go through
         // encryptedSetItem - it routes big-blob `-imported` keys to
@@ -401,17 +406,17 @@ export async function onSyncReceived() {
           // local action. Cheap (~1ms) and doesn't disturb in-progress
           // forms in the main pane.
           if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-          if (!remoteBroughtNewRows) {
+          if (!activeImportedChanged) {
             // Remote brought nothing new (local was already a superset or
-            // identical for every id-keyed array). Profile-field / chat /
-            // displayPrefs handlers above already re-rendered their own
+            // identical after blob + per-row overlay). Profile-field / chat
+            // / displayPrefs handlers above already re-rendered their own
             // surfaces; skip the global navigate() so an in-progress form
             // (e.g. typing a duration into the session log dialog) survives.
-            dbg(`Pulled active profile ${profileId.slice(0,8)} — no new rows from remote, skipping re-render of '${cat}'`);
+            dbg(`Pulled active profile ${profileId.slice(0,8)} — no importedData change from remote, skipping re-render of '${cat}'`);
           } else {
             window.navigate?.(cat);
             if (cat !== 'dashboard') {
-              showNotification('Data updated from another device', 'success');
+              showNotification(remoteBroughtNewRows ? 'Data updated from another device' : 'Data changed on another device', 'success');
             }
             dbg(`Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
           }

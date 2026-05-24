@@ -251,22 +251,26 @@ return (async function () {
       /if\s*\(!msgRaw\)\s*\{[\s\S]{0,160}continue;?\s*\}/.test(block));
   }
 
-  // ─── 6. sync.js debounce push — .catch() on rejected push ──────────
+  // ─── 6. sync.js debounce push — retry helper catches rejected push ──
   // pushProfile is async; without .catch() rejected pushes leak as
   // unhandled-rejection toasts in browsers + leave the UI confused.
-  console.log('%c 6. debounce pushProfile .catch() ', 'font-weight:bold;color:#0891b2');
+  console.log('%c 6. debounce push retry catches pushProfile rejection ', 'font-weight:bold;color:#0891b2');
   {
     const src = await fetchSrc('js/sync-actions.js');
-    // Both onDataSaved + onChatSaved have a (sync? defer : immediate) split.
-    // Each branch must terminate the chain with .catch.
+    const schedule = src.slice(src.indexOf('function scheduleProfilePush'),
+                               src.indexOf('export function onProfileSaved'));
     const onSaved = src.slice(src.indexOf('export function onDataSaved'),
                               src.indexOf('export function onChatSaved'));
     const onChat = src.slice(src.indexOf('export function onChatSaved'),
                               src.indexOf('export function onChatSaved') + 1500);
-    assert('onDataSaved deferred push has .catch', /_pushProfile\(profileId, data\)\.catch/.test(onSaved));
-    assert('onDataSaved immediate push has .catch', (onSaved.match(/\.catch\(\(\)\s*=>\s*\{\}\)/g) || []).length >= 2);
-    assert('onChatSaved deferred push has .catch', /_pushProfile\(profileId, data\)\.catch/.test(onChat));
-    assert('onChatSaved immediate push has .catch', (onChat.match(/\.catch\(\(\)\s*=>\s*\{\}\)/g) || []).length >= 2);
+    assert('scheduleProfilePush catches pushProfile rejection',
+      /_pushProfile\(profileId, data\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(schedule));
+    assert('scheduleProfilePush retries while Evolu is busy or not ready',
+      schedule.includes('!_isEvoluReady() || _isSyncing()') && schedule.includes('attempt + 1'));
+    assert('onDataSaved routes through retry helper',
+      onSaved.includes('scheduleProfilePush(profileId, data)'));
+    assert('onChatSaved routes through retry helper',
+      onChat.includes('scheduleProfilePush(profileId, data)'));
   }
 
   // ─── 7. _syncDiag — console output gated by isDebugMode() ──────────

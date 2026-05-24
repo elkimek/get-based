@@ -541,9 +541,12 @@ await import('../js/settings.js');
   assert('applyAISettings has size guard', syncApplySrc.includes('val.length > 10000'));
   assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
   assert('applyAISettings refreshes chat provider UI on remote changes', syncApplySrc.includes('window.updateChatHeaderModel?.()') && syncApplySrc.includes('window.refreshWebSearchToggle?.()'));
+  assert('applyAISettings refreshes open Settings AI panel on remote changes',
+    syncApplySrc.includes('renderAIProviderPanel(provider)')
+      && syncApplySrc.includes("querySelectorAll('.ai-provider-btn')"));
   assert('AI setting changes schedule a sync push',
     syncActionsSrc.includes("labcharts-ai-settings-local-changed")
-      && syncActionsSrc.includes('_pushProfile(profileId, importedData)'));
+      && syncActionsSrc.includes('scheduleProfilePush(profileId, importedData)'));
 
   // ═══════════════════════════════════════
   // 4. MNEMONIC RESTORE
@@ -615,13 +618,20 @@ await import('../js/settings.js');
     syncPushSrc.includes('_syncing && Date.now() - _syncingSince < 60_000')
       && syncPushSrc.includes('_syncing = true')
       && syncPushSrc.includes('export function isSyncPushInFlight'));
+  assert('pushProfile queues a follow-up instead of dropping in-flight saves',
+    syncPushSrc.includes('const _queuedPushes = new Map()')
+      && syncPushSrc.includes('queueLatestPush(profileId, importedData, opts)')
+      && syncPushSrc.includes('drainQueuedPushesSoon()'));
   assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
   // blob (~500 KB pre-gzip), so coalescing editing bursts directly reduces
   // the rate at which the relay's per-owner quota fills.
   assert('onDataSaved has 10s debounce', syncActionsSrc.includes('}, 10_000)'));
-  assert('onDataSaved captures profileId at schedule time', syncActionsSrc.includes('const profileId = state.currentProfile') && syncActionsSrc.includes('_pushProfile(profileId'));
-  assert('onDataSaved retries if syncing', syncActionsSrc.includes('if (_isSyncing())') && syncActionsSrc.includes('_pushProfile(profileId, data)'));
+  assert('onDataSaved captures profileId at schedule time', syncActionsSrc.includes('const profileId = state.currentProfile') && syncActionsSrc.includes('scheduleProfilePush(profileId, data)'));
+  assert('onDataSaved retries while sync is not ready or a push is in-flight',
+    syncActionsSrc.includes('function scheduleProfilePush(profileId, data, attempt = 0)')
+      && syncActionsSrc.includes('!_isEvoluReady() || _isSyncing()')
+      && syncActionsSrc.includes('attempt + 1'));
   // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip
   // and hash-skip caused users to miss cross-device data (clock-skew
   // and stale hash keys from prior code versions). The mergeImportedData
@@ -638,6 +648,9 @@ await import('../js/settings.js');
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
   // instead of just showing a "Data updated" toast).
   assert('Pull re-renders the active view', syncPullSrc.includes('window.navigate?.(cat)'));
+  assert('Pull re-renders active view for deletes/id-less changes too',
+    syncPullSrc.includes('activeImportedBeforeJson')
+      && syncPullSrc.includes('activeImportedChanged'));
   assert('Pull calls migrateProfileData', syncPullSrc.includes('migrateProfileData(state.importedData)'));
   assert('pushAllProfiles pushes all profiles on first enable',
     syncSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
@@ -764,7 +777,7 @@ await import('../js/settings.js');
   const onChatSavedSrc = syncActionsSrc.slice(syncActionsSrc.indexOf('export function onChatSaved'), syncActionsSrc.indexOf('export function onChatSaved') + 600);
   assert('onChatSaved marks local chat before debounce',
     onChatSavedSrc.includes('markChatDataLocal();')
-      && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_isSyncEnabled() || !_isEvoluReady()) return;'));
+      && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_isSyncEnabled()) return;'));
   assert('Display prefs synced', syncPayloadSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', exportBlockIncludes(syncSrc, ['onChatSaved']));
   assert('onChatSaved has debounce', syncActionsSrc.includes('_chatSyncTimers') && syncActionsSrc.includes('10000'));
@@ -1950,7 +1963,7 @@ await import('../js/settings.js');
   // refresh the page to see a Genetics nav entry land from a peer's DNA
   // import. Lives in onSyncReceived's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
-    /profileId\s*===\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,200}remoteBroughtNewRows/.test(deltaSearchSrc));
+    /profileId\s*===\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,400}activeImportedChanged/.test(deltaSearchSrc));
 
   // Live: simulate the strip helper inline and prove shape preservation
   if (typeof window !== 'undefined') {

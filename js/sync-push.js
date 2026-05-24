@@ -27,6 +27,8 @@ let _debug = () => {};
 // instead of silently blocking every subsequent push for the session.
 let _syncing = false;
 let _syncingSince = 0;
+const _queuedPushes = new Map();
+let _drainQueuedPushTimer = null;
 
 export function configureSyncPush({
   getEvolu,
@@ -48,6 +50,24 @@ export function isSyncPushInFlight() {
   return _syncing;
 }
 
+function queueLatestPush(profileId, importedData, opts) {
+  const safeOpts = opts && typeof opts === 'object' ? { ...opts } : {};
+  delete safeOpts.force;
+  _queuedPushes.set(profileId, { profileId, importedData, opts: safeOpts });
+  _debug(`Queued follow-up push for ${profileId.slice(0, 8)} while prior push is in-flight`);
+}
+
+function drainQueuedPushesSoon() {
+  if (_drainQueuedPushTimer !== null || _syncing || _queuedPushes.size === 0) return;
+  _drainQueuedPushTimer = setTimeout(() => {
+    _drainQueuedPushTimer = null;
+    if (_syncing || _queuedPushes.size === 0) return;
+    const next = _queuedPushes.values().next().value;
+    _queuedPushes.delete(next.profileId);
+    pushProfile(next.profileId, next.importedData, next.opts).catch(() => {});
+  }, 0);
+}
+
 export async function pushProfile(profileId, importedData, opts = {}) {
   const evolu = _getEvolu();
   const profileQuery = _getProfileQuery();
@@ -62,7 +82,8 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   // Resend popover button + startup reconciliation, both of which need to
   // run regardless of a stuck flag from a prior wedged push.
   if (!opts.force && _syncing && Date.now() - _syncingSince < 60_000) {
-    console.warn('[sync] pushProfile bailed — another push is in-flight (set <60s ago)');
+    queueLatestPush(profileId, importedData, opts);
+    console.warn('[sync] pushProfile queued — another push is in-flight (set <60s ago)');
     return;
   }
   if (_syncing && !opts.force) console.warn('[sync] pushProfile clearing stale _syncing flag (>60s old)');
@@ -189,6 +210,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     const finish = () => {
       _syncing = false;
       if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
+      drainQueuedPushesSoon();
     };
     const onComplete = () => {
       completed = true;
@@ -291,6 +313,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
     // Synchronous error path — onComplete will never fire, release the lock.
     _syncing = false;
+    drainQueuedPushesSoon();
   }
   // _syncing now released by onComplete / watchdog / catch — NOT here. The
   // earlier synchronous `finally { _syncing = false }` released it before

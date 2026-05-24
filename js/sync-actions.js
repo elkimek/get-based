@@ -48,7 +48,7 @@ export function bindSyncActionEvents() {
     const importedData = state.importedData;
     _aiSettingsPushTimer = setTimeout(() => {
       _aiSettingsPushTimer = null;
-      _pushProfile(profileId, importedData).catch(() => {});
+      scheduleProfilePush(profileId, importedData);
     }, 250);
   });
 }
@@ -211,7 +211,7 @@ export async function pushAllProfiles() {
 }
 
 export function onDataSaved() {
-  if (_isSyncEnabled() && _isEvoluReady()) {
+  if (_isSyncEnabled()) {
     const profileId = state.currentProfile;
     const data = state.importedData;
     if (profileId) {
@@ -219,11 +219,7 @@ export function onDataSaved() {
       if (prev) clearTimeout(prev);
       const timer = setTimeout(() => {
         _debounceTimers.delete(profileId);
-        if (_isSyncing()) {
-          setTimeout(() => { _pushProfile(profileId, data).catch(() => {}); }, 1000);
-        } else {
-          _pushProfile(profileId, data).catch(() => {});
-        }
+        scheduleProfilePush(profileId, data);
       }, 10_000);
       _debounceTimers.set(profileId, timer);
     }
@@ -233,7 +229,7 @@ export function onDataSaved() {
 
 export function onChatSaved() {
   markChatDataLocal();
-  if (!_isSyncEnabled() || !_isEvoluReady()) return;
+  if (!_isSyncEnabled()) return;
   const profileId = state.currentProfile;
   const data = state.importedData;
   if (!profileId) return;
@@ -241,11 +237,7 @@ export function onChatSaved() {
   if (prev) clearTimeout(prev);
   const timer = setTimeout(() => {
     _chatSyncTimers.delete(profileId);
-    if (_isSyncing()) {
-      setTimeout(() => { _pushProfile(profileId, data).catch(() => {}); }, 1000);
-    } else {
-      _pushProfile(profileId, data).catch(() => {});
-    }
+    scheduleProfilePush(profileId, data);
   }, 10000);
   _chatSyncTimers.set(profileId, timer);
 }

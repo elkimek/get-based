@@ -64,6 +64,26 @@ function shouldKeepLocalChatData(profileId) {
 
 const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic', 'labcharts-lens-key', 'labcharts-custom-key'];
 
+function refreshAISettingsSurfaces(settings) {
+  window.updateChatHeaderModel?.();
+  window.refreshWebSearchToggle?.();
+
+  if (typeof document === 'undefined') return;
+  const provider = settings?.['labcharts-ai-provider'] || localStorage.getItem('labcharts-ai-provider');
+  const modal = document.getElementById('settings-modal');
+  if (modal && provider) {
+    modal.querySelectorAll('.ai-provider-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.provider === provider);
+    });
+  }
+  const panel = document.getElementById('ai-provider-panel');
+  if (panel && provider && typeof window.renderAIProviderPanel === 'function') {
+    panel.innerHTML = window.renderAIProviderPanel(provider);
+    window.initSettingsOllamaCheck?.();
+    window.initSettingsModelFetch?.();
+  }
+}
+
 export async function applyAISettings(settings) {
   if (!settings) return;
   let changed = false;
@@ -81,8 +101,7 @@ export async function applyAISettings(settings) {
     changed = true;
   }
   if (changed) {
-    window.updateChatHeaderModel?.();
-    window.refreshWebSearchToggle?.();
+    refreshAISettingsSurfaces(settings);
   }
 }
 
