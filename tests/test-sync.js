@@ -42,6 +42,7 @@ await import('../js/settings.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
+  const syncPushSrc = await fetchWithRetry('js/sync-push.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
@@ -52,7 +53,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncDeltaSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -184,6 +185,15 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved']));
   assert('service worker precaches sync-actions.js',
     serviceWorkerSrc.includes("'/js/sync-actions.js'"));
+  assert('sync-push.js owns outbound profile push and push watchdog state',
+    syncSrc.includes("from './sync-push.js'")
+      && syncPushSrc.includes('export function configureSyncPush')
+      && syncPushSrc.includes('export function isSyncPushInFlight')
+      && syncPushSrc.includes('export async function pushProfile')
+      && syncSrc.includes('isSyncPushInFlight()')
+      && syncSrc.includes('configureSyncPush({'));
+  assert('service worker precaches sync-push.js',
+    serviceWorkerSrc.includes("'/js/sync-push.js'"));
   assert('sync-ui.js owns header sync status UI helpers',
     syncSrc.includes("from './sync-ui.js'")
       && syncUiSrc.includes('export function configureSyncUI')
@@ -285,7 +295,7 @@ await import('../js/settings.js');
   //     when the column is empty, in BOTH onSyncReceived (live rows) and
   //     applyRemoteTombstones (cross-device deletes).
   assert('pushProfile evolu.update carries profileId',
-    /evolu\.update\("profileData",\s*\{\s*id:\s*existing\.id,\s*profileId\s*,\s*dataJson/.test(syncSrc));
+    /evolu\.update\("profileData",\s*\{\s*id:\s*existing\.id,\s*profileId\s*,\s*dataJson/.test(syncPushSrc));
   assert('deleteProfileFromRelay tombstone update carries profileId',
     /evolu\.update\('profileData',\s*\{\s*id:\s*row\.id,\s*profileId\s*,\s*isDeleted/.test(syncTombstonesSrc));
   assert('onSyncReceived recovers profileId from payload when column is empty',
@@ -305,7 +315,7 @@ await import('../js/settings.js');
     /export\s+\{[\s\S]{0,250}resetRelayQuotaEstimate/.test(syncSrc)
       && /export function resetRelayQuotaEstimate/.test(syncRelayHealthSrc));
   assert('Push success path increments tracker via trackPushBytes',
-    /Push committed[\s\S]{0,1500}trackPushBytes\(\s*\(dataJson \|\| ''\)\.length/.test(syncSrc));
+    /Push committed[\s\S]{0,1500}trackPushBytes\(\s*\(dataJson \|\| ''\)\.length/.test(syncPushSrc));
   assert('Quota threshold warning fires on transition (amber → red)',
     /_maybeWarnQuotaThreshold[\s\S]{0,500}order\[want\] <= order\[prev\]/.test(syncRelayHealthSrc));
   assert('Quota indicator visible on popover (green/amber/red dot)',
@@ -392,11 +402,11 @@ await import('../js/settings.js');
 
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
-    /deltaPlans\s*=\s*\[\][\s\S]{0,1000}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,400}_planArrayDelta/.test(syncSrc));
+    /deltaPlans\s*=\s*\[\][\s\S]{0,1000}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,400}_planArrayDelta/.test(syncPushSrc));
   // Anchor on "Push committed" — unique to the onComplete arrow function,
   // unlike "onComplete" which also appears in evolu.update call sites.
   assert('pushProfile applies deltas only after onComplete (blob commit)',
-    /Push committed[\s\S]{0,2500}deltaPlans\.length > 0[\s\S]{0,800}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncSrc));
+    /Push committed[\s\S]{0,2500}deltaPlans\.length > 0[\s\S]{0,800}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncPushSrc));
 
   // Pull-side merge contract — per-row authoritative, blob fallback
   assert('onSyncReceived overlays per-row state AFTER blob merge',
@@ -421,7 +431,7 @@ await import('../js/settings.js');
   assert('Delta snapshot key namespaced per (profile, arrayName)',
     /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
-    /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncSrc));
+    /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushSrc));
 
   // Live diff sanity: confirm the diff logic respects content-equality
   if (typeof CompressionStream !== 'undefined') {
@@ -550,8 +560,11 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('8. Push/Pull Logic');
 
-  assert('pushProfile guards on _syncing', syncSrc.includes('!_syncing') && syncSrc.includes('_syncing = true'));
-  assert('pushProfile uses insert/update pattern', syncSrc.includes('evolu.insert(') && syncSrc.includes('evolu.update('));
+  assert('pushProfile guards on _syncing',
+    syncPushSrc.includes('_syncing && Date.now() - _syncingSince < 60_000')
+      && syncPushSrc.includes('_syncing = true')
+      && syncPushSrc.includes('export function isSyncPushInFlight'));
+  assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
   // blob (~500 KB pre-gzip), so coalescing editing bursts directly reduces
   // the rate at which the relay's per-owner quota fills.
