@@ -1381,7 +1381,9 @@ Not separately documented because their exports are best read from source — ke
 - `sync-pull.js` — inbound pull orchestration, profile/chat/display apply, active-view refresh, and rebroadcast gating.
 - `sync-pull-merge.js` — pull row recovery/dedupe, importedData blob/per-row merge, wearable-token preservation, and profile metadata merge helpers.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
-- `sync-delta.js` — per-row CRDT delta boundary; array/map/scalar planners, apply helpers, snapshot advancement gates, and compatibility re-exports for delta telemetry/readiness.
+- `sync-delta.js` — per-row CRDT delta facade; config fan-out, apply helpers, and compatibility re-exports for planners, snapshots, merge, telemetry, and readiness.
+- `sync-delta-planners.js` — push-side array/map/scalar planners; diffs local importedData against snapshots and emits itemRow insert/update/tombstone ops.
+- `sync-delta-snapshot.js` — delta snapshot keying, reads, plannedAt-gated writes, and snapshot clear helpers.
 - `sync-delta-merge.js` — pull-side itemRow merge overlay; applies per-row array/map/scalar rows into importedData after blob merge.
 - `sync-delta-registry.js` — DELTA_ARRAYS/MAPS/SCALARS registration plus per-surface itemId/keyId config and identity helpers.
 - `sync-delta-observability.js` — per-push delta telemetry, pull-side row-count snapshots, and Phase 2 cutover readiness checks.

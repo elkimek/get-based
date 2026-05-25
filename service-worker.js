@@ -146,6 +146,8 @@ const APP_SHELL = [
   '/js/sync-apply.js',
   '/js/sync-schema.js',
   '/js/sync-delta.js',
+  '/js/sync-delta-planners.js',
+  '/js/sync-delta-snapshot.js',
   '/js/sync-delta-merge.js',
   '/js/sync-delta-registry.js',
   '/js/sync-delta-observability.js',

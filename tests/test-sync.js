@@ -42,6 +42,8 @@ await import('../js/settings.js');
   const syncDisableCleanupSrc = await fetchWithRetry('js/sync-disable-cleanup.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
+  const syncDeltaPlannersSrc = await fetchWithRetry('js/sync-delta-planners.js');
+  const syncDeltaSnapshotSrc = await fetchWithRetry('js/sync-delta-snapshot.js');
   const syncDeltaMergeSrc = await fetchWithRetry('js/sync-delta-merge.js');
   const syncDeltaRegistrySrc = await fetchWithRetry('js/sync-delta-registry.js');
   const syncDeltaObservabilitySrc = await fetchWithRetry('js/sync-delta-observability.js');
@@ -72,7 +74,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -176,16 +178,33 @@ await import('../js/settings.js');
       && syncApplySrc.includes('export function markChatDataLocal'));
   assert('service worker precaches sync-apply.js',
     serviceWorkerSrc.includes("'/js/sync-apply.js'"));
-  assert('sync-delta.js owns per-row delta helpers',
+  assert('sync-delta.js owns per-row delta facade/apply wiring',
     syncSrc.includes("from './sync-delta.js'")
-      && syncDeltaSrc.includes("from './sync-delta-registry.js'")
+      && syncDeltaSrc.includes("from './sync-delta-planners.js'")
+      && syncDeltaSrc.includes("from './sync-delta-snapshot.js'")
       && syncDeltaSrc.includes("from './sync-delta-observability.js'")
       && syncDeltaSrc.includes("from './sync-delta-merge.js'")
+      && syncDeltaSrc.includes('configureSyncDeltaPlanners')
       && syncDeltaSrc.includes('configureSyncDeltaMerge')
-      && syncDeltaSrc.includes('export async function _planArrayDelta')
+      && syncDeltaSrc.includes('export function _applyArrayDelta')
       && syncDeltaSrc.includes('export { _mergeItemRowsIntoImported }'));
   assert('service worker precaches sync-delta.js',
     serviceWorkerSrc.includes("'/js/sync-delta.js'"));
+  assert('sync-delta-planners.js owns push-side delta planners',
+    syncDeltaPlannersSrc.includes('export function configureSyncDeltaPlanners')
+      && syncDeltaPlannersSrc.includes('export async function _planArrayDelta')
+      && syncDeltaPlannersSrc.includes('export async function _planKeyedMapDelta')
+      && syncDeltaPlannersSrc.includes('export async function _planScalarDelta')
+      && syncDeltaPlannersSrc.includes("from './sync-delta-snapshot.js'"));
+  assert('service worker precaches sync-delta-planners.js',
+    serviceWorkerSrc.includes("'/js/sync-delta-planners.js'"));
+  assert('sync-delta-snapshot.js owns delta snapshot storage gates',
+    syncDeltaSnapshotSrc.includes('export function _readDeltaSnapshot')
+      && syncDeltaSnapshotSrc.includes('export function _writeDeltaSnapshot')
+      && syncDeltaSnapshotSrc.includes('export function clearDeltaSnapshot')
+      && syncDeltaSnapshotSrc.includes('labcharts-${profileId}-delta-${arrayName}'));
+  assert('service worker precaches sync-delta-snapshot.js',
+    serviceWorkerSrc.includes("'/js/sync-delta-snapshot.js'"));
   assert('sync-delta-merge.js owns pull-side itemRow merge overlay',
     syncDeltaMergeSrc.includes('export function configureSyncDeltaMerge')
       && syncDeltaMergeSrc.includes('export async function _mergeItemRowsIntoImported')
@@ -614,15 +633,15 @@ await import('../js/settings.js');
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
-    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncDeltaSrc));
+    /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncDeltaPlannersSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
     /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaRegistrySrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
-    /json\.length > 256[\s\S]{0,200}GZ\|v1\|/.test(syncDeltaSrc));
+    /json\.length > 256[\s\S]{0,200}GZ\|v1\|/.test(syncDeltaPlannersSrc));
   assert('_planArrayDelta emits tombstones for items removed since last push',
-    /kind:\s*'tombstone'[\s\S]{0,200}isDeleted:\s*1/.test(syncDeltaSrc));
+    /kind:\s*'tombstone'[\s\S]{0,200}isDeleted:\s*1/.test(syncDeltaPlannersSrc));
   assert('_planArrayDelta is conservative on missing rows (no phantom delete)',
-    /safer to no-op[\s\S]{0,100}phantom delete/.test(syncDeltaSrc));
+    /safer to no-op[\s\S]{0,100}phantom delete/.test(syncDeltaPlannersSrc));
   assert('_applyArrayDelta dispatches insert/update/tombstone',
     /_applyArrayDelta[\s\S]{0,400}evolu\.insert\("itemRow"[\s\S]{0,200}evolu\.update\("itemRow"/.test(syncDeltaSrc));
 
@@ -655,7 +674,7 @@ await import('../js/settings.js');
 
   // Snapshot persistence contract
   assert('Delta snapshot key namespaced per (profile, arrayName)',
-    /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSrc));
+    /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSnapshotSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
     /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushSrc));
 
@@ -1987,13 +2006,13 @@ await import('../js/settings.js');
   assert('Snapshot meta key derives from snapshot key (-meta suffix)',
     /\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta/.test(deltaSearchSrc));
   assert('clearDeltaSnapshot clears both snapshot and metadata keys',
-    /export function clearDeltaSnapshot\(profileId,\s*arrayName\)/.test(syncDeltaSrc)
-      && /removeItem\(_deltaSnapshotKey\(profileId,\s*arrayName\)\)/.test(syncDeltaSrc)
-      && /removeItem\(`\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta`\)/.test(syncDeltaSrc));
+    /export function clearDeltaSnapshot\(profileId,\s*arrayName\)/.test(syncDeltaSnapshotSrc)
+      && /removeItem\(_deltaSnapshotKey\(profileId,\s*arrayName\)\)/.test(syncDeltaSnapshotSrc)
+      && /removeItem\(`\$\{_deltaSnapshotKey\(profileId,\s*arrayName\)\}-meta`\)/.test(syncDeltaSnapshotSrc));
   assert('All 3 planners stamp plannedAt at start (not end)',
-    (syncDeltaSrc.match(/const plannedAt\s*=\s*Date\.now\(\);/g) || []).length >= 3);
+    (syncDeltaPlannersSrc.match(/const plannedAt\s*=\s*Date\.now\(\);/g) || []).length >= 3);
   assert('All 3 planners return plan with plannedAt field',
-    (syncDeltaSrc.match(/return \{ ops, next, plannedAt \};/g) || []).length === 3);
+    (syncDeltaPlannersSrc.match(/return \{ ops, next, plannedAt \};/g) || []).length === 3);
   assert('onComplete passes plan.plannedAt to _writeDeltaSnapshot',
     /_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(deltaSearchSrc));
   assert('onComplete tracks wrote vs allOk separately (skip-clobber count)',
