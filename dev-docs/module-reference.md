@@ -1387,7 +1387,11 @@ Not separately documented because their exports are best read from source — ke
 - `sync-pull-rebroadcast.js` — pull-side rebroadcast gating, budget checks, push-pending guard, and delayed active-profile push scheduling.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
 - `sync-delta.js` — per-row CRDT delta facade; config fan-out, apply helpers, and compatibility re-exports for planners, snapshots, merge, telemetry, and readiness.
-- `sync-delta-planners.js` — push-side array/map/scalar planners; diffs local importedData against snapshots and emits itemRow insert/update/tombstone ops.
+- `sync-delta-planners.js` — push-side planner facade; configures shared planner dependency context and compatibility re-exports for array/map/scalar planners.
+- `sync-delta-planner-context.js` — shared Evolu/itemRow query dependency access for push-side delta planners.
+- `sync-delta-array-planner.js` — push-side array planner; diffs array items against snapshots and emits itemRow insert/update/tombstone ops with tombstone-storm protection.
+- `sync-delta-map-planner.js` — push-side keyed-map planner; diffs keyed objects against snapshots, preserves original raw keys in payloads, and guards genetics SNP empty-map races.
+- `sync-delta-scalar-planner.js` — push-side scalar planner; handles singleton fields, most-recent canonical row selection, and null-transition tombstones.
 - `sync-delta-snapshot.js` — delta snapshot keying, reads, plannedAt-gated writes, and snapshot clear helpers.
 - `sync-delta-merge.js` — pull-side itemRow grouping and merge-shape dispatch into importedData after blob merge.
 - `sync-delta-merge-shapes.js` — pull-side array/map/scalar row overlay helpers; owns tombstone application, nested-path writes, proto guards, caps, and pull delta telemetry.
