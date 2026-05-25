@@ -259,7 +259,7 @@ return (async function () {
   // unhandled-rejection toasts in browsers + leave the UI confused.
   console.log('%c 6. debounce pushProfile .catch() ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sync-actions.js');
+    const src = await fetchSrc('js/sync-save-hooks.js');
     // onDataSaved + onChatSaved route through scheduleProfilePush. The
     // helper owns the retry loop and must still terminate the async push
     // chain with .catch so rejected pushes do not leak as unhandled

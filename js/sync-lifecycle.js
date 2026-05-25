@@ -5,7 +5,8 @@ import { getSyncBlocker } from './sync-environment.js';
 import { setSyncEnabled } from './sync-settings-state.js';
 import { clearSyncDisableStorage } from './sync-disable-cleanup.js';
 import { resetSyncStatus } from './sync-state.js';
-import { clearSyncActionTimers, pushAllProfiles } from './sync-actions.js';
+import { pushAllProfiles } from './sync-actions.js';
+import { clearSyncSaveTimers } from './sync-save-hooks.js';
 import { clearSyncPullTimers } from './sync-pull.js';
 import { clearSyncSubscriptionTimers } from './sync-subscriptions.js';
 import { renderSyncIndicator } from './sync-ui.js';
@@ -65,7 +66,7 @@ export async function disableSync() {
   setSyncAppOwnerError(null);
 
   // Stop background timers + reset status (UI feedback before the reload).
-  clearSyncActionTimers();
+  clearSyncSaveTimers();
   clearSyncPullTimers();
   clearSyncSubscriptionTimers();
   resetSyncStatus();

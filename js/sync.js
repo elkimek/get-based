@@ -47,10 +47,13 @@ import {
   showSyncDiagnose,
 } from './sync-diagnose-ui.js';
 import {
-  bindSyncActionEvents, configureSyncActions,
-  forceResendCurrentProfile, onChatSaved,
-  onDataSaved, onProfileSaved, pushCurrentProfile, syncNow,
+  configureSyncActions,
+  forceResendCurrentProfile, pushCurrentProfile, syncNow,
 } from './sync-actions.js';
+import {
+  bindSyncSaveHookEvents, configureSyncSaveHooks, onChatSaved,
+  onDataSaved, onProfileSaved,
+} from './sync-save-hooks.js';
 import { cleanStorage } from './sync-storage-cleanup.js';
 import {
   configureSyncPush, isSyncPushInFlight, pushProfile,
@@ -195,9 +198,15 @@ configureSyncActions({
   forcePull: _forcePull,
   isSyncEnabled,
   isEvoluReady: isSyncEvoluReady,
+});
+
+configureSyncSaveHooks({
+  pushProfile,
+  isSyncEnabled,
+  isEvoluReady: isSyncEvoluReady,
   isSyncing: isSyncPushInFlight,
 });
-bindSyncActionEvents();
+bindSyncSaveHookEvents();
 
 configureSyncRecovery({
   isSyncEnabled,

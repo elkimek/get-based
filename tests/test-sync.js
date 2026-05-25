@@ -29,6 +29,7 @@ console.log('=== Cross-Device Sync Tests ===\n');
 // window.enableSync, window.toggleSync, etc.
 const { state } = await import('../js/state.js');
 const syncActions = await import('../js/sync-actions.js');
+const syncSaveHooks = await import('../js/sync-save-hooks.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncChatApply = await import('../js/sync-chat-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
@@ -67,6 +68,7 @@ await import('../js/settings.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncDiagnoseRenderSrc = await fetchWithRetry('js/sync-diagnose-render.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
+  const syncSaveHooksSrc = await fetchWithRetry('js/sync-save-hooks.js');
   const syncStorageCleanupSrc = await fetchWithRetry('js/sync-storage-cleanup.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
   const syncPushDeltasSrc = await fetchWithRetry('js/sync-push-deltas.js');
@@ -197,7 +199,7 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/sync-apply.js'"));
   assert('sync-chat-apply.js owns inbound chat apply helpers and freshness locks',
     syncPullSrc.includes("from './sync-chat-apply.js'")
-      && syncActionsSrc.includes("from './sync-chat-apply.js'")
+      && syncSaveHooksSrc.includes("from './sync-chat-apply.js'")
       && syncChatApplySrc.includes('export async function applyChatData')
       && syncChatApplySrc.includes('export function markChatDataLocal')
       && syncChatApplySrc.includes('export function getChatDataLocalLockRemainingMs'));
@@ -390,7 +392,7 @@ await import('../js/settings.js');
     /export async function copySyncDiagnose[\s\S]{0,1800}document\.execCommand\('copy'\)/.test(syncDiagnoseUiSrc)
       && /navigator\.clipboard\?\.writeText/.test(rotateCopyHandler)
       && /document\.execCommand\('copy'\)/.test(rotateCopyHandler));
-  assert('sync-actions.js owns user sync actions, save hooks, and storage-cleanup compatibility export',
+  assert('sync-actions.js owns user sync actions and compatibility exports',
     syncSrc.includes("from './sync-actions.js'")
       && syncActionsSrc.includes('export function configureSyncActions')
       && syncActionsSrc.includes('export function bindSyncActionEvents')
@@ -398,14 +400,29 @@ await import('../js/settings.js');
       && syncActionsSrc.includes('export async function pushCurrentProfile')
       && syncActionsSrc.includes('export async function forceResendCurrentProfile')
       && syncActionsSrc.includes("from './sync-storage-cleanup.js'")
+      && syncActionsSrc.includes("from './sync-save-hooks.js'")
       && syncActionsSrc.includes('export async function syncNow')
       && syncActionsSrc.includes('export async function pushAllProfiles')
-      && syncActionsSrc.includes('export function onDataSaved')
-      && syncActionsSrc.includes('export function onChatSaved')
-      && syncActionsSrc.includes('export function onProfileSaved')
       && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved', 'onProfileSaved']));
   assert('service worker precaches sync-actions.js',
     serviceWorkerSrc.includes("'/js/sync-actions.js'"));
+  assert('sync-save-hooks.js owns save/chat/profile debounce hooks',
+    syncSrc.includes("from './sync-save-hooks.js'")
+      && syncSaveHooksSrc.includes('export function configureSyncSaveHooks')
+      && syncSaveHooksSrc.includes('export function bindSyncSaveHookEvents')
+      && syncSaveHooksSrc.includes('export function clearSyncSaveTimers')
+      && syncSaveHooksSrc.includes('export function onDataSaved')
+      && syncSaveHooksSrc.includes('export function onChatSaved')
+      && syncSaveHooksSrc.includes('export function onProfileSaved')
+      && syncSaveHooksSrc.includes('const _debounceTimers = new Map()')
+      && syncSaveHooksSrc.includes('labcharts-ai-settings-local-changed')
+      && syncLifecycleSrc.includes("from './sync-save-hooks.js'"));
+  assert('sync-actions.js re-exports save hooks for compatibility',
+    syncActions.onDataSaved === syncSaveHooks.onDataSaved
+      && syncActions.onChatSaved === syncSaveHooks.onChatSaved
+      && syncActions.onProfileSaved === syncSaveHooks.onProfileSaved);
+  assert('service worker precaches sync-save-hooks.js',
+    serviceWorkerSrc.includes("'/js/sync-save-hooks.js'"));
   assert('sync-storage-cleanup.js owns emergency sync storage compaction',
     syncSrc.includes("from './sync-storage-cleanup.js'")
       && syncWindowBindingsSrc.includes("from './sync-storage-cleanup.js'")
@@ -567,15 +584,15 @@ await import('../js/settings.js');
     /renameProfile[\s\S]{0,500}queueProfileSync\(profileId\)/.test(profileSrc)
       && /updateProfileMeta[\s\S]{0,800}queueProfileSync\(profileId\)/.test(profileSrc)
       && /setProfileLocation[\s\S]{0,500}queueProfileSync\(p\.id\)/.test(profileSrc));
-  assert('sync-actions exports profile metadata sync hook',
-    syncActionsSrc.includes('export function onProfileSaved')
-      && syncActionsSrc.includes('const _profileSyncTimers = new Map()')
-      && syncActionsSrc.includes('readProfileImportedData(profileId, importedData)')
+  assert('sync-save-hooks exports profile metadata sync hook',
+    syncSaveHooksSrc.includes('export function onProfileSaved')
+      && syncSaveHooksSrc.includes('const _profileSyncTimers = new Map()')
+      && syncSaveHooksSrc.includes('readProfileImportedData(profileId, importedData)')
       && exportBlockIncludes(syncSrc, ['onProfileSaved']));
   assert('profile metadata sync retries while Evolu is busy or not ready',
-    syncActionsSrc.includes('function scheduleProfilePush')
-      && /scheduleProfilePush[\s\S]{0,600}attempt < 60/.test(syncActionsSrc)
-      && /scheduleProfilePush[\s\S]{0,1000}_pushProfile\(profileId,\s*data\)/.test(syncActionsSrc));
+    syncSaveHooksSrc.includes('function scheduleProfilePush')
+      && /scheduleProfilePush[\s\S]{0,600}attempt < 60/.test(syncSaveHooksSrc)
+      && /scheduleProfilePush[\s\S]{0,1000}_pushProfile\(profileId,\s*data\)/.test(syncSaveHooksSrc));
 
   // Tombstone-aware pull: a remote delete from another device wipes the
   // local copy on next sync, so multi-device cleanup completes itself.
@@ -911,8 +928,8 @@ await import('../js/settings.js');
   assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
   assert('applyAISettings refreshes chat provider UI on remote changes', syncApplySrc.includes('window.updateChatHeaderModel?.()') && syncApplySrc.includes('window.refreshWebSearchToggle?.()'));
   assert('AI setting changes schedule a sync push',
-    syncActionsSrc.includes("labcharts-ai-settings-local-changed")
-      && syncActionsSrc.includes('_pushProfile(profileId, importedData)'));
+    syncSaveHooksSrc.includes("labcharts-ai-settings-local-changed")
+      && syncSaveHooksSrc.includes('_pushProfile(profileId, importedData)'));
 
   // ═══════════════════════════════════════
   // 4. MNEMONIC RESTORE
@@ -991,12 +1008,12 @@ await import('../js/settings.js');
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
   // blob (~500 KB pre-gzip), so coalescing editing bursts directly reduces
   // the rate at which the relay's per-owner quota fills.
-  assert('onDataSaved has 10s debounce', syncActionsSrc.includes('}, 10_000)'));
-  assert('onDataSaved captures profileId at schedule time', syncActionsSrc.includes('const profileId = state.currentProfile') && syncActionsSrc.includes('_pushProfile(profileId'));
+  assert('onDataSaved has 10s debounce', syncSaveHooksSrc.includes('}, 10_000)'));
+  assert('onDataSaved captures profileId at schedule time', syncSaveHooksSrc.includes('const profileId = state.currentProfile') && syncSaveHooksSrc.includes('_pushProfile(profileId'));
   assert('onDataSaved retries while sync is not ready or a push is in-flight',
-    syncActionsSrc.includes('function scheduleProfilePush(profileId, data, attempt = 0)')
-      && syncActionsSrc.includes('!_isEvoluReady() || _isSyncing()')
-      && /export function onDataSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncActionsSrc));
+    syncSaveHooksSrc.includes('function scheduleProfilePush(profileId, data, attempt = 0)')
+      && syncSaveHooksSrc.includes('!_isEvoluReady() || _isSyncing()')
+      && /export function onDataSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncSaveHooksSrc));
   // v1.6.3: skip-decision REMOVED on the pull path. Both timestamp-skip
   // and hash-skip caused users to miss cross-device data (clock-skew
   // and stale hash keys from prior code versions). The mergeImportedData
@@ -1237,15 +1254,15 @@ await import('../js/settings.js');
       else sessionStorage.setItem('labcharts-chat-local-lock-until', oldLock);
     }
   }
-  const onChatSavedSrc = syncActionsSrc.slice(syncActionsSrc.indexOf('export function onChatSaved'), syncActionsSrc.indexOf('export function onChatSaved') + 600);
+  const onChatSavedSrc = syncSaveHooksSrc.slice(syncSaveHooksSrc.indexOf('export function onChatSaved'), syncSaveHooksSrc.indexOf('export function onChatSaved') + 600);
   assert('onChatSaved marks local chat before debounce',
     onChatSavedSrc.includes('markChatDataLocal();')
       && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_isSyncEnabled() || !_isEvoluReady()) return;'));
   assert('Display prefs synced', syncPayloadCollectorsSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadCollectorsSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', exportBlockIncludes(syncSrc, ['onChatSaved']));
-  assert('onChatSaved has debounce', syncActionsSrc.includes('_chatSyncTimers') && syncActionsSrc.includes('10000'));
+  assert('onChatSaved has debounce', syncSaveHooksSrc.includes('_chatSyncTimers') && syncSaveHooksSrc.includes('10000'));
   assert('onChatSaved uses the profile push retry helper instead of one-shot push while syncing',
-    /export function onChatSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncActionsSrc));
+    /export function onChatSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncSaveHooksSrc));
   assert('chat thread deletes record tombstones before syncing index',
     await fetchWithRetry('js/chat-threads.js').then(s => s.includes('recordDeletedChatThread(threadId)')
       && s.indexOf('recordDeletedChatThread(threadId)') < s.indexOf('state.chatThreads = state.chatThreads.filter')));
