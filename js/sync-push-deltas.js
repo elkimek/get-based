@@ -43,7 +43,7 @@ export async function planProfileDeltas(profileId, importedData) {
   // telemetry + the diagnose UI render them uniformly with the array
   // arrays.
   for (const mapName of DELTA_MAPS) {
-        // Dotted-path support (e.g. `genetics.snps`) - same getAt walk
+    // Dotted-path support (e.g. `genetics.snps`) - same getAt walk
     // as the array planner. Flat names hit the obvious top-level.
     const obj = mapName.includes('.') ? getAt(importedData, mapName) : importedData[mapName];
     try {
@@ -92,7 +92,7 @@ export async function planProfileDeltas(profileId, importedData) {
   return { deltaPlans, deltaOpCount };
 }
 
-export function applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, debug = () => {}) {
+export function applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, debug) {
   const _debug = typeof debug === 'function' ? debug : () => {};
   // Phase 1 of CRDT-delta refactor: apply the planned per-array
   // deltas now that the blob committed. Snapshot is committed only
