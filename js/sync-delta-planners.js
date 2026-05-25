@@ -219,7 +219,7 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   // device pulled the wipe and lost their genetics.snps.
   // The user can still genuinely empty a map — they just have to do
   // it in two steps (or via explicit clear-data flows that bypass the
-  // planner). Logged at info so debug mode shows when it fires.
+  // planner). Logged at warn so debug mode shows when it fires.
   const prevCount = Object.keys(prev).length;
   const nextCount = Object.keys(next).length;
   const wouldEmitMassiveTombstone = prevCount >= 20 && nextCount < prevCount * 0.5;
