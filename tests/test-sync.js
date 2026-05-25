@@ -42,6 +42,7 @@ await import('../js/settings.js');
   const syncDisableCleanupSrc = await fetchWithRetry('js/sync-disable-cleanup.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
+  const syncDeltaMergeSrc = await fetchWithRetry('js/sync-delta-merge.js');
   const syncDeltaRegistrySrc = await fetchWithRetry('js/sync-delta-registry.js');
   const syncDeltaObservabilitySrc = await fetchWithRetry('js/sync-delta-observability.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
@@ -69,7 +70,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -177,10 +178,19 @@ await import('../js/settings.js');
     syncSrc.includes("from './sync-delta.js'")
       && syncDeltaSrc.includes("from './sync-delta-registry.js'")
       && syncDeltaSrc.includes("from './sync-delta-observability.js'")
+      && syncDeltaSrc.includes("from './sync-delta-merge.js'")
+      && syncDeltaSrc.includes('configureSyncDeltaMerge')
       && syncDeltaSrc.includes('export async function _planArrayDelta')
-      && syncDeltaSrc.includes('export async function _mergeItemRowsIntoImported'));
+      && syncDeltaSrc.includes('export { _mergeItemRowsIntoImported }'));
   assert('service worker precaches sync-delta.js',
     serviceWorkerSrc.includes("'/js/sync-delta.js'"));
+  assert('sync-delta-merge.js owns pull-side itemRow merge overlay',
+    syncDeltaMergeSrc.includes('export function configureSyncDeltaMerge')
+      && syncDeltaMergeSrc.includes('export async function _mergeItemRowsIntoImported')
+      && syncDeltaMergeSrc.includes('recordPullDeltaSurface')
+      && syncDeltaMergeSrc.includes('resetPullDeltaSnapshot'));
+  assert('service worker precaches sync-delta-merge.js',
+    serviceWorkerSrc.includes("'/js/sync-delta-merge.js'"));
   assert('sync-delta-registry.js owns delta surfaces and identity config',
     syncDeltaRegistrySrc.includes('export const DELTA_ARRAYS')
       && syncDeltaRegistrySrc.includes('export const DELTA_MAPS')
@@ -196,8 +206,8 @@ await import('../js/settings.js');
       && syncDeltaObservabilitySrc.includes('export function getDeltaTelemetry')
       && syncDeltaObservabilitySrc.includes('export function resetDeltaTelemetry')
       && syncDeltaObservabilitySrc.includes('export function getDeltaCutoverReadiness')
-      && syncDeltaSrc.includes('resetPullDeltaSnapshot(profileId)')
-      && syncDeltaSrc.includes('recordPullDeltaSurface(arrayName'));
+      && syncDeltaMergeSrc.includes('resetPullDeltaSnapshot(profileId)')
+      && syncDeltaMergeSrc.includes('recordPullDeltaSurface(arrayName'));
   assert('service worker precaches sync-delta-observability.js',
     serviceWorkerSrc.includes("'/js/sync-delta-observability.js'"));
   assert('sync-tombstones.js owns remote profile delete helpers',
@@ -606,20 +616,20 @@ await import('../js/settings.js');
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncDeltaSrc));
+    /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncDeltaMergeSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
   // pre-populate the row-side tombs Set, otherwise a peer pushing the
   // row back as live (before pulling our delete) re-inserts it locally.
   assert('_mergeItemRowsIntoImported seeds tombs from local blob _deleted before walking rows',
-    /imported\.\s*_deleted[\s\S]{0,200}\[arrayName\][\s\S]{0,200}tombs\.add/.test(syncDeltaSrc));
+    /imported\.\s*_deleted[\s\S]{0,200}\[arrayName\][\s\S]{0,200}tombs\.add/.test(syncDeltaMergeSrc));
   assert('_mergeItemRowsIntoImported skips inserting items that match a blob-tombstoned itemId',
-    /tombs\.has\(itemId\)\)\s*continue/.test(syncDeltaSrc));
+    /tombs\.has\(itemId\)\)\s*continue/.test(syncDeltaMergeSrc));
   assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
-    /idx\s*!==\s*undefined[\s\S]{0,200}nextArr\[idx\]\s*=\s*item/.test(syncDeltaSrc));
+    /idx\s*!==\s*undefined[\s\S]{0,200}nextArr\[idx\]\s*=\s*item/.test(syncDeltaMergeSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads via capped variant',
-    /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncDeltaSrc));
+    /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncDeltaMergeSrc));
   assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',
-    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncDeltaSrc));
+    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncDeltaMergeSrc));
 
   // Snapshot persistence contract
   assert('Delta snapshot key namespaced per (profile, arrayName)',
@@ -1039,7 +1049,7 @@ await import('../js/settings.js');
   assert('_mergeItemRowsIntoImported uses itemIdFn for replace-or-insert match',
     /_mergeItemRowsIntoImported[\s\S]{0,12000}DELTA_ARRAY_CONFIG\[arrayName\][\s\S]{0,25000}itemIdFn\(nextArr\[i\]\)/.test(deltaSearchSrc));
   assert('_mergeItemRowsIntoImported verifies payload itemId matches row column',
-    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncDeltaSrc));
+    /itemIdFn\(item\)\s*===\s*row\.itemId/.test(syncDeltaMergeSrc));
 
   // Live: round-trip the changeHistory itemIdFn — verify a synth itemId
   // for a realistic recordChange entry is allowlist-safe and stable.
@@ -1653,7 +1663,7 @@ await import('../js/settings.js');
   assert('_gunzipToStringCapped throws on cap exceeded',
     /total\s*>\s*maxBytes[\s\S]{0,300}refusing to trust/.test(syncPayloadSrc));
   assert('All per-row gunzip sites use the capped variant',
-    (syncDeltaSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length >= 4);
+    (deltaSearchSrc.match(/_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/g) || []).length >= 4);
   // Blob path also routes through _gunzipToStringCapped, with the
   // 5 MB MAX_SYNC_PAYLOAD_BYTES cap — a single capped helper is the
   // only gunzip entry point post-2026-05-10 audit (the bare

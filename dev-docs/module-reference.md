@@ -1380,7 +1380,8 @@ Not separately documented because their exports are best read from source — ke
 - `sync-push.js` — outbound profile push path, in-flight push watchdog, Phase 2 drift auto-revert, per-row delta planning/application, and relay byte telemetry.
 - `sync-pull.js` — inbound pull path; profile-row dedupe, blob/per-row merge, profile/chat/display apply, active-view refresh, and rebroadcast gating.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
-- `sync-delta.js` — per-row CRDT delta boundary; array/map/scalar planners, itemRow merge overlay, snapshot advancement gates, and compatibility re-exports for delta telemetry/readiness.
+- `sync-delta.js` — per-row CRDT delta boundary; array/map/scalar planners, apply helpers, snapshot advancement gates, and compatibility re-exports for delta telemetry/readiness.
+- `sync-delta-merge.js` — pull-side itemRow merge overlay; applies per-row array/map/scalar rows into importedData after blob merge.
 - `sync-delta-registry.js` — DELTA_ARRAYS/MAPS/SCALARS registration plus per-surface itemId/keyId config and identity helpers.
 - `sync-delta-observability.js` — per-push delta telemetry, pull-side row-count snapshots, and Phase 2 cutover readiness checks.
 - `sync-apply.js` — inbound sync apply helpers for AI provider settings, chat thread/message data, display prefs, and local freshness locks that protect just-edited local chat/settings from stale remote rows.
