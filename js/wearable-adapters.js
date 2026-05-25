@@ -89,7 +89,7 @@ export const CANONICAL_METRICS = {
   sleep_hr_avg:         { id: 'sleep_hr_avg',         label: 'Sleep HR',    sub: 'avg',   unit: 'bpm', worseWhen: 'up'     }, // distinct from rhr (= hr_min) — average overnight
   sleep_breathing_rate: { id: 'sleep_breathing_rate', label: 'Breathing',   sub: 'sleep', unit: 'rpm', worseWhen: 'up'     },
   sleep_snoring_min:    { id: 'sleep_snoring_min',    label: 'Snoring',     sub: '',      unit: 'min', worseWhen: 'up'     },
-  sleep_breath_disturb: { id: 'sleep_breath_disturb', label: 'Apnea',       sub: 'level', unit: '',    worseWhen: 'up'     }, // breathing-disturbances intensity 0-100 (Withings' apnea-class signal)
+  sleep_breath_disturb: { id: 'sleep_breath_disturb', label: 'Apnea',       sub: 'level', unit: '',    worseWhen: 'up'     }, // breathing-disturbances intensity 0-100 — populated by Withings (apnea-class signal) and Oura (daily_spo2.breathing_disturbance_index). Both vendors use the same nominal 0-100 scale; sanity-check alignment if cross-source swap shows a step change.
 };
 
 // For most wearable metrics, 0 is a sentinel for "no measurement" — the
@@ -182,6 +182,13 @@ export const ADAPTERS = [
       cardio_age:       { endpoint: 'v2/usercollection/daily_cardiovascular_age', field: 'vascular_age' },
       spo2_avg:         { endpoint: 'v2/usercollection/daily_spo2',              field: 'spo2_percentage' },
       body_temp_delta:  { endpoint: 'v2/usercollection/daily_readiness',         field: 'temperature_deviation' },
+      // BDI lives on the SAME daily_spo2 response as spo2_avg, so no extra
+      // round-trip. Higher = more breathing irregularities (apnea events,
+      // hypopnea, irregular breathing patterns).
+      sleep_breath_disturb: { endpoint: 'v2/usercollection/daily_spo2',          field: 'breathing_disturbance_index' },
+      // Oura Gen3+ surfaces VO₂max from walking sessions in its own endpoint.
+      // Sparse — typically populated a few times a month, not daily.
+      vo2max:           { endpoint: 'v2/usercollection/vO2_max',                 field: 'vo2_max' },
     },
     accountInfo: { endpoint: 'v2/usercollection/personal_info', identityField: 'email' },
   },

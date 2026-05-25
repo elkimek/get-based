@@ -184,6 +184,7 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
   const [
     sleepSessions, dailySleep, dailyReadiness, dailySpo2,
     dailyActivity, dailyStress, dailyResilience, dailyCardioAge,
+    vo2maxSamples,
     heartrateSamples,
   ] = await Promise.all([
     ouraCollect('v2/usercollection/sleep',                    accessToken, params).catch(e => { logDebug('sleep', e); return []; }),
@@ -194,6 +195,10 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
     ouraCollect('v2/usercollection/daily_stress',             accessToken, params).catch(e => { logDebug('daily_stress', e); return []; }),
     ouraCollect('v2/usercollection/daily_resilience',         accessToken, params).catch(e => { logDebug('daily_resilience', e); return []; }),
     ouraCollect('v2/usercollection/daily_cardiovascular_age', accessToken, params).catch(e => { logDebug('daily_cardiovascular_age', e); return []; }),
+    // VO₂max is sparse (Oura emits a value only after a qualifying walk).
+    // Older rings / accounts that have never produced a value will 404; the
+    // .catch swallows it so the rest of the sync continues.
+    ouraCollect('v2/usercollection/vO2_max',                  accessToken, params).catch(e => { logDebug('vO2_max', e); return []; }),
     ouraCollectHeartrate(accessToken, startDt, endDt)
       .catch(e => { logDebug('heartrate', e); return []; }),
   ]);
@@ -211,6 +216,7 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
         activity_score: null, steps: null,
         stress_high_min: null, resilience_level: null, cardio_age: null,
         spo2_avg: null, body_temp_delta: null, glucose_avg: null,
+        sleep_breath_disturb: null, vo2max: null,
       });
     }
     return byDate.get(day);
@@ -255,6 +261,13 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
     if (!d?.day) continue;
     const v = typeof d.spo2_percentage === 'object' ? d.spo2_percentage?.average : d.spo2_percentage;
     if (typeof v === 'number') ensureRow(d.day).spo2_avg = v;
+    // BDI is on the same response — extract while we already have the row.
+    // Oura emits 0 on nights with no usable signal; gtZero() filters those
+    // out so the strip card doesn't read "Apnea: 0" for ring-was-off nights.
+    if (typeof d.breathing_disturbance_index === 'number') {
+      const bdi = gtZero(d.breathing_disturbance_index);
+      if (bdi != null) ensureRow(d.day).sleep_breath_disturb = bdi;
+    }
   }
   for (const d of dailyActivity) {
     if (!d?.day) continue;
@@ -275,6 +288,15 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
   for (const d of dailyCardioAge) {
     if (!d?.day) continue;
     if (typeof d.vascular_age === 'number') ensureRow(d.day).cardio_age = d.vascular_age;
+  }
+  // VO₂max — Oura's vO2_max endpoint emits sparse rows (a value only on days
+  // with a qualifying walking session). Each entry carries `day` + `vo2_max`.
+  // gtZero() guards the 0-sentinel; spanGaps in the chart handles the days
+  // without a value.
+  for (const d of vo2maxSamples) {
+    if (!d?.day) continue;
+    const v = gtZero(d.vo2_max);
+    if (v != null) ensureRow(d.day).vo2max = v;
   }
 
   // Daytime HR aggregate from the heartrate stream — Oura tags each sample as
