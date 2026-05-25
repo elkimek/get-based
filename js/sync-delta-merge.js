@@ -342,13 +342,14 @@ export async function _mergeItemRowsIntoImported(profileId, imported) {
     // the pull replays all of them. Sort by timestamp (newest first via
     // pickTimestamp-equivalent inline) and trim to cap.
     const cap = COMPOSITE_KEYED_ARRAYS.find(c => c.path === arrayName)?.cap;
-    if (cap && imported[arrayName].length > cap) {
-      imported[arrayName].sort((a, b) => {
+    const cappedArr = readArr();
+    if (cap && cappedArr.length > cap) {
+      const trimmed = cappedArr.slice().sort((a, b) => {
         const ta = a?.updatedAt ?? a?.createdAt ?? a?.at ?? (typeof a?.date === 'string' ? Date.parse(a.date) : 0) ?? 0;
         const tb = b?.updatedAt ?? b?.createdAt ?? b?.at ?? (typeof b?.date === 'string' ? Date.parse(b.date) : 0) ?? 0;
         return tb - ta;
       });
-      imported[arrayName] = imported[arrayName].slice(0, cap);
+      writeArr(trimmed.slice(0, cap));
     }
     recordPullDeltaSurface(arrayName, { live: liveById.size, tombstones: tombs.size });
   }

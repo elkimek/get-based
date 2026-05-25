@@ -1741,9 +1741,12 @@ await import('../js/settings.js');
   assert('COMPOSITE_KEYED_ARRAYS exported from data-merge.js',
     await fetchWithRetry('js/data-merge.js').then(s => /export const COMPOSITE_KEYED_ARRAYS/.test(s)));
   assert('Per-row array overlay re-applies cap after merge',
-    /COMPOSITE_KEYED_ARRAYS\.find\(c\s*=>\s*c\.path\s*===\s*arrayName\)\?\.cap[\s\S]{0,500}imported\[arrayName\]\.slice\(0,\s*cap\)/.test(deltaSearchSrc));
+    /COMPOSITE_KEYED_ARRAYS\.find\(c\s*=>\s*c\.path\s*===\s*arrayName\)\?\.cap[\s\S]{0,500}writeArr\(trimmed\.slice\(0,\s*cap\)\)/.test(deltaSearchSrc));
   assert('Cap trim sorts newest-first by updatedAt/createdAt/date',
-    /imported\[arrayName\]\.sort[\s\S]{0,400}updatedAt[\s\S]{0,100}createdAt[\s\S]{0,100}Date\.parse\(a\.date\)/.test(deltaSearchSrc));
+    /cappedArr\.slice\(\)\.sort[\s\S]{0,400}updatedAt[\s\S]{0,100}createdAt[\s\S]{0,100}Date\.parse\(a\.date\)/.test(deltaSearchSrc));
+  assert('Cap trim uses nested-path array helpers instead of imported[arrayName]',
+    /const cappedArr\s*=\s*readArr\(\)[\s\S]{0,500}writeArr\(trimmed\.slice\(0,\s*cap\)\)/.test(deltaSearchSrc)
+      && !/const cap = COMPOSITE_KEYED_ARRAYS\.find[\s\S]{0,500}imported\[arrayName\]/.test(syncDeltaMergeSrc));
 
   // ═══════════════════════════════════════
   // 14g. v1.7.13 P2 cleanup — comments + lat/lon + manualValues collision
