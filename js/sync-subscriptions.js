@@ -9,9 +9,11 @@ let _debug = () => {};
 
 let _pollInterval = null;
 let _relayProbeInterval = null;
-let _lastPollRowCount = -1;
-let _lastPollTombstoneCount = -1;
+let _pendingReceiveTimer = null;
+let _lastPollProfileSignature = '';
+let _lastPollTombstoneSignature = '';
 let _subscriptionFireCount = 0;
+const RECEIVE_RETRY_MS = 500;
 
 export function configureSyncSubscriptions({
   isSyncing,
@@ -42,13 +44,37 @@ export function clearSyncSubscriptionTimers() {
     clearInterval(_relayProbeInterval);
     _relayProbeInterval = null;
   }
-  _lastPollRowCount = -1;
-  _lastPollTombstoneCount = -1;
+  if (_pendingReceiveTimer) {
+    clearTimeout(_pendingReceiveTimer);
+    _pendingReceiveTimer = null;
+  }
+  _lastPollProfileSignature = '';
+  _lastPollTombstoneSignature = '';
   _subscriptionFireCount = 0;
 }
 
 function canReceiveSync() {
   return !_isSyncing() && !_isPulling();
+}
+
+function requestSyncReceive(reason = 'subscription') {
+  if (canReceiveSync()) {
+    _onSyncReceived();
+    return;
+  }
+  if (_pendingReceiveTimer) return;
+  _debug(`${reason}: receive deferred, syncing=${_isSyncing()}, pulling=${_isPulling()}`);
+  _pendingReceiveTimer = setTimeout(() => {
+    _pendingReceiveTimer = null;
+    requestSyncReceive('deferred receive');
+  }, RECEIVE_RETRY_MS);
+}
+
+function rowsSignature(rows) {
+  return (rows || [])
+    .map(row => `${row?.id || ''}:${row?.profileId || ''}:${row?.syncedAt || ''}:${row?.updatedAt || ''}:${row?.isDeleted || 0}`)
+    .sort()
+    .join('|');
 }
 
 export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery } = {}) {
@@ -61,7 +87,7 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
     const syncing = _isSyncing();
     const pulling = _isPulling();
     _debug(`subscription fired (#${_subscriptionFireCount}), syncing: ${syncing}, pulling: ${pulling}`);
-    if (!syncing && !pulling) _onSyncReceived();
+    requestSyncReceive('profile subscription');
   });
 
   // Tombstone rows live outside profileQuery's "isDeleted is not 1"
@@ -69,7 +95,7 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   // so this subscription is required for device B to see device A's
   // profile-delete tombstone without waiting for a full reload.
   evolu.subscribeQuery(tombstoneQuery)(() => {
-    if (canReceiveSync()) _onSyncReceived();
+    requestSyncReceive('tombstone subscription');
   });
 
   // itemRow rows arriving asynchronously must also retrigger the merge
@@ -78,21 +104,24 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   // debounce stretches out). Subscribing here gives near-real-time
   // delta propagation, which is half the point of Phase 1.
   evolu.subscribeQuery(itemRowQuery)(() => {
-    if (canReceiveSync()) _onSyncReceived();
+    requestSyncReceive('itemRow subscription');
   });
 
   // Poll every 30s as safety net - subscribeQuery may miss remote changes.
+  // Compare a row signature, not just counts: chat/profile pushes update the
+  // same profileData row, so row-count-only polling misses exactly the update
+  // shape that users expect to sync in place.
   _pollInterval = setInterval(() => {
-    if (!evolu || !profileQuery || !tombstoneQuery || !canReceiveSync()) return;
+    if (!evolu || !profileQuery || !tombstoneQuery) return;
     const rows = evolu.getQueryRows(profileQuery);
     const tombstones = evolu.getQueryRows(tombstoneQuery);
-    const count = rows?.length ?? 0;
-    const tombstoneCount = tombstones?.length ?? 0;
-    if (count !== _lastPollRowCount || tombstoneCount !== _lastPollTombstoneCount) {
-      _debug(`poll: row/tombstone count changed ${_lastPollRowCount}/${_lastPollTombstoneCount} -> ${count}/${tombstoneCount}, triggering onSyncReceived`);
-      _lastPollRowCount = count;
-      _lastPollTombstoneCount = tombstoneCount;
-      _onSyncReceived();
+    const profileSignature = rowsSignature(rows);
+    const tombstoneSignature = rowsSignature(tombstones);
+    if (profileSignature !== _lastPollProfileSignature || tombstoneSignature !== _lastPollTombstoneSignature) {
+      _debug(`poll: row signature changed, triggering onSyncReceived`);
+      _lastPollProfileSignature = profileSignature;
+      _lastPollTombstoneSignature = tombstoneSignature;
+      requestSyncReceive('poll');
     }
   }, 30000);
 

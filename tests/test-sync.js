@@ -30,6 +30,7 @@ console.log('=== Cross-Device Sync Tests ===\n');
 const { state } = await import('../js/state.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
+const syncSubscriptions = await import('../js/sync-subscriptions.js');
 await import('../js/sync.js');
 await import('../js/settings.js');
 
@@ -546,10 +547,51 @@ await import('../js/settings.js');
   assert('sync-schema.js declares a tombstoneQuery selecting isDeleted = 1 rows',
     /tombstoneQuery\s*=\s*evolu\.createQuery[\s\S]{0,300}isDeleted[",\s]+=[",\s]+1/.test(syncSchemaSrc));
   assert('tombstoneQuery subscription retriggers onSyncReceived',
-    /evolu\.subscribeQuery\(tombstoneQuery\)\([\s\S]{0,250}_onSyncReceived\(\)/.test(syncSubscriptionsSrc));
-  assert('poll safety tracks tombstone count as well as live rows',
-    syncSubscriptionsSrc.includes('_lastPollTombstoneCount')
-      && /getQueryRows\(tombstoneQuery\)[\s\S]{0,300}tombstoneCount/.test(syncSubscriptionsSrc));
+    /evolu\.subscribeQuery\(tombstoneQuery\)\([\s\S]{0,250}requestSyncReceive/.test(syncSubscriptionsSrc));
+  assert('sync subscriptions defer receive while a push/pull is in-flight',
+    syncSubscriptionsSrc.includes('function requestSyncReceive')
+      && syncSubscriptionsSrc.includes('_pendingReceiveTimer')
+      && /setTimeout\([\s\S]{0,250}requestSyncReceive\('deferred receive'\)/.test(syncSubscriptionsSrc));
+  assert('poll safety tracks row signatures, not just row counts',
+    syncSubscriptionsSrc.includes('_lastPollProfileSignature')
+      && syncSubscriptionsSrc.includes('_lastPollTombstoneSignature')
+      && syncSubscriptionsSrc.includes('function rowsSignature')
+      && syncSubscriptionsSrc.includes('row?.syncedAt'));
+  {
+    syncSubscriptions.clearSyncSubscriptionTimers();
+    let syncing = true;
+    let pulling = false;
+    let received = 0;
+    const profileQuery = { name: 'profiles' };
+    const tombstoneQuery = { name: 'tombstones' };
+    const itemRowQuery = { name: 'itemRows' };
+    const callbacks = new Map();
+    const fakeEvolu = {
+      subscribeQuery(query) {
+        return cb => callbacks.set(query, cb);
+      },
+      subscribeError() {},
+      getQueryRows() { return []; },
+    };
+    syncSubscriptions.configureSyncSubscriptions({
+      isSyncing: () => syncing,
+      isPulling: () => pulling,
+      onSyncReceived: () => { received++; },
+    });
+    syncSubscriptions.bindSyncSubscriptions({ evolu: fakeEvolu, profileQuery, tombstoneQuery, itemRowQuery });
+    callbacks.get(profileQuery)?.();
+    assert('subscription receive is not dropped while syncing', received === 0);
+    syncing = false;
+    await new Promise(r => setTimeout(r, 650));
+    assert('deferred subscription receive runs after syncing clears', received === 1);
+    pulling = true;
+    callbacks.get(itemRowQuery)?.();
+    assert('itemRow receive is deferred while pulling', received === 1);
+    pulling = false;
+    await new Promise(r => setTimeout(r, 650));
+    assert('deferred itemRow receive runs after pulling clears', received === 2);
+    syncSubscriptions.clearSyncSubscriptionTimers();
+  }
   assert('Sync diagnose includes tombstone rows and deleted-state column',
     /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSrc)
       && syncDiagnoseUiSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
@@ -704,7 +746,7 @@ await import('../js/settings.js');
   assert('itemRowQuery loaded with profileQuery + tombstoneQuery',
     /Promise\.all\(\[[\s\S]{0,400}evolu\.loadQuery\(itemRowQuery\)/.test(syncInitSrc));
   assert('itemRow subscription retriggers onSyncReceived',
-    /evolu\.subscribeQuery\(itemRowQuery\)\([\s\S]{0,200}_onSyncReceived\(\)/.test(syncSubscriptionsSrc));
+    /evolu\.subscribeQuery\(itemRowQuery\)\([\s\S]{0,200}requestSyncReceive/.test(syncSubscriptionsSrc));
 
   // DELTA_ARRAYS list (high-velocity arrays)
   assert('DELTA_ARRAYS includes sunSessions + lightDevices',
