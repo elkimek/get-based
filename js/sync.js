@@ -14,9 +14,6 @@ import {
   isSyncEnabled, primeSyncState,
 } from './sync-settings-state.js';
 import {
-  getDeltaCutoverReadiness, getDeltaTelemetry, resetDeltaTelemetry,
-} from './sync-delta.js';
-import {
   applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
   rejectPendingTombstone,
 } from './sync-tombstones.js';

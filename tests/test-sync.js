@@ -220,7 +220,7 @@ await import('../js/settings.js');
   assert('service worker precaches sync-chat-apply.js',
     serviceWorkerSrc.includes("'/js/sync-chat-apply.js'"));
   assert('sync-delta.js owns per-row delta facade/apply wiring',
-    syncSrc.includes("from './sync-delta.js'")
+    syncConfigureSrc.includes("from './sync-delta.js'")
       && syncDeltaSrc.includes("from './sync-delta-planners.js'")
       && syncDeltaSrc.includes("from './sync-delta-snapshot.js'")
       && syncDeltaSrc.includes("from './sync-delta-observability.js'")
