@@ -333,11 +333,18 @@ assert('CSS has focus-visible thread list outline', cssSrc.includes('.chat-threa
 // 18. ensureActiveThread
 // ═══════════════════════════════════════════════
 console.log('18. ensureActiveThread');
+const chatLockKey = 'labcharts-chat-local-lock-until';
+const previousChatLock = sessionStorage.getItem(chatLockKey);
+sessionStorage.removeItem(chatLockKey);
 st.chatThreads = [];
 st.currentThreadId = null;
 window.ensureActiveThread();
 assert('creates thread when none exist', st.chatThreads.length === 1);
 assert('sets currentThreadId', !!st.currentThreadId);
+assert('auto-created empty thread does not mark chat as locally edited',
+  sessionStorage.getItem(chatLockKey) === null);
+if (previousChatLock === null) sessionStorage.removeItem(chatLockKey);
+else sessionStorage.setItem(chatLockKey, previousChatLock);
 
 const oldTs = new Date(Date.now() - 100000).toISOString();
 const newTs = new Date().toISOString();

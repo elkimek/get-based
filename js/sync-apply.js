@@ -60,8 +60,20 @@ export function getChatDataLocalLockRemainingMs(profileId) {
   return Math.max(0, getLocalChatLockUntil(profileId) - Date.now());
 }
 
+function hasMeaningfulLocalChatData(profileId) {
+  try {
+    const raw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
+    const threads = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(threads)) return false;
+    return threads.some(thread => (Number(thread?.messageCount) || 0) > 0);
+  } catch {
+    return false;
+  }
+}
+
 function shouldKeepLocalChatData(profileId) {
-  return getChatDataLocalLockRemainingMs(profileId) > 0;
+  return getChatDataLocalLockRemainingMs(profileId) > 0
+    && hasMeaningfulLocalChatData(profileId);
 }
 
 function threadUpdatedAtMs(thread) {

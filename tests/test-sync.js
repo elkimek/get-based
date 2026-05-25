@@ -1040,6 +1040,7 @@ await import('../js/settings.js');
     const threadsKey = `labcharts-${profileId}-chat-threads`;
     const keepKey = `labcharts-${profileId}-chat-t_keep`;
     const goneKey = `labcharts-${profileId}-chat-t_gone`;
+    const remoteKey = `labcharts-${profileId}-chat-t_remote`;
     const deletedKey = `labcharts-${profileId}-chat-deleted-threads`;
     const oldLock = sessionStorage.getItem('labcharts-chat-local-lock-until');
     const oldDeleted = localStorage.getItem(deletedKey);
@@ -1070,11 +1071,24 @@ await import('../js/settings.js');
       assert('applyChatData functional: explicit remote tombstone removes deleted thread message key',
         localStorage.getItem(goneKey) === null
           && !JSON.parse(localStorage.getItem(threadsKey) || '[]').some(t => t.id === 'gone'));
+
+      sessionStorage.setItem('labcharts-chat-local-lock-until', String(Date.now() + 90000));
+      localStorage.setItem(threadsKey, JSON.stringify([
+        { id: 'empty', name: 'New Conversation', messageCount: 0, updatedAt: '2026-05-24T10:10:00.000Z' },
+      ]));
+      const emptyShellApplied = await syncApply.applyChatData(profileId, {
+        threads: [{ id: 'remote', messageCount: 1, updatedAt: '2026-05-24T10:15:00.000Z' }],
+        messages: { remote: [{ role: 'user', content: 'from device A' }] },
+      });
+      assert('applyChatData functional: empty local thread shell does not block remote chat under lock',
+        emptyShellApplied === true
+          && JSON.parse(localStorage.getItem(remoteKey) || '[]')?.[0]?.content === 'from device A');
     } finally {
       state.currentProfile = prevProfileId;
       localStorage.removeItem(threadsKey);
       localStorage.removeItem(keepKey);
       localStorage.removeItem(goneKey);
+      localStorage.removeItem(remoteKey);
       if (oldDeleted === null) localStorage.removeItem(deletedKey);
       else localStorage.setItem(deletedKey, oldDeleted);
       if (oldLock === null) sessionStorage.removeItem('labcharts-chat-local-lock-until');

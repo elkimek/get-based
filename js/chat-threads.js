@@ -107,9 +107,9 @@ export function loadChatThreads() {
   }
 }
 
-export function saveChatThreadIndex() {
+export function saveChatThreadIndex({ sync = true } = {}) {
   localStorage.setItem(getChatThreadsKey(), JSON.stringify(state.chatThreads));
-  onChatSaved();
+  if (sync) onChatSaved();
 }
 
 export function ensureActiveThread() {
@@ -122,11 +122,11 @@ export function ensureActiveThread() {
     const sorted = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     state.currentThreadId = sorted[0].id;
   } else {
-    createNewThread();
+    createNewThread({ sync: false });
   }
 }
 
-export function createNewThread() {
+export function createNewThread({ sync = true } = {}) {
   const id = generateThreadId();
   const now = new Date().toISOString();
   const p = window.getActivePersonality?.() || { name: 'Default', icon: '' };
@@ -142,7 +142,7 @@ export function createNewThread() {
   };
   state.chatThreads.unshift(thread);
   pruneOldThreads();
-  saveChatThreadIndex();
+  saveChatThreadIndex({ sync });
   window.cleanupDiscussionState?.();
   // Reset to default personality for new thread
   state.currentChatPersonality = 'default';
