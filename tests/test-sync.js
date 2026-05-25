@@ -67,6 +67,10 @@ await import('../js/settings.js');
   const syncDeltaSurfaceConfigSrc = await fetchWithRetry('js/sync-delta-surface-config.js');
   const syncDeltaIdSrc = await fetchWithRetry('js/sync-delta-id.js');
   const syncDeltaObservabilitySrc = await fetchWithRetry('js/sync-delta-observability.js');
+  const syncDeltaObservabilityContextSrc = await fetchWithRetry('js/sync-delta-observability-context.js');
+  const syncDeltaPullSnapshotSrc = await fetchWithRetry('js/sync-delta-pull-snapshot.js');
+  const syncDeltaTelemetrySrc = await fetchWithRetry('js/sync-delta-telemetry.js');
+  const syncDeltaReadinessSrc = await fetchWithRetry('js/sync-delta-readiness.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
@@ -109,7 +113,8 @@ await import('../js/settings.js');
   const syncDeltaPlannerSearchSrc = `${syncDeltaPlannersSrc}\n${syncDeltaPlannerContextSrc}\n${syncDeltaArrayPlannerSrc}\n${syncDeltaMapPlannerSrc}\n${syncDeltaScalarPlannerSrc}`;
   const syncDeltaMergeSearchSrc = `${syncDeltaMergeShapesSrc}\n${syncDeltaRowCodecSrc}\n${syncDeltaArrayMergeSrc}\n${syncDeltaMapMergeSrc}\n${syncDeltaScalarMergeSrc}`;
   const syncDeltaRegistrySearchSrc = `${syncDeltaRegistrySrc}\n${syncDeltaSurfacesSrc}\n${syncDeltaSurfaceConfigSrc}\n${syncDeltaIdSrc}`;
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
+  const syncDeltaObservabilitySearchSrc = `${syncDeltaObservabilitySrc}\n${syncDeltaObservabilityContextSrc}\n${syncDeltaPullSnapshotSrc}\n${syncDeltaTelemetrySrc}\n${syncDeltaReadinessSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySearchSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -311,16 +316,28 @@ await import('../js/settings.js');
       && serviceWorkerSrc.includes("'/js/sync-delta-surfaces.js'")
       && serviceWorkerSrc.includes("'/js/sync-delta-surface-config.js'")
       && serviceWorkerSrc.includes("'/js/sync-delta-id.js'"));
-  assert('sync-delta-observability.js owns delta telemetry and readiness checks',
+  assert('sync-delta-observability.js owns delta observability facade',
     syncDeltaObservabilitySrc.includes('export function configureSyncDeltaObservability')
-      && syncDeltaObservabilitySrc.includes('export function _recordPushTelemetry')
-      && syncDeltaObservabilitySrc.includes('export function getDeltaTelemetry')
-      && syncDeltaObservabilitySrc.includes('export function resetDeltaTelemetry')
-      && syncDeltaObservabilitySrc.includes('export function getDeltaCutoverReadiness')
+      && syncDeltaObservabilitySrc.includes("from './sync-delta-observability-context.js'")
+      && syncDeltaObservabilitySrc.includes("from './sync-delta-pull-snapshot.js'")
+      && syncDeltaObservabilitySrc.includes("from './sync-delta-telemetry.js'")
+      && syncDeltaObservabilitySrc.includes("from './sync-delta-readiness.js'"));
+  assert('sync delta observability modules own pull snapshots, telemetry, and readiness',
+    syncDeltaObservabilityContextSrc.includes('export function configureSyncDeltaObservabilityContext')
+      && syncDeltaPullSnapshotSrc.includes('export function resetPullDeltaSnapshot')
+      && syncDeltaPullSnapshotSrc.includes('export function recordPullDeltaSurface')
+      && syncDeltaTelemetrySrc.includes('export function _recordPushTelemetry')
+      && syncDeltaTelemetrySrc.includes('export function getDeltaTelemetry')
+      && syncDeltaTelemetrySrc.includes('export function resetDeltaTelemetry')
+      && syncDeltaReadinessSrc.includes('export function getDeltaCutoverReadiness')
       && syncDeltaMergeSrc.includes('resetPullDeltaSnapshot(profileId)')
       && syncDeltaMergeSearchSrc.includes('recordPullDeltaSurface(arrayName'));
-  assert('service worker precaches sync-delta-observability.js',
-    serviceWorkerSrc.includes("'/js/sync-delta-observability.js'"));
+  assert('service worker precaches sync delta observability modules',
+    serviceWorkerSrc.includes("'/js/sync-delta-observability.js'")
+      && serviceWorkerSrc.includes("'/js/sync-delta-observability-context.js'")
+      && serviceWorkerSrc.includes("'/js/sync-delta-pull-snapshot.js'")
+      && serviceWorkerSrc.includes("'/js/sync-delta-telemetry.js'")
+      && serviceWorkerSrc.includes("'/js/sync-delta-readiness.js'"));
   assert('sync-tombstones.js owns remote profile delete helpers',
     syncSrc.includes("from './sync-tombstones.js'")
       && syncTombstonesSrc.includes('export async function deleteProfileFromRelay')
