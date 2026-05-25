@@ -163,6 +163,7 @@ const APP_SHELL = [
   '/js/sync-diagnose-cutover-actions.js',
   '/js/sync-diagnose-actions.js',
   '/js/sync-diagnose-ui.js',
+  '/js/sync-diagnose-render.js',
   '/js/sync-actions.js',
   '/js/sync-push.js',
   '/js/sync-push-deltas.js',

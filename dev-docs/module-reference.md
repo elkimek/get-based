@@ -1398,7 +1398,8 @@ Not separately documented because their exports are best read from source — ke
 - `sync-environment.js` — relay URL selection, relay connectivity probing, and browser capability checks for Evolu sync.
 - `sync-identity.js` — BIP-39/QR lazy loaders plus mnemonic read/restore helpers for Evolu owner identity.
 - `sync-diagnostics.js` — Evolu row diagnostics snapshot and copy-text formatting for the Sync Diagnose modal.
-- `sync-diagnose-ui.js` — Sync Diagnose modal rendering, copy snapshot handling, and compatibility re-exports for Diagnose action handlers.
+- `sync-diagnose-ui.js` — Sync Diagnose modal lifecycle, copy snapshot handling, and compatibility re-exports for Diagnose action handlers.
+- `sync-diagnose-render.js` — Pure Sync Diagnose panel/table markup for identity, relay health, relay storage, delta telemetry, lean-sync readiness, and local Evolu rows.
 - `sync-diagnose-actions.js` — Sync Diagnose action facade; keeps the public imports stable while delegating to focused action modules.
 - `sync-diagnose-actions-context.js` — Shared injected dependencies for Diagnose actions, including sync enable/restore, push, cutover toggles, and modal refresh.
 - `sync-diagnose-relay-actions.js` — Sync Diagnose relay storage refresh and self-serve compaction handlers.

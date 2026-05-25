@@ -60,6 +60,7 @@ await import('../js/settings.js');
   const syncDiagnoseIdentityActionsSrc = await fetchWithRetry('js/sync-diagnose-identity-actions.js');
   const syncDiagnoseCutoverActionsSrc = await fetchWithRetry('js/sync-diagnose-cutover-actions.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
+  const syncDiagnoseRenderSrc = await fetchWithRetry('js/sync-diagnose-render.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
   const syncPushDeltasSrc = await fetchWithRetry('js/sync-push-deltas.js');
@@ -84,7 +85,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeShapesSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeShapesSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -307,6 +308,7 @@ await import('../js/settings.js');
       && syncDiagnoseUiSrc.includes('export function configureSyncDiagnoseUI')
       && syncDiagnoseUiSrc.includes('configureSyncDiagnoseActions({')
       && syncDiagnoseUiSrc.includes("from './sync-diagnose-actions.js'")
+      && syncDiagnoseUiSrc.includes("from './sync-diagnose-render.js'")
       && syncDiagnoseUiSrc.includes('export async function showSyncDiagnose')
       && syncDiagnoseUiSrc.includes('export async function copySyncDiagnose')
       && syncDiagnoseUiSrc.includes('confirmBackfillBlockers, confirmCompactRelay, confirmDisablePhase2')
@@ -315,6 +317,14 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['showSyncDiagnose']));
   assert('service worker precaches sync-diagnose-ui.js',
     serviceWorkerSrc.includes("'/js/sync-diagnose-ui.js'"));
+  assert('sync-diagnose-render.js owns Sync Diagnose panel markup',
+    syncDiagnoseRenderSrc.includes('export function renderSyncDiagnoseModal')
+      && syncDiagnoseRenderSrc.includes('function renderRelayHealthPanel')
+      && syncDiagnoseRenderSrc.includes('function renderRelayStoragePanel')
+      && syncDiagnoseRenderSrc.includes('function renderDeltaTelemetryPanel')
+      && syncDiagnoseRenderSrc.includes('function renderCutoverPanel'));
+  assert('service worker precaches sync-diagnose-render.js',
+    serviceWorkerSrc.includes("'/js/sync-diagnose-render.js'"));
   assert('sync-diagnose-actions.js is the Sync Diagnose action facade',
     syncDiagnoseActionsSrc.includes('export function configureSyncDiagnoseActions')
       && syncDiagnoseActionsSrc.includes("from './sync-diagnose-actions-context.js'")
@@ -594,7 +604,7 @@ await import('../js/settings.js');
   }
   assert('Sync diagnose includes tombstone rows and deleted-state column',
     /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSrc)
-      && syncDiagnoseUiSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
+      && syncDiagnoseRenderSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
     /applyRemoteTombstones[\s\S]{0,4000}wipeProfileLocal\(tombId\)/.test(syncTombstonesSrc)
       && /wipeProfileLocal[\s\S]{0,800}encryptedRemoveItem\(profileStorageKey\(profileId,\s*'imported'\)\)/.test(syncTombstonesSrc));
@@ -700,13 +710,13 @@ await import('../js/settings.js');
   // without SSH access. Refresh probes /self/owner-storage to replace
   // the local estimate with the relay's authoritative value.
   assert('Sync diagnose modal wires the self-serve Compact storage button',
-    /confirmCompactRelay\(this\)/.test(syncDiagnoseUiSrc));
+    /confirmCompactRelay\(this\)/.test(syncDiagnoseRenderSrc));
   assert('Sync diagnose modal wires the Refresh-from-relay button',
-    /refreshRelayStorage\(this\)/.test(syncDiagnoseUiSrc));
+    /refreshRelayStorage\(this\)/.test(syncDiagnoseRenderSrc));
   assert('Sync diagnose relay health is described as local outbound health',
-    syncDiagnoseUiSrc.includes("this device's outbound")
-      && syncDiagnoseUiSrc.includes('This verdict is local/outbound')
-      && syncDiagnoseUiSrc.includes('another device can show healthy or unknown'));
+    syncDiagnoseRenderSrc.includes('device pushed')
+      && syncDiagnoseRenderSrc.includes('This verdict is local/outbound')
+      && syncDiagnoseRenderSrc.includes('another device can show healthy or unknown'));
   assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
     /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncRelayHealthSrc));
   assert('compactOwnerSelfServe catches fetch rejection before checking response status',
@@ -1748,7 +1758,7 @@ await import('../js/settings.js');
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
     /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(deltaSearchSrc));
   assert('Cutover modal button gated when not ready (disabled attribute)',
-    /confirmEnablePhase2\(this\)[\s\S]{0,300}disabled/.test(syncDiagnoseUiSrc));
+    /confirmEnablePhase2\(this\)[\s\S]{0,300}disabled/.test(syncDiagnoseRenderSrc));
   assert('Cutover modal shows lean-mode ON badge when enabled',
     /cutoverBadge\s*=\s*cutoverEnabled[\s\S]{0,400}>ON</.test(deltaSearchSrc));
   assert('Cutover handlers exposed on window',
