@@ -1394,7 +1394,11 @@ Not separately documented because their exports are best read from source — ke
 - `sync-delta-scalar-planner.js` — push-side scalar planner; handles singleton fields, most-recent canonical row selection, and null-transition tombstones.
 - `sync-delta-snapshot.js` — delta snapshot keying, reads, plannedAt-gated writes, and snapshot clear helpers.
 - `sync-delta-merge.js` — pull-side itemRow grouping and merge-shape dispatch into importedData after blob merge.
-- `sync-delta-merge-shapes.js` — pull-side array/map/scalar row overlay helpers; owns tombstone application, nested-path writes, proto guards, caps, and pull delta telemetry.
+- `sync-delta-merge-shapes.js` — pull-side row overlay facade; compatibility re-exports for array/map/scalar merge helpers.
+- `sync-delta-row-codec.js` — shared itemRow payload decoder for pull-side delta merge helpers, including gzip envelope handling.
+- `sync-delta-array-merge.js` — pull-side array row overlay helper; owns item tombstones, nested-path writes, dedupe, composite caps, and pull delta telemetry.
+- `sync-delta-map-merge.js` — pull-side keyed-map row overlay helper; owns raw-key preservation, synth-id tombstones, proto guards, nested-path writes, and pull delta telemetry.
+- `sync-delta-scalar-merge.js` — pull-side scalar row overlay helper; owns singleton LWW selection, null tombstones, dotted-path writes, genetics SNP preservation, and pull delta telemetry.
 - `sync-delta-registry.js` — DELTA_ARRAYS/MAPS/SCALARS registration plus per-surface itemId/keyId config and identity helpers.
 - `sync-delta-observability.js` — per-push delta telemetry, pull-side row-count snapshots, and Phase 2 cutover readiness checks.
 - `sync-apply.js` — inbound sync apply helpers for AI provider settings and display prefs, with compatibility re-exports for chat apply helpers.
