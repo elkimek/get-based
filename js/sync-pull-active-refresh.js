@@ -30,9 +30,9 @@ export function refreshActiveProfileAfterPull({
 
   // Re-render whatever view the user is on so the merged state
   // becomes visible - but ONLY when the merge actually produced
-  // new content from the remote side. `localImportedForMerge`
-  // already had everything => no observable change => skip the
-  // re-render so an in-progress form doesn't get wiped on pull.
+  // new content from the remote side. When remoteBroughtNewRows
+  // is false, local was already a superset => no observable change
+  // => skip the re-render so an in-progress form doesn't get wiped on pull.
   // Source: state.currentView (canonical). DOM .nav-item.active
   // is briefly absent during buildSidebar->navigate cycles and
   // would yank the user to 'dashboard' on a pull landing in

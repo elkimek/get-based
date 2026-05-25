@@ -57,7 +57,7 @@ return (async function() {
   ]);
 
   await window.openWearableDetail('hrv_rmssd');
-  await waitFor(() => window._labState.chartInstances?.modal?.data?.datasets?.[0]?.data?.length === 3);
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.[0]?.data?.length === 3);
   assert('Detail modal opens on a valid metric', document.getElementById('modal-overlay').classList.contains('show'));
   const modalHtml = document.getElementById('detail-modal').innerHTML;
   assert('Detail modal includes metric label HRV', modalHtml.includes('HRV'));
