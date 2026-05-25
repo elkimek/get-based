@@ -56,6 +56,7 @@ await import('../js/settings.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
+  const syncPushDeltasSrc = await fetchWithRetry('js/sync-push-deltas.js');
   const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncPullMergeSrc = await fetchWithRetry('js/sync-pull-merge.js');
@@ -74,7 +75,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -338,10 +339,20 @@ await import('../js/settings.js');
       && syncPushSrc.includes('export function configureSyncPush')
       && syncPushSrc.includes('export function isSyncPushInFlight')
       && syncPushSrc.includes('export async function pushProfile')
+      && syncPushSrc.includes("from './sync-push-deltas.js'")
       && syncSrc.includes('isSyncing: isSyncPushInFlight')
       && syncSrc.includes('configureSyncPush({'));
   assert('service worker precaches sync-push.js',
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
+  assert('sync-push-deltas.js owns push delta planning/application',
+    syncPushDeltasSrc.includes('export async function planProfileDeltas')
+      && syncPushDeltasSrc.includes('export function applyCommittedDeltas')
+      && syncPushDeltasSrc.includes('for (const arrayName of DELTA_ARRAYS)')
+      && syncPushDeltasSrc.includes('for (const mapName of DELTA_MAPS)')
+      && syncPushDeltasSrc.includes('for (const scalarName of DELTA_SCALARS)')
+      && syncPushDeltasSrc.includes('_recordPushTelemetry(profileId'));
+  assert('service worker precaches sync-push-deltas.js',
+    serviceWorkerSrc.includes("'/js/sync-push-deltas.js'"));
   assert('sync-recovery.js owns tab resume and network recovery hooks',
     syncSrc.includes("from './sync-recovery.js'")
       && syncRecoverySrc.includes('export function configureSyncRecovery')
@@ -647,11 +658,13 @@ await import('../js/settings.js');
 
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
-    /deltaPlans\s*=\s*\[\][\s\S]{0,1000}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,400}_planArrayDelta/.test(syncPushSrc));
+    /const \{ deltaPlans,\s*deltaOpCount \}\s*=\s*await planProfileDeltas\(profileId,\s*importedData\)[\s\S]{0,5000}evolu\.update\("profileData"/.test(syncPushSrc)
+      && /planProfileDeltas[\s\S]{0,1200}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,500}_planArrayDelta/.test(syncPushDeltasSrc));
   // Anchor on "Push committed" — unique to the onComplete arrow function,
   // unlike "onComplete" which also appears in evolu.update call sites.
   assert('pushProfile applies deltas only after onComplete (blob commit)',
-    /Push committed[\s\S]{0,2500}deltaPlans\.length > 0[\s\S]{0,800}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncPushSrc));
+    /Push committed[\s\S]{0,2500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
+      && /applyCommittedDeltas[\s\S]{0,1600}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncPushDeltasSrc));
 
   // Pull-side merge contract — per-row authoritative, blob fallback
   assert('onSyncReceived overlays per-row state AFTER blob merge',
@@ -676,7 +689,8 @@ await import('../js/settings.js');
   assert('Delta snapshot key namespaced per (profile, arrayName)',
     /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSnapshotSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
-    /Push committed[\s\S]{0,2500}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushSrc));
+    /Push committed[\s\S]{0,2500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
+      && /applyCommittedDeltas[\s\S]{0,1800}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushDeltasSrc));
 
   // Live diff sanity: confirm the diff logic respects content-equality
   if (typeof CompressionStream !== 'undefined') {
@@ -1370,8 +1384,8 @@ await import('../js/settings.js');
   // paths via getAt/setAt. Without these, a future "simplify" refactor
   // that reverts to flat-only access would silently re-introduce the
   // wholesale-LWW regression on rooms/screens.
-  assert('pushProfile planner walks dotted DELTA_ARRAYS entries via getAt',
-    /pushProfile[\s\S]{0,4000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(deltaSearchSrc));
+  assert('push delta planner walks dotted DELTA_ARRAYS entries via getAt',
+    /planProfileDeltas[\s\S]{0,1600}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(syncPushDeltasSrc));
   assert('getDeltaCutoverReadiness walks dotted DELTA_ARRAYS entries via getAt',
     /getDeltaCutoverReadiness[\s\S]{0,2000}arrayName\.includes\('\.'\)[\s\S]{0,200}getAt\(importedData,\s*arrayName\)/.test(deltaSearchSrc));
   assert('_mergeItemRowsIntoImported writes nested arrays back via setAt',
@@ -1420,7 +1434,8 @@ await import('../js/settings.js');
   assert('Telemetry rolling window capped at 50 pushes',
     /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(deltaSearchSrc));
   assert('pushProfile records telemetry from onComplete (not synchronously)',
-    /Push committed[\s\S]{0,3500}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(deltaSearchSrc));
+    /Push committed[\s\S]{0,3500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
+      && /applyCommittedDeltas[\s\S]{0,2000}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(syncPushDeltasSrc));
   assert('Pull-side merge records pull telemetry per array',
     /recordPullDeltaSurface\(arrayName,\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*tombs\.size\s*\}\)/.test(deltaSearchSrc));
   assert('Pull snapshot resets profileId on each merge (no stale carry-over)',
