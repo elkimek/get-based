@@ -1407,6 +1407,7 @@ Not separately documented because their exports are best read from source — ke
 - `sync-diagnose-cutover-actions.js` — Sync Diagnose telemetry reset plus lean-sync enable/backfill/disable handlers.
 - `sync-actions.js` — user-triggered sync actions, local storage cleanup, all-profile initial push, save debouncing, chat debouncing, profile-metadata push scheduling, and AI-setting push scheduling.
 - `sync-ui.js` — header sync badge, popover rendering, status subscription, and activity-log copy helpers.
-- `sync-payload.js` — Evolu wire-payload helpers; outbound profile/config/chat/display envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.
+- `sync-payload-collectors.js` — Local AI/chat/display settings collection for sync payloads, including synced setting allowlists and chat thread tombstone keys.
+- `sync-payload.js` — Evolu wire-payload helpers; outbound envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.
 - `sync-relay-health.js` — Evolu relay helper boundary; client-side quota estimate, signed `/self/owner-storage` and `/self/compact-owner` calls, and push-landed health verdict for the silent-reject detector.
 - `sync-state.js` — in-memory sync status pub-sub, header badge display-state derivation, recent sync activity ring buffer, and per-profile rebroadcast budget guard.

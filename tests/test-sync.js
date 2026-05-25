@@ -76,6 +76,7 @@ await import('../js/settings.js');
   const syncCutoverSrc = await fetchWithRetry('js/sync-cutover.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
+  const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -630,6 +631,16 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('2. Sync Payload Format');
 
+  assert('sync-payload-collectors.js owns payload local-data collectors',
+    syncPayloadSrc.includes("from './sync-payload-collectors.js'")
+      && syncPayloadCollectorsSrc.includes('export const AI_SETTINGS_KEYS')
+      && syncPayloadCollectorsSrc.includes('export const DISPLAY_PREF_SUFFIXES')
+      && syncPayloadCollectorsSrc.includes('export function chatDeletedThreadsKey')
+      && syncPayloadCollectorsSrc.includes('export async function collectAISettings')
+      && syncPayloadCollectorsSrc.includes('export async function collectChatData')
+      && syncPayloadCollectorsSrc.includes('export function collectDisplayPrefs'));
+  assert('service worker precaches sync-payload-collectors.js',
+    serviceWorkerSrc.includes("'/js/sync-payload-collectors.js'"));
   assert('sync-payload.js owns buildSyncPayload',
     syncPushSrc.includes("from './sync-payload.js'")
       && syncPayloadSrc.includes('export async function buildSyncPayload'));
@@ -866,11 +877,11 @@ await import('../js/settings.js');
     'labcharts-ppq-key', 'labcharts-ppq-model', 'labcharts-routstr-key', 'labcharts-routstr-model'
   ];
   for (const key of expectedKeys) {
-    assert(`AI_SETTINGS_KEYS includes ${key}`, syncPayloadSrc.includes(`'${key}'`));
+    assert(`AI_SETTINGS_KEYS includes ${key}`, syncPayloadCollectorsSrc.includes(`'${key}'`));
   }
 
   assert('Encrypted keys use encryptedSetItem on apply', syncApplySrc.includes('ENCRYPTED_AI_KEYS') && syncApplySrc.includes('encryptedSetItem(key, val)'));
-  assert('collectAISettings uses encryptedGetItem', syncPayloadSrc.includes('encryptedGetItem(key)'));
+  assert('collectAISettings uses encryptedGetItem', syncPayloadCollectorsSrc.includes('encryptedGetItem(key)'));
   assert('applyAISettings has allowlist check', syncApplySrc.includes('AI_SETTINGS_KEYS.includes(key)'));
   assert('applyAISettings has size guard', syncApplySrc.includes('val.length > 10000'));
   assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
@@ -1061,17 +1072,17 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('11. Chat & Display Sync');
 
-  assert('collectChatData reads threads', syncPayloadSrc.includes('chat-threads') && syncPayloadSrc.includes('collectChatData'));
-  assert('collectChatData reads per-thread messages', syncPayloadSrc.includes('chat-t_${t.id}'));
-  assert('collectChatData includes custom personalities', syncPayloadSrc.includes('chatPersonalityCustom'));
+  assert('collectChatData reads threads', syncPayloadCollectorsSrc.includes('chat-threads') && syncPayloadCollectorsSrc.includes('collectChatData'));
+  assert('collectChatData reads per-thread messages', syncPayloadCollectorsSrc.includes('chat-t_${t.id}'));
+  assert('collectChatData includes custom personalities', syncPayloadCollectorsSrc.includes('chatPersonalityCustom'));
   assert('collectChatData emits empty messages for cleared zero-message threads',
-    syncPayloadSrc.includes('messageCount') && syncPayloadSrc.includes('messages[t.id] = []'));
+    syncPayloadCollectorsSrc.includes('messageCount') && syncPayloadCollectorsSrc.includes('messages[t.id] = []'));
   assert('collectChatData includes explicit chat thread tombstones',
-    syncPayloadSrc.includes('chatDeletedThreadsKey')
-      && syncPayloadSrc.includes('deletedThreads'));
+    syncPayloadCollectorsSrc.includes('chatDeletedThreadsKey')
+      && syncPayloadCollectorsSrc.includes('deletedThreads'));
   assert('chat thread tombstones reject proto-pollution keys',
     syncApplySrc.includes('CHAT_DELETED_PROTO_KEYS')
-      && syncPayloadSrc.includes('CHAT_DELETED_PROTO_KEYS')
+      && syncPayloadCollectorsSrc.includes('CHAT_DELETED_PROTO_KEYS')
       && await fetchWithRetry('js/chat-threads.js').then(s => s.includes('CHAT_DELETED_PROTO_KEYS.has(threadId)')));
   assert('applyChatData writes threads', syncApplySrc.includes('applyChatData'));
   assert('applyChatData preserves local-only threads unless an explicit tombstone wins',
@@ -1182,7 +1193,7 @@ await import('../js/settings.js');
   assert('onChatSaved marks local chat before debounce',
     onChatSavedSrc.includes('markChatDataLocal();')
       && onChatSavedSrc.indexOf('markChatDataLocal();') < onChatSavedSrc.indexOf('if (!_isSyncEnabled() || !_isEvoluReady()) return;'));
-  assert('Display prefs synced', syncPayloadSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadSrc.includes('collectDisplayPrefs'));
+  assert('Display prefs synced', syncPayloadCollectorsSrc.includes('DISPLAY_PREF_SUFFIXES') && syncPayloadCollectorsSrc.includes('collectDisplayPrefs'));
   assert('onChatSaved exported', exportBlockIncludes(syncSrc, ['onChatSaved']));
   assert('onChatSaved has debounce', syncActionsSrc.includes('_chatSyncTimers') && syncActionsSrc.includes('10000'));
   assert('onChatSaved uses the profile push retry helper instead of one-shot push while syncing',

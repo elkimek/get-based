@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { isDebugMode } from './utils.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
-import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, chatDeletedThreadsKey } from './sync-payload.js';
+import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { logSyncEvent } from './sync-state.js';
 
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }

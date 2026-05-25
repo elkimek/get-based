@@ -56,7 +56,7 @@ const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiSrc = await fetchWithRetry('js/api.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
-const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
+const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
 const cryptoSrc = await fetchWithRetry('js/crypto.js');
 const backupSrc = await fetchWithRetry('js/backup.js');
 const exportSrc = await fetchWithRetry('js/export.js');
@@ -212,9 +212,9 @@ assert('No unguarded getRoutstrNodeUrl().replace in API calls', rawNodeUrlCalls 
 // ═══════════════════════════════════════
 console.log('11. Sync Integration');
 
-assert('Wallet mnemonic in AI_SETTINGS_KEYS', syncPayloadSrc.includes("'labcharts-cashu-wallet-mnemonic'"));
-assert('Wallet mint in AI_SETTINGS_KEYS', syncPayloadSrc.includes("'labcharts-cashu-wallet-mint'"));
-assert('Node URL in AI_SETTINGS_KEYS', syncPayloadSrc.includes("'labcharts-routstr-node'"));
+assert('Wallet mnemonic in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mnemonic'"));
+assert('Wallet mint in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mint'"));
+assert('Node URL in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labcharts-routstr-node'"));
 assert('Mnemonic in ENCRYPTED_AI_KEYS', syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Wallet keys in GLOBAL_SETTINGS_KEYS', backupSrc.includes("'labcharts-cashu-wallet-mint'") && backupSrc.includes("'labcharts-routstr-node'"));
 

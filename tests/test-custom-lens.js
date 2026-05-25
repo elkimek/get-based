@@ -306,10 +306,10 @@ assert('window exports injectLensChunks', lcSrc.includes('injectLensChunks,'));
 
 // ─── 12. Wiring: sync.js registration ───
 console.log('\n12. sync.js registration');
-const syncPayloadSrc = read('js/sync-payload.js');
+const syncPayloadCollectorsSrc = read('js/sync-payload-collectors.js');
 const syncApplySrc = read('js/sync-apply.js');
-assert('AI_SETTINGS_KEYS includes lens-config', syncPayloadSrc.includes("'labcharts-lens-config'"));
-assert('AI_SETTINGS_KEYS includes lens-key', syncPayloadSrc.includes("'labcharts-lens-key'"));
+assert('AI_SETTINGS_KEYS includes lens-config', syncPayloadCollectorsSrc.includes("'labcharts-lens-config'"));
+assert('AI_SETTINGS_KEYS includes lens-key', syncPayloadCollectorsSrc.includes("'labcharts-lens-key'"));
 assert('ENCRYPTED_AI_KEYS includes lens-key', /ENCRYPTED_AI_KEYS[\s\S]{0,500}labcharts-lens-key/.test(syncApplySrc));
 
 // ─── 13. Wiring: crypto.js sensitive pattern ───

@@ -2,7 +2,8 @@
 
 import { state } from './state.js';
 import { localHasRowsRemoteLacks } from './data-merge.js';
-import { collectAISettings, parseSyncPayload } from './sync-payload.js';
+import { collectAISettings } from './sync-payload-collectors.js';
+import { parseSyncPayload } from './sync-payload.js';
 import { logSyncEvent } from './sync-state.js';
 
 let _getEvolu = () => null;

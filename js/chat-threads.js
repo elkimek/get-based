@@ -24,7 +24,7 @@ import { state } from './state.js';
 import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { onChatSaved } from './sync.js';
-import { chatDeletedThreadsKey } from './sync-payload.js';
+import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import {
   configureChatThreadSearch, filterThreadList,
