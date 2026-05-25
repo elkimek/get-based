@@ -76,6 +76,9 @@ await import('../js/settings.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
+  const syncDiagnosticsContextSrc = await fetchWithRetry('js/sync-diagnostics-context.js');
+  const syncDiagnosticsSnapshotSrc = await fetchWithRetry('js/sync-diagnostics-snapshot.js');
+  const syncDiagnosticsTextSrc = await fetchWithRetry('js/sync-diagnostics-text.js');
   const syncDiagnoseActionsSrc = await fetchWithRetry('js/sync-diagnose-actions.js');
   const syncDiagnoseActionsContextSrc = await fetchWithRetry('js/sync-diagnose-actions-context.js');
   const syncDiagnoseRelayActionsSrc = await fetchWithRetry('js/sync-diagnose-relay-actions.js');
@@ -114,7 +117,8 @@ await import('../js/settings.js');
   const syncDeltaMergeSearchSrc = `${syncDeltaMergeShapesSrc}\n${syncDeltaRowCodecSrc}\n${syncDeltaArrayMergeSrc}\n${syncDeltaMapMergeSrc}\n${syncDeltaScalarMergeSrc}`;
   const syncDeltaRegistrySearchSrc = `${syncDeltaRegistrySrc}\n${syncDeltaSurfacesSrc}\n${syncDeltaSurfaceConfigSrc}\n${syncDeltaIdSrc}`;
   const syncDeltaObservabilitySearchSrc = `${syncDeltaObservabilitySrc}\n${syncDeltaObservabilityContextSrc}\n${syncDeltaPullSnapshotSrc}\n${syncDeltaTelemetrySrc}\n${syncDeltaReadinessSrc}`;
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySearchSrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
+  const syncDiagnosticsSearchSrc = `${syncDiagnosticsSrc}\n${syncDiagnosticsContextSrc}\n${syncDiagnosticsSnapshotSrc}\n${syncDiagnosticsTextSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySearchSrc}\n${syncDiagnosticsSearchSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -380,18 +384,25 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
-  assert('sync-diagnostics.js owns Evolu diagnostics helpers',
+  assert('sync-diagnostics.js is the Evolu diagnostics facade',
     syncSrc.includes("from './sync-diagnostics.js'")
-      && syncDiagnosticsSrc.includes('export async function getEvoluDiagnostics')
-      && syncDiagnosticsSrc.includes('export function _evoluDiagnosticsText')
-      && syncDiagnosticsSrc.includes('export function _syncDiag')
+      && syncDiagnosticsSrc.includes("from './sync-diagnostics-context.js'")
+      && syncDiagnosticsSrc.includes("from './sync-diagnostics-snapshot.js'")
+      && syncDiagnosticsSrc.includes("from './sync-diagnostics-text.js'")
       && syncDiagnosticsSrc.includes('export function configureSyncDiagnostics')
-      && syncDiagnosticsSrc.includes('getSubscriptionFireCount')
-      && syncDiagnosticsSrc.includes('isSyncing')
-      && syncDiagnosticsSrc.includes('isPulling')
+      && syncDiagnosticsContextSrc.includes('export function configureSyncDiagnosticsContext')
+      && syncDiagnosticsContextSrc.includes('getSubscriptionFireCount')
+      && syncDiagnosticsContextSrc.includes('isSyncing')
+      && syncDiagnosticsContextSrc.includes('isPulling')
+      && syncDiagnosticsSnapshotSrc.includes('export async function getEvoluDiagnostics')
+      && syncDiagnosticsSnapshotSrc.includes('export function _syncDiag')
+      && syncDiagnosticsTextSrc.includes('export function _evoluDiagnosticsText')
       && exportBlockIncludes(syncSrc, ['getEvoluDiagnostics']));
-  assert('service worker precaches sync-diagnostics.js',
-    serviceWorkerSrc.includes("'/js/sync-diagnostics.js'"));
+  assert('service worker precaches sync diagnostics modules',
+    serviceWorkerSrc.includes("'/js/sync-diagnostics.js'")
+      && serviceWorkerSrc.includes("'/js/sync-diagnostics-context.js'")
+      && serviceWorkerSrc.includes("'/js/sync-diagnostics-snapshot.js'")
+      && serviceWorkerSrc.includes("'/js/sync-diagnostics-text.js'"));
   assert('sync-diagnose-ui.js owns Sync Diagnose modal helpers',
     syncSrc.includes("from './sync-diagnose-ui.js'")
       && syncDiagnoseUiSrc.includes('export function configureSyncDiagnoseUI')
@@ -721,7 +732,7 @@ await import('../js/settings.js');
     syncSubscriptions.clearSyncSubscriptionTimers();
   }
   assert('Sync diagnose includes tombstone rows and deleted-state column',
-    /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSrc)
+    /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSnapshotSrc)
       && syncDiagnoseRenderSrc.includes('<th style="padding:4px 8px;text-align:right">deleted</th>'));
   assert('applyRemoteTombstones wipes the local imported blob for tombstoned profiles',
     /applyRemoteTombstones[\s\S]{0,4000}wipeProfileLocal\(tombId\)/.test(syncTombstonesSrc)
@@ -1814,9 +1825,9 @@ await import('../js/settings.js');
   assert('Cutover check iterates DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS',
     /getDeltaCutoverReadiness[\s\S]{0,3500}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,1000}for \(const mapName of DELTA_MAPS\)[\s\S]{0,1000}for \(const scalarName of DELTA_SCALARS\)/.test(deltaSearchSrc));
   assert('getEvoluDiagnostics includes cutoverReadiness',
-    /out\.cutoverReadiness\s*=\s*state\.currentProfile/.test(syncDiagnosticsSrc));
+    /out\.cutoverReadiness\s*=\s*state\.currentProfile/.test(syncDiagnosticsSnapshotSrc));
   assert('Diagnose Copy text includes Phase 2 readiness section',
-    /Phase 2 cutover readiness:/.test(syncDiagnosticsSrc));
+    /Phase 2 cutover readiness:/.test(syncDiagnosticsTextSrc));
   assert('Diagnose modal renders cutover panel with blocker breakdown',
     /<b>Lean sync mode<\/b>/.test(deltaSearchSrc) && /haven't been re-pushed yet/.test(deltaSearchSrc));
 

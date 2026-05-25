@@ -1414,7 +1414,10 @@ Not separately documented because their exports are best read from source — ke
 - `sync-messenger.js` — Agent Access token helpers and debounced lab-context push to the messenger/MCP gateway.
 - `sync-environment.js` — relay URL selection, relay connectivity probing, and browser capability checks for Evolu sync.
 - `sync-identity.js` — BIP-39/QR lazy loaders plus mnemonic read/restore helpers for Evolu owner identity.
-- `sync-diagnostics.js` — Evolu row diagnostics snapshot and copy-text formatting for the Sync Diagnose modal.
+- `sync-diagnostics.js` — Evolu diagnostics facade; stable exports for configuration, row snapshots, and copy-text formatting.
+- `sync-diagnostics-context.js` — Injected Evolu/query/subscription state accessors for sync diagnostics.
+- `sync-diagnostics-snapshot.js` — Evolu row diagnostics snapshot assembly, including live/tombstone rows, active imported counts, delta telemetry, and lean-sync readiness.
+- `sync-diagnostics-text.js` — Plain-text Sync Diagnose copy formatting for support/debug handoff.
 - `sync-diagnose-ui.js` — Sync Diagnose modal lifecycle, copy snapshot handling, and compatibility re-exports for Diagnose action handlers.
 - `sync-diagnose-render.js` — Pure Sync Diagnose panel/table markup for identity, relay health, relay storage, delta telemetry, lean-sync readiness, and local Evolu rows.
 - `sync-diagnose-actions.js` — Sync Diagnose action facade; keeps the public imports stable while delegating to focused action modules.
