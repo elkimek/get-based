@@ -31,6 +31,8 @@ export function configureSyncDiagnoseUI({
     pushProfile,
     enablePhase2Cutover,
     disablePhase2Cutover,
+    // Intentionally capture the module-scoped hoisted renderer, not a
+    // caller-provided config field that could shadow it with undefined.
     showSyncDiagnose,
   });
 }
