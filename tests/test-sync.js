@@ -781,8 +781,11 @@ await import('../js/settings.js');
   // or a Web Lock). The page reload below kills the worker process
   // anyway. The persisted SYNC_STORAGE_KEY flips before any await so a
   // hard refresh always sees sync as off.
+  const disableSyncStart = syncLifecycleSrc.indexOf('export async function disableSync');
+  const disableSyncEnd = syncLifecycleSrc.indexOf('\nexport ', disableSyncStart + 1);
   const disableSyncSrc = syncLifecycleSrc.slice(
-    syncLifecycleSrc.indexOf('export async function disableSync')
+    disableSyncStart,
+    disableSyncEnd === -1 ? undefined : disableSyncEnd
   );
   assert('disableSync flips SYNC_STORAGE_KEY before any await',
     disableSyncSrc.includes('setSyncEnabled(false);')
