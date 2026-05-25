@@ -28,11 +28,13 @@ console.log('=== Cross-Device Sync Tests ===\n');
 // Load sync.js + settings.js so their window bindings populate
 // window.enableSync, window.toggleSync, etc.
 const { state } = await import('../js/state.js');
+const syncActions = await import('../js/sync-actions.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncChatApply = await import('../js/sync-chat-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
 const syncSubscriptions = await import('../js/sync-subscriptions.js');
 const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
+const syncStorageCleanup = await import('../js/sync-storage-cleanup.js');
 await import('../js/sync.js');
 await import('../js/settings.js');
 
@@ -65,6 +67,7 @@ await import('../js/settings.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncDiagnoseRenderSrc = await fetchWithRetry('js/sync-diagnose-render.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
+  const syncStorageCleanupSrc = await fetchWithRetry('js/sync-storage-cleanup.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
   const syncPushDeltasSrc = await fetchWithRetry('js/sync-push-deltas.js');
   const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
@@ -387,14 +390,14 @@ await import('../js/settings.js');
     /export async function copySyncDiagnose[\s\S]{0,1800}document\.execCommand\('copy'\)/.test(syncDiagnoseUiSrc)
       && /navigator\.clipboard\?\.writeText/.test(rotateCopyHandler)
       && /document\.execCommand\('copy'\)/.test(rotateCopyHandler));
-  assert('sync-actions.js owns user sync actions and save hooks',
+  assert('sync-actions.js owns user sync actions, save hooks, and storage-cleanup compatibility export',
     syncSrc.includes("from './sync-actions.js'")
       && syncActionsSrc.includes('export function configureSyncActions')
       && syncActionsSrc.includes('export function bindSyncActionEvents')
       && syncActionsSrc.includes('export function clearSyncActionTimers')
       && syncActionsSrc.includes('export async function pushCurrentProfile')
       && syncActionsSrc.includes('export async function forceResendCurrentProfile')
-      && syncActionsSrc.includes('export async function cleanStorage')
+      && syncActionsSrc.includes("from './sync-storage-cleanup.js'")
       && syncActionsSrc.includes('export async function syncNow')
       && syncActionsSrc.includes('export async function pushAllProfiles')
       && syncActionsSrc.includes('export function onDataSaved')
@@ -403,6 +406,17 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved', 'onProfileSaved']));
   assert('service worker precaches sync-actions.js',
     serviceWorkerSrc.includes("'/js/sync-actions.js'"));
+  assert('sync-storage-cleanup.js owns emergency sync storage compaction',
+    syncSrc.includes("from './sync-storage-cleanup.js'")
+      && syncWindowBindingsSrc.includes("from './sync-storage-cleanup.js'")
+      && syncStorageCleanupSrc.includes('export async function cleanStorage')
+      && syncStorageCleanupSrc.includes('changeHistory')
+      && syncStorageCleanupSrc.includes('labcharts-openrouter-models')
+      && syncStorageCleanupSrc.includes("logSyncEvent('cleanup'"));
+  assert('sync-actions.js re-exports cleanStorage for compatibility',
+    syncActions.cleanStorage === syncStorageCleanup.cleanStorage);
+  assert('service worker precaches sync-storage-cleanup.js',
+    serviceWorkerSrc.includes("'/js/sync-storage-cleanup.js'"));
   assert('sync-push.js owns outbound profile push and push watchdog state',
     syncSrc.includes("from './sync-push.js'")
       && syncPushSrc.includes('export function configureSyncPush')

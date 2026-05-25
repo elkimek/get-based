@@ -166,6 +166,7 @@ const APP_SHELL = [
   '/js/sync-diagnose-ui.js',
   '/js/sync-diagnose-render.js',
   '/js/sync-actions.js',
+  '/js/sync-storage-cleanup.js',
   '/js/sync-push.js',
   '/js/sync-push-deltas.js',
   '/js/sync-recovery.js',

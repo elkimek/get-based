@@ -47,10 +47,11 @@ import {
   showSyncDiagnose,
 } from './sync-diagnose-ui.js';
 import {
-  bindSyncActionEvents, cleanStorage, configureSyncActions,
+  bindSyncActionEvents, configureSyncActions,
   forceResendCurrentProfile, onChatSaved,
   onDataSaved, onProfileSaved, pushCurrentProfile, syncNow,
 } from './sync-actions.js';
+import { cleanStorage } from './sync-storage-cleanup.js';
 import {
   configureSyncPush, isSyncPushInFlight, pushProfile,
 } from './sync-push.js';

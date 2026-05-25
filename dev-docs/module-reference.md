@@ -1406,7 +1406,8 @@ Not separately documented because their exports are best read from source — ke
 - `sync-diagnose-relay-actions.js` — Sync Diagnose relay storage refresh and self-serve compaction handlers.
 - `sync-diagnose-identity-actions.js` — Sync Diagnose identity rotation modal, BIP-39 mnemonic generation, QR display, copy fallback, and local apply flow.
 - `sync-diagnose-cutover-actions.js` — Sync Diagnose telemetry reset plus lean-sync enable/backfill/disable handlers.
-- `sync-actions.js` — user-triggered sync actions, local storage cleanup, all-profile initial push, save debouncing, chat debouncing, profile-metadata push scheduling, and AI-setting push scheduling.
+- `sync-actions.js` — user-triggered sync actions, all-profile initial push, save debouncing, chat debouncing, profile-metadata push scheduling, AI-setting push scheduling, and compatibility re-exports for storage cleanup.
+- `sync-storage-cleanup.js` — emergency sync storage compaction; clears model-list caches, trims oversized `changeHistory`, saves the active profile, and reports freed bytes.
 - `sync-ui.js` — header sync badge, popover rendering, status subscription, and activity-log copy helpers.
 - `sync-payload-collectors.js` — Local AI/chat/display settings collection for sync payloads, including synced setting allowlists and chat thread tombstone keys.
 - `sync-payload.js` — Evolu wire-payload helpers; outbound envelope assembly, Phase 2 cutover payload shape, gzip envelope handling, inbound payload parsing, and local-only data stripping for wearable credentials and SNP map rows.

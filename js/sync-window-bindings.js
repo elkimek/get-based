@@ -36,8 +36,9 @@ import {
   copySyncDiagnose, refreshRelayStorage, showSyncDiagnose,
 } from './sync-diagnose-ui.js';
 import {
-  cleanStorage, forceResendCurrentProfile, pushCurrentProfile, syncNow,
+  forceResendCurrentProfile, pushCurrentProfile, syncNow,
 } from './sync-actions.js';
+import { cleanStorage } from './sync-storage-cleanup.js';
 import {
   forcePull,
 } from './sync-pull.js';
