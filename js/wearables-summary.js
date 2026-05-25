@@ -9,7 +9,7 @@
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { getDailyRange } from './wearables-store.js';
-import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful } from './wearable-adapters.js';
+import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful, CUMULATIVE_METRICS } from './wearable-adapters.js';
 import { isDebugMode } from './utils.js';
 import { isoDay } from './wearables-oura.js';
 
@@ -57,9 +57,28 @@ function linearRegressionSlope(values) {
 // Per-metric derivation
 // ─────────────────────────────────────────────────────────
 
+// Today's local date in YYYY-MM-DD. Matches the format vendor adapters use
+// when stamping daily rows (CLAUDE.md: "Local-tz: vendor adapters tag rows
+// with the user's local day, not UTC"). Recomputed per call so a tab left
+// open across midnight gets the right "today" on the next sync.
+function _todayLocalISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function seriesFor(rowsByDate, metricId) {
   const out = [];
+  // For cumulative-from-midnight metrics (steps, stress_high_min), today's
+  // row is a running total that's mathematically incomplete until midnight.
+  // Exclude it so latest / baseline / d7 / d30 / trend all read from the
+  // last finalized day instead of being dragged down by the partial value.
+  const skipTodayForCumulative = CUMULATIVE_METRICS.has(metricId);
+  const todayISO = skipTodayForCumulative ? _todayLocalISO() : null;
   for (const row of rowsByDate) {
+    if (skipTodayForCumulative && row.date === todayISO) continue;
     const v = row[metricId];
     if (isMetricValueMeaningful(metricId, v)) out.push({ date: row.date, v });
   }

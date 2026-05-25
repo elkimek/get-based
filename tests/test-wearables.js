@@ -246,6 +246,41 @@ const sameDateRes = summary.shouldWriteL2(sameDate, oldLagging);
 assert('Gate: identical snapshot (same latestDate) does NOT write',
   sameDateRes.write === false, `reason=${sameDateRes.reason}`);
 
+// Cumulative-from-midnight metrics: today's row is incomplete (still
+// accumulating until 23:59), so L2 must filter it out from latest /
+// baseline / rolling. Otherwise the strip card drags downward all day
+// long as the partial value gets averaged in.
+{
+  const today = new Date();
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayISO = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+  const twoDaysAgo = new Date(today); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const twoDaysAgoISO = `${twoDaysAgo.getFullYear()}-${String(twoDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(twoDaysAgo.getDate()).padStart(2, '0')}`;
+  const cumulRows = [
+    { source: 'oura', date: twoDaysAgoISO, steps: 9000, stress_high_min: 30, hrv_rmssd: 50, rhr: 60 },
+    { source: 'oura', date: yesterdayISO,  steps: 8500, stress_high_min: 25, hrv_rmssd: 50, rhr: 60 },
+    { source: 'oura', date: todayISO,      steps: 1200, stress_high_min: 4,  hrv_rmssd: 50, rhr: 60 }, // partial day
+  ];
+  const cumulSum = summary.computeWearableSummary(
+    { oura: cumulRows },
+    { oura: { connectedSince: twoDaysAgoISO, lastSyncAt: Date.now() } }
+  );
+  assert('Cumulative metric (steps): latest = yesterday, not today',
+    cumulSum.metrics.steps?.latest === 8500,
+    `latest=${cumulSum.metrics.steps?.latest}`);
+  assert('Cumulative metric (steps): latestDate skips today',
+    cumulSum.metrics.steps?.latestDate === yesterdayISO,
+    `latestDate=${cumulSum.metrics.steps?.latestDate}`);
+  assert('Cumulative metric (stress_high_min): today excluded from latest',
+    cumulSum.metrics.stress_high_min?.latest === 25,
+    `latest=${cumulSum.metrics.stress_high_min?.latest}`);
+  // Non-cumulative co-measure: today's value (still 50) should pass through
+  assert('Non-cumulative metric (hrv_rmssd): today included normally',
+    cumulSum.metrics.hrv_rmssd?.latestDate === todayISO,
+    `latestDate=${cumulSum.metrics.hrv_rmssd?.latestDate}`);
+}
+
 // ═══════════════════════════════════════
 // 5. buildWearableContext
 // ═══════════════════════════════════════

@@ -117,6 +117,26 @@ export function isMetricValueMeaningful(metricId, v) {
   return v > 0;
 }
 
+// Cumulative-from-midnight metrics: the daily value is a running total that
+// accumulates over the course of the day, so today's row is mathematically
+// incomplete until midnight local time. Including it in baselines / d7 / d30
+// drags those averages down on every read between 00:00 and 23:59. L2 summary
+// derivation filters today's row for any metric in this set; the row stays in
+// L1 IDB so the detail-modal chart can still plot the running total if
+// useful, but the user-facing latest / baseline / rolling read from the last
+// finalized day.
+//
+// Co-measure metrics (HRV, RHR, weight, BP, body fat) and sleep-derived
+// metrics (sleep_score, readiness_score) are NOT in this set — they're
+// either event-based (one measurement per session) or finalized by the
+// vendor once sleep ends. Day-mean metrics (hr_day, hrv_day, glucose_avg)
+// are a grey zone: their partial value is biased but not artificially low,
+// and excluding them costs more information than it saves. Out of scope.
+export const CUMULATIVE_METRICS = new Set([
+  'steps',
+  'stress_high_min', // Oura emits seconds in high-stress state, accumulates through the day
+]);
+
 // Default display order for the dashboard strip. A canonical metric not listed
 // here still renders (appended in registry order) — the list just pins priority.
 // Also used as METRICS_FOR_SUMMARY in wearables-summary.js, so any metric that
