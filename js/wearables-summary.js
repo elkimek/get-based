@@ -9,7 +9,7 @@
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { getDailyRange } from './wearables-store.js';
-import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful } from './wearable-adapters.js';
+import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful, WEAR_REQUIRED_MINIMUMS } from './wearable-adapters.js';
 import { isDebugMode } from './utils.js';
 import { isoDay } from './wearables-oura.js';
 
@@ -59,8 +59,16 @@ function linearRegressionSlope(values) {
 
 function seriesFor(rowsByDate, metricId) {
   const out = [];
+  // For wear-required metrics (steps, etc.), days below the per-metric
+  // minimum are treated as non-wear / no-data and excluded from averages.
+  // The row stays in L1 IDB so the chart still plots the zero (useful for
+  // "I see the ring was off Tuesday"), but baseline / d7 / d30 / trend
+  // ignore it. See WEAR_REQUIRED_MINIMUMS in wearable-adapters.js for the
+  // threshold rationale.
+  const wearMin = WEAR_REQUIRED_MINIMUMS[metricId];
   for (const row of rowsByDate) {
     const v = row[metricId];
+    if (wearMin != null && typeof v === 'number' && v < wearMin) continue;
     if (isMetricValueMeaningful(metricId, v)) out.push({ date: row.date, v });
   }
   return out;

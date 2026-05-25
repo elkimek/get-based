@@ -117,6 +117,29 @@ export function isMetricValueMeaningful(metricId, v) {
   return v > 0;
 }
 
+// Per-metric minimum daily value below which the day is treated as
+// non-wear / no-data for L2 averaging purposes. The row stays in IDB and
+// still plots on the chart, but baseline / d7 / d30 / trend skip it.
+//
+// Distinct from isMetricValueMeaningful: zero/low values are still valid
+// to STORE and PLOT (so the user can see "ring was off Tuesday"), but
+// they shouldn't drag the rolling-mean baseline downward. Oura users
+// report 5-15 ring-off-for-charging days per quarter; including those
+// 0-step rows in a 30-day mean pulls the average down 10-40%.
+//
+// Threshold rationale (steps): a genuine sedentary couch day still
+// produces 500-2000 steps from incidental movement (kitchen, bathroom,
+// shower). Ring-off-while-charging or phone-left-at-home days produce
+// 0-150. 300 catches non-wear without false-positives on real rest days.
+//
+// Future additive activity metrics should be added here with their own
+// per-metric thresholds when their adapters land:
+//   distance: 100m  · active_calories: 50kcal  · exercise_time: 1min
+//   flights_climbed: 1 (count) · stand_hours: 0 (already excluded by mean)
+export const WEAR_REQUIRED_MINIMUMS = {
+  steps: 300,
+};
+
 // Default display order for the dashboard strip. A canonical metric not listed
 // here still renders (appended in registry order) — the list just pins priority.
 // Also used as METRICS_FOR_SUMMARY in wearables-summary.js, so any metric that

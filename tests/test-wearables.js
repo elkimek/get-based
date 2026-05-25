@@ -246,6 +246,34 @@ const sameDateRes = summary.shouldWriteL2(sameDate, oldLagging);
 assert('Gate: identical snapshot (same latestDate) does NOT write',
   sameDateRes.write === false, `reason=${sameDateRes.reason}`);
 
+// Wear-required minimum (steps): days below 300 steps are non-wear /
+// no-data (ring-off-for-charging, phone-left-at-home, etc.) and must
+// be excluded from baseline / d7 / d30 / mean computations. Otherwise
+// 0-step rows drag the mean down by 10-40% on heavy-charging weeks.
+{
+  // Build 14 days: 4 days @ 0 (ring off charging), then 10 days @ 8000 steps.
+  // Mean including zeros: 80000/14 ≈ 5714
+  // Mean excluding zeros: 80000/10 = 8000 (matches Oura app convention)
+  const wearTestRows = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date('2026-04-01'); d.setUTCDate(d.getUTCDate() + i);
+    const dateISO = d.toISOString().slice(0, 10);
+    const steps = i < 4 ? 0 : 8000;
+    wearTestRows.push({ source: 'oura', date: dateISO, steps, hrv_rmssd: 50, rhr: 60, sleep_score: 80, readiness_score: 80 });
+  }
+  const wearSum = summary.computeWearableSummary(
+    { oura: wearTestRows },
+    { oura: { connectedSince: '2026-04-01', lastSyncAt: Date.now() } }
+  );
+  const stepsMetric = wearSum.metrics.steps;
+  assert('Wear-min (steps): d7 mean excludes 0-step non-wear days',
+    stepsMetric?.rolling?.d7 === 8000,
+    `d7=${stepsMetric?.rolling?.d7} (expected 8000; with-zeros mean would be ~5714)`);
+  assert('Wear-min (steps): baseline excludes 0-step non-wear days',
+    stepsMetric?.baseline === 8000,
+    `baseline=${stepsMetric?.baseline}`);
+}
+
 // ═══════════════════════════════════════
 // 5. buildWearableContext
 // ═══════════════════════════════════════
