@@ -2,15 +2,16 @@
 
 import { state } from './state.js';
 import { showNotification } from './utils.js';
-import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
-import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
-import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
+import { migrateProfileData } from './profile.js';
 import { parseSyncPayload } from './sync-payload.js';
 import {
   applyAISettings, applyChatData, applyDisplayPrefs,
   getChatDataLocalLockRemainingMs,
 } from './sync-apply.js';
-import { _mergeItemRowsIntoImported } from './sync-delta.js';
+import {
+  isMalformedPulledImportedData, isSafeProfileId, mergePulledImportedData,
+  mergePulledProfile, persistPulledImportedData, prepareSyncPullRows,
+} from './sync-pull-merge.js';
 import { applyRemoteTombstones } from './sync-tombstones.js';
 import {
   consumeRebroadcastBudget, getSyncStatus, logSyncEvent, updateSyncStatus,
@@ -74,9 +75,6 @@ export function forcePull() {
   return 'triggered';
 }
 
-// Allowed fields when merging a synced profile into the local profiles list
-const PROFILE_MERGE_FIELDS = ['name', 'sex', 'dob', 'location', 'tags', 'archived', 'pinned', 'flagged', 'avatar', 'color'];
-
 // One-time cleanup: the v1.6.0-v1.6.2 hash-skip mechanism wrote
 // `labcharts-{profileId}-sync-hash` keys; v1.6.3 removed the skip
 // path entirely (bytes were occasionally stranding rows when local
@@ -136,52 +134,7 @@ export async function onSyncReceived() {
     dbg(`onSyncReceived: ${rawRows?.length ?? 0} rows`);
     if (!rawRows || rawRows.length === 0) return;
 
-    // Pre-pass: recover profileId from the payload when the column is empty.
-    // After a relay compaction, only the latest evolu.update messages survive
-    // - those don't carry profileId - so a fresh device replicating a
-    // post-compact log materializes the row with a blank profileId column.
-    // The payload itself still contains profile.id, so we read that and use
-    // it as the row's effective profileId for dedupe + merge.
-    const enrichedRows = [];
-    for (const row of rawRows) {
-      if (!row) continue;
-      let effectiveProfileId = row.profileId || null;
-      if (!effectiveProfileId) {
-        try {
-          const parsed = await parseSyncPayload(row.dataJson || '{}');
-          const candidate = parsed?.profile?.id;
-          if (typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate)) {
-            effectiveProfileId = candidate;
-          }
-        } catch {
-          // Malformed payload + empty column -> can't merge, drop the row.
-        }
-      }
-      if (!effectiveProfileId) continue;
-      enrichedRows.push({ ...row, profileId: effectiveProfileId });
-    }
-
-    // Dedupe by profileId, keeping the row with the highest syncedAt.
-    // Evolu can return multiple rows per profileId after a tombstone +
-    // recreate or a restore-from-mnemonic race; iterating in CRDT order
-    // could let an older row land last and overwrite the newer pull
-    // (because the per-profile localStorage timestamp is bumped only at
-    // the bottom of the loop). Sort descending so the freshest row is
-    // processed first, then the older row's `remoteUpdated <= localUpdated`
-    // guard short-circuits as intended.
-    const byProfile = new Map();
-    for (const row of enrichedRows) {
-      const ts = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
-      const prev = byProfile.get(row.profileId);
-      if (!prev || ts > (prev.syncedAt ? new Date(prev.syncedAt).getTime() : 0)) {
-        byProfile.set(row.profileId, row);
-      }
-    }
-    const rows = Array.from(byProfile.values()).sort((a, b) => {
-      const ta = a.syncedAt ? new Date(a.syncedAt).getTime() : 0;
-      const tb = b.syncedAt ? new Date(b.syncedAt).getTime() : 0;
-      return tb - ta;
-    });
+    const rows = await prepareSyncPullRows(rawRows);
 
     let profilesChanged = false;
     let latestAiSettings = null;
@@ -190,14 +143,12 @@ export async function onSyncReceived() {
     for (const row of rows) {
       try {
         const profileId = row.profileId;
-        if (!profileId || typeof profileId !== 'string') continue;
         // Allowlist regex - defense-in-depth against a compromised relay
         // injecting a profileId that maps to a sensitive localStorage key
         // collision (e.g. "default-imported-chat-threads" -> would land at
         // labcharts-default-imported-chat-threads-imported).
-        if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) continue;
+        if (!isSafeProfileId(profileId)) continue;
         const remoteUpdated = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
-        const localKey = profileStorageKey(profileId, 'imported');
         const localMeta = localStorage.getItem(`labcharts-${profileId}-sync-ts`);
         const localUpdated = localMeta ? parseInt(localMeta, 10) : 0;
 
@@ -232,134 +183,23 @@ export async function onSyncReceived() {
         // continue with an empty-object placeholder; the per-row overlay
         // step downstream will fill in every field from itemRow data.
         // Anything else falsy/non-object is genuinely malformed -> skip.
-        const isV4Cutover = importedData === null;
-        if (!isV4Cutover && (!importedData || typeof importedData !== 'object')) {
+        if (isMalformedPulledImportedData(importedData)) {
           // v1.7.15 audit fix: log so a chronically-corrupted row is
           // visible in the activity log instead of silently disappearing.
           logSyncEvent('skip', `Pull ${profileId.slice(0, 8)} — malformed importedData shape, skipping row`);
           continue;
         }
 
-        // Preserve local wearableConnections - they're stripped from the push
-        // payload (tokens stay per-device), so the remote blob never carries
-        // them. Without this merge the pull would wipe this device's OAuth
-        // tokens and silently disconnect every connected vendor.
-        let localWearableConnections = null;
-        if (profileId === state.currentProfile) {
-          localWearableConnections = state.importedData?.wearableConnections || null;
-        } else {
-          try {
-            const rawLocal = getEncryptionEnabled()
-              ? await encryptedGetItem(localKey)
-              : localStorage.getItem(localKey);
-            if (rawLocal) {
-              const parsed = JSON.parse(rawLocal);
-              localWearableConnections = parsed?.wearableConnections || null;
-            }
-          } catch (e) {
-            dbg('Could not read local wearableConnections for preserve:', e.message);
-          }
-        }
-        if (localWearableConnections && importedData) {
-          importedData.wearableConnections = localWearableConnections;
-        }
-
-        // Per-array union merge for id-keyed append-only arrays (sun feature
-        // + a couple related). Without this, two devices each writing
-        // independent rows clobber each other on whole-blob LWW. Single-
-        // object subtrees and id-less arrays still LWW (handled inside
-        // mergeImportedData).
-        let localImportedForMerge = null;
-        if (profileId === state.currentProfile) {
-          localImportedForMerge = state.importedData || null;
-        } else {
-          try {
-            const rawLocal = getEncryptionEnabled()
-              ? await encryptedGetItem(localKey)
-              : localStorage.getItem(localKey);
-            if (rawLocal) localImportedForMerge = JSON.parse(rawLocal);
-          } catch (e) {
-            dbg('Could not read local importedData for merge:', e.message);
-          }
-        }
-        // v4 cutover: importedData is null by design. Use local as the
-        // baseline; per-row overlay below fills in every field. v3 and
-        // older still merge blob-into-local as before.
-        let merged = localImportedForMerge
-          ? (importedData ? mergeImportedData(localImportedForMerge, importedData) : localImportedForMerge)
-          : (importedData || {});
-        // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER
-        // the blob merge. Per-row state is authoritative - a tombstone
-        // here drops the corresponding item even if the blob (which is
-        // older or written by a pre-Phase-1 device) still carried it.
-        // Order matters: blob first establishes baseline, then per-row
-        // applies the up-to-date deltas on top. Idempotent: if the blob
-        // and per-row tables agree, the overlay is a no-op.
-        try {
-          merged = await _mergeItemRowsIntoImported(profileId, merged) || merged;
-        } catch (e) {
-          console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
-        }
-        const _ct = (b, k) => Array.isArray(b?.[k]) ? b[k].length : 0;
-        const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${_ct(localImportedForMerge,'sunSessions')}/dev=${_ct(localImportedForMerge,'lightDevices')} · remote sun=${_ct(importedData,'sunSessions')}/dev=${_ct(importedData,'lightDevices')} · merged sun=${_ct(merged,'sunSessions')}/dev=${_ct(merged,'lightDevices')}`;
+        const {
+          localKey, localImportedForMerge, merged, mergeMsg,
+          needsRebroadcast, remoteBroughtNewRows,
+        } = await mergePulledImportedData(profileId, importedData, { debug: dbg });
         dbg(mergeMsg);
         logSyncEvent('pull', mergeMsg);
-        // wearableConnections preservation already happened on `importedData`;
-        // mergeImportedData carries it through (since it's not in
-        // ID_KEYED_ARRAYS, it falls into the LWW path which takes remote -
-        // but `importedData` here was already patched with localWearableConnections).
 
-        // If the merge added rows the remote didn't have (i.e. local had
-        // unsynced state - the canonical case is "phone logged C, desktop
-        // pushed Y first, neither sees the other"), the relay row still
-        // reflects only the remote side. We need to rebroadcast the merged
-        // result so the *other* device pulls our union next round. Without
-        // this, convergence stalls at the first cross-device race because
-        // pull-and-merge is local-only - nothing republishes the union.
-        // Use a structural id-set diff (not JSON.stringify equality) - JSON
-        // serialization order varies with merge-insertion order and would
-        // cause an infinite ping-pong rebroadcast across devices.
-        // v4 cutover: importedData is null, so the diff is meaningless
-        // (per-row deltas already drove the merge). Skip the rebroadcast
-        // gate - per-row pushes don't have the "local has rows remote
-        // lacks" pathology since each row is its own CRDT message.
-        const needsRebroadcast = !!localImportedForMerge && !!importedData
-          && localHasRowsRemoteLacks(localImportedForMerge, importedData);
-        // Same diff in the *other* direction: did REMOTE bring rows local
-        // didn't have? Used to gate the active-view re-render so we don't
-        // wipe an in-progress form input on every pull where the merge
-        // produced no observable change.
-        const remoteBroughtNewRows = !!localImportedForMerge && !!importedData
-          && localHasRowsRemoteLacks(importedData, localImportedForMerge);
+        await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
 
-        // Persist the merged importedData. Always go through
-        // encryptedSetItem - it routes big-blob `-imported` keys to
-        // IndexedDB regardless of encryption state. Bypassing this
-        // (the old non-encryption branch did `localStorage.setItem`
-        // directly) re-introduces the 5 MB quota wall.
-        const importedJson = JSON.stringify(merged);
-        await encryptedSetItem(localKey, importedJson);
-        localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
-
-        // Merge profile into local profiles list (allowlisted fields only)
-        if (profile && typeof profile === 'object') {
-          const profiles = getProfiles();
-          const idx = profiles.findIndex(p => p.id === profileId);
-          if (idx >= 0) {
-            const local = profiles[idx];
-            for (const field of PROFILE_MERGE_FIELDS) {
-              if (field in profile) local[field] = profile[field];
-            }
-            local.lastUpdated = Date.now();
-          } else {
-            // New profile - pick only allowed fields + id
-            const newProfile = { id: profileId, lastUpdated: Date.now() };
-            for (const field of PROFILE_MERGE_FIELDS) {
-              if (field in profile) newProfile[field] = profile[field];
-            }
-            profiles.push(newProfile);
-          }
-          await saveProfiles(profiles);
+        if (await mergePulledProfile(profileId, profile)) {
           profilesChanged = true;
           dbg('Merged profile:', profileId, profile.name);
         }

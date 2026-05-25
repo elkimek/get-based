@@ -56,6 +56,7 @@ await import('../js/settings.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
   const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
+  const syncPullMergeSrc = await fetchWithRetry('js/sync-pull-merge.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncSubscriptionsSrc = await fetchWithRetry('js/sync-subscriptions.js');
   const syncWindowBindingsSrc = await fetchWithRetry('js/sync-window-bindings.js');
@@ -71,7 +72,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -341,7 +342,7 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncReconcile({'));
   assert('service worker precaches sync-reconcile.js',
     serviceWorkerSrc.includes("'/js/sync-reconcile.js'"));
-  assert('sync-pull.js owns inbound pull merge helpers',
+  assert('sync-pull.js owns inbound pull orchestration',
     syncSrc.includes("from './sync-pull.js'")
       && syncPullSrc.includes('export function configureSyncPull')
       && syncPullSrc.includes('export async function onSyncReceived')
@@ -351,6 +352,15 @@ await import('../js/settings.js');
       && syncSrc.includes('configureSyncPull({'));
   assert('service worker precaches sync-pull.js',
     serviceWorkerSrc.includes("'/js/sync-pull.js'"));
+  assert('sync-pull-merge.js owns inbound pull row merge helpers',
+    syncPullSrc.includes("from './sync-pull-merge.js'")
+      && syncPullMergeSrc.includes('export async function prepareSyncPullRows')
+      && syncPullMergeSrc.includes('export async function recoverSyncPullRows')
+      && syncPullMergeSrc.includes('export async function mergePulledImportedData')
+      && syncPullMergeSrc.includes('export async function persistPulledImportedData')
+      && syncPullMergeSrc.includes('export async function mergePulledProfile'));
+  assert('service worker precaches sync-pull-merge.js',
+    serviceWorkerSrc.includes("'/js/sync-pull-merge.js'"));
   assert('sync-subscriptions.js owns Evolu subscription and polling helpers',
     syncSrc.includes("from './sync-subscriptions.js'")
       && syncSubscriptionsSrc.includes('export function configureSyncSubscriptions')
@@ -515,11 +525,11 @@ await import('../js/settings.js');
   assert('deleteProfileFromRelay tombstone update carries profileId',
     /evolu\.update\('profileData',\s*\{\s*id:\s*row\.id,\s*profileId\s*,\s*isDeleted/.test(syncTombstonesSrc));
   assert('onSyncReceived recovers profileId from payload when column is empty',
-    /enrichedRows[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncPullSrc));
+    /recoverSyncPullRows[\s\S]{0,500}parsed\?\.profile\?\.id/.test(syncPullMergeSrc));
   assert('applyRemoteTombstones recovers profileId from payload',
     /tombIdsArr[\s\S]{0,400}parsed\?\.profile\?\.id/.test(syncTombstonesSrc));
   assert('Recovered profileId still validated against allowlist regex',
-    /\^\[a-zA-Z0-9_-\]\+\$/.test(syncPullSrc));
+    /\^\[a-zA-Z0-9_-\]\+\$/.test(syncPullMergeSrc));
 
   // v1.6.7: relay-storage estimate (local cumulative tracker, no relay
   // endpoint needed). Warns the user before they hit the 50 MB per-owner
@@ -626,7 +636,7 @@ await import('../js/settings.js');
 
   // Pull-side merge contract — per-row authoritative, blob fallback
   assert('onSyncReceived overlays per-row state AFTER blob merge',
-    /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullSrc));
+    /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /_mergeItemRowsIntoImported[\s\S]{0,15000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncDeltaMergeSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
@@ -803,8 +813,8 @@ await import('../js/settings.js');
     !/if\s*\(\s*remoteUpdated\s*<\s*localUpdated\s*\)/.test(syncPullSrc),
     'skip-decisions before merge regress to clock-skew/stale-hash bugs');
   assert('onSyncReceived guards on _pulling', syncPullSrc.includes('_pulling') && syncPullSrc.includes('_pulling = true'));
-  assert('Pull handles encryption', syncPullSrc.includes('getEncryptionEnabled()') && syncPullSrc.includes('encryptedSetItem(localKey'));
-  assert('Pull merges profiles with allowlist', syncPullSrc.includes('PROFILE_MERGE_FIELDS') && syncPullSrc.includes('saveProfiles(profiles)'));
+  assert('Pull handles encryption', syncPullMergeSrc.includes('getEncryptionEnabled()') && syncPullMergeSrc.includes('encryptedSetItem(localKey'));
+  assert('Pull merges profiles with allowlist', syncPullMergeSrc.includes('PROFILE_MERGE_FIELDS') && syncPullMergeSrc.includes('saveProfiles(profiles)'));
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
   // instead of just showing a "Data updated" toast).
@@ -1024,18 +1034,18 @@ await import('../js/settings.js');
   // The stripped remote payload arrives with no wearableConnections; without this preserve step
   // the overwrite at setItem(localKey, importedJson) would wipe every device's OAuth tokens.
   assert('Pull preserves local wearableConnections (active profile)',
-    syncPullSrc.includes('state.importedData?.wearableConnections'));
+    syncPullMergeSrc.includes('state.importedData?.wearableConnections'));
   assert('Pull preserves local wearableConnections (inactive profile)',
-    syncPullSrc.includes('parsed?.wearableConnections'));
+    syncPullMergeSrc.includes('localImportedForMerge?.wearableConnections'));
   assert('Pull re-injects preserved wearableConnections into pulled blob',
-    syncPullSrc.includes('importedData.wearableConnections = localWearableConnections'));
+    syncPullMergeSrc.includes('importedData.wearableConnections = localWearableConnections'));
 
   // Guard: preserve branch must run before the storage write (otherwise stale).
   // Post-IDB-migration the write goes through encryptedSetItem (which routes
   // `-imported` keys to IndexedDB); the preserve-before-write invariant
   // applies to whichever underlying setter is used.
-  const preserveIdx = syncPullSrc.indexOf('importedData.wearableConnections = localWearableConnections');
-  const writeIdx = syncPullSrc.indexOf('encryptedSetItem(localKey, importedJson)');
+  const preserveIdx = syncPullMergeSrc.indexOf('importedData.wearableConnections = localWearableConnections');
+  const writeIdx = syncPullMergeSrc.indexOf('encryptedSetItem(localKey, importedJson)');
   assert('Preserve runs before localStorage write', preserveIdx > 0 && preserveIdx < writeIdx,
     `preserve at ${preserveIdx}, write at ${writeIdx}`);
 
@@ -1540,7 +1550,7 @@ await import('../js/settings.js');
   assert('parseSyncPayload handles _v: 4 (importedData=null sentinel)',
     /parsed\._v\s*===\s*4[\s\S]{0,400}importedData:\s*null/.test(syncPayloadSrc));
   assert('Receive path treats v4 (importedData null) as legitimate, not malformed',
-    /isV4Cutover\s*=\s*importedData\s*===\s*null[\s\S]{0,200}!isV4Cutover\s*&&\s*\(!importedData/.test(deltaSearchSrc));
+    /function isMalformedPulledImportedData[\s\S]{0,160}importedData\s*!==\s*null[\s\S]{0,160}!importedData/.test(syncPullMergeSrc));
   assert('Receive path uses local as baseline when v4 (no blob to merge)',
     /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localImportedForMerge,\s*importedData\)\s*:\s*localImportedForMerge/.test(deltaSearchSrc));
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',

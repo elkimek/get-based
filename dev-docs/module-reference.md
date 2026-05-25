@@ -1378,7 +1378,8 @@ Not separately documented because their exports are best read from source — ke
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
 - `sync.js` — Evolu CRDT sync orchestration; lifecycle setup, enable/disable flow, and profile/table query wiring.
 - `sync-push.js` — outbound profile push path, in-flight push watchdog, Phase 2 drift auto-revert, per-row delta planning/application, and relay byte telemetry.
-- `sync-pull.js` — inbound pull path; profile-row dedupe, blob/per-row merge, profile/chat/display apply, active-view refresh, and rebroadcast gating.
+- `sync-pull.js` — inbound pull orchestration, profile/chat/display apply, active-view refresh, and rebroadcast gating.
+- `sync-pull-merge.js` — pull row recovery/dedupe, importedData blob/per-row merge, wearable-token preservation, and profile metadata merge helpers.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
 - `sync-delta.js` — per-row CRDT delta boundary; array/map/scalar planners, apply helpers, snapshot advancement gates, and compatibility re-exports for delta telemetry/readiness.
 - `sync-delta-merge.js` — pull-side itemRow merge overlay; applies per-row array/map/scalar rows into importedData after blob merge.

@@ -160,6 +160,7 @@ const APP_SHELL = [
   '/js/sync-push.js',
   '/js/sync-recovery.js',
   '/js/sync-reconcile.js',
+  '/js/sync-pull-merge.js',
   '/js/sync-pull.js',
   '/js/sync-subscriptions.js',
   '/js/sync-window-bindings.js',
