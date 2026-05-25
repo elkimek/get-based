@@ -1116,7 +1116,8 @@ await import('../js/settings.js');
       && await fetchWithRetry('js/chat-threads.js').then(s => s.includes('CHAT_DELETED_PROTO_KEYS.has(threadId)')));
   assert('sync-apply.js re-exports chat apply helpers for compatibility',
     syncApply.applyChatData === syncChatApply.applyChatData
-      && syncApply.markChatDataLocal === syncChatApply.markChatDataLocal);
+      && syncApply.markChatDataLocal === syncChatApply.markChatDataLocal
+      && syncApply.getChatDataLocalLockRemainingMs === syncChatApply.getChatDataLocalLockRemainingMs);
   assert('applyChatData writes threads', syncChatApplySrc.includes('applyChatData'));
   assert('applyChatData preserves local-only threads unless an explicit tombstone wins',
     syncChatApplySrc.includes('mergedById.set(thread.id, thread)')
