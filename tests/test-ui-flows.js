@@ -9,6 +9,20 @@ return (async function() {
     else { fail++; console.error(`FAIL  ${name}` + (detail ? ` — ${detail}` : '')); }
   }
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  async function waitFor(condition, timeout = 800, interval = 20) {
+    const started = Date.now();
+    while (Date.now() - started < timeout) {
+      try {
+        const result = condition();
+        if (result) return result;
+      } catch (e) {
+        // Keep polling; transient DOM replacement during UI updates is allowed.
+      }
+      await wait(interval);
+    }
+    try { return condition(); }
+    catch (e) { return false; }
+  }
   const main = document.getElementById('main-content');
   const S = window._labState;
 
@@ -198,9 +212,14 @@ return (async function() {
   assert('Tweaks hides CRT effects control on unsupported themes', !!darkCrtRow && darkCrtRow.hidden && !!document.querySelector('#tweaks-crt-effects')?.disabled);
   assert('Tweaks no longer shows Try it actions', !(document.getElementById('tweaks-panel')?.textContent || '').includes('Try it'));
   window.selectTweaksTheme?.('cyberterm');
-  await wait(80);
+  const cyberCrtReady = await waitFor(() => {
+    const row = document.querySelector('#tweaks-crt-effects-row');
+    const toggle = document.querySelector('#tweaks-crt-effects');
+    return !!row && !row.hidden && !!toggle && !toggle.disabled;
+  });
   const cyberCrtRow = document.querySelector('#tweaks-crt-effects-row');
-  assert('Tweaks shows CRT effects control on supported themes', !!cyberCrtRow && !cyberCrtRow.hidden && !document.querySelector('#tweaks-crt-effects')?.disabled);
+  assert('Tweaks shows CRT effects control on supported themes', cyberCrtReady,
+    `theme=${document.documentElement.dataset.theme || 'dark'} hidden=${cyberCrtRow?.hidden}`);
   window.toggleTweaksCrtEffects?.(true);
   await wait(20);
   assert('CRT effects toggle persists visual mode', document.documentElement.dataset.crtEffects === 'on' && localStorage.getItem('labcharts-crt-effects') === 'true');
