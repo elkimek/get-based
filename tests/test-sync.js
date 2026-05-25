@@ -43,6 +43,7 @@ await import('../js/settings.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
   const syncDeltaRegistrySrc = await fetchWithRetry('js/sync-delta-registry.js');
+  const syncDeltaObservabilitySrc = await fetchWithRetry('js/sync-delta-observability.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
@@ -68,7 +69,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaRegistrySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -175,9 +176,9 @@ await import('../js/settings.js');
   assert('sync-delta.js owns per-row delta helpers',
     syncSrc.includes("from './sync-delta.js'")
       && syncDeltaSrc.includes("from './sync-delta-registry.js'")
+      && syncDeltaSrc.includes("from './sync-delta-observability.js'")
       && syncDeltaSrc.includes('export async function _planArrayDelta')
-      && syncDeltaSrc.includes('export async function _mergeItemRowsIntoImported')
-      && syncDeltaSrc.includes('export function getDeltaCutoverReadiness'));
+      && syncDeltaSrc.includes('export async function _mergeItemRowsIntoImported'));
   assert('service worker precaches sync-delta.js',
     serviceWorkerSrc.includes("'/js/sync-delta.js'"));
   assert('sync-delta-registry.js owns delta surfaces and identity config',
@@ -189,6 +190,16 @@ await import('../js/settings.js');
       && syncDeltaRegistrySrc.includes('export function _isAllowlistSafeId'));
   assert('service worker precaches sync-delta-registry.js',
     serviceWorkerSrc.includes("'/js/sync-delta-registry.js'"));
+  assert('sync-delta-observability.js owns delta telemetry and readiness checks',
+    syncDeltaObservabilitySrc.includes('export function configureSyncDeltaObservability')
+      && syncDeltaObservabilitySrc.includes('export function _recordPushTelemetry')
+      && syncDeltaObservabilitySrc.includes('export function getDeltaTelemetry')
+      && syncDeltaObservabilitySrc.includes('export function resetDeltaTelemetry')
+      && syncDeltaObservabilitySrc.includes('export function getDeltaCutoverReadiness')
+      && syncDeltaSrc.includes('resetPullDeltaSnapshot(profileId)')
+      && syncDeltaSrc.includes('recordPullDeltaSurface(arrayName'));
+  assert('service worker precaches sync-delta-observability.js',
+    serviceWorkerSrc.includes("'/js/sync-delta-observability.js'"));
   assert('sync-tombstones.js owns remote profile delete helpers',
     syncSrc.includes("from './sync-tombstones.js'")
       && syncTombstonesSrc.includes('export async function deleteProfileFromRelay')
@@ -1359,10 +1370,10 @@ await import('../js/settings.js');
     /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(deltaSearchSrc));
   assert('pushProfile records telemetry from onComplete (not synchronously)',
     /Push committed[\s\S]{0,3500}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(deltaSearchSrc));
-  assert('Pull-side merge updates _pullDeltaSnapshot per array',
-    /_pullDeltaSnapshot\.perArray\[arrayName\]\s*=\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*tombs\.size\s*\}/.test(deltaSearchSrc));
+  assert('Pull-side merge records pull telemetry per array',
+    /recordPullDeltaSurface\(arrayName,\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*tombs\.size\s*\}\)/.test(deltaSearchSrc));
   assert('Pull snapshot resets profileId on each merge (no stale carry-over)',
-    /_pullDeltaSnapshot\.profileId\s*=\s*profileId[\s\S]{0,200}_pullDeltaSnapshot\.perArray\s*=\s*\{\}/.test(deltaSearchSrc));
+    /resetPullDeltaSnapshot\(profileId\)[\s\S]{0,1000}_pullDeltaSnapshot\.profileId\s*=\s*profileId[\s\S]{0,200}_pullDeltaSnapshot\.perArray\s*=\s*\{\}/.test(deltaSearchSrc));
   assert('Diagnose surface renders Phase 1 dual-write health section',
     /Phase 1 dual-write health/.test(deltaSearchSrc));
   assert('Diagnose Copy text includes ratio + cutover hint',

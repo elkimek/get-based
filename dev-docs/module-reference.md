@@ -1380,7 +1380,9 @@ Not separately documented because their exports are best read from source — ke
 - `sync-push.js` — outbound profile push path, in-flight push watchdog, Phase 2 drift auto-revert, per-row delta planning/application, and relay byte telemetry.
 - `sync-pull.js` — inbound pull path; profile-row dedupe, blob/per-row merge, profile/chat/display apply, active-view refresh, and rebroadcast gating.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
-- `sync-delta.js` — per-row CRDT delta boundary; DELTA_ARRAYS/MAPS/SCALARS registration, array/map/scalar planners, itemRow merge overlay, delta telemetry, snapshot advancement gates, and Phase 2 cutover readiness.
+- `sync-delta.js` — per-row CRDT delta boundary; array/map/scalar planners, itemRow merge overlay, snapshot advancement gates, and compatibility re-exports for delta telemetry/readiness.
+- `sync-delta-registry.js` — DELTA_ARRAYS/MAPS/SCALARS registration plus per-surface itemId/keyId config and identity helpers.
+- `sync-delta-observability.js` — per-push delta telemetry, pull-side row-count snapshots, and Phase 2 cutover readiness checks.
 - `sync-apply.js` — inbound sync apply helpers for AI provider settings, chat thread/message data, display prefs, and local freshness locks that protect just-edited local chat/settings from stale remote rows.
 - `sync-tombstones.js` — remote profile delete propagation helpers, inbound tombstone application, batched-delete quarantine, and apply/reject pending tombstone actions for Settings.
 - `sync-messenger.js` — Agent Access token helpers and debounced lab-context push to the messenger/MCP gateway.
