@@ -125,6 +125,24 @@ function writeLocalDeletedThreads(profileId, deletedThreads) {
   } catch {}
 }
 
+async function applyChatThreadTombstones(profileId, existingThreads, deletedThreads) {
+  const keptThreads = [];
+  let changed = false;
+  for (const thread of existingThreads) {
+    if (!thread || typeof thread.id !== 'string') continue;
+    if ((Number(deletedThreads[thread.id]) || 0) >= threadUpdatedAtMs(thread)) {
+      await encryptedRemoveItem(`labcharts-${profileId}-chat-t_${thread.id}`);
+      changed = true;
+      continue;
+    }
+    keptThreads.push(thread);
+  }
+  if (changed) {
+    localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify(keptThreads));
+  }
+  return changed;
+}
+
 const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic', 'labcharts-lens-key', 'labcharts-custom-key'];
 
 export async function applyAISettings(settings) {
@@ -151,11 +169,6 @@ export async function applyAISettings(settings) {
 
 export async function applyChatData(profileId, chatData) {
   if (!chatData || !Array.isArray(chatData.threads)) return false;
-  if (shouldKeepLocalChatData(profileId)) {
-    dbg(`Skipped chatData for ${profileId.slice(0, 8)} - local chat has newer unsynced changes`);
-    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - local changes pending`);
-    return false;
-  }
   // Thread index: always plain localStorage (matches saveChatThreadIndex in chat.js).
   // encryptAllSensitiveKeys handles at-rest encryption when session ends.
   const threadsKey = `labcharts-${profileId}-chat-threads`;
@@ -170,6 +183,14 @@ export async function applyChatData(profileId, chatData) {
   const deletedThreads = readLocalDeletedThreads(profileId);
   for (const [id, deletedAt] of Object.entries(normalizeDeletedThreads(chatData.deletedThreads))) {
     deletedThreads[id] = Math.max(Number(deletedThreads[id]) || 0, deletedAt);
+  }
+  const tombstonesChanged = await applyChatThreadTombstones(profileId, existingThreads, deletedThreads);
+
+  if (shouldKeepLocalChatData(profileId)) {
+    writeLocalDeletedThreads(profileId, deletedThreads);
+    dbg(`Skipped chatData for ${profileId.slice(0, 8)} - local chat has newer unsynced changes`);
+    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - local changes pending`);
+    return tombstonesChanged;
   }
 
   const mergedById = new Map();

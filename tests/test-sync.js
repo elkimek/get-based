@@ -1083,6 +1083,9 @@ await import('../js/settings.js');
     const keepKey = `labcharts-${profileId}-chat-t_keep`;
     const goneKey = `labcharts-${profileId}-chat-t_gone`;
     const remoteKey = `labcharts-${profileId}-chat-t_remote`;
+    const lockedKeepKey = `labcharts-${profileId}-chat-t_lockedKeep`;
+    const lockedGoneKey = `labcharts-${profileId}-chat-t_lockedGone`;
+    const lockedRemoteKey = `labcharts-${profileId}-chat-t_lockedRemote`;
     const deletedKey = `labcharts-${profileId}-chat-deleted-threads`;
     const oldLock = sessionStorage.getItem('labcharts-chat-local-lock-until');
     const oldDeleted = localStorage.getItem(deletedKey);
@@ -1125,12 +1128,36 @@ await import('../js/settings.js');
       assert('applyChatData functional: empty local thread shell does not block remote chat under lock',
         emptyShellApplied === true
           && JSON.parse(localStorage.getItem(remoteKey) || '[]')?.[0]?.content === 'from device A');
+
+      localStorage.setItem(threadsKey, JSON.stringify([
+        { id: 'lockedKeep', messageCount: 1, updatedAt: '2026-05-24T10:20:00.000Z' },
+        { id: 'lockedGone', messageCount: 1, updatedAt: '2026-05-24T10:20:00.000Z' },
+      ]));
+      localStorage.setItem(lockedKeepKey, JSON.stringify([{ role: 'user', content: 'local keep' }]));
+      localStorage.setItem(lockedGoneKey, JSON.stringify([{ role: 'user', content: 'local delete' }]));
+      const lockedDeleteApplied = await syncApply.applyChatData(profileId, {
+        threads: [{ id: 'lockedRemote', messageCount: 1, updatedAt: '2026-05-24T10:40:00.000Z' }],
+        messages: { lockedRemote: [{ role: 'assistant', content: 'held while local lock is active' }] },
+        deletedThreads: { lockedGone: Date.parse('2026-05-24T10:30:00.000Z') },
+      });
+      const lockedThreads = JSON.parse(localStorage.getItem(threadsKey) || '[]');
+      assert('applyChatData functional: remote tombstone applies even while local chat lock is active',
+        lockedDeleteApplied === true
+          && localStorage.getItem(lockedGoneKey) === null
+          && !lockedThreads.some(t => t.id === 'lockedGone'));
+      assert('applyChatData functional: local chat lock still blocks non-delete remote thread merge',
+        lockedThreads.some(t => t.id === 'lockedKeep')
+          && !lockedThreads.some(t => t.id === 'lockedRemote')
+          && localStorage.getItem(lockedRemoteKey) === null);
     } finally {
       state.currentProfile = prevProfileId;
       localStorage.removeItem(threadsKey);
       localStorage.removeItem(keepKey);
       localStorage.removeItem(goneKey);
       localStorage.removeItem(remoteKey);
+      localStorage.removeItem(lockedKeepKey);
+      localStorage.removeItem(lockedGoneKey);
+      localStorage.removeItem(lockedRemoteKey);
       if (oldDeleted === null) localStorage.removeItem(deletedKey);
       else localStorage.setItem(deletedKey, oldDeleted);
       if (oldLock === null) sessionStorage.removeItem('labcharts-chat-local-lock-until');
