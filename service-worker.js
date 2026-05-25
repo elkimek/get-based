@@ -149,6 +149,7 @@ const APP_SHELL = [
   '/js/sync-delta-planners.js',
   '/js/sync-delta-snapshot.js',
   '/js/sync-delta-merge.js',
+  '/js/sync-delta-merge-shapes.js',
   '/js/sync-delta-registry.js',
   '/js/sync-delta-observability.js',
   '/js/sync-tombstones.js',

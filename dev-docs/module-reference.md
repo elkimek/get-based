@@ -1385,7 +1385,8 @@ Not separately documented because their exports are best read from source — ke
 - `sync-delta.js` — per-row CRDT delta facade; config fan-out, apply helpers, and compatibility re-exports for planners, snapshots, merge, telemetry, and readiness.
 - `sync-delta-planners.js` — push-side array/map/scalar planners; diffs local importedData against snapshots and emits itemRow insert/update/tombstone ops.
 - `sync-delta-snapshot.js` — delta snapshot keying, reads, plannedAt-gated writes, and snapshot clear helpers.
-- `sync-delta-merge.js` — pull-side itemRow merge overlay; applies per-row array/map/scalar rows into importedData after blob merge.
+- `sync-delta-merge.js` — pull-side itemRow grouping and merge-shape dispatch into importedData after blob merge.
+- `sync-delta-merge-shapes.js` — pull-side array/map/scalar row overlay helpers; owns tombstone application, nested-path writes, proto guards, caps, and pull delta telemetry.
 - `sync-delta-registry.js` — DELTA_ARRAYS/MAPS/SCALARS registration plus per-surface itemId/keyId config and identity helpers.
 - `sync-delta-observability.js` — per-push delta telemetry, pull-side row-count snapshots, and Phase 2 cutover readiness checks.
 - `sync-apply.js` — inbound sync apply helpers for AI provider settings, chat thread/message data, display prefs, and local freshness locks that protect just-edited local chat/settings from stale remote rows.
