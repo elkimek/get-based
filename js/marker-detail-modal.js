@@ -18,6 +18,54 @@ export function configureMarkerDetailModal(deps = {}) {
   Object.assign(markerDetailDeps, deps);
 }
 
+// PhenoAge and Bortz Age input lists — kept here (not in data.js) so the
+// detail modal can tell users exactly which markers are still missing for
+// the latest entry, without exposing data.js internals or risking drift.
+// Each tuple is [Human label, category, markerKey]; the category/markerKey
+// pair must match the calculation in data.js (phenoAge / bortzAge) — if you
+// add or remove an input there, mirror it here. Order is what users see.
+const _PHENO_AGE_INPUTS = [
+  ['Albumin',         'proteins',     'albumin'],
+  ['Creatinine',      'biochemistry', 'creatinine'],
+  ['Glucose',         'biochemistry', 'glucose'],
+  ['hs-CRP',          'proteins',     'hsCRP'],
+  ['Lymphocytes %',   'differential', 'lymphocytesPct'],
+  ['MCV',             'hematology',   'mcv'],
+  ['RDW-CV',          'hematology',   'rdwcv'],
+  ['ALP',             'biochemistry', 'alp'],
+  ['WBC',             'hematology',   'wbc'],
+];
+const _BORTZ_AGE_INPUTS = [
+  ['Albumin',         'proteins',     'albumin'],
+  ['ALP',             'biochemistry', 'alp'],
+  ['Urea',            'biochemistry', 'urea'],
+  ['Cholesterol',     'lipids',       'cholesterol'],
+  ['Creatinine',      'biochemistry', 'creatinine'],
+  ['Cystatin C',      'biochemistry', 'cystatinC'],
+  ['HbA1c',           'diabetes',     'hba1c'],
+  ['hs-CRP',          'proteins',     'hsCRP'],
+  ['GGT',             'biochemistry', 'ggt'],
+  ['RBC',             'hematology',   'rbc'],
+  ['MCV',             'hematology',   'mcv'],
+  ['RDW-CV',          'hematology',   'rdwcv'],
+  ['Monocytes',       'differential', 'monocytes'],
+  ['Neutrophils',     'differential', 'neutrophils'],
+  ['Lymphocytes %',   'differential', 'lymphocytesPct'],
+  ['ALT',             'biochemistry', 'alt'],
+  ['SHBG',            'hormones',     'shbg'],
+  ['Vitamin D',       'vitamins',     'vitaminD'],
+  ['Glucose',         'biochemistry', 'glucose'],
+  ['MCH',             'hematology',   'mch'],
+  ['ApoA-I',          'lipids',       'apoAI'],
+];
+
+function _bioAgeMissingInputs(data, latestIdx) {
+  const getVal = (cat, key) => data.categories?.[cat]?.markers?.[key]?.values?.[latestIdx];
+  const phenoMissing = _PHENO_AGE_INPUTS.filter(([, c, k]) => getVal(c, k) == null).map(([label]) => label);
+  const bortzMissing = _BORTZ_AGE_INPUTS.filter(([, c, k]) => getVal(c, k) == null).map(([label]) => label);
+  return { phenoMissing, bortzMissing };
+}
+
 function setDetailModalShell(...classes) {
   const modal = document.getElementById('detail-modal');
   if (!modal) return null;
@@ -471,24 +519,39 @@ export function showDetailModal(id, opts = {}) {
         }
       }
     }
-    // Biological Age: show component status
+    // Biological Age: show component breakdown. When at least one of
+    // PhenoAge / Bortz is calculated, biologicalAge falls back to whichever
+    // is non-null, so the value IS shown on the dashboard. The previous
+    // implementation pushed a status string into `issues` and let the
+    // generic "Not calculated — " header prefix it, which incorrectly
+    // labelled a calculated value as missing. Render the breakdown as a
+    // separate info block instead, and for any missing component, list
+    // the specific markers still needed.
     if (id === 'calculatedRatios_biologicalAge') {
       const latestIdx = data.dates.length - 1;
       const pheno = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[latestIdx];
       const bortz = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[latestIdx];
-      if (pheno == null && bortz == null) {
-        issues.push('Neither PhenoAge nor Bortz Age could be calculated — check their detail views for missing inputs');
-      } else {
-        const age = state.profileDob ? ((new Date(data.dates[latestIdx] + 'T00:00:00') - new Date(state.profileDob + 'T00:00:00')) / (365.25*24*60*60*1000)) : null;
-        const parts = [];
-        if (pheno != null) parts.push(`PhenoAge: ${pheno}${age ? ' (' + (pheno - age > 0 ? '+' : '') + (pheno - age).toFixed(1) + 'y)' : ''}`);
-        if (bortz != null) parts.push(`Bortz Age: ${bortz}${age ? ' (' + (bortz - age > 0 ? '+' : '') + (bortz - age).toFixed(1) + 'y)' : ''}`);
-        if (pheno == null) parts.push('PhenoAge: not calculated');
-        if (bortz == null) parts.push('Bortz Age: not calculated');
-        issues.push(parts.join(' · '));
-      }
-    }
-    if (issues.length > 0) {
+      const age = state.profileDob ? ((new Date(data.dates[latestIdx] + 'T00:00:00') - new Date(state.profileDob + 'T00:00:00')) / (365.25*24*60*60*1000)) : null;
+      const { phenoMissing, bortzMissing } = _bioAgeMissingInputs(data, latestIdx);
+      const componentRow = (name, value, missing) => {
+        if (value != null) {
+          const delta = age != null ? ` <span class="bio-age-delta">(${value - age > 0 ? '+' : ''}${(value - age).toFixed(1)}y)</span>` : '';
+          return `<div class="bio-age-component bio-age-component-ok"><span class="bio-age-glyph">✓</span> <strong>${escapeHTML(name)}:</strong> ${escapeHTML(String(value))}${delta}</div>`;
+        }
+        const labels = missing.map(escapeHTML).join(', ');
+        const noun = missing.length === 1 ? 'input' : 'inputs';
+        return `<div class="bio-age-component bio-age-component-missing"><span class="bio-age-glyph">⚠</span> <strong>${escapeHTML(name)}:</strong> needs ${missing.length} more ${noun}<div class="bio-age-component-list">${labels}</div></div>`;
+      };
+      html += `<div class="bio-age-breakdown">
+        <div class="bio-age-breakdown-head">Component breakdown</div>
+        ${componentRow('PhenoAge', pheno, phenoMissing)}
+        ${componentRow('Bortz Age', bortz, bortzMissing)}
+      </div>`;
+      // Don't double-fire the generic "Not calculated" header for biological
+      // age. When BOTH components are missing, the breakdown block above
+      // already shows the specific markers each needs — that's clearer than
+      // the previous "check their detail views" pointer.
+    } else if (issues.length > 0) {
       html += `<div class="calc-missing-inputs">Not calculated — ${issues.join('. ')}</div>`;
     }
   }
