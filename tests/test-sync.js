@@ -40,6 +40,7 @@ await import('../js/sync.js');
 await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
+  const syncConfigureSrc = await fetchWithRetry('js/sync-configure.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
   const syncChatApplySrc = await fetchWithRetry('js/sync-chat-apply.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
@@ -136,16 +137,29 @@ await import('../js/settings.js');
   assert('service worker precaches sync-settings-state.js',
     serviceWorkerSrc.includes("'/js/sync-settings-state.js'"));
   assert('sync-runtime.js owns mutable Evolu runtime handles',
-    syncSrc.includes("from './sync-runtime.js'")
+    syncConfigureSrc.includes("from './sync-runtime.js'")
       && syncRuntimeSrc.includes('let _evolu = null')
       && syncRuntimeSrc.includes('export function getSyncEvolu')
       && syncRuntimeSrc.includes('export function getSyncProfileQuery')
       && syncRuntimeSrc.includes('export function getSyncAppOwner')
       && syncRuntimeSrc.includes('export function clearSyncRuntimeState')
-      && syncSrc.includes('getEvolu: getSyncEvolu')
+      && syncConfigureSrc.includes('getEvolu: getSyncEvolu')
       && syncLifecycleSrc.includes('clearSyncRuntimeState();'));
   assert('service worker precaches sync-runtime.js',
     serviceWorkerSrc.includes("'/js/sync-runtime.js'"));
+  assert('sync-configure.js owns sync dependency wiring',
+    syncSrc.includes("from './sync-configure.js'")
+      && syncConfigureSrc.includes('export function configureSyncModules')
+      && syncConfigureSrc.includes('configureRelayHealth({')
+      && syncConfigureSrc.includes('configureSyncPush({')
+      && syncConfigureSrc.includes('configureSyncPull({')
+      && syncConfigureSrc.includes('configureSyncSubscriptions({')
+      && syncConfigureSrc.includes('configureSyncTombstones({')
+      && syncConfigureSrc.includes('configureSyncDiagnostics({')
+      && syncConfigureSrc.includes('bindSyncWindowActions({ enableSync, disableSync })')
+      && syncSrc.includes('configureSyncModules({ enableSync, disableSync });'));
+  assert('service worker precaches sync-configure.js',
+    serviceWorkerSrc.includes("'/js/sync-configure.js'"));
   assert('sync-init.js owns Evolu startup orchestration',
     syncSrc.includes("from './sync-init.js'")
       && syncInitSrc.includes('export async function initSync')
@@ -405,7 +419,7 @@ await import('../js/settings.js');
       && syncActionsSrc.includes('export async function pushAllProfiles')
       && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved', 'onProfileSaved']));
   assert('sync-actions compatibility configure path receives isSyncing',
-    /configureSyncActions\(\{[\s\S]{0,260}isSyncing:\s*isSyncPushInFlight/.test(syncSrc)
+    /configureSyncActions\(\{[\s\S]{0,260}isSyncing:\s*isSyncPushInFlight/.test(syncConfigureSrc)
       && /configureSyncSaveHooks\(\{[\s\S]{0,140}isSyncing/.test(syncActionsSrc));
   assert('service worker precaches sync-actions.js',
     serviceWorkerSrc.includes("'/js/sync-actions.js'"));
@@ -438,13 +452,13 @@ await import('../js/settings.js');
   assert('service worker precaches sync-storage-cleanup.js',
     serviceWorkerSrc.includes("'/js/sync-storage-cleanup.js'"));
   assert('sync-push.js owns outbound profile push and push watchdog state',
-    syncSrc.includes("from './sync-push.js'")
+    syncConfigureSrc.includes("from './sync-push.js'")
       && syncPushSrc.includes('export function configureSyncPush')
       && syncPushSrc.includes('export function isSyncPushInFlight')
       && syncPushSrc.includes('export async function pushProfile')
       && syncPushSrc.includes("from './sync-push-deltas.js'")
-      && syncSrc.includes('isSyncing: isSyncPushInFlight')
-      && syncSrc.includes('configureSyncPush({'));
+      && syncConfigureSrc.includes('isSyncing: isSyncPushInFlight')
+      && syncConfigureSrc.includes('configureSyncPush({'));
   assert('service worker precaches sync-push.js',
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
   assert('sync-push-deltas.js owns push delta planning/application',
@@ -457,26 +471,26 @@ await import('../js/settings.js');
   assert('service worker precaches sync-push-deltas.js',
     serviceWorkerSrc.includes("'/js/sync-push-deltas.js'"));
   assert('sync-recovery.js owns tab resume and network recovery hooks',
-    syncSrc.includes("from './sync-recovery.js'")
+    syncConfigureSrc.includes("from './sync-recovery.js'")
       && syncRecoverySrc.includes('export function configureSyncRecovery')
       && syncRecoverySrc.includes('export function bindSyncRecoveryEvents')
       && syncRecoverySrc.includes("document.addEventListener('visibilitychange'")
       && syncRecoverySrc.includes("window.addEventListener('pageshow'")
       && syncRecoverySrc.includes("window.addEventListener('online'")
       && syncRecoverySrc.includes("window.addEventListener('offline'")
-      && syncSrc.includes('configureSyncRecovery({')
+      && syncConfigureSrc.includes('configureSyncRecovery({')
       && syncInitSrc.includes('bindSyncRecoveryEvents();'));
   assert('service worker precaches sync-recovery.js',
     serviceWorkerSrc.includes("'/js/sync-recovery.js'"));
   assert('sync-reconcile.js owns startup reconciliation helper',
-    syncSrc.includes("from './sync-reconcile.js'")
+    syncConfigureSrc.includes("from './sync-reconcile.js'")
       && syncReconcileSrc.includes('export function configureSyncReconcile')
       && syncReconcileSrc.includes('export async function reconcileLocalStorageWithEvolu')
-      && syncSrc.includes('configureSyncReconcile({'));
+      && syncConfigureSrc.includes('configureSyncReconcile({'));
   assert('service worker precaches sync-reconcile.js',
     serviceWorkerSrc.includes("'/js/sync-reconcile.js'"));
   assert('sync-pull.js owns inbound pull orchestration',
-    syncSrc.includes("from './sync-pull.js'")
+    syncConfigureSrc.includes("from './sync-pull.js'")
       && syncPullSrc.includes('export function configureSyncPull')
       && syncPullSrc.includes('export async function onSyncReceived')
       && syncPullSrc.includes('export function forcePull')
@@ -485,7 +499,7 @@ await import('../js/settings.js');
       && syncPullSrc.includes("from './sync-pull-maintenance.js'")
       && syncPullSrc.includes("from './sync-pull-active-refresh.js'")
       && syncPullSrc.includes("from './sync-pull-rebroadcast.js'")
-      && syncSrc.includes('configureSyncPull({'));
+      && syncConfigureSrc.includes('configureSyncPull({'));
   assert('service worker precaches sync-pull.js',
     serviceWorkerSrc.includes("'/js/sync-pull.js'"));
   assert('sync-pull-merge.js owns inbound pull row merge helpers',
@@ -518,7 +532,7 @@ await import('../js/settings.js');
   assert('service worker precaches sync-pull-rebroadcast.js',
     serviceWorkerSrc.includes("'/js/sync-pull-rebroadcast.js'"));
   assert('sync-subscriptions.js owns Evolu subscription and polling helpers',
-    syncSrc.includes("from './sync-subscriptions.js'")
+    syncConfigureSrc.includes("from './sync-subscriptions.js'")
       && syncSubscriptionsSrc.includes('export function configureSyncSubscriptions')
       && syncSubscriptionsSrc.includes('export function bindSyncSubscriptions')
       && syncSubscriptionsSrc.includes('export function clearSyncSubscriptionTimers')
@@ -535,16 +549,16 @@ await import('../js/settings.js');
       && syncInitSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
       && syncInitSrc.includes('startRelayProbe();')
       && syncLifecycleSrc.includes('clearSyncSubscriptionTimers();')
-      && syncSrc.includes('getSubscriptionFireCount: getSyncSubscriptionFireCount'));
+      && syncConfigureSrc.includes('getSubscriptionFireCount: getSyncSubscriptionFireCount'));
   assert('service worker precaches sync-subscriptions.js',
     serviceWorkerSrc.includes("'/js/sync-subscriptions.js'"));
   assert('sync-window-bindings.js owns browser global sync actions',
-    syncSrc.includes("from './sync-window-bindings.js'")
+    syncConfigureSrc.includes("from './sync-window-bindings.js'")
       && syncWindowBindingsSrc.includes('export function bindSyncWindowActions')
       && syncWindowBindingsSrc.includes('Object.assign(window')
       && syncWindowBindingsSrc.includes('_forcePull: forcePull')
       && syncWindowBindingsSrc.includes('confirmBackfillBlockers')
-      && syncSrc.includes('bindSyncWindowActions({ enableSync, disableSync });'));
+      && syncConfigureSrc.includes('bindSyncWindowActions({ enableSync, disableSync });'));
   assert('service worker precaches sync-window-bindings.js',
     serviceWorkerSrc.includes("'/js/sync-window-bindings.js'"));
   assert('sync-cutover.js owns Phase 2 cutover flag actions',

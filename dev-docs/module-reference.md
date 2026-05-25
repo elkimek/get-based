@@ -1376,7 +1376,8 @@ Not separately documented because their exports are best read from source — ke
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
-- `sync.js` — Evolu CRDT sync orchestration; lifecycle setup, enable/disable flow, and profile/table query wiring.
+- `sync.js` — Public sync entry/barrel; exports sync lifecycle, actions, diagnostics, relay, identity, and cutover APIs while delegating dependency wiring to `sync-configure.js`.
+- `sync-configure.js` — Sync subsystem dependency wiring; configures relay health, push/pull/subscription/tombstone/diagnostic/UI/action/recovery/reconcile modules and browser window bindings.
 - `sync-push.js` — outbound profile push path, in-flight push watchdog, Phase 2 drift auto-revert, and Evolu profileData insert/update.
 - `sync-push-deltas.js` — push-side per-row delta planning/application; walks DELTA_ARRAYS/MAPS/SCALARS before blob writes, advances snapshots after onComplete, and records delta telemetry.
 - `sync-pull.js` — inbound pull orchestration and row loop; delegates one-time cleanup, active-profile UI refresh, and rebroadcast scheduling to helper modules.

@@ -138,6 +138,7 @@ const APP_SHELL = [
   '/js/dna.js',
   '/js/hardware.js',
   '/js/sync.js',
+  '/js/sync-configure.js',
   '/js/sync-settings-state.js',
   '/js/sync-runtime.js',
   '/js/sync-init.js',
