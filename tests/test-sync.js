@@ -1212,7 +1212,7 @@ await import('../js/settings.js');
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
     /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,500}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
   assert('Map-shape pull guards rawKey against proto-pollution at write site',
-    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,400}_PROTO_POLLUTION_KEYS\.has\(rawKey\)[\s\S]{0,100}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
+    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,400}_isProtoPollutionKey\(rawKey\)[\s\S]{0,100}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
 
   // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
   // result is allowlist-safe, original key recoverable on pull via
@@ -1566,8 +1566,10 @@ await import('../js/settings.js');
   // Proto-pollution defence
   assert('_isAllowlistSafeId rejects __proto__ / constructor / prototype',
     /_PROTO_POLLUTION_KEYS\s*=\s*new Set\(\['__proto__',\s*'constructor',\s*'prototype'\]\)/.test(deltaSearchSrc));
-  assert('_isAllowlistSafeId combines regex + proto-key Set',
-    /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_PROTO_POLLUTION_KEYS\.has\(id\)/.test(deltaSearchSrc));
+  assert('_PROTO_POLLUTION_KEYS stays module-private (not an exported mutable Set)',
+    !/export\s+const\s+_PROTO_POLLUTION_KEYS/.test(syncDeltaRegistrySrc));
+  assert('_isAllowlistSafeId combines regex + private proto-key predicate',
+    /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_isProtoPollutionKey\(id\)/.test(deltaSearchSrc));
   assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
     /_planArrayDelta[\s\S]{0,1500}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta uses _isAllowlistSafeId on derived itemId',

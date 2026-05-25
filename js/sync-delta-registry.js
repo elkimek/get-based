@@ -276,10 +276,14 @@ export function _djb2(str) {
 // Reject these explicitly at every itemId-from-payload path: planner
 // allowlist on push, _mergeItemRowsIntoImported on pull, getDeltaCutoverReadiness
 // when iterating row.itemId. Net cost: O(1) per check.
-export const _PROTO_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const _PROTO_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+export function _isProtoPollutionKey(id) {
+  return _PROTO_POLLUTION_KEYS.has(id);
+}
+
 export function _isAllowlistSafeId(id) {
   return typeof id === 'string'
     && id.length > 0
     && /^[a-zA-Z0-9_.-]+$/.test(id)
-    && !_PROTO_POLLUTION_KEYS.has(id);
+    && !_isProtoPollutionKey(id);
 }

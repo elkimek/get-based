@@ -5,7 +5,7 @@ import { COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt } from './data-merg
 import { _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped } from './sync-payload.js';
 import {
   DELTA_ARRAY_CONFIG, DELTA_ARRAYS, DELTA_MAP_CONFIG, DELTA_MAPS, DELTA_SCALARS,
-  _PROTO_POLLUTION_KEYS, _djb2, _isAllowlistSafeId,
+  _djb2, _isAllowlistSafeId, _isProtoPollutionKey,
 } from './sync-delta-registry.js';
 
 export { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
@@ -226,7 +226,7 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
         const parsed = JSON.parse(json);
         if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
         if (keyIdFn(parsed.k) !== row.itemId) continue;
-        if (_PROTO_POLLUTION_KEYS.has(parsed.k)) continue;
+        if (_isProtoPollutionKey(parsed.k)) continue;
         fromRows[parsed.k] = parsed.v;
       } catch {}
     }
@@ -598,10 +598,10 @@ export async function _mergeItemRowsIntoImported(profileId, imported) {
       // '____proto____' (doubling-escape) which IS allowlist-safe, so a
       // hostile relay row could carry parsed.k='__proto__' through every
       // earlier check and reach this write. Reject at the assignment site
-      // — the cost is one Set.has per live entry; the win is closing a
-      // prototype-pollution sink on imported.manualValues.
+      // — the cost is one predicate call per live entry; the win is
+      // closing a prototype-pollution sink on imported.manualValues.
       for (const [rawKey, entry] of liveByRawKey) {
-        if (_PROTO_POLLUTION_KEYS.has(rawKey)) continue;
+        if (_isProtoPollutionKey(rawKey)) continue;
         curMap[rawKey] = entry.v;
       }
       _pullDeltaSnapshot.perArray[arrayName] = { live: liveByRawKey.size, tombstones: tombItemIds.size };

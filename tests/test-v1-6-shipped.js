@@ -200,7 +200,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     const syncDeltaRegistrySrc = fetchSrc('js/sync-delta-registry.js');
     const cfgBlock = syncDeltaRegistrySrc.split('DELTA_ARRAY_CONFIG')[1] || '';
     const lmCfgMatch = cfgBlock.match(/lightMeasurements:\s*\{[\s\S]{0,300}?\}/);
-    assert('sync-delta.js: lightMeasurements has NO noTombstones (Phase 2 propagation)',
+    assert('sync-delta-registry.js: lightMeasurements has NO noTombstones (Phase 2 propagation)',
       !lmCfgMatch || !/noTombstones:\s*true/.test(lmCfgMatch[0]),
       'lightMeasurements: noTombstones true would block v4 tombstone propagation');
   }
