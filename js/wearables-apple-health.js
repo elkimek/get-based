@@ -272,6 +272,7 @@ function _aggregateByDayByMetric(byDayByMetric) {
       strain: null,
       stress_high_min: null, resilience_level: null, cardio_age: null,
       weight: null, bp_systolic: null, bp_diastolic: null,
+      body_fat_pct: null, lean_mass_kg: null, fat_mass_kg: null,
       spo2_avg: null, body_temp_delta: null, glucose_avg: null,
       vo2max: null,
     };
@@ -331,6 +332,32 @@ function _aggregateByDayByMetric(byDayByMetric) {
       row.vo2max = Math.round(mean(bucket.vo2max.map(s => s.v)) * 100) / 100;
     }
 
+    // Body composition + BP — mean across same-day samples. Matches Withings's
+    // daily convention (also a mean), and BP averaging is the AHA standard for
+    // multi-reading sessions. The 90d baseline (m.baseline) is a median, so
+    // the trend visualization stays robust against a single freak weigh-in.
+    if (Array.isArray(bucket.weight) && bucket.weight.length) {
+      row.weight = Math.round(mean(bucket.weight.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.body_fat_pct) && bucket.body_fat_pct.length) {
+      row.body_fat_pct = Math.round(mean(bucket.body_fat_pct.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.lean_mass_kg) && bucket.lean_mass_kg.length) {
+      row.lean_mass_kg = Math.round(mean(bucket.lean_mass_kg.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.bp_systolic) && bucket.bp_systolic.length) {
+      row.bp_systolic = Math.round(mean(bucket.bp_systolic.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.bp_diastolic) && bucket.bp_diastolic.length) {
+      row.bp_diastolic = Math.round(mean(bucket.bp_diastolic.map(s => s.v)) * 100) / 100;
+    }
+    // fat_mass_kg — HealthKit has no first-party identifier, derive on days
+    // that carry both weight and body_fat_pct so Apple-Health users see the
+    // same body-comp surface Withings reports directly.
+    if (row.weight != null && row.body_fat_pct != null) {
+      row.fat_mass_kg = Math.round(row.weight * row.body_fat_pct) / 100;
+    }
+
     rows.push(row);
   }
   rows.sort((a, b) => a.date.localeCompare(b.date));
@@ -367,6 +394,29 @@ function normaliseUnit(metricId, value, unit) {
       // Apple ships VO₂max in "mL/min·kg" (their formatting). Canonical is
       // mL/kg/min — same physiological quantity, just transposed factors.
       return (!unit || unit === 'mL/min·kg' || unit === 'mL/kg/min') ? value : null;
+    case 'weight':
+    case 'lean_mass_kg':
+      // Apple's body-mass unit follows the user's iOS region — `kg` in metric
+      // locales, `lb` in US/UK. Canonical is kg, so convert lb. `st` (stone)
+      // hasn't been observed in the wild but is on the HK supported-units
+      // list; convert it the same way (1 st = 6.35029 kg).
+      if (!unit || unit === 'kg') return value;
+      if (unit === 'lb') return value / 2.20462;
+      if (unit === 'st') return value * 6.35029;
+      return null;
+    case 'body_fat_pct':
+      // Apple BodyFatPercentage exports as a unitless 0–1 fraction in most
+      // cases; the unit attribute is typically '%' but the VALUE is fractional.
+      // Withings reports a 0–100 percentage. Normalise to percentage.
+      // Defensive: if a 3rd-party app wrote already-scaled values, leave them.
+      if (!unit || unit === '%' || unit === '1' || unit === '') {
+        return value <= 1 ? value * 100 : value;
+      }
+      return null;
+    case 'bp_systolic':
+    case 'bp_diastolic':
+      // Apple ships BP in mmHg, same as canonical.
+      return (!unit || unit === 'mmHg') ? value : null;
     default:
       // If canonical declares a unit string and Apple disagrees, refuse.
       return (!unit || unit === canonUnit) ? value : null;

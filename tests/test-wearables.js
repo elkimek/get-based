@@ -605,10 +605,13 @@ assert('Day 2 RHR populated (single reading → 56)', day2.rhr === 56);
 assert('Day 2 HRV SDNN populated (single night-window sample → 51)', day2.hrv_sdnn === 51);
 assert('Day 2 hrv_day null (no day-window samples)', day2.hrv_day === null);
 
-// Records we explicitly don't map must NOT end up in canonical rows —
-// HeartRate (real-time) and BodyMass aren't in our Apple Health mapping yet.
+// rMSSD has no Apple HK identifier — we ingest SDNN only. Stays null.
 assert('rMSSD is not derivable from Apple Health (we use SDNN type only) — hrv_rmssd stays null',
   day1.hrv_rmssd === null && day2.hrv_rmssd === null);
+// BodyMass fixture lands on day 2 (2026-04-21, value=72.5 kg). With body-comp
+// wiring this should populate day2.weight directly (unit 'kg' → no conversion).
+assert('BodyMass record populates day2.weight (kg passthrough)',
+  day2.weight === 72.5);
 // Day 1 has one HKQuantityTypeIdentifierHeartRate sample at 10:00 (day window) value=72.
 // Day 2 has none. Verify hr_day surfaces 72 on day 1, null on day 2.
 assert('hr_day populated from raw HeartRate stream (day-window mean)',

@@ -450,6 +450,17 @@ export const ADAPTERS = [
       spo2_avg:        { hkType: 'HKQuantityTypeIdentifierOxygenSaturation' },
       body_temp_delta: { hkType: 'HKQuantityTypeIdentifierBodyTemperature' },
       vo2max:          { hkType: 'HKQuantityTypeIdentifierVO2Max' },
+      // Body composition + cardio — Apple Health receives these from 3rd-party
+      // scales (Withings Health Mate, Renpho, Aria, etc.) and BP cuffs writing
+      // into HealthKit. Most users will have multiple readings per day; the
+      // aggregator averages to one daily value to match Withings's convention.
+      // fat_mass_kg has no HK identifier — derived from weight × body_fat_pct
+      // on days that have both.
+      weight:          { hkType: 'HKQuantityTypeIdentifierBodyMass' },
+      body_fat_pct:    { hkType: 'HKQuantityTypeIdentifierBodyFatPercentage' },
+      lean_mass_kg:    { hkType: 'HKQuantityTypeIdentifierLeanBodyMass' },
+      bp_systolic:     { hkType: 'HKQuantityTypeIdentifierBloodPressureSystolic' },
+      bp_diastolic:    { hkType: 'HKQuantityTypeIdentifierBloodPressureDiastolic' },
     },
   },
 ];
