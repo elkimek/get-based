@@ -63,6 +63,9 @@ await import('../js/settings.js');
   const syncDeltaMapMergeSrc = await fetchWithRetry('js/sync-delta-map-merge.js');
   const syncDeltaScalarMergeSrc = await fetchWithRetry('js/sync-delta-scalar-merge.js');
   const syncDeltaRegistrySrc = await fetchWithRetry('js/sync-delta-registry.js');
+  const syncDeltaSurfacesSrc = await fetchWithRetry('js/sync-delta-surfaces.js');
+  const syncDeltaSurfaceConfigSrc = await fetchWithRetry('js/sync-delta-surface-config.js');
+  const syncDeltaIdSrc = await fetchWithRetry('js/sync-delta-id.js');
   const syncDeltaObservabilitySrc = await fetchWithRetry('js/sync-delta-observability.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
@@ -105,7 +108,8 @@ await import('../js/settings.js');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
   const syncDeltaPlannerSearchSrc = `${syncDeltaPlannersSrc}\n${syncDeltaPlannerContextSrc}\n${syncDeltaArrayPlannerSrc}\n${syncDeltaMapPlannerSrc}\n${syncDeltaScalarPlannerSrc}`;
   const syncDeltaMergeSearchSrc = `${syncDeltaMergeShapesSrc}\n${syncDeltaRowCodecSrc}\n${syncDeltaArrayMergeSrc}\n${syncDeltaMapMergeSrc}\n${syncDeltaScalarMergeSrc}`;
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
+  const syncDeltaRegistrySearchSrc = `${syncDeltaRegistrySrc}\n${syncDeltaSurfacesSrc}\n${syncDeltaSurfaceConfigSrc}\n${syncDeltaIdSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -291,15 +295,22 @@ await import('../js/settings.js');
       && serviceWorkerSrc.includes("'/js/sync-delta-array-merge.js'")
       && serviceWorkerSrc.includes("'/js/sync-delta-map-merge.js'")
       && serviceWorkerSrc.includes("'/js/sync-delta-scalar-merge.js'"));
-  assert('sync-delta-registry.js owns delta surfaces and identity config',
-    syncDeltaRegistrySrc.includes('export const DELTA_ARRAYS')
-      && syncDeltaRegistrySrc.includes('export const DELTA_MAPS')
-      && syncDeltaRegistrySrc.includes('export const DELTA_SCALARS')
-      && syncDeltaRegistrySrc.includes('export const DELTA_ARRAY_CONFIG')
-      && syncDeltaRegistrySrc.includes('export const DELTA_MAP_CONFIG')
-      && syncDeltaRegistrySrc.includes('export function _isAllowlistSafeId'));
-  assert('service worker precaches sync-delta-registry.js',
-    serviceWorkerSrc.includes("'/js/sync-delta-registry.js'"));
+  assert('sync-delta-registry.js owns delta registry facade',
+    syncDeltaRegistrySrc.includes("from './sync-delta-surfaces.js'")
+      && syncDeltaRegistrySrc.includes("from './sync-delta-surface-config.js'")
+      && syncDeltaRegistrySrc.includes("from './sync-delta-id.js'"));
+  assert('sync delta registry implementation modules own surfaces, config, and ids',
+    syncDeltaSurfacesSrc.includes('export const DELTA_ARRAYS')
+      && syncDeltaSurfacesSrc.includes('export const DELTA_MAPS')
+      && syncDeltaSurfacesSrc.includes('export const DELTA_SCALARS')
+      && syncDeltaSurfaceConfigSrc.includes('export const DELTA_ARRAY_CONFIG')
+      && syncDeltaSurfaceConfigSrc.includes('export const DELTA_MAP_CONFIG')
+      && syncDeltaIdSrc.includes('export function _isAllowlistSafeId'));
+  assert('service worker precaches sync delta registry modules',
+    serviceWorkerSrc.includes("'/js/sync-delta-registry.js'")
+      && serviceWorkerSrc.includes("'/js/sync-delta-surfaces.js'")
+      && serviceWorkerSrc.includes("'/js/sync-delta-surface-config.js'")
+      && serviceWorkerSrc.includes("'/js/sync-delta-id.js'"));
   assert('sync-delta-observability.js owns delta telemetry and readiness checks',
     syncDeltaObservabilitySrc.includes('export function configureSyncDeltaObservability')
       && syncDeltaObservabilitySrc.includes('export function _recordPushTelemetry')
@@ -864,15 +875,15 @@ await import('../js/settings.js');
 
   // DELTA_ARRAYS list (high-velocity arrays)
   assert('DELTA_ARRAYS includes sunSessions + lightDevices',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,400}'sunSessions'[\s\S]{0,400}'lightDevices'/.test(syncDeltaRegistrySrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,400}'sunSessions'[\s\S]{0,400}'lightDevices'/.test(syncDeltaSurfacesSrc));
   assert('DELTA_ARRAYS includes entries + notes (high-importance lab data)',
-    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,800}'entries'[\s\S]{0,400}'notes'/.test(syncDeltaRegistrySrc));
+    /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,800}'entries'[\s\S]{0,400}'notes'/.test(syncDeltaSurfacesSrc));
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
     /_planArrayDelta[\s\S]{0,1200}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1200}prev\[itemId\]\s*===\s*hash/.test(syncDeltaPlannerSearchSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
-    /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaRegistrySrc));
+    /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaIdSrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
     /json\.length > 256[\s\S]{0,200}GZ\|v1\|/.test(syncDeltaPlannerSearchSrc));
   assert('_planArrayDelta emits tombstones for items removed since last push',
@@ -1936,7 +1947,7 @@ await import('../js/settings.js');
   assert('_isAllowlistSafeId rejects __proto__ / constructor / prototype',
     /_PROTO_POLLUTION_KEYS\s*=\s*new Set\(\['__proto__',\s*'constructor',\s*'prototype'\]\)/.test(deltaSearchSrc));
   assert('_PROTO_POLLUTION_KEYS stays module-private (not an exported mutable Set)',
-    !/export\s+const\s+_PROTO_POLLUTION_KEYS/.test(syncDeltaRegistrySrc));
+    !/export\s+const\s+_PROTO_POLLUTION_KEYS/.test(syncDeltaIdSrc));
   assert('_isAllowlistSafeId combines regex + private proto-key predicate',
     /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_isProtoPollutionKey\(id\)/.test(deltaSearchSrc));
   assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
@@ -2387,7 +2398,7 @@ await import('../js/settings.js');
   // in a sibling const + report a false positive.
   const inList = (constName, entry) => {
     const re = new RegExp(`const ${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm');
-    const m = syncDeltaRegistrySrc.match(re);
+    const m = syncDeltaSurfacesSrc.match(re);
     if (!m) return false;
     return m[1].includes(`'${entry}'`);
   };

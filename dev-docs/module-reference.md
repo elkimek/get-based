@@ -1399,7 +1399,10 @@ Not separately documented because their exports are best read from source — ke
 - `sync-delta-array-merge.js` — pull-side array row overlay helper; owns item tombstones, nested-path writes, dedupe, composite caps, and pull delta telemetry.
 - `sync-delta-map-merge.js` — pull-side keyed-map row overlay helper; owns raw-key preservation, synth-id tombstones, proto guards, nested-path writes, and pull delta telemetry.
 - `sync-delta-scalar-merge.js` — pull-side scalar row overlay helper; owns singleton LWW selection, null tombstones, dotted-path writes, genetics SNP preservation, and pull delta telemetry.
-- `sync-delta-registry.js` — DELTA_ARRAYS/MAPS/SCALARS registration plus per-surface itemId/keyId config and identity helpers.
+- `sync-delta-registry.js` — delta registry facade; compatibility re-exports for surfaces, per-surface config, and identity helpers.
+- `sync-delta-surfaces.js` — DELTA_ARRAYS/MAPS/SCALARS importedData surface lists for per-row sync.
+- `sync-delta-surface-config.js` — per-surface itemId/keyId overrides for array/map delta planners and pull overlays.
+- `sync-delta-id.js` — shared per-row identity helpers, stable hash, allowlist guard, and proto-pollution key rejection.
 - `sync-delta-observability.js` — per-push delta telemetry, pull-side row-count snapshots, and Phase 2 cutover readiness checks.
 - `sync-apply.js` — inbound sync apply helpers for AI provider settings and display prefs, with compatibility re-exports for chat apply helpers.
 - `sync-chat-apply.js` — inbound chat thread/message application, chat delete tombstones, and local freshness locks that protect just-edited local chat from stale remote rows.

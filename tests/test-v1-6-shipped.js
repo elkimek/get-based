@@ -197,7 +197,10 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     // flag). Without this, under v4 payloads the supersession-
     // generated tombstones (which ride _deleted in v3) never reach
     // peers, and paired devices retain stale measurements forever.
-    const syncDeltaRegistrySrc = fetchSrc('js/sync-delta-registry.js');
+    const syncDeltaRegistrySrc = [
+      fetchSrc('js/sync-delta-registry.js'),
+      fetchSrc('js/sync-delta-surface-config.js'),
+    ].join('\n');
     const cfgBlock = syncDeltaRegistrySrc.split('DELTA_ARRAY_CONFIG')[1] || '';
     const lmCfgMatch = cfgBlock.match(/lightMeasurements:\s*\{[\s\S]{0,300}?\}/);
     assert('sync-delta-registry.js: lightMeasurements has NO noTombstones (Phase 2 propagation)',

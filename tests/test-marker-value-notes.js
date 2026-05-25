@@ -43,7 +43,11 @@ const state = (await import('../js/state.js')).state;
   // ═══════════════════════════════════════
   console.log('%c 2. Sync DELTA_MAPS Wiring ', 'font-weight:bold;color:#f59e0b');
 
-  const syncDeltaRegistrySrc = read('js/sync-delta-registry.js');
+  const syncDeltaRegistrySrc = [
+    read('js/sync-delta-registry.js'),
+    read('js/sync-delta-surfaces.js'),
+    read('js/sync-delta-surface-config.js'),
+  ].join('\n');
   assert('markerValueNotes present in DELTA_MAPS array',
     /DELTA_MAPS\s*=\s*\[[^\]]*'markerValueNotes'/s.test(syncDeltaRegistrySrc));
   assert('markerValueNotes has DELTA_MAP_CONFIG.keyIdFn entry',
