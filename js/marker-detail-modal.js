@@ -19,11 +19,12 @@ export function configureMarkerDetailModal(deps = {}) {
 }
 
 // PhenoAge and Bortz Age input lists — kept here (not in data.js) so the
-// detail modal can tell users exactly which markers are still missing for
-// the latest entry, without exposing data.js internals or risking drift.
-// Each tuple is [Human label, category, markerKey]; the category/markerKey
-// pair must match the calculation in data.js (phenoAge / bortzAge) — if you
-// add or remove an input there, mirror it here. Order is what users see.
+// detail modal can tell users exactly which markers are present or still
+// missing for the reference entry, without exposing data.js internals or
+// risking drift. Each tuple is [Human label, category, markerKey]; the
+// category/markerKey pair must match the calculation in data.js (phenoAge /
+// bortzAge) — if you add or remove an input there, mirror it here.
+// Order is what users see in the breakdown.
 const _PHENO_AGE_INPUTS = [
   ['Albumin',         'proteins',     'albumin'],
   ['Creatinine',      'biochemistry', 'creatinine'],
@@ -59,11 +60,28 @@ const _BORTZ_AGE_INPUTS = [
   ['ApoA-I',          'lipids',       'apoAI'],
 ];
 
-function _bioAgeMissingInputs(data, latestIdx) {
-  const getVal = (cat, key) => data.categories?.[cat]?.markers?.[key]?.values?.[latestIdx];
-  const phenoMissing = _PHENO_AGE_INPUTS.filter(([, c, k]) => getVal(c, k) == null).map(([label]) => label);
-  const bortzMissing = _BORTZ_AGE_INPUTS.filter(([, c, k]) => getVal(c, k) == null).map(([label]) => label);
-  return { phenoMissing, bortzMissing };
+// Per-input presence status at a given entry index — drives the ✓/⚠ glyphs
+// in the breakdown so users can see exactly which markers are in their panel.
+function _bioAgeStatusAtIndex(data, idx) {
+  const getVal = (cat, key) => data.categories?.[cat]?.markers?.[key]?.values?.[idx];
+  const phenoStatus = _PHENO_AGE_INPUTS.map(([label, c, k]) => ({ label, present: getVal(c, k) != null }));
+  const bortzStatus = _BORTZ_AGE_INPUTS.map(([label, c, k]) => ({ label, present: getVal(c, k) != null }));
+  return { phenoStatus, bortzStatus };
+}
+
+// biologicalAge falls back to whichever component is non-null per date, so
+// the value users see on the dashboard might be from an older comprehensive
+// panel — NOT the most recent entry. Inspecting markers at data.dates.length-1
+// produced false-positive "all missing" reports when the latest entry was a
+// minimal recent test. Walk backward to find the date the displayed bio age
+// was actually calculated for; that's where the present/missing inputs live.
+function _bioAgeReferenceIndex(data) {
+  const phenoValues = data.categories?.calculatedRatios?.markers?.phenoAge?.values || [];
+  const bortzValues = data.categories?.calculatedRatios?.markers?.bortzAge?.values || [];
+  for (let i = data.dates.length - 1; i >= 0; i--) {
+    if (phenoValues[i] != null || bortzValues[i] != null) return i;
+  }
+  return data.dates.length - 1;
 }
 
 function setDetailModalShell(...classes) {
@@ -521,36 +539,50 @@ export function showDetailModal(id, opts = {}) {
     }
     // Biological Age: show component breakdown. When at least one of
     // PhenoAge / Bortz is calculated, biologicalAge falls back to whichever
-    // is non-null, so the value IS shown on the dashboard. The previous
-    // implementation pushed a status string into `issues` and let the
-    // generic "Not calculated — " header prefix it, which incorrectly
-    // labelled a calculated value as missing. Render the breakdown as a
-    // separate info block instead, and for any missing component, list
-    // the specific markers still needed.
+    // is non-null, so the value IS shown on the dashboard — and the
+    // breakdown inspects the date that value was calculated FOR (not the
+    // latest entry, which might be a minimal recent test that has nothing
+    // in common with the older comprehensive panel the bio age came from).
     if (id === 'calculatedRatios_biologicalAge') {
-      const latestIdx = data.dates.length - 1;
-      const pheno = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[latestIdx];
-      const bortz = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[latestIdx];
-      const age = state.profileDob ? ((new Date(data.dates[latestIdx] + 'T00:00:00') - new Date(state.profileDob + 'T00:00:00')) / (365.25*24*60*60*1000)) : null;
-      const { phenoMissing, bortzMissing } = _bioAgeMissingInputs(data, latestIdx);
-      const componentRow = (name, value, missing) => {
+      const refIdx = _bioAgeReferenceIndex(data);
+      const refDate = data.dates?.[refIdx];
+      const refDateLabel = data.dateLabels?.[refIdx] || refDate || '';
+      const pheno = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[refIdx];
+      const bortz = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[refIdx];
+      const age = state.profileDob && refDate
+        ? ((new Date(refDate + 'T00:00:00') - new Date(state.profileDob + 'T00:00:00')) / (365.25*24*60*60*1000))
+        : null;
+      const { phenoStatus, bortzStatus } = _bioAgeStatusAtIndex(data, refIdx);
+      const renderInputGrid = (status) => status.map(s =>
+        `<span class="bio-age-input ${s.present ? 'is-present' : 'is-missing'}" title="${s.present ? 'In this panel' : 'Missing from this panel'}">${s.present ? '✓' : '⚠'} ${escapeHTML(s.label)}</span>`
+      ).join('');
+      const componentRow = (name, value, status) => {
+        const missing = status.filter(s => !s.present);
+        let header;
         if (value != null) {
           const delta = age != null ? ` <span class="bio-age-delta">(${value - age > 0 ? '+' : ''}${(value - age).toFixed(1)}y)</span>` : '';
-          return `<div class="bio-age-component bio-age-component-ok"><span class="bio-age-glyph">✓</span> <strong>${escapeHTML(name)}:</strong> ${escapeHTML(String(value))}${delta}</div>`;
+          header = `<span class="bio-age-glyph">✓</span> <strong>${escapeHTML(name)}:</strong> ${escapeHTML(String(value))}${delta}`;
+        } else {
+          const noun = missing.length === 1 ? 'input' : 'inputs';
+          header = `<span class="bio-age-glyph">⚠</span> <strong>${escapeHTML(name)}:</strong> missing ${missing.length} of ${status.length} ${noun}`;
         }
-        const labels = missing.map(escapeHTML).join(', ');
-        const noun = missing.length === 1 ? 'input' : 'inputs';
-        return `<div class="bio-age-component bio-age-component-missing"><span class="bio-age-glyph">⚠</span> <strong>${escapeHTML(name)}:</strong> needs ${missing.length} more ${noun}<div class="bio-age-component-list">${labels}</div></div>`;
+        const klass = value != null ? 'bio-age-component-ok' : 'bio-age-component-missing';
+        return `<div class="bio-age-component ${klass}">
+          <div class="bio-age-component-header">${header}</div>
+          <div class="bio-age-input-grid">${renderInputGrid(status)}</div>
+        </div>`;
       };
+      const dateNote = refDateLabel
+        ? `<div class="bio-age-breakdown-sub">Based on your panel from ${escapeHTML(refDateLabel)}</div>`
+        : '';
       html += `<div class="bio-age-breakdown">
         <div class="bio-age-breakdown-head">Component breakdown</div>
-        ${componentRow('PhenoAge', pheno, phenoMissing)}
-        ${componentRow('Bortz Age', bortz, bortzMissing)}
+        ${dateNote}
+        ${componentRow('PhenoAge', pheno, phenoStatus)}
+        ${componentRow('Bortz Age', bortz, bortzStatus)}
       </div>`;
       // Don't double-fire the generic "Not calculated" header for biological
-      // age. When BOTH components are missing, the breakdown block above
-      // already shows the specific markers each needs — that's clearer than
-      // the previous "check their detail views" pointer.
+      // age. The breakdown block above carries the present/missing detail.
     } else if (issues.length > 0) {
       html += `<div class="calc-missing-inputs">Not calculated — ${issues.join('. ')}</div>`;
     }

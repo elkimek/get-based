@@ -3323,21 +3323,32 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+.marker-detail-modal .bio-age-breakdown-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
 }
 .marker-detail-modal .bio-age-component {
-  padding: 6px 0;
+  padding: 8px 0;
   font-size: 14px;
 }
 .marker-detail-modal .bio-age-component + .bio-age-component {
   border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+.marker-detail-modal .bio-age-component-header {
+  margin-bottom: 6px;
 }
 .marker-detail-modal .bio-age-glyph {
   display: inline-block;
   width: 18px;
   font-weight: 700;
 }
-.marker-detail-modal .bio-age-component-ok .bio-age-glyph {
+.marker-detail-modal .bio-age-component-ok .bio-age-glyph,
+.marker-detail-modal .bio-age-component-ok .bio-age-component-header strong {
   color: var(--success, #22c55e);
 }
 .marker-detail-modal .bio-age-component-missing .bio-age-glyph {
@@ -3348,12 +3359,24 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   font-weight: 400;
   margin-left: 4px;
 }
-.marker-detail-modal .bio-age-component-list {
+.marker-detail-modal .bio-age-input-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   margin-top: 4px;
   margin-left: 22px;
   font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.6;
+}
+.marker-detail-modal .bio-age-input {
+  white-space: nowrap;
+}
+.marker-detail-modal .bio-age-input.is-present {
+  color: var(--success, #22c55e);
+}
+.marker-detail-modal .bio-age-input.is-missing {
+  color: var(--warning, #f59e0b);
+  font-weight: 600;
 }
 .marker-detail-modal .manual-entry-btn,
 .marker-detail-modal .ask-ai-btn {
