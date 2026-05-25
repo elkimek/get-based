@@ -18,7 +18,7 @@ export async function confirmCompactRelay(btn) {
   const message = `Compact this owner's storage on the relay (currently ~${mb} MB)? Drops the Evolu message log; every device re-establishes its CRDT state on the next push (a few seconds). Your local data is untouched.`;
   // Helper unavailable (utils.js failed to load) -> proceed without
   // confirmation rather than dead-end the user. Safety net mirrors the
-  // pattern in the four sibling confirm* helpers below.
+  // pattern in the confirm* helpers in the sibling action modules.
   const proceed = (typeof window.showConfirmDialog === 'function')
     ? await window.showConfirmDialog(message)
     : true;
