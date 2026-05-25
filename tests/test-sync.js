@@ -50,6 +50,7 @@ await import('../js/settings.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
+  const syncDiagnoseActionsSrc = await fetchWithRetry('js/sync-diagnose-actions.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
@@ -70,7 +71,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaMergeSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -267,22 +268,33 @@ await import('../js/settings.js');
   assert('sync-diagnose-ui.js owns Sync Diagnose modal helpers',
     syncSrc.includes("from './sync-diagnose-ui.js'")
       && syncDiagnoseUiSrc.includes('export function configureSyncDiagnoseUI')
+      && syncDiagnoseUiSrc.includes('configureSyncDiagnoseActions({')
+      && syncDiagnoseUiSrc.includes("from './sync-diagnose-actions.js'")
       && syncDiagnoseUiSrc.includes('export async function showSyncDiagnose')
       && syncDiagnoseUiSrc.includes('export async function copySyncDiagnose')
-      && syncDiagnoseUiSrc.includes('export async function confirmCompactRelay')
-      && syncDiagnoseUiSrc.includes('export async function refreshRelayStorage')
-      && syncDiagnoseUiSrc.includes('export async function confirmRotateIdentity')
-      && syncDiagnoseUiSrc.includes('export async function confirmEnablePhase2')
-      && syncDiagnoseUiSrc.includes('export async function confirmBackfillBlockers')
+      && syncDiagnoseUiSrc.includes('confirmBackfillBlockers, confirmCompactRelay, confirmDisablePhase2')
+      && syncDiagnoseUiSrc.includes('confirmEnablePhase2, confirmResetDeltaTelemetry, confirmRotateIdentity')
+      && syncDiagnoseUiSrc.includes('refreshRelayStorage')
       && exportBlockIncludes(syncSrc, ['showSyncDiagnose']));
   assert('service worker precaches sync-diagnose-ui.js',
     serviceWorkerSrc.includes("'/js/sync-diagnose-ui.js'"));
-  const rotateCopyHandler = syncDiagnoseUiSrc.slice(
-    syncDiagnoseUiSrc.indexOf("copyBtn?.addEventListener('click'"),
-    syncDiagnoseUiSrc.indexOf("check?.addEventListener('change'")
+  assert('sync-diagnose-actions.js owns Sync Diagnose action handlers',
+    syncDiagnoseActionsSrc.includes('export function configureSyncDiagnoseActions')
+      && syncDiagnoseActionsSrc.includes('export async function confirmCompactRelay')
+      && syncDiagnoseActionsSrc.includes('export async function refreshRelayStorage')
+      && syncDiagnoseActionsSrc.includes('export async function confirmRotateIdentity')
+      && syncDiagnoseActionsSrc.includes('export async function confirmEnablePhase2')
+      && syncDiagnoseActionsSrc.includes('export async function confirmBackfillBlockers')
+      && syncDiagnoseActionsSrc.includes('export async function confirmDisablePhase2')
+      && syncDiagnoseActionsSrc.includes('export async function confirmResetDeltaTelemetry'));
+  assert('service worker precaches sync-diagnose-actions.js',
+    serviceWorkerSrc.includes("'/js/sync-diagnose-actions.js'"));
+  const rotateCopyHandler = syncDiagnoseActionsSrc.slice(
+    syncDiagnoseActionsSrc.indexOf("copyBtn?.addEventListener('click'"),
+    syncDiagnoseActionsSrc.indexOf("check?.addEventListener('change'")
   );
   assert('sync diagnose copy paths include execCommand fallback',
-    /export async function copySyncDiagnose[\s\S]{0,1200}document\.execCommand\('copy'\)/.test(syncDiagnoseUiSrc)
+    /export async function copySyncDiagnose[\s\S]{0,1800}document\.execCommand\('copy'\)/.test(syncDiagnoseUiSrc)
       && /navigator\.clipboard\?\.writeText/.test(rotateCopyHandler)
       && /document\.execCommand\('copy'\)/.test(rotateCopyHandler));
   assert('sync-actions.js owns user sync actions and save hooks',
@@ -1534,7 +1546,7 @@ await import('../js/settings.js');
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
     /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(deltaSearchSrc));
   assert('Cutover modal button gated when not ready (disabled attribute)',
-    /confirmEnablePhase2[\s\S]{0,200}disabled/.test(deltaSearchSrc));
+    /confirmEnablePhase2\(this\)[\s\S]{0,300}disabled/.test(syncDiagnoseUiSrc));
   assert('Cutover modal shows lean-mode ON badge when enabled',
     /cutoverBadge\s*=\s*cutoverEnabled[\s\S]{0,400}>ON</.test(deltaSearchSrc));
   assert('Cutover handlers exposed on window',
