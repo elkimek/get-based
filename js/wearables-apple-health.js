@@ -182,7 +182,11 @@ function _processRecordAttrs(attrsRaw, typeToCanonical, byDayByMetric) {
   if (!byDayByMetric.has(day)) byDayByMetric.set(day, {});
   const bucket = byDayByMetric.get(day);
   if (!bucket[metricId]) bucket[metricId] = [];
-  bucket[metricId].push({ v: normalised, h: hour });
+  // sourceName carries the writing device ("Apple Watch", "iPhone", "Oura",
+  // "Withings Scale", etc.). Captured for every metric so additive metrics
+  // (steps, distance, calories) can de-double-count multi-device days by
+  // grouping by source. Co-measure metrics (HR, HRV, weight, BP) ignore it.
+  bucket[metricId].push({ v: normalised, h: hour, src: attrs.sourceName || '' });
 }
 
 // Streaming parser — reads `blob` via TextDecoderStream, splits on '\n', and
@@ -261,6 +265,29 @@ function _aggregateByDayByMetric(byDayByMetric) {
   const mean = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
   const sum  = (arr) => arr.reduce((a, b) => a + b, 0);
 
+  // For ADDITIVE metrics (steps, distance, calories): Apple Health stores one
+  // record per writing device per time-window, and naively summing them
+  // double-counts overlap (e.g. Apple Watch + Oura + iPhone all recording the
+  // same walk). Group by sourceName, sum within each source, then take the
+  // MAX across sources — the device worn most that day wins. Better than a
+  // hardcoded priority list (works without Apple Watch) and lighter than the
+  // time-interval deduplication Apple does internally. Co-measure metrics
+  // (HR, HRV, weight) intentionally don't use this — averaging two devices'
+  // estimates of the same true value is appropriate.
+  const sumByMaxSource = (samples) => {
+    if (!Array.isArray(samples) || samples.length === 0) return null;
+    const totals = new Map();
+    for (const s of samples) {
+      const key = s.src || '';
+      totals.set(key, (totals.get(key) || 0) + s.v);
+    }
+    let best = null;
+    for (const v of totals.values()) {
+      if (best == null || v > best) best = v;
+    }
+    return best;
+  };
+
   const rows = [];
   for (const [day, bucket] of byDayByMetric) {
     const row = {
@@ -314,8 +341,11 @@ function _aggregateByDayByMetric(byDayByMetric) {
       }
     }
 
-    if (Array.isArray(bucket.steps) && bucket.steps.length) {
-      row.steps = Math.round(sum(bucket.steps.map(s => s.v)) * 100) / 100;
+    // Steps — additive across the day but multi-source-overlapping. See
+    // sumByMaxSource comment above.
+    const stepsBest = sumByMaxSource(bucket.steps);
+    if (stepsBest != null) {
+      row.steps = Math.round(stepsBest * 100) / 100;
     }
     if (Array.isArray(bucket.spo2_avg) && bucket.spo2_avg.length) {
       row.spo2_avg = Math.round(mean(bucket.spo2_avg.map(s => s.v)) * 100) / 100;

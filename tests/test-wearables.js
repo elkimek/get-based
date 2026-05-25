@@ -594,9 +594,16 @@ assert('HRV SDNN aggregates night-window samples (42.5 & 48.5 → 45.5)',
 // No day-window HRV samples in fixture → hrv_day should be null on day 1.
 assert('hrv_day is null when no day-window samples exist',
   day1.hrv_day === null);
-// Steps is sum-per-day (320 + 2100 + 5430 = 7850)
-assert('Steps sum multiple sources per day (320+2100+5430=7850)',
-  day1.steps === 7850);
+// Steps: multi-source de-duplication. iPhone (320+2100=2420) and Apple Watch
+// (5430) both wrote step records for day 1 — naively summing would yield
+// 7850 (the old bug). The fix groups by sourceName, sums within source, then
+// takes the MAX across sources, so Apple Watch's 5430 wins.
+assert('Steps max-per-source de-duplicates multi-device days (Apple Watch 5430 > iPhone 2420 → 5430)',
+  day1.steps === 5430);
+// Day 2 has a single iPhone source — max-per-source behaves identically to
+// sum when there's only one writing device.
+assert('Steps single-source day passes through unchanged (iPhone 8200 → 8200)',
+  day2.steps === 8200);
 // SpO2 mean of 97 + 95 = 96
 assert('SpO2 mean-per-day aggregator (97+95 → 96)',
   day1.spo2_avg === 96);
