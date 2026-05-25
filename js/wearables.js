@@ -1046,6 +1046,24 @@ function renderWearableChart(canvas, canon, m, series) {
   const values = series.map(p => p.v);
   const baselineValues = values.map(() => m.baseline);
 
+  // For cumulative-from-midnight metrics (steps, stress_high_min), today's
+  // row is a running total — incomplete until midnight. The chart plots it
+  // anyway (data isn't lost), but flag today's point so we can render it
+  // differently (visible dot, amber tint, "partial day" tooltip) and dash
+  // the connecting segment, making the in-progress state obvious.
+  //
+  // Kept inline (not imported from wearable-adapters.js) so this UX change
+  // is independent of any L2-summary changes. If a CUMULATIVE_METRICS set
+  // lands centrally later, this can re-import.
+  const CUMULATIVE_CHART_METRICS = new Set(['steps', 'stress_high_min']);
+  const todayISO = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const isCumulative = CUMULATIVE_CHART_METRICS.has(canon.id);
+  const isPartialIdx = (idx) => isCumulative && series[idx]?.date === todayISO;
+  const PARTIAL_COLOR = '#f59e0b'; // amber, matches the wear-min ⚠ glyph
+
   // Y-axis padding so baseline line and sparkline aren't clipped to the edge.
   const ymin = Math.min(...values, m.baseline);
   const ymax = Math.max(...values, m.baseline);
@@ -1065,10 +1083,22 @@ function renderWearableChart(canvas, canon, m, series) {
           borderColor: tc.lineColor || '#60a5fa',
           backgroundColor: 'transparent',
           borderWidth: 2,
-          pointRadius: 0,
+          // Hide all points except today's partial — that one renders as a
+          // visible amber dot so users see "this last point is in progress."
+          pointRadius: values.map((_, i) => isPartialIdx(i) ? 5 : 0),
+          pointBackgroundColor: values.map((_, i) => isPartialIdx(i) ? PARTIAL_COLOR : 'transparent'),
+          pointBorderColor: values.map((_, i) => isPartialIdx(i) ? PARTIAL_COLOR : 'transparent'),
           pointHoverRadius: 4,
           tension: 0.3,
           spanGaps: true,
+          // Segment styling: the line segment leading INTO today's partial
+          // point renders dashed, signalling "the trend hasn't completed
+          // here yet." Chart.js v3+ segment API; falls back gracefully on
+          // older versions by ignoring the callback.
+          segment: {
+            borderDash: (ctx) => isPartialIdx(ctx.p1?.parsed?.x != null ? ctx.p1DataIndex : -1) ? [5, 4] : undefined,
+            borderColor: (ctx) => isPartialIdx(ctx.p1DataIndex) ? PARTIAL_COLOR : undefined,
+          },
         },
         {
           label: 'Baseline',
@@ -1091,7 +1121,14 @@ function renderWearableChart(canvas, canon, m, series) {
         tooltip: {
           backgroundColor: tc.tooltipBg, titleColor: tc.tooltipTitle,
           bodyColor: tc.tooltipBody, borderColor: tc.tooltipBorder, borderWidth: 1,
-          callbacks: { label: (c) => `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}` },
+          callbacks: {
+            label: (c) => {
+              const base = `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}`;
+              return (c.datasetIndex === 0 && isPartialIdx(c.dataIndex))
+                ? `${base}  (partial day · in progress)`
+                : base;
+            },
+          },
         },
       },
       scales: {
