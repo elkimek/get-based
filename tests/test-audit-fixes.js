@@ -249,6 +249,9 @@ return (async function () {
       /try\s*\{\s*messages\[t\.id\]\s*=\s*JSON\.parse\(msgRaw\);?\s*\}\s*catch/.test(block));
     assert('inner loop continues on missing msgRaw',
       /if\s*\(!msgRaw\)\s*\{[\s\S]{0,160}continue;?\s*\}/.test(block));
+    assert('custom personalities parse is isolated from chat collection',
+      /function parseCustomPersonalities[\s\S]{0,180}try\s*\{\s*return JSON\.parse\(raw\);?\s*\}\s*catch/.test(src)
+        && /customPersonalities\s*=\s*parseCustomPersonalities\(customRaw\)/.test(block));
   }
 
   // ─── 6. sync.js debounce push — .catch() on rejected push ──────────

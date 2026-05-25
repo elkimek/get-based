@@ -57,6 +57,11 @@ function readChatDeletedThreads(profileId) {
   }
 }
 
+function parseCustomPersonalities(raw) {
+  if (!raw) return undefined;
+  try { return JSON.parse(raw); } catch { return undefined; }
+}
+
 export async function collectAISettings() {
   const settings = {};
   for (const key of AI_SETTINGS_KEYS) {
@@ -97,12 +102,13 @@ export async function collectChatData(profileId) {
       try { messages[t.id] = JSON.parse(msgRaw); } catch (_) {}
     }
     const customRaw = localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`);
+    const customPersonalities = parseCustomPersonalities(customRaw);
     const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);
     return {
       threads,
       messages,
       deletedThreads: Object.keys(deletedThreads).length > 0 ? deletedThreads : undefined,
-      customPersonalities: customRaw ? JSON.parse(customRaw) : undefined,
+      customPersonalities,
       activePersonality: personality || undefined,
     };
   } catch { return null; }

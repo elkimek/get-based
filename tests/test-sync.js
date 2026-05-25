@@ -31,6 +31,7 @@ const { state } = await import('../js/state.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
 const syncSubscriptions = await import('../js/sync-subscriptions.js');
+const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
 await import('../js/sync.js');
 await import('../js/settings.js');
 
@@ -1080,6 +1081,26 @@ await import('../js/settings.js');
   assert('collectChatData includes explicit chat thread tombstones',
     syncPayloadCollectorsSrc.includes('chatDeletedThreadsKey')
       && syncPayloadCollectorsSrc.includes('deletedThreads'));
+  {
+    const profileId = 'syncbadpersona';
+    const threadsKey = `labcharts-${profileId}-chat-threads`;
+    const msgKey = `labcharts-${profileId}-chat-t_keep`;
+    const customKey = `labcharts-${profileId}-chatPersonalityCustom`;
+    try {
+      localStorage.setItem(threadsKey, JSON.stringify([{ id: 'keep', messageCount: 1 }]));
+      localStorage.setItem(msgKey, JSON.stringify([{ role: 'user', content: 'still sync me' }]));
+      localStorage.setItem(customKey, '{bad json');
+      const chatData = await syncPayloadCollectors.collectChatData(profileId);
+      assert('collectChatData skips corrupt custom personalities without dropping chat',
+        chatData?.threads?.[0]?.id === 'keep'
+          && chatData?.messages?.keep?.[0]?.content === 'still sync me'
+          && chatData.customPersonalities === undefined);
+    } finally {
+      localStorage.removeItem(threadsKey);
+      localStorage.removeItem(msgKey);
+      localStorage.removeItem(customKey);
+    }
+  }
   assert('chat thread tombstones reject proto-pollution keys',
     syncApplySrc.includes('CHAT_DELETED_PROTO_KEYS')
       && syncPayloadCollectorsSrc.includes('CHAT_DELETED_PROTO_KEYS')
