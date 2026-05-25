@@ -29,6 +29,7 @@ console.log('=== Phase 2 Correctness Tests ===\n');
 console.log('1. Per-profile sync debouncer');
 const syncSrc = read('js/sync.js');
 const syncActionsSrc = read('js/sync-actions.js');
+const syncLifecycleSrc = read('js/sync-lifecycle.js');
 assert('sync-actions.js declares per-profile timer Map',
   syncActionsSrc.includes('const _debounceTimers = new Map()'),
   'shared single timer dropped pending push when user swapped profile mid-debounce');
@@ -36,9 +37,9 @@ assert('sync-actions.js no longer has single _debounceTimer',
   !/\blet _debounceTimer\b/.test(syncActionsSrc));
 assert('sync-actions.js looks up timer by profileId',
   syncActionsSrc.includes('_debounceTimers.get(profileId)') && syncActionsSrc.includes('_debounceTimers.set(profileId'));
-assert('sync.js clears action and pull timers on disable',
-  syncSrc.includes('clearSyncActionTimers()')
-    && syncSrc.includes('clearSyncPullTimers()')
+assert('sync-lifecycle.js clears action and pull timers on disable',
+  syncLifecycleSrc.includes('clearSyncActionTimers()')
+    && syncLifecycleSrc.includes('clearSyncPullTimers()')
     && syncActionsSrc.includes('for (const t of _debounceTimers.values()) clearTimeout(t)'));
 
 // ─── 2. Lab-context fingerprint includes wearableSummary ───

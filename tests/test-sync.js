@@ -38,6 +38,7 @@ await import('../js/settings.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
   const syncRuntimeSrc = await fetchWithRetry('js/sync-runtime.js');
   const syncInitSrc = await fetchWithRetry('js/sync-init.js');
+  const syncLifecycleSrc = await fetchWithRetry('js/sync-lifecycle.js');
   const syncDisableCleanupSrc = await fetchWithRetry('js/sync-disable-cleanup.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
   const syncDeltaSrc = await fetchWithRetry('js/sync-delta.js');
@@ -115,7 +116,7 @@ await import('../js/settings.js');
       && syncRuntimeSrc.includes('export function getSyncAppOwner')
       && syncRuntimeSrc.includes('export function clearSyncRuntimeState')
       && syncSrc.includes('getEvolu: getSyncEvolu')
-      && syncSrc.includes('clearSyncRuntimeState();'));
+      && syncLifecycleSrc.includes('clearSyncRuntimeState();'));
   assert('service worker precaches sync-runtime.js',
     serviceWorkerSrc.includes("'/js/sync-runtime.js'"));
   assert('sync-init.js owns Evolu startup orchestration',
@@ -130,10 +131,20 @@ await import('../js/settings.js');
       && syncInitSrc.includes('setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery })'));
   assert('service worker precaches sync-init.js',
     serviceWorkerSrc.includes("'/js/sync-init.js'"));
+  assert('sync-lifecycle.js owns enable/disable lifecycle actions',
+    syncSrc.includes("from './sync-lifecycle.js'")
+      && syncLifecycleSrc.includes('export async function enableSync')
+      && syncLifecycleSrc.includes('export async function disableSync')
+      && syncLifecycleSrc.includes('await initSync()')
+      && syncLifecycleSrc.includes('await pushAllProfiles()')
+      && syncLifecycleSrc.includes('clearSyncRuntimeState();')
+      && exportBlockIncludes(syncSrc, ['enableSync', 'disableSync']));
+  assert('service worker precaches sync-lifecycle.js',
+    serviceWorkerSrc.includes("'/js/sync-lifecycle.js'"));
   assert('sync-disable-cleanup.js owns disable localStorage cleanup',
-    syncSrc.includes("from './sync-disable-cleanup.js'")
+    syncLifecycleSrc.includes("from './sync-disable-cleanup.js'")
       && syncIdentitySrc.includes("from './sync-disable-cleanup.js'")
-      && syncSrc.includes('clearSyncDisableStorage();')
+      && syncLifecycleSrc.includes('clearSyncDisableStorage();')
       && syncIdentitySrc.includes('clearSyncDisableStorage();')
       && syncDisableCleanupSrc.includes('export function clearSyncDisableStorage')
       && syncDisableCleanupSrc.includes('export function isSyncDisableCleanupKey')
@@ -314,7 +325,7 @@ await import('../js/settings.js');
       && syncSubscriptionsSrc.includes('.catch(onRelayProbeError)')
       && syncInitSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
       && syncInitSrc.includes('startRelayProbe();')
-      && syncSrc.includes('clearSyncSubscriptionTimers();')
+      && syncLifecycleSrc.includes('clearSyncSubscriptionTimers();')
       && syncSrc.includes('getSubscriptionFireCount: getSyncSubscriptionFireCount'));
   assert('service worker precaches sync-subscriptions.js',
     serviceWorkerSrc.includes("'/js/sync-subscriptions.js'"));
@@ -757,22 +768,21 @@ await import('../js/settings.js');
   assert('Pull re-renders the active view', syncPullSrc.includes('window.navigate?.(cat)'));
   assert('Pull calls migrateProfileData', syncPullSrc.includes('migrateProfileData(state.importedData)'));
   assert('pushAllProfiles pushes all profiles on first enable',
-    syncSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
+    syncLifecycleSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
   assert('pushAllProfiles pushes metadata-only profiles with default data',
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,800}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && !/pushAllProfiles[\s\S]{0,800}if \(!raw\) continue/.test(syncActionsSrc));
   assert('disableSync clears appOwner via runtime cleanup',
-    syncSrc.includes('clearSyncRuntimeState();')
+    syncLifecycleSrc.includes('clearSyncRuntimeState();')
       && /clearSyncRuntimeState[\s\S]{0,500}_appOwner\s*=\s*null/.test(syncRuntimeSrc));
   // disableSync intentionally NO LONGER waits for in-flight ops or awaits
   // Evolu reset — both introduced hang risks (Evolu worker stuck on OPFS
   // or a Web Lock). The page reload below kills the worker process
   // anyway. The persisted SYNC_STORAGE_KEY flips before any await so a
   // hard refresh always sees sync as off.
-  const disableSyncSrc = syncSrc.slice(
-    syncSrc.indexOf('export async function disableSync'),
-    syncSrc.indexOf('// ═══════════════════════════════════════════════\n// DIAGNOSTICS')
+  const disableSyncSrc = syncLifecycleSrc.slice(
+    syncLifecycleSrc.indexOf('export async function disableSync')
   );
   assert('disableSync flips SYNC_STORAGE_KEY before any await',
     disableSyncSrc.includes('setSyncEnabled(false);')
@@ -780,10 +790,10 @@ await import('../js/settings.js');
       && (!disableSyncSrc.includes('await ') || disableSyncSrc.indexOf('setSyncEnabled(false);') < disableSyncSrc.indexOf('await '))
       && syncSettingsStateSrc.includes("localStorage.setItem(SYNC_STORAGE_KEY, enabled ? 'true' : 'false')"));
   assert('disableSync does not block on Evolu reset (fire-and-forget)',
-    /Promise\.resolve\(evolu\.resetAppOwner/.test(syncSrc),
+    /Promise\.resolve\(evolu\.resetAppOwner/.test(syncLifecycleSrc),
     'awaiting resetAppOwner blocks the toggle when Evolu worker is hung');
-  assert('disableSync resets Evolu identity for mnemonic regeneration', syncSrc.includes('evolu.resetAppOwner('));
-  assert('disableSync reloads page after reset to kill Worker', syncSrc.includes('window.location.reload()'));
+  assert('disableSync resets Evolu identity for mnemonic regeneration', syncLifecycleSrc.includes('evolu.resetAppOwner('));
+  assert('disableSync reloads page after reset to kill Worker', syncLifecycleSrc.includes('window.location.reload()'));
   assert('disableSync clears sync timestamps',
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));
