@@ -198,6 +198,7 @@ configureSyncActions({
   forcePull: _forcePull,
   isSyncEnabled,
   isEvoluReady: isSyncEvoluReady,
+  isSyncing: isSyncPushInFlight,
 });
 
 configureSyncSaveHooks({

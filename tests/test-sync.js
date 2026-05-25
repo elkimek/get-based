@@ -404,6 +404,9 @@ await import('../js/settings.js');
       && syncActionsSrc.includes('export async function syncNow')
       && syncActionsSrc.includes('export async function pushAllProfiles')
       && exportBlockIncludes(syncSrc, ['pushCurrentProfile', 'onDataSaved', 'onChatSaved', 'onProfileSaved']));
+  assert('sync-actions compatibility configure path receives isSyncing',
+    /configureSyncActions\(\{[\s\S]{0,260}isSyncing:\s*isSyncPushInFlight/.test(syncSrc)
+      && /configureSyncSaveHooks\(\{[\s\S]{0,140}isSyncing/.test(syncActionsSrc));
   assert('service worker precaches sync-actions.js',
     serviceWorkerSrc.includes("'/js/sync-actions.js'"));
   assert('sync-save-hooks.js owns save/chat/profile debounce hooks',
