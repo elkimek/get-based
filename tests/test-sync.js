@@ -65,6 +65,9 @@ await import('../js/settings.js');
   const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncPullMergeSrc = await fetchWithRetry('js/sync-pull-merge.js');
+  const syncPullMaintenanceSrc = await fetchWithRetry('js/sync-pull-maintenance.js');
+  const syncPullActiveRefreshSrc = await fetchWithRetry('js/sync-pull-active-refresh.js');
+  const syncPullRebroadcastSrc = await fetchWithRetry('js/sync-pull-rebroadcast.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
   const syncSubscriptionsSrc = await fetchWithRetry('js/sync-subscriptions.js');
   const syncWindowBindingsSrc = await fetchWithRetry('js/sync-window-bindings.js');
@@ -80,7 +83,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeShapesSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeShapesSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -423,6 +426,9 @@ await import('../js/settings.js');
       && syncPullSrc.includes('export function forcePull')
       && syncPullSrc.includes('export function isSyncPulling')
       && syncPullSrc.includes('export function clearSyncPullTimers')
+      && syncPullSrc.includes("from './sync-pull-maintenance.js'")
+      && syncPullSrc.includes("from './sync-pull-active-refresh.js'")
+      && syncPullSrc.includes("from './sync-pull-rebroadcast.js'")
       && syncSrc.includes('configureSyncPull({'));
   assert('service worker precaches sync-pull.js',
     serviceWorkerSrc.includes("'/js/sync-pull.js'"));
@@ -435,6 +441,26 @@ await import('../js/settings.js');
       && syncPullMergeSrc.includes('export async function mergePulledProfile'));
   assert('service worker precaches sync-pull-merge.js',
     serviceWorkerSrc.includes("'/js/sync-pull-merge.js'"));
+  assert('sync-pull-maintenance.js owns pull-path one-time cleanup',
+    syncPullMaintenanceSrc.includes('export function clearStaleSyncHashKeysOnce')
+      && syncPullMaintenanceSrc.includes('labcharts-sync-hash-v2-migrated')
+      && syncPullMaintenanceSrc.includes("endsWith('-sync-hash')"));
+  assert('service worker precaches sync-pull-maintenance.js',
+    serviceWorkerSrc.includes("'/js/sync-pull-maintenance.js'"));
+  assert('sync-pull-active-refresh.js owns active-profile pull refresh',
+    syncPullActiveRefreshSrc.includes('export function refreshActiveProfileAfterPull')
+      && syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)')
+      && syncPullActiveRefreshSrc.includes('window.navigate?.(cat)')
+      && syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')"));
+  assert('service worker precaches sync-pull-active-refresh.js',
+    serviceWorkerSrc.includes("'/js/sync-pull-active-refresh.js'"));
+  assert('sync-pull-rebroadcast.js owns pull-side rebroadcast scheduling',
+    syncPullRebroadcastSrc.includes('export function maybeScheduleRebroadcast')
+      && syncPullRebroadcastSrc.includes('consumeRebroadcastBudget(profileId)')
+      && syncPullRebroadcastSrc.includes("getSyncStatus().push === 'pending'")
+      && syncPullRebroadcastSrc.includes('setTimeout(() => {'));
+  assert('service worker precaches sync-pull-rebroadcast.js',
+    serviceWorkerSrc.includes("'/js/sync-pull-rebroadcast.js'"));
   assert('sync-subscriptions.js owns Evolu subscription and polling helpers',
     syncSrc.includes("from './sync-subscriptions.js'")
       && syncSubscriptionsSrc.includes('export function configureSyncSubscriptions')
@@ -895,8 +921,8 @@ await import('../js/settings.js');
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
   // instead of just showing a "Data updated" toast).
-  assert('Pull re-renders the active view', syncPullSrc.includes('window.navigate?.(cat)'));
-  assert('Pull calls migrateProfileData', syncPullSrc.includes('migrateProfileData(state.importedData)'));
+  assert('Pull re-renders the active view', syncPullActiveRefreshSrc.includes('window.navigate?.(cat)'));
+  assert('Pull calls migrateProfileData', syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)'));
   assert('pushAllProfiles pushes all profiles on first enable',
     syncLifecycleSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
   assert('pushAllProfiles pushes metadata-only profiles with default data',
@@ -1004,9 +1030,10 @@ await import('../js/settings.js');
     syncPullSrc.includes('scheduleChatPullRetry') && syncPullSrc.includes('getChatDataLocalLockRemainingMs(profileId)'));
   assert('active chat reload only runs after chatData is applied',
     syncPullSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
-      && syncPullSrc.includes('if (chatApplied)'));
+      && syncPullActiveRefreshSrc.includes('if (chatApplied)'));
   assert('active chat thread is reselected after remote thread deletion',
-    syncPullSrc.includes('window.loadChatThreads?.();') && syncPullSrc.includes('window.ensureActiveThread?.();'));
+    syncPullActiveRefreshSrc.includes('window.loadChatThreads?.();')
+      && syncPullActiveRefreshSrc.includes('window.ensureActiveThread?.();'));
   {
     const prevProfileId = state.currentProfile;
     const profileId = 'syncapplydel';
@@ -2264,9 +2291,9 @@ await import('../js/settings.js');
   // populate scalars/maps that localHasRowsRemoteLacks() misses (it only
   // diffs id-keyed arrays in the blob). Without this the user must
   // refresh the page to see a Genetics nav entry land from a peer's DNA
-  // import. Lives in onSyncReceived's active-profile post-merge block.
+  // import. Lives in sync-pull-active-refresh.js's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
-    /profileId\s*===\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,200}remoteBroughtNewRows/.test(deltaSearchSrc));
+    /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,400}remoteBroughtNewRows/.test(deltaSearchSrc));
 
   // Live: simulate the strip helper inline and prove shape preservation
   if (typeof window !== 'undefined') {

@@ -1379,8 +1379,11 @@ Not separately documented because their exports are best read from source — ke
 - `sync.js` — Evolu CRDT sync orchestration; lifecycle setup, enable/disable flow, and profile/table query wiring.
 - `sync-push.js` — outbound profile push path, in-flight push watchdog, Phase 2 drift auto-revert, and Evolu profileData insert/update.
 - `sync-push-deltas.js` — push-side per-row delta planning/application; walks DELTA_ARRAYS/MAPS/SCALARS before blob writes, advances snapshots after onComplete, and records delta telemetry.
-- `sync-pull.js` — inbound pull orchestration, profile/chat/display apply, active-view refresh, and rebroadcast gating.
+- `sync-pull.js` — inbound pull orchestration and row loop; delegates one-time cleanup, active-profile UI refresh, and rebroadcast scheduling to helper modules.
 - `sync-pull-merge.js` — pull row recovery/dedupe, importedData blob/per-row merge, wearable-token preservation, and profile metadata merge helpers.
+- `sync-pull-maintenance.js` — pull-path one-time migrations such as stale `-sync-hash` localStorage cleanup.
+- `sync-pull-active-refresh.js` — active-profile in-memory update, migration, chat reload, sidebar rebuild, current-view refresh, toast, and sync-applied event after a pull.
+- `sync-pull-rebroadcast.js` — pull-side rebroadcast gating, budget checks, push-pending guard, and delayed active-profile push scheduling.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
 - `sync-delta.js` — per-row CRDT delta facade; config fan-out, apply helpers, and compatibility re-exports for planners, snapshots, merge, telemetry, and readiness.
 - `sync-delta-planners.js` — push-side array/map/scalar planners; diffs local importedData against snapshots and emits itemRow insert/update/tombstone ops.

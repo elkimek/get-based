@@ -20,6 +20,14 @@ return (async function() {
     if (condition) { pass++; console.log(`%c PASS %c ${name}`, 'background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
     else { fail++; console.error(`%c FAIL %c ${name}`, 'background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px', '', detail || ''); }
   }
+  async function waitFor(condition, timeoutMs = 1200, intervalMs = 25) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (condition()) return true;
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return condition();
+  }
 
   console.log('%c Wearables DOM Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
@@ -49,7 +57,7 @@ return (async function() {
   ]);
 
   await window.openWearableDetail('hrv_rmssd');
-  await new Promise(r => setTimeout(r, 60));
+  await waitFor(() => window._labState.chartInstances?.modal?.data?.datasets?.[0]?.data?.length === 3);
   assert('Detail modal opens on a valid metric', document.getElementById('modal-overlay').classList.contains('show'));
   const modalHtml = document.getElementById('detail-modal').innerHTML;
   assert('Detail modal includes metric label HRV', modalHtml.includes('HRV'));

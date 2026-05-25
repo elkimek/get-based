@@ -1,20 +1,20 @@
 // sync-pull.js - inbound Evolu rows -> localStorage merge path.
 
-import { state } from './state.js';
-import { showNotification } from './utils.js';
-import { migrateProfileData } from './profile.js';
 import { parseSyncPayload } from './sync-payload.js';
 import {
   applyAISettings, applyChatData, applyDisplayPrefs,
   getChatDataLocalLockRemainingMs,
 } from './sync-apply.js';
+import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
+import { clearStaleSyncHashKeysOnce } from './sync-pull-maintenance.js';
 import {
   isMalformedPulledImportedData, isSafeProfileId, mergePulledImportedData,
   mergePulledProfile, persistPulledImportedData, prepareSyncPullRows,
 } from './sync-pull-merge.js';
+import { maybeScheduleRebroadcast } from './sync-pull-rebroadcast.js';
 import { applyRemoteTombstones } from './sync-tombstones.js';
 import {
-  consumeRebroadcastBudget, getSyncStatus, logSyncEvent, updateSyncStatus,
+  logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
 
 let _getEvolu = () => null;
@@ -75,26 +75,6 @@ export function forcePull() {
   return 'triggered';
 }
 
-// One-time cleanup: the v1.6.0-v1.6.2 hash-skip mechanism wrote
-// `labcharts-{profileId}-sync-hash` keys; v1.6.3 removed the skip
-// path entirely (bytes were occasionally stranding rows when local
-// state went out of sync with the stored hash). Sweep the now-orphan
-// keys on first pull after upgrade. Linear in localStorage keys,
-// idempotent via the migration flag.
-function _onceClearStaleSyncHashes() {
-  try {
-    if (localStorage.getItem('labcharts-sync-hash-v2-migrated')) return;
-    const toClear = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('labcharts-') && k.endsWith('-sync-hash')) toClear.push(k);
-    }
-    for (const k of toClear) localStorage.removeItem(k);
-    localStorage.setItem('labcharts-sync-hash-v2-migrated', '1');
-    if (toClear.length) dbg(`Cleared ${toClear.length} stale -sync-hash keys (one-time migration)`);
-  } catch (e) {}
-}
-
 function scheduleChatPullRetry(profileId, delayMs) {
   if (!profileId || delayMs <= 0) return;
   const prev = _chatPullRetryTimers.get(profileId);
@@ -121,7 +101,7 @@ export async function onSyncReceived() {
     return;
   }
   _pulling = true;
-  _onceClearStaleSyncHashes();
+  clearStaleSyncHashKeysOnce(dbg);
   updateSyncStatus({ pull: 'pulling' });
   try {
     // Apply remote tombstones FIRST - when another device deleted a profile,
@@ -191,7 +171,7 @@ export async function onSyncReceived() {
         }
 
         const {
-          localKey, localImportedForMerge, merged, mergeMsg,
+          localKey, merged, mergeMsg,
           needsRebroadcast, remoteBroughtNewRows,
         } = await mergePulledImportedData(profileId, importedData, { debug: dbg });
         dbg(mergeMsg);
@@ -211,96 +191,23 @@ export async function onSyncReceived() {
         }
         if (displayPrefs) applyDisplayPrefs(profileId, displayPrefs);
 
-        // If this is the active profile, update in-memory state
-        if (profileId === state.currentProfile) {
-          state.importedData = merged;
-          migrateProfileData(state.importedData);
-          // Reload chat threads + active thread messages into memory and re-render
-          if (chatApplied) {
-            window.loadChatThreads?.();
-            window.ensureActiveThread?.();
-            window.renderThreadList?.();
-            window.loadChatHistory?.(); // reloads state.chatHistory from localStorage + renders
-          }
-          // Re-render whatever view the user is on so the merged state
-          // becomes visible - but ONLY when the merge actually produced
-          // new content from the remote side. `localImportedForMerge`
-          // already had everything => no observable change => skip the
-          // re-render so an in-progress form doesn't get wiped on pull.
-          // Source: state.currentView (canonical). DOM .nav-item.active
-          // is briefly absent during buildSidebar->navigate cycles and
-          // would yank the user to 'dashboard' on a pull landing in
-          // that gap (user-reported flicker/sync race).
-          const cat = state.currentView || document.querySelector('.nav-item.active')?.dataset?.category || 'dashboard';
-          // Sidebar nav items are conditional on data presence (e.g. the
-          // Genetics entry only renders when state.importedData.genetics
-          // exists). Per-row CRDT deltas can populate scalars/maps that
-          // localHasRowsRemoteLacks() doesn't see - it only diffs id-keyed
-          // arrays in the blob. Always rebuild the sidebar after a pull so
-          // those entries appear/disappear without waiting for the next
-          // local action. Cheap (~1ms) and doesn't disturb in-progress
-          // forms in the main pane.
-          if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-          if (!remoteBroughtNewRows) {
-            // Remote brought nothing new (local was already a superset or
-            // identical for every id-keyed array). Profile-field / chat /
-            // displayPrefs handlers above already re-rendered their own
-            // surfaces; skip the global navigate() so an in-progress form
-            // (e.g. typing a duration into the session log dialog) survives.
-            dbg(`Pulled active profile ${profileId.slice(0,8)} — no new rows from remote, skipping re-render of '${cat}'`);
-          } else {
-            window.navigate?.(cat);
-            if (cat !== 'dashboard') {
-              showNotification('Data updated from another device', 'success');
-            }
-            dbg(`Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
-          }
-          // Broadcast for any detached UI listening for cross-device
-          // updates (e.g., the All-Sessions modal in views.js). The
-          // navigate() above already rebuilt the inline page; this
-          // event covers floating modals that aren't part of the main
-          // tree. Greptile PR #178 P2 comment.
-          if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-            try { window.dispatchEvent(new CustomEvent('labcharts-sync-applied')); } catch (_) {}
-          }
-        } else {
+        if (!refreshActiveProfileAfterPull({
+          profileId,
+          merged,
+          chatApplied,
+          remoteBroughtNewRows,
+          debug: dbg,
+        })) {
           dbg('Pulled profile:', profileId);
         }
 
-        // Rebroadcast the union if local had rows the remote lacked. Defer
-        // with setTimeout to avoid recursing inside the pull tick + give
-        // chat/profile/aiSettings appliers a chance to settle first. Skipped
-        // for non-active profiles - pushProfile uses state.importedData,
-        // which is only valid for the current profile.
-        if (needsRebroadcast && profileId === state.currentProfile) {
-          // Don't pile rebroadcast pushes on top of an in-flight push - Evolu
-          // serializes them and the relay can lag, producing the
-          // sun=0/sun=1/sun=1 push storm seen in v1.7.5 diagnostics. Skip the
-          // rebroadcast if a push is already pending; the next pull cycle
-          // (after that push lands) will redo this check correctly.
-          if (getSyncStatus().push === 'pending') {
-            dbg(`Row ${profileId.slice(0,8)}: rebroadcast deferred — push already pending`);
-            logSyncEvent('skip', `Rebroadcast deferred — push pending`);
-          } else if (!consumeRebroadcastBudget(profileId)) {
-            dbg(`Row ${profileId.slice(0,8)}: rebroadcast suppressed — budget exhausted in last 5min (clock skew?)`);
-            logSyncEvent('skip', `Rebroadcast budget exhausted — possible clock skew`);
-          } else {
-            dbg(`Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
-            logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
-            // Snapshot importedData at SCHEDULE time and re-verify the
-            // active profile when the timer fires. Without these, a profile
-            // switch in the 100ms gap would push the new active profile's
-            // state.importedData into the *original* profile's relay row.
-            const snapshotImported = merged;
-            setTimeout(() => {
-              if (profileId !== state.currentProfile) {
-                dbg(`Rebroadcast aborted — active profile switched`);
-                return;
-              }
-              _pushProfile(profileId, snapshotImported);
-            }, 100);
-          }
-        }
+        maybeScheduleRebroadcast({
+          profileId,
+          merged,
+          needsRebroadcast,
+          pushProfile: _pushProfile,
+          debug: dbg,
+        });
       } catch (e) {
         console.error('[sync] Pull failed for row:', e);
       }
