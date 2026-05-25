@@ -42,13 +42,14 @@ export function configureSyncDiagnoseUI({
 // other's data despite using the same relay URL.
 export async function showSyncDiagnose() {
   const d = await getEvoluDiagnostics();
-  // Probe the relay so we can render a fresh "is the relay actually
-  // persisting my pushes?" verdict. verifyPushLanded compares a stored
-  // baseline against the relay's current state - if storedBytes /
-  // messageCount / lastWriteToken haven't moved since the last probe,
-  // the verdict is 'wedged'. First call this session is 'unknown' (just
-  // seeds the baseline). Best-effort: any error path resolves to a
-  // 'unknown' verdict, never blocks modal rendering.
+  // Probe the relay so we can render a fresh "are this device's outbound
+  // pushes becoming durable?" verdict. verifyPushLanded compares this
+  // tab's last locally-committed push against a stored relay baseline.
+  // Another device can show healthy/unknown until it performs its own
+  // push+probe, so the verdict is intentionally phrased as local outbound
+  // health rather than a global relay truth. First call this session is
+  // 'unknown' (just seeds the baseline). Best-effort: any error path
+  // resolves to a 'unknown' verdict, never blocks modal rendering.
   let healthVerdict = { verdict: 'unknown', at: 0, reason: null };
   try { healthVerdict = await verifyPushLanded(); } catch {}
   const overlay = document.createElement('div');
@@ -83,10 +84,10 @@ export async function showSyncDiagnose() {
       </div>
       ${(() => {
         // Sync health - relays >= 1.2.3 surface messageCount + lastWriteToken
-        // on /self/owner-storage, letting us verify "did the relay actually
-        // persist my push?" without operator help. Three-state verdict:
-        //   healthy  -> relay advanced; push landed (green dot)
-        //   wedged   -> relay didn't advance; push silently dropped (red dot)
+        // on /self/owner-storage, letting us verify "did this device's last
+        // push become durable?" without operator help. Three-state verdict:
+        //   healthy  -> relay advanced after this device pushed (green dot)
+        //   wedged   -> this device pushed but relay did not advance (red dot)
         //   unknown  -> couldn't compare (old relay, offline, first call) - render dim
         const v = healthVerdict?.verdict || 'unknown';
         if (v === 'unknown') {
@@ -98,11 +99,12 @@ export async function showSyncDiagnose() {
         }
         const isHealthy = v === 'healthy';
         const color = isHealthy ? 'var(--green)' : 'var(--red)';
-        const label = isHealthy ? 'Healthy — relay is persisting your pushes.' : 'Wedged — relay accepted the WebSocket round-trip but didn\'t persist anything.';
+        const label = isHealthy ? 'Healthy — this device\'s pushes are landing.' : 'Wedged — this device pushed, but the relay state did not advance.';
         const detail = isHealthy
           ? 'Last verified ' + new Date(healthVerdict.at).toISOString().slice(11, 19) + 'Z. Storage state has advanced since the previous check.'
           : (healthVerdict.reason || 'No relay-side advance observed since the previous check.');
-        const recovery = isHealthy ? '' : '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This is the Evolu silent-reject pattern (2026-05-11 production incident). The fix is identity rotation — generate a fresh 24-word mnemonic and restore the other devices to it. See <a href="https://docs.getbased.health/guides/cross-device-sync" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
+        const scope = '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This verdict is local/outbound: another device can show healthy or unknown until it pushes and probes its own relay baseline. Compare Owner ID / Mnemonic prefix across devices first.</div>';
+        const recovery = isHealthy ? scope : scope + '<div style="color:var(--text-muted);font-size:11px;margin-top:6px">This matches the Evolu silent-reject pattern. The fix is identity rotation — generate a fresh 24-word mnemonic and restore every syncing device to it. See <a href="https://docs.getbased.health/guides/cross-device-sync" target="_blank" style="color:var(--accent)">cross-device sync docs</a>.</div>';
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
             <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></span>
@@ -133,7 +135,7 @@ export async function showSyncDiagnose() {
         const buttons = `
           <button class="ctx-btn-option" style="font-size:11px" onclick="window.refreshRelayStorage(this)" title="Probe the relay for the actual storedBytes for this owner — replaces the local estimate.">Refresh</button>
           <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmCompactRelay(this)" title="Drops every Evolu message row for this owner on the relay and resets storedBytes to 0. Devices re-establish their state on the next push.">Compact storage</button>
-          <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmRotateIdentity(this)" title="Generate a fresh 24-word mnemonic for this owner. Use when the relay-health verdict above shows 'wedged' (silent-reject pattern). You'll need to enter the new mnemonic on every other device.">Rotate identity</button>`;
+          <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmRotateIdentity(this)" title="Generate a fresh 24-word mnemonic for this owner. Use when this device's relay-health verdict shows 'wedged' (silent-reject pattern). You'll need to enter the new mnemonic on every other device.">Rotate identity</button>`;
         return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;flex-wrap:wrap">
             <b>Relay storage:</b>

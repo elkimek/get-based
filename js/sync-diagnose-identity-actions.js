@@ -21,7 +21,7 @@ export async function confirmRotateIdentity(btn) {
     "Rotate sync identity — generate a fresh 24-word mnemonic for this device and apply it.\n\n" +
     "• You'll need to enter the new mnemonic on every OTHER device that should keep syncing with this one.\n" +
     "• The old identity's data stays on the relay until it ages out (no immediate loss), but new pushes will go under the new identity.\n" +
-    "• This is the recovery path for a wedged owner (red dot above) — see the 2026-05-11 silent-reject bug.\n\n" +
+    "• This is the recovery path when this device's relay-health check shows wedged (red dot above).\n\n" +
     "Proceed?";
   const proceed = (typeof window.showConfirmDialog === 'function')
     ? await window.showConfirmDialog(warning)

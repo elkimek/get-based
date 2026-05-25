@@ -703,6 +703,10 @@ await import('../js/settings.js');
     /confirmCompactRelay\(this\)/.test(syncDiagnoseUiSrc));
   assert('Sync diagnose modal wires the Refresh-from-relay button',
     /refreshRelayStorage\(this\)/.test(syncDiagnoseUiSrc));
+  assert('Sync diagnose relay health is described as local outbound health',
+    syncDiagnoseUiSrc.includes("this device's outbound")
+      && syncDiagnoseUiSrc.includes('This verdict is local/outbound')
+      && syncDiagnoseUiSrc.includes('another device can show healthy or unknown'));
   assert('compactOwnerSelfServe POSTs to /self/compact-owner with HMAC body',
     /compactOwnerSelfServe[\s\S]{0,800}\/self\/compact-owner[\s\S]{0,400}JSON\.stringify\(\{\s*ownerId,\s*timestamp,\s*signature\s*\}\)/.test(syncRelayHealthSrc));
   assert('compactOwnerSelfServe catches fetch rejection before checking response status',
