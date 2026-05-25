@@ -54,6 +54,10 @@ await import('../js/settings.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
   const syncDiagnoseActionsSrc = await fetchWithRetry('js/sync-diagnose-actions.js');
+  const syncDiagnoseActionsContextSrc = await fetchWithRetry('js/sync-diagnose-actions-context.js');
+  const syncDiagnoseRelayActionsSrc = await fetchWithRetry('js/sync-diagnose-relay-actions.js');
+  const syncDiagnoseIdentityActionsSrc = await fetchWithRetry('js/sync-diagnose-identity-actions.js');
+  const syncDiagnoseCutoverActionsSrc = await fetchWithRetry('js/sync-diagnose-cutover-actions.js');
   const syncDiagnoseUiSrc = await fetchWithRetry('js/sync-diagnose-ui.js');
   const syncActionsSrc = await fetchWithRetry('js/sync-actions.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
@@ -76,7 +80,7 @@ await import('../js/settings.js');
   const stylesSrc = await fetchWithRetry('styles.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
-  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeShapesSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
+  const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannersSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeShapesSrc}\n${syncDeltaRegistrySrc}\n${syncDeltaObservabilitySrc}\n${syncDiagnosticsSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseUiSrc}\n${syncWindowBindingsSrc}`;
   const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
     .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
 
@@ -307,20 +311,52 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['showSyncDiagnose']));
   assert('service worker precaches sync-diagnose-ui.js',
     serviceWorkerSrc.includes("'/js/sync-diagnose-ui.js'"));
-  assert('sync-diagnose-actions.js owns Sync Diagnose action handlers',
+  assert('sync-diagnose-actions.js is the Sync Diagnose action facade',
     syncDiagnoseActionsSrc.includes('export function configureSyncDiagnoseActions')
-      && syncDiagnoseActionsSrc.includes('export async function confirmCompactRelay')
-      && syncDiagnoseActionsSrc.includes('export async function refreshRelayStorage')
-      && syncDiagnoseActionsSrc.includes('export async function confirmRotateIdentity')
-      && syncDiagnoseActionsSrc.includes('export async function confirmEnablePhase2')
-      && syncDiagnoseActionsSrc.includes('export async function confirmBackfillBlockers')
-      && syncDiagnoseActionsSrc.includes('export async function confirmDisablePhase2')
-      && syncDiagnoseActionsSrc.includes('export async function confirmResetDeltaTelemetry'));
+      && syncDiagnoseActionsSrc.includes("from './sync-diagnose-actions-context.js'")
+      && syncDiagnoseActionsSrc.includes("from './sync-diagnose-relay-actions.js'")
+      && syncDiagnoseActionsSrc.includes("from './sync-diagnose-identity-actions.js'")
+      && syncDiagnoseActionsSrc.includes("from './sync-diagnose-cutover-actions.js'")
+      && syncDiagnoseActionsSrc.includes('confirmCompactRelay')
+      && syncDiagnoseActionsSrc.includes('refreshRelayStorage')
+      && syncDiagnoseActionsSrc.includes('confirmRotateIdentity')
+      && syncDiagnoseActionsSrc.includes('confirmEnablePhase2')
+      && syncDiagnoseActionsSrc.includes('confirmBackfillBlockers')
+      && syncDiagnoseActionsSrc.includes('confirmDisablePhase2')
+      && syncDiagnoseActionsSrc.includes('confirmResetDeltaTelemetry'));
+  assert('sync-diagnose-actions-context.js owns Diagnose action dependency injection',
+    syncDiagnoseActionsContextSrc.includes('export function configureSyncDiagnoseActionContext')
+      && syncDiagnoseActionsContextSrc.includes('export function currentSyncEnabled')
+      && syncDiagnoseActionsContextSrc.includes('export async function pushProfileForDiagnose')
+      && syncDiagnoseActionsContextSrc.includes('export function enablePhase2CutoverForDiagnose')
+      && syncDiagnoseActionsContextSrc.includes('export function disablePhase2CutoverForDiagnose'));
+  assert('sync-diagnose-relay-actions.js owns relay Diagnose actions',
+    syncDiagnoseRelayActionsSrc.includes('export async function confirmCompactRelay')
+      && syncDiagnoseRelayActionsSrc.includes('export async function refreshRelayStorage')
+      && syncDiagnoseRelayActionsSrc.includes('compactOwnerSelfServe')
+      && syncDiagnoseRelayActionsSrc.includes('fetchOwnerStorageFromRelay'));
+  assert('sync-diagnose-identity-actions.js owns identity rotation Diagnose action',
+    syncDiagnoseIdentityActionsSrc.includes('export async function confirmRotateIdentity')
+      && syncDiagnoseIdentityActionsSrc.includes('ensureBip39')
+      && syncDiagnoseIdentityActionsSrc.includes('ensureQRCode')
+      && syncDiagnoseIdentityActionsSrc.includes('restoreMnemonicForDiagnose'));
+  assert('sync-diagnose-cutover-actions.js owns telemetry and lean-sync Diagnose actions',
+    syncDiagnoseCutoverActionsSrc.includes('export async function confirmResetDeltaTelemetry')
+      && syncDiagnoseCutoverActionsSrc.includes('export async function confirmEnablePhase2')
+      && syncDiagnoseCutoverActionsSrc.includes('export async function confirmBackfillBlockers')
+      && syncDiagnoseCutoverActionsSrc.includes('export async function confirmDisablePhase2')
+      && syncDiagnoseCutoverActionsSrc.includes('getDeltaCutoverReadiness')
+      && syncDiagnoseCutoverActionsSrc.includes('clearDeltaSnapshot'));
   assert('service worker precaches sync-diagnose-actions.js',
     serviceWorkerSrc.includes("'/js/sync-diagnose-actions.js'"));
-  const rotateCopyHandler = syncDiagnoseActionsSrc.slice(
-    syncDiagnoseActionsSrc.indexOf("copyBtn?.addEventListener('click'"),
-    syncDiagnoseActionsSrc.indexOf("check?.addEventListener('change'")
+  assert('service worker precaches Sync Diagnose action helper modules',
+    serviceWorkerSrc.includes("'/js/sync-diagnose-actions-context.js'")
+      && serviceWorkerSrc.includes("'/js/sync-diagnose-relay-actions.js'")
+      && serviceWorkerSrc.includes("'/js/sync-diagnose-identity-actions.js'")
+      && serviceWorkerSrc.includes("'/js/sync-diagnose-cutover-actions.js'"));
+  const rotateCopyHandler = syncDiagnoseIdentityActionsSrc.slice(
+    syncDiagnoseIdentityActionsSrc.indexOf("copyBtn?.addEventListener('click'"),
+    syncDiagnoseIdentityActionsSrc.indexOf("check?.addEventListener('change'")
   );
   assert('sync diagnose copy paths include execCommand fallback',
     /export async function copySyncDiagnose[\s\S]{0,1800}document\.execCommand\('copy'\)/.test(syncDiagnoseUiSrc)
