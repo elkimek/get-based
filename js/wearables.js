@@ -276,12 +276,19 @@ function renderEmptyManualCard(metricId, canon) {
 }
 
 // Format an ISO date (YYYY-MM-DD) as "Apr 24" for compact display next to a
-// metric value. Returns the raw input on parse failure.
+// metric value. Auto-appends the year ("Apr 24, 2024") when the date is not
+// in the current calendar year — manual entries can span multiple years, and
+// staleness badges from a past year deserve the year for context. Returns
+// the raw input on parse failure.
 function shortDate(iso) {
   if (!iso || typeof iso !== 'string') return iso || '';
   const d = new Date(iso + 'T00:00:00Z');
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const sameYear = d.getUTCFullYear() === new Date().getFullYear();
+  const fmt = sameYear
+    ? { month: 'short', day: 'numeric', timeZone: 'UTC' }
+    : { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' };
+  return d.toLocaleDateString(undefined, fmt);
 }
 
 function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = {}) {
@@ -669,15 +676,34 @@ function toggleWearableStrip() {
 }
 
 // ─────────────────────────────────────────────────────────
-// DETAIL MODAL — 90d daily chart + stats for a single metric
+// DETAIL MODAL — daily chart + stats for a single metric. Default window is
+// 90 days; user can widen to 6m / 1y / All via the in-modal range toggle.
 // ─────────────────────────────────────────────────────────
+
+const WEARABLE_DETAIL_RANGES = [
+  { key: '90d', days: 90,   label: '90d',  coverageSuffix: 'of last 90 days' },
+  { key: '6m',  days: 180,  label: '6m',   coverageSuffix: 'of last 6 months' },
+  { key: '1y',  days: 365,  label: '1y',   coverageSuffix: 'of last 12 months' },
+  { key: 'all', days: null, label: 'All',  coverageSuffix: 'all-time' },
+];
+const _WEARABLE_DETAIL_RANGE_KEY = 'wearable-detail-range';
+function _getWearableDetailRange() {
+  const stored = localStorage.getItem(_WEARABLE_DETAIL_RANGE_KEY);
+  if (stored && WEARABLE_DETAIL_RANGES.some(r => r.key === stored)) return stored;
+  return '90d';
+}
+function setWearableDetailRange(metricId, rangeKey) {
+  if (!WEARABLE_DETAIL_RANGES.some(r => r.key === rangeKey)) return;
+  localStorage.setItem(_WEARABLE_DETAIL_RANGE_KEY, rangeKey);
+  openWearableDetail(metricId, { _fromRangeToggle: true });
+}
 
 // Monotonic op token — fast successive clicks on different cards shouldn't
 // land mismatched data in the modal. Each call grabs a new token; any work
 // that resolves with a stale token aborts before touching the DOM.
 let _detailOp = 0;
 
-async function openWearableDetail(metricId) {
+async function openWearableDetail(metricId, opts = {}) {
   const op = ++_detailOp;
   const canon = canonicalMetric(metricId);
   const summary = state.importedData?.wearableSummary;
@@ -689,16 +715,28 @@ async function openWearableDetail(metricId) {
 
   // Snapshot the focused element (clicked card) so closeModal can return
   // focus to it — keyboard users otherwise land on <body> after close.
-  window.rememberModalTrigger?.();
+  // Skip when re-opening from the in-modal range toggle, otherwise the
+  // remembered trigger would be a now-destroyed pill button.
+  if (!opts._fromRangeToggle) window.rememberModalTrigger?.();
 
-  // Pull last 90 days from L1 for whichever source is primary for this metric.
-  // Series may have gaps (ring not worn, feature off) — we plot what's there
-  // and label missing days via Chart.js spanGaps rather than forward-filling.
+  // Pull rows from L1 for whichever source is primary for this metric.
+  // Window is user-controlled via the in-modal range toggle (default 90d);
+  // "All" uses a 1970 floor that getDailyRange treats as unbounded.
+  // Series may have gaps (ring not worn, feature off) — we plot what's
+  // there and label missing days via Chart.js spanGaps rather than
+  // forward-filling.
+  const rangeKey = _getWearableDetailRange();
+  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
   const profileId = getActiveProfileId();
   // Local-tz: vendor adapters tag rows with the user's local day, not UTC.
   const endDate = isoDay();
-  const start = new Date(); start.setDate(start.getDate() - 90);
-  const startDate = isoDay(start);
+  let startDate;
+  if (rangeDef.days == null) {
+    startDate = '1970-01-01';
+  } else {
+    const start = new Date(); start.setDate(start.getDate() - rangeDef.days);
+    startDate = isoDay(start);
+  }
   let rows = [];
   try { rows = await getDailyRange(profileId, m.primarySource, startDate, endDate); }
   catch (e) { showNotification?.(`Couldn't read local history: ${e.message}`, 'error', 4000); return; }
@@ -744,10 +782,16 @@ async function openWearableDetail(metricId) {
     delete state.chartInstances['modal'];
   }
 
-  modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, { allZeroActivity });
+  modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, { allZeroActivity, rangeKey });
   overlay.classList.add('show');
-  // Move focus to the close button so keyboard users land inside the modal.
-  modal.querySelector('.modal-close')?.focus?.();
+  // Move focus into the modal. On a fresh open, land on the close button so
+  // keyboard users have a familiar exit. On a range-toggle re-render, land
+  // on the newly-active range pill instead so the user can keep tabbing
+  // through ranges without focus snapping away.
+  const focusTarget = opts._fromRangeToggle
+    ? modal.querySelector('.wearable-detail-range .ctx-btn-option.active')
+    : modal.querySelector('.modal-close');
+  focusTarget?.focus?.();
   // Trap Tab / Shift-Tab inside the modal so keyboard navigation can't
   // accidentally land on background controls (the strip, supplements,
   // chat FAB, etc.). One listener per modal-open; cleared on close via
@@ -908,13 +952,15 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
                        : null;
   const companionUnitSpaced = companion ? unitSpaced : '';
 
+  const rangeKey = opts.rangeKey || '90d';
+  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
   const baseStats = [
     ['Latest',   `${formatV(m.latest)}${unitSpaced}`, m.latestDate ? shortDate(m.latestDate) : ''],
     ['Baseline (90d)', `${formatV(m.baseline)}${unitSpaced}`, 'median'],
     ['7-day avg', `${formatV(m.rolling?.d7)}${unitSpaced}`, ''],
     ['30-day avg', `${formatV(m.rolling?.d30)}${unitSpaced}`, ''],
     ['Typical range', `${formatV(m.baselineP25)} – ${formatV(m.baselineP75)}${unitSpaced}`, '25th–75th percentile'],
-    ['Coverage', `${series.length}d`, `of last 90 days`],
+    ['Coverage', `${series.length}d`, rangeDef.coverageSuffix],
   ];
   // Daytime companion: emit up to three sub-stats — latest, 7-day average,
   // 30-day average — so the user gets the trend, not just today (a single
@@ -989,12 +1035,15 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
 
   const emfSleepHint = _buildEMFSleepHint(metricId, m);
 
+  const rangePills = WEARABLE_DETAIL_RANGES.map(r => `<button type="button" class="ctx-btn-option${r.key === rangeKey ? ' active' : ''}" aria-pressed="${r.key === rangeKey}" onclick="setWearableDetailRange('${escapeHTML(metricId)}','${r.key}')">${escapeHTML(r.label)}</button>`).join('');
+
   return `<button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${escapeHTML(canon.label)}${subLabel}</h3>
     <div class="modal-unit">
       ${escapeHTML(sourceName)}${deltaStr ? ` · ${deltaStr} vs baseline` : ''} · ${escapeHTML(trendWord)} 30d
       ${swapButton}
     </div>
+    <div class="ctx-btn-group wearable-detail-range" role="group" aria-label="Chart range">${rangePills}</div>
     <div class="modal-chart" style="height:260px"><canvas id="chart-modal"></canvas></div>
     ${emptyHint}
     <div class="wearable-detail-stats">${statsCells}</div>
@@ -1086,6 +1135,12 @@ function renderWearableChart(canvas, canon, m, series) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      // Tooltip fires on the nearest x-position rather than requiring the
+      // cursor to land exactly on a point — points are zero-radius for a
+      // clean sparkline look, so the default `intersect: true` made the
+      // tooltip feel random. Hover anywhere over the chart → get the day's
+      // reading.
+      interaction: { mode: 'index', intersect: false, axis: 'x' },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -2019,6 +2074,7 @@ Object.assign(window, {
   dismissWearableStub,
   toggleWearableStrip,
   openWearableDetail,
+  setWearableDetailRange,
   _uninstallWearableModalFocusTrap,
   syncWearableNow,
   chooseWearableSource,
