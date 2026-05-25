@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { profileStorageKey, getProfiles, createDefaultProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
-import { markChatDataLocal } from './sync-apply.js';
+import { markChatDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { logSyncEvent } from './sync-state.js';
 

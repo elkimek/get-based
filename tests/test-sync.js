@@ -29,6 +29,7 @@ console.log('=== Cross-Device Sync Tests ===\n');
 // window.enableSync, window.toggleSync, etc.
 const { state } = await import('../js/state.js');
 const syncApply = await import('../js/sync-apply.js');
+const syncChatApply = await import('../js/sync-chat-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
 const syncSubscriptions = await import('../js/sync-subscriptions.js');
 const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
@@ -37,6 +38,7 @@ await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
   const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
+  const syncChatApplySrc = await fetchWithRetry('js/sync-chat-apply.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
   const syncRuntimeSrc = await fetchWithRetry('js/sync-runtime.js');
   const syncInitSrc = await fetchWithRetry('js/sync-init.js');
@@ -183,14 +185,21 @@ await import('../js/settings.js');
       && syncInitSrc.includes('createSyncQueries(evolu)'));
   assert('service worker precaches sync-schema.js',
     serviceWorkerSrc.includes("'/js/sync-schema.js'"));
-  assert('sync-apply.js owns inbound AI/chat/display apply helpers',
+  assert('sync-apply.js owns inbound AI/display apply helpers and chat compatibility exports',
     syncPullSrc.includes("from './sync-apply.js'")
       && syncApplySrc.includes('export async function applyAISettings')
-      && syncApplySrc.includes('export async function applyChatData')
       && syncApplySrc.includes('export function applyDisplayPrefs')
-      && syncApplySrc.includes('export function markChatDataLocal'));
+      && syncApplySrc.includes("from './sync-chat-apply.js'"));
   assert('service worker precaches sync-apply.js',
     serviceWorkerSrc.includes("'/js/sync-apply.js'"));
+  assert('sync-chat-apply.js owns inbound chat apply helpers and freshness locks',
+    syncPullSrc.includes("from './sync-chat-apply.js'")
+      && syncActionsSrc.includes("from './sync-chat-apply.js'")
+      && syncChatApplySrc.includes('export async function applyChatData')
+      && syncChatApplySrc.includes('export function markChatDataLocal')
+      && syncChatApplySrc.includes('export function getChatDataLocalLockRemainingMs'));
+  assert('service worker precaches sync-chat-apply.js',
+    serviceWorkerSrc.includes("'/js/sync-chat-apply.js'"));
   assert('sync-delta.js owns per-row delta facade/apply wiring',
     syncSrc.includes("from './sync-delta.js'")
       && syncDeltaSrc.includes("from './sync-delta-planners.js'")
@@ -1025,7 +1034,7 @@ await import('../js/settings.js');
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));
   assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
-    syncApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(mergedThreads))"));
+    syncChatApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(mergedThreads))"));
 
   // ═══════════════════════════════════════
   // 9. SETTINGS UI
@@ -1102,18 +1111,21 @@ await import('../js/settings.js');
     }
   }
   assert('chat thread tombstones reject proto-pollution keys',
-    syncApplySrc.includes('CHAT_DELETED_PROTO_KEYS')
+    syncChatApplySrc.includes('CHAT_DELETED_PROTO_KEYS')
       && syncPayloadCollectorsSrc.includes('CHAT_DELETED_PROTO_KEYS')
       && await fetchWithRetry('js/chat-threads.js').then(s => s.includes('CHAT_DELETED_PROTO_KEYS.has(threadId)')));
-  assert('applyChatData writes threads', syncApplySrc.includes('applyChatData'));
+  assert('sync-apply.js re-exports chat apply helpers for compatibility',
+    syncApply.applyChatData === syncChatApply.applyChatData
+      && syncApply.markChatDataLocal === syncChatApply.markChatDataLocal);
+  assert('applyChatData writes threads', syncChatApplySrc.includes('applyChatData'));
   assert('applyChatData preserves local-only threads unless an explicit tombstone wins',
-    syncApplySrc.includes('mergedById.set(thread.id, thread)')
-      && syncApplySrc.includes('normalizeDeletedThreads(chatData.deletedThreads)')
-      && syncApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${thread.id}`)'));
+    syncChatApplySrc.includes('mergedById.set(thread.id, thread)')
+      && syncChatApplySrc.includes('normalizeDeletedThreads(chatData.deletedThreads)')
+      && syncChatApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${thread.id}`)'));
   assert('applyChatData skips stale remote chat while local save is fresh',
-    syncApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalChatData(profileId)'));
+    syncChatApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncChatApplySrc.includes('shouldKeepLocalChatData(profileId)'));
   assert('chat freshness lock is shorter than two minutes',
-    syncApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
+    syncChatApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
   assert('skipped chat pulls retry after the local freshness lock expires',
     syncPullSrc.includes('scheduleChatPullRetry') && syncPullSrc.includes('getChatDataLocalLockRemainingMs(profileId)'));
   assert('active chat reload only runs after chatData is applied',
@@ -1144,7 +1156,7 @@ await import('../js/settings.js');
       ]));
       localStorage.setItem(keepKey, JSON.stringify([{ role: 'user', content: 'old' }]));
       localStorage.setItem(goneKey, JSON.stringify([{ role: 'user', content: 'delete me' }]));
-      const applied = await syncApply.applyChatData(profileId, {
+      const applied = await syncChatApply.applyChatData(profileId, {
         threads: [{ id: 'keep', messageCount: 1, updatedAt: '2026-05-24T10:05:00.000Z' }],
         messages: { keep: [{ role: 'assistant', content: 'new' }] },
       });
@@ -1154,7 +1166,7 @@ await import('../js/settings.js');
           && localStorage.getItem(goneKey) !== null);
       assert('applyChatData functional: kept thread messages overwritten',
         JSON.parse(localStorage.getItem(keepKey) || '[]')?.[0]?.content === 'new');
-      await syncApply.applyChatData(profileId, {
+      await syncChatApply.applyChatData(profileId, {
         threads: [{ id: 'keep', messageCount: 1, updatedAt: '2026-05-24T10:05:00.000Z' }],
         messages: { keep: [{ role: 'assistant', content: 'newer' }] },
         deletedThreads: { gone: Date.parse('2026-05-24T10:06:00.000Z') },
@@ -1167,7 +1179,7 @@ await import('../js/settings.js');
       localStorage.setItem(threadsKey, JSON.stringify([
         { id: 'empty', name: 'New Conversation', messageCount: 0, updatedAt: '2026-05-24T10:10:00.000Z' },
       ]));
-      const emptyShellApplied = await syncApply.applyChatData(profileId, {
+      const emptyShellApplied = await syncChatApply.applyChatData(profileId, {
         threads: [{ id: 'remote', messageCount: 1, updatedAt: '2026-05-24T10:15:00.000Z' }],
         messages: { remote: [{ role: 'user', content: 'from device A' }] },
       });
@@ -1181,7 +1193,7 @@ await import('../js/settings.js');
       ]));
       localStorage.setItem(lockedKeepKey, JSON.stringify([{ role: 'user', content: 'local keep' }]));
       localStorage.setItem(lockedGoneKey, JSON.stringify([{ role: 'user', content: 'local delete' }]));
-      const lockedDeleteApplied = await syncApply.applyChatData(profileId, {
+      const lockedDeleteApplied = await syncChatApply.applyChatData(profileId, {
         threads: [{ id: 'lockedRemote', messageCount: 1, updatedAt: '2026-05-24T10:40:00.000Z' }],
         messages: { lockedRemote: [{ role: 'assistant', content: 'held while local lock is active' }] },
         deletedThreads: { lockedGone: Date.parse('2026-05-24T10:30:00.000Z') },

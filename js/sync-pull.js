@@ -2,9 +2,9 @@
 
 import { parseSyncPayload } from './sync-payload.js';
 import {
-  applyAISettings, applyChatData, applyDisplayPrefs,
-  getChatDataLocalLockRemainingMs,
+  applyAISettings, applyDisplayPrefs,
 } from './sync-apply.js';
+import { applyChatData, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
 import { clearStaleSyncHashKeysOnce } from './sync-pull-maintenance.js';
 import {

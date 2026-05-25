@@ -1392,7 +1392,8 @@ Not separately documented because their exports are best read from source — ke
 - `sync-delta-merge-shapes.js` — pull-side array/map/scalar row overlay helpers; owns tombstone application, nested-path writes, proto guards, caps, and pull delta telemetry.
 - `sync-delta-registry.js` — DELTA_ARRAYS/MAPS/SCALARS registration plus per-surface itemId/keyId config and identity helpers.
 - `sync-delta-observability.js` — per-push delta telemetry, pull-side row-count snapshots, and Phase 2 cutover readiness checks.
-- `sync-apply.js` — inbound sync apply helpers for AI provider settings, chat thread/message data, display prefs, and local freshness locks that protect just-edited local chat/settings from stale remote rows.
+- `sync-apply.js` — inbound sync apply helpers for AI provider settings and display prefs, with compatibility re-exports for chat apply helpers.
+- `sync-chat-apply.js` — inbound chat thread/message application, chat delete tombstones, and local freshness locks that protect just-edited local chat from stale remote rows.
 - `sync-tombstones.js` — remote profile delete propagation helpers, inbound tombstone application, batched-delete quarantine, and apply/reject pending tombstone actions for Settings.
 - `sync-messenger.js` — Agent Access token helpers and debounced lab-context push to the messenger/MCP gateway.
 - `sync-environment.js` — relay URL selection, relay connectivity probing, and browser capability checks for Evolu sync.
