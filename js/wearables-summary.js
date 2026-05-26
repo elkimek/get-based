@@ -26,6 +26,8 @@ const GATE_WEEKLY_DELTA_PCT = 5;       // any weekly-series metric delta ≥ 5% 
 const MIN_L2_REFRESH_MS     = 14 * 24 * 60 * 60 * 1000; // force-write after 14d silence
 const ANOMALY_STREAK_DAYS   = 3;       // sustained breach length to fire an anomaly event
 const CHANGE_HISTORY_CAP    = 200;     // existing global cap; honour it when appending
+const SUMMARY_WINDOW_DAYS   = 90;
+const MANUAL_SUMMARY_START_DATE = '1970-01-01';
 
 const METRICS_FOR_SUMMARY = DEFAULT_METRIC_ORDER;
 
@@ -376,16 +378,17 @@ export async function syncWearableSummary(profileId, connectedSources, { force =
   const sourceIds = Object.keys(connectedSources);
   if (sourceIds.length === 0) return { wrote: false, reason: 'no-sources' };
 
-  // Pull last 90 days of rows for every connected source. Local-tz dates
-  // so the window aligns with vendor `day`/date fields (Oura, Withings,
-  // etc. use the user's local day boundary, not UTC).
+  // Pull last 90 days for vendor sources. Manual entries are sparse, user-
+  // authored rows, so read all history; otherwise a single older pulse/BP
+  // reading saves successfully but never creates a visible summary card.
   const endDate = isoDay();
-  const start = new Date(); start.setDate(start.getDate() - 90);
+  const start = new Date(); start.setDate(start.getDate() - SUMMARY_WINDOW_DAYS);
   const startDate = isoDay(start);
 
   const rowsBySource = {};
   for (const sid of sourceIds) {
-    try { rowsBySource[sid] = await getDailyRange(profileId, sid, startDate, endDate); }
+    const readStartDate = sid === 'manual' ? MANUAL_SUMMARY_START_DATE : startDate;
+    try { rowsBySource[sid] = await getDailyRange(profileId, sid, readStartDate, endDate); }
     catch (e) { if (isDebugMode?.()) console.warn(`[wearable-summary] L1 read failed for ${sid}:`, e.message); rowsBySource[sid] = []; }
   }
 

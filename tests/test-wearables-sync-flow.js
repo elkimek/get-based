@@ -45,6 +45,7 @@ await import('../js/state.js');
 const connect = await import('../js/wearables-connect.js');
 const store = await import('../js/wearables-store.js');
 const summary = await import('../js/wearables-summary.js');
+const manual = await import('../js/wearables-manual.js');
 await import('../js/sync.js'); // registers window.pushContextToGateway
 
 // ─────────────────────────────────────────────────────────
@@ -102,10 +103,34 @@ function fakeConnect(adapterId) {
 }
 
 async function wipeWearableIDB() {
+  try { await store.clearSource(TEST_PROFILE_ID, 'manual'); } catch {}
   try { await store.clearSource(TEST_PROFILE_ID, 'oura'); } catch {}
   try { await store.clearSource(TEST_PROFILE_ID, 'fitbit'); } catch {}
 }
 await wipeWearableIDB();
+
+// ═══════════════════════════════════════
+// 0. Manual entries outside vendor window
+// ═══════════════════════════════════════
+console.log('0. Manual All-History Summary');
+const oldManualDate = '2025-05-01';
+await manual.logManualMetric(TEST_PROFILE_ID, 'rhr', { date: oldManualDate, value: 57 });
+const oldManualRows = await store.getDailyRange(TEST_PROFILE_ID, 'manual', '2025-01-01', '2025-12-31');
+assert('Older manual RHR row is persisted in L1',
+  oldManualRows.some(r => r.date === oldManualDate && r.rhr === 57));
+const oldManualSync = await summary.syncWearableSummary(TEST_PROFILE_ID, connect.listConnectedSources());
+const oldManualSummary = window._labState.importedData?.wearableSummary;
+assert('Older manual RHR writes an L2 summary metric outside the 90d vendor window',
+  oldManualSync.wrote === true &&
+  oldManualSummary?.metrics?.rhr?.latest === 57 &&
+  oldManualSummary.metrics.rhr.latestDate === oldManualDate,
+  JSON.stringify(oldManualSummary?.metrics?.rhr));
+assert('Manual source coverage counts the old row',
+  oldManualSummary?.sources?.manual?.coverageDays === 1,
+  JSON.stringify(oldManualSummary?.sources?.manual));
+await store.clearSource(TEST_PROFILE_ID, 'manual');
+delete window._labState.importedData.wearableConnections.manual;
+window._labState.importedData.wearableSummary = null;
 
 // ═══════════════════════════════════════
 // 1. backfillWearable — full pull populates IDB + meta

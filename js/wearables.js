@@ -682,6 +682,7 @@ const WEARABLE_DETAIL_RANGES = [
   { key: '1y', days: 365, label: '1y', coverageSuffix: 'of last 12 months', emptyWindow: 'the last 12 months' },
   { key: 'all', days: null, label: 'All', coverageSuffix: 'all-time', emptyWindow: 'all recorded data' },
 ];
+const WEARABLE_ALL_HISTORY_START_DATE = '1970-01-01';
 const WEARABLE_DETAIL_RANGE_KEY = 'wearable-detail-range';
 function getWearableDetailRange() {
   const stored = localStorage.getItem(WEARABLE_DETAIL_RANGE_KEY);
@@ -746,15 +747,12 @@ async function openWearableDetail(metricId, opts = {}) {
     && series.length > 0
     && series.every(p => p.v === 0);
 
-  // Separately pull ALL manual rows (not just primary-source rows) so the
-  // detail modal's "Manual entries" list shows manual readings even when
-  // another source is currently primary for this metric. A user with both
-  // Withings and manual weight entries wants to see + delete both.
+  // Separately pull ALL manual rows (not just primary-source rows, and not
+  // just the selected chart range) so the detail modal's "Manual entries"
+  // list shows old hand-entered readings even when the 90d chart is empty.
   let manualRows = [];
-  if (m.primarySource === 'manual') {
-    manualRows = rows;
-  } else {
-    try { manualRows = await getDailyRange(profileId, 'manual', startDate, endDate); }
+  if (MANUAL_METRICS.includes(metricId)) {
+    try { manualRows = await getDailyRange(profileId, 'manual', WEARABLE_ALL_HISTORY_START_DATE, endDate); }
     catch { /* no manual data yet — empty list, that's fine */ }
     if (op !== _detailOp) return;
   }
@@ -762,6 +760,11 @@ async function openWearableDetail(metricId, opts = {}) {
     .map(r => ({ date: r.date, v: r[metricId], tags: r.tags, note: r.note }))
     .filter(p => isMetricValueMeaningful(metricId, p.v))
     .sort((a, b) => b.date.localeCompare(a.date)); // reverse-chron for display
+  const manualChartEntries = m.primarySource === 'manual'
+    ? []
+    : manualEntries
+        .filter(p => rangeDef.days == null || p.date >= startDate)
+        .sort((a, b) => a.date.localeCompare(b.date));
 
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -787,8 +790,8 @@ async function openWearableDetail(metricId, opts = {}) {
   _installWearableModalFocusTrap(modal);
 
   const canvas = document.getElementById('chart-modal');
-  if (canvas && series.length > 0) {
-    renderWearableChart(canvas, canon, m, series);
+  if (canvas && (series.length > 0 || manualChartEntries.length > 0)) {
+    renderWearableChart(canvas, canon, m, series, manualChartEntries);
   }
 }
 
@@ -1008,7 +1011,9 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const emptyHint = opts.allZeroActivity
     ? `<div class="wearable-detail-empty">Every day shows 0 — Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>`
     : series.length === 0
-      ? `<div class="wearable-detail-empty">No daily samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`
+      ? manualEntries.length > 0
+        ? `<div class="wearable-detail-empty">No chart samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Manual readings are listed below${m.primarySource === 'manual' && rangeDef.days != null ? '; switch to All to chart older manual readings' : ''}.</div>`
+        : `<div class="wearable-detail-empty">No daily samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`
       : '';
 
   // Show the source-swap button whenever ≥2 wearables are connected — the
@@ -1071,65 +1076,92 @@ function _buildEMFSleepHint(metricId, m) {
   return `<div class="wearable-detail-emf-hint"><span aria-hidden="true">💡</span> Sleep regressing? Sometimes it's the room. <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-wearable-sleep">Check your EMF environment →</a></div>`;
 }
 
-function renderWearableChart(canvas, canon, m, series) {
+function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
   if (!window.Chart || !isChartDateAdapterReady()) {
     ensureChartJs().then(() => {
       const currentCanvas = document.getElementById(canvas.id);
-      if (currentCanvas) renderWearableChart(currentCanvas, canon, m, series);
+      if (currentCanvas) renderWearableChart(currentCanvas, canon, m, series, manualSeries);
     }).catch(() => {});
     return;
   }
   const tc = getChartColors();
-  const labels = series.map(p => p.date);
-  const values = series.map(p => p.v);
-  const baselineValues = values.map(() => m.baseline);
+  const primaryData = series.map(p => ({ x: p.date, y: p.v }));
+  const manualData = manualSeries.map(p => ({ x: p.date, y: p.v }));
+  const xDates = [...series.map(p => p.date), ...manualSeries.map(p => p.date)].sort();
+  const values = [...series.map(p => p.v), ...manualSeries.map(p => p.v)];
+  if (values.length === 0) return;
+  const baselineIsFinite = typeof m.baseline === 'number' && isFinite(m.baseline);
+  const baselineValues = baselineIsFinite && xDates.length
+    ? [{ x: xDates[0], y: m.baseline }, { x: xDates[xDates.length - 1], y: m.baseline }]
+    : [];
   const isCumulative = CUMULATIVE_METRICS.has(canon.id);
   const todayISO = isoDay();
   const isPartialIdx = (idx) => isCumulative && series[idx]?.date === todayISO;
   const partialColor = '#f59e0b';
+  const primaryAdapter = adapterById(m.primarySource);
+  const primaryLabel = primaryAdapter?.displayName || canon.label;
 
   // Y-axis padding so baseline line and sparkline aren't clipped to the edge.
-  const ymin = Math.min(...values, m.baseline);
-  const ymax = Math.max(...values, m.baseline);
+  const yValues = baselineIsFinite ? [...values, m.baseline] : values;
+  const ymin = Math.min(...yValues);
+  const ymax = Math.max(...yValues);
   const pad = Math.max((ymax - ymin) * 0.08, 0.5);
 
   const unit = canon.unit || '';
   const formatV = v => formatValue(v, unit);
+  const datasets = [];
+  if (primaryData.length > 0) {
+    datasets.push({
+      label: primaryLabel,
+      data: primaryData,
+      _kind: 'primary',
+      borderColor: tc.lineColor || '#60a5fa',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: primaryData.map((_, i) => isPartialIdx(i) ? 5 : 0),
+      pointBackgroundColor: primaryData.map((_, i) => isPartialIdx(i) ? partialColor : 'transparent'),
+      pointBorderColor: primaryData.map((_, i) => isPartialIdx(i) ? partialColor : 'transparent'),
+      pointHoverRadius: primaryData.map((_, i) => isPartialIdx(i) ? 7 : 4),
+      tension: 0.3,
+      spanGaps: true,
+      segment: {
+        borderDash: (ctx) => isPartialIdx(ctx.p1DataIndex) ? [5, 4] : undefined,
+        borderColor: (ctx) => isPartialIdx(ctx.p1DataIndex) ? partialColor : undefined,
+      },
+    });
+  }
+  if (baselineValues.length > 0) {
+    datasets.push({
+      label: 'Baseline',
+      data: baselineValues,
+      _kind: 'baseline',
+      borderColor: tc.gridColor || '#9ca3af',
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderDash: [4, 4],
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      tension: 0,
+    });
+  }
+  if (manualData.length > 0) {
+    datasets.push({
+      type: 'scatter',
+      label: 'Manual',
+      data: manualData,
+      _kind: 'manual',
+      borderColor: partialColor,
+      backgroundColor: partialColor,
+      pointRadius: 5,
+      pointHoverRadius: 7,
+      showLine: false,
+    });
+  }
 
   state.chartInstances['modal'] = new window.Chart(canvas, {
     type: 'line',
     data: {
-      labels,
-      datasets: [
-        {
-          label: canon.label,
-          data: values,
-          borderColor: tc.lineColor || '#60a5fa',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: values.map((_, i) => isPartialIdx(i) ? 5 : 0),
-          pointBackgroundColor: values.map((_, i) => isPartialIdx(i) ? partialColor : 'transparent'),
-          pointBorderColor: values.map((_, i) => isPartialIdx(i) ? partialColor : 'transparent'),
-          pointHoverRadius: values.map((_, i) => isPartialIdx(i) ? 7 : 4),
-          tension: 0.3,
-          spanGaps: true,
-          segment: {
-            borderDash: (ctx) => isPartialIdx(ctx.p1DataIndex) ? [5, 4] : undefined,
-            borderColor: (ctx) => isPartialIdx(ctx.p1DataIndex) ? partialColor : undefined,
-          },
-        },
-        {
-          label: 'Baseline',
-          data: baselineValues,
-          borderColor: tc.gridColor || '#9ca3af',
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderDash: [4, 4],
-          pointRadius: 0,
-          pointHoverRadius: 0,
-          tension: 0,
-        },
-      ],
+      datasets,
     },
     options: {
       responsive: true,
@@ -1143,7 +1175,8 @@ function renderWearableChart(canvas, canon, m, series) {
           callbacks: {
             label: (c) => {
               const base = `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}`;
-              return (c.datasetIndex === 0 && isPartialIdx(c.dataIndex))
+              if (c.dataset._kind === 'manual') return `${base}  (manual entry)`;
+              return (c.dataset._kind === 'primary' && isPartialIdx(c.dataIndex))
                 ? `${base}  (partial day · in progress)`
                 : base;
             },

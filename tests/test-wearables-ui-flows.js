@@ -25,6 +25,7 @@ return (async function() {
   const BIOMETRIC_SELECTION_KEY = `labcharts-${TEST_PROFILE_ID}-dashboardBiometricMetricsV1`;
   const DASHBOARD_WIDGET_PREFS_KEY = `labcharts-${TEST_PROFILE_ID}-dashboardWidgetsV9`;
   const origActive = localStorage.getItem('labcharts-active-profile');
+  const origWearableDetailRange = localStorage.getItem('wearable-detail-range');
   // CRITICAL: saveImportedData() keys off state.currentProfile, NOT the
   // localStorage active-profile entry. Swap both — otherwise any save
   // inside the test writes the fake state to the USER'S real profile.
@@ -121,18 +122,53 @@ return (async function() {
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
-  // 4. Source-swap button on detail modal opens picker
+  // 4. Old manual readings stay manageable
   // ═══════════════════════════════════════
-  console.log('%c 4. Source Picker ', 'font-weight:bold;color:#f59e0b');
-  // Add a second source so the swap button renders (gated on ≥2 connected)
+  console.log('%c 4. Old Manual Reading ', 'font-weight:bold;color:#f59e0b');
+  const oldManualDate = '2025-05-01';
+  await manual.logManualMetric(TEST_PROFILE_ID, 'rhr', { date: oldManualDate, value: 57, tags: ['resting'] });
   window._labState.importedData.wearableConnections.oura = {
     source: 'oura', connectedAt: new Date().toISOString(),
-    lastSyncAt: Date.now(), coverageDays: 0,
+    lastSyncAt: Date.now(), coverageDays: 1,
     accessToken: 'fake-oura', refreshToken: 'fake-rfr',
     expiresAt: Date.now() + 86400000,
   };
-  // Stub the summary with BOTH sources directly — a real syncWearableSummary
-  // would also work but skips since oura has zero IDB rows in this test.
+  await store.upsertDaily(TEST_PROFILE_ID, {
+    source: 'oura',
+    date: '2026-05-20',
+    rhr: 61,
+  });
+  await manual.refreshManualSummary(TEST_PROFILE_ID);
+  const oldRhrSummary = window._labState.importedData?.wearableSummary?.metrics?.rhr;
+  assert('Newer Oura RHR can remain primary while old manual RHR is stored',
+    oldRhrSummary?.primarySource === 'oura' && oldRhrSummary?.latest === 61,
+    JSON.stringify(oldRhrSummary));
+  localStorage.setItem('wearable-detail-range', '90d');
+  await window.openWearableDetail('rhr');
+  await new Promise(r => setTimeout(r, 300));
+  assert('Older manual RHR appears in the default detail manual-entry list',
+    !!document.querySelector(`#detail-modal .wearable-manual-entry[data-entry-date="${oldManualDate}"]`));
+  localStorage.setItem('wearable-detail-range', 'all');
+  await window.openWearableDetail('rhr');
+  await new Promise(r => setTimeout(r, 500));
+  const chartDatasets = window._labState.chartInstances?.modal?.data?.datasets || [];
+  const manualOverlay = chartDatasets.find(ds => ds.label === 'Manual');
+  const ouraLine = chartDatasets.find(ds => ds.label === 'Oura');
+  assert('All-range chart keeps the Oura line and overlays old manual RHR readings',
+    !!ouraLine?.data?.some(p => p.x === '2026-05-20' && p.y === 61) &&
+    !!manualOverlay?.data?.some(p => p.x === oldManualDate && p.y === 57),
+    JSON.stringify(window._labState.chartInstances?.modal?.data?.datasets?.map(ds => ({ label: ds.label, n: ds.data?.length }))));
+  if (window.closeModal) window.closeModal();
+  await new Promise(r => setTimeout(r, 200));
+
+  // ═══════════════════════════════════════
+  // 5. Source-swap button on detail modal opens picker
+  // ═══════════════════════════════════════
+  console.log('%c 5. Source Picker ', 'font-weight:bold;color:#f59e0b');
+  // Add a second source so the swap button renders (gated on ≥2 connected)
+  window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now();
+  // Stub the summary with BOTH sources directly so this section only tests
+  // the source-picker UI, not the summary auto-picker.
   window._labState.importedData.wearableSummary = {
     summaryUpdatedAt: new Date().toISOString(),
     sources: {
@@ -169,9 +205,9 @@ return (async function() {
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
-  // 5. Biometrics Overview tile click opens detail modal
+  // 6. Biometrics Overview tile click opens detail modal
   // ═══════════════════════════════════════
-  console.log('%c 5. Overview Tile → Modal ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 6. Overview Tile → Modal ', 'font-weight:bold;color:#f59e0b');
   if (window.navigate) window.navigate('dashboard');
   await new Promise(r => setTimeout(r, 200));
   const overview = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
@@ -192,9 +228,9 @@ return (async function() {
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
-  // 6. Modular metric selection — add/remove inside the overview
+  // 7. Modular metric selection — add/remove inside the overview
   // ═══════════════════════════════════════
-  console.log('%c 6. Modular Metric Selection ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 7. Modular Metric Selection ', 'font-weight:bold;color:#f59e0b');
   await window.addDashboardBiometricMetric?.('weight');
   await new Promise(r => setTimeout(r, 300));
   const overviewAfterAdd = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
@@ -218,9 +254,9 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
-  // 7. Picker + stale sync state
+  // 8. Picker + stale sync state
   // ═══════════════════════════════════════
-  console.log('%c 7. Picker + Stale Sync ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 8. Picker + Stale Sync ', 'font-weight:bold;color:#f59e0b');
   localStorage.setItem(BIOMETRIC_SELECTION_KEY, JSON.stringify(['rhr']));
   if (window._labState.importedData.wearableSummary?.sources?.oura) {
     window._labState.importedData.wearableSummary.sources.oura.coverageDays = 1;
@@ -285,6 +321,8 @@ return (async function() {
   localStorage.removeItem(`labcharts-${TEST_PROFILE_ID}-imported`);
   localStorage.removeItem(BIOMETRIC_SELECTION_KEY);
   localStorage.removeItem(DASHBOARD_WIDGET_PREFS_KEY);
+  if (origWearableDetailRange) localStorage.setItem('wearable-detail-range', origWearableDetailRange);
+  else localStorage.removeItem('wearable-detail-range');
   if (origActive) localStorage.setItem('labcharts-active-profile', origActive);
   else localStorage.removeItem('labcharts-active-profile');
   window._labState.currentProfile = origCurrentProfile;

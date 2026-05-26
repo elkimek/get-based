@@ -71,7 +71,8 @@ return (async function() {
   assert('Chart instance stored under state.chartInstances.modal', !!window._labState.chartInstances?.modal);
   const modalChart = window._labState.chartInstances?.modal;
   assert('Chart has 3 data points matching L1 row count', modalChart?.data?.datasets?.[0]?.data?.length === 3);
-  assert('Chart labels array has 3 entries', modalChart?.data?.labels?.length === 3);
+  assert('Chart primary dataset carries 3 dated points',
+    modalChart?.data?.datasets?.[0]?.data?.filter(p => p?.x && typeof p?.y === 'number')?.length === 3);
   assert('Chart x-axis is time type', modalChart?.options?.scales?.x?.type === 'time');
   const rangeButtons = Array.from(document.querySelectorAll('#detail-modal .wearable-detail-range .ctx-btn-option'));
   assert('Detail modal renders 90d / 6m / 1y / All range buttons',
@@ -168,11 +169,11 @@ return (async function() {
     { source: 'oura', date: todayISO, steps: 1200 },
   ]);
   await window.openWearableDetail('steps');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.labels?.includes(todayISO));
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.[0]?.data?.some(p => p?.x === todayISO));
   const stepsChart = window._labState.chartInstances?.modal;
-  const todayIdx = stepsChart?.data?.labels?.indexOf(todayISO);
+  const todayIdx = stepsChart?.data?.datasets?.[0]?.data?.findIndex(p => p?.x === todayISO);
   assert('Cumulative detail chart keeps today in the plotted series',
-    todayIdx >= 0 && stepsChart.data.datasets[0].data[todayIdx] === 1200);
+    todayIdx >= 0 && stepsChart.data.datasets[0].data[todayIdx]?.y === 1200);
   assert('Today partial cumulative point renders as visible amber dot',
     stepsChart?.data?.datasets?.[0]?.pointRadius?.[todayIdx] === 5 &&
     stepsChart?.data?.datasets?.[0]?.pointBackgroundColor?.[todayIdx] === '#f59e0b');
@@ -181,7 +182,7 @@ return (async function() {
   const tooltipLabel = stepsChart?.options?.plugins?.tooltip?.callbacks?.label?.({
     datasetIndex: 0,
     dataIndex: todayIdx,
-    dataset: { label: 'Steps' },
+    dataset: stepsChart.data.datasets[0],
     parsed: { y: 1200 },
   });
   assert('Today partial tooltip labels the point as in progress',

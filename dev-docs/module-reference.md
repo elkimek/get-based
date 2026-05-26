@@ -1347,7 +1347,7 @@ Each connected source ships as a pair: `wearables-<vendor>.js` (read API) + `wea
 
 **No OAuth:** `wearables-apple-health.js` (file-import — `parseAppleHealthXml` reads the `export.xml` from a Health zip), `wearables-manual.js` (`logManualMetric` / `logManualBP` + `MANUAL_TAGS` whitelist for what users can log by hand).
 
-**L1 storage + summary derivation:** `wearables-store.js` (per-profile IndexedDB at `labcharts-wearables-{profileId}`; two-phase upsertDailyBatch), `wearables-summary.js` (L2 derivation, write gate — 5% d7 shift / trend flip / 14d force-refresh / source flip / metric removal triggers).
+**L1 storage + summary derivation:** `wearables-store.js` (per-profile IndexedDB at `labcharts-wearables-{profileId}`; two-phase upsertDailyBatch), `wearables-summary.js` (L2 derivation; vendor sources read a 90-day window, while sparse manual rows read all history so older hand-entered BP/pulse/weight entries stay visible; write gate — 5% d7 shift / trend flip / 14d force-refresh / source flip / metric removal triggers).
 
 **UI surface:** `wearables.js` (dashboard strip + detail modal + reorder mode + Settings → Wearables list + manual-log forms), `brand-assets.js` (per-vendor logo registry — `iconLight/Dark` for in-app rows, `signInLight/Dark` for landing-site Connect buttons, `mono` SVG fallback while a vendor logo is gated).
 
