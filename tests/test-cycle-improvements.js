@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const CSS_FILES = ['styles.css', 'css/cycle.css'];
+const readCycleCss = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
 const results = [];
@@ -257,7 +259,7 @@ await import('../js/charts.js');
   // ── Section 17: CSS classes exist ──
   console.log('Section 17: CSS classes');
   {
-    const css = read('styles.css');
+    const css = readCycleCss();
     assert('.period-symptom-tag CSS exists', css.includes('.period-symptom-tag'));
     assert('.cycle-alert CSS exists', css.includes('.cycle-alert'));
     assert('.cycle-alert-perimenopause CSS exists', css.includes('.cycle-alert-perimenopause'));

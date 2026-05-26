@@ -25,7 +25,7 @@ const tools = await import('../js/light-tools.js');
     normalizeGoldenHourMinutes,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
-    const cssFiles = ['styles.css', 'css/mobile-dashboard.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+    const cssFiles = ['styles.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
     const stylesSrc = cssFiles.map(rel => fs.readFileSync(new URL('../' + rel, import.meta.url), 'utf8')).join('\n');
     const appearsBefore = (needleA, needleB, from = 0) => {
       const a = lightToolsSrc.indexOf(needleA, from);

@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const CSS_FILES = ['styles.css', 'css/cycle.css'];
+const readCycleCss = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -108,7 +110,7 @@ await import('../js/tour.js');
 
   // --- 13. CSS rule for cycle buttons ---
   console.log('%c[13] CSS rule', 'font-weight:bold');
-  const cssSrc = read('/styles.css');
+  const cssSrc = readCycleCss();
   assert('.cycle-icon-btn rule exists', cssSrc.includes('.cycle-icon-btn'));
   assert('touch-sized desktop controls', /\.cycle-icon-btn,[\s\S]*?min-height:\s*36px/.test(cssSrc));
   assert('touch-sized mobile controls', /@media \(max-width: 768px\)[\s\S]*?\.cycle-icon-btn,[\s\S]*?min-height:\s*40px/.test(cssSrc));
