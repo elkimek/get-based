@@ -342,6 +342,10 @@ for (const mid of ['activity_score','steps','stress_high_min','resilience_level'
   assert(`CANONICAL_METRICS has ${mid}`, !!reg.CANONICAL_METRICS[mid]);
   assert(`Oura adapter maps ${mid}`, reg.adapterSupportsMetric('oura', mid));
 }
+assert('Oura adapter maps VO2max',
+  reg.adapterSupportsMetric('oura', 'vo2max'));
+assert('Oura adapter maps breathing disturbance index',
+  reg.adapterSupportsMetric('oura', 'sleep_breath_disturb'));
 // Total canonicals: 14 (pre-#143) + 8 Body Scan body-comp + 6
 // additional /measure (fat_mass, spo2, body_temp, skin_temp,
 // vascular_age, cardio_fitness) + 9 sleep-arch + 1 (vo2max from
@@ -368,6 +372,10 @@ assert('CANONICAL_METRICS bp_systolic carries spoken-aria override', reg.CANONIC
 assert('CANONICAL_METRICS bp_diastolic carries spoken-aria override', reg.CANONICAL_METRICS.bp_diastolic?.ariaLabel === 'Blood pressure diastolic');
 assert('Steps is mapped to the same endpoint as activity_score (both from daily_activity)',
   reg.adapterById('oura').metrics.steps.endpoint === reg.adapterById('oura').metrics.activity_score.endpoint);
+const appleHealth = reg.adapterById('apple_health');
+for (const mid of ['weight', 'body_fat_pct', 'lean_mass_kg', 'bp_systolic', 'bp_diastolic']) {
+  assert(`Apple Health adapter maps ${mid}`, reg.adapterSupportsMetric('apple_health', mid));
+}
 
 // AI context labels derive from canonical registry — must handle every ordered
 // metric without falling back to raw ids.
@@ -399,6 +407,43 @@ assert('resilience_level metric unit is /5 (registry contract)',
   reg.CANONICAL_METRICS.resilience_level.unit === '/5');
 assert('stress_high_min metric unit is min (registry contract)',
   reg.CANONICAL_METRICS.stress_high_min.unit === 'min');
+const fetchBeforeOuraStub = globalThis.fetch;
+try {
+  globalThis.fetch = async (url, opts = {}) => {
+    const payload = JSON.parse(opts.body || '{}');
+    const path = new URL(payload.url).pathname;
+    const dataByPath = {
+      '/v2/usercollection/daily_spo2': [
+        {
+          day: '2026-04-20',
+          spo2_percentage: { average: 97 },
+          breathing_disturbance_index: 14,
+        },
+      ],
+      '/v2/usercollection/vO2_max': [
+        { day: '2026-04-20', vo2_max: { value: 42.1 } },
+        { day: '2026-04-21', vo2_max: 0 },
+      ],
+    };
+    return new Response(JSON.stringify({
+      data: dataByPath[path] || [],
+      next_token: null,
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+  const ouraRows = await fetchOuraDailyRange('test-token', '2026-04-20', '2026-04-21');
+  const ouraDay1 = ouraRows.find(r => r.date === '2026-04-20');
+  assert('Oura daily_spo2 maps average SpO2 plus breathing disturbance index',
+    ouraDay1?.spo2_avg === 97 && ouraDay1.sleep_breath_disturb === 14,
+    `row=${JSON.stringify(ouraDay1)}`);
+  assert('Oura VO2max accepts object payloads and rejects zero sentinels',
+    ouraDay1?.vo2max === 42.1 && !ouraRows.some(r => r.date === '2026-04-21' && r.vo2max === 0),
+    `rows=${JSON.stringify(ouraRows)}`);
+} finally {
+  globalThis.fetch = fetchBeforeOuraStub;
+}
 
 // ═══════════════════════════════════════
 // 9. Render-helper divide-by-zero guards
@@ -594,9 +639,11 @@ assert('HRV SDNN aggregates night-window samples (42.5 & 48.5 → 45.5)',
 // No day-window HRV samples in fixture → hrv_day should be null on day 1.
 assert('hrv_day is null when no day-window samples exist',
   day1.hrv_day === null);
-// Steps is sum-per-day (320 + 2100 + 5430 = 7850)
-assert('Steps sum multiple sources per day (320+2100+5430=7850)',
-  day1.steps === 7850);
+// Steps are additive per source but Apple Health may contain overlapping
+// iPhone/Watch/Oura rows. Sum within source, then take the max source total:
+// iPhone=2420, Apple Watch=5430 → 5430.
+assert('Steps de-duplicate multi-source Apple Health days by max source total',
+  day1.steps === 5430, `got ${day1.steps}`);
 // SpO2 mean of 97 + 95 = 96
 assert('SpO2 mean-per-day aggregator (97+95 → 96)',
   day1.spo2_avg === 96);
@@ -604,9 +651,10 @@ assert('SpO2 mean-per-day aggregator (97+95 → 96)',
 assert('Day 2 RHR populated (single reading → 56)', day2.rhr === 56);
 assert('Day 2 HRV SDNN populated (single night-window sample → 51)', day2.hrv_sdnn === 51);
 assert('Day 2 hrv_day null (no day-window samples)', day2.hrv_day === null);
+assert('Day 2 steps single-source value passes through unchanged',
+  day2.steps === 8200, `got ${day2.steps}`);
 
-// Records we explicitly don't map must NOT end up in canonical rows —
-// HeartRate (real-time) and BodyMass aren't in our Apple Health mapping yet.
+// Records we explicitly don't map must NOT end up in canonical rows.
 assert('rMSSD is not derivable from Apple Health (we use SDNN type only) — hrv_rmssd stays null',
   day1.hrv_rmssd === null && day2.hrv_rmssd === null);
 // Day 1 has one HKQuantityTypeIdentifierHeartRate sample at 10:00 (day window) value=72.
@@ -617,6 +665,17 @@ assert('hr_day null when no day-window HR samples exist on that day',
   day2.hr_day === null);
 assert('Body temp delta correctly dropped (no baseline yet, absolute temp unusable)',
   day1.body_temp_delta === null);
+assert('Apple Health BodyMass maps to weight',
+  day2.weight === 72.5, `weight=${day2.weight}`);
+assert('Apple Health BodyFatPercentage fraction maps to percent',
+  day2.body_fat_pct === 18.5, `body_fat_pct=${day2.body_fat_pct}`);
+assert('Apple Health derives fat_mass_kg from weight and body fat percent',
+  day2.fat_mass_kg === 13.41, `fat_mass_kg=${day2.fat_mass_kg}`);
+assert('Apple Health LeanBodyMass lb converts to kg',
+  day2.lean_mass_kg === 58.11, `lean_mass_kg=${day2.lean_mass_kg}`);
+assert('Apple Health BP parses systolic and diastolic',
+  day2.bp_systolic === 121 && day2.bp_diastolic === 78,
+  `bp=${day2.bp_systolic}/${day2.bp_diastolic}`);
 
 // Source tag is apple_health so the L1 IDB + multi-source badge paths pick
 // it up as a distinct vendor alongside Oura/WHOOP.
@@ -628,6 +687,15 @@ const hostileXml = '<?xml version="1.0"?><HealthData><Record type="HKQuantityTyp
 const hostileRows = ah.parseAppleHealthXml(hostileXml);
 assert('Hostile unit ("furlongs" for steps) is refused, not ingested',
   hostileRows.length === 0 || hostileRows[0].steps === null);
+const bodyUnitXml = '<?xml version="1.0"?><HealthData>'
+  + '<Record type="HKQuantityTypeIdentifierBodyMass" unit="st" startDate="2026-04-20 00:00:00 +0000" value="11"/>'
+  + '<Record type="HKQuantityTypeIdentifierLeanBodyMass" unit="lb" startDate="2026-04-20 00:00:00 +0000" value="100"/>'
+  + '</HealthData>';
+const bodyUnitRows = ah.parseAppleHealthXml(bodyUnitXml);
+assert('Apple Health BodyMass stone unit converts to kg',
+  bodyUnitRows[0]?.weight === 69.85, `weight=${bodyUnitRows[0]?.weight}`);
+assert('Apple Health LeanBodyMass lb unit converts to kg',
+  bodyUnitRows[0]?.lean_mass_kg === 45.36, `lean=${bodyUnitRows[0]?.lean_mass_kg}`);
 
 // ── #180 regression: lazy-load JSZip on first ZIP import ──
 // index.html intentionally does NOT pre-load /vendor/jszip.min.js. A prior

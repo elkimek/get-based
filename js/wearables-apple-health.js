@@ -182,7 +182,7 @@ function _processRecordAttrs(attrsRaw, typeToCanonical, byDayByMetric) {
   if (!byDayByMetric.has(day)) byDayByMetric.set(day, {});
   const bucket = byDayByMetric.get(day);
   if (!bucket[metricId]) bucket[metricId] = [];
-  bucket[metricId].push({ v: normalised, h: hour });
+  bucket[metricId].push({ v: normalised, h: hour, src: attrs.sourceName || '' });
 }
 
 // Streaming parser — reads `blob` via TextDecoderStream, splits on '\n', and
@@ -253,13 +253,25 @@ function _aggregateByDayByMetric(byDayByMetric) {
   //              app spikes).
   //   hr_day     null — would require parsing HKQuantityTypeIdentifierHeartRate
   //              (the raw intraday stream), which we don't ingest yet.
-  //   steps      sum
+  //   steps      sum by sourceName, then pick the max source total
   //   spo2_avg   mean
   //   body_temp  mean
   const isNight = (h) => (typeof h === 'number') && (h < 6 || h >= 22);
   const isDay   = (h) => (typeof h === 'number') && (h >= 6 && h < 22);
   const mean = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-  const sum  = (arr) => arr.reduce((a, b) => a + b, 0);
+  const sumByMaxSource = (samples) => {
+    if (!Array.isArray(samples) || samples.length === 0) return null;
+    const totals = new Map();
+    for (const sample of samples) {
+      const source = sample.src || '';
+      totals.set(source, (totals.get(source) || 0) + sample.v);
+    }
+    let best = null;
+    for (const total of totals.values()) {
+      if (best == null || total > best) best = total;
+    }
+    return best;
+  };
 
   const rows = [];
   for (const [day, bucket] of byDayByMetric) {
@@ -272,6 +284,7 @@ function _aggregateByDayByMetric(byDayByMetric) {
       strain: null,
       stress_high_min: null, resilience_level: null, cardio_age: null,
       weight: null, bp_systolic: null, bp_diastolic: null,
+      body_fat_pct: null, lean_mass_kg: null, fat_mass_kg: null,
       spo2_avg: null, body_temp_delta: null, glucose_avg: null,
       vo2max: null,
     };
@@ -314,8 +327,9 @@ function _aggregateByDayByMetric(byDayByMetric) {
       }
     }
 
-    if (Array.isArray(bucket.steps) && bucket.steps.length) {
-      row.steps = Math.round(sum(bucket.steps.map(s => s.v)) * 100) / 100;
+    const stepsBest = sumByMaxSource(bucket.steps);
+    if (stepsBest != null) {
+      row.steps = Math.round(stepsBest * 100) / 100;
     }
     if (Array.isArray(bucket.spo2_avg) && bucket.spo2_avg.length) {
       row.spo2_avg = Math.round(mean(bucket.spo2_avg.map(s => s.v)) * 100) / 100;
@@ -329,6 +343,24 @@ function _aggregateByDayByMetric(byDayByMetric) {
     // expected and handled by the chart's span-gaps.
     if (Array.isArray(bucket.vo2max) && bucket.vo2max.length) {
       row.vo2max = Math.round(mean(bucket.vo2max.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.weight) && bucket.weight.length) {
+      row.weight = Math.round(mean(bucket.weight.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.body_fat_pct) && bucket.body_fat_pct.length) {
+      row.body_fat_pct = Math.round(mean(bucket.body_fat_pct.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.lean_mass_kg) && bucket.lean_mass_kg.length) {
+      row.lean_mass_kg = Math.round(mean(bucket.lean_mass_kg.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.bp_systolic) && bucket.bp_systolic.length) {
+      row.bp_systolic = Math.round(mean(bucket.bp_systolic.map(s => s.v)) * 100) / 100;
+    }
+    if (Array.isArray(bucket.bp_diastolic) && bucket.bp_diastolic.length) {
+      row.bp_diastolic = Math.round(mean(bucket.bp_diastolic.map(s => s.v)) * 100) / 100;
+    }
+    if (row.weight != null && row.body_fat_pct != null) {
+      row.fat_mass_kg = Math.round(row.weight * row.body_fat_pct) / 100;
     }
 
     rows.push(row);
@@ -367,6 +399,18 @@ function normaliseUnit(metricId, value, unit) {
       // Apple ships VO₂max in "mL/min·kg" (their formatting). Canonical is
       // mL/kg/min — same physiological quantity, just transposed factors.
       return (!unit || unit === 'mL/min·kg' || unit === 'mL/kg/min') ? value : null;
+    case 'weight':
+    case 'lean_mass_kg':
+      if (!unit || unit === 'kg') return value;
+      if (unit === 'lb') return value / 2.20462;
+      if (unit === 'st') return value * 6.35029;
+      return null;
+    case 'body_fat_pct':
+      if (!unit || unit === '%' || unit === '1') return value <= 1 ? value * 100 : value;
+      return null;
+    case 'bp_systolic':
+    case 'bp_diastolic':
+      return (!unit || unit === 'mmHg') ? value : null;
     default:
       // If canonical declares a unit string and Apple disagrees, refuse.
       return (!unit || unit === canonUnit) ? value : null;

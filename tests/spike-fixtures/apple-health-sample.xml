@@ -20,4 +20,8 @@
  <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Apple Watch" unit="count/min" creationDate="2026-04-20 10:00:00 +0200" startDate="2026-04-20 10:00:00 +0200" endDate="2026-04-20 10:00:00 +0200" value="72"/>
  <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Apple Watch" unit="kcal" creationDate="2026-04-20 11:00:00 +0200" startDate="2026-04-20 10:55:00 +0200" endDate="2026-04-20 11:00:00 +0200" value="45"/>
  <Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Withings Scale" unit="kg" creationDate="2026-04-21 07:00:00 +0200" startDate="2026-04-21 07:00:00 +0200" endDate="2026-04-21 07:00:00 +0200" value="72.5"/>
+ <Record type="HKQuantityTypeIdentifierBodyFatPercentage" sourceName="Withings Scale" unit="%" creationDate="2026-04-21 07:00:00 +0200" startDate="2026-04-21 07:00:00 +0200" endDate="2026-04-21 07:00:00 +0200" value="0.185"/>
+ <Record type="HKQuantityTypeIdentifierLeanBodyMass" sourceName="Withings Scale" unit="lb" creationDate="2026-04-21 07:00:00 +0200" startDate="2026-04-21 07:00:00 +0200" endDate="2026-04-21 07:00:00 +0200" value="128.1"/>
+ <Record type="HKQuantityTypeIdentifierBloodPressureSystolic" sourceName="Blood Pressure Cuff" unit="mmHg" creationDate="2026-04-21 07:10:00 +0200" startDate="2026-04-21 07:10:00 +0200" endDate="2026-04-21 07:10:00 +0200" value="121"/>
+ <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic" sourceName="Blood Pressure Cuff" unit="mmHg" creationDate="2026-04-21 07:10:00 +0200" startDate="2026-04-21 07:10:00 +0200" endDate="2026-04-21 07:10:00 +0200" value="78"/>
 </HealthData>

@@ -89,7 +89,7 @@ export const CANONICAL_METRICS = {
   sleep_hr_avg:         { id: 'sleep_hr_avg',         label: 'Sleep HR',    sub: 'avg',   unit: 'bpm', worseWhen: 'up'     }, // distinct from rhr (= hr_min) — average overnight
   sleep_breathing_rate: { id: 'sleep_breathing_rate', label: 'Breathing',   sub: 'sleep', unit: 'rpm', worseWhen: 'up'     },
   sleep_snoring_min:    { id: 'sleep_snoring_min',    label: 'Snoring',     sub: '',      unit: 'min', worseWhen: 'up'     },
-  sleep_breath_disturb: { id: 'sleep_breath_disturb', label: 'Apnea',       sub: 'level', unit: '',    worseWhen: 'up'     }, // breathing-disturbances intensity 0-100 (Withings' apnea-class signal)
+  sleep_breath_disturb: { id: 'sleep_breath_disturb', label: 'Apnea',       sub: 'level', unit: '',    worseWhen: 'up'     }, // breathing-disturbances intensity 0-100 (Withings + Oura BDI)
 };
 
 // For most wearable metrics, 0 is a sentinel for "no measurement" — the
@@ -181,7 +181,9 @@ export const ADAPTERS = [
       resilience_level: { endpoint: 'v2/usercollection/daily_resilience',        field: 'level' },           // enum → 1-5 in fetcher
       cardio_age:       { endpoint: 'v2/usercollection/daily_cardiovascular_age', field: 'vascular_age' },
       spo2_avg:         { endpoint: 'v2/usercollection/daily_spo2',              field: 'spo2_percentage' },
+      sleep_breath_disturb: { endpoint: 'v2/usercollection/daily_spo2',           field: 'breathing_disturbance_index' },
       body_temp_delta:  { endpoint: 'v2/usercollection/daily_readiness',         field: 'temperature_deviation' },
+      vo2max:           { endpoint: 'v2/usercollection/vO2_max',                 field: 'vo2_max' },
     },
     accountInfo: { endpoint: 'v2/usercollection/personal_info', identityField: 'email' },
   },
@@ -450,6 +452,14 @@ export const ADAPTERS = [
       spo2_avg:        { hkType: 'HKQuantityTypeIdentifierOxygenSaturation' },
       body_temp_delta: { hkType: 'HKQuantityTypeIdentifierBodyTemperature' },
       vo2max:          { hkType: 'HKQuantityTypeIdentifierVO2Max' },
+      // Body composition + cardio — Apple Health receives these from 3rd-party
+      // scales and BP cuffs writing into HealthKit. fat_mass_kg has no HK
+      // identifier; the parser derives it from weight × body_fat_pct.
+      weight:          { hkType: 'HKQuantityTypeIdentifierBodyMass' },
+      body_fat_pct:    { hkType: 'HKQuantityTypeIdentifierBodyFatPercentage' },
+      lean_mass_kg:    { hkType: 'HKQuantityTypeIdentifierLeanBodyMass' },
+      bp_systolic:     { hkType: 'HKQuantityTypeIdentifierBloodPressureSystolic' },
+      bp_diastolic:    { hkType: 'HKQuantityTypeIdentifierBloodPressureDiastolic' },
     },
   },
 ];
