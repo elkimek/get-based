@@ -10327,6 +10327,7 @@ body.import-focus .welcome-hero > .drop-zone {
 }
 
 /* ── Wearable detail modal ── */
+.wearable-detail-range { margin: 10px 0 4px; justify-content: flex-start; }
 .wearable-detail-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

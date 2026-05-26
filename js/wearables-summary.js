@@ -9,9 +9,14 @@
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { getDailyRange } from './wearables-store.js';
-import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful } from './wearable-adapters.js';
+import {
+  DEFAULT_METRIC_ORDER,
+  isMetricValueMeaningful,
+  CUMULATIVE_METRICS,
+  WEAR_REQUIRED_MINIMUMS,
+  isoDay,
+} from './wearable-adapters.js';
 import { isDebugMode } from './utils.js';
-import { isoDay } from './wearables-oura.js';
 
 // ─────────────────────────────────────────────────────────
 // Tunables — see dev-docs/module-reference.md (wearables-summary.js section)
@@ -57,11 +62,19 @@ function linearRegressionSlope(values) {
 // Per-metric derivation
 // ─────────────────────────────────────────────────────────
 
-function seriesFor(rowsByDate, metricId) {
+function isSummaryEligibleRow(row, metricId, todayISO = isoDay()) {
+  if (!row) return false;
+  const v = row[metricId];
+  if (CUMULATIVE_METRICS.has(metricId) && row.date === todayISO) return false;
+  const wearMin = WEAR_REQUIRED_MINIMUMS[metricId];
+  if (wearMin != null && typeof v === 'number' && isFinite(v) && v < wearMin) return false;
+  return isMetricValueMeaningful(metricId, v);
+}
+
+function seriesFor(rowsByDate, metricId, todayISO = isoDay()) {
   const out = [];
   for (const row of rowsByDate) {
-    const v = row[metricId];
-    if (isMetricValueMeaningful(metricId, v)) out.push({ date: row.date, v });
+    if (isSummaryEligibleRow(row, metricId, todayISO)) out.push({ date: row.date, v: row[metricId] });
   }
   return out;
 }
@@ -89,8 +102,8 @@ function weeklyMeans(series, weeksBack = 12) {
   return weeks.slice(-weeksBack);
 }
 
-function deriveMetric(rowsByDate, metricId, primarySource) {
-  const series = seriesFor(rowsByDate, metricId);
+function deriveMetric(rowsByDate, metricId, primarySource, todayISO = isoDay()) {
+  const series = seriesFor(rowsByDate, metricId, todayISO);
   if (series.length === 0) return null;
 
   const latest = series[series.length - 1];
@@ -152,6 +165,7 @@ function deriveMetric(rowsByDate, metricId, primarySource) {
 export function computeWearableSummary(rowsBySource, connectedSources, primaryOverride = {}) {
   const sources = {};
   const pickedPrimary = {}; // metricId → sourceId
+  const todayISO = isoDay();
 
   for (const [sid, rows] of Object.entries(rowsBySource)) {
     // coverageDays counts rows that carry at least ONE non-null canonical
@@ -188,16 +202,15 @@ export function computeWearableSummary(rowsBySource, connectedSources, primaryOv
     if (overrideSrc && rowsBySource[overrideSrc]) {
       const overRows = rowsBySource[overrideSrc];
       for (let i = overRows.length - 1; i >= 0; i--) {
-        const v = overRows[i]?.[metricId];
-        if (isMetricValueMeaningful(metricId, v)) { bestSrc = overrideSrc; break; }
+        if (isSummaryEligibleRow(overRows[i], metricId, todayISO)) { bestSrc = overrideSrc; break; }
       }
     }
     if (!bestSrc) {
       for (const [sid, rows] of Object.entries(rowsBySource)) {
         for (let i = rows.length - 1; i >= 0; i--) {
-          const v = rows[i]?.[metricId];
-          if (isMetricValueMeaningful(metricId, v)) {
-            if (rows[i].date > bestDate) { bestDate = rows[i].date; bestSrc = sid; }
+          if (isSummaryEligibleRow(rows[i], metricId, todayISO)) {
+            const rowDate = rows[i]?.date || '';
+            if (rowDate > bestDate) { bestDate = rowDate; bestSrc = sid; }
             break;
           }
         }
@@ -205,7 +218,7 @@ export function computeWearableSummary(rowsBySource, connectedSources, primaryOv
     }
     if (!bestSrc) continue;
     pickedPrimary[metricId] = bestSrc;
-    const derived = deriveMetric(rowsBySource[bestSrc], metricId, bestSrc);
+    const derived = deriveMetric(rowsBySource[bestSrc], metricId, bestSrc, todayISO);
     if (derived) metrics[metricId] = derived;
   }
 

@@ -10,7 +10,8 @@
 //   B. JSZip lazy-loader functional smoke — clear window.JSZip, route a
 //      .zip File through importAppleHealthFile, confirm loadJSZip set it.
 //   C. SpO2 modal-renderer parity — modal renders "97 %" not "97.0 %".
-//   D. Daytime-empty-state HRV modal — "Not from Oura · why?" row + tooltip.
+//   D. Partial-day cumulative chart marker.
+//   E. Daytime-empty-state HRV modal — "Not from Oura · why?" row + tooltip.
 //
 // Run: fetch('tests/test-wearables-dom.js').then(r=>r.text()).then(s=>Function(s)())
 
@@ -33,10 +34,12 @@ return (async function() {
 
   const store = await import('../js/wearables-store.js');
   const ah = await import('../js/wearables-apple-health.js');
+  const reg = await import('../js/wearable-adapters.js');
   await import('../js/wearables.js'); // registers window.openWearableDetail / closeModal / renderWearableStrip
 
   window._labState.importedData = window._labState.importedData || {};
   const TEST_PROFILE = window._labState.currentProfile || ('__test-wearables-dom-' + Math.random().toString(36).slice(2, 8));
+  localStorage.removeItem('wearable-detail-range');
 
   // ═══════════════════════════════════════
   // A. Detail modal — HRV + activity_score
@@ -63,13 +66,23 @@ return (async function() {
   assert('Detail modal includes metric label HRV', modalHtml.includes('HRV'));
   assert('Detail modal shows latest value', /42/.test(modalHtml));
   assert('Detail modal shows Baseline (90d) stat', /Baseline/.test(modalHtml));
-  assert('Detail modal shows Coverage stat', /Coverage/.test(modalHtml));
+  assert('Detail modal shows Chart samples stat', /Chart samples/.test(modalHtml));
   assert('Chart canvas mounted on modal', !!document.getElementById('chart-modal'));
   assert('Chart instance stored under state.chartInstances.modal', !!window._labState.chartInstances?.modal);
   const modalChart = window._labState.chartInstances?.modal;
   assert('Chart has 3 data points matching L1 row count', modalChart?.data?.datasets?.[0]?.data?.length === 3);
   assert('Chart labels array has 3 entries', modalChart?.data?.labels?.length === 3);
   assert('Chart x-axis is time type', modalChart?.options?.scales?.x?.type === 'time');
+  const rangeButtons = Array.from(document.querySelectorAll('#detail-modal .wearable-detail-range .ctx-btn-option'));
+  assert('Detail modal renders 90d / 6m / 1y / All range buttons',
+    rangeButtons.map(b => b.textContent.trim()).join('|') === '90d|6m|1y|All');
+  assert('Detail modal defaults to 90d range',
+    document.querySelector('#detail-modal .wearable-detail-range .ctx-btn-option.active')?.textContent?.trim() === '90d');
+  window.setWearableDetailRange('hrv_rmssd', '6m');
+  await waitFor(() => document.querySelector('#detail-modal .wearable-detail-range .ctx-btn-option.active')?.textContent?.trim() === '6m');
+  assert('Range toggle persists and re-renders active 6m pill',
+    localStorage.getItem('wearable-detail-range') === '6m' &&
+    /of last 6 months/.test(document.getElementById('detail-modal')?.textContent || ''));
   window.closeModal();
   assert('closeModal clears modal chart instance', !window._labState.chartInstances?.modal);
 
@@ -127,12 +140,64 @@ return (async function() {
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
-  // D. Daytime-empty-state HRV modal
+  // D. Partial-day cumulative chart marker
+  // ═══════════════════════════════════════
+  console.log('%c D. Partial-Day Chart Marker ', 'font-weight:bold;color:#f59e0b');
+  localStorage.setItem('wearable-detail-range', '90d');
+  const todayISO = reg.isoDay();
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayISO = reg.isoDay(yesterday);
+  window._labState.importedData.wearableSummary = {
+    sources: { oura: { connectedSince: yesterdayISO, lastSyncAt: Date.now(), coverageDays: 2 } },
+    metrics: {
+      steps: {
+        primarySource: 'oura',
+        latest: 9000,
+        latestDate: yesterdayISO,
+        baseline: 9000,
+        baselineP25: 9000,
+        baselineP75: 9000,
+        rolling: { d7: 9000, d30: 9000, d90: 9000 },
+        trend30d: 'flat',
+        weekly: [9000],
+      },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'oura', date: yesterdayISO, steps: 9000 },
+    { source: 'oura', date: todayISO, steps: 1200 },
+  ]);
+  await window.openWearableDetail('steps');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.labels?.includes(todayISO));
+  const stepsChart = window._labState.chartInstances?.modal;
+  const todayIdx = stepsChart?.data?.labels?.indexOf(todayISO);
+  assert('Cumulative detail chart keeps today in the plotted series',
+    todayIdx >= 0 && stepsChart.data.datasets[0].data[todayIdx] === 1200);
+  assert('Today partial cumulative point renders as visible amber dot',
+    stepsChart?.data?.datasets?.[0]?.pointRadius?.[todayIdx] === 5 &&
+    stepsChart?.data?.datasets?.[0]?.pointBackgroundColor?.[todayIdx] === '#f59e0b');
+  assert('Today partial cumulative point grows on hover',
+    stepsChart?.data?.datasets?.[0]?.pointHoverRadius?.[todayIdx] === 7);
+  const tooltipLabel = stepsChart?.options?.plugins?.tooltip?.callbacks?.label?.({
+    datasetIndex: 0,
+    dataIndex: todayIdx,
+    dataset: { label: 'Steps' },
+    parsed: { y: 1200 },
+  });
+  assert('Today partial tooltip labels the point as in progress',
+    /partial day · in progress/.test(String(tooltipLabel || '')));
+  assert('Detail chart tooltip snaps by x-index, not invisible point intersection',
+    stepsChart?.options?.interaction?.mode === 'index' && stepsChart.options.interaction.intersect === false);
+  window.closeModal();
+  delete window._labState.importedData.wearableSummary;
+
+  // ═══════════════════════════════════════
+  // E. Daytime-empty-state HRV modal
   // ═══════════════════════════════════════
   // Primary is Oura, which has no daytime HRV → the modal's stats grid should
   // surface a "Not from {Source} · why?" empty-state row carrying the long
   // explanation in a title attr.
-  console.log('%c D. Daytime-Empty-State Modal ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c E. Daytime-Empty-State Modal ', 'font-weight:bold;color:#f59e0b');
   const _origImported = window._labState.importedData;
   window._labState.importedData = {
     entries: [],

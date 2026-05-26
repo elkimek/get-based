@@ -117,6 +117,26 @@ export function isMetricValueMeaningful(metricId, v) {
   return v > 0;
 }
 
+// Cumulative-from-midnight metrics: values are running totals until the local
+// day ends. L2 summary derivation excludes today's row for these metrics so
+// latest/baseline/rolling averages use finalized days, while L1 and charts
+// still keep the in-progress value visible.
+//
+// `stress_high_min` is stored in minutes in L1; Oura emits seconds, but the
+// fetcher converts to minutes before writing the canonical row.
+export const CUMULATIVE_METRICS = new Set([
+  'steps',
+  'stress_high_min',
+]);
+
+// Per-metric minimum daily value below which the row is treated as non-wear
+// for L2 summary math. The row stays in IDB and remains chartable; it is only
+// skipped for latest/baseline/rolling/trend so off-wrist days do not drag
+// activity averages down.
+export const WEAR_REQUIRED_MINIMUMS = {
+  steps: 300,
+};
+
 // Default display order for the dashboard strip. A canonical metric not listed
 // here still renders (appended in registry order) — the list just pins priority.
 // Also used as METRICS_FOR_SUMMARY in wearables-summary.js, so any metric that

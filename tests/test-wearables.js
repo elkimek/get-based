@@ -246,6 +246,106 @@ const sameDateRes = summary.shouldWriteL2(sameDate, oldLagging);
 assert('Gate: identical snapshot (same latestDate) does NOT write',
   sameDateRes.write === false, `reason=${sameDateRes.reason}`);
 
+// Cumulative-from-midnight metrics: today's row is incomplete until the local
+// day ends, so L2 summary math should read from finalized days. The raw row
+// remains in L1 for charts; only summary latest/baseline/rolling are filtered.
+{
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const twoDaysAgo = new Date(today); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const todayISO = reg.isoDay(today);
+  const yesterdayISO = reg.isoDay(yesterday);
+  const twoDaysAgoISO = reg.isoDay(twoDaysAgo);
+  const cumulRows = [
+    { source: 'oura', date: twoDaysAgoISO, steps: 9000, stress_high_min: 30, hrv_rmssd: 48, rhr: 60 },
+    { source: 'oura', date: yesterdayISO,  steps: 8500, stress_high_min: 25, hrv_rmssd: 49, rhr: 60 },
+    { source: 'oura', date: todayISO,      steps: 1200, stress_high_min: 4,  hrv_rmssd: 50, rhr: 60 },
+  ];
+  const cumulSum = summary.computeWearableSummary(
+    { oura: cumulRows },
+    { oura: { connectedSince: twoDaysAgoISO, lastSyncAt: Date.now() } }
+  );
+  assert('Cumulative metric (steps): latest skips today',
+    cumulSum.metrics.steps?.latest === 8500 && cumulSum.metrics.steps.latestDate === yesterdayISO,
+    `steps=${JSON.stringify(cumulSum.metrics.steps)}`);
+  assert('Cumulative metric (stress_high_min): latest skips today',
+    cumulSum.metrics.stress_high_min?.latest === 25 && cumulSum.metrics.stress_high_min.latestDate === yesterdayISO,
+    `stress=${JSON.stringify(cumulSum.metrics.stress_high_min)}`);
+  assert('Non-cumulative metric (hrv_rmssd): today remains eligible',
+    cumulSum.metrics.hrv_rmssd?.latest === 50 && cumulSum.metrics.hrv_rmssd.latestDate === todayISO,
+    `hrv=${JSON.stringify(cumulSum.metrics.hrv_rmssd)}`);
+
+  const multiSource = summary.computeWearableSummary(
+    {
+      oura: [{ source: 'oura', date: yesterdayISO, steps: 8500 }],
+      apple_health: [{ source: 'apple_health', date: todayISO, steps: 1200 }],
+    },
+    {
+      oura: { connectedSince: twoDaysAgoISO, lastSyncAt: Date.now() - 86400000 },
+      apple_health: { connectedSince: todayISO, lastSyncAt: Date.now() },
+    }
+  );
+  assert('Cumulative source picker ignores sources with only today partial rows',
+    multiSource.metrics.steps?.primarySource === 'oura' && multiSource.metrics.steps.latest === 8500,
+    `steps=${JSON.stringify(multiSource.metrics.steps)}`);
+
+  const overrideFallback = summary.computeWearableSummary(
+    {
+      oura: [{ source: 'oura', date: yesterdayISO, steps: 8500 }],
+      apple_health: [{ source: 'apple_health', date: todayISO, steps: 1200 }],
+    },
+    {
+      oura: { connectedSince: twoDaysAgoISO, lastSyncAt: Date.now() - 86400000 },
+      apple_health: { connectedSince: todayISO, lastSyncAt: Date.now() },
+    },
+    { steps: 'apple_health' }
+  );
+  assert('Cumulative override falls back when override has no finalized eligible row',
+    overrideFallback.metrics.steps?.primarySource === 'oura',
+    `steps=${JSON.stringify(overrideFallback.metrics.steps)}`);
+}
+
+// Wear-required minimum: low-step days are valid raw rows, but non-wear for
+// summary math. This protects Oura/Apple Health step averages from off-wrist
+// charging days and phone-left-at-home trickles.
+{
+  const wearTestRows = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date('2026-04-01'); d.setUTCDate(d.getUTCDate() + i);
+    const steps = i < 4 ? (i % 2 ? 150 : 0) : 8000;
+    wearTestRows.push({
+      source: 'oura',
+      date: d.toISOString().slice(0, 10),
+      steps,
+      hrv_rmssd: 50,
+      rhr: 60,
+      sleep_score: 80,
+      readiness_score: 80,
+    });
+  }
+  const wearSum = summary.computeWearableSummary(
+    { oura: wearTestRows },
+    { oura: { connectedSince: '2026-04-01', lastSyncAt: Date.now() } }
+  );
+  assert('Wear-min (steps): d7 mean excludes 0 and non-zero sub-threshold days',
+    wearSum.metrics.steps?.rolling?.d7 === 8000,
+    `d7=${wearSum.metrics.steps?.rolling?.d7}`);
+  assert('Wear-min (steps): baseline excludes 0 and non-zero sub-threshold days',
+    wearSum.metrics.steps?.baseline === 8000,
+    `baseline=${wearSum.metrics.steps?.baseline}`);
+
+  const thresholdSum = summary.computeWearableSummary(
+    { oura: [
+      { source: 'oura', date: '2026-04-01', steps: 299 },
+      { source: 'oura', date: '2026-04-02', steps: 300 },
+    ] },
+    { oura: { connectedSince: '2026-04-01', lastSyncAt: Date.now() } }
+  );
+  assert('Wear-min (steps): 299 excluded but 300 included',
+    thresholdSum.metrics.steps?.latest === 300 && thresholdSum.metrics.steps.baseline === 300,
+    `steps=${JSON.stringify(thresholdSum.metrics.steps)}`);
+}
+
 // ═══════════════════════════════════════
 // 5. buildWearableContext
 // ═══════════════════════════════════════
@@ -530,6 +630,7 @@ assert('window.handleWearableConnect exists', typeof window.handleWearableConnec
 assert('window.handleWearableDisconnect exists', typeof window.handleWearableDisconnect === 'function');
 assert('window.syncWearableNow exists', typeof window.syncWearableNow === 'function');
 assert('window.openWearableDetail exists', typeof window.openWearableDetail === 'function');
+assert('window.setWearableDetailRange exists', typeof window.setWearableDetailRange === 'function');
 assert('handleWearablePATConnect removed (Ultrahuman moved to OAuth2)',
   typeof window.handleWearablePATConnect === 'undefined');
 

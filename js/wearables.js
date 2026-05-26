@@ -17,7 +17,7 @@
 
 import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
-import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, visibleAdapters, getOAuthClientId, isMetricValueMeaningful } from './wearable-adapters.js';
+import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, visibleAdapters, getOAuthClientId, isMetricValueMeaningful, CUMULATIVE_METRICS, isoDay } from './wearable-adapters.js';
 import { brandMarkMono } from './brand-assets.js';
 
 // Vendor logo / mark beside the adapter name. Backed by brands/<vendor>/
@@ -37,7 +37,6 @@ import { getDailyRange } from './wearables-store.js';
 import { MANUAL_METRICS } from './wearables-manual.js';
 import { getChartColors } from './theme.js';
 import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
-import { isoDay } from './wearables-oura.js';
 
 // ─────────────────────────────────────────────────────────
 // MOCK SUMMARY — remove once the real L2 pipeline ships
@@ -276,12 +275,17 @@ function renderEmptyManualCard(metricId, canon) {
 }
 
 // Format an ISO date (YYYY-MM-DD) as "Apr 24" for compact display next to a
-// metric value. Returns the raw input on parse failure.
+// metric value. Include the year for dates outside the current local year.
+// Returns the raw input on parse failure.
 function shortDate(iso) {
   if (!iso || typeof iso !== 'string') return iso || '';
   const d = new Date(iso + 'T00:00:00Z');
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const sameYear = d.getUTCFullYear() === Number(isoDay().slice(0, 4));
+  const fmt = sameYear
+    ? { month: 'short', day: 'numeric', timeZone: 'UTC' }
+    : { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' };
+  return d.toLocaleDateString(undefined, fmt);
 }
 
 function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = {}) {
@@ -669,15 +673,33 @@ function toggleWearableStrip() {
 }
 
 // ─────────────────────────────────────────────────────────
-// DETAIL MODAL — 90d daily chart + stats for a single metric
+// DETAIL MODAL — daily chart + stats for a single metric
 // ─────────────────────────────────────────────────────────
+
+const WEARABLE_DETAIL_RANGES = [
+  { key: '90d', days: 90, label: '90d', coverageSuffix: 'of last 90 days', emptyWindow: 'the last 90 days' },
+  { key: '6m', days: 180, label: '6m', coverageSuffix: 'of last 6 months', emptyWindow: 'the last 6 months' },
+  { key: '1y', days: 365, label: '1y', coverageSuffix: 'of last 12 months', emptyWindow: 'the last 12 months' },
+  { key: 'all', days: null, label: 'All', coverageSuffix: 'all-time', emptyWindow: 'all recorded data' },
+];
+const WEARABLE_DETAIL_RANGE_KEY = 'wearable-detail-range';
+function getWearableDetailRange() {
+  const stored = localStorage.getItem(WEARABLE_DETAIL_RANGE_KEY);
+  if (stored && WEARABLE_DETAIL_RANGES.some(r => r.key === stored)) return stored;
+  return '90d';
+}
+function setWearableDetailRange(metricId, rangeKey) {
+  if (!WEARABLE_DETAIL_RANGES.some(r => r.key === rangeKey)) return;
+  localStorage.setItem(WEARABLE_DETAIL_RANGE_KEY, rangeKey);
+  openWearableDetail(metricId, { fromRangeToggle: true });
+}
 
 // Monotonic op token — fast successive clicks on different cards shouldn't
 // land mismatched data in the modal. Each call grabs a new token; any work
 // that resolves with a stale token aborts before touching the DOM.
 let _detailOp = 0;
 
-async function openWearableDetail(metricId) {
+async function openWearableDetail(metricId, opts = {}) {
   const op = ++_detailOp;
   const canon = canonicalMetric(metricId);
   const summary = state.importedData?.wearableSummary;
@@ -689,16 +711,23 @@ async function openWearableDetail(metricId) {
 
   // Snapshot the focused element (clicked card) so closeModal can return
   // focus to it — keyboard users otherwise land on <body> after close.
-  window.rememberModalTrigger?.();
+  if (!opts.fromRangeToggle) window.rememberModalTrigger?.();
 
-  // Pull last 90 days from L1 for whichever source is primary for this metric.
-  // Series may have gaps (ring not worn, feature off) — we plot what's there
-  // and label missing days via Chart.js spanGaps rather than forward-filling.
+  // Pull rows from L1 for whichever source is primary for this metric. Series
+  // may have gaps (ring not worn, feature off) — we plot what's there and
+  // label missing days via Chart.js spanGaps rather than forward-filling.
+  const rangeKey = getWearableDetailRange();
+  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
   const profileId = getActiveProfileId();
   // Local-tz: vendor adapters tag rows with the user's local day, not UTC.
   const endDate = isoDay();
-  const start = new Date(); start.setDate(start.getDate() - 90);
-  const startDate = isoDay(start);
+  let startDate;
+  if (rangeDef.days == null) {
+    startDate = '1970-01-01';
+  } else {
+    const start = new Date(); start.setDate(start.getDate() - rangeDef.days);
+    startDate = isoDay(start);
+  }
   let rows = [];
   try { rows = await getDailyRange(profileId, m.primarySource, startDate, endDate); }
   catch (e) { showNotification?.(`Couldn't read local history: ${e.message}`, 'error', 4000); return; }
@@ -744,10 +773,13 @@ async function openWearableDetail(metricId) {
     delete state.chartInstances['modal'];
   }
 
-  modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, { allZeroActivity });
+  modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, { allZeroActivity, rangeKey });
   overlay.classList.add('show');
-  // Move focus to the close button so keyboard users land inside the modal.
-  modal.querySelector('.modal-close')?.focus?.();
+  // Fresh opens land on close; range re-renders keep focus on the active pill.
+  const focusTarget = opts.fromRangeToggle
+    ? modal.querySelector('.wearable-detail-range .ctx-btn-option.active')
+    : modal.querySelector('.modal-close');
+  focusTarget?.focus?.();
   // Trap Tab / Shift-Tab inside the modal so keyboard navigation can't
   // accidentally land on background controls (the strip, supplements,
   // chat FAB, etc.). One listener per modal-open; cleared on close via
@@ -908,13 +940,15 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
                        : null;
   const companionUnitSpaced = companion ? unitSpaced : '';
 
+  const rangeKey = opts.rangeKey || '90d';
+  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
   const baseStats = [
     ['Latest',   `${formatV(m.latest)}${unitSpaced}`, m.latestDate ? shortDate(m.latestDate) : ''],
     ['Baseline (90d)', `${formatV(m.baseline)}${unitSpaced}`, 'median'],
     ['7-day avg', `${formatV(m.rolling?.d7)}${unitSpaced}`, ''],
     ['30-day avg', `${formatV(m.rolling?.d30)}${unitSpaced}`, ''],
     ['Typical range', `${formatV(m.baselineP25)} – ${formatV(m.baselineP75)}${unitSpaced}`, '25th–75th percentile'],
-    ['Coverage', `${series.length}d`, `of last 90 days`],
+    ['Chart samples', `${series.length}d`, rangeDef.coverageSuffix],
   ];
   // Daytime companion: emit up to three sub-stats — latest, 7-day average,
   // 30-day average — so the user gets the trend, not just today (a single
@@ -974,7 +1008,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const emptyHint = opts.allZeroActivity
     ? `<div class="wearable-detail-empty">Every day shows 0 — Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>`
     : series.length === 0
-      ? `<div class="wearable-detail-empty">No daily samples for this metric in the last 90 days. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`
+      ? `<div class="wearable-detail-empty">No daily samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`
       : '';
 
   // Show the source-swap button whenever ≥2 wearables are connected — the
@@ -988,6 +1022,9 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
     : '';
 
   const emfSleepHint = _buildEMFSleepHint(metricId, m);
+  const rangePills = WEARABLE_DETAIL_RANGES.map(r =>
+    `<button type="button" class="ctx-btn-option${r.key === rangeKey ? ' active' : ''}" aria-pressed="${r.key === rangeKey}" onclick="setWearableDetailRange('${escapeHTML(metricId)}','${r.key}')">${escapeHTML(r.label)}</button>`
+  ).join('');
 
   return `<button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${escapeHTML(canon.label)}${subLabel}</h3>
@@ -995,6 +1032,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
       ${escapeHTML(sourceName)}${deltaStr ? ` · ${deltaStr} vs baseline` : ''} · ${escapeHTML(trendWord)} 30d
       ${swapButton}
     </div>
+    <div class="ctx-btn-group wearable-detail-range" role="group" aria-label="Chart range">${rangePills}</div>
     <div class="modal-chart" style="height:260px"><canvas id="chart-modal"></canvas></div>
     ${emptyHint}
     <div class="wearable-detail-stats">${statsCells}</div>
@@ -1045,6 +1083,10 @@ function renderWearableChart(canvas, canon, m, series) {
   const labels = series.map(p => p.date);
   const values = series.map(p => p.v);
   const baselineValues = values.map(() => m.baseline);
+  const isCumulative = CUMULATIVE_METRICS.has(canon.id);
+  const todayISO = isoDay();
+  const isPartialIdx = (idx) => isCumulative && series[idx]?.date === todayISO;
+  const partialColor = '#f59e0b';
 
   // Y-axis padding so baseline line and sparkline aren't clipped to the edge.
   const ymin = Math.min(...values, m.baseline);
@@ -1065,10 +1107,16 @@ function renderWearableChart(canvas, canon, m, series) {
           borderColor: tc.lineColor || '#60a5fa',
           backgroundColor: 'transparent',
           borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
+          pointRadius: values.map((_, i) => isPartialIdx(i) ? 5 : 0),
+          pointBackgroundColor: values.map((_, i) => isPartialIdx(i) ? partialColor : 'transparent'),
+          pointBorderColor: values.map((_, i) => isPartialIdx(i) ? partialColor : 'transparent'),
+          pointHoverRadius: values.map((_, i) => isPartialIdx(i) ? 7 : 4),
           tension: 0.3,
           spanGaps: true,
+          segment: {
+            borderDash: (ctx) => isPartialIdx(ctx.p1DataIndex) ? [5, 4] : undefined,
+            borderColor: (ctx) => isPartialIdx(ctx.p1DataIndex) ? partialColor : undefined,
+          },
         },
         {
           label: 'Baseline',
@@ -1086,12 +1134,20 @@ function renderWearableChart(canvas, canon, m, series) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false, axis: 'x' },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: tc.tooltipBg, titleColor: tc.tooltipTitle,
           bodyColor: tc.tooltipBody, borderColor: tc.tooltipBorder, borderWidth: 1,
-          callbacks: { label: (c) => `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}` },
+          callbacks: {
+            label: (c) => {
+              const base = `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}`;
+              return (c.datasetIndex === 0 && isPartialIdx(c.dataIndex))
+                ? `${base}  (partial day · in progress)`
+                : base;
+            },
+          },
         },
       },
       scales: {
@@ -2019,6 +2075,7 @@ Object.assign(window, {
   dismissWearableStub,
   toggleWearableStrip,
   openWearableDetail,
+  setWearableDetailRange,
   _uninstallWearableModalFocusTrap,
   syncWearableNow,
   chooseWearableSource,
