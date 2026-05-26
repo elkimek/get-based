@@ -27,6 +27,7 @@ const APP_SHELL = [
   '/index.html',
   '/app',
   '/styles.css',
+  '/css/wearables.css',
   '/css/light-sun.css',
   '/css/redesign-shell.css',
   '/css/redesign-chat.css',

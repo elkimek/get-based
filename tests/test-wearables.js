@@ -20,6 +20,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const CSS_FILES = ['styles.css', 'css/wearables.css'];
+const fetchCssBundle = async () => (await Promise.all(
+  CSS_FILES.map(rel => fetch('/' + rel).then(r => r.text()))
+)).join('\n');
 
 // Source-inspection sweep uses `await fetch('/js/X').then(r => r.text())` and
 // reads JSON/XML fixtures via fetch — install an fs-backed fetch shim so the
@@ -1821,7 +1825,7 @@ assert('Gateway POST body NEVER references getProfiles().map for the relay paylo
   !/profiles\s*=\s*getProfiles\(\)\.map[\s\S]{0,200}body:\s*JSON\.stringify\(\{\s*context,\s*profileId,\s*profiles\s*\}\)/.test(syncSrc2));
 
 // Touch tap-target rule for wearable-specific controls.
-const cssSrc = await fetch('/styles.css').then(r => r.text());
+const cssSrc = await fetchCssBundle();
 assert('Touch media block extends to .wearable-strip-sync (≥44px)',
   /@media\s*\(pointer:\s*coarse\)[\s\S]{0,5000}\.wearable-strip-sync[\s\S]{0,200}min-height:\s*44px/.test(cssSrc));
 assert('Touch media block extends to .wearable-manual-entry-del (≥44px)',
@@ -1950,7 +1954,7 @@ assert('STRIP_NICHE_METRICS / disclosure / nicheDeferred all gone',
   !/STRIP_NICHE_METRICS/.test(wearablesSrc2) &&
   !/wearable-niche-disclosure/.test(wearablesSrc2) &&
   !/nicheDeferred/.test(wearablesSrc2));
-const stylesSrc = await fetch('/styles.css').then(r => r.text());
+const stylesSrc = await fetchCssBundle();
 assert('Niche-disclosure CSS dropped (was a v1.30.0 regression source)',
   !/wearable-niche-(disclosure|summary|grid)/.test(stylesSrc));
 

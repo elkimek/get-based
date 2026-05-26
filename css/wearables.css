@@ -1,0 +1,991 @@
+/* ─────────────────────────────────────────────────────────
+   Wearable strip (dashboard section between Supplements and Key Trends)
+   ───────────────────────────────────────────────────────── */
+.wearable-strip {
+  margin: 20px 0 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px 12px;
+  /* On mobile the chat + import FABs sit at the bottom-right and overlap the
+     last strip card. Reserve enough bottom margin so the FABs don't obscure
+     readings. (Desktop FAB is smaller and the strip isn't bottom-anchored.) */
+  box-shadow: var(--shadow);
+}
+.wearable-strip-stub {
+  border-style: dashed;
+}
+.wearable-strip-stub-body {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.wearable-strip-stub-text {
+  flex: 1; min-width: 200px; font-size: 13px; line-height: 1.5;
+  color: var(--text-secondary);
+}
+.wearable-strip-stub-text strong { color: var(--text-primary); }
+.wearable-strip-stub-brands {
+  display: block; margin-top: 2px; font-size: 11px; color: var(--text-muted);
+}
+.wearable-strip-stub-actions {
+  display: flex; gap: 6px; align-items: center;
+}
+.wearable-strip-stub-cta {
+  background: var(--accent); color: var(--on-accent); border: none; padding: 6px 14px;
+  border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.wearable-strip-stub-cta:hover { filter: brightness(1.08); }
+.wearable-strip-stub-dismiss {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 4px 8px; border-radius: 4px;
+}
+.wearable-strip-stub-dismiss:hover { background: var(--bg-secondary); color: var(--text-primary); }
+@media (max-width: 600px) {
+  .wearable-strip {
+    margin-bottom: 80px; /* room for chat FAB + import FAB stacked */
+  }
+}
+.wearable-strip-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px; cursor: pointer;
+  user-select: none;
+}
+.wearable-strip-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 600; color: var(--text-primary);
+}
+.wearable-strip-icon { font-size: 16px; color: var(--accent); letter-spacing: 0.04em; }
+.wearable-source-label {
+  font-size: 12px; font-weight: 500; color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+}
+.wearable-strip-demo-pill {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  background: var(--yellow-bg); color: var(--yellow);
+  padding: 2px 7px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
+  cursor: pointer; transition: filter 0.15s;
+}
+.wearable-strip-demo-pill:hover { filter: brightness(1.1); }
+/* Reorder-mode banner — visible cue that the strip is in arrange-mode so the
+   user knows the ◀ ▶ arrows are intentional, not accidental. */
+.wearable-strip-reorder-pill {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  background: var(--accent-fill); color: var(--accent);
+  padding: 3px 9px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  white-space: nowrap;
+}
+/* Grid tint while reordering — a subtle accent so it's obviously different. */
+.wearable-card-grid-reorder {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-radius: 14px;
+  padding: 8px;
+  margin: -8px;
+  outline: 1px dashed color-mix(in srgb, var(--accent) 25%, transparent);
+}
+/* Apple Health export how-to disclosure — long instructions live behind a
+   "How to export from your iPhone" summary so the dropzone is the headline. */
+.apple-health-howto { margin: 6px 0 8px; cursor: pointer; }
+.apple-health-howto > summary {
+  font-weight: 500; color: var(--text-primary); padding: 4px 0;
+  list-style: none;
+}
+.apple-health-howto > summary::-webkit-details-marker { display: none; }
+.apple-health-howto > summary::before {
+  content: "▸ "; color: var(--text-muted);
+}
+.apple-health-howto[open] > summary::before { content: "▾ "; }
+.apple-health-howto ol {
+  margin: 6px 0 8px 18px; padding: 0; color: var(--text-muted);
+}
+.apple-health-howto ol li { margin-bottom: 4px; }
+.apple-health-privacy { font-style: italic; color: var(--text-muted); margin: 6px 0 0; }
+
+.wearable-strip-meta {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 12px; color: var(--text-muted);
+}
+.wearable-strip-sync {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px 4px 8px; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-secondary); font: inherit; font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s ease; line-height: 1;
+}
+.wearable-strip-sync:hover:not(:disabled) {
+  border-color: var(--accent); color: var(--accent); background: var(--bg-secondary);
+}
+.wearable-strip-sync:disabled { opacity: 0.7; cursor: progress; }
+.wearable-strip-sync-icon { transition: transform 0.2s ease; flex-shrink: 0; }
+.wearable-strip-sync.is-syncing .wearable-strip-sync-icon {
+  animation: wearable-spin 0.9s linear infinite;
+}
+@keyframes wearable-spin { to { transform: rotate(360deg); } }
+.wearable-collapse-arrow {
+  display: inline-block; transition: transform 0.18s ease;
+  color: var(--text-muted); font-size: 14px;
+  background: none; border: 0; padding: 0; cursor: pointer; line-height: 1;
+}
+.wearable-collapse-arrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.wearable-collapse-arrow.collapsed { transform: rotate(-90deg); }
+
+.wearable-card-grid {
+  display: grid;
+  /* auto-fit so the grid stays even no matter how many cards the adapter
+     registry produces (4 for Oura basics, 8-9 with full scopes, more when
+     WHOOP/Apple Health join). Cards want ~220px min; the row refills across
+     the available width without leaving half-empty tail rows. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.wearable-card-grid.hidden { display: none; }
+
+.wearable-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  min-width: 0;
+}
+.wearable-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.wearable-card:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* Empty-state cards for manual-capable metrics with no data yet */
+.wearable-card-empty {
+  border-style: dashed;
+  opacity: 0.82;
+}
+.wearable-card-empty:hover { opacity: 1; }
+.wearable-value-row-empty { justify-content: flex-start; }
+.wearable-value-dash { color: var(--text-muted); font-weight: 400; }
+.wearable-empty-cta {
+  font-size: 11px; color: var(--accent); font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Inline manual-log form (opens in-place when empty card is clicked) */
+.wearable-log-form { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.wearable-log-input {
+  width: 100%; padding: 6px 8px; font-size: 15px; font-weight: 600;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); box-sizing: border-box;
+}
+.wearable-log-input:focus {
+  outline: none; border-color: var(--accent); background: var(--bg-primary);
+}
+.wearable-log-bp-row { display: flex; align-items: center; gap: 4px; }
+.wearable-log-bp { min-width: 0; flex: 1; text-align: center; }
+.wearable-log-sep { color: var(--text-muted); font-weight: 600; }
+.wearable-log-pulse-optional { font-size: 12px; padding: 4px 8px; }
+.wearable-log-row { display: flex; align-items: center; gap: 4px; }
+.wearable-log-date {
+  flex: 1; min-width: 0; padding: 4px 6px; font-size: 11px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-muted);
+  color-scheme: dark;
+}
+[data-theme="light"] .wearable-log-date { color-scheme: light; }
+.wearable-log-save {
+  padding: 4px 10px; font-size: 11px; font-weight: 600;
+  background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+  cursor: pointer;
+}
+.wearable-log-save:hover { filter: brightness(1.1); }
+.wearable-log-cancel {
+  padding: 4px 8px; font-size: 13px; background: transparent;
+  border: 0; color: var(--text-muted); cursor: pointer; line-height: 1;
+}
+.wearable-log-cancel:hover { color: var(--text-primary); }
+
+/* Optional context-tag chips on the inline log form (BP / RHR). Toggle-
+   selectable. Purely informational — a post-workout BP reading tells a
+   different story than a resting one, even when the numbers match. */
+.wearable-log-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0; }
+.wearable-log-chip {
+  font-size: 10px; padding: 3px 7px; line-height: 1.2;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 10px;
+  cursor: pointer; transition: all 0.12s ease;
+}
+.wearable-log-chip:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.wearable-log-chip.active {
+  background: var(--accent-faded, rgba(99,102,241,0.18));
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.wearable-log-note {
+  width: 100%; min-height: 38px; padding: 6px 8px;
+  background: var(--bg-primary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: inherit; resize: vertical; box-sizing: border-box;
+}
+.wearable-log-note:focus { border-color: var(--accent); outline: none; }
+.wearable-log-note::placeholder { color: var(--text-muted); }
+
+/* Manual entries list in the detail modal — per-row delete + add form */
+.wearable-manual-entries {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.wearable-manual-entries-compact {
+  text-align: right;
+}
+.wearable-manual-entries-compact .wearable-manual-add-btn {
+  font-size: 12px; opacity: 0.85;
+}
+.wearable-manual-entries-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.wearable-manual-entries-title {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+.wearable-manual-entries-count {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: 10px; font-weight: 500; color: var(--text-muted);
+  background: var(--bg-tertiary, rgba(128,128,128,0.08)); border-radius: 8px;
+}
+.wearable-manual-add-btn {
+  padding: 4px 10px; font-size: 11px; font-weight: 600;
+  background: transparent; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 6px;
+  cursor: pointer;
+}
+.wearable-manual-add-btn:hover { background: var(--accent-faded, rgba(99,102,241,0.12)); }
+.wearable-manual-entries-empty {
+  font-size: 12px; color: var(--text-muted); padding: 6px 0;
+}
+.wearable-manual-entries-list {
+  list-style: none; padding: 0; margin: 0;
+  max-height: 240px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.wearable-manual-entry {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px; font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.wearable-manual-entry:last-child { border-bottom: 0; }
+.wearable-manual-entry-date { color: var(--text-muted); min-width: 84px; font-variant-numeric: tabular-nums; }
+.wearable-manual-entry-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.wearable-manual-entry-unit { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+.wearable-manual-entry-tags { display: inline-flex; gap: 3px; flex-wrap: wrap; }
+.wearable-manual-entry-tag {
+  font-size: 9px; padding: 1px 5px; border-radius: 8px;
+  background: var(--bg-tertiary, rgba(128,128,128,0.08));
+  color: var(--text-muted); text-transform: lowercase;
+}
+.wearable-manual-entry-del {
+  margin-left: auto; padding: 2px 7px; font-size: 13px; line-height: 1;
+  background: transparent; border: 0; color: var(--text-muted);
+  cursor: pointer; border-radius: 4px;
+}
+.wearable-manual-entry-del:hover { color: var(--red, #ef4444); background: var(--bg-tertiary, rgba(239,68,68,0.08)); }
+.wearable-manual-entry.has-note { flex-wrap: wrap; }
+.wearable-manual-entry-note {
+  flex-basis: 100%; font-size: 11px; color: var(--text-secondary);
+  font-style: italic; margin-top: 2px; padding-left: 0; line-height: 1.35;
+  word-break: break-word;
+}
+.wearable-manual-add-form {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 8px 10px; margin-bottom: 8px;
+  background: var(--bg-tertiary, rgba(128,128,128,0.06)); border-radius: 6px;
+}
+.wearable-manual-add-form .wearable-log-input { max-width: 110px; }
+.wearable-manual-add-form .wearable-log-date { max-width: 140px; }
+.wearable-manual-add-form-bp .wearable-log-bp-row { gap: 2px; }
+
+/* Reorder mode — tiny ⇄ button in the strip header toggles it; cards gain
+   ◀ ▶ arrows overlaid on their top-right. Works on mouse + touch without
+   drag-and-drop, so no vendored sortable library needed. */
+.wearable-strip-reorder {
+  padding: 3px 9px; font-size: 11px; font-weight: 600;
+  background: transparent; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: all 0.12s ease;
+}
+.wearable-strip-reorder:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.wearable-strip-reorder.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.wearable-card-reorder-wrap {
+  position: relative; display: flex; flex-direction: column;
+  min-width: 0;
+}
+.wearable-card-reorder-wrap > .wearable-card {
+  cursor: default;
+  pointer-events: none; /* suppress clicks/badges on underlying card while reordering */
+  opacity: 0.92;
+}
+.wearable-card-reorder-wrap > .wearable-card:hover {
+  border-color: var(--border); transform: none; /* cancel hover-lift */
+}
+.wearable-reorder-arrows {
+  position: absolute; top: 6px; right: 6px;
+  display: flex; gap: 2px; z-index: 2;
+}
+.wearable-reorder-arrow {
+  padding: 2px 6px; font-size: 11px; line-height: 1;
+  background: var(--bg-secondary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer;
+}
+.wearable-reorder-arrow:hover:not(:disabled) {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.wearable-reorder-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.wearable-card-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.wearable-metric-name {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  display: flex; align-items: baseline; gap: 4px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wearable-metric-sub {
+  font-size: 10px; font-weight: 500; color: var(--text-muted);
+  text-transform: none; letter-spacing: 0;
+}
+.wearable-delta {
+  font-size: 11px; font-weight: 600;
+  padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+}
+.wearable-delta.delta-good { background: var(--green-bg); color: var(--green); }
+.wearable-delta.delta-bad  { background: var(--red-bg);   color: var(--red); }
+.wearable-delta.delta-flat { background: var(--neutral-soft-bg); color: var(--text-muted); }
+
+.wearable-value-row {
+  display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap;
+  min-height: 24px;
+}
+.wearable-value {
+  font-size: 22px; font-weight: 700; color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.wearable-unit {
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+}
+/* Tight unit hugs the value with no separating space — used for "/5" and
+   similar prefix-slash units so "1/5" reads as one token, not "1 /5". */
+.wearable-unit-tight {
+  margin-left: 0 !important;
+}
+.wearable-value-row .wearable-unit-tight {
+  /* Value-row default has flex gap; tight unit cancels it. */
+  margin-left: -4px !important;
+}
+.wearable-baseline {
+  margin-left: auto; font-size: 10px; color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  white-space: nowrap;
+}
+.wearable-staleness {
+  flex-basis: 100%; margin-top: 2px; font-size: 10px;
+  color: var(--text-muted); font-style: italic; white-space: nowrap;
+  cursor: help;
+}
+/* On narrow strip cards the baseline + staleness chip stack as two muted
+   grey lines below the value, which reads as a paragraph blob. Hide the
+   baseline annotation when the staleness hint is present and viewport is
+   tight; the staleness chip already implies "this isn't your most recent
+   typical reading" and the detail modal carries the precise baseline. */
+@media (max-width: 600px) {
+  .wearable-card .wearable-staleness ~ .wearable-baseline,
+  .wearable-card:has(.wearable-staleness) .wearable-baseline { display: none; }
+}
+
+.wearable-sparkline {
+  width: 100%; height: 32px; display: block;
+  color: var(--text-muted);
+}
+.wearable-sparkline .spark-baseline {
+  stroke: currentColor; stroke-opacity: 0.25;
+  stroke-dasharray: 2 3; stroke-width: 0.5;
+}
+.wearable-sparkline .spark-line {
+  fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.wearable-sparkline .spark-last { stroke: var(--bg-card); stroke-width: 0.8; }
+.wearable-sparkline.spark-bad .spark-line,
+.wearable-sparkline.spark-bad .spark-last { stroke: var(--red); fill: var(--red); }
+.wearable-sparkline.spark-good .spark-line,
+.wearable-sparkline.spark-good .spark-last { stroke: var(--green); fill: var(--green); }
+.wearable-sparkline.spark-neutral .spark-line,
+.wearable-sparkline.spark-neutral .spark-last { stroke: var(--accent); fill: var(--accent); }
+
+.wearable-card-bottom {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 18px;
+}
+.wearable-trend-pill {
+  font-size: 10px; font-weight: 500; color: var(--text-muted);
+  padding: 1px 6px; border-radius: 6px;
+  background: var(--neutral-soft-bg);
+  text-transform: none; letter-spacing: 0;
+  white-space: nowrap; flex-shrink: 0;
+}
+.wearable-trend-bad       { color: var(--red);   background: var(--red-bg); }
+.wearable-trend-good      { color: var(--green); background: var(--green-bg); }
+.wearable-trend-improving { color: var(--green); background: var(--green-bg); }
+.wearable-trend-flat      { color: var(--text-muted); background: var(--neutral-soft-bg); }
+.wearable-source-badge {
+  font-size: 10px; font-weight: 600; color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding: 1px 5px; border-radius: 4px;
+  background: var(--neutral-soft-bg);
+  min-width: 0; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Badge keeps title-case at every width — earlier the all-caps desktop
+   variant read as shouty next to the lowercase metric labels. */
+@media (max-width: 600px) {
+  .wearable-source-badge {
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0.01em;
+  }
+}
+
+.wearable-strip-footer {
+  margin-top: 10px; padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px; color: var(--text-muted); font-style: italic;
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+}
+.wearable-strip-footer.hidden { display: none; }
+.wearable-strip-footer-note { display: inline-block; }
+.wearable-strip-footer-note + .wearable-strip-footer-note::before {
+  content: "·"; margin-right: 14px; opacity: 0.5;
+}
+
+/* ── Wearable detail modal ── */
+.wearable-detail-range { margin: 10px 0 4px; justify-content: flex-start; }
+.wearable-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.wearable-detail-stat {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.wearable-detail-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.wearable-detail-stat-val {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.wearable-detail-stat-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+.wearable-detail-empty {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--bg-primary);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Settings — wearable adapter list (Slack/Notion-style integrations row).
+   Each vendor gets one row; connected vendors expand a details drawer. */
+.wearables-adapter-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+.wearable-row {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s ease;
+}
+.wearable-row:last-child { border-bottom: 0; }
+.wearable-row:hover { background: rgba(255,255,255,0.02); }
+[data-theme="light"] .wearable-row:hover { background: rgba(0,0,0,0.02); }
+.wearable-row[open] { background: var(--bg-secondary); }
+.wearable-row-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  min-height: 56px;
+}
+.wearable-row-summary::-webkit-details-marker { display: none; }
+.wearable-row-summary-flat {
+  cursor: default;
+}
+.wearable-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.wearable-row-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+}
+.wearable-row-status-ok      { color: var(--green); }
+.wearable-row-status-bad     { color: var(--red); }
+.wearable-row-status-pending { color: var(--text-muted); font-style: italic; }
+.wearable-row-status-muted   { color: var(--text-muted); }
+.wearable-row-action {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.wearable-row-link {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.wearable-row-link:hover { color: var(--accent); background: var(--bg-secondary); }
+.wearable-row-chevron {
+  color: var(--text-muted);
+  font-size: 14px;
+  transition: transform 0.18s ease;
+  display: inline-block;
+  padding: 0 4px;
+}
+.wearable-row[open] .wearable-row-chevron { transform: rotate(180deg); }
+.wearable-row-detail {
+  padding: 4px 16px 16px 48px;  /* Indent past the icon column */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+/* Right-side action button — plain accent pill, uniform across vendors.
+   Vendor brand identity sits on the left (mark + name); the right side
+   speaks pure action language so the column reads as one consistent
+   "what does this row let me do?" affordance. */
+.wearable-action-row-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  white-space: nowrap;
+  min-width: 88px;
+  justify-content: center;
+}
+.wearable-action-row-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-secondary);
+}
+.wearable-action-row-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Legacy chip styles — preserved for any external reuse but no longer
+   applied by the settings panel. Kept lean. */
+.wearable-adapter-chip {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 8px; border-radius: 8px;
+}
+.wearable-adapter-chip-off { background: var(--neutral-soft-bg); color: var(--text-muted); }
+.wearable-adapter-chip-ok  { background: var(--green-bg); color: var(--green); }
+.wearable-adapter-chip-bad { background: var(--red-bg); color: var(--red); }
+/* ── Apple Health file import dropzone ── */
+.apple-health-dropzone {
+  margin-top: 10px;
+  padding: 18px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.apple-health-dropzone:hover,
+.apple-health-dropzone.drag-over {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+}
+.apple-health-dropzone-icon { font-size: 22px; margin-bottom: 6px; }
+.apple-health-dropzone-text { font-size: 12px; color: var(--text-secondary); }
+.apple-health-dropzone-text code {
+  background: var(--bg-secondary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.apple-health-progress {
+  margin-top: 10px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.apple-health-progress-bar {
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.apple-health-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.2s ease;
+}
+.apple-health-progress-text { font-size: 11px; color: var(--text-secondary); }
+
+/* ── Source badge + picker (multi-source override) ── */
+.wearable-source-badge-btn {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.wearable-source-badge-btn:hover {
+  text-decoration: underline;
+}
+.wearable-source-picker {
+  background: var(--bg-elevated, var(--bg-primary));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  padding: 6px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wearable-source-picker-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 6px 10px 4px;
+}
+.wearable-source-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+}
+.wearable-source-picker-item:hover {
+  background: var(--bg-secondary);
+}
+.wearable-source-picker-item.selected {
+  background: var(--bg-secondary);
+  color: var(--accent);
+}
+.wearable-source-picker-check {
+  color: var(--accent);
+  font-weight: 600;
+}
+.wearable-source-picker-auto {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 10px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.wearable-adapter-chip-beta {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--purple) 18%, transparent), color-mix(in srgb, var(--accent) 18%, transparent));
+  color: var(--purple);
+  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  margin-left: 4px;
+}
+.wearable-adapter-body { display: flex; flex-direction: column; gap: 8px; }
+.wearable-adapter-hint { font-size: 12px; color: var(--text-muted); margin: 0; }
+.wearable-adapter-hint a { color: var(--accent); text-decoration: none; }
+.wearable-adapter-hint a:hover { text-decoration: underline; }
+.wearable-adapter-input {
+  width: 100%; padding: 8px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace); font-size: 13px;
+}
+.wearable-adapter-actions {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.wearable-adapter-identity {
+  font-size: 13px; color: var(--text-primary); font-weight: 500;
+}
+.wearable-adapter-meta {
+  font-size: 11px; color: var(--text-muted);
+}
+.wearable-adapter-note {
+  font-size: 12px; color: var(--text-muted); font-style: italic; margin: 0;
+}
+
+/* ── Vendor form-factor icon (settings cards + Connect buttons) ── */
+.wearable-vendor-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.wearable-adapter-name {
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.wearable-adapter-card.is-connected .wearable-vendor-icon {
+  color: var(--accent);
+}
+.wearable-adapter-card.is-connected {
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ── Unified adapter action button (replaces ad-hoc ctx-btn-option overrides) ── */
+.wearable-action {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s ease; line-height: 1;
+  white-space: nowrap;
+}
+.wearable-action:hover:not(:disabled) {
+  border-color: var(--accent); color: var(--accent); background: var(--bg-secondary);
+}
+.wearable-action:disabled { opacity: 0.7; cursor: progress; }
+.wearable-action-secondary {
+  /* "Re-sync 90 days" / disconnect-style actions — heavier than incremental
+     "Sync." Use a softer styling so a routine sync isn't visually identical
+     to a 90-day refetch that hits rate limits and takes 30s+. */
+  font-weight: 400; opacity: 0.8;
+}
+.wearable-action-secondary:hover:not(:disabled) {
+  opacity: 1;
+}
+.wearable-action-hint {
+  font-size: 10px; color: var(--text-muted); margin-left: 4px;
+}
+.wearable-action-icon { flex-shrink: 0; transition: transform 0.2s ease; }
+.wearable-action.is-syncing .wearable-action-icon {
+  animation: wearable-spin 0.9s linear infinite;
+}
+.wearable-action-primary {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: white;
+}
+.wearable-action-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  border-color: transparent; color: white; background: var(--accent-gradient);
+}
+.wearable-action-danger {
+  color: var(--text-muted);
+}
+.wearable-action-danger:hover:not(:disabled) {
+  border-color: var(--red); color: var(--red); background: var(--red-bg);
+}
+.wearable-action-connect {
+  padding: 7px 18px;
+  font-size: 13px;
+}
+.wearable-action-connect .wearable-vendor-icon {
+  color: rgba(255, 255, 255, 0.95);
+}
+/* Vendor-branded Connect button — uses --brand-color from inline style.
+   Phase 2b: official sign-in graphics (rendered via .wearable-action-signin)
+   take precedence over this; this variant is the middle tier between the
+   generic accent pill and a fully vendor-supplied button. */
+.wearable-action-branded {
+  background: var(--brand-color);
+  border-color: transparent;
+  color: white;
+  /* Subtle brand-coloured ring on focus for accessibility. */
+}
+.wearable-action-branded:hover:not(:disabled) {
+  background: var(--brand-color);
+  filter: brightness(1.1);
+  border-color: transparent;
+  color: white;
+}
+.wearable-action-branded:focus-visible {
+  outline: 2px solid var(--brand-color);
+  outline-offset: 2px;
+}
+/* Official vendor Sign-in-with-X graphic — render unmodified. Browsers
+   handle the click target; we only constrain max width to keep layout
+   sane. */
+.wearable-action-signin {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+.wearable-action-signin img {
+  height: 36px;
+  width: auto;
+  max-width: 220px;
+  display: block;
+}
+.wearable-action-signin:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+/* Wordmark on a brand-coloured pill — used when the official asset is just
+   the vendor wordmark (not a full badge). The pill provides the corporate
+   colour; the wordmark provides the identity. */
+.wearable-action-signin-branded {
+  background: var(--brand-color);
+  border-radius: 999px;
+  padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.15s ease;
+}
+.wearable-action-signin-branded:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.wearable-action-signin-branded img {
+  height: 18px;
+  width: auto;
+  max-width: 160px;
+}
+/* Wordmark on accent pill — when the vendor's guideline is monochrome
+   (e.g. Oura) so we don't apply a brand colour. */
+.wearable-action-signin-accent {
+  background: var(--accent-gradient);
+  border-radius: 999px;
+  padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.15s ease;
+}
+.wearable-action-signin-accent:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.wearable-action-signin-accent img {
+  height: 18px;
+  width: auto;
+  max-width: 160px;
+}
+/* Vendor mark — uses CSS mask so the SVG silhouette inherits currentColor
+   from its parent. --mark-url and --mark-size are set inline by
+   brandMarkMono(). Same mark file renders white inside a coloured button,
+   muted next to a card heading, accent-coloured on a connected card. */
+.wearable-vendor-mark {
+  display: inline-block;
+  width: var(--mark-size, 18px);
+  height: var(--mark-size, 18px);
+  background-color: currentColor;
+  -webkit-mask: var(--mark-url) center / contain no-repeat;
+  mask: var(--mark-url) center / contain no-repeat;
+  flex-shrink: 0;
+}
+/* Vendor logo IMG (full-colour brand asset on the left side of the row).
+   Fixed height so the row stays a consistent visual rhythm; width follows
+   the SVG's intrinsic aspect ratio. Capped at 90px wide so very long
+   wordmarks (Ultrahuman, Polar) don't push the vendor name off-screen. */
+.wearable-vendor-icon-img {
+  display: block;
+  flex-shrink: 0;
+  height: 18px;
+  width: auto;
+  max-width: 90px;
+  object-fit: contain;
+  object-position: left center;
+}
+/* Ghost link-style action (e.g. "How?" disclosure) — no border, uses accent */
+.wearable-action-link {
+  border: 0;
+  padding: 7px 10px;
+  color: var(--text-muted);
+  background: transparent;
+}
+.wearable-action-link:hover:not(:disabled) {
+  color: var(--accent);
+  background: transparent;
+  border-color: transparent;
+}
+/* Compact disconnected body — drops the padding/gap weight that made
+   Apple Health + 5 OAuth cards a vertical wall of repetition. */
+.wearable-adapter-body-compact {
+  gap: 10px;
+}
+.wearable-adapter-hint-warn { color: var(--red); }
+.wearable-adapter-hint-pending {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+/* Expandable "how does Apple Health file import work?" explainer.
+   Collapsed by default; expanded when card gets .show-help. */
+.wearable-adapter-help {
+  display: none;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+.wearable-adapter-card.show-help .wearable-adapter-help { display: block; }
+
+/* Responsive: 2 cols → 1 col */
+@media (max-width: 900px) {
+  .wearable-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .wearable-card-grid { grid-template-columns: 1fr; gap: 8px; }
+  .wearable-strip { padding: 12px 12px 10px; }
+  .wearable-strip-meta { font-size: 11px; gap: 8px; flex-wrap: wrap; }
+}

@@ -3,7 +3,7 @@
 // Module exports, the 'manual' adapter registry entry, logManualMetric /
 // logManualBP IDB writes, hasManualData, migrateBiometricsToManual
 // (idempotent + lb→kg), deleteManualMetric, context tags + notes, plus a
-// source-inspection sweep of wearables.js / client-list.js / styles.css /
+// source-inspection sweep of wearables.js / client-list.js / CSS bundle /
 // lab-context.js.
 //
 // Run: node tests/test-wearables-manual.js  (or via npm test)
@@ -19,6 +19,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const CSS_FILES = ['styles.css', 'css/wearables.css'];
+const fetchCssBundle = async () => (await Promise.all(
+  CSS_FILES.map(rel => fetch(rel).then(r => r.text()))
+)).join('\n');
 
 // Source-inspection sweep uses `await fetch('js/X').then(r => r.text())` —
 // fs-backed fetch shim so the relative URLs resolve in Node.
@@ -410,7 +414,7 @@ try {
   assert("Row gains 'has-note' modifier class for layout when note is present",
     /wearable-manual-entry\$\{noteRow \? ' has-note' : ''\}/.test(entriesSectionFn));
 
-  const stylesSrc = await fetch('styles.css').then(r => r.text());
+  const stylesSrc = await fetchCssBundle();
   assert('CSS defines .wearable-log-note',
     /\.wearable-log-note\s*\{/.test(stylesSrc));
   assert('CSS defines .wearable-manual-entry-note',

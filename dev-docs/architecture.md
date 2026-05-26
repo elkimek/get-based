@@ -14,8 +14,9 @@ This constraint is intentional — it keeps the codebase approachable, removes t
 ## File layout
 
 ```
-index.html          — HTML structure only; script/CSS includes with SRI hashes; SEO meta tags
-styles.css          — All CSS: dark/light themes, 10 responsive breakpoints, all components
+index.html          — HTML structure only; script/CSS includes; SEO meta tags
+styles.css          — Core CSS: tokens, app shell, shared components, responsive/touch rules
+css/*.css           — Split feature CSS for high-churn surfaces such as wearables, Light/Sun, and redesign catch-up
 manifest.json       — PWA manifest (installable as a native app)
 service-worker.js   — PWA cache strategies, API bypass rules
 data/
