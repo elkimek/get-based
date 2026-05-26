@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const CSS_FILES = ['styles.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -230,7 +232,7 @@ assert('getTrend guards prev === 0', utilsSrc.includes('prev === 0'));
 // ═══════════════════════════════════════
 console.log('5. CSS Variable Fixes');
 
-const cssSrc = read('styles.css');
+const cssSrc = readCssBundle();
 const sunSrc = read('js/sun.js');
 const lightDevicesSrc = read('js/light-devices.js');
 assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));

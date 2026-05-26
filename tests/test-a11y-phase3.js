@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const CSS_FILES = ['styles.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let passed = 0, failed = 0;
 const fails = [];
@@ -145,7 +147,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     importSrc.includes("bar.setAttribute('aria-valuenow', String(pct))"));
 
   // ─── 10. Header import button remains the import entry point ───
-  const cssSrc = read('/styles.css');
+  const cssSrc = readCssBundle();
 
   // ─── 11. theme-color light variant + footer emoji removed ───
   const indexSrc = read('/index.html');

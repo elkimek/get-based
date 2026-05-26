@@ -22,6 +22,8 @@ function fetchSrc(rel) {
   try { return fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8'); }
   catch (_) { return ''; }
 }
+const CSS_FILES = ['styles.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+function fetchCssSrc() { return CSS_FILES.map(fetchSrc).join('\n'); }
 
 console.log('=== v1.6.7–v1.6.16 Regression Tests ===\n');
 
@@ -400,7 +402,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 14. v1.6.7 Mobile UX fixes (light-env reading overflow + FAB) ──
   console.log('%c 14. v1.6.7 mobile CSS guards ', 'font-weight:bold;color:#0891b2');
   {
-    const cssSrc = fetchSrc('styles.css');
+    const cssSrc = fetchCssSrc();
     assert('styles.css: .light-env-reading-ai uses flex-basis 100%',
       /\.light-env-reading-ai[\s\S]{0,300}flex-basis:\s*100%/.test(cssSrc));
     assert('styles.css: mobile .main padding-bottom clears FAB stack (1024 + 480 + 375)',
@@ -460,7 +462,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   {
     const lightChannelViewSrc = fetchSrc('js/light-channel-view.js');
     const conditionsSrc = fetchSrc('js/light-conditions-now.js');
-    const cssSrc = fetchSrc('styles.css');
+    const cssSrc = fetchCssSrc();
     const tooltipSrc = fetchSrc('js/touch-tooltip.js');
     assert('light-conditions-now.js: "Today\'s sun timeline" replaces "TODAY\'S SUN ARC"',
       /Today's sun timeline/.test(conditionsSrc) && !/Today's sun arc/.test(conditionsSrc));
@@ -542,7 +544,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal.js');
     const dataSrc = fetchSrc('js/data.js');
-    const cssSrc = fetchSrc('styles.css');
+    const cssSrc = fetchCssSrc();
     assert('category-view-renderers.js: marker cards render latest-value summary before chart',
       /chart-card-snapshot/.test(categoryViewRenderersSrc)
       && /chart-card-latest-value/.test(categoryViewRenderersSrc)

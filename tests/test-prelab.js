@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const CSS_FILES = ['styles.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -147,7 +149,7 @@ const labCtxSrc = read('js/lab-context.js');
     'Should only show subtitle when no labs');
 
   // CSS check
-  const cssSrc = read('styles.css');
+  const cssSrc = readCssBundle();
   assert('.context-section-subtitle in CSS', cssSrc.includes('.context-section-subtitle'),
     'CSS should define the subtitle class');
   assert('Subtitle font-size 13px', cssSrc.includes('.context-section-subtitle') && cssSrc.includes('font-size: 13px'),

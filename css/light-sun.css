@@ -1,0 +1,5364 @@
+
+/* ═══════════════════════════════════════════════
+   LIGHT & SUN — Light Today strip + dedicated page
+   Mirrors the .wearable-strip token + structural conventions so the
+   two adjacent dashboard panels read as siblings.
+   Tokens used: --accent-gradient (CTA) · --orange/--orange-bg (warn) ·
+   --red/--red-bg (over) · --green (ok) · --shadow / --radius / --radius-sm.
+   ═══════════════════════════════════════════════ */
+
+/* Strip — matches .wearable-strip surface treatment */
+.light-page {
+  width: 100%;
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+.light-page > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.light-page > .category-header {
+  margin-bottom: 0;
+}
+.light-page .lens-page-header h2 {
+  letter-spacing: 0;
+}
+.light-page .lens-page-widgets {
+  width: 100%;
+}
+.light-page .dashboard-widget[data-widget-id^="light-"] .dashboard-widget-body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.dashboard-widget[data-widget-id="light-today"] .dashboard-widget-body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.dashboard-widget[data-widget-id="light-today"] .light-today-hero {
+  margin: 0;
+}
+.dashboard-widget[data-widget-id="light-today"] .light-today-strip,
+.dashboard-widget[data-widget-id="light-channels"] .light-channels-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.light-page .dashboard-widget[data-widget-id="light-live-session"] .light-active-session-pinned,
+.light-page .dashboard-widget[data-widget-id="light-sessions"] .sun-sessions-list,
+.light-page .dashboard-widget[data-widget-id="light-guidance"] .light-med-banner {
+  margin: 0;
+}
+.light-page .dashboard-widget[data-widget-id="light-devices"] .dashboard-widget-body,
+.light-page .dashboard-widget[data-widget-id="light-environment"] .dashboard-widget-body,
+.light-page .dashboard-widget[data-widget-id="light-tools"] .dashboard-widget-body,
+.light-page .dashboard-widget[data-widget-id="light-methods"] .dashboard-widget-body {
+  gap: 0;
+}
+.light-page .dashboard-widget[data-widget-id="light-devices"] .light-devices-section,
+.light-page .dashboard-widget[data-widget-id="light-environment"] .light-env-section,
+.light-page .dashboard-widget[data-widget-id="light-tools"] .light-tools-section {
+  margin-top: 0;
+}
+.light-page .dashboard-widget[data-widget-id="light-devices"] .light-section-title,
+.light-page .dashboard-widget[data-widget-id="light-environment"] .light-section-title,
+.light-page .dashboard-widget[data-widget-id="light-tools"] .light-section-title {
+  display: none;
+}
+.light-page .dashboard-widget[data-widget-id="light-devices"] .light-devices-head,
+.light-page .dashboard-widget[data-widget-id="light-environment"] .light-env-head {
+  margin-bottom: 14px;
+}
+.light-page .dashboard-widget[data-widget-id="light-conditions-now"] .dashboard-widget-body,
+.light-page .dashboard-widget[data-widget-id="light-session-log"] .dashboard-widget-body,
+.light-page .dashboard-widget[data-widget-id="light-setup"] .dashboard-widget-body {
+  gap: 0;
+}
+.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap,
+.dashboard-widget[data-widget-id="light-session-log"] .light-quicklog-row,
+.light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-card,
+.light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-summary {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.light-session-log-actions {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.light-quicklog-row .dashboard-action-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+.light-log-action {
+  min-height: 38px;
+}
+.light-widget-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px dashed color-mix(in srgb, var(--border) 88%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  min-width: 0;
+}
+.light-widget-prompt-copy {
+  min-width: 0;
+}
+.light-widget-prompt-copy strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+.light-widget-prompt-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.light-widget-prompt-cta {
+  flex-shrink: 0;
+}
+.light-setup-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.light-widget-loading {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px 0;
+}
+.light-methods-stack {
+  display: grid;
+  gap: 10px;
+}
+.light-channels-section-dashboard {
+  display: grid;
+  gap: 12px;
+}
+.light-channels-section-dashboard .light-section-hint {
+  margin-bottom: 0;
+}
+.light-dashboard-open-btn {
+  justify-self: start;
+}
+.light-today-strip {
+  margin: 16px 0 8px;
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  padding: 14px 16px 12px;
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.light-today-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
+}
+.light-today-icon { font-size: 16px; color: var(--accent); }
+.light-today-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.light-today-sub { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
+.light-today-altitude {
+  font-size: 11px; color: var(--text-primary); font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--yellow-bg);
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
+  margin-left: 6px;
+}
+.light-today-link { margin-left: auto; font-size: 12px; color: var(--accent); text-decoration: none; }
+.light-today-link:hover { text-decoration: underline; }
+
+/* Channel pill row — qualitative tier indicator */
+.light-pills-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.light-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  font-size: 12px; color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.light-pill-icon { font-size: 13px; }
+.light-pill-label { font-weight: 500; }
+/* 7-day sparkline embedded in the pill — replaces the prior dot
+   metaphor which implied a fillable container. Bars show daily rhythm
+   (today = rightmost), color-coded green when day hit target / accent
+   when meaningful / faint stub when negligible. Reinforces the
+   daily-beats-banking framing with a real-data visualization. */
+.light-pill-sparkline {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 47px; height: 14px;
+  vertical-align: middle;
+}
+.light-pill-daycount {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: inherit; opacity: 0.9;
+  min-width: 24px; text-align: right;
+}
+/* Legacy class kept in case anything still references it; renders
+   as zero-width so older cached templates don't blow out the layout. */
+.light-pill-dots { display: none; }
+/* Tier 0 = no meaningful exposure logged for this channel. Visually
+   reads as "empty placeholder" (dashed border, transparent fill, faded
+   label) instead of "filled container that's been dimmed" — so the user
+   doesn't think they have data they don't. */
+.light-pill-tier-0 {
+  background: color-mix(in srgb, var(--bg-primary) 42%, transparent);
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--text-muted) 48%, var(--border));
+  color: var(--text-muted);
+}
+.light-pill-tier-0 .light-pill-dots { opacity: 0.5; }
+.light-pill-tier-1 { color: var(--text-secondary); }
+.light-pill-tier-2 { color: var(--text-primary); border-color: var(--text-muted); }
+.light-pill-tier-3 { color: var(--accent); border-color: var(--accent); }
+.light-pill-tier-4 { color: var(--green); border-color: var(--green); }
+
+/* Strip footer — burn-risk gauge + CTA */
+.light-today-foot {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-secondary);
+  margin-top: 4px;
+}
+.light-today-med strong { color: var(--text-primary); }
+.light-today-med-warn { color: var(--orange); }
+.light-today-med-warn strong { color: var(--orange); }
+.light-today-med-over { color: var(--red); }
+.light-today-med-over strong { color: var(--red); }
+
+/* Weekly vitamin D total — small line between pills and footer.
+   Approximate; tooltip explains the per-session-with-saturation
+   summing methodology. */
+.light-today-vitd-row {
+  margin-top: 6px;
+  display: flex; align-items: center;
+}
+.light-today-vitd {
+  font-size: 12px; font-weight: 600;
+  /* accent-light reads as a vit-D-blue identity (matches surrounding chips)
+     while clearing AA against the translucent accent-tint background.
+     accent itself failed contrast against the blended bg (3.93:1);
+     accent-light passes (4.68:1 on dark bg-card). */
+  color: var(--accent-light);
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+/* CTA group — wraps one or more CTA buttons together so they sit
+   adjacent (8px gap) and the GROUP gets pushed right via margin-left:
+   auto. Previously each CTA had margin-left:auto individually, which
+   made multiple CTAs spread out across the foot row instead of
+   clustering. Single-button case still works (group of 1 → button
+   right-aligned as before). */
+.light-today-cta-group {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+/* CTA — active (mid-session) flips to red as a "stop" cue. */
+.light-today-cta {
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none; border-radius: var(--radius-sm);
+  font-weight: 600; font-size: 13px;
+  cursor: pointer;
+}
+.light-today-cta:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.light-today-cta-active {
+  background: var(--red);
+  color: #fff;
+}
+.light-today-cta-active:hover { box-shadow: 0 2px 12px var(--red-bg); }
+/* Secondary CTA used as a paired "🔴 Device" button next to the
+   primary "☀ Sun" — slightly subdued so the eye lands on the
+   solar-window CTA first when both are present. */
+.light-today-cta-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.light-today-cta-secondary:hover {
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-color: var(--accent);
+}
+
+/* Pinned active sun-session row — sits at the very top of the Light &
+   Sun page when a session is running, above Conditions / Setup / the
+   Stop CTA. Heavier visual treatment than ordinary rows so the live
+   readout reads as the page's focal point. */
+.light-active-session-pinned {
+  margin: 4px 0 14px;
+}
+.light-active-session-pinned .sun-session {
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--card));
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.light-active-session-pinned .sun-session::before {
+  content: 'Live';
+  position: absolute;
+  top: -10px; left: 14px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px;
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.light-active-session-pinned .sun-session { position: relative; }
+
+/* Light & Sun page — quick-log row + section headings */
+.light-quicklog-row {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+.light-quicklog-row .import-btn {
+  width: 100%;
+  justify-content: center;
+}
+.light-summary-tally { color: var(--text-secondary); font-size: 13px; }
+.light-recent-sessions-header {
+  margin-top: 24px;
+}
+.light-channels-section {
+  margin-top: 0;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+.light-section-title {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px;
+}
+.light-section-hint { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
+
+/* Light page channel pills — same vocabulary as the dashboard strip,
+   adds a click-to-expand affordance for the drill-down panel below. */
+.light-channels-section .light-pills-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(174px, 100%), 1fr));
+  gap: 10px;
+}
+.light-channels-section .light-pill {
+  --channel-accent: var(--accent);
+  --channel-tint: color-mix(in srgb, var(--channel-accent) 10%, transparent);
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon label count"
+    "icon spark spark";
+  align-items: center;
+  gap: 7px 10px;
+  min-height: 72px;
+  padding: 12px 13px 11px 15px;
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, var(--channel-tint), transparent 58%),
+    color-mix(in srgb, var(--bg-secondary) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 24%, var(--border));
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--channel-accent) 76%, transparent);
+  overflow: hidden;
+}
+.light-channels-section .light-pill[data-channel="vitamin_d"] { --channel-accent: var(--yellow); }
+.light-channels-section .light-pill[data-channel="circadian"] { --channel-accent: var(--accent); }
+.light-channels-section .light-pill[data-channel="nir_solar"] { --channel-accent: var(--red); }
+.light-channels-section .light-pill[data-channel="no_cv"] { --channel-accent: var(--green); }
+.light-channels-section .light-pill[data-channel="pomc"] { --channel-accent: var(--orange); }
+.light-channels-section .light-pill[data-channel="violet_eye"] { --channel-accent: var(--purple); }
+.light-channels-section .light-pill-icon {
+  grid-area: icon;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 18px;
+  background: color-mix(in srgb, var(--channel-accent) 13%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 30%, transparent);
+}
+.light-channels-section .light-pill-label {
+  grid-area: label;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.light-channels-section .light-pill-sparkline {
+  grid-area: spark;
+  width: 100%;
+  max-width: 76px;
+  height: 18px;
+  justify-self: start;
+}
+.light-channels-section .light-pill-daycount {
+  grid-area: count;
+  min-width: 34px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--channel-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 26%, transparent);
+  color: var(--text-primary);
+  text-align: center;
+}
+.light-channels-section .light-pill-tier-0 {
+  background: color-mix(in srgb, var(--bg-secondary) 38%, transparent);
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--text-muted) 28%, transparent);
+  color: var(--text-muted);
+}
+.light-channels-section .light-pill-tier-0 .light-pill-icon {
+  background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  opacity: 0.72;
+}
+.light-channels-section .light-pill-tier-0 .light-pill-daycount {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  color: var(--text-muted);
+}
+.light-channels-section .light-pill-tier-3,
+.light-channels-section .light-pill-tier-4 {
+  border-color: color-mix(in srgb, var(--channel-accent) 48%, var(--border));
+}
+.light-pills-interactive .light-pill-interactive,
+.light-pill-dashboard {
+  cursor: pointer;
+  font-family: inherit;
+  /* button-element reset */
+}
+.light-pills-interactive .light-pill-interactive:hover,
+.light-pill-dashboard:hover {
+  filter: brightness(1.08);
+  border-color: var(--accent);
+}
+.light-channels-section .light-pill-interactive:hover,
+.light-channels-section .light-pill-dashboard:hover {
+  border-color: color-mix(in srgb, var(--channel-accent) 62%, var(--border));
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--channel-accent) 86%, transparent),
+    0 8px 18px color-mix(in srgb, var(--channel-accent) 12%, transparent);
+}
+.light-pill-dashboard:focus-visible,
+.light-pills-interactive .light-pill-interactive:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.light-pills-interactive .light-pill-interactive[aria-expanded="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.light-channels-section .light-pills-interactive .light-pill-interactive[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--channel-accent) 64%, var(--border));
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--channel-accent) 90%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--channel-accent) 42%, transparent);
+}
+.light-pill-interactive[data-trend="up"]   .light-pill-dots { color: var(--green); }
+.light-pill-interactive[data-trend="down"] .light-pill-dots { color: var(--orange); }
+
+/* Drill-down detail panel — appears below the pill row when a pill is
+   tapped. One channel expanded at a time. */
+.light-channel-detail-slot { margin-top: 12px; }
+.light-channel-detail {
+  --channel-accent: var(--accent);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 18%, var(--border));
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+  outline: none;
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+.light-channel-detail[data-channel="vitamin_d"] { --channel-accent: var(--yellow); }
+.light-channel-detail[data-channel="circadian"] { --channel-accent: var(--accent); }
+.light-channel-detail[data-channel="nir_solar"] { --channel-accent: var(--red); }
+.light-channel-detail[data-channel="no_cv"] { --channel-accent: var(--green); }
+.light-channel-detail[data-channel="pomc"] { --channel-accent: var(--orange); }
+.light-channel-detail[data-channel="violet_eye"] { --channel-accent: var(--purple); }
+/* Briefly outline the panel after expansion (deep-link from session
+   detail modal or another off-page surface) so the user notices what
+   just opened — the panel can be far below the fold. */
+.light-channel-detail.light-channel-detail-flash {
+  box-shadow: 0 0 0 2px var(--accent), 0 8px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+}
+.light-channel-detail-head {
+  display: flex; align-items: center; gap: 10px;
+}
+.light-channel-detail-icon { font-size: 18px; }
+.light-channel-detail-title {
+  font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 0;
+}
+.light-channel-detail-close {
+  margin-left: auto;
+  background: transparent; border: none;
+  color: var(--text-muted);
+  font-size: 20px; line-height: 1;
+  padding: 4px 10px; border-radius: 4px;
+  cursor: pointer;
+}
+.light-channel-detail-close:hover { color: var(--text-primary); background: var(--bg-secondary); }
+.light-channel-detail-body {
+  font-size: 13px; line-height: 1.5; color: var(--text-secondary);
+  margin: 0;
+}
+/* Tier pill in the channel-detail hero — state belongs with the weekly
+   numbers, while the header stays reserved for channel identity. */
+.light-channel-detail-tierpill {
+  margin-left: auto;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+/* Tier color scheme aligns with the chart's hit-target semantics
+   (chart bars: gray <5%, faint accent <30%, accent 30-100%, GREEN at
+   target, GREEN above target). The header tier pill should match:
+   - tier 0: muted gray (no exposure)
+   - tier 1: low / accent muted
+   - tier 2: moderate / accent
+   - tier 3: good / accent (approaching hit-target)
+   - tier 4: strong / GREEN (hit target across the week)
+   Previously tier 4 was RED which conflicted with the chart's
+   green-for-hit-target visual: same channel, opposite signal. */
+.light-channel-detail-tierpill.tier1 { color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary); }
+.light-channel-detail-tierpill.tier2 {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.light-channel-detail-tierpill.tier3 {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.light-channel-detail-tierpill.tier4 {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+/* Hero stat block — the big number you actually want to see (e.g. "~1.8k IU
+   vitamin D this week"). Lives directly under the header so the eye lands
+   on it before the prose. */
+.light-channel-hero {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--channel-accent) 10%, transparent), transparent 66%),
+    color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 24%, var(--border));
+}
+.light-channel-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.light-channel-hero-primary {
+  font-size: 24px; font-weight: 700; line-height: 1.1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.light-channel-hero-sub {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.4;
+}
+.light-channel-hero-trend {
+  font-size: 11px; margin-top: 4px; font-weight: 500;
+  color: var(--text-muted);
+}
+.light-channel-hero-trend.up   { color: var(--green); }
+.light-channel-hero-trend.down { color: var(--orange); }
+.light-channel-hero-trend.flat { color: var(--text-muted); }
+
+/* Sun/device source-mix bar — slim 6px stacked bar + legend below.
+   Hidden when one source is essentially 100% (no useful "mix"). */
+.light-channel-mix {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.light-channel-mix-bar {
+  display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+  background: var(--bg-secondary);
+}
+.light-channel-mix-sun { background: var(--channel-accent); }
+.light-channel-mix-dev { background: var(--channel-accent); opacity: 0.45; }
+.light-channel-mix-legend {
+  display: flex; gap: 14px;
+  font-size: 11px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lc-leg-sun, .lc-leg-dev, .lc-leg-tgt {
+  display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+  margin-right: 4px; vertical-align: middle;
+}
+.lc-leg-sun { background: var(--channel-accent, var(--accent)); }
+.lc-leg-dev { background: var(--channel-accent, var(--accent)); opacity: 0.45; }
+.lc-leg-tgt { background: transparent; border-bottom: 2px dashed var(--text-muted); border-radius: 0; height: 0; margin-bottom: 2px; }
+
+/* 7-day rhythm chart wrapper + the legend strip below the section label. */
+.light-channel-weekchart {
+  margin-top: 4px;
+  padding: 12px 12px 8px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--channel-accent) 8%, transparent), transparent 62%),
+    color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 22%, var(--border));
+  border-radius: var(--radius-sm);
+}
+.light-channel-weekchart-label {
+  font-size: 11px; color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 10px;
+}
+.light-channel-weekchart-legend {
+  font-size: 10px; color: var(--text-muted);
+  display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px;
+}
+
+/* "Daily beats banking" caption — channel-specific reason daily exposure
+   matters more than one big day. Sits between the chart and Next-move
+   so the user reads "what counted as a real day this week" → "here's why
+   that framing is the one that matches biology" → "what to do next."  */
+.light-channel-banking-note {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 11.5px; line-height: 1.5; color: var(--text-secondary);
+  border-left: 3px solid var(--text-muted);
+  background: var(--neutral-soft-bg);
+  border-radius: 0 6px 6px 0;
+}
+.light-channel-banking-note strong {
+  color: var(--text-primary);
+  display: inline-block; margin-right: 4px;
+}
+
+/* "Next move" — channel-specific concrete recipe + action button(s).
+   Distinct from the hero (this is what to DO; hero is what you HAVE). */
+.light-channel-nextmove {
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-channel-nextmove-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.light-channel-nextmove-text {
+  font-size: 13px; line-height: 1.5; color: var(--text-primary);
+  margin: 0;
+}
+.light-channel-nextmove-text strong { color: var(--accent); font-weight: 600; }
+.light-channel-nextmove-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;
+}
+.light-channel-cta-btn { font-size: 12px !important; padding: 6px 12px !important; }
+.light-channel-cit { margin-top: 12px; }
+.light-channel-cit summary {
+  font-size: 12px; color: var(--text-muted); cursor: pointer;
+  user-select: none; padding: 4px 0;
+}
+.light-channel-cit-spec { font-size: 12px; color: var(--text-secondary); margin: 6px 0; }
+.light-channel-cit-spec strong { color: var(--text-primary); }
+.light-channel-cit-refs {
+  margin: 4px 0 0 0; padding-left: 18px;
+  font-size: 11px; color: var(--text-secondary); line-height: 1.55;
+}
+.light-channel-cit-refs li { margin-bottom: 8px; }
+/* "Why this paper matters" tag under each citation — gives the user a
+   one-line reason to choose between papers instead of staring at three
+   bare titles. Indented + lower-contrast so it reads as annotation, not
+   another link. */
+.light-channel-cit-why {
+  margin-top: 2px; padding-left: 2px;
+  font-size: 11px; line-height: 1.45; color: var(--text-muted);
+  font-style: italic;
+}
+/* "Suggest a better study" link at the foot of the citations expander.
+   Mirrors the .rec-suggest pattern from recommendations.js — quiet
+   default state, accent on hover. Pre-fills a GitHub issue with the
+   channel + current ref list so the maintainer has context. */
+.light-channel-cit-suggest {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px; text-align: right;
+}
+.light-channel-cit-suggest a { color: var(--text-muted); text-decoration: none; }
+.light-channel-cit-suggest a:hover { color: var(--accent); text-decoration: underline; }
+.light-channel-cit-refs a { color: var(--accent); text-decoration: none; }
+.light-channel-cit-refs a:hover { text-decoration: underline; }
+
+/* Top-3 chip expand on session card */
+.sun-channel-chips .sun-chip-extra { display: none; }
+.sun-channel-chips.sun-chips-expanded .sun-chip-extra { display: inline-flex; }
+.sun-channel-chips.sun-chips-expanded .sun-chip-more { display: none; }
+.sun-chip-more {
+  font-size: 11px; padding: 3px 10px;
+  background: transparent; border: 1px dashed var(--border);
+  border-radius: 12px; color: var(--text-muted);
+  cursor: pointer; font-family: inherit;
+}
+.sun-chip-more:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Setup summary card — shown after onboarding is complete. 4 chip-cards
+   in a responsive grid, each with an icon + label + value + accent stripe
+   tied to the answer (e.g. warm orange for incandescent, cool blue for
+   LED daylight). Reads visually different per user, not a flat receipt. */
+.light-setup-summary {
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 0;
+  display: flex; flex-direction: column; gap: 12px;
+  box-shadow: var(--shadow);
+}
+.light-setup-summary-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.light-setup-summary-headline {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 600; color: var(--text-primary); font-size: 14px;
+}
+.light-setup-summary-tick {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  background: var(--green); color: #fff;
+  border-radius: 50%; font-size: 11px; font-weight: 700;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
+}
+.light-setup-summary-edit { padding: 4px 12px; font-size: 12px; }
+
+.light-setup-chips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 10px;
+}
+.light-setup-chip {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px 10px 16px;
+  overflow: hidden;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.light-setup-chip::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--text-muted);
+  opacity: 0.6;
+}
+.light-setup-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+.light-setup-chip-icon {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  background: var(--bg-card);
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+.light-setup-chip-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.light-setup-chip-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); font-weight: 600;
+}
+.light-setup-chip-value {
+  font-size: 13px; color: var(--text-primary); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.light-setup-chip-sub {
+  font-size: 10px; color: var(--text-muted);
+}
+
+/* Per-field accent stripe colors */
+.light-setup-chip-skin::before { background: var(--accent); }
+.light-setup-chip-home-warm::before { background: var(--orange); }
+.light-setup-chip-home-cool::before { background: #38bdf8; } /* sky blue */
+.light-setup-chip-home-sun::before  { background: var(--yellow); }
+.light-setup-chip-home-neutral::before { background: var(--text-muted); }
+.light-setup-chip-eyewear::before { background: var(--purple); } /* violet */
+.light-setup-chip-ott.light-setup-chip-tier-0::before { background: var(--green); }
+.light-setup-chip-ott.light-setup-chip-tier-1::before { background: var(--text-muted); }
+.light-setup-chip-ott.light-setup-chip-tier-2::before { background: var(--yellow); }
+.light-setup-chip-ott.light-setup-chip-tier-3::before { background: var(--orange); }
+.light-setup-chip-ott.light-setup-chip-tier-4::before { background: var(--red); }
+.light-setup-chip-skipped::before, .light-setup-chip-unset::before { background: var(--text-muted); opacity: 0.3; }
+
+/* Glow on the icon to reinforce the accent stripe */
+.light-setup-chip-skin .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--accent) 8%, transparent)); }
+.light-setup-chip-home-warm .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--orange) 10%, transparent)); }
+.light-setup-chip-home-cool .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--cyan) 14%, transparent)); }
+.light-setup-chip-home-sun .light-setup-chip-icon  { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--yellow) 12%, transparent)); }
+.light-setup-chip-eyewear .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--purple) 10%, transparent)); }
+.light-setup-chip-ott.light-setup-chip-tier-0 .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--green) 12%, transparent)); }
+.light-setup-chip-ott.light-setup-chip-tier-2 .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--yellow) 12%, transparent)); }
+.light-setup-chip-ott.light-setup-chip-tier-3 .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--orange) 12%, transparent)); }
+.light-setup-chip-ott.light-setup-chip-tier-4 .light-setup-chip-icon { background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--red) 12%, transparent)); }
+
+/* Ott score badge — color-coded by malillumination tier */
+.light-ott-badge {
+  display: inline-block;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 9px; border-radius: 12px;
+  background: var(--bg-secondary); color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.light-ott-badge-score {
+  font-weight: 400; opacity: 0.75; font-size: 10px;
+  margin-left: 2px;
+}
+.light-ott-tier-0 { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.light-ott-tier-1 { background: var(--bg-secondary); color: var(--text-primary); border-color: var(--text-muted); }
+.light-ott-tier-2 { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+.light-ott-tier-3 { background: var(--orange-bg); color: var(--orange); border-color: var(--orange); }
+.light-ott-tier-4 { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+/* Running Ott score indicator inside the editor */
+.light-setup-ott-summary-score {
+  font-weight: normal; color: var(--text-secondary);
+  font-size: 12px; margin-left: 4px;
+}
+.light-setup-ott-running {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.light-setup-ott-running strong { color: var(--text-primary); }
+
+/* Setup card — skip-for-now link in header */
+.light-setup-title {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.light-setup-skip {
+  font-size: 12px; font-weight: normal;
+  color: var(--text-muted); text-decoration: none;
+}
+.light-setup-skip:hover { color: var(--text-secondary); text-decoration: underline; }
+
+/* Onboarding setup card — 3 questions + Ott pre-test */
+.light-setup-focus-overlay {
+  padding: 24px;
+}
+.light-setup-focus-modal {
+  width: min(94vw, 820px);
+  max-width: 820px;
+  max-height: 92vh;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+}
+.light-setup-focus-head {
+  position: relative;
+  padding: 22px 58px 18px 24px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+}
+.light-setup-focus-head h3 {
+  margin: 2px 0 4px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.light-setup-focus-head p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 58ch;
+}
+.light-setup-focus-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 24px;
+  overscroll-behavior: contain;
+}
+.light-setup-focus-body:focus {
+  outline: none;
+}
+.light-setup-focus-body .light-setup-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.light-setup-focus-modal .light-setup-lead {
+  max-width: 68ch;
+}
+.light-setup-focus-modal > .light-setup-actions {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 14px 24px;
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.light-setup-focus-modal .light-setup-actions .import-btn {
+  min-height: 40px;
+}
+.light-setup-focus-modal[data-setup-step="core"] > .light-setup-actions[data-setup-actions="score"],
+.light-setup-focus-modal[data-setup-step="score"] > .light-setup-actions[data-setup-actions="core"] {
+  display: none;
+}
+.light-setup-focus-modal[data-setup-step="score"] > .light-setup-actions[data-setup-actions="score"] {
+  display: flex;
+}
+.light-setup-card {
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 0;
+  box-shadow: var(--shadow);
+}
+.light-setup-title {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-primary); margin-bottom: 4px;
+}
+.light-setup-title:focus,
+.light-setup-ott h4:focus {
+  outline: none;
+}
+.light-setup-body {
+  font-size: 13px; color: var(--text-secondary);
+  line-height: 1.5; margin-bottom: 14px;
+}
+.light-setup-step-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.light-setup-step-tab {
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 62%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.light-setup-step-tab:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  color: var(--text-primary);
+}
+.light-setup-step-tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, transparent);
+  outline-offset: 2px;
+}
+.light-setup-step-tab.active {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 78%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+}
+.light-setup-step-tab-index {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.light-setup-step-tab.active .light-setup-step-tab-index {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+.light-setup-pane[hidden],
+.light-setup-pane[data-setup-pane="score"] {
+  display: none;
+}
+.light-setup-focus-modal[data-setup-step="score"] .light-setup-pane[data-setup-pane="core"] {
+  display: none;
+}
+.light-setup-focus-modal[data-setup-step="score"] .light-setup-pane[data-setup-pane="score"] {
+  display: block;
+}
+.light-setup-step { margin: 14px 0; }
+.light-setup-step .ctx-label { display: block; margin-bottom: 4px; }
+.light-setup-photo-row {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--yellow) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
+  border-radius: 8px;
+  font-size: 13px; line-height: 1.5;
+}
+.light-setup-photo-label {
+  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
+}
+.light-setup-photo-row input[type="checkbox"] { margin-top: 3px; flex-shrink: 0; }
+.light-setup-photo-why {
+  display: block; margin: 8px 0 0;
+  font-size: 11px; color: var(--text-muted); line-height: 1.45; font-weight: normal;
+}
+.light-setup-photo-why a { color: var(--accent); text-decoration: underline; }
+.light-setup-photo-banner {
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
+  border-radius: 6px;
+  font-size: 12px; color: var(--text-primary);
+  line-height: 1.5;
+}
+/* "Why this matters" microcopy under each question label */
+.light-setup-step-why {
+  font-size: 11px; color: var(--text-muted);
+  margin: 0 0 8px; line-height: 1.45;
+}
+.setup-hint-inline {
+  font-size: 11px; color: var(--text-muted);
+  display: inline-block;
+}
+/* Lead paragraph at the top of the setup card */
+.light-setup-lead {
+  font-size: 13px; color: var(--text-secondary);
+  line-height: 1.5; margin: 4px 0 18px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.light-setup-lead strong { color: var(--text-primary); }
+
+.light-setup-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.light-setup-fields-grid .light-setup-step {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+  min-width: 0;
+}
+.light-setup-fields-grid .light-setup-step .ctx-label {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.light-setup-fields-grid .ctx-select,
+.light-setup-fields-grid .ctx-input {
+  width: 100%;
+}
+.light-setup-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.light-setup-choice-grid-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.light-setup-choice {
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 76%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.light-setup-choice:hover {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+  color: var(--text-primary);
+}
+.light-setup-choice:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, transparent);
+  outline-offset: 2px;
+}
+.light-setup-choice.active {
+  border-color: color-mix(in srgb, var(--accent) 78%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.light-setup-choice-label {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.light-setup-choice-sub {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* "X/3 done" progress badge */
+.light-setup-progress {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.light-setup-location-status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin: -4px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 52%, transparent);
+}
+.light-setup-location-status.light-setup-location-precise {
+  border-color: color-mix(in srgb, var(--green) 34%, var(--border));
+  background: color-mix(in srgb, var(--green) 8%, var(--bg-secondary));
+}
+.light-setup-location-status.light-setup-location-missing {
+  border-color: color-mix(in srgb, var(--orange) 34%, var(--border));
+  background: color-mix(in srgb, var(--orange) 8%, var(--bg-secondary));
+}
+.light-setup-location-copy {
+  min-width: 0;
+}
+.light-setup-location-label {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.light-setup-location-value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.light-setup-location-value-row strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.25;
+}
+.light-setup-location-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.light-setup-location-copy p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.light-setup-location-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.light-setup-location-actions .import-btn {
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+/* Tier-flash animation when the burden score crosses a threshold */
+@keyframes light-ott-tier-flash {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); box-shadow: 0 0 0 4px currentColor; }
+  100% { transform: scale(1); }
+}
+.light-ott-badge.tier-changed {
+  animation: light-ott-tier-flash 0.6s ease-out;
+}
+
+/* Equal-weight Save / Skip action row */
+.light-setup-actions {
+  display: flex; gap: 10px; align-items: center;
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.light-setup-actions[data-setup-actions="score"] {
+  display: none;
+}
+.light-setup-actions .import-btn-primary { flex: 1; min-width: 200px; }
+.import-btn-tertiary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.import-btn-tertiary:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.light-setup-skip-btn { font-weight: 500; }
+.light-setup-ott {
+  margin-top: 16px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: var(--radius-sm);
+}
+.light-setup-pane[data-setup-pane="score"] .light-setup-ott {
+  margin-top: 0;
+}
+.light-setup-ott-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+.light-setup-ott-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 3px;
+}
+.light-setup-ott h4 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+.light-setup-ott-summary-score {
+  flex: 0 0 auto;
+  margin-left: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.light-setup-ott-lead {
+  margin: 0 0 10px;
+}
+.light-setup-score-meter {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+  gap: 10px 12px;
+  align-items: center;
+  margin: 0 0 14px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--green) 28%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--green) 7%, var(--bg-card));
+}
+.light-setup-score-meter[data-tier="2"],
+.light-setup-score-meter[data-tier="3"] {
+  border-color: color-mix(in srgb, var(--yellow) 34%, var(--border));
+  background: color-mix(in srgb, var(--yellow) 8%, var(--bg-card));
+}
+.light-setup-score-meter[data-tier="4"],
+.light-setup-score-meter[data-tier="5"] {
+  border-color: color-mix(in srgb, var(--orange) 38%, var(--border));
+  background: color-mix(in srgb, var(--orange) 9%, var(--bg-card));
+}
+.light-setup-score-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 78px;
+}
+.light-setup-score-main span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.light-setup-score-main strong {
+  color: var(--text-primary);
+  font-size: 18px;
+  line-height: 1.1;
+}
+.light-setup-score-bar {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+}
+.light-setup-score-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), var(--accent));
+  transition: width 180ms ease;
+}
+.light-setup-score-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.light-setup-score-gap-count {
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.light-setup-score-gap-count strong {
+  color: var(--text-primary);
+}
+.light-setup-score-meter .light-setup-ott-summary-score {
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+}
+.light-setup-score-meter .light-ott-badge {
+  white-space: nowrap;
+}
+.light-setup-ott-questions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 0;
+}
+.light-setup-ott-q {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.light-setup-ott-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+.light-setup-ott-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+.light-setup-ott-card.is-flagged,
+.light-setup-ott-card:has(.light-setup-ott-input:checked) {
+  border-color: color-mix(in srgb, var(--orange) 52%, var(--border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--orange) 11%, transparent), transparent 68%),
+    color-mix(in srgb, var(--bg-card) 82%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--orange) 82%, transparent);
+}
+.light-setup-ott-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.light-setup-ott-card-mark {
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+.light-setup-ott-card.is-flagged .light-setup-ott-card-mark,
+.light-setup-ott-card:has(.light-setup-ott-input:checked) .light-setup-ott-card-mark {
+  border-color: transparent;
+  background: var(--orange);
+  color: var(--on-accent);
+}
+.light-setup-ott-input:focus-visible + .light-setup-ott-card-mark {
+  outline: 2px solid color-mix(in srgb, var(--accent) 80%, transparent);
+  outline-offset: 2px;
+}
+.light-setup-ott-q-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.light-setup-ott-q-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.light-setup-ott-q-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-weight: 600;
+  line-height: 1.32;
+}
+.light-setup-ott-card.is-flagged .light-setup-ott-q-text,
+.light-setup-ott-card:has(.light-setup-ott-input:checked) .light-setup-ott-q-text {
+  color: var(--text-primary);
+}
+.light-setup-ott-q-state {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--green) 28%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 7%, transparent);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.light-setup-ott-q-state-flagged {
+  display: none;
+  border-color: color-mix(in srgb, var(--orange) 42%, var(--border));
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  color: var(--orange);
+}
+.light-setup-ott-card.is-flagged .light-setup-ott-q-state-clear,
+.light-setup-ott-card:has(.light-setup-ott-input:checked) .light-setup-ott-q-state-clear {
+  display: none;
+}
+.light-setup-ott-card.is-flagged .light-setup-ott-q-state-flagged,
+.light-setup-ott-card:has(.light-setup-ott-input:checked) .light-setup-ott-q-state-flagged {
+  display: inline-flex;
+}
+.light-setup-ott-q-why {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+  line-height: 1.38;
+}
+
+/* Coords hint shown below the channel pills on the Light page empty state */
+.light-intro-hint {
+  font-size: 12px; color: var(--text-muted);
+  margin-top: 12px;
+}
+.light-intro-hint a { color: var(--accent); text-decoration: none; }
+.light-intro-hint a:hover { text-decoration: underline; }
+
+/* One-line action suggestion under channel grid */
+.light-suggestion {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--orange-bg);
+  border-left: 3px solid var(--orange);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary);
+}
+
+/* Light devices section — peer of channel grid on Light & Sun page */
+.light-devices-section { margin-top: 24px; }
+.light-devices-head {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.light-devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 14px;
+}
+/* Device card — visual hierarchy: type-icon + brand/model header,
+   compact spec-line under the name, channel-feed chip row, usage
+   stats footer, primary action button, optional affiliate link.
+   Type-specific accent strip on the left edge so a row of cards
+   reads as "UV / UVA / red+NIR / SAD" at a glance. */
+.light-device-card {
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.light-device-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+.light-device-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--text-muted);
+}
+.light-device-card-type-uvb::before          { background: linear-gradient(to bottom, #f59e0b, #ef4444); }
+.light-device-card-type-uva::before          { background: #f97316; }
+.light-device-card-type-combined::before     { background: #ef4444; }
+.light-device-card-type-pbm-targeted::before { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
+.light-device-card-type-sad::before          { background: #fbbf24; }
+.light-device-card-type-dawn-sim::before     { background: #fb923c; }
+.light-device-card-type-full-spectrum::before { background: #facc15; }
+
+.light-device-head {
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.light-device-icon {
+  font-size: 22px; line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.light-device-titleblock {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.light-device-name {
+  font-weight: 600; color: var(--text-primary);
+  font-size: 14px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.light-device-typeline {
+  font-size: 11px; color: var(--text-muted);
+  /* Removed uppercase + tracking — the line carries technical detail
+     (wavelength range, irradiance) that reads as shouty jargon when
+     uppercased. Sentence-case + normal spacing is much more legible
+     to non-experts and still scans as a secondary spec line. */
+}
+.light-device-delete {
+  background: transparent; border: none;
+  color: var(--text-muted); font-size: 18px; line-height: 1;
+  cursor: pointer; padding: 4px 8px; border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.light-device-card:hover .light-device-delete,
+.light-device-delete:focus-visible { opacity: 1; }
+.light-device-delete:hover { color: var(--red); background: var(--bg-secondary); }
+
+/* Channel-feed strip — small chips listing the channels this device
+   feeds. Same icons + labels the dashboard pills use, just tighter
+   spacing so they fit inside a card. Tooltip on hover gives the
+   full science blurb. */
+.light-device-feeds {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11px;
+}
+.light-device-feeds-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
+.light-device-feed-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.light-device-feed-icon { font-size: 12px; }
+.light-device-feed-label { font-size: 11px; font-weight: 500; }
+
+.light-device-stats {
+  font-size: 11px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.light-device-log {
+  width: 100%;
+  padding: 8px 14px; font-size: 13px;
+  font-weight: 600;
+}
+.light-device-actions {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 4px;
+}
+.custom-device-ai-row {
+  display: flex; gap: 8px; align-items: stretch;
+  margin-top: 8px;
+}
+.custom-device-form {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 4px;
+}
+.custom-device-form .ctx-label { display: block; }
+.custom-device-form .ctx-input,
+.custom-device-form .ctx-select {
+  width: 100%; margin-top: 4px;
+}
+.dev-session-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+/* Distance input + per-field cm/in unit toggle. The toggle sits to the
+   right of the number input; clicking flips both the visible value and
+   the underlying data-unit attribute. Lets a user enter the spec in
+   whichever unit their reference happens to be in, regardless of the
+   global state.unitSystem default. */
+.dev-distance-row {
+  display: flex; align-items: stretch; gap: 8px;
+  margin-top: 4px;
+}
+.dev-distance-row .ctx-input { flex: 1; min-width: 0; }
+.dev-unit-toggle {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+.dev-unit-btn {
+  padding: 0 12px;
+  font-size: 12px; font-weight: 600;
+  background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-family: inherit;
+}
+.dev-unit-btn + .dev-unit-btn { border-left: 1px solid var(--border); }
+.dev-unit-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.dev-unit-btn:not(.active):hover { color: var(--text-primary); background: var(--bg-card); }
+.rec-light-device-link {
+  font-size: 12px; color: var(--accent);
+  text-decoration: none;
+}
+.rec-light-device-link:hover { text-decoration: underline; }
+
+/* Channel-deficit device recommendation card. Surfaced on the Light & Sun
+   page when the user has ≥7 sessions logged but a device-fillable channel
+   (pbm_red / pbm_nir) is empty over 30 days. Compact, region-filtered,
+   capped at 3 products per channel. */
+.rec-channel-deficit {
+  margin: 16px 0; padding: 12px 14px;
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.rec-channel-deficit-head {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.rec-channel-deficit-list { display: flex; flex-direction: column; gap: 6px; }
+.rec-light-deficit-link {
+  display: block; padding: 8px 10px;
+  font-size: 12px; color: var(--text-primary);
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-xs); text-decoration: none;
+}
+.rec-light-deficit-link:hover { border-color: var(--accent); }
+.rec-light-deficit-link strong { color: var(--accent); margin-right: 4px; }
+.rec-light-deficit-link .rec-vendor {
+  display: inline-block; margin-left: 6px;
+  color: var(--text-secondary); font-size: 11px;
+}
+.rec-channel-deficit-foot {
+  margin-top: 8px; font-size: 11px; color: var(--text-secondary);
+}
+.rec-channel-deficit-foot a { color: var(--text-secondary); }
+
+/* Unified sessions list — sun + device sessions interleaved
+   chronologically. Row shape mirrors the sun-only list with an extra
+   leading icon and a "kind" pill so each row is scannable. Falls back
+   to the existing .sun-session styling for the bulk of the chrome. */
+.light-sessions-list-unified .light-session-row { gap: 6px; }
+.light-session-row[role="button"] { cursor: pointer; }
+.sun-sessions-list,
+.sun-session {
+  min-width: 0;
+  max-width: 100%;
+}
+.light-session-icon {
+  font-size: 16px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--session-accent, var(--accent)) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--session-accent, var(--accent)) 28%, transparent);
+}
+.light-session-kind {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 10px;
+  background: var(--bg-secondary);
+  margin-left: auto;
+  max-width: min(100%, 42ch);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.light-session-device .light-session-icon { color: var(--accent); }
+.light-session-sun .light-session-icon { color: var(--orange); }
+
+/* Mode chip — surfaces the touchscreen LED-group preset that fired
+   during the session. Default-mode rows render quietly so they don't
+   clutter the row; off-default modes get an accent so the user can
+   skim history for non-default sessions at a glance. */
+.light-session-mode-chip {
+  font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding: 2px 7px; border-radius: 9px;
+  border: 1px solid var(--border);
+  background: transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.light-session-mode-chip-accent {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* Device picker (Light page CTA → "Start a device session" with 2+ devs) */
+.light-device-picker-list {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 8px;
+}
+.light-device-picker-row {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-family: inherit; cursor: pointer;
+  text-align: left;
+}
+.light-device-picker-row:hover {
+  border-color: var(--accent);
+  background: var(--bg-card);
+}
+.light-device-picker-name {
+  font-weight: 600; color: var(--text-primary); font-size: 14px;
+}
+.light-device-picker-meta {
+  color: var(--text-secondary); font-size: 12px;
+}
+
+/* Light Environment — rooms + screens survey */
+.light-env-section { margin-top: 24px; }
+.light-env-block { margin-top: 16px; }
+.light-env-portable-readings > summary {
+  cursor: pointer; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--bg-card); border: 1px solid var(--border);
+  list-style: none;
+}
+.light-env-portable-readings > summary::-webkit-details-marker { display: none; }
+.light-env-portable-readings .light-env-portable-count {
+  color: var(--text-muted); font-size: 11px; margin-left: 6px;
+}
+.light-env-portable-readings-list {
+  margin-top: 8px; display: flex; flex-direction: column; gap: 4px;
+}
+.light-env-portable-reading-row {
+  display: grid; grid-template-columns: 24px 1fr auto; gap: 8px;
+  padding: 4px 12px; font-size: 12px; align-items: center;
+}
+.light-env-portable-reading-icon { font-size: 14px; }
+.light-env-portable-reading-time { color: var(--text-muted); font-size: 11px; }
+.light-env-portable-reading-more {
+  color: var(--text-muted); font-size: 11px; padding: 4px 12px;
+}
+.light-env-block-head {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 10px;
+}
+.light-env-block-head strong {
+  color: var(--text-primary); font-size: 14px;
+  flex: 1;
+}
+.light-env-empty {
+  font-size: 13px; color: var(--text-muted);
+  padding: 12px 0;
+}
+/* Empty-state CTA card — replaces the flat "No rooms added yet"
+   line with a value-prop block + primary action. Mirrors the
+   pattern used by other empty surfaces in the app. */
+.light-env-empty-cta {
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+}
+.light-env-empty-cta p {
+  margin: 0; color: var(--text-secondary);
+  font-size: 13px; line-height: 1.5;
+}
+.light-env-empty-cta strong { color: var(--text-primary); }
+.light-env-rows {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-env-row {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.light-env-input { font-size: 13px; padding: 6px 10px; }
+.light-env-row > .light-env-input:first-child { flex: 1; min-width: 100px; }
+.light-env-hours { width: 80px; }
+.light-env-evening {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.light-env-tool {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px; padding: 4px 8px;
+  cursor: pointer; color: var(--text-primary);
+}
+.light-env-tool:hover { background: var(--bg-hover); }
+.light-env-delete {
+  background: transparent; border: none;
+  color: var(--text-muted); font-size: 18px; line-height: 1;
+  cursor: pointer; padding: 4px 8px;
+}
+.light-env-delete:hover { color: var(--red); }
+
+/* Indoor-light burden summary — interpretive plain-English copy with
+   tier indicator, instead of raw "8.2 hr/day · 4.2 hr/day" numbers
+   that read as abstract without context. Color-coded by tier so a
+   row of green / orange / red strips down the page tells the story
+   at a glance. */
+.light-env-summary {
+  margin-top: 16px; padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; flex-direction: column; gap: 6px;
+  border-left: 4px solid var(--text-muted);
+}
+.light-env-summary-top {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 68%),
+    color-mix(in srgb, var(--bg-card) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+.light-env-summary-green  { background: var(--green-bg, rgba(34,197,94,0.06));  border-left-color: var(--green); }
+.light-env-summary-orange { background: var(--orange-bg, rgba(249,115,22,0.06)); border-left-color: var(--orange); }
+.light-env-summary-red    { background: var(--red-bg, rgba(239,68,68,0.06));    border-left-color: var(--red); }
+.light-env-summary-top.light-env-summary-green {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--green) 9%, transparent), transparent 68%),
+    color-mix(in srgb, var(--bg-card) 94%, transparent);
+}
+.light-env-summary-top.light-env-summary-orange {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--orange) 10%, transparent), transparent 68%),
+    color-mix(in srgb, var(--bg-card) 94%, transparent);
+}
+.light-env-summary-top.light-env-summary-red {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--red) 10%, transparent), transparent 68%),
+    color-mix(in srgb, var(--bg-card) 94%, transparent);
+}
+.light-env-summary-kicker {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.light-env-summary-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.light-env-summary-tier {
+  font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+.light-env-summary-parts {
+  font-size: 12px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.light-env-summary-interp {
+  margin: 0; font-size: 13px; line-height: 1.5;
+  color: var(--text-secondary);
+}
+/* Legacy classes used elsewhere — kept for back-compat */
+.light-env-summary strong { color: var(--text-primary); }
+.light-env-summary-sep { opacity: 0.4; }
+
+/* Severity dot — mirrors EMF assessment color tokens */
+.light-env-sev-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0; box-shadow: 0 0 6px currentColor;
+}
+.light-env-sev-green  { background: var(--green);  color: var(--green); }
+.light-env-sev-yellow { background: var(--yellow); color: var(--yellow); }
+.light-env-sev-orange { background: var(--orange); color: var(--orange); }
+.light-env-sev-red    { background: var(--red);    color: var(--red); }
+/* Distinct from "Good" — gray dot for rooms that have nothing graders
+   can use yet, so users don't read an unreviewed default green dot
+   as "we verified you're good." */
+.light-env-sev-incomplete {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1.5px dashed var(--text-muted);
+  box-shadow: none;
+}
+.light-env-sev-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--text-muted);
+  margin-left: auto;
+}
+/* Severity chip — pill-shaped tinted background, more prominent than
+   the previous tiny grey label. Used in room + screen card heads. */
+.light-env-sev-chip {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-left: auto;
+}
+.light-env-sev-chip-green  { background: var(--green-bg, rgba(34,197,94,0.12));  color: var(--green); }
+.light-env-sev-chip-yellow { background: var(--yellow-bg, rgba(234,179,8,0.12)); color: var(--yellow); }
+.light-env-sev-chip-orange { background: var(--orange-bg, rgba(249,115,22,0.12)); color: var(--orange); }
+.light-env-sev-chip-red    { background: var(--red-bg,    rgba(239,68,68,0.12)); color: var(--red); }
+/* Card-level severity accent strip on the left edge — ties room +
+   screen cards into the same visual language as the device cards. */
+.light-env-card-sev-green::before,
+.light-env-card-sev-yellow::before,
+.light-env-card-sev-orange::before,
+.light-env-card-sev-red::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+}
+.light-env-card-sev-green::before  { background: var(--green); }
+.light-env-card-sev-yellow::before { background: var(--yellow); }
+.light-env-card-sev-orange::before { background: var(--orange); }
+.light-env-card-sev-red::before    { background: var(--red); }
+.light-env-card-sev-green,
+.light-env-card-sev-yellow,
+.light-env-card-sev-orange,
+.light-env-card-sev-red { position: relative; }
+/* Tab severity tint — subtle border-bottom hue so the active+inactive
+   tabs both telegraph the room's status. */
+.light-env-tab-sev-yellow { border-bottom: 2px solid var(--yellow); }
+.light-env-tab-sev-orange { border-bottom: 2px solid var(--orange); }
+.light-env-tab-sev-red    { border-bottom: 2px solid var(--red); }
+
+/* Per-day "in use today / skipped today" toggle. Auto-resets at
+   midnight so the baseline schedule stays set-and-forget; the toggle
+   only affects today's exposure math. */
+.light-env-today-toggle {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px; font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.light-env-today-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.light-env-today-on {
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+  border-color: var(--green);
+  color: var(--green);
+}
+.light-env-today-off {
+  background: var(--bg-secondary);
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+  font-style: italic;
+}
+/* Cards toggled "skipped today" dim down so the user can see at a
+   glance which items aren't contributing to today's burden math.
+   The severity chip stays at full opacity (it's a baseline judgement,
+   not a today value) so the room's chronic state is still readable. */
+.light-env-card-skipped { opacity: 0.55; }
+.light-env-card-skipped:hover { opacity: 0.85; }
+.light-env-card-skipped .light-env-today-toggle { opacity: 1; }
+.light-env-card-skipped .light-env-sev-chip { opacity: 0.85; }
+
+/* Compact mode — icon-only pill in disclosure headers. Most users
+   never touch the today-toggle, so it shouldn't burn header space
+   with a verbose label. The icon (✓ / ⊘) carries the state; full
+   text lives in the title attribute + visually-hidden span for SR. */
+.light-env-today-compact {
+  width: 26px; height: 26px;
+  padding: 0;
+  justify-content: center;
+  font-size: 13px; line-height: 1;
+}
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* Header overflow menu — currently single-purpose (delete) but
+   structured as a button so we can swap to a popover later when
+   more actions land. Sits next to the chevron, away from primary
+   scan path. */
+.light-env-overflow {
+  /* 32px visual size — was 26px, but hybrid mouse+touch devices
+     (iPad with cursor, Surface, etc.) treat it as a mouse target without
+     the @media (pointer: coarse) expansion firing. WCAG 2.5.5 minimum
+     is 44px; 32px stays under but is acceptable for tertiary delete
+     actions where the cell tap area is the primary path. */
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 16px; line-height: 1;
+  transition: all 0.15s;
+}
+.light-env-overflow:hover {
+  background: var(--alert-soft-bg);
+  color: var(--red);
+  border-color: var(--red);
+}
+.light-env-overflow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  background: var(--alert-soft-bg);
+  color: var(--red);
+}
+
+/* Screens — disclosure pattern matching rooms. Collapsed shows
+   status dot · device-icon · device label · one-line summary +
+   today-toggle + chevron. Expanded body holds chip pickers for
+   hours / evening + the blue-blocker checkbox + room-reassignment. */
+.light-env-screen-cards {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-env-screen-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.light-env-screen-card.expanded { border-color: var(--accent); }
+.light-env-screen-card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  background: var(--bg-secondary);
+  transition: background 0.15s;
+}
+.light-env-screen-card-head:hover { background: var(--bg-hover); }
+.light-env-screen-card.expanded .light-env-screen-card-head {
+  border-bottom: 1px solid var(--border);
+}
+.light-env-screen-card-icon { font-size: 16px; }
+.light-env-screen-card-name {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.light-env-screen-card-summary {
+  font-size: 12px; color: var(--text-muted);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.light-env-screen-card-body {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.light-env-screen-meta-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr);
+  gap: 12px;
+}
+.light-env-screen-meta-row .ctx-label { margin: 0; }
+.light-env-screen-blocker {
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.light-env-screen-blocker input[type="checkbox"] { margin-right: 4px; }
+.light-env-screen-room { width: 100%; }
+@media (max-width: 600px) {
+  .light-env-screen-card-head { flex-wrap: wrap; gap: 6px; }
+  .light-env-screen-meta-row { grid-template-columns: 1fr; }
+}
+
+/* Inline "Screens used here" block within each room card — appears
+   below the readings strip. Uses compact-mode screen cards that
+   share markup with the top-level Portable screens section but
+   ratchet density down (smaller padding, denser fields). Goal:
+   set-once UX where one Office card carries everything the user
+   needs to keep up to date. */
+.light-env-room-screens {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.light-env-room-screens-head {
+  display: flex; align-items: center; gap: 12px;
+}
+.light-env-room-screens-head strong {
+  font-size: 12px; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  flex: 1;
+}
+/* "+ Add a screen here" — dashed-outline button at the bottom of
+   each room's Step 3 list. Distinguishes "add" from primary CTAs. */
+.light-env-add-screen-here {
+  background: transparent; border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px; font-size: 12px;
+  color: var(--text-secondary); cursor: pointer;
+  font-family: inherit;
+  margin-top: 8px;
+}
+.light-env-add-screen-here:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* Quick-pick chip row inside Step 3 — mirrors the room quick-picks at
+   the bottom of the Rooms section. Common device types are one-click;
+   "+ Other…" falls back to the device-by-room-name inference path. */
+.light-env-screen-quickpicks {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  margin-top: 10px;
+}
+
+/* Per-room measurement tools (Step 2) — pill row + readings strip. */
+.light-env-room-tools {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+.light-env-measure-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.light-env-tool-pill {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px; font-size: 12px;
+  color: var(--text-primary); cursor: pointer;
+  transition: all 0.15s;
+  min-width: 0;
+  justify-content: center;
+}
+.light-env-tool-pill:hover {
+  background: var(--accent); border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Step-body empty / readings copy. Used by no-measurements + no-screens
+   placeholders. */
+.light-env-room-empty {
+  font-size: 12px; color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
+}
+.light-env-room-readings {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding-top: 4px;
+}
+.light-env-reading {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px; font-size: 12px;
+  color: var(--text-secondary);
+}
+.light-env-reading-icon { font-size: 13px; }
+.light-env-reading-value { color: var(--text-primary); font-weight: 500; }
+.light-env-reading-time { color: var(--text-muted); font-size: 11px; }
+
+/* Disclosure-pattern room list — replaces the tabs/stacked mode-switch.
+   Each row is collapsed by default; clicking the header expands a
+   Step 1/2/3 form. Mirrors EMF Assessment + Light Audits so the three
+   sub-modules share one mental model. */
+.light-env-room-list { display: flex; flex-direction: column; gap: 8px; }
+.light-env-room-disclosure {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.light-env-room-disclosure.expanded { border-color: var(--accent); }
+.light-env-room-disclosure-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  background: var(--bg-secondary);
+  transition: background 0.15s;
+}
+.light-env-room-disclosure-head:hover { background: var(--bg-hover); }
+.light-env-room-disclosure.expanded .light-env-room-disclosure-head {
+  border-bottom: 1px solid var(--border);
+}
+.light-env-room-disclosure-name {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  /* min-width:0 lets the name shrink past its intrinsic width inside the
+     flex row when the user names a room something long; ellipsis keeps the
+     chevron + delete button reachable on 375px viewports. */
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex-shrink: 1;
+}
+.light-env-room-disclosure-signals {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-muted);
+}
+.light-env-room-signal { white-space: nowrap; }
+.light-env-room-signal-evening { color: var(--orange); }
+.light-env-room-disclosure-spacer { flex: 1; }
+.light-env-room-disclosure-chevron {
+  color: var(--text-muted); font-size: 12px; flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.light-env-room-disclosure-body {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.light-env-room-disclosure-footer {
+  display: flex; gap: 8px; align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.light-env-room-disclosure.light-env-card-skipped { opacity: 0.7; }
+
+/* Step blocks inside the expanded body — numbered to make the linear
+   flow obvious (versus the old layout where 5 concerns competed for
+   attention all at once). */
+.light-env-room-step {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.light-env-room-step-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.light-env-room-step-head > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.light-env-room-status-pill,
+.light-env-room-step-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.light-env-room-status-green { border-color: color-mix(in srgb, var(--green) 36%, var(--border)); color: var(--green); background: color-mix(in srgb, var(--green) 8%, transparent); }
+.light-env-room-status-yellow { border-color: color-mix(in srgb, var(--yellow) 42%, var(--border)); color: var(--yellow); background: color-mix(in srgb, var(--yellow) 10%, transparent); }
+.light-env-room-status-orange { border-color: color-mix(in srgb, var(--orange) 42%, var(--border)); color: var(--orange); background: color-mix(in srgb, var(--orange) 10%, transparent); }
+.light-env-room-status-red { border-color: color-mix(in srgb, var(--red) 42%, var(--border)); color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.light-env-room-status-incomplete { border-style: dashed; color: var(--text-muted); }
+.light-env-room-step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px;
+  background: var(--accent); color: white;
+  border-radius: 50%; font-size: 11px; font-weight: 700;
+  text-transform: none; letter-spacing: 0;
+}
+.light-env-room-step-body {
+  display: flex; flex-direction: column; gap: 10px;
+  padding-left: 28px;
+}
+.light-env-room-setup-body {
+  gap: 12px;
+}
+.light-env-room-step-body .light-env-room-tools {
+  padding-top: 0; border-top: none;
+}
+.light-env-room-step-body .ctx-label { margin: 0; }
+.light-env-room-name-input { font-size: 14px; }
+.light-env-room-today-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+}
+.light-env-room-today-copy {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.light-env-room-today-copy span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.light-env-room-ai {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 0 28px;
+  padding: 7px 0 0;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 82%, transparent);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.light-env-room-ai-green { border-top-color: color-mix(in srgb, var(--green) 34%, var(--border)); }
+.light-env-room-ai-yellow { border-top-color: color-mix(in srgb, var(--yellow) 38%, var(--border)); }
+.light-env-room-ai-red { border-top-color: color-mix(in srgb, var(--red) 36%, var(--border)); }
+.light-env-room-ai-label {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.light-env-room-ai-tip {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.light-env-room-ai-refresh {
+  align-self: center;
+  min-height: 28px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+/* Quick-pick chip row for adding rooms — replaces the bare "+ Room"
+   button. Common names are one-click; "Other…" prompts for custom. */
+.light-env-room-quickpicks { margin-top: 12px; }
+.light-env-quickpicks-row {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.light-env-quickpicks-label {
+  font-size: 12px; color: var(--text-muted);
+  margin-right: 4px;
+}
+.light-env-quickpick {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px; font-size: 12px;
+  color: var(--text-primary); cursor: pointer;
+  transition: all 0.15s;
+}
+.light-env-quickpick:hover {
+  background: var(--accent); border-color: var(--accent);
+  color: white;
+}
+.light-env-quickpick-other { font-style: italic; }
+
+@media (max-width: 600px) {
+  .light-env-room-disclosure-head { flex-wrap: wrap; gap: 6px; }
+  .light-env-room-disclosure-spacer { display: none; }
+  .light-env-room-step-body { padding-left: 0; }
+  .light-env-room-today-row {
+    align-items: flex-start;
+  }
+  .light-env-room-ai {
+    margin-left: 0;
+  }
+  .light-env-measure-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .light-env-measure-toolbar .light-env-tool-pill {
+    min-height: 44px;
+  }
+}
+
+/* Step 1 chip pickers — replace the lonely number field + 10-option
+   dropdown + boolean checkbox with three concise chip rows the user
+   can answer by *looking* at a bulb / their day. */
+.light-env-room-step-sub {
+  margin: -4px 0 0 28px;
+  font-size: 12px; color: var(--text-muted);
+  line-height: 1.4;
+}
+.light-env-picker { display: flex; flex-direction: column; gap: 6px; }
+.light-env-picker-label {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600;
+}
+.light-env-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.light-env-chip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px; font-size: 13px;
+  color: var(--text-primary); cursor: pointer;
+  transition: all 0.15s;
+}
+.light-env-chip:hover { background: var(--bg-hover); border-color: var(--accent); }
+.light-env-chip-active {
+  background: var(--accent); border-color: var(--accent); color: white;
+}
+.light-env-chip-active:hover { background: var(--accent); border-color: var(--accent); }
+.light-env-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Reduced motion — strip transforms + transitions for users with the OS
+   preference set. Hover lifts and tier-changed badge flashes feel disorienting
+   for vestibular-sensitive users. */
+@media (prefers-reduced-motion: reduce) {
+  .light-setup-chip,
+  .light-pill-interactive,
+  .light-channel-detail,
+  .conditions-now,
+  .light-today-cta,
+  .sun-silhouette-region,
+  .light-env-room-disclosure,
+  .light-env-screen-card,
+  .light-ott-badge.tier-changed,
+  .conditions-now-source.just-refreshed,
+  /* AI verdict shimmer dot — explicit suppression for vestibular
+     sensitivity. Static gray dot reads as "loading" without animation. */
+  .sun-session-ai-dot-shimmer {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  .light-setup-chip:hover { transform: none !important; }
+}
+/* Touch tap-target sizing — coarse pointer (touchscreen) gets 44×44 minimum
+   per WCAG 2.5.5 / WAI Mobile guidance. Mouse-only sessions stay compact. */
+@media (pointer: coarse) {
+  .light-env-chip,
+  .light-env-tool-pill,
+  .light-env-overflow,
+  .light-channel-detail-close,
+  .light-today-altitude,
+  .conditions-now-refresh,
+  .conditions-now-inspect,
+  .conditions-now-override button,
+  .light-env-picker-more summary {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .light-env-chip { padding: 0 14px; }
+}
+.light-env-picker-more {
+  margin-top: 2px; font-size: 12px;
+}
+.light-env-picker-more summary {
+  cursor: pointer; color: var(--text-muted);
+  padding: 2px 0; user-select: none;
+}
+.light-env-picker-more summary:hover { color: var(--text-primary); }
+.light-env-picker-more[open] { padding-top: 6px; }
+.light-env-picker-more select,
+.light-env-picker-more input { margin-top: 4px; }
+
+/* Spectrum tool gets primary-action treatment as the recommended
+   start — it auto-detects warm / cool / fluorescent so it's the
+   single best button for users who don't know their bulb specs. */
+.light-env-tool-pill-primary {
+  background: var(--bg-card);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.light-env-tool-pill-primary:hover {
+  background: var(--accent); color: var(--on-accent);
+}
+.light-env-tool-pill-hint {
+  font-size: 10px; font-weight: 500;
+  margin-left: 4px; opacity: 0.85;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+/* Light Audits — frozen snapshots of rooms + screens + measurements.
+   Visual pattern mirrors EMF assessments (collapsed cards with severity
+   dot, expand to detail, side-by-side compare table) so the two
+   surfaces feel like one design system. */
+.light-audits-block {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  overflow: hidden;
+}
+.light-audits-block > summary {
+  list-style: none;
+}
+.light-audits-block > summary::-webkit-details-marker {
+  display: none;
+}
+.light-audits-summary {
+  margin: 0;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+}
+.light-audits-block[open] .light-audits-summary {
+  border-bottom: 1px solid var(--border);
+}
+.light-audits-block > .light-env-empty,
+.light-audits-block > .light-audit-hint,
+.light-audits-block > .light-audit-card,
+.light-audits-block > .light-audit-compare {
+  margin: 10px 12px;
+}
+.light-audit-actions { display: flex; gap: 8px; }
+.light-audit-card {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 8px; overflow: hidden; background: var(--bg-card);
+}
+.light-audit-card.expanded { border-color: var(--accent); }
+.light-audit-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; cursor: pointer; transition: background 0.15s;
+}
+.light-audit-header:hover { background: var(--bg-hover); }
+.light-audit-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Two-row layout — date + label on the top line, "N rooms · M measurements"
+   as a small grey caption underneath. The original single-line treatment
+   forced every audit row to read as one dense run-on; the column flow
+   gives the eye a clear "title / subtitle" rhythm. */
+.light-audit-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.light-audit-info-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.light-audit-date { font-weight: 600; font-size: 13px; }
+.light-audit-label { font-size: 12px; color: var(--text-secondary); }
+.light-audit-meta { font-size: 11px; color: var(--text-muted); }
+.light-audit-detail { padding: 0 14px 14px; }
+.light-audit-meta-row {
+  display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+  align-items: flex-end;
+}
+.light-audit-meta-field {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 11px; color: var(--text-muted);
+}
+.light-audit-meta-field--date { flex: 0 0 auto; width: 160px; }
+.light-audit-meta-field--label { flex: 1 1 200px; min-width: 0; max-width: 360px; }
+.light-audit-meta-field-text {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.light-audit-meta-row .ctx-input { margin-top: 0; font-size: 13px; padding: 6px 10px; }
+.light-audit-empty { color: var(--text-muted); font-size: 12px; padding: 12px 0; line-height: 1.5; }
+.light-audit-hint {
+  font-size: 12px; color: var(--text-muted);
+  padding: 6px 10px; margin-bottom: 10px;
+  background: var(--bg-secondary); border-left: 2px solid var(--accent);
+  border-radius: 4px;
+}
+.light-audit-footer {
+  display: flex; gap: 8px; align-items: center; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+
+/* Single-audit detail — per-room mini cards stacked. Replaces the wide
+   7-column table that scrolled horizontally on mobile. Each card shows
+   severity dot + room name + status label + measurement chips for the
+   channels that have readings. Channels with no data are omitted (vs
+   the table's "—" cells which were just visual noise). */
+.light-audit-rooms {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.light-audit-room-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.light-audit-room-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.light-audit-room-name {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+.light-audit-room-status {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  white-space: nowrap;
+}
+.light-audit-room-status-green      { background: rgba(34,197,94,0.12);  color: var(--green); }
+.light-audit-room-status-yellow     { background: rgba(234,179,8,0.12);  color: var(--yellow); }
+.light-audit-room-status-orange     { background: rgba(249,115,22,0.12); color: var(--orange); }
+.light-audit-room-status-red        { background: rgba(239,68,68,0.12);  color: var(--red); }
+.light-audit-room-status-incomplete { background: var(--bg-card);        color: var(--text-muted); }
+.light-audit-room-empty { font-size: 12px; color: var(--text-muted); margin: 0; font-style: italic; }
+.light-audit-room-channels {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.light-audit-channel {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 8px; font-size: 12px;
+}
+.light-audit-channel-label { color: var(--text-muted); font-size: 11px; }
+.light-audit-channel-value { color: var(--text-primary); font-weight: 500; }
+
+/* Compare view — per-room delta cards, no wide table. Each card stacks
+   the channel rows; each row is `before  →  after` with a directional
+   arrow whose color signals improvement (green) / regression (red) /
+   neutral (depends-on-context channels like CCT and lux). */
+.light-audit-compare-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  padding: 10px 14px; background: var(--bg-card); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); flex-wrap: wrap;
+}
+.light-audit-compare-label { font-size: 13px; font-weight: 600; }
+.light-audit-compare-arrow { color: var(--text-muted); font-size: 16px; }
+.light-audit-compare-note { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+.light-audit-interpret-btn {
+  margin-left: auto;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+@media (max-width: 600px) {
+  .light-audit-interpret-btn { margin-left: 0; width: 100%; }
+}
+.light-audit-compare-rooms { display: flex; flex-direction: column; gap: 8px; }
+.light-audit-compare-room {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.light-audit-compare-room-improved   { border-left: 3px solid var(--green); }
+.light-audit-compare-room-regressed  { border-left: 3px solid var(--red); }
+.light-audit-compare-room-measured   { border-left: 3px solid var(--text-muted); }
+.light-audit-compare-room-unchanged  { border-left: 3px solid transparent; }
+.light-audit-compare-room-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.light-audit-sev-empty {
+  display: inline-block; width: 10px; height: 10px;
+  border: 1.5px dashed var(--text-muted); border-radius: 50%;
+  flex-shrink: 0;
+}
+.light-audit-compare-room-name {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  flex: 1;
+}
+.light-audit-compare-verdict {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  padding: 2px 8px; border-radius: 10px;
+}
+.light-audit-compare-verdict-improved   { background: rgba(34,197,94,0.12);  color: var(--green); }
+.light-audit-compare-verdict-regressed  { background: rgba(239,68,68,0.12);  color: var(--red); }
+.light-audit-compare-verdict-measured   { background: var(--bg-card);        color: var(--text-muted); }
+.light-audit-compare-verdict-unchanged  { display: none; }
+.light-audit-compare-channels {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.light-audit-compare-channel {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(60px, auto) auto minmax(60px, auto);
+  gap: 8px; align-items: baseline;
+  font-size: 12px; padding: 3px 0;
+}
+.light-audit-compare-channel-label { color: var(--text-muted); font-size: 11px; }
+.light-audit-compare-channel-before { color: var(--text-secondary); text-align: right; }
+.light-audit-compare-channel-after  { color: var(--text-primary); font-weight: 500; }
+.light-audit-arrow { font-weight: 600; font-size: 13px; }
+
+@media (max-width: 600px) {
+  .light-audit-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .light-audit-compare-channel {
+    grid-template-columns: minmax(70px, 1fr) auto auto auto;
+    font-size: 11px;
+  }
+}
+
+/* Light tools — compact launcher. Recommended actions stay visible; the
+   remaining tools live in collapsed groups so this supports Light
+   Environment instead of becoming a second large tool wall. */
+.light-tools-section {
+  margin-top: 24px;
+  display: grid;
+  gap: 14px;
+}
+.light-tools-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.light-tools-status span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+}
+.light-tools-recommended {
+  display: grid;
+  gap: 8px;
+}
+.light-tools-recommended-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.light-tools-recommended-head span:last-child {
+  color: var(--accent);
+  text-align: right;
+}
+.light-tools-action-grid,
+.light-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.light-tool-action {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 64%, transparent);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+.light-tool-action:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--bg-hover);
+}
+.light-tool-action-primary {
+  border-color: var(--accent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 68%),
+    color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+}
+.light-tool-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 76%, transparent);
+  font-size: 19px;
+}
+.light-tool-action-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.light-tool-action-name {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+.light-tool-action-primary .light-tool-action-name { color: var(--accent); }
+.light-tool-action-desc {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.light-tools-drawer {
+  display: grid;
+  gap: 8px;
+}
+.light-tools-group {
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+  overflow: hidden;
+}
+.light-tools-group > summary {
+  list-style: none;
+}
+.light-tools-group > summary::-webkit-details-marker {
+  display: none;
+}
+.light-tools-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+}
+.light-tools-group[open] .light-tools-group-head {
+  border-bottom: 1px solid var(--border);
+}
+.light-tools-group-time {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.light-tools-group .light-tools-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  padding: 10px;
+}
+@media (max-width: 700px) {
+  .light-tools-action-grid,
+  .light-tools-grid {
+    grid-template-columns: 1fr;
+  }
+  .light-tools-recommended-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .light-tools-recommended-head span:last-child {
+    text-align: left;
+  }
+}
+
+/* Lux meter dial */
+.light-tool-overlay.modal-overlay.show {
+  align-items: flex-start;
+  overflow-y: auto;
+}
+
+.light-tool-modal {
+  width: min(92vw, 480px);
+  max-width: 480px;
+  margin-block: clamp(12px, 5vh, 40px);
+}
+
+.light-tool-modal video {
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+}
+
+.light-tool-modal .modal-body-hint {
+  min-height: 1.35em;
+}
+
+.lux-dial {
+  text-align: center; padding: 24px 0;
+  min-height: 132px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+}
+.lux-dial-value {
+  display: inline-block;
+  min-width: 6ch;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.lux-dial-unit { font-size: 13px; color: var(--text-muted); }
+.lux-dial-zone {
+  min-height: 1.3em;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+.lux-zones {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center;
+  font-size: 11px; color: var(--text-muted);
+  margin-top: 8px;
+}
+.lux-zone-marker span { color: var(--text-secondary); margin-left: 2px; }
+
+/* Flicker detector + dark meter result lines */
+.flicker-result, .dark-status {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  min-height: 74px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.flicker-score-0 { color: var(--green); }
+.flicker-score-1 { color: var(--text-primary); }
+.flicker-score-2 { color: var(--orange); }
+.flicker-score-3 { color: var(--red); }
+.dark-status-ok { color: var(--green); }
+.dark-status-warn { color: var(--orange); }
+.dark-status-over { color: var(--red); }
+
+/* CCT meter */
+.cct-result {
+  text-align: center; padding: 16px 0;
+  margin-top: 12px;
+  min-height: 116px;
+  box-sizing: border-box;
+}
+.cct-value {
+  display: inline-block;
+  min-width: 6ch;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.cct-tone { min-height: 1.25em; font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+.cct-coherence { min-height: 3.2em; font-size: 12px; margin-top: 8px; }
+
+/* Spectrum classifier result */
+.spec-result {
+  margin-top: 12px; padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  min-height: 140px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Glass transmission flow */
+.glass-step {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  font-size: 13px; color: var(--text-secondary);
+  min-height: 50px;
+  box-sizing: border-box;
+}
+.glass-step strong { color: var(--text-primary); }
+.glass-step .import-btn { padding: 6px 14px; font-size: 12px; }
+.glass-reading {
+  display: inline-block;
+  min-width: 9ch;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.glass-result {
+  margin-top: 12px; padding: 12px 14px;
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary);
+  min-height: 76px;
+  box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
+}
+.glass-result strong { color: var(--text-primary); }
+
+/* Eye-level audit room list */
+.audit-status {
+  margin-top: 8px; padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary);
+  min-height: 88px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.audit-room-list {
+  padding-left: 24px;
+  font-size: 13px;
+}
+
+/* Generic .ctx-* form controls — used by the Light feature (sun setup,
+   past-session modal, device dialogs, light-environment survey, light
+   tools). Mirrors the supp-form-field pattern so dropdowns + inputs
+   match the rest of the app's dark/light themes instead of the browser
+   defaults. */
+.ctx-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.ctx-input,
+.ctx-select {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.ctx-input:focus,
+.ctx-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.ctx-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%238b8fa3'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.ctx-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+[data-theme="light"] .ctx-select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%235a5e6e'/></svg>");
+}
+/* Inline checkboxes inside .ctx-label rows (e.g. "Glass between..." */
+.ctx-label > input[type="checkbox"] {
+  width: auto;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+/* Textarea variant */
+textarea.ctx-input { resize: vertical; min-height: 56px; }
+
+/* "Conditions now" — always-visible UV/ozone/AQI strip on dashboard + Light page */
+.light-conditions-now-wrap {
+  margin: 0;
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  container-type: inline-size;
+  container-name: conditions-now;
+  min-width: 0;
+  max-width: 100%;
+}
+.light-conditions-now-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; gap: 12px;
+}
+.light-conditions-now-title {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+}
+.light-conditions-now-actions {
+  display: inline-flex; gap: 6px; align-items: center;
+}
+.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-head {
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-title {
+  display: none;
+}
+.conditions-now-loading, .conditions-now-msg {
+  font-size: 12px; color: var(--text-muted); padding: 4px 0;
+}
+.conditions-now-icon { margin-right: 6px; opacity: 0.6; }
+
+/* Compact variant — inline pills, used inside the Light Today dashboard strip */
+.conditions-now-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 6px 0;
+}
+.conditions-now-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px; font-size: 11px;
+  color: var(--text-secondary);
+}
+.conditions-now-pill strong { color: var(--text-primary); }
+
+/* Full variant — UVI hero (2-col span) + 3 supporting cells in a 4-col
+   grid. UVI dominates because it drives sunburn risk + vit-D synthesis;
+   the others are supporting context. */
+.conditions-now-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+.conditions-now-cell {
+  background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  text-align: center;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.conditions-now-cell-hero {
+  /* UVI hero — 2-col span, larger value, interpretation line beneath */
+  text-align: left;
+  padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.conditions-now-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); margin-bottom: 4px;
+}
+.conditions-now-value {
+  font-size: 22px; font-weight: 600; color: var(--text-primary);
+  line-height: 1.1;
+}
+.conditions-now-value-hero {
+  font-size: 40px; font-weight: 700; line-height: 1;
+}
+/* AQ category — text not number, scaled to fit "Unhealthy for sensitive" */
+.conditions-now-value-aq {
+  font-size: 14px; line-height: 1.2;
+}
+.conditions-now-interpretation {
+  font-size: 12px; color: var(--text-secondary);
+  font-weight: 500; line-height: 1.4;
+}
+.conditions-now-sub {
+  font-size: 10px; color: var(--text-muted); margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* Sun-events rail — sunrise / peak / sunset + a "you are here" marker
+   showing the user's current position along the day's sun arc. */
+.conditions-now-events-wrap {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+  max-width: 100%;
+}
+.conditions-now-events-caption {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0;
+  color: var(--text-muted); font-weight: 600;
+  text-align: left;
+  margin-bottom: 10px;
+}
+.conditions-now-events {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 0 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.conditions-now-events-rail {
+  --conditions-event-count: 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--conditions-event-count), minmax(82px, 1fr));
+  min-width: 0;
+  width: max(100%, calc(var(--conditions-event-count) * 84px));
+  padding: 2px 4px 0;
+}
+.conditions-now-events-track {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-self: start;
+  height: 2px;
+  margin: 14px 40px 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    transparent 0,
+    color-mix(in srgb, var(--border) 82%, transparent) 24px,
+    color-mix(in srgb, var(--border) 82%, transparent) calc(100% - 24px),
+    transparent 100%);
+}
+.conditions-now-event {
+  position: relative;
+  z-index: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: center;
+  color: var(--text-secondary);
+  scroll-snap-align: center;
+}
+.conditions-now-event-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  box-shadow: 0 0 0 4px var(--bg-card);
+}
+.conditions-now-event-icon {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+}
+.conditions-now-event-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  max-width: 92px;
+  min-width: 0;
+}
+.conditions-now-event-label {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.conditions-now-event-time {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+.conditions-now-event-peak .conditions-now-event-dot {
+  border-color: color-mix(in srgb, var(--orange) 70%, var(--border));
+  background: color-mix(in srgb, var(--orange) 12%, var(--bg-card));
+}
+.conditions-now-event-peak .conditions-now-event-icon { color: var(--orange); }
+.conditions-now-event-peak .conditions-now-event-label {
+  color: var(--text-primary);
+}
+/* UV-A onset / offset — biological dawn / dusk markers. Violet accent
+   to evoke 360-400 nm violet and distinguish from peak orange. */
+.conditions-now-event-uva .conditions-now-event-dot {
+  border-color: color-mix(in srgb, var(--purple) 62%, var(--border));
+  background: color-mix(in srgb, var(--purple) 10%, var(--bg-card));
+}
+.conditions-now-event-uva .conditions-now-event-icon {
+  color: var(--purple); /* violet — matches the UV-A wavelength visually */
+}
+.conditions-now-event-now {
+  opacity: 1;
+}
+.conditions-now-event-now .conditions-now-event-dot {
+  width: 32px;
+  height: 32px;
+  margin-top: -2px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-card));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 8px 18px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.conditions-now-event-now .conditions-now-event-icon { color: var(--accent); }
+.conditions-now-event-now .conditions-now-event-label {
+  color: var(--accent);
+}
+.conditions-now-event-now .conditions-now-event-time {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+.conditions-now-event-past .conditions-now-event-dot,
+.conditions-now-event-past .conditions-now-event-icon {
+  opacity: 0.62;
+}
+.conditions-now-event-past .conditions-now-event-time {
+  color: var(--text-secondary);
+}
+
+/* Cloud + peak chips on the UVI hero — replace the comma-joined sub-line */
+.conditions-now-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 6px;
+}
+.conditions-now-chip {
+  display: inline-flex; align-items: center;
+  font-size: 11px; color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.conditions-now-chip-peak {
+  color: var(--orange);
+  border-color: var(--orange);
+  background: transparent;
+}
+
+/* Asterisk on time-to-MED when Fitzpatrick is using a default — alerts
+   the user that the estimate is not yet personalized. */
+.conditions-now-asterisk {
+  display: inline-block;
+  color: var(--orange);
+  font-weight: 700;
+  cursor: help;
+  margin-left: 1px;
+}
+
+/* Footnote at the bottom — burn-time estimates depend on more than
+   skin type. Italic muted, soft border above. */
+.conditions-now-footnote {
+  margin-top: 10px; padding: 8px 0;
+  font-size: 11px; color: var(--text-muted);
+  font-style: italic; line-height: 1.5;
+  border-top: 1px solid var(--border);
+}
+.conditions-now-footnote strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* App tooltip carriers used by custom data attrs. Legacy `title`
+   attributes are picked up by js/touch-tooltip.js without extra markup. */
+.conditions-now [data-conditions-tooltip],
+.light-conditions-now-actions [data-conditions-tooltip],
+[data-app-tooltip] {
+  cursor: help;
+}
+.conditions-now button[data-conditions-tooltip],
+.light-conditions-now-actions button[data-conditions-tooltip],
+button[data-app-tooltip] {
+  cursor: pointer;
+}
+.conditions-now [data-conditions-tooltip]:focus-visible,
+.light-conditions-now-actions [data-conditions-tooltip]:focus-visible,
+[data-app-tooltip]:focus-visible,
+[aria-describedby="app-tooltip"]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* App-wide tooltip overlay — fixed-position so scroll containers,
+   modals, and timeline rails cannot clip it. */
+.app-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: min(340px, calc(100vw - 20px));
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg-card)) 96%, transparent);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.app-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-tooltip { transition: none; }
+}
+
+/* Compact dashboard interpretation line — appears below the pill row */
+.conditions-now-row-interp {
+  font-size: 12px; color: var(--text-secondary);
+  margin-top: 6px; line-height: 1.4;
+}
+
+/* Mobile — UVI hero spans the full row; supporting conditions stay compact. */
+@media (max-width: 600px) {
+  .conditions-now-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .conditions-now-cell-hero {
+    grid-column: 1 / -1;
+  }
+  .conditions-now-cell:not(.conditions-now-cell-hero) {
+    padding: 10px 7px;
+  }
+  .conditions-now-value-aq {
+    font-size: 17px;
+  }
+  .conditions-now-sub {
+    font-size: 10px;
+  }
+  .conditions-now-events {
+    margin-inline: -2px;
+  }
+  .conditions-now-events-rail {
+    grid-template-columns: repeat(var(--conditions-event-count), minmax(76px, 1fr));
+    width: max(100%, calc(var(--conditions-event-count) * 78px));
+  }
+  .conditions-now-event-copy {
+    max-width: 82px;
+  }
+}
+@container conditions-now (max-width: 300px) {
+  .conditions-now-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .conditions-now-cell-hero {
+    grid-column: auto;
+  }
+  .conditions-now-cell {
+    text-align: left;
+    align-items: flex-start;
+    padding: 10px 12px;
+  }
+  .conditions-now-value-aq {
+    font-size: 16px;
+  }
+}
+
+/* Severity tier on conditions cells — colored value + a small dot before
+   the label, no border swap. Border stays neutral so cells look uniform
+   and don't read like focusable / clickable controls. */
+.conditions-now-cell.conditions-uvi-low,
+.conditions-now-cell.conditions-uvi-moderate,
+.conditions-now-cell.conditions-uvi-high,
+.conditions-now-cell.conditions-uvi-very-high,
+.conditions-now-cell.conditions-uvi-extreme,
+.conditions-now-cell.conditions-aq-good,
+.conditions-now-cell.conditions-aq-moderate,
+.conditions-now-cell.conditions-aq-unhealthy-sensitive,
+.conditions-now-cell.conditions-aq-unhealthy,
+.conditions-now-cell.conditions-aq-hazardous {
+  position: relative;
+}
+.conditions-now-cell .conditions-now-label::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  margin-right: 5px;
+  background: var(--text-muted);
+  vertical-align: 1px;
+}
+/* UVI tier colors */
+.conditions-uvi-low       .conditions-now-label::before { background: var(--green); }
+.conditions-uvi-low       .conditions-now-value { color: var(--green); }
+.conditions-uvi-moderate  .conditions-now-label::before { background: var(--yellow); }
+.conditions-uvi-moderate  .conditions-now-value { color: var(--yellow); }
+.conditions-uvi-high      .conditions-now-label::before { background: var(--orange); }
+.conditions-uvi-high      .conditions-now-value { color: var(--orange); }
+.conditions-uvi-very-high .conditions-now-label::before { background: var(--red); }
+.conditions-uvi-very-high .conditions-now-value { color: var(--red); }
+.conditions-uvi-extreme   .conditions-now-label::before { background: var(--purple); }
+.conditions-uvi-extreme   .conditions-now-value { color: var(--purple); }
+/* AQI tier colors */
+.conditions-aq-good                .conditions-now-label::before { background: var(--green); }
+.conditions-aq-good                .conditions-now-value { color: var(--green); }
+.conditions-aq-moderate            .conditions-now-label::before { background: var(--yellow); }
+.conditions-aq-moderate            .conditions-now-value { color: var(--yellow); }
+.conditions-aq-unhealthy-sensitive .conditions-now-label::before { background: var(--orange); }
+.conditions-aq-unhealthy-sensitive .conditions-now-value { color: var(--orange); }
+.conditions-aq-unhealthy           .conditions-now-label::before { background: var(--red); }
+.conditions-aq-unhealthy           .conditions-now-value { color: var(--red); }
+.conditions-aq-hazardous           .conditions-now-label::before { background: var(--purple); }
+.conditions-aq-hazardous           .conditions-now-value { color: var(--purple); }
+
+.conditions-now-stale {
+  display: inline-block;
+  font-size: 11px; color: var(--text-muted);
+  font-style: italic;
+}
+.conditions-now-stale.conditions-now-stale-mild {
+  color: var(--orange);
+  font-style: normal;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
+}
+
+/* Trust footer — source attribution + refresh + inspect, always shown.
+   Lets the user verify the data flow without opening DevTools. */
+.conditions-now-trust {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+.conditions-now-source {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text-muted);
+  flex: 1; min-width: 0;
+}
+.conditions-now-source-dot {
+  display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.conditions-now-source.is-fresh   .conditions-now-source-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.conditions-now-source.is-stale   .conditions-now-source-dot { background: var(--yellow); }
+.conditions-now-source.is-offline .conditions-now-source-dot { background: var(--orange); }
+.conditions-now-override {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-muted);
+}
+.conditions-now-override input[type="number"] {
+  width: 56px; padding: 2px 6px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 4px; font-size: 11px; color: var(--text-primary);
+  font-family: inherit;
+}
+.conditions-now-override button {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 8px; font-size: 11px;
+  color: var(--text-secondary); cursor: pointer; font-family: inherit;
+}
+/* Mobile: stack the manual-UVI row onto its own line and grow input +
+   button so they meet a usable tap target. */
+@media (max-width: 600px) {
+  .conditions-now-override {
+    flex-basis: 100%; width: 100%;
+    margin-top: 4px;
+  }
+  .conditions-now-override label { flex: 0 0 auto; }
+  .conditions-now-override input[type="number"] {
+    flex: 1; min-width: 0; width: auto;
+    padding: 8px 10px; font-size: 14px;
+  }
+  .conditions-now-override button {
+    padding: 8px 14px; font-size: 13px;
+    min-height: 38px;
+  }
+}
+.conditions-now-override button:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+.conditions-now-override-badge {
+  display: inline-block; margin-left: 6px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 1px 6px; border-radius: 3px;
+  background: var(--accent); color: var(--bg);
+}
+.conditions-now-refresh, .conditions-now-inspect {
+  background: color-mix(in srgb, var(--bg-secondary) 64%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px; font-size: 11px;
+  color: var(--text-secondary); cursor: pointer;
+  font-family: inherit;
+}
+.conditions-now-refresh:hover, .conditions-now-inspect:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Refreshing state — animated spinner on the ↻ icon + faded trust footer */
+@keyframes conditions-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.conditions-now.is-refreshing .conditions-now-trust {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.conditions-now.is-refreshing .conditions-now-refresh {
+  position: relative;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.conditions-now.is-refreshing .conditions-now-refresh::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 6px;
+  width: 9px; height: 9px;
+  border: 1.5px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  margin-top: -5px;
+  animation: conditions-spin 0.7s linear infinite;
+}
+.conditions-now.is-refreshing .conditions-now-refresh {
+  padding-left: 22px;
+}
+
+/* Just-refreshed flash — brief green confirmation on the source line */
+.conditions-now-source.just-refreshed,
+.conditions-now-source-compact.just-refreshed {
+  color: var(--green);
+  transition: color 0.2s;
+}
+.conditions-now-source.just-refreshed::before {
+  content: '✓ ';
+  color: var(--green);
+  font-weight: 600;
+}
+.conditions-now-warning {
+  color: var(--orange); font-size: 11px;
+  cursor: help;
+}
+
+/* Compact source pill — appears in dashboard Light Today strip */
+.conditions-now-source-compact {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--text-muted);
+  margin-left: auto; padding: 2px 8px;
+  background: transparent;
+  border-radius: 999px;
+}
+.conditions-now-source-compact.is-fresh   .conditions-now-source-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.conditions-now-source-compact.is-stale   .conditions-now-source-dot { background: var(--yellow); }
+.conditions-now-source-compact.is-offline .conditions-now-source-dot { background: var(--orange); }
+.conditions-now-cell-meta {
+  grid-column: 1 / -1;
+  background: transparent; border: none;
+  text-align: center; padding: 4px 0;
+}
+
+/* Detailed (past) session modal — silhouette picker + form fields */
+.sun-detailed-modal, .sun-start-modal { max-width: 560px; }
+
+
+/* Per-session detail modal — opened by clicking a session row */
+.sun-detail-modal { max-width: 540px; }
+.sun-detail-modal {
+  --session-accent: var(--orange);
+  border-color: color-mix(in srgb, var(--session-accent) 24%, var(--border));
+  box-shadow: var(--shadow-lg), inset 0 3px 0 color-mix(in srgb, var(--session-accent) 78%, transparent);
+}
+.sun-detail-modal[data-session-kind="device"] { --session-accent: var(--red); }
+.sun-detail-modal > .modal-header:first-child {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--session-accent) 10%, transparent), transparent 58%),
+    color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, var(--session-accent) 18%, var(--border));
+}
+.sun-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sun-detail-grid > div {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--session-accent) 6%, transparent), transparent 60%),
+    color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--session-accent) 14%, var(--border));
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex; flex-direction: column;
+}
+.sun-detail-grid span {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.sun-detail-grid strong {
+  font-size: 14px; color: var(--text-primary); font-weight: 600;
+  margin-top: 2px;
+}
+.sun-detail-section { margin: 14px 0; }
+.sun-detail-section-label {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.sun-detail-section-value {
+  font-size: 13px; color: var(--text-primary); line-height: 1.5;
+}
+.sun-detail-channels {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.sun-detail-channel-row {
+  --channel-accent: var(--accent);
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto 14px;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px 10px 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--channel-accent) 8%, transparent), transparent 58%),
+    color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 18%, var(--border));
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--channel-accent) 64%, transparent);
+}
+.sun-detail-channel-row[data-channel="vitamin_d"] { --channel-accent: var(--yellow); }
+.sun-detail-channel-row[data-channel="circadian"] { --channel-accent: var(--accent); }
+.sun-detail-channel-row[data-channel="nir_solar"] { --channel-accent: var(--red); }
+.sun-detail-channel-row[data-channel="no_cv"] { --channel-accent: var(--green); }
+.sun-detail-channel-row[data-channel="pomc"] { --channel-accent: var(--orange); }
+.sun-detail-channel-row[data-channel="violet_eye"] { --channel-accent: var(--purple); }
+.sun-detail-channel-row[data-channel="pbm_red"] { --channel-accent: var(--red); }
+.sun-detail-channel-row[data-channel="pbm_nir"] { --channel-accent: var(--orange); }
+.sun-detail-channel-row-clickable {
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.sun-detail-channel-row-clickable:hover {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--channel-accent) 12%, transparent), transparent 58%),
+    color-mix(in srgb, var(--bg-hover) 86%, transparent);
+  border-color: color-mix(in srgb, var(--channel-accent) 44%, var(--border));
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--channel-accent) 82%, transparent),
+    0 8px 18px color-mix(in srgb, var(--channel-accent) 10%, transparent);
+}
+.sun-detail-channel-row-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sun-detail-channel-chevron {
+  color: var(--text-muted);
+  font-size: 16px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.sun-detail-channel-icon { font-size: 16px; flex-shrink: 0; }
+.sun-detail-channel-label {
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.sun-detail-channel-value {
+  min-width: 0;
+  text-align: right;
+  font-size: 12px; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.sun-detail-channel-tier {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+  color: var(--text-muted); flex-shrink: 0;
+  min-width: 70px; text-align: center;
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+@media (max-width: 480px) {
+  .sun-detail-channel-row {
+    grid-template-columns: 30px minmax(0, 1fr) 16px;
+    grid-template-areas:
+      "icon label chevron"
+      "icon value tier";
+  }
+  .sun-detail-channel-icon { grid-area: icon; }
+  .sun-detail-channel-label { grid-area: label; white-space: normal; }
+  .sun-detail-channel-value { grid-area: value; text-align: left; }
+  .sun-detail-channel-tier { grid-area: tier; justify-self: end; }
+  .sun-detail-channel-chevron { grid-area: chevron; justify-self: end; }
+  /* Mobile: shrink the tier pill so longer channel labels (Outdoor eye
+     light, Mood & hormones) don't get squeezed by the chip + chevron. */
+  .sun-detail-channel-tier { min-width: 50px; padding: 3px 6px; font-size: 9px; }
+  /* Modal title — full-day-of-week + 4-digit-year wraps to 2 lines on
+     phones. Drop the day-of-week and year at narrow widths via a smaller
+     font + tighter line-height. */
+  .sun-detail-modal .modal-header h3 { font-size: 15px; line-height: 1.25; }
+  /* Atmosphere "— (default 300)" string is long for the 80px grid cell;
+     allow the cell to be wider on mobile by dropping the auto-fit and
+     using 2 columns so each cell has more breathing room. */
+  .sun-detail-atm { grid-template-columns: 1fr 1fr; }
+  .sun-detail-atm strong { font-size: 12px; }
+}
+/* Channel-row tier chips inside the session detail modal — same scheme
+   as the .light-channel-detail-tierpill in the Light page panel:
+   tier 4 (hit weekly target) is GREEN, not red. Mirrors the chart's
+   green-for-hit-target visual so the user gets one consistent signal. */
+.sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier {
+  color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary);
+}
+.sun-detail-channel-row.sun-chip-tier-2 .sun-detail-channel-tier {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.sun-detail-channel-row.sun-chip-tier-3 .sun-detail-channel-tier {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.sun-detail-channel-row.sun-chip-tier-4 .sun-detail-channel-tier {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+}
+.sun-detail-atm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 6px;
+}
+.sun-detail-atm > div {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  display: flex; flex-direction: column;
+  font-size: 11px;
+}
+.sun-detail-atm span { color: var(--text-muted); font-size: 10px; }
+.sun-detail-atm strong { color: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
+.sun-detail-atm-source { grid-column: 1 / -1; }
+/* UV split readout is verbose ("UVB 3.0% (1.0 W/m²) · UVA 97.0% (30.7 W/m²)"); span the full grid row so it doesn't get cropped or overflow into other cells. */
+.sun-detail-atm-uvsplit { grid-column: 1 / -1; }
+.sun-detail-atm-uvsplit strong { font-size: 12px; }
+.sun-detail-empty {
+  font-size: 12px; color: var(--text-muted); font-style: italic;
+}
+
+/* ─── Fresco-style body region picker ──────────────────────────────────
+   The picker is staged as a small fresco panel — figures rendered as
+   single confident outlines in warm cream against deep midnight. Selected
+   regions bathe in sun-gold radial wash, as if real sunlight were falling
+   on the body. Klimt × Pompeii × app-modern. */
+
+/* Fresco color tokens — used only inside the silhouette block so the rest
+   of the app's design system is undisturbed. Reach for these instead of
+   raw hex values when adjusting the picker. */
+:root {
+  --fresco-night:   #15131e;       /* backdrop */
+  --fresco-night-2: #1c1828;       /* lighter pool */
+  --fresco-cream:   #e8d8b9;       /* body fill */
+  --fresco-cream-2: #d8c4a0;       /* mid-tone shading */
+  --fresco-umber:   #5a3a1f;       /* line work */
+  --fresco-umber-2: #3a2412;       /* deep accents */
+  --fresco-sienna:  #b86a3c;       /* detail fills (nipples, genitals) */
+  --fresco-gold:    #f0b95a;       /* sun accent */
+  --fresco-gold-2:  #f5d489;       /* sun glow */
+  --fresco-rose:    #d88e6a;       /* hover wash */
+}
+[data-theme="light"] {
+  --fresco-night:   #2a2030;       /* in light mode the panel stays moody — */
+  --fresco-night-2: #322438;       /*   the figures need the contrast      */
+  --fresco-cream:   #ead7b5;
+  --fresco-cream-2: #d6bd92;
+  --fresco-umber:   #4d3018;
+  --fresco-umber-2: #2c1a08;
+  --fresco-sienna:  #b06038;
+  --fresco-gold:    #ecb152;
+  --fresco-gold-2:  #f5d489;
+  --fresco-rose:    #d28666;
+}
+
+.sun-silhouette-wrap {
+  margin: 14px 0 8px;
+  display: flex; flex-direction: column; align-items: center;
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px 10px;
+}
+
+.sun-silhouette {
+  width: 100%; max-width: 380px;
+  height: auto;
+  display: block;
+}
+
+/* Mobile — let the picker take the full modal width so every region
+   (especially thin ones like thyroid / glutes / feet) renders larger
+   for finger-tap accuracy. Earlier 290px cap was holding the figures
+   at ~1.45× of the SVG viewBox; relaxing it lets the figures scale
+   up by ~70% inside a typical 351px mobile modal. */
+@media (max-width: 600px) {
+  .sun-silhouette-wrap { padding: 10px 6px 6px; }
+  .sun-silhouette { max-width: 100%; }
+}
+
+/* Body outline — single confident line that DEFINES the figure. We use
+   both stroke (thin umber line) and fill (warm cream wash) to give the
+   "ink and rice paper" effect. The fill makes the region clipPath wash
+   visible; the stroke is the artwork line. */
+.sun-silhouette-outline {
+  fill: var(--fresco-cream);
+  fill-opacity: 0.92;
+  stroke: var(--fresco-umber);
+  stroke-width: 0.55;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  paint-order: fill stroke;
+}
+
+/* Interior anatomical strokes — collarbone, sternum, breast under-curve,
+   navel, abdominal hints, knee dimples, spine, scapulae. Thin and quiet. */
+.sun-silhouette-landmark {
+  fill: none;
+  stroke: var(--fresco-umber);
+  stroke-width: 0.32;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+/* Detail accents — nipples, genital silhouettes, gluteal globes. Warmer
+   sienna-on-cream so they register without screaming. */
+.sun-silhouette-detail {
+  fill: var(--fresco-sienna);
+  fill-opacity: 0.58;
+  stroke: var(--fresco-umber);
+  stroke-width: 0.25;
+  stroke-opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Region tap zones — invisible at rest. On hover, a soft rose wash
+   suggests warmth. On selection, sun-gold takes over with a radial
+   gradient anchored mid-region for a "sunlight pooling on skin" feel.
+   We rely on the SVG <clipPath> in renderBodySilhouette() to mask these
+   to the body shape. */
+.sun-silhouette-region {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 1.2;
+  cursor: pointer;
+  pointer-events: all;
+  transition: fill 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 0.22s,
+              fill-opacity 0.22s;
+}
+.sun-silhouette-region:hover {
+  fill: var(--accent-light);
+  fill-opacity: 0.30;
+}
+.sun-silhouette-region:focus-visible {
+  outline: none;
+  fill: var(--accent);
+  fill-opacity: 0.45;
+  stroke: var(--accent);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 1.5;
+  stroke-opacity: 0.7;
+}
+.sun-silhouette-region.selected {
+  fill: var(--accent);
+  fill-opacity: 0.78;
+  stroke: var(--accent-light);
+  stroke-width: 0.4;
+  stroke-opacity: 0.6;
+}
+.sun-silhouette-region.selected:hover {
+  fill-opacity: 0.85;
+}
+
+/* Coarse-pointer (touch) — gently fatten the hit area so thin regions
+   like thyroid / glutes / feet are still tappable. Earlier attempt at
+   32px non-scaling-stroke was too aggressive: adjacent regions' invisible
+   halos overlapped enough that the wrong region captured taps based on
+   SVG paint order (legs hijacking torso, etc.). Keeping the halo modest
+   (5 SVG units ≈ 12 screen px) plus relaxing the mobile silhouette width
+   above gets us most of the way without the overlap chaos. */
+@media (pointer: coarse) {
+  .sun-silhouette-region {
+    stroke: var(--text-muted);
+    stroke-width: 5;
+    stroke-opacity: 0.001; /* near-invisible but expands hit-area */
+    paint-order: stroke fill;
+  }
+  .sun-silhouette-region:hover,
+  .sun-silhouette-region.selected,
+  .sun-silhouette-region:focus-visible {
+    stroke-opacity: 1;
+    stroke-width: 0.8;
+    paint-order: fill stroke;
+  }
+  /* AI verdict refresh + dismiss + CTA buttons — meet 44×44 minimum
+     hit target on touch devices. */
+  .sun-session-ai-refresh,
+  .tool-aiming-guide-dismiss,
+  .sun-session-ai-cta {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+}
+/* Front / back labels — italic lowercase serif as museum-caption text.
+   Use !important to win over any later inline / cascade — modal overlays
+   have aggressive defaults. Font-size in CSS px renders at screen pixels
+   regardless of the SVG viewBox scaling factor, so 8px reads small here. */
+svg.sun-silhouette text.sun-silhouette-label {
+  font-family: inherit !important;
+  font-size: 7px !important;
+  fill: var(--text-secondary) !important;
+  fill-opacity: 0.85 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+}
+.sun-silhouette-hint {
+  font-family: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--fresco-cream);
+  opacity: 0.72;
+  text-align: center; line-height: 1.5;
+  margin: 6px 0 12px; min-height: 18px;
+  letter-spacing: 0.2px;
+}
+.sun-silhouette-hint-error {
+  color: var(--red);
+  font-weight: 500;
+}
+.sun-start-details {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.sun-start-details summary {
+  font-size: 12px; color: var(--text-muted);
+  cursor: pointer; padding: 4px 0;
+  list-style: none;
+}
+.sun-start-details summary::before { content: '▸ '; opacity: 0.6; }
+.sun-start-details[open] summary::before { content: '▾ '; }
+.sun-detailed-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+@media (max-width: 480px) {
+  .sun-detailed-row { grid-template-columns: 1fr; }
+}
+.sun-detailed-glass { display: flex; align-items: center; gap: 8px; }
+.sun-detailed-glass-hint {
+  margin: 4px 0 0 24px; font-size: 11px; color: var(--text-muted); line-height: 1.45;
+}
+
+/* Pre-session UVI warning banner — surfaces extreme/very-high UV before
+   the user starts a session. Color escalates by tier. */
+.sun-start-uvi-banner {
+  margin: 0 0 12px 0;
+}
+.sun-uvi-warn, .sun-uvi-veryhigh, .sun-uvi-extreme {
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; line-height: 1.5;
+  border: 1px solid; display: block;
+}
+.sun-uvi-warn     { background: var(--yellow-bg); border-color: var(--yellow); color: var(--text-primary); }
+.sun-uvi-veryhigh { background: var(--orange-bg); border-color: var(--orange); color: var(--text-primary); }
+.sun-uvi-extreme  { background: var(--red-bg); border-color: var(--red); color: var(--text-primary); }
+.sun-uvi-warn strong, .sun-uvi-veryhigh strong, .sun-uvi-extreme strong { color: var(--text-primary); }
+
+/* Heat-stress chip on the active session card */
+.sun-session-heat {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
+}
+
+/* Eye-UV chip on the active session card (retinal exposure tracker) */
+.sun-session-retinal {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  background: color-mix(in srgb, var(--yellow) 10%, transparent); color: var(--orange);
+  border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
+}
+.sun-session-retinal.warn { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); border-color: color-mix(in srgb, var(--red) 30%, transparent); }
+
+/* Active-session inline controls — Pause/Resume + Sunscreen + Ozone.
+   Compact pill row beneath the meta line on active session cards. */
+.sun-session-active-controls {
+  display: flex; flex-wrap: wrap; gap: 8px 12px;
+  margin: 8px 0 4px;
+}
+/* Primary actions (Stop, Pause) read first; secondary cluster is
+   visually grouped by a subtle separator gap so the row doesn't read
+   as 6 equal-weight controls. */
+.sun-session-ctl-primary,
+.sun-session-ctl-secondary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.sun-session-ctl-secondary {
+  padding-left: 8px; border-left: 1px solid var(--border);
+}
+.sun-session-ctl {
+  padding: 4px 10px; font-size: 11px;
+  background: var(--bg-input, var(--bg-secondary)); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+/* Narrow viewports: collapse secondary-action labels so the controls
+   fit one row instead of overflowing into a "+3 more" wrap. The icon
+   carries the action; title attr serves the tooltip. Primary buttons
+   keep their text — they're the canonical actions.
+   But: on touch devices `title` tooltips don't fire (no hover event),
+   so keep labels visible there even at narrow widths. The label IS
+   the discoverability on mobile. */
+@media (max-width: 600px) and (hover: hover) {
+  .sun-session-ctl-secondary .sun-session-ctl-label { display: none; }
+  .sun-session-ctl-secondary .sun-session-ctl { padding: 4px 8px; }
+}
+.sun-session-ctl:hover { background: var(--bg-card); border-color: var(--accent); color: var(--accent); }
+
+/* Legacy touch-tooltip class kept for any cached DOM created by older app
+   code; new tooltips use .app-tooltip above. */
+.touch-tooltip {
+  position: fixed; z-index: 10000;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 12px;
+  background: var(--bg-elevated, #1f2330); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; line-height: 1.4;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0; transform: translateY(4px);
+  transition: opacity 0.12s, transform 0.12s;
+  pointer-events: none; /* never blocks subsequent taps */
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.touch-tooltip-show { opacity: 1; transform: translateY(0); }
+
+/* Stop button — primary emphasis so it reads as the canonical action
+   on the active-session card, not just another optional control. */
+.sun-session-ctl-stop {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.sun-session-ctl-stop:hover {
+  background: var(--accent-strong, var(--accent));
+  border-color: var(--accent-strong, var(--accent));
+  color: var(--on-accent);
+  filter: brightness(1.05);
+}
+
+.sun-session-paused {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  background: var(--neutral-soft-bg); color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.sun-session-forgot {
+  margin: 8px 0; padding: 8px 12px;
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 12px; line-height: 1.4;
+  cursor: pointer; color: var(--text-primary);
+}
+.sun-session-forgot:hover { background: color-mix(in srgb, var(--yellow) 15%, transparent); }
+
+/* Vit-D daily budget chip on the dashboard Light Today row. */
+.light-today-vitd-warn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  background: var(--red-bg); color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+  margin-left: 8px;
+}
+.light-today-vitd-info {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; color: var(--text-secondary);
+  background: var(--bg-input, var(--bg-secondary)); border: 1px solid var(--border);
+  margin-left: 8px;
+}
+
+/* Burn-risk banner on the Light & Sun page */
+.light-med-banner {
+  margin: 16px 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  box-shadow: var(--shadow);
+}
+.light-med-banner.light-med-warn { border-color: var(--orange); background: var(--orange-bg); }
+.light-med-banner.light-med-over { border-color: var(--red); background: var(--red-bg); }
+.light-med-icon { font-size: 20px; }
+.light-med-banner.light-med-ok .light-med-icon { color: var(--green); }
+.light-med-banner.light-med-warn .light-med-icon { color: var(--orange); }
+.light-med-banner.light-med-over .light-med-icon { color: var(--red); }
+.light-med-title { font-size: 14px; color: var(--text-primary); }
+.light-med-pct { color: var(--text-muted); font-weight: normal; font-size: 12px; }
+.light-med-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.light-med-carryover {
+  margin-top: 6px; font-size: 12px; color: var(--text-primary);
+  padding: 6px 10px; border-radius: 6px;
+  background: var(--yellow-bg);
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
+}
+.light-explainer {
+  margin: 0; padding: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+.light-explainer summary {
+  padding: 12px 16px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  user-select: none;
+}
+.light-explainer summary::marker { color: var(--text-muted); }
+.light-explainer-body {
+  padding: 0 16px 14px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px; line-height: 1.55; color: var(--text-secondary);
+}
+.light-explainer-body p { margin: 10px 0; }
+.light-explainer-body strong { color: var(--text-primary); }
+.light-explainer-body a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.light-explainer-body a:hover { color: var(--accent-light); }
+.light-data-source-details {
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  padding: 0;
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+.light-data-source-details summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  user-select: none;
+}
+.light-data-source-body {
+  padding: 0 16px 16px;
+}
+
+/* Light & Sun page */
+.light-quicklog-row { align-items: stretch; }
+
+/* Sessions list */
+.sun-sessions-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.sun-session {
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+}
+.light-session-row {
+  --session-accent: var(--orange);
+  position: relative;
+  padding: 13px 16px 13px 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--session-accent) 7%, transparent), transparent 62%),
+    color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border-color: color-mix(in srgb, var(--session-accent) 18%, var(--border));
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--session-accent) 70%, transparent),
+    var(--shadow);
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+.light-session-row:hover {
+  border-color: color-mix(in srgb, var(--session-accent) 38%, var(--border));
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--session-accent) 86%, transparent),
+    0 8px 18px color-mix(in srgb, var(--session-accent) 10%, transparent);
+}
+.light-session-sun { --session-accent: var(--yellow); }
+.light-session-device { --session-accent: var(--red); }
+.light-page .dashboard-widget[data-widget-id="light-sessions"] .sun-session-head {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-kind {
+  flex: 1 1 100%;
+  margin-left: 38px;
+  max-width: calc(100% - 38px);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-mode-chip {
+  max-width: calc(100% - 38px);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.light-page .dashboard-widget[data-widget-id="light-sessions"] .sun-session-med {
+  margin-left: 0;
+}
+.sun-session-head { display: flex; align-items: center; gap: 12px; }
+.sun-session-date { font-weight: 600; color: var(--text-primary); }
+.sun-session-duration { color: var(--text-secondary); font-size: 13px; }
+/* Live vitamin D synthesis chip — surfaces approximate IU + IU/min on
+   active sessions. Sits next to the burn-dose chip in the session-row
+   header. Color stays neutral (it's a positive signal regardless of
+   tier) to keep the burn-dose chip's color the load-bearing visual. */
+.sun-session-vitd {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.sun-session-med {
+  margin-left: auto;
+  padding: 2px 8px; border-radius: 12px;
+  background: var(--green-bg); color: var(--green);
+  font-size: 11px; font-weight: 600;
+}
+.sun-session-med.warn { background: var(--orange-bg); color: var(--orange); }
+.sun-session-med.over { background: var(--red-bg); color: var(--red); }
+
+/* Per-session AI verdict (inline in row + richer block in detail modal). */
+.sun-session-ai {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.sun-session-ai-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  display: inline-block; transition: background 0.3s, box-shadow 0.3s;
+}
+.sun-session-ai-dot-gray { background: var(--text-muted); opacity: 0.45; }
+.sun-session-ai-dot-green { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
+.sun-session-ai-dot-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
+.sun-session-ai-dot-red { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
+.sun-session-ai-dot-shimmer {
+  background: linear-gradient(90deg, var(--text-muted) 25%, var(--border) 50%, var(--text-muted) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite;
+}
+.sun-session-ai-tip {
+  flex: 1; min-width: 0;
+  color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sun-session-ai-tip-green { color: var(--green); }
+.sun-session-ai-tip-yellow { color: var(--yellow); }
+.sun-session-ai-tip-red { color: var(--red); }
+.sun-session-ai-prefix { margin-right: 2px; opacity: 0.85; }
+.sun-session-ai-refresh {
+  background: transparent;
+  /* Subtle border anchors the icon as a button — earlier the all-
+     transparent treatment + grayscale color made the affordance
+     invisible on every verdict block. Border + bg-tint at idle keeps
+     it discoverable without screaming for attention. */
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  color: var(--text-primary); cursor: pointer;
+  font-size: 14px; line-height: 1;
+  padding: 4px 8px; border-radius: 6px;
+  flex-shrink: 0;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.sun-session-ai-refresh:hover { color: var(--text-primary); background: var(--bg-elev-2, rgba(255,255,255,0.06)); border-color: var(--accent); }
+.sun-session-ai-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Idle "Analyze this session" CTA — passive prompt for sessions that
+   haven't been auto-analyzed yet (created before this feature, or
+   imported from another device). */
+.sun-session-ai-idle .sun-session-ai-cta {
+  background: transparent; border: none;
+  color: var(--accent); cursor: pointer;
+  font-size: 12px; padding: 0;
+  text-align: left;
+  flex: 1; min-width: 0;
+}
+.sun-session-ai-idle .sun-session-ai-cta:hover { text-decoration: underline; }
+.sun-session-ai-idle .sun-session-ai-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.sun-detail-ai-idle {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-muted);
+}
+.sun-detail-ai-idle .sun-session-ai-refresh {
+  color: var(--text-primary);
+  font-size: 12px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+/* Compact AI verdict line for Light Tools measurement readings —
+   sits directly under the value row in the room detail panel.
+   `flex-basis: 100%` forces this onto its own row inside the
+   flex-wrap parent (.light-env-room-readings) so the tip text can
+   wrap on narrow viewports instead of overflowing horizontally. */
+.light-env-reading-ai {
+  display: flex; align-items: center; gap: 6px;
+  flex-basis: 100%; min-width: 0; width: 100%;
+  margin: 4px 0 8px 22px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.light-env-reading-ai .sun-session-ai-tip {
+  flex: 1; min-width: 0;
+  white-space: normal; overflow-wrap: anywhere;
+}
+.light-env-reading-ai .sun-session-ai-cta {
+  background: transparent; border: none;
+  color: var(--accent); cursor: pointer;
+  font-size: 11.5px; padding: 0; text-align: left;
+}
+.light-env-reading-ai .sun-session-ai-cta:hover { text-decoration: underline; }
+
+/* Light Today hero — AI verdict at the top of Light & Sun page. */
+.light-today-hero {
+  margin: 0 0 18px 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  border: 1px solid var(--border);
+}
+.light-today-hero-green  { border-left: 3px solid var(--green); }
+.light-today-hero-yellow { border-left: 3px solid var(--yellow); }
+.light-today-hero-red    { border-left: 3px solid var(--red); }
+.light-today-hero-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.light-today-hero-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  flex: 1;
+}
+.light-today-hero .sun-detail-ai {
+  margin-bottom: 0; padding: 10px 12px;
+}
+.light-today-trends {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.light-today-trend {
+  display: inline-flex; align-items: center;
+  font-size: 11.5px; padding: 3px 8px;
+  border-radius: 10px;
+  background: var(--bg-elev-2, rgba(255,255,255,0.05));
+  color: var(--text-secondary);
+}
+
+/* Onboarding completion AI block — appears below the saved-summary chips. */
+.light-setup-ai-block {
+  margin-top: 14px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+}
+.light-setup-ai-block-green,
+.light-setup-ai-block-yellow,
+.light-setup-ai-block-red { border-left: 0; }
+.light-setup-ai-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.light-setup-ai-head-label { flex: 1; }
+.light-setup-ai-actions {
+  margin: 8px 0 0; padding-left: 18px;
+  font-size: 13px; line-height: 1.5;
+  color: var(--text-primary);
+}
+.light-setup-ai-actions li { margin: 2px 0; }
+
+/* Per-tool aiming guide — "where to aim the camera" callout at the top
+   of each Light Tool capture modal. Tool-specific text + dismissible
+   per-tool (localStorage flag) so users who've internalized the
+   guidance don't have to dismiss every open. */
+.tool-aiming-guide {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.tool-aiming-guide-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--accent);
+}
+.tool-aiming-guide-icon { font-size: 14px; }
+.tool-aiming-guide-mode { flex: 1; min-width: 0; }
+.tool-aiming-guide-dismiss {
+  background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 16px; line-height: 1; padding: 0 4px;
+  flex-shrink: 0;
+}
+.tool-aiming-guide-dismiss:hover { color: var(--text-primary); }
+.tool-aiming-guide-body {
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.tool-aiming-guide-body b { color: var(--text-primary); font-weight: 600; }
+.tool-aiming-guide-webcam {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Per-screen AI verdict block — sits at the bottom of an expanded screen card. */
+.light-env-screen-ai {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.light-env-screen-ai-head {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.light-env-screen-ai .sun-detail-ai { margin-bottom: 0; }
+
+/* Per-audit AI verdict block — sits at the top of the audit detail body. */
+.light-audit-ai {
+  margin: 12px 0 14px 0;
+}
+.light-audit-ai-head {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.light-audit-ai .sun-detail-ai { margin-bottom: 0; }
+/* At-a-glance dot in the audit card header (collapsed view). */
+.light-audit-ai-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+/* On very narrow screens the audit card header is already cramped
+   (date + label + delete + chevron). Drop the verdict dot from the
+   header — it's still rendered in the expanded detail body. */
+@media (max-width: 375px) {
+  .light-audit-ai-dot { display: none; }
+}
+
+/* Indoor-burden AI verdict — replaces the static heuristic interp at
+   the bottom of the Light Environment block when an AI verdict has
+   been generated. */
+.light-env-summary-ai {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 6px;
+  font-size: 13px; line-height: 1.5;
+}
+.light-env-summary-ai-green  { color: var(--green); }
+.light-env-summary-ai-yellow { color: var(--yellow); }
+.light-env-summary-ai-red    { color: var(--red); }
+.light-env-summary-ai-tip { flex: 1; min-width: 0; }
+.light-env-summary-ai-detail {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: normal;
+}
+.light-env-summary-ai-cta {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--accent); cursor: pointer;
+  font-size: 11.5px; padding: 3px 10px; border-radius: 6px;
+  white-space: nowrap;
+}
+.light-env-summary-ai-cta:hover { border-color: var(--accent); }
+
+/* "Show N older sessions" / "Show only the 10 most recent" toggle —
+   sits below the unified sessions list to keep the historical scroll
+   bounded. Default cap is 10 (SESSIONS_DEFAULT_CAP in views.js). */
+.light-sessions-show-more {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.light-sessions-show-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+.light-sessions-modal {
+  width: min(94vw, 840px);
+  max-width: 840px;
+  max-height: min(88vh, 780px);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+.light-sessions-modal-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 64px 18px 26px;
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 62%),
+    color-mix(in srgb, var(--bg-secondary) 94%, var(--bg-card));
+}
+.light-sessions-modal-head h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.light-sessions-modal-head p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.light-sessions-modal-head .modal-close {
+  top: 18px;
+  right: 22px;
+}
+.light-sessions-modal-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-card) 62%, transparent);
+}
+.light-sessions-modal-summary > div {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+}
+.light-sessions-modal-summary span {
+  display: block;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.light-sessions-modal-summary strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.light-sessions-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 22px 24px;
+}
+.light-sessions-modal-body .sun-sessions-list {
+  margin: 0;
+}
+.light-sessions-modal .light-session-row {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--session-accent) 70%, transparent);
+}
+.light-sessions-modal .light-session-row:hover {
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--session-accent) 86%, transparent),
+    0 8px 18px color-mix(in srgb, var(--session-accent) 10%, transparent);
+}
+
+/* AI verdict block for the DASHBOARD Light Today strip. Sits under
+   the head row, above the Conditions Now block. Same cached verdict
+   as the Light & Sun page hero — single AI call serves both. Renders
+   tip + full detail + Open Light & Sun link by default (no collapse,
+   no hover-tooltip dependency — works on every device). */
+.light-today-dash-ai {
+  display: block;
+  margin: 6px 0 10px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  border-left: 3px solid var(--text-muted);
+  font-size: 12.5px;
+  color: var(--text-primary);
+  transition: background 0.15s, border-left-color 0.15s;
+}
+.light-today-dash-ai-green  { border-left-color: var(--green); }
+.light-today-dash-ai-yellow { border-left-color: var(--yellow); }
+.light-today-dash-ai-red    { border-left-color: var(--red); }
+/* Tip row — dot + tip + refresh button. Tip wraps fully (no ellipsis)
+   since the block isn't collapsed. */
+.light-today-dash-ai-row {
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.light-today-dash-ai-row .sun-session-ai-dot {
+  margin-top: 4px; /* align with first line of tip text */
+  flex-shrink: 0;
+}
+.light-today-dash-ai-tip {
+  flex: 1; min-width: 0;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.light-today-dash-ai-row .sun-session-ai-refresh {
+  flex-shrink: 0;
+}
+/* Detail body — full paragraph + deep-link to the Light & Sun hero. */
+.light-today-dash-ai-body {
+  margin-top: 8px;
+  padding-top: 8px;
+  padding-left: 18px; /* align with tip text, leave dot column free */
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border);
+}
+.light-today-dash-ai-body p {
+  margin: 0 0 6px 0;
+}
+.light-today-dash-ai-link {
+  display: inline-block;
+  font-size: 11.5px;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 0;
+}
+.light-today-dash-ai-link:hover { text-decoration: underline; }
+/* CTA + analyzing variants — single-line button shape (no body
+   yet because verdict hasn't run). */
+.light-today-dash-ai-cta {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-left: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font: inherit; font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  margin: 6px 0 10px 0;
+}
+.light-today-dash-ai-cta:hover {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  border-style: solid;
+}
+
+/* Channel-mix AI verdict for the "Your light, by what it does" section.
+   Replaces (or augments, as a CTA) the static one-liner suggestion. */
+.light-channel-mix-ai {
+  margin: 12px 0;
+}
+.light-channel-mix-ai .sun-detail-ai { margin-bottom: 0; }
+.light-channel-mix-ai-cta {
+  display: block;
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.light-channel-mix-ai-cta:hover {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+/* Detail-modal block — richer, two-line layout. */
+.sun-detail-ai {
+  margin-bottom: 14px; padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bg-elev-1, rgba(255,255,255,0.03));
+  border-left: 3px solid var(--text-muted);
+}
+.sun-detail-ai-green  { border-left-color: var(--green); }
+.sun-detail-ai-yellow { border-left-color: var(--yellow); }
+.sun-detail-ai-red    { border-left-color: var(--red); }
+.sun-detail-ai-head {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 600;
+  color: var(--text-primary);
+}
+.sun-detail-ai-tip { flex: 1; min-width: 0; }
+.sun-detail-ai-body {
+  margin-top: 6px;
+  font-size: 13px; line-height: 1.5;
+  color: var(--text-muted);
+}
+.sun-detail-ai-loading,
+.sun-detail-ai-error {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-muted);
+}
+.sun-session-delete {
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px;
+  margin-left: 8px;
+}
+.sun-session-delete:hover { color: #ef4444; }
+.sun-session-meta { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+
+.sun-channel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sun-chip {
+  --channel-accent: var(--accent);
+  font-size: 11px; padding: 4px 10px; border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--channel-accent) 9%, transparent), transparent 62%),
+    color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+  color: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--channel-accent) 18%, var(--border));
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.sun-chip[data-channel="vitamin_d"] { --channel-accent: var(--yellow); }
+.sun-chip[data-channel="circadian"] { --channel-accent: var(--accent); }
+.sun-chip[data-channel="nir_solar"] { --channel-accent: var(--red); }
+.sun-chip[data-channel="no_cv"] { --channel-accent: var(--green); }
+.sun-chip[data-channel="pomc"] { --channel-accent: var(--orange); }
+.sun-chip[data-channel="violet_eye"] { --channel-accent: var(--purple); }
+.sun-chip[data-channel="pbm_red"] { --channel-accent: var(--red); }
+.sun-chip[data-channel="pbm_nir"] { --channel-accent: var(--orange); }
+.sun-chip-icon { font-size: 12px; }
+.sun-chip-label { font-weight: 500; }
+/* Per-channel value on the chip (e.g. "~1.8k IU", "8 J/cm²", "158%").
+   Replaces the old dot tier indicator with the actual real-unit
+   contribution from this session — way more informative at a glance.
+   Tabular nums so the digit alignment doesn't jitter across chips. */
+.sun-chip-value {
+  font-size: 10px; font-weight: 600;
+  color: inherit; opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+  padding-left: 2px;
+}
+/* Legacy dots class — kept hidden so any cached HTML still renders. */
+.sun-chip-dots { display: none; }
+.sun-chip-tier-0 {
+  opacity: 0.5;
+  background: transparent;
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+}
+.sun-chip-tier-1 { color: var(--text-secondary); }
+.sun-chip-tier-2 {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--channel-accent) 30%, var(--border));
+}
+.sun-chip-tier-3 {
+  color: var(--channel-accent);
+  border-color: color-mix(in srgb, var(--channel-accent) 52%, var(--border));
+}
+.sun-chip-tier-4 { color: var(--green); border-color: var(--green); }
+
+.sun-empty {
+  background: var(--bg-secondary); border: 1px dashed var(--border);
+  border-radius: 12px; padding: 24px; text-align: center; color: var(--text-secondary);
+}
+.sun-empty p { margin-bottom: 12px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Light & Sun — mobile responsive pass
+   ═══════════════════════════════════════════════════════════════════
+   Audited surfaces: Dashboard Light Today strip, Light page channel
+   pill row + drill-down, device cards, sessions list, quick-log row,
+   session-log dialog, conditions-now strip. Each issue addressed with
+   the minimal media query needed. Touch + hover interactions split via
+   @media (hover: none) so devices that can't hover still see all
+   affordances (no fade-in delete, etc.).
+*/
+
+/* Touch / no-hover devices: device-card delete must be visible —
+   the pointer-hover-reveal pattern is invisible on touch. */
+@media (hover: none) {
+  .light-device-delete { opacity: 0.5; }
+  .light-device-delete:active { opacity: 1; }
+}
+
+/* Tablet + below — channel-feed chip strip on broad-spectrum cards
+   has up to 7 chips (Maxi UVB / Trinity). Drop the text label and
+   keep just the icon so a row of chips fits on one line. Tooltip
+   already carries the full channel name + science blurb. */
+@media (max-width: 768px) {
+  .light-device-feed-label { display: none; }
+  .light-device-feed-chip {
+    padding: 4px 6px;
+    min-width: 24px; justify-content: center;
+  }
+  .light-device-feed-icon { font-size: 13px; }
+}
+
+/* Phones — Light & Sun page layout adjustments */
+@media (max-width: 600px) {
+  /* Quick-log CTA row stacks: primary CTAs full-width, tally on its
+     own line below. Was a 4-element flex row that collapsed into a
+     visual pile of buttons + text on narrow widths. */
+  .light-quicklog-row {
+    align-items: stretch;
+    gap: 8px;
+  }
+  .light-quicklog-row .dashboard-action-btn { width: 100%; }
+  .light-quicklog-row .light-summary-tally {
+    text-align: center;
+    margin-top: 2px;
+  }
+  .light-widget-prompt {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .light-setup-prompt-actions {
+    width: 100%;
+  }
+  .light-setup-prompt-actions .dashboard-action-btn {
+    flex: 1 1 0;
+  }
+  .light-widget-prompt-cta {
+    width: 100%;
+  }
+  .light-setup-prompt-actions .light-widget-prompt-cta {
+    width: auto;
+  }
+  .light-setup-focus-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+  .light-setup-focus-modal {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .light-setup-focus-head {
+    padding: 18px 56px 14px 16px;
+  }
+  .light-setup-focus-head h3 {
+    font-size: 20px;
+  }
+  .light-setup-focus-body {
+    padding: 16px 14px;
+  }
+  .light-setup-focus-modal > .light-setup-actions {
+    margin: 0;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  }
+  .light-setup-focus-modal > .light-setup-actions .import-btn {
+    width: 100%;
+  }
+  .light-setup-fields-grid {
+    grid-template-columns: 1fr;
+  }
+  .light-setup-choice-grid,
+  .light-setup-choice-grid-compact {
+    grid-template-columns: 1fr;
+  }
+  .light-setup-ott-head {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .light-setup-ott-summary-score {
+    align-self: flex-start;
+    white-space: normal;
+  }
+  .light-setup-score-meter {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .light-setup-score-main {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .light-setup-score-meta {
+    justify-content: flex-start;
+  }
+  .light-setup-ott-questions {
+    grid-template-columns: 1fr;
+  }
+  .light-setup-ott-card {
+    padding: 10px;
+  }
+  .light-setup-ott-q-top {
+    flex-wrap: wrap;
+  }
+  .light-setup-location-status {
+    grid-template-columns: 1fr;
+  }
+  .light-setup-location-actions {
+    justify-content: stretch;
+  }
+  .light-setup-location-actions .import-btn {
+    width: 100%;
+  }
+
+  /* Pill row tightens on phones — pills wrap naturally but the gap
+     gets a touch larger so each is comfortable to tap. */
+  .light-pills-row { gap: 6px; }
+  .light-pill {
+    padding: 8px 12px;     /* was 6px 12px — +2px each side for tap target */
+    font-size: 13px;
+  }
+  .light-channels-section .light-pills-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .light-channels-section .light-pill {
+    min-height: 78px;
+    padding: 11px 10px 10px 12px;
+    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-areas:
+      "icon label"
+      "spark spark"
+      "count count";
+    align-items: start;
+  }
+  .light-channels-section .light-pill-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+  .light-channels-section .light-pill-label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .light-channels-section .light-pill-sparkline {
+    max-width: none;
+    height: 16px;
+  }
+  .light-channels-section .light-pill-daycount {
+    justify-self: start;
+    text-align: left;
+  }
+  .light-pill-dots { font-size: 12px; }
+
+  /* Drill-down stats row stacks vertically so the trend arrow and
+     the two stat blocks aren't squeezed onto a wrapping line. */
+  .light-channel-detail-stats {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .light-channel-detail-trend {
+    align-self: center;
+    transform: rotate(90deg);
+  }
+  .light-channel-hero-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .light-channel-detail-tierpill {
+    margin-left: 0;
+  }
+
+  /* Channel-detail close button — keep the corner anchor but tighten
+     the head row spacing. */
+  .light-channel-detail { padding: 14px 16px; }
+  .light-channel-detail-head { gap: 8px; }
+
+  /* Device cards — 1 col, taller padding for readability, brand+model
+     allowed to wrap to two lines so long names like "Mitochondriak
+     LED RED + NIR bulb" don't get truncated by ellipsis. */
+  .light-devices-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .light-device-card { padding: 14px 14px 14px 18px; }
+  .light-device-name {
+    white-space: normal;       /* was ellipsis */
+    overflow: visible;
+    line-height: 1.3;
+  }
+  .light-device-typeline {
+    /* Long type lines wrap to a second line at 11 px which is fine —
+       eyebrow context, not a primary read. */
+    line-height: 1.4;
+  }
+  /* Always-visible delete on phones (hover not reliable). */
+  .light-device-delete { opacity: 0.6; }
+
+  /* Session-log dialog inputs — distance + cm/in toggle stack so the
+     toggle doesn't get crushed against the right edge. */
+  .dev-distance-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .dev-unit-toggle { align-self: flex-start; }
+
+  /* Light Today (dashboard) strip — pill row tighter, foot wraps so
+     burn-risk pill doesn't hog horizontal space. */
+  .light-today-strip { padding: 12px; }
+  .light-today-foot { gap: 8px; }
+  .light-today-cta-group { width: 100%; margin-left: 0; }
+  .light-today-cta-group .light-today-cta { flex: 1 1 auto; }
+
+  /* Conditions-now full variant on the Light page is much taller than
+     the compact dashboard variant. On phones, drop to the compact
+     style for parity. */
+  .conditions-now-full { padding: 8px 12px; }
+  .light-page .dashboard-widget[data-widget-id="light-conditions-now"] .conditions-now-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .light-page .dashboard-widget[data-widget-id="light-conditions-now"] .conditions-now-cell-hero {
+    grid-column: 1 / -1;
+  }
+  .light-page .dashboard-widget[data-widget-id="light-conditions-now"] .conditions-now-cell {
+    text-align: center;
+    align-items: stretch;
+  }
+  .light-page .dashboard-widget[data-widget-id="light-conditions-now"] .conditions-now-cell-hero {
+    text-align: left;
+  }
+
+  /* Sessions list rows — head row wraps cleanly so duration / kind /
+     med pill don't overflow. */
+  .sun-sessions-list {
+    width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+  .sun-session {
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+  }
+  .sun-session-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+  }
+  .sun-session-med {
+    margin-left: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .sun-session-delete {
+    margin-left: auto;
+    align-self: flex-start;
+  }
+  .sun-session-meta,
+  .sun-channel-chips,
+  .sun-session-ai {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sun-session-meta {
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+  }
+  .sun-chip {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .sun-chip-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .light-session-kind {
+    flex: 1 1 100%;
+    margin-left: 28px;
+    max-width: calc(100% - 28px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+  .light-session-mode-chip {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+  .light-sessions-modal {
+    width: 100%;
+    max-height: 92vh;
+  }
+  .light-sessions-modal-head {
+    padding: 20px 52px 16px 18px;
+  }
+  .light-sessions-modal-head h3 {
+    font-size: 19px;
+  }
+  .light-sessions-modal-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px;
+    gap: 8px;
+  }
+  .light-sessions-modal-body {
+    padding: 12px;
+  }
+
+  /* Light Environment — room-card meta grid stacks; screens fields
+     stack to single column; tab strip becomes horizontally scrollable
+     so 5+ rooms don't overflow into a wrap that fights the rest of
+     the layout. */
+  .light-env-room-meta { grid-template-columns: 1fr; gap: 10px; }
+  .light-env-screen-fields { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+  .light-env-room-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .light-env-room-tabs::-webkit-scrollbar { height: 4px; }
+  .light-env-room-card-head { flex-wrap: wrap; }
+  .light-env-empty-cta { padding: 14px 16px; }
+  .light-env-summary { padding: 12px 14px; }
+}
+
+/* Very narrow phones (≤375px) — text content drops one more notch. */
+@media (max-width: 375px) {
+  .light-pill { padding: 7px 10px; font-size: 12px; }
+  .light-pill-label { max-width: 85px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .light-channels-section .light-pill-label {
+    max-width: none;
+    white-space: normal;
+  }
+  .light-channels-section .light-pill-daycount {
+    padding-inline: 6px;
+    font-size: 10.5px;
+  }
+  .light-channels-section .light-section-title { font-size: 15px; }
+  .light-device-name { font-size: 13px; }
+  .light-device-typeline { font-size: 10px; }
+}

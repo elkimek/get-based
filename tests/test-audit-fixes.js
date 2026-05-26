@@ -25,6 +25,10 @@ return (async function () {
     try { return await fetch('/' + path + '?bust=' + Date.now()).then(r => r.text()); }
     catch (e) { return ''; }
   }
+  async function fetchCssBundle() {
+    const files = ['styles.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+    return (await Promise.all(files.map(fetchSrc))).join('\n');
+  }
   function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   console.log('%c Audit-Fix Regression Tests ', 'background:#0891b2;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
@@ -303,8 +307,8 @@ return (async function () {
   // ─── 9. CSS — narrow-viewport truncation + focus-visible ───────────
   console.log('%c 9. CSS truncation + a11y focus ', 'font-weight:bold;color:#0891b2');
   {
-    const css = await fetchSrc('styles.css');
-    assert('styles.css loaded', css.length > 10000);
+    const css = await fetchCssBundle();
+    assert('CSS bundle loaded', css.length > 10000);
 
     // Room name must allow shrinking + ellipsis on 375px viewports.
     const roomBlock = css.match(/\.light-env-room-disclosure-name\s*\{[^}]+\}/);

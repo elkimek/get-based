@@ -25,7 +25,8 @@ const tools = await import('../js/light-tools.js');
     normalizeGoldenHourMinutes,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
-    const stylesSrc = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+    const cssFiles = ['styles.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+    const stylesSrc = cssFiles.map(rel => fs.readFileSync(new URL('../' + rel, import.meta.url), 'utf8')).join('\n');
     const appearsBefore = (needleA, needleB, from = 0) => {
       const a = lightToolsSrc.indexOf(needleA, from);
       const b = lightToolsSrc.indexOf(needleB, from);
