@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // test-custom-lens.js — Custom Knowledge Source (Lens Corpus). Source
 // inspection of lens.js / lens-local-worker.js / lens-local.js / chat.js /
-// views.js / lab-context.js / sync.js / crypto.js / main.js / styles.css /
+// views.js / lab-context.js / sync.js / crypto.js / main.js / CSS bundle /
 // changelog.js / README.md, plus behavioral tests (URL validation, config
 // round-trip, hasLens truth table, buildLensSnippet, injectLensChunks,
 // status pub/sub, v1.20.x backend forward-compat migration).
@@ -337,7 +337,7 @@ assert('clearLensCache callable', true);
 
 // ─── 18. CSS classes for indicator states ───
 console.log('\n18. CSS classes');
-const cssSrc = read('styles.css');
+const cssSrc = ['styles.css', 'css/chat-panel.css'].map(read).join('\n');
 assert('styles include .chat-lens-indicator', cssSrc.includes('.chat-lens-indicator'));
 assert('styles include .chat-lens-dot', cssSrc.includes('.chat-lens-dot'));
 assert('styles include active state', cssSrc.includes('.chat-lens-indicator.active'));

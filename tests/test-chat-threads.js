@@ -4,7 +4,7 @@
 // migration, save/load round-trip, 50-thread pruning, backup snapshot,
 // encryption-pattern matching, ensureActiveThread, thread-personality
 // inheritance, plus source-inspection of profile.js / chat-thread-search.js /
-// styles.css.
+// CSS bundle.
 //
 // Run: node tests/test-chat-threads.js  (or via npm test)
 //
@@ -316,7 +316,7 @@ assert('chat-thread-search uses overflow sentinel before truncation banner',
 // 17. CSS Inspection
 // ═══════════════════════════════════════════════
 console.log('17. CSS Inspection');
-const cssSrc = read('styles.css');
+const cssSrc = ['styles.css', 'css/chat-panel.css'].map(read).join('\n');
 const indexSrc = read('index.html');
 assert('CSS has .chat-thread-rail', cssSrc.includes('.chat-thread-rail'));
 assert('CSS has .chat-thread-rail.open', cssSrc.includes('.chat-thread-rail.open'));

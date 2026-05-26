@@ -30,6 +30,7 @@ const APP_SHELL = [
   '/css/client-list.css',
   '/css/wearables.css',
   '/css/light-sun.css',
+  '/css/chat-panel.css',
   '/css/redesign-shell.css',
   '/css/redesign-chat.css',
   '/themes-extra.css',

@@ -3,7 +3,7 @@
 // checks, getContextSummary() shape, buildActionBar() HTML output (Regenerate
 // only on last AI msg, Copy always, context toggle, area counts), backward
 // compat, plus source-inspection of chat.js / chat-actions.js / lab-context.js / settings.js /
-// service-worker.js / state.js / styles.css.
+// service-worker.js / state.js / CSS bundle.
 //
 // Run: node tests/test-chat-actions.js  (or via npm test)
 //
@@ -317,14 +317,14 @@ assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSI
 
 // ─── Section 16: CSS classes ───
 console.log('Section 16: CSS classes');
-const cssSrc = read('styles.css');
+const cssSrc = ['styles.css', 'css/chat-panel.css'].map(read).join('\n');
 const cssClasses = [
   'chat-action-bar', 'chat-action-btn', 'chat-context-toggle',
   'chat-context-details', 'chat-context-item',
   'chat-toggle-arrow', 'chat-toggle-slider'
 ];
 for (const cls of cssClasses) {
-  assert(`CSS .${cls} defined`, cssSrc.includes('.' + cls), 'found in styles.css');
+  assert(`CSS .${cls} defined`, cssSrc.includes('.' + cls), 'found in CSS bundle');
 }
 assert('CSS has shimmer animation', cssSrc.includes('@keyframes shimmer'), 'found');
 assert('CSS .chat-action-btn.active removed', !cssSrc.includes('.chat-action-btn.active'), 'removed');

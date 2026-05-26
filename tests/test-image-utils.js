@@ -155,13 +155,16 @@ assert('PDF text extraction uses resilient file read helper', pdfSrc.includes('c
 
 // CSS source-string checks — runtime "rule is loaded in stylesheet"
 // version lives in test-image-utils-dom.js (puppeteer).
-const cssSrc = await fetchWithRetry('styles.css');
-assert('.chat-attach-btn style exists in styles.css', cssSrc.includes('.chat-attach-btn'));
-assert('.chat-attach-preview style exists in styles.css', cssSrc.includes('.chat-attach-preview'));
-assert('.chat-attach-thumb style exists in styles.css', cssSrc.includes('.chat-attach-thumb'));
-assert('.chat-attach-remove style exists in styles.css', cssSrc.includes('.chat-attach-remove'));
-assert('.chat-image-badge style exists in styles.css', cssSrc.includes('.chat-image-badge'));
-assert('.chat-drop-active style exists in styles.css', cssSrc.includes('.chat-drop-active'));
+const cssSrc = [
+  await fetchWithRetry('styles.css'),
+  await fetchWithRetry('css/chat-panel.css'),
+].join('\n');
+assert('.chat-attach-btn style exists in CSS bundle', cssSrc.includes('.chat-attach-btn'));
+assert('.chat-attach-preview style exists in CSS bundle', cssSrc.includes('.chat-attach-preview'));
+assert('.chat-attach-thumb style exists in CSS bundle', cssSrc.includes('.chat-attach-thumb'));
+assert('.chat-attach-remove style exists in CSS bundle', cssSrc.includes('.chat-attach-remove'));
+assert('.chat-image-badge style exists in CSS bundle', cssSrc.includes('.chat-image-badge'));
+assert('.chat-drop-active style exists in CSS bundle', cssSrc.includes('.chat-drop-active'));
 
 // HTML structure source-string checks — puppeteer file confirms the
 // real DOM has these IDs; here we confirm index.html still defines them.

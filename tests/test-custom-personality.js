@@ -4,7 +4,7 @@
 // migrations, compat shim, getActivePersonality, loadChatPersonality
 // validation, plus `.toString()` source-inspection of chat module handlers and
 // file-read checks of constants.js / backup.js / service-worker.js / api.js /
-// styles.css.
+// CSS bundle.
 //
 // Run: node tests/test-custom-personality.js  (or via npm test)
 //
@@ -206,7 +206,7 @@ assert('sendChatMessage handles AbortError', sendSrc2.includes('AbortError'));
 
 // ── 19. Stop button CSS ──
 console.log('19. Stop button CSS');
-const css = read('styles.css');
+const css = ['styles.css', 'css/chat-panel.css'].map(read).join('\n');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionFlowSrc = read('js/chat-discussion-flow.js');
