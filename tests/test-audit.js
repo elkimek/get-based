@@ -2,7 +2,7 @@
 // test-audit.js — Pre-release audit fixes. Source-inspection across data.js,
 // views.js, chat.js, markdown.js, utils.js, schema.js, api.js, export.js,
 // pdf-import.js, nav.js, main.js, cycle.js, context-cards.js, charts.js,
-// lab-context.js, constants.js, styles.css, index.html, vercel.json,
+// lab-context.js, constants.js, CSS bundle, index.html, vercel.json,
 // service-worker.js — plus the innerHTML sanitizer sweep.
 //
 // Run: node tests/test-audit.js  (or via npm test)
@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/wearables.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -57,6 +57,8 @@ assert('SW has explicit dev-host offline test opt-in',
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('index loads client list CSS bundle', indexSrc.includes('href="css/client-list.css"'));
+assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
 assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
 assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
 
