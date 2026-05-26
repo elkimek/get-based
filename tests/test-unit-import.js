@@ -21,6 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Unit Normalization on Import Tests ===\n');
 
 const src = read('js/pdf-import.js');
+const settingsSrc = read('js/settings.js');
   // ═══════════════════════════════════════
   // 1. normalizeToSI function exists
   // ═══════════════════════════════════════
@@ -48,6 +49,38 @@ const src = read('js/pdf-import.js');
     confirmBlock.includes('normalizeToSI(m.mappedKey, m.value, m.unit)'));
   assert('new (custom) markers normalized',
     confirmBlock.includes('normalizeToSI(m.suggestedKey, m.value, m.unit)'));
+  assert('confirmImport waits for async save before closing UI',
+    src.includes('export async function confirmImport') && /await\s+saveImportedData\([^)]*\)/.test(confirmBlock));
+  assert('PDF import requests immediate sync push after durable save',
+    /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(confirmBlock));
+  assert('PDF import clears same-date entry tombstone when intentionally re-importing',
+    /clearTombstone\(state\.importedData,\s*['"]entries['"],\s*result\.date\)/.test(confirmBlock));
+  assert('PDF import rolls back in-memory state when durable save fails',
+    /const rollback = snapshotImportedData\(\)[\s\S]{0,4000}if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
+  const removeBlock = src.substring(src.indexOf('export async function removeImportedEntry'), src.indexOf('export async function renameImportedEntryDate'));
+  assert('import delete records entries tombstone before removing row',
+    /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*date\)[\s\S]{0,180}entries\.filter/.test(removeBlock));
+  assert('import delete uses immediate sync push',
+    /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(removeBlock));
+  assert('import delete restores state and returns false when save fails',
+    /const rollback = snapshotImportedData\(\)[\s\S]{0,400}if \(!saved\) \{[\s\S]{0,160}restoreImportedDataSnapshot\(rollback\)[\s\S]{0,120}return false/.test(removeBlock));
+  const renameStart = src.indexOf('export async function renameImportedEntryDate');
+  const renameEnd = src.indexOf('export function classifyImportFiles');
+  const renameBlock = src.substring(renameStart, renameEnd > renameStart ? renameEnd : src.length);
+  assert('import date rename tombstones old date',
+    /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldDate\)/.test(renameBlock));
+  assert('import date rename clears tombstone for new date',
+    /clearTombstone\(state\.importedData,\s*['"]entries['"],\s*newDate\)/.test(renameBlock));
+  assert('import date rename restores state and returns false when save fails',
+    /const saved = await saveImportedData\(\{\s*immediate:\s*true\s*\}\)[\s\S]{0,160}if \(!saved\) \{[\s\S]{0,160}restoreImportedDataSnapshot\(rollback\)[\s\S]{0,120}return false/.test(renameBlock));
+  assert('import date rename validates calendar dates without local-timezone shift',
+    /function isValidISOCalendarDate\(date\)/.test(src)
+      && /Date\.UTC\(year,\s*month - 1,\s*day\)/.test(src)
+      && /getUTCFullYear\(\)\s*===\s*year[\s\S]{0,120}getUTCMonth\(\)\s*===\s*month - 1[\s\S]{0,120}getUTCDate\(\)\s*===\s*day/.test(src));
+  assert('Settings Data remove refreshes only after successful delete',
+    /removeImportedEntryFromSettings[\s\S]{0,240}const ok = await removeImportedEntry\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsSrc));
+  assert('Settings Data rename refreshes only after successful save',
+    /renameImportedEntryDateFromSettings[\s\S]{0,260}const ok = await renameImportedEntryDate\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsSrc));
 
   // ═══════════════════════════════════════
   // 4. normalizeToSI handles multiply type (inverse)
@@ -226,6 +259,150 @@ const src = read('js/pdf-import.js');
   // Verify guard at line 367 only fires for non-blood tests
   assert('Guard checks testType !== blood',
     src.includes("testType !== 'blood'") && src.includes('Import Guard'));
+
+  // ═══════════════════════════════════════
+  // 7. Import mapping reconciliation
+  // ═══════════════════════════════════════
+  console.log('%c 7. Import mapping reconciliation ', 'font-weight:bold;color:#f59e0b');
+
+  assert('pdf-import exports reconcileImportMarkerMappings',
+    /export function reconcileImportMarkerMappings/.test(src));
+  assert('Czech/Spadia alias table includes key labels',
+    src.includes("'glukoza', 'biochemistry.glucose'")
+    && src.includes("'horcikvery', 'electrolytes.magnesiumRBC'")
+    && src.includes("'homocystein', 'coagulation.homocysteine'"));
+
+  const { reconcileImportMarkerMappings } = await import('../js/pdf-import.js');
+  const { state } = await import('../js/state.js');
+  const originalImportedData = state.importedData;
+  state.importedData = {
+    entries: [{
+      date: '2026-03-13',
+      markers: {
+        'custom.activeB12': 145,
+        'spadiaFA.epaC20_5': 0.46
+      }
+    }],
+    customMarkers: {
+      'custom.activeB12': { name: 'Active B12', unit: 'pmol/l' },
+      'spadiaFA.epaC20_5': { name: 'EPA C20:5', unit: '%' },
+      'biochemistry.alpUkatL': { name: 'ALP (ukat/l)', unit: 'µkat/l' }
+    }
+  };
+  try {
+    const importMarkers = [
+      { rawName: 'S Glukóza', value: 4.56, unit: 'mmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.glukoza' },
+      { rawName: 'P Hořčík v ery', value: 2.56, unit: 'mmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.magnesiumEry' },
+      { rawName: 'S Aktivní B12', value: 300, unit: 'pmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.activeVitaminB12', suggestedName: 'Active B12' },
+      { rawName: 'B Neutrofily #', value: 3.22, unit: '10^9/l', matched: false, mappedKey: null, suggestedKey: 'custom.neutrophilsAbs' },
+      { rawName: 'U Glukosa', value: 0, unit: 'arb.j.', matched: false, mappedKey: null, suggestedKey: 'custom.urineGlucose' },
+      { rawName: 'U pH', value: 5, unit: '-', matched: false, mappedKey: null, suggestedKey: 'custom.urinePh' },
+      { rawName: 'S Celk.bílkovina', value: 69.6, unit: 'g/l', matched: false, mappedKey: null, suggestedKey: 'custom.totalProtein' },
+      { rawName: 'U Celková bílkovina', value: 0.142, unit: 'g/l', matched: true, mappedKey: 'proteins.totalProtein', suggestedKey: null },
+      { rawName: 'EPA C20:5', value: 0.46, unit: '%', matched: false, mappedKey: null, suggestedKey: 'spadiaFA.epaC20_5' },
+      { rawName: 'ALP (ukat/l)', value: 1.2, unit: 'µkat/l', matched: false, mappedKey: null, suggestedKey: 'biochemistry.alpUkatL' },
+      { rawName: 'ALT [µkat/l]', value: 0.5, unit: 'µkat/l', matched: true, mappedKey: 'biochemistry.altUkatL', suggestedKey: null },
+      { rawName: 'USED Leukocyty', value: 4, unit: '/µl', matched: true, mappedKey: 'hematology.wbc', suggestedKey: null },
+      { rawName: 'Unknown Marker', value: 42, unit: 'x', matched: true, mappedKey: 'custom.unknownMarker', suggestedKey: null }
+    ];
+    reconcileImportMarkerMappings(importMarkers, { testType: 'blood' });
+    assert('Czech glucose reconciles to existing schema marker',
+      importMarkers[0].matched && importMarkers[0].mappedKey === 'biochemistry.glucose');
+    assert('Erythrocyte magnesium reconciles to magnesium RBC',
+      importMarkers[1].matched && importMarkers[1].mappedKey === 'electrolytes.magnesiumRBC');
+    assert('Same-name custom marker reconciles to previous custom key',
+      importMarkers[2].matched && importMarkers[2].mappedKey === 'custom.activeB12');
+    assert('Differential # value reconciles to absolute-count marker',
+      importMarkers[3].matched && importMarkers[3].mappedKey === 'differential.neutrophils');
+    assert('Urine glucose is not incorrectly merged into blood glucose',
+      !importMarkers[4].matched && importMarkers[4].suggestedKey === 'custom.urineGlucose');
+    assert('Urine pH reconciles to urinalysis pH',
+      importMarkers[5].matched && importMarkers[5].mappedKey === 'urinalysis.ph');
+    assert('Serum total protein reconciles to proteins.totalProtein',
+      importMarkers[6].matched && importMarkers[6].mappedKey === 'proteins.totalProtein');
+    assert('Urine total protein is demoted instead of overwriting serum total protein',
+      !importMarkers[7].matched
+      && importMarkers[7].mappedKey === null
+      && importMarkers[7].suggestedKey === 'urinalysis.totalProtein');
+    assert('Existing product-specific custom key is matched, not new',
+      importMarkers[8].matched && importMarkers[8].mappedKey === 'spadiaFA.epaC20_5');
+    assert('Unit suffix in marker label does not create duplicate ALP marker',
+      importMarkers[9].matched && importMarkers[9].mappedKey === 'biochemistry.alp');
+    assert('Invalid matched key with unit suffix is remapped to existing ALT',
+      importMarkers[10].matched && importMarkers[10].mappedKey === 'biochemistry.alt');
+    assert('Urine sediment prefix is not merged into blood WBC',
+      !importMarkers[11].matched
+      && importMarkers[11].mappedKey === null
+      && importMarkers[11].suggestedKey === 'urinalysis.leukocytesQualitative');
+    assert('Unknown invalid mappedKey is demoted so it becomes a real custom marker',
+      !importMarkers[12].matched && importMarkers[12].mappedKey === null && importMarkers[12].suggestedKey === 'custom.unknownMarker');
+  } finally {
+    state.importedData = originalImportedData;
+  }
+
+  // ═══════════════════════════════════════
+  // 8. Profile repair for already-imported unit-suffixed duplicates
+  // ═══════════════════════════════════════
+  console.log('%c 8. Profile import repair ', 'font-weight:bold;color:#f59e0b');
+
+  const { migrateProfileData } = await import('../js/profile.js');
+  const migrated = {
+    entries: [{
+      date: '2026-05-01',
+      markers: { 'biochemistry.alpUkatL': 1.2 },
+      markerSources: { 'biochemistry.alpUkatL': { file: 'spadia.pdf' } }
+    }],
+    customMarkers: {
+      'biochemistry.alpUkatL': { name: 'ALP (ukat/l)', unit: 'µkat/l' }
+    },
+    markerLabels: {
+      'biochemistry.alpUkatL': 'My ALP label'
+    },
+    markerValueNotes: {
+      'biochemistry.alpUkatL:2026-05-01': 'lab note'
+    }
+  };
+  migrateProfileData(migrated);
+  assert('Profile migration moves ALP unit-suffixed duplicate onto schema key',
+    migrated.entries[0].markers['biochemistry.alp'] === 1.2
+    && migrated.entries[0].markers['biochemistry.alpUkatL'] === undefined);
+  assert('Profile migration removes duplicate custom marker definition',
+    migrated.customMarkers['biochemistry.alpUkatL'] === undefined);
+  assert('Profile migration remaps marker value notes',
+    migrated.markerValueNotes['biochemistry.alp:2026-05-01'] === 'lab note');
+  assert('Profile migration remaps custom marker labels',
+    migrated.markerLabels['biochemistry.alp'] === 'My ALP label'
+    && migrated.markerLabels['biochemistry.alpUkatL'] === undefined);
+  const invisible = {
+    entries: [{ date: '2026-05-01', markers: { 'biochemistry.altUkatL': 0.5 } }],
+    customMarkers: {}
+  };
+  migrateProfileData(invisible);
+  assert('Profile migration repairs unit-suffixed entry keys even without custom marker definition',
+    invisible.entries[0].markers['biochemistry.alt'] === 0.5
+    && invisible.entries[0].markers['biochemistry.altUkatL'] === undefined);
+  const urineProtein = {
+    entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProtein': 0.142 } }],
+    customMarkers: {
+      'urinalysis.totalProtein': { name: 'Celková bílkovina', unit: 'g/l' }
+    }
+  };
+  migrateProfileData(urineProtein);
+  assert('Profile migration does not remap deliberate urine total protein to serum total protein',
+    urineProtein.entries[0].markers['urinalysis.totalProtein'] === 0.142
+    && urineProtein.entries[0].markers['proteins.totalProtein'] === undefined
+    && urineProtein.customMarkers['urinalysis.totalProtein']);
+  const urineProteinUnitDecorated = {
+    entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProteinGl': 0.142 } }],
+    customMarkers: {
+      'urinalysis.totalProteinGl': { name: 'Total Protein (g/l)', unit: 'g/l' }
+    }
+  };
+  migrateProfileData(urineProteinUnitDecorated);
+  assert('Profile migration does not cross-map unit-decorated urine markers into blood categories',
+    urineProteinUnitDecorated.entries[0].markers['urinalysis.totalProteinGl'] === 0.142
+    && urineProteinUnitDecorated.entries[0].markers['proteins.totalProtein'] === undefined
+    && urineProteinUnitDecorated.customMarkers['urinalysis.totalProteinGl']);
 
   // ═══════════════════════════════════════
   // Results

@@ -9,6 +9,7 @@ import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICo
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { isSyncEnabled, enableSync, disableSync, getMnemonic, getMnemonicResolutionError, getSyncBlocker, restoreFromMnemonic, getSyncRelay, setSyncRelay, checkRelayConnection, isMessengerEnabled, getMessengerToken, generateMessengerToken, revokeMessengerToken, pushContextToGateway } from './sync.js';
 import { renderWearablesSettingsSection } from './wearables.js';
+import { loadPdfImport } from './import-loader.js';
 
 let _providerPanelsLoad = null;
 
@@ -1584,11 +1585,12 @@ export function renderDataEntriesSection() {
         : manualCount > 0
           ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">${manualCount} manual</span>`
           : '';
+    const dateArg = escapeAttr(JSON.stringify(entry.date));
     html += `<div class="imported-entry">
       <span class="ie-info"><span class="ie-date">${d}</span><span class="ie-count">${cnt} markers</span>${fileLabel}${sourceLabel}</span>
       <div class="ie-actions">
-        <button class="ie-edit" onclick="renameImportedEntryDate('${entry.date}').then(refreshDataEntriesSection)" title="Edit collection date">Edit date</button>
-        <button class="ie-remove" onclick="removeImportedEntry('${entry.date}');refreshDataEntriesSection()">Remove</button>
+        <button class="ie-edit" onclick="renameImportedEntryDateFromSettings(${dateArg})" title="Edit collection date">Edit date</button>
+        <button class="ie-remove" onclick="removeImportedEntryFromSettings(${dateArg})">Remove</button>
       </div>
     </div>`;
   }
@@ -1603,6 +1605,28 @@ export function renderDataEntriesSection() {
 export function refreshDataEntriesSection() {
   const el = document.getElementById('data-entries-section');
   if (el) el.innerHTML = renderDataEntriesSection();
+}
+
+export async function removeImportedEntryFromSettings(date) {
+  try {
+    const { removeImportedEntry } = await loadPdfImport();
+    const ok = await removeImportedEntry(date);
+    if (ok) refreshDataEntriesSection();
+  } catch (err) {
+    if (isDebugMode()) console.error('Remove imported entry failed:', err);
+    showNotification('Could not remove imported data. Reload and try again.', 'error');
+  }
+}
+
+export async function renameImportedEntryDateFromSettings(date) {
+  try {
+    const { renameImportedEntryDate } = await loadPdfImport();
+    const ok = await renameImportedEntryDate(date);
+    if (ok) refreshDataEntriesSection();
+  } catch (err) {
+    if (isDebugMode()) console.error('Rename imported entry failed:', err);
+    showNotification('Could not edit the import date. Reload and try again.', 'error');
+  }
 }
 
 function formatTokens(n) {
@@ -1668,6 +1692,10 @@ Object.assign(window, {
   updateSettingsUI,
   renderDataEntriesSection,
   refreshDataEntriesSection,
+  removeImportedEntry: removeImportedEntryFromSettings,
+  renameImportedEntryDate: renameImportedEntryDateFromSettings,
+  removeImportedEntryFromSettings,
+  renameImportedEntryDateFromSettings,
   resetCurrentProfileUsage,
   openTweaksPanel,
   closeTweaksPanel,

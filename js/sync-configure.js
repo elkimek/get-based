@@ -12,7 +12,7 @@ import { configureSyncIdentity, restoreFromMnemonic } from './sync-identity.js';
 import { configureSyncDiagnostics } from './sync-diagnostics.js';
 import { bindSyncUIStatusUpdates, configureSyncUI } from './sync-ui.js';
 import { configureSyncDiagnoseUI } from './sync-diagnose-ui.js';
-import { configureSyncActions, pushCurrentProfile } from './sync-actions.js';
+import { configureSyncActions, pushAllProfiles, pushCurrentProfile } from './sync-actions.js';
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
 import { configureSyncRecovery } from './sync-recovery.js';
@@ -97,6 +97,7 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
     getAppOwner: getSyncAppOwner,
     getAppOwnerError: getSyncAppOwnerError,
     getEvolu: getSyncEvolu,
+    seedLocalProfiles: () => pushAllProfiles({ force: true }),
   });
 
   configureSyncDiagnostics({

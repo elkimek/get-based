@@ -13,7 +13,20 @@ function assert(name, condition, detail) {
 
 console.log('=== Data Merge Tests ===\n');
 
-const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHasRowsRemoteLacks, pickTimestamp } = await import('../js/data-merge.js');
+globalThis.window = globalThis.window || {};
+
+const {
+  mergeImportedData,
+  preserveFreshLocalLabEntries,
+  recordTombstone,
+  clearTombstone,
+  unionById,
+  ID_KEYED_ARRAYS,
+  TOMBSTONE_ARRAY_PATHS,
+  localHasRowsRemoteLacks,
+  pickTimestamp,
+} = await import('../js/data-merge.js');
+const { mergeArrayRowsIntoImported } = await import('../js/sync-delta-array-merge.js');
 
   // ─── pickTimestamp precedence (v1.7.20) ───────────────────────────────
   // Direct test for the field-precedence walk used by every cross-device
@@ -47,6 +60,7 @@ const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHas
   for (const path of ['sunSessions','deviceSessions','lightDevices','lightMeasurements','lightEnvironment.rooms','lightEnvironment.screens']) {
     assert(`covers ${path}`, ID_KEYED_ARRAYS.includes(path));
   }
+  assert('entries is an explicit tombstone path', TOMBSTONE_ARRAY_PATHS.includes('entries'));
 
   // ─── 2. unionById additivity ──────────────────────────────────────────
   console.log('%c 2. unionById additive merge ', 'font-weight:bold;color:#f59e0b');
@@ -108,6 +122,129 @@ const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHas
   assert('desktop keeps own device Y after pull', onDesktop.lightDevices.find(d=>d.id==='Y'));
   assert('desktop gains phone session C', onDesktop.sunSessions.find(s=>s.id==='c'));
 
+  // Lab entries have no `id`; they are keyed by collection date and must
+  // still merge additively. Otherwise a stale sync pull can wipe a just-
+  // imported PDF entry from Settings → Data.
+  const localLabs = {
+    entries: [
+      { date: '2026-03-01', markers: { 'biochemistry.glucose': 4.8 } },
+      { date: '2026-05-01', updatedAt: 200, markers: { 'biochemistry.alp': 1.2 }, markerSources: { 'biochemistry.alp': { file: 'may.pdf' } }, sourceFiles: ['may.pdf'] }
+    ],
+    customMarkers: { 'custom.activeB12': { name: 'Active B12' } }
+  };
+  const remoteLabs = {
+    entries: [
+      { date: '2026-03-01', updatedAt: 100, markers: { 'biochemistry.glucose': 4.7, 'biochemistry.alt': 0.5 }, sourceFiles: ['march.pdf'] }
+    ],
+    customMarkers: { 'custom.oldMarker': { name: 'Old Marker' } }
+  };
+  const mergedLabs = mergeImportedData(localLabs, remoteLabs);
+  const march = mergedLabs.entries.find(e => e.date === '2026-03-01');
+  const may = mergedLabs.entries.find(e => e.date === '2026-05-01');
+  assert('lab entries merge by date instead of stale remote replacing local',
+    mergedLabs.entries.length === 2 && may?.markers?.['biochemistry.alp'] === 1.2);
+  assert('same-date lab entries merge marker keys',
+    march?.markers?.['biochemistry.glucose'] === 4.8 && march?.markers?.['biochemistry.alt'] === 0.5);
+  assert('custom marker maps merge local and remote definitions',
+    mergedLabs.customMarkers['custom.activeB12'] && mergedLabs.customMarkers['custom.oldMarker']);
+
+  const deltaImported = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: 200,
+      markers: { 'biochemistry.alp': 1.2 },
+      markerSources: { 'biochemistry.alp': { file: 'may.pdf' } },
+      sourceFiles: ['may.pdf'],
+    }],
+  };
+  await mergeArrayRowsIntoImported(deltaImported, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: '2026-05-26T08:00:00.000Z',
+    isDeleted: 0,
+    payload: JSON.stringify({
+      date: '2026-05-01',
+      updatedAt: 100,
+      markers: { 'biochemistry.glucose': 4.7 },
+      markerSources: { 'biochemistry.glucose': { file: 'old-sync.pdf' } },
+      sourceFiles: ['old-sync.pdf'],
+    }),
+  }]);
+  const deltaMay = deltaImported.entries.find(e => e.date === '2026-05-01');
+  assert('per-row entries overlay merges same-date markers instead of replacing fresh import',
+    deltaMay?.markers?.['biochemistry.alp'] === 1.2
+      && deltaMay?.markers?.['biochemistry.glucose'] === 4.7);
+  const freshNow = 2_000_000;
+  const stalePulledImport = {
+    entries: [{
+      date: '2026-03-01',
+      updatedAt: freshNow - 60_000,
+      markers: { 'biochemistry.glucose': 4.7 },
+    }],
+  };
+  const localAfterMayImport = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: freshNow - 1000,
+      markers: { 'biochemistry.alp': 1.2 },
+      markerSources: { 'biochemistry.alp': { file: 'may.pdf', at: freshNow - 1000 } },
+      sourceFiles: ['may.pdf'],
+    }],
+  };
+  assert('fresh local lab import is restored after stale pull overlay drops it',
+    preserveFreshLocalLabEntries(stalePulledImport, localAfterMayImport, freshNow) === true
+      && stalePulledImport.entries.some(e => e.date === '2026-05-01' && e.markers?.['biochemistry.alp'] === 1.2));
+  const tombstonedFreshPulledImport = {
+    entries: [],
+    _deleted: { entries: ['2026-05-01'] },
+    _deletedAt: { entries: { '2026-05-01': freshNow } },
+  };
+  assert('fresh local lab import is not restored over a merged entry tombstone',
+    preserveFreshLocalLabEntries(tombstonedFreshPulledImport, localAfterMayImport, freshNow) === false
+      && !tombstonedFreshPulledImport.entries.some(e => e.date === '2026-05-01'));
+  const sameDatePulledImport = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: freshNow - 60_000,
+      markers: { 'biochemistry.glucose': 4.7 },
+    }],
+  };
+  assert('fresh same-date lab import markers survive stale pull overlay',
+    preserveFreshLocalLabEntries(sameDatePulledImport, localAfterMayImport, freshNow) === true
+      && sameDatePulledImport.entries[0].markers?.['biochemistry.alp'] === 1.2
+      && sameDatePulledImport.entries[0].markers?.['biochemistry.glucose'] === 4.7);
+  const oldLocalImport = {
+    entries: [{
+      date: '2026-04-01',
+      updatedAt: freshNow - 3 * 60 * 1000,
+      markers: { 'biochemistry.alt': 0.5 },
+    }],
+  };
+  assert('old local lab entry is not resurrected by freshness guard',
+    preserveFreshLocalLabEntries({ entries: [] }, oldLocalImport, freshNow) === false);
+  const tombstoneImported = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: 200,
+      markers: { 'biochemistry.alp': 1.2 },
+    }],
+  };
+  await mergeArrayRowsIntoImported(tombstoneImported, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: new Date(100).toISOString(),
+    isDeleted: 1,
+    payload: '{}',
+  }]);
+  assert('stale per-row entries tombstone does not delete fresher local import',
+    tombstoneImported.entries.some(e => e.date === '2026-05-01' && e.markers?.['biochemistry.alp'] === 1.2));
+  await mergeArrayRowsIntoImported(tombstoneImported, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: new Date(300).toISOString(),
+    isDeleted: 1,
+    payload: '{}',
+  }]);
+  assert('newer per-row entries tombstone still deletes older local import',
+    !tombstoneImported.entries.some(e => e.date === '2026-05-01'));
+
   // ─── 5. mergeImportedData with tombstones ─────────────────────────────
   console.log('%c 5. mergeImportedData tombstones ', 'font-weight:bold;color:#f59e0b');
 
@@ -124,6 +261,39 @@ const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHas
   assert('deleted session B does NOT resurrect on merge', !merged.sunSessions.find(s=>s.id==='b'));
   assert('non-deleted sessions A and C remain', merged.sunSessions.find(s=>s.id==='a') && merged.sunSessions.find(s=>s.id==='c'));
   assert('tombstone preserved through merge', merged._deleted && merged._deleted.sunSessions && merged._deleted.sunSessions.includes('b'));
+  const localAfterLabDelete = {
+    entries: [{ date: '2026-03-01', markers: { 'biochemistry.glucose': 4.8 } }],
+    _deleted: { entries: ['2026-05-01'] },
+    _deletedAt: { entries: { '2026-05-01': Date.now() } },
+  };
+  const remoteWithDeletedLab = {
+    entries: [
+      { date: '2026-03-01', markers: { 'biochemistry.glucose': 4.8 } },
+      { date: '2026-05-01', markers: { 'biochemistry.alp': 1.2 } },
+    ],
+  };
+  const mergedLabDelete = mergeImportedData(localAfterLabDelete, remoteWithDeletedLab);
+  assert('deleted lab import date does NOT resurrect on blob merge',
+    !mergedLabDelete.entries.some(e => e.date === '2026-05-01'));
+  assert('lab entry tombstone preserved through blob merge',
+    mergedLabDelete._deleted?.entries?.includes('2026-05-01'));
+  assert('lab entry tombstone timestamp preserved through blob merge',
+    Number.isFinite(mergedLabDelete._deletedAt?.entries?.['2026-05-01']));
+  const reimportedAfterDelete = {
+    entries: [{ date: '2026-05-01', updatedAt: Date.now(), markers: { 'biochemistry.alp': 1.3 } }],
+  };
+  clearTombstone(reimportedAfterDelete, 'entries', '2026-05-01');
+  const stalePeerDelete = {
+    entries: [],
+    _deleted: { entries: ['2026-05-01'] },
+    _deletedAt: { entries: { '2026-05-01': Date.now() - 10_000 } },
+  };
+  const mergedReimport = mergeImportedData(reimportedAfterDelete, stalePeerDelete);
+  assert('re-imported lab date clears older synced tombstone',
+    mergedReimport.entries.some(e => e.date === '2026-05-01' && e.markers?.['biochemistry.alp'] === 1.3)
+      && !mergedReimport._deleted?.entries?.includes('2026-05-01'));
+  assert('entry tombstone clear marker is preserved for rebroadcast',
+    Number.isFinite(mergedReimport._deletedClearedAt?.entries?.['2026-05-01']));
 
   // ─── 6. Nested paths (lightEnvironment.rooms / .screens) ──────────────
   console.log('%c 6. Nested path merge (lightEnvironment) ', 'font-weight:bold;color:#f59e0b');
@@ -183,12 +353,22 @@ const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHas
   recordTombstone(blob, 'sunSessions', 'b');
   assert('first tombstone creates _deleted entry',
     blob._deleted && Array.isArray(blob._deleted.sunSessions) && blob._deleted.sunSessions.includes('b'));
+  assert('recordTombstone stores tombstone timestamp metadata',
+    Number.isFinite(blob._deletedAt?.sunSessions?.b));
   recordTombstone(blob, 'sunSessions', 'b');
   assert('duplicate tombstone is deduped',
     blob._deleted.sunSessions.filter(x=>x==='b').length === 1);
   recordTombstone(blob, 'lightDevices', 'X');
   assert('multiple paths tracked separately',
     blob._deleted.lightDevices.includes('X') && blob._deleted.sunSessions.includes('b'));
+  recordTombstone(blob, 'entries', '2026-05-01');
+  assert('entries tombstone can be recorded',
+    blob._deleted.entries.includes('2026-05-01'));
+  clearTombstone(blob, 'entries', '2026-05-01');
+  assert('clearTombstone removes entry tombstone',
+    !blob._deleted.entries);
+  assert('clearTombstone stores tombstone-clear timestamp metadata',
+    Number.isFinite(blob._deletedClearedAt?.entries?.['2026-05-01']));
 
   // ─── 10. Tombstone union from both sides ──────────────────────────────
   console.log('%c 10. Tombstone union ', 'font-weight:bold;color:#f59e0b');
@@ -237,6 +417,11 @@ const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHas
       {sunSessions:[{id:'a'}], _deleted:{sunSessions:['b']}},
       {sunSessions:[{id:'a'},{id:'b'}]}
     ) === true);
+  assert('local lab-entry tombstone not on remote → true',
+    localHasRowsRemoteLacks(
+      {entries: [], _deleted:{entries:['2026-05-01']}},
+      {entries:[{date:'2026-05-01', markers:{'biochemistry.alp':1.2}}]}
+    ) === true);
 
   // Both sides have the same tombstone → no rebroadcast
   assert('matching tombstones → false',
@@ -244,11 +429,36 @@ const { mergeImportedData, recordTombstone, unionById, ID_KEYED_ARRAYS, localHas
       {sunSessions:[{id:'a'}], _deleted:{sunSessions:['b']}},
       {sunSessions:[{id:'a'}], _deleted:{sunSessions:['b']}}
     ) === false);
+  assert('matching lab-entry tombstones → false',
+    localHasRowsRemoteLacks(
+      {entries: [], _deleted:{entries:['2026-05-01']}},
+      {entries: [], _deleted:{entries:['2026-05-01']}}
+    ) === false);
+  assert('local tombstone-clear marker not on remote → true',
+    localHasRowsRemoteLacks(
+      { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.3 } }], _deletedClearedAt: { entries: { '2026-05-01': Date.now() } } },
+      { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.3 } }], _deleted: { entries: ['2026-05-01'] } }
+    ) === true);
 
   // Null guards
   assert('null local → false', localHasRowsRemoteLacks(null, {sunSessions:[{id:'a'}]}) === false);
   assert('null remote → true (everything local is news)',
     localHasRowsRemoteLacks({sunSessions:[{id:'a'}]}, null) === true);
+  assert('local lab entry date missing remotely → true',
+    localHasRowsRemoteLacks(
+      { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.2 } }] },
+      { entries: [] }
+    ) === true);
+  assert('local lab marker missing remotely → true',
+    localHasRowsRemoteLacks(
+      { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.2, 'biochemistry.alt': 0.5 } }] },
+      { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.2 } }] }
+    ) === true);
+  assert('remote superset of lab markers → false',
+    localHasRowsRemoteLacks(
+      { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.2 } }] },
+      { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.2, 'biochemistry.alt': 0.5 } }] }
+    ) === false);
 
   // Within-id conflict: same id, local's record has a strictly higher
   // pickTimestamp than remote's. After mergeImportedData this means

@@ -5,6 +5,7 @@ export function isSyncDisableCleanupKey(key) {
     && (key.includes('-delta-')
       || key.includes('-sync-cutover-v2')
       || key.includes('-relay-bytes-')
+      || key === 'labcharts-sync-restore-join-pending'
       || key === 'labcharts-relay-quota-warned');
 }
 

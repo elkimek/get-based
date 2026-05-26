@@ -200,6 +200,7 @@ await import('../js/settings.js');
       && syncLifecycleSrc.includes('export async function enableSync')
       && syncLifecycleSrc.includes('export async function disableSync')
       && syncLifecycleSrc.includes('await initSync()')
+      && syncLifecycleSrc.includes('await forcePull()')
       && syncLifecycleSrc.includes('await pushAllProfiles()')
       && syncLifecycleSrc.includes('clearSyncRuntimeState();')
       && exportBlockIncludes(syncSrc, ['enableSync', 'disableSync']));
@@ -381,6 +382,8 @@ await import('../js/settings.js');
       && syncIdentitySrc.includes('export function getMnemonic')
       && syncIdentitySrc.includes('export function getMnemonicResolutionError')
       && syncIdentitySrc.includes('export async function restoreFromMnemonic')
+      && syncIdentitySrc.includes('RESTORE_JOIN_PENDING_KEY')
+      && syncConfigureSrc.includes('seedLocalProfiles: () => pushAllProfiles({ force: true })')
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
@@ -933,18 +936,23 @@ await import('../js/settings.js');
 
   // Pull-side merge contract — per-row authoritative, blob fallback
   assert('onSyncReceived overlays per-row state AFTER blob merge',
-    /merged\s*=\s*localImportedForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
+    /merged\s*=\s*localBaselineForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
-    /mergeArrayRowsIntoImported[\s\S]{0,12000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombs\.has\(itemIdFn\(it\)\)\)/.test(syncDeltaMergeSearchSrc));
+    /mergeArrayRowsIntoImported[\s\S]{0,12000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombstoneWinsOverItem\(itemIdFn\(it\),\s*it\)\)/.test(syncDeltaMergeSearchSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
   // pre-populate the row-side tombs Set, otherwise a peer pushing the
   // row back as live (before pulling our delete) re-inserts it locally.
   assert('_mergeItemRowsIntoImported seeds tombs from local blob _deleted before walking rows',
-    /imported\.\s*_deleted[\s\S]{0,200}\[arrayName\][\s\S]{0,200}tombs\.add/.test(syncDeltaMergeSearchSrc));
+    /imported\.\s*_deleted[\s\S]{0,200}\[arrayName\][\s\S]{0,240}localTombs\.add/.test(syncDeltaMergeSearchSrc));
   assert('_mergeItemRowsIntoImported skips inserting items that match a blob-tombstoned itemId',
-    /tombs\.has\(itemId\)\)\s*continue/.test(syncDeltaMergeSearchSrc));
-  assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in array (replace)',
-    /idx\s*!==\s*undefined[\s\S]{0,200}nextArr\[idx\]\s*=\s*item/.test(syncDeltaMergeSearchSrc));
+    /tombstoneWinsOverLiveRow\(itemId,\s*entry\)\)\s*continue/.test(syncDeltaMergeSearchSrc));
+  assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
+    /remoteTombs\.set\(row\.itemId[\s\S]{0,1200}tombAt\s*>=\s*pickTimestamp\(item\)/.test(syncDeltaArrayMergeSrc));
+  assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in non-lab arrays',
+    /idx\s*!==\s*undefined[\s\S]{0,260}arrayName\s*===\s*'entries'\s*\?[\s\S]{0,120}:\s*item/.test(syncDeltaMergeSearchSrc));
+  assert('_mergeItemRowsIntoImported merges same-date lab entries instead of replacing marker maps',
+    /import\s*\{[^}]*mergeLabEntry[^}]*\}\s*from\s*['"]\.\/data-merge\.js['"]/.test(syncDeltaArrayMergeSrc)
+      && /arrayName\s*===\s*'entries'\s*\?\s*mergeLabEntry\(nextArr\[idx\],\s*item\)\s*:\s*item/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads via capped variant',
     /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncDeltaMergeSearchSrc));
   assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',
@@ -1053,7 +1061,7 @@ await import('../js/settings.js');
   console.log('6. Data Integration');
 
   assert('data.js imports onDataSaved from sync.js', dataSrc.includes("import { onDataSaved } from './sync.js'"));
-  assert('saveImportedData calls onDataSaved()', dataSrc.includes('onDataSaved()'));
+  assert('saveImportedData calls onDataSaved()', /onDataSaved\([^)]*\)/.test(dataSrc));
 
   // ═══════════════════════════════════════
   // 7. STARTUP UI INTEGRATION
@@ -1091,6 +1099,9 @@ await import('../js/settings.js');
     syncPushSrc.includes('_syncing && Date.now() - _syncingSince < 60_000')
       && syncPushSrc.includes('_syncing = true')
       && syncPushSrc.includes('export function isSyncPushInFlight'));
+  assert('pushProfile await resolves only from onComplete/watchdog paths',
+    /return await new Promise\(\(resolve\)[\s\S]{0,1200}const onComplete[\s\S]{0,1800}finish\(\{ ok: true \}\)/.test(syncPushSrc)
+      && /Push NOT committed after 30s[\s\S]{0,800}finish\(\{ ok: false, reason: 'timeout' \}\)/.test(syncPushSrc));
   assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
   // blob (~500 KB pre-gzip), so coalescing editing bursts directly reduces
@@ -1118,12 +1129,30 @@ await import('../js/settings.js');
   // instead of just showing a "Data updated" toast).
   assert('Pull re-renders the active view', syncPullActiveRefreshSrc.includes('window.navigate?.(cat)'));
   assert('Pull calls migrateProfileData', syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)'));
-  assert('pushAllProfiles pushes all profiles on first enable',
+  assert('enableSync pulls before first enable push to avoid publishing stale local state',
+    /await forcePull\(\)[\s\S]{0,300}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
+  assert('pushAllProfiles pushes all profiles after first enable pull',
     syncLifecycleSrc.includes('await pushAllProfiles()') && syncActionsSrc.includes('export async function pushAllProfiles'));
+  assert('pushAllProfiles forwards force/seed options to profile pushes',
+    /export async function pushAllProfiles\(options = \{\}\)/.test(syncActionsSrc)
+      && /_pushProfile\(p\.id,\s*dataJson,\s*options\)/.test(syncActionsSrc));
   assert('pushAllProfiles pushes metadata-only profiles with default data',
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,800}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && !/pushAllProfiles[\s\S]{0,800}if \(!raw\) continue/.test(syncActionsSrc));
+  assert('restore-as-source seeds the new owner before reload',
+    /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
+      && /options\?\.seedLocal[\s\S]{0,400}await _seedLocalProfiles\(\)/.test(syncIdentitySrc)
+      && /restoreMnemonicForDiagnose\(words\.join\(' '\),\s*\{ seedLocal: true \}\)/.test(syncDiagnoseIdentityActionsSrc));
+  assert('restore-as-joiner marks first pull to ignore old local tombstones',
+    /setRestoreJoinPending\(true\)/.test(syncIdentitySrc)
+      && /isRestoreJoinPending/.test(syncPullMergeSrc)
+      && /withoutLocalTombstones\(localImportedForMerge\)/.test(syncPullMergeSrc)
+      && /const \{\s*_deleted,\s*_deletedAt,\s*_deletedClearedAt,\s*\.\.\.rest\s*\}/.test(syncPullMergeSrc)
+      && /if \(restoreJoinApplied\) clearRestoreJoinPending\(\)/.test(syncPullSrc));
+  assert('restore-as-joiner blocks startup reconciliation push before first pull',
+    /isRestoreJoinPending/.test(syncReconcileSrc)
+      && /reconcileLocalStorageWithEvolu[\s\S]{0,500}isRestoreJoinPending\(\)[\s\S]{0,500}return/.test(syncReconcileSrc));
   assert('disableSync clears appOwner via runtime cleanup',
     syncLifecycleSrc.includes('clearSyncRuntimeState();')
       && /clearSyncRuntimeState[\s\S]{0,500}_appOwner\s*=\s*null/.test(syncRuntimeSrc));
@@ -1151,6 +1180,8 @@ await import('../js/settings.js');
   assert('disableSync clears sync timestamps',
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));
+  assert('disableSync clears restore-join pending marker',
+    syncDisableCleanupSrc.includes("key === 'labcharts-sync-restore-join-pending'"));
   assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
     syncChatApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(mergedThreads))"));
 
@@ -1768,7 +1799,7 @@ await import('../js/settings.js');
     /Push committed[\s\S]{0,3500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
       && /applyCommittedDeltas[\s\S]{0,2000}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(syncPushDeltasSrc));
   assert('Pull-side merge records pull telemetry per array',
-    /recordPullDeltaSurface\(arrayName,\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*tombs\.size\s*\}\)/.test(deltaSearchSrc));
+    /recordPullDeltaSurface\(arrayName,\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*localTombs\.size\s*\+\s*remoteTombs\.size\s*\}\)/.test(deltaSearchSrc));
   assert('Pull snapshot resets profileId on each merge (no stale carry-over)',
     /resetPullDeltaSnapshot\(profileId\)[\s\S]{0,1000}_pullDeltaSnapshot\.profileId\s*=\s*profileId[\s\S]{0,200}_pullDeltaSnapshot\.perArray\s*=\s*\{\}/.test(deltaSearchSrc));
   assert('Diagnose surface renders Phase 1 dual-write health section',
@@ -1917,7 +1948,7 @@ await import('../js/settings.js');
   assert('Receive path treats v4 (importedData null) as legitimate, not malformed',
     /function isMalformedPulledImportedData[\s\S]{0,160}importedData\s*!==\s*null[\s\S]{0,160}!importedData/.test(syncPullMergeSrc));
   assert('Receive path uses local as baseline when v4 (no blob to merge)',
-    /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localImportedForMerge,\s*importedData\)\s*:\s*localImportedForMerge/.test(deltaSearchSrc));
+    /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localBaselineForMerge,\s*importedData\)\s*:\s*localBaselineForMerge/.test(deltaSearchSrc));
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
     /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(deltaSearchSrc));
   assert('Cutover modal button gated when not ready (disabled attribute)',

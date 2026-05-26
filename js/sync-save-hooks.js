@@ -113,18 +113,23 @@ export function onProfileSaved(profileId, importedData = null) {
   _profileSyncTimers.set(profileId, timer);
 }
 
-export function onDataSaved() {
+export function onDataSaved(options = {}) {
   if (_isSyncEnabled() && _isEvoluReady()) {
     const profileId = state.currentProfile;
     const data = state.importedData;
     if (profileId) {
       const prev = _debounceTimers.get(profileId);
       if (prev) clearTimeout(prev);
-      const timer = setTimeout(() => {
+      if (options?.immediate) {
         _debounceTimers.delete(profileId);
         scheduleProfilePush(profileId, data);
-      }, 10_000);
-      _debounceTimers.set(profileId, timer);
+      } else {
+        const timer = setTimeout(() => {
+          _debounceTimers.delete(profileId);
+          scheduleProfilePush(profileId, data);
+        }, 10_000);
+        _debounceTimers.set(profileId, timer);
+      }
     }
   }
   pushContextToGateway();

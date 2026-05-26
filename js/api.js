@@ -640,7 +640,8 @@ function _proxyFetch(url, options) {
 // gives up. 60s is generous for slow models (long prompts still respond
 // within ~10s) but short enough to surface offline state quickly.
 export const FETCH_REQUEST_TIMEOUT_MS = 60000;
-async function _fetchWithRetry(url, options, retries = 2, useProxy = true) {
+export const AI_IMPORT_REQUEST_TIMEOUT_MS = 180000;
+async function _fetchWithRetry(url, options, retries = 2, useProxy = true, requestTimeoutMs = FETCH_REQUEST_TIMEOUT_MS) {
   const fetchFn = useProxy ? _proxyFetch : fetch;
   // Combine the caller's abort signal (if any) with a per-attempt timeout
   // signal so a stalled fetch fails loud instead of hanging forever.
@@ -648,7 +649,8 @@ async function _fetchWithRetry(url, options, retries = 2, useProxy = true) {
   // (readWithStallTimeout) — this one covers the request-establishment
   // phase before chunks start flowing.
   const buildOpts = () => {
-    const timeoutSig = AbortSignal.timeout(FETCH_REQUEST_TIMEOUT_MS);
+    const timeoutMs = Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0 ? requestTimeoutMs : FETCH_REQUEST_TIMEOUT_MS;
+    const timeoutSig = AbortSignal.timeout(timeoutMs);
     let signal;
     if (!options.signal) {
       signal = timeoutSig;
@@ -690,7 +692,8 @@ async function _fetchWithRetry(url, options, retries = 2, useProxy = true) {
         continue;
       }
       if (isTimeout) {
-        throw new Error(`request timed out after ${Math.round(FETCH_REQUEST_TIMEOUT_MS / 1000)}s — check your network`);
+        const timeoutMs = Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0 ? requestTimeoutMs : FETCH_REQUEST_TIMEOUT_MS;
+        throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s — check your network`);
       }
       throw e;
     }
@@ -873,7 +876,7 @@ export function needsMaxCompletionTokens(modelId) {
   return /^(gpt-5|o[1-9])([-.]|$)/.test(bare);
 }
 
-async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal }, extraHeaders = {}, { useProxy = true, extraBody = {} } = {}) {
+async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs }, extraHeaders = {}, { useProxy = true, extraBody = {} } = {}) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -899,7 +902,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
       },
       body: JSON.stringify(body),
       signal
-    }, 2, useProxy);
+    }, 2, useProxy, requestTimeoutMs);
   } catch (e) {
     throw new Error(`Cannot reach ${providerName} API: ${e.message}`);
   }
@@ -1065,14 +1068,16 @@ export async function callVeniceAPI(opts) {
   document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));
 
   const _contentStr = (c) => typeof c === 'string' ? c : Array.isArray(c) ? c.filter(b => b.type === 'text').map(b => b.text).join('') : String(c);
-  const { system, messages, maxTokens, onStream, signal } = opts;
+  const { system, messages, maxTokens, onStream, signal, forceNonStream, requestTimeoutMs } = opts;
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: await encryptMessage(session.aesKey, session.publicKey, system) });
   for (const msg of messages) {
     apiMessages.push({ role: msg.role, content: await encryptMessage(session.aesKey, session.publicKey, _contentStr(msg.content)) });
   }
 
-  const body = { model: modelId, messages: apiMessages, max_tokens: maxTokens || 4096, stream: true, stream_options: { include_usage: true } };
+  const useStream = !forceNonStream;
+  const body = { model: modelId, messages: apiMessages, max_tokens: maxTokens || 4096, stream: useStream };
+  if (useStream) body.stream_options = { include_usage: true };
   let res;
   try {
     res = await _fetchWithRetry('https://api.venice.ai/api/v1/chat/completions', {
@@ -1082,7 +1087,7 @@ export async function callVeniceAPI(opts) {
         'X-Venice-TEE-Model-Pub-Key': session.modelPubKeyHex,
         'X-Venice-TEE-Signing-Algo': 'ecdsa' },
       body: JSON.stringify(body), signal
-    }, 2, true);
+    }, 2, true, requestTimeoutMs);
   } catch (e) { throw new Error(`Cannot reach Venice API: ${e.message}`); }
 
   if (!res.ok) {
@@ -1091,6 +1096,21 @@ export async function callVeniceAPI(opts) {
     let errMsg = `Venice API error (${res.status})`;
     try { const b = await res.json(); errMsg += `: ${b.error?.message || JSON.stringify(b.error)}`; } catch {}
     throw new Error(errMsg);
+  }
+
+  if (!useStream) {
+    const data = await res.json();
+    const usage = data.usage || {};
+    const choice = data.choices?.[0];
+    const encryptedContent = choice?.message?.content || '';
+    const text = await decryptChunk(session.privateKey, encryptedContent);
+    const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
+    return {
+      text,
+      usage: { inputTokens: usage.prompt_tokens || 0, outputTokens: usage.completion_tokens || 0 },
+      finishReason,
+      truncated: isTokenLimitFinish(finishReason)
+    };
   }
 
   // Streaming with per-chunk decryption

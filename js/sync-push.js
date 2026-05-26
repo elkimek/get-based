@@ -58,7 +58,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   // run regardless of a stuck flag from a prior wedged push.
   if (!opts.force && _syncing && Date.now() - _syncingSince < 60_000) {
     console.warn('[sync] pushProfile bailed — another push is in-flight (set <60s ago)');
-    return;
+    return { ok: false, skipped: true, reason: 'in-flight' };
   }
   if (_syncing && !opts.force) console.warn('[sync] pushProfile clearing stale _syncing flag (>60s old)');
   if (opts.force && _syncing) console.warn('[sync] pushProfile force-overriding in-flight flag');
@@ -104,85 +104,95 @@ export async function pushProfile(profileId, importedData, opts = {}) {
 
     const { deltaPlans, deltaOpCount } = await planProfileDeltas(profileId, importedData);
 
-    let completed = false;
-    let watchdogId = null;
-    const finish = () => {
-      _syncing = false;
-      if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
-    };
-    const onComplete = () => {
-      completed = true;
-      const elapsed = Date.now() - queuedAt;
-      updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now() });
-      const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
-      _debug(okMsg);
-      logSyncEvent('push', okMsg);
-      // Mark the moment a push committed locally so the relay-health
-      // verifier (verifyPushLanded) can distinguish "no push happened
-      // yet" from "push happened but relay didn't advance" (silent
-      // reject).
-      notePushCommitted();
-      // Only advance the local-sync-ts watermark when the push actually
-      // landed. The previous (synchronous) bump after evolu.update meant
-      // a wedged push set the watermark anyway → subsequent pulls saw
-      // `remote.syncedAt < local-sync-ts` and skipped, leaving the local
-      // Evolu row stuck at older state with no auto-recovery. Now the
-      // watermark only moves on real success.
-      // Use syncedAt (same value stored in Evolu) so pulls see exact
-      // equality and don't skip the row from 1ms clock drift.
-      localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
-      // Track bytes for the local relay-storage estimate (see
-      // getRelayQuotaEstimate). Each successful push adds dataJson.length
-      // to the cumulative — close enough to relay's storedBytes to warn
-      // the user before the 50 MB wall.
-      trackPushBytes((dataJson || '').length);
-      applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);
-      finish();
-    };
-    // Watchdog: if Evolu never calls onComplete within 30s, the worker is
-    // wedged (broken WS, OPFS lock, dead replication). Log explicitly so
-    // the user / popover can show "Stuck — try reloading the page" instead
-    // of silent forever-pending. Cleared on success so a slow-but-eventually-
-    // successful push doesn't get a spurious "stuck" event in the activity log.
-    watchdogId = setTimeout(() => {
-      if (!completed) {
-        const stuckMsg = `Push NOT committed after 30s ${profileId.slice(0,8)} — Evolu worker likely wedged`;
-        console.warn(`[sync] ${stuckMsg}`);
-        logSyncEvent('skip', `Push stuck >30s — try reloading`);
-        updateSyncStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
-        finish();
+    return await new Promise((resolve) => {
+      let completed = false;
+      let watchdogId = null;
+      const finish = (result) => {
+        _syncing = false;
+        if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
+        resolve(result);
+      };
+      const onComplete = () => {
+        completed = true;
+        const elapsed = Date.now() - queuedAt;
+        updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now() });
+        const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
+        _debug(okMsg);
+        logSyncEvent('push', okMsg);
+        // Mark the moment a push committed locally so the relay-health
+        // verifier (verifyPushLanded) can distinguish "no push happened
+        // yet" from "push happened but relay didn't advance" (silent
+        // reject).
+        notePushCommitted();
+        // Only advance the local-sync-ts watermark when the push actually
+        // landed. The previous (synchronous) bump after evolu.update meant
+        // a wedged push set the watermark anyway → subsequent pulls saw
+        // `remote.syncedAt < local-sync-ts` and skipped, leaving the local
+        // Evolu row stuck at older state with no auto-recovery. Now the
+        // watermark only moves on real success.
+        // Use syncedAt (same value stored in Evolu) so pulls see exact
+        // equality and don't skip the row from 1ms clock drift.
+        localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(new Date(syncedAt).getTime()));
+        // Track bytes for the local relay-storage estimate (see
+        // getRelayQuotaEstimate). Each successful push adds dataJson.length
+        // to the cumulative — close enough to relay's storedBytes to warn
+        // the user before the 50 MB wall.
+        trackPushBytes((dataJson || '').length);
+        applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);
+        finish({ ok: true });
+      };
+      // Watchdog: if Evolu never calls onComplete within 30s, the worker is
+      // wedged (broken WS, OPFS lock, dead replication). Log explicitly so
+      // the user / popover can show "Stuck — try reloading the page" instead
+      // of silent forever-pending. Cleared on success so a slow-but-eventually-
+      // successful push doesn't get a spurious "stuck" event in the activity log.
+      watchdogId = setTimeout(() => {
+        if (!completed) {
+          const stuckMsg = `Push NOT committed after 30s ${profileId.slice(0,8)} — Evolu worker likely wedged`;
+          console.warn(`[sync] ${stuckMsg}`);
+          logSyncEvent('skip', `Push stuck >30s — try reloading`);
+          updateSyncStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
+          finish({ ok: false, reason: 'timeout' });
+        }
+      }, 30_000);
+
+      try {
+        // Check if row exists for this profile
+        const rows = evolu.getQueryRows(profileQuery);
+        const existing = rows?.find(r => r.profileId === profileId);
+
+        if (existing) {
+          // profileId is repeated on every update so post-compaction replicas
+          // see it on every CRDT message — without this, a relay that drops
+          // the original insert from `evolu_message` (e.g. /compact-owner)
+          // strands every receiving device with an empty profileId column,
+          // which onSyncReceived's allowlist regex rejects → row never merges.
+          evolu.update("profileData", {
+            id: existing.id,
+            profileId,
+            dataJson,
+            syncedAt,
+          }, { onComplete });
+        } else {
+          evolu.insert("profileData", {
+            profileId,
+            dataJson,
+            syncedAt,
+          }, { onComplete });
+        }
+        // local-sync-ts is now bumped inside onComplete only — see comment there.
+      } catch (e) {
+        console.error('[sync] Push failed:', e);
+        updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
+        finish({ ok: false, error: e });
       }
-    }, 30_000);
-
-    // Check if row exists for this profile
-    const rows = evolu.getQueryRows(profileQuery);
-    const existing = rows?.find(r => r.profileId === profileId);
-
-    if (existing) {
-      // profileId is repeated on every update so post-compaction replicas
-      // see it on every CRDT message — without this, a relay that drops
-      // the original insert from `evolu_message` (e.g. /compact-owner)
-      // strands every receiving device with an empty profileId column,
-      // which onSyncReceived's allowlist regex rejects → row never merges.
-      evolu.update("profileData", {
-        id: existing.id,
-        profileId,
-        dataJson,
-        syncedAt,
-      }, { onComplete });
-    } else {
-      evolu.insert("profileData", {
-        profileId,
-        dataJson,
-        syncedAt,
-      }, { onComplete });
-    }
-    // local-sync-ts is now bumped inside onComplete only — see comment there.
+    });
   } catch (e) {
     console.error('[sync] Push failed:', e);
     updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: e.message, at: Date.now() } });
     // Synchronous error path — onComplete will never fire, release the lock.
     _syncing = false;
+    return { ok: false, error: e };
   }
   // _syncing now released by onComplete / watchdog / catch — NOT here. The
   // earlier synchronous `finally { _syncing = false }` released it before

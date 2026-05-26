@@ -150,6 +150,8 @@ assert('extractPDFImages in pdf-import', pdfSrc.includes('export async function 
 assert('parseLabPDFWithAIImages in pdf-import', pdfSrc.includes('export async function parseLabPDFWithAIImages'));
 assert('handleImageFile in pdf-import', pdfSrc.includes('export async function handleImageFile'));
 assert('Image mode dialog for poor text quality', pdfSrc.includes("_showImageModeDialog"));
+assert('PDF reads use FileReader fallback after Blob.arrayBuffer aborts', pdfSrc.includes('function readFileArrayBuffer') && pdfSrc.includes('new FileReader()'));
+assert('PDF text extraction uses resilient file read helper', pdfSrc.includes('const arrayBuffer = await readFileArrayBuffer(file);'));
 
 // CSS source-string checks — runtime "rule is loaded in stylesheet"
 // version lives in test-image-utils-dom.js (puppeteer).

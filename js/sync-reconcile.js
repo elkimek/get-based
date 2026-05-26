@@ -5,6 +5,7 @@ import { localHasRowsRemoteLacks } from './data-merge.js';
 import { collectAISettings } from './sync-payload-collectors.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { logSyncEvent } from './sync-state.js';
+import { isRestoreJoinPending } from './sync-identity.js';
 
 let _getEvolu = () => null;
 let _getProfileQuery = () => null;
@@ -43,6 +44,11 @@ export async function reconcileLocalStorageWithEvolu() {
   const evolu = _getEvolu();
   const profileQuery = _getProfileQuery();
   if (!evolu || !_isSyncEnabled() || !state.currentProfile || !state.importedData) return;
+  if (isRestoreJoinPending()) {
+    _debug('Startup reconciliation skipped until restored mnemonic pulls remote owner data');
+    logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} skipped - restore join pending`);
+    return;
+  }
   const rows = evolu.getQueryRows(profileQuery);
   const existing = rows?.find(r => r.profileId === state.currentProfile);
   // No existing row -> first sync ever for this profile, normal push path

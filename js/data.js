@@ -102,7 +102,7 @@ function _makeActiveDataCacheMeta() {
 // ═══════════════════════════════════════════════
 // STORAGE
 // ═══════════════════════════════════════════════
-export async function saveImportedData() {
+export async function saveImportedData(options = {}) {
   invalidateActiveDataCache();
   try {
     const key = profileStorageKey(state.currentProfile, 'imported');
@@ -116,9 +116,11 @@ export async function saveImportedData() {
     scheduleAutoBackup();
     touchProfileTimestamp(state.currentProfile);
     if (window.invalidateLabContextCache) window.invalidateLabContextCache();
-    onDataSaved();
+    onDataSaved(options);
+    return true;
   } catch (e) {
     showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
+    return false;
   }
 }
 

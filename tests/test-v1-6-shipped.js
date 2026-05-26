@@ -271,11 +271,13 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       api.STREAM_STALL_TIMEOUT_MS === 30000, `got ${api.STREAM_STALL_TIMEOUT_MS}`);
     assert('api.js: FETCH_REQUEST_TIMEOUT_MS exported = 60000',
       api.FETCH_REQUEST_TIMEOUT_MS === 60000, `got ${api.FETCH_REQUEST_TIMEOUT_MS}`);
+    assert('api.js: AI_IMPORT_REQUEST_TIMEOUT_MS exported = 180000',
+      api.AI_IMPORT_REQUEST_TIMEOUT_MS === 180000, `got ${api.AI_IMPORT_REQUEST_TIMEOUT_MS}`);
     const apiSrc = fetchSrc('js/api.js');
     assert('api.js: readWithStallTimeout exists',
       /function readWithStallTimeout/.test(apiSrc));
     assert('api.js: _fetchWithRetry composes AbortSignal.timeout + caller signal',
-      /AbortSignal\.timeout\(FETCH_REQUEST_TIMEOUT_MS\)/.test(apiSrc)
+      /AbortSignal\.timeout\(timeoutMs\)/.test(apiSrc)
       && /AbortSignal\.any/.test(apiSrc));
     // Polyfill path: when AbortSignal.any is unavailable, manual
     // AbortController forwards both signals. Without this older
@@ -419,8 +421,19 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     // sites exist so a future refactor doesn't accidentally bypass them.
     assert('pdf-import.js: imports callClaudeAPI from api.js',
       /import\s*\{[^}]*callClaudeAPI[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfSrc));
-    assert('pdf-import.js: parseLabPDFWithAI calls callClaudeAPI',
-      /export\s+async\s+function\s+parseLabPDFWithAI[\s\S]+?callClaudeAPI\(/.test(pdfSrc));
+    assert('pdf-import.js: imports import-specific AI timeout from api.js',
+      /import\s*\{[^}]*AI_IMPORT_REQUEST_TIMEOUT_MS[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfSrc));
+    assert('pdf-import.js: import AI fallback calls callClaudeAPI',
+      /function\s+callImportAIWithStreamFallback[\s\S]+?callClaudeAPI\(/.test(pdfSrc));
+    assert('pdf-import.js: retries aborted AI import streams without streaming',
+      /function\s+isAIStreamAbortError/.test(pdfSrc)
+      && /aborted by user/.test(pdfSrc)
+      && /name\s*===\s*['"]aborterror['"]/.test(pdfSrc)
+      && /function\s+callImportAIWithStreamFallback/.test(pdfSrc)
+      && /onStream:\s*undefined/.test(pdfSrc)
+      && /forceNonStream:\s*true/.test(pdfSrc)
+      && /requestTimeoutMs:\s*AI_IMPORT_REQUEST_TIMEOUT_MS/.test(pdfSrc)
+      && /parseLabPDFWithAI[\s\S]+?callImportAIWithStreamFallback/.test(pdfSrc));
     assert('pdf-import.js: catch path closes the import modal on error',
       /catch\s*\([^)]+\)\s*\{[\s\S]{0,500}hideImportProgress\('error'\)/.test(pdfSrc));
   }
@@ -570,7 +583,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && /profileDob:\s*state\.profileDob/.test(dataSrc)
       && /wearableWeightLatest/.test(dataSrc)
       && /legacyWeightStamp/.test(dataSrc)
-      && /saveImportedData\(\)[\s\S]{0,120}invalidateActiveDataCache\(\)/.test(dataSrc)
+      && /saveImportedData\([^)]*\)[\s\S]{0,120}invalidateActiveDataCache\(\)/.test(dataSrc)
       && !/_makeActiveDataCacheMeta\(\)[\s\S]{0,900}rangeMode:\s*state\.rangeMode/.test(dataSrc)
       && !/switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataSrc));
     assert('category-glyphs.js: marker category surfaces use coded glyphs instead of emoji icons',

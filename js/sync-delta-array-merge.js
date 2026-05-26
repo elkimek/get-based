@@ -1,12 +1,17 @@
 // sync-delta-array-merge.js - Pull-side array row overlay helper.
 
-import { COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt } from './data-merge.js';
+import { COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt, mergeLabEntry } from './data-merge.js';
 import { recordPullDeltaSurface } from './sync-delta-observability.js';
 import {
   DELTA_ARRAY_CONFIG,
   _isAllowlistSafeId,
 } from './sync-delta-registry.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
+
+function parseRowSyncedAt(row) {
+  const ts = Date.parse(row?.syncedAt || '');
+  return Number.isFinite(ts) ? ts : 0;
+}
 
 export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
   // Read/write the target array: flat top-level for most surfaces, dotted-path
@@ -24,15 +29,20 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
   // Seed the tombstone set with the local blob's `_deleted[path]` list before
   // walking relay rows. Trust local user intent while Phase 1 dual-write can
   // still race peer pushes.
-  const tombs = new Set();
+  const localTombs = new Set();
+  const remoteTombs = new Map();
   try {
     const localDel = imported && imported._deleted;
     const localList = localDel && Array.isArray(localDel[arrayName]) ? localDel[arrayName] : null;
-    if (localList) for (const id of localList) if (typeof id === 'string') tombs.add(id);
+    if (localList) for (const id of localList) if (typeof id === 'string') localTombs.add(id);
   } catch {}
   const liveById = new Map(); // itemId -> { item, ts, syncedAt }
   for (const row of arrRows) {
-    if (row.isDeleted) { tombs.add(row.itemId); continue; }
+    if (row.isDeleted) {
+      const prev = remoteTombs.get(row.itemId) || 0;
+      remoteTombs.set(row.itemId, Math.max(prev, parseRowSyncedAt(row)));
+      continue;
+    }
     try {
       const item = await decodeRowPayload(row);
       // Verify the payload's derived itemId matches the row column.
@@ -49,9 +59,24 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
       }
     } catch {}
   }
+  const tombstoneWinsOverItem = (itemId, item) => {
+    if (!itemId) return false;
+    if (localTombs.has(itemId)) return true;
+    const tombAt = remoteTombs.get(itemId);
+    if (tombAt == null) return false;
+    return tombAt >= pickTimestamp(item);
+  };
+  const tombstoneWinsOverLiveRow = (itemId, entry) => {
+    if (!itemId) return false;
+    if (localTombs.has(itemId)) return true;
+    const tombAt = remoteTombs.get(itemId);
+    if (tombAt == null) return false;
+    const liveAt = Math.max(entry?.ts || 0, Date.parse(entry?.syncedAt || '') || 0);
+    return tombAt >= liveAt;
+  };
   // Apply tombstones (drop) + live (replace or insert). Both sides key on
   // itemIdFn so changeHistory finds existing entries by synthesized id.
-  let nextArr = curArr.filter(it => !tombs.has(itemIdFn(it)));
+  let nextArr = curArr.filter(it => !tombstoneWinsOverItem(itemIdFn(it), it));
   // Dedup `nextArr` by itemIdFn before the liveById overlay. Keep the first
   // occurrence; the live overlay below will replace it with relay-authority.
   const seen = new Map();
@@ -71,10 +96,12 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
   }
   for (const [itemId, entry] of liveById) {
     // Honour blob tombstones seeded above.
-    if (tombs.has(itemId)) continue;
+    if (tombstoneWinsOverLiveRow(itemId, entry)) continue;
     const item = entry.item;
     const idx = seen.get(itemId);
-    if (idx !== undefined) nextArr[idx] = item;
+    if (idx !== undefined) {
+      nextArr[idx] = arrayName === 'entries' ? mergeLabEntry(nextArr[idx], item) : item;
+    }
     else nextArr.push(item);
   }
   writeArr(nextArr);
@@ -90,5 +117,5 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
     });
     writeArr(trimmed.slice(0, cap));
   }
-  recordPullDeltaSurface(arrayName, { live: liveById.size, tombstones: tombs.size });
+  recordPullDeltaSurface(arrayName, { live: liveById.size, tombstones: localTombs.size + remoteTombs.size });
 }

@@ -7,7 +7,7 @@ import { clearSyncDisableStorage } from './sync-disable-cleanup.js';
 import { resetSyncStatus } from './sync-state.js';
 import { pushAllProfiles } from './sync-actions.js';
 import { clearSyncSaveTimers } from './sync-save-hooks.js';
-import { clearSyncPullTimers } from './sync-pull.js';
+import { clearSyncPullTimers, forcePull } from './sync-pull.js';
 import { clearSyncSubscriptionTimers } from './sync-subscriptions.js';
 import { renderSyncIndicator } from './sync-ui.js';
 import { initSync } from './sync-init.js';
@@ -52,6 +52,7 @@ export async function enableSync({ skipPush = false } = {}) {
     await Promise.race([queryLoaded, new Promise(r => setTimeout(r, 30000))]);
   }
   if (!skipPush) {
+    try { await forcePull(); } catch (e) { console.warn('[sync] initial pull failed:', e); }
     try { await pushAllProfiles(); } catch (e) { console.warn('[sync] initial push failed:', e); }
   }
   showNotification('Sync enabled', 'success');

@@ -34,6 +34,12 @@ assert('callVeniceAPI has E2EE import', apiSrc.includes("import('../vendor/venic
 assert('supportsWebSearch excludes E2EE', apiSrc.includes('isE2EEModel(getVeniceModel())'));
 assert('supportsVision excludes E2EE', apiSrc.includes('isE2EEModel(getVeniceModel())') && apiSrc.includes('return false'));
 assert('fetchVeniceModels preserves e2ee- prefix', apiSrc.includes("id.startsWith('e2ee-')"));
+assert('Venice E2EE supports forced non-stream retry path',
+  /forceNonStream/.test(apiSrc)
+  && /requestTimeoutMs/.test(apiSrc)
+  && /stream:\s*useStream/.test(apiSrc)
+  && /if\s*\(!useStream\)/.test(apiSrc)
+  && /decryptChunk\(session\.privateKey,\s*encryptedContent\)/.test(apiSrc));
 
 // 2. window.isE2EEModel function
 assert('window.isE2EEModel is function', typeof window.isE2EEModel === 'function');

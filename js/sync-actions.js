@@ -63,7 +63,7 @@ export async function syncNow() {
 }
 
 // Push all profiles on first enable.
-export async function pushAllProfiles() {
+export async function pushAllProfiles(options = {}) {
   const profiles = getProfiles();
   for (const p of profiles) {
     try {
@@ -73,7 +73,7 @@ export async function pushAllProfiles() {
       } else {
         dataJson = await readProfileImportedData(p.id);
       }
-      if (dataJson) await _pushProfile(p.id, dataJson);
+      if (dataJson) await _pushProfile(p.id, dataJson, options);
     } catch (e) {
       console.error('[sync] Push failed for profile:', p.id, e);
     }

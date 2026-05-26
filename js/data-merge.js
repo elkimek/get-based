@@ -39,6 +39,15 @@ export const ID_KEYED_ARRAYS = [
   'lightEnvironment.screens',
 ];
 
+// `_deleted[path]` tombstones can apply to id-keyed arrays and to select
+// natural-key arrays that have a stable sync item id. Lab entries are keyed by
+// collection date in the per-row sync layer, so a deleted import date needs a
+// tombstone or a peer's still-live row can resurrect it before our next push.
+export const TOMBSTONE_ARRAY_PATHS = [
+  ...ID_KEYED_ARRAYS,
+  'entries',
+];
+
 // Arrays whose entries don't carry an `id` but have a stable composite
 // key. Each entry: { path, key: (entry) => string, cap?: number }.
 // During merge we union local + remote, dedup by composite key (later
@@ -54,6 +63,21 @@ export const ID_KEYED_ARRAYS = [
 export const COMPOSITE_KEYED_ARRAYS = [
   { path: 'changeHistory', key: (e) => e?.field && e?.date ? `${e.field}|${e.date}` : null, cap: 200 },
 ];
+
+const LOCAL_WINS_MAP_FIELDS = [
+  'customMarkers',
+  'refOverrides',
+  'categoryLabels',
+  'categoryIcons',
+  'markerLabels',
+  'markerNotes',
+  'markerValueNotes',
+  'manualValues',
+];
+
+export const FRESH_LOCAL_LAB_ENTRY_TTL_MS = 2 * 60 * 1000;
+const TOMBSTONE_META_KEY = '_deletedAt';
+const TOMBSTONE_CLEAR_META_KEY = '_deletedClearedAt';
 
 // Pick a comparable timestamp for conflict resolution. Higher wins.
 // Tries the most recently-edited signal first, falls back through the
@@ -88,6 +112,136 @@ function hasExplicitTimestamp(rec) {
   if (!rec || typeof rec !== 'object') return false;
   return Number.isFinite(rec.updatedAt ?? rec.endedAt ?? rec.startedAt
     ?? rec.capturedAt ?? rec.loggedAt ?? rec.createdAt ?? rec.at);
+}
+
+function mergePlainMap(localMap, remoteMap) {
+  const hasLocal = localMap && typeof localMap === 'object' && !Array.isArray(localMap);
+  const hasRemote = remoteMap && typeof remoteMap === 'object' && !Array.isArray(remoteMap);
+  if (!hasLocal && !hasRemote) return undefined;
+  return { ...(hasRemote ? remoteMap : {}), ...(hasLocal ? localMap : {}) };
+}
+
+function mergeSourceFiles(a, b) {
+  const files = [];
+  for (const item of [a?.sourceFiles, a?.sourceFile, b?.sourceFiles, b?.sourceFile]) {
+    if (Array.isArray(item)) {
+      for (const file of item) if (file && !files.includes(file)) files.push(file);
+    } else if (item && !files.includes(item)) {
+      files.push(item);
+    }
+  }
+  return files;
+}
+
+export function mergeLabEntry(existing, incoming) {
+  if (!existing || typeof existing !== 'object') return incoming;
+  if (!incoming || typeof incoming !== 'object') return existing;
+  const existingTs = pickTimestamp(existing);
+  const incomingTs = pickTimestamp(incoming);
+  const incomingWins = incomingTs > existingTs || incomingTs === existingTs;
+  const base = incomingWins ? { ...existing, ...incoming } : { ...incoming, ...existing };
+  const markers = {};
+  const markerSources = {};
+  const existingMarkers = existing.markers && typeof existing.markers === 'object' ? existing.markers : {};
+  const incomingMarkers = incoming.markers && typeof incoming.markers === 'object' ? incoming.markers : {};
+  const existingSources = existing.markerSources && typeof existing.markerSources === 'object' ? existing.markerSources : {};
+  const incomingSources = incoming.markerSources && typeof incoming.markerSources === 'object' ? incoming.markerSources : {};
+  const markerKeys = new Set([...Object.keys(existingMarkers), ...Object.keys(incomingMarkers)]);
+  for (const key of markerKeys) {
+    if (Object.prototype.hasOwnProperty.call(existingMarkers, key)
+      && Object.prototype.hasOwnProperty.call(incomingMarkers, key)) {
+      markers[key] = incomingWins ? incomingMarkers[key] : existingMarkers[key];
+      markerSources[key] = incomingWins
+        ? (incomingSources[key] || existingSources[key])
+        : (existingSources[key] || incomingSources[key]);
+    } else if (Object.prototype.hasOwnProperty.call(incomingMarkers, key)) {
+      markers[key] = incomingMarkers[key];
+      if (incomingSources[key]) markerSources[key] = incomingSources[key];
+    } else {
+      markers[key] = existingMarkers[key];
+      if (existingSources[key]) markerSources[key] = existingSources[key];
+    }
+  }
+  base.markers = markers;
+  if (Object.keys(markerSources).length) base.markerSources = markerSources;
+  else delete base.markerSources;
+  const sourceFiles = mergeSourceFiles(existing, incoming);
+  if (sourceFiles.length) {
+    base.sourceFiles = sourceFiles;
+    base.sourceFile = incomingWins
+      ? (incoming.sourceFile || existing.sourceFile || sourceFiles[sourceFiles.length - 1])
+      : (existing.sourceFile || incoming.sourceFile || sourceFiles[sourceFiles.length - 1]);
+  }
+  return base;
+}
+
+function mergeLabEntriesByDate(localEntries, remoteEntries) {
+  const hasLocal = Array.isArray(localEntries);
+  const hasRemote = Array.isArray(remoteEntries);
+  if (!hasLocal && !hasRemote) return undefined;
+  const byDate = new Map();
+  const noDate = [];
+  function consume(entries) {
+    if (!Array.isArray(entries)) return;
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object') continue;
+      if (typeof entry.date !== 'string' || !entry.date) {
+        noDate.push(entry);
+        continue;
+      }
+      const existing = byDate.get(entry.date);
+      byDate.set(entry.date, existing ? mergeLabEntry(existing, entry) : entry);
+    }
+  }
+  // Remote first, local second. Local wins timestamp ties so a just-imported
+  // unsynced lab entry cannot be wiped by a stale pull.
+  consume(remoteEntries);
+  consume(localEntries);
+  return [...byDate.values(), ...noDate].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+}
+
+function isFreshLocalLabEntry(entry, now) {
+  if (!entry || typeof entry !== 'object') return false;
+  if (typeof entry.date !== 'string' || !entry.date) return false;
+  if (!Number.isFinite(entry.updatedAt)) return false;
+  return entry.updatedAt <= now + 1000 && now - entry.updatedAt <= FRESH_LOCAL_LAB_ENTRY_TTL_MS;
+}
+
+export function preserveFreshLocalLabEntries(merged, local, now = Date.now()) {
+  if (!merged || typeof merged !== 'object') return false;
+  if (!local || typeof local !== 'object' || !Array.isArray(local.entries)) return false;
+  const freshLocalEntries = local.entries.filter(entry => isFreshLocalLabEntry(entry, now));
+  if (!freshLocalEntries.length) return false;
+
+  if (!Array.isArray(merged.entries)) merged.entries = [];
+  const deletedEntryDates = new Set(Array.isArray(merged._deleted?.entries) ? merged._deleted.entries : []);
+  const byDate = new Map();
+  for (let i = 0; i < merged.entries.length; i++) {
+    const date = merged.entries[i]?.date;
+    if (typeof date === 'string' && date) byDate.set(date, i);
+  }
+
+  let changed = false;
+  for (const localEntry of freshLocalEntries) {
+    if (deletedEntryDates.has(localEntry.date)) continue;
+    const idx = byDate.get(localEntry.date);
+    if (idx === undefined) {
+      merged.entries.push(localEntry);
+      byDate.set(localEntry.date, merged.entries.length - 1);
+      changed = true;
+      continue;
+    }
+    const before = JSON.stringify(merged.entries[idx]);
+    const next = mergeLabEntry(merged.entries[idx], localEntry);
+    if (JSON.stringify(next) !== before) {
+      merged.entries[idx] = next;
+      changed = true;
+    }
+  }
+  if (changed) {
+    merged.entries.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  }
+  return changed;
 }
 
 // Get/set helpers for the dotted path.
@@ -151,17 +305,98 @@ export function unionById(localArr, remoteArr, tombstones) {
   return [...byId.values(), ...noId];
 }
 
-// Union two tombstone arrays — order-insensitive set union. Capped so a
-// tampered remote payload can't ship 10⁶ fabricated ids and bloat every
-// device's localStorage / pull cost. Real workloads should stay well below
-// this — a user deleting 50 rows/month for a year is 600 entries.
+// Merge tombstones plus explicit "clear" markers. The clear metadata is what
+// lets a later re-import of an already-deleted lab date beat an older tombstone
+// from another device instead of being silently erased on the next pull.
+// Capped so a tampered remote payload can't ship 10⁶ fabricated ids and bloat
+// every device's localStorage / pull cost.
 const TOMBSTONE_CAP_PER_PATH = 5000;
-function mergeTombstones(localT, remoteT) {
-  const out = new Set();
-  if (Array.isArray(localT))  for (const id of localT)  if (typeof id === 'string') out.add(id);
-  if (Array.isArray(remoteT)) for (const id of remoteT) if (typeof id === 'string') out.add(id);
-  if (out.size <= TOMBSTONE_CAP_PER_PATH) return [...out];
-  return [...out].slice(0, TOMBSTONE_CAP_PER_PATH);
+function readMetaAt(importedData, metaKey, path, id) {
+  const n = importedData?.[metaKey]?.[path]?.[id];
+  return Number.isFinite(n) ? n : 0;
+}
+
+function readPathMeta(importedData, metaKey, path) {
+  const meta = importedData?.[metaKey]?.[path];
+  return meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
+}
+
+function ensurePathMeta(importedData, metaKey, path) {
+  if (!importedData[metaKey] || typeof importedData[metaKey] !== 'object' || Array.isArray(importedData[metaKey])) {
+    importedData[metaKey] = {};
+  }
+  if (!importedData[metaKey][path] || typeof importedData[metaKey][path] !== 'object' || Array.isArray(importedData[metaKey][path])) {
+    importedData[metaKey][path] = {};
+  }
+  return importedData[metaKey][path];
+}
+
+function deletePathMeta(importedData, metaKey, path, id) {
+  const root = importedData?.[metaKey];
+  const meta = root?.[path];
+  if (!meta || typeof meta !== 'object') return;
+  delete meta[id];
+  if (Object.keys(meta).length === 0) delete root[path];
+  if (Object.keys(root).length === 0) delete importedData[metaKey];
+}
+
+function mergeTombstoneState(path, local, remote) {
+  const localT = local?._deleted?.[path];
+  const remoteT = remote?._deleted?.[path];
+  const ids = new Set();
+  if (Array.isArray(localT))  for (const id of localT)  if (typeof id === 'string') ids.add(id);
+  if (Array.isArray(remoteT)) for (const id of remoteT) if (typeof id === 'string') ids.add(id);
+
+  const clearIds = new Set([
+    ...Object.keys(readPathMeta(local, TOMBSTONE_CLEAR_META_KEY, path)),
+    ...Object.keys(readPathMeta(remote, TOMBSTONE_CLEAR_META_KEY, path)),
+  ].filter(id => typeof id === 'string' && id));
+
+  const tombstones = [];
+  const tombstoneMeta = Object.create(null);
+  const clearMeta = Object.create(null);
+
+  for (const id of ids) {
+    const tombAt = Math.max(
+      readMetaAt(local, TOMBSTONE_META_KEY, path, id),
+      readMetaAt(remote, TOMBSTONE_META_KEY, path, id)
+    );
+    const clearAt = Math.max(
+      readMetaAt(local, TOMBSTONE_CLEAR_META_KEY, path, id),
+      readMetaAt(remote, TOMBSTONE_CLEAR_META_KEY, path, id)
+    );
+    if (clearAt > tombAt) {
+      clearMeta[id] = clearAt;
+      continue;
+    }
+    tombstones.push(id);
+    if (tombAt) tombstoneMeta[id] = tombAt;
+  }
+
+  for (const id of clearIds) {
+    if (Object.prototype.hasOwnProperty.call(clearMeta, id)) continue;
+    if (ids.has(id)) continue;
+    const clearAt = Math.max(
+      readMetaAt(local, TOMBSTONE_CLEAR_META_KEY, path, id),
+      readMetaAt(remote, TOMBSTONE_CLEAR_META_KEY, path, id)
+    );
+    if (clearAt) clearMeta[id] = clearAt;
+  }
+
+  const cappedTombstones = tombstones.slice(0, TOMBSTONE_CAP_PER_PATH);
+  const cappedSet = new Set(cappedTombstones);
+  for (const id of Object.keys(tombstoneMeta)) {
+    if (!cappedSet.has(id)) delete tombstoneMeta[id];
+  }
+
+  const clearEntries = Object.entries(clearMeta)
+    .filter(([, ts]) => Number.isFinite(ts) && ts > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, TOMBSTONE_CAP_PER_PATH);
+  const cappedClearMeta = Object.create(null);
+  for (const [id, ts] of clearEntries) cappedClearMeta[id] = ts;
+
+  return { tombstones: cappedTombstones, tombstoneMeta, clearMeta: cappedClearMeta };
 }
 
 // Dangerous keys that, if reached via bracket-assignment, mutate the
@@ -187,21 +422,40 @@ export function mergeImportedData(local, remote) {
   // non-id-keyed scalars and arrays.
   const out = { ...remote };
 
+  const mergedEntries = mergeLabEntriesByDate(local.entries, remote.entries);
+  if (mergedEntries) out.entries = mergedEntries;
+
+  for (const field of LOCAL_WINS_MAP_FIELDS) {
+    const mergedMap = mergePlainMap(local[field], remote[field]);
+    if (mergedMap) out[field] = mergedMap;
+  }
+
   // Tombstones — union both sides' deletes. Restricted to paths in
-  // ID_KEYED_ARRAYS to prevent (a) prototype-pollution via `__proto__`
+  // TOMBSTONE_ARRAY_PATHS to prevent (a) prototype-pollution via `__proto__`
   // / `constructor` keys from a tampered remote payload, and (b) unbounded
-  // accumulation of unrelated keys. mergeTombstones itself caps each
+  // accumulation of unrelated keys. mergeTombstoneState itself caps each
   // path's tombstone list at TOMBSTONE_CAP_PER_PATH to limit DoS bloat.
-  const localDel  = (local._deleted  && typeof local._deleted  === 'object') ? local._deleted  : {};
-  const remoteDel = (remote._deleted && typeof remote._deleted === 'object') ? remote._deleted : {};
   const mergedDel = Object.create(null); // null-prototype so __proto__ key cannot mutate the chain
-  for (const path of ID_KEYED_ARRAYS) {
-    if (!isSafeArrayPath(path)) continue; // guard against future ID_KEYED_ARRAYS entries
-    const merged = mergeTombstones(localDel[path], remoteDel[path]);
-    if (merged.length) mergedDel[path] = merged;
+  const mergedDeletedAt = Object.create(null);
+  const mergedDeletedClearedAt = Object.create(null);
+  for (const path of TOMBSTONE_ARRAY_PATHS) {
+    if (!isSafeArrayPath(path)) continue; // guard against future tombstone path additions
+    const merged = mergeTombstoneState(path, local, remote);
+    if (merged.tombstones.length) mergedDel[path] = merged.tombstones;
+    if (Object.keys(merged.tombstoneMeta).length) mergedDeletedAt[path] = merged.tombstoneMeta;
+    if (Object.keys(merged.clearMeta).length) mergedDeletedClearedAt[path] = merged.clearMeta;
   }
   if (Object.keys(mergedDel).length) out._deleted = mergedDel;
   else delete out._deleted;
+  if (Object.keys(mergedDeletedAt).length) out[TOMBSTONE_META_KEY] = mergedDeletedAt;
+  else delete out[TOMBSTONE_META_KEY];
+  if (Object.keys(mergedDeletedClearedAt).length) out[TOMBSTONE_CLEAR_META_KEY] = mergedDeletedClearedAt;
+  else delete out[TOMBSTONE_CLEAR_META_KEY];
+
+  if (Array.isArray(out.entries) && Array.isArray(mergedDel.entries) && mergedDel.entries.length) {
+    const deletedDates = new Set(mergedDel.entries);
+    out.entries = out.entries.filter(entry => !deletedDates.has(entry?.date));
+  }
 
   // For each id-keyed array path, do union-by-id with tombstones applied.
   for (const path of ID_KEYED_ARRAYS) {
@@ -290,6 +544,36 @@ export function mergeImportedData(local, remote) {
 export function localHasRowsRemoteLacks(local, remote) {
   if (!local || typeof local !== 'object') return false;
   if (!remote || typeof remote !== 'object') return true; // no remote, all local is news
+  if (Array.isArray(local.entries)) {
+    const remoteEntries = new Map();
+    if (Array.isArray(remote.entries)) {
+      for (const entry of remote.entries) {
+        if (entry?.date) remoteEntries.set(entry.date, entry);
+      }
+    }
+    for (const entry of local.entries) {
+      if (!entry?.date) continue;
+      const remoteEntry = remoteEntries.get(entry.date);
+      if (!remoteEntry) return true;
+      const localMarkers = entry.markers && typeof entry.markers === 'object' ? entry.markers : {};
+      const remoteMarkers = remoteEntry.markers && typeof remoteEntry.markers === 'object' ? remoteEntry.markers : {};
+      for (const [key, value] of Object.entries(localMarkers)) {
+        if (!Object.prototype.hasOwnProperty.call(remoteMarkers, key)) return true;
+        if (JSON.stringify(value) !== JSON.stringify(remoteMarkers[key])) return true;
+      }
+    }
+  }
+  for (const field of LOCAL_WINS_MAP_FIELDS) {
+    const localMap = local[field];
+    if (!localMap || typeof localMap !== 'object' || Array.isArray(localMap)) continue;
+    const remoteMap = remote[field] && typeof remote[field] === 'object' && !Array.isArray(remote[field])
+      ? remote[field]
+      : {};
+    for (const [key, value] of Object.entries(localMap)) {
+      if (!Object.prototype.hasOwnProperty.call(remoteMap, key)) return true;
+      if (JSON.stringify(value) !== JSON.stringify(remoteMap[key])) return true;
+    }
+  }
   for (const path of ID_KEYED_ARRAYS) {
     const lArr = getAt(local, path);
     const rArr = getAt(remote, path);
@@ -315,25 +599,38 @@ export function localHasRowsRemoteLacks(local, remote) {
     }
   }
   // (3) Tombstones on local but not on remote also need rebroadcast so
-  // the delete propagates. Restricted to ID_KEYED_ARRAYS paths — same
+  // the delete propagates. Restricted to TOMBSTONE_ARRAY_PATHS paths — same
   // guard as mergeImportedData's tombstone block; prevents an attacker-
   // injected path from forcing an infinite rebroadcast.
   const lDel = (local._deleted && typeof local._deleted === 'object') ? local._deleted : {};
   const rDel = (remote._deleted && typeof remote._deleted === 'object') ? remote._deleted : {};
-  for (const path of ID_KEYED_ARRAYS) {
+  for (const path of TOMBSTONE_ARRAY_PATHS) {
     if (!Object.prototype.hasOwnProperty.call(lDel, path)) continue;
     const remoteSet = new Set(Array.isArray(rDel[path]) ? rDel[path] : []);
     for (const id of (lDel[path] || [])) {
       if (typeof id === 'string' && !remoteSet.has(id)) return true;
+      if (typeof id === 'string'
+        && readMetaAt(local, TOMBSTONE_META_KEY, path, id) > readMetaAt(remote, TOMBSTONE_META_KEY, path, id)) {
+        return true;
+      }
+    }
+  }
+  for (const path of TOMBSTONE_ARRAY_PATHS) {
+    const localClears = readPathMeta(local, TOMBSTONE_CLEAR_META_KEY, path);
+    for (const [id, ts] of Object.entries(localClears)) {
+      if (typeof id === 'string' && Number.isFinite(ts)
+        && ts > readMetaAt(remote, TOMBSTONE_CLEAR_META_KEY, path, id)) {
+        return true;
+      }
     }
   }
   return false;
 }
 
-// Record a delete for a known id-keyed array. Mutates the importedData blob
-// in place. Callers (delete sites in sun.js, light-devices.js, etc.) should
-// run this BEFORE the array.filter() that removes the row, so the tombstone
-// survives even if the row is gone before the next sync push.
+// Record a delete for a known sync row. Mutates the importedData blob in place.
+// Callers (delete sites in sun.js, light-devices.js, pdf-import.js, etc.)
+// should run this BEFORE the array.filter() that removes the row, so the
+// tombstone survives even if the row is gone before the next sync push.
 export function recordTombstone(importedData, arrayPath, id) {
   if (!importedData || typeof importedData !== 'object') return;
   if (typeof id !== 'string' || !id) return;
@@ -346,4 +643,21 @@ export function recordTombstone(importedData, arrayPath, id) {
   } else {
     importedData._deleted[arrayPath] = [id];
   }
+  ensurePathMeta(importedData, TOMBSTONE_META_KEY, arrayPath)[id] = Date.now();
+  deletePathMeta(importedData, TOMBSTONE_CLEAR_META_KEY, arrayPath, id);
+}
+
+export function clearTombstone(importedData, arrayPath, id) {
+  if (!importedData || typeof importedData !== 'object') return;
+  if (typeof id !== 'string' || !id) return;
+  ensurePathMeta(importedData, TOMBSTONE_CLEAR_META_KEY, arrayPath)[id] = Date.now();
+  deletePathMeta(importedData, TOMBSTONE_META_KEY, arrayPath, id);
+  const deleted = importedData._deleted;
+  if (!deleted || typeof deleted !== 'object') return;
+  const list = deleted[arrayPath];
+  if (!Array.isArray(list)) return;
+  const next = list.filter(x => x !== id);
+  if (next.length) deleted[arrayPath] = next;
+  else delete deleted[arrayPath];
+  if (Object.keys(deleted).length === 0) delete importedData._deleted;
 }

@@ -5211,6 +5211,8 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .supp-list-info { flex: 1; min-width: 0; }
 .supp-list-name { font-weight: 500; color: var(--text-primary); }
 .supp-list-meta { font-size: 11px; color: var(--text-muted); }
+.supp-list-source { color: var(--accent); text-decoration: none; }
+.supp-list-source:hover { text-decoration: underline; }
 .supp-list-note { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Supplement impact analysis (AI-driven) */
 .supp-impact-section { border-top: 1px solid var(--border); padding: 12px 0; }

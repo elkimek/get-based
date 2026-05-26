@@ -13,6 +13,7 @@ import {
 } from './sync-pull-merge.js';
 import { maybeScheduleRebroadcast } from './sync-pull-rebroadcast.js';
 import { applyRemoteTombstones } from './sync-tombstones.js';
+import { clearRestoreJoinPending } from './sync-identity.js';
 import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
@@ -71,8 +72,7 @@ export function forcePull() {
   }
   _pulling = false;
   dbg('Force pull triggered');
-  onSyncReceived();
-  return 'triggered';
+  return onSyncReceived();
 }
 
 function scheduleChatPullRetry(profileId, delayMs) {
@@ -172,12 +172,13 @@ export async function onSyncReceived() {
 
         const {
           localKey, merged, mergeMsg,
-          needsRebroadcast, remoteBroughtNewRows,
+          needsRebroadcast, remoteBroughtNewRows, restoreJoinApplied,
         } = await mergePulledImportedData(profileId, importedData, { debug: dbg });
         dbg(mergeMsg);
         logSyncEvent('pull', mergeMsg);
 
         await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
+        if (restoreJoinApplied) clearRestoreJoinPending();
 
         if (await mergePulledProfile(profileId, profile)) {
           profilesChanged = true;

@@ -3,9 +3,10 @@
 import { state } from './state.js';
 import { profileStorageKey, getProfiles, saveProfiles } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
-import { mergeImportedData, localHasRowsRemoteLacks } from './data-merge.js';
+import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { _mergeItemRowsIntoImported } from './sync-delta.js';
+import { isRestoreJoinPending } from './sync-identity.js';
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -84,11 +85,22 @@ function countArray(b, k) {
   return Array.isArray(b?.[k]) ? b[k].length : 0;
 }
 
+function withoutLocalTombstones(importedData) {
+  if (!importedData || typeof importedData !== 'object') return importedData;
+  if (!importedData._deleted && !importedData._deletedAt && !importedData._deletedClearedAt) return importedData;
+  const { _deleted, _deletedAt, _deletedClearedAt, ...rest } = importedData;
+  return rest;
+}
+
 export async function mergePulledImportedData(profileId, importedData, { debug } = {}) {
   const localKey = profileStorageKey(profileId, 'imported');
   const localImportedForMerge = profileId === state.currentProfile
     ? (state.importedData || null)
     : await readStoredImportedData(localKey, debug, 'merge');
+  const restoreJoinApplied = profileId === state.currentProfile && isRestoreJoinPending();
+  const localBaselineForMerge = restoreJoinApplied
+    ? withoutLocalTombstones(localImportedForMerge)
+    : localImportedForMerge;
 
   // Preserve local wearableConnections - they're stripped from the push
   // payload (tokens stay per-device), so the remote blob never carries
@@ -104,8 +116,8 @@ export async function mergePulledImportedData(profileId, importedData, { debug }
   // v4 cutover: importedData is null by design. Use local as the baseline;
   // per-row overlay below fills in every field. v3 and older still merge
   // blob-into-local as before.
-  let merged = localImportedForMerge
-    ? (importedData ? mergeImportedData(localImportedForMerge, importedData) : localImportedForMerge)
+  let merged = localBaselineForMerge
+    ? (importedData ? mergeImportedData(localBaselineForMerge, importedData) : localBaselineForMerge)
     : (importedData || {});
 
   // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER the blob
@@ -116,11 +128,13 @@ export async function mergePulledImportedData(profileId, importedData, { debug }
   } catch (e) {
     console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
   }
+  const preservedFreshLocalEntries = preserveFreshLocalLabEntries(merged, localImportedForMerge);
 
   const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${countArray(localImportedForMerge,'sunSessions')}/dev=${countArray(localImportedForMerge,'lightDevices')} · remote sun=${countArray(importedData,'sunSessions')}/dev=${countArray(importedData,'lightDevices')} · merged sun=${countArray(merged,'sunSessions')}/dev=${countArray(merged,'lightDevices')}`;
-  const needsRebroadcast = !!localImportedForMerge && !!importedData
-    && localHasRowsRemoteLacks(localImportedForMerge, importedData);
-  const remoteBroughtNewRows = !!localImportedForMerge && !!importedData
+  const needsRebroadcast = preservedFreshLocalEntries
+    || (!!localImportedForMerge && !!importedData
+      && localHasRowsRemoteLacks(localImportedForMerge, importedData));
+  const remoteBroughtNewRows = !preservedFreshLocalEntries && !!localImportedForMerge && !!importedData
     && localHasRowsRemoteLacks(importedData, localImportedForMerge);
 
   return {
@@ -130,6 +144,7 @@ export async function mergePulledImportedData(profileId, importedData, { debug }
     mergeMsg,
     needsRebroadcast,
     remoteBroughtNewRows,
+    restoreJoinApplied,
   };
 }
 

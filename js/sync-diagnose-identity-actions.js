@@ -151,7 +151,7 @@ export async function confirmRotateIdentity(btn) {
       if (!currentSyncEnabled()) {
         await enableSyncForDiagnose({ skipPush: true });
       }
-      const ok = await restoreMnemonicForDiagnose(words.join(' '));
+      const ok = await restoreMnemonicForDiagnose(words.join(' '), { seedLocal: true });
       if (!ok) {
         showNotification('Restore returned false — generated mnemonic was rejected', 'error');
         applyBtn.disabled = false;

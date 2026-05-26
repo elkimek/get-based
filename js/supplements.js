@@ -13,6 +13,26 @@ export function getSupplementPeriods(s) {
   return [{ start: s.startDate, end: s.endDate }];
 }
 
+function _parseHttpUrl(raw) {
+  const value = (raw || '').trim();
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function _sourceUrlParts(raw) {
+  const parsed = _parseHttpUrl(raw);
+  if (!parsed) return null;
+  return {
+    url: parsed.toString(),
+    host: parsed.hostname.replace(/^www\./, '')
+  };
+}
+
 export function renderSupplementsSection() {
   const supps = state.importedData.supplements || [];
   let html = `<div class="supp-timeline-section">
@@ -293,9 +313,11 @@ function _applyParsedSupplement(parsed) {
 
 async function fetchSupplementFromURL() {
   const urlInput = document.getElementById('supp-url');
-  const url = urlInput?.value.trim();
-  if (!url) { showNotification('Paste a product URL first', 'error'); return; }
-  try { new URL(url); } catch { showNotification('Invalid URL', 'error'); return; }
+  const rawUrl = urlInput?.value.trim();
+  if (!rawUrl) { showNotification('Paste a product URL first', 'error'); return; }
+  const parsedUrl = _parseHttpUrl(rawUrl);
+  if (!parsedUrl) { showNotification('Product URL must be http or https', 'error'); return; }
+  const url = parsedUrl.toString();
   const btn = document.querySelector('.supp-url-fetch');
   if (btn) { btn.textContent = 'Fetching...'; btn.disabled = true; }
   try {
@@ -358,15 +380,16 @@ function _suppFormHtml(editIdx, s) {
   const editing = !!s;
   const ingredients = editing && s.ingredients ? s.ingredients : [];
   const periods = editing ? getSupplementPeriods(s) : [{ start: new Date().toISOString().slice(0, 10), end: null }];
+  const sourceUrl = editing && s.sourceUrl ? s.sourceUrl : '';
   return `<div class="supp-form" id="supp-form-panel">
-    ${hasAIProvider() ? `<div class="supp-form-row supp-url-row">
-      <div class="supp-form-field" style="flex:1"><label>Import from URL</label>
+    <div class="supp-form-row supp-url-row">
+      <div class="supp-form-field" style="flex:1"><label>Product URL <span style="font-weight:normal;color:var(--text-muted)">(saved for reference${hasAIProvider() ? '; Fetch auto-fills' : ''})</span></label>
         <div class="supp-url-input-row">
-          <input type="url" id="supp-url" placeholder="Paste product page link to auto-fill" autocomplete="off">
-          <button class="supp-url-fetch" onclick="fetchSupplementFromURL()">Fetch</button>
+          <input type="url" id="supp-url" placeholder="https://..." autocomplete="off" value="${escapeHTML(sourceUrl)}">
+          ${hasAIProvider() ? `<button class="supp-url-fetch" onclick="fetchSupplementFromURL()">Fetch</button>` : ''}
         </div>
       </div>
-    </div>` : ''}
+    </div>
     <div class="supp-form-row">
       <div class="supp-form-field"><label>Name</label>
         <input type="text" id="supp-name" placeholder="e.g. Creatine, Metformin" value="${editing ? escapeHTML(s.name) : ''}">
@@ -461,11 +484,12 @@ export function openSupplementsEditor(editIdx) {
       const dateRange = pds.length === 1
         ? `${fmtDate(pds[0].start)} \u2192 ${pds[0].end ? fmtDate(pds[0].end) : 'ongoing'}`
         : pds.map(p => `${fmtDate(p.start)}\u2192${p.end ? fmtDate(p.end) : 'now'}`).join(' \u00b7 ');
+      const source = _sourceUrlParts(s.sourceUrl);
       html += `<div class="supp-list-item${isEdit && editIdx === i ? ' supp-list-item-active' : ''}" data-idx="${i}" onclick="toggleSuppAccordion(${i})">
         <span class="supp-list-icon">${icon}</span>
         <div class="supp-list-info">
           <div class="supp-list-name">${escapeHTML(s.name)}${s.dosage ? ` <span class="supp-list-meta">${escapeHTML(s.dosage)}</span>` : ''}</div>
-          <div class="supp-list-meta">${dateRange}</div>
+          <div class="supp-list-meta">${dateRange}${source ? ` &middot; <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="supp-list-source">${escapeHTML(source.host)} ↗</a>` : ''}</div>
           ${s.ingredients?.length ? `<div class="supp-list-ingredients">${s.ingredients.map(ing => {
             const total = ingredientDailyTotal(ing, s);
             const times = effectiveTimesPerDay(ing, s);
@@ -540,11 +564,26 @@ export function saveSupplement(idx) {
   const ingredients = _collectIngredients();
   const timesRaw = document.getElementById('supp-times')?.value.trim();
   const timesNum = timesRaw ? parseFloat(timesRaw) : NaN;
+  const sourceUrlRaw = document.getElementById('supp-url')?.value.trim() || '';
+  let parsedSourceUrl = null;
+  if (sourceUrlRaw) {
+    try {
+      parsedSourceUrl = new URL(sourceUrlRaw);
+      if (parsedSourceUrl.protocol !== 'http:' && parsedSourceUrl.protocol !== 'https:') {
+        showNotification('Product URL must be http or https', 'error');
+        return;
+      }
+    } catch {
+      showNotification('Invalid product URL', 'error');
+      return;
+    }
+  }
   if (!state.importedData.supplements) state.importedData.supplements = [];
   const entry = { name, dosage, startDate, endDate, type, note };
   if (sorted.length > 1) entry.periods = sorted;
   if (ingredients) entry.ingredients = ingredients;
   if (isFinite(timesNum) && timesNum > 0) entry.timesPerDay = timesNum;
+  if (parsedSourceUrl) entry.sourceUrl = parsedSourceUrl.toString();
   if (idx >= 0) {
     state.importedData.supplements[idx] = entry;
   } else {

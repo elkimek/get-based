@@ -74,6 +74,7 @@ return (async function() {
   assert('Client export includes markerNotes', exportSrc.includes('markerNotes: data.markerNotes'));
   assert('Client export includes changeHistory', exportSrc.includes('changeHistory: data.changeHistory'));
   assert('Client export includes chatSummaries', exportSrc.includes('chatSummaries: data.chatSummaries'));
+  assert('Supplement import preserves safe sourceUrl', exportSrc.includes('entry.sourceUrl = sourceUrl.toString()'));
   // Light & Sun stack — earlier export schema dropped these silently;
   // import learned them in v1.6.x but export hadn't followed suit.
   assert('Client export includes sunSessions', exportSrc.includes('sunSessions: data.sunSessions'));

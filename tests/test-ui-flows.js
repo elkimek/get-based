@@ -51,6 +51,39 @@ return (async function() {
   assert('Setup: demo data loaded', data.dates.length > 0, `${data.dates.length} dates`);
 
   // ═══════════════════════════════════════════════
+  // 0. SETTINGS DATA IMPORT ACTIONS
+  // ═══════════════════════════════════════════════
+  console.log('%c 0. Settings Data import actions', 'font-weight:bold;color:#6366f1');
+  const originalImportedData = JSON.parse(JSON.stringify(S.importedData || {}));
+  try {
+    S.importedData = Object.assign({}, originalImportedData, {
+      entries: [{
+        date: '2099-12-31',
+        markers: { 'biochemistry.alp': 1 },
+        importedWith: { modelId: 'ui-flow-smoke' }
+      }],
+      manualValues: {}
+    });
+    const entriesHtml = window.renderDataEntriesSection();
+    assert('Settings Data remove wrapper is callable', typeof window.removeImportedEntryFromSettings === 'function');
+    assert('Settings Data legacy remove bridge is callable', typeof window.removeImportedEntry === 'function');
+    assert('Settings Data remove button uses lazy wrapper', entriesHtml.includes('removeImportedEntryFromSettings(&quot;2099-12-31&quot;)'));
+    assert('Settings Data edit button uses lazy wrapper', entriesHtml.includes('renameImportedEntryDateFromSettings(&quot;2099-12-31&quot;)'));
+    await window.removeImportedEntryFromSettings('2099-12-31');
+    await wait(50);
+    assert('Settings Data remove wrapper deletes entry',
+      !(S.importedData.entries || []).some(e => e.date === '2099-12-31'));
+    assert('Settings Data remove wrapper records sync tombstone',
+      S.importedData._deleted?.entries?.includes('2099-12-31'));
+  } finally {
+    S.importedData = originalImportedData;
+    window.saveImportedData();
+    window.buildSidebar();
+    window.navigate('dashboard');
+    await wait(50);
+  }
+
+  // ═══════════════════════════════════════════════
   // 0. MODAL FOCUS-RETURN WIRING (source-check)
   // ═══════════════════════════════════════════════
   // Detail modal closing must return focus to the triggering element so
@@ -255,9 +288,45 @@ return (async function() {
   assert('Settings modal closes', !settingsOverlay.classList.contains('show'));
 
   // ═══════════════════════════════════════════════
-  // 4. SUPPLEMENT FLOW — add, save, verify dashboard, delete
+  // 4. IMPORT REVIEW — editable collection date
   // ═══════════════════════════════════════════════
-  console.log('%c 4. Supplement flow', 'font-weight:bold;color:#6366f1');
+  console.log('%c 4. Import review date editing', 'font-weight:bold;color:#6366f1');
+  window.showImportPreview({
+    date: '2026-01-10',
+    fileName: 'ui-flow-import.pdf',
+    markers: [{ rawName: 'Glucose', value: 5.1, unit: 'mmol/L', matched: true, mappedKey: 'biochemistry.glucose' }]
+  });
+  await wait(20);
+  const importDateInput = document.getElementById('import-manual-date');
+  assert('Import preview has editable date input', !!importDateInput);
+  assert('Import date input prefilled from extracted date', importDateInput?.value === '2026-01-10');
+  assert('Import preview has one date input', document.querySelectorAll('#import-manual-date').length === 1);
+  importDateInput.value = '2026-02-03';
+  window.applyManualImportDate(importDateInput.value);
+  assert('Edited import date updates pending import', window._pendingImport?.date === '2026-02-03');
+  const importBtn = document.getElementById('import-confirm-btn');
+  assert('Import stays enabled after valid edited date', importBtn && !importBtn.disabled);
+  importDateInput.value = '';
+  window.applyManualImportDate(importDateInput.value);
+  assert('Clearing import date clears pending import date', window._pendingImport?.date === '');
+  assert('Clearing import date disables import button', importBtn?.disabled === true);
+  window.closeImportModal();
+  await wait(20);
+
+  window.showImportPreview({ date: '', fileName: 'ui-flow-no-date.pdf', markers: [] });
+  await wait(20);
+  const missingDateInput = document.getElementById('import-manual-date');
+  assert('Missing-date import still has one date input', document.querySelectorAll('#import-manual-date').length === 1);
+  assert('Missing-date input starts empty', missingDateInput?.value === '');
+  assert('Missing-date warning points to existing date input', document.querySelector('.import-review-date-warning')?.textContent.includes('set it above'));
+  assert('Missing-date import starts disabled', document.getElementById('import-confirm-btn')?.disabled === true);
+  window.closeImportModal();
+  await wait(20);
+
+  // ═══════════════════════════════════════════════
+  // 5. SUPPLEMENT FLOW — add, save, verify dashboard, delete
+  // ═══════════════════════════════════════════════
+  console.log('%c 5. Supplement flow', 'font-weight:bold;color:#6366f1');
   const modalOverlay = document.getElementById('modal-overlay');
 
   // Count existing supplements
@@ -280,6 +349,9 @@ return (async function() {
   if (dosageInput) dosageInput.value = '500mg';
   const startInput = document.querySelector('.supp-period-start');
   if (startInput) startInput.value = '2026-01-01';
+  const sourceInput = document.getElementById('supp-url');
+  assert('Supplement URL input visible without fetch requirement', !!sourceInput);
+  if (sourceInput) sourceInput.value = 'https://www.example.com/products/a?x=1';
 
   // Save
   window.saveSupplement(-1);
@@ -291,6 +363,11 @@ return (async function() {
   const savedSupp = S.importedData.supplements.find(s => s.name === '__UI_TEST_SUPP__');
   assert('Supplement has correct name', !!savedSupp);
   assert('Supplement has correct dosage', savedSupp?.dosage === '500mg');
+  assert('Supplement saves product URL', savedSupp?.sourceUrl === 'https://www.example.com/products/a?x=1');
+  const savedSuppRow = Array.from(document.querySelectorAll('.supp-list-item')).find(row => row.textContent.includes('__UI_TEST_SUPP__'));
+  const savedSuppLink = savedSuppRow?.querySelector('.supp-list-source');
+  assert('Supplement row shows source hostname link', savedSuppLink?.textContent.trim() === 'example.com ↗');
+  assert('Supplement source link href is saved URL', savedSuppLink?.getAttribute('href') === 'https://www.example.com/products/a?x=1');
 
   // Verify the optional dashboard widget can be shown after save
   window.closeModal();
@@ -318,10 +395,46 @@ return (async function() {
   const stillShows = suppSectionAfter?.innerHTML.includes('__UI_TEST_SUPP__');
   assert('Dashboard no longer shows deleted supplement', !stillShows);
 
+  window.openSupplementsEditor();
+  await wait(50);
+  window.showAddSuppForm();
+  await wait(20);
+  const invalidNameInput = document.getElementById('supp-name');
+  if (invalidNameInput) invalidNameInput.value = '__UI_TEST_BAD_URL__';
+  const invalidStartInput = document.querySelector('.supp-period-start');
+  if (invalidStartInput) invalidStartInput.value = '2026-01-02';
+  const invalidSourceInput = document.getElementById('supp-url');
+  if (invalidSourceInput) invalidSourceInput.value = 'javascript:alert(1)';
+  const beforeInvalidSuppCount = (S.importedData.supplements || []).length;
+  window.saveSupplement(-1);
+  await wait(50);
+  assert('Invalid supplement URL is rejected', (S.importedData.supplements || []).length === beforeInvalidSuppCount);
+  assert('Invalid URL supplement not saved', !S.importedData.supplements?.some(s => s.name === '__UI_TEST_BAD_URL__'));
+  window.closeModal();
+  await wait(20);
+
+  const beforeUnsafeSupps = (S.importedData.supplements || []).slice();
+  S.importedData.supplements = [...beforeUnsafeSupps, {
+    name: '__UI_TEST_UNSAFE_SOURCE__',
+    dosage: '',
+    startDate: '2026-01-03',
+    endDate: null,
+    type: 'supplement',
+    note: '',
+    sourceUrl: 'javascript://example.com/%0Aalert(1)'
+  }];
+  window.openSupplementsEditor();
+  await wait(50);
+  const unsafeSuppRow = Array.from(document.querySelectorAll('.supp-list-item')).find(row => row.textContent.includes('__UI_TEST_UNSAFE_SOURCE__'));
+  assert('Unsafe imported source URL does not render as link', unsafeSuppRow && !unsafeSuppRow.querySelector('.supp-list-source'));
+  S.importedData.supplements = beforeUnsafeSupps;
+  window.closeModal();
+  await wait(20);
+
   // ═══════════════════════════════════════════════
-  // 5. SUPPLEMENT PERIODS — multiple date ranges
+  // 6. SUPPLEMENT PERIODS — multiple date ranges
   // ═══════════════════════════════════════════════
-  console.log('%c 5. Supplement periods', 'font-weight:bold;color:#6366f1');
+  console.log('%c 6. Supplement periods', 'font-weight:bold;color:#6366f1');
 
   window.openSupplementsEditor();
   await wait(50);
@@ -352,9 +465,9 @@ return (async function() {
   await wait(20);
 
   // ═══════════════════════════════════════════════
-  // 6. DETAIL MODAL — open marker, verify content, close
+  // 7. DETAIL MODAL — open marker, verify content, close
   // ═══════════════════════════════════════════════
-  console.log('%c 6. Detail modal', 'font-weight:bold;color:#6366f1');
+  console.log('%c 7. Detail modal', 'font-weight:bold;color:#6366f1');
 
   // Find a marker with data
   let testMarkerId = null;

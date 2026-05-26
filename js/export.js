@@ -866,7 +866,18 @@ export function importDataJSON(file) {
         for (const s of json.supplements) {
           if (!s.name || !s.startDate) continue;
           const exists = state.importedData.supplements.some(x => x.name === s.name && x.startDate === s.startDate);
-          if (!exists) { const entry = { name: s.name, dosage: s.dosage || '', startDate: s.startDate, endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' }; if (s.ingredients) entry.ingredients = s.ingredients; if (s.periods && s.periods.length > 1) entry.periods = s.periods; state.importedData.supplements.push(entry); }
+          if (!exists) {
+            const entry = { name: s.name, dosage: s.dosage || '', startDate: s.startDate, endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
+            if (s.ingredients) entry.ingredients = s.ingredients;
+            if (s.periods && s.periods.length > 1) entry.periods = s.periods;
+            if (s.sourceUrl) {
+              try {
+                const sourceUrl = new URL(s.sourceUrl);
+                if (sourceUrl.protocol === 'http:' || sourceUrl.protocol === 'https:') entry.sourceUrl = sourceUrl.toString();
+              } catch {}
+            }
+            state.importedData.supplements.push(entry);
+          }
         }
       }
       // Import notes

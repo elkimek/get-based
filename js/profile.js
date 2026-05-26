@@ -101,6 +101,102 @@ export function createDefaultProfileData() {
   };
 }
 
+function _normalizeProfileMarkerLabel(value) {
+  return String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u00b5\u03bc]/g, 'u')
+    .replace(/\s*[\(\[]\s*[^)\]]*(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g\s*\/\s*l|m\s*u|iu\s*\/\s*l|u\s*\/\s*l|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)[^)\]]*[\)\]]\s*/gi, ' ')
+    .replace(/\s+(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g|m\s*u|iu|u|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)\s*(?:\/\s*[a-z0-9^]+)?\s*$/i, ' ')
+    .replace(/[^a-zA-Z0-9#]+/g, '')
+    .toLowerCase();
+}
+
+function _stripProfileMarkerUnitSuffix(value) {
+  return String(value || '').replace(/(?:u?katl|mmoll|umoll|nmoll|pmoll|mgl|ugl|ngl|gl|iul|ul|percent)$/i, '');
+}
+
+function _hasProfileMarkerUnitDecoration(value) {
+  const raw = String(value || '');
+  if (!raw) return false;
+  if (_stripProfileMarkerUnitSuffix(raw) !== raw) return true;
+  return /\s*[\(\[]\s*[^)\]]*(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g\s*\/\s*l|m\s*u|iu\s*\/\s*l|u\s*\/\s*l|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)[^)\]]*[\)\]]\s*/i.test(raw.replace(/[\u00b5\u03bc]/g, 'u'));
+}
+
+function _buildProfileStandardMarkerLookup() {
+  const lookup = new Map();
+  const add = (label, key) => {
+    const normalized = _normalizeProfileMarkerLabel(label);
+    if (normalized && !lookup.has(normalized)) lookup.set(normalized, key);
+    const suffixStripped = _normalizeProfileMarkerLabel(_stripProfileMarkerUnitSuffix(label));
+    if (suffixStripped && !lookup.has(suffixStripped)) lookup.set(suffixStripped, key);
+  };
+  for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
+    if (cat.calculated) continue;
+    for (const [markerKey, marker] of Object.entries(cat.markers || {})) {
+      const fullKey = `${catKey}.${markerKey}`;
+      add(markerKey, fullKey);
+      add(marker.name, fullKey);
+    }
+  }
+  return lookup;
+}
+
+function _repairUnitSuffixedStandardMarkers(data) {
+  if (!data.entries?.length) return;
+  const lookup = _buildProfileStandardMarkerLookup();
+  const candidates = new Set(Object.keys(data.customMarkers || {}));
+  for (const entry of data.entries) {
+    for (const key of Object.keys(entry.markers || {})) candidates.add(key);
+  }
+  const toDelete = [];
+  for (const fullKey of candidates) {
+    const def = data.customMarkers?.[fullKey] || {};
+    const [catKey, markerKey] = fullKey.split('.');
+    if (!markerKey || SPECIALTY_MARKER_DEFS[fullKey]) continue;
+    if (MARKER_SCHEMA[catKey]?.markers?.[markerKey]) continue;
+    const looksUnitSuffixed = _hasProfileMarkerUnitDecoration(def?.name) || _hasProfileMarkerUnitDecoration(markerKey);
+    if (!looksUnitSuffixed) continue;
+    const target = lookup.get(_normalizeProfileMarkerLabel(def?.name))
+      || lookup.get(_normalizeProfileMarkerLabel(markerKey))
+      || lookup.get(_normalizeProfileMarkerLabel(_stripProfileMarkerUnitSuffix(markerKey)));
+    if (!target || target === fullKey) continue;
+    const targetCatKey = target.split('.')[0];
+    if (catKey === 'urinalysis' && targetCatKey !== 'urinalysis') continue;
+    for (const entry of data.entries) {
+      if (entry.markers?.[fullKey] !== undefined) {
+        if (entry.markers[target] === undefined) entry.markers[target] = entry.markers[fullKey];
+        delete entry.markers[fullKey];
+      }
+      if (entry.markerSources?.[fullKey]) {
+        if (!entry.markerSources[target]) entry.markerSources[target] = entry.markerSources[fullKey];
+        delete entry.markerSources[fullKey];
+      }
+    }
+    const remapByPrefix = (obj) => {
+      if (!obj) return;
+      const prefix = fullKey + ':';
+      for (const key of Object.keys(obj)) {
+        if (!key.startsWith(prefix)) continue;
+        const nextKey = target + key.slice(fullKey.length);
+        if (obj[nextKey] === undefined) obj[nextKey] = obj[key];
+        delete obj[key];
+      }
+    };
+    remapByPrefix(data.manualValues);
+    remapByPrefix(data.markerValueNotes);
+    if (data.refOverrides?.[fullKey]) {
+      if (!data.refOverrides[target]) data.refOverrides[target] = data.refOverrides[fullKey];
+      delete data.refOverrides[fullKey];
+    }
+    if (data.markerNotes?.[fullKey] && !data.markerNotes[target]) data.markerNotes[target] = data.markerNotes[fullKey];
+    if (data.markerNotes) delete data.markerNotes[fullKey];
+    if (data.markerLabels?.[fullKey] && !data.markerLabels[target]) data.markerLabels[target] = data.markerLabels[fullKey];
+    if (data.markerLabels) delete data.markerLabels[fullKey];
+    if (data.customMarkers?.[fullKey]) toDelete.push(fullKey);
+  }
+  for (const key of toDelete) delete data.customMarkers[key];
+}
+
 function queueProfileSync(profileId, importedData = null) {
   if (!profileId) return;
   try {
@@ -213,6 +309,9 @@ export function migrateProfileData(data) {
       }
     }
   }
+  // Repair AI-imported duplicate markers such as `ALP (ukat/l)` that were
+  // stored as custom keys instead of the existing standard schema marker.
+  _repairUnitSuffixedStandardMarkers(data);
   // Fix corrupted FA-prefixed standard markers (bug: _normalizeFattyAcidMarkers rewrote blood work to FA categories)
   if (data.customMarkers && data.entries?.length) {
     // Phase 1: relocate markers whose key matches a standard schema marker

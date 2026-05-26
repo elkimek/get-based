@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { trackUsage, UNIT_CONVERSIONS, getAlternateUnit, convertUserInputToSI } from './schema.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue, showNotification, showConfirmDialog, showPromptDialog, safeMarkerId } from './utils.js';
 import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, saveImportedData, recalculateHOMAIR, updateHeaderDates, convertDisplayToSI } from './data.js';
+import { clearTombstone } from './data-merge.js';
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
@@ -760,6 +761,7 @@ export async function saveManualEntry(id, opts = {}) {
     if (!await showConfirmDialog(`A value of ${displayVal} ${unit} already exists for ${date}. Overwrite?`)) return;
   }
   if (!state.importedData.entries) state.importedData.entries = [];
+  clearTombstone(state.importedData, 'entries', date);
   let entry = state.importedData.entries.find(e => e.date === date);
   if (!entry) {
     entry = { date: date, markers: {} };

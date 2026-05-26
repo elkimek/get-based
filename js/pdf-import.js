@@ -5,11 +5,12 @@ import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, UNIT_CONVERSIONS, calculateCost, 
 import { IMPORT_STEPS } from './constants.js';
 import { escapeHTML, showNotification, isDebugMode, isPIIReviewEnabled, hashString, showPromptDialog } from './utils.js';
 import { saveImportedData, recalculateHOMAIR } from './data.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, setAIProvider, setVeniceModel, setOpenRouterModel, getOllamaMainModel, setOllamaMainModel, getVeniceModelDisplay, getOpenRouterModelDisplay, getActiveModelId, getActiveModelDisplay, getOllamaPIIModel, setCustomApiModel, setPpqModel, setRoutstrModel } from './api.js';
+import { callClaudeAPI, hasAIProvider, getAIProvider, setAIProvider, setVeniceModel, setOpenRouterModel, getOllamaMainModel, setOllamaMainModel, getVeniceModelDisplay, getOpenRouterModelDisplay, getActiveModelId, getActiveModelDisplay, getOllamaPIIModel, setCustomApiModel, setPpqModel, setRoutstrModel, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { detectProduct, normalizeWithAdapter, getAdapterByTestType } from './adapters.js';
 import { getPdfDocument } from './pdfjs-loader.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
+import { clearTombstone, recordTombstone } from './data-merge.js';
 
 
 // ═══════════════════════════════════════════════
@@ -93,6 +94,328 @@ function _sanitizeAIMarker(m) {
   if (typeof m.mappedKey === 'string' && !_SAFE_MARKER_KEY.test(m.mappedKey)) m.mappedKey = null;
   if (typeof m.suggestedKey === 'string' && !_SAFE_MARKER_KEY.test(m.suggestedKey)) m.suggestedKey = null;
   return m;
+}
+
+function _stripImportAccents(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+const IMPORT_SPECIMEN_PREFIX_RE = /^\s*(used|xxx|fs|fw|s|p|b|u|f)(?=$|[\s._:-])/i;
+
+function _stripImportSpecimenPrefix(value) {
+  return String(value || '').replace(/^\s*(?:used|xxx|fs|fw|s|p|b|u|f)(?=$|[\s._:-])[\s._:-]*/i, '');
+}
+
+function _stripImportLabelUnits(value) {
+  return _stripImportAccents(value)
+    .replace(/[\u00b5\u03bc]/g, 'u')
+    .replace(/\s*[\(\[]\s*[^)\]]*(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g\s*\/\s*l|m\s*u|iu\s*\/\s*l|u\s*\/\s*l|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)[^)\]]*[\)\]]\s*/gi, ' ')
+    .replace(/\s+(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g|m\s*u|iu|u|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)\s*(?:\/\s*[a-z0-9^]+)?\s*$/i, ' ');
+}
+
+function _normalizeImportLabel(value) {
+  return _stripImportLabelUnits(_stripImportSpecimenPrefix(value))
+    .toLowerCase()
+    .replace(/\bvypocet\b/g, '')
+    .replace(/[^a-z0-9#]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function _compactImportLabel(value) {
+  return _normalizeImportLabel(value).replace(/[^a-z0-9#]/g, '');
+}
+
+function _compactImportLabelVariants(value) {
+  const variants = [
+    _compactImportLabel(value),
+    _compactImportLabel(String(value || '').replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')),
+  ].filter(Boolean);
+  return [...new Set(variants)];
+}
+
+function _cleanImportedMarkerDisplayName(value) {
+  const cleaned = _stripImportLabelUnits(_stripImportSpecimenPrefix(value))
+    .trim()
+    .replace(/\s+/g, ' ');
+  return cleaned || String(value || '').trim();
+}
+
+function _getImportSpecimen(rawName) {
+  const match = String(rawName || '').match(IMPORT_SPECIMEN_PREFIX_RE);
+  return match ? match[1].toLowerCase() : '';
+}
+
+function _isUrineImportSpecimen(specimen) {
+  return specimen === 'u' || specimen === 'used';
+}
+
+function _camelImportKeyPart(value, fallback = 'marker') {
+  const words = _normalizeImportLabel(value).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return fallback;
+  const key = words.map((word, idx) => idx === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)).join('');
+  return key.replace(/^[0-9]+/, '') || fallback;
+}
+
+const URINE_CUSTOM_IMPORT_KEYS = new Map([
+  ['bilkovina', 'urinalysis.proteinQualitative'],
+  ['glukosa', 'urinalysis.glucoseQualitative'],
+  ['glukoza', 'urinalysis.glucoseQualitative'],
+  ['krev', 'urinalysis.bloodQualitative'],
+  ['leukocyty', 'urinalysis.leukocytesQualitative'],
+  ['ketolatky', 'urinalysis.ketonesQualitative'],
+  ['bilirubin', 'urinalysis.bilirubinQualitative'],
+  ['urobilinogen', 'urinalysis.urobilinogenQualitative'],
+  ['nitrity', 'urinalysis.nitritesQualitative'],
+  ['erytrocyty', 'urinalysis.erythrocytes'],
+  ['hlen', 'urinalysis.mucus'],
+  ['kreatinin', 'urinalysis.creatinine'],
+  ['celkbilkovina', 'urinalysis.totalProtein'],
+  ['celkovabilkovina', 'urinalysis.totalProtein'],
+  ['pomerproteinkreatinin', 'urinalysis.proteinCreatinineRatio'],
+]);
+
+function _isSpecimenIncompatibleImportKey(marker, key, standardCats) {
+  if (typeof key !== 'string' || !_SAFE_MARKER_KEY.test(key)) return false;
+  const specimen = _getImportSpecimen(marker?.rawName || marker?.suggestedName || '');
+  if (!_isUrineImportSpecimen(specimen)) return false;
+  const catKey = key.split('.')[0];
+  return standardCats.has(catKey) && catKey !== 'urinalysis';
+}
+
+function _urineSuggestedImportKey(marker) {
+  const label = marker?.rawName || marker?.suggestedName || '';
+  const compact = _compactImportLabel(label).replace(/#/g, '');
+  const known = URINE_CUSTOM_IMPORT_KEYS.get(compact);
+  if (known) return known;
+  return `urinalysis.${_camelImportKeyPart(label, 'urineMarker')}`;
+}
+
+function _demoteSpecimenIncompatibleImportKey(marker, rejectedKey, standardCats) {
+  const suggestedBad = _isSpecimenIncompatibleImportKey(marker, marker.suggestedKey, standardCats);
+  if (!marker.suggestedKey || suggestedBad || marker.suggestedKey === rejectedKey) {
+    marker.suggestedKey = _urineSuggestedImportKey(marker);
+  }
+  marker.suggestedName = marker.suggestedName || _cleanImportedMarkerDisplayName(marker.rawName);
+  marker.suggestedCategoryLabel = marker.suggestedCategoryLabel || 'Urinalysis';
+  marker.mappedKey = null;
+  marker.matched = false;
+}
+
+const BLOOD_IMPORT_ALIASES = new Map([
+  ['glukoza', 'biochemistry.glucose'],
+  ['glukosa', 'biochemistry.glucose'],
+  ['urea', 'biochemistry.urea'],
+  ['kreatinin', 'biochemistry.creatinine'],
+  ['egfckdepi', 'biochemistry.egfr'],
+  ['egfrckdepi', 'biochemistry.egfr'],
+  ['egfr', 'biochemistry.egfr'],
+  ['kyselinamocova', 'biochemistry.uricAcid'],
+  ['bilirubincelkovy', 'biochemistry.bilirubinTotal'],
+  ['ast', 'biochemistry.ast'],
+  ['alt', 'biochemistry.alt'],
+  ['alp', 'biochemistry.alp'],
+  ['ggt', 'biochemistry.ggt'],
+  ['kreatinkinaza', 'biochemistry.creatineKinase'],
+  ['cystatinc', 'biochemistry.cystatinC'],
+  ['gfcystatin', 'biochemistry.gfrCystatin'],
+  ['sodik', 'electrolytes.sodium'],
+  ['draslik', 'electrolytes.potassium'],
+  ['chloridy', 'electrolytes.chloride'],
+  ['cacelkovy', 'electrolytes.calciumTotal'],
+  ['panorganicky', 'electrolytes.phosphorus'],
+  ['horcik', 'electrolytes.magnesium'],
+  ['horcikvery', 'electrolytes.magnesiumRBC'],
+  ['cholesterol', 'lipids.cholesterol'],
+  ['triacylglyceroly', 'lipids.triglycerides'],
+  ['hdlcholesterol', 'lipids.hdl'],
+  ['ldlcholesterol', 'lipids.ldl'],
+  ['apoai', 'lipids.apoAI'],
+  ['apob', 'lipids.apoB'],
+  ['nonhdl', 'lipids.nonHdl'],
+  ['cholhdl', 'lipids.cholHdlRatio'],
+  ['zelezo', 'iron.iron'],
+  ['ferritin', 'iron.ferritin'],
+  ['transferin', 'iron.transferrin'],
+  ['crp', 'proteins.crp'],
+  ['hscrp', 'proteins.hsCRP'],
+  ['celkbilkovina', 'proteins.totalProtein'],
+  ['celkovabilkovina', 'proteins.totalProtein'],
+  ['albumin', 'proteins.albumin'],
+  ['vitamindcelkovy', 'vitamins.vitaminD'],
+  ['kyselinalistova', 'vitamins.folate'],
+  ['hba1c', 'diabetes.hba1c'],
+  ['inzulin', 'hormones.insulin'],
+  ['fsh', 'hormones.fsh'],
+  ['lh', 'hormones.lh'],
+  ['prolaktin', 'hormones.prolactin'],
+  ['shbg', 'hormones.shbg'],
+  ['testosteron', 'hormones.testosterone'],
+  ['fai', 'hormones.fai'],
+  ['igf1', 'hormones.igf1'],
+  ['leukocyty', 'hematology.wbc'],
+  ['erytrocyty', 'hematology.rbc'],
+  ['hemoglobin', 'hematology.hemoglobin'],
+  ['hematokrit', 'hematology.hematocrit'],
+  ['mcv', 'hematology.mcv'],
+  ['mch', 'hematology.mch'],
+  ['mchc', 'hematology.mchc'],
+  ['rdwcv', 'hematology.rdwcv'],
+  ['trombocyty', 'hematology.platelets'],
+  ['trombokrit', 'hematology.pct'],
+  ['pdw', 'hematology.pdw'],
+  ['mpv', 'hematology.mpv'],
+  ['homocystein', 'coagulation.homocysteine'],
+]);
+
+function _standardMarkerShortNames() {
+  const names = new Set();
+  for (const cat of Object.values(MARKER_SCHEMA)) {
+    if (cat.calculated) continue;
+    for (const markerKey of Object.keys(cat.markers || {})) names.add(markerKey);
+  }
+  return names;
+}
+
+function _getExistingImportMarkerKeys() {
+  const keys = new Set();
+  for (const key of Object.keys(state.importedData?.customMarkers || {})) keys.add(key);
+  return keys;
+}
+
+function _knownImportKey(key, testType, refLookup, existingKeys, standardCats) {
+  if (typeof key !== 'string' || !_SAFE_MARKER_KEY.test(key)) return null;
+  const catKey = key.split('.')[0];
+  const standard = standardCats.has(catKey);
+  if (testType !== 'blood' && testType !== 'biostarks' && standard) return null;
+  return (refLookup[key] || existingKeys.has(key)) ? key : null;
+}
+
+function _buildExistingCustomMarkerNameLookup(existingKeys) {
+  const lookup = new Map();
+  const standardCats = new Set(Object.keys(MARKER_SCHEMA));
+  const standardMarkerNames = _standardMarkerShortNames();
+  const add = (label, key) => {
+    const compact = _compactImportLabel(label);
+    if (compact && !lookup.has(compact)) lookup.set(compact, key);
+  };
+  const custom = state.importedData?.customMarkers || {};
+  for (const [key, def] of Object.entries(custom)) {
+    if (!_SAFE_MARKER_KEY.test(key)) continue;
+    const [catKey, markerKey] = key.split('.');
+    if (!standardCats.has(catKey) && standardMarkerNames.has(markerKey)) continue;
+    add(def?.name, key);
+    add(markerKey, key);
+  }
+  for (const key of existingKeys || []) {
+    if (!_SAFE_MARKER_KEY.test(key)) continue;
+    const [catKey, markerKey] = key.split('.');
+    if (!standardCats.has(catKey) && markerKey && !standardMarkerNames.has(markerKey)) add(markerKey, key);
+  }
+  return lookup;
+}
+
+function _resolveExistingCustomImportKey(marker, nameLookup, testType, refLookup, existingKeys, standardCats) {
+  const labels = [marker.rawName, marker.suggestedName];
+  if (marker.suggestedKey) labels.push(marker.suggestedKey.split('.').pop());
+  if (marker.mappedKey) labels.push(marker.mappedKey.split('.').pop());
+  for (const label of labels) {
+    for (const variant of _compactImportLabelVariants(label)) {
+      const key = nameLookup.get(variant);
+      const known = _knownImportKey(key, testType, refLookup, existingKeys, standardCats);
+      if (known) return known;
+    }
+  }
+  return null;
+}
+
+function _buildStandardBloodNameLookup() {
+  const lookup = new Map(BLOOD_IMPORT_ALIASES);
+  const add = (label, key) => {
+    for (const variant of _compactImportLabelVariants(label)) {
+      if (variant && !lookup.has(variant)) lookup.set(variant, key);
+    }
+  };
+  for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
+    if (cat.calculated) continue;
+    for (const [markerKey, marker] of Object.entries(cat.markers || {})) {
+      const fullKey = `${catKey}.${markerKey}`;
+      add(markerKey, fullKey);
+      add(marker.name, fullKey);
+    }
+  }
+  return lookup;
+}
+
+function _resolveStandardBloodImportKey(marker, refLookup) {
+  const rawName = marker.rawName || marker.suggestedName || '';
+  const specimen = _getImportSpecimen(rawName);
+  const unit = normalizeUnitStr(marker.unit || '');
+  const compact = _compactImportLabel(rawName);
+  const compactBase = compact.replace(/#/g, '');
+
+  if (_isUrineImportSpecimen(specimen)) {
+    if (compactBase === 'ph') return 'urinalysis.ph';
+    if (compactBase === 'hustotamoci' || compactBase === 'specifickahustota' || compactBase === 'specificgravity') return 'urinalysis.specificGravity';
+    return null;
+  }
+
+  if (unit === 'arb.j.' || unit.includes('/ul')) return null;
+
+  const hasAbsoluteHint = /#|\babs\b|absolute/i.test(String(rawName)) || unit.includes('10^9');
+  if (compactBase === 'neutrofily') return hasAbsoluteHint ? 'differential.neutrophils' : 'differential.neutrophilsPct';
+  if (compactBase === 'lymfocyty') return hasAbsoluteHint ? 'differential.lymphocytes' : 'differential.lymphocytesPct';
+  if (compactBase === 'monocyty') return hasAbsoluteHint ? 'differential.monocytes' : 'differential.monocytesPct';
+  if (compactBase === 'eosinofily') return hasAbsoluteHint ? 'differential.eosinophils' : null;
+  if (compactBase === 'basofily') return hasAbsoluteHint ? 'differential.basophils' : null;
+
+  const lookup = _buildStandardBloodNameLookup();
+  const labels = [marker.rawName, marker.suggestedName];
+  if (marker.mappedKey) labels.push(marker.mappedKey.split('.').pop());
+  if (marker.suggestedKey) labels.push(marker.suggestedKey.split('.').pop());
+  let key = null;
+  for (const label of labels) {
+    for (const variant of _compactImportLabelVariants(label)) {
+      key = lookup.get(variant);
+      if (key) break;
+    }
+    if (key) break;
+  }
+  if (!key) return null;
+  if (key === 'biochemistry.creatinine' && unit && unit !== normalizeUnitStr('µmol/l')) return null;
+  return refLookup[key] ? key : null;
+}
+
+export function reconcileImportMarkerMappings(markers, options = {}) {
+  if (!Array.isArray(markers)) return markers;
+  const testType = options.testType || 'blood';
+  const refLookup = options.refLookup || buildMarkerReference();
+  const existingKeys = options.existingKeys || _getExistingImportMarkerKeys();
+  const standardCats = new Set(Object.keys(MARKER_SCHEMA));
+  const existingNameLookup = options.existingNameLookup || _buildExistingCustomMarkerNameLookup(existingKeys);
+  for (const marker of markers) {
+    if (!marker) continue;
+    const mappedSpecimenBad = _isSpecimenIncompatibleImportKey(marker, marker.mappedKey, standardCats);
+    const suggestedSpecimenBad = _isSpecimenIncompatibleImportKey(marker, marker.suggestedKey, standardCats);
+    const exactMappedKey = mappedSpecimenBad ? null : _knownImportKey(marker.mappedKey, testType, refLookup, existingKeys, standardCats);
+    const exactSuggestedKey = suggestedSpecimenBad ? null : _knownImportKey(marker.suggestedKey, testType, refLookup, existingKeys, standardCats);
+    const exactKey = exactMappedKey || exactSuggestedKey;
+    const existingCustomKey = exactKey || _resolveExistingCustomImportKey(marker, existingNameLookup, testType, refLookup, existingKeys, standardCats);
+    const aliasKey = testType === 'blood' ? _resolveStandardBloodImportKey(marker, refLookup) : null;
+    const resolvedKey = aliasKey || existingCustomKey;
+    if (resolvedKey) {
+      marker.mappedKey = resolvedKey;
+      marker.matched = true;
+      marker.suggestedKey = null;
+    } else if (mappedSpecimenBad || suggestedSpecimenBad) {
+      _demoteSpecimenIncompatibleImportKey(marker, marker.mappedKey || marker.suggestedKey, standardCats);
+    } else if (marker.mappedKey && !_knownImportKey(marker.mappedKey, testType, refLookup, existingKeys, standardCats)) {
+      if (!marker.suggestedKey && _SAFE_MARKER_KEY.test(marker.mappedKey)) marker.suggestedKey = marker.mappedKey;
+      marker.mappedKey = null;
+      marker.matched = false;
+    }
+  }
+  return markers;
 }
 
 function normalizeToSI(key, value, unit) {
@@ -382,7 +705,7 @@ export function buildMarkerReference() {
 }
 
 export async function extractPDFText(file) {
-  const arrayBuffer = await file.arrayBuffer();
+  const arrayBuffer = await readFileArrayBuffer(file);
   const pdf = await getPdfDocument({ data: arrayBuffer });
   let allItems = [];
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -422,6 +745,54 @@ export async function extractPDFText(file) {
     text += currentRow.sort((a, b) => a.x - b.x).map(r => r.text).join('  ') + '\n';
   }
   return text;
+}
+
+async function readFileArrayBuffer(file) {
+  try {
+    return await file.arrayBuffer();
+  } catch (firstError) {
+    if (typeof FileReader === 'undefined') throw firstError;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || firstError);
+      reader.onabort = () => reject(firstError);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+}
+
+function isAIStreamAbortError(err) {
+  const message = String(err?.message || err || '').toLowerCase();
+  const name = String(err?.name || '').toLowerCase();
+  return message.includes('bodystreambuffer was aborted')
+    || message.includes('aborted by user')
+    || (message.includes('body') && message.includes('stream') && message.includes('abort'))
+    || name === 'aborterror';
+}
+
+async function callImportAIWithStreamFallback(request, label) {
+  try {
+    return await callClaudeAPI(request);
+  } catch (err) {
+    if (!request.onStream || request.signal?.aborted || !isAIStreamAbortError(err)) throw err;
+    if (isDebugMode()) console.warn(`[Import] ${label} stream aborted; retrying without streaming`, err);
+    try {
+      return await callClaudeAPI({ ...request, onStream: undefined, forceNonStream: true, requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS });
+    } catch (retryErr) {
+      if (isAIStreamAbortError(retryErr)) {
+        throw new Error('AI analysis request was aborted after retrying without streaming. The PDF text extracted correctly; try another model/provider if this persists.');
+      }
+      throw retryErr;
+    }
+  }
+}
+
+function formatImportError(err) {
+  if (isAIStreamAbortError(err)) {
+    return 'AI analysis request was interrupted after privacy review. Try again, or switch provider/model if it repeats.';
+  }
+  return err?.message || String(err);
 }
 
 export function tryParseJSON(str) {
@@ -490,6 +861,7 @@ ${dateHint}
    - CRP: "hs-CRP" / "hsCRP" / "high-sensitivity CRP" / "vysoce senzitivní CRP" → "proteins.hsCRP". Plain "CRP" / "S-CRP" / "C-reaktívny proteín" → "proteins.crp". These are different assays — do not merge them
    - Use the units and reference ranges to help disambiguate
    - IMPORTANT: Many labs prefix marker names with specimen type codes: S- (serum), P- (plasma), B- (blood), U- (urine), fS- (fasting serum), USED- (urine sediment), F- (fecal), FW (sedimentation). Strip these prefixes when matching to known markers. Keep them in rawName for reference
+   - Do NOT map urine-prefixed rows to serum/plasma/blood markers. Example: "S Celk.bílkovina" is serum Total Protein → "proteins.totalProtein", but "U Celková bílkovina" is urine total protein and must be a separate urine marker, not "proteins.totalProtein"
 4. Only map to a marker if you're confident it's the correct match
 5. For differential WBC: only map absolute count values (marked with # or abs.) to the # markers; percentage values go to the Pct markers
 6. Skip non-numeric results (text-only findings, interpretive notes). But EVERY numeric result MUST be included — if it doesn't match a known key, set mappedKey to null and provide suggestedKey/suggestedName/suggestedCategoryLabel. Never silently drop a numeric marker
@@ -540,20 +912,18 @@ Return ONLY valid JSON in this exact format, no other text:
     };
   }
   // Include previously imported marker keys so the AI reuses consistent mappings
-  const existingKeys = new Set();
-  for (const entry of (state.importedData?.entries || [])) {
-    for (const key of Object.keys(entry.markers || {})) existingKeys.add(key);
-  }
+  const existingKeys = _getExistingImportMarkerKeys();
   const existingKeysNote = existingKeys.size > 0
     ? `\n\nIMPORTANT — These marker keys were used in previous imports for this profile. Reuse them for the same biomarkers to ensure consistency:\n${[...existingKeys].join(', ')}`
     : '';
 
-  const { text: response, usage } = await callClaudeAPI({
+  const { text: response, usage } = await callImportAIWithStreamFallback({
     system: system + existingKeysNote,
     messages: [{ role: 'user', content: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}:\n\n${pdfText}` }],
     maxTokens,
-    onStream
-  });
+    onStream,
+    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS
+  }, 'PDF text analysis');
 
   // Parse JSON from response (handle markdown code blocks, thinking tags, truncated output)
   let jsonStr = (response || '').trim();
@@ -583,10 +953,7 @@ Return ONLY valid JSON in this exact format, no other text:
   }
   const standardCats = new Set(Object.keys(MARKER_SCHEMA));
   const _specialtyTypes = ['OAT', 'fattyAcids', 'Metabolomix+', 'DUTCH', 'HTMA', 'GI'];
-  return {
-    date: parsed.date || null,
-    testType,
-    markers: (parsed.markers || []).map(m => {
+  const markers = (parsed.markers || []).map(m => {
       let mappedKey = m.mappedKey || null;
       let matched = !!mappedKey;
       // Guard: never allow standard blood work mappings for known specialty tests
@@ -671,7 +1038,12 @@ Return ONLY valid JSON in this exact format, no other text:
         refMax: m.refMax != null ? m.refMax : null,
         group: m.suggestedGroup || m.group || (testType !== 'blood' ? testType : null) || null
       };
-    }).filter(m => !isNaN(m.value)),
+    }).filter(m => !isNaN(m.value));
+  reconcileImportMarkerMappings(markers, { testType, refLookup: markerRef, existingKeys });
+  return {
+    date: parsed.date || null,
+    testType,
+    markers,
     fileName,
     usage,
     provider
@@ -685,7 +1057,6 @@ export function showImportPreview(parseResult) {
   const { date, markers, fileName } = parseResult;
   const modal = document.getElementById("import-modal");
   const overlay = document.getElementById("import-modal-overlay");
-  const dateFormatted = date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown';
   const matched = markers.filter(m => m.matched);
   const newMarkers = markers.filter(m => !m.matched && m.suggestedKey);
   const unmatched = markers.filter(m => !m.matched && !m.suggestedKey);
@@ -708,7 +1079,7 @@ export function showImportPreview(parseResult) {
       </div>
       <div class="import-review-file">
         <span class="import-review-label">Collection date</span>
-        <strong>${escapeHTML(dateFormatted)}</strong>
+        <input type="date" id="import-manual-date" value="${escapeHTML(date || '')}" onchange="applyManualImportDate(this.value)" aria-label="Collection date">
       </div>
       <div class="import-review-stats" aria-label="Import mapping summary">
         <span class="import-review-stat import-review-stat-matched"><strong>${matched.length}</strong> matched</span>
@@ -725,8 +1096,7 @@ export function showImportPreview(parseResult) {
   }
   if (!date) {
     html += `<div class="import-review-warning import-review-date-warning">
-      Could not extract collection date from PDF. Please enter it manually:
-      <input type="date" id="import-manual-date" onchange="applyManualImportDate(this.value)" aria-label="Manual collection date"></div>`;
+      Could not extract collection date from PDF. Please set it above before importing.</div>`;
   }
   // Build reference lookup (used for unmatched dropdown + range comparison)
   const refLookup = buildMarkerReference();
@@ -964,10 +1334,15 @@ export function applyImportReviewFilters() {
 }
 
 export function applyManualImportDate(dateStr) {
-  if (!window._pendingImport || !dateStr) return;
-  window._pendingImport.date = dateStr;
   const btn = document.getElementById('import-confirm-btn');
-  if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
+  if (!window._pendingImport) return;
+  const nextDate = (dateStr || '').trim();
+  window._pendingImport.date = nextDate;
+  if (btn) {
+    btn.disabled = !nextDate;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+  }
 }
 
 export function toggleImportRow(btn) {
@@ -1004,21 +1379,48 @@ export function closeImportModal() {
   }
 }
 
-export function confirmImport() {
+function snapshotImportedData() {
+  try { return JSON.stringify(state.importedData || {}); } catch { return null; }
+}
+
+function restoreImportedDataSnapshot(snapshot) {
+  if (!snapshot) return;
+  try { state.importedData = JSON.parse(snapshot); } catch {}
+}
+
+function isValidISOCalendarDate(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const [year, month, day] = date.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day;
+}
+
+export async function confirmImport() {
   const result = window._pendingImport;
   if (!result || !result.date) return;
+  const confirmBtn = document.getElementById('import-confirm-btn');
+  if (confirmBtn) confirmBtn.disabled = true;
   // Guard: if profile changed during async import, abort to prevent saving to wrong profile
   if (result._importProfileId && result._importProfileId !== state.currentProfile) {
     showNotification('Profile changed during import — import cancelled for safety.', 'error');
     window.closeImportModal();
     return;
   }
+  const rollback = snapshotImportedData();
   const excludedIdxs = _getExcludedIndices();
   const matched = result.markers.filter((m, i) => m.matched && !excludedIdxs.has(i));
   const newMarkers = result.markers.filter((m, i) => !m.matched && m.suggestedKey && !excludedIdxs.has(i));
   const importCount = matched.length + newMarkers.length;
-  if (importCount === 0) { showNotification("No markers to import", "error"); window.closeImportModal(); return; }
+  if (importCount === 0) {
+    showNotification("No markers to import", "error");
+    if (confirmBtn) confirmBtn.disabled = false;
+    window.closeImportModal();
+    return;
+  }
   if (!state.importedData.entries) state.importedData.entries = [];
+  clearTombstone(state.importedData, 'entries', result.date);
   let entry = state.importedData.entries.find(e => e.date === result.date);
   if (!entry) {
     entry = { date: result.date, markers: {} };
@@ -1036,6 +1438,7 @@ export function confirmImport() {
   }
   if (!entry.markerSources) entry.markerSources = {};
   const importTs = Date.now();
+  entry.updatedAt = importTs;
   for (const m of matched) {
     entry.markers[m.mappedKey] = normalizeToSI(m.mappedKey, m.value, m.unit);
     entry.markerSources[m.mappedKey] = { file: result.fileName || null, at: importTs };
@@ -1072,7 +1475,7 @@ export function confirmImport() {
     const categoryLabel = schemaCategory ? schemaCategory.label : m.suggestedCategoryLabel || catKey.charAt(0).toUpperCase() + catKey.slice(1);
     const existing = state.importedData.customMarkers[m.suggestedKey];
     const cmDef = existing || {};
-    cmDef.name = cmDef.name || m.suggestedName || m.rawName;
+    cmDef.name = cmDef.name || _cleanImportedMarkerDisplayName(m.suggestedName || m.rawName);
     cmDef.unit = m.unit || cmDef.unit || '';
     cmDef.refMin = m.refMin != null ? m.refMin : cmDef.refMin;
     cmDef.refMax = m.refMax != null ? m.refMax : cmDef.refMax;
@@ -1118,7 +1521,12 @@ export function confirmImport() {
       state.importedData.refOverrides[m.mappedKey] = ovr;
     }
   }
-  saveImportedData();
+  const saved = await saveImportedData({ immediate: true });
+  if (!saved) {
+    restoreImportedDataSnapshot(rollback);
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
   // Resolve batch promise before closeImportModal (which would resolve with 'skip')
   if (window._batchImportResolve) {
     const resolve = window._batchImportResolve;
@@ -1145,44 +1553,55 @@ export function confirmImport() {
   if (!_batchMode && typeof window.maybeShowEncryptionNudge === 'function') window.maybeShowEncryptionNudge();
 }
 
-export function removeImportedEntry(date) {
-  if (!state.importedData.entries) return;
+export async function removeImportedEntry(date) {
+  if (!date) return false;
+  const rollback = snapshotImportedData();
+  if (!state.importedData.entries) state.importedData.entries = [];
+  recordTombstone(state.importedData, 'entries', date);
   state.importedData.entries = state.importedData.entries.filter(e => e.date !== date);
-  saveImportedData();
+  const saved = await saveImportedData({ immediate: true });
+  if (!saved) {
+    restoreImportedDataSnapshot(rollback);
+    return false;
+  }
   window.buildSidebar();
   window.updateHeaderDates();
   // buildSidebar resets .active to Dashboard — use state.currentView.
   window.navigate(state.currentView || "dashboard");
   showNotification(`Removed imported data from ${date}`, "info");
+  return true;
 }
 
 export async function renameImportedEntryDate(oldDate) {
   const entries = state.importedData?.entries;
   const entry = entries?.find(e => e.date === oldDate);
-  if (!entry) return;
+  if (!entry) return false;
   const newDate = await showPromptDialog(
     `Edit collection date (was ${oldDate})`,
     { defaultValue: oldDate, inputType: 'date', okLabel: 'Save' }
   );
-  if (!newDate || newDate === oldDate) return;
+  if (!newDate || newDate === oldDate) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
     showNotification('Date must be YYYY-MM-DD', 'error');
-    return;
+    return false;
   }
   // Format-only regex accepts logically invalid dates (Feb 30, month 13).
   // Round-trip through Date to reject those — `<input type="date">` already
   // guards in modern browsers, but free-text fallbacks and programmatic
   // values can still slip through.
-  const parsed = new Date(newDate + 'T00:00:00');
-  if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== newDate) {
+  if (!isValidISOCalendarDate(newDate)) {
     showNotification('That date doesn\'t exist on the calendar.', 'error');
-    return;
+    return false;
   }
   if (entries.some(e => e.date === newDate)) {
     showNotification(`Another entry already exists on ${newDate} — remove it first, then try again.`, 'error', 5000);
-    return;
+    return false;
   }
+  const rollback = snapshotImportedData();
+  recordTombstone(state.importedData, 'entries', oldDate);
+  clearTombstone(state.importedData, 'entries', newDate);
   entry.date = newDate;
+  entry.updatedAt = Date.now();
   // manualValues are keyed `markerKey:date` — remap to keep manual-vs-imported provenance correct
   const manualValues = state.importedData.manualValues;
   if (manualValues) {
@@ -1195,12 +1614,17 @@ export async function renameImportedEntryDate(oldDate) {
       }
     }
   }
-  saveImportedData();
+  const saved = await saveImportedData({ immediate: true });
+  if (!saved) {
+    restoreImportedDataSnapshot(rollback);
+    return false;
+  }
   window.buildSidebar();
   window.updateHeaderDates();
   // buildSidebar resets .active to Dashboard — use state.currentView.
   window.navigate(state.currentView || "dashboard");
   showNotification(`Date changed from ${oldDate} to ${newDate}`, 'success');
+  return true;
 }
 
 // ═══════════════════════════════════════════════
@@ -1387,7 +1811,7 @@ export function assessTextQuality(text) {
 }
 
 export async function extractPDFImages(file, maxPages = 8) {
-  const arrayBuffer = await file.arrayBuffer();
+  const arrayBuffer = await readFileArrayBuffer(file);
   const pdf = await getPdfDocument({ data: arrayBuffer });
   const pages = Math.min(pdf.numPages, maxPages);
   const images = [];
@@ -1429,7 +1853,7 @@ ${dateHint}
    - unit: the unit as shown
    - refMin: the lower reference range bound EXACTLY as printed on the report (number or null). Do NOT copy from the known markers list above
    - refMax: the upper reference range bound EXACTLY as printed on the report (number or null). Do NOT copy from the known markers list above
-3. Match based on medical/biochemical equivalence, not just string similarity. "hs-CRP"/"hsCRP" → "proteins.hsCRP", plain "CRP" → "proteins.crp" (different assays). Strip specimen-type prefixes (S-, P-, B-, U-, fS-, USED-, F-, FW) when matching — keep in rawName
+3. Match based on medical/biochemical equivalence, not just string similarity. "hs-CRP"/"hsCRP" → "proteins.hsCRP", plain "CRP" → "proteins.crp" (different assays). Strip specimen-type prefixes (S-, P-, B-, U-, fS-, USED-, F-, FW) when matching — keep in rawName. Do NOT map urine-prefixed rows to serum/plasma/blood markers; "U Celková bílkovina" is urine total protein, not serum Total Protein.
 4. Only map to a marker if you're confident it's the correct match
 5. Identify the type of lab test. Return as "testType" field: "blood", "OAT", "fattyAcids", "biostarks", "DUTCH", "HTMA", "GI", or a descriptive name. For fatty acid tests: put ALL markers into ONE product-specific category — spadiaFA (Spadia), zinzinoFA (ZinZino), omegaquantFA (OmegaQuant), or labNameFA. Use suggestedCategoryLabel = product name, suggestedGroup = "Fatty Acids". Do NOT split by fatty acid type (omega-3/omega-6/saturated/trans). For BioStarks: map standard blood markers to standard keys, amino acids to biostarksAmino.*, fatty acids to biostarksFA.*, intracellular minerals (µg/gHb) to biostarksMineral.*, cortisol/T:C ratio to biostarksHormone.*, vitamin E to biostarksVitamin.*
 6. CRITICAL for specialty tests (testType ≠ "blood"): Do NOT use standard blood work category keys. Use test-type-prefixed keys or set mappedKey to null. EXCEPTION: BioStarks (testType "biostarks") is hybrid — DO map its standard blood markers to standard keys
@@ -1465,12 +1889,13 @@ Return ONLY valid JSON in this exact format:
     { type: 'text', text: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}. Read every page carefully.` }
   ];
 
-  const { text: response, usage } = await callClaudeAPI({
+  const { text: response, usage } = await callImportAIWithStreamFallback({
     system,
     messages: [{ role: 'user', content }],
     maxTokens,
-    onStream
-  });
+    onStream,
+    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS
+  }, 'PDF image analysis');
 
   let jsonStr = (response || '').trim();
   jsonStr = jsonStr.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -1495,10 +1920,7 @@ Return ONLY valid JSON in this exact format:
   }
   const standardCats = new Set(Object.keys(MARKER_SCHEMA));
   const _specialtyTypes = ['OAT', 'fattyAcids', 'Metabolomix+', 'DUTCH', 'HTMA', 'GI'];
-  return {
-    date: parsed.date || null,
-    testType,
-    markers: (parsed.markers || []).map(m => {
+  const markers = (parsed.markers || []).map(m => {
       let mappedKey = m.mappedKey || null;
       let matched = !!mappedKey;
       // Guard: never allow standard blood work mappings for known specialty tests
@@ -1574,7 +1996,12 @@ Return ONLY valid JSON in this exact format:
         suggestedCategoryLabel: m.suggestedCategoryLabel || null,
         suggestedGroup: m.suggestedGroup || null,
       };
-    }),
+    }).filter(m => !isNaN(m.value));
+  reconcileImportMarkerMappings(markers, { testType, refLookup: markerRef });
+  return {
+    date: parsed.date || null,
+    testType,
+    markers,
     usage: usage || {},
     provider,
     imageMode: true,
@@ -1771,7 +2198,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
   } catch (err) {
     hideImportProgress('error');
     if (isDebugMode()) console.error("PDF parse error:", err);
-    showNotification("Error parsing PDF: " + err.message, "error", 10000);
+    showNotification("Error parsing PDF: " + formatImportError(err), "error", 10000);
   }
 }
 
@@ -2077,6 +2504,7 @@ export async function handleTextFile(file) {
 // ═══════════════════════════════════════════════
 Object.assign(window, {
   buildMarkerReference,
+  reconcileImportMarkerMappings,
   extractPDFText,
   tryParseJSON,
   parseLabPDFWithAI,
