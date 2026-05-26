@@ -3185,7 +3185,8 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .marker-detail-modal .modal-values-grid,
 .marker-detail-modal .modal-ref-info,
 .marker-detail-modal .marker-note-section,
-.marker-detail-modal .calc-missing-inputs {
+.marker-detail-modal .calc-missing-inputs,
+.marker-detail-modal .bio-age-breakdown {
   min-width: 0;
 }
 .marker-detail-modal h3,
@@ -3195,7 +3196,8 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .marker-detail-modal .mv-value,
 .marker-detail-modal .modal-ref-info,
 .marker-detail-modal .marker-note-text,
-.marker-detail-modal .calc-missing-inputs {
+.marker-detail-modal .calc-missing-inputs,
+.marker-detail-modal .bio-age-breakdown {
   overflow-wrap: anywhere;
 }
 .marker-detail-modal .modal-close {
@@ -3303,12 +3305,84 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .marker-detail-modal .marker-history-show-more,
 .marker-detail-modal .modal-ref-info,
 .marker-detail-modal .calc-missing-inputs,
+.marker-detail-modal .bio-age-breakdown,
 .marker-detail-modal .manual-entry-btn,
 .marker-detail-modal .marker-note-section,
 .marker-detail-modal [id^="rec-modal-"],
 .marker-detail-modal .ask-ai-btn {
   margin-left: 28px;
   margin-right: 28px;
+}
+.marker-detail-modal .bio-age-breakdown {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 74%, transparent);
+}
+.marker-detail-modal .bio-age-breakdown-head {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.marker-detail-modal .bio-age-breakdown-sub,
+.marker-detail-modal .bio-age-breakdown-warning {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.marker-detail-modal .bio-age-breakdown-warning {
+  color: var(--yellow);
+}
+.marker-detail-modal .bio-age-component {
+  padding: 8px 0;
+  font-size: 14px;
+}
+.marker-detail-modal .bio-age-component + .bio-age-component {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+}
+.marker-detail-modal .bio-age-component-header {
+  margin-bottom: 6px;
+}
+.marker-detail-modal .bio-age-glyph {
+  display: inline-block;
+  width: 18px;
+  font-weight: 700;
+}
+.marker-detail-modal .bio-age-component-ok .bio-age-glyph,
+.marker-detail-modal .bio-age-component-ok .bio-age-component-header strong,
+.marker-detail-modal .bio-age-input.is-present {
+  color: var(--green);
+}
+.marker-detail-modal .bio-age-component-missing .bio-age-glyph,
+.marker-detail-modal .bio-age-input.is-missing {
+  color: var(--yellow);
+}
+.marker-detail-modal .bio-age-delta {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.marker-detail-modal .bio-age-input-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+  margin-left: 22px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.marker-detail-modal .bio-age-input {
+  white-space: nowrap;
+}
+.marker-detail-modal .bio-age-input.is-missing {
+  font-weight: 600;
 }
 .marker-detail-modal .manual-entry-btn,
 .marker-detail-modal .ask-ai-btn {
@@ -3491,6 +3565,7 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   .marker-detail-modal .marker-history-show-more,
   .marker-detail-modal .modal-ref-info,
   .marker-detail-modal .calc-missing-inputs,
+  .marker-detail-modal .bio-age-breakdown,
   .marker-detail-modal .manual-entry-btn,
   .marker-detail-modal .marker-note-section,
   .marker-detail-modal [id^="rec-modal-"],
@@ -3597,6 +3672,7 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   .marker-detail-modal .marker-history-show-more,
   .marker-detail-modal .modal-ref-info,
   .marker-detail-modal .calc-missing-inputs,
+  .marker-detail-modal .bio-age-breakdown,
   .marker-detail-modal .manual-entry-btn,
   .marker-detail-modal .marker-note-section,
   .marker-detail-modal [id^="rec-modal-"],

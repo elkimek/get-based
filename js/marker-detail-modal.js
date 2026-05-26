@@ -19,6 +19,63 @@ export function configureMarkerDetailModal(deps = {}) {
   Object.assign(markerDetailDeps, deps);
 }
 
+// Biological-age component inputs. Keep these in sync with the PhenoAge and
+// Bortz Age calculations in data.js so the detail modal can explain exactly
+// which panel inputs are present or still missing.
+const BIO_AGE_PHENO_INPUTS = [
+  ['proteins', 'albumin', 'Albumin'],
+  ['biochemistry', 'creatinine', 'Creatinine'],
+  ['biochemistry', 'glucose', 'Glucose'],
+  ['proteins', 'hsCRP', 'hs-CRP'],
+  ['differential', 'lymphocytesPct', 'Lymphocytes %'],
+  ['hematology', 'mcv', 'MCV'],
+  ['hematology', 'rdwcv', 'RDW-CV'],
+  ['biochemistry', 'alp', 'ALP'],
+  ['hematology', 'wbc', 'WBC'],
+];
+const BIO_AGE_BORTZ_INPUTS = [
+  ['proteins', 'albumin', 'Albumin'],
+  ['biochemistry', 'alp', 'ALP'],
+  ['biochemistry', 'urea', 'Urea'],
+  ['lipids', 'cholesterol', 'Cholesterol'],
+  ['biochemistry', 'creatinine', 'Creatinine'],
+  ['biochemistry', 'cystatinC', 'Cystatin C'],
+  ['diabetes', 'hba1c', 'HbA1c'],
+  ['proteins', 'hsCRP', 'hs-CRP'],
+  ['biochemistry', 'ggt', 'GGT'],
+  ['hematology', 'rbc', 'RBC'],
+  ['hematology', 'mcv', 'MCV'],
+  ['hematology', 'rdwcv', 'RDW-CV'],
+  ['differential', 'monocytes', 'Monocytes'],
+  ['differential', 'neutrophils', 'Neutrophils'],
+  ['differential', 'lymphocytesPct', 'Lymphocytes %'],
+  ['biochemistry', 'alt', 'ALT'],
+  ['hormones', 'shbg', 'SHBG'],
+  ['vitamins', 'vitaminD', 'Vitamin D'],
+  ['biochemistry', 'glucose', 'Glucose'],
+  ['hematology', 'mch', 'MCH'],
+  ['lipids', 'apoAI', 'ApoA-I'],
+];
+
+function bioAgeReferenceIndex(data, marker, latestPoint) {
+  if (latestPoint && Number.isInteger(latestPoint.i)) return latestPoint.i;
+  const values = marker?.values || [];
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (values[i] != null) return i;
+  }
+  return data.dates?.length ? data.dates.length - 1 : -1;
+}
+
+function bioAgeInputStatusAtIndex(data, idx, inputs, profileRequirement = null) {
+  const status = inputs.map(([cat, key, label]) => ({
+    label,
+    present: idx >= 0 && data.categories?.[cat]?.markers?.[key]?.values?.[idx] != null,
+    kind: 'marker',
+  }));
+  if (profileRequirement) status.unshift(profileRequirement);
+  return status;
+}
+
 function setDetailModalShell(...classes) {
   const modal = document.getElementById('detail-modal');
   if (!modal) return null;
@@ -364,25 +421,8 @@ export function showDetailModal(id, opts = {}) {
   }
   // Calculated marker input diagnostic — show missing inputs
   const calcInputs = {
-    'calculatedRatios_phenoAge': [
-      ['proteins', 'albumin', 'Albumin'], ['biochemistry', 'creatinine', 'Creatinine'],
-      ['biochemistry', 'glucose', 'Glucose'], ['proteins', 'hsCRP', 'CRP'],
-      ['differential', 'lymphocytesPct', 'Lymphocytes %'], ['hematology', 'mcv', 'MCV'],
-      ['hematology', 'rdwcv', 'RDW-CV'], ['biochemistry', 'alp', 'ALP'], ['hematology', 'wbc', 'WBC']
-    ],
-    'calculatedRatios_bortzAge': [
-      ['proteins', 'albumin', 'Albumin'], ['biochemistry', 'alp', 'ALP'],
-      ['biochemistry', 'urea', 'Urea'], ['lipids', 'cholesterol', 'Cholesterol'],
-      ['biochemistry', 'creatinine', 'Creatinine'], ['biochemistry', 'cystatinC', 'Cystatin C'],
-      ['diabetes', 'hba1c', 'HbA1c'], ['proteins', 'hsCRP', 'CRP'],
-      ['biochemistry', 'ggt', 'GGT'], ['hematology', 'rbc', 'RBC'],
-      ['hematology', 'mcv', 'MCV'], ['hematology', 'rdwcv', 'RDW-CV'],
-      ['differential', 'monocytes', 'Monocytes'], ['differential', 'neutrophils', 'Neutrophils'],
-      ['differential', 'lymphocytesPct', 'Lymphocytes %'], ['biochemistry', 'alt', 'ALT'],
-      ['hormones', 'shbg', 'SHBG'], ['vitamins', 'vitaminD', 'Vitamin D'],
-      ['biochemistry', 'glucose', 'Glucose'], ['hematology', 'mch', 'MCH'],
-      ['lipids', 'apoAI', 'ApoA-I']
-    ],
+    'calculatedRatios_phenoAge': BIO_AGE_PHENO_INPUTS,
+    'calculatedRatios_bortzAge': BIO_AGE_BORTZ_INPUTS,
     'calculatedRatios_biologicalAge': [],
     'calculatedRatios_bunCreatRatio': [
       ['biochemistry', 'urea', 'Urea (BUN)'], ['biochemistry', 'creatinine', 'Creatinine']
@@ -472,24 +512,66 @@ export function showDetailModal(id, opts = {}) {
         }
       }
     }
-    // Biological Age: show component status
+    // Biological Age: show component breakdown. The dashboard can show a
+    // value from whichever component is non-null, so the modal should not
+    // describe that as a generic "Not calculated" error.
     if (id === 'calculatedRatios_biologicalAge') {
-      const latestIdx = data.dates.length - 1;
-      const pheno = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[latestIdx];
-      const bortz = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[latestIdx];
-      if (pheno == null && bortz == null) {
-        issues.push('Neither PhenoAge nor Bortz Age could be calculated — check their detail views for missing inputs');
-      } else {
-        const age = state.profileDob ? ((new Date(data.dates[latestIdx] + 'T00:00:00') - new Date(state.profileDob + 'T00:00:00')) / (365.25*24*60*60*1000)) : null;
-        const parts = [];
-        if (pheno != null) parts.push(`PhenoAge: ${pheno}${age ? ' (' + (pheno - age > 0 ? '+' : '') + (pheno - age).toFixed(1) + 'y)' : ''}`);
-        if (bortz != null) parts.push(`Bortz Age: ${bortz}${age ? ' (' + (bortz - age > 0 ? '+' : '') + (bortz - age).toFixed(1) + 'y)' : ''}`);
-        if (pheno == null) parts.push('PhenoAge: not calculated');
-        if (bortz == null) parts.push('Bortz Age: not calculated');
-        issues.push(parts.join(' · '));
-      }
-    }
-    if (issues.length > 0) {
+      const refIdx = bioAgeReferenceIndex(data, marker, latestPoint);
+      const refDate = refIdx >= 0 ? data.dates?.[refIdx] : null;
+      const refDateLabel = refIdx >= 0 ? (data.dateLabels?.[refIdx] || refDate || '') : '';
+      const pheno = refIdx >= 0 ? data.categories.calculatedRatios?.markers?.phenoAge?.values?.[refIdx] : null;
+      const bortz = refIdx >= 0 ? data.categories.calculatedRatios?.markers?.bortzAge?.values?.[refIdx] : null;
+      const age = state.profileDob && refDate
+        ? ((new Date(refDate + 'T00:00:00') - new Date(state.profileDob + 'T00:00:00')) / (365.25*24*60*60*1000))
+        : null;
+      const ageIsUsable = Number.isFinite(age) && age > 0;
+      const profileRequirement = !state.profileDob
+        ? { label: 'Date of birth', present: false, kind: 'profile' }
+        : (refDate && !ageIsUsable)
+          ? { label: 'Valid date of birth', present: false, kind: 'profile' }
+          : null;
+      const profileIssue = state.profileDob && refDate && !ageIsUsable
+        ? 'Date of birth must be before the panel date'
+        : null;
+      const phenoStatus = bioAgeInputStatusAtIndex(data, refIdx, BIO_AGE_PHENO_INPUTS, profileRequirement);
+      const bortzStatus = bioAgeInputStatusAtIndex(data, refIdx, BIO_AGE_BORTZ_INPUTS, profileRequirement);
+      const renderInputGrid = (status) => status.map(s => {
+        const title = s.kind === 'profile'
+          ? (s.present ? 'Set in profile' : 'Required in profile')
+          : (s.present ? 'In this panel' : 'Missing from this panel');
+        return `<span class="bio-age-input ${s.present ? 'is-present' : 'is-missing'}" title="${escapeAttr(title)}">${s.present ? '✓' : '⚠'} ${escapeHTML(s.label)}</span>`;
+      }).join('');
+      const componentRow = (name, value, status) => {
+        const missing = status.filter(s => !s.present);
+        let header;
+        if (value != null) {
+          const delta = ageIsUsable ? ` <span class="bio-age-delta">(${value - age > 0 ? '+' : ''}${(value - age).toFixed(1)}y)</span>` : '';
+          header = `<span class="bio-age-glyph">✓</span> <strong>${escapeHTML(name)}:</strong> ${formatValue(value)}${delta}`;
+        } else {
+          const noun = missing.length === 1 ? 'input' : 'inputs';
+          header = `<span class="bio-age-glyph">⚠</span> <strong>${escapeHTML(name)}:</strong> missing ${missing.length} of ${status.length} ${noun}`;
+        }
+        const klass = value != null ? 'bio-age-component-ok' : 'bio-age-component-missing';
+        return `<div class="bio-age-component ${klass}">
+          <div class="bio-age-component-header">${header}</div>
+          <div class="bio-age-input-grid">${renderInputGrid(status)}</div>
+        </div>`;
+      };
+      const dateNote = refDateLabel
+        ? `<div class="bio-age-breakdown-sub">Based on your panel from ${escapeHTML(refDateLabel)}</div>`
+        : '';
+      const breakdownIssues = profileIssue ? [...issues, profileIssue] : issues;
+      const issueNote = breakdownIssues.length > 0
+        ? `<div class="bio-age-breakdown-warning">${breakdownIssues.map(escapeHTML).join('. ')}</div>`
+        : '';
+      html += `<div class="bio-age-breakdown">
+        <div class="bio-age-breakdown-head">Component breakdown</div>
+        ${dateNote}
+        ${issueNote}
+        ${componentRow('PhenoAge', pheno, phenoStatus)}
+        ${componentRow('Bortz Age', bortz, bortzStatus)}
+      </div>`;
+    } else if (issues.length > 0) {
       html += `<div class="calc-missing-inputs">Not calculated — ${issues.join('. ')}</div>`;
     }
   }

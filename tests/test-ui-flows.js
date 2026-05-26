@@ -507,6 +507,53 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════════════
+  // 7b. BIOLOGICAL AGE DETAIL MODAL — component breakdown
+  // ═══════════════════════════════════════════════
+  console.log('%c 7b. Biological Age detail modal', 'font-weight:bold;color:#6366f1');
+  const originalProfileDob = S.profileDob;
+  try {
+    S.profileDob = originalProfileDob || '1987-11-22';
+    window.invalidateActiveDataCache?.();
+    window.showDetailModal('calculatedRatios_biologicalAge');
+    await waitFor(() => document.querySelector('#detail-modal .bio-age-breakdown'));
+    const bioModal = document.getElementById('detail-modal');
+    let bioText = bioModal?.textContent || '';
+    assert('Biological Age detail renders component breakdown',
+      !!bioModal?.querySelector('.bio-age-breakdown'));
+    assert('Biological Age detail lists both component clocks',
+      bioText.includes('PhenoAge') && bioText.includes('Bortz Age'));
+    assert('Biological Age detail avoids contradictory generic not-calculated prefix',
+      !/Not calculated\s+—\s+.*PhenoAge/.test(bioText));
+
+    S.profileDob = '';
+    window.invalidateActiveDataCache?.();
+    window.showDetailModal('calculatedRatios_biologicalAge');
+    await waitFor(() => /Date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
+    const missingDobModal = document.getElementById('detail-modal');
+    bioText = missingDobModal?.textContent || '';
+    assert('Biological Age detail surfaces missing DOB as the blocker',
+      /Date of birth not set/.test(bioText) && /Date of birth/.test(bioText));
+    assert('Biological Age detail never says missing 0 inputs when DOB is absent',
+      !/missing 0 of/.test(bioText));
+    assert('Biological Age missing DOB is marked in the input grid',
+      Array.from(missingDobModal?.querySelectorAll('.bio-age-input.is-missing') || [])
+        .some(el => /Date of birth/.test(el.textContent || '')));
+
+    S.profileDob = '2999-01-01';
+    window.invalidateActiveDataCache?.();
+    window.showDetailModal('calculatedRatios_biologicalAge');
+    await waitFor(() => /Valid date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
+    bioText = document.getElementById('detail-modal')?.textContent || '';
+    assert('Biological Age detail surfaces invalid DOB instead of zero missing inputs',
+      /Valid date of birth/.test(bioText) && !/missing 0 of/.test(bioText));
+  } finally {
+    S.profileDob = originalProfileDob;
+    window.invalidateActiveDataCache?.();
+    window.closeModal();
+    await wait(20);
+  }
+
+  // ═══════════════════════════════════════════════
   // 7. CONTEXT CARDS — open editor, save, verify
   // ═══════════════════════════════════════════════
   console.log('%c 7. Context cards', 'font-weight:bold;color:#6366f1');
