@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/mobile-dashboard.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -59,6 +59,8 @@ assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('index loads client list CSS bundle', indexSrc.includes('href="css/client-list.css"'));
 assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
+assert('index loads mobile dashboard CSS bundle', indexSrc.includes('href="css/mobile-dashboard.css"'));
+assert('SW APP_SHELL includes mobile dashboard CSS bundle', swAuditSrc.includes("'/css/mobile-dashboard.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
 assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
