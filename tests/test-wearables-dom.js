@@ -11,7 +11,8 @@
 //      .zip File through importAppleHealthFile, confirm loadJSZip set it.
 //   C. SpO2 modal-renderer parity — modal renders "97 %" not "97.0 %".
 //   D. Partial-day cumulative chart marker.
-//   E. Daytime-empty-state HRV modal — "Not from Oura · why?" row + tooltip.
+//   E. Manual overlay tooltip date alignment.
+//   F. Daytime-empty-state HRV modal — "Not from Oura · why?" row + tooltip.
 //
 // Run: fetch('tests/test-wearables-dom.js').then(r=>r.text()).then(s=>Function(s)())
 
@@ -193,12 +194,62 @@ return (async function() {
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
-  // E. Daytime-empty-state HRV modal
+  // E. Manual overlay tooltip date alignment
+  // ═══════════════════════════════════════
+  // Regression: when a manual scatter point was overlaid on a vendor line,
+  // Chart.js index-mode could combine manual dataIndex=0 with the vendor
+  // line's dataIndex=0. The value was today's manual value, but the tooltip
+  // title showed the vendor row's older date.
+  console.log('%c E. Manual Overlay Tooltip Date ', 'font-weight:bold;color:#f59e0b');
+  window._labState.importedData.wearableSummary = {
+    sources: {
+      oura: { connectedSince: '2026-04-10', lastSyncAt: Date.now(), coverageDays: 3 },
+      manual: { connectedSince: todayISO, lastSyncAt: Date.now(), coverageDays: 1 },
+    },
+    metrics: {
+      rhr: {
+        primarySource: 'oura',
+        latest: 61,
+        latestDate: '2026-04-12',
+        baseline: 60,
+        baselineP25: 58,
+        baselineP75: 62,
+        rolling: { d7: 61, d30: 60, d90: 60 },
+        trend30d: 'flat',
+        weekly: [60, 61],
+      },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'oura', date: '2026-04-10', rhr: 60 },
+    { source: 'oura', date: '2026-04-11', rhr: 61 },
+    { source: 'oura', date: '2026-04-12', rhr: 62 },
+    { source: 'manual', date: todayISO, rhr: 57 },
+  ]);
+  await window.openWearableDetail('rhr');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => d?._kind === 'manual'));
+  const rhrChart = window._labState.chartInstances?.modal;
+  const manualDs = rhrChart?.data?.datasets?.find(d => d?._kind === 'manual');
+  assert('Manual overlay switches interaction mode away from index',
+    rhrChart?.options?.interaction?.mode === 'nearest');
+  assert('Manual overlay point carries today as its own x date',
+    manualDs?.data?.[0]?.x === todayISO && manualDs?.data?.[0]?.y === 57);
+  const manualTitle = rhrChart?.options?.plugins?.tooltip?.callbacks?.title?.([
+    { dataset: manualDs, raw: manualDs?.data?.[0], label: 'Apr 10, 2026' },
+  ]);
+  assert('Manual overlay tooltip title uses the manual point date, not vendor index 0',
+    manualTitle === new Date(todayISO + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+    `title=${manualTitle}`);
+  window.closeModal();
+  delete window._labState.importedData.wearableSummary;
+
+  // ═══════════════════════════════════════
+  // F. Daytime-empty-state HRV modal
   // ═══════════════════════════════════════
   // Primary is Oura, which has no daytime HRV → the modal's stats grid should
   // surface a "Not from {Source} · why?" empty-state row carrying the long
   // explanation in a title attr.
-  console.log('%c E. Daytime-Empty-State Modal ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c F. Daytime-Empty-State Modal ', 'font-weight:bold;color:#f59e0b');
   const _origImported = window._labState.importedData;
   window._labState.importedData = {
     entries: [],

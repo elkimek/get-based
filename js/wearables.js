@@ -1090,6 +1090,7 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
   const xDates = [...series.map(p => p.date), ...manualSeries.map(p => p.date)].sort();
   const values = [...series.map(p => p.v), ...manualSeries.map(p => p.v)];
   if (values.length === 0) return;
+  const hasManualOverlay = primaryData.length > 0 && manualData.length > 0;
   const baselineIsFinite = typeof m.baseline === 'number' && isFinite(m.baseline);
   const baselineValues = baselineIsFinite && xDates.length
     ? [{ x: xDates[0], y: m.baseline }, { x: xDates[xDates.length - 1], y: m.baseline }]
@@ -1109,6 +1110,11 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
 
   const unit = canon.unit || '';
   const formatV = v => formatValue(v, unit);
+  const titleForPoint = (items) => {
+    const rawX = items?.[0]?.raw?.x;
+    if (typeof rawX === 'string') return shortDate(rawX);
+    return items?.[0]?.label || '';
+  };
   const datasets = [];
   if (primaryData.length > 0) {
     datasets.push({
@@ -1166,13 +1172,14 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false, axis: 'x' },
+      interaction: { mode: hasManualOverlay ? 'nearest' : 'index', intersect: false, axis: 'x' },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: tc.tooltipBg, titleColor: tc.tooltipTitle,
           bodyColor: tc.tooltipBody, borderColor: tc.tooltipBorder, borderWidth: 1,
           callbacks: {
+            title: titleForPoint,
             label: (c) => {
               const base = `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}`;
               if (c.dataset._kind === 'manual') return `${base}  (manual entry)`;
