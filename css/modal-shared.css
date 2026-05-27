@@ -1,4 +1,142 @@
-/* Shared modal utilities */
+/* Shared modal shell and utilities */
+
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0); z-index: 275; display: none;
+  align-items: center; justify-content: center; cursor: pointer;
+  transition: background 0.25s ease; overflow: hidden;
+  padding: 32px;
+}
+.modal-overlay.show {
+  display: flex;
+  background: rgba(0,0,0,0.68);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.modal {
+  position: relative; cursor: default;
+  background: var(--bg-secondary); border-radius: var(--radius);
+  border: 1px solid var(--border); width: 90%; max-width: 700px;
+  max-height: 85vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 32px;
+  transform: scale(0.96) translateY(8px); opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.modal-overlay.show .modal { transform: scale(1) translateY(0); opacity: 1; }
+.gb-form-modal,
+.gb-history-modal,
+.marker-detail-modal {
+  padding: 0;
+  width: min(94vw, 880px);
+  max-height: 90vh;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+}
+.gb-form-modal { max-width: 680px; }
+.gb-history-modal { max-width: 840px; }
+.gb-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));
+}
+.gb-modal-kicker {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.gb-modal-title {
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.gb-modal-head .modal-close {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+.gb-modal-head .modal-close:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.gb-form-body {
+  padding: 24px 26px 26px;
+}
+.gb-form-modal .modal-unit,
+.gb-history-modal .modal-unit {
+  margin-bottom: 18px;
+  color: var(--text-secondary);
+}
+.gb-form-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > h3:first-of-type,
+.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-header:first-child {
+  margin: -32px -32px 20px;
+  padding: 22px 56px 18px 26px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));
+}
+.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > h3:first-of-type {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-header:first-child h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 22px;
+}
+.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-unit:first-of-type {
+  margin-top: -6px;
+}
+.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) .modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 720px) {
+  .modal-overlay { padding: 12px; }
+  .gb-modal-head { padding: 18px 20px; }
+  .gb-form-body { padding: 20px; }
+  .gb-form-actions {
+    justify-content: stretch;
+  }
+  .gb-form-actions .import-btn {
+    flex: 1 1 100%;
+  }
+}
 
 /* Knowledge Base modal - wider than the default 700px to fit the
    per-backend controls (model picker, library list, document list,

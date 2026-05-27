@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/modal-shared.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -63,6 +63,9 @@ assert('index loads category views CSS bundle', indexSrc.includes('href="css/cat
 assert('SW APP_SHELL includes category views CSS bundle', swAuditSrc.includes("'/css/category-views.css'"));
 assert('index loads shared modal CSS bundle', indexSrc.includes('href="css/modal-shared.css"'));
 assert('SW APP_SHELL includes shared modal CSS bundle', swAuditSrc.includes("'/css/modal-shared.css'"));
+assert('shared modal CSS loads before feature modal overrides',
+  indexSrc.indexOf('href="css/modal-shared.css"') < indexSrc.indexOf('href="css/context-profile.css"') &&
+  swAuditSrc.indexOf("'/css/modal-shared.css'") < swAuditSrc.indexOf("'/css/context-profile.css'"));
 assert('index loads context/profile CSS bundle', indexSrc.includes('href="css/context-profile.css"'));
 assert('SW APP_SHELL includes context/profile CSS bundle', swAuditSrc.includes("'/css/context-profile.css'"));
 assert('index loads settings CSS bundle', indexSrc.includes('href="css/settings.css"'));
