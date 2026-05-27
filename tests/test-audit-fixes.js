@@ -26,7 +26,7 @@ return (async function () {
     catch (e) { return ''; }
   }
   async function fetchCssBundle() {
-    const files = ['styles.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+    const files = ['styles.css', 'css/modal-shared.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
     return (await Promise.all(files.map(fetchSrc))).join('\n');
   }
   function delay(ms) { return new Promise(r => setTimeout(r, ms)); }

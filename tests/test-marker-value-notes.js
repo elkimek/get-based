@@ -207,7 +207,7 @@ const state = (await import('../js/state.js')).state;
   // 9. CSS surface for the new render
   // ═══════════════════════════════════════
   console.log('%c 9. CSS ', 'font-weight:bold;color:#f59e0b');
-  const stylesSrc = read('styles.css');
+  const stylesSrc = read('styles.css') + '\n' + read('css/marker-detail-modal.css');
   assert('CSS defines .mv-value-note container',
     /\.mv-value-note\s*\{/.test(stylesSrc));
   assert('CSS defines .mv-value-note.add-note hover-reveal',

@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/modal-shared.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -57,12 +57,16 @@ assert('SW has explicit dev-host offline test opt-in',
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('index loads shared modal CSS bundle', indexSrc.includes('href="css/modal-shared.css"'));
+assert('SW APP_SHELL includes shared modal CSS bundle', swAuditSrc.includes("'/css/modal-shared.css'"));
 assert('index loads client list CSS bundle', indexSrc.includes('href="css/client-list.css"'));
 assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
 assert('index loads mobile dashboard CSS bundle', indexSrc.includes('href="css/mobile-dashboard.css"'));
 assert('SW APP_SHELL includes mobile dashboard CSS bundle', swAuditSrc.includes("'/css/mobile-dashboard.css'"));
 assert('index loads cycle CSS bundle', indexSrc.includes('href="css/cycle.css"'));
 assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycle.css'"));
+assert('index loads marker detail modal CSS bundle', indexSrc.includes('href="css/marker-detail-modal.css"'));
+assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includes("'/css/marker-detail-modal.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
 assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
@@ -87,6 +91,9 @@ const lightPageViewSrc = read('js/light-page-view.js');
 const lightChannelViewSrc = read('js/light-channel-view.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
+const stylesAuditSrc = read('styles.css');
+const markerDetailCssAuditSrc = read('css/marker-detail-modal.css');
+const dnaSrc = read('js/dna.js');
 assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
 assert('Trend alert category escaped', dashboardRenderersSrc.includes('escapeHTML(alert.category)'));
 assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardRenderersSrc));
@@ -95,6 +102,10 @@ assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
 assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
+assert('Genome genetics refs keep shared unscoped CSS',
+  dnaSrc.includes('class="detail-genetics-ref"') && /\.detail-genetics-ref\s*\{/.test(stylesAuditSrc));
+assert('Marker detail bundle does not own shared genetics refs',
+  !/\.marker-detail-modal\s+\.detail-genetics(?:-ref)?/.test(markerDetailCssAuditSrc));
 
 const chatSrc = read('js/chat.js');
 const chatMarkerPromptsSrc = read('js/chat-marker-prompts.js');

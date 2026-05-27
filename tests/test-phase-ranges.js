@@ -27,7 +27,7 @@ const schemaSource = read('js/schema.js');
 const schema = await import('../js/schema.js');
 const dataSource = read('js/data.js');
 await import('../js/data.js'); // populates window.getEffectiveRangeForDate etc
-const cssSource = read('styles.css');
+const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css');
   assert('PHASE_RANGES exported from schema.js', schemaSource.includes('export const PHASE_RANGES'));
   assert('Estradiol in PHASE_RANGES', schemaSource.includes("'hormones.estradiol'"));
   assert('Progesterone in PHASE_RANGES', schemaSource.includes("'hormones.progesterone'"));

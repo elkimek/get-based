@@ -45,7 +45,7 @@ assert('Detail modal falls back to sourceFile', markerDetailSrc.includes('srcEnt
 
 // ─── 4. CSS Styles ───
 console.log('\n4. CSS Styles');
-const cssSrc = read('styles.css');
+const cssSrc = read('styles.css') + '\n' + read('css/marker-detail-modal.css');
 assert('mv-source style exists', cssSrc.includes('.mv-source'));
 assert('mv-source-manual style exists', cssSrc.includes('.mv-source-manual'));
 
