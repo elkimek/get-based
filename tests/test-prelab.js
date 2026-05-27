@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/modal-shared.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/category-views.css', 'css/modal-shared.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;

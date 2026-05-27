@@ -941,23 +941,39 @@ async function checkMobileInteractions(page, theme, viewportName) {
   });
   await page.waitForSelector('.category-header');
   for (const view of ['table', 'heatmap']) {
+    const shellKind = view === 'table' ? 'data' : 'heatmap';
+    const wrapperClass = view === 'table' ? 'data-table-wrapper' : 'heatmap-wrapper';
     await page.evaluate((view) => {
       const btns = document.querySelectorAll('.view-toggle .view-btn');
       const btn = btns[view === 'table' ? 1 : 2];
       window.switchView?.(view, 'biochemistry', btn);
       window.scrollTo(0, 0);
     }, view);
-    await page.waitForSelector(`.gb-table-shell-${view === 'table' ? 'data' : 'heatmap'} .gb-table-sticky-head`);
+    await page.waitForSelector(`.gb-table-shell-${shellKind} .gb-table-sticky-head`);
     await delay(120);
-    result = await page.evaluate(() => {
+    result = await page.evaluate(({ shellKind, wrapperClass }) => {
       const maxScroll = Math.max(0, document.scrollingElement.scrollHeight - window.innerHeight);
       window.scrollTo(0, Math.min(560, maxScroll));
       const headerRect = document.querySelector('.header')?.getBoundingClientRect();
-      const stickyHead = document.querySelector('.gb-table-sticky-head');
+      const shell = document.querySelector(`.gb-table-shell-${shellKind}`);
+      const stickyHead = shell?.querySelector('.gb-table-sticky-head');
       const stickyRect = stickyHead?.getBoundingClientRect();
       const stickyCellRect = stickyHead?.querySelector('th')?.getBoundingClientRect();
-      const realHeadRect = document.querySelector('.data-table-wrapper thead, .heatmap-wrapper thead')?.getBoundingClientRect();
+      const wrapper = shell?.querySelector(`.${wrapperClass}`);
+      const realHeadRect = wrapper?.querySelector('thead')?.getBoundingClientRect();
+      const firstBodyCell = wrapper?.querySelector('tbody tr:first-child td:first-child');
+      const firstStickyHeaderCell = stickyHead?.querySelector('th:first-child');
+      const scrollable = !!wrapper && wrapper.scrollWidth - wrapper.clientWidth > 8;
+      if (scrollable) {
+        wrapper.scrollLeft = Math.min(96, wrapper.scrollWidth - wrapper.clientWidth);
+        wrapper.dispatchEvent(new Event('scroll', { bubbles: true }));
+      }
+      const wrapperRect = wrapper?.getBoundingClientRect();
+      const firstBodyRect = firstBodyCell?.getBoundingClientRect();
+      const firstStickyHeaderRect = firstStickyHeaderCell?.getBoundingClientRect();
       const viewportWidth = document.documentElement.clientWidth;
+      const firstBodyDelta = wrapperRect && firstBodyRect ? Math.abs(firstBodyRect.left - wrapperRect.left) : null;
+      const firstHeadDelta = wrapperRect && firstStickyHeaderRect ? Math.abs(firstStickyHeaderRect.left - wrapperRect.left) : null;
       return {
         scrolled: window.scrollY > 120,
         topHeaderSticky: !!headerRect && Math.abs(headerRect.top) <= 1 && headerRect.bottom >= 56,
@@ -970,11 +986,20 @@ async function checkMobileInteractions(page, theme, viewportName) {
           stickyCellRect.bottom > headerRect.bottom + 20,
         realHeadScrolledAway: !!realHeadRect && realHeadRect.bottom < headerRect.bottom,
         horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - viewportWidth,
+        tableScrollable: scrollable,
+        firstColumnSticky:
+          !scrollable ||
+          (!!firstBodyRect && !!firstStickyHeaderRect && firstBodyDelta <= 2 && firstHeadDelta <= 2),
+        firstBodyDelta,
+        firstHeadDelta,
       };
-    });
+    }, { shellKind, wrapperClass });
     assert(testName(theme, viewportName, `category ${view} header sticks below top header`),
       result.scrolled && result.topHeaderSticky && result.stickyHeadVisible &&
         result.realHeadScrolledAway && result.horizontalOverflow <= 1,
+      JSON.stringify(result));
+    assert(testName(theme, viewportName, `category ${view} pins Biomarker column on horizontal scroll`),
+      result.firstColumnSticky,
       JSON.stringify(result));
   }
 }

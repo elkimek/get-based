@@ -27,6 +27,7 @@ const APP_SHELL = [
   '/index.html',
   '/app',
   '/styles.css',
+  '/css/category-views.css',
   '/css/modal-shared.css',
   '/css/settings.css',
   '/css/mobile-dashboard.css',
