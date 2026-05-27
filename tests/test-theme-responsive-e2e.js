@@ -704,11 +704,25 @@ async function checkMobileInteractions(page, theme, viewportName) {
 
   await page.evaluate(() => window.openTweaksPanel?.());
   await delay(150);
-  result = await page.evaluate(() => {
+  result = await page.evaluate((theme) => {
     const panel = document.getElementById('tweaks-panel');
     const overlay = document.getElementById('tweaks-panel-overlay');
     const r = panel?.getBoundingClientRect();
     const viewportWidth = document.documentElement.clientWidth;
+    const shadowRightReach = (boxShadow) => {
+      const lengths = String(boxShadow || '').match(/-?\d+(?:\.\d+)?px/g)?.map(v => Number(v.replace('px', ''))) || [];
+      let reach = 0;
+      for (let i = 0; i < lengths.length; i += 4) {
+        const offsetX = lengths[i] || 0;
+        const blur = lengths[i + 2] || 0;
+        const spread = lengths[i + 3] || 0;
+        reach = Math.max(reach, offsetX + Math.max(0, blur + spread));
+      }
+      return reach;
+    };
+    const panelStyle = panel ? getComputedStyle(panel) : null;
+    const rightShadowReach = shadowRightReach(panelStyle?.boxShadow);
+    const terminalTweakTheme = theme === 'cyberterm' || theme === 'neuromancer';
     const overflowingChildren = panel
       ? Array.from(panel.querySelectorAll('*')).filter(child => {
         const childRect = child.getBoundingClientRect();
@@ -718,12 +732,17 @@ async function checkMobileInteractions(page, theme, viewportName) {
     return {
       open: !!panel && overlay?.classList.contains('show'),
       contained: !!r && r.left >= -1 && r.right <= viewportWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
+      leftGutter: r ? r.left : -1,
+      rightGutter: r ? viewportWidth - r.right : -1,
       horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - viewportWidth,
       overflowingChildren,
+      rightShadowReach,
+      terminalShadowContained: !terminalTweakTheme || (!!r && r.right + rightShadowReach <= viewportWidth + 1),
     };
-  });
+  }, theme);
   assert(testName(theme, viewportName, 'mobile tweaks panel fits viewport'),
-    result.open && result.contained && result.horizontalOverflow <= 1 && result.overflowingChildren === 0,
+    result.open && result.contained && result.leftGutter >= 12 && result.rightGutter >= 12 &&
+      result.horizontalOverflow <= 1 && result.overflowingChildren === 0 && result.terminalShadowContained,
     JSON.stringify(result));
   await page.evaluate(() => window.closeTweaksPanel?.());
   await delay(100);
