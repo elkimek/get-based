@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -92,6 +92,8 @@ assert('index loads cycle CSS bundle', indexSrc.includes('href="css/cycle.css"')
 assert('SW APP_SHELL includes cycle CSS bundle', swAuditSrc.includes("'/css/cycle.css'"));
 assert('index loads marker detail modal CSS bundle', indexSrc.includes('href="css/marker-detail-modal.css"'));
 assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includes("'/css/marker-detail-modal.css'"));
+assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/recommendations.css"'));
+assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
 assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));

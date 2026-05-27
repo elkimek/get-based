@@ -39,6 +39,7 @@ const APP_SHELL = [
   '/css/mobile-dashboard.css',
   '/css/cycle.css',
   '/css/marker-detail-modal.css',
+  '/css/recommendations.css',
   '/css/client-list.css',
   '/css/wearables.css',
   '/css/light-sun.css',

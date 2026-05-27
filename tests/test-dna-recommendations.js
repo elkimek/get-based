@@ -44,6 +44,7 @@ const ctxSrc = await fetchWithRetry('js/context-cards.js');
 const cssSrc = [
   await fetchWithRetry('styles.css'),
   await fetchWithRetry('css/context-profile.css'),
+  await fetchWithRetry('css/recommendations.css'),
 ].join('\n');
 const snpData = await fetch('data/snp-health.json').then(r => r.json());
 const catalogData = await fetch('data/recommendations.json').then(r => r.json());
