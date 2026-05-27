@@ -110,7 +110,7 @@ await import('../js/settings.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
-  const stylesSrc = await fetchWithRetry('styles.css');
+  const appShellCssSrc = await fetchWithRetry('css/app-shell.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
   const syncDeltaPlannerSearchSrc = `${syncDeltaPlannersSrc}\n${syncDeltaPlannerContextSrc}\n${syncDeltaArrayPlannerSrc}\n${syncDeltaMapPlannerSrc}\n${syncDeltaScalarPlannerSrc}`;
@@ -841,7 +841,7 @@ await import('../js/settings.js');
   assert('Quota indicator visible on popover (green/amber/red dot)',
     /Storage: \$\{mb\} \/ \$\{capMb\} MB/.test(syncUiSrc));
   assert('Sync popover uses dedicated opaque background token',
-    /\.sync-popover\s*\{[\s\S]{0,260}background:\s*var\(--sync-popover-bg,\s*var\(--bg-card\)\)/.test(stylesSrc));
+    /\.sync-popover\s*\{[\s\S]{0,260}background:\s*var\(--sync-popover-bg,\s*var\(--bg-card\)\)/.test(appShellCssSrc));
   assert('Transparent themes override sync popover background with solid panels',
     themeExtraSrc.includes('--sync-popover-bg: #181230') &&
     themeExtraSrc.includes('--sync-popover-bg: #150830') &&

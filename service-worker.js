@@ -27,6 +27,7 @@ const APP_SHELL = [
   '/index.html',
   '/app',
   '/styles.css',
+  '/css/app-shell.css',
   '/css/import.css',
   '/css/emf.css',
   '/css/modal-shared.css',

@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -57,6 +57,13 @@ assert('SW has explicit dev-host offline test opt-in',
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
+assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
+assert('app shell CSS loads after core CSS and before feature CSS',
+  indexSrc.indexOf('href="styles.css"') < indexSrc.indexOf('href="css/app-shell.css"') &&
+  indexSrc.indexOf('href="css/app-shell.css"') < indexSrc.indexOf('href="css/import.css"') &&
+  swAuditSrc.indexOf("'/styles.css'") < swAuditSrc.indexOf("'/css/app-shell.css'") &&
+  swAuditSrc.indexOf("'/css/app-shell.css'") < swAuditSrc.indexOf("'/css/import.css'"));
 assert('index loads import CSS bundle', indexSrc.includes('href="css/import.css"'));
 assert('SW APP_SHELL includes import CSS bundle', swAuditSrc.includes("'/css/import.css'"));
 assert('index loads EMF CSS bundle', indexSrc.includes('href="css/emf.css"'));
