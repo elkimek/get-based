@@ -54,9 +54,9 @@ await import('../js/export.js');
   assert('Sets onboarded to profile-set', exportSrc.includes("'profile-set'"));
   assert('Dynamic import of profile.js', exportSrc.includes("import('./profile.js')"));
 
-  // ── 3. Source: styles.css ──
-  console.log('\n3. styles.css — Demo card styles');
-  const cssSrc = read('styles.css');
+  // ── 3. Source: CSS bundle ──
+  console.log('\n3. CSS bundle — Demo card styles');
+  const cssSrc = read('styles.css') + '\n' + read('css/import.css');
   assert('Has .welcome-demo-section rule', cssSrc.includes('.welcome-demo-section'));
   assert('Has .welcome-section-label rule', cssSrc.includes('.welcome-section-label'));
   assert('Old .onboarding-divider rules removed', !cssSrc.includes('.onboarding-divider'));

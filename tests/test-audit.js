@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/import.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -57,6 +57,11 @@ assert('SW has explicit dev-host offline test opt-in',
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('index loads import CSS bundle', indexSrc.includes('href="css/import.css"'));
+assert('SW APP_SHELL includes import CSS bundle', swAuditSrc.includes("'/css/import.css'"));
+assert('import CSS loads before modal shell CSS',
+  indexSrc.indexOf('href="css/import.css"') < indexSrc.indexOf('href="css/modal-shared.css"') &&
+  swAuditSrc.indexOf("'/css/import.css'") < swAuditSrc.indexOf("'/css/modal-shared.css'"));
 assert('index loads dashboard core CSS bundle', indexSrc.includes('href="css/dashboard-core.css"'));
 assert('SW APP_SHELL includes dashboard core CSS bundle', swAuditSrc.includes("'/css/dashboard-core.css'"));
 assert('index loads category views CSS bundle', indexSrc.includes('href="css/category-views.css"'));
