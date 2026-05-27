@@ -366,11 +366,17 @@
     min-width: auto;
     gap: 6px;
   }
+  .tweaks-overlay {
+    overflow-x: hidden;
+  }
   .tweaks-panel {
     top: 66px;
-    right: 8px;
-    width: calc(100vw - 16px);
+    right: calc(12px + env(safe-area-inset-right));
+    left: calc(12px + env(safe-area-inset-left));
+    width: auto;
+    max-width: none;
     max-height: calc(100vh - 74px);
+    box-sizing: border-box;
   }
   .tweaks-body { max-height: calc(100vh - 156px); }
 }

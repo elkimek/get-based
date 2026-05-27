@@ -702,6 +702,32 @@ async function checkMobileInteractions(page, theme, viewportName) {
   await page.evaluate(() => window.closeMobileSidebar?.());
   await delay(100);
 
+  await page.evaluate(() => window.openTweaksPanel?.());
+  await delay(150);
+  result = await page.evaluate(() => {
+    const panel = document.getElementById('tweaks-panel');
+    const overlay = document.getElementById('tweaks-panel-overlay');
+    const r = panel?.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth;
+    const overflowingChildren = panel
+      ? Array.from(panel.querySelectorAll('*')).filter(child => {
+        const childRect = child.getBoundingClientRect();
+        return childRect.left < -1 || childRect.right > viewportWidth + 1;
+      }).length
+      : -1;
+    return {
+      open: !!panel && overlay?.classList.contains('show'),
+      contained: !!r && r.left >= -1 && r.right <= viewportWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
+      horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - viewportWidth,
+      overflowingChildren,
+    };
+  });
+  assert(testName(theme, viewportName, 'mobile tweaks panel fits viewport'),
+    result.open && result.contained && result.horizontalOverflow <= 1 && result.overflowingChildren === 0,
+    JSON.stringify(result));
+  await page.evaluate(() => window.closeTweaksPanel?.());
+  await delay(100);
+
   const quickMarker = await page.$('.m-dashboard-widgets .dashboard-widget[data-widget-id="quick-markers"] .db-quick-marker-tile');
   assert(testName(theme, viewportName, 'mobile has tappable widget marker'), !!quickMarker);
   if (quickMarker) {
