@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { COMMON_CONDITIONS, DIET_TYPES, DIET_RESTRICTIONS, DIET_PATTERNS, BOWEL_FREQUENCY, STOOL_CONSISTENCY, BLOATING_SEVERITY, GAS_SEVERITY, ACID_REFLUX, BURPING, NAUSEA, APPETITE, ABDOMINAL_PAIN, FOOD_SENSITIVITIES, EXERCISE_FREQ, EXERCISE_TYPES, EXERCISE_INTENSITY, DAILY_MOVEMENT, SLEEP_DURATIONS, SLEEP_QUALITY, SLEEP_SCHEDULE, SLEEP_ROOM_TEMP, SLEEP_ISSUES, SLEEP_ENVIRONMENT, SLEEP_PRACTICES, LIGHT_AM, LIGHT_DAYTIME, LIGHT_UV, LIGHT_EVENING, LIGHT_COLD, LIGHT_GROUNDING, LIGHT_SCREEN_TIME, LIGHT_TECH_ENV, LIGHT_MEAL_TIMING, STRESS_LEVELS, STRESS_SOURCES, STRESS_MGMT, LOVE_STATUS, LOVE_SATISFACTION, LOVE_LIBIDO, LOVE_FREQUENCY, LOVE_ORGASM, LOVE_RELATIONSHIP, LOVE_CONCERNS, ENV_SETTING, ENV_CLIMATE, ENV_WATER, ENV_WATER_CONCERNS, ENV_EMF, ENV_EMF_MITIGATION, ENV_HOME_LIGHT, ENV_AIR, ENV_TOXINS, ENV_BUILDING } from './constants.js';
-import { escapeHTML, hashString, showNotification, hasCardContent } from './utils.js';
+import { escapeHTML, escapeAttr, hashString, showNotification, hasCardContent } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { getLatitudeFromLocation, profileStorageKey } from './profile.js';
@@ -18,14 +18,19 @@ import { getFolderBackupState } from './backup.js';
 import { getEMFSeverity, trackUsage } from './schema.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 
+function getEMFAssessments() {
+  const assessments = state.importedData.emfAssessment?.assessments;
+  return Array.isArray(assessments) ? assessments : [];
+}
+
 function getEMFSummary() {
-  const emf = state.importedData.emfAssessment;
-  if (!emf || !emf.assessments || emf.assessments.length === 0) return '';
-  const sorted = [...emf.assessments].sort((a, b) => b.date.localeCompare(a.date));
+  const assessments = getEMFAssessments();
+  if (!assessments.length) return '';
+  const sorted = [...assessments].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   const latest = sorted[0];
   let worst = null, worstIdx = -1;
   const tierOrder = ['green', 'yellow', 'orange', 'red'];
-  for (const room of latest.rooms) {
+  for (const room of latest.rooms || []) {
     const sleeping = room.sleeping !== false;
     for (const [type, m] of Object.entries(room.measurements || {})) {
       if (m && m.value != null) {
@@ -34,8 +39,38 @@ function getEMFSummary() {
       }
     }
   }
-  const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  return `EMF: ${sorted.length} assessment${sorted.length > 1 ? 's' : ''} (latest: ${fmtDate(latest.date)}${worst ? ', ' + worst.label : ''})`;
+  const fmtDate = d => {
+    const parsed = new Date(d + 'T00:00:00');
+    if (Number.isNaN(parsed.getTime())) return String(d || 'saved');
+    return parsed.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
+  const latestText = latest.date ? fmtDate(latest.date) : 'saved';
+  return `EMF: ${sorted.length} assessment${sorted.length > 1 ? 's' : ''} (latest: ${latestText}${worst ? ', ' + worst.label : ''})`;
+}
+
+export function renderEMFAssessmentLauncher({ inModal = false, surface = 'environment-editor' } = {}) {
+  const assessments = getEMFAssessments();
+  const hasAssessments = assessments.length > 0;
+  const action = inModal
+    ? 'window.closeModal&&window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor(),100)'
+    : 'window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()';
+  const summary = hasAssessments
+    ? getEMFSummary()
+    : 'Room-by-room Baubiologie workflow with readings, photos, comparison, and AI interpretation.';
+  const kicker = hasAssessments
+    ? `${assessments.length} saved`
+    : 'Environment tool';
+  const title = hasAssessments ? 'Open EMF assessment' : 'Start EMF assessment';
+  const cta = hasAssessments ? 'Open' : 'Start';
+  return `<button type="button" class="ctx-emf-launcher${hasAssessments ? ' has-data' : ''}" onclick="${escapeAttr(action)}" data-umami-event="${escapeAttr('emf-launcher-' + surface)}">
+    <span class="ctx-emf-launcher-mark" aria-hidden="true">EMF</span>
+    <span class="ctx-emf-launcher-copy">
+      <span class="ctx-emf-launcher-kicker">${escapeHTML(kicker)}</span>
+      <strong>${escapeHTML(title)}</strong>
+      <span>${escapeHTML(summary)}</span>
+    </span>
+    <span class="ctx-emf-launcher-action">${escapeHTML(cta)}</span>
+  </button>`;
 }
 
 // ── Context card summary generators ──
@@ -161,19 +196,20 @@ export function getLoveLifeSummary(d) {
 }
 
 export function getEnvironmentSummary(d) {
-  if (!d) return '';
   const parts = [];
-  if (d.setting) parts.push(d.setting);
-  if (d.climate) parts.push(d.climate);
-  if (d.water) parts.push(d.water);
-  if (d.waterConcerns && d.waterConcerns.length) parts.push(d.waterConcerns.join(', '));
-  if (d.emf && d.emf.length) parts.push(d.emf.length + ' EMF source' + (d.emf.length > 1 ? 's' : ''));
-  if (d.emfMitigation && d.emfMitigation.length) parts.push(d.emfMitigation.length + ' EMF mitigation');
-  if (d.homeLight) parts.push(d.homeLight);
-  if (d.air && d.air.length) parts.push(d.air.join(', '));
-  if (d.toxins && d.toxins.length) parts.push(d.toxins.length + ' toxin exposure' + (d.toxins.length > 1 ? 's' : ''));
-  if (d.building) parts.push(d.building);
-  if (d.note) parts.push(d.note);
+  if (d) {
+    if (d.setting) parts.push(d.setting);
+    if (d.climate) parts.push(d.climate);
+    if (d.water) parts.push(d.water);
+    if (d.waterConcerns && d.waterConcerns.length) parts.push(d.waterConcerns.join(', '));
+    if (d.emf && d.emf.length) parts.push(d.emf.length + ' EMF source' + (d.emf.length > 1 ? 's' : ''));
+    if (d.emfMitigation && d.emfMitigation.length) parts.push(d.emfMitigation.length + ' EMF mitigation');
+    if (d.homeLight) parts.push(d.homeLight);
+    if (d.air && d.air.length) parts.push(d.air.join(', '));
+    if (d.toxins && d.toxins.length) parts.push(d.toxins.length + ' toxin exposure' + (d.toxins.length > 1 ? 's' : ''));
+    if (d.building) parts.push(d.building);
+    if (d.note) parts.push(d.note);
+  }
   const emfSummary = getEMFSummary();
   if (emfSummary) parts.push(emfSummary);
   return parts.join(', ');
@@ -190,6 +226,7 @@ export function getGoalsSummary() {
 
 export function isContextFilled(key) {
   if (key === 'healthGoals') return (state.importedData.healthGoals || []).length > 0;
+  if (key === 'environment') return state.importedData.environment != null || getEMFAssessments().length > 0;
   return state.importedData[key] != null;
 }
 
@@ -1228,6 +1265,7 @@ export function openEnvironmentEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.environment || { setting: null, climate: null, water: null, waterConcerns: [], emf: [], emfMitigation: [], homeLight: null, air: [], toxins: [], building: null, note: '' };
+  const hasEMFAssessment = getEMFAssessments().length > 0;
   renderContextEditorModal(modal, 'Environment', 'Your environment shapes your biology — water quality, EMF, light, air, and toxin exposure directly impact mitochondria, inflammation, and hormone function.', `
     ${renderSelectField('Living setting', 'env-setting', ENV_SETTING, current.setting)}
     ${renderSelectField('Climate', 'env-climate', ENV_CLIMATE, current.climate)}
@@ -1235,17 +1273,12 @@ export function openEnvironmentEditor() {
     ${renderSelectField('Primary water source', 'env-water', ENV_WATER, current.water)}
     ${renderTagsField('Water concerns', 'env-water-concerns', ENV_WATER_CONCERNS, current.waterConcerns)}
     <div class="ctx-editor-divider"></div>
-    ${state.importedData.emfAssessment?.assessments?.length
-      ? `<div class="ctx-field-group">
-          <label class="ctx-field-label">EMF</label>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${escapeHTML(getEMFSummary())}</div>
-          <button class="import-btn import-btn-secondary" onclick="closeModal();setTimeout(()=>openEMFAssessmentEditor(),100)">View EMF Assessment →</button>
-        </div>`
-      : `${renderTagsField('EMF exposure', 'env-emf', ENV_EMF, current.emf)}
-    ${renderTagsField('EMF mitigation', 'env-emf-mit', ENV_EMF_MITIGATION, current.emfMitigation)}
-    <div class="ctx-field-group" style="margin-top:8px">
-      <button class="import-btn import-btn-secondary" onclick="closeModal();setTimeout(()=>openEMFAssessmentEditor(),100)">Baubiologie EMF Assessment →</button>
-    </div>`}
+    <div class="ctx-field-group">
+      <label class="ctx-field-label">EMF</label>
+      ${renderEMFAssessmentLauncher({ inModal: true, surface: 'environment-editor' })}
+    </div>
+    ${hasEMFAssessment ? '' : `${renderTagsField('EMF exposure', 'env-emf', ENV_EMF, current.emf)}
+    ${renderTagsField('EMF mitigation', 'env-emf-mit', ENV_EMF_MITIGATION, current.emfMitigation)}`}
     <div class="ctx-editor-divider"></div>
     ${renderSelectField('Home/work lighting', 'env-light', ENV_HOME_LIGHT, current.homeLight)}
     ${renderTagsField('Air quality', 'env-air', ENV_AIR, current.air)}

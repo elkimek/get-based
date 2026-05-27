@@ -139,6 +139,11 @@ return (async function() {
   assert('Sidebar places tools and management above Lab categories',
     analysisIndex > -1 && manageIndex > -1 && labCategoriesIndex > -1 &&
       analysisIndex < labCategoriesIndex && manageIndex < labCategoriesIndex);
+  const emfIndex = sidebarText.indexOf('EMF assessment');
+  assert('Sidebar exposes EMF assessment as an analysis tool',
+    !!sidebar.querySelector('.nav-item[data-category="emf"]') &&
+      analysisIndex > -1 && emfIndex > -1 && manageIndex > -1 &&
+      analysisIndex < emfIndex && emfIndex < manageIndex);
 
   // Header elements
   assert('Header dates populated', document.getElementById('header-dates')?.innerHTML.length > 10);

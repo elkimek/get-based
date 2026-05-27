@@ -141,6 +141,27 @@ assert('45c. startup-orchestrator.js imports the EMF lazy facade', orchestratorS
 assert('45d. startup-orchestrator.js installs the EMF lazy facade', orchestratorSrc.includes('installEMFLazyFacade()'));
 assert('45d2. main.js starts the startup orchestrator', mainSrc.includes('startApp()'));
 assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('const _emfFns'));
+const navSrc = read('js/nav.js');
+const contextCardsSrc = read('js/context-cards.js');
+const contextProfileCss = read('css/context-profile.css');
+const lensPagesSrc = read('js/lens-pages.js');
+assert('45f. Sidebar exposes EMF assessment under Analysis tools', (() => {
+  const analysisIndex = navSrc.indexOf('Analysis tools');
+  const emfIndex = navSrc.indexOf("label: 'EMF assessment'");
+  const manageIndex = navSrc.indexOf('Manage');
+  return analysisIndex > -1 && emfIndex > -1 && manageIndex > -1 && analysisIndex < emfIndex && emfIndex < manageIndex;
+})());
+assert('45g. EMF sidebar entry is available before assessment data exists',
+  navSrc.includes('emfAssessmentCount > 0 ? emfAssessmentCount : null') &&
+  !navSrc.includes("label: 'EMF',"));
+assert('45h. Environment context card counts saved EMF assessments',
+  contextCardsSrc.includes("key === 'environment'") && contextCardsSrc.includes('getEMFAssessments().length > 0'));
+assert('45i. Environment editor uses the EMF assessment launcher',
+  contextCardsSrc.includes('renderEMFAssessmentLauncher({ inModal: true') && contextCardsSrc.includes('ctx-emf-launcher'));
+assert('45j. EMF launcher has dedicated context CSS',
+  contextProfileCss.includes('.ctx-emf-launcher') && contextProfileCss.includes('.ctx-emf-launcher-action'));
+assert('45k. Insight lens exposes EMF assessment action',
+  lensPagesSrc.includes('EMF assessment') && lensPagesSrc.includes('window.openEMFAssessmentEditor'));
 
 // ── EMF affiliate catalog (Safe Living Technologies) ──
 const recsMod = await import('../js/recommendations.js');

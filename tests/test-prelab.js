@@ -129,7 +129,7 @@ const labCtxSrc = read('js/lab-context.js');
 
   assert('context-cards imports getActiveData', ccSrc.includes("import { saveImportedData, getActiveData } from './data.js'"),
     'Should import getActiveData for lab data check');
-  assert('context-cards imports hasCardContent', ccSrc.includes("import { escapeHTML, hashString, showNotification, hasCardContent } from './utils.js'"),
+  assert('context-cards imports hasCardContent', /import\s+{[^}]*hasCardContent[^}]*}\s+from '\.\/utils\.js'/.test(ccSrc),
     'Should import hasCardContent for health dots fix');
   assert('Checks hasLabs for subtitle', ccSrc.includes('_ccHasLabs'),
     'Should compute hasLabs in renderProfileContextCards');

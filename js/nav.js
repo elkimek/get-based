@@ -151,24 +151,21 @@ export function buildSidebar(data) {
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('compare')}</span><span class="nav-item-label">Compare dates</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="correlations" tabindex="0" role="button" onclick="window.navigate('correlations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('correlations')}">
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('correlations')}</span><span class="nav-item-label">Correlations</span><span class="nav-item-dot"></span></div>`;
+  const emfAssessments = state.importedData?.emfAssessment?.assessments;
+  const emfAssessmentCount = Array.isArray(emfAssessments) ? emfAssessments.length : 0;
+  html += _renderConditionalNavItem({
+    key: 'emf',
+    icon: 'emf',
+    label: 'EMF assessment',
+    navigate: 'fn:window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()',
+    badge: emfAssessmentCount > 0 ? emfAssessmentCount : null,
+  });
 
   html += `<div class="nav-section">Manage</div>`;
   html += `<div class="nav-item" data-category="knowledge" tabindex="0" role="button" onclick="window.openKnowledgeBaseModal&&window.openKnowledgeBaseModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" onclick="window.openCreateMarkerModal&&window.openCreateMarkerModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
-
-  // \uD83D\uDCE1 EMF \u2014 opens editor directly (no dedicated dashboard section)
-  const emfAssessments = state.importedData?.emfAssessment?.assessments;
-  if (Array.isArray(emfAssessments) && emfAssessments.length > 0) {
-    html += _renderConditionalNavItem({
-      key: 'emf',
-      icon: 'emf',
-      label: 'EMF',
-      navigate: 'fn:window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()',
-      badge: emfAssessments.length,
-    });
-  }
 
   // Separate categories into blood work (no group) and specialty groups
   const bloodWork = [];

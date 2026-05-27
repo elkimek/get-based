@@ -113,6 +113,70 @@
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--text-muted); margin-bottom: 8px; display: block;
 }
+.ctx-emf-launcher {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ctx-emf-launcher:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.ctx-emf-launcher:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ctx-emf-launcher-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.ctx-emf-launcher-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ctx-emf-launcher-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ctx-emf-launcher-copy strong {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.ctx-emf-launcher-copy span:last-child {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ctx-emf-launcher-action {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
 /* Button-group selector (replaces native <select>) */
 .ctx-btn-group { display: flex; flex-wrap: wrap; gap: 6px; }
 .ctx-btn-option {

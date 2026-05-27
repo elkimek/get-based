@@ -190,6 +190,7 @@ export function createLensPageHandlers(deps) {
     const ctx = buildDashboardWidgetContext(rawData);
     let html = renderLensHeader('Insight', 'Dedicated synthesis workspace: AI focus, trend interpretation, context, and next-step surfaces.',
       `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.openChatPanel && window.openChatPanel()">Open AI chat</button>
+       <button type="button" class="dashboard-action-btn" onclick="window.openEMFAssessmentEditor && window.openEMFAssessmentEditor()">EMF assessment</button>
        <button type="button" class="dashboard-action-btn" onclick="window.navigate && window.navigate('recommendations')">Recommendations</button>`);
     html += renderLensPageWidgets('insight', [
       { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', body: renderFocusCard(), size: 'full', opts: { source: 'Insight' } },
