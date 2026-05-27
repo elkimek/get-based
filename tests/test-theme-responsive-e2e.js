@@ -837,6 +837,9 @@ async function checkMobileInteractions(page, theme, viewportName) {
       const fabPaint = shadowReach(fabStyle?.boxShadow);
       const terminalTheme = theme === 'cyberterm' || theme === 'neuromancer';
       window.scrollTo(0, Math.min(620, document.scrollingElement.scrollHeight));
+      const header = document.querySelector('.header');
+      const headerStyle = header ? getComputedStyle(header) : null;
+      const headerRect = header?.getBoundingClientRect();
       const tabbarAfterY = tabbar?.getBoundingClientRect();
       window.scrollTo(80, window.scrollY);
       const tabbarAfterX = tabbar?.getBoundingClientRect();
@@ -856,6 +859,12 @@ async function checkMobileInteractions(page, theme, viewportName) {
         currentView: window._labState?.currentView,
         visibleMain: document.getElementById('main-content')?.textContent?.trim().length > 40,
         rootTabsActive: document.documentElement.classList.contains('mobile-tabs-active'),
+        headerSticky:
+          headerStyle?.position === 'sticky' &&
+          !!headerRect &&
+          Math.abs(headerRect.top) <= 1 &&
+          headerRect.bottom >= 56 &&
+          getComputedStyle(document.body).overflowX === 'visible',
         tabbarOutsideShell: !!tabbar && !tabbar.closest('.m-shell'),
         tabbarFixed: tabbarStyle?.position === 'fixed',
         tabbarContained: !!tabbarRect && tabbarRect.left >= -1 && tabbarRect.right <= viewportWidth + 1,
@@ -908,6 +917,9 @@ async function checkMobileInteractions(page, theme, viewportName) {
         result.tabbarFixed && result.tabbarContained && result.tabbarStable &&
         result.horizontalOverflow <= 1 && result.bottomChromePaintContained,
       JSON.stringify(result));
+    assert(testName(theme, viewportName, `tab ${tab} keeps top header sticky`),
+      result.headerSticky,
+      JSON.stringify(result));
     assert(testName(theme, viewportName, `tab ${tab} keeps page surfaces inset`),
       result.pageSurfaceGutters,
       JSON.stringify(result));
@@ -921,6 +933,49 @@ async function checkMobileInteractions(page, theme, viewportName) {
           result.horizontalOverflow <= 1 && result.longDeviceKindWraps,
         JSON.stringify(result));
     }
+  }
+
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    window.showCategory?.('biochemistry');
+  });
+  await page.waitForSelector('.category-header');
+  for (const view of ['table', 'heatmap']) {
+    await page.evaluate((view) => {
+      const btns = document.querySelectorAll('.view-toggle .view-btn');
+      const btn = btns[view === 'table' ? 1 : 2];
+      window.switchView?.(view, 'biochemistry', btn);
+      window.scrollTo(0, 0);
+    }, view);
+    await page.waitForSelector(`.gb-table-shell-${view === 'table' ? 'data' : 'heatmap'} .gb-table-sticky-head`);
+    await delay(120);
+    result = await page.evaluate(() => {
+      const maxScroll = Math.max(0, document.scrollingElement.scrollHeight - window.innerHeight);
+      window.scrollTo(0, Math.min(560, maxScroll));
+      const headerRect = document.querySelector('.header')?.getBoundingClientRect();
+      const stickyHead = document.querySelector('.gb-table-sticky-head');
+      const stickyRect = stickyHead?.getBoundingClientRect();
+      const stickyCellRect = stickyHead?.querySelector('th')?.getBoundingClientRect();
+      const realHeadRect = document.querySelector('.data-table-wrapper thead, .heatmap-wrapper thead')?.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth;
+      return {
+        scrolled: window.scrollY > 120,
+        topHeaderSticky: !!headerRect && Math.abs(headerRect.top) <= 1 && headerRect.bottom >= 56,
+        stickyHeadVisible:
+          !!headerRect &&
+          !!stickyRect &&
+          !!stickyCellRect &&
+          stickyRect.top >= headerRect.bottom - 1 &&
+          stickyRect.top <= headerRect.bottom + 4 &&
+          stickyCellRect.bottom > headerRect.bottom + 20,
+        realHeadScrolledAway: !!realHeadRect && realHeadRect.bottom < headerRect.bottom,
+        horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - viewportWidth,
+      };
+    });
+    assert(testName(theme, viewportName, `category ${view} header sticks below top header`),
+      result.scrolled && result.topHeaderSticky && result.stickyHeadVisible &&
+        result.realHeadScrolledAway && result.horizontalOverflow <= 1,
+      JSON.stringify(result));
   }
 }
 
