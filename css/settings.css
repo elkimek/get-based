@@ -208,6 +208,130 @@
   max-width: 780px;
 }
 
+/* API key and provider settings */
+.api-key-input {
+  width: 100%; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: monospace;
+  margin-top: 8px; color-scheme: dark;
+}
+[data-theme="light"] .api-key-input { color-scheme: light; }
+.api-key-input:focus { border-color: var(--accent); }
+.api-key-status { font-size: 13px; margin-bottom: 4px; }
+.api-key-notice {
+  font-size: 11px; color: var(--text-muted); margin-top: 12px;
+  padding: 10px; background: var(--bg-card); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); line-height: 1.5;
+}
+.ai-provider-toggle { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.ai-provider-btn {
+  padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); font-size: 13px;
+  cursor: pointer; font-weight: 500; transition: all 0.15s; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+@media (max-width: 480px) {
+  .ai-provider-btn { padding: 5px 10px; font-size: 12px; gap: 3px; }
+  .ai-provider-logo { width: 12px; height: 12px; }
+}
+.ai-provider-logo { width: 14px; height: 14px; flex-shrink: 0; }
+.ai-provider-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.ai-provider-btn:hover:not(.active) { background: var(--bg-hover); }
+.ai-provider-panel { margin-top: 12px; }
+.ai-provider-desc {
+  font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;
+}
+.ai-model-tip {
+  font-size: 12px; line-height: 1.5; color: var(--text-secondary);
+  border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 12px;
+  background: var(--bg-hover); border-radius: 0 4px 4px 0;
+}
+.or-oauth-btn {
+  width: 100%; padding: 10px 16px; border: none; border-radius: var(--radius);
+  background: var(--accent-gradient); color: white; font-weight: 600; font-size: 14px;
+  font-family: inherit; cursor: pointer; transition: all 0.2s;
+}
+.or-oauth-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
+.or-oauth-divider {
+  display: flex; align-items: center; gap: 12px; margin: 12px 0;
+}
+.or-oauth-divider::before, .or-oauth-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.or-oauth-divider span {
+  font-size: 11px; color: var(--text-muted); white-space: nowrap;
+}
+
+/* Local AI settings in Settings modal */
+.local-ai-settings { margin-top: 4px; }
+.local-ai-status {
+  display: flex; align-items: center; gap: 8px; font-size: 13px;
+}
+.local-ai-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
+  flex-shrink: 0;
+}
+.local-ai-status-dot.connected { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.local-ai-status-dot.disconnected { background: var(--red); }
+
+/* Model Advisor */
+.model-advisor { margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.model-advisor-hw {
+  padding: 10px 12px; background: var(--bg-hover);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-secondary);
+}
+.model-advisor-hw-chip { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.model-advisor-row {
+  display: grid; grid-template-columns: auto 1fr auto auto auto;
+  gap: 8px; align-items: center;
+  padding: 7px 12px; border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.model-advisor-row:hover { background: var(--bg-hover); }
+.model-advisor-row.active { background: rgba(99,102,241,0.06); }
+.model-advisor-badge { font-size: 13px; flex-shrink: 0; line-height: 1; }
+.model-advisor-name { font-weight: 500; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.model-advisor-size { color: var(--text-muted); white-space: nowrap; }
+.model-advisor-verdict { white-space: nowrap; font-size: 11px; }
+.model-advisor-verdict.fits { color: var(--green); }
+.model-advisor-verdict.tight { color: var(--yellow); }
+.model-advisor-verdict.toobig { color: var(--red); }
+.model-advisor-verdict.unknown { color: var(--text-muted); }
+.model-advisor-verdict.cloud { color: var(--accent); }
+.model-advisor-fitness { white-space: nowrap; font-size: 11px; color: var(--text-muted); }
+.model-advisor-fitness.fitness-great { color: var(--green); font-weight: 600; }
+.model-advisor-fitness.fitness-good { color: var(--accent); }
+.model-advisor-fitness.fitness-fair { color: var(--yellow); }
+.model-advisor-fitness.fitness-poor { color: var(--red); }
+.model-advisor-suggest { padding: 10px 12px; border-top: 1px solid var(--border); }
+.model-advisor-suggest-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 8px;
+}
+.model-advisor-pull-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.model-advisor-pull-cmd {
+  font-family: var(--font-mono); font-size: 12px;
+  background: var(--bg-primary); padding: 4px 8px;
+  border-radius: 4px; border: 1px solid var(--border);
+  color: var(--text-secondary); flex: 1;
+}
+.model-advisor-pull-why { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.model-advisor-override { padding: 8px 12px; border-top: 1px solid var(--border); }
+.model-advisor-override-toggle {
+  font-size: 11px; color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; gap: 5px; user-select: none;
+}
+.model-advisor-override-toggle:hover { color: var(--text-secondary); }
+.model-advisor-override-body {
+  margin-top: 6px; display: flex; align-items: center; gap: 8px;
+}
+.model-advisor-override-body input {
+  width: 72px; padding: 4px 8px; font-size: 12px;
+  background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text-primary);
+}
+
 /* Imported data entries */
 .imported-entry {
   display: flex; align-items: center; justify-content: space-between;

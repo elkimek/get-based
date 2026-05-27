@@ -300,7 +300,7 @@ assert('startup sync reconciliation pushes local AI setting drift',
     && syncSrc.includes("from './sync-configure.js'")
     && syncReconcileSrc.includes('newer local AI settings')
     && syncReconcileSrc.includes('collectAISettings()'));
-const cssSrc = read('styles.css');
+const cssSrc = read('styles.css') + '\n' + read('css/settings.css');
 assert('CSS: .or-oauth-btn defined', cssSrc.includes('.or-oauth-btn'));
 assert('CSS: .or-oauth-divider defined', cssSrc.includes('.or-oauth-divider'));
 assert('provider-panels renders or-oauth-btn in OpenRouter panel', ppSrc.includes('or-oauth-btn'));
