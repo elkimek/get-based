@@ -5,6 +5,8 @@
   body.mobile-dashboard-active .layout {
     display: block;
     min-height: calc(100svh - 58px);
+    max-width: 100%;
+    overflow-x: clip;
   }
   body.mobile-dashboard-active .sidebar {
     position: fixed;
@@ -22,7 +24,11 @@
     padding-bottom: 0;
     margin-left: 0;
     max-width: none;
-    overflow-x: hidden;
+    overflow-x: clip;
+  }
+  body.mobile-dashboard-active {
+    max-width: 100%;
+    overflow-x: clip;
   }
   body.mobile-dashboard-active .app-footer { display: none; }
   body.mobile-dashboard-active #chat-fab { display: none; }
@@ -30,6 +36,8 @@
     position: relative;
     display: block;
     min-height: 100svh;
+    width: 100%;
+    max-width: 100%;
     overflow: hidden;
     isolation: isolate;
     background: var(--bg-primary);
@@ -45,8 +53,10 @@
   }
   .m-content {
     width: min(100%, 540px);
+    max-width: 100%;
     margin: 0 auto;
     padding: 20px 14px calc(128px + env(safe-area-inset-bottom));
+    overflow-x: clip;
   }
   .m-chat-fab,
   .m-tab {
@@ -482,6 +492,7 @@
     z-index: 210;
     width: min(520px, calc(100% - 20px));
     margin: 0 auto;
+    box-sizing: border-box;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 4px;
@@ -506,6 +517,7 @@
     justify-content: center;
     gap: 2px;
     font: inherit;
+    overflow: hidden;
     cursor: pointer;
   }
   .m-tab-icon,
@@ -516,7 +528,16 @@
     font-size: 18px;
     line-height: 1;
   }
-  .m-tab small { font-size: 10px; line-height: 1; }
+  .m-tab small {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .m-tab.active {
     background: color-mix(in srgb, var(--accent) 30%, var(--bg-card));
     color: var(--text-primary);
@@ -562,6 +583,10 @@
   [data-theme="cyberterm"] .m-wear-tile {
     box-shadow: 2px 2px 0 var(--border);
   }
+  [data-theme="cyberterm"] .m-chat-fab,
+  [data-theme="cyberterm"] .m-tabbar {
+    box-shadow: 2px 2px 0 var(--border);
+  }
   [data-theme="synth-sunrise"] .m-bg {
     top: 44%;
     background:
@@ -579,6 +604,12 @@
       linear-gradient(to bottom, color-mix(in srgb, var(--accent) 12%, transparent) 1px, transparent 1px);
     background-size: 18px 18px;
     opacity: 0.45;
+  }
+  [data-theme="neuromancer"] .m-chat-fab,
+  [data-theme="neuromancer"] .m-tabbar {
+    box-shadow:
+      0 0 22px -12px rgba(0, 229, 255, 0.62),
+      0 12px 30px -24px rgba(255, 43, 214, 0.58);
   }
   [data-theme="glass"] .m-stat-card,
   [data-theme="glass"] .m-insight,
