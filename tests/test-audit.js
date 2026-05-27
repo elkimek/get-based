@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/modal-shared.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/modal-shared.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -59,6 +59,8 @@ assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('index loads shared modal CSS bundle', indexSrc.includes('href="css/modal-shared.css"'));
 assert('SW APP_SHELL includes shared modal CSS bundle', swAuditSrc.includes("'/css/modal-shared.css'"));
+assert('index loads settings CSS bundle', indexSrc.includes('href="css/settings.css"'));
+assert('SW APP_SHELL includes settings CSS bundle', swAuditSrc.includes("'/css/settings.css'"));
 assert('index loads client list CSS bundle', indexSrc.includes('href="css/client-list.css"'));
 assert('SW APP_SHELL includes client list CSS bundle', swAuditSrc.includes("'/css/client-list.css'"));
 assert('index loads mobile dashboard CSS bundle', indexSrc.includes('href="css/mobile-dashboard.css"'));

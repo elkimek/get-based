@@ -1,0 +1,465 @@
+/* Settings modal and settings-owned controls */
+
+.settings-btn:hover { background: var(--bg-hover); }
+
+.settings-modal {
+  padding: 0;
+  width: min(94vw, 860px);
+  max-width: 860px;
+  max-height: 90vh;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.settings-modal .settings-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  height: min(560px, calc(90vh - 78px));
+  height: min(560px, calc(90dvh - 78px));
+  min-height: 0;
+  max-height: calc(90vh - 78px);
+  max-height: calc(90dvh - 78px);
+  gap: 0;
+}
+.settings-modal .settings-tabs-bar {
+  position: static;
+  top: auto;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 18px 14px;
+  border-right: 1px solid var(--border);
+  border-bottom: 0;
+  background: var(--bg-secondary);
+  overflow-y: auto;
+}
+.settings-modal .settings-tab-btn {
+  box-sizing: border-box;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.settings-modal .settings-tab-btn::after { display: none; }
+.settings-modal .settings-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+.settings-modal .settings-tab-btn.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+.settings-modal .settings-tab-btn.active svg { color: var(--accent); }
+.settings-modal .settings-content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 24px 24px;
+}
+.settings-modal .settings-tab-panel {
+  min-width: 0;
+  padding-top: 0;
+  overflow-x: clip;
+}
+.settings-modal .settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.settings-modal .settings-row .settings-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+  gap: 16px;
+  align-items: center;
+  margin: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.settings-modal .settings-row .settings-section > :only-child {
+  grid-column: 1 / -1;
+}
+.settings-modal .settings-section {
+  margin-top: 14px;
+}
+.settings-modal .settings-label {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+.settings-modal .settings-group-title {
+  margin-top: 22px;
+  border: 0;
+  padding-bottom: 0;
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+}
+.settings-modal .ai-provider-btn,
+.settings-modal .imported-entry,
+.settings-modal .local-ai-settings,
+.settings-modal .privacy-status-card {
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+.settings-modal .settings-links-row {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.settings-modal .settings-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.settings-modal .settings-action-row + .settings-action-row {
+  margin-top: 14px;
+}
+.settings-modal .settings-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.settings-modal .settings-copy-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.settings-modal .settings-copy-desc {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.settings-modal .settings-divider {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.settings-modal .settings-token-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.settings-modal .settings-token-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.settings-modal .settings-token-box {
+  min-height: 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.6;
+  word-break: break-all;
+  user-select: none;
+}
+.settings-modal .settings-select {
+  min-width: 90px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+.settings-modal .settings-mini-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.settings-modal .settings-full-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 7px 14px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.settings-modal .api-key-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  min-height: 40px;
+}
+.settings-modal .api-key-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-fill);
+}
+.kb-modal.settings-modal {
+  max-width: 780px;
+}
+
+/* Imported data entries */
+.imported-entry {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 13px;
+}
+.imported-entry .ie-info { color: var(--text-secondary); }
+.imported-entry .ie-date { color: var(--text-primary); font-weight: 500; }
+.imported-entry .ie-count { color: var(--text-muted); margin-left: 8px; }
+.imported-entry .ie-actions { display: flex; align-items: center; gap: 4px; }
+.imported-entry .ie-remove,
+.imported-entry .ie-edit {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 12px; padding: 4px 10px; border-radius: 4px; transition: all 0.15s; font-family: inherit;
+}
+.imported-entry .ie-remove:hover { color: var(--red); background: var(--red-bg); }
+.imported-entry .ie-edit:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+/* Settings sections */
+.settings-section { margin-top: 16px; }
+.settings-label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px; color: var(--text-secondary); }
+.settings-group-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); margin-top: 24px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Settings tabs */
+.settings-tabs-bar {
+  display: flex; gap: 2px; margin: 16px 0 0;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: -32px; z-index: 2;
+  background: var(--bg-secondary); padding-top: 4px;
+}
+.settings-tab-btn {
+  position: relative; padding: 10px 18px; border: none; background: none;
+  color: var(--text-muted); font-size: 13px; font-weight: 500;
+  font-family: var(--font-display); cursor: pointer;
+  transition: color 0.2s; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.settings-tab-btn::after {
+  content: ''; position: absolute; bottom: -1px; left: 8px; right: 8px;
+  height: 2px; border-radius: 2px 2px 0 0; background: transparent;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.settings-tab-btn:hover { color: var(--text-secondary); }
+.settings-tab-btn.active { color: var(--accent); font-weight: 600; }
+.settings-tab-btn.active::after {
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.settings-tab-btn svg { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.6; }
+.settings-tab-btn.active svg { opacity: 1; }
+.settings-tab-panel { display: none; padding-top: 6px; }
+.settings-tab-panel.active {
+  display: block;
+  animation: settingsTabFadeIn 0.2s ease;
+}
+@keyframes settingsTabFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.settings-tab-panel .settings-section:first-child { margin-top: 8px; }
+.settings-tab-panel .settings-group-title:first-child { margin-top: 12px; }
+.settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.settings-row .settings-section { margin-top: 8px; }
+.settings-links-row { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
+.settings-link-btn {
+  background: none; border: none; color: var(--text-muted); font-size: 13px;
+  font-family: inherit; cursor: pointer; padding: 4px 0; text-decoration: none;
+  transition: color 0.15s;
+}
+.settings-link-btn:hover { color: var(--text-primary); text-decoration: underline; }
+
+/* Theme picker */
+.settings-theme-toggle { display: flex; align-items: center; gap: 4px; }
+.settings-theme-btn {
+  padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); font-size: 12px;
+  cursor: pointer; font-weight: 500; transition: all 0.15s; font-family: inherit;
+}
+.settings-theme-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.settings-theme-btn:hover:not(.active) { background: var(--bg-hover); }
+.settings-theme-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.settings-theme-swatch-dark { background: linear-gradient(135deg, #222635 0%, #4f8cff 100%); }
+.settings-theme-swatch-light { background: linear-gradient(135deg, #f5f6fa 0%, #3b7cf5 100%); }
+.settings-theme-swatch-cyberterm { background: linear-gradient(135deg, #0b0d0b 0%, #4ade80 100%); border-radius: 0; }
+.settings-theme-swatch-glass { background: linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%); border-radius: 12px; }
+.settings-theme-swatch-synth-sunrise { background: linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%); border-radius: 2px; }
+.settings-theme-swatch-neuromancer { background: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%); border-radius: 0; }
+
+/* Privacy status card and collapsible configure */
+.privacy-status-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  margin-bottom: 8px; line-height: 1.4;
+}
+.privacy-status-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.privacy-status-body { flex: 1; min-width: 0; }
+.privacy-status-title { font-size: 13px; font-weight: 600; }
+.privacy-status-detail { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.privacy-status-enhanced {
+  background: color-mix(in srgb, var(--green) 8%, transparent); border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+}
+.privacy-status-enhanced .privacy-status-title { color: var(--green); }
+.privacy-status-basic {
+  background: color-mix(in srgb, var(--yellow) 8%, transparent); border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
+}
+.privacy-status-basic .privacy-status-title { color: var(--yellow); }
+.privacy-configure-toggle {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-muted); cursor: pointer;
+  padding: 4px 0; user-select: none;
+}
+.privacy-configure-toggle:hover { color: var(--text-secondary); }
+.privacy-configure-arrow { font-size: 9px; transition: transform 0.15s; }
+.privacy-configure-body { padding-top: 8px; }
+
+/* Pending-tombstone confirm UI in Settings Sync. */
+.sync-tombstone-banner {
+  margin-bottom: 16px; padding: 12px 14px;
+  border: 1px solid var(--yellow); background: color-mix(in srgb, var(--yellow) 8%, transparent);
+  border-radius: 6px; font-size: 12px;
+}
+.sync-tombstone-head { margin-bottom: 8px; line-height: 1.45; }
+.sync-tombstone-head strong { color: var(--yellow); }
+.sync-tombstone-help { display: block; color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+.sync-tombstone-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0;
+  border-top: 1px solid color-mix(in srgb, var(--yellow) 18%, transparent);
+}
+.sync-tombstone-name { flex: 1; font-weight: 500; color: var(--text-primary); }
+.sync-tombstone-meta { font-size: 11px; color: var(--text-muted); }
+.sync-tombstone-btn {
+  font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary);
+}
+.sync-tombstone-apply { background: var(--red); color: #fff; border-color: var(--red); }
+.sync-tombstone-reject { background: var(--green); color: #fff; border-color: var(--green); }
+
+@media (max-width: 720px) {
+  .settings-modal {
+    width: 100%;
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+  }
+  .settings-modal .settings-modal-head {
+    padding: 14px 16px;
+  }
+  .settings-modal .gb-modal-kicker {
+    font-size: 9px;
+  }
+  .settings-modal .gb-modal-title {
+    font-size: 20px;
+  }
+  .settings-modal .settings-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+  }
+  .settings-modal .settings-tabs-bar {
+    position: relative;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    min-height: 58px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    gap: 6px;
+    padding: 8px 10px 10px;
+    scroll-padding-inline: 10px;
+    overscroll-behavior-x: contain;
+  }
+  .settings-modal .settings-tab-btn {
+    width: auto;
+    flex: 0 0 auto;
+    height: 40px;
+    min-height: 40px;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+  .settings-modal .settings-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 18px 16px 16px;
+  }
+  .settings-modal .settings-row .settings-section {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 0;
+  }
+  .settings-modal .settings-section {
+    margin-top: 12px;
+  }
+  .settings-modal .settings-group-title {
+    margin-top: 18px;
+  }
+  .settings-modal .settings-action-row {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .settings-modal .settings-action-row > .toggle-switch {
+    margin-top: 2px;
+  }
+  .settings-modal .unit-toggle,
+  .settings-modal .range-toggle {
+    flex-wrap: wrap;
+  }
+  .settings-modal .range-toggle {
+    width: 100%;
+  }
+  .settings-modal .range-toggle-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .settings-modal .ai-provider-toggle {
+    gap: 6px;
+  }
+  .settings-modal .ai-provider-btn {
+    flex: 1 1 calc(50% - 6px);
+    justify-content: center;
+    min-height: 38px;
+    padding: 7px 8px;
+  }
+  .settings-modal .or-oauth-btn {
+    min-height: 42px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+@media (max-width: 600px) {
+  .settings-tabs-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .settings-tabs-bar::-webkit-scrollbar { display: none; }
+}
+
+@media (max-width: 500px) {
+  .settings-tab-btn { padding: 8px 10px; font-size: 12px; gap: 4px; }
+  .settings-tab-btn svg { width: 12px; height: 12px; }
+  .settings-row { grid-template-columns: 1fr; }
+}

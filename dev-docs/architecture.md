@@ -16,7 +16,7 @@ This constraint is intentional — it keeps the codebase approachable, removes t
 ```
 index.html          — HTML structure only; script/CSS includes; SEO meta tags
 styles.css          — Core CSS: tokens, app shell, shared components, responsive/touch rules
-css/*.css           — Split shared/feature CSS for modal utilities and high-churn surfaces such as mobile dashboard, menstrual cycle, marker detail modal, client list, chat panel, wearables, Light/Sun, and redesign catch-up
+css/*.css           — Split shared/feature CSS for modal utilities and high-churn surfaces such as settings, mobile dashboard, menstrual cycle, marker detail modal, client list, chat panel, wearables, Light/Sun, and redesign catch-up
 manifest.json       — PWA manifest (installable as a native app)
 service-worker.js   — PWA cache strategies, API bypass rules
 data/
