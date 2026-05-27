@@ -383,7 +383,7 @@ function _suppFormHtml(editIdx, s) {
   const sourceUrl = editing && s.sourceUrl ? s.sourceUrl : '';
   return `<div class="supp-form" id="supp-form-panel">
     <div class="supp-form-row supp-url-row">
-      <div class="supp-form-field" style="flex:1"><label>Product URL <span style="font-weight:normal;color:var(--text-muted)">(saved for reference${hasAIProvider() ? '; Fetch auto-fills' : ''})</span></label>
+      <div class="supp-form-field"><label>Product URL <span style="font-weight:normal;color:var(--text-muted)">(saved for reference${hasAIProvider() ? '; Fetch auto-fills' : ''})</span></label>
         <div class="supp-url-input-row">
           <input type="url" id="supp-url" placeholder="https://..." autocomplete="off" value="${escapeHTML(sourceUrl)}">
           ${hasAIProvider() ? `<button class="supp-url-fetch" onclick="fetchSupplementFromURL()">Fetch</button>` : ''}
@@ -397,7 +397,7 @@ function _suppFormHtml(editIdx, s) {
       <div class="supp-form-field"><label>Dosage <span style="font-weight:normal;color:var(--text-muted)">(free text)</span></label>
         <input type="text" id="supp-dosage" placeholder="e.g. with food, before bed" value="${editing ? escapeHTML(s.dosage || '') : ''}">
       </div>
-      <div class="supp-form-field" style="flex:0 0 100px"><label>Doses/day</label>
+      <div class="supp-form-field supp-form-field-compact"><label>Doses/day</label>
         <input type="number" id="supp-times" placeholder="e.g. 2" min="0" max="99" step="0.5" value="${editing && s.timesPerDay != null ? escapeHTML(String(s.timesPerDay)) : ''}" oninput="updateAllIngTotals()">
       </div>
     </div>
@@ -408,13 +408,13 @@ function _suppFormHtml(editIdx, s) {
           <option value="medication"${editing && s.type === 'medication' ? ' selected' : ''}>Medication</option>
         </select>
       </div>
-      <div class="supp-form-field" style="flex:2"><label>Periods <span style="font-weight:normal;color:var(--text-muted)">(blank end = ongoing)</span></label>
+      <div class="supp-form-field supp-form-field-wide"><label>Periods <span style="font-weight:normal;color:var(--text-muted)">(blank end = ongoing)</span></label>
         <div id="supp-periods">${periods.map((p, i) => _periodRowHtml(i, p.start, p.end || '', periods.length > 1)).join('')}</div>
         <div class="supp-period-actions"><button class="supp-period-add" onclick="addPeriodRow()">+ Add period</button></div>
       </div>
     </div>
     <div class="supp-form-row">
-      <div class="supp-form-field" style="flex:1"><label>Ingredients</label>
+      <div class="supp-form-field"><label>Ingredients</label>
         <div id="supp-ingredients">${ingredients.map((ing, i) => _ingredientRowHtml(i, ing.name, ing.amount, ing.timesPerDay, editing && s.timesPerDay ? s.timesPerDay : '')).join('')}</div>
         <div class="supp-ingredient-actions">
           <button class="supp-ingredient-add" onclick="addIngredientRow()">+ Add</button>
@@ -424,7 +424,7 @@ function _suppFormHtml(editIdx, s) {
       </div>
     </div>
     <div class="supp-form-row">
-      <div class="supp-form-field" style="flex:1"><label>Note / Reason</label>
+      <div class="supp-form-field"><label>Note / Reason</label>
         <input type="text" id="supp-note" placeholder="e.g. For low vitamin D, recommended by Dr. Smith" value="${editing ? escapeHTML(s.note || '') : ''}">
       </div>
     </div>

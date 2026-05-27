@@ -219,7 +219,7 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   assert('Focus card uses computeAllImpacts', focusCardSrc.includes('computeAllImpacts'));
 
   // CSS
-  const cssSrc = read('styles.css');
+  const cssSrc = read('styles.css') + '\n' + read('css/context-profile.css');
   assert('Impact CSS exists', cssSrc.includes('.supp-impact-section'));
   assert('Impact summary CSS exists', cssSrc.includes('.supp-impact-summary'));
   assert('Summary color variants', cssSrc.includes('.supp-impact-summary-green'));

@@ -794,6 +794,97 @@ async function checkMobileInteractions(page, theme, viewportName) {
     await delay(100);
   }
 
+  await page.evaluate(() => {
+    const state = window._labState;
+    window.__suppModalSnapshot = JSON.stringify(state?.importedData?.supplements || []);
+    if (state?.importedData) {
+      state.importedData.supplements = [{
+        name: 'Supplement With Ingredient Header',
+        dosage: '500mg',
+        type: 'supplement',
+        periods: [{ start: '2026-01-01', end: null }],
+        ingredients: [{
+          name: 'ExtremelyLongIngredientNameWithoutBreaksThatShouldNotOverflowTheHeaderPill',
+          amount: '100000 milligrams',
+          timesPerDay: 12,
+        }],
+        note: '',
+      }];
+    }
+    window.openSupplementsEditor?.();
+    window.showAddSuppForm?.();
+    window.addIngredientRow?.();
+    window.addPeriodRow?.();
+  });
+  await delay(150);
+  result = await page.evaluate(() => {
+    const form = document.getElementById('supp-form-panel');
+    const item = document.querySelector('.supp-list-item');
+    const overlay = document.getElementById('modal-overlay');
+    const formRect = form?.getBoundingClientRect();
+    const itemRect = item?.getBoundingClientRect();
+    const selectors = [
+      '.supp-form-field',
+      '.supp-ingredient-row',
+      '.supp-ingredient-row input',
+      '.supp-period-row',
+      '.supp-period-row input',
+      '#supp-type',
+      '#supp-ingredients',
+      '#supp-periods',
+    ];
+    const headerSelectors = [
+      '.supp-list-info',
+      '.supp-list-name',
+      '.supp-list-info > .supp-list-meta',
+      '.supp-list-ingredients',
+      '.supp-ing-pill',
+    ];
+    const bad = form && formRect
+      ? selectors.flatMap(sel => Array.from(document.querySelectorAll(sel)).map((el, i) => {
+        const r = el.getBoundingClientRect();
+        const over = r.left < formRect.left - 1 || r.right > formRect.right + 1 || r.left < -1 || r.right > document.documentElement.clientWidth + 1;
+        return over ? `${sel}[${i}] ${Math.round(r.left)}-${Math.round(r.right)} / ${Math.round(formRect.left)}-${Math.round(formRect.right)}` : null;
+      })).filter(Boolean)
+      : ['missing-form'];
+    const badHeader = item && itemRect
+      ? headerSelectors.flatMap(sel => Array.from(item.querySelectorAll(sel)).map((el, i) => {
+        const r = el.getBoundingClientRect();
+        const over = r.left < itemRect.left - 1 || r.right > itemRect.right + 1 || r.left < -1 || r.right > document.documentElement.clientWidth + 1;
+        return over ? `${sel}[${i}] ${Math.round(r.left)}-${Math.round(r.right)} / ${Math.round(itemRect.left)}-${Math.round(itemRect.right)}` : null;
+      })).filter(Boolean)
+      : ['missing-list-item'];
+    const compactFields = ['#supp-name', '#supp-dosage', '#supp-times', '#supp-type'];
+    const oversizedFields = form
+      ? compactFields.map(sel => {
+        const field = document.querySelector(sel)?.closest('.supp-form-field');
+        const height = field?.getBoundingClientRect().height || 0;
+        return height > 86 ? `${sel} field height ${Math.round(height)}` : null;
+      }).filter(Boolean)
+      : ['missing-form'];
+    const horizontalOverflow = Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - document.documentElement.clientWidth;
+    const open = overlay?.classList.contains('show');
+    window.closeModal?.();
+    const state = window._labState;
+    if (state?.importedData && window.__suppModalSnapshot) {
+      state.importedData.supplements = JSON.parse(window.__suppModalSnapshot);
+    }
+    delete window.__suppModalSnapshot;
+    return {
+      open,
+      form: !!form,
+      bad,
+      item: !!item,
+      badHeader,
+      oversizedFields,
+      horizontalOverflow,
+    };
+  });
+  assert(testName(theme, viewportName, 'mobile supplement modal fields stay inside form frame'),
+    result.open && result.form && result.item && result.bad.length === 0 && result.badHeader.length === 0 && result.oversizedFields.length === 0 && result.horizontalOverflow <= 1,
+    JSON.stringify(result));
+  await delay(100);
+
   for (const tab of ['labs', 'body', 'light', 'insight']) {
     await page.evaluate(() => window.navigate?.('dashboard'));
     await delay(180);
