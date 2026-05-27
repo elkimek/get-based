@@ -159,7 +159,9 @@ assert('45h. Environment context card counts saved EMF assessments',
 assert('45i. Environment editor uses the EMF assessment launcher',
   contextCardsSrc.includes('renderEMFAssessmentLauncher({ inModal: true') && contextCardsSrc.includes('ctx-emf-launcher'));
 assert('45j. EMF launcher has dedicated context CSS',
-  contextProfileCss.includes('.ctx-emf-launcher') && contextProfileCss.includes('.ctx-emf-launcher-action'));
+  contextProfileCss.includes('.ctx-emf-launcher') &&
+  contextProfileCss.includes('.ctx-emf-launcher-action') &&
+  contextProfileCss.includes('.ctx-emf-launcher.has-data'));
 assert('45k. Insight lens exposes EMF assessment action',
   lensPagesSrc.includes('EMF assessment') && lensPagesSrc.includes('window.openEMFAssessmentEditor'));
 

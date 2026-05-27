@@ -177,6 +177,13 @@
   font-weight: 800;
   white-space: nowrap;
 }
+.ctx-emf-launcher.has-data {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+.ctx-emf-launcher.has-data .ctx-emf-launcher-mark {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
 /* Button-group selector (replaces native <select>) */
 .ctx-btn-group { display: flex; flex-wrap: wrap; gap: 6px; }
 .ctx-btn-option {
