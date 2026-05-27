@@ -117,7 +117,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('6. CSS fixes');
 
-  const css = ['styles.css', 'css/import.css', 'css/modal-shared.css', 'css/context-profile.css', 'css/chat-panel.css'].map(read).join('\n');
+  const css = ['styles.css', 'css/import.css', 'css/modal-shared.css', 'css/context-profile.css', 'css/data-protection.css', 'css/chat-panel.css'].map(read).join('\n');
 
   // No duplicate @keyframes shimmer
   const shimmerMatches = css.match(/@keyframes shimmer/g);

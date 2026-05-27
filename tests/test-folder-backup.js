@@ -96,7 +96,7 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
   // 6. CSS has folder backup styles
   // ═══════════════════════════════════════════════
   try {
-    const cssText = read('/styles.css');
+    const cssText = read('/css/data-protection.css');
     assert('CSS has .backup-folder-section', cssText.includes('.backup-folder-section'));
     assert('CSS has .backup-folder-desc', cssText.includes('.backup-folder-desc'));
     assert('CSS has .backup-folder-status', cssText.includes('.backup-folder-status'));

@@ -1,0 +1,321 @@
+/* Data protection, privacy review, encryption, and backup surfaces */
+
+.privacy-notice {
+  padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px;
+  margin-top: 12px; line-height: 1.5;
+}
+.privacy-notice-success {
+  background: var(--green-bg); border: 1px solid color-mix(in srgb, var(--green) 25%, transparent); color: var(--green);
+}
+.privacy-notice-warning {
+  background: var(--yellow-bg); border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent); color: var(--yellow);
+}
+
+/* PII overlay shared by the review and diff viewer. */
+.pii-warning-overlay {
+  position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.82);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; overflow: hidden; overscroll-behavior: contain;
+  padding: 18px;
+}
+.pii-warning-overlay.show { opacity: 1; }
+
+/* PII Diff Viewer (debug mode) */
+.pii-diff-modal {
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; max-width: 95vw; width: 1200px; max-height: 85vh; overflow: hidden;
+  display: flex; flex-direction: column; position: relative;
+  box-shadow: var(--shadow-lg);
+}
+.pii-diff-modal h3 { margin: 0 0 16px; font-size: 16px; }
+.pii-review-modal {
+  padding: 0;
+}
+.pii-review-head {
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--bg-secondary) 96%, var(--bg-card));
+}
+.pii-review-intro {
+  margin: 0;
+  padding: 16px 24px 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pii-diff-viewer {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
+  overflow: hidden; flex: 1; font-family: monospace; font-size: 11px;
+  line-height: 1.6; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  min-height: 0;
+}
+.pii-diff-left, .pii-diff-right {
+  padding: 8px; overflow-x: auto; overflow-y: auto; overscroll-behavior: contain; white-space: pre;
+  display: flex; flex-direction: column; min-height: 0;
+}
+.pii-diff-left { background: color-mix(in srgb, var(--red) 6%, var(--bg-secondary)); }
+.pii-diff-right { background: color-mix(in srgb, var(--green) 5%, var(--bg-secondary)); }
+.pii-edit-textarea {
+  width: 100%; flex: 1; resize: none; border: none; outline: none;
+  background: transparent; color: var(--text-primary); font-family: monospace; font-size: 11px;
+  line-height: 1.6; white-space: pre; padding: 0; margin: 0;
+}
+.pii-edit-textarea[readonly] { opacity: 0.7; }
+.pii-stream-status {
+  font-size: 12px; color: var(--text-muted); padding: 6px 0 0;
+  font-family: var(--font-display); flex-shrink: 0;
+}
+.pii-stream-waiting { animation: pii-pulse 1.2s ease-in-out infinite; }
+.pii-stream-waiting::before {
+  content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green); margin-right: 6px; vertical-align: middle;
+  animation: pii-dot-pulse 1.2s ease-in-out infinite;
+}
+@keyframes pii-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes pii-dot-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.6); } }
+.pii-diff-header {
+  font-weight: 700; font-size: 12px; padding-bottom: 8px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--border); font-family: var(--font-display);
+}
+.pii-edit-btn {
+  background: none; border: 1px solid var(--border); color: var(--accent); cursor: pointer;
+  font-size: 11px; padding: 2px 8px; border-radius: var(--radius-sm); margin-left: 8px;
+  transition: background 0.2s;
+}
+.pii-edit-btn:hover { background: var(--bg-card); }
+.pii-diff-highlight-removed { background: rgba(239,68,68,0.08); border-radius: 2px; }
+.pii-diff-highlight-added { background: rgba(34,197,94,0.08); border-radius: 2px; }
+.pii-word-removed { background: rgba(239,68,68,0.3); border-radius: 2px; padding: 0 1px; }
+.pii-word-added { background: rgba(34,197,94,0.3); border-radius: 2px; padding: 0 1px; }
+.pii-diff-preview { white-space: pre; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.pii-mobile-original { display: none; }
+.pii-thinking-section { margin-bottom: 8px; font-size: 12px; }
+.pii-thinking-section summary { cursor: pointer; color: var(--text-muted); font-family: var(--font-display); padding: 4px 0; }
+.pii-thinking-content {
+  max-height: 120px; overflow-y: auto; padding: 8px; margin-top: 4px;
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 11px; color: var(--text-muted); white-space: pre-wrap; word-break: break-word;
+}
+.pii-search-bar { display: flex; align-items: center; gap: 10px; margin: 0 24px 12px; }
+.pii-search-input {
+  flex: 1; padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+.pii-search-input:focus { border-color: var(--accent); outline: none; }
+.pii-search-count { font-size: 12px; white-space: nowrap; }
+.pii-search-warn { color: var(--red); font-weight: 600; }
+.pii-search-clear { color: var(--green); }
+.pii-review-viewer {
+  margin: 0 24px;
+}
+.pii-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 96%, var(--bg-card));
+  flex-wrap: wrap;
+}
+.pii-review-actions-simple {
+  margin-top: 12px;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
+}
+.pii-action-spacer {
+  flex: 1 1 auto;
+}
+
+/* Passphrase / Encryption Modal */
+.passphrase-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85); z-index: 400; display: none;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+}
+.passphrase-dialog {
+  background: var(--bg-secondary); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 36px 32px;
+  max-width: 420px; width: 90%; box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+  text-align: center;
+}
+.passphrase-icon { font-size: 48px; margin-bottom: 12px; }
+.passphrase-title {
+  font-size: 20px; font-weight: 700; color: var(--text-primary);
+  font-family: var(--font-display); margin-bottom: 8px;
+}
+.passphrase-desc {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;
+}
+.passphrase-input {
+  width: 100%; padding: 10px 14px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 14px; font-family: inherit;
+  margin-bottom: 10px; text-align: center;
+}
+.passphrase-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+.passphrase-strength { margin-bottom: 10px; }
+.passphrase-strength-bars { display: flex; gap: 4px; margin-bottom: 8px; }
+.passphrase-strength-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background 0.2s; }
+.passphrase-rules { list-style: none; padding: 0; margin: 0; font-size: 12px; color: var(--text-secondary); }
+.passphrase-rules li { padding: 1px 0; }
+.passphrase-rules li::before { content: '\2715'; margin-right: 6px; color: var(--text-secondary); font-size: 10px; }
+.passphrase-rules li.met { color: var(--green); }
+.passphrase-rules li.met::before { content: '\2713'; color: var(--green); }
+.passphrase-error {
+  font-size: 13px; color: var(--red); min-height: 20px; margin-bottom: 8px;
+}
+.passphrase-btn {
+  width: 100%; padding: 10px 20px; border-radius: 6px; border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; margin-bottom: 6px;
+}
+.passphrase-btn-primary {
+  background: var(--accent-gradient); color: white;
+}
+.passphrase-btn-primary:hover { opacity: 0.9; }
+.passphrase-btn-primary:disabled { opacity: 0.5; cursor: wait; }
+.passphrase-btn-secondary {
+  background: var(--bg-card); color: var(--text-secondary);
+  border: 1px solid var(--border); flex: 1;
+}
+.passphrase-btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
+.passphrase-btn-link {
+  background: none; color: var(--text-muted); font-size: 12px;
+  font-weight: 400; padding: 6px;
+}
+.passphrase-btn-link:hover { color: var(--text-secondary); }
+
+/* Encryption Status Cards */
+.encryption-status-card {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+}
+.encryption-status-on { border-left: 3px solid var(--green); }
+.encryption-status-off { border-left: 3px solid var(--yellow); }
+.encryption-status-icon { font-size: 24px; flex-shrink: 0; line-height: 1; }
+.encryption-status-body { flex: 1; min-width: 0; }
+.encryption-status-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.encryption-status-detail { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+
+/* Auto-backup snapshot list */
+.backup-auto-status {
+  font-size: 12px; color: var(--text-muted); margin-top: 12px; margin-bottom: 8px;
+}
+.backup-snapshots-toggle {
+  font-size: 13px; color: var(--text-secondary); cursor: pointer; padding: 4px 0;
+  margin-bottom: 6px; user-select: none;
+}
+.backup-snapshots-toggle:hover { color: var(--text-primary); }
+.backup-snapshot-list { display: flex; flex-direction: column; gap: 6px; }
+.backup-snapshot-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.backup-snapshot-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.backup-snapshot-date { font-size: 13px; color: var(--text-primary); }
+.backup-snapshot-meta { font-size: 11px; color: var(--text-muted); }
+
+/* Folder backup */
+.backup-folder-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.backup-folder-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
+.backup-folder-status {
+  font-size: 13px; font-weight: 600; margin-bottom: 6px; padding: 6px 10px;
+  border-radius: var(--radius-sm); border-left: 3px solid;
+}
+.backup-folder-status-ok { color: var(--green); border-color: var(--green); background: rgba(34,197,94,0.06); }
+.backup-folder-status-warn { color: var(--yellow); border-color: var(--yellow); background: rgba(234,179,8,0.06); }
+.backup-folder-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+
+@media (max-width: 768px) {
+  .pii-warning-overlay {
+    align-items: stretch;
+    padding: 12px;
+  }
+  .pii-diff-modal {
+    width: 100%;
+    max-width: none;
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
+    max-height: none;
+    padding: 16px;
+  }
+  .pii-review-modal {
+    padding: 0;
+  }
+  .pii-review-intro {
+    padding: 14px 16px 10px;
+  }
+  .pii-search-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 16px 10px;
+  }
+  .pii-search-count {
+    min-height: 18px;
+    white-space: normal;
+  }
+  .pii-diff-viewer {
+    grid-template-columns: 1fr;
+  }
+  .pii-review-viewer {
+    margin: 0 16px;
+    border: 0;
+    overflow: visible;
+  }
+  .pii-review-viewer > .pii-diff-left {
+    display: none;
+  }
+  .pii-mobile-original {
+    display: block;
+    margin: 0 16px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--red) 5%, var(--bg-secondary));
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+  .pii-mobile-original summary {
+    min-height: 40px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+  .pii-mobile-original-body {
+    max-height: 26vh;
+    overflow: auto;
+    padding: 0 12px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overscroll-behavior: contain;
+  }
+  .pii-diff-right {
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    white-space: normal;
+  }
+  .pii-edit-textarea,
+  .pii-diff-preview {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .pii-review-actions {
+    padding: 12px;
+  }
+  .pii-review-actions .import-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 42px;
+  }
+  .pii-action-spacer {
+    display: none;
+  }
+}

@@ -343,7 +343,7 @@ for (const name of expectedExports) {
 // ═══════════════════════════════════════════════
 console.log('13. Passphrase modal CSS');
 try {
-  const cssText = read('styles.css');
+  const cssText = read('css/data-protection.css');
   assert('CSS has .passphrase-overlay', cssText.includes('.passphrase-overlay'));
   assert('CSS has .passphrase-dialog', cssText.includes('.passphrase-dialog'));
   assert('CSS has .passphrase-input', cssText.includes('.passphrase-input'));
@@ -551,7 +551,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('25. Auto-backup CSS');
 try {
-  const cssText = read('styles.css');
+  const cssText = read('css/data-protection.css');
   assert('CSS has .backup-auto-status', cssText.includes('.backup-auto-status'));
   assert('CSS has .backup-snapshot-list', cssText.includes('.backup-snapshot-list'));
   assert('CSS has .backup-snapshot-item', cssText.includes('.backup-snapshot-item'));
