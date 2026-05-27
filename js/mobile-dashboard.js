@@ -20,6 +20,7 @@ const MOBILE_WEARABLE_PRIORITY = [
 ];
 
 let _mobileDashboardManualTabLockUntil = 0;
+let _mobileChromeStateObserver = null;
 
 const mobileDashboardDeps = {
   buildDashboardWidgetContext: () => ({ data: getActiveData(), filteredData: getActiveData() }),
@@ -46,6 +47,44 @@ export function isMobileDashboardViewport() {
     && window.matchMedia(MOBILE_DASHBOARD_QUERY).matches;
 }
 
+function getMobileVisualBottomOffset() {
+  if (typeof window === 'undefined' || !window.visualViewport) return 0;
+  const layoutHeight = window.innerHeight || document.documentElement?.clientHeight || window.visualViewport.height;
+  const visualBottom = window.visualViewport.offsetTop + window.visualViewport.height;
+  return Math.max(0, Math.ceil(layoutHeight - visualBottom));
+}
+
+function syncMobileChromeRootState() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const root = document.documentElement;
+  const dashboardActive = document.body.classList.contains('mobile-dashboard-active');
+  const tabsActive = document.body.classList.contains('mobile-tabs-active');
+  root.classList.toggle('mobile-dashboard-active', dashboardActive);
+  root.classList.toggle('mobile-tabs-active', tabsActive);
+  if (dashboardActive || tabsActive) {
+    root.style.setProperty('--mobile-visual-bottom-offset', `${getMobileVisualBottomOffset()}px`);
+  } else {
+    root.style.removeProperty('--mobile-visual-bottom-offset');
+  }
+}
+
+function initMobileChromeStateSync() {
+  if (typeof document === 'undefined' || _mobileChromeStateObserver) return;
+  const start = () => {
+    if (!document.body || _mobileChromeStateObserver) return;
+    if (typeof MutationObserver === 'function') {
+      _mobileChromeStateObserver = new MutationObserver(syncMobileChromeRootState);
+      _mobileChromeStateObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
+    syncMobileChromeRootState();
+  };
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start, { once: true });
+  window.addEventListener('resize', syncMobileChromeRootState, { passive: true });
+  window.visualViewport?.addEventListener('resize', syncMobileChromeRootState, { passive: true });
+  window.visualViewport?.addEventListener('scroll', syncMobileChromeRootState, { passive: true });
+}
+
 function getMobileBottomTabForRoute(route) {
   if (['dashboard', 'labs', 'body', 'light', 'insight'].includes(route)) return route;
   if (route === 'recommendations') return 'insight';
@@ -60,6 +99,7 @@ export function syncMobileBottomNav(route = state.currentView || 'dashboard') {
   const hasDashboardShell = document.body.classList.contains('mobile-dashboard-active');
   const shouldRender = isMobileDashboardViewport() && !hasDashboardShell;
   document.body.classList.toggle('mobile-tabs-active', shouldRender);
+  syncMobileChromeRootState();
   if (!shouldRender) {
     existing?.remove();
     return;
@@ -80,6 +120,7 @@ export function refreshMobileDashboardActiveTab() {
 }
 
 if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  initMobileChromeStateSync();
   const mobileDashboardMedia = window.matchMedia(MOBILE_DASHBOARD_QUERY);
   const refreshDashboardForBreakpoint = () => {
     if (state.currentView === 'dashboard') window.navigate?.('dashboard');
@@ -380,6 +421,7 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
   ].filter(Boolean).join(' · ');
 
   document.body.classList.add('mobile-dashboard-active');
+  syncMobileChromeRootState();
   main.innerHTML = `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>
     <div class="m-shell">
       <div class="m-bg" aria-hidden="true"></div>
@@ -391,9 +433,9 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
 
         ${mobileWidgetStack}
       </div>
-      <button type="button" class="m-chat-fab" onclick="window.openChatPanel && window.openChatPanel()" aria-label="Ask AI">${renderMobileIcon('chat')}</button>
-      ${renderMobileBottomTabs('dashboard')}
-    </div>`;
+    </div>
+    <button type="button" class="m-chat-fab" onclick="window.openChatPanel && window.openChatPanel()" aria-label="Ask AI">${renderMobileIcon('chat')}</button>
+    ${renderMobileBottomTabs('dashboard')}`;
 
   if (resetScroll && typeof window.scrollTo === 'function') {
     window.scrollTo(0, 0);

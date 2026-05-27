@@ -1,11 +1,24 @@
 /* Mobile dashboard app shell */
 .m-shell { display: none; }
 @media (max-width: 799px) {
+  html.mobile-dashboard-active,
+  html.mobile-tabs-active {
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+  html.mobile-dashboard-active body,
+  html.mobile-tabs-active body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
   body.mobile-dashboard-active .header { display: flex; }
+  body.mobile-tabs-active .layout,
   body.mobile-dashboard-active .layout {
     display: block;
     min-height: calc(100svh - 58px);
     max-width: 100%;
+    overflow-x: hidden;
     overflow-x: clip;
   }
   body.mobile-dashboard-active .sidebar {
@@ -19,16 +32,21 @@
   body.mobile-dashboard-active .sidebar.mobile-open {
     transform: translateX(0);
   }
+  body.mobile-tabs-active .main,
   body.mobile-dashboard-active .main {
     padding: 0;
     padding-bottom: 0;
     margin-left: 0;
     max-width: none;
+    overflow-x: hidden;
     overflow-x: clip;
   }
+  body.mobile-tabs-active,
   body.mobile-dashboard-active {
     max-width: 100%;
+    overflow-x: hidden;
     overflow-x: clip;
+    overscroll-behavior-x: none;
   }
   body.mobile-dashboard-active .app-footer { display: none; }
   body.mobile-dashboard-active #chat-fab { display: none; }
@@ -469,7 +487,7 @@
   .m-chat-fab {
     position: fixed;
     right: 16px;
-    bottom: calc(154px + env(safe-area-inset-bottom));
+    bottom: calc(154px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
     z-index: 220;
     width: 52px;
     height: 52px;
@@ -486,13 +504,15 @@
   }
   .m-tabbar {
     position: fixed;
-    left: 10px;
-    right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 50%;
+    right: auto;
+    bottom: calc(10px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
     z-index: 210;
-    width: min(520px, calc(100% - 20px));
+    width: min(520px, calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
     margin: 0 auto;
     box-sizing: border-box;
+    transform: translateX(-50%);
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 4px;
@@ -557,10 +577,10 @@
     color: var(--accent);
   }
   body.mobile-tabs-active #chat-fab {
-    bottom: calc(92px + env(safe-area-inset-bottom));
+    bottom: calc(92px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
   }
   body.mobile-tabs-active #import-status-fab {
-    bottom: calc(148px + env(safe-area-inset-bottom));
+    bottom: calc(148px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
   }
   [data-theme="cyberterm"] .dashboard-greeting h1::before,
   [data-theme="cyberterm"] .m-greeting h1::before {

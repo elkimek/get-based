@@ -385,9 +385,11 @@ async function evaluateBaseChecks(page, theme, viewport) {
       const fab = document.querySelector('.m-chat-fab');
       const desktopChatFab = document.getElementById('chat-fab');
       ok('mobile dashboard shell is active', document.body.classList.contains('mobile-dashboard-active'));
+      ok('mobile chrome root mirrors dashboard state', document.documentElement.classList.contains('mobile-dashboard-active'));
       ok('mobile shell is visible', visible(shell));
       ok('mobile tabbar is visible', visible(tabbar));
       ok('mobile tabbar is contained in viewport', tabbar && inViewport(tabbar, 2));
+      ok('mobile dashboard tabbar is outside clipped shell', tabbar && !tabbar.closest('.m-shell'));
       ok('mobile chat FAB is visible and above tabbar', visible(fab) && tabbar && rect(fab).bottom < rect(tabbar).top);
       ok('desktop chat FAB hidden inside mobile shell', !visible(desktopChatFab));
       ok('donate button hidden on mobile', !visible(document.querySelector('.donate-btn')));
@@ -702,6 +704,23 @@ async function checkMobileInteractions(page, theme, viewportName) {
   await page.evaluate(() => window.closeMobileSidebar?.());
   await delay(100);
 
+  result = await page.evaluate(() => {
+    const root = document.documentElement;
+    const tabbar = document.querySelector('.m-tabbar');
+    const before = tabbar?.getBoundingClientRect();
+    root.style.setProperty('--mobile-visual-bottom-offset', '48px');
+    const shifted = tabbar?.getBoundingClientRect();
+    root.style.removeProperty('--mobile-visual-bottom-offset');
+    return {
+      rootDashboardActive: root.classList.contains('mobile-dashboard-active'),
+      tabbarOutsideShell: !!tabbar && !tabbar.closest('.m-shell'),
+      movedUp: !!before && !!shifted && before.bottom - shifted.bottom >= 47,
+    };
+  });
+  assert(testName(theme, viewportName, 'mobile nav respects visual viewport offset'),
+    result.rootDashboardActive && result.tabbarOutsideShell && result.movedUp,
+    JSON.stringify(result));
+
   await page.evaluate(() => window.openTweaksPanel?.());
   await delay(150);
   result = await page.evaluate((theme) => {
@@ -833,6 +852,8 @@ async function checkMobileInteractions(page, theme, viewportName) {
         hasBottomTabs: !!document.querySelector('#mobile-bottom-tabs, .m-shell .m-tabbar'),
         currentView: window._labState?.currentView,
         visibleMain: document.getElementById('main-content')?.textContent?.trim().length > 40,
+        rootTabsActive: document.documentElement.classList.contains('mobile-tabs-active'),
+        tabbarOutsideShell: !!tabbar && !tabbar.closest('.m-shell'),
         tabbarFixed: tabbarStyle?.position === 'fixed',
         tabbarContained: !!tabbarRect && tabbarRect.left >= -1 && tabbarRect.right <= viewportWidth + 1,
         tabbarStable:
@@ -874,7 +895,8 @@ async function checkMobileInteractions(page, theme, viewportName) {
       result.active && result.hasBottomTabs && result.visibleMain,
       JSON.stringify(result));
     assert(testName(theme, viewportName, `tab ${tab} keeps mobile nav fixed and clipped`),
-      result.tabbarFixed && result.tabbarContained && result.tabbarStable &&
+      result.rootTabsActive && result.tabbarOutsideShell &&
+        result.tabbarFixed && result.tabbarContained && result.tabbarStable &&
         result.horizontalOverflow <= 1 && result.bottomChromePaintContained,
       JSON.stringify(result));
     if (tab === 'light') {
