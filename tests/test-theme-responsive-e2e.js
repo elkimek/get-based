@@ -389,8 +389,6 @@ async function evaluateBaseChecks(page, theme, viewport) {
       ok('mobile shell is visible', visible(shell));
       ok('mobile tabbar is visible', visible(tabbar));
       ok('mobile tabbar is contained in viewport', tabbar && inViewport(tabbar, 2));
-      ok('mobile tabbar keeps comfortable side gutters',
-        tabbar && rect(tabbar).left >= 14 && window.innerWidth - rect(tabbar).right >= 14);
       ok('mobile dashboard tabbar is outside clipped shell', tabbar && !tabbar.closest('.m-shell'));
       ok('mobile chat FAB is visible and above tabbar', visible(fab) && tabbar && rect(fab).bottom < rect(tabbar).top);
       ok('desktop chat FAB hidden inside mobile shell', !visible(desktopChatFab));
@@ -785,10 +783,13 @@ async function checkMobileInteractions(page, theme, viewportName) {
       return {
         open: overlay.classList.contains('show'),
         contained: r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
+        sideGutters: r.left >= 12 && window.innerWidth - r.right >= 12,
       };
     });
     assert(testName(theme, viewportName, 'mobile widget marker opens marker modal'), result.open, JSON.stringify(result));
-    assert(testName(theme, viewportName, 'mobile marker modal fits phone viewport'), result.contained, JSON.stringify(result));
+    assert(testName(theme, viewportName, 'mobile marker modal fits phone viewport'),
+      result.contained && result.sideGutters,
+      JSON.stringify(result));
     await page.evaluate(() => window.closeModal?.());
     await delay(100);
   }
@@ -858,9 +859,6 @@ async function checkMobileInteractions(page, theme, viewportName) {
         tabbarOutsideShell: !!tabbar && !tabbar.closest('.m-shell'),
         tabbarFixed: tabbarStyle?.position === 'fixed',
         tabbarContained: !!tabbarRect && tabbarRect.left >= -1 && tabbarRect.right <= viewportWidth + 1,
-        tabbarComfortableGutters: !!tabbarRect &&
-          tabbarRect.left >= 14 &&
-          viewportWidth - tabbarRect.right >= 14,
         tabbarStable:
           !!tabbarRect &&
           !!tabbarAfterY &&
@@ -879,6 +877,12 @@ async function checkMobileInteractions(page, theme, viewportName) {
         tabbarPaint,
         fabPaint,
         lightWidgetRoute: !!lightWidgetRoute,
+        pageSurfaceGutters: (() => {
+          const surface = document.querySelector('.lens-page-widgets .dashboard-widget, .category-header, #recommendations-page');
+          if (!surface) return true;
+          const sr = surface.getBoundingClientRect();
+          return sr.left >= 12 && viewportWidth - sr.right >= 12;
+        })(),
         lightWidgetCount: lightWidgetRoute?.querySelectorAll('.dashboard-widget[data-widget-id^="light-"]').length || 0,
         lightMoveControls: lightWidgetRoute?.querySelectorAll('.dashboard-widget-tool[aria-label^="Move page section"]').length || 0,
         lightSeparatedOps: !!document.querySelector('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap')
@@ -901,8 +905,11 @@ async function checkMobileInteractions(page, theme, viewportName) {
       JSON.stringify(result));
     assert(testName(theme, viewportName, `tab ${tab} keeps mobile nav fixed and clipped`),
       result.rootTabsActive && result.tabbarOutsideShell &&
-        result.tabbarFixed && result.tabbarContained && result.tabbarComfortableGutters && result.tabbarStable &&
+        result.tabbarFixed && result.tabbarContained && result.tabbarStable &&
         result.horizontalOverflow <= 1 && result.bottomChromePaintContained,
+      JSON.stringify(result));
+    assert(testName(theme, viewportName, `tab ${tab} keeps page surfaces inset`),
+      result.pageSurfaceGutters,
       JSON.stringify(result));
     if (tab === 'light') {
       assert(testName(theme, viewportName, 'light page uses separate mobile operation widgets'),

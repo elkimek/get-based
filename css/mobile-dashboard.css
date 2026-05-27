@@ -1,9 +1,6 @@
 /* Mobile dashboard app shell */
 .m-shell { display: none; }
 @media (max-width: 799px) {
-  :root {
-    --mobile-tabbar-gutter: clamp(16px, 5vw, 22px);
-  }
   html.mobile-dashboard-active,
   html.mobile-tabs-active {
     max-width: 100%;
@@ -35,12 +32,19 @@
   body.mobile-dashboard-active .sidebar.mobile-open {
     transform: translateX(0);
   }
-  body.mobile-tabs-active .main,
   body.mobile-dashboard-active .main {
     padding: 0;
     padding-bottom: 0;
     margin-left: 0;
     max-width: none;
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+  body.mobile-tabs-active .main {
+    margin-left: 0;
+    max-width: 100%;
+    padding-left: clamp(14px, 4vw, 20px);
+    padding-right: clamp(14px, 4vw, 20px);
     overflow-x: hidden;
     overflow-x: clip;
   }
@@ -511,8 +515,8 @@
     right: auto;
     bottom: calc(10px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
     z-index: 210;
-    width: min(520px, calc(100vw - (var(--mobile-tabbar-gutter) * 2)));
-    max-width: calc(100vw - (var(--mobile-tabbar-gutter) * 2));
+    width: min(520px, calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
     margin: 0 auto;
     box-sizing: border-box;
     transform: translateX(-50%);

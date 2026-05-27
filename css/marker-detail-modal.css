@@ -351,8 +351,8 @@
 }
 @media (max-width: 640px) {
   .marker-detail-modal {
-    width: calc(100vw - 16px);
-    max-width: calc(100vw - 16px);
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
     max-height: calc(100vh - 16px);
     max-height: calc(100svh - 16px);
     border-radius: var(--radius-sm);
