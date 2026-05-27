@@ -265,6 +265,278 @@
   .db-quick-marker-grid { grid-template-columns: 1fr; }
 }
 
+/* Welcome Hero (empty state) */
+.welcome-hero {
+  max-width: 920px;
+  margin: 18px auto 0;
+  padding: 28px 0 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.welcome-hero h2 { font-family: var(--font-display); font-size: 24px; color: var(--text-primary); margin: 0; }
+.welcome-hero-subtitle {
+  max-width: 560px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: -8px auto 0;
+}
+.welcome-primary-panel {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 18px;
+  text-align: left;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px -28px color-mix(in srgb, var(--accent) 48%, transparent);
+}
+.welcome-chat-panel {
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--bg-secondary)), var(--bg-secondary));
+}
+.welcome-primary-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.welcome-primary-panel strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.welcome-primary-panel p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.welcome-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.welcome-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, background 0.15s, color 0.15s;
+}
+.welcome-action-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.welcome-action-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+.welcome-direct-import-btn {
+  background: transparent;
+}
+.welcome-sex-btn {
+  padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  background: var(--bg-sidebar); border: 1px solid var(--border); color: var(--text-secondary);
+  cursor: pointer; transition: all 0.2s;
+}
+.welcome-sex-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.welcome-sex-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Onboarding */
+.welcome-demo-section {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.welcome-section-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.demo-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.demo-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 0;
+  text-align: left;
+}
+.demo-card:hover {
+  border-color: var(--accent); background: var(--accent-fill); transform: translateY(-1px);
+}
+.demo-card-avatar { grid-row: span 2; font-size: 24px; line-height: 1; }
+.demo-card-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.demo-card-desc { font-size: 12px; line-height: 1.3; color: var(--text-muted); }
+.onboarding-steps {
+  display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 4px;
+}
+.onboarding-step {
+  width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; border: 2px solid var(--border); color: var(--text-muted); background: none;
+  flex-shrink: 0;
+}
+.onboarding-step.active { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.1); }
+.onboarding-step.completed { border-color: var(--green); color: var(--green); background: rgba(52,211,153,0.1); }
+.onboarding-step-line { width: 32px; height: 2px; background: var(--border); }
+.onboarding-step-labels {
+  display: flex; justify-content: center; gap: 32px; margin-bottom: 8px;
+}
+.onboarding-step-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.onboarding-step-label.active { color: var(--accent); font-weight: 600; }
+.onboarding-banner {
+  background: var(--bg-card); border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 24px; margin-top: 16px; text-align: center;
+}
+/* Onboarding focus mode — dims everything on the empty dashboard
+   except the section the user is meant to interact with. Chat panel
+   stays open as a guide. Triggered by setOnboardingFocus(mode). */
+body.cards-focus .welcome-hero > h2,
+body.cards-focus .welcome-hero > .welcome-hero-subtitle,
+body.cards-focus .welcome-hero > .welcome-hero-cta,
+body.cards-focus .welcome-hero > .welcome-primary-panel,
+body.cards-focus .welcome-hero > .welcome-demo-section,
+body.cards-focus .light-today-strip,
+body.cards-focus .wearable-strip,
+body.cards-focus .wearable-strip-empty,
+body.cards-focus .genetics-section,
+body.cards-focus .ai-reminder-banner,
+body.cards-focus .onboarding-banner,
+body.import-focus .welcome-hero > .welcome-hero-cta,
+body.import-focus .welcome-hero > .welcome-demo-section,
+body.import-focus .light-today-strip,
+body.import-focus .wearable-strip,
+body.import-focus .wearable-strip-empty,
+body.import-focus .genetics-section,
+body.import-focus .ai-reminder-banner,
+body.import-focus .onboarding-banner {
+  opacity: 0.18;
+  filter: blur(1px) grayscale(0.6);
+  pointer-events: none;
+  transition: opacity 0.35s, filter 0.35s;
+}
+/* Glow on the highlighted target so it reads as "do this". */
+body.cards-focus .profile-context-cards,
+body.import-focus .welcome-hero > .welcome-primary-panel,
+body.import-focus .welcome-hero > .drop-zone {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.4), 0 0 30px rgba(124, 58, 237, 0.18);
+  border-radius: 12px;
+  transition: box-shadow 0.35s;
+}
+/* Dashboard reminder for users who skipped the AI provider quiz. */
+.ai-reminder-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: color-mix(in srgb, var(--purple) 6%, transparent); border: 1px solid color-mix(in srgb, var(--purple) 25%, transparent);
+  border-radius: var(--radius); padding: 12px 16px; margin-top: 16px;
+}
+.ai-reminder-icon { font-size: 22px; line-height: 1; flex: 0 0 28px; text-align: center; }
+.ai-reminder-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ai-reminder-body strong { font-size: 13.5px; color: var(--text-primary); }
+.ai-reminder-body span { font-size: 12px; color: var(--text-muted); line-height: 1.35; }
+.ai-reminder-cta {
+  background: var(--accent-gradient); border: none; border-radius: 8px;
+  color: white; font-size: 13px; font-weight: 500; padding: 8px 16px;
+  cursor: pointer; transition: opacity 0.15s, transform 0.05s;
+  font-family: inherit; flex: 0 0 auto;
+}
+.ai-reminder-cta:hover { opacity: 0.9; }
+.ai-reminder-cta:active { transform: translateY(1px); }
+.ai-reminder-dismiss {
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 20px; line-height: 1; padding: 4px 8px; cursor: pointer;
+  flex: 0 0 auto; transition: color 0.15s;
+}
+.ai-reminder-dismiss:hover { color: var(--text-primary); }
+@media (max-width: 600px) {
+  .ai-reminder-banner { flex-wrap: wrap; }
+  .ai-reminder-body { flex: 1 1 100%; order: 2; }
+  .ai-reminder-icon { order: 1; }
+  .ai-reminder-cta, .ai-reminder-dismiss { order: 3; }
+}
+.onboarding-title { font-family: var(--font-display); font-size: 17px; color: var(--text-primary); margin: 12px 0 4px; }
+.onboarding-subtitle { color: var(--text-secondary); font-size: 13px; margin: 0 0 18px; }
+.onboarding-form {
+  display: flex; align-items: flex-end; justify-content: center; gap: 20px; flex-wrap: wrap;
+}
+.onboarding-field { display: flex; flex-direction: column; gap: 6px; }
+.onboarding-label { font-size: 12px; color: var(--text-secondary); text-align: left; }
+.onboarding-sex-toggle { display: flex; gap: 0; }
+.onboarding-sex-btn {
+  padding: 7px 18px; font-size: 13px; font-weight: 500; cursor: pointer;
+  background: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+.onboarding-sex-btn:first-child { border-radius: 6px 0 0 6px; }
+.onboarding-sex-btn:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.onboarding-sex-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.onboarding-sex-btn.active + .onboarding-sex-btn { border-left-color: var(--accent); }
+.onboarding-dob-input {
+  padding: 7px 12px; font-size: 13px; background: var(--bg-hover); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 6px; font-family: inherit;
+}
+[data-theme="light"] .onboarding-dob-input { color-scheme: light; }
+.onboarding-actions { display: flex; gap: 10px; align-items: center; }
+.onboarding-save-btn {
+  padding: 8px 22px; font-size: 13px; font-weight: 600; background: var(--accent-gradient);
+  color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+}
+.onboarding-save-btn:hover { box-shadow: 0 2px 12px rgba(79, 140, 255, 0.25); }
+.onboarding-skip-btn {
+  padding: 8px 16px; font-size: 13px; background: none; border: none;
+  color: var(--text-muted); cursor: pointer; text-decoration: underline;
+}
+.onboarding-skip-btn:hover { color: var(--text-secondary); }
+@media (max-width: 600px) {
+  .onboarding-form { flex-direction: column; align-items: stretch; }
+  .onboarding-field { align-items: stretch; }
+  .onboarding-actions { justify-content: center; }
+  .onboarding-step-labels { gap: 20px; }
+}
+@media (max-width: 480px) {
+  .welcome-hero { padding: 28px 14px 24px; }
+  .welcome-primary-panel { padding: 14px; margin-bottom: 0; }
+  .welcome-primary-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .welcome-action-btn { width: 100%; min-height: 36px; padding: 8px; justify-content: center; font-size: 12px; }
+  .demo-cards { grid-template-columns: 1fr 1fr; }
+  .welcome-hero .demo-cards { gap: 8px; }
+  .demo-card { min-width: 0; }
+  .welcome-hero .demo-card { flex: 1 1 0; padding: 12px 8px; }
+  .welcome-hero .demo-card-avatar { font-size: 22px; }
+  .welcome-hero .demo-card-desc { display: none; }
+}
+
 .db-hero-bio {
   display: grid; grid-template-columns: 1fr auto; align-items: center;
   gap: 24px; cursor: pointer;
