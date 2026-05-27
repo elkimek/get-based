@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const dashboardCssSrc = read('styles.css') + '\n' + read('css/dashboard-core.css');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -656,11 +657,11 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     dashboardControlsSrc.includes('scrollDashboardWidgetIntoView'));
   assert('Dashboard widget controls float without consuming widget layout space',
     dashboardControlsSrc.includes('renderDashboardStickyControls') &&
-    read('styles.css').includes('.dashboard-sticky-actions') &&
-    read('styles.css').includes('position: fixed'));
+    dashboardCssSrc.includes('.dashboard-sticky-actions') &&
+    dashboardCssSrc.includes('position: fixed'));
   assert('Dashboard no longer duplicates top and sticky widget controls',
     !viewsSrc.includes('class="dashboard-actions"') &&
-    read('styles.css').includes('width: max-content'));
+    dashboardCssSrc.includes('width: max-content'));
   assert('Dashboard default widget sizes avoid half-plus-third grid gaps',
     /id: 'focus'[\s\S]*?size: 'half'/.test(dashboardWidgetsSrc) &&
     /id: 'insights'[\s\S]*?size: 'half'/.test(dashboardWidgetsSrc));
@@ -668,19 +669,19 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !dashboardWidgetsSrc.includes("title: 'All Biomarkers'") &&
     !viewsSrc.includes("title: 'All Biomarkers'") &&
     !viewsSrc.includes('renderDashboardMarkerListWidget') &&
-    !read('styles.css').includes('.db-marker-row'));
+    !dashboardCssSrc.includes('.db-marker-row'));
   const keyTrendsWidgetBlock = (dashboardRenderersSrc.match(/function renderDashboardKeyTrendsWidget\(ctx\) \{([\s\S]*?)\n\}/) || [null, ''])[1];
   assert('Dashboard Key Trends uses compact rows instead of duplicate chart cards',
     dashboardRenderersSrc.includes('function renderDashboardKeyTrendRow') &&
     keyTrendsWidgetBlock.includes('db-key-trend-list') &&
     !keyTrendsWidgetBlock.includes('renderChartCard') &&
     !keyTrendsWidgetBlock.includes('renderChartLayersDropdown') &&
-    read('styles.css').includes('.db-key-trend-row'));
+    dashboardCssSrc.includes('.db-key-trend-row'));
   assert('Current Priority is the user-facing spotlight label',
     dashboardWidgetsSrc.includes("id: 'spotlight'") &&
     dashboardWidgetsSrc.includes("title: 'Current Priority'") &&
     dashboardRenderersSrc.includes('renderLabsPriorityBanner') &&
-    read('styles.css').includes('.labs-priority-banner'));
+    dashboardCssSrc.includes('.labs-priority-banner'));
   const labsWidgetsBlock = (lensPagesSrc.match(/renderLensPageWidgets\('labs', \[([\s\S]*?)\]\);/) || [null, ''])[1];
   assert('Labs page demotes standalone alerts and full spotlight sections',
     labsWidgetsBlock.includes("id: 'quick-markers'") &&

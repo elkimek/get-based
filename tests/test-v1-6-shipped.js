@@ -22,7 +22,7 @@ function fetchSrc(rel) {
   try { return fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8'); }
   catch (_) { return ''; }
 }
-const CSS_FILES = ['styles.css', 'css/category-views.css', 'css/context-profile.css', 'css/modal-shared.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/modal-shared.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 function fetchCssSrc() { return CSS_FILES.map(fetchSrc).join('\n'); }
 
 console.log('=== v1.6.7–v1.6.16 Regression Tests ===\n');
