@@ -343,8 +343,14 @@ export function updateTweaksUI() {
   });
 }
 
+let _tweaksPriorBodyOverflow = null;
+
 export function closeTweaksPanel() {
   document.getElementById('tweaks-panel-overlay')?.remove();
+  if (_tweaksPriorBodyOverflow !== null) {
+    document.body.style.overflow = _tweaksPriorBodyOverflow;
+    _tweaksPriorBodyOverflow = null;
+  }
 }
 
 export function openTweaksPanel() {
@@ -417,6 +423,10 @@ export function openTweaksPanel() {
       </aside>
     </div>
   `);
+  if (window.matchMedia?.('(max-width: 768px)').matches) {
+    _tweaksPriorBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
   updateTweaksUI();
   document.querySelector('#tweaks-panel button')?.focus();
 }

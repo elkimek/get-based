@@ -211,6 +211,8 @@
   position: absolute;
   top: 76px;
   right: 16px;
+  display: flex;
+  flex-direction: column;
   width: min(380px, calc(100vw - 24px));
   max-height: calc(100vh - 92px);
   overflow: hidden;
@@ -220,6 +222,7 @@
   box-shadow: var(--shadow-lg);
 }
 .tweaks-head {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -243,8 +246,12 @@
   font-size: 22px;
 }
 .tweaks-body {
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: calc(100vh - 172px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 16px 20px 20px;
 }
 .tweaks-section {
@@ -378,10 +385,13 @@
   }
   .tweaks-overlay.show { display: flex; }
   .tweaks-overlay {
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding: calc(66px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+    padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
     box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.68);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
   .tweaks-panel {
     position: relative;
@@ -391,17 +401,16 @@
     width: min(100%, 380px);
     min-width: 0;
     max-width: 100%;
-    max-height: calc(100vh - 78px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     box-sizing: border-box;
     box-shadow: 0 12px 24px -20px rgba(0, 0, 0, 0.75);
   }
-  .tweaks-body { max-height: calc(100vh - 160px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .tweaks-body { max-height: none; }
   @supports (height: 100dvh) {
     .tweaks-panel {
-      max-height: calc(100dvh - 78px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    }
-    .tweaks-body {
-      max-height: calc(100dvh - 160px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     }
   }
 }

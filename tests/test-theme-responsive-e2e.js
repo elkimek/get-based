@@ -708,6 +708,8 @@ async function checkMobileInteractions(page, theme, viewportName) {
     const panel = document.getElementById('tweaks-panel');
     const overlay = document.getElementById('tweaks-panel-overlay');
     const r = panel?.getBoundingClientRect();
+    const body = panel?.querySelector('.tweaks-body');
+    const bodyRect = body?.getBoundingClientRect();
     const viewportWidth = document.documentElement.clientWidth;
     const shadowRightReach = (boxShadow) => {
       const lengths = String(boxShadow || '').match(/-?\d+(?:\.\d+)?px/g)?.map(v => Number(v.replace('px', ''))) || [];
@@ -734,6 +736,8 @@ async function checkMobileInteractions(page, theme, viewportName) {
       contained: !!r && r.left >= -1 && r.right <= viewportWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
       leftGutter: r ? r.left : -1,
       rightGutter: r ? viewportWidth - r.right : -1,
+      bodyContained: !!r && !!bodyRect && bodyRect.left >= r.left - 1 && bodyRect.right <= r.right + 1 && bodyRect.bottom <= r.bottom + 1,
+      bodyScrollLocked: document.body.style.overflow === 'hidden',
       horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - viewportWidth,
       overflowingChildren,
       rightShadowReach,
@@ -742,7 +746,8 @@ async function checkMobileInteractions(page, theme, viewportName) {
   }, theme);
   assert(testName(theme, viewportName, 'mobile tweaks panel fits viewport'),
     result.open && result.contained && result.leftGutter >= 12 && result.rightGutter >= 12 &&
-      result.horizontalOverflow <= 1 && result.overflowingChildren === 0 && result.terminalShadowContained,
+      result.bodyContained && result.bodyScrollLocked && result.horizontalOverflow <= 1 &&
+      result.overflowingChildren === 0 && result.terminalShadowContained,
     JSON.stringify(result));
   await page.evaluate(() => window.closeTweaksPanel?.());
   await delay(100);
