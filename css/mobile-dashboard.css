@@ -1,6 +1,9 @@
 /* Mobile dashboard app shell */
 .m-shell { display: none; }
 @media (max-width: 799px) {
+  :root {
+    --mobile-tabbar-gutter: clamp(16px, 5vw, 22px);
+  }
   html.mobile-dashboard-active,
   html.mobile-tabs-active {
     max-width: 100%;
@@ -508,8 +511,8 @@
     right: auto;
     bottom: calc(10px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
     z-index: 210;
-    width: min(520px, calc(100vw - 20px));
-    max-width: calc(100vw - 20px);
+    width: min(520px, calc(100vw - (var(--mobile-tabbar-gutter) * 2)));
+    max-width: calc(100vw - (var(--mobile-tabbar-gutter) * 2));
     margin: 0 auto;
     box-sizing: border-box;
     transform: translateX(-50%);

@@ -389,6 +389,8 @@ async function evaluateBaseChecks(page, theme, viewport) {
       ok('mobile shell is visible', visible(shell));
       ok('mobile tabbar is visible', visible(tabbar));
       ok('mobile tabbar is contained in viewport', tabbar && inViewport(tabbar, 2));
+      ok('mobile tabbar keeps comfortable side gutters',
+        tabbar && rect(tabbar).left >= 14 && window.innerWidth - rect(tabbar).right >= 14);
       ok('mobile dashboard tabbar is outside clipped shell', tabbar && !tabbar.closest('.m-shell'));
       ok('mobile chat FAB is visible and above tabbar', visible(fab) && tabbar && rect(fab).bottom < rect(tabbar).top);
       ok('desktop chat FAB hidden inside mobile shell', !visible(desktopChatFab));
@@ -856,6 +858,9 @@ async function checkMobileInteractions(page, theme, viewportName) {
         tabbarOutsideShell: !!tabbar && !tabbar.closest('.m-shell'),
         tabbarFixed: tabbarStyle?.position === 'fixed',
         tabbarContained: !!tabbarRect && tabbarRect.left >= -1 && tabbarRect.right <= viewportWidth + 1,
+        tabbarComfortableGutters: !!tabbarRect &&
+          tabbarRect.left >= 14 &&
+          viewportWidth - tabbarRect.right >= 14,
         tabbarStable:
           !!tabbarRect &&
           !!tabbarAfterY &&
@@ -896,7 +901,7 @@ async function checkMobileInteractions(page, theme, viewportName) {
       JSON.stringify(result));
     assert(testName(theme, viewportName, `tab ${tab} keeps mobile nav fixed and clipped`),
       result.rootTabsActive && result.tabbarOutsideShell &&
-        result.tabbarFixed && result.tabbarContained && result.tabbarStable &&
+        result.tabbarFixed && result.tabbarContained && result.tabbarComfortableGutters && result.tabbarStable &&
         result.horizontalOverflow <= 1 && result.bottomChromePaintContained,
       JSON.stringify(result));
     if (tab === 'light') {
