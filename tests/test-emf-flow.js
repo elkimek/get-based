@@ -25,10 +25,11 @@ import './_node-shim.js';
 // `modal.innerHTML = html` doesn't throw on null — the render output is
 // coverage-only; every assertion here checks state mutations or "X ran".
 const _modalStub = () => ({
+  _query: {},
   style: {}, classList: { add() {}, remove() {}, contains() { return false; }, toggle() {} },
   appendChild() {}, remove() {}, setAttribute() {}, getAttribute() { return null; },
   addEventListener() {}, removeEventListener() {},
-  querySelector() { return null; }, querySelectorAll() { return []; },
+  querySelector(sel) { return this._query?.[sel] || null; }, querySelectorAll() { return []; },
   children: [], childNodes: [], innerHTML: '', textContent: '', value: '',
 });
 const _stubsById = {};
@@ -83,6 +84,17 @@ assert('updateEMFField writes name', asm.name === 'Coverage Probe');
 
 window.updateEMFField(asmId, 'notes', 'Multi-line\nnotes here');
 assert('updateEMFField writes notes', asm.notes === 'Multi-line\nnotes here');
+
+window.updateEMFField(asmId, 'date', '2024-02-03');
+assert('updateEMFField writes date', asm.date === '2024-02-03');
+
+const modalStub = document.getElementById('detail-modal');
+modalStub._query = {
+  '[data-emf-field="date"]': { value: '2023-12-24' },
+};
+window.saveEMFExplicit();
+assert('saveEMFExplicit collects live date input before saving', asm.date === '2023-12-24');
+modalStub._query = {};
 
 // ── 2. Room CRUD ──────────────────────────────────────────────────────
 // A new assessment ships with one default room (newRoom() inside emf.js).

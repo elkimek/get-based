@@ -122,7 +122,7 @@ export function openEMFAssessmentEditor() {
   overlay.classList.add('show');
   // Save tags when modal closes (before DOM is torn down)
   const closeBtn = modal.querySelector('.modal-close');
-  if (closeBtn) closeBtn.addEventListener('click', () => { collectTags(); saveImportedData(); document.querySelectorAll('.emf-lightbox').forEach(el => el.remove()); }, { once: true });
+  if (closeBtn) closeBtn.addEventListener('click', () => { collectActiveAssessmentState(); saveImportedData(); document.querySelectorAll('.emf-lightbox').forEach(el => el.remove()); }, { once: true });
 }
 
 function renderEMFEditor(modal) {
@@ -188,9 +188,9 @@ function renderAssessmentDetail(a) {
 
   let html = `<div class="emf-assessment-detail">
     <div class="emf-meta-row">
-      <label>Date <input type="date" class="emf-input" value="${a.date}" onchange="updateEMFField('${a.id}','date',this.value)"></label>
-      <label>Label <input type="text" class="emf-input" value="${escapeHTML(a.label)}" placeholder="e.g. Pre-mitigation" onchange="updateEMFField('${a.id}','label',this.value)"></label>
-      <label>Consultant <input type="text" class="emf-input" value="${escapeHTML(a.consultant)}" placeholder="Optional" onchange="updateEMFField('${a.id}','consultant',this.value)"></label>
+      <label>Date <input type="date" class="emf-input" data-emf-field="date" value="${a.date}" onchange="updateEMFField('${a.id}','date',this.value)"></label>
+      <label>Label <input type="text" class="emf-input" data-emf-field="label" value="${escapeHTML(a.label)}" placeholder="e.g. Pre-mitigation" onchange="updateEMFField('${a.id}','label',this.value)"></label>
+      <label>Consultant <input type="text" class="emf-input" data-emf-field="consultant" value="${escapeHTML(a.consultant)}" placeholder="Optional" onchange="updateEMFField('${a.id}','consultant',this.value)"></label>
     </div>`;
 
   // Room tabs
@@ -208,7 +208,7 @@ function renderAssessmentDetail(a) {
   html += renderRoomContent(a.id, ri, a.rooms[ri], a.rooms.length);
 
   html += `<div class="emf-meta-row" style="margin-top:12px">
-      <label style="flex:1">Notes <input type="text" class="emf-input" value="${escapeHTML(a.note)}" placeholder="General assessment notes" onchange="updateEMFField('${a.id}','note',this.value)"></label>
+      <label style="flex:1">Notes <input type="text" class="emf-input" data-emf-field="note" value="${escapeHTML(a.note)}" placeholder="General assessment notes" onchange="updateEMFField('${a.id}','note',this.value)"></label>
     </div>
     <div class="emf-assessment-footer">
       <button class="import-btn import-btn-primary" onclick="saveEMFExplicit()">Save</button>
@@ -251,9 +251,9 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
       <select class="emf-input emf-room-select" onchange="handleEMFRoomDropdown('${assessmentId}',${roomIdx},this.value,this)">
         ${options}
       </select>
-      <input type="text" class="emf-input emf-location" value="${escapeHTML(room.location)}" placeholder="Location (e.g. bed pillow area)" onchange="updateEMFRoom('${assessmentId}',${roomIdx},'location',this.value)">
+      <input type="text" class="emf-input emf-location" data-emf-room-field="location" value="${escapeHTML(room.location)}" placeholder="Location (e.g. bed pillow area)" onchange="updateEMFRoom('${assessmentId}',${roomIdx},'location',this.value)">
       <label class="emf-sleeping-toggle" title="Sleeping areas use stricter SBM-2015 thresholds">
-        <input type="checkbox" ${room.sleeping !== false ? 'checked' : ''} onchange="updateEMFRoom('${assessmentId}',${roomIdx},'sleeping',this.checked)">
+        <input type="checkbox" data-emf-room-field="sleeping" ${room.sleeping !== false ? 'checked' : ''} onchange="updateEMFRoom('${assessmentId}',${roomIdx},'sleeping',this.checked)">
         Sleeping area
       </label>
       ${roomCount > 1 ? `<button class="emf-remove-room" onclick="removeEMFRoom('${assessmentId}',${roomIdx})" title="Remove room">&times;</button>` : ''}
@@ -268,11 +268,13 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
     html += `<div class="emf-measurement-row">
       <span class="emf-measurement-label">${mt.short}</span>
       <input type="number" class="emf-input emf-value-input" value="${val}" step="any" placeholder="—"
+        data-emf-measurement-type="${mt.key}"
         onchange="updateEMFMeasurement('${assessmentId}',${roomIdx},'${mt.key}',this.value)">
       <span class="emf-measurement-unit">${def.unit}</span>
       ${val !== '' ? severityDot(mt.key, parseFloat(val), sleeping) : '<span class="emf-severity-dot-placeholder"></span>'}
       <input type="text" class="emf-input emf-meter-input" value="${escapeHTML(m.meter || '')}" placeholder="Meter"
         list="emf-meters-${mt.key}"
+        data-emf-meter-type="${mt.key}"
         onchange="updateEMFMeter('${assessmentId}',${roomIdx},'${mt.key}',this.value)">
     </div>`;
   }
@@ -299,7 +301,7 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
       ${EMF_MITIGATIONS.map(s => `<button type="button" class="ctx-tag${(room.mitigations || []).includes(s) ? ' active' : ''}" onclick="toggleCtxTag(this)">${escapeHTML(s)}</button>`).join('')}
     </div></div>`;
 
-  html += `<input type="text" class="emf-input emf-room-note" value="${escapeHTML(room.note)}" placeholder="Room notes" onchange="updateEMFRoom('${assessmentId}',${roomIdx},'note',this.value)">`;
+  html += `<input type="text" class="emf-input emf-room-note" data-emf-room-field="note" value="${escapeHTML(room.note)}" placeholder="Room notes" onchange="updateEMFRoom('${assessmentId}',${roomIdx},'note',this.value)">`;
 
   // Photos
   const photos = room.photos || [];
@@ -333,14 +335,14 @@ export function addEMFAssessment() {
 }
 
 export function toggleEMFAssessment(id) {
-  collectTags();
+  collectActiveAssessmentState();
   _editingAssessmentId = _editingAssessmentId === id ? null : id;
   _activeRoomIdx = 0;
   renderEMFEditor(document.getElementById('detail-modal'));
 }
 
 export function selectEMFRoom(assessmentId, roomIdx) {
-  collectTags();
+  collectActiveAssessmentState();
   _activeRoomIdx = roomIdx;
   renderEMFEditor(document.getElementById('detail-modal'));
 }
@@ -356,7 +358,7 @@ export async function handleEMFRoomDropdown(assessmentId, currentRoomIdx, value,
   // Create new room from preset
   if (value.startsWith('_new_')) {
     const name = value.slice(5);
-    collectTags();
+    collectActiveAssessmentState();
     const assessments = ensureAssessments();
     const a = assessments.find(x => x.id === assessmentId);
     if (!a) return;
@@ -373,7 +375,7 @@ export async function handleEMFRoomDropdown(assessmentId, currentRoomIdx, value,
       okLabel: 'Create',
     });
     if (name) {
-      collectTags();
+      collectActiveAssessmentState();
       const assessments = ensureAssessments();
       const a = assessments.find(x => x.id === assessmentId);
       if (!a) return;
@@ -391,7 +393,7 @@ export async function handleEMFRoomDropdown(assessmentId, currentRoomIdx, value,
 }
 
 export function addEMFRoom(assessmentId) {
-  collectTags();
+  collectActiveAssessmentState();
   const assessments = ensureAssessments();
   const a = assessments.find(x => x.id === assessmentId);
   if (!a) return;
@@ -402,7 +404,7 @@ export function addEMFRoom(assessmentId) {
 }
 
 export function removeEMFRoom(assessmentId, roomIdx) {
-  collectTags();
+  collectActiveAssessmentState();
   const assessments = ensureAssessments();
   const a = assessments.find(x => x.id === assessmentId);
   if (!a || a.rooms.length <= 1) return;
@@ -429,7 +431,7 @@ export async function deleteEMFAssessment(id) {
 export function updateEMFField(assessmentId, field, value) {
   const assessments = ensureAssessments();
   const a = assessments.find(x => x.id === assessmentId);
-  if (a) { a[field] = value; saveImportedData(); }
+  if (a) { applyEMFField(a, field, value); saveImportedData(); }
 }
 
 export function updateEMFRoom(assessmentId, roomIdx, field, value) {
@@ -443,18 +445,7 @@ export function updateEMFMeasurement(assessmentId, roomIdx, type, value) {
   const assessments = ensureAssessments();
   const a = assessments.find(x => x.id === assessmentId);
   if (!a || !a.rooms[roomIdx]) return;
-  if (!a.rooms[roomIdx].measurements) a.rooms[roomIdx].measurements = {};
-  const numVal = value === '' ? null : parseFloat(value);
-  if (numVal === null) {
-    delete a.rooms[roomIdx].measurements[type];
-  } else {
-    const def = SBM_2015_THRESHOLDS[type];
-    a.rooms[roomIdx].measurements[type] = {
-      value: numVal,
-      unit: def.unit,
-      meter: (a.rooms[roomIdx].measurements[type] || {}).meter || null
-    };
-  }
+  applyEMFMeasurementValue(a.rooms[roomIdx], type, value);
   saveImportedData();
   renderEMFEditor(document.getElementById('detail-modal'));
 }
@@ -465,6 +456,76 @@ export function updateEMFMeter(assessmentId, roomIdx, type, value) {
   if (!a || !a.rooms[roomIdx]) return;
   const m = (a.rooms[roomIdx].measurements || {})[type];
   if (m) { m.meter = value || null; saveImportedData(); }
+}
+
+function isISODate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
+}
+
+function applyEMFField(assessment, field, value) {
+  if (field === 'date') {
+    if (isISODate(value)) assessment.date = value;
+    return;
+  }
+  assessment[field] = value;
+}
+
+function applyEMFMeasurementValue(room, type, value) {
+  if (!room.measurements) room.measurements = {};
+  const raw = value == null ? '' : String(value).trim();
+  const numVal = raw === '' ? null : parseFloat(raw);
+  if (numVal === null || !Number.isFinite(numVal)) {
+    delete room.measurements[type];
+    return;
+  }
+  const def = SBM_2015_THRESHOLDS[type];
+  if (!def) return;
+  room.measurements[type] = {
+    value: numVal,
+    unit: def.unit,
+    meter: (room.measurements[type] || {}).meter || null
+  };
+}
+
+function collectActiveAssessmentInputs() {
+  if (!_editingAssessmentId) return;
+  const assessments = ensureAssessments();
+  const a = assessments.find(x => x.id === _editingAssessmentId);
+  const modal = document.getElementById('detail-modal');
+  if (!a || !modal) return;
+
+  for (const field of ['date', 'label', 'consultant', 'note']) {
+    const input = modal.querySelector(`[data-emf-field="${field}"]`);
+    if (input) applyEMFField(a, field, input.value || '');
+  }
+
+  const room = a.rooms?.[_activeRoomIdx];
+  if (!room) return;
+  const locationInput = modal.querySelector('[data-emf-room-field="location"]');
+  if (locationInput) room.location = locationInput.value || '';
+  const noteInput = modal.querySelector('[data-emf-room-field="note"]');
+  if (noteInput) room.note = noteInput.value || '';
+  const sleepingInput = modal.querySelector('[data-emf-room-field="sleeping"]');
+  if (sleepingInput) room.sleeping = !!sleepingInput.checked;
+
+  for (const mt of MEASUREMENT_TYPES) {
+    const valueInput = modal.querySelector(`[data-emf-measurement-type="${mt.key}"]`);
+    if (valueInput) applyEMFMeasurementValue(room, mt.key, valueInput.value);
+    const meterInput = modal.querySelector(`[data-emf-meter-type="${mt.key}"]`);
+    const measurement = room.measurements?.[mt.key];
+    if (meterInput && measurement) measurement.meter = meterInput.value || null;
+  }
+}
+
+function collectActiveAssessmentState() {
+  collectActiveAssessmentInputs();
+  collectTags();
 }
 
 /** Collect tags from DOM for the active room */
@@ -674,6 +735,7 @@ function showEMFImportPreview(parsed) {
 let _compareMode = false;
 
 export function toggleEMFCompare() {
+  collectActiveAssessmentState();
   _compareMode = !_compareMode;
   _editingAssessmentId = null;
   renderEMFEditor(document.getElementById('detail-modal'));
@@ -982,6 +1044,7 @@ function _collectMitigationTags(assessment) {
 }
 
 export function interpretEMFAssessment(assessmentId) {
+  collectActiveAssessmentState();
   const assessments = ensureAssessments();
   const a = assessments.find(x => x.id === assessmentId);
   if (!a) return;
@@ -1001,6 +1064,7 @@ export function interpretEMFAssessment(assessmentId) {
 }
 
 export function interpretEMFComparison() {
+  collectActiveAssessmentState();
   const assessments = ensureAssessments();
   const sorted = [...assessments].sort((a, b) => b.date.localeCompare(a.date));
   if (sorted.length < 2) return;
@@ -1075,7 +1139,7 @@ export function viewEMFPhoto(assessmentId, roomIdx, photoIdx) {
 // WINDOW EXPORTS
 // ═══════════════════════════════════════════════
 export function saveEMFExplicit() {
-  collectTags();
+  collectActiveAssessmentState();
   saveImportedData();
   showNotification('EMF assessment saved', 'success');
 }
