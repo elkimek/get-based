@@ -283,7 +283,13 @@ function scheduleThemeChange(themeId) {
 window.handleThemeChange = scheduleThemeChange;
 
 export function selectTweaksTheme(themeId) {
-  scheduleThemeChange(themeId);
+  if (themeChangeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(themeChangeFrame);
+  if (themeChangeTimer) clearTimeout(themeChangeTimer);
+  themeChangeFrame = 0;
+  themeChangeTimer = 0;
+  pendingThemeId = themeId;
+  markThemeControls(themeId);
+  applyThemeChange(themeId);
 }
 
 export function selectTweaksAccent(accentId) {
