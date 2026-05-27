@@ -41,7 +41,10 @@ globalThis.fetch = async (url, opts) => {
 const recSrc = await fetchWithRetry('js/recommendations.js');
 const dnaSrc = await fetchWithRetry('js/dna.js');
 const ctxSrc = await fetchWithRetry('js/context-cards.js');
-const cssSrc = await fetchWithRetry('styles.css');
+const cssSrc = [
+  await fetchWithRetry('styles.css'),
+  await fetchWithRetry('css/context-profile.css'),
+].join('\n');
 const snpData = await fetch('data/snp-health.json').then(r => r.json());
 const catalogData = await fetch('data/recommendations.json').then(r => r.json());
 // Detect the stub fallback (Dependabot / fork PRs without CATALOG_FETCH_TOKEN —
@@ -215,7 +218,7 @@ assert('CSS has .ctx-tips-badge', cssSrc.includes('.ctx-tips-badge'));
 // in document.styleSheets. That live-DOM check is redundant here: axe-core
 // scans the same page later in run-tests.sh and would catch a missing
 // stylesheet. The source-string assertion above proves the rule exists in
-// styles.css.)
+// the CSS bundle.)
 
 // ═══════════════════════════════════════
 // 9. Coverage — all hint target slots exist in catalog

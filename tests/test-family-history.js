@@ -215,7 +215,10 @@ assert("Closing-suggestions handler also clears fh-condition-suggestions",
 // 10. CSS hooks
 // ═══════════════════════════════════════
 console.log('10. CSS hooks');
-const stylesSrc = await fetch('styles.css').then(r => r.text());
+const stylesSrc = [
+  await fetch('styles.css').then(r => r.text()),
+  await fetch('css/context-profile.css').then(r => r.text()),
+].join('\n');
 for (const cls of [
   '.ctx-family-history', '.ctx-family-head', '.ctx-family-count',
   '.ctx-family-list', '.ctx-family-item', '.ctx-family-relative',
