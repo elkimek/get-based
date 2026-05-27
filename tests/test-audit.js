@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -78,6 +78,8 @@ assert('shared modal CSS loads before feature modal overrides',
   swAuditSrc.indexOf("'/css/modal-shared.css'") < swAuditSrc.indexOf("'/css/context-profile.css'"));
 assert('index loads context/profile CSS bundle', indexSrc.includes('href="css/context-profile.css"'));
 assert('SW APP_SHELL includes context/profile CSS bundle', swAuditSrc.includes("'/css/context-profile.css'"));
+assert('index loads genetics CSS bundle', indexSrc.includes('href="css/genetics.css"'));
+assert('SW APP_SHELL includes genetics CSS bundle', swAuditSrc.includes("'/css/genetics.css'"));
 assert('index loads settings CSS bundle', indexSrc.includes('href="css/settings.css"'));
 assert('SW APP_SHELL includes settings CSS bundle', swAuditSrc.includes("'/css/settings.css'"));
 assert('index loads client list CSS bundle', indexSrc.includes('href="css/client-list.css"'));
@@ -112,7 +114,7 @@ const lightPageViewSrc = read('js/light-page-view.js');
 const lightChannelViewSrc = read('js/light-channel-view.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
-const stylesAuditSrc = read('styles.css');
+const geneticsCssAuditSrc = read('css/genetics.css');
 const markerDetailCssAuditSrc = read('css/marker-detail-modal.css');
 const dnaSrc = read('js/dna.js');
 assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
@@ -124,7 +126,7 @@ assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(com
 assert('Light channel device names escaped before next-move HTML',
   /const dev = matchingDevice \? escapeHTML\(`\$\{matchingDevice\.brand\} \$\{matchingDevice\.model\}`\) : ''/.test(lightChannelViewSrc));
 assert('Genome genetics refs keep shared unscoped CSS',
-  dnaSrc.includes('class="detail-genetics-ref"') && /\.detail-genetics-ref\s*\{/.test(stylesAuditSrc));
+  dnaSrc.includes('class="detail-genetics-ref"') && /\.detail-genetics-ref\s*\{/.test(geneticsCssAuditSrc));
 assert('Marker detail bundle does not own shared genetics refs',
   !/\.marker-detail-modal\s+\.detail-genetics(?:-ref)?/.test(markerDetailCssAuditSrc));
 
