@@ -646,6 +646,23 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && /\.modal\.marker-detail-modal\s*\{\s*padding:\s*0/.test(cssSrc));
   }
 
+  // ─── 20. sun-session start avoids warning-toast stack ───────────────
+  console.log('%c 20. sun-session start notification restraint ', 'font-weight:bold;color:#0891b2');
+  {
+    const sunSrc = fetchSrc('js/sun.js');
+    const startHandler = sunSrc.slice(
+      sunSrc.indexOf("overlay.querySelector('#start-confirm').addEventListener"),
+      sunSrc.indexOf('// Focus management for dynamically-injected modals')
+    );
+    assert('sun.js: start flow uses one consolidated start-session toast helper',
+      /function _buildStartSessionToast/.test(sunSrc) &&
+      /showNotification\(_buildStartSessionToast\(/.test(startHandler));
+    assert('sun.js: start flow no longer emits photosensitizer warning toast',
+      !/photosensitizer active/.test(startHandler));
+    assert('sun.js: start flow no longer emits eyes-uncovered warning toast',
+      !/Eyes-uncovered mode/.test(startHandler));
+  }
+
   // ─── Restore state ──────────────────────────────────────────────────
   if (window._labState && _origImported) window._labState.importedData = _origImported;
   if (window._labState) window._labState.profileSex = _origProfileSex;

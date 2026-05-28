@@ -1400,6 +1400,18 @@ function _renderUVIPreflightBanner(uvi, fitzpatrick, psmTier) {
   return `<div class="${cls}"><strong>${icon} ${escapeHTML(title)}</strong> ${escapeHTML(medLine)} Sunscreen + cover up + a shorter session strongly suggested.</div>`;
 }
 
+function _buildStartSessionToast({ regionCount, uvi, psmTier, eyeMode }) {
+  const parts = [`Outdoor session started · ${regionCount} region${regionCount === 1 ? '' : 's'} exposed`];
+  const notes = [];
+  if (Number.isFinite(uvi) && uvi >= 11) notes.push(`extreme UV ${uvi.toFixed(1)}`);
+  else if (Number.isFinite(uvi) && uvi >= 8) notes.push(`high UV ${uvi.toFixed(1)}`);
+  const tier = _normalizePSMTier(psmTier);
+  if (tier !== 'none') notes.push(`${tier} photosensitizer`);
+  if (eyeMode === 'direct') notes.push('eyes uncovered');
+  if (notes.length) parts.push(`${notes.join(' + ')} · keep it short`);
+  return parts.join(' · ');
+}
+
 // Show the "What's uncovered?" dialog with the body silhouette + a Start
 // button. The picker pre-selects regions from the user's last completed
 // session so habitual users hit Start without changes; first-time users
@@ -1422,6 +1434,7 @@ export async function openStartSunSessionDialog() {
   const fitz = state.importedData?.sunDefaults?.fitzpatrick || 'III';
   const psm = state.importedData?.sunDefaults?.photosensitiveMeds || 'none';
   const uviPromise = _fetchCurrentUVI();
+  let latestPreflightUvi = null;
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
@@ -1527,6 +1540,7 @@ export async function openStartSunSessionDialog() {
   // warrant it. Async — the dialog is already shown so we don't block.
   uviPromise.then((uvi) => {
     if (!Number.isFinite(uvi)) return;
+    latestPreflightUvi = uvi;
     const banner = overlay.querySelector('#sun-start-uvi-banner');
     if (!banner) return;
     const html = _renderUVIPreflightBanner(uvi, fitz, psm);
@@ -1555,15 +1569,12 @@ export async function openStartSunSessionDialog() {
     const coords = getSunCoords();
     const id = await startSession({ regions, eyeMode, lensTint, glassBetween, posture, surfaceAlbedo, rotatedSides, location: coords });
     overlay.remove();
-    showNotification(`Outdoor session started · ${regions.length} region${regions.length === 1 ? '' : 's'} exposed`);
-    const psmTierActive = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
-    if (psmTierActive !== 'none') {
-      const factor = { mild: '~1.4×', moderate: '~2.5×', severe: '~4×' }[psmTierActive] || '~2.5×';
-      showNotification(`⚠ ${psmTierActive.charAt(0).toUpperCase() + psmTierActive.slice(1)} photosensitizer active — your burn threshold is ${factor} lower. Plan to wrap up at the first sign of pinkness.`, 'warning', 7000);
-    }
-    if (eyeMode === 'direct') {
-      showNotification('Eyes-uncovered mode: never look directly at the sun. "Uncovered" means eyes open toward the sky, not staring at the sun disc.', 'warning', 7000);
-    }
+    showNotification(_buildStartSessionToast({
+      regionCount: regions.length,
+      uvi: latestPreflightUvi,
+      psmTier: state.importedData?.sunDefaults?.photosensitiveMeds,
+      eyeMode,
+    }), 'success', 4500);
     _refreshSurfaces();
     _ensureActiveTicker();
     return id;
