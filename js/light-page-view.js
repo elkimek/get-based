@@ -574,7 +574,7 @@ export function showLight(_data) {
   widgets.push({
     id: 'light-environment',
     title: 'Indoor Light Assessment',
-    description: 'Rooms, screens, measurements, and saved audit snapshots',
+    description: 'Rooms, screens, readings, and saved audit snapshots',
     body: `<div id="${escapeAttr(environmentSlotId)}" class="light-widget-loading">Loading environment...</div>`,
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },

@@ -335,12 +335,20 @@ const {
   assert('Assessment modal functions are exported on window',
     typeof window.openLightEnvironmentAssessment === 'function' &&
     typeof window.closeLightEnvironmentAssessment === 'function');
+  const envSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env.js', import.meta.url), 'utf8');
+  assert('Assessment modal uses user-facing indoor assessment copy',
+    envSrc.includes('Indoor Light Assessment') &&
+    envSrc.includes('Save audit snapshots before and after changes') &&
+    !envSrc.includes('The Light page keeps the summary'));
   const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const cssSrc = await (await import('node:fs/promises')).readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8');
   assert('Light assessment is linked from sidebar Analysis tools',
     navSrc.includes("label: 'Light assessment'") &&
     navSrc.includes("key: 'light-env-assessment'") &&
     navSrc.indexOf('Analysis tools') < navSrc.indexOf("label: 'Light assessment'"));
+  assert('Light assessment sidebar badge reflects saved audit snapshots',
+    navSrc.includes('lightAuditCount') &&
+    !navSrc.includes('lightEnvItems'));
   const modalCss = cssSrc.match(/\.light-env-assessment-modal\s*\{[^}]+\}/)?.[0] || '';
   assert('Assessment modal owns vertical scrolling',
     /max-height:\s*calc\(100dvh - 48px\)/.test(modalCss) &&

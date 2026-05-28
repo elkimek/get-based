@@ -844,7 +844,7 @@ function renderEnvironmentLoadSummary() {
 }
 
 function formatLatestLightAudit(audits) {
-  if (!audits.length) return 'No saved audits';
+  if (!audits.length) return 'No saved snapshots';
   const latest = audits
     .slice()
     .sort((a, b) => (b.createdAt || Date.parse(b.date || '') || 0) - (a.createdAt || Date.parse(a.date || '') || 0))[0];
@@ -864,10 +864,10 @@ export function renderEnvironmentAssessmentSummary() {
   const activeScreens = screens.filter(isActiveToday).length;
   const measuredRooms = new Set(measurements.filter(m => m.roomId).map(m => m.roomId)).size;
   const hasMapped = rooms.length > 0 || screens.length > 0;
-  const actionLabel = hasMapped ? 'Open assessment' : 'Map rooms';
+  const actionLabel = hasMapped ? 'Open assessment' : 'Start assessment';
   const lead = hasMapped
     ? burden.interp
-    : 'Map rooms and screens once, then use this assessment for indoor-light audits instead of keeping the whole workflow on the Light page.';
+    : 'Map your bedroom, work areas, and screens once; update the assessment when bulbs, monitors, or evening routines change.';
   const metrics = [
     {
       label: 'Rooms',
@@ -936,9 +936,9 @@ function renderLightEnvironmentAssessmentModal() {
   overlay.innerHTML = `<div class="modal light-env-assessment-modal" role="dialog" aria-modal="true" aria-labelledby="light-env-assessment-title">
     <button class="modal-close" onclick="window.closeLightEnvironmentAssessment && window.closeLightEnvironmentAssessment()" aria-label="Close">×</button>
     <div class="modal-header">
-      <h3 id="light-env-assessment-title">Light Environment Assessment</h3>
+      <h3 id="light-env-assessment-title">Indoor Light Assessment</h3>
     </div>
-    <p class="light-env-assessment-modal-copy">Rooms, screens, readings, and audit snapshots live here. The Light page keeps the summary; this is the workspace.</p>
+    <p class="light-env-assessment-modal-copy">Map the rooms, screens, and readings that shape your indoor day. Save audit snapshots before and after changes to compare what moved.</p>
     ${renderEnvironmentSection({ embedded: true })}
   </div>`;
 }
