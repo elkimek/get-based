@@ -26,7 +26,7 @@ import {
   _testStockImg,
   _testRegionBandLandmarks,
 } from './sun-body-silhouette.js';
-export { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
+export { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette };
 // NOTE: sun-ai-analysis.js is intentionally NOT imported here — it
 // imports from this file (getSessions, formatChannelUnit, etc.), and a
 // reciprocal import would create a circular dependency that risks TDZ
