@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -119,6 +119,20 @@ assert('index loads marker detail modal CSS bundle', indexSrc.includes('href="cs
 assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includes("'/css/marker-detail-modal.css'"));
 assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
+const LIGHT_CSS_BUNDLES = [
+  'css/light-sun.css',
+  'css/light-tools.css',
+  'css/light-env.css',
+];
+for (const lightCss of LIGHT_CSS_BUNDLES) {
+  assert(`index loads ${lightCss}`, indexSrc.includes(`href="${lightCss}"`));
+  assert(`SW APP_SHELL includes ${lightCss}`, swAuditSrc.includes(`'/${lightCss}'`));
+}
+assert('light CSS split preserves override order',
+  indexSrc.indexOf('href="css/light-sun.css"') < indexSrc.indexOf('href="css/light-tools.css"') &&
+  indexSrc.indexOf('href="css/light-tools.css"') < indexSrc.indexOf('href="css/light-env.css"') &&
+  swAuditSrc.indexOf("'/css/light-sun.css'") < swAuditSrc.indexOf("'/css/light-tools.css'") &&
+  swAuditSrc.indexOf("'/css/light-tools.css'") < swAuditSrc.indexOf("'/css/light-env.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
 const CHAT_CSS_BUNDLES = [

@@ -25,7 +25,9 @@ const tools = await import('../js/light-tools.js');
     normalizeGoldenHourMinutes,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
-    const cssFiles = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+    const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
+    const lightToolCss = fs.readFileSync(new URL('../css/light-tools.css', import.meta.url), 'utf8');
+    const cssFiles = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
     const stylesSrc = cssFiles.map(rel => fs.readFileSync(new URL('../' + rel, import.meta.url), 'utf8')).join('\n');
     const appearsBefore = (needleA, needleB, from = 0) => {
       const a = lightToolsSrc.indexOf(needleA, from);
@@ -253,6 +255,14 @@ const tools = await import('../js/light-tools.js');
     assert('Glass and audit result boxes reserve stable numeric layout',
       /\.glass-reading\s*\{[\s\S]{0,220}min-width:\s*9ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc) &&
       /\.audit-status\s*\{[\s\S]{0,220}min-height:\s*88px/.test(stylesSrc));
+    assert('Light tools CSS owns tool modal and aiming guide styles',
+      lightToolCss.includes('.light-tool-overlay.modal-overlay.show') &&
+      lightToolCss.includes('.tool-aiming-guide') &&
+      lightToolCss.includes('.lux-dial-value'));
+    assert('Light/Sun CSS no longer owns Light Tools modal styles',
+      !lightSunCss.includes('.light-tool-overlay.modal-overlay.show') &&
+      !lightSunCss.includes('.lux-dial-value') &&
+      !lightSunCss.includes('.tool-aiming-guide'));
 
   // restore
   if (origSuggest) window.suggestRoomSourceFromSpectrum = origSuggest;
