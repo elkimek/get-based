@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-conditions-now.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -121,6 +121,7 @@ assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/re
 assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
 const LIGHT_CSS_BUNDLES = [
   'css/light-sun.css',
+  'css/light-conditions-now.css',
   'css/light-tools.css',
   'css/light-env.css',
 ];
@@ -129,9 +130,11 @@ for (const lightCss of LIGHT_CSS_BUNDLES) {
   assert(`SW APP_SHELL includes ${lightCss}`, swAuditSrc.includes(`'/${lightCss}'`));
 }
 assert('light CSS split preserves override order',
-  indexSrc.indexOf('href="css/light-sun.css"') < indexSrc.indexOf('href="css/light-tools.css"') &&
+  indexSrc.indexOf('href="css/light-sun.css"') < indexSrc.indexOf('href="css/light-conditions-now.css"') &&
+  indexSrc.indexOf('href="css/light-conditions-now.css"') < indexSrc.indexOf('href="css/light-tools.css"') &&
   indexSrc.indexOf('href="css/light-tools.css"') < indexSrc.indexOf('href="css/light-env.css"') &&
-  swAuditSrc.indexOf("'/css/light-sun.css'") < swAuditSrc.indexOf("'/css/light-tools.css'") &&
+  swAuditSrc.indexOf("'/css/light-sun.css'") < swAuditSrc.indexOf("'/css/light-conditions-now.css'") &&
+  swAuditSrc.indexOf("'/css/light-conditions-now.css'") < swAuditSrc.indexOf("'/css/light-tools.css'") &&
   swAuditSrc.indexOf("'/css/light-tools.css'") < swAuditSrc.indexOf("'/css/light-env.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
@@ -337,6 +340,8 @@ assert('getTrend guards prev === 0', utilsSrc.includes('prev === 0'));
 console.log('5. CSS Variable Fixes');
 
 const cssSrc = readCssBundle();
+const lightSunCss = read('css/light-sun.css');
+const lightConditionsCss = read('css/light-conditions-now.css');
 const sunSrc = read('js/sun.js');
 const lightDevicesSrc = read('js/light-devices.js');
 assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
@@ -408,8 +413,16 @@ assert('Light page dashboard toggles are explicitly scoped',
   /id: 'light-tools'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
   /id: 'light-methods'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
   lensPageShellSrc.includes("Object.prototype.hasOwnProperty.call(opts, 'dashboardId')"));
-assert('Light operation widgets deframe nested operation surfaces',
-  /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-wrap,[\s\S]*\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(cssSrc));
+assert('Light Conditions Now chrome is owned by split CSS',
+  /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-wrap\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightConditionsCss) &&
+  !lightSunCss.includes('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap'));
+assert('Light setup/session widgets keep deframed operation surfaces',
+  /\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightSunCss));
+assert('Conditions Now CSS owns tooltip and responsive grid styles',
+  /\.conditions-now-grid\s*\{[\s\S]*grid-template-columns:\s*2fr 1fr 1fr 1fr;/.test(lightConditionsCss) &&
+  /\.app-tooltip\s*\{[\s\S]*position:\s*fixed/.test(lightConditionsCss) &&
+  !/\.conditions-now-grid\s*\{/.test(lightSunCss) &&
+  !/\.app-tooltip\s*\{/.test(lightSunCss));
 assert('Light page workbench is split into page-only redesigned widgets',
   lightPageViewSrc.includes("id: 'light-devices'") &&
   lightPageViewSrc.includes("id: 'light-environment'") &&
