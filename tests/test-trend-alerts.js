@@ -11,7 +11,13 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-const dashboardCssSrc = read('styles.css') + '\n' + read('css/dashboard-core.css');
+const dashboardCssSrc = [
+  read('styles.css'),
+  read('css/dashboard-core.css'),
+  read('css/dashboard-widgets.css'),
+  read('css/dashboard-welcome.css'),
+  read('css/dashboard-data.css'),
+].join('\n');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {

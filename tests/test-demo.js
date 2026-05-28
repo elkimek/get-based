@@ -56,7 +56,14 @@ await import('../js/export.js');
 
   // ── 3. Source: CSS bundle ──
   console.log('\n3. CSS bundle — Demo card styles');
-  const cssSrc = read('styles.css') + '\n' + read('css/dashboard-core.css') + '\n' + read('css/import.css');
+  const cssSrc = [
+    read('styles.css'),
+    read('css/dashboard-core.css'),
+    read('css/dashboard-widgets.css'),
+    read('css/dashboard-welcome.css'),
+    read('css/dashboard-data.css'),
+    read('css/import.css'),
+  ].join('\n');
   assert('Has .welcome-demo-section rule', cssSrc.includes('.welcome-demo-section'));
   assert('Has .welcome-section-label rule', cssSrc.includes('.welcome-section-label'));
   assert('Old .onboarding-divider rules removed', !cssSrc.includes('.onboarding-divider'));

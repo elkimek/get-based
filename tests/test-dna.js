@@ -377,6 +377,9 @@ assert('Genome lens avoids duplicated full genetics surfaces',
 const stylesSrc = [
   await fetchWithRetry('styles.css'),
   await fetchWithRetry('css/dashboard-core.css'),
+  await fetchWithRetry('css/dashboard-widgets.css'),
+  await fetchWithRetry('css/dashboard-welcome.css'),
+  await fetchWithRetry('css/dashboard-data.css'),
 ].join('\n');
 const genomeCategoryCss = (stylesSrc.match(/\.db-genome-category\s*\{([^}]*)\}/) || [null, ''])[1];
 assert('dashboard genome category groups avoid duplicate severity border',

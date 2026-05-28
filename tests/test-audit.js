@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -76,6 +76,24 @@ assert('import CSS loads before modal shell CSS',
   swAuditSrc.indexOf("'/css/import.css'") < swAuditSrc.indexOf("'/css/modal-shared.css'"));
 assert('index loads dashboard core CSS bundle', indexSrc.includes('href="css/dashboard-core.css"'));
 assert('SW APP_SHELL includes dashboard core CSS bundle', swAuditSrc.includes("'/css/dashboard-core.css'"));
+const DASHBOARD_CSS_BUNDLES = [
+  'css/dashboard-widgets.css',
+  'css/dashboard-welcome.css',
+  'css/dashboard-data.css',
+];
+for (const dashboardCss of DASHBOARD_CSS_BUNDLES) {
+  assert(`index loads ${dashboardCss}`, indexSrc.includes(`href="${dashboardCss}"`));
+  assert(`SW APP_SHELL includes ${dashboardCss}`, swAuditSrc.includes(`'/${dashboardCss}'`));
+}
+assert('dashboard CSS split loads before category views',
+  indexSrc.indexOf('href="css/dashboard-core.css"') < indexSrc.indexOf('href="css/dashboard-widgets.css"') &&
+  indexSrc.indexOf('href="css/dashboard-widgets.css"') < indexSrc.indexOf('href="css/dashboard-welcome.css"') &&
+  indexSrc.indexOf('href="css/dashboard-welcome.css"') < indexSrc.indexOf('href="css/dashboard-data.css"') &&
+  indexSrc.indexOf('href="css/dashboard-data.css"') < indexSrc.indexOf('href="css/category-views.css"') &&
+  swAuditSrc.indexOf("'/css/dashboard-core.css'") < swAuditSrc.indexOf("'/css/dashboard-widgets.css'") &&
+  swAuditSrc.indexOf("'/css/dashboard-widgets.css'") < swAuditSrc.indexOf("'/css/dashboard-welcome.css'") &&
+  swAuditSrc.indexOf("'/css/dashboard-welcome.css'") < swAuditSrc.indexOf("'/css/dashboard-data.css'") &&
+  swAuditSrc.indexOf("'/css/dashboard-data.css'") < swAuditSrc.indexOf("'/css/category-views.css'"));
 assert('index loads category views CSS bundle', indexSrc.includes('href="css/category-views.css"'));
 assert('SW APP_SHELL includes category views CSS bundle', swAuditSrc.includes("'/css/category-views.css'"));
 assert('index loads shared modal CSS bundle', indexSrc.includes('href="css/modal-shared.css"'));
