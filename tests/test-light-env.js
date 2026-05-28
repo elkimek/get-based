@@ -348,11 +348,36 @@ const {
     navSrc.indexOf('Analysis tools') < navSrc.indexOf("label: 'Light assessment'"));
   assert('Light assessment sidebar badge reflects saved audit snapshots',
     navSrc.includes('lightAuditCount') &&
+    navSrc.includes('lightRoomCount') &&
     !navSrc.includes('lightEnvItems'));
   const modalCss = cssSrc.match(/\.light-env-assessment-modal\s*\{[^}]+\}/)?.[0] || '';
   assert('Assessment modal owns vertical scrolling',
     /max-height:\s*calc\(100dvh - 48px\)/.test(modalCss) &&
     /overflow-y:\s*auto/.test(modalCss));
+  const beforeEmptyAssessment = window._labState.importedData;
+  window._labState.importedData = {
+    lightEnvironment: { rooms: [], screens: [] },
+    lightMeasurements: [{ id: 'orphan-reading', tool: 'lux', roomId: null, value: 50, takenAt: Date.now() }],
+    lightAudits: [{ id: 'old-audit', date: '2026-05-01', label: 'Old room' }],
+  };
+  const emptySummaryHtml = renderEnvironmentAssessmentSummary();
+  const emptyAssessmentHtml = renderEnvironmentSection({ embedded: true });
+  assert('Assessment summary hides orphan readings and audits when no rooms are mapped',
+    !emptySummaryHtml.includes('Readings') &&
+    !emptySummaryHtml.includes('Audits') &&
+    emptySummaryHtml.includes('Start assessment'));
+  assert('Assessment workspace hides orphan readings and audits until a room is mapped',
+    !emptyAssessmentHtml.includes('Portable readings') &&
+    !emptyAssessmentHtml.includes('Light audits'));
+  assert('Room and portable-screen empty states share header actions plus quick-picks',
+    emptyAssessmentHtml.includes('+ Room') &&
+    emptyAssessmentHtml.includes('+ Screen') &&
+    emptyAssessmentHtml.includes('Start with') &&
+    emptyAssessmentHtml.includes('Bedroom') &&
+    emptyAssessmentHtml.includes('📱 Phone') &&
+    !emptyAssessmentHtml.includes('+ Bedroom') &&
+    !emptyAssessmentHtml.includes('+ 📱 Phone'));
+  window._labState.importedData = beforeEmptyAssessment;
 
   // ─── deleteRoom orphan cleanup ─────────────────────────────────────
   // Earlier deleteRoom dropped the room but left measurements + screens

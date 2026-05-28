@@ -784,17 +784,38 @@ function renderScreenExpandedBody(s, rooms) {
 // "Room 1" footgun and accelerates the common path. Hides chips for
 // names already in use; "Other…" opens a prompt for custom names.
 const ROOM_QUICK_PICKS = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
+const SCREEN_QUICK_PICK_LABELS = {
+  phone: '📱 Phone',
+  laptop: '💻 Laptop',
+  monitor: '🖥 Monitor',
+  tablet: '📲 Tablet',
+  tv: '📺 TV',
+};
 
 function renderRoomQuickPicks(rooms) {
   const usedLC = new Set((rooms || []).map(r => (r.name || '').trim().toLowerCase()));
   const chips = ROOM_QUICK_PICKS
     .filter(name => !usedLC.has(name.toLowerCase()))
-    .map(name => `<button class="light-env-quickpick" onclick="window.addLightEnvRoomNamed('${escapeAttr(name)}')">+ ${escapeHTML(name)}</button>`)
+    .map(name => `<button class="light-env-quickpick" onclick="window.addLightEnvRoomNamed('${escapeAttr(name)}')">${escapeHTML(name)}</button>`)
     .join('');
   return `<div class="light-env-quickpicks-row">
-    <span class="light-env-quickpicks-label">${rooms.length === 0 ? 'Add your first room' : 'Add a room'}:</span>
+    <span class="light-env-quickpicks-label">${rooms.length === 0 ? 'Start with' : 'Add'}:</span>
     ${chips}
-    <button class="light-env-quickpick light-env-quickpick-other" onclick="window.addLightEnvRoomCustom()">+ Other…</button>
+    <button class="light-env-quickpick light-env-quickpick-other" onclick="window.addLightEnvRoomCustom()">Other…</button>
+  </div>`;
+}
+
+function renderScreenQuickPicks(screens, roomId = null, preferred = ['phone', 'laptop', 'monitor', 'tablet', 'tv']) {
+  const existing = new Set((screens || []).filter(s => (s.roomId || null) === (roomId || null)).map(s => s.device));
+  const roomArg = roomId ? `'${escapeAttr(roomId)}'` : 'null';
+  const chips = preferred
+    .filter(device => !existing.has(device))
+    .map(device => `<button class="light-env-quickpick" onclick="window.addLightEnvScreenWithDevice(${roomArg},'${escapeAttr(device)}')">${escapeHTML(SCREEN_QUICK_PICK_LABELS[device] || device)}</button>`)
+    .join('');
+  return `<div class="light-env-quickpicks-row light-env-screen-quickpicks">
+    <span class="light-env-quickpicks-label">${existing.size === 0 ? 'Start with' : 'Add'}:</span>
+    ${chips}
+    <button class="light-env-quickpick light-env-quickpick-other" onclick="window.addLightEnvScreen(${roomArg})">Other…</button>
   </div>`;
 }
 
@@ -864,6 +885,7 @@ export function renderEnvironmentAssessmentSummary() {
   const activeScreens = screens.filter(isActiveToday).length;
   const measuredRooms = new Set(measurements.filter(m => m.roomId).map(m => m.roomId)).size;
   const hasMapped = rooms.length > 0 || screens.length > 0;
+  const hasRooms = rooms.length > 0;
   const actionLabel = hasMapped ? 'Open assessment' : 'Start assessment';
   const lead = hasMapped
     ? burden.interp
@@ -879,17 +901,18 @@ export function renderEnvironmentAssessmentSummary() {
       value: String(screens.length),
       sub: screens.length ? `${activeScreens} active today` : 'Portable or room-bound',
     },
-    {
+  ];
+  if (hasRooms) {
+    metrics.push({
       label: 'Readings',
       value: String(measurements.length),
       sub: measuredRooms ? `${measuredRooms} room${measuredRooms === 1 ? '' : 's'} measured` : 'Run lux/flicker/CCT',
-    },
-    {
+    }, {
       label: 'Audits',
       value: String(audits.length),
       sub: formatLatestLightAudit(audits),
-    },
-  ];
+    });
+  }
   return `<div class="light-env-assessment-summary light-env-assessment-summary-${escapeAttr(burden.color)}">
     <div class="light-env-assessment-status">
       <span class="light-env-summary-kicker">Indoor light load</span>
@@ -1093,11 +1116,6 @@ function renderRoomExpandedBody(r, measurements, sev) {
     emptyCopy = 'Map any phone, tablet, laptop, monitor, or TV used in this room.';
     quickPicks = ['phone', 'laptop', 'tv'];
   }
-  // Hide quick-picks for devices already mapped to this room — no need
-  // to suggest "+ phone" if there's already a phone here.
-  const existingDevices = new Set(screensHere.map(s => s.device));
-  const availablePicks = quickPicks.filter(d => !existingDevices.has(d));
-  const pickLabels = { phone: '📱 Phone', laptop: '💻 Laptop', monitor: '🖥 Monitor', tablet: '📲 Tablet', tv: '📺 TV' };
 
   html += `<div class="light-env-room-step">
     <div class="light-env-room-step-head">${escapeHTML(stepHead)}</div>
@@ -1112,16 +1130,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
   // Quick-pick chip row — one-click adds a screen with the right device
   // type. "Other…" falls back to the original generic "+ Add screen"
   // path which infers device by room name.
-  if (availablePicks.length > 0) {
-    html += `<div class="light-env-screen-quickpicks">`;
-    for (const device of availablePicks) {
-      html += `<button class="light-env-quickpick" onclick="window.addLightEnvScreenWithDevice('${escapeAttr(r.id)}','${device}')">+ ${escapeHTML(pickLabels[device] || device)}</button>`;
-    }
-    html += `<button class="light-env-quickpick light-env-quickpick-other" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Other…</button>`;
-    html += `</div>`;
-  } else {
-    html += `<button class="light-env-add-screen-here" onclick="window.addLightEnvScreen('${escapeAttr(r.id)}')">+ Add another screen</button>`;
-  }
+  html += renderScreenQuickPicks(screensHere, r.id, quickPicks);
   html += `    </div>
   </div>`;
 
@@ -1154,6 +1163,7 @@ export function renderEnvironmentSection(options = {}) {
   html += `<div class="light-env-block">
     <div class="light-env-block-head">
       <strong>Rooms you spend time in</strong>
+      <button class="import-btn import-btn-secondary" onclick="window.addLightEnvRoom()">+ Room</button>
     </div>`;
   if (rooms.length === 0) {
     html += `<div class="light-env-empty light-env-empty-cta">
@@ -1185,16 +1195,19 @@ export function renderEnvironmentSection(options = {}) {
   html += `<div class="light-env-block">
     <div class="light-env-block-head">
       <strong>Portable screens</strong>
-      <button class="import-btn import-btn-secondary" onclick="window.addLightEnvScreen()">+ Portable screen</button>
+      <button class="import-btn import-btn-secondary" onclick="window.addLightEnvScreen()">+ Screen</button>
     </div>`;
   if (portableScreens.length === 0 && screens.length === 0 && rooms.length === 0) {
     // First-time: show the value-prop CTA only when the whole section is empty
     html += `<div class="light-env-empty light-env-empty-cta">
       <p><strong>Track your phone, TV, or any screen that moves between rooms.</strong> Screens you use in a specific room (laptop in the Office, TV in the Living Room) live inside that room's card — add them from there.</p>
-      <button class="import-btn import-btn-primary" onclick="window.addLightEnvScreen()">+ Add a portable screen</button>
+      ${renderScreenQuickPicks(portableScreens)}
     </div>`;
   } else if (portableScreens.length === 0) {
-    html += `<p class="light-env-empty">No portable screens yet. Devices that stay in one place are listed inside their room card above.</p>`;
+    html += `<div class="light-env-empty light-env-empty-cta">
+      <p>No portable screens yet. Devices that stay in one place are listed inside their room card above.</p>
+      ${renderScreenQuickPicks(portableScreens)}
+    </div>`;
   } else {
     html += `<div class="light-env-screen-cards">`;
     for (const s of portableScreens) html += renderScreenCard(s);
@@ -1214,7 +1227,7 @@ export function renderEnvironmentSection(options = {}) {
   const portable = allMeasurements
     .filter(m => !m.roomId)
     .sort((a, b) => (b.takenAt || b.capturedAt || 0) - (a.takenAt || a.capturedAt || 0));
-  if (portable.length > 0) {
+  if (rooms.length > 0 && portable.length > 0) {
     html += `<details class="light-env-block light-env-portable-readings">
       <summary><strong>Portable readings</strong> <span class="light-env-portable-count">${portable.length} not matched to a room</span></summary>
       <div class="light-env-portable-readings-list">`;

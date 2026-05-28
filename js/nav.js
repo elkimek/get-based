@@ -160,13 +160,14 @@ export function buildSidebar(data) {
     navigate: 'fn:window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()',
     badge: emfAssessmentCount > 0 ? emfAssessmentCount : null,
   });
+  const lightRoomCount = Array.isArray(state.importedData?.lightEnvironment?.rooms) ? state.importedData.lightEnvironment.rooms.length : 0;
   const lightAuditCount = Array.isArray(state.importedData?.lightAudits) ? state.importedData.lightAudits.length : 0;
   html += _renderConditionalNavItem({
     key: 'light-env-assessment',
     icon: 'light',
     label: 'Light assessment',
     navigate: 'fn:window.openLightEnvironmentAssessment&&window.openLightEnvironmentAssessment()',
-    badge: lightAuditCount > 0 ? lightAuditCount : null,
+    badge: lightRoomCount > 0 && lightAuditCount > 0 ? lightAuditCount : null,
   });
 
   html += `<div class="nav-section">Manage</div>`;
