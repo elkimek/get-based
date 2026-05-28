@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -122,6 +122,7 @@ assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("
 const LIGHT_CSS_BUNDLES = [
   'css/light-sun.css',
   'css/light-channels.css',
+  'css/light-devices.css',
   'css/light-conditions-now.css',
   'css/light-setup.css',
   'css/light-tools.css',
@@ -133,12 +134,14 @@ for (const lightCss of LIGHT_CSS_BUNDLES) {
 }
 assert('light CSS split preserves override order',
   indexSrc.indexOf('href="css/light-sun.css"') < indexSrc.indexOf('href="css/light-channels.css"') &&
-  indexSrc.indexOf('href="css/light-channels.css"') < indexSrc.indexOf('href="css/light-conditions-now.css"') &&
+  indexSrc.indexOf('href="css/light-channels.css"') < indexSrc.indexOf('href="css/light-devices.css"') &&
+  indexSrc.indexOf('href="css/light-devices.css"') < indexSrc.indexOf('href="css/light-conditions-now.css"') &&
   indexSrc.indexOf('href="css/light-conditions-now.css"') < indexSrc.indexOf('href="css/light-setup.css"') &&
   indexSrc.indexOf('href="css/light-setup.css"') < indexSrc.indexOf('href="css/light-tools.css"') &&
   indexSrc.indexOf('href="css/light-tools.css"') < indexSrc.indexOf('href="css/light-env.css"') &&
   swAuditSrc.indexOf("'/css/light-sun.css'") < swAuditSrc.indexOf("'/css/light-channels.css'") &&
-  swAuditSrc.indexOf("'/css/light-channels.css'") < swAuditSrc.indexOf("'/css/light-conditions-now.css'") &&
+  swAuditSrc.indexOf("'/css/light-channels.css'") < swAuditSrc.indexOf("'/css/light-devices.css'") &&
+  swAuditSrc.indexOf("'/css/light-devices.css'") < swAuditSrc.indexOf("'/css/light-conditions-now.css'") &&
   swAuditSrc.indexOf("'/css/light-conditions-now.css'") < swAuditSrc.indexOf("'/css/light-setup.css'") &&
   swAuditSrc.indexOf("'/css/light-setup.css'") < swAuditSrc.indexOf("'/css/light-tools.css'") &&
   swAuditSrc.indexOf("'/css/light-tools.css'") < swAuditSrc.indexOf("'/css/light-env.css'"));
@@ -348,6 +351,7 @@ console.log('5. CSS Variable Fixes');
 const cssSrc = readCssBundle();
 const lightSunCss = read('css/light-sun.css');
 const lightChannelsCss = read('css/light-channels.css');
+const lightDevicesCss = read('css/light-devices.css');
 const lightConditionsCss = read('css/light-conditions-now.css');
 const lightSetupCss = read('css/light-setup.css');
 const sunSrc = read('js/sun.js');
@@ -446,6 +450,14 @@ assert('Light channels CSS owns pill, drill-down, and channel AI styles',
   !/\.light-channels-section \.light-pill\s*\{/.test(lightSunCss) &&
   !/\.light-channel-detail\s*\{/.test(lightSunCss) &&
   !/\.light-channel-mix-ai\s*\{/.test(lightSunCss));
+assert('Light devices CSS owns device cards, picker, and distance controls',
+  /\.light-devices-section\s*\{[\s\S]*margin-top:\s*24px/.test(lightDevicesCss) &&
+  /\.light-device-card\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column/.test(lightDevicesCss) &&
+  /\.dev-distance-row\s*\{[\s\S]*display:\s*flex/.test(lightDevicesCss) &&
+  /\.light-device-picker-row\s*\{[\s\S]*cursor:\s*pointer/.test(lightDevicesCss) &&
+  !/\.light-device-card\s*\{/.test(lightSunCss) &&
+  !/\.dev-distance-row\s*\{/.test(lightSunCss) &&
+  !/\.light-device-picker-row\s*\{/.test(lightSunCss));
 assert('Light page workbench is split into page-only redesigned widgets',
   lightPageViewSrc.includes("id: 'light-devices'") &&
   lightPageViewSrc.includes("id: 'light-environment'") &&

@@ -55,18 +55,8 @@
 .light-page .dashboard-widget[data-widget-id="light-guidance"] .light-med-banner {
   margin: 0;
 }
-.light-page .dashboard-widget[data-widget-id="light-devices"] .dashboard-widget-body,
 .light-page .dashboard-widget[data-widget-id="light-methods"] .dashboard-widget-body {
   gap: 0;
-}
-.light-page .dashboard-widget[data-widget-id="light-devices"] .light-devices-section {
-  margin-top: 0;
-}
-.light-page .dashboard-widget[data-widget-id="light-devices"] .light-section-title {
-  display: none;
-}
-.light-page .dashboard-widget[data-widget-id="light-devices"] .light-devices-head {
-  margin-bottom: 14px;
 }
 .light-page .dashboard-widget[data-widget-id="light-session-log"] .dashboard-widget-body {
   gap: 0;
@@ -290,212 +280,6 @@
 }
 .sun-chip-more:hover { color: var(--accent); border-color: var(--accent); }
 
-/* Light devices section — peer of channel grid on Light & Sun page */
-.light-devices-section { margin-top: 24px; }
-.light-devices-head {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 12px;
-}
-.light-devices-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-  gap: 14px;
-}
-/* Device card — visual hierarchy: type-icon + brand/model header,
-   compact spec-line under the name, channel-feed chip row, usage
-   stats footer, primary action button, optional affiliate link.
-   Type-specific accent strip on the left edge so a row of cards
-   reads as "UV / UVA / red+NIR / SAD" at a glance. */
-.light-device-card {
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 10px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.light-device-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--text-primary) 8%, transparent);
-}
-.light-device-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
-  background: var(--text-muted);
-}
-.light-device-card-type-uvb::before          { background: linear-gradient(to bottom, #f59e0b, #ef4444); }
-.light-device-card-type-uva::before          { background: #f97316; }
-.light-device-card-type-combined::before     { background: #ef4444; }
-.light-device-card-type-pbm-targeted::before { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
-.light-device-card-type-sad::before          { background: #fbbf24; }
-.light-device-card-type-dawn-sim::before     { background: #fb923c; }
-.light-device-card-type-full-spectrum::before { background: #facc15; }
-
-.light-device-head {
-  display: flex; align-items: flex-start; gap: 10px;
-}
-.light-device-icon {
-  font-size: 22px; line-height: 1;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.light-device-titleblock {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.light-device-name {
-  font-weight: 600; color: var(--text-primary);
-  font-size: 14px;
-  overflow: hidden; text-overflow: ellipsis;
-}
-.light-device-typeline {
-  font-size: 11px; color: var(--text-muted);
-  /* Removed uppercase + tracking — the line carries technical detail
-     (wavelength range, irradiance) that reads as shouty jargon when
-     uppercased. Sentence-case + normal spacing is much more legible
-     to non-experts and still scans as a secondary spec line. */
-}
-.light-device-delete {
-  background: transparent; border: none;
-  color: var(--text-muted); font-size: 18px; line-height: 1;
-  cursor: pointer; padding: 4px 8px; border-radius: 4px;
-  flex-shrink: 0;
-  opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
-}
-.light-device-card:hover .light-device-delete,
-.light-device-delete:focus-visible { opacity: 1; }
-.light-device-delete:hover { color: var(--red); background: var(--bg-secondary); }
-
-/* Channel-feed strip — small chips listing the channels this device
-   feeds. Same icons + labels the dashboard pills use, just tighter
-   spacing so they fit inside a card. Tooltip on hover gives the
-   full science blurb. */
-.light-device-feeds {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  font-size: 11px;
-}
-.light-device-feeds-label {
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-right: 2px;
-}
-.light-device-feed-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px;
-  background: var(--bg-secondary);
-  border-radius: 10px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-.light-device-feed-icon { font-size: 12px; }
-.light-device-feed-label { font-size: 11px; font-weight: 500; }
-
-.light-device-stats {
-  font-size: 11px; color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.light-device-log {
-  width: 100%;
-  padding: 8px 14px; font-size: 13px;
-  font-weight: 600;
-}
-.light-device-actions {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin-top: 4px;
-}
-.custom-device-ai-row {
-  display: flex; gap: 8px; align-items: stretch;
-  margin-top: 8px;
-}
-.custom-device-form {
-  display: flex; flex-direction: column; gap: 10px;
-  margin-top: 4px;
-}
-.custom-device-form .ctx-label { display: block; }
-.custom-device-form .ctx-input,
-.custom-device-form .ctx-select {
-  width: 100%; margin-top: 4px;
-}
-.dev-session-hint {
-  display: block;
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 4px;
-  line-height: 1.4;
-}
-/* Distance input + per-field cm/in unit toggle. The toggle sits to the
-   right of the number input; clicking flips both the visible value and
-   the underlying data-unit attribute. Lets a user enter the spec in
-   whichever unit their reference happens to be in, regardless of the
-   global state.unitSystem default. */
-.dev-distance-row {
-  display: flex; align-items: stretch; gap: 8px;
-  margin-top: 4px;
-}
-.dev-distance-row .ctx-input { flex: 1; min-width: 0; }
-.dev-unit-toggle {
-  display: inline-flex; align-items: stretch;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg-secondary);
-}
-.dev-unit-btn {
-  padding: 0 12px;
-  font-size: 12px; font-weight: 600;
-  background: transparent; border: none;
-  color: var(--text-muted); cursor: pointer;
-  font-family: inherit;
-}
-.dev-unit-btn + .dev-unit-btn { border-left: 1px solid var(--border); }
-.dev-unit-btn.active {
-  background: var(--accent);
-  color: #fff;
-}
-.dev-unit-btn:not(.active):hover { color: var(--text-primary); background: var(--bg-card); }
-.rec-light-device-link {
-  font-size: 12px; color: var(--accent);
-  text-decoration: none;
-}
-.rec-light-device-link:hover { text-decoration: underline; }
-
-/* Channel-deficit device recommendation card. Surfaced on the Light & Sun
-   page when the user has ≥7 sessions logged but a device-fillable channel
-   (pbm_red / pbm_nir) is empty over 30 days. Compact, region-filtered,
-   capped at 3 products per channel. */
-.rec-channel-deficit {
-  margin: 16px 0; padding: 12px 14px;
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-.rec-channel-deficit-head {
-  font-size: 13px; font-weight: 600; color: var(--text-primary);
-  margin-bottom: 8px;
-}
-.rec-channel-deficit-list { display: flex; flex-direction: column; gap: 6px; }
-.rec-light-deficit-link {
-  display: block; padding: 8px 10px;
-  font-size: 12px; color: var(--text-primary);
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-xs); text-decoration: none;
-}
-.rec-light-deficit-link:hover { border-color: var(--accent); }
-.rec-light-deficit-link strong { color: var(--accent); margin-right: 4px; }
-.rec-light-deficit-link .rec-vendor {
-  display: inline-block; margin-left: 6px;
-  color: var(--text-secondary); font-size: 11px;
-}
-.rec-channel-deficit-foot {
-  margin-top: 8px; font-size: 11px; color: var(--text-secondary);
-}
-.rec-channel-deficit-foot a { color: var(--text-secondary); }
-
 /* Unified sessions list — sun + device sessions interleaved
    chronologically. Row shape mirrors the sun-only list with an extra
    leading icon and a "kind" pill so each row is scannable. Falls back
@@ -546,29 +330,6 @@
   color: var(--accent);
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-/* Device picker (Light page CTA → "Start a device session" with 2+ devs) */
-.light-device-picker-list {
-  display: flex; flex-direction: column; gap: 6px; margin-top: 8px;
-}
-.light-device-picker-row {
-  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
-  padding: 10px 14px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-family: inherit; cursor: pointer;
-  text-align: left;
-}
-.light-device-picker-row:hover {
-  border-color: var(--accent);
-  background: var(--bg-card);
-}
-.light-device-picker-name {
-  font-weight: 600; color: var(--text-primary); font-size: 14px;
-}
-.light-device-picker-meta {
-  color: var(--text-secondary); font-size: 12px;
 }
 
 /* Reduced motion — strip transforms + transitions for users with the OS
@@ -1737,26 +1498,6 @@ svg.sun-silhouette text.sun-silhouette-label {
    affordances (no fade-in delete, etc.).
 */
 
-/* Touch / no-hover devices: device-card delete must be visible —
-   the pointer-hover-reveal pattern is invisible on touch. */
-@media (hover: none) {
-  .light-device-delete { opacity: 0.5; }
-  .light-device-delete:active { opacity: 1; }
-}
-
-/* Tablet + below — channel-feed chip strip on broad-spectrum cards
-   has up to 7 chips (Maxi UVB / Trinity). Drop the text label and
-   keep just the icon so a row of chips fits on one line. Tooltip
-   already carries the full channel name + science blurb. */
-@media (max-width: 768px) {
-  .light-device-feed-label { display: none; }
-  .light-device-feed-chip {
-    padding: 4px 6px;
-    min-width: 24px; justify-content: center;
-  }
-  .light-device-feed-icon { font-size: 13px; }
-}
-
 /* Phones — Light & Sun page layout adjustments */
 @media (max-width: 600px) {
   /* Quick-log CTA row stacks: primary CTAs full-width, tally on its
@@ -1778,36 +1519,6 @@ svg.sun-silhouette text.sun-silhouette-label {
   .light-widget-prompt-cta {
     width: 100%;
   }
-
-  /* Device cards — 1 col, taller padding for readability, brand+model
-     allowed to wrap to two lines so long names like "Mitochondriak
-     LED RED + NIR bulb" don't get truncated by ellipsis. */
-  .light-devices-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .light-device-card { padding: 14px 14px 14px 18px; }
-  .light-device-name {
-    white-space: normal;       /* was ellipsis */
-    overflow: visible;
-    line-height: 1.3;
-  }
-  .light-device-typeline {
-    /* Long type lines wrap to a second line at 11 px which is fine —
-       eyebrow context, not a primary read. */
-    line-height: 1.4;
-  }
-  /* Always-visible delete on phones (hover not reliable). */
-  .light-device-delete { opacity: 0.6; }
-
-  /* Session-log dialog inputs — distance + cm/in toggle stack so the
-     toggle doesn't get crushed against the right edge. */
-  .dev-distance-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-  .dev-unit-toggle { align-self: flex-start; }
 
   /* Light Today (dashboard) strip — pill row tighter, foot wraps so
      burn-risk pill doesn't hog horizontal space. */
@@ -1895,10 +1606,4 @@ svg.sun-silhouette text.sun-silhouette-label {
     padding: 12px;
   }
 
-}
-
-/* Very narrow phones (≤375px) — device text drops one more notch. */
-@media (max-width: 375px) {
-  .light-device-name { font-size: 13px; }
-  .light-device-typeline { font-size: 10px; }
 }
