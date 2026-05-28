@@ -409,6 +409,10 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       (cssSrc.match(/padding-bottom:\s*calc\(120px\s*\+\s*env\(safe-area-inset-bottom\)\)/g) || []).length >= 3);
     assert('styles.css: silhouette tap stroke for coarse pointer (mobile)',
       /pointer:\s*coarse[\s\S]{0,500}\.sun-silhouette-region[\s\S]{0,300}stroke-width:\s*\d/.test(cssSrc));
+    assert('styles.css: mobile silhouette hit stroke remains visually hidden',
+      /pointer:\s*coarse[\s\S]{0,500}\.sun-silhouette-region\s*\{[\s\S]{0,180}stroke:\s*transparent[\s\S]{0,180}stroke-opacity:\s*0/.test(cssSrc));
+    assert('styles.css: stock overlay-ready hides geometric selection fallback',
+      /\.sun-silhouette-stock\[data-selection-overlay="ready"\]\s+\.sun-silhouette-region\.selected\s*\{[\s\S]{0,120}fill-opacity:\s*0[\s\S]{0,80}stroke-opacity:\s*0/.test(cssSrc));
     assert('styles.css: modal-header reserves padding-right for close button',
       /\.modal-header\s*\{[\s\S]{0,200}padding-right:\s*40px/.test(cssSrc));
   }

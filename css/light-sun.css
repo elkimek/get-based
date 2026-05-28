@@ -741,12 +741,12 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   fill-opacity: 0.85;
 }
 .sun-silhouette-stock[data-selection-overlay="pending"] .sun-silhouette-region.selected {
-  fill-opacity: 0.55;
-  stroke-opacity: 0.55;
+  fill-opacity: 0.38;
+  stroke-opacity: 0;
 }
 .sun-silhouette-stock[data-selection-overlay="ready"] .sun-silhouette-region.selected {
-  fill-opacity: 0.14;
-  stroke-opacity: 0.28;
+  fill-opacity: 0;
+  stroke-opacity: 0;
 }
 
 /* Coarse-pointer (touch) — gently fatten the hit area so thin regions
@@ -758,13 +758,16 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
    above gets us most of the way without the overlap chaos. */
 @media (pointer: coarse) {
   .sun-silhouette-region {
-    stroke: var(--text-muted);
+    stroke: transparent;
     stroke-width: 5;
-    stroke-opacity: 0.001; /* near-invisible but expands hit-area */
+    stroke-opacity: 0; /* invisible but expands hit-area */
     paint-order: stroke fill;
   }
-  .sun-silhouette-region:hover,
-  .sun-silhouette-region.selected,
+  .sun-silhouette-region:hover {
+    fill: transparent;
+    fill-opacity: 0;
+    stroke-opacity: 0;
+  }
   .sun-silhouette-region:focus-visible {
     stroke-opacity: 1;
     stroke-width: 0.8;
