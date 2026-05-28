@@ -48,6 +48,7 @@ const APP_SHELL = [
   '/css/wearables.css',
   '/css/light-sun.css',
   '/css/light-conditions-now.css',
+  '/css/light-setup.css',
   '/css/light-tools.css',
   '/css/light-env.css',
   '/css/chat-panel.css',
