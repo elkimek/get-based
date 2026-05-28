@@ -580,16 +580,41 @@ export function computeDeficitAxes() {
 // Layout: disclosure list (collapsed-by-default cards with severity
 // dots; expanding reveals a Step 1/2/3 form). Mirrors the EMF
 // Assessment + Light Audits pattern so the three sub-modules share one
-// mental model. Single-room case auto-expands; multi-room case
-// expands the most-recently-edited room (sorted by `updatedAt`).
+// mental model. First render auto-expands a useful room, but explicit
+// user collapse is preserved.
 
 const ACTIVE_ROOM_KEY = 'labcharts-light-env-active-room';
+const COLLAPSED_ROOM_ID = '__none__';
 
 function readActiveRoomId() {
   try { return localStorage.getItem(ACTIVE_ROOM_KEY); } catch (e) { return null; }
 }
 function writeActiveRoomId(id) {
   try { id ? localStorage.setItem(ACTIVE_ROOM_KEY, id) : localStorage.removeItem(ACTIVE_ROOM_KEY); } catch (e) {}
+}
+function isRoomCollapseSentinel(id) {
+  return id === COLLAPSED_ROOM_ID;
+}
+function cssAttrSelectorValue(value) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+function lightEnvRoomAnchor(id) {
+  return `.light-env-room-disclosure[data-id="${cssAttrSelectorValue(id)}"]`;
+}
+function lightEnvScreenAnchor(id) {
+  return `.light-env-screen-card[data-id="${cssAttrSelectorValue(id)}"]`;
+}
+function defaultActiveRoomId(rooms) {
+  if (!Array.isArray(rooms) || rooms.length === 0) return null;
+  if (rooms.length === 1) return rooms[0]?.id || null;
+  const sorted = rooms.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return sorted[0]?.id || null;
+}
+function resolveActiveRoomId(rooms) {
+  const storedActiveId = readActiveRoomId();
+  if (isRoomCollapseSentinel(storedActiveId)) return null;
+  if (storedActiveId && rooms.find(r => r.id === storedActiveId)) return storedActiveId;
+  return defaultActiveRoomId(rooms);
 }
 
 function getMeasurementsFor(roomId) {
@@ -978,9 +1003,11 @@ export function refreshLightEnvironmentAssessment() {
   if (isLightEnvironmentAssessmentOpen()) renderLightEnvironmentAssessmentModal();
 }
 
-function refreshLightEnvironmentUI() {
+function refreshLightEnvironmentUI(options = {}) {
   refreshLightEnvironmentAssessment();
-  if (window.navigate && state.currentView === 'light') window.navigate('light');
+  if (window.navigate && state.currentView === 'light') {
+    window.navigate('light', options.scrollAnchor ? { scrollAnchor: options.scrollAnchor } : undefined);
+  }
 }
 
 // Disclosure-pattern room card. Header shows: name · severity dot ·
@@ -1158,8 +1185,8 @@ export function renderEnvironmentSection(options = {}) {
   // Rooms — disclosure list (mirrors EMF Assessment + Light Audits).
   // Each row is collapsed-by-default with name + severity + key
   // signals; clicking expands a Step 1/2/3 form. Auto-expands the
-  // only room when there's exactly one (no click needed for the
-  // common starter case) or the room marked active in localStorage.
+  // only room on first render (no click needed for the common starter
+  // case), but respects explicit collapse stored in localStorage.
   html += `<div class="light-env-block">
     <div class="light-env-block-head">
       <strong>Rooms you spend time in</strong>
@@ -1171,13 +1198,7 @@ export function renderEnvironmentSection(options = {}) {
       ${renderRoomQuickPicks(rooms)}
     </div>`;
   } else {
-    let activeId = readActiveRoomId();
-    if (rooms.length === 1) activeId = rooms[0].id; // single-room: always expanded
-    else if (!rooms.find(r => r.id === activeId)) {
-      // Pick most-recently-edited as the default expanded room
-      const sorted = rooms.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      activeId = sorted[0].id;
-    }
+    const activeId = resolveActiveRoomId(rooms);
     html += `<div class="light-env-room-list">`;
     for (const r of rooms) {
       html += renderRoomDisclosure(r, r.id === activeId);
@@ -1743,6 +1764,10 @@ if (typeof window !== 'undefined') {
     // toggle button, severity dot tooltip area) so they don't double-
     // fire as both their own action AND a card toggle.
     toggleLightEnvRoomExpanded: (id, event) => {
+      if (event) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+      }
       // Bail if the click landed on an interactive descendant (button,
       // input, select, label, anchor) — let it handle its own action.
       if (event && event.target) {
@@ -1763,9 +1788,10 @@ if (typeof window !== 'undefined') {
           }
         }
       }
-      const current = readActiveRoomId();
-      writeActiveRoomId(current === id ? null : id);
-      refreshLightEnvironmentUI();
+      const rooms = getEnvironment()?.rooms || [];
+      const current = resolveActiveRoomId(rooms);
+      writeActiveRoomId(current === id ? COLLAPSED_ROOM_ID : id);
+      refreshLightEnvironmentUI({ scrollAnchor: lightEnvRoomAnchor(id) });
     },
     updateLightEnvRoom: async (id, patch) => { await updateRoom(id, patch); },
     // Chip-picker setters — translate archetype/bucket choices into
@@ -1895,6 +1921,10 @@ if (typeof window !== 'undefined') {
     // Disclosure toggle for screen cards — same event-target gating as
     // the room toggle so clicks on inner controls don't double-fire.
     toggleLightEnvScreenExpanded: (id, event) => {
+      if (event) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+      }
       if (event && event.target) {
         const t = event.target;
         if (t.closest('button, input, select, textarea, a, label')
@@ -1909,7 +1939,7 @@ if (typeof window !== 'undefined') {
         }
       }
       _expandedScreenId = (_expandedScreenId === id) ? null : id;
-      refreshLightEnvironmentUI();
+      refreshLightEnvironmentUI({ scrollAnchor: lightEnvScreenAnchor(id) });
     },
     setLightEnvScreenHoursBucket: async (id, bucketKey) => {
       const b = SCREEN_HOURS_BUCKETS.find(x => x.key === bucketKey);
