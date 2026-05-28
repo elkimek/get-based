@@ -75,6 +75,9 @@
 .chat-msg em { font-style: italic; }
 .chat-user .chat-para { margin-bottom: 4px; }
 .chat-user .chat-list { margin-bottom: 4px; }
+.chat-emf-hint { font-size: 12px; color: var(--text-secondary); margin-top: 10px; padding: 6px 10px; background: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; line-height: 1.5; }
+.chat-emf-hint a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.chat-emf-hint a:hover { text-decoration: underline; }
 .typing-indicator {
   display: inline-flex; gap: 4px; padding: 10px 14px;
   background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border);

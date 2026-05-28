@@ -76,6 +76,9 @@
 .recommendation-detail-modal .rec-section { border-top: 0; margin-top: 10px; padding-top: 0; }
 
 /* EMF mitigation product recs (Safe Living Technologies affiliate) */
+.ctx-tip-emf-nudge { font-size: 12px; color: var(--text-secondary); margin-top: 12px; padding: 8px 10px; background: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; line-height: 1.5; }
+.ctx-tip-emf-nudge a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.ctx-tip-emf-nudge a:hover { text-decoration: underline; }
 .rec-emf-section { margin-top: 12px; }
 .rec-emf-product { display: block; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(99, 102, 241, 0.03); }
 .rec-emf-product-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }

@@ -638,6 +638,19 @@ details[open] > .cl-archived-header::before { content: '\25BE '; }
   color: var(--on-accent);
 }
 .cl-form-save:hover { opacity: 0.9; }
+
+/* Client biometrics */
+.cl-bio-toggle .cl-bio-arrow { font-size: 10px; display: inline-block; margin-right: 2px; }
+.cl-bio-add { background: none; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-family: inherit; white-space: nowrap; }
+.cl-bio-add:hover { border-color: var(--accent); color: var(--accent); }
+.cl-bio-unit-toggle { color: var(--accent); text-decoration: none; font-weight: 400; }
+.cl-bio-unit-toggle:hover { text-decoration: underline; }
+.cl-bio-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.cl-bio-history-link { color: var(--accent); text-decoration: none; }
+.cl-bio-history-link:hover { text-decoration: underline; }
+.cl-bio-show-all { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 11px; padding: 4px 12px; font-family: inherit; }
+.cl-bio-show-all:hover { text-decoration: underline; }
+
 @media (min-width: 1400px) {
   .modal.client-list-modal { width: min(92vw, 860px); max-width: 860px; }
 }

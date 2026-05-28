@@ -738,6 +738,66 @@
   }
 }
 
+/* Manual Entry Button & Form */
+.manual-entry-btn {
+  width: 100%; padding: 10px; border-radius: 6px;
+  border: 1px dashed var(--border); background: transparent;
+  color: var(--text-secondary); font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: all 0.15s;
+  margin-top: 8px;
+}
+.manual-entry-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.05); }
+.manual-entry-form { margin-top: 16px; }
+.manual-entry-form .me-field { margin-bottom: 12px; }
+.manual-entry-form .me-field label {
+  display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500;
+}
+.manual-entry-form .me-field input {
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+.manual-entry-form .me-field input:focus { border-color: var(--accent); }
+.manual-entry-form .me-field textarea {
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical;
+}
+.manual-entry-form .me-field textarea:focus { border-color: var(--accent); }
+.manual-entry-form .me-field select {
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+.manual-entry-form .me-field select:focus { border-color: var(--accent); }
+.manual-entry-form .me-field select.me-unit-select {
+  width: auto; padding: 2px 8px; font-size: 11px; margin-left: 6px;
+  font-weight: 400; color: var(--text-muted); vertical-align: middle;
+}
+.manual-entry-form .me-context {
+  font-size: 12px; color: var(--text-muted); margin-bottom: 16px;
+  padding: 10px; background: var(--bg-card); border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+/* Note icon in detail modal */
+.mv-note {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 6px; padding: 1px 5px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  text-transform: uppercase; cursor: pointer;
+}
+.mv-note:hover { border-color: var(--accent); color: var(--accent); }
+.mv-note-text {
+  display: none; font-size: 11px; color: var(--yellow);
+  margin-top: 6px; padding: 6px 8px; line-height: 1.4;
+  background: var(--yellow-bg); border-radius: 4px;
+  text-align: left; word-break: break-word;
+}
+.mv-note-text.show { display: block; }
+
 /* Marker Notes in Detail Modal */
 .marker-detail-modal .marker-note-section { margin: 12px 0; padding: 10px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); border: 1px solid var(--border); }
 .marker-detail-modal .marker-note-header { display: flex; justify-content: space-between; align-items: center; }

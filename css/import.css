@@ -376,6 +376,14 @@
 .import-btn-secondary { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
 .import-btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border); }
 
+.batch-progress-counter {
+  text-align: center; color: var(--accent); font-weight: 600; font-size: 14px;
+  margin-bottom: 12px;
+}
+.batch-counter {
+  color: var(--accent); font-size: 13px; font-weight: 600; margin-bottom: 8px;
+}
+
 .import-status-fab {
   position: fixed; bottom: 92px; right: 24px; z-index: 1001;
   height: 36px; border-radius: 18px; padding: 0 12px 0 10px;

@@ -220,6 +220,8 @@
 .supp-form-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
 .supp-form-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .supp-form-field { flex: 1 1 150px; min-width: 0; max-width: 100%; }
+.modal .supp-form-row { flex-wrap: wrap; }
+.modal .supp-form-field { min-width: min(140px, 100%); }
 .supp-form-field-compact { flex: 0 0 100px; }
 .supp-form-field-wide { flex: 2 1 220px; }
 .supp-form-field label {

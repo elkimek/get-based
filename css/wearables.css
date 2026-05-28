@@ -979,6 +979,9 @@
   margin-top: 4px;
 }
 .wearable-adapter-card.show-help .wearable-adapter-help { display: block; }
+.wearable-detail-emf-hint { font-size: 12px; color: var(--text-secondary); margin-top: 14px; padding: 8px 10px; background: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; line-height: 1.5; }
+.wearable-detail-emf-hint a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.wearable-detail-emf-hint a:hover { text-decoration: underline; }
 
 /* Responsive: 2 cols → 1 col */
 @media (max-width: 900px) {
@@ -988,4 +991,16 @@
   .wearable-card-grid { grid-template-columns: 1fr; gap: 8px; }
   .wearable-strip { padding: 12px 12px 10px; }
   .wearable-strip-meta { font-size: 11px; gap: 8px; flex-wrap: wrap; }
+}
+@media (pointer: coarse) {
+  .wearable-strip-sync,
+  .wearable-strip-reorder { min-height: 44px; padding: 8px 14px; }
+  .wearable-reorder-arrow { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .wearable-source-picker-item { min-height: 44px; padding: 10px 12px; }
+  .wearable-manual-entry-del { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .wearable-source-badge-btn { min-height: 32px; padding: 4px 10px; }
+  .wearable-action { min-height: 44px; padding: 10px 16px; }
+  .wearable-manual-add-btn,
+  .wearable-log-save,
+  .wearable-log-cancel { min-height: 44px; padding: 8px 14px; }
 }

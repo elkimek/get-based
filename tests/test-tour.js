@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // test-tour.js — Guided tour (spotlight walkthrough). Source-inspection of
 // tour.js (structure, TOUR_STEPS content, target-not-found skip logic,
-// viewport-clamping math), styles.css, main.js, views.js, settings.js,
+// viewport-clamping math), app shell CSS, main.js, views.js, settings.js,
 // service-worker.js.
 //
 // Run: node tests/test-tour.js  (or via npm test)
@@ -131,7 +131,7 @@ assert('Has fallback placement', tourSrc.includes('Fallback: place below'));
 // ═══════════════════════════════════════
 console.log('18. CSS Styles');
 
-const cssSrc = read('styles.css');
+const cssSrc = read('styles.css') + '\n' + read('css/app-shell.css');
 
 assert('CSS has #tour-overlay rule', cssSrc.includes('#tour-overlay'));
 assert('CSS overlay: z-index 500', cssSrc.includes('z-index: 500'));

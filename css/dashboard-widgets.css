@@ -176,6 +176,47 @@
   color: var(--text-muted); font-size: 13px;
 }
 .lens-widget-dashboard-toggle { width: auto; white-space: nowrap; }
+
+/* AI personalization CTA - inline pill that adapts to which feature is missing. */
+.dashboard-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding: 9px 16px;
+  background: color-mix(in srgb, var(--purple) 8%, transparent);
+  border: 1px solid var(--purple); border-radius: 999px;
+  font-size: 13px; font-weight: 500; color: var(--purple);
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.dashboard-cta:hover { background: color-mix(in srgb, var(--purple) 18%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple) 12%, transparent); }
+.dashboard-cta:active { transform: translateY(1px); }
+.dashboard-cta:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+.dashboard-cta-icon { font-size: 15px; line-height: 1; }
+.dashboard-cta-plus { font-weight: 600; opacity: 0.8; }
+
+/* Picker dialogs used by dashboard setup flows. */
+.ai-picker-grid, .dashboard-picker-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+}
+.dashboard-picker-grid { grid-template-columns: 1fr; }
+.ai-picker-card, .dashboard-picker-card {
+  display: flex; flex-direction: column; align-items: flex-start; text-align: left;
+  gap: 6px; padding: 14px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; font-family: inherit; color: var(--text-primary);
+  transition: border-color 0.15s, background 0.15s;
+  width: 100%;
+}
+.ai-picker-card:hover, .dashboard-picker-card:hover { border-color: var(--purple); background: var(--bg-hover); }
+.ai-picker-card:focus-visible, .dashboard-picker-card:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+.ai-picker-icon, .dashboard-picker-icon { font-size: 22px; line-height: 1; }
+.ai-picker-title, .dashboard-picker-title { font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.ai-picker-sub, .dashboard-picker-sub { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+.dashboard-picker-action { font-size: 12px; color: var(--purple); font-weight: 500; margin-top: 4px; }
+.dashboard-picker-card[data-configured="true"] { opacity: 0.7; cursor: default; }
+.dashboard-picker-card[data-configured="true"]:hover { border-color: var(--border); background: var(--bg-card); }
+.dashboard-picker-card[data-configured="true"] .dashboard-picker-action { color: var(--green); }
+.dashboard-picker-check { color: var(--green); font-weight: 700; }
+
 @media (max-width: 1100px) {
   .dashboard-widget-half,
   .dashboard-widget-two-third { grid-column: span 12; }
@@ -197,4 +238,7 @@
     max-width: calc(100vw - 24px);
   }
   .db-quick-marker-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .ai-picker-grid { grid-template-columns: 1fr; }
 }
