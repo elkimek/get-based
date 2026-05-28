@@ -92,7 +92,11 @@ return (async () => {
       try { window.navigate?.(view); } catch (e) { note(`navigate(${view}) threw: ${e.message}`); }
       await new Promise(r => setTimeout(r, 700));
     }
+    function clearTransientUi() {
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    }
     async function scan(stopName) {
+      clearTransientUi();
       let result;
       try {
         result = await window.axe.run(document, {

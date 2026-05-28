@@ -1274,12 +1274,32 @@ Block-aware markdown parser for chat rendering. Extracted from `chat.js`.
 
 ### `provider-panels.js`
 
-AI provider panel rendering for the settings modal. Extracted from `settings.js`.
+AI provider panel rendering for the settings modal. Owns provider selection, key validation flows, provider model dropdowns, balances, and local-model advisor wiring.
 
 **Key exports:**
-- `renderProviderPanels()` — renders the AI provider configuration panels in the settings modal
+- `renderAIProviderPanel(provider)` — returns the active provider configuration panel HTML
+- `switchAIProvider(provider)` — persists provider choice and refreshes the settings panel
+- Provider key/model helpers for Venice, OpenRouter, Routstr, PPQ, Custom API, and local OpenAI-compatible servers
 
-**Window exports:** none (imported by `settings.js`)
+**Window exports:** provider panel handlers used by Settings HTML `onclick` attributes, including imported Routstr wallet handlers from `provider-wallet-panels.js`
+
+### `provider-wallet-panels.js`
+
+Routstr/Cashu wallet UI and node funding actions used inside the Routstr provider panel. Extracted from `provider-panels.js` so wallet deposit, withdrawal, seed backup/restore, mint switching, and node deposit/refund behavior are isolated from general provider key/model rendering.
+
+**Key exports:**
+- `configureRoutstrWalletPanels(callbacks)` — injects provider-panel callbacks without introducing a circular module import
+- `routstrWalletActionButtons(active)` / `buildRoutstrNodeActions(nodeUrl, hasKey, active)` — render the wallet and node action controls used by the Routstr panel
+- `doRoutstrWalletFund()` / `doRoutstrNodeDeposit()` / `doRoutstrNodeWithdraw()` / withdraw and restore helpers — Cashu wallet and Routstr node action handlers
+
+**Window exports:** exported through `provider-panels.js` for legacy inline handlers.
+
+### `provider-qr.js`
+
+Shared QR-code loader for provider payment surfaces.
+
+**Key exports:**
+- `ensureQRCode()` — lazy-loads `/vendor/qrcode-generator.js` and returns the global `qrcode` factory
 
 ---
 

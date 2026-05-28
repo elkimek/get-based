@@ -31,6 +31,15 @@ return (async function() {
   assert('button order: OpenRouter before Venice',
     providerValues.indexOf('openrouter') < providerValues.indexOf('venice'),
     `openrouter@${providerValues.indexOf('openrouter')}, venice@${providerValues.indexOf('venice')}`);
+  const providerRows = Array.from(providerBtns).map(btn => Math.round(btn.getBoundingClientRect().top));
+  const providerRowCount = new Set(providerRows).size;
+  assert('provider buttons stay on one desktop row',
+    window.innerWidth <= 720 || providerRowCount === 1,
+    `rows=${providerRowCount}, viewport=${window.innerWidth}`);
+  const overflowingProvider = Array.from(providerBtns).find(btn => btn.scrollWidth > btn.clientWidth + 1);
+  assert('provider button labels fit on desktop',
+    window.innerWidth <= 720 || !overflowingProvider,
+    overflowingProvider ? `${overflowingProvider.dataset.provider}: ${overflowingProvider.scrollWidth}px > ${overflowingProvider.clientWidth}px` : '');
 
   window.switchAIProvider('openrouter');
   await new Promise(r => setTimeout(r, 100));

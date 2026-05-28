@@ -223,12 +223,18 @@
   padding: 10px; background: var(--bg-card); border-radius: var(--radius-sm);
   border: 1px solid var(--border); line-height: 1.5;
 }
-.ai-provider-toggle { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.ai-provider-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
 .ai-provider-btn {
-  padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border);
-  background: transparent; color: var(--text-secondary); font-size: 13px;
+  min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); font-size: 12px;
   cursor: pointer; font-weight: 500; transition: all 0.15s; font-family: inherit;
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;
+  flex: 1 1 auto;
 }
 @media (max-width: 480px) {
   .ai-provider-btn { padding: 5px 10px; font-size: 12px; gap: 3px; }
@@ -563,6 +569,8 @@
     min-width: 0;
   }
   .settings-modal .ai-provider-toggle {
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
   }
   .settings-modal .ai-provider-btn {

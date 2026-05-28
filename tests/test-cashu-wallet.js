@@ -55,6 +55,8 @@ const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiSrc = await fetchWithRetry('js/api.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
+const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
+const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
 const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
 const cryptoSrc = await fetchWithRetry('js/crypto.js');
@@ -153,7 +155,7 @@ assert('Fee minimum threshold for melt', walletSrc.includes('FEE_MELT_MIN_SATS')
 assert('Fee auto-melt is fire-and-forget', walletSrc.includes('}).catch(() => {}); // fire-and-forget'));
 assert('Fee Lightning address configured', walletSrc.includes('FEE_LN_ADDRESS'));
 assert('LNURL-pay resolution', walletSrc.includes('.well-known/lnurlp/'));
-assert('Fee text gated on cashuGetFeePct', ppSrc.includes('cashuGetFeePct'));
+assert('Fee text gated on cashuGetFeePct', walletPanelSrc.includes('cashuGetFeePct'));
 
 // ═══════════════════════════════════════
 // 7. NOSTR DISCOVERY — MODULE EXPORTS
@@ -236,6 +238,8 @@ console.log('13. Service Worker Cache');
 
 assert('SW caches cashu-wallet.js', swSrc.includes('/js/cashu-wallet.js'));
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
+assert('SW caches provider-wallet-panels.js', swSrc.includes('/js/provider-wallet-panels.js'));
+assert('SW caches provider-qr.js', swSrc.includes('/js/provider-qr.js'));
 assert('SW caches vendor/cashu-ts.js', swSrc.includes('/vendor/cashu-ts.js'));
 assert('SW caches vendor/bip39-minimal.js', swSrc.includes('/vendor/bip39-minimal.js'));
 
@@ -257,16 +261,27 @@ console.log('15. Settings UI');
 
 assert('Wallet section in Routstr panel', ppSrc.includes('routstr-wallet-balance'));
 assert('Mint label display', ppSrc.includes('routstr-mint-label'));
-assert('Mint edit UI', ppSrc.includes('showRoutstrMintEdit'));
-assert('Node picker UI', ppSrc.includes('showRoutstrNodePicker'));
-assert('Deposit amount picker', ppSrc.includes('routstr-deposit-amount'));
-assert('Node withdraw handler', ppSrc.includes('doRoutstrNodeWithdraw'));
-assert('Seed onboarding gate', ppSrc.includes('_ensureWalletSeed'));
-assert('Seed acknowledgment checkbox', ppSrc.includes('routstr-seed-ack'));
-assert('Wallet action buttons', ppSrc.includes('_walletActionButtons'));
-assert('Wallet backup (export token)', ppSrc.includes('showRoutstrWalletBackup'));
-assert('Lightning withdraw UI', ppSrc.includes('showRoutstrWithdrawLightning'));
-assert('Cashu token withdraw UI', ppSrc.includes('showRoutstrWithdrawToken'));
+assert('provider-panels imports wallet panel module', ppSrc.includes("from './provider-wallet-panels.js'"));
+assert('provider-panels configures wallet callbacks', ppSrc.includes('configureRoutstrWalletPanels({'));
+assert('provider-panels clears extracted wallet timers', ppSrc.includes('clearRoutstrWalletTimers();'));
+assert('provider-panels uses extracted Routstr balance refresh',
+  ppSrc.includes('renderRoutstrModelDropdown(models); });\n    refreshRoutstrBalance();') && !ppSrc.includes('_rsBalanceHtml'));
+assert('Routstr panel uses extracted wallet action buttons', ppSrc.includes('routstrWalletActionButtons(null)'));
+assert('Routstr panel uses extracted node action buttons', ppSrc.includes('buildRoutstrNodeActions(nodeUrl, !!currentKey, null)'));
+assert('Mint edit UI', walletPanelSrc.includes('showRoutstrMintEdit'));
+assert('Node picker UI', walletPanelSrc.includes('showRoutstrNodePicker'));
+assert('Deposit amount picker', walletPanelSrc.includes('routstr-deposit-amount'));
+assert('Node withdraw handler', walletPanelSrc.includes('doRoutstrNodeWithdraw'));
+assert('Wallet panel imports Routstr key helpers', walletPanelSrc.includes('getRoutstrKey') && walletPanelSrc.includes('saveRoutstrKey'));
+assert('Wallet panel keeps mint SSRF guard', walletPanelSrc.includes('isValidExternalUrl'));
+assert('Seed onboarding gate', walletPanelSrc.includes('_ensureWalletSeed'));
+assert('Seed acknowledgment checkbox', walletPanelSrc.includes('routstr-seed-ack'));
+assert('Wallet action buttons', walletPanelSrc.includes('routstrWalletActionButtons'));
+assert('Wallet panel owns fund timer cleanup', walletPanelSrc.includes('export function clearRoutstrWalletTimers()'));
+assert('Wallet backup (export token)', walletPanelSrc.includes('showRoutstrWalletBackup'));
+assert('Lightning withdraw UI', walletPanelSrc.includes('showRoutstrWithdrawLightning'));
+assert('Cashu token withdraw UI', walletPanelSrc.includes('showRoutstrWithdrawToken'));
+assert('Provider QR helper lazy-loads QR library', providerQrSrc.includes('loadScriptOnce') && providerQrSrc.includes('/vendor/qrcode-generator.js'));
 
 // ═══════════════════════════════════════
 // 16. BIP-39 SEED GENERATION

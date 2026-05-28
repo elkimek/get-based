@@ -27,6 +27,7 @@ const TEST_FILES = [
   // querySelectorAll on rendered provider cards) lives in
   // test-openrouter-dom.js below.
   'tests/test-openrouter-dom.js',
+  'tests/test-routstr-wallet-dom.js',
   // test-tour.js source-inspection ported to Vitest (batch 30). Live tour
   // overlay/spotlight/tooltip DOM sections live in test-tour-dom.js below.
   'tests/test-tour-dom.js',
