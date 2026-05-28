@@ -341,7 +341,11 @@ const {
     envSrc.includes('Save audit snapshots before and after changes') &&
     !envSrc.includes('The Light page keeps the summary'));
   const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
-  const cssSrc = await (await import('node:fs/promises')).readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8');
+  const fs = await import('node:fs/promises');
+  const cssSrc = [
+    await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
+    await fs.readFile(new URL('../css/light-env.css', import.meta.url), 'utf8'),
+  ].join('\n');
   assert('Light assessment is linked from sidebar Analysis tools',
     navSrc.includes("label: 'Light assessment'") &&
     navSrc.includes("key: 'light-env-assessment'") &&
