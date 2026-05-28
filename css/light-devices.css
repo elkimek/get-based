@@ -150,6 +150,42 @@
   margin-top: 4px;
   line-height: 1.4;
 }
+.dev-mode-field > span {
+  display: block;
+}
+.dev-mode-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.dev-mode-btn {
+  min-width: 0;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.dev-mode-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+.dev-mode-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 /* Distance input + per-field cm/in unit toggle. The toggle sits to the
    right of the number input; clicking flips both the visible value and
    the underlying data-unit attribute. Lets a user enter the spec in

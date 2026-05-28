@@ -1490,14 +1490,14 @@ export async function openDeviceSessionDialog(deviceId) {
   }
   // Mode picker — only renders for devices with multiple modes (Maxi UVB,
   // Trinity, etc.). Coupling-violating modes are filtered out so users
-  // can't pick the device into an unsafe state from the dropdown
+  // can't pick the device into an unsafe state from the in-modal picker
   // (e.g. Maxi UVB has no UV-only entry; D-Light on Trinity stays
   // available since Trinity has no coupling rules).
-  const showModePicker = Array.isArray(device.modes) && device.modes.length > 1;
   const validateMode = window.validateModeCoupling || (() => ({ ok: true }));
-  const validModes = showModePicker
+  const validModes = Array.isArray(device.modes)
     ? device.modes.filter(m => validateMode(device, m.id).ok)
     : [];
+  const showModePicker = validModes.length > 1;
   let defaultMode = null;
   if (showModePicker) {
     const lastModeValid = last.mode && validModes.some(m => m.id === last.mode);
@@ -1512,11 +1512,13 @@ export async function openDeviceSessionDialog(deviceId) {
     </div>
     <div class="modal-body">
       ${showModePicker ? `
-        <label class="ctx-label">Mode
-          <select id="dev-session-mode" class="ctx-select" title="Which LED groups were firing for this session — picked from the device's vendor-defined modes. Affects channel-dose math (e.g. red/NIR-only mode contributes ~0 vit-D).">
-            ${validModes.map(m => `<option value="${escapeAttr(m.id)}"${m.id === defaultMode ? ' selected' : ''}>${escapeHTML(m.label || m.id)}</option>`).join('')}
-          </select>
-        </label>
+        <div class="ctx-label dev-mode-field">
+          <span>Mode</span>
+          <input type="hidden" id="dev-session-mode" value="${escapeAttr(defaultMode || '')}" />
+          <div class="dev-mode-picker" role="radiogroup" aria-label="Device mode">
+            ${validModes.map(m => `<button type="button" class="dev-mode-btn${m.id === defaultMode ? ' active' : ''}" data-mode="${escapeAttr(m.id)}" role="radio" aria-checked="${m.id === defaultMode ? 'true' : 'false'}" title="Which LED groups were firing for this session — picked from the device's vendor-defined modes. Affects channel-dose math.">${escapeHTML(m.label || m.id)}</button>`).join('')}
+          </div>
+        </div>
       ` : ''}
       <label class="ctx-label">Duration (minutes)
         <input type="number" id="dev-session-duration" class="ctx-input" min="1" max="120" value="${defaultDuration}" />
@@ -1568,6 +1570,39 @@ export async function openDeviceSessionDialog(deviceId) {
     </div>
   </div>`;
   _wireModal(overlay);
+
+  let lastModePointerActivation = 0;
+  const setMode = (btn) => {
+    const mode = btn.dataset.mode || '';
+    const input = overlay.querySelector('#dev-session-mode');
+    if (input) input.value = mode;
+    for (const b of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
+      const active = b === btn;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-checked', active ? 'true' : 'false');
+    }
+  };
+  for (const btn of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
+    btn.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse') return;
+      setMode(btn);
+      lastModePointerActivation = Date.now();
+      e.preventDefault();
+    }, { passive: false });
+    btn.addEventListener('touchend', (e) => {
+      if (Date.now() - lastModePointerActivation < 80) return;
+      setMode(btn);
+      lastModePointerActivation = Date.now();
+      e.preventDefault();
+    }, { passive: false });
+    btn.addEventListener('click', (e) => {
+      if (Date.now() - lastModePointerActivation < 700) {
+        e.preventDefault();
+        return;
+      }
+      setMode(btn);
+    });
+  }
 
   // Silhouette wiring — pre-selected regions plus an updateHint
   // callback that recomputes the % skin coverage shown under the

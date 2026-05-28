@@ -81,8 +81,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     // PREVIOUSLY cached URL so the SVG keeps showing old selections
     // until the new blob is ready. Without this, every tap briefly
     // cleared all selections (~150ms PNG encode gap).
-    assert('sun.js: _overlayPending branch returns previous URL (not null)',
-      /if \(_overlayPending\) return _overlayCache\.url \|\| null/.test(sunSrc));
+    assert('sun.js: _overlayPending branch queues latest selection and returns previous URL',
+      /if \(_overlayPending\) \{\s*_overlayQueued = \{ selected: new Set\(selected\), onReady \};\s*return _overlayCache\.url \|\| null;\s*\}/.test(sunSrc));
     assert('sun.js: post-canvas-work returns previous URL during encode',
       /return _overlayCache\.url \|\| null;\s*\}/.test(sunSrc));
   }

@@ -740,6 +740,14 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .sun-silhouette-region.selected:hover {
   fill-opacity: 0.85;
 }
+.sun-silhouette-stock[data-selection-overlay="pending"] .sun-silhouette-region.selected {
+  fill-opacity: 0.55;
+  stroke-opacity: 0.55;
+}
+.sun-silhouette-stock[data-selection-overlay="ready"] .sun-silhouette-region.selected {
+  fill-opacity: 0.14;
+  stroke-opacity: 0.28;
+}
 
 /* Coarse-pointer (touch) — gently fatten the hit area so thin regions
    like thyroid / glutes / feet are still tappable. Earlier attempt at

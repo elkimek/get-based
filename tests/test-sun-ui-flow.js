@@ -306,11 +306,12 @@ return (async function() {
     await window.openDeviceSessionDialog('D-test-moded');
     await wait(40);
     const dlgModed = document.querySelector('.modal-overlay.show');
-    const picker = dlgModed?.querySelector('#dev-session-mode');
+    const picker = dlgModed?.querySelector('.dev-mode-picker');
+    const pickerInput = dlgModed?.querySelector('#dev-session-mode');
     assert('Mode picker renders for device with multiple modes',
-      !!picker, picker ? `options=${picker.querySelectorAll('option').length}` : 'missing');
+      !!picker && !!pickerInput, picker ? `buttons=${picker.querySelectorAll('.dev-mode-btn').length}` : 'missing');
     if (picker) {
-      const optionIds = Array.from(picker.querySelectorAll('option')).map(o => o.value);
+      const optionIds = Array.from(picker.querySelectorAll('.dev-mode-btn')).map(o => o.dataset.mode);
       assert('Mode picker offers all-on + red-nir-only',
         optionIds.includes('all-on') && optionIds.includes('red-nir-only'));
       // Coupling rule means a "uv-only" mode (if it existed) would be
@@ -318,7 +319,11 @@ return (async function() {
       assert('Mode picker filters coupling-violating modes',
         !optionIds.includes('uv-only'));
       assert('Mode picker pre-selects the default mode',
-        picker.value === 'all-on');
+        pickerInput?.value === 'all-on' && picker.querySelector('[data-mode="all-on"]')?.classList.contains('active'));
+      picker.querySelector('[data-mode="red-nir-only"]')?.click();
+      assert('Mode picker updates hidden value and active state',
+        pickerInput?.value === 'red-nir-only' &&
+        picker.querySelector('[data-mode="red-nir-only"]')?.getAttribute('aria-checked') === 'true');
     }
     dlgModed?.remove();
 
