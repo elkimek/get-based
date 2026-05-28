@@ -122,19 +122,12 @@ export async function deleteRoom(id) {
   const env = getEnvironment();
   recordTombstone(state.importedData, 'lightEnvironment.rooms', id);
   env.rooms = (env.rooms || []).filter(r => r.id !== id);
-  // Null out roomId on every measurement + screen that pointed at the
-  // deleted room. Without this they keep their stale roomId — invisible
-  // to the room-bound `getMeasurementsForRoom` query (which filters by
-  // exact match) but resurrectable if the user adds a new room with a
-  // colliding id (vanishingly rare but real). Confirm-dialog copy
-  // promises measurements stay accessible — make that promise true by
-  // unlinking them so they appear in unfiltered "all measurements"
-  // queries and can be re-associated to a different room.
+  // Measurements are meaningful only in the room context where they
+  // were taken. Deleting the room removes those readings instead of
+  // moving them into an unmapped "portable" bucket.
   const measurements = state.importedData?.lightMeasurements;
   if (Array.isArray(measurements)) {
-    for (const m of measurements) {
-      if (m && m.roomId === id) m.roomId = null;
-    }
+    state.importedData.lightMeasurements = measurements.filter(m => !m || m.roomId !== id);
   }
   if (Array.isArray(env.screens)) {
     for (const sc of env.screens) {
@@ -905,10 +898,12 @@ export function renderEnvironmentAssessmentSummary() {
   const screens = env?.screens || [];
   const audits = getLightAudits();
   const measurements = state.importedData?.lightMeasurements || [];
+  const roomIds = new Set(rooms.map(r => r.id).filter(Boolean));
+  const mappedMeasurements = measurements.filter(m => m?.roomId && roomIds.has(m.roomId));
   const burden = computeIndoorBurden();
   const activeRooms = rooms.filter(isActiveToday).length;
   const activeScreens = screens.filter(isActiveToday).length;
-  const measuredRooms = new Set(measurements.filter(m => m.roomId).map(m => m.roomId)).size;
+  const measuredRooms = new Set(mappedMeasurements.map(m => m.roomId)).size;
   const hasMapped = rooms.length > 0 || screens.length > 0;
   const hasRooms = rooms.length > 0;
   const actionLabel = hasMapped ? 'Open assessment' : 'Start assessment';
@@ -930,7 +925,7 @@ export function renderEnvironmentAssessmentSummary() {
   if (hasRooms) {
     metrics.push({
       label: 'Readings',
-      value: String(measurements.length),
+      value: String(mappedMeasurements.length),
       sub: measuredRooms ? `${measuredRooms} room${measuredRooms === 1 ? '' : 's'} measured` : 'Run lux/flicker/CCT',
     }, {
       label: 'Audits',
@@ -1236,34 +1231,6 @@ export function renderEnvironmentSection(options = {}) {
   }
   html += `</div>`;
 
-  // Portable readings — measurements taken via the Light Tools page
-  // without a room selected (roomId === null). Earlier these were
-  // invisible: the per-room render path filters by exact roomId match,
-  // and there was no global "all measurements" view. This collapsible
-  // block surfaces the unmatched readings so they can be re-tagged or
-  // simply confirmed as captured. Storage is now latest-per-(roomId,
-  // tool) so this list is bounded to ~1 row per tool (lux, flicker,
-  // cct, etc.) — no time window, no pagination needed.
-  const allMeasurements = state.importedData?.lightMeasurements || [];
-  const portable = allMeasurements
-    .filter(m => !m.roomId)
-    .sort((a, b) => (b.takenAt || b.capturedAt || 0) - (a.takenAt || a.capturedAt || 0));
-  if (rooms.length > 0 && portable.length > 0) {
-    html += `<details class="light-env-block light-env-portable-readings">
-      <summary><strong>Portable readings</strong> <span class="light-env-portable-count">${portable.length} not matched to a room</span></summary>
-      <div class="light-env-portable-readings-list">`;
-    for (const m of portable) {
-      const ts = m.takenAt || m.capturedAt || Date.now();
-      const icon = TOOL_ICONS[m.tool] || '·';
-      html += `<div class="light-env-portable-reading-row">
-        <span class="light-env-portable-reading-icon">${icon}</span>
-        <span class="light-env-portable-reading-value">${escapeHTML(fmtMeasureValue(m))}</span>
-        <span class="light-env-portable-reading-time">${escapeHTML(fmtMeasureTime(ts))}</span>
-      </div>`;
-    }
-    html += `</div></details>`;
-  }
-
   // Light Audits — frozen snapshots of rooms + screens + measurements.
   // Hidden until the user has at least one room mapped.
   if ((env?.rooms || []).length > 0) {
@@ -1300,12 +1267,12 @@ export async function saveLightAudit(label = '') {
   const env = getEnvironment();
   if (!env) return null;
   const audits = getLightAudits();
-  // Snapshot the current measurements — the live array is already a
-  // sparse latest-per-(roomId, tool) view (saveMeasurement supersedes
-  // priors), so no time-window filter is needed. Each audit deep-copies
-  // whatever rows are present at save time and lives forever in audit
-  // storage independent of future supersession.
-  const measurements = (state.importedData?.lightMeasurements || []).map(m => ({ ...m }));
+  // Snapshot only room-mapped measurements. Unmapped readings do not
+  // have enough context to grade or compare an environment change.
+  const roomIds = new Set((env.rooms || []).map(r => r.id).filter(Boolean));
+  const measurements = (state.importedData?.lightMeasurements || [])
+    .filter(m => m?.roomId && roomIds.has(m.roomId))
+    .map(m => ({ ...m }));
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const audit = {
@@ -1864,7 +1831,7 @@ if (typeof window !== 'undefined') {
     // room's footer. The bare delete handler stays in case anything
     // else wires it up without confirmation.
     deleteLightEnvRoomConfirm: async (id) => {
-      if (await showConfirmDialog('Delete this room? Measurements stay but lose their room link.')) {
+      if (await showConfirmDialog('Delete this room? Room-linked readings will be removed.')) {
         await deleteRoom(id);
         if (readActiveRoomId() === id) writeActiveRoomId(null);
         refreshLightEnvironmentUI();

@@ -300,11 +300,16 @@ const {
   window._labState.importedData.lightMeasurements.push({
     id: 'lm_x', tool: 'lux', value: 200, capturedAt: Date.now(),
     roomId: getEnvironment().rooms[0].id,
+  }, {
+    id: 'lm_unmapped', tool: 'cct', value: 5000, capturedAt: Date.now(),
+    roomId: null,
   });
 
   const audit = await saveLightAudit('Initial baseline');
   assert('saveLightAudit returns the audit object', audit && audit.id);
   assert('Audit captures label', audit.label === 'Initial baseline');
+  assert('Audit snapshots only room-mapped measurements',
+    audit.measurements.length === 1 && audit.measurements[0].id === 'lm_x');
   assert('Audit appears in getLightAudits',
     getLightAudits().some(a => a.id === audit.id));
 
@@ -381,6 +386,21 @@ const {
     emptyAssessmentHtml.includes('📱 Phone') &&
     !emptyAssessmentHtml.includes('+ Bedroom') &&
     !emptyAssessmentHtml.includes('+ 📱 Phone'));
+  window._labState.importedData = {
+    lightEnvironment: { rooms: [{ id: 'mapped-room', name: 'Bedroom' }], screens: [] },
+    lightMeasurements: [
+      { id: 'unmapped-reading', tool: 'lux', roomId: null, value: 50, takenAt: Date.now() },
+      { id: 'stale-room-reading', tool: 'cct', roomId: 'deleted-room', value: 5000, takenAt: Date.now() },
+    ],
+    lightAudits: [],
+  };
+  const unmappedSummaryHtml = renderEnvironmentAssessmentSummary();
+  const unmappedAssessmentHtml = renderEnvironmentSection({ embedded: true });
+  assert('Assessment summary counts only readings mapped to existing rooms',
+    /light-env-assessment-metric-label">Readings<\/span>\s*<strong>0<\/strong>/.test(unmappedSummaryHtml));
+  assert('Assessment workspace hides unmapped portable readings',
+    !unmappedAssessmentHtml.includes('Portable readings') &&
+    !unmappedAssessmentHtml.includes('not matched to a room'));
   window._labState.importedData = beforeEmptyAssessment;
 
   const beforeDisclosureState = window._labState.importedData;
@@ -441,9 +461,8 @@ const {
 
   // ─── deleteRoom orphan cleanup ─────────────────────────────────────
   // Earlier deleteRoom dropped the room but left measurements + screens
-  // pointing at the dead id. Now those references null out so the
-  // measurements stay accessible (per the confirm-dialog promise) and
-  // can be re-associated with a new room.
+  // pointing at the dead id. Room-bound measurements are now deleted
+  // with the room; screens are kept but become portable.
   console.log('%c deleteRoom orphan cleanup ', 'font-weight:bold;color:#f59e0b');
   window._labState.importedData = {
     lightEnvironment: {
@@ -458,8 +477,8 @@ const {
   await deleteRoom('r-orphan');
   const measurementsAfter = window._labState.importedData.lightMeasurements;
   const screensAfter = window._labState.importedData.lightEnvironment.screens;
-  assert('deleteRoom nulls roomId on linked measurements',
-    measurementsAfter.find(m => m.id === 'm-orphan-1').roomId === null);
+  assert('deleteRoom removes linked measurements',
+    !measurementsAfter.find(m => m.id === 'm-orphan-1'));
   assert('deleteRoom leaves measurements pointing at OTHER rooms untouched',
     measurementsAfter.find(m => m.id === 'm-orphan-2').roomId === 'other-room');
   assert('deleteRoom nulls roomId on linked screens',
