@@ -1395,6 +1395,7 @@ Not separately documented because their exports are best read from source — ke
 - `provider-panels.js` — Settings → AI per-provider panels (Venice / OpenRouter / Routstr / PPQ / Local AI / Custom) plus shared model-advisor.
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `sun-body-silhouette.js` — anatomical sun-session body-region picker, stock-figure region-map hit testing, and async selection overlay. Re-exported by `sun.js` for compatibility.
+- `light-device-session-modal.js` — log/start light therapy device session modal; dependency-injected from `light-devices.js` so session persistence and active timer state stay in the owning module.
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
 - `sync.js` — Public sync entry/barrel; exports sync lifecycle, actions, diagnostics, relay, identity, and cutover APIs while delegating dependency wiring to `sync-configure.js`.
