@@ -317,7 +317,7 @@ assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSI
 
 // ─── Section 16: CSS classes ───
 console.log('Section 16: CSS classes');
-const cssSrc = ['styles.css', 'css/chat-panel.css'].map(read).join('\n');
+const cssSrc = ['styles.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/chat-redesign.css'].map(read).join('\n');
 const cssClasses = [
   'chat-action-bar', 'chat-action-btn', 'chat-context-toggle',
   'chat-context-details', 'chat-context-item',

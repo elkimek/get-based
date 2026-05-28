@@ -337,7 +337,7 @@ assert('clearLensCache callable', true);
 
 // ─── 18. CSS classes for indicator states ───
 console.log('\n18. CSS classes');
-const cssSrc = ['styles.css', 'css/chat-panel.css'].map(read).join('\n');
+const cssSrc = ['styles.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/chat-redesign.css'].map(read).join('\n');
 assert('styles include .chat-lens-indicator', cssSrc.includes('.chat-lens-indicator'));
 assert('styles include .chat-lens-dot', cssSrc.includes('.chat-lens-dot'));
 assert('styles include active state', cssSrc.includes('.chat-lens-indicator.active'));

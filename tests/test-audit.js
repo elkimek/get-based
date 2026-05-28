@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/redesign-shell.css', 'css/redesign-chat.css'];
+const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
@@ -103,6 +103,25 @@ assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/re
 assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
 assert('index loads chat panel CSS bundle', indexSrc.includes('href="css/chat-panel.css"'));
 assert('SW APP_SHELL includes chat panel CSS bundle', swAuditSrc.includes("'/css/chat-panel.css'"));
+const CHAT_CSS_BUNDLES = [
+  'css/chat-personality.css',
+  'css/chat-messages.css',
+  'css/chat-composer.css',
+  'css/chat-onboarding.css',
+  'css/chat-responsive.css',
+  'css/chat-actions.css',
+  'css/chat-mobile.css',
+  'css/chat-redesign.css',
+];
+for (const chatCss of CHAT_CSS_BUNDLES) {
+  assert(`index loads ${chatCss}`, indexSrc.includes(`href="${chatCss}"`));
+  assert(`SW APP_SHELL includes ${chatCss}`, swAuditSrc.includes(`'/${chatCss}'`));
+}
+assert('chat CSS split loads before chat redesign overrides',
+  indexSrc.indexOf('href="css/chat-mobile.css"') < indexSrc.indexOf('href="css/redesign-shell.css"') &&
+  indexSrc.indexOf('href="css/redesign-shell.css"') < indexSrc.indexOf('href="css/chat-redesign.css"') &&
+  swAuditSrc.indexOf("'/css/chat-mobile.css'") < swAuditSrc.indexOf("'/css/redesign-shell.css'") &&
+  swAuditSrc.indexOf("'/css/redesign-shell.css'") < swAuditSrc.indexOf("'/css/chat-redesign.css'"));
 assert('Umami analytics script present (self-hosted)', indexSrc.includes('umami-iota-olive.vercel.app/script.js'));
 assert('Umami blocked on file:// protocol', /location\.protocol\s*!==\s*['"]file:['"]/.test(indexSrc));
 

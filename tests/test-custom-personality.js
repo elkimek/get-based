@@ -206,7 +206,7 @@ assert('sendChatMessage handles AbortError', sendSrc2.includes('AbortError'));
 
 // ── 19. Stop button CSS ──
 console.log('19. Stop button CSS');
-const css = ['styles.css', 'css/chat-panel.css'].map(read).join('\n');
+const css = ['styles.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/chat-redesign.css'].map(read).join('\n');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionFlowSrc = read('js/chat-discussion-flow.js');

@@ -158,6 +158,8 @@ assert('PDF text extraction uses resilient file read helper', pdfSrc.includes('c
 const cssSrc = [
   await fetchWithRetry('styles.css'),
   await fetchWithRetry('css/chat-panel.css'),
+  await fetchWithRetry('css/chat-composer.css'),
+  await fetchWithRetry('css/chat-redesign.css'),
 ].join('\n');
 assert('.chat-attach-btn style exists in CSS bundle', cssSrc.includes('.chat-attach-btn'));
 assert('.chat-attach-preview style exists in CSS bundle', cssSrc.includes('.chat-attach-preview'));

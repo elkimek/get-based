@@ -1,0 +1,68 @@
+/* Chat Example Prompts */
+.chat-prompts { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; width: 100%; }
+.chat-prompt-btn {
+  padding: 10px 16px; border-radius: 20px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); font-size: 13px;
+  cursor: pointer; font-family: inherit; transition: all 0.15s; text-align: left;
+}
+.chat-prompt-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.05); }
+
+.chat-cost-footnote {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  opacity: 0.6;
+}
+/* Chat Action Bar */
+.chat-action-bar {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.chat-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s;
+}
+.chat-action-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+/* Context used toggle + details */
+.chat-context-toggle {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+  user-select: none;
+}
+.chat-context-toggle:hover {
+  color: var(--text-secondary);
+}
+.chat-toggle-arrow {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  font-size: 10px;
+}
+.chat-context-details {
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 6px 0 2px 14px;
+}
+.chat-context-item {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
