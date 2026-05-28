@@ -2303,25 +2303,11 @@
   text-transform: uppercase; letter-spacing: 0.04em;
   flex: 1;
 }
-/* "+ Add a screen here" — dashed-outline button at the bottom of
-   each room's Step 3 list. Distinguishes "add" from primary CTAs. */
-.light-env-add-screen-here {
-  background: transparent; border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  padding: 4px 10px; font-size: 12px;
-  color: var(--text-secondary); cursor: pointer;
-  font-family: inherit;
-  margin-top: 8px;
-}
-.light-env-add-screen-here:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 /* Quick-pick chip row inside Step 3 — mirrors the room quick-picks at
-   the bottom of the Rooms section. Common device types are one-click;
-   "+ Other…" falls back to the device-by-room-name inference path. */
+   the bottom of the Rooms section. Shared row styles come from
+   .light-env-quickpicks-row; this selector only spaces the row from
+   the preceding screen list / empty copy. */
 .light-env-screen-quickpicks {
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
   margin-top: 10px;
 }
 
