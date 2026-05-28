@@ -30,6 +30,7 @@ const {
   computeRoomSeverity, computeScreenStatus,
   computeIndoorBurden, computeDeficitAxes,
   getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
+  renderEnvironmentAssessmentSummary, renderEnvironmentSection,
 } = env;
 
   const orig = window._labState.importedData;
@@ -314,6 +315,26 @@ const {
   await deleteLightAudit(audit.id);
   assert('deleteLightAudit removes from list',
     !getLightAudits().some(a => a.id === audit.id));
+
+  // ─── 11. Assessment surface renderers ───────────────────────────────
+  console.log('%c 11. Assessment surface renderers ', 'font-weight:bold;color:#f59e0b');
+
+  const summaryHtml = renderEnvironmentAssessmentSummary();
+  assert('Light page uses compact assessment summary shell',
+    summaryHtml.includes('light-env-assessment-summary') &&
+    summaryHtml.includes('Open assessment') &&
+    !summaryHtml.includes('light-env-room-disclosure'));
+  const fullHtml = renderEnvironmentSection();
+  assert('Full environment section remains available for the assessment workspace',
+    fullHtml.includes('class="light-env-head"') &&
+    fullHtml.includes('light-env-room-disclosure'));
+  const embeddedHtml = renderEnvironmentSection({ embedded: true });
+  assert('Embedded assessment section suppresses duplicate page header',
+    embeddedHtml.includes('light-env-section-embedded') &&
+    !embeddedHtml.includes('class="light-env-head"'));
+  assert('Assessment modal functions are exported on window',
+    typeof window.openLightEnvironmentAssessment === 'function' &&
+    typeof window.closeLightEnvironmentAssessment === 'function');
 
   // ─── deleteRoom orphan cleanup ─────────────────────────────────────
   // Earlier deleteRoom dropped the room but left measurements + screens

@@ -573,8 +573,8 @@ export function showLight(_data) {
   });
   widgets.push({
     id: 'light-environment',
-    title: 'Light Environment',
-    description: 'Indoor rooms, screens, and evening light context',
+    title: 'Indoor Light Assessment',
+    description: 'Rooms, screens, measurements, and saved audit snapshots',
     body: `<div id="${escapeAttr(environmentSlotId)}" class="light-widget-loading">Loading environment...</div>`,
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
@@ -647,11 +647,9 @@ export function showLight(_data) {
   }
   const envSlot = document.getElementById(environmentSlotId);
   if (envSlot) {
-    const env = (window.getLightEnvironment && window.getLightEnvironment()) || null;
-    const hasLightEnvironment = !!(env?.rooms?.length || env?.screens?.length);
-    envSlot.outerHTML = hasLightEnvironment && window.renderEnvironmentSection
-      ? (window.renderEnvironmentSection() || '')
-      : renderLightWidgetPrompt('No rooms mapped', 'Map a room', "window.addLightEnvRoom && window.addLightEnvRoom()", 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
+    envSlot.outerHTML = window.renderEnvironmentAssessmentSummary
+      ? (window.renderEnvironmentAssessmentSummary() || '')
+      : renderLightWidgetPrompt('No rooms mapped', 'Open assessment', "window.openLightEnvironmentAssessment && window.openLightEnvironmentAssessment()", 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
   }
   const toolsSlot = document.getElementById(toolsSlotId);
   if (toolsSlot) {

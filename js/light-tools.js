@@ -228,6 +228,9 @@ export async function saveMeasurement(tool, value, opts = {}) {
   if (tool === 'spectrum' && opts.roomId && typeof window !== 'undefined' && typeof window.suggestRoomSourceFromSpectrum === 'function') {
     try { await window.suggestRoomSourceFromSpectrum(opts.roomId, value); } catch (e) {}
   }
+  if (typeof window !== 'undefined' && typeof window.refreshLightEnvironmentAssessment === 'function') {
+    try { window.refreshLightEnvironmentAssessment(); } catch (e) {}
+  }
   // Re-render the Light & Sun page if the user is on it so per-room
   // detail panels pick up the new reading + recompute severity dots.
   // Skip when any modal is still open — the tool may not have torn down

@@ -39,6 +39,7 @@ function handleDocumentClick(e) {
   }
   // Read-only modals close on backdrop click.
   if (e.target.id === "modal-overlay") { window.closeModal(); return; }
+  if (e.target.id === "light-env-assessment-overlay") { window.closeLightEnvironmentAssessment?.(); return; }
   if (e.target.id === "changelog-modal-overlay") { window.closeChangelog(); return; }
   // Auto-save modals close on backdrop click.
   if (e.target.id === "settings-modal-overlay") { window.closeSettingsModal(); return; }
@@ -116,6 +117,13 @@ function handleAppKeydown(e) {
     if (settingsOverlay && settingsOverlay.classList.contains("show")) { window.closeSettingsModal(); return; }
     const tweaksOverlay = document.getElementById("tweaks-panel-overlay");
     if (tweaksOverlay && tweaksOverlay.classList.contains("show")) { window.closeTweaksPanel(); return; }
+    const anonymousOverlays = document.querySelectorAll('.modal-overlay.show:not([id])');
+    if (anonymousOverlays.length > 0) {
+      anonymousOverlays[anonymousOverlays.length - 1].remove();
+      return;
+    }
+    const lightEnvOverlay = document.getElementById("light-env-assessment-overlay");
+    if (lightEnvOverlay && lightEnvOverlay.classList.contains("show")) { window.closeLightEnvironmentAssessment?.(); return; }
     const modalOverlay = document.getElementById("modal-overlay");
     if (modalOverlay && modalOverlay.classList.contains("show")) { window.closeModal(); return; }
     // Generic fallback: anonymous dynamically-injected overlays.
@@ -129,10 +137,12 @@ function handleAppKeydown(e) {
 
   // Focus trap for open modals. Sync overlays use `.confirm-overlay` too.
   if (e.key === "Tab") {
-    const overlayIds = ["client-list-overlay", "changelog-modal-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "data-protection-picker-overlay"];
+    const overlayIds = ["client-list-overlay", "changelog-modal-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "data-protection-picker-overlay"];
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {
+        const openOverlays = Array.from(document.querySelectorAll('.modal-overlay.show'));
+        if (openOverlays.length && openOverlays[openOverlays.length - 1] !== ov) continue;
         const modal = ov.querySelector('[role="dialog"]') || ov.querySelector('.modal') || ov.querySelector('.confirm-dialog') || ov;
         const focusable = modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])');
         if (focusable.length === 0) return;

@@ -1819,6 +1819,112 @@
 }
 
 /* Light Environment — rooms + screens survey */
+.light-env-assessment-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-left: 4px solid var(--text-muted);
+  padding-left: 14px;
+}
+.light-env-assessment-summary-green { border-left-color: var(--green); }
+.light-env-assessment-summary-orange { border-left-color: var(--orange); }
+.light-env-assessment-summary-red { border-left-color: var(--red); }
+.light-env-assessment-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.light-env-assessment-tier {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 16px;
+}
+.light-env-assessment-parts {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.light-env-assessment-lead {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.light-env-assessment-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.light-env-assessment-metric {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.light-env-assessment-metric-label,
+.light-env-assessment-metric span:last-child {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+.light-env-assessment-metric strong {
+  color: var(--text-primary);
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.light-env-assessment-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.light-env-assessment-overlay.modal-overlay.show {
+  align-items: flex-start;
+  overflow-y: auto;
+}
+.light-env-assessment-modal {
+  width: min(96vw, 980px);
+  max-width: 980px;
+  max-height: none;
+  margin: 24px 0;
+}
+.light-env-assessment-modal .modal-header {
+  margin-bottom: 6px;
+  padding-right: 38px;
+}
+.light-env-assessment-modal-copy {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.light-env-section-embedded {
+  margin-top: 0;
+}
+.light-env-section-embedded .light-env-summary-top {
+  margin-top: 0;
+}
+@media (max-width: 700px) {
+  .light-env-assessment-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .light-env-assessment-modal {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+}
+@media (max-width: 420px) {
+  .light-env-assessment-metrics {
+    grid-template-columns: 1fr;
+  }
+}
 .light-env-section { margin-top: 24px; }
 .light-env-block { margin-top: 16px; }
 .light-env-portable-readings > summary {
