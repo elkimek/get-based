@@ -76,15 +76,15 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 3. v1.6.7 Body-region picker render race (overlay caching) ─────
   console.log('%c 3. Selection overlay cache reuse during PNG encode ', 'font-weight:bold;color:#0891b2');
   {
-    const sunSrc = fetchSrc('js/sun.js');
+    const silhouetteSrc = fetchSrc('js/sun-body-silhouette.js');
     // When a fresh selection overlay is mid-encode, return the
     // PREVIOUSLY cached URL so the SVG keeps showing old selections
     // until the new blob is ready. Without this, every tap briefly
     // cleared all selections (~150ms PNG encode gap).
-    assert('sun.js: _overlayPending branch queues latest selection and returns previous URL',
-      /if \(_overlayPending\) \{\s*_overlayQueued = \{ selected: new Set\(selected\), onReady \};\s*return _overlayCache\.url \|\| null;\s*\}/.test(sunSrc));
-    assert('sun.js: post-canvas-work returns previous URL during encode',
-      /return _overlayCache\.url \|\| null;\s*\}/.test(sunSrc));
+    assert('sun-body-silhouette.js: _overlayPending branch queues latest selection and returns previous URL',
+      /if \(_overlayPending\) \{\s*_overlayQueued = \{ selected: new Set\(selected\), onReady \};\s*return _overlayCache\.url \|\| null;\s*\}/.test(silhouetteSrc));
+    assert('sun-body-silhouette.js: post-canvas-work returns previous URL during encode',
+      /return _overlayCache\.url \|\| null;\s*\}/.test(silhouetteSrc));
   }
 
   // ─── 4. v1.6.6 + v1.6.7 dailyVitaminDIUBreakdown matches rollingIU ──

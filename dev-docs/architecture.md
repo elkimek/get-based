@@ -106,6 +106,7 @@ js/
   category-customization.js — category/marker rename helpers and category icon picker
   light-page-view.js — Light & Sun page shell, Light Today strip, dashboard Light pills
   light-channel-view.js — Light channel pill rows, detail panels, citations, suggestions
+  sun-body-silhouette.js — anatomical sun-session body picker, region-map hit testing, selection overlay
   views.js          — route wiring and compatibility exports
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
