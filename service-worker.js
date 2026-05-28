@@ -290,6 +290,8 @@ const APP_SHELL = [
   '/js/light-env-ai-analysis.js',
   '/js/light-screen-ai-analysis.js',
   '/js/light-today-ai.js',
+  '/js/light-tool-camera.js',
+  '/js/light-tool-camera-modals.js',
   '/js/light-tools.js',
   '/js/light-tools-ai-analysis.js',
   '/js/lighting-hardware-caveats.js',

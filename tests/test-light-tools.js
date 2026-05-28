@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// test-light-tools.js — Pure helpers from light-tools.js:
+// test-light-tools.js — Pure helpers re-exported by light-tools.js:
 // computeRowBanding (flicker FFT), cameraLockStatusLine, saveMeasurement
 // persistence + spectrum auto-fill, getMeasurementsForRoom, deleteMeasurement.
 //
@@ -25,13 +25,15 @@ const tools = await import('../js/light-tools.js');
     normalizeGoldenHourMinutes,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
+    const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');
+    const lightToolCameraModalsSrc = fs.readFileSync(new URL('../js/light-tool-camera-modals.js', import.meta.url), 'utf8');
     const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
     const lightToolCss = fs.readFileSync(new URL('../css/light-tools.css', import.meta.url), 'utf8');
     const cssFiles = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css'];
     const stylesSrc = cssFiles.map(rel => fs.readFileSync(new URL('../' + rel, import.meta.url), 'utf8')).join('\n');
-    const appearsBefore = (needleA, needleB, from = 0) => {
-      const a = lightToolsSrc.indexOf(needleA, from);
-      const b = lightToolsSrc.indexOf(needleB, from);
+    const appearsBefore = (src, needleA, needleB, from = 0) => {
+      const a = src.indexOf(needleA, from);
+      const b = src.indexOf(needleB, from);
       return a >= 0 && b >= 0 && a < b;
     };
 
@@ -221,20 +223,26 @@ const tools = await import('../js/light-tools.js');
     // ─── 10. Camera lifecycle regressions ────────────────────────────────
     console.log('%c 10. Camera lifecycle source guards ', 'font-weight:bold;color:#f59e0b');
 
-      assert('Lux assigns close handler before camera fallback can await',
-        appearsBefore('window._closeLuxMeter =', 'await startCameraFallback();'));
+    assert('light-tools.js delegates camera-backed tools to extracted module',
+      lightToolsSrc.includes("from './light-tool-camera-modals.js'") &&
+      lightToolsSrc.includes('return openLuxMeterModal(opts, { saveMeasurement });'));
+    assert('light-tool-camera.js owns shared camera lock and row-banding helpers',
+      lightToolCameraSrc.includes('export async function lockCameraForMeasurement') &&
+      lightToolCameraSrc.includes('export function computeRowBanding'));
+    assert('Lux assigns close handler before camera fallback can await',
+      appearsBefore(lightToolCameraModalsSrc, 'window._closeLuxMeter =', 'await startCameraFallback();'));
     assert('Lux AmbientLightSensor error retries the camera fallback',
-      /sensor\.addEventListener\('error'[\s\S]{0,500}startCameraFallback/.test(lightToolsSrc));
+      /sensor\.addEventListener\('error'[\s\S]{0,500}startCameraFallback/.test(lightToolCameraModalsSrc));
       assert('Flicker assigns close handler before getUserMedia await',
-        appearsBefore('window._closeFlicker =', 'navigator.mediaDevices.getUserMedia', lightToolsSrc.indexOf('export async function openFlickerDetector')));
+        appearsBefore(lightToolCameraModalsSrc, 'window._closeFlicker =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openFlickerDetector')));
       assert('CCT assigns close handler before getUserMedia await',
-        appearsBefore('window._closeCCT =', 'navigator.mediaDevices.getUserMedia', lightToolsSrc.indexOf('export async function openCCTMeter')));
+        appearsBefore(lightToolCameraModalsSrc, 'window._closeCCT =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openCCTMeter')));
       assert('Spectrum assigns close handler before getUserMedia await',
-        appearsBefore('window._closeSpec =', 'navigator.mediaDevices.getUserMedia', lightToolsSrc.indexOf('export async function openSpectrumClassifier')));
+        appearsBefore(lightToolCameraModalsSrc, 'window._closeSpec =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openSpectrumClassifier')));
     assert('Glass transmission tracks and stops active streams on close/finally',
-      /activeGlassStreams\.add\(stream\)/.test(lightToolsSrc) &&
-      /activeGlassStreams\.delete\(stream\)/.test(lightToolsSrc) &&
-      /for \(const stream of activeGlassStreams\)[\s\S]{0,160}getTracks\(\)\.forEach/.test(lightToolsSrc));
+      /activeGlassStreams\.add\(stream\)/.test(lightToolCameraModalsSrc) &&
+      /activeGlassStreams\.delete\(stream\)/.test(lightToolCameraModalsSrc) &&
+      /for \(const stream of activeGlassStreams\)[\s\S]{0,160}getTracks\(\)\.forEach/.test(lightToolCameraModalsSrc));
     assert('Eye-level audit waits for movement before recording another pause',
       /waitingForMovement[\s\S]{0,700}pauseDetections\.push[\s\S]{0,250}waitingForMovement\s*=\s*true/.test(lightToolsSrc));
 

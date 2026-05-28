@@ -1396,6 +1396,7 @@ Not separately documented because their exports are best read from source — ke
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `sun-body-silhouette.js` — anatomical sun-session body-region picker, stock-figure region-map hit testing, and async selection overlay. Re-exported by `sun.js` for compatibility.
 - `light-device-session-modal.js` — log/start light therapy device session modal; dependency-injected from `light-devices.js` so session persistence and active timer state stay in the owning module.
+- `light-tool-camera.js` / `light-tool-camera-modals.js` — shared camera lock, row-banding, aiming guides, lux calibration, and the camera-backed Light tool modal flows. Dependency-injected from `light-tools.js` so measurement persistence stays in the owning module.
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.
 - `sync.js` — Public sync entry/barrel; exports sync lifecycle, actions, diagnostics, relay, identity, and cutover APIs while delegating dependency wiring to `sync-configure.js`.

@@ -108,6 +108,8 @@ js/
   light-channel-view.js — Light channel pill rows, detail panels, citations, suggestions
   sun-body-silhouette.js — anatomical sun-session body picker, region-map hit testing, selection overlay
   light-device-session-modal.js — log/start light therapy device session modal
+  light-tool-camera.js — shared camera lock, row-banding, aiming guide, and lux calibration helpers
+  light-tool-camera-modals.js — camera-backed Light tool modal flows injected from light-tools.js
   views.js          — route wiring and compatibility exports
   crypto.js         — AES-256-GCM encryption, cross-tab sync (BroadcastChannel)
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
