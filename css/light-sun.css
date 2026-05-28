@@ -1885,13 +1885,16 @@
 }
 .light-env-assessment-overlay.modal-overlay.show {
   align-items: flex-start;
-  overflow-y: auto;
+  overflow: hidden;
+  padding: 24px;
 }
 .light-env-assessment-modal {
   width: min(96vw, 980px);
   max-width: 980px;
-  max-height: none;
-  margin: 24px 0;
+  max-height: calc(100dvh - 48px);
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .light-env-assessment-modal .modal-header {
   margin-bottom: 6px;
@@ -1915,10 +1918,12 @@
   }
   .light-env-assessment-modal {
     width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
     margin: 0;
     border-radius: 0;
-    min-height: 100vh;
   }
+  .light-env-assessment-overlay.modal-overlay.show { padding: 0; }
 }
 @media (max-width: 420px) {
   .light-env-assessment-metrics {

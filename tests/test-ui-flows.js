@@ -144,6 +144,11 @@ return (async function() {
     !!sidebar.querySelector('.nav-item[data-category="emf"]') &&
       analysisIndex > -1 && emfIndex > -1 && manageIndex > -1 &&
       analysisIndex < emfIndex && emfIndex < manageIndex);
+  const lightAssessmentIndex = sidebarText.indexOf('Light assessment');
+  assert('Sidebar exposes Light assessment as an analysis tool',
+    !!sidebar.querySelector('.nav-item[data-category="light-env-assessment"]') &&
+      analysisIndex > -1 && lightAssessmentIndex > -1 && manageIndex > -1 &&
+      analysisIndex < lightAssessmentIndex && lightAssessmentIndex < manageIndex);
 
   // Header elements
   assert('Header dates populated', document.getElementById('header-dates')?.innerHTML.length > 10);
