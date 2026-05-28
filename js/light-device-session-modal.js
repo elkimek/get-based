@@ -70,7 +70,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   // Lazy hydrate covers page-opened-mid-init / cold preset cache cases so
   // the dialog renders with the latest mode/coupling schema.
   await hydrateDevicesFromPresets?.().catch(() => {});
-  const device = getDevices?.().find(d => d.id === deviceId);
+  const device = getDevices?.()?.find(d => d.id === deviceId);
   if (!device) return;
 
   // Prefill from the user's last logged session on this device. First-time
