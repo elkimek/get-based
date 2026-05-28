@@ -661,6 +661,13 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       !/photosensitizer active/.test(startHandler));
     assert('sun.js: start flow no longer emits eyes-uncovered warning toast',
       !/Eyes-uncovered mode/.test(startHandler));
+    assert('sun.js: retinal toasts have a start grace period',
+      /RETINAL_ALERT_GRACE_MS\s*=\s*10\s*\*\s*60\s*\*\s*1000/.test(sunSrc)
+      && /elapsedMs\s*<\s*RETINAL_ALERT_GRACE_MS/.test(sunSrc));
+    assert('sun.js: retinal over-limit toast also marks the half-limit alert handled',
+      /ruv >= 30 && !cur\.alertedRetinalOver[\s\S]{0,180}alertedRetinalOver:\s*true,\s*alertedRetinal500:\s*true/.test(sunSrc));
+    assert('sun.js: retinal threshold toasts use calm user copy',
+      !/pterygium|cataract|6-12 hours|daily ICNIRP UV limit/.test(sunSrc));
   }
 
   // ─── Restore state ──────────────────────────────────────────────────

@@ -2259,6 +2259,7 @@ function _renderActiveCardBody(sess) {
 // they fired.
 let _tickCount = 0;
 let _lastChannelRefreshAt = 0;
+const RETINAL_ALERT_GRACE_MS = 10 * 60 * 1000;
 function _tickActiveCards() {
   const sessions = getSessions().filter(s => !s.endedAt);
   if (sessions.length === 0) {
@@ -2316,12 +2317,21 @@ function _tickActiveCards() {
     if (liveDoses && Number.isFinite(liveDoses.retinalUV) && sess.eyeExposure?.mode === 'direct') {
       const ruv = liveDoses.retinalUV;
       const cur = _getLiveState(sess.id) || {};
-      if (ruv >= 30 && !cur.alertedRetinalOver) {
-        _setLiveState(sess.id, { alertedRetinalOver: true });
-        showNotification(_jargonPrefix('icnirp') + 'Eye UV at the ICNIRP daily exposure limit. Put on UV-blocking sunglasses now — symptoms (gritty eyes, sensitivity to light) appear 6-12 hours after exposure.', 'error', 10000);
+      const elapsedMs = Date.now() - sess.startedAt;
+      if (elapsedMs < RETINAL_ALERT_GRACE_MS) {
+        // Starting under high UVI used to stack eye-risk toasts immediately.
+        // The active card still shows the eye-UV chip; threshold toasts are
+        // reserved for later crossings after the user has had time to settle.
+        _setLiveState(sess.id, {
+          alertedRetinal500: cur.alertedRetinal500 || ruv >= 15,
+          alertedRetinalOver: cur.alertedRetinalOver || ruv >= 30,
+        });
+      } else if (ruv >= 30 && !cur.alertedRetinalOver) {
+        _setLiveState(sess.id, { alertedRetinalOver: true, alertedRetinal500: true });
+        showNotification('Eye UV is high. Put on UV-blocking sunglasses or take a shade break.', 'warning', 8000);
       } else if (ruv >= 15 && !cur.alertedRetinal500) {
         _setLiveState(sess.id, { alertedRetinal500: true });
-        showNotification(_jargonPrefix('icnirp') + 'Eyes at half the daily ICNIRP UV limit — sunglasses or look-down breaks recommended. Cumulative eye exposure causes pterygium and cataract over years.', 'warning', 8000);
+        showNotification('Eye UV is building. Sunglasses or look-down breaks are a good idea.', 'warning', 6500);
       }
     }
 
