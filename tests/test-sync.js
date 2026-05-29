@@ -108,6 +108,7 @@ await import('../js/settings.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
+  const settingsSyncPanelSrc = await fetchWithRetry('js/settings-sync-panel.js');
   const dataSrc = await fetchWithRetry('js/data.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
   const appShellCssSrc = await fetchWithRetry('css/app-shell.css');
@@ -362,6 +363,8 @@ await import('../js/settings.js');
       && exportBlockIncludes(syncSrc, ['isMessengerEnabled', 'getMessengerToken', 'generateMessengerToken', 'revokeMessengerToken', 'pushContextToGateway']));
   assert('service worker precaches sync-messenger.js',
     serviceWorkerSrc.includes("'/js/sync-messenger.js'"));
+  assert('service worker precaches settings-sync-panel.js',
+    serviceWorkerSrc.includes("'/js/settings-sync-panel.js'"));
   assert('pushContextToGateway treats gateway HTTP errors as failures',
     /const\s+res\s*=\s*await\s+fetch\(`\$\{relay\}\/api\/context`/.test(syncMessengerSrc)
       && /if\s*\(\s*!res\.ok\s*\)\s*throw\s+new\s+Error\(`Gateway returned \$\{res\.status\}`\)/.test(syncMessengerSrc)
@@ -1082,7 +1085,7 @@ await import('../js/settings.js');
     /getSyncBlocker[\s\S]*?navigator\.storage\.getDirectory/.test(syncEnvironmentSrc));
   assert('getSyncBlocker still gates on crypto.subtle', /getSyncBlocker[\s\S]*?crypto\?\.subtle/.test(syncEnvironmentSrc));
   assert('Settings banner copy updated to "in this browser"',
-    settingsSrc.includes('Sync unavailable in this browser') && !settingsSrc.includes('Sync unavailable in this build'));
+    settingsSyncPanelSrc.includes('Sync unavailable in this browser') && !settingsSyncPanelSrc.includes('Sync unavailable in this build'));
   assert('BIP-39 lazy loader resets cached promise after failure',
     /_bip39Load\s*=\s*null/.test(syncIdentitySrc),
     'transient script failure should not poison identity rotation for the full session');
@@ -1190,41 +1193,43 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('9. Settings UI');
 
-  assert('Settings imports sync functions', settingsSrc.includes("from './sync.js'"));
-  assert('renderSyncSection exists', settingsSrc.includes('function renderSyncSection'));
+  assert('Settings imports sync panel', settingsSrc.includes("from './settings-sync-panel.js'"));
+  assert('Settings hydrates sync panel on open', settingsSrc.includes('hydrateSettingsSyncPanel()'));
+  assert('settings-sync-panel imports sync functions', settingsSyncPanelSrc.includes("from './sync.js'"));
+  assert('renderSyncSection exists', settingsSyncPanelSrc.includes('function renderSyncSection'));
   assert('Sync section in Data tab', settingsSrc.includes('Cross-Device Sync'));
-  assert('Connected indicator with green dot', settingsSrc.includes('#22c55e') && settingsSrc.includes('Connected to relay'));
-  assert('Mnemonic display with mask', settingsSrc.includes('sync-mnemonic') && settingsSrc.includes('MNEMONIC_MASK'));
-  assert('Mnemonic toggle button has id', settingsSrc.includes('sync-mnemonic-toggle'));
-  assert('Mnemonic toggle uses getElementById', settingsSrc.includes("getElementById('sync-mnemonic-toggle')"));
-  assert('Restore from mnemonic button', settingsSrc.includes('Restore from mnemonic'));
-  assert('Relay input under Advanced', settingsSrc.includes('sync-relay-input') && settingsSrc.includes('Advanced'));
-  assert('Relay validation rejects non-wss and non-ws', settingsSrc.includes("!url.startsWith('wss://')") && settingsSrc.includes("!url.startsWith('ws://')"));
-  assert('toggleSync function', settingsSrc.includes('async function toggleSync'));
-  assert('copyMnemonic has error handler', settingsSrc.includes('.catch(') && settingsSrc.includes('Could not access clipboard'));
+  assert('Connected indicator with green dot', settingsSyncPanelSrc.includes('#22c55e') && settingsSyncPanelSrc.includes('Connected to relay'));
+  assert('Mnemonic display with mask', settingsSyncPanelSrc.includes('sync-mnemonic') && settingsSyncPanelSrc.includes('MNEMONIC_MASK'));
+  assert('Mnemonic toggle button has id', settingsSyncPanelSrc.includes('sync-mnemonic-toggle'));
+  assert('Mnemonic toggle uses getElementById', settingsSyncPanelSrc.includes("getElementById('sync-mnemonic-toggle')"));
+  assert('Restore from mnemonic button', settingsSyncPanelSrc.includes('Restore from mnemonic'));
+  assert('Relay input under Advanced', settingsSyncPanelSrc.includes('sync-relay-input') && settingsSyncPanelSrc.includes('Advanced'));
+  assert('Relay validation rejects non-wss and non-ws', settingsSyncPanelSrc.includes("!url.startsWith('wss://')") && settingsSyncPanelSrc.includes("!url.startsWith('ws://')"));
+  assert('toggleSync function', settingsSyncPanelSrc.includes('async function toggleSync'));
+  assert('copyMnemonic has error handler', settingsSyncPanelSrc.includes('.catch(') && settingsSyncPanelSrc.includes('Could not access clipboard'));
 
   // ═══════════════════════════════════════
   // 10. SETUP MODAL
   // ═══════════════════════════════════════
   console.log('10. Setup Modal');
 
-  assert('showSyncSetupModal exists', settingsSrc.includes('function showSyncSetupModal'));
-  assert('Setup modal has two choices', settingsSrc.includes('New setup') && settingsSrc.includes('Join existing'));
-  assert('syncSetupNew generates mnemonic', settingsSrc.includes('async function syncSetupNew') || settingsSrc.includes('syncSetupNew'));
-  assert('syncSetupNew has double-click guard', settingsSrc.includes('_syncSetupInProgress'));
-  assert('syncSetupNew shows mnemonic in cleartext', settingsSrc.includes('escapeHTML(mnemonic)'));
-  assert('syncSetupNew requires checkbox acknowledgment', settingsSrc.includes('I have saved my mnemonic'));
-  assert('Done button has disabled styling', settingsSrc.includes("opacity:0.45") || settingsSrc.includes("opacity: 0.45"));
-  assert('syncSetupRestore shows textarea', settingsSrc.includes('function syncSetupRestore'));
-  assert('syncSetupDoRestore validates 24 words', settingsSrc.includes("words.length !== 24"));
-  assert('syncSetupDoRestore cleans up on failure', settingsSrc.includes('await disableSync()') && settingsSrc.includes('Restore failed'));
-  assert('syncSetupBack returns to choices', settingsSrc.includes('function syncSetupBack'));
-  assert('closeSyncSetup disables sync if started', settingsSrc.includes('async function closeSyncSetup') && settingsSrc.includes('disableSync'));
-  assert('closeSyncSetup releases _syncToggling', settingsSrc.includes('_syncToggling = false'));
-  assert('Clipboard auto-clear after 60s', settingsSrc.includes('60000') && settingsSrc.includes("writeText('')"));
-  assert('loadMnemonic retry timer is cancellable', settingsSrc.includes('_mnemonicRetryTimer') && settingsSrc.includes('clearTimeout(_mnemonicRetryTimer)'));
-  assert('Dynamic relay status indicator', settingsSrc.includes('updateRelayStatus') && settingsSrc.includes('sync-status-dot'));
-  assert('Relay status shows connected or unreachable', settingsSrc.includes('Connected to relay') && settingsSrc.includes('Relay unreachable'));
+  assert('showSyncSetupModal exists', settingsSyncPanelSrc.includes('function showSyncSetupModal'));
+  assert('Setup modal has two choices', settingsSyncPanelSrc.includes('New setup') && settingsSyncPanelSrc.includes('Join existing'));
+  assert('syncSetupNew generates mnemonic', settingsSyncPanelSrc.includes('async function syncSetupNew') || settingsSyncPanelSrc.includes('syncSetupNew'));
+  assert('syncSetupNew has double-click guard', settingsSyncPanelSrc.includes('_syncSetupInProgress'));
+  assert('syncSetupNew shows mnemonic in cleartext', settingsSyncPanelSrc.includes('escapeHTML(mnemonic)'));
+  assert('syncSetupNew requires checkbox acknowledgment', settingsSyncPanelSrc.includes('I have saved my mnemonic'));
+  assert('Done button has disabled styling', settingsSyncPanelSrc.includes("opacity:0.45") || settingsSyncPanelSrc.includes("opacity: 0.45"));
+  assert('syncSetupRestore shows textarea', settingsSyncPanelSrc.includes('function syncSetupRestore'));
+  assert('syncSetupDoRestore validates 24 words', settingsSyncPanelSrc.includes("words.length !== 24"));
+  assert('syncSetupDoRestore cleans up on failure', settingsSyncPanelSrc.includes('await disableSync()') && settingsSyncPanelSrc.includes('Restore failed'));
+  assert('syncSetupBack returns to choices', settingsSyncPanelSrc.includes('function syncSetupBack'));
+  assert('closeSyncSetup disables sync if started', settingsSyncPanelSrc.includes('async function closeSyncSetup') && settingsSyncPanelSrc.includes('disableSync'));
+  assert('closeSyncSetup releases _syncToggling', settingsSyncPanelSrc.includes('_syncToggling = false'));
+  assert('Clipboard auto-clear after 60s', settingsSyncPanelSrc.includes('60000') && settingsSyncPanelSrc.includes("writeText('')"));
+  assert('loadMnemonic retry timer is cancellable', settingsSyncPanelSrc.includes('_mnemonicRetryTimer') && settingsSyncPanelSrc.includes('clearTimeout(_mnemonicRetryTimer)'));
+  assert('Dynamic relay status indicator', settingsSyncPanelSrc.includes('updateRelayStatus') && settingsSyncPanelSrc.includes('sync-status-dot'));
+  assert('Relay status shows connected or unreachable', settingsSyncPanelSrc.includes('Connected to relay') && settingsSyncPanelSrc.includes('Relay unreachable'));
 
   // ═══════════════════════════════════════
   // 11. CHAT SYNC
@@ -1393,8 +1398,8 @@ await import('../js/settings.js');
 
   assert('generateMessengerToken creates 64-char hex', syncMessengerSrc.includes('crypto.getRandomValues') && syncMessengerSrc.includes('MESSENGER_TOKEN_KEY'));
   assert('pushContextToGateway exports', exportBlockIncludes(syncSrc, ['pushContextToGateway']));
-  assert('OpenClaw section in settings', settingsSrc.includes('renderMessengerSection') && settingsSrc.includes('OpenClaw'));
-  assert('Token masked by default', settingsSrc.includes('messenger-token') && settingsSrc.includes('data-masked'));
+  assert('OpenClaw section in settings sync panel', settingsSyncPanelSrc.includes('renderMessengerSection') && settingsSyncPanelSrc.includes('OpenClaw'));
+  assert('Token masked by default', settingsSyncPanelSrc.includes('messenger-token') && settingsSyncPanelSrc.includes('data-masked'));
 
   // ═══════════════════════════════════════
   // 13. WINDOW BINDINGS

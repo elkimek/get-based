@@ -770,16 +770,29 @@ Conversation summary generation, saved-summary profile storage, and summary moda
 
 ### `settings.js`
 
-Settings modal with 6 sections.
+Settings modal shell with profile, display, AI, privacy, data, wearables, and Agent Access tabs. Delegates AI provider panels to `provider-panels.js`, wearables rows to `wearables-settings-panel.js`, and sync/Agent Access panels to `settings-sync-panel.js`.
 
 **Key exports:**
 - `openSettingsModal()` / `closeSettingsModal()`
 - `initSettingsModelFetch()` — fetches model lists for all providers on modal open
 - `saveProfileSettings()` — saves sex, DOB, location from the Profile section
 - `setUnitSystem(system)` — `'EU'` | `'US'`
-- `showSyncSetupModal()` — opens the cross-device sync setup wizard directly (also reachable via `toggleSync` toggle); used by the dashboard data-protection picker
 
-**Window exports:** `openSettingsModal`, `closeSettingsModal`, `saveProfileSettings`, `setUnitSystem`, `setAIProvider`, `startTour`, `showSyncSetupModal`
+**Window exports:** `openSettingsModal`, `closeSettingsModal`, `saveProfileSettings`, `setUnitSystem`, `setAIProvider`, `startTour`
+
+---
+
+### `settings-sync-panel.js`
+
+Settings subpanel module for cross-device sync and Agent Access. Owns the Settings → Data sync section, sync setup/restore modal, mnemonic and relay controls, and the Settings → Agent token/series controls.
+
+**Key exports:**
+- `renderSyncSection()` — renders the Settings → Data sync panel
+- `renderMessengerSection()` — renders the Settings → Agent Access panel
+- `hydrateSettingsSyncPanel()` — loads mnemonic and relay status after the settings modal is painted
+- `showSyncSetupModal()` — opens the cross-device sync setup wizard directly; used by the dashboard data-protection picker
+
+**Window exports:** `showSyncSetupModal`, `toggleSync`, `toggleMnemonicVisibility`, `copyMnemonic`, `saveSyncRelay`, `openRestoreMnemonicDialog`, `closeRestoreMnemonicDialog`, `confirmRestoreMnemonic`, `closeSyncSetup`, `syncSetupNew`, `syncSetupRestore`, `syncSetupBack`, `syncSetupDoRestore`, `syncSetupDone`, `toggleMessenger`, `toggleMessengerToken`, `copyMessengerToken`, `regenerateMessengerToken`
 
 ---
 

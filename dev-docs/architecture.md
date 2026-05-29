@@ -88,7 +88,8 @@ js/
   recommendations.js — Supplement & lifestyle recommendations, lazy catalog, 3 touchpoints
   cashu-wallet.js   — In-app Cashu eCash wallet: BIP-39 seed, IndexedDB proofs, Lightning fund/withdraw
   nostr-discovery.js — Nostr relay queries for Routstr nodes (Kind 38421), health checks, caching
-  settings.js       — Settings modal: profile, display, AI providers, privacy, security
+  settings.js       — Settings modal shell: profile, display, AI providers, privacy, security
+  settings-sync-panel.js — Settings Data/Agent panels: cross-device sync setup, mnemonic/relay UI, Agent Access token UI
   feedback.js       — Feedback modal (bug reports, feature requests)
   tour.js           — Guided tour spotlight engine (app tour + cycle tour)
   nav.js            — Sidebar, date range filter, chart layers dropdown

@@ -29,8 +29,9 @@ console.log('=== Data Protection Dashboard Tests ===\n');
 
 // context-cards.js exposes renderDataProtectionCta + openDataProtectionPicker +
 // showEnableEncryptionModal + pickFolderForBackup; showSyncSetupModal is
-// exported from settings.js (puppeteer gets it for free via main.js — in Node
-// we import it explicitly so the section-7 window-export check sees it).
+// bound by settings-sync-panel.js through settings.js (puppeteer gets it for
+// free via main.js — in Node we import settings explicitly so the section-7
+// window-export check sees it).
 const cards = await import('../js/context-cards.js');
 await import('../js/settings.js');
 

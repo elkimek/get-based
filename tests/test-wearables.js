@@ -1518,16 +1518,16 @@ if (window._labState?.importedData?.wearableSummary) {
 }
 
 // Settings UI is now a select, not a checkbox.
-const settingsV29 = await fetch('/js/settings.js').then(r => r.text());
+const settingsSyncPanelV29 = await fetch('/js/settings-sync-panel.js').then(r => r.text());
 assert('Settings → Agent Access uses a <select> for the series window',
-  /id="agent-wearable-series-select"/.test(settingsV29));
+  /id="agent-wearable-series-select"/.test(settingsSyncPanelV29));
 assert('Settings select dispatches to setAgentWearableSeriesDays (not the boolean setter)',
-  /window\.setAgentWearableSeriesDays\(this\.value === 'off'/.test(settingsV29));
+  /window\.setAgentWearableSeriesDays\(this\.value === 'off'/.test(settingsSyncPanelV29));
 assert('Settings select offers Off / 7 / 30 / 90 options',
-  /<option value="off"/.test(settingsV29) &&
-  /<option value="7"/.test(settingsV29) &&
-  /<option value="30"/.test(settingsV29) &&
-  /<option value="90"/.test(settingsV29));
+  /<option value="off"/.test(settingsSyncPanelV29) &&
+  /<option value="7"/.test(settingsSyncPanelV29) &&
+  /<option value="30"/.test(settingsSyncPanelV29) &&
+  /<option value="90"/.test(settingsSyncPanelV29));
 
 // IDB encryption — round-trip a row through encrypt+decrypt assuming
 // encryption is OFF in tests (default), assert plaintext pass-through.
@@ -1665,9 +1665,9 @@ assert('Strip-header role="button" carries an aria-label distinct from the live 
 // all gone" check below.)
 
 // P2 copy: Settings → Agent Access label includes "and context".
-const settingsSrcP2 = await fetch('/js/settings.js').then(r => r.text());
+const settingsSyncPanelSrcP2 = await fetch('/js/settings-sync-panel.js').then(r => r.text());
 assert('Settings Agent Access description says "labs and context" (covers wearables + cards too)',
-  /Let AI agents query your labs and context/.test(settingsSrcP2));
+  /Let AI agents query your labs and context/.test(settingsSyncPanelSrcP2));
 
 // P2: detail-modal focus trap.
 assert('Detail modal installs Tab/Shift-Tab focus trap on open',
@@ -1834,13 +1834,13 @@ assert('Touch media block extends to .wearable-reorder-arrow (≥44px)',
   /@media\s*\(pointer:\s*coarse\)[\s\S]{0,5000}\.wearable-reorder-arrow[\s\S]{0,200}min-height:\s*44px/.test(cssSrc));
 
 // In-app token-cost copy aligned with measured reality (~400 not ~1500).
-const settingsSrc = await fetch('/js/settings.js').then(r => r.text());
+const settingsSyncPanelSrc = await fetch('/js/settings-sync-panel.js').then(r => r.text());
 // v1.29.0: tri-state toggle (off / 7 / 30 / 90) — copy now cites all three
 // window sizes with their respective costs.
 assert('Agent series tri-state copy cites the 7/30/90 token costs',
-  /~100 \/ 400 \/ 1200 extra tokens for 7 \/ 30 \/ 90 days/.test(settingsSrc));
+  /~100 \/ 400 \/ 1200 extra tokens for 7 \/ 30 \/ 90 days/.test(settingsSyncPanelSrc));
 assert('Agent series toggle no longer cites the stale ~1500 figure',
-  !/~1500 extra tokens per agent prompt/.test(settingsSrc));
+  !/~1500 extra tokens per agent prompt/.test(settingsSyncPanelSrc));
 
 // Single-maintainer voice — guard against the plural-voice anti-pattern
 // ("We never see") creeping back into the changelog.
