@@ -143,19 +143,31 @@
 .custom-device-form .ctx-select {
   width: 100%; margin-top: 4px;
 }
+.light-device-add-modal,
+.light-device-add-modal .modal-body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+.light-device-add-modal {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
 .light-device-preset-groups {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-top: 12px;
-  max-height: min(46vh, 420px);
-  overflow-y: auto;
-  padding-right: 4px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
 }
 .light-device-preset-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 .light-device-preset-heading {
   margin: 0;
@@ -170,6 +182,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 .light-device-preset-row {
   display: flex;
@@ -178,6 +192,8 @@
   align-items: flex-start;
   width: 100%;
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   padding: 10px 14px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -203,12 +219,16 @@
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
+  max-width: 100%;
   overflow-wrap: anywhere;
 }
 .light-device-preset-meta {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.35;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .dev-session-hint {
   display: block;

@@ -196,6 +196,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const lightDevSrc = read('/js/light-devices.js');
   const lightDevSetupSrc = read('/js/light-device-setup-modal.js');
   const lightDevSessionSrc = read('/js/light-device-session-modal.js');
+  const lightDevCss = read('/css/light-devices.css');
   assert('light-devices.js delegates session dialog rendering to extracted module',
     lightDevSrc.includes("from './light-device-session-modal.js'"));
   assert('light-devices.js delegates add/custom-device setup rendering to extracted module',
@@ -204,6 +205,14 @@ console.log('=== Phase 3 A11y Tests ===\n');
     lightDevSetupSrc.includes('light-device-preset-groups') &&
     lightDevSetupSrc.includes('light-device-preset-row') &&
     !lightDevSetupSrc.includes('id="add-device-preset"'));
+  assert('Add-device preset picker uses one vertical modal scroller with no horizontal row overflow',
+    lightDevSetupSrc.includes("overlay.addEventListener('wheel'") &&
+    lightDevSetupSrc.includes('modal.scrollBy({ top: event.deltaY * unit, left: 0') &&
+    lightDevCss.includes('.light-device-add-modal') &&
+    lightDevCss.includes('touch-action: pan-y') &&
+    lightDevCss.includes('overflow-x: hidden') &&
+    lightDevCss.includes('word-break: break-word') &&
+    lightDevCss.includes('overflow: visible'));
   assert('custom-device URL extraction checks hosted proxy response status',
     lightDevSetupSrc.includes('if (!res.ok) throw new Error(`Proxy error ${res.status}`);'));
   assert('custom-device async extraction suppresses stale detached-overlay notifications',

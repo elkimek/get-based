@@ -62,7 +62,7 @@ export async function openAddDeviceDialog() {
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Add light device">
+  overlay.innerHTML = `<div class="modal light-device-add-modal" role="dialog" aria-label="Add light device">
     <div class="modal-header">
       <h3>Add a light device</h3>
       <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
@@ -97,6 +97,15 @@ export async function openAddDeviceDialog() {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
   });
+  overlay.addEventListener('wheel', (event) => {
+    const modal = overlay.querySelector('.light-device-add-modal');
+    if (!modal) return;
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+      ? modal.clientHeight
+      : (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1);
+    modal.scrollBy({ top: event.deltaY * unit, left: 0, behavior: 'auto' });
+    event.preventDefault();
+  }, { passive: false });
 
   let selectedPresetId = '';
   const addBtn = overlay.querySelector('#add-device-confirm');
