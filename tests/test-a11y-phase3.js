@@ -204,6 +204,10 @@ console.log('=== Phase 3 A11y Tests ===\n');
     lightDevSetupSrc.includes('light-device-preset-groups') &&
     lightDevSetupSrc.includes('light-device-preset-row') &&
     !lightDevSetupSrc.includes('id="add-device-preset"'));
+  assert('custom-device URL extraction checks hosted proxy response status',
+    lightDevSetupSrc.includes('if (!res.ok) throw new Error(`Proxy error ${res.status}`);'));
+  assert('custom-device async extraction suppresses stale detached-overlay notifications',
+    (lightDevSetupSrc.match(/if \(!overlay\.isConnected\) return;/g) || []).length >= 3);
   // Browse modals get backdrop-close listeners guarded by `e.target === overlay`
   // so child clicks don't bubble out. Add-device lives in the setup module;
   // the quick-log device picker remains in light-devices.js.

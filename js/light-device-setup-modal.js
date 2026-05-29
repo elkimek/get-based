@@ -364,6 +364,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
     let html;
     if (isLocal) {
       const res = await fetch('/api/fetch-page?url=' + encodeURIComponent(url));
+      if (!res.ok) throw new Error(`Fetch error ${res.status}`);
       const json = await res.json();
       html = json.html;
     } else {
@@ -371,8 +372,10 @@ async function _fetchCustomDeviceFromURL(overlay) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, method: 'GET', headers: {} })
       });
+      if (!res.ok) throw new Error(`Proxy error ${res.status}`);
       html = await res.text();
     }
+    if (!overlay.isConnected) return;
     if (!html || html.length < 100) { showNotification('Could not fetch page content', 'error'); return; }
     // Use DOMParser (not regex) to strip non-content nodes — regex strips can
     // be evaded by HTML edge cases, and CodeQL flags every variant. The text
@@ -396,14 +399,16 @@ async function _fetchCustomDeviceFromURL(overlay) {
       messages: [{ role: 'user', content: trimmed }],
       maxTokens: 800,
     });
+    if (!overlay.isConnected) return;
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { showNotification('Could not parse device specs from page', 'error'); return; }
     _applyParsedDevice(JSON.parse(jsonMatch[0]), overlay);
   } catch (e) {
+    if (!overlay.isConnected) return;
     if (isDebugMode()) console.warn('[fetchCustomDevice]', e);
     showNotification('Failed to fetch: ' + (e.message || 'Unknown error'), 'error');
   } finally {
-    if (btn) { btn.textContent = 'Fetch & analyse'; btn.disabled = false; }
+    if (overlay.isConnected && btn) { btn.textContent = 'Fetch & analyse'; btn.disabled = false; }
   }
 }
 
@@ -421,13 +426,15 @@ async function _scanCustomDeviceLabel(input, overlay) {
     const imageBlock = formatImageBlock(base64, mediaType);
     const content = buildVisionContent([imageBlock], _CUSTOM_DEVICE_PROMPT);
     const result = await callClaudeAPI({ messages: [{ role: 'user', content }], maxTokens: 800 });
+    if (!overlay.isConnected) return;
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { showNotification('Could not parse device specs from image', 'error'); return; }
     _applyParsedDevice(JSON.parse(jsonMatch[0]), overlay);
   } catch (e) {
+    if (!overlay.isConnected) return;
     if (isDebugMode()) console.warn('[scanCustomDevice]', e);
     showNotification('Failed to scan: ' + (e.message || 'Unknown error'), 'error');
   } finally {
-    if (btn) { btn.textContent = '📷 Scan device label'; btn.disabled = false; }
+    if (overlay.isConnected && btn) { btn.textContent = '📷 Scan device label'; btn.disabled = false; }
   }
 }
