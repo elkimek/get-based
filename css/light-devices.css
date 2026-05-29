@@ -143,6 +143,73 @@
 .custom-device-form .ctx-select {
   width: 100%; margin-top: 4px;
 }
+.light-device-preset-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  max-height: min(46vh, 420px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.light-device-preset-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.light-device-preset-heading {
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.light-device-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.light-device-preset-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.light-device-preset-row:hover,
+.light-device-preset-row:focus-visible {
+  border-color: var(--accent);
+  background: var(--bg-card);
+  outline: none;
+}
+.light-device-preset-row.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.light-device-preset-name {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.light-device-preset-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
 .dev-session-hint {
   display: block;
   font-size: 11px;

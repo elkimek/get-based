@@ -34,15 +34,22 @@ export async function openAddDeviceDialog() {
   // model "what kind of light am I trying to add?"
   const orderedTypes = ['uvb', 'uva', 'combined', 'pbm-targeted', 'sad', 'dawn-sim', 'full-spectrum'];
 
-  let opts = '<option value="" disabled selected>Choose your device…</option>';
+  let presetSections = '';
   for (const t of orderedTypes) {
     if (!groups[t]) continue;
     const meta = types[t] || {};
-    opts += `<optgroup label="${escapeAttr((meta.icon || '') + ' ' + (meta.label || t))}">`;
+    const groupId = `add-device-group-${t.replace(/[^a-z0-9-]/gi, '-')}`;
+    presetSections += `<section class="light-device-preset-group" aria-labelledby="${escapeAttr(groupId)}">
+      <h4 class="light-device-preset-heading" id="${escapeAttr(groupId)}">${escapeHTML((meta.icon || '') + ' ' + (meta.label || t))}</h4>
+      <div class="light-device-preset-list">`;
     for (const p of groups[t]) {
-      opts += `<option value="${escapeAttr(p.id)}">${escapeHTML(p.brand)} ${escapeHTML(p.model)}</option>`;
+      const presetMeta = _formatPresetMeta(p);
+      presetSections += `<button type="button" class="light-device-preset-row" data-preset-id="${escapeAttr(p.id)}" aria-pressed="false">
+        <span class="light-device-preset-name">${escapeHTML(p.brand)} ${escapeHTML(p.model)}</span>
+        ${presetMeta ? `<span class="light-device-preset-meta">${escapeHTML(presetMeta)}</span>` : ''}
+      </button>`;
     }
-    opts += `</optgroup>`;
+    presetSections += '</div></section>';
   }
 
   // Anything not in the curated preset list goes through the AI-powered
@@ -62,13 +69,12 @@ export async function openAddDeviceDialog() {
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>
-      <label for="add-device-preset" class="sr-only">Pick a preset device</label>
-      <select id="add-device-preset" class="ctx-select" style="width:100%;margin-top:12px" aria-label="Pick a preset device">
-        ${opts}
-      </select>
+      <div class="light-device-preset-groups">
+        ${presetSections}
+      </div>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-        <button class="import-btn import-btn-primary" id="add-device-confirm">Add device</button>
+        <button class="import-btn import-btn-primary" id="add-device-confirm" disabled>Add device</button>
       </div>
 
       <hr style="margin:20px 0;border:none;border-top:1px solid var(--border)">
@@ -92,15 +98,45 @@ export async function openAddDeviceDialog() {
     if (e.target === overlay) overlay.remove();
   });
 
-  overlay.querySelector('#add-device-confirm').addEventListener('click', async () => {
-    const sel = overlay.querySelector('#add-device-preset');
-    const presetId = sel.value;
+  let selectedPresetId = '';
+  const addBtn = overlay.querySelector('#add-device-confirm');
+  const presetRows = Array.from(overlay.querySelectorAll('.light-device-preset-row'));
+  for (const row of presetRows) {
+    row.addEventListener('click', () => {
+      selectedPresetId = row.getAttribute('data-preset-id') || '';
+      for (const item of presetRows) {
+        const active = item === row;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-pressed', active ? 'true' : 'false');
+      }
+      if (addBtn) addBtn.disabled = !selectedPresetId;
+    });
+  }
+
+  addBtn.addEventListener('click', async () => {
+    const presetId = selectedPresetId;
     if (!presetId) return;
     await setupDeps.addDeviceFromPreset(presetId);
     overlay.remove();
     showNotification('Device added.');
     setupDeps.refreshLightView();
   });
+}
+
+function _formatPresetMeta(p) {
+  const parts = [];
+  if (Array.isArray(p.peakWavelengths) && p.peakWavelengths.length) {
+    parts.push(`${p.peakWavelengths.join('/')} nm`);
+  }
+  if (Number.isFinite(Number(p.mwPerCm2At15cm)) && Number(p.mwPerCm2At15cm) > 0) {
+    parts.push(`${p.mwPerCm2At15cm} mW/cm²`);
+  } else if (Number.isFinite(Number(p.lux)) && Number(p.lux) > 0) {
+    parts.push(`${Number(p.lux).toLocaleString()} lux`);
+  }
+  if (Number.isFinite(Number(p.recommendedDistanceCm)) && Number(p.recommendedDistanceCm) > 0) {
+    parts.push(`${p.recommendedDistanceCm} cm`);
+  }
+  return parts.join(' · ');
 }
 
 // AI-powered custom-device add modal. Mirrors the supplement custom-add flow

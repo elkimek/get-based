@@ -200,6 +200,10 @@ console.log('=== Phase 3 A11y Tests ===\n');
     lightDevSrc.includes("from './light-device-session-modal.js'"));
   assert('light-devices.js delegates add/custom-device setup rendering to extracted module',
     lightDevSrc.includes("from './light-device-setup-modal.js'"));
+  assert('Add-device preset picker stays inside modal as button rows, not a native dropdown',
+    lightDevSetupSrc.includes('light-device-preset-groups') &&
+    lightDevSetupSrc.includes('light-device-preset-row') &&
+    !lightDevSetupSrc.includes('id="add-device-preset"'));
   // Browse modals get backdrop-close listeners guarded by `e.target === overlay`
   // so child clicks don't bubble out. Add-device lives in the setup module;
   // the quick-log device picker remains in light-devices.js.
