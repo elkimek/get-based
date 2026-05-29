@@ -350,6 +350,16 @@ const {
     expandedAudits.includes('Oldest hidden') &&
     expandedAudits.includes('Show only latest 2 audits'));
   window.toggleLightAuditHistory();
+  window.setLightAuditsBlockOpen(true);
+  const manuallyOpenAudits = auditModule.renderLightAuditsBlock();
+  assert('Audit block can stay open without an expanded audit card',
+    manuallyOpenAudits.includes('class="light-env-block light-audits-block" open') &&
+    manuallyOpenAudits.includes('ontoggle="window.setLightAuditsBlockOpen(this.open)"'));
+  window.setLightAuditsBlockOpen(false);
+  const manuallyClosedAudits = auditModule.renderLightAuditsBlock();
+  assert('Audit block open state can be manually collapsed',
+    manuallyClosedAudits.includes('class="light-env-block light-audits-block"') &&
+    !manuallyClosedAudits.includes('class="light-env-block light-audits-block" open'));
 
   // ─── 11. Assessment surface renderers ───────────────────────────────
   console.log('%c 11. Assessment surface renderers ', 'font-weight:bold;color:#f59e0b');
@@ -382,6 +392,10 @@ const {
     auditSrc.includes('saveLightAuditFromUI') &&
     auditSrc.includes('scrollAnchor: LIGHT_AUDITS_ANCHOR') &&
     auditSrc.includes('fallbackScrollAnchor: LIGHT_AUDITS_ANCHOR') &&
+    auditSrc.includes('_auditsBlockOpen = true') &&
+    auditSrc.includes('setLightAuditsBlockOpen') &&
+    auditSrc.includes('deletingExpandedAudit') &&
+    auditSrc.includes('sortAuditsNewestFirst(getLightAudits())[0]?.id') &&
     envSrc.includes('modal.scrollTop') &&
     !envSrc.includes('function renderLightAuditCompare'));
   const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');

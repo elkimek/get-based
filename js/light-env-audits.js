@@ -38,6 +38,7 @@ const AUDITS_DEFAULT_CAP = 2;
 let _expandedAuditId = null;
 let _auditCompareMode = false;
 let _showAllAudits = false;
+let _auditsBlockOpen = false;
 
 export function configureLightEnvAudits(deps = {}) {
   Object.assign(auditDeps, deps);
@@ -57,6 +58,7 @@ function refreshLightEnvironmentUI(options = {}) {
 }
 
 function refreshAuditsUI() {
+  _auditsBlockOpen = true;
   refreshLightEnvironmentUI({ scrollAnchor: LIGHT_AUDITS_ANCHOR });
 }
 
@@ -69,6 +71,7 @@ function lightAuditCardAnchor(id) {
 }
 
 function refreshAuditCardUI(id) {
+  _auditsBlockOpen = true;
   refreshLightEnvironmentUI({
     scrollAnchor: lightAuditCardAnchor(id),
     fallbackScrollAnchor: LIGHT_AUDITS_ANCHOR,
@@ -489,8 +492,8 @@ export function renderLightAuditsBlock() {
   const compareBtn = audits.length >= 2
     ? `<button class="import-btn ${_auditCompareMode ? 'import-btn-secondary' : 'import-btn-primary'}" onclick="event.preventDefault();event.stopPropagation();window.toggleLightAuditCompare()">${_auditCompareMode ? 'Exit compare' : '⇄ Compare'}</button>`
     : '';
-  const openAttr = (_auditCompareMode || _expandedAuditId) ? ' open' : '';
-  let html = `<details class="light-env-block light-audits-block"${openAttr}>
+  const openAttr = (_auditsBlockOpen || _auditCompareMode || _expandedAuditId) ? ' open' : '';
+  let html = `<details class="light-env-block light-audits-block"${openAttr} ontoggle="window.setLightAuditsBlockOpen(this.open)">
     <summary class="light-env-block-head light-audits-summary">
       <strong>Light audits</strong>
       <div class="light-audit-actions">
@@ -569,6 +572,9 @@ function installWindowHandlers() {
       }
       refreshAuditsUI();
     },
+    setLightAuditsBlockOpen: (open) => {
+      _auditsBlockOpen = !!open;
+    },
     updateLightAuditField: async (id, field, value) => {
       await updateLightAudit(id, { [field]: value });
       _expandedAuditId = id;
@@ -577,9 +583,19 @@ function installWindowHandlers() {
     },
     deleteLightAuditConfirm: async (id) => {
       if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
+        const deletingExpandedAudit = _expandedAuditId === id;
         await deleteLightAudit(id);
-        if (_expandedAuditId === id) _expandedAuditId = null;
-        refreshAuditsUI();
+        _auditsBlockOpen = true;
+        if (getLightAudits().length < 2) _auditCompareMode = false;
+        if (deletingExpandedAudit) {
+          _expandedAuditId = sortAuditsNewestFirst(getLightAudits())[0]?.id || null;
+        }
+        if (_expandedAuditId) {
+          keepAuditVisible(_expandedAuditId);
+          refreshAuditCardUI(_expandedAuditId);
+        } else {
+          refreshAuditsUI();
+        }
       }
     },
     // "Interpret changes" — pre-fills the chat panel with a comparison
