@@ -25,6 +25,7 @@ const adaptersSrc = read('js/adapters.js');
 const profileSrc = read('js/profile.js');
 const dataSrc = read('js/data.js');
 const pdfImportSrc = read('js/pdf-import.js');
+const pdfImportMappingSrc = read('js/pdf-import-marker-mapping.js');
   // ═══════════════════════════════════════
   // 1. MARKER_SCHEMA no longer has specialty categories
   // ═══════════════════════════════════════
@@ -159,9 +160,11 @@ const pdfImportSrc = read('js/pdf-import.js');
 
   assert('SPECIALTY_PREFIXES removed', !pdfImportSrc.includes('SPECIALTY_PREFIXES'));
   assert('Specialty warning removed', !pdfImportSrc.includes('specialty test data'));
-  assert('buildMarkerReference still exists', pdfImportSrc.includes('function buildMarkerReference'));
+  assert('buildMarkerReference still exists', pdfImportMappingSrc.includes('function buildMarkerReference'));
+  assert('pdf-import re-exports buildMarkerReference',
+    /export\s*\{[^}]*buildMarkerReference[^}]*\}\s*from\s*['"]\.\/pdf-import-marker-mapping\.js['"]/.test(pdfImportSrc));
   assert('pdf-import imports SPECIALTY_MARKER_DEFS', pdfImportSrc.includes('SPECIALTY_MARKER_DEFS'));
-  assert('buildMarkerReference includes specialty defs', pdfImportSrc.includes('Object.entries(SPECIALTY_MARKER_DEFS)'));
+  assert('buildMarkerReference includes specialty defs', pdfImportMappingSrc.includes('Object.entries(SPECIALTY_MARKER_DEFS)'));
   assert('confirmImport auto-creates custom markers for specialty keys', pdfImportSrc.includes('SPECIALTY_MARKER_DEFS[m.mappedKey]'));
   assert('Prompt asks for refMin/refMax on all markers', pdfImportSrc.includes('refMin: the lower reference range bound EXACTLY as printed on the PDF'));
   // Adapter integration

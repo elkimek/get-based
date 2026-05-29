@@ -21,15 +21,16 @@ function assert(name, condition, detail) {
 console.log('=== Unit Normalization on Import Tests ===\n');
 
 const src = read('js/pdf-import.js');
+const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const settingsSrc = read('js/settings.js');
   // ═══════════════════════════════════════
   // 1. normalizeToSI function exists
   // ═══════════════════════════════════════
   console.log('%c 1. normalizeToSI function ', 'font-weight:bold;color:#f59e0b');
 
-  assert('normalizeToSI defined', src.includes('function normalizeToSI('));
-  assert('normalizeToSI checks UNIT_CONVERSIONS', src.includes('UNIT_CONVERSIONS[key]'));
-  assert('normalizeUnitStr handles µ variants', src.includes('normalizeUnitStr') && src.includes('\\u03bc'));
+  assert('normalizeToSI defined', mappingSrc.includes('function normalizeToSI('));
+  assert('normalizeToSI checks UNIT_CONVERSIONS', mappingSrc.includes('UNIT_CONVERSIONS[key]'));
+  assert('normalizeUnitStr handles µ variants', mappingSrc.includes('normalizeUnitStr') && mappingSrc.includes('\\u03bc'));
 
   // ═══════════════════════════════════════
   // 2. UNIT_CONVERSIONS is imported
@@ -37,7 +38,7 @@ const settingsSrc = read('js/settings.js');
   console.log('%c 2. UNIT_CONVERSIONS import ', 'font-weight:bold;color:#f59e0b');
 
   assert('UNIT_CONVERSIONS imported from schema.js',
-    /import\s*\{[^}]*UNIT_CONVERSIONS[^}]*\}\s*from\s*['"]\.\/schema\.js['"]/.test(src));
+    /import\s*\{[^}]*UNIT_CONVERSIONS[^}]*\}\s*from\s*['"]\.\/schema\.js['"]/.test(mappingSrc));
 
   // ═══════════════════════════════════════
   // 3. confirmImport uses normalizeToSI for matched markers
@@ -87,8 +88,8 @@ const settingsSrc = read('js/settings.js');
   // ═══════════════════════════════════════
   console.log('%c 4. Conversion logic ', 'font-weight:bold;color:#f59e0b');
 
-  assert('divides by factor for multiply type', src.includes('value / conv.factor'));
-  assert('handles hba1c inverse', src.includes('(value - 2.15) * 10.929'));
+  assert('divides by factor for multiply type', mappingSrc.includes('value / conv.factor'));
+  assert('handles hba1c inverse', mappingSrc.includes('(value - 2.15) * 10.929'));
 
   // ═══════════════════════════════════════
   // 5. Functional test via module import
@@ -266,11 +267,12 @@ const settingsSrc = read('js/settings.js');
   console.log('%c 7. Import mapping reconciliation ', 'font-weight:bold;color:#f59e0b');
 
   assert('pdf-import exports reconcileImportMarkerMappings',
-    /export function reconcileImportMarkerMappings/.test(src));
+    /export\s*\{[^}]*reconcileImportMarkerMappings[^}]*\}\s*from\s*['"]\.\/pdf-import-marker-mapping\.js['"]/.test(src)
+    && /export function reconcileImportMarkerMappings/.test(mappingSrc));
   assert('Czech/Spadia alias table includes key labels',
-    src.includes("'glukoza', 'biochemistry.glucose'")
-    && src.includes("'horcikvery', 'electrolytes.magnesiumRBC'")
-    && src.includes("'homocystein', 'coagulation.homocysteine'"));
+    mappingSrc.includes("'glukoza', 'biochemistry.glucose'")
+    && mappingSrc.includes("'horcikvery', 'electrolytes.magnesiumRBC'")
+    && mappingSrc.includes("'homocystein', 'coagulation.homocysteine'"));
 
   const { reconcileImportMarkerMappings } = await import('../js/pdf-import.js');
   const { state } = await import('../js/state.js');

@@ -39,6 +39,7 @@ assert('isEvalSupported wins over extraOpts (via spread order)',
   'pin must apply after spread or a caller passing { isEvalSupported: true } reopens the CVE');
 
 const importSrc = read('js/pdf-import.js');
+const importMappingSrc = read('js/pdf-import-marker-mapping.js');
 assert('pdf-import.js routes through getPdfDocument',
   importSrc.includes('getPdfDocument') && !importSrc.includes('pdfjsLib.getDocument'),
   'no direct pdfjsLib.getDocument calls — they bypass the eval guard');
@@ -49,11 +50,11 @@ assert('lens-local-parsers.js routes through getPdfDocument',
 // ─── 2. AI suggestedKey / mappedKey sanitization ───
 console.log('\n2. AI key sanitization');
 assert('pdf-import.js defines _SAFE_MARKER_KEY pattern',
-  importSrc.includes('_SAFE_MARKER_KEY') && importSrc.includes('/^[a-zA-Z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9_]*$/'));
+  importMappingSrc.includes('_SAFE_MARKER_KEY') && importMappingSrc.includes('/^[a-zA-Z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9_]*$/'));
 assert('_sanitizeAIMarker called before adapter runs',
   importSrc.includes('parsed.markers.forEach(_sanitizeAIMarker)'),
   'must run before normalizeWithAdapter to prevent adapter-derived keys from inheriting unsafe halves');
-const exposedSanitizer = importSrc.match(/function _sanitizeAIMarker\(m\) \{([^}]+)\}/);
+const exposedSanitizer = importMappingSrc.match(/function _sanitizeAIMarker\(m\) \{([^}]+)\}/);
 assert('_sanitizeAIMarker drops both mappedKey and suggestedKey on bad input',
   exposedSanitizer && exposedSanitizer[1].includes('m.mappedKey = null') && exposedSanitizer[1].includes('m.suggestedKey = null'));
 

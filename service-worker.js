@@ -105,6 +105,7 @@ const APP_SHELL = [
   '/js/emf.js',
   '/js/image-utils.js',
   '/js/pdf-import.js',
+  '/js/pdf-import-marker-mapping.js',
   '/js/export.js',
   '/js/chat.js',
   '/js/chat-window-bindings.js',

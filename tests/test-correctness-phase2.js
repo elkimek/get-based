@@ -97,6 +97,8 @@ const pwaAppShellAssets = [
   '/js/import-loader.js',
   '/js/import-file-input.js',
   '/js/import-drop-zone.js',
+  '/js/pdf-import.js',
+  '/js/pdf-import-marker-mapping.js',
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/views-router.js',
