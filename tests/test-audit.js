@@ -369,6 +369,15 @@ const lightSessionLogEnd = lightPageViewSrc.indexOf('function renderLightWidgetP
 const lightSessionLogBlock = lightSessionLogStart >= 0 && lightSessionLogEnd > lightSessionLogStart
   ? lightPageViewSrc.slice(lightSessionLogStart, lightSessionLogEnd)
   : '';
+const dashboardFocusCardBlock = (cssSrc.match(/\.dashboard-widget\[data-widget-id="focus"\] \.focus-card\s*{([\s\S]*?)}/) || [null, ''])[1];
+const dashboardFocusCardBodyBlock = (cssSrc.match(/\.dashboard-widget\[data-widget-id="focus"\] \.focus-card-body\s*{([\s\S]*?)}/) || [null, ''])[1];
+const dashboardFocusCardTextBlock = (cssSrc.match(/\.dashboard-widget\[data-widget-id="focus"\] \.focus-card-text\s*{([\s\S]*?)}/) || [null, ''])[1];
+assert('Dashboard focus card does not truncate AI output',
+  dashboardFocusCardBlock &&
+  !/max-height\s*:/.test(dashboardFocusCardBlock) &&
+  !/overflow\s*:\s*hidden/.test(dashboardFocusCardBodyBlock || '') &&
+  !/-webkit-line-clamp|line-clamp|overflow\s*:\s*hidden/.test(dashboardFocusCardTextBlock || ''),
+  'Dashboard and Insight should show the same full focus-card text');
 assert('Light page renders as a reorderable page widget route',
   lightPageViewSrc.includes("renderLensPageWidgets('light', widgets)") &&
   lightPageViewSrc.includes("id: 'light-conditions-now'") &&

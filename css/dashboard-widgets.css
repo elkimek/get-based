@@ -69,17 +69,6 @@
 .dashboard-widget[data-widget-id="focus"] .focus-card {
   align-items: flex-start;
   margin: 0;
-  max-height: 222px;
-}
-.dashboard-widget[data-widget-id="focus"] .focus-card-body {
-  max-height: 176px;
-  overflow: hidden;
-}
-.dashboard-widget[data-widget-id="focus"] .focus-card-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 8;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 .dashboard-widget-inline-controls {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
