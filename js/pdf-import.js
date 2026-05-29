@@ -1621,7 +1621,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
   if (result.markers.length === 0) { showNotification(`${file.name}: No markers found`, 'error'); return 'no-markers'; }
   await showBatchImportProgress(4, file.name, fileNum, totalFiles);
-  const action = await showImportPreviewAsync(result, file.name, fileNum, totalFiles);
+  const action = await showImportPreviewAsync(result, fileNum, totalFiles);
   return action === 'skip' ? 'skipped' : 'imported';
 }
 

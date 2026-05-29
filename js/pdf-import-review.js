@@ -356,7 +356,7 @@ export function closeImportModal() {
   restoreDropZoneVisibility();
 }
 
-export function showImportPreviewAsync(result, fileName, current, total) {
+export function showImportPreviewAsync(result, current, total) {
   const dropZone = document.getElementById('drop-zone');
   if (dropZone) dropZone.style.display = 'none';
   return new Promise(resolve => {

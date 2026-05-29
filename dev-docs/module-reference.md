@@ -464,7 +464,7 @@ Import review modal rendering and interaction state.
 - `applyManualImportDate(date)` — updates pending review date and confirm button state
 - `mapUnmatchedMarkerInput(input)` / `toggleImportRow(button)` — review-row mapping and exclusion controls
 - `getPendingImport()` / `getExcludedImportIndices()` — narrow state access used by `confirmImport()`
-- `showImportPreviewAsync(result, fileName, current, total)` — batch import preview promise bridge
+- `showImportPreviewAsync(result, current, total)` — batch import preview promise bridge
 
 **Window exports:** via `pdf-import.js`
 
