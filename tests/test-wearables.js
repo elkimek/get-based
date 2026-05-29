@@ -827,7 +827,7 @@ assert('No bare "JSZip not loaded" throw left in extractExportXml',
 // element, so re-imports on already-connected rows ran without any UI
 // feedback (the `if (wrap)` / `if (bar)` / `if (text)` guards no-op'd).
 // Pin both branches so a future refactor can't silently drop one again.
-const appleProgressSrc = await fetch('/js/wearables.js').then(r => r.text());
+const appleProgressSrc = await fetch('/js/wearables-settings-panel.js').then(r => r.text());
 const progressIdMatches = (appleProgressSrc.match(/id="apple-health-progress"/g) || []).length;
 assert('renderRowDetail renders #apple-health-progress in BOTH connected and disconnected branches',
   progressIdMatches >= 2);

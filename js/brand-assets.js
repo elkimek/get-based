@@ -1,7 +1,7 @@
 // brand-assets.js — Wearable vendor brand asset registry.
 //
 // Maps adapterId → { mode, brandColor?, mono, full?, signInLight?, signInDark? }
-// Render code (vendorIcon, renderConnectButton in wearables.js) reads from here.
+// Render code (vendorIcon in wearables-settings-panel.js) reads from here.
 //
 // mode:
 //   'fallback'  — render the monochrome glyph in our generic accent pill.

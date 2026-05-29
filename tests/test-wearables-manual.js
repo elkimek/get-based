@@ -82,6 +82,7 @@ assert('saveManualLog on window', typeof window.saveManualLog === 'function');
 assert('cancelManualLog on window', typeof window.cancelManualLog === 'function');
 
 const wearablesSrc = await fetch('js/wearables.js').then(r => r.text());
+const wearablesSettingsSrc = await fetch('js/wearables-settings-panel.js').then(r => r.text());
 assert('wearables.js renders empty manual cards',
   wearablesSrc.includes('renderEmptyManualCard') && wearablesSrc.includes('wearable-card-empty'));
 assert('wearables.js MANUAL_EMPTY_METRICS covers weight/bp/rhr',
@@ -293,7 +294,7 @@ try {
   assert('deleteManualEntryFromDetail closes modal when last reading is removed',
     /closeModal/.test(delFn));
 
-  const handleDisconnectFn = wearablesSrc.match(/async function handleManualDisconnect[\s\S]*?\n\}\s*\n/)?.[0] || '';
+  const handleDisconnectFn = wearablesSettingsSrc.match(/async function handleManualDisconnect[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('deleteManualEntryFromDetail uses promise-style showConfirmDialog',
     /await\s+window\.showConfirmDialog\(/.test(delFn));
   assert('handleManualDisconnect uses promise-style showConfirmDialog',

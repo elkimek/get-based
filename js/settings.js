@@ -8,7 +8,7 @@ import { getAIProvider, setAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPII
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICompatible } from './pii.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { isSyncEnabled, enableSync, disableSync, getMnemonic, getMnemonicResolutionError, getSyncBlocker, restoreFromMnemonic, getSyncRelay, setSyncRelay, checkRelayConnection, isMessengerEnabled, getMessengerToken, generateMessengerToken, revokeMessengerToken, pushContextToGateway } from './sync.js';
-import { renderWearablesSettingsSection } from './wearables.js';
+import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { loadPdfImport } from './import-loader.js';
 
 let _providerPanelsLoad = null;
