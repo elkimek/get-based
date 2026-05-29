@@ -32,8 +32,12 @@ const auditDeps = {
   refreshLightEnvironmentUI: () => {},
 };
 
+const LIGHT_AUDITS_ANCHOR = '.light-audits-block';
+const AUDITS_DEFAULT_CAP = 2;
+
 let _expandedAuditId = null;
 let _auditCompareMode = false;
+let _showAllAudits = false;
 
 export function configureLightEnvAudits(deps = {}) {
   Object.assign(auditDeps, deps);
@@ -50,6 +54,10 @@ function computeRoomSeverity(room, measurements) {
 
 function refreshLightEnvironmentUI(options = {}) {
   auditDeps.refreshLightEnvironmentUI(options);
+}
+
+function refreshAuditsUI() {
+  refreshLightEnvironmentUI({ scrollAnchor: LIGHT_AUDITS_ANCHOR });
 }
 
 export function getLightAudits() {
@@ -137,6 +145,14 @@ function fmtAuditDate(d) {
 
 function flickerLabel(score) {
   return ['Pristine', 'Mild', 'Moderate', 'Severe'][Math.min(3, Math.max(0, Math.round(score)))] || String(score);
+}
+
+function sortAuditsNewestFirst(audits) {
+  return audits.slice().sort((a, b) => {
+    const byDate = (b.date || '').localeCompare(a.date || '');
+    if (byDate) return byDate;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
 }
 
 function renderLightAuditCard(a, expanded) {
@@ -308,7 +324,7 @@ function serializeAuditComparison(a1, a2) {
 }
 
 function renderLightAuditCompare(audits) {
-  const sorted = audits.slice().sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = sortAuditsNewestFirst(audits);
   const a2 = sorted[0];        // newer (After)
   const a1 = sorted[1] || sorted[0]; // older (Before)
 
@@ -473,9 +489,20 @@ export function renderLightAuditsBlock() {
   if (_auditCompareMode && audits.length >= 2) {
     html += renderLightAuditCompare(audits);
   } else if (audits.length > 0) {
-    const sorted = audits.slice().sort((a, b) => b.date.localeCompare(a.date));
-    for (const a of sorted) {
+    const sorted = sortAuditsNewestFirst(audits);
+    const visibleAudits = _showAllAudits ? sorted : sorted.slice(0, AUDITS_DEFAULT_CAP);
+    const hiddenCount = sorted.length - visibleAudits.length;
+    for (const a of visibleAudits) {
       html += renderLightAuditCard(a, _expandedAuditId === a.id);
+    }
+    if (hiddenCount > 0) {
+      html += `<button class="light-audit-show-more" onclick="event.preventDefault();event.stopPropagation();window.toggleLightAuditHistory()">
+        Show ${hiddenCount} older audit${hiddenCount === 1 ? '' : 's'}
+      </button>`;
+    } else if (_showAllAudits && sorted.length > AUDITS_DEFAULT_CAP) {
+      html += `<button class="light-audit-show-more" onclick="event.preventDefault();event.stopPropagation();window.toggleLightAuditHistory()">
+        Show only latest ${AUDITS_DEFAULT_CAP} audits
+      </button>`;
     }
   }
 
@@ -501,26 +528,36 @@ function installWindowHandlers() {
       if (audit) {
         showNotification(`Saved audit: ${audit.label}`);
         _expandedAuditId = audit.id;
-        refreshLightEnvironmentUI();
+        _showAllAudits = false;
+        refreshAuditsUI();
       }
     },
     toggleLightAudit: (id) => {
       _expandedAuditId = (_expandedAuditId === id) ? null : id;
-      refreshLightEnvironmentUI();
+      refreshAuditsUI();
     },
     toggleLightAuditCompare: () => {
       _auditCompareMode = !_auditCompareMode;
       _expandedAuditId = null;
-      refreshLightEnvironmentUI();
+      refreshAuditsUI();
+    },
+    toggleLightAuditHistory: () => {
+      _showAllAudits = !_showAllAudits;
+      if (!_showAllAudits && _expandedAuditId) {
+        const visibleIds = new Set(sortAuditsNewestFirst(getLightAudits()).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
+        if (!visibleIds.has(_expandedAuditId)) _expandedAuditId = null;
+      }
+      refreshAuditsUI();
     },
     updateLightAuditField: async (id, field, value) => {
       await updateLightAudit(id, { [field]: value });
+      refreshAuditsUI();
     },
     deleteLightAuditConfirm: async (id) => {
       if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
         await deleteLightAudit(id);
         if (_expandedAuditId === id) _expandedAuditId = null;
-        refreshLightEnvironmentUI();
+        refreshAuditsUI();
       }
     },
     // "Interpret changes" — pre-fills the chat panel with a comparison

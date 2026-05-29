@@ -320,6 +320,35 @@ const {
   await deleteLightAudit(audit.id);
   assert('deleteLightAudit removes from list',
     !getLightAudits().some(a => a.id === audit.id));
+  const auditModule = await import('../js/light-env-audits.js');
+  reset({
+    lightEnvironment: {
+      rooms: [{ id: 'r1', name: 'Bedroom', primarySource: 'led-warm', hoursOccupiedPerDay: 8 }],
+      screens: [],
+    },
+    lightMeasurements: [],
+    lightAudits: [
+      { id: 'a1', date: '2026-05-01', label: 'Oldest hidden', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
+      { id: 'a2', date: '2026-05-02', label: 'Older hidden', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
+      { id: 'a3', date: '2026-05-03', label: 'Second visible', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
+      { id: 'a4', date: '2026-05-04', label: 'Latest visible', rooms: [{ id: 'r1', name: 'Bedroom' }], measurements: [] },
+    ],
+  });
+  const compactAudits = auditModule.renderLightAuditsBlock();
+  assert('Audit list shows only the latest two snapshots by default',
+    compactAudits.includes('Latest visible') &&
+    compactAudits.includes('Second visible') &&
+    !compactAudits.includes('Older hidden') &&
+    !compactAudits.includes('Oldest hidden') &&
+    compactAudits.includes('Show 2 older audits'));
+  window.toggleLightAuditHistory();
+  const expandedAudits = auditModule.renderLightAuditsBlock();
+  assert('Audit history can expand older snapshots inline',
+    expandedAudits.includes('Latest visible') &&
+    expandedAudits.includes('Older hidden') &&
+    expandedAudits.includes('Oldest hidden') &&
+    expandedAudits.includes('Show only latest 2 audits'));
+  window.toggleLightAuditHistory();
 
   // ─── 11. Assessment surface renderers ───────────────────────────────
   console.log('%c 11. Assessment surface renderers ', 'font-weight:bold;color:#f59e0b');
@@ -350,6 +379,7 @@ const {
     auditSrc.includes('configureLightEnvAudits') &&
     auditSrc.includes('renderLightAuditsBlock') &&
     auditSrc.includes('saveLightAuditFromUI') &&
+    auditSrc.includes('scrollAnchor: LIGHT_AUDITS_ANCHOR') &&
     !envSrc.includes('function renderLightAuditCompare'));
   const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const fs = await import('node:fs/promises');

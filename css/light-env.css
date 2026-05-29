@@ -866,6 +866,28 @@
   margin: 10px 12px;
 }
 .light-audit-actions { display: flex; gap: 8px; }
+.light-audit-show-more {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 10px 12px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.light-audit-show-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+.light-audit-show-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .light-audit-card {
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   margin-bottom: 8px; overflow: hidden; background: var(--bg-card);

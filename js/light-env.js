@@ -1005,8 +1005,17 @@ export function refreshLightEnvironmentAssessment() {
   if (isLightEnvironmentAssessmentOpen()) renderLightEnvironmentAssessmentModal();
 }
 
+function scrollLightEnvironmentAssessmentTo(selector) {
+  const overlay = getLightEnvironmentAssessmentOverlay();
+  const target = selector ? overlay?.querySelector(selector) : null;
+  if (target && typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView({ block: 'start' });
+  }
+}
+
 function refreshLightEnvironmentUI(options = {}) {
   refreshLightEnvironmentAssessment();
+  if (options.scrollAnchor) scrollLightEnvironmentAssessmentTo(options.scrollAnchor);
   if (window.navigate && state.currentView === 'light') {
     window.navigate('light', options.scrollAnchor ? { scrollAnchor: options.scrollAnchor } : undefined);
   }
