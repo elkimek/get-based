@@ -33,7 +33,9 @@ export function detectDNAFile(text) {
   if (first.includes('GSGT Version,')) return 'illumina-gsgt';
   // CSV formats — skip past leading "#"/"##" comment lines so MyHeritage's new
   // multi-line header doesn't push the column-header line out of position 0.
-  const firstNonComment = first.split(/\r?\n/).find(l => l.trim() && !l.startsWith('#'))?.trim() || '';
+  const firstNonComment = first.split(/\r?\n/).find(l => l.trim() && !l.startsWith('#'))?.replace(/^\uFEFF/, '').trim() || '';
+  const compactHeader = firstNonComment.replace(/\s+/g, '');
+  if (/^"?rsid"?,"?gene"?,"?category"?,"?genotype"?,"?zygosity"?,"?risk_?allele"?,"?result"?/i.test(compactHeader)) return 'annotated-snp-report';
   if (/^RSID,CHROMOSOME,POSITION,RESULT$/i.test(firstNonComment)) return 'csv'; // MyHeritage or FTDNA
   if (/^"?RSID"?,/i.test(firstNonComment)) return 'csv'; // quoted variant
   // Tab-separated: rsid\tchromosome\tposition\tgenotype (23andMe without header, or stripped)
@@ -230,6 +232,152 @@ function loadSNPTable({ forceFresh = false } = {}) {
   return _snpTablePromise;
 }
 
+function parseCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  values.push(current.trim());
+  return values.map(v => v.replace(/^\uFEFF/, '').trim());
+}
+
+function normalizeReportHeader(value) {
+  return String(value || '')
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function normalizeReportText(value) {
+  return String(value || '').trim().toLowerCase().replace(/\u03B5/g, 'e');
+}
+
+function normalizeReportAllele(value) {
+  const allele = String(value || '').trim().toUpperCase();
+  return /^[ACGT]$/.test(allele) ? allele : '';
+}
+
+function getReportCell(cells, index) {
+  return index >= 0 ? (cells[index] || '').trim() : '';
+}
+
+function isHeterozygousGenotype(genotype) {
+  return /^[ACGT]{2}$/.test(genotype) && genotype[0] !== genotype[1];
+}
+
+function isHomozygousGenotype(genotype) {
+  return /^[ACGT]{2}$/.test(genotype) && genotype[0] === genotype[1];
+}
+
+function pickAnnotatedCandidate(candidates, riskAllele, mode = 'any') {
+  if (riskAllele) {
+    const riskMatches = candidates.filter(g => mode === 'excludeRisk' ? !g.includes(riskAllele) : g.includes(riskAllele));
+    if (riskMatches.length === 1) return riskMatches[0];
+  }
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+function inferApoeReportGenotype(rsid, resultText) {
+  const match = normalizeReportText(resultText).replace(/\s+/g, '').match(/e([234])\/e([234])/);
+  if (!match) return null;
+  const pair = [match[1], match[2]].sort().join('/');
+  const lookup = {
+    '2/2': { rs429358: 'TT', rs7412: 'TT' },
+    '2/3': { rs429358: 'TT', rs7412: 'CT' },
+    '2/4': { rs429358: 'CT', rs7412: 'CT' },
+    '3/3': { rs429358: 'TT', rs7412: 'CC' },
+    '3/4': { rs429358: 'TC', rs7412: 'CC' },
+    '4/4': { rs429358: 'CC', rs7412: 'CC' },
+  };
+  return lookup[pair]?.[rsid] || null;
+}
+
+function inferAnnotatedReportGenotype(rsid, entry, cells, columns) {
+  const rawGenotype = getReportCell(cells, columns.genotype);
+  const rawZygosity = getReportCell(cells, columns.zygosity);
+  const rawRiskAllele = getReportCell(cells, columns.riskAllele);
+  const rawResult = getReportCell(cells, columns.result);
+  const direct = rawGenotype.trim().toUpperCase();
+  if (/^[ACGT]{1,2}$/.test(direct)) return direct;
+
+  const apoe = inferApoeReportGenotype(rsid, rawResult) || inferApoeReportGenotype(rsid, rawGenotype);
+  if (apoe) return apoe;
+
+  const keys = Object.keys(entry?.genotypes || {}).filter(g => /^[ACGT]{2}$/.test(g));
+  if (!keys.length) return null;
+
+  const riskAllele = normalizeReportAllele(rawRiskAllele);
+  const combined = `${normalizeReportText(rawGenotype)} ${normalizeReportText(rawZygosity)} ${normalizeReportText(rawResult)}`;
+  const hetero = keys.filter(isHeterozygousGenotype);
+  const homo = keys.filter(isHomozygousGenotype);
+
+  if (/\bhet\b|heterozygous|one risk copy|one copy|carrier/.test(combined)) {
+    return pickAnnotatedCandidate(hetero, riskAllele);
+  }
+
+  if (/homozygous variant|two risk copies|risk homozygous/.test(combined)) {
+    const nonReferenceHomo = homo.filter(g => entry.genotypes[g]?.effect !== 'none');
+    return pickAnnotatedCandidate(nonReferenceHomo, riskAllele);
+  }
+
+  if (/ref\/ref|wildtype|homozygous reference|risk allele absent|protective allele absent|variant absent|absent/.test(combined)) {
+    const reference = keys.filter(g => entry.genotypes[g]?.effect === 'none');
+    const referenceHomo = reference.filter(isHomozygousGenotype);
+    return pickAnnotatedCandidate(referenceHomo.length ? referenceHomo : reference, riskAllele, 'excludeRisk');
+  }
+
+  return null;
+}
+
+function parseAnnotatedSnpReport(text, snpTable) {
+  const lines = text.split(/\r?\n/);
+  const headerIndex = lines.findIndex(line => line.trim() && !line.trim().startsWith('#'));
+  if (headerIndex < 0) return { matches: {}, source: 'annotated-snp-report', totalLines: 0, format: 'annotated-snp-report' };
+
+  const headers = parseCsvLine(lines[headerIndex]).map(normalizeReportHeader);
+  const columns = {
+    rsid: headers.indexOf('rsid'),
+    genotype: headers.indexOf('genotype'),
+    zygosity: headers.indexOf('zygosity'),
+    riskAllele: headers.indexOf('risk_allele'),
+    result: headers.indexOf('result'),
+  };
+  if (columns.rsid < 0 || columns.genotype < 0 || columns.result < 0) {
+    throw new Error('Unrecognized annotated SNP report format');
+  }
+
+  const matches = {};
+  let totalData = 0;
+  for (let i = headerIndex + 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const cells = parseCsvLine(lines[i]);
+    const rsid = getReportCell(cells, columns.rsid).toLowerCase();
+    if (!/^rs\d+$/.test(rsid)) continue;
+    totalData++;
+    if (!snpTable?.[rsid] || matches[rsid]) continue;
+    const genotype = inferAnnotatedReportGenotype(rsid, snpTable[rsid], cells, columns);
+    if (genotype) matches[rsid] = genotype;
+  }
+  return { matches, source: 'annotated-snp-report', totalLines: totalData, format: 'annotated-snp-report' };
+}
+
 // Eagerly load SNP table when genetics data exists (e.g. after JSON import)
 export function ensureSNPTable() {
   return state.importedData?.genetics ? loadSNPTable() : Promise.resolve(null);
@@ -260,14 +408,19 @@ export async function parseDNAFile(file) {
   const format = detectDNAFile(headerChunk);
   if (!format) throw new Error('Unrecognized DNA file format');
 
-  // Run parser in a fresh worker (prevents handler conflicts on concurrent parses)
-  const worker = createWorker();
-  const result = await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => { worker.terminate(); reject(new Error('DNA parsing timed out')); }, 30000);
-    worker.onmessage = (e) => { clearTimeout(timeout); worker.terminate(); resolve(e.data); };
-    worker.onerror = (e) => { clearTimeout(timeout); worker.terminate(); reject(new Error(e.message)); };
-    worker.postMessage({ file, snpIds, format });
-  });
+  let result;
+  if (format === 'annotated-snp-report') {
+    result = parseAnnotatedSnpReport(await file.text(), snpTable);
+  } else {
+    // Run parser in a fresh worker (prevents handler conflicts on concurrent parses)
+    const worker = createWorker();
+    result = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => { worker.terminate(); reject(new Error('DNA parsing timed out')); }, 30000);
+      worker.onmessage = (e) => { clearTimeout(timeout); worker.terminate(); resolve(e.data); };
+      worker.onerror = (e) => { clearTimeout(timeout); worker.terminate(); reject(new Error(e.message)); };
+      worker.postMessage({ file, snpIds, format });
+    });
+  }
 
   // Enrich matches with lookup table data. SNPs whose raw call doesn't resolve
   // to any catalog genotype (after direct/reversed/sorted/RC fallbacks) are
@@ -380,7 +533,7 @@ export function findSnpHint(entry, genotype) {
 }
 
 function formatSourceName(format) {
-  const names = { ancestry: 'AncestryDNA', '23andme': '23andMe', livingdna: 'Living DNA', csv: 'MyHeritage/FTDNA', 'illumina-gsgt': 'Illumina GenomeStudio (DNAEra)' };
+  const names = { ancestry: 'AncestryDNA', '23andme': '23andMe', livingdna: 'Living DNA', csv: 'MyHeritage/FTDNA', 'illumina-gsgt': 'Illumina GenomeStudio (DNAEra)', 'annotated-snp-report': 'Annotated SNP report' };
   return names[format] || format;
 }
 
