@@ -23,20 +23,21 @@ return (async function () {
     return;
   }
 
-  // Seed importedData with a single sun session so the modal has something
-  // to render. The modal early-returns if there are zero sessions.
+  // Seed importedData with enough sun sessions to force the modal body to
+  // overflow; wheel forwarding is only meaningful when there is somewhere to
+  // scroll.
   const S = window._labState;
   const _saved = S?.importedData ? JSON.parse(JSON.stringify(S.importedData)) : null;
   if (S?.importedData) {
-    S.importedData.sunSessions = [{
-      id: 'sess-modal-probe',
-      startedAt: Date.now() - 600000,
-      endedAt: Date.now() - 300000,
+    S.importedData.sunSessions = Array.from({ length: 12 }, (_, i) => ({
+      id: `sess-modal-probe-${i}`,
+      startedAt: Date.now() - (i + 1) * 600000,
+      endedAt: Date.now() - (i + 1) * 600000 + 300000,
       doses: { vitamin_d: 100 },
       bodyExposure: { fraction: 0.3, rotatedSides: false },
       safety: { fitzpatrick: 'III' },
       atmosphere: { uvIndex: 6 },
-    }];
+    }));
     S.importedData.deviceSessions = [];
   }
 
@@ -53,11 +54,17 @@ return (async function () {
     !!modal && modal.getAttribute('aria-modal') === 'true' &&
       modal.getAttribute('aria-labelledby') === 'light-all-sessions-title');
   assert('all sessions modal summary renders sun/device counts',
-    /Total\s*1/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || '') &&
-      /Sun\s*1/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || '') &&
+    /Total\s*12/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || '') &&
+      /Sun\s*12/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || '') &&
       /Device\s*0/.test(modal?.querySelector('.light-sessions-modal-summary')?.textContent || ''));
   assert('all sessions modal renders session rows',
-    modal?.querySelectorAll('.sun-sessions-list .sun-session').length === 1);
+    modal?.querySelectorAll('.sun-sessions-list .sun-session').length === 12);
+  const body = modal?.querySelector('.light-sessions-modal-body');
+  if (body) body.scrollTop = 0;
+  modal?.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 600 }));
+  assert('all sessions modal mouse wheel scrolls its body',
+    (body?.scrollTop || 0) > 0,
+    `scrollTop=${body?.scrollTop || 0}, scrollHeight=${body?.scrollHeight || 0}, clientHeight=${body?.clientHeight || 0}`);
 
   // Clean up so downstream tests see clean state.
   const m = document.querySelectorAll('.modal-overlay');

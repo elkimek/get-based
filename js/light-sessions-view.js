@@ -196,6 +196,19 @@ export function _openAllSessionsModal() {
     if (!row || !overlay.contains(row)) return;
     setTimeout(() => overlay.remove(), 0);
   });
+  overlay.addEventListener('wheel', (event) => {
+    const body = overlay.querySelector('.light-sessions-modal-body');
+    if (!body) return;
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+      ? body.clientHeight
+      : (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1);
+    body.scrollBy({
+      top: event.deltaY * unit,
+      left: event.deltaX * unit,
+      behavior: 'auto',
+    });
+    event.preventDefault();
+  }, { passive: false });
   if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
   if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
