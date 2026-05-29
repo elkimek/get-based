@@ -46,8 +46,9 @@ export function renderEmptyChatState(container, panel) {
 
   const filled = _countFilledCards();
   const extrasDone = localStorage.getItem(`labcharts-onboard-extras-done-${state.currentProfile}`);
+  const forceContextCards = sessionStorage.getItem(`chat-onboard-force-context-cards-${state.currentProfile}`) === '1';
 
-  if (!context.hasData && !extrasDone) return renderOptionalContextState(container, panel, context);
+  if (!context.hasData && !extrasDone && !forceContextCards) return renderOptionalContextState(container, panel, context);
   if (filled >= 9 && !context.hasData) return renderFullContextNoDataState(container, panel, context);
   if (!context.hasData && filled > 0) return renderPartialContextNoDataState(container, panel, context, filled);
   if (!context.hasData) return renderInitialNoDataState(container, panel, context);
@@ -68,6 +69,10 @@ function getEmptyChatContext() {
 
 function setOnboardingActive(panel) {
   panel?.classList.add('chat-onboarding-active');
+}
+
+function renderChatContextCards() {
+  return `<div class="chat-context-cards">${renderProfileContextCards()}</div>`;
 }
 
 function shouldRenderProviderSetup() {
@@ -287,6 +292,7 @@ function renderPartialContextNoDataState(container, panel, { personality, name }
   setOnboardingActive(panel);
   const remaining = 9 - filled;
   const progressPct = Math.round((filled / 9) * 100);
+  const providerConnected = hasAIProvider();
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(4)}
@@ -294,35 +300,35 @@ function renderPartialContextNoDataState(container, panel, { personality, name }
       <div class="chat-onboard-progress"><div class="chat-onboard-progress-bar" style="width:${progressPct}%"></div></div>
       <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">The more context I have, the better I can interpret results and recommend what to test. Everything is optional.</p>
       <div class="chat-onboard-actions">
-        ${hasAIProvider()
-          ? `<button class="chat-onboard-cta" onclick="useChatPrompt('Help me finish the remaining health context. Ask me one question at a time.')">Continue in chat - ${remaining} area${remaining !== 1 ? 's' : ''} left</button>
-             <button class="chat-prompt-btn" onclick="useChatPrompt('Based on what you know about me so far, what blood tests should I get?')">Skip ahead - recommend tests</button>`
-          : `<button class="chat-onboard-cta" onclick="document.querySelector('.chat-context-cards')?.scrollIntoView({behavior:'smooth',block:'start'})">Continue context cards</button>
-             <button class="chat-prompt-btn" onclick="window.openChatProviderQuiz()">Connect AI for recommendations</button>`}
+        <button class="chat-onboard-cta" onclick="document.querySelector('.chat-context-cards')?.scrollIntoView({behavior:'smooth',block:'start'})">Continue context cards - ${remaining} area${remaining !== 1 ? 's' : ''} left</button>
+        ${providerConnected
+          ? `<button class="chat-prompt-btn" onclick="useChatPrompt('Based on what you know about me so far, what blood tests should I get?')">Skip ahead - recommend tests</button>`
+          : `<button class="chat-prompt-btn" onclick="window.openChatProviderQuiz()">Connect AI for recommendations</button>`}
       </div>
-      ${!hasAIProvider() ? `<div class="chat-context-cards">${renderProfileContextCards()}</div>` : ''}
+      ${renderChatContextCards()}
     </div>`;
   return true;
 }
 
 function renderInitialNoDataState(container, panel, { personality, name }) {
   setOnboardingActive(panel);
+  const providerConnected = hasAIProvider();
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(4)}
       <p>You're ready to go, ${escapeHTML(name)}. Tell me what you have or what you want to understand, and I'll guide the next step.</p>
-      <p style="font-size:13px;margin:4px 0"><strong>Have lab results?</strong> ${hasAIProvider() ? "Import them directly and I'll build the dashboard." : 'Connect AI first for lab PDFs or photos. JSON and DNA files can still be imported from the header.'}</p>
-      <p style="font-size:13px;margin:4px 0"><strong>No labs yet?</strong> ${hasAIProvider() ? 'I can ask for the useful context here and recommend what to test first.' : 'Add useful context below, then connect AI when you want recommendations.'}</p>
+      <p style="font-size:13px;margin:4px 0"><strong>Have lab results?</strong> ${providerConnected ? "Import them directly and I'll build the dashboard." : 'Connect AI first for lab PDFs or photos. JSON and DNA files can still be imported from the header.'}</p>
+      <p style="font-size:13px;margin:4px 0"><strong>No labs yet?</strong> Add useful context below${providerConnected ? ', then ask for recommended tests when you are ready.' : ', then connect AI when you want recommendations.'}</p>
       <div class="chat-onboard-actions">
-        ${hasAIProvider()
+        ${providerConnected
           ? `<button class="chat-onboard-cta" onclick="window.startOnboardingLabImport()">Import a lab file</button>
-             <button class="chat-onboard-cta" onclick="useChatPrompt('Help me build my health context before labs. Ask me one question at a time.')">Build my context in chat</button>
+             <button class="chat-onboard-cta" onclick="document.querySelector('.chat-context-cards')?.scrollIntoView({behavior:'smooth',block:'start'})">Add context below</button>
              <button class="chat-prompt-btn" onclick="useChatPrompt('I don\\'t have any labs yet. Based on my profile, what blood tests should I get and why?')">Just tell me what to test</button>`
           : `<button class="chat-onboard-cta" onclick="window.requestOnboardingLabImportProvider()">Connect AI to import labs</button>
              <button class="chat-onboard-cta" onclick="document.querySelector('.chat-context-cards')?.scrollIntoView({behavior:'smooth',block:'start'})">Add context below</button>
              <button class="chat-prompt-btn" onclick="window.openChatProviderQuiz()">Connect AI when ready</button>`}
       </div>
-      ${!hasAIProvider() ? `<div class="chat-context-cards">${renderProfileContextCards()}</div>` : ''}
+      ${renderChatContextCards()}
     </div>`;
   return true;
 }

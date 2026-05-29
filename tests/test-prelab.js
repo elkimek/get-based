@@ -29,6 +29,7 @@ const chatEmptyStateSrc = read('js/chat-empty-state.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
+const onboardingViewSrc = read('js/onboarding-view.js');
 
   assert('No sentinel return string', !labCtxSrc.includes("return 'No lab data is currently loaded for this profile.'"),
     'The old sentinel early-return should be removed');
@@ -256,8 +257,19 @@ const labCtxSrc = read('js/lab-context.js');
     'Optional setup should use compact cards and preserve DNA import update hook');
   assert('Chat onboarding makes AI provider setup explicit', chatEmptyStateSrc.includes('chat-onboard-provider-requested') && !chatEmptyStateSrc.includes('!providerSkipped'),
     'No-provider users should continue into context first unless they ask to connect AI');
-  assert('Chat onboarding embeds context cards when AI is not connected', chatEmptyStateSrc.includes("import { renderProfileContextCards } from './context-cards.js'") && chatEmptyStateSrc.includes('chat-context-cards'),
-    'No-provider users should still be able to add context inside chat');
+  assert('Chat onboarding embeds context cards for provider and no-provider users',
+    chatEmptyStateSrc.includes("import { renderProfileContextCards } from './context-cards.js'") &&
+      chatEmptyStateSrc.includes('function renderChatContextCards()') &&
+      chatEmptyStateSrc.includes('${renderChatContextCards()}') &&
+      !chatEmptyStateSrc.includes('${!hasAIProvider() ? `<div class="chat-context-cards"'),
+    'Context cards should stay available inside chat even after AI is connected');
+  assert('Card onboarding focus opens card UI instead of AI prompt prefill',
+    onboardingViewSrc.includes('window.openChatPanel()') &&
+      onboardingViewSrc.includes('chat-onboard-force-context-cards') &&
+      chatEmptyStateSrc.includes('forceContextCards') &&
+      onboardingViewSrc.includes('#chat-panel .chat-context-cards') &&
+      !onboardingViewSrc.includes('Help me collect the health context'),
+    'setOnboardingFocus("cards") should scroll to card editors, not prefill a prompt');
   assert('Chat onboarding lab import CTA handles no-provider state', chatEmptyStateSrc.includes('startOnboardingLabImport') && chatEmptyStateSrc.includes('requestOnboardingLabImportProvider') && chatEmptyStateSrc.includes('Connect AI to import labs'),
     'No-provider lab-import CTA should explain AI setup instead of focusing hidden import controls');
   assert('Chat onboarding hides composer while active', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-input-area') && cssSrc.includes('display: none'),

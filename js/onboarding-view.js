@@ -132,15 +132,22 @@ export function setOnboardingFocus(mode) {
     localStorage.setItem('labcharts-chat-fullscreen', 'false');
   }
   if (mode === 'cards') {
+    sessionStorage.setItem(`chat-onboard-force-context-cards-${state.currentProfile}`, '1');
     const cards = document.querySelector('.profile-context-cards');
     if (cards) {
       setTimeout(() => cards.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } else if (window.openChatPanel) {
       body.classList.remove('cards-focus');
-      const prefill = hasAIProvider()
-        ? 'Help me collect the health context you need before I import labs. Ask me one question at a time.'
-        : undefined;
-      window.openChatPanel(prefill);
+      Promise.resolve(window.openChatPanel()).then(() => {
+        if (!document.querySelector('#chat-panel .chat-context-cards') && state.chatHistory.length > 0 && window.createNewThread) {
+          window.createNewThread();
+        } else {
+          window.renderChatMessages?.();
+        }
+        setTimeout(() => {
+          document.querySelector('#chat-panel .chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      });
     }
   } else if (mode === 'import') {
     setTimeout(() => document.querySelector('.welcome-direct-import-btn, .welcome-primary-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
