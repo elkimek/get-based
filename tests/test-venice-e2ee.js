@@ -359,11 +359,12 @@ try {
 
 // 16. Settings + Chat source checks
 const providerSrc = read('js/provider-panels.js');
-assert('provider-panels has venice-e2ee-toggle', providerSrc.includes('venice-e2ee-toggle'));
-assert('provider-panels has venice-e2ee-indicator', providerSrc.includes('venice-e2ee-indicator'));
+const providerRenderSrc = read('js/provider-panel-renderers.js');
+assert('provider renderer has venice-e2ee-toggle', providerRenderSrc.includes('venice-e2ee-toggle'));
+assert('provider renderer has venice-e2ee-indicator', providerRenderSrc.includes('venice-e2ee-indicator'));
 assert('provider-panels has toggleVeniceE2EE', providerSrc.includes('toggleVeniceE2EE'));
 assert('provider-panels has Venice model change handler', providerSrc.includes('function onVeniceModelDropdownChange'));
-assert('Venice model dropdown uses change handler', providerSrc.includes('onchange="onVeniceModelDropdownChange(this.value)"'));
+assert('Venice model dropdown uses change handler', (providerSrc + providerRenderSrc).includes('onchange="onVeniceModelDropdownChange(this.value)"'));
 const chatSrc = read('js/chat.js');
 const chatSendSrc = read('js/chat-send.js');
 const chatAttestationSrc = read('js/chat-attestation.js');

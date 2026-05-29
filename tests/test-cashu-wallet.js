@@ -55,6 +55,7 @@ const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiSrc = await fetchWithRetry('js/api.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
+const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
@@ -259,15 +260,15 @@ assert('bip39.mnemonicToSeed exists', typeof window.bip39?.mnemonicToSeed === 'f
 // ═══════════════════════════════════════
 console.log('15. Settings UI');
 
-assert('Wallet section in Routstr panel', ppSrc.includes('routstr-wallet-balance'));
-assert('Mint label display', ppSrc.includes('routstr-mint-label'));
+assert('Wallet section in Routstr panel', providerRenderSrc.includes('routstr-wallet-balance'));
+assert('Mint label display', providerRenderSrc.includes('routstr-mint-label'));
 assert('provider-panels imports wallet panel module', ppSrc.includes("from './provider-wallet-panels.js'"));
 assert('provider-panels configures wallet callbacks', ppSrc.includes('configureRoutstrWalletPanels({'));
 assert('provider-panels clears extracted wallet timers', ppSrc.includes('clearRoutstrWalletTimers();'));
 assert('provider-panels uses extracted Routstr balance refresh',
   ppSrc.includes('renderRoutstrModelDropdown(models); });\n    refreshRoutstrBalance();') && !ppSrc.includes('_rsBalanceHtml'));
-assert('Routstr panel uses extracted wallet action buttons', ppSrc.includes('routstrWalletActionButtons(null)'));
-assert('Routstr panel uses extracted node action buttons', ppSrc.includes('buildRoutstrNodeActions(nodeUrl, !!currentKey, null)'));
+assert('Routstr panel uses extracted wallet action buttons', providerRenderSrc.includes('routstrWalletActionButtons(null)'));
+assert('Routstr panel uses extracted node action buttons', providerRenderSrc.includes('buildRoutstrNodeActions(nodeUrl, !!currentKey, null)'));
 assert('Mint edit UI', walletPanelSrc.includes('showRoutstrMintEdit'));
 assert('Node picker UI', walletPanelSrc.includes('showRoutstrNodePicker'));
 assert('Deposit amount picker', walletPanelSrc.includes('routstr-deposit-amount'));

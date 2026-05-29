@@ -177,8 +177,9 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   console.log('%c 8. Settings Integration ', 'font-weight:bold;color:#f59e0b');
 
   const ppSrc = read('js/provider-panels.js');
+  const panelRenderSrc = read('js/provider-panel-renderers.js');
   assert('Provider panels imports hardware.js', ppSrc.includes("from './hardware.js'"));
-  assert('Provider panels has advisor placeholder', ppSrc.includes('local-ai-advisor'));
+  assert('Provider renderer has advisor placeholder', panelRenderSrc.includes('local-ai-advisor'));
   assert('Provider panels calls renderModelAdvisor', ppSrc.includes('renderModelAdvisor'));
   assert('Provider panels exports copyOllamaPullCmd', ppSrc.includes('copyOllamaPullCmd'));
 

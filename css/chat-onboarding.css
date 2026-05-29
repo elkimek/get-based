@@ -71,7 +71,7 @@
 }
 .chat-onboard-input:focus { border-color: var(--accent); outline: none; }
 select.chat-onboard-input { background: var(--bg-input, var(--bg-sidebar)); color: var(--text-primary); }
-select.chat-onboard-input option { background: var(--bg-secondary); color: var(--text-primary); }
+select.chat-onboard-input option { background: var(--select-popup-surface); color: var(--text-primary); }
 /* number-input + unit-select pair (Height, Weight). min-width:0 lets the
    input shrink past its UA-default min, so the select doesn't push past
    the chat bubble on narrow viewports. */

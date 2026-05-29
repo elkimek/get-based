@@ -176,7 +176,7 @@
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
+  background: var(--select-surface);
   color: var(--text-primary);
   font: inherit;
   font-size: 12px;
@@ -203,6 +203,25 @@
 .settings-modal .api-key-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-fill);
+}
+.settings-modal select.api-key-input {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 34px;
+  background-color: var(--select-surface);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px, 5px 5px;
+}
+.settings-modal select.api-key-input option {
+  background: var(--select-popup-surface);
+  color: var(--text-primary);
 }
 .kb-modal.settings-modal {
   max-width: 780px;

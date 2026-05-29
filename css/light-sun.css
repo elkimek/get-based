@@ -399,7 +399,7 @@
   padding-right: 28px;
 }
 .ctx-select option {
-  background: var(--bg-secondary);
+  background: var(--select-popup-surface);
   color: var(--text-primary);
 }
 [data-theme="light"] .ctx-select {

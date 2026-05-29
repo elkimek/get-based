@@ -1287,7 +1287,7 @@ Block-aware markdown parser for chat rendering. Extracted from `chat.js`.
 
 ### `provider-panels.js`
 
-AI provider panel rendering for the settings modal. Owns provider selection, key validation flows, provider model dropdowns, balances, and local-model advisor wiring.
+AI provider settings behavior for the settings modal. Owns provider selection, key validation flows, provider model dropdown refresh, balances, and local-model advisor wiring. Imports `provider-panel-renderers.js` for provider-specific Settings → AI panel markup.
 
 **Key exports:**
 - `renderAIProviderPanel(provider)` — returns the active provider configuration panel HTML
@@ -1295,6 +1295,12 @@ AI provider panel rendering for the settings modal. Owns provider selection, key
 - Provider key/model helpers for Venice, OpenRouter, Routstr, PPQ, Custom API, and local OpenAI-compatible servers
 
 **Window exports:** provider panel handlers used by Settings HTML `onclick` attributes, including imported Routstr wallet handlers from `provider-wallet-panels.js`
+
+### `provider-panel-renderers.js`
+
+Provider-specific Settings → AI panel markup for OpenRouter, Routstr, Venice, PPQ, Custom, and Local AI. Keeps static panel HTML and cached-model select markup separate from provider validation, balance polling, and local-model advisor behavior.
+
+**Window exports:** none directly. `renderAIProviderPanel()` is re-exported and attached to `window` by `provider-panels.js`.
 
 ### `provider-wallet-panels.js`
 
@@ -1405,7 +1411,8 @@ Not separately documented because their exports are best read from source — ke
 - `chat-threads.js` — conversation thread CRUD, list rendering, autoname, `onChatSaved` debounce trigger. Extracted in v1.21.9.
 - `markdown.js` — XSS-safe markdown rendering (`applyInlineMarkdown` for spans, `renderMarkdown` for full blocks). 34 dedicated XSS test assertions.
 - `lab-context.js` — lab-data → AI-prompt context assembly; memoized via fingerprint that includes wearable summary, change history, and all 9 context cards.
-- `provider-panels.js` — Settings → AI per-provider panels (Venice / OpenRouter / Routstr / PPQ / Local AI / Custom) plus shared model-advisor.
+- `provider-panels.js` — Settings → AI provider behavior, validation, balances, dropdown refresh, globals.
+- `provider-panel-renderers.js` — Settings → AI per-provider panel markup (Venice / OpenRouter / Routstr / PPQ / Local AI / Custom).
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `sun-body-silhouette.js` — anatomical sun-session body-region picker, stock-figure region-map hit testing, and async selection overlay. Re-exported by `sun.js` for compatibility.
 - `sun-active-session.js` — quick-log/start modal, live active-session ticker, Simpson live-dose integration, modal focus/backdrop helpers, and active-session compatibility handlers. Dependency-injected from `sun.js` so persistence and hydration stay in the owner module.

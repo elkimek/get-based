@@ -42,6 +42,8 @@
   --cyan: rgba(56, 189, 248, 0.6);
   --neutral-soft-bg: rgba(154, 160, 179, 0.10);
   --alert-soft-bg: rgba(248, 113, 113, 0.10);
+  --select-surface: var(--bg-primary);
+  --select-popup-surface: var(--bg-primary);
   --radius: 12px;
   --radius-sm: 8px;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -85,6 +87,8 @@
   --cyan: rgba(14, 165, 233, 0.6);
   --neutral-soft-bg: rgba(107, 112, 133, 0.10);
   --alert-soft-bg: rgba(220, 38, 38, 0.08);
+  --select-surface: var(--bg-card);
+  --select-popup-surface: var(--bg-card);
   --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-lg: 0 4px 16px rgba(0,0,0,0.1);
   --shadow-glow: 0 0 0 1px var(--accent), 0 4px 12px rgba(59, 124, 245, 0.08);
@@ -123,6 +127,17 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
 }
+select {
+  background-color: var(--select-surface);
+  color: var(--text-primary);
+  color-scheme: dark;
+}
+select option,
+select optgroup {
+  background-color: var(--select-popup-surface);
+  color: var(--text-primary);
+}
+[data-theme="light"] select { color-scheme: light; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }

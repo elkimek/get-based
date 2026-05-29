@@ -174,6 +174,7 @@ const APP_SHELL = [
   '/js/markdown.js',
   '/js/provider-qr.js',
   '/js/provider-wallet-panels.js',
+  '/js/provider-panel-renderers.js',
   '/js/provider-panels.js',
   '/js/dna.js',
   '/js/hardware.js',

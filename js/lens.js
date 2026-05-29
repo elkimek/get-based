@@ -590,7 +590,7 @@ export function renderCustomLensSection() {
       <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px" for="lens-library-select">Library</label>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <select id="lens-library-select" onchange="handleLibraryActivate(this.value)"
-                style="flex:1;min-width:180px;padding:6px 8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:13px">
+                style="flex:1;min-width:180px;padding:6px 8px;background:var(--select-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:13px">
           <option value="">Loading…</option>
         </select>
         <button class="import-btn import-btn-secondary" onclick="handleLibraryNew()" style="font-size:12px;padding:6px 10px" title="New library">+ New</button>

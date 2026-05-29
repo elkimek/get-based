@@ -93,14 +93,16 @@ assert('getOpenRouterPricing returns null for unknown', window.getOpenRouterPric
 if (oldPricing) localStorage.setItem('labcharts-openrouter-pricing', oldPricing);
 else localStorage.removeItem('labcharts-openrouter-pricing');
 
-// ─── 3. provider-panels.js source inspection (extracted from settings.js) ───
-console.log('\n3. provider-panels.js source inspection');
+// ─── 3. provider panel source inspection (extracted from settings.js) ───
+console.log('\n3. provider panel source inspection');
 const ppSrc = read('js/provider-panels.js');
-assert('imports getOpenRouterKey', ppSrc.includes('getOpenRouterKey'));
+const providerRenderSrc = read('js/provider-panel-renderers.js');
+const providerUiSrc = ppSrc + providerRenderSrc;
+assert('imports getOpenRouterKey', providerUiSrc.includes('getOpenRouterKey'));
 assert('imports saveOpenRouterKey', ppSrc.includes('saveOpenRouterKey'));
-assert('imports getOpenRouterModel', ppSrc.includes('getOpenRouterModel'));
+assert('imports getOpenRouterModel', providerUiSrc.includes('getOpenRouterModel'));
 assert('imports setOpenRouterModel', ppSrc.includes('setOpenRouterModel'));
-assert('imports getOpenRouterModelDisplay', ppSrc.includes('getOpenRouterModelDisplay'));
+assert('imports getOpenRouterModelDisplay', providerRenderSrc.includes('getOpenRouterModelDisplay'));
 assert('imports validateOpenRouterKey', ppSrc.includes('validateOpenRouterKey'));
 assert('imports fetchOpenRouterModels', ppSrc.includes('fetchOpenRouterModels'));
 const settingsSrc = read('js/settings.js');
@@ -108,18 +110,18 @@ assert('provider button with data-provider="openrouter"', settingsSrc.includes('
 assert("switchAIProvider('openrouter') in onclick", settingsSrc.includes("switchAIProvider('openrouter')"));
 assert('settings has eager provider switch bridge', settingsSrc.includes('function switchAIProviderBridge(provider)'));
 assert('eager provider bridge persists selection synchronously', settingsSrc.includes('setAIProvider(provider);'));
-assert('renderAIProviderPanel handles openrouter', ppSrc.includes("provider === 'openrouter'"));
+assert('renderAIProviderPanel handles openrouter', providerRenderSrc.includes("provider === 'openrouter'"));
 assert('handleSaveOpenRouterKey exists', ppSrc.includes('function handleSaveOpenRouterKey()'));
 assert('handleRemoveOpenRouterKey exists', ppSrc.includes('function handleRemoveOpenRouterKey()'));
 assert('renderOpenRouterModelDropdown exists', ppSrc.includes('function renderOpenRouterModelDropdown('));
 assert('updateOpenRouterModelPricing exists', ppSrc.includes('function updateOpenRouterModelPricing('));
-assert('openrouter-key-input element', ppSrc.includes('openrouter-key-input'));
-assert('openrouter-model-area element', ppSrc.includes('openrouter-model-area'));
-assert('openrouter-model-pricing element', ppSrc.includes('openrouter-model-pricing'));
-assert('OpenRouter link to openrouter.ai/keys', ppSrc.includes('openrouter.ai/keys'));
+assert('openrouter-key-input element', providerRenderSrc.includes('openrouter-key-input'));
+assert('openrouter-model-area element', providerUiSrc.includes('openrouter-model-area'));
+assert('openrouter-model-pricing element', providerUiSrc.includes('openrouter-model-pricing'));
+assert('OpenRouter link to openrouter.ai/keys', providerRenderSrc.includes('openrouter.ai/keys'));
 assert('initSettingsModelFetch fetches OpenRouter', ppSrc.includes('fetchOpenRouterModels(orKey)'));
-const orPanelIdx = ppSrc.indexOf("provider === 'openrouter'");
-const venicePanelIdx = ppSrc.indexOf("provider === 'venice'");
+const orPanelIdx = providerRenderSrc.indexOf("provider === 'openrouter'");
+const venicePanelIdx = providerRenderSrc.indexOf("provider === 'venice'");
 assert('renderAIProviderPanel: openrouter before venice', orPanelIdx < venicePanelIdx, `openrouter@${orPanelIdx}, venice@${venicePanelIdx}`);
 assert('window exports handleSaveOpenRouterKey', ppSrc.includes('handleSaveOpenRouterKey,'));
 assert('window exports handleRemoveOpenRouterKey', ppSrc.includes('handleRemoveOpenRouterKey,'));
@@ -175,6 +177,7 @@ const swSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW bypasses openrouter.ai', swSrc.includes('openrouter.ai'));
+assert('SW caches provider-panel-renderers.js', swSrc.includes('/js/provider-panel-renderers.js'));
 
 // ─── 7. Window function exports ───
 console.log('\n7. Window function exports');
@@ -303,9 +306,9 @@ assert('startup sync reconciliation pushes local AI setting drift',
 const cssSrc = read('styles.css') + '\n' + read('css/settings.css');
 assert('CSS: .or-oauth-btn defined', cssSrc.includes('.or-oauth-btn'));
 assert('CSS: .or-oauth-divider defined', cssSrc.includes('.or-oauth-divider'));
-assert('provider-panels renders or-oauth-btn in OpenRouter panel', ppSrc.includes('or-oauth-btn'));
-assert('provider-panels renders or-oauth-divider', ppSrc.includes('or-oauth-divider'));
-assert('OAuth button conditional on !currentKey', ppSrc.includes("currentKey ? '' : '<button class=\"or-oauth-btn\""));
+assert('provider renderer renders or-oauth-btn in OpenRouter panel', providerRenderSrc.includes('or-oauth-btn'));
+assert('provider renderer renders or-oauth-divider', providerRenderSrc.includes('or-oauth-divider'));
+assert('OAuth button conditional on !currentKey', providerRenderSrc.includes("currentKey ? '' : '<button class=\"or-oauth-btn\""));
 assert('Chat setup guide has or-oauth-btn', chatOnboardingSrc.includes('or-oauth-btn'));
 assert('Chat setup guide has startOpenRouterOAuth onclick', chatOnboardingSrc.includes("onclick=\"startOpenRouterOAuth()\""));
 

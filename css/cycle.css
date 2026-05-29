@@ -362,7 +362,7 @@
   outline: none;
 }
 .cycle-field select { cursor: pointer; }
-.cycle-field select option { background: var(--bg-secondary); }
+.cycle-field select option { background: var(--select-popup-surface); }
 .cycle-auto-value {
   min-height: 38px;
   box-sizing: border-box;

@@ -116,7 +116,8 @@ js/
   backup.js          — IndexedDB auto-backup, folder backup (File System Access API), backup restore
   lab-context.js     — buildLabContext() central AI context serializer (extracted from chat.js)
   markdown.js        — renderMarkdown() block-aware parser (extracted from chat.js)
-  provider-panels.js — AI provider panel rendering for settings modal (extracted from settings.js)
+  provider-panels.js — AI provider settings behavior: selection, validation, model dropdown refresh, balances
+  provider-panel-renderers.js — Settings → AI provider panel markup for OpenRouter, Routstr, Venice, PPQ, Custom, and Local AI
 ```
 
 ## Entry point

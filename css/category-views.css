@@ -557,7 +557,7 @@
   font-family: inherit; cursor: pointer; min-width: 160px;
 }
 .compare-controls select:focus { border-color: var(--accent); }
-.compare-controls select option { background: var(--bg-secondary); }
+.compare-controls select option { background: var(--select-popup-surface); }
 .compare-swap-btn {
   padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);
   background: transparent; color: var(--text-secondary); font-size: 16px;

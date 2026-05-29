@@ -236,7 +236,7 @@
 .supp-form-field input:focus,
 .supp-form-field select:focus { border-color: var(--accent); }
 .supp-form-field select { cursor: pointer; }
-.supp-form-field select option { background: var(--bg-secondary); }
+.supp-form-field select option { background: var(--select-popup-surface); }
 .supp-ingredient-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .supp-ingredient-row .supp-ing-name { flex: 3 1 140px; min-width: 110px; }
 .supp-ingredient-row .supp-ing-amount { flex: 1 1 80px; min-width: 70px; }
