@@ -204,7 +204,7 @@ function _standardMarkerShortNames() {
   return names;
 }
 
-function _getExistingImportMarkerKeys() {
+export function getExistingImportMarkerKeys() {
   const keys = new Set();
   for (const key of Object.keys(state.importedData?.customMarkers || {})) keys.add(key);
   return keys;
@@ -317,7 +317,7 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
   if (!Array.isArray(markers)) return markers;
   const testType = options.testType || 'blood';
   const refLookup = options.refLookup || buildMarkerReference();
-  const existingKeys = options.existingKeys || _getExistingImportMarkerKeys();
+  const existingKeys = options.existingKeys || getExistingImportMarkerKeys();
   const standardCats = new Set(Object.keys(MARKER_SCHEMA));
   const existingNameLookup = options.existingNameLookup || _buildExistingCustomMarkerNameLookup(existingKeys);
   for (const marker of markers) {

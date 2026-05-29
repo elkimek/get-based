@@ -13,7 +13,8 @@ import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { clearTombstone, recordTombstone } from './data-merge.js';
 import {
   _cleanImportedMarkerDisplayName, _sanitizeAIMarker,
-  buildMarkerReference, normalizeToSI, reconcileImportMarkerMappings,
+  buildMarkerReference, getExistingImportMarkerKeys,
+  normalizeToSI, reconcileImportMarkerMappings,
 } from './pdf-import-marker-mapping.js';
 
 export { buildMarkerReference, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
@@ -497,7 +498,7 @@ Return ONLY valid JSON in this exact format, no other text:
     };
   }
   // Include previously imported marker keys so the AI reuses consistent mappings
-  const existingKeys = _getExistingImportMarkerKeys();
+  const existingKeys = getExistingImportMarkerKeys();
   const existingKeysNote = existingKeys.size > 0
     ? `\n\nIMPORTANT — These marker keys were used in previous imports for this profile. Reuse them for the same biomarkers to ensure consistency:\n${[...existingKeys].join(', ')}`
     : '';

@@ -269,6 +269,8 @@ const settingsSrc = read('js/settings.js');
   assert('pdf-import exports reconcileImportMarkerMappings',
     /export\s*\{[^}]*reconcileImportMarkerMappings[^}]*\}\s*from\s*['"]\.\/pdf-import-marker-mapping\.js['"]/.test(src)
     && /export function reconcileImportMarkerMappings/.test(mappingSrc));
+  assert('pdf-import imports existing marker key lookup from mapping module',
+    src.includes('getExistingImportMarkerKeys') && !src.includes('_getExistingImportMarkerKeys'));
   assert('Czech/Spadia alias table includes key labels',
     mappingSrc.includes("'glukoza', 'biochemistry.glucose'")
     && mappingSrc.includes("'horcikvery', 'electrolytes.magnesiumRBC'")
