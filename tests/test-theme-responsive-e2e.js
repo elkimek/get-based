@@ -384,11 +384,14 @@ async function evaluateBaseChecks(page, theme, viewport) {
       const tabbar = document.querySelector('.m-tabbar');
       const fab = document.querySelector('.m-chat-fab');
       const desktopChatFab = document.getElementById('chat-fab');
+      const headerImportBtn = document.querySelector('.header-import-btn');
       ok('mobile dashboard shell is active', document.body.classList.contains('mobile-dashboard-active'));
       ok('mobile chrome root mirrors dashboard state', document.documentElement.classList.contains('mobile-dashboard-active'));
       ok('mobile shell is visible', visible(shell));
       ok('mobile tabbar is visible', visible(tabbar));
       ok('mobile tabbar is contained in viewport', tabbar && inViewport(tabbar, 2));
+      ok('mobile header import button is visible',
+        visible(headerImportBtn) && inViewport(headerImportBtn, 2));
       ok('mobile dashboard tabbar is outside clipped shell', tabbar && !tabbar.closest('.m-shell'));
       ok('mobile chat FAB is visible and above tabbar', visible(fab) && tabbar && rect(fab).bottom < rect(tabbar).top);
       ok('desktop chat FAB hidden inside mobile shell', !visible(desktopChatFab));

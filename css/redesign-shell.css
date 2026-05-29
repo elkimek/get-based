@@ -369,7 +369,6 @@
   }
   .brand { min-width: auto; }
   .header-data-group,
-  .header-import-btn,
   .feedback-btn,
   .donate-btn {
     display: none !important;
@@ -424,6 +423,12 @@
   }
   .tweaks-action-grid {
     grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 340px) {
+  .brand-mark,
+  .header h1.brand-mark {
+    display: none;
   }
 }
 
