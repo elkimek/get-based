@@ -188,6 +188,20 @@ AI provider routing and model management. All AI calls flow through `callClaudeA
 
 ---
 
+### `api-transport.js`
+
+Shared AI API transport helpers used by `api.js`.
+
+**Key exports:**
+- `fetchWithRetry(url, options, config)` — wraps fetch with request timeout, transient network retry, and 429 backoff
+- `createProxyFetch(shouldUseProxy)` — builds the Custom API proxy fetch wrapper
+- `readWithStallTimeout(reader, label)` — guards streaming readers from hanging between chunks
+- `STREAM_STALL_TIMEOUT_MS`, `FETCH_REQUEST_TIMEOUT_MS`, `AI_IMPORT_REQUEST_TIMEOUT_MS` — public timeout constants re-exported by `api.js`
+
+**Window exports:** none
+
+---
+
 ### `cashu-wallet.js`
 
 In-app Cashu eCash wallet for decentralized AI payments. Proofs stored in IndexedDB, BIP-39 seed encrypted in localStorage.

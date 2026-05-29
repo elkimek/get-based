@@ -276,20 +276,21 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('api.js: AI_IMPORT_REQUEST_TIMEOUT_MS exported = 180000',
       api.AI_IMPORT_REQUEST_TIMEOUT_MS === 180000, `got ${api.AI_IMPORT_REQUEST_TIMEOUT_MS}`);
     const apiSrc = fetchSrc('js/api.js');
-    assert('api.js: readWithStallTimeout exists',
-      /function readWithStallTimeout/.test(apiSrc));
-    assert('api.js: _fetchWithRetry composes AbortSignal.timeout + caller signal',
-      /AbortSignal\.timeout\(timeoutMs\)/.test(apiSrc)
-      && /AbortSignal\.any/.test(apiSrc));
+    const apiTransportSrc = fetchSrc('js/api-transport.js');
+    assert('api-transport.js: readWithStallTimeout exists',
+      /function readWithStallTimeout/.test(apiTransportSrc));
+    assert('api-transport.js: fetchWithRetry composes AbortSignal.timeout + caller signal',
+      /AbortSignal\.timeout\(timeoutMs\)/.test(apiTransportSrc)
+      && /AbortSignal\.any/.test(apiTransportSrc));
     // Polyfill path: when AbortSignal.any is unavailable, manual
     // AbortController forwards both signals. Without this older
     // browsers (Safari <17.4) would silently lose the 60s timeout.
-    assert('api.js: manual AbortController polyfill for older browsers',
-      /Manual polyfill for browsers without AbortSignal\.any/.test(apiSrc)
-      && /new AbortController/.test(apiSrc.split('_fetchWithRetry')[1] || ''));
-    assert('api.js: retry on transient network errors (TypeError / Failed to fetch / timeout)',
-      /isNetwork\s*=\s*e\s+instanceof\s+TypeError/.test(apiSrc)
-      || /Failed to fetch.*Load failed.*NetworkError/.test(apiSrc));
+    assert('api-transport.js: manual AbortController polyfill for older browsers',
+      /Manual polyfill for browsers without AbortSignal\.any/.test(apiTransportSrc)
+      && /new AbortController/.test(apiTransportSrc));
+    assert('api-transport.js: retry on transient network errors (TypeError / Failed to fetch / timeout)',
+      /isNetwork\s*=\s*e\s+instanceof\s+TypeError/.test(apiTransportSrc)
+      || /Failed to fetch.*Load failed.*NetworkError/.test(apiTransportSrc));
     assert('api.js: stall-timeout wraps all 3 streaming branches',
       (apiSrc.match(/readWithStallTimeout\(reader/g) || []).length >= 3);
   }

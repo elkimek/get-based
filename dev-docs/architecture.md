@@ -51,6 +51,7 @@ js/
   utils.js          — escapeHTML, hashString, getStatus, formatValue, showNotification, linearRegression
   theme.js          — Theme get/set/toggle, getChartColors, time format helpers
   api.js            — AI provider routing, 6 providers (PPQ, Routstr, OpenRouter, Venice, Local AI, Custom), model management
+  api-transport.js  — shared AI API fetch retry/timeouts and streaming read stall guard
   profile.js        — Profile CRUD, sex/DOB/location, migrateProfileData, profile dropdown
   data.js           — getActiveData() pipeline, unit conversion, date range, saveImportedData
   pii.js            — PII obfuscation: local AI (OpenAI-compatible) + regex fallback, diff viewer

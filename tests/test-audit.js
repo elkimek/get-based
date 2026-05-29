@@ -57,6 +57,7 @@ assert('SW has explicit dev-host offline test opt-in',
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
 assert('app shell CSS loads after core CSS and before feature CSS',
