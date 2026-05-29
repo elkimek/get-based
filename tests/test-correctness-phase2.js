@@ -130,6 +130,7 @@ const pwaAppShellAssets = [
   '/js/light-tool-camera-modals.js',
   '/js/light-tools.js',
   '/js/sun.js',
+  '/js/sun-active-session.js',
   '/js/sun-session-ui.js',
   '/js/sun-spectrum.js',
   '/js/sun-uvdata.js',

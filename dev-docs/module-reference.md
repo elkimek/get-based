@@ -1395,6 +1395,7 @@ Not separately documented because their exports are best read from source — ke
 - `provider-panels.js` — Settings → AI per-provider panels (Venice / OpenRouter / Routstr / PPQ / Local AI / Custom) plus shared model-advisor.
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `sun-body-silhouette.js` — anatomical sun-session body-region picker, stock-figure region-map hit testing, and async selection overlay. Re-exported by `sun.js` for compatibility.
+- `sun-active-session.js` — quick-log/start modal, live active-session ticker, Simpson live-dose integration, modal focus/backdrop helpers, and active-session compatibility handlers. Dependency-injected from `sun.js` so persistence and hydration stay in the owner module.
 - `sun-session-ui.js` — saved sun-session row/detail rendering, detailed past-session modal, channel chips, delete, and edit-duration UI. Dependency-injected from `sun.js` so storage, hydration, and dose math stay in the owning module.
 - `light-device-session-modal.js` — log/start light therapy device session modal; dependency-injected from `light-devices.js` so session persistence and active timer state stay in the owning module.
 - `light-env-audits.js` — saved Light Environment snapshots, audit comparison renderer, and audit-specific window handlers. Dependency-injected from `light-env.js` so rooms/screens remain owned by the environment module.

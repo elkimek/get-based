@@ -39,25 +39,25 @@ await import('../js/views.js');
 const _origImported = window._labState ? JSON.parse(JSON.stringify(window._labState.importedData)) : null;
 const _origProfileSex = window._labState ? window._labState.profileSex : null;
 
-  // ─── 1. v1.6.7 CAMS source-flip guard (sun.js _snapshotActiveRate) ─
+  // ─── 1. v1.6.7 CAMS source-flip guard (sun-active-session.js _snapshotActiveRate) ─
   console.log('%c 1. CAMS source-flip guard ', 'font-weight:bold;color:#0891b2');
   {
-    const sunSrc = fetchSrc('js/sun.js');
+    const sunActiveSrc = fetchSrc('js/sun-active-session.js');
     // Three independent signals must align for the guard to fire:
     // (a) primary source differs, (b) confidence dropped >0.15,
     // (c) UVI delta >25% of prior. All three checks must appear in
     // _snapshotActiveRate so a future refactor that drops any one of
     // them silently regresses behaviour.
-    assert('sun.js: source-flip guard checks primary source differs',
-      /primarySrc[\s\S]{0,200}sourcesDiffer/.test(sunSrc));
-    assert('sun.js: source-flip guard checks confidence downgrade',
-      /downgraded\s*=\s*newConf\s*<\s*priorConf\s*-\s*0\.15/.test(sunSrc));
-    assert('sun.js: source-flip guard checks UVI delta >25%',
-      /largeJump\s*=\s*priorAtm\.uvIndex\s*>\s*0\s*&&\s*uviDelta\s*>\s*priorAtm\.uvIndex\s*\*\s*0\.25/.test(sunSrc));
-    assert('sun.js: rejected new atm tagged _sourceFlipBlocked',
-      /_sourceFlipBlocked:\s*\{/.test(sunSrc));
-    assert('sun.js: rejected atm reuses priorAtm via spread',
-      /\.\.\.priorAtm[\s\S]{0,80}_sourceFlipBlocked/.test(sunSrc));
+    assert('sun-active-session.js: source-flip guard checks primary source differs',
+      /primarySrc[\s\S]{0,200}sourcesDiffer/.test(sunActiveSrc));
+    assert('sun-active-session.js: source-flip guard checks confidence downgrade',
+      /downgraded\s*=\s*newConf\s*<\s*priorConf\s*-\s*0\.15/.test(sunActiveSrc));
+    assert('sun-active-session.js: source-flip guard checks UVI delta >25%',
+      /largeJump\s*=\s*priorAtm\.uvIndex\s*>\s*0\s*&&\s*uviDelta\s*>\s*priorAtm\.uvIndex\s*\*\s*0\.25/.test(sunActiveSrc));
+    assert('sun-active-session.js: rejected new atm tagged _sourceFlipBlocked',
+      /_sourceFlipBlocked:\s*\{/.test(sunActiveSrc));
+    assert('sun-active-session.js: rejected atm reuses priorAtm via spread',
+      /\.\.\.priorAtm[\s\S]{0,80}_sourceFlipBlocked/.test(sunActiveSrc));
   }
 
   // ─── 2. v1.6.7 Live UVI > daily peak sanity warning ──────────────────
@@ -649,25 +649,25 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 20. sun-session start avoids warning-toast stack ───────────────
   console.log('%c 20. sun-session start notification restraint ', 'font-weight:bold;color:#0891b2');
   {
-    const sunSrc = fetchSrc('js/sun.js');
-    const startHandler = sunSrc.slice(
-      sunSrc.indexOf("overlay.querySelector('#start-confirm').addEventListener"),
-      sunSrc.indexOf('// Focus management for dynamically-injected modals')
+    const sunActiveSrc = fetchSrc('js/sun-active-session.js');
+    const startHandler = sunActiveSrc.slice(
+      sunActiveSrc.indexOf("overlay.querySelector('#start-confirm').addEventListener"),
+      sunActiveSrc.indexOf('export function _wireBackdropClose')
     );
-    assert('sun.js: start flow uses one consolidated start-session toast helper',
-      /function _buildStartSessionToast/.test(sunSrc) &&
+    assert('sun-active-session.js: start flow uses one consolidated start-session toast helper',
+      /function _buildStartSessionToast/.test(sunActiveSrc) &&
       /showNotification\(_buildStartSessionToast\(/.test(startHandler));
-    assert('sun.js: start flow no longer emits photosensitizer warning toast',
+    assert('sun-active-session.js: start flow no longer emits photosensitizer warning toast',
       !/photosensitizer active/.test(startHandler));
-    assert('sun.js: start flow no longer emits eyes-uncovered warning toast',
+    assert('sun-active-session.js: start flow no longer emits eyes-uncovered warning toast',
       !/Eyes-uncovered mode/.test(startHandler));
-    assert('sun.js: retinal toasts have a start grace period',
-      /RETINAL_ALERT_GRACE_MS\s*=\s*10\s*\*\s*60\s*\*\s*1000/.test(sunSrc)
-      && /elapsedMs\s*<\s*RETINAL_ALERT_GRACE_MS/.test(sunSrc));
-    assert('sun.js: retinal over-limit toast also marks the half-limit alert handled',
-      /ruv >= 30 && !cur\.alertedRetinalOver[\s\S]{0,180}alertedRetinalOver:\s*true,\s*alertedRetinal500:\s*true/.test(sunSrc));
-    assert('sun.js: retinal threshold toasts use calm user copy',
-      !/pterygium|cataract|6-12 hours|daily ICNIRP UV limit/.test(sunSrc));
+    assert('sun-active-session.js: retinal toasts have a start grace period',
+      /RETINAL_ALERT_GRACE_MS\s*=\s*10\s*\*\s*60\s*\*\s*1000/.test(sunActiveSrc)
+      && /elapsedMs\s*<\s*RETINAL_ALERT_GRACE_MS/.test(sunActiveSrc));
+    assert('sun-active-session.js: retinal over-limit toast also marks the half-limit alert handled',
+      /ruv >= 30 && !cur\.alertedRetinalOver[\s\S]{0,180}alertedRetinalOver:\s*true,\s*alertedRetinal500:\s*true/.test(sunActiveSrc));
+    assert('sun-active-session.js: retinal threshold toasts use calm user copy',
+      !/pterygium|cataract|6-12 hours|daily ICNIRP UV limit/.test(sunActiveSrc));
   }
 
   // ─── Restore state ──────────────────────────────────────────────────

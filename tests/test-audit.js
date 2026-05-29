@@ -355,6 +355,7 @@ const lightDevicesCss = read('css/light-devices.css');
 const lightConditionsCss = read('css/light-conditions-now.css');
 const lightSetupCss = read('css/light-setup.css');
 const sunSrc = read('js/sun.js');
+const sunActiveSessionSrc = read('js/sun-active-session.js');
 const sunSessionUiSrc = read('js/sun-session-ui.js');
 const lightDevicesSrc = read('js/light-devices.js');
 assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
@@ -498,6 +499,9 @@ assert('Light recent session rows and modals use session/channel accents',
   /\.sun-detail-channel-row\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*grid-template-columns:[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc));
 assert('Sun session chip legacy vitamin D path applies genetics multiplier',
   sunSessionUiSrc.includes('window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null)'));
+assert('Active sun session live and stop vitamin D paths apply genetics multiplier',
+  sunActiveSessionSrc.includes('window.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null)') &&
+  sunActiveSessionSrc.includes('window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null)'));
 assert('Light context setup mirror is not double-framed',
   /\.ctx-lightsetup-mirror\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;[\s\S]*padding:\s*0;/.test(cssSrc));
 assert('Light setup AI context wrapper is not double-framed',

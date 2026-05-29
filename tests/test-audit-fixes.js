@@ -296,10 +296,10 @@ return (async function () {
       /if\s*\(isDebugMode\(\)\)\s*\{[\s\S]*console\.table\?\.\([\s\S]*console\.log\([\s\S]*\}/.test(fn));
   }
 
-  // ─── 8. sun.js openStartSunSessionDialog — uviPromise.then.catch ──
+  // ─── 8. sun-active-session.js openStartSunSessionDialog — uviPromise.then.catch ──
   console.log('%c 8. uviPromise.then.catch ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sun.js');
+    const src = await fetchSrc('js/sun-active-session.js');
     assert('uviPromise.then chain ends with .catch',
       /uviPromise\.then\([\s\S]{20,800}?\}\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(src));
   }

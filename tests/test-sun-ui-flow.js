@@ -193,9 +193,9 @@ return (async function() {
   assert('window._wireBackdropClose exists (the helper recent commits rely on)',
     typeof window._wireBackdropClose === 'function');
 
-  const sunSrc = await fetch('js/sun.js').then(r => r.text());
-  assert('sun.js calls _wireBackdropClose for its modals',
-    /_wireBackdropClose\s*\(/.test(sunSrc));
+  const sunActiveSrc = await fetch('js/sun-active-session.js').then(r => r.text());
+  assert('sun-active-session.js calls _wireBackdropClose for its modals',
+    /_wireBackdropClose\s*\(/.test(sunActiveSrc));
 
   // ─── 8. Region picker → bodyExposure.regions; prefill on reopen ──────
   // Drives the full flow: openStartSunSessionDialog → click 2 region
