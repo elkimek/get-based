@@ -124,6 +124,7 @@ const pwaAppShellAssets = [
   '/js/compare-correlations.js',
   '/js/mobile-dashboard.js',
   '/js/light-devices.js',
+  '/js/light-device-setup-modal.js',
   '/js/light-env.js',
   '/js/light-env-audits.js',
   '/js/light-tool-camera.js',

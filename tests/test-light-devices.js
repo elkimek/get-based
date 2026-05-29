@@ -37,7 +37,7 @@ await import('../js/state.js');
 const dev = await import('../js/light-devices.js');
 const {
   getDevices, getDeviceSessions,
-  addDeviceFromPreset, deleteDevice,
+  addDeviceFromPreset, addCustomDevice, deleteDevice,
   logDeviceSession, deleteDeviceSession,
   rollingDeviceTotals,
 } = dev;
@@ -86,9 +86,40 @@ const {
   assert('Overrides patch the preset (brand=Custom)',
     dCustom.brand === 'Custom' && dCustom.notes === 'mine');
 
+  // ─── 2b. addCustomDevice owner path ─────────────────────────────────
+  console.log('%c 2b. addCustomDevice ', 'font-weight:bold;color:#f59e0b');
+
+  reset({ lightDevices: [], deviceSessions: [] });
+  const addedCustom = await addCustomDevice({
+    brand: 'Bench',
+    model: 'Hybrid',
+    type: 'uvb',
+    peakWavelengths: [295, 660, 850],
+    mwPerCm2At15cm: 42,
+    recommendedDistanceCm: 30,
+    channelGroups: [
+      { id: 'uv', label: 'UV', peaks: [295] },
+      { id: 'red-nir', label: 'Red + NIR', peaks: [660, 850] },
+    ],
+    modes: [
+      { id: 'all-on', label: 'All on', groups: ['uv', 'red-nir'], default: true },
+      { id: 'bad', label: 'Bad', groups: ['missing'] },
+    ],
+    coupling: [{ if: 'uv', requires: ['red-nir'], reason: 'safety' }],
+  });
+  assert('addCustomDevice persists a custom device',
+    addedCustom && getDevices().length === 1 && getDevices()[0].id === addedCustom.id);
+  assert('addCustomDevice assigns UVB default channels',
+    Array.isArray(addedCustom.channels) && addedCustom.channels.includes('vitamin_d') && addedCustom.channels.includes('pbm_nir'));
+  assert('addCustomDevice keeps valid mode schema and drops invalid modes',
+    Array.isArray(addedCustom.modes) && addedCustom.modes.length === 1 && addedCustom.modes[0].id === 'all-on');
+  assert('addCustomDevice keeps valid coupling schema',
+    Array.isArray(addedCustom.coupling) && addedCustom.coupling.length === 1 && addedCustom.coupling[0].if === 'uv');
+
   // ─── 3. deleteDevice ─────────────────────────────────────────────────
   console.log('%c 3. deleteDevice ', 'font-weight:bold;color:#f59e0b');
 
+  window._labState.importedData = { entries: [], lightDevices: [dPulse, dCustom], deviceSessions: [] };
   const removed = await deleteDevice(dCustom.id);
   assert('deleteDevice → true on hit', removed === true);
   assert('Device removed from list', getDevices().length === 1);
