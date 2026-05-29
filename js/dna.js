@@ -328,19 +328,19 @@ function inferAnnotatedReportGenotype(rsid, entry, cells, columns) {
   const hetero = keys.filter(isHeterozygousGenotype);
   const homo = keys.filter(isHomozygousGenotype);
 
-  if (/\bhet\b|heterozygous|one risk copy|one copy|carrier/.test(combined)) {
+  if (/ref\/ref|wildtype|homozygous reference|risk allele absent|protective allele absent|variant absent|non[-\s]?carrier|not (?:a )?carrier/.test(combined)) {
+    const reference = keys.filter(g => entry.genotypes[g]?.effect === 'none');
+    const referenceHomo = reference.filter(isHomozygousGenotype);
+    return pickAnnotatedCandidate(referenceHomo.length ? referenceHomo : reference, riskAllele, 'excludeRisk');
+  }
+
+  if (/\bhet\b|heterozygous|one risk copy|one copy|(?:^|[^a-z-])carrier\b(?!-)/.test(combined)) {
     return pickAnnotatedCandidate(hetero, riskAllele);
   }
 
   if (/homozygous variant|two risk copies|risk homozygous/.test(combined)) {
     const nonReferenceHomo = homo.filter(g => entry.genotypes[g]?.effect !== 'none');
     return pickAnnotatedCandidate(nonReferenceHomo, riskAllele);
-  }
-
-  if (/ref\/ref|wildtype|homozygous reference|risk allele absent|protective allele absent|variant absent|absent/.test(combined)) {
-    const reference = keys.filter(g => entry.genotypes[g]?.effect === 'none');
-    const referenceHomo = reference.filter(isHomozygousGenotype);
-    return pickAnnotatedCandidate(referenceHomo.length ? referenceHomo : reference, riskAllele, 'excludeRisk');
   }
 
   return null;

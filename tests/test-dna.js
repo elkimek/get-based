@@ -212,6 +212,15 @@ assert('Annotated SNP report: wildtype inferred as catalog reference', annotated
 assert('Annotated SNP report: heterozygous inferred from report state', annotatedResult.matches.rs1805087?.genotype === 'AG');
 assert('Annotated SNP report: carrier inferred from report state', annotatedResult.matches.rs1800562?.genotype === 'GA');
 
+const annotatedNegativeReportCsv =
+  'rsID,Gene,Category,Genotype,Zygosity,Risk_Allele,Result,Read_Depth,Annotation,Source\n' +
+  'rs1800562,HFE,Iron Metabolism,-,-,A,non-carrier,-,C282Y negative,variant-VCF\n' +
+  'rs1805087,MTR,Methylation,-,-,G,Data absent,-,A2756G no-call,variant-VCF\n';
+const annotatedNegativeFile = new File([annotatedNegativeReportCsv], 'results-negative.csv', { type: 'text/csv' });
+const annotatedNegativeResult = await dna.parseDNAFile(annotatedNegativeFile);
+assert('Annotated SNP report: non-carrier infers reference, not heterozygous', annotatedNegativeResult.matches.rs1800562?.genotype === 'GG');
+assert('Annotated SNP report: generic data absent does not infer reference', annotatedNegativeResult.matches.rs1805087 == null);
+
 // ═══════════════════════════════════════
 // 7. Genotype reversal (CT ↔ TC)
 // ═══════════════════════════════════════
