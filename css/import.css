@@ -13,9 +13,6 @@
 }
 #import-modal.import-preview-modal { max-width: 920px; }
 .import-preview-head {
-  position: sticky;
-  top: 0;
-  z-index: 3;
   background: color-mix(in srgb, var(--bg-secondary) 96%, var(--bg-card));
 }
 .import-review-body {
@@ -226,9 +223,6 @@
   line-height: 1.45;
 }
 .import-review-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
   display: flex;
   justify-content: flex-end;
   gap: 10px;

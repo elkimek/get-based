@@ -536,6 +536,11 @@ assert('Mobile quick marker grid override comes after base grid',
 assert('Mobile compare tables scroll instead of clipping columns',
   /@media \(max-width:\s*768px\)\s*\{[\s\S]*\.data-table-wrapper,\s*[\s\S]*\.compare-table-wrapper,\s*[\s\S]*\.heatmap-wrapper\s*\{[\s\S]*overflow-x:\s*auto;[\s\S]*overflow-y:\s*clip;/.test(cssSrc) &&
   compareCorrelationsSrc.includes('class="compare-date-field"'));
+const importPreviewHeadBlock = cssSrc.match(/\.import-preview-head\s*\{([\s\S]*?)\}/)?.[1] || '';
+const importReviewActionsBlock = cssSrc.match(/\.import-review-actions\s*\{([\s\S]*?)\}/)?.[1] || '';
+assert('Import review modal header/footer are not sticky',
+  !/position:\s*sticky/.test(importPreviewHeadBlock) &&
+  !/position:\s*sticky/.test(importReviewActionsBlock));
 assert('Compare and correlations headings are text-only',
   compareCorrelationsSrc.includes('<h2>Compare Dates</h2>') &&
   compareCorrelationsSrc.includes('<h2>Correlations</h2>') &&
