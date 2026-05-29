@@ -314,7 +314,7 @@ async function syncSetupDoRestore() {
       await disableSync();
       const el = document.getElementById('sync-section');
       if (el) el.innerHTML = renderSyncSection();
-      _syncToggling = false;
+      _releaseSyncToggle();
       return;
     }
     // restoreFromMnemonic triggers reload, so nothing else needed

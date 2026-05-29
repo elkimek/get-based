@@ -1223,6 +1223,8 @@ await import('../js/settings.js');
   assert('syncSetupRestore shows textarea', settingsSyncPanelSrc.includes('function syncSetupRestore'));
   assert('syncSetupDoRestore validates 24 words', settingsSyncPanelSrc.includes("words.length !== 24"));
   assert('syncSetupDoRestore cleans up on failure', settingsSyncPanelSrc.includes('await disableSync()') && settingsSyncPanelSrc.includes('Restore failed'));
+  assert('syncSetupDoRestore restore failure releases watchdog timer',
+    /if \(!result\)[\s\S]{0,300}_releaseSyncToggle\(\)/.test(settingsSyncPanelSrc));
   assert('syncSetupBack returns to choices', settingsSyncPanelSrc.includes('function syncSetupBack'));
   assert('closeSyncSetup disables sync if started', settingsSyncPanelSrc.includes('async function closeSyncSetup') && settingsSyncPanelSrc.includes('disableSync'));
   assert('closeSyncSetup releases _syncToggling', settingsSyncPanelSrc.includes('_syncToggling = false'));
