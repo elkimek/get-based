@@ -345,6 +345,12 @@ const {
     envSrc.includes('Indoor Light Assessment') &&
     envSrc.includes('Save audit snapshots before and after changes') &&
     !envSrc.includes('The Light page keeps the summary'));
+  const auditSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
+  assert('Light audit storage/rendering lives in its own module',
+    auditSrc.includes('configureLightEnvAudits') &&
+    auditSrc.includes('renderLightAuditsBlock') &&
+    auditSrc.includes('saveLightAuditFromUI') &&
+    !envSrc.includes('function renderLightAuditCompare'));
   const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const fs = await import('node:fs/promises');
   const cssSrc = [

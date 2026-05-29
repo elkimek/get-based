@@ -287,6 +287,7 @@ const APP_SHELL = [
   '/js/light-devices.js',
   '/js/light-device-session-modal.js',
   '/js/light-env.js',
+  '/js/light-env-audits.js',
   '/js/light-env-ai-analysis.js',
   '/js/light-screen-ai-analysis.js',
   '/js/light-today-ai.js',

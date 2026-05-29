@@ -97,7 +97,7 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-light-ai-renders.js` | Smoke coverage for the 10 feature-specific Light & Sun AI modules |
 | `tests/test-light-device-ai-analysis.js` | Per-device-session AI verdict: fingerprint determinism, prompt-context shape (incl. mode resolution + injection guards), render state machine, engine adapter coverage |
 | `tests/test-light-devices.js` | Light therapy device library + sessions: addDeviceFromPreset, deleteDevice, logDeviceSession |
-| `tests/test-light-env.js` | Light Environment math + CRUD: rooms, screens, computeRoomSeverity, computeScreenStatus, computeIndoorBurden |
+| `tests/test-light-env.js` | Light Environment math + CRUD: rooms, screens, audits, computeRoomSeverity, computeScreenStatus, computeIndoorBurden |
 | `tests/test-light-tools.js` | Pure helpers re-exported from `light-tools.js`: computeRowBanding (flicker FFT), saveMeasurement, lockStatusLine |
 | `tests/test-light-tools-flow.js` | Drives `saveMeasurement` across all 8 tool types + every camera-bound opener (handles missing getUserMedia cleanly) |
 | `tests/test-lighting-hardware-caveats.js` | Guard the load-bearing PWM/TRIAC caveat block against silent removal from any AI-analysis prompt |
