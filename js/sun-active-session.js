@@ -20,7 +20,6 @@ const activeDeps = {
   refreshSurfaces: () => {},
   normalizePSMTier: (raw) => raw || 'none',
   photosensitiveMedScale: () => 1.0,
-  exposurePresets: [],
   eyeModes: [],
   lensTints: [],
   postureOptions: [],
@@ -93,7 +92,8 @@ function _estimateMedMinutes(uvi, fitzpatrick, psmTier) {
 function _renderUVIPreflightBanner(uvi, fitzpatrick, psmTier) {
   if (!Number.isFinite(uvi)) return '';
   const psmHigh = psmTier === 'moderate' || psmTier === 'severe';
-  if (uvi < 8 && !psmHigh) return '';
+  const fairSkin = fitzpatrick === 'I' || fitzpatrick === 'II';
+  if (uvi < 8 && !psmHigh && !fairSkin) return '';
   if (uvi < 5 && !psmHigh) return '';
   const medMin = _estimateMedMinutes(uvi, fitzpatrick, psmTier);
   let cls = 'sun-uvi-warn';
@@ -101,7 +101,7 @@ function _renderUVIPreflightBanner(uvi, fitzpatrick, psmTier) {
   let title = '';
   if (uvi >= 11) { cls = 'sun-uvi-extreme'; icon = '⚠'; title = `Extreme UV (UVI ${uvi.toFixed(1)})`; }
   else if (uvi >= 8) { cls = 'sun-uvi-veryhigh'; title = `Very high UV (UVI ${uvi.toFixed(1)})`; }
-  else { title = `UV ${uvi.toFixed(1)} — burn risk elevated by photosensitizer`; }
+  else { title = `UV ${uvi.toFixed(1)} — burn risk elevated ${psmHigh ? 'by photosensitizer' : 'for fair skin'}`; }
   const medLine = medMin ? `Estimated MED for Fitzpatrick ${fitzpatrick}${psmHigh ? ` + ${psmTier} photosensitizer` : ''}: ~${medMin} min uncovered.` : '';
   return `<div class="${cls}"><strong>${icon} ${escapeHTML(title)}</strong> ${escapeHTML(medLine)} Sunscreen + cover up + a shorter session strongly suggested.</div>`;
 }
@@ -281,7 +281,13 @@ export function _wireBackdropClose(overlay, closeFn) {
 
 const _modalScrollLocks = new Set();
 let _modalPriorOverflow = '';
+function _pruneDetachedModalScrollLocks() {
+  for (const lock of Array.from(_modalScrollLocks)) {
+    if (!document.body.contains(lock)) _modalScrollLocks.delete(lock);
+  }
+}
 export function trapModalFocus(overlay) {
+  _pruneDetachedModalScrollLocks();
   const previouslyFocused = document.activeElement;
   if (_modalScrollLocks.size === 0) {
     _modalPriorOverflow = document.body.style.overflow;
@@ -307,6 +313,7 @@ export function trapModalFocus(overlay) {
     teardown = true;
     document.removeEventListener('keydown', onKeydown);
     _modalScrollLocks.delete(overlay);
+    _pruneDetachedModalScrollLocks();
     if (_modalScrollLocks.size === 0) {
       document.body.style.overflow = _modalPriorOverflow;
     } else {

@@ -1486,7 +1486,6 @@ configureSunActiveSession({
   refreshSurfaces: _refreshSurfaces,
   normalizePSMTier: _normalizePSMTier,
   photosensitiveMedScale,
-  exposurePresets: EXPOSURE_PRESETS,
   eyeModes: EYE_MODES,
   lensTints: LENS_TINTS,
   postureOptions: POSTURE_OPTIONS,
