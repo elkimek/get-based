@@ -496,6 +496,8 @@ assert('Light recent session rows and modals use session/channel accents',
   /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{t\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(lightDevicesSrc) &&
   /\.light-session-row\s*\{[\s\S]*--session-accent:\s*var\(--orange\);[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/.test(cssSrc) &&
   /\.sun-detail-channel-row\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*grid-template-columns:[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc));
+assert('Sun session chip legacy vitamin D path applies genetics multiplier',
+  sunSessionUiSrc.includes('window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null)'));
 assert('Light context setup mirror is not double-framed',
   /\.ctx-lightsetup-mirror\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;[\s\S]*padding:\s*0;/.test(cssSrc));
 assert('Light setup AI context wrapper is not double-framed',

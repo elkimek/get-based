@@ -406,7 +406,7 @@ function _sessionChipValue(channelKey, channelAu, sess) {
     const bf = sess?.bodyExposure?.fraction;
     const iu = (Number.isFinite(bf) && bf > 0 && typeof window.vitaminDIUPerSession === 'function')
       ? window.vitaminDIUPerSession(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
-      : window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides);
+      : window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
     if (iu < 30) return '';
     if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU`;
     return `~${Math.round(iu / 10) * 10} IU`;
