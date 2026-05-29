@@ -440,18 +440,33 @@ Supports: AncestryDNA (2-column alleles), 23andMe, MyHeritage, FTDNA, Living DNA
 
 ### `pdf-import.js`
 
-Full PDF-to-lab-data import pipeline.
+PDF/image/text-to-lab-data import pipeline and confirm/save merge logic.
 
 **Key exports:**
 - `extractPDFText(file)` — pdf.js text extraction with x/y coordinates, returns page-aware formatted text
 - `parseLabPDFWithAI(pdfText)` — sends text + `buildMarkerReference()` to AI; maps lab results to marker keys
 - `handleImageFile(file)` — imports lab reports from JPG/PNG/WebP images via AI image pipeline
 - `handleBatchPDFs(files)` — sequential multi-file import with per-file confirm/skip
-- `showImportPreview(parsed)` — modal with matched (green), new custom (blue), unmatched (yellow) markers. All numeric results are captured — unknowns become custom markers rather than being silently dropped
+- `showImportPreview(parsed)` — re-export from `pdf-import-review.js`
 - `confirmImport(parsed)` — merges parsed data into `importedData.entries`
 - `setupDropZone()` — legacy eager drop-zone binding retained for compatibility; page shells use `import-drop-zone.js` so the PDF import module stays lazy-loaded
 
 **Window exports:** `confirmImport`, `skipImport`, `importNextPDF`, `syncImportStatusFab`, `handleImportStatusClick`, `isImportRunning`
+
+---
+
+### `pdf-import-review.js`
+
+Import review modal rendering and interaction state.
+
+**Key exports:**
+- `showImportPreview(parsed)` — modal with matched, new custom, unmatched, and excluded marker rows
+- `applyManualImportDate(date)` — updates pending review date and confirm button state
+- `mapUnmatchedMarkerInput(input)` / `toggleImportRow(button)` — review-row mapping and exclusion controls
+- `getPendingImport()` / `getExcludedImportIndices()` — narrow state access used by `confirmImport()`
+- `showImportPreviewAsync(result, fileName, current, total)` — batch import preview promise bridge
+
+**Window exports:** via `pdf-import.js`
 
 ---
 

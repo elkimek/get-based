@@ -166,9 +166,10 @@ assert('chat-send.js snapshots provider for sends', chatSendSrc.includes('const 
 // ─── 5. pdf-import.js source inspection ───
 console.log('\n5. pdf-import.js source inspection');
 const pdfSrc = read('js/pdf-import.js');
-assert('pdf-import imports getOpenRouterModel', pdfSrc.includes('getOpenRouterModel'));
-assert('pdf-import imports getOpenRouterModelDisplay', pdfSrc.includes('getOpenRouterModelDisplay'));
-assert('pdf-import has openrouter model-label case (costInfo display)', pdfSrc.includes("'openrouter' ? getOpenRouterModelDisplay()"));
+const pdfReviewSrc = read('js/pdf-import-review.js');
+assert('pdf-import imports setOpenRouterModel', pdfSrc.includes('setOpenRouterModel'));
+assert('pdf-import-review imports getOpenRouterModelDisplay', pdfReviewSrc.includes('getOpenRouterModelDisplay'));
+assert('pdf-import-review has openrouter model-label case (costInfo display)', pdfReviewSrc.includes("'openrouter' ? getOpenRouterModelDisplay()"));
 assert('pdf-import uses getActiveModelId for model resolution', pdfSrc.includes('getActiveModelId'));
 
 // ─── 6. service-worker.js ───

@@ -58,6 +58,7 @@ const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
+assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
 assert('app shell CSS loads after core CSS and before feature CSS',
@@ -582,6 +583,7 @@ assert('PDF report null popup guard', exportSrc.includes('if (!win)'));
 assert('PDF report context serialization', exportSrc.includes('fmtCtx'));
 
 const pdfSrc = read('js/pdf-import.js');
+const pdfReviewSrc = read('js/pdf-import-review.js');
 assert('NaN markers filtered out', pdfSrc.includes('filter(m => !isNaN(m.value))'));
 
 // ═══════════════════════════════════════
@@ -589,9 +591,9 @@ assert('NaN markers filtered out', pdfSrc.includes('filter(m => !isNaN(m.value))
 // ═══════════════════════════════════════
 console.log('8. Code Cleanup');
 
-assert('pdf-import.js imports formatCost from schema', pdfSrc.includes('formatCost') && pdfSrc.includes("from './schema.js'"));
-const localFormatCost = pdfSrc.match(/^function formatCost/m);
-assert('pdf-import.js no local formatCost', !localFormatCost);
+assert('pdf-import-review.js imports formatCost from schema', pdfReviewSrc.includes('formatCost') && pdfReviewSrc.includes("from './schema.js'"));
+const localFormatCost = `${pdfSrc}\n${pdfReviewSrc}`.match(/^function formatCost/m);
+assert('PDF import modules have no local formatCost', !localFormatCost);
 
 // ═══════════════════════════════════════
 // 9. OpenRouter curated prefixes
