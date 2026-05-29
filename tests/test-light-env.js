@@ -338,6 +338,7 @@ const {
   assert('Audit list shows only the latest two snapshots by default',
     compactAudits.includes('Latest visible') &&
     compactAudits.includes('Second visible') &&
+    compactAudits.includes('data-id="a4"') &&
     !compactAudits.includes('Older hidden') &&
     !compactAudits.includes('Oldest hidden') &&
     compactAudits.includes('Show 2 older audits'));
@@ -380,6 +381,8 @@ const {
     auditSrc.includes('renderLightAuditsBlock') &&
     auditSrc.includes('saveLightAuditFromUI') &&
     auditSrc.includes('scrollAnchor: LIGHT_AUDITS_ANCHOR') &&
+    auditSrc.includes('fallbackScrollAnchor: LIGHT_AUDITS_ANCHOR') &&
+    envSrc.includes('modal.scrollTop') &&
     !envSrc.includes('function renderLightAuditCompare'));
   const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const fs = await import('node:fs/promises');

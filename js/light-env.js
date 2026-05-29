@@ -1005,17 +1005,38 @@ export function refreshLightEnvironmentAssessment() {
   if (isLightEnvironmentAssessmentOpen()) renderLightEnvironmentAssessmentModal();
 }
 
-function scrollLightEnvironmentAssessmentTo(selector) {
+function setLightEnvironmentAssessmentScrollTop(scrollTop) {
+  const modal = getLightEnvironmentAssessmentOverlay()?.querySelector('.light-env-assessment-modal');
+  if (!modal) return;
+  const apply = () => { modal.scrollTop = Math.max(0, scrollTop || 0); };
+  apply();
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
+}
+
+function scrollLightEnvironmentAssessmentTo(selector, fallbackSelector = '') {
   const overlay = getLightEnvironmentAssessmentOverlay();
-  const target = selector ? overlay?.querySelector(selector) : null;
-  if (target && typeof target.scrollIntoView === 'function') {
-    target.scrollIntoView({ block: 'start' });
-  }
+  const modal = overlay?.querySelector('.light-env-assessment-modal');
+  const target = selector ? modal?.querySelector(selector) : null;
+  const fallback = fallbackSelector ? modal?.querySelector(fallbackSelector) : null;
+  const anchor = target || fallback;
+  if (!modal || !anchor) return;
+  const apply = () => {
+    const modalRect = modal.getBoundingClientRect();
+    const anchorRect = anchor.getBoundingClientRect();
+    modal.scrollTop = Math.max(0, modal.scrollTop + anchorRect.top - modalRect.top - 8);
+  };
+  apply();
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
+  setTimeout(apply, 0);
+  setTimeout(apply, 60);
 }
 
 function refreshLightEnvironmentUI(options = {}) {
+  const modal = getLightEnvironmentAssessmentOverlay()?.querySelector('.light-env-assessment-modal');
+  const priorScrollTop = modal?.scrollTop || 0;
   refreshLightEnvironmentAssessment();
-  if (options.scrollAnchor) scrollLightEnvironmentAssessmentTo(options.scrollAnchor);
+  if (options.scrollAnchor) scrollLightEnvironmentAssessmentTo(options.scrollAnchor, options.fallbackScrollAnchor);
+  else if (priorScrollTop) setLightEnvironmentAssessmentScrollTop(priorScrollTop);
   if (window.navigate && state.currentView === 'light') {
     window.navigate('light', options.scrollAnchor ? { scrollAnchor: options.scrollAnchor } : undefined);
   }

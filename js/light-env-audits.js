@@ -60,6 +60,21 @@ function refreshAuditsUI() {
   refreshLightEnvironmentUI({ scrollAnchor: LIGHT_AUDITS_ANCHOR });
 }
 
+function cssAttrSelectorValue(value) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function lightAuditCardAnchor(id) {
+  return `.light-audit-card[data-id="${cssAttrSelectorValue(id)}"]`;
+}
+
+function refreshAuditCardUI(id) {
+  refreshLightEnvironmentUI({
+    scrollAnchor: lightAuditCardAnchor(id),
+    fallbackScrollAnchor: LIGHT_AUDITS_ANCHOR,
+  });
+}
+
 export function getLightAudits() {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
@@ -155,12 +170,17 @@ function sortAuditsNewestFirst(audits) {
   });
 }
 
+function keepAuditVisible(id) {
+  const visibleIds = new Set(sortAuditsNewestFirst(getLightAudits()).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
+  if (!visibleIds.has(id)) _showAllAudits = true;
+}
+
 function renderLightAuditCard(a, expanded) {
   const sev = computeAuditSeverity(a);
   const roomsCount = (a.rooms || []).length;
   const measCount = (a.measurements || []).length;
   const cardAriaLabel = `${fmtAuditDate(a.date)}${a.label ? ' — ' + a.label : ''} — ${roomsCount} room${roomsCount === 1 ? '' : 's'}, ${measCount} measurement${measCount === 1 ? '' : 's'}, ${sev.label}${expanded ? ', expanded' : ', collapsed'}`;
-  let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}">
+  let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}" data-id="${escapeAttr(a.id)}">
     <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" onclick="window.toggleLightAudit('${escapeAttr(a.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightAudit('${escapeAttr(a.id)}')}">
       <div class="light-audit-info">
         <div class="light-audit-info-top">
@@ -529,12 +549,12 @@ function installWindowHandlers() {
         showNotification(`Saved audit: ${audit.label}`);
         _expandedAuditId = audit.id;
         _showAllAudits = false;
-        refreshAuditsUI();
+        refreshAuditCardUI(audit.id);
       }
     },
     toggleLightAudit: (id) => {
       _expandedAuditId = (_expandedAuditId === id) ? null : id;
-      refreshAuditsUI();
+      refreshAuditCardUI(id);
     },
     toggleLightAuditCompare: () => {
       _auditCompareMode = !_auditCompareMode;
@@ -551,7 +571,9 @@ function installWindowHandlers() {
     },
     updateLightAuditField: async (id, field, value) => {
       await updateLightAudit(id, { [field]: value });
-      refreshAuditsUI();
+      _expandedAuditId = id;
+      keepAuditVisible(id);
+      refreshAuditCardUI(id);
     },
     deleteLightAuditConfirm: async (id) => {
       if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
