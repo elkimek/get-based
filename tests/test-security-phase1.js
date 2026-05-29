@@ -49,7 +49,7 @@ assert('lens-local-parsers.js routes through getPdfDocument',
 
 // ─── 2. AI suggestedKey / mappedKey sanitization ───
 console.log('\n2. AI key sanitization');
-assert('pdf-import.js defines _SAFE_MARKER_KEY pattern',
+assert('pdf-import-marker-mapping.js defines _SAFE_MARKER_KEY pattern',
   importMappingSrc.includes('_SAFE_MARKER_KEY') && importMappingSrc.includes('/^[a-zA-Z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9_]*$/'));
 assert('_sanitizeAIMarker called before adapter runs',
   importSrc.includes('parsed.markers.forEach(_sanitizeAIMarker)'),
