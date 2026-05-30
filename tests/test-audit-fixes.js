@@ -177,6 +177,30 @@ return (async function () {
     assert('body overflow restored to baseline after all modals closed',
       document.body.style.overflow === baseline);
 
+    // Cache-busted imports create separate module instances in tests. Their
+    // scroll locks still need one shared registry or a stale teardown can
+    // unlock the page while another instance's modal remains mounted.
+    const sunReloaded = await import('/js/sun.js?bust=' + Date.now() + '-modal-lock');
+    document.body.style.overflow = baseline;
+    const overlayCrossA = document.createElement('div');
+    overlayCrossA.className = 'modal-overlay';
+    overlayCrossA.innerHTML = '<button>Cross A</button>';
+    document.body.appendChild(overlayCrossA);
+    sun.trapModalFocus(overlayCrossA);
+    const overlayCrossB = document.createElement('div');
+    overlayCrossB.className = 'modal-overlay';
+    overlayCrossB.innerHTML = '<button>Cross B</button>';
+    document.body.appendChild(overlayCrossB);
+    sunReloaded.trapModalFocus(overlayCrossB);
+    overlayCrossA.remove();
+    await delay(20);
+    assert('body still locked across separate sun.js module instances',
+      document.body.style.overflow === 'hidden');
+    overlayCrossB.remove();
+    await waitFor(() => document.body.style.overflow === baseline);
+    assert('body overflow restored after cross-instance modals closed',
+      document.body.style.overflow === baseline);
+
     // Detached-previouslyFocused guard — focus a button that's then removed
     // before the overlay is. The restore must not throw.
     const stash = document.createElement('button');

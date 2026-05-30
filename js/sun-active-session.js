@@ -279,8 +279,23 @@ export function _wireBackdropClose(overlay, closeFn) {
   });
 }
 
-const _modalScrollLocks = new Set();
-let _modalPriorOverflow = '';
+const _modalScrollState = (() => {
+  const fallback = { locks: new Set(), priorOverflow: '' };
+  if (typeof window === 'undefined') return fallback;
+  if (window.__labModalScrollState && window.__labModalScrollState.locks instanceof Set) {
+    return window.__labModalScrollState;
+  }
+  try {
+    Object.defineProperty(window, '__labModalScrollState', {
+      value: fallback,
+      configurable: true,
+    });
+  } catch (_) {
+    window.__labModalScrollState = fallback;
+  }
+  return fallback;
+})();
+const _modalScrollLocks = _modalScrollState.locks;
 function _pruneDetachedModalScrollLocks() {
   for (const lock of Array.from(_modalScrollLocks)) {
     if (!document.body.contains(lock)) _modalScrollLocks.delete(lock);
@@ -290,7 +305,7 @@ export function trapModalFocus(overlay) {
   _pruneDetachedModalScrollLocks();
   const previouslyFocused = document.activeElement;
   if (_modalScrollLocks.size === 0) {
-    _modalPriorOverflow = document.body.style.overflow;
+    _modalScrollState.priorOverflow = document.body.style.overflow;
   }
   _modalScrollLocks.add(overlay);
   document.body.style.overflow = 'hidden';
@@ -315,7 +330,7 @@ export function trapModalFocus(overlay) {
     _modalScrollLocks.delete(overlay);
     _pruneDetachedModalScrollLocks();
     if (_modalScrollLocks.size === 0) {
-      document.body.style.overflow = _modalPriorOverflow;
+      document.body.style.overflow = _modalScrollState.priorOverflow;
     } else {
       document.body.style.overflow = 'hidden';
     }
