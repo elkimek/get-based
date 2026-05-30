@@ -1457,7 +1457,7 @@ Each connected source ships as a pair: `wearables-<vendor>.js` (read API) + `wea
 
 **L1 storage + summary derivation:** `wearables-store.js` (per-profile IndexedDB at `labcharts-wearables-{profileId}`; two-phase upsertDailyBatch), `wearables-summary.js` (L2 derivation; vendor sources read a 90-day window, while sparse manual rows read all history so older hand-entered BP/pulse/weight entries stay visible; write gate — 5% d7 shift / trend flip / 14d force-refresh / source flip / metric removal triggers).
 
-**UI surface:** `wearables.js` (dashboard strip + detail modal + reorder mode + manual-log forms), `wearables-settings-panel.js` (Settings → Wearables rows, connect/sync/backfill/disconnect actions, Apple Health file-import UI, manual-source counts/delete action, strip visibility toggle), `brand-assets.js` (per-vendor logo registry — `iconLight/Dark` for in-app rows, `signInLight/Dark` for landing-site Connect buttons, `mono` SVG fallback while a vendor logo is gated).
+**UI surface:** `wearables.js` (dashboard strip, source picker, reorder mode, empty-card manual-log forms, and legacy window facade), `wearables-detail-modal.js` (metric detail modal, Chart.js series, manual-entry list/add/delete, focus trap, EMF sleep nudge), `wearables-formatters.js` (shared value/date formatting), `wearables-manual-form-ui.js` (shared manual chip/note form snippets), `wearables-settings-panel.js` (Settings → Wearables rows, connect/sync/backfill/disconnect actions, Apple Health file-import UI, manual-source counts/delete action, strip visibility toggle), `brand-assets.js` (per-vendor logo registry — `iconLight/Dark` for in-app rows, `signInLight/Dark` for landing-site Connect buttons, `mono` SVG fallback while a vendor logo is gated).
 
 ---
 

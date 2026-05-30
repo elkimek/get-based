@@ -82,6 +82,8 @@ assert('saveManualLog on window', typeof window.saveManualLog === 'function');
 assert('cancelManualLog on window', typeof window.cancelManualLog === 'function');
 
 const wearablesSrc = await fetch('js/wearables.js').then(r => r.text());
+const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
+const manualFormUiSrc = await fetch('js/wearables-manual-form-ui.js').then(r => r.text());
 const wearablesSettingsSrc = await fetch('js/wearables-settings-panel.js').then(r => r.text());
 assert('wearables.js renders empty manual cards',
   wearablesSrc.includes('renderEmptyManualCard') && wearablesSrc.includes('wearable-card-empty'));
@@ -285,8 +287,8 @@ try {
   assert('wearables.js renders tag chips on bp form', wearablesSrc.includes('_renderTagChips'));
   assert('toggleManualLogChip on window', typeof window.toggleManualLogChip === 'function');
 
-  const saveFn = wearablesSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
-  const delFn = wearablesSrc.match(/async function deleteManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
+  const saveFn = wearablesDetailSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
+  const delFn = wearablesDetailSrc.match(/async function deleteManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('saveManualEntryFromDetail re-renders dashboard strip',
     /window\.navigate\([^)]*\)/.test(saveFn) && /['"]dashboard['"]/.test(saveFn));
   assert('deleteManualEntryFromDetail re-renders dashboard strip',
@@ -358,16 +360,17 @@ try {
     rows4[0].note === 'after run' && rows4[0].tags?.includes('post-workout'));
 
   // Detail-modal form has chips for rhr + bp (parity with empty-card form).
-  const rhrChipMatches = (wearablesSrc.match(/_renderTagChips\('rhr'\)/g) || []).length;
-  const bpChipMatches = (wearablesSrc.match(/_renderTagChips\('bp_systolic'\)/g) || []).length;
+  const combinedManualFormSrc = wearablesSrc + '\n' + wearablesDetailSrc;
+  const rhrChipMatches = (combinedManualFormSrc.match(/_renderTagChips\('rhr'\)/g) || []).length;
+  const bpChipMatches = (combinedManualFormSrc.match(/_renderTagChips\('bp_systolic'\)/g) || []).length;
   assert("_renderTagChips('rhr') called from both empty-card AND detail-modal forms",
     rhrChipMatches >= 2, `count=${rhrChipMatches}`);
   assert("_renderTagChips('bp_systolic') called from both empty-card AND detail-modal forms",
     bpChipMatches >= 2, `count=${bpChipMatches}`);
-  const openDetailStart = wearablesSrc.indexOf('function openManualAddFromDetail');
-  const closeManualFnStart = wearablesSrc.indexOf('function closeManualAddFromDetail');
+  const openDetailStart = wearablesDetailSrc.indexOf('function openManualAddFromDetail');
+  const closeManualFnStart = wearablesDetailSrc.indexOf('function closeManualAddFromDetail');
   const openDetailFn = (openDetailStart !== -1 && closeManualFnStart !== -1)
-    ? wearablesSrc.slice(openDetailStart, closeManualFnStart) : '';
+    ? wearablesDetailSrc.slice(openDetailStart, closeManualFnStart) : '';
   assert('Detail-modal RHR branch renders tag chips',
     /kind === 'rhr'[\s\S]{0,800}_renderTagChips\('rhr'\)/.test(openDetailFn));
   assert('Detail-modal BP branch renders tag chips',
@@ -376,7 +379,7 @@ try {
     !/kind === 'weight'[\s\S]{0,400}_renderTagChips/.test(openDetailFn));
 
   assert('Detail-modal form renders the wlad-note textarea',
-    /openManualAddFromDetail[\s\S]{0,3000}_renderNoteField\('wlad-note'\)/.test(wearablesSrc));
+    /openManualAddFromDetail[\s\S]{0,3000}_renderNoteField\('wlad-note'\)/.test(wearablesDetailSrc));
   assert('Empty-card weight form renders wl-weight-note textarea',
     /metricId === 'weight'[\s\S]{0,1000}_renderNoteField\('wl-weight-note'\)/.test(wearablesSrc));
   assert('Empty-card BP form renders wl-bp-note textarea',
@@ -385,9 +388,9 @@ try {
     /metricId === 'rhr'[\s\S]{0,1000}_renderNoteField\('wl-rhr-note'\)/.test(wearablesSrc));
 
   assert('_renderNoteField helper defined',
-    /function _renderNoteField\(idSuffix = 'wl-note'\)/.test(wearablesSrc));
+    /function _renderNoteField\(idSuffix = 'wl-note'\)/.test(manualFormUiSrc));
   assert('_renderNoteField outputs a wearable-log-note textarea',
-    /<textarea class="wearable-log-note"/.test(wearablesSrc));
+    /<textarea class="wearable-log-note"/.test(manualFormUiSrc));
 
   const saveLogFn = wearablesSrc.match(/async function saveManualLog[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('saveManualLog reads note from `wl-${kind}-note` (or `wl-bp-note`)',
@@ -397,7 +400,7 @@ try {
     /logManualMetric\(profileId, 'rhr', \{[^}]*note\s*\}\)/.test(saveLogFn) &&
     /logManualBP\(profileId, \{[^}]*note\s*\}\)/.test(saveLogFn));
 
-  const saveFromDetailFn = wearablesSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
+  const saveFromDetailFn = wearablesDetailSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('saveManualEntryFromDetail reads wlad-note from the detail-modal form',
     /document\.getElementById\('wlad-note'\)/.test(saveFromDetailFn));
   assert('saveManualEntryFromDetail scopes chip collection to the form element',
@@ -407,9 +410,9 @@ try {
     /logManualMetric\(profileId, 'rhr', \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn) &&
     /logManualBP\(profileId, \{[^}]*tags, note\s*\}\)/.test(saveFromDetailFn));
 
-  const entriesSectionFn = wearablesSrc.match(/function buildManualEntriesSection[\s\S]*?\n\}\s*\n/)?.[0] || '';
+  const entriesSectionFn = wearablesDetailSrc.match(/function buildManualEntriesSection[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('manualEntries map pulls note: r.note from the IDB row',
-    /\.map\(r => \(\{ date: r\.date, v: r\[metricId\], tags: r\.tags, note: r\.note \}\)\)/.test(wearablesSrc));
+    /\.map\(r => \(\{ date: r\.date, v: r\[metricId\], tags: r\.tags, note: r\.note \}\)\)/.test(wearablesDetailSrc));
   assert('Entries-list row renders the note (.wearable-manual-entry-note) when present',
     /typeof e\.note === 'string' && e\.note\.trim\(\)[\s\S]{0,200}wearable-manual-entry-note/.test(entriesSectionFn));
   assert("Row gains 'has-note' modifier class for layout when note is present",

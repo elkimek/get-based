@@ -263,6 +263,9 @@ const APP_SHELL = [
   // Wearables (added v1.22.0)
   '/js/wearable-adapters.js',
   '/js/wearables.js',
+  '/js/wearables-detail-modal.js',
+  '/js/wearables-formatters.js',
+  '/js/wearables-manual-form-ui.js',
   '/js/wearables-settings-panel.js',
   '/js/wearables-store.js',
   '/js/wearables-summary.js',

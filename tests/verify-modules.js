@@ -624,6 +624,15 @@
     const hasContextCardLifestyleEditorsJs = sw.includes('/js/context-card-lifestyle-editors.js');
     assert('Service worker caches js/context-card-lifestyle-editors.js', hasContextCardLifestyleEditorsJs);
 
+    const hasWearablesDetailModalJs = sw.includes('/js/wearables-detail-modal.js');
+    assert('Service worker caches js/wearables-detail-modal.js', hasWearablesDetailModalJs);
+
+    const hasWearablesFormattersJs = sw.includes('/js/wearables-formatters.js');
+    assert('Service worker caches js/wearables-formatters.js', hasWearablesFormattersJs);
+
+    const hasWearablesManualFormUiJs = sw.includes('/js/wearables-manual-form-ui.js');
+    assert('Service worker caches js/wearables-manual-form-ui.js', hasWearablesManualFormUiJs);
+
     const hasDashboardCompositionJs = sw.includes('/js/dashboard-view-composition.js');
     assert('Service worker caches js/dashboard-view-composition.js', hasDashboardCompositionJs);
 

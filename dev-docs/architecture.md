@@ -58,6 +58,9 @@ js/
   charts.js         — Chart.js plugins (5), createLineChart, destroyAllCharts
   notes.js          — Note editor: open/save/delete
   supplements.js    — Supplement editor and rendering
+  wearables.js      — Wearable dashboard strip, source picker, inline manual log forms, window facade
+  wearables-detail-modal.js — Wearable metric detail modal, chart, manual entries, focus trap
+  wearables-formatters.js / wearables-manual-form-ui.js — Shared wearable UI helpers
   cycle.js          — Menstrual cycle helpers, editor, dashboard rendering
   context-cards.js  — context card dashboard facade, health dots, AI tips, lens/KB CTAs
   context-card-summaries.js — card definitions, filled-state helpers, summaries

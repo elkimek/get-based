@@ -1636,11 +1636,12 @@ assert('Backfill + incremental pass the pre-await `conn` snapshot to commitAfter
 
 // P2: per-metric monotonic op token for manual save/delete.
 const wearablesSrcP2 = await fetch('/js/wearables.js').then(r => r.text());
+const wearablesDetailSrcP2 = await fetch('/js/wearables-detail-modal.js').then(r => r.text());
 assert('Manual save/delete uses per-metric op counter (Map keyed on metricId)',
-  /_manualEntryOps\s*=\s*new Map\(\)/.test(wearablesSrcP2) &&
-  /_bumpManualEntryOp\(metricId\)/.test(wearablesSrcP2));
+  /_manualEntryOps\s*=\s*new Map\(\)/.test(wearablesDetailSrcP2) &&
+  /_bumpManualEntryOp\(metricId\)/.test(wearablesDetailSrcP2));
 assert('Bail-out check compares against current op for the SAME metric',
-  /op\s*!==\s*_currentManualEntryOp\(metricId\)/.test(wearablesSrcP2));
+  /op\s*!==\s*_currentManualEntryOp\(metricId\)/.test(wearablesDetailSrcP2));
 
 // P2 security: minimal arg shape passed to disp.fetchAccountInfo.
 assert('disp.fetchAccountInfo receives only { userId } not the whole connection',
@@ -1654,8 +1655,8 @@ assert('Backfill + sync error toasts run their messages through _scrubError',
 
 // P2 a11y: friendlier aria on manual delete button + collapse-arrow header.
 assert('Manual-entry delete aria reads as a sentence (long date + value + unit)',
-  /aria-label="\$\{escapeHTML\(ariaText\)\}"/.test(wearablesSrcP2) &&
-  /Delete\s+\$\{metricLabel\.toLowerCase\(\)\}\s+reading\s+from/.test(wearablesSrcP2));
+  /aria-label="\$\{escapeHTML\(ariaText\)\}"/.test(wearablesDetailSrcP2) &&
+  /Delete\s+\$\{metricLabel\.toLowerCase\(\)\}\s+reading\s+from/.test(wearablesDetailSrcP2));
 assert('Strip-header role="button" carries an aria-label distinct from the live source list',
   /'(Expand|Collapse) wearables strip'/.test(wearablesSrcP2)
   && /aria-label="\$\{ariaLabel\}"/.test(wearablesSrcP2));
@@ -1671,8 +1672,8 @@ assert('Settings Agent Access description says "labs and context" (covers wearab
 
 // P2: detail-modal focus trap.
 assert('Detail modal installs Tab/Shift-Tab focus trap on open',
-  /_installWearableModalFocusTrap/.test(wearablesSrcP2) &&
-  /focusable\s*=\s*modal\.querySelectorAll/.test(wearablesSrcP2));
+  /_installWearableModalFocusTrap/.test(wearablesDetailSrcP2) &&
+  /focusable\s*=\s*modal\.querySelectorAll/.test(wearablesDetailSrcP2));
 
 // P2: recommendations gain wearable-trend hooks.
 const recsSrc = await fetch('/js/recommendations.js').then(r => r.text());
@@ -1792,6 +1793,10 @@ console.log('17y. P1 Audit Fixes');
 const swSrc = await fetch('/service-worker.js').then(r => r.text());
 assert('Service-worker static cache lists wearables-manual.js',
   /\/js\/wearables-manual\.js/.test(swSrc));
+assert('Service-worker static cache lists extracted wearable detail modules',
+  /\/js\/wearables-detail-modal\.js/.test(swSrc) &&
+  /\/js\/wearables-formatters\.js/.test(swSrc) &&
+  /\/js\/wearables-manual-form-ui\.js/.test(swSrc));
 
 // disconnectWearable now clears last-sync meta so reconnect doesn't pick
 // up a stale endDate.
@@ -1898,6 +1903,7 @@ console.log('17a. UX Audit Fixes');
 // are connected. Previously the badge only rendered when ≥2 adapters declared
 // the SAME metric, which left HRV/Sleep/Steps with no source attribution.
 const wearablesSrc2 = await fetch('/js/wearables.js').then(r => r.text());
+const wearablesDetailSrc2 = await fetch('/js/wearables-detail-modal.js').then(r => r.text());
 assert('Strip passes showSourceBadges (whole-strip flag) into renderCard, not the per-metric provider count',
   /renderCard\(metricId,\s*canon,\s*metric,\s*showSourceBadges/.test(wearablesSrc2));
 assert('No leftover per-metric providersForMetric.length > 1 gate',
@@ -1913,11 +1919,11 @@ assert('formatDelta suppresses delta on steps',
 assert('formatDelta suppresses delta when latest is 0 vs non-trivial baseline',
   /latest\s*===\s*0\s*&&\s*Math\.abs\(baseline\)\s*>\s*0\.5\)\s*return\s*''/.test(wearablesSrc2));
 assert('Detail modal mirrors delta-suppression rules',
-  /suppressDelta\s*=[\s\S]*metricId\s*===\s*'steps'/.test(wearablesSrc2));
+  /suppressDelta\s*=[\s\S]*metricId\s*===\s*'steps'/.test(wearablesDetailSrc2));
 
 // P0-5: source-swap reachable from the detail modal when ≥2 wearables connected
 assert('Detail modal renders source-swap button when ≥2 wearables connected',
-  /wearable-modal-source-swap/.test(wearablesSrc2));
+  /wearable-modal-source-swap/.test(wearablesDetailSrc2));
 
 // P1-1: glyph subs + RHR drops sub
 assert('hrv_rmssd uses 🌙 glyph not "overnight" word',
@@ -1930,11 +1936,11 @@ assert('aria translates 🌙 → "overnight" and ☀️ → "daytime" for screen
 
 // P1-2: daytime empty-state shortened + tooltip carries the long explanation
 assert('Daytime-empty state passes a tooltip as the 4th tuple element',
-  /baseStats\.push\(\[[\s\S]{0,200}companionLabel,[\s\S]{0,80}'—',[\s\S]{0,200}`Not from \${sourceDisplay} · why\?`,[\s\S]{0,80}tooltip,/.test(wearablesSrc2));
+  /baseStats\.push\(\[[\s\S]{0,200}companionLabel,[\s\S]{0,80}'—',[\s\S]{0,200}`Not from \${sourceDisplay} · why\?`,[\s\S]{0,80}tooltip,/.test(wearablesDetailSrc2));
 assert('Daytime tooltip references v2 (not the v1 typo)',
-  /v2 API exposes overnight HRV only/.test(wearablesSrc2) && !/v1 API exposes overnight HRV only/.test(wearablesSrc2));
+  /v2 API exposes overnight HRV only/.test(wearablesDetailSrc2) && !/v1 API exposes overnight HRV only/.test(wearablesDetailSrc2));
 assert('Stats grid renders the optional title attribute',
-  /\$\{tooltip\s*\?\s*` title="\$\{escapeHTML\(tooltip\)\}"`/.test(wearablesSrc2));
+  /\$\{tooltip\s*\?\s*` title="\$\{escapeHTML\(tooltip\)\}"`/.test(wearablesDetailSrc2));
 
 // P1-3: BP carries spoken-aria override
 assert('renderCard prefers canon.ariaLabel over derived label for spoken text',
@@ -2011,6 +2017,7 @@ assert('Apple Health declares hrv_day with window:day flag',
 // AI context. Regression guard so a future refactor doesn't accidentally
 // surface them as their own cards (visual clutter).
 const wearablesSrc = await fetch('/js/wearables.js').then(r => r.text());
+const wearablesDetailSrc = await fetch('/js/wearables-detail-modal.js').then(r => r.text());
 assert('Strip rendering hides hrv_day from card list',
   /STRIP_HIDDEN_METRICS\s*=\s*new Set\(\[[^\]]*'hrv_day'/.test(wearablesSrc));
 assert('Strip rendering hides hr_day from card list',
@@ -2019,9 +2026,9 @@ assert('Strip rendering hides hr_day from card list',
 // Detail modal companion: when viewing the overnight HRV/RHR card, the
 // matching daytime aggregate appears as an extra stat row.
 assert('Detail modal pairs hrv_rmssd with hrv_day companion',
-  /DAY_COMPANION\s*=\s*\{\s*hrv_rmssd:\s*'hrv_day'/.test(wearablesSrc));
+  /DAY_COMPANION\s*=\s*\{\s*hrv_rmssd:\s*'hrv_day'/.test(wearablesDetailSrc));
 assert('Detail modal pairs rhr with hr_day companion',
-  /DAY_COMPANION\s*=\s*\{[\s\S]*?rhr:\s*'hr_day'/.test(wearablesSrc));
+  /DAY_COMPANION\s*=\s*\{[\s\S]*?rhr:\s*'hr_day'/.test(wearablesDetailSrc));
 
 // ═══════════════════════════════════════
 // 17b. Apple Health hr_day from raw HeartRate stream (v1.27.1)
