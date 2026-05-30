@@ -48,6 +48,7 @@ globalThis.fetch = async (url, opts) => {
   const markerDetailSrc = await fetchWithRetry('js/marker-detail-modal.js');
   const dashboardWidgetsSrc = await fetchWithRetry('js/dashboard-widgets.js');
   const dashboardWidgetRenderersSrc = await fetchWithRetry('js/dashboard-widget-renderers.js');
+  const dashboardRecommendationWidgetSrc = await fetchWithRetry('js/dashboard-recommendation-widget.js');
   const contextSrc = await fetchWithRetry('js/context-cards.js');
   const navSrc = await fetchWithRetry('js/nav.js');
   const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
@@ -242,8 +243,8 @@ globalThis.fetch = async (url, opts) => {
     recommendationActionsSrc.includes('export function createRecommendationActions'));
   assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
   assert('dismissed recommendations render a Restore action',
-    dashboardWidgetRenderersSrc.includes("candidate.dismissed ? 'Restore' : 'Dismiss'") &&
-    dashboardWidgetRenderersSrc.includes("window.dismissRecommendation(${inlineJsString(candidate.id)}, ${candidate.dismissed ? 'false' : 'true'})"));
+    dashboardRecommendationWidgetSrc.includes("candidate.dismissed ? 'Restore' : 'Dismiss'") &&
+    dashboardRecommendationWidgetSrc.includes("window.dismissRecommendation(${inlineJsString(candidate.id)}, ${candidate.dismissed ? 'false' : 'true'})"));
   assert('dismissRecommendation can restore a dismissed recommendation',
     /function dismissRecommendation\(id, on = true\)[\s\S]{0,120}setRecommendationState\('dismissed', id, !!on\)/.test(recommendationActionsSrc));
   assert('Recommendations page header directly toggles its dashboard widget',
@@ -276,6 +277,7 @@ globalThis.fetch = async (url, opts) => {
 
   assert('SW includes recommendations.js', swSrc.includes('/js/recommendations.js'));
   assert('SW includes recommendation-actions.js', swSrc.includes('/js/recommendation-actions.js'));
+  assert('SW includes dashboard-recommendation-widget.js', swSrc.includes('/js/dashboard-recommendation-widget.js'));
 
   // Node port: read styles.css directly. Browser styleSheets walk is
   // brittle (cross-origin, parsing race); source inspection is more reliable.
