@@ -418,6 +418,11 @@ assert('dashboard genome SNP rows keep severity left border',
 const dnaSrc = await fetchWithRetry('js/dna.js');
 assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
 assert('DNA import preview separates beneficial findings', dnaSrc.includes('Beneficial findings') && dnaSrc.includes("impact: m.valence === 'protective' ? 'beneficial' : m.effect"));
+assert('DNA import success waits for persistence',
+  /async function confirmDNAImport\(\)[\s\S]{0,220}await saveImportedData\(\)/.test(dnaSrc));
+assert('mtDNA save paths wait for persistence',
+  /export async function confirmMtDNAImport\(\)[\s\S]{0,1200}await saveImportedData\(\)/.test(dnaSrc) &&
+  /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaSrc));
 assert('DNA reference links use attribute escaping instead of quote-only replacement',
   dnaSrc.includes('escapeAttr(primaryRef)') &&
   !dnaSrc.includes("f.references[0].replace(/\\\"/g, '&quot;')"));

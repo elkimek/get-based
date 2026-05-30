@@ -1105,11 +1105,11 @@ function closeDNAImportPreview() {
   if (overlay) overlay.classList.remove('show');
 }
 
-function confirmDNAImport() {
+async function confirmDNAImport() {
   const result = window._pendingDNAImport;
   if (!result) return;
   saveGeneticsData(state.importedData, result);
-  saveImportedData();
+  if (!await saveImportedData()) return;
   window._pendingDNAImport = null;
   _dnaImportRunning = false;
   const overlay = document.getElementById('dna-modal-overlay');
@@ -1383,7 +1383,7 @@ export function closeMtDNAPreview() {
   window._pendingMtDNA = null;
 }
 
-export function confirmMtDNAImport() {
+export async function confirmMtDNAImport() {
   const pending = window._pendingMtDNA;
   if (!pending) return;
 
@@ -1405,17 +1405,17 @@ export function confirmMtDNAImport() {
     importDate: new Date().toISOString().slice(0, 10)
   };
 
-  saveImportedData();
+  if (!await saveImportedData()) return;
   closeMtDNAPreview();
   showNotification(`Haplogroup ${pending.resolved.haplogroup} imported`, 'success');
   if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   if (window.navigate) window.navigate('dashboard');
 }
 
-export function deleteMtDNAData() {
+export async function deleteMtDNAData() {
   if (state.importedData.genetics) {
     delete state.importedData.genetics.mtdna;
-    saveImportedData();
+    if (!await saveImportedData()) return;
     if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
     if (window.navigate) window.navigate('dashboard');
     showNotification('mtDNA haplogroup removed', 'info');
@@ -1454,7 +1454,7 @@ export async function setManualHaplogroup(haplogroup) {
     source: 'manual',
     importDate: new Date().toISOString().slice(0, 10)
   };
-  saveImportedData();
+  if (!await saveImportedData()) return;
   showNotification(`Haplogroup ${hg} saved${coupling ? ' — ' + coupling.shortLabel : ''}`, 'success');
   if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
   if (window.navigate) window.navigate('dashboard');
@@ -1469,7 +1469,7 @@ export { HAPLOGROUP_LIST };
 async function confirmDeleteDNA() {
   if (await window.showConfirmDialog('Delete genetic data? This cannot be undone.')) {
     deleteGeneticsData(window._getState().importedData);
-    window._saveAndRefresh();
+    await window._saveAndRefresh();
   }
 }
 
@@ -1501,5 +1501,9 @@ Object.assign(window, {
   _buildGeneticsContext: buildGeneticsContext,
   _getRelevantSNPs: getRelevantSNPs,
   _getState: () => state,
-  _saveAndRefresh: () => { saveImportedData(); if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {} if (window.navigate) window.navigate('dashboard'); },
+  _saveAndRefresh: async () => {
+    if (!await saveImportedData()) return;
+    if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
+    if (window.navigate) window.navigate('dashboard');
+  },
 });
