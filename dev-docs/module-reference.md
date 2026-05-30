@@ -391,7 +391,7 @@ Menstrual cycle tracking, helpers, and dashboard rendering.
 
 ### `context-cards.js`
 
-Lifestyle context card rendering plus AI health dots, the remaining simple context card editors, the Interpretive Lens / Knowledge Base dashboard rows, dashboard CTA pills, context change history, and legacy compatibility exports for summary/editor helpers.
+Lifestyle context card rendering plus AI health dots, Interpretive Lens / Knowledge Base dashboard rows, dashboard CTA pills, context change history, and legacy compatibility exports for summary/editor helpers.
 
 **Key exports:**
 - `renderProfileContextCards(data)` — renders the 3-column context card grid on the dashboard
@@ -403,8 +403,8 @@ Lifestyle context card rendering plus AI health dots, the remaining simple conte
 - `triggerDNAFilePicker()` — programmatic file input trigger that routes through `window.handleDNAFile`; used by the genetics empty-state stub
 - `loadContextHealthDots()` — async; fetches AI health ratings for stale cards (per-card fingerprint caching)
 - `getCardFingerprint(key)` — djb2 hash of lab data + card data + sex + DOB for cache invalidation
-- Per-card editor functions: `openDiagnosesEditor`, `openDietEditor`, `openExerciseEditor`, `openSleepEditor`, `openLightEditor`, `openStressEditor`, `openLoveLifeEditor`, `openEnvironmentEditor`, `openHealthGoalsEditor`; Medical History helpers are compatibility re-exports from `context-card-medical-history-editor.js`
-- Per-card save functions: `saveDiagnoses`, `saveDiet`, `saveExercise`, `saveSleep`, `saveLight`, `saveStress`, `saveLoveLife`, `saveEnvironment`, `saveHealthGoals`; `saveDiagnoses` is a compatibility re-export from `context-card-medical-history-editor.js`
+- Per-card editor functions: `openDiagnosesEditor`, `openDietEditor`, `openExerciseEditor`, `openSleepEditor`, `openLightEditor`, `openStressEditor`, `openLoveLifeEditor`, `openEnvironmentEditor`, `openHealthGoalsEditor`; Medical History helpers are compatibility re-exports from `context-card-medical-history-editor.js`, and lifestyle/simple editors are compatibility re-exports from `context-card-lifestyle-editors.js`
+- Per-card save functions: `saveDiagnoses`, `saveDiet`, `saveExercise`, `saveSleep`, `saveLight`, `saveStress`, `saveLoveLife`, `saveEnvironment`, `saveHealthGoals`; `saveDiagnoses` is a compatibility re-export from `context-card-medical-history-editor.js`, and lifestyle/simple saves are compatibility re-exports from `context-card-lifestyle-editors.js`
 - `selectCtxOption(el, group, multi)` — compatibility re-export from `context-card-editor-ui.js`
 - `getSelectedOption(group)` — reads selected value from a `.ctx-btn-group`
 - Summary helpers such as `getDietSummary()` and `getEnvironmentSummary()` — compatibility re-exports from `context-card-summaries.js`
@@ -440,6 +440,16 @@ Shared context editor modal shell and field-control render/read helpers used by 
 Medical History editor module for personal conditions and family history. Owns the condition autocomplete, relative allowlist, add/delete flows, modal rendering, note sync, and save/clear handlers for `importedData.diagnoses`.
 
 **Key exports:** `configureMedicalHistoryEditor()`, `openDiagnosesEditor()`, `renderDiagnosesModal()`, `filterConditionSuggestions()`, `selectConditionSuggestion()`, `closeSuggestionsOnClickOutside()`, `syncDiagnosesNote()`, `addCondition()`, `editCondition()`, `cancelConditionEdit()`, `deleteCondition()`, `addFamilyHistoryEntry()`, `editFamilyHistoryEntry()`, `cancelFamilyHistoryEdit()`, `deleteFamilyHistoryEntry()`, `filterFamilyConditionSuggestions()`, `selectFamilyConditionSuggestion()`, `saveDiagnoses()`, `closeDiagnoses()`, `clearDiagnoses()`.
+
+**Window exports:** none directly; legacy globals are assigned by `context-cards.js`.
+
+---
+
+### `context-card-lifestyle-editors.js`
+
+Lifestyle/simple context editors for Diet & Digestion, Sleep & Rest, Light & Circadian, Exercise, Stress, Love Life, Environment, Health Goals, Interpretive Lens, and the diet contaminant modal. Uses `configureLifestyleContextEditors()` so `context-cards.js` remains the owner of `recordChange()` and `saveAndRefresh()` while the editor module owns modal rendering and save/clear handlers.
+
+**Key exports:** `configureLifestyleContextEditors()`, `renderDietContaminantsBadge()`, `openDietEditor()`, `saveDiet()`, `clearDiet()`, `openSleepRestEditor()`, `saveSleepRest()`, `clearSleepRest()`, `openLightCircadianEditor()`, `saveLightCircadian()`, `clearLightCircadian()`, `openExerciseEditor()`, `saveExercise()`, `clearExercise()`, `openStressEditor()`, `saveStress()`, `clearStress()`, `openLoveLifeEditor()`, `saveLoveLife()`, `clearLoveLife()`, `openEnvironmentEditor()`, `saveEnvironment()`, `clearEnvironment()`, `openHealthGoalsEditor()`, `renderHealthGoalsModal()`, `addHealthGoal()`, `deleteHealthGoal()`, `closeHealthGoals()`, `clearHealthGoals()`, `openInterpretiveLensEditor()`, `saveInterpretiveLens()`, `clearInterpretiveLens()`, `showDietContaminantsModal()`.
 
 **Window exports:** none directly; legacy globals are assigned by `context-cards.js`.
 

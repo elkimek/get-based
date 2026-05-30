@@ -121,6 +121,7 @@ const pwaAppShellAssets = [
   '/js/context-card-summaries.js',
   '/js/context-card-editor-ui.js',
   '/js/context-card-medical-history-editor.js',
+  '/js/context-card-lifestyle-editors.js',
   '/js/supplement-impact.js',
   '/js/commit-hash.js',
   '/js/focus-card.js',

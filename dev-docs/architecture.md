@@ -59,10 +59,11 @@ js/
   notes.js          — Note editor: open/save/delete
   supplements.js    — Supplement editor and rendering
   cycle.js          — Menstrual cycle helpers, editor, dashboard rendering
-  context-cards.js  — context card editors, health dots, AI tips, lens/KB CTAs
+  context-cards.js  — context card dashboard facade, health dots, AI tips, lens/KB CTAs
   context-card-summaries.js — card definitions, filled-state helpers, summaries
   context-card-editor-ui.js — shared context editor modal and field controls
   context-card-medical-history-editor.js — Medical History editor, conditions, and family history
+  context-card-lifestyle-editors.js — lifestyle context editors, goals, lens, and diet contaminant modal
   pdf-import.js     — PDF/image/text import pipeline, AI analysis, confirm/save merge
   pdf-import-review.js — import review modal rendering, row filtering/mapping UI state
   import-file-input.js — lazy file-picker import binding and import routing

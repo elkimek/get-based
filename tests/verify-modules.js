@@ -621,6 +621,9 @@
     const hasSupplementImpactJs = sw.includes('/js/supplement-impact.js');
     assert('Service worker caches js/supplement-impact.js', hasSupplementImpactJs);
 
+    const hasContextCardLifestyleEditorsJs = sw.includes('/js/context-card-lifestyle-editors.js');
+    assert('Service worker caches js/context-card-lifestyle-editors.js', hasContextCardLifestyleEditorsJs);
+
     const hasDashboardCompositionJs = sw.includes('/js/dashboard-view-composition.js');
     assert('Service worker caches js/dashboard-view-composition.js', hasDashboardCompositionJs);
 

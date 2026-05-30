@@ -142,7 +142,7 @@ assert('45d. startup-orchestrator.js installs the EMF lazy facade', orchestrator
 assert('45d2. main.js starts the startup orchestrator', mainSrc.includes('startApp()'));
 assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('const _emfFns'));
 const navSrc = read('js/nav.js');
-const contextCardsSrc = read('js/context-cards.js');
+const contextCardLifestyleEditorsSrc = read('js/context-card-lifestyle-editors.js');
 const contextCardSummariesSrc = read('js/context-card-summaries.js');
 const contextProfileCss = read('css/context-profile.css');
 const lensPagesSrc = read('js/lens-pages.js');
@@ -158,7 +158,7 @@ assert('45g. EMF sidebar entry is available before assessment data exists',
 assert('45h. Environment context card counts saved EMF assessments',
   contextCardSummariesSrc.includes("key === 'environment'") && contextCardSummariesSrc.includes('getEMFAssessments().length > 0'));
 assert('45i. Environment editor uses the EMF assessment launcher',
-  contextCardsSrc.includes('renderEMFAssessmentLauncher({ inModal: true') && contextCardSummariesSrc.includes('ctx-emf-launcher'));
+  contextCardLifestyleEditorsSrc.includes('renderEMFAssessmentLauncher({ inModal: true') && contextCardSummariesSrc.includes('ctx-emf-launcher'));
 assert('45j. EMF launcher has dedicated context CSS',
   contextProfileCss.includes('.ctx-emf-launcher') &&
   contextProfileCss.includes('.ctx-emf-launcher-action') &&
