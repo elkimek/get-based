@@ -57,6 +57,7 @@ assert('SW has explicit dev-host offline test opt-in',
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('SW APP_SHELL includes API provider storage module', swAuditSrc.includes("'/js/api-provider-storage.js'"));
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
@@ -588,9 +589,10 @@ if (apoMatch) {
 console.log('7. Error Handling');
 
 const apiSrc = read('js/api.js');
-assert('Venice models JSON.parse guarded', apiSrc.includes('function readStoredArray(key)'));
-assert('OpenRouter models JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-models')"));
-assert('OpenRouter pricing JSON.parse guarded', apiSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-pricing')"));
+const apiProviderStorageSrc = read('js/api-provider-storage.js');
+assert('Venice models JSON.parse guarded', apiProviderStorageSrc.includes('function readStoredArray(key)'));
+assert('OpenRouter models JSON.parse guarded', apiProviderStorageSrc.includes("readStoredArray('labcharts-openrouter-models')"));
+assert('OpenRouter pricing JSON.parse guarded', apiProviderStorageSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-pricing')"));
 
 const exportSrc = read('js/export.js');
 assert('PDF report null popup guard', exportSrc.includes('if (!win)'));

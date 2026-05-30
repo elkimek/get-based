@@ -28,12 +28,13 @@ const cryptoMod = await import('../js/crypto.js');
 
 // 1. Source: api.js has isE2EEModel and E2EE branch
 const apiSrc = read('js/api.js');
-assert('isE2EEModel exported in api.js', apiSrc.includes('export function isE2EEModel('));
-assert('e2ee prefix detection', apiSrc.includes("modelId.startsWith('e2ee-')"));
+const apiProviderStorageSrc = read('js/api-provider-storage.js');
+assert('isE2EEModel exported through api.js', apiSrc.includes('isE2EEModel,'));
+assert('e2ee prefix detection', apiProviderStorageSrc.includes("modelId.startsWith('e2ee-')"));
 assert('callVeniceAPI has E2EE import', apiSrc.includes("import('../vendor/venice-e2ee.js')"));
-assert('supportsWebSearch excludes E2EE', apiSrc.includes('isE2EEModel(getVeniceModel())'));
-assert('supportsVision excludes E2EE', apiSrc.includes('isE2EEModel(getVeniceModel())') && apiSrc.includes('return false'));
-assert('fetchVeniceModels preserves e2ee- prefix', apiSrc.includes("id.startsWith('e2ee-')"));
+assert('supportsWebSearch excludes E2EE', apiSrc.includes('isVeniceE2EEActive()'));
+assert('supportsVision excludes E2EE', apiSrc.includes('isVeniceE2EEActive()') && apiSrc.includes('return false'));
+assert('fetchVeniceModels preserves e2ee- prefix', apiProviderStorageSrc.includes("id.startsWith('e2ee-')"));
 assert('Venice E2EE supports forced non-stream retry path',
   /forceNonStream/.test(apiSrc)
   && /requestTimeoutMs/.test(apiSrc)

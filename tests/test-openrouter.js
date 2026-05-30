@@ -34,18 +34,19 @@ await import('../js/provider-panels.js');
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
 const apiSrc = read('js/api.js');
-assert('getOpenRouterKey exists', apiSrc.includes('function getOpenRouterKey()'));
-assert('saveOpenRouterKey exists', apiSrc.includes('function saveOpenRouterKey('));
-assert('hasOpenRouterKey exists', apiSrc.includes('function hasOpenRouterKey()'));
-assert('getOpenRouterModel exists', apiSrc.includes('function getOpenRouterModel()'));
-assert('setOpenRouterModel exists', apiSrc.includes('function setOpenRouterModel('));
-assert('getOpenRouterModelDisplay exists', apiSrc.includes('function getOpenRouterModelDisplay()'));
+const apiProviderStorageSrc = read('js/api-provider-storage.js');
+assert('getOpenRouterKey exists', apiProviderStorageSrc.includes('function getOpenRouterKey()'));
+assert('saveOpenRouterKey exists', apiProviderStorageSrc.includes('function saveOpenRouterKey('));
+assert('hasOpenRouterKey exists', apiProviderStorageSrc.includes('function hasOpenRouterKey()'));
+assert('getOpenRouterModel exists', apiProviderStorageSrc.includes('function getOpenRouterModel()'));
+assert('setOpenRouterModel exists', apiProviderStorageSrc.includes('function setOpenRouterModel('));
+assert('getOpenRouterModelDisplay exists', apiProviderStorageSrc.includes('function getOpenRouterModelDisplay()'));
 assert('fetchOpenRouterModels exists', apiSrc.includes('function fetchOpenRouterModels('));
 assert('validateOpenRouterKey exists', apiSrc.includes('function validateOpenRouterKey('));
 assert('callOpenRouterAPI exists', apiSrc.includes('function callOpenRouterAPI('));
 assert('extraHeaders in helper signature', apiSrc.includes('extraHeaders = {}'));
 assert('extraHeaders spread in fetch headers', apiSrc.includes('...extraHeaders'));
-assert('hasAIProvider handles openrouter', apiSrc.includes("provider === 'openrouter') return hasOpenRouterKey()"));
+assert('hasAIProvider handles openrouter', apiProviderStorageSrc.includes("provider === 'openrouter') return hasOpenRouterKey()"));
 assert('callClaudeAPI handles openrouter', apiSrc.includes("provider === 'openrouter') return callOpenRouterAPI("));
 assert('callOpenRouterAPI sends HTTP-Referer', apiSrc.includes("'HTTP-Referer'"));
 assert('callOpenRouterAPI sends X-Title', apiSrc.includes("'X-Title': 'getbased'"));
@@ -53,7 +54,7 @@ assert('callOpenRouterAPI sends X-Title', apiSrc.includes("'X-Title': 'getbased'
 // legacy-ID it migrates FROM — getOpenRouterModel() rewrites it to the dotted
 // canonical 'anthropic/claude-sonnet-4.6' (verified by the section-8 default
 // assertion). This checks the legacy-migration source string is still present.
-assert('api.js still references legacy hyphenated ID for migration', apiSrc.includes("'anthropic/claude-sonnet-4-6'"));
+assert('provider storage still references legacy hyphenated ID for migration', apiProviderStorageSrc.includes("'anthropic/claude-sonnet-4-6'"));
 assert('OpenRouter API endpoint', apiSrc.includes('openrouter.ai/api/v1/chat/completions'));
 assert('OpenRouter models endpoint', apiSrc.includes('openrouter.ai/api/v1/models'));
 
@@ -80,7 +81,7 @@ assert('Exclude filter applied in fetch', apiSrc.includes('OPENROUTER_EXCLUDE.so
 assert('fetchOpenRouterModels extracts pricing.prompt', apiSrc.includes('m.pricing.prompt'));
 assert('fetchOpenRouterModels converts to per-million', apiSrc.includes('* 1_000_000'));
 assert('fetchOpenRouterModels caches pricing', apiSrc.includes("'labcharts-openrouter-pricing'"));
-assert('getOpenRouterPricing function exists', apiSrc.includes('function getOpenRouterPricing('));
+assert('getOpenRouterPricing function exists', apiProviderStorageSrc.includes('function getOpenRouterPricing('));
 assert('window.getOpenRouterPricing is function', typeof window.getOpenRouterPricing === 'function');
 
 const oldPricing = localStorage.getItem('labcharts-openrouter-pricing');
