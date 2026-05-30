@@ -108,6 +108,13 @@
   cursor: pointer; padding: 0 4px; line-height: 1; flex-shrink: 0; transition: color 0.15s;
 }
 .goals-delete-btn:hover { color: var(--red); }
+.ctx-row-action-btn {
+  width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; background: transparent; border: none; color: var(--text-muted);
+  cursor: pointer; flex: 0 0 24px; padding: 0; line-height: 1; transition: all 0.15s;
+}
+.ctx-row-action-btn:hover { background: var(--bg-hover); }
+.ctx-row-edit-btn:hover { color: var(--accent); }
 .goals-add-row {
   display: flex; gap: 8px; align-items: flex-end; margin-top: 16px;
 }
@@ -595,11 +602,16 @@
 .ctx-condition-item {
   display: flex; align-items: center; gap: 8px; padding: 10px 14px;
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  margin-bottom: 6px; font-size: 13px; transition: border-color 0.15s;
+  margin-bottom: 6px; font-size: 13px; transition: border-color 0.15s; flex-wrap: nowrap;
 }
-.ctx-condition-item:hover { border-color: var(--text-muted); }
-.ctx-condition-name { color: var(--text-primary); flex: 1; min-width: 0; font-weight: 500; }
+.ctx-condition-item:hover,
+.ctx-condition-item.is-editing { border-color: var(--text-muted); }
+.ctx-condition-name {
+  color: var(--text-primary); flex: 1; min-width: 0; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .ctx-condition-since { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.ctx-condition-actions { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .ctx-add-condition {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
 }
@@ -624,27 +636,35 @@
 .ctx-family-item {
   display: flex; align-items: center; gap: 8px; padding: 8px 12px;
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-size: 13px; flex-wrap: wrap; transition: border-color 0.15s;
+  font-size: 13px; flex-wrap: nowrap; transition: border-color 0.15s;
 }
-.ctx-family-item:hover { border-color: var(--text-muted); }
+.ctx-family-item:hover,
+.ctx-family-item.is-editing { border-color: var(--text-muted); }
+.ctx-family-main {
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; flex-wrap: nowrap;
+}
 .ctx-family-relative {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 12px; color: var(--text-secondary);
   background: var(--bg-tertiary, rgba(128,128,128,0.08));
   padding: 2px 8px; border-radius: 10px; white-space: nowrap;
-  flex-shrink: 0;
+  flex: 0 1 190px; max-width: 38%; min-width: 88px; overflow: hidden;
 }
-.ctx-family-relative-label { font-weight: 500; }
-.ctx-family-condition { color: var(--text-primary); font-weight: 500; flex: 1; min-width: 100px; }
+.ctx-family-relative-label { display: block; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ctx-family-condition {
+  color: var(--text-primary); font-weight: 500; flex: 1 1 180px; min-width: 80px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .ctx-family-age {
   font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  white-space: nowrap; flex-shrink: 0;
 }
 .ctx-family-note {
   font-size: 12px; color: var(--text-muted); font-style: italic;
-  flex-basis: 100%; padding-left: 4px; line-height: 1.35;
-  margin-top: -2px;
+  flex: 0 1 220px; max-width: 32%; min-width: 0; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.ctx-family-actions { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .ctx-family-add { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .ctx-family-add-row {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
@@ -657,6 +677,11 @@
   .ctx-family-select, .ctx-family-condition-wrap,
   .ctx-family-age-input, .ctx-family-note-input { width: 100%; max-width: none; }
   .ctx-family-add-row .import-btn { width: 100%; }
+  .ctx-family-item { align-items: flex-start; }
+  .ctx-family-main { flex-wrap: wrap; }
+  .ctx-family-relative,
+  .ctx-family-condition,
+  .ctx-family-note { flex-basis: 100%; max-width: none; }
 }
 /* Context editor note input */
 .ctx-note-input {

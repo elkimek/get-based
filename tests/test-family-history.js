@@ -113,7 +113,7 @@ assert('addFamilyHistoryEntry early-returns when relative or condition empty',
 console.log('4. saveDiagnoses null-guard');
 
 assert('saveDiagnoses considers familyHistory.length before nulling diagnoses',
-  /const fhLen = Array\.isArray\(state\.importedData\.diagnoses\.familyHistory\)[\s\S]{0,300}fhLen === 0/.test(ctxMedicalSrc));
+  /const fhLen = diagnoses\.familyHistory\.length[\s\S]{0,300}fhLen === 0/.test(ctxMedicalSrc));
 
 // Profile migration backfills familyHistory on legacy diagnoses objects.
 const profSrc = await fetch('js/profile.js').then(r => r.text());
@@ -213,6 +213,14 @@ assert('Relative chip emoji mapping defined',
   /RELATIVE_EMOJI\s*=\s*\{/.test(ctxMedicalSrc));
 assert("Closing-suggestions handler also clears fh-condition-suggestions",
   /fh-condition-suggestions[\s\S]{0,200}fhContainer\.innerHTML\s*=\s*''/.test(ctxMedicalSrc));
+assert('Condition rows expose edit action',
+  ctxMedicalSrc.includes('onclick="editCondition(${i})"'));
+assert('Family rows expose edit action',
+  ctxMedicalSrc.includes('onclick="editFamilyHistoryEntry(${i})"'));
+assert('Condition edit updates existing row instead of appending',
+  /diagnoses\.conditions\[editingConditionIndex\] = cond/.test(ctxMedicalSrc));
+assert('Family history edit updates existing row instead of appending',
+  /diagnoses\.familyHistory\[editingFamilyHistoryIndex\] = entry/.test(ctxMedicalSrc));
 
 // ═══════════════════════════════════════
 // 10. CSS hooks
@@ -224,12 +232,17 @@ const stylesSrc = [
 ].join('\n');
 for (const cls of [
   '.ctx-family-history', '.ctx-family-head', '.ctx-family-count',
-  '.ctx-family-list', '.ctx-family-item', '.ctx-family-relative',
+  '.ctx-family-list', '.ctx-family-item', '.ctx-family-main', '.ctx-family-relative',
   '.ctx-family-condition', '.ctx-family-age', '.ctx-family-note',
-  '.ctx-family-add', '.ctx-family-add-row',
+  '.ctx-family-actions', '.ctx-family-add', '.ctx-family-add-row',
 ]) {
   assert(`CSS defines ${cls}`, new RegExp(cls.replace('.', '\\.') + '\\s*\\{').test(stylesSrc));
 }
+assert('Family rows do not wrap by default on desktop',
+  /\.ctx-family-item\s*\{[\s\S]{0,220}flex-wrap:\s*nowrap/.test(stylesSrc));
+assert('Long family row text gets ellipsis instead of forcing row height',
+  /\.ctx-family-condition\s*\{[\s\S]{0,180}text-overflow:\s*ellipsis/.test(stylesSrc) &&
+  /\.ctx-family-relative-label\s*\{[\s\S]{0,140}text-overflow:\s*ellipsis/.test(stylesSrc));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

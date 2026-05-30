@@ -439,7 +439,7 @@ Shared context editor modal shell and field-control render/read helpers used by 
 
 Medical History editor module for personal conditions and family history. Owns the condition autocomplete, relative allowlist, add/delete flows, modal rendering, note sync, and save/clear handlers for `importedData.diagnoses`.
 
-**Key exports:** `configureMedicalHistoryEditor()`, `openDiagnosesEditor()`, `renderDiagnosesModal()`, `filterConditionSuggestions()`, `selectConditionSuggestion()`, `closeSuggestionsOnClickOutside()`, `syncDiagnosesNote()`, `addCondition()`, `deleteCondition()`, `addFamilyHistoryEntry()`, `deleteFamilyHistoryEntry()`, `filterFamilyConditionSuggestions()`, `selectFamilyConditionSuggestion()`, `saveDiagnoses()`, `closeDiagnoses()`, `clearDiagnoses()`.
+**Key exports:** `configureMedicalHistoryEditor()`, `openDiagnosesEditor()`, `renderDiagnosesModal()`, `filterConditionSuggestions()`, `selectConditionSuggestion()`, `closeSuggestionsOnClickOutside()`, `syncDiagnosesNote()`, `addCondition()`, `editCondition()`, `cancelConditionEdit()`, `deleteCondition()`, `addFamilyHistoryEntry()`, `editFamilyHistoryEntry()`, `cancelFamilyHistoryEdit()`, `deleteFamilyHistoryEntry()`, `filterFamilyConditionSuggestions()`, `selectFamilyConditionSuggestion()`, `saveDiagnoses()`, `closeDiagnoses()`, `clearDiagnoses()`.
 
 **Window exports:** none directly; legacy globals are assigned by `context-cards.js`.
 

@@ -90,6 +90,64 @@ return (async function() {
     assert('Entry has onsetAge=45', entry && entry.onsetAge === 45);
     assert('Entry preserves note', entry && entry.note === 'on metformin');
 
+    cards.editFamilyHistoryEntry(0);
+    assert('editFamilyHistoryEntry pre-fills relative',
+      document.getElementById('fh-relative')?.value === 'mother');
+    assert('editFamilyHistoryEntry pre-fills condition',
+      document.getElementById('fh-condition')?.value === 'Type 2 Diabetes');
+    assert('editFamilyHistoryEntry pre-fills age',
+      document.getElementById('fh-age')?.value === '45');
+    assert('editFamilyHistoryEntry pre-fills note',
+      document.getElementById('fh-note')?.value === 'on metformin');
+    document.getElementById('fh-relative').value = 'father';
+    document.getElementById('fh-condition').value = 'Heart Attack (MI)';
+    document.getElementById('fh-age').value = '52';
+    document.getElementById('fh-note').value = 'stent';
+    cards.addFamilyHistoryEntry();
+    assert('Edited family entry updates in place',
+      state.importedData.diagnoses.familyHistory.length === 1);
+    const editedFamily = state.importedData.diagnoses.familyHistory[0];
+    assert('Edited family entry has new relative + condition',
+      editedFamily.relative === 'father' && editedFamily.condition === 'Heart Attack (MI)');
+    assert('Edited family entry has new age + note',
+      editedFamily.onsetAge === 52 && editedFamily.note === 'stent');
+
+    state.importedData.diagnoses.conditions = [{ name: 'Hypertension', severity: 'mild', since: '2020' }];
+    cards.renderDiagnosesModal(document.getElementById('detail-modal'), state.importedData.diagnoses);
+    cards.editCondition(0);
+    assert('editCondition pre-fills condition name',
+      document.getElementById('condition-input')?.value === 'Hypertension');
+    assert('editCondition pre-fills since',
+      document.getElementById('condition-since')?.value === '2020');
+    document.getElementById('condition-input').value = 'Psoriasis';
+    document.getElementById('condition-since').value = '2022';
+    cards.addCondition();
+    assert('Edited condition updates in place',
+      state.importedData.diagnoses.conditions.length === 1);
+    assert('Edited condition has new name + since',
+      state.importedData.diagnoses.conditions[0].name === 'Psoriasis' &&
+      state.importedData.diagnoses.conditions[0].since === '2022');
+
+    state.importedData.diagnoses.familyHistory = [{
+      relative: 'maternal_grandmother',
+      condition: "Alzheimer's Disease with early cognitive symptoms",
+      onsetAge: 61,
+      note: 'long note that should truncate inline instead of making the saved row tall'
+    }];
+    cards.renderDiagnosesModal(document.getElementById('detail-modal'), state.importedData.diagnoses);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const longRow = document.querySelector('#detail-modal .ctx-family-item');
+    const longCondition = document.querySelector('#detail-modal .ctx-family-condition');
+    const longRelative = document.querySelector('#detail-modal .ctx-family-relative-label');
+    const rowHeight = longRow?.getBoundingClientRect().height || 0;
+    assert('Long family row stays compact on desktop',
+      window.innerWidth < 600 || rowHeight <= 52, `height=${rowHeight}`);
+    assert('Long family row condition uses no-wrap ellipsis',
+      longCondition && getComputedStyle(longCondition).whiteSpace === 'nowrap' &&
+      getComputedStyle(longCondition).textOverflow === 'ellipsis');
+    assert('Long family row relative label uses ellipsis',
+      longRelative && getComputedStyle(longRelative).textOverflow === 'ellipsis');
+
     // Reset state for the reject-path test — renderDiagnosesModal replaced
     // probe2's #fh-relative with the modal's, but probe2 still exists and
     // duplicate IDs are tree-order-resolved. Re-inject a fresh probe with a

@@ -12,6 +12,8 @@ import {
 
 let recordContextChange = () => {};
 let saveContextAndRefresh = () => {};
+let editingConditionIndex = -1;
+let editingFamilyHistoryIndex = -1;
 
 export function configureMedicalHistoryEditor({ recordChange, saveAndRefresh } = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
@@ -19,6 +21,8 @@ export function configureMedicalHistoryEditor({ recordChange, saveAndRefresh } =
 }
 
 export function openDiagnosesEditor() {
+  editingConditionIndex = -1;
+  editingFamilyHistoryIndex = -1;
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.diagnoses || { conditions: [], note: '' };
@@ -45,19 +49,42 @@ function _relativeLabel(key) {
   return FAMILY_RELATIVES.find(r => r.key === key)?.label || key;
 }
 
+function _selectedAttr(value, target) {
+  return value === target ? ' selected' : '';
+}
+
+function _activeClass(value, target) {
+  return value === target ? ' active' : '';
+}
+
+function _getDiagnoses() {
+  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
+  if (!Array.isArray(state.importedData.diagnoses.conditions)) state.importedData.diagnoses.conditions = [];
+  if (!Array.isArray(state.importedData.diagnoses.familyHistory)) state.importedData.diagnoses.familyHistory = [];
+  return state.importedData.diagnoses;
+}
+
 export function renderDiagnosesModal(modal, current) {
-  const conditions = current.conditions || [];
+  const conditions = Array.isArray(current.conditions) ? current.conditions : [];
   const familyHistory = Array.isArray(current.familyHistory) ? current.familyHistory : [];
+  if (!conditions[editingConditionIndex]) editingConditionIndex = -1;
+  if (!familyHistory[editingFamilyHistoryIndex]) editingFamilyHistoryIndex = -1;
+  const editingCondition = editingConditionIndex >= 0 ? conditions[editingConditionIndex] : null;
+  const editingFamily = editingFamilyHistoryIndex >= 0 ? familyHistory[editingFamilyHistoryIndex] : null;
+  const conditionSeverity = editingCondition ? (editingCondition.severity || 'mild') : 'major';
   let html = '';
   if (conditions.length > 0) {
     html += `<div class="ctx-conditions-list" id="ctx-conditions-list">`;
     for (let i = 0; i < conditions.length; i++) {
       const c = conditions[i];
-      html += `<div class="ctx-condition-item">
-        <span class="ctx-condition-name">${escapeHTML(c.name)}</span>
+      html += `<div class="ctx-condition-item${i === editingConditionIndex ? ' is-editing' : ''}">
+        <span class="ctx-condition-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
         ${c.severity ? `<span class="goals-severity-badge severity-${c.severity}">${c.severity}</span>` : ''}
         ${c.since ? `<span class="ctx-condition-since">since ${escapeHTML(c.since)}</span>` : ''}
-        <button class="goals-delete-btn" onclick="deleteCondition(${i})">&times;</button>
+        <span class="ctx-condition-actions">
+          <button class="ctx-row-action-btn ctx-row-edit-btn" onclick="editCondition(${i})" aria-label="Edit condition" title="Edit condition">✎</button>
+          <button class="ctx-row-action-btn goals-delete-btn" onclick="deleteCondition(${i})" aria-label="Remove condition" title="Remove condition">&times;</button>
+        </span>
       </div>`;
     }
     html += `</div>`;
@@ -65,16 +92,17 @@ export function renderDiagnosesModal(modal, current) {
   html += `<div class="ctx-field-group"><label class="ctx-field-label">Add condition</label>
     <div class="ctx-add-condition">
       <div class="ctx-autocomplete-wrapper">
-        <input type="text" class="ctx-note-input" id="condition-input" placeholder="Type condition name..." oninput="filterConditionSuggestions()" onfocus="filterConditionSuggestions()">
+        <input type="text" class="ctx-note-input" id="condition-input" value="${escapeHTML(editingCondition?.name || '')}" placeholder="Type condition name..." oninput="filterConditionSuggestions()" onfocus="filterConditionSuggestions()">
         <div class="ctx-suggestions" id="condition-suggestions"></div>
       </div>
-      <input type="text" class="ctx-note-input" id="condition-since" placeholder="Since (e.g. 2020)" style="width:100px">
-      <button class="import-btn import-btn-primary" onclick="addCondition()">Add</button>
+      <input type="text" class="ctx-note-input" id="condition-since" value="${escapeHTML(editingCondition?.since || '')}" placeholder="Since (e.g. 2020)" style="width:100px">
+      <button class="import-btn import-btn-primary" onclick="addCondition()">${editingCondition ? 'Update' : 'Add'}</button>
+      ${editingCondition ? '<button class="import-btn import-btn-secondary ctx-edit-cancel-btn" onclick="cancelConditionEdit()">Cancel edit</button>' : ''}
     </div>
     <div class="ctx-btn-group" id="condition-severity" style="margin-top:8px">
-      <button type="button" class="ctx-btn-option active" onclick="selectCtxOption(this,'condition-severity')">major</button>
-      <button type="button" class="ctx-btn-option" onclick="selectCtxOption(this,'condition-severity')">mild</button>
-      <button type="button" class="ctx-btn-option" onclick="selectCtxOption(this,'condition-severity')">minor</button>
+      <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'major')}" onclick="selectCtxOption(this,'condition-severity')">major</button>
+      <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'mild')}" onclick="selectCtxOption(this,'condition-severity')">mild</button>
+      <button type="button" class="ctx-btn-option${_activeClass(conditionSeverity, 'minor')}" onclick="selectCtxOption(this,'condition-severity')">minor</button>
     </div>
   </div>`;
 
@@ -97,12 +125,17 @@ export function renderDiagnosesModal(modal, current) {
     html += `<div class="ctx-family-list" id="ctx-family-list">`;
     for (const { e, i } of indexed) {
       const emoji = RELATIVE_EMOJI[e.relative] || '👤';
-      html += `<div class="ctx-family-item">
-        <span class="ctx-family-relative" title="${escapeHTML(_relativeLabel(e.relative))}">${emoji} <span class="ctx-family-relative-label">${escapeHTML(_relativeLabel(e.relative))}</span></span>
-        <span class="ctx-family-condition">${escapeHTML(e.condition || '')}</span>
-        ${e.onsetAge != null && e.onsetAge !== '' ? `<span class="ctx-family-age">age ${escapeHTML(String(e.onsetAge))}</span>` : ''}
-        ${e.note ? `<span class="ctx-family-note">${escapeHTML(e.note)}</span>` : ''}
-        <button class="goals-delete-btn" onclick="deleteFamilyHistoryEntry(${i})" aria-label="Remove entry">&times;</button>
+      html += `<div class="ctx-family-item${i === editingFamilyHistoryIndex ? ' is-editing' : ''}">
+        <div class="ctx-family-main">
+          <span class="ctx-family-relative" title="${escapeHTML(_relativeLabel(e.relative))}">${emoji} <span class="ctx-family-relative-label">${escapeHTML(_relativeLabel(e.relative))}</span></span>
+          <span class="ctx-family-condition" title="${escapeHTML(e.condition || '')}">${escapeHTML(e.condition || '')}</span>
+          ${e.onsetAge != null && e.onsetAge !== '' ? `<span class="ctx-family-age">age ${escapeHTML(String(e.onsetAge))}</span>` : ''}
+          ${e.note ? `<span class="ctx-family-note" title="${escapeHTML(e.note)}">${escapeHTML(e.note)}</span>` : ''}
+        </div>
+        <span class="ctx-family-actions">
+          <button class="ctx-row-action-btn ctx-row-edit-btn" onclick="editFamilyHistoryEntry(${i})" aria-label="Edit family history entry" title="Edit entry">✎</button>
+          <button class="ctx-row-action-btn goals-delete-btn" onclick="deleteFamilyHistoryEntry(${i})" aria-label="Remove entry" title="Remove entry">&times;</button>
+        </span>
       </div>`;
     }
     html += `</div>`;
@@ -111,31 +144,32 @@ export function renderDiagnosesModal(modal, current) {
     <div class="ctx-family-add-row">
       <select class="ctx-note-input ctx-family-select" id="fh-relative" aria-label="Relative">
         <optgroup label="Parents">
-          <option value="mother">Mother</option>
-          <option value="father">Father</option>
+          <option value="mother"${_selectedAttr(editingFamily?.relative, 'mother')}>Mother</option>
+          <option value="father"${_selectedAttr(editingFamily?.relative, 'father')}>Father</option>
         </optgroup>
         <optgroup label="Siblings & Children">
-          <option value="sibling">Sibling</option>
-          <option value="child">Child</option>
+          <option value="sibling"${_selectedAttr(editingFamily?.relative, 'sibling')}>Sibling</option>
+          <option value="child"${_selectedAttr(editingFamily?.relative, 'child')}>Child</option>
         </optgroup>
         <optgroup label="Maternal grandparents">
-          <option value="maternal_grandmother">Maternal grandmother</option>
-          <option value="maternal_grandfather">Maternal grandfather</option>
+          <option value="maternal_grandmother"${_selectedAttr(editingFamily?.relative, 'maternal_grandmother')}>Maternal grandmother</option>
+          <option value="maternal_grandfather"${_selectedAttr(editingFamily?.relative, 'maternal_grandfather')}>Maternal grandfather</option>
         </optgroup>
         <optgroup label="Paternal grandparents">
-          <option value="paternal_grandmother">Paternal grandmother</option>
-          <option value="paternal_grandfather">Paternal grandfather</option>
+          <option value="paternal_grandmother"${_selectedAttr(editingFamily?.relative, 'paternal_grandmother')}>Paternal grandmother</option>
+          <option value="paternal_grandfather"${_selectedAttr(editingFamily?.relative, 'paternal_grandfather')}>Paternal grandfather</option>
         </optgroup>
       </select>
       <div class="ctx-autocomplete-wrapper ctx-family-condition-wrap">
-        <input type="text" class="ctx-note-input" id="fh-condition" placeholder="Condition (e.g. heart attack, Alzheimer's, breast cancer)" oninput="filterFamilyConditionSuggestions()" onfocus="filterFamilyConditionSuggestions()" aria-label="Condition">
+        <input type="text" class="ctx-note-input" id="fh-condition" value="${escapeHTML(editingFamily?.condition || '')}" placeholder="Condition (e.g. heart attack, Alzheimer's, breast cancer)" oninput="filterFamilyConditionSuggestions()" onfocus="filterFamilyConditionSuggestions()" aria-label="Condition">
         <div class="ctx-suggestions" id="fh-condition-suggestions"></div>
       </div>
     </div>
     <div class="ctx-family-add-row">
-      <input type="number" min="0" max="120" class="ctx-note-input ctx-family-age-input" id="fh-age" placeholder="Age at onset" aria-label="Age at onset">
-      <input type="text" class="ctx-note-input ctx-family-note-input" id="fh-note" placeholder="Note — outcome, treatment, etc. (optional)" aria-label="Note">
-      <button class="import-btn import-btn-primary" onclick="addFamilyHistoryEntry()">+ Add</button>
+      <input type="number" min="0" max="120" class="ctx-note-input ctx-family-age-input" id="fh-age" value="${editingFamily?.onsetAge != null ? escapeHTML(String(editingFamily.onsetAge)) : ''}" placeholder="Age at onset" aria-label="Age at onset">
+      <input type="text" class="ctx-note-input ctx-family-note-input" id="fh-note" value="${escapeHTML(editingFamily?.note || '')}" placeholder="Note — outcome, treatment, etc. (optional)" aria-label="Note">
+      <button class="import-btn import-btn-primary" onclick="addFamilyHistoryEntry()">${editingFamily ? 'Update' : '+ Add'}</button>
+      ${editingFamily ? '<button class="import-btn import-btn-secondary ctx-edit-cancel-btn" onclick="cancelFamilyHistoryEdit()">Cancel edit</button>' : ''}
     </div>
   </div></div>`;
   html += renderNoteField(current.note);
@@ -211,19 +245,40 @@ export function addCondition() {
   const name = input ? input.value.trim() : '';
   if (!name) return;
   syncDiagnosesNote();
-  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '' };
+  const diagnoses = _getDiagnoses();
   const cond = { name, severity };
   if (since && since.value.trim()) cond.since = since.value.trim();
-  state.importedData.diagnoses.conditions.push(cond);
+  if (editingConditionIndex >= 0 && editingConditionIndex < diagnoses.conditions.length) {
+    diagnoses.conditions[editingConditionIndex] = cond;
+  } else {
+    diagnoses.conditions.push(cond);
+  }
+  editingConditionIndex = -1;
   recordContextChange('diagnoses');
   saveImportedData();
-  renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
+  renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
+}
+
+export function editCondition(idx) {
+  const diagnoses = _getDiagnoses();
+  if (!diagnoses.conditions[idx]) return;
+  syncDiagnosesNote();
+  editingConditionIndex = idx;
+  editingFamilyHistoryIndex = -1;
+  renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
+  setTimeout(() => document.getElementById('condition-input')?.focus(), 0);
+}
+
+export function cancelConditionEdit() {
+  editingConditionIndex = -1;
+  renderDiagnosesModal(document.getElementById("detail-modal"), _getDiagnoses());
 }
 
 export function deleteCondition(idx) {
   if (!state.importedData.diagnoses || !state.importedData.diagnoses.conditions) return;
   syncDiagnosesNote();
   state.importedData.diagnoses.conditions.splice(idx, 1);
+  editingConditionIndex = -1;
   recordContextChange('diagnoses');
   saveImportedData();
   renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
@@ -242,21 +297,41 @@ export function addFamilyHistoryEntry() {
   const onsetAge = ageRaw === '' ? null : Math.max(0, Math.min(120, parseInt(ageRaw, 10)));
   const note = (noteEl?.value || '').trim();
   syncDiagnosesNote();
-  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
-  if (!Array.isArray(state.importedData.diagnoses.familyHistory)) state.importedData.diagnoses.familyHistory = [];
+  const diagnoses = _getDiagnoses();
   const entry = { relative, condition };
   if (Number.isFinite(onsetAge)) entry.onsetAge = onsetAge;
   if (note) entry.note = note;
-  state.importedData.diagnoses.familyHistory.push(entry);
+  if (editingFamilyHistoryIndex >= 0 && editingFamilyHistoryIndex < diagnoses.familyHistory.length) {
+    diagnoses.familyHistory[editingFamilyHistoryIndex] = entry;
+  } else {
+    diagnoses.familyHistory.push(entry);
+  }
+  editingFamilyHistoryIndex = -1;
   recordContextChange('diagnoses');
   saveImportedData();
-  renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
+  renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
+}
+
+export function editFamilyHistoryEntry(idx) {
+  const diagnoses = _getDiagnoses();
+  if (!diagnoses.familyHistory[idx]) return;
+  syncDiagnosesNote();
+  editingFamilyHistoryIndex = idx;
+  editingConditionIndex = -1;
+  renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
+  setTimeout(() => document.getElementById('fh-condition')?.focus(), 0);
+}
+
+export function cancelFamilyHistoryEdit() {
+  editingFamilyHistoryIndex = -1;
+  renderDiagnosesModal(document.getElementById("detail-modal"), _getDiagnoses());
 }
 
 export function deleteFamilyHistoryEntry(idx) {
   if (!state.importedData.diagnoses || !Array.isArray(state.importedData.diagnoses.familyHistory)) return;
   syncDiagnosesNote();
   state.importedData.diagnoses.familyHistory.splice(idx, 1);
+  editingFamilyHistoryIndex = -1;
   recordContextChange('diagnoses');
   saveImportedData();
   renderDiagnosesModal(document.getElementById("detail-modal"), state.importedData.diagnoses);
@@ -281,20 +356,27 @@ export function selectFamilyConditionSuggestion(name) {
 
 export function saveDiagnoses() {
   const note = (document.getElementById('ctx-note-input') || {}).value || '';
-  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '' };
-  state.importedData.diagnoses.note = note.trim();
-  const fhLen = Array.isArray(state.importedData.diagnoses.familyHistory) ? state.importedData.diagnoses.familyHistory.length : 0;
-  if (state.importedData.diagnoses.conditions.length === 0 && !state.importedData.diagnoses.note && fhLen === 0) {
+  const diagnoses = _getDiagnoses();
+  diagnoses.note = note.trim();
+  const condLen = diagnoses.conditions.length;
+  const fhLen = diagnoses.familyHistory.length;
+  if (condLen === 0 && !diagnoses.note && fhLen === 0) {
     state.importedData.diagnoses = null;
   }
+  editingConditionIndex = -1;
+  editingFamilyHistoryIndex = -1;
   saveContextAndRefresh('Medical history saved', 'diagnoses');
 }
 
 export function closeDiagnoses() {
+  editingConditionIndex = -1;
+  editingFamilyHistoryIndex = -1;
   window.closeModal();
 }
 
 export function clearDiagnoses() {
   state.importedData.diagnoses = null;
+  editingConditionIndex = -1;
+  editingFamilyHistoryIndex = -1;
   saveContextAndRefresh('Medical history cleared', 'diagnoses');
 }
