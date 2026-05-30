@@ -26,6 +26,7 @@ const profileSrc = read('js/profile.js');
 const dataSrc = read('js/data.js');
 const pdfImportSrc = read('js/pdf-import.js');
 const pdfImportMappingSrc = read('js/pdf-import-marker-mapping.js');
+const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   // ═══════════════════════════════════════
   // 1. MARKER_SCHEMA no longer has specialty categories
   // ═══════════════════════════════════════
@@ -168,10 +169,12 @@ const pdfImportMappingSrc = read('js/pdf-import-marker-mapping.js');
   assert('confirmImport auto-creates custom markers for specialty keys', pdfImportSrc.includes('SPECIALTY_MARKER_DEFS[m.mappedKey]'));
   assert('Prompt asks for refMin/refMax on all markers', pdfImportSrc.includes('refMin: the lower reference range bound EXACTLY as printed on the PDF'));
   // Adapter integration
-  assert('pdf-import imports adapter functions', pdfImportSrc.includes("from './adapters.js'"));
-  assert('Inline FA functions removed', !pdfImportSrc.includes('FA_PRODUCT_PATTERNS') && !pdfImportSrc.includes('function _detectFAProduct'));
-  assert('Uses detectProduct from adapters', pdfImportSrc.includes('detectProduct('));
-  assert('Uses normalizeWithAdapter from adapters', pdfImportSrc.includes('normalizeWithAdapter('));
+  assert('pdf-import normalization imports adapter functions', pdfImportNormalizationSrc.includes("from './adapters.js'"));
+  assert('Inline FA functions removed',
+    !pdfImportSrc.includes('FA_PRODUCT_PATTERNS') && !pdfImportSrc.includes('function _detectFAProduct')
+    && !pdfImportNormalizationSrc.includes('FA_PRODUCT_PATTERNS') && !pdfImportNormalizationSrc.includes('function _detectFAProduct'));
+  assert('Uses detectProduct from adapters', pdfImportNormalizationSrc.includes('detectProduct('));
+  assert('Uses normalizeWithAdapter from adapters', pdfImportNormalizationSrc.includes('normalizeWithAdapter('));
 
   // ═══════════════════════════════════════
   // 7. getActiveData merges migrated specialty markers correctly

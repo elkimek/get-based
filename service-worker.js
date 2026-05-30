@@ -115,6 +115,7 @@ const APP_SHELL = [
   '/js/pdf-import-progress.js',
   '/js/pdf-import-review.js',
   '/js/pdf-import-marker-mapping.js',
+  '/js/pdf-import-marker-normalization.js',
   '/js/export.js',
   '/js/chat.js',
   '/js/chat-window-bindings.js',

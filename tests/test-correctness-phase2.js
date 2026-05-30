@@ -102,6 +102,7 @@ const pwaAppShellAssets = [
   '/js/pdf-import-progress.js',
   '/js/pdf-import-review.js',
   '/js/pdf-import-marker-mapping.js',
+  '/js/pdf-import-marker-normalization.js',
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/views-router.js',

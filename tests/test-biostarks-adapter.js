@@ -22,6 +22,7 @@ console.log('=== BioStarks Adapter Tests ===\n');
 
 const adaptersSrc = read('js/adapters.js');
 const pdfImportSrc = read('js/pdf-import.js');
+const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 
   // ═══════════════════════════════════════
   // 1. Adapter Registration
@@ -135,7 +136,7 @@ const pdfImportSrc = read('js/pdf-import.js');
   assert('Rule 8 has BioStarks exception', pdfImportSrc.includes('EXCEPTION') && pdfImportSrc.includes('BioStarks') && pdfImportSrc.includes('hybrid'));
 
   // BioStarks NOT in _specialtyTypes (standard markers should map normally)
-  const specialtyMatch = pdfImportSrc.match(/const _specialtyTypes\s*=\s*\[([^\]]+)\]/);
+  const specialtyMatch = normalizationSrc.match(/const _specialtyTypes\s*=\s*\[([^\]]+)\]/);
   if (specialtyMatch) {
     assert('biostarks NOT in _specialtyTypes', !specialtyMatch[1].includes('biostarks'), 'BioStarks is hybrid — standard markers must pass through');
   } else {

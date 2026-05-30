@@ -521,6 +521,17 @@ Import progress bar, floating import status FAB, and batch progress rendering.
 
 ---
 
+### `pdf-import-marker-normalization.js`
+
+Shared AI marker normalization for PDF text import and image import.
+
+**Key exports:**
+- `normalizeParsedImportMarkers(parsed, options)` — sanitizes AI marker keys, runs product/test-type adapters, applies specialty guard rules, reconciles marker mappings, and returns `{ testType, markers }`
+
+**Window exports:** none directly; `pdf-import.js` calls this after AI JSON parsing.
+
+---
+
 ### `pdf-import-review.js`
 
 Import review modal rendering and interaction state.

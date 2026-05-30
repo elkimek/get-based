@@ -61,7 +61,8 @@ assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/a
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
   swAuditSrc.includes("'/js/pdf-import-preflight.js'")
-  && swAuditSrc.includes("'/js/pdf-import-progress.js'"));
+  && swAuditSrc.includes("'/js/pdf-import-progress.js'")
+  && swAuditSrc.includes("'/js/pdf-import-marker-normalization.js'"));
 assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes("'/js/context-card-summaries.js'"));
 assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.includes("'/js/context-card-editor-ui.js'"));
 assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
@@ -596,7 +597,8 @@ assert('PDF report context serialization', exportSrc.includes('fmtCtx'));
 
 const pdfSrc = read('js/pdf-import.js');
 const pdfReviewSrc = read('js/pdf-import-review.js');
-assert('NaN markers filtered out', pdfSrc.includes('filter(m => !isNaN(m.value))'));
+const pdfNormalizationSrc = read('js/pdf-import-marker-normalization.js');
+assert('NaN markers filtered out', pdfNormalizationSrc.includes('filter(marker => !isNaN(marker.value))'));
 
 // ═══════════════════════════════════════
 // 8. Duplicate code cleanup

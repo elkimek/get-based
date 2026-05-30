@@ -22,6 +22,7 @@ console.log('=== Unit Normalization on Import Tests ===\n');
 
 const src = read('js/pdf-import.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
+const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const settingsSrc = read('js/settings.js');
   // ═══════════════════════════════════════
   // 1. normalizeToSI function exists
@@ -243,10 +244,14 @@ const settingsSrc = read('js/settings.js');
   console.log('%c 6. FA normalization safety ', 'font-weight:bold;color:#f59e0b');
 
   // Verify FA normalization uses adapters.js (not inline functions)
-  assert('pdf-import imports adapter functions', src.includes("from './adapters.js'"));
-  assert('Inline FA functions removed', !src.includes('function _normalizeFattyAcidMarkers(') && !src.includes('FA_PRODUCT_PATTERNS'));
-  assert('Uses detectProduct from adapters', src.includes('detectProduct('));
-  assert('Uses normalizeWithAdapter from adapters', src.includes('normalizeWithAdapter('));
+  assert('pdf-import normalization imports adapter functions', normalizationSrc.includes("from './adapters.js'"));
+  assert('Inline FA functions removed',
+    !src.includes('function _normalizeFattyAcidMarkers(')
+    && !src.includes('FA_PRODUCT_PATTERNS')
+    && !normalizationSrc.includes('function _normalizeFattyAcidMarkers(')
+    && !normalizationSrc.includes('FA_PRODUCT_PATTERNS'));
+  assert('Uses detectProduct from adapters', normalizationSrc.includes('detectProduct('));
+  assert('Uses normalizeWithAdapter from adapters', normalizationSrc.includes('normalizeWithAdapter('));
 
   // FA normalize logic lives in adapters.js — check it there
   const adapterSrc = read('js/adapters.js');
@@ -255,11 +260,11 @@ const settingsSrc = read('js/settings.js');
 
   // Verify adapter normalization requires AI agreement — product detection alone + blood testType must NOT trigger
   assert('Adapter normalization requires non-blood testType',
-    src.includes("testType !== 'blood'") && src.includes('detected') && src.includes('needsAdapterNormalize'));
+    normalizationSrc.includes("testType !== 'blood'") && normalizationSrc.includes('detected') && normalizationSrc.includes('needsAdapterNormalize'));
 
   // Verify guard at line 367 only fires for non-blood tests
   assert('Guard checks testType !== blood',
-    src.includes("testType !== 'blood'") && src.includes('Import Guard'));
+    normalizationSrc.includes("testType !== 'blood'") && normalizationSrc.includes('Import Guard'));
 
   // ═══════════════════════════════════════
   // 7. Import mapping reconciliation
