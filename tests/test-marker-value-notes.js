@@ -135,6 +135,8 @@ const state = (await import('../js/state.js')).state;
 
   assert('deleteMarkerValue drops the per-value note for the same (date, marker)',
     /deleteMarkerValue[\s\S]{0,2000}delete state\.importedData\.markerValueNotes\[dotKey \+ ':' \+ date\]/.test(markerDetailEditingSrc));
+  assert('deleteMarkerValue drops mirrored insulin manualValues state',
+    /deleteMarkerValue[\s\S]{0,1200}delete state\.importedData\.manualValues\['diabetes\.insulin_d:' \+ date\]/.test(markerDetailEditingSrc));
 
   // Insulin dual-mapping parity: the value mirrors hormones.insulin ↔
   // diabetes.insulin_d, so the per-value note must mirror too. Bidirectional

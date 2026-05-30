@@ -196,6 +196,7 @@ export async function deleteMarkerValue(id, date) {
     if (dotKey === 'hormones.insulin') {
       delete entry.markers['diabetes.insulin_d'];
       if (entry.markerSources) delete entry.markerSources['diabetes.insulin_d'];
+      if (state.importedData.manualValues) delete state.importedData.manualValues['diabetes.insulin_d:' + date];
       recalculateHOMAIR(entry);
     }
     // Mirror the note delete in both directions — user may delete via either
