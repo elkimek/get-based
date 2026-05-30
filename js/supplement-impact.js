@@ -225,15 +225,15 @@ async function loadImpactsForSupps(pending, data) {
     if (s.ingredients?.length) ctx += ` ingredients: ${s.ingredients.map(ing => {
       const total = ingredientDailyTotal(ing, s);
       const times = effectiveTimesPerDay(ing, s);
-      if (total) return `${ing.name} ${ing.amount} x ${times}/day = ${formatSupplementTotal(total)}`;
-      if (times) return `${ing.name}${ing.amount ? ' ' + ing.amount : ''} x ${times}/day`;
+      if (total) return `${ing.name} ${ing.amount} × ${times}/day = ${formatSupplementTotal(total)}`;
+      if (times) return `${ing.name}${ing.amount ? ' ' + ing.amount : ''} × ${times}/day`;
       return `${ing.name}${ing.amount ? ' ' + ing.amount : ''}`;
     }).join(', ')}`;
     if (overlapping.length > 0) ctx += ` (also taking: ${overlapping.map(o => o.name).join(', ')})`;
     ctx += `\n`;
     for (const imp of top) {
-      ctx += `  ${imp.markerName}: ${fmtVal(imp.beforeMean)}->${fmtVal(imp.afterMean)} ${imp.unit} (${imp.pctChange > 0 ? '+' : ''}${imp.pctChange.toFixed(0)}%)`;
-      if (imp.refMin != null || imp.refMax != null) ctx += ` ref ${imp.refMin ?? ''}-${imp.refMax ?? ''}`;
+      ctx += `  ${imp.markerName}: ${fmtVal(imp.beforeMean)}→${fmtVal(imp.afterMean)} ${imp.unit} (${imp.pctChange > 0 ? '+' : ''}${imp.pctChange.toFixed(0)}%)`;
+      if (imp.refMin != null || imp.refMax != null) ctx += ` ref ${imp.refMin ?? ''}–${imp.refMax ?? ''}`;
       ctx += `\n`;
     }
   }
