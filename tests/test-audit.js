@@ -722,9 +722,11 @@ const chartsSrc = read('js/charts.js');
 assert('Chart.js pointStyle per status', chartsSrc.includes('ptStyles') && chartsSrc.includes('pointStyle'));
 
 const ctxSrc2 = read('js/context-cards.js');
-assert('Health dots have title attribute', ctxSrc2.includes('dot.title'));
-assert('Health dots have aria-label', ctxSrc2.includes("dot.setAttribute('aria-label'"));
-assert('AI tips have severity prefix', ctxSrc2.includes('prefixes'));
+const ctxHealthDotsSrc = read('js/context-card-health-dots.js');
+assert('Health dots facade stays in context-cards', ctxSrc2.includes('loadContextHealthDotsImpl'));
+assert('Health dots have title attribute', ctxHealthDotsSrc.includes('dot.title'));
+assert('Health dots have aria-label', ctxHealthDotsSrc.includes("dot.setAttribute('aria-label'"));
+assert('AI tips have severity prefix', ctxHealthDotsSrc.includes('prefixes'));
 
 const exportSrc2 = read('js/export.js');
 assert('PDF report values have status prefix', exportSrc2.includes('sPrefix'));
@@ -786,7 +788,7 @@ assert('Focus card context-aware system prompt', focusCardSrc.includes("this per
 assert('askAIAboutMarker uses marker.refMin/refMax', chatMarkerPromptsSrc.includes('${marker.refMin}') && chatMarkerPromptsSrc.includes('${marker.refMax}'));
 assert('askAIAboutMarker has trend direction', chatMarkerPromptsSrc.includes("Trend: ${dir}"));
 
-assert('Health dots JSON.parse has try-catch', ctxSrc.includes('try { parsed = JSON.parse(jsonMatch[0])'));
+assert('Health dots JSON.parse has try-catch', ctxHealthDotsSrc.includes('try { return JSON.parse(jsonMatch[0])'));
 
 assert('WBC rule at position 5 (before Skip non-numeric)', pdfSrc.indexOf('differential WBC') < pdfSrc.indexOf('Skip non-numeric'));
 assert('PDF import includes filename in user message', pdfSrc.includes("(file: ' + fileName"));
