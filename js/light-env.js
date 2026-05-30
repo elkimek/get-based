@@ -853,6 +853,8 @@ const PRIMARY_SOURCE_SHORT = {
 };
 
 function renderEnvironmentLoadSummary() {
+  const env = getEnvironment();
+  const hasMappedExposure = ((env?.rooms || []).length + (env?.screens || []).length) > 0;
   const burden = computeIndoorBurden();
   const interpHTML = (typeof window !== 'undefined' && window.renderBurdenInterp)
     ? window.renderBurdenInterp(burden)
@@ -866,8 +868,9 @@ function renderEnvironmentLoadSummary() {
   // present + ok, drive the banner label/color from its dot so header +
   // body agree. Gray / missing AI → fall through to the deterministic
   // tier (this preserves behaviour for users without an AI provider).
-  const aiVerdict = getEnvironment()?.burdenAI || null;
-  const aiOk = aiVerdict?.status === 'ok' && ['green','yellow','red'].includes(aiVerdict?.dot);
+  // If rooms/screens have been deleted, ignore stale burdenAI entirely.
+  const aiVerdict = env?.burdenAI || null;
+  const aiOk = hasMappedExposure && aiVerdict?.status === 'ok' && ['green','yellow','red'].includes(aiVerdict?.dot);
   const bannerColor = aiOk ? aiVerdict.dot : burden.color;
   const bannerLabel = aiOk
     ? ({ green: 'Light load', yellow: 'Moderate load', red: 'Heavy load' }[aiVerdict.dot])

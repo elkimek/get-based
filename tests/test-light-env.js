@@ -286,6 +286,19 @@ const {
   assert('Empty env → tier 0 light load with mapping hint',
     burden.tier === 0 && burden.color === 'green' &&
     /add a room|add a screen/i.test(burden.interp));
+  window._labState.importedData.lightEnvironment.burdenAI = {
+    status: 'ok',
+    dot: 'yellow',
+    tip: 'stale moderate verdict',
+    detail: 'stale detail',
+    fingerprint: 'old-env',
+  };
+  const emptyLoadHtml = renderEnvironmentSection({ embedded: true });
+  assert('Empty environment ignores stale burdenAI and stays Light load',
+    emptyLoadHtml.includes('light-env-summary-green') &&
+    emptyLoadHtml.includes('Light load') &&
+    !emptyLoadHtml.includes('Moderate load') &&
+    !emptyLoadHtml.includes('stale moderate verdict'));
 
   // Heavy indoor + heavy evening → tier 2
   await addRoom('Office');

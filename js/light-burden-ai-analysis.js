@@ -179,6 +179,9 @@ const _autoFiredKeys = new Set();
 export function renderBurdenInterp(burden) {
   const heuristic = burden?.interp || '';
   const env = _getEnv();
+  if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) {
+    return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
+  }
   // No provider: render a cached AI verdict if one exists (pre-populated
   // demo, cross-device sync from a device that had a provider, etc.) —
   // otherwise fall back to the static heuristic interp text.
@@ -196,9 +199,6 @@ export function renderBurdenInterp(burden) {
         </div>
       </div>`;
     }
-    return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
-  }
-  if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) {
     return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
   }
   const status = engine.getStatus(SINGLETON);
