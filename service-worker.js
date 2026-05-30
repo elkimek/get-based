@@ -188,6 +188,7 @@ const APP_SHELL = [
   '/js/provider-qr.js',
   '/js/provider-wallet-panels.js',
   '/js/provider-panel-renderers.js',
+  '/js/provider-model-controls.js',
   '/js/provider-panels.js',
   '/js/dna.js',
   '/js/hardware.js',

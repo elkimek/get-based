@@ -98,11 +98,12 @@ else localStorage.removeItem('labcharts-openrouter-pricing');
 console.log('\n3. provider panel source inspection');
 const ppSrc = read('js/provider-panels.js');
 const providerRenderSrc = read('js/provider-panel-renderers.js');
-const providerUiSrc = ppSrc + providerRenderSrc;
+const providerModelControlsSrc = read('js/provider-model-controls.js');
+const providerUiSrc = ppSrc + providerRenderSrc + providerModelControlsSrc;
 assert('imports getOpenRouterKey', providerUiSrc.includes('getOpenRouterKey'));
 assert('imports saveOpenRouterKey', ppSrc.includes('saveOpenRouterKey'));
 assert('imports getOpenRouterModel', providerUiSrc.includes('getOpenRouterModel'));
-assert('imports setOpenRouterModel', ppSrc.includes('setOpenRouterModel'));
+assert('imports setOpenRouterModel', providerModelControlsSrc.includes('setOpenRouterModel'));
 assert('imports getOpenRouterModelDisplay', providerRenderSrc.includes('getOpenRouterModelDisplay'));
 assert('imports validateOpenRouterKey', ppSrc.includes('validateOpenRouterKey'));
 assert('imports fetchOpenRouterModels', ppSrc.includes('fetchOpenRouterModels'));
@@ -114,8 +115,8 @@ assert('eager provider bridge persists selection synchronously', settingsSrc.inc
 assert('renderAIProviderPanel handles openrouter', providerRenderSrc.includes("provider === 'openrouter'"));
 assert('handleSaveOpenRouterKey exists', ppSrc.includes('function handleSaveOpenRouterKey()'));
 assert('handleRemoveOpenRouterKey exists', ppSrc.includes('function handleRemoveOpenRouterKey()'));
-assert('renderOpenRouterModelDropdown exists', ppSrc.includes('function renderOpenRouterModelDropdown('));
-assert('updateOpenRouterModelPricing exists', ppSrc.includes('function updateOpenRouterModelPricing('));
+assert('renderOpenRouterModelDropdown exists', providerModelControlsSrc.includes('function renderOpenRouterModelDropdown('));
+assert('updateOpenRouterModelPricing exists', providerModelControlsSrc.includes('function updateOpenRouterModelPricing('));
 assert('openrouter-key-input element', providerRenderSrc.includes('openrouter-key-input'));
 assert('openrouter-model-area element', providerUiSrc.includes('openrouter-model-area'));
 assert('openrouter-model-pricing element', providerUiSrc.includes('openrouter-model-pricing'));
@@ -181,6 +182,7 @@ assert('SW uses importScripts for version', swSrc.includes("importScripts('/vers
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW bypasses openrouter.ai', swSrc.includes('openrouter.ai'));
 assert('SW caches provider-panel-renderers.js', swSrc.includes('/js/provider-panel-renderers.js'));
+assert('SW caches provider-model-controls.js', swSrc.includes('/js/provider-model-controls.js'));
 
 // ─── 7. Window function exports ───
 console.log('\n7. Window function exports');
