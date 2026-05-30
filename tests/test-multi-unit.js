@@ -220,6 +220,7 @@ console.log('\n-- source-shape pins (UI wiring) --');
 {
   const fs = await import('node:fs');
   const markerDetail = fs.readFileSync(new URL('../js/marker-detail-modal.js', import.meta.url), 'utf8');
+  const markerDetailEditing = fs.readFileSync(new URL('../js/marker-detail-editing.js', import.meta.url), 'utf8');
   const settings = fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
   const data = fs.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
   const state = fs.readFileSync(new URL('../js/state.js', import.meta.url), 'utf8');
@@ -234,8 +235,8 @@ console.log('\n-- source-shape pins (UI wiring) --');
   assert('marker-detail-modal.js manual-entry form renders #me-unit select when conversion exists',
     /<select id="me-unit" class="me-unit-select"/.test(markerDetail));
   // saveManualEntry reads the unit picker + branches to convertUserInputToSI
-  assert('marker-detail-modal.js saveManualEntry reads #me-unit + branches to convertUserInputToSI on alt-unit input',
-    /document\.getElementById\('me-unit'\)[\s\S]{0,6000}convertUserInputToSI\(dotKey, value, inputUnit\)/.test(markerDetail));
+  assert('marker-detail-editing.js saveManualEntry reads #me-unit + branches to convertUserInputToSI on alt-unit input',
+    /document\.getElementById\('me-unit'\)[\s\S]{0,6000}convertUserInputToSI\(dotKey, value, inputUnit\)/.test(markerDetailEditing));
   // Stale-marker fix: openManualEntryForm always reads from getActiveData (not state.markerRegistry)
   assert('openManualEntryForm always re-resolves from getActiveData (no markerRegistry fallback first)',
     /export function openManualEntryForm[\s\S]{0,800}const data = getActiveData\(\);\s+const marker = data\.categories/.test(markerDetail));

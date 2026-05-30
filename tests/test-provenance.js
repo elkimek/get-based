@@ -31,9 +31,10 @@ assert('New markers get markerSources', pdfSrc.includes('entry.markerSources[m.s
 // ─── 2. Manual Entry Provenance ───
 console.log('\n2. Manual Entry Provenance');
 const markerDetailSrc = read('js/marker-detail-modal.js');
-assert('saveManualEntry inits markerSources', markerDetailSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
-assert('saveManualEntry sets file:null', markerDetailSrc.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
-const editSection = markerDetailSrc.split('function editMarkerValue')[1] || '';
+const markerDetailEditingSrc = read('js/marker-detail-editing.js');
+assert('saveManualEntry inits markerSources', markerDetailEditingSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
+assert('saveManualEntry sets file:null', markerDetailEditingSrc.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
+const editSection = markerDetailEditingSrc.split('function editMarkerValue')[1] || '';
 assert('editMarkerValue sets provenance', editSection.includes("entry.markerSources[dotKey] = { file: null, at: Date.now() }"));
 
 // ─── 3. Detail Modal Display ───

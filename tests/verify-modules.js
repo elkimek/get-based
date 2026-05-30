@@ -666,6 +666,9 @@
     const hasMarkerDetailModalJs = sw.includes('/js/marker-detail-modal.js');
     assert('Service worker caches js/marker-detail-modal.js', hasMarkerDetailModalJs);
 
+    const hasMarkerDetailEditingJs = sw.includes('/js/marker-detail-editing.js');
+    assert('Service worker caches js/marker-detail-editing.js', hasMarkerDetailEditingJs);
+
     const hasLightConditionsNowJs = sw.includes('/js/light-conditions-now.js');
     assert('Service worker caches js/light-conditions-now.js', hasLightConditionsNowJs);
 

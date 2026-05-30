@@ -173,6 +173,7 @@ const APP_SHELL = [
   '/js/category-customization.js',
   '/js/commit-hash.js',
   '/js/marker-detail-modal.js',
+  '/js/marker-detail-editing.js',
   '/js/light-conditions-now.js',
   '/js/light-page-view.js',
   '/js/light-channel-view.js',

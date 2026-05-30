@@ -91,12 +91,13 @@ const state = (await import('../js/state.js')).state;
   const viewsSrc = read('js/views.js');
   const categoryViewRenderersSrc = read('js/category-view-renderers.js');
   const markerDetailSrc = read('js/marker-detail-modal.js');
+  const markerDetailEditingSrc = read('js/marker-detail-editing.js');
   assert('saveManualEntry reads me-note from the form',
-    /const\s+noteInput\s*=\s*document\.getElementById\('me-note'\)/.test(markerDetailSrc));
+    /const\s+noteInput\s*=\s*document\.getElementById\('me-note'\)/.test(markerDetailEditingSrc));
   assert('saveManualEntry stores noteText in markerValueNotes when non-empty',
-    /if \(noteText\) state\.importedData\.markerValueNotes\[noteKey\] = noteText/.test(markerDetailSrc));
+    /if \(noteText\) state\.importedData\.markerValueNotes\[noteKey\] = noteText/.test(markerDetailEditingSrc));
   assert('saveManualEntry clears the entry when noteText is empty (idempotent edit-to-blank)',
-    /else delete state\.importedData\.markerValueNotes\[noteKey\]/.test(markerDetailSrc));
+    /else delete state\.importedData\.markerValueNotes\[noteKey\]/.test(markerDetailEditingSrc));
   assert('manual-entry form HTML includes the me-note textarea',
     markerDetailSrc.includes('id="me-note"') && /placeholder=".*fasted/i.test(markerDetailSrc));
 
@@ -106,17 +107,17 @@ const state = (await import('../js/state.js')).state;
   console.log('%c 5. Value-note CRUD handlers ', 'font-weight:bold;color:#f59e0b');
 
   assert('editValueNote handler exported',
-    /export async function editValueNote\(id, date\)/.test(markerDetailSrc));
+    /export async function editValueNote\(id, date\)/.test(markerDetailEditingSrc));
   assert('deleteValueNote handler exported',
-    /export async function deleteValueNote\(id, date\)/.test(markerDetailSrc));
+    /export async function deleteValueNote\(id, date\)/.test(markerDetailEditingSrc));
   assert('editValueNote bound to window for inline onclicks',
     /editValueNote,\s*$/m.test(viewsSrc) || viewsSrc.includes('editValueNote,'));
   assert('deleteValueNote bound to window for inline onclicks',
     viewsSrc.includes('deleteValueNote,'));
   assert('editValueNote re-renders the detail modal on save',
-    /editValueNote[\s\S]{0,1500}showDetailModal\(id\)/.test(markerDetailSrc));
+    /editValueNote[\s\S]{0,1500}showDetailModal\(id\)/.test(markerDetailEditingSrc));
   assert('deleteValueNote confirms before removing',
-    /deleteValueNote[\s\S]{0,400}showConfirmDialog\(/.test(markerDetailSrc));
+    /deleteValueNote[\s\S]{0,400}showConfirmDialog\(/.test(markerDetailEditingSrc));
 
   // Direct state manipulation — verify the data model is what render code expects.
   state.importedData = state.importedData || {};
@@ -133,7 +134,7 @@ const state = (await import('../js/state.js')).state;
   console.log('%c 6. Orphan cleanup ', 'font-weight:bold;color:#f59e0b');
 
   assert('deleteMarkerValue drops the per-value note for the same (date, marker)',
-    /deleteMarkerValue[\s\S]{0,2000}delete state\.importedData\.markerValueNotes\[dotKey \+ ':' \+ date\]/.test(markerDetailSrc));
+    /deleteMarkerValue[\s\S]{0,2000}delete state\.importedData\.markerValueNotes\[dotKey \+ ':' \+ date\]/.test(markerDetailEditingSrc));
 
   // Insulin dual-mapping parity: the value mirrors hormones.insulin ↔
   // diabetes.insulin_d, so the per-value note must mirror too. Bidirectional
@@ -142,27 +143,27 @@ const state = (await import('../js/state.js')).state;
 
   // 500-char cap defends against runaway paste (matches the wearable note cap).
   assert('saveManualEntry caps the note at 500 chars before storing',
-    /noteRaw\.length > 500 \? noteRaw\.slice\(0, 500\) : noteRaw/.test(markerDetailSrc));
+    /noteRaw\.length > 500 \? noteRaw\.slice\(0, 500\) : noteRaw/.test(markerDetailEditingSrc));
   assert('editValueNote caps the note at 500 chars before storing',
-    /editValueNote[\s\S]{0,1200}result\.length > 500 \? result\.slice\(0, 500\) : result/.test(markerDetailSrc));
+    /editValueNote[\s\S]{0,1200}result\.length > 500 \? result\.slice\(0, 500\) : result/.test(markerDetailEditingSrc));
 
   // editValueNote + deleteValueNote also route through _insulinMirrorNoteKey
   // — see the bidirectional helper asserts below.
   assert('deleteValueNote cleans the mirror note for insulin',
-    /deleteValueNote[\s\S]{0,800}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailSrc));
+    /deleteValueNote[\s\S]{0,800}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc));
 
   // Greptile P1: insulin note mirror must be BIDIRECTIONAL — user may
   // edit/delete via the hormones panel OR the diabetes panel.
   assert('_insulinMirrorNoteKey helper defined and bidirectional',
-    /_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailSrc) &&
-    /if \(dotKey === 'hormones\.insulin'\) return 'diabetes\.insulin_d:' \+ date/.test(markerDetailSrc) &&
-    /if \(dotKey === 'diabetes\.insulin_d'\) return 'hormones\.insulin:' \+ date/.test(markerDetailSrc));
+    /_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc) &&
+    /if \(dotKey === 'hormones\.insulin'\) return 'diabetes\.insulin_d:' \+ date/.test(markerDetailEditingSrc) &&
+    /if \(dotKey === 'diabetes\.insulin_d'\) return 'hormones\.insulin:' \+ date/.test(markerDetailEditingSrc));
   assert('saveManualEntry uses bidirectional mirror helper',
-    /saveManualEntry[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailSrc));
+    /saveManualEntry[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc));
   assert('deleteMarkerValue uses bidirectional mirror helper',
-    /deleteMarkerValue[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailSrc));
+    /deleteMarkerValue[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc));
   assert('editValueNote uses bidirectional mirror helper',
-    /editValueNote[\s\S]{0,1500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailSrc));
+    /editValueNote[\s\S]{0,1500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc));
 
   // CodeQL js/xss-through-dom: empty-cell onclick must use JSON.stringify
   // so interpolated id/date survive the HTML-attr → JS-string round-trip.
@@ -181,7 +182,7 @@ const state = (await import('../js/state.js')).state;
   assert('Populated card has × delete button',
     /mv-value-note-delete[\s\S]{0,400}deleteValueNote\('/.test(markerDetailSrc));
   assert('Inline onclicks stopPropagation so cell-edit doesn\'t fire',
-    /editValueNote[\s\S]{0,200}event\.stopPropagation\(\)/.test(markerDetailSrc));
+    /event\.stopPropagation\(\);editValueNote\('/.test(markerDetailSrc));
 
   // ═══════════════════════════════════════
   // 8. AI context emission — section:markerValueNotes

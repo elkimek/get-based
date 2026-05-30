@@ -21,6 +21,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
 
   const viewsSrc = read('js/views.js');
   const markerDetailSrc = read('js/marker-detail-modal.js');
+  const markerDetailEditingSrc = read('js/marker-detail-editing.js');
 
   // ═══════════════════════════════════════
   // 1. saveManualEntry is async (we await dialogs)
@@ -28,9 +29,9 @@ console.log('=== Manual Entry Flow Tests ===\n');
   console.log('%c 1. Async save flow ', 'font-weight:bold;color:#f59e0b');
 
   assert('saveManualEntry signature is async with opts arg',
-    /export async function saveManualEntry\(id, opts = \{\}\)/.test(markerDetailSrc));
+    /export async function saveManualEntry\(id, opts = \{\}\)/.test(markerDetailEditingSrc));
   assert('saveAndAddAnotherManualEntry wraps saveManualEntry with keepOpen: true',
-    /saveAndAddAnotherManualEntry\(id\)[\s\S]{0,200}saveManualEntry\(id, \{ keepOpen: true \}\)/.test(markerDetailSrc));
+    /saveAndAddAnotherManualEntry\(id\)[\s\S]{0,200}saveManualEntry\(id, \{ keepOpen: true \}\)/.test(markerDetailEditingSrc));
   assert('saveAndAddAnotherManualEntry bound to window',
     viewsSrc.includes('saveAndAddAnotherManualEntry,'));
 
@@ -43,21 +44,21 @@ console.log('=== Manual Entry Flow Tests ===\n');
   // feature (which introduces checkRefMax/checkRefMin to shadow with alt-unit
   // ranges) doesn't break pattern pins. Intent is unchanged: a > 10x guard.
   assert('Sanity check triggers when value > refMax * 10',
-    /value > \w*[Rr]ef[Mm]ax \* 10/.test(markerDetailSrc));
+    /value > \w*[Rr]ef[Mm]ax \* 10/.test(markerDetailEditingSrc));
   // Greptile P2: without `> 0` guard, `refMax === 0` makes the multiplication
   // zero and every positive value triggers the warning.
   assert('Sanity check is guarded against refMax === 0 (no spurious warn)',
-    /(\w*[Rr]ef[Mm]ax) != null && \1 > 0 && value > \1 \* 10/.test(markerDetailSrc));
+    /(\w*[Rr]ef[Mm]ax) != null && \1 > 0 && value > \1 \* 10/.test(markerDetailEditingSrc));
   assert('Sanity check triggers when value < refMin / 10 (and refMin > 0)',
-    /(\w*[Rr]ef[Mm]in) > 0 && value < \1 \/ 10/.test(markerDetailSrc));
+    /(\w*[Rr]ef[Mm]in) > 0 && value < \1 \/ 10/.test(markerDetailEditingSrc));
   assert('Sanity check rejects negative values',
-    /value < 0\)\s*warn\s*=/.test(markerDetailSrc) || /if \(value < 0\)/.test(markerDetailSrc));
+    /value < 0\)\s*warn\s*=/.test(markerDetailEditingSrc) || /if \(value < 0\)/.test(markerDetailEditingSrc));
   assert('Sanity-warn message mentions unit confusion',
-    /Did you enter the right unit\?/.test(markerDetailSrc));
+    /Did you enter the right unit\?/.test(markerDetailEditingSrc));
   assert('Sanity check awaits showConfirmDialog and bails on cancel',
-    /if \(warn && !await showConfirmDialog\(`\$\{warn\}/.test(markerDetailSrc));
+    /if \(warn && !await showConfirmDialog\(`\$\{warn\}/.test(markerDetailEditingSrc));
   assert('Sanity check uses marker.refMin/refMax (with optional alt-unit overlay)',
-    /marker\.refMin[\s\S]{0,200}marker\.refMax/.test(markerDetailSrc));
+    /marker\.refMin[\s\S]{0,200}marker\.refMax/.test(markerDetailEditingSrc));
 
   // ═══════════════════════════════════════
   // 3. Duplicate-date confirm
@@ -65,15 +66,15 @@ console.log('=== Manual Entry Flow Tests ===\n');
   console.log('%c 3. Duplicate-date confirm ', 'font-weight:bold;color:#f59e0b');
 
   assert('Duplicate check inspects existing entry for the chosen date',
-    /existingEntry\s*=\s*state\.importedData\.entries\?\.find\(e => e\.date === date\)/.test(markerDetailSrc));
+    /existingEntry\s*=\s*state\.importedData\.entries\?\.find\(e => e\.date === date\)/.test(markerDetailEditingSrc));
   assert('Confirm dialog message includes existing value + unit + date',
-    /already exists for \$\{date\}\. Overwrite\?/.test(markerDetailSrc));
+    /already exists for \$\{date\}\. Overwrite\?/.test(markerDetailEditingSrc));
   assert('Duplicate check uses display-unit value (marker.values[dateIdx]) not raw SI',
-    /const dateIdx = data\.dates\.indexOf\(date\)[\s\S]{0,300}marker\.values\[dateIdx\]/.test(markerDetailSrc));
+    /const dateIdx = data\.dates\.indexOf\(date\)[\s\S]{0,300}marker\.values\[dateIdx\]/.test(markerDetailEditingSrc));
   assert('Manual overwrite remembers imported original for revert',
-    /function _rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailSrc) &&
-    /state\.importedData\.manualValues\[mvKey\] = hasImportedOriginal \? current : true/.test(markerDetailSrc) &&
-    /saveManualEntry[\s\S]{0,3500}_rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailSrc));
+    /function _rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailEditingSrc) &&
+    /state\.importedData\.manualValues\[mvKey\] = hasImportedOriginal \? current : true/.test(markerDetailEditingSrc) &&
+    /saveManualEntry[\s\S]{0,3500}_rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailEditingSrc));
   assert('Clickable manual badge reverts to imported value when original exists',
     /manual \\u00d7/.test(markerDetailSrc) &&
     /Revert manual value to imported value/.test(markerDetailSrc) &&
@@ -85,9 +86,9 @@ console.log('=== Manual Entry Flow Tests ===\n');
   console.log('%c 4. Save & Add Another ', 'font-weight:bold;color:#f59e0b');
 
   assert('keepOpen branch re-opens the manual-entry form with same id + date',
-    /if \(keepOpen\)\s*\{[\s\S]{0,300}openManualEntryForm\(id, date\)/.test(markerDetailSrc));
+    /if \(keepOpen\)\s*\{[\s\S]{0,300}openManualEntryForm\(id, date\)/.test(markerDetailEditingSrc));
   assert('keepOpen branch still navigate()s to refresh the underlying page',
-    /if \(keepOpen\)\s*\{[\s\S]{0,200}markerDetailDeps\.navigate\(navCat\)/.test(markerDetailSrc));
+    /if \(keepOpen\)\s*\{[\s\S]{0,200}markerDetailDeps\.navigate\(navCat\)/.test(markerDetailEditingSrc));
   assert('Save & Add Another button rendered in form actions',
     /Save\s*&amp;\s*Add Another|Save & Add Another/.test(markerDetailSrc));
   assert('Save & Add Another button onclick calls saveAndAddAnotherManualEntry',
@@ -99,9 +100,9 @@ console.log('=== Manual Entry Flow Tests ===\n');
   console.log('%c 5. Session last-date ', 'font-weight:bold;color:#f59e0b');
 
   assert('saveManualEntry writes the chosen date to sessionStorage',
-    /sessionStorage\.setItem\('labcharts-last-manual-date', date\)/.test(markerDetailSrc));
+    /sessionStorage\.setItem\('labcharts-last-manual-date', date\)/.test(markerDetailEditingSrc));
   assert('Write wrapped in try/catch (private-mode browsers)',
-    /try \{ sessionStorage\.setItem\('labcharts-last-manual-date'/.test(markerDetailSrc));
+    /try \{ sessionStorage\.setItem\('labcharts-last-manual-date'/.test(markerDetailEditingSrc));
   assert('openManualEntryForm reads sessionLast and validates the format',
     /sessionStorage\.getItem\('labcharts-last-manual-date'\)/.test(markerDetailSrc) &&
     /\/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(raw\)/.test(markerDetailSrc));
@@ -124,27 +125,27 @@ console.log('=== Manual Entry Flow Tests ===\n');
   console.log('%c 6. Inline edit cancel + no-change ', 'font-weight:bold;color:#f59e0b');
 
   assert('editMarkerValue declares a cancelled flag',
-    /let cancelled = false/.test(markerDetailSrc) ||
-    /editMarkerValue[\s\S]{0,1500}cancelled\s*=\s*false/.test(markerDetailSrc));
+    /let cancelled = false/.test(markerDetailEditingSrc) ||
+    /editMarkerValue[\s\S]{0,1500}cancelled\s*=\s*false/.test(markerDetailEditingSrc));
   assert('save() short-circuits when cancelled is true',
-    /const save = async \(\) => \{[\s\S]{0,200}if \(cancelled\) return/.test(markerDetailSrc));
+    /const save = async \(\) => \{[\s\S]{0,200}if \(cancelled\) return/.test(markerDetailEditingSrc));
   assert('Escape handler sets cancelled = true before re-rendering',
-    /else if \(e\.key === 'Escape'\) \{ cancelled = true; showDetailModal/.test(markerDetailSrc));
+    /else if \(e\.key === 'Escape'\) \{ cancelled = true; showDetailModal/.test(markerDetailEditingSrc));
   assert("No-change save short-circuits (no manual flip on a same-value edit)",
-    /newValue === parseFloat\(currentValue\)\)/.test(markerDetailSrc));
+    /newValue === parseFloat\(currentValue\)\)/.test(markerDetailEditingSrc));
   assert('Enter saves inline edits directly instead of relying on blur',
-    /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); void save\(\); \}/.test(markerDetailSrc));
+    /if \(e\.key === 'Enter'\) \{ e\.preventDefault\(\); void save\(\); \}/.test(markerDetailEditingSrc));
   assert('Inline edit guards against double saves from Enter + blur',
-    /let saveStarted = false/.test(markerDetailSrc) &&
-    /if \(saveStarted\) return;[\s\S]{0,80}saveStarted = true/.test(markerDetailSrc));
+    /let saveStarted = false/.test(markerDetailEditingSrc) &&
+    /if \(saveStarted\) return;[\s\S]{0,80}saveStarted = true/.test(markerDetailEditingSrc));
   assert('Inline edit awaits persistence before refreshing the modal',
-    /await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailSrc));
+    /await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
   assert('revertMarkerValue awaits persistence before refreshing the modal',
-    /export async function revertMarkerValue\(id, date\)[\s\S]{0,900}await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailSrc));
+    /export async function revertMarkerValue\(id, date\)[\s\S]{0,900}await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
   assert('editMarkerValue calls injected navigate() to rebuild Table/Heatmap after save',
-    /editMarkerValue[\s\S]{0,2500}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
+    /editMarkerValue[\s\S]{0,2500}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailEditingSrc));
   assert('revertMarkerValue also calls injected navigate() to rebuild the underlying view',
-    /revertMarkerValue[\s\S]{0,1200}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailSrc));
+    /revertMarkerValue[\s\S]{0,1200}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailEditingSrc));
 
   // ═══════════════════════════════════════
   // 7. Input width fix
@@ -152,9 +153,9 @@ console.log('=== Manual Entry Flow Tests ===\n');
   console.log('%c 7. Input width fix ', 'font-weight:bold;color:#f59e0b');
 
   assert('Edit input uses width:100% with max-width:140px (replaces width:80px)',
-    /editMarkerValue[\s\S]{0,1500}width:100%;max-width:140px/.test(markerDetailSrc));
+    /editMarkerValue[\s\S]{0,1500}width:100%;max-width:140px/.test(markerDetailEditingSrc));
   assert('Old width:80px input style removed from editMarkerValue',
-    !/editMarkerValue[\s\S]{0,1500}width:80px/.test(markerDetailSrc));
+    !/editMarkerValue[\s\S]{0,1500}width:80px/.test(markerDetailEditingSrc));
 
   // ═══════════════════════════════════════
   // 8. Add Value Manually placement (above Note) + rename
