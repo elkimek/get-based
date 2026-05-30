@@ -193,6 +193,23 @@ function isHttpsToNonLocalhost(url) {
   } catch { return false; }
 }
 
+function normalizeLocalAiBaseUrl(rawUrl) {
+  const value = (rawUrl || '').trim();
+  if (!value) {
+    return { error: 'Enter a Local AI server URL (example: http://localhost:11434)' };
+  }
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return { error: 'Enter a valid Local AI URL (example: http://localhost:11434)' };
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { error: 'Local AI URL must start with http:// or https://' };
+  }
+  return { url: parsed.href.replace(/\/+$/, '') };
+}
+
 function isCORSError(e) {
   if (e instanceof TypeError) return true;
   const m = e.message || '';
@@ -215,12 +232,18 @@ export async function testOllamaConnection() {
   const modelSection = document.getElementById('local-ai-model-section');
   const modelSelect = document.getElementById('local-ai-model-select');
   if (!urlInput || !text) return;
-  const url = urlInput.value.trim().replace(/\/+$/, '');
+  const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const config = getOllamaConfig();
   const apiKeyInput = document.getElementById('local-ai-apikey-input');
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
   text.textContent = 'Testing...';
   dot.className = 'local-ai-status-dot';
+  if (urlCheck.error) {
+    dot.classList.add('disconnected');
+    text.textContent = urlCheck.error;
+    return;
+  }
+  const url = urlCheck.url;
   if (isHttpsToNonLocalhost(url)) {
     dot.classList.add('disconnected');
     text.textContent = 'Cannot reach LAN servers from HTTPS \u2014 Local AI must run on this machine (localhost)';
@@ -273,10 +296,16 @@ export async function testPIIOllamaConnection() {
   const piiDropdown = document.getElementById('pii-model-dropdown');
   const piiSelect = document.getElementById('pii-model-select');
   if (!urlInput || !text) return;
-  const url = urlInput.value.trim().replace(/\/+$/, '');
+  const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const config = getOllamaConfig();
   text.textContent = 'Testing...';
   dot.className = 'local-ai-status-dot';
+  if (urlCheck.error) {
+    dot.classList.add('disconnected');
+    text.textContent = urlCheck.error;
+    return;
+  }
+  const url = urlCheck.url;
   if (isHttpsToNonLocalhost(url)) {
     dot.classList.add('disconnected');
     text.textContent = 'Cannot reach LAN servers from HTTPS \u2014 Local AI must run on this machine (localhost)';

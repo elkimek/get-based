@@ -183,6 +183,63 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   assert('Provider renderer has advisor placeholder', panelRenderSrc.includes('local-ai-advisor'));
   assert('Provider local AI controls calls renderModelAdvisor', localAiControlsSrc.includes('renderModelAdvisor'));
   assert('Provider panels exports copyOllamaPullCmd', ppSrc.includes('copyOllamaPullCmd'));
+  assert('Provider local AI controls validates base URL before fetch', localAiControlsSrc.includes('normalizeLocalAiBaseUrl'));
+
+  // ═══════════════════════════════════════
+  // 9. Local AI URL validation
+  // ═══════════════════════════════════════
+  console.log('%c 9. Local AI URL Validation ', 'font-weight:bold;color:#f59e0b');
+
+  const localAiControls = await import('../js/provider-local-ai-controls.js');
+  const originalGetElementById = document.getElementById;
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  const makeDot = () => {
+    const dot = { className: '', classes: new Set() };
+    dot.classList = {
+      add: (cls) => dot.classes.add(cls),
+      remove: (cls) => dot.classes.delete(cls),
+      contains: (cls) => dot.classes.has(cls),
+    };
+    return dot;
+  };
+
+  try {
+    globalThis.fetch = async () => {
+      fetchCalls++;
+      throw new Error('Malformed Local AI URL should be rejected before fetch');
+    };
+
+    const mainDot = makeDot();
+    const mainText = { textContent: '' };
+    let elements = {
+      'local-ai-url-input': { value: 'htp://localhost:11434' },
+      'local-ai-dot': mainDot,
+      'local-ai-status-text': mainText,
+    };
+    document.getElementById = (id) => elements[id] || null;
+    await localAiControls.testOllamaConnection();
+    assert('Malformed main Local AI URL shows protocol guidance',
+      mainText.textContent === 'Local AI URL must start with http:// or https://',
+      mainText.textContent);
+    assert('Malformed main Local AI URL does not fetch', fetchCalls === 0, `fetch calls: ${fetchCalls}`);
+
+    const piiDot = makeDot();
+    const piiText = { textContent: '' };
+    elements = {
+      'pii-local-url-input': { value: 'htp://localhost:11434' },
+      'pii-local-dot': piiDot,
+      'pii-local-status-text': piiText,
+    };
+    await localAiControls.testPIIOllamaConnection();
+    assert('Malformed PII Local AI URL shows protocol guidance',
+      piiText.textContent === 'Local AI URL must start with http:// or https://',
+      piiText.textContent);
+    assert('Malformed PII Local AI URL does not fetch', fetchCalls === 0, `fetch calls: ${fetchCalls}`);
+  } finally {
+    document.getElementById = originalGetElementById;
+    globalThis.fetch = originalFetch;
+  }
 
   // ═══════════════════════════════════════
   // Results
