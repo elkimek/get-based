@@ -2,15 +2,24 @@
 
 import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, calculateCost, trackUsage } from './schema.js';
-import { IMPORT_STEPS } from './constants.js';
-import { escapeHTML, showNotification, isDebugMode, isPIIReviewEnabled, hashString, showPromptDialog } from './utils.js';
+import { showNotification, isDebugMode, isPIIReviewEnabled, hashString, showPromptDialog } from './utils.js';
 import { saveImportedData, recalculateHOMAIR } from './data.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, setAIProvider, setVeniceModel, setOpenRouterModel, setOllamaMainModel, getActiveModelId, setCustomApiModel, setPpqModel, setRoutstrModel, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
+import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { detectProduct, normalizeWithAdapter, getAdapterByTestType } from './adapters.js';
 import { getPdfDocument } from './pdfjs-loader.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { clearTombstone, recordTombstone } from './data-merge.js';
+import { runPreflightChecks } from './pdf-import-preflight.js';
+import {
+  handleImportStatusClick,
+  hideImportProgress,
+  isImportRunning,
+  showBatchImportProgress,
+  showImportProgress,
+  syncImportStatusFab,
+  updateImportProgressPct,
+} from './pdf-import-progress.js';
 import {
   _cleanImportedMarkerDisplayName, _sanitizeAIMarker,
   buildMarkerReference, getExistingImportMarkerKeys,
@@ -43,6 +52,11 @@ export {
   closeImportModal,
   showImportPreviewAsync,
 } from './pdf-import-review.js';
+export {
+  hideImportProgress,
+  showBatchImportProgress,
+  showImportProgress,
+} from './pdf-import-progress.js';
 
 // ═══════════════════════════════════════════════
 // AI-NEEDED DIALOG — contextual fallback when import is invoked without an AI provider.
@@ -106,210 +120,6 @@ export function showAINeededDialog(action = 'import') {
   document.getElementById('ai-needed-cancel').onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   document.getElementById('ai-needed-or').focus();
-}
-
-// ═══════════════════════════════════════════════
-// PRE-FLIGHT CHECKS (before spending tokens)
-// ═══════════════════════════════════════════════
-function _showPreflightConfirm(message, confirmLabel = 'Import Anyway') {
-  return new Promise(resolve => {
-    let overlay = document.getElementById('confirm-dialog-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'confirm-dialog-overlay';
-      overlay.className = 'confirm-overlay';
-      document.body.appendChild(overlay);
-    }
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
-      <p class="confirm-message">${message}</p>
-      <div class="confirm-actions">
-        <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
-        <button class="confirm-btn confirm-btn-danger" id="confirm-ok">${escapeHTML(confirmLabel)}</button>
-      </div></div>`;
-    overlay.classList.add('show');
-    document.getElementById('confirm-ok').onclick = () => { overlay.classList.remove('show'); resolve(true); };
-    document.getElementById('confirm-cancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
-    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
-  });
-}
-
-function checkDuplicateHash(pdfText) {
-  const hash = hashString(pdfText);
-  for (const e of (state.importedData?.entries || [])) {
-    if (e.importHash === hash) return e.date;
-  }
-  return null;
-}
-
-// Normalize model IDs for comparison across providers
-// "anthropic/claude-sonnet-4.6" / "claude-sonnet-4-6" / "claude-sonnet-4.6" → "claude-sonnet-4-6"
-function normalizeModelId(id) {
-  return id.replace(/^[^/]+\//, '').replace(/-\d{8}$/, '').replace(/\./g, '-');
-}
-
-function checkModelMismatch() {
-  const provider = getAIProvider();
-  const currentModel = getActiveModelId();
-  // Find the most recent entry with a different model
-  const entries = (state.importedData?.entries || []).filter(e => e.importedWith?.modelId);
-  if (entries.length === 0) return null;
-  const lastEntry = entries[entries.length - 1];
-  // Compare normalized IDs to avoid false positives across providers
-  if (normalizeModelId(lastEntry.importedWith.modelId) === normalizeModelId(currentModel)) return null;
-  return {
-    currentModel,
-    prevModel: lastEntry.importedWith.modelId,
-    prevProvider: lastEntry.importedWith.provider
-  };
-}
-
-function tryAutoSwitchModel(prevModel, prevProvider) {
-  // Try to switch to the previous model/provider combo
-  if (prevProvider && prevProvider !== getAIProvider()) {
-    setAIProvider(prevProvider);
-  }
-  const provider = getAIProvider();
-  if (provider === 'openrouter') setOpenRouterModel(prevModel);
-  else if (provider === 'venice') setVeniceModel(prevModel);
-  else if (provider === 'custom') setCustomApiModel(prevModel);
-  else if (provider === 'ppq') setPpqModel(prevModel);
-  else if (provider === 'routstr') setRoutstrModel(prevModel);
-  else if (provider === 'ollama') setOllamaMainModel(prevModel);
-}
-
-function _showModelMismatchDialog(mismatch) {
-  return new Promise(resolve => {
-    let overlay = document.getElementById('confirm-dialog-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'confirm-dialog-overlay';
-      overlay.className = 'confirm-overlay';
-      document.body.appendChild(overlay);
-    }
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
-      <p class="confirm-message">Previous imports used <strong>${escapeHTML(mismatch.prevModel)}</strong>. Using <strong>${escapeHTML(mismatch.currentModel)}</strong> may cause marker key mismatches and break trend lines.</p>
-      <div class="confirm-actions" style="flex-wrap:wrap;gap:8px">
-        <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
-        <button class="confirm-btn" id="confirm-continue" style="background:var(--yellow);color:#000">Continue Anyway</button>
-        <button class="confirm-btn confirm-btn-danger" id="confirm-switch">Switch to ${escapeHTML(mismatch.prevModel.split('/').pop())}</button>
-      </div></div>`;
-    overlay.classList.add('show');
-    document.getElementById('confirm-switch').onclick = () => {
-      tryAutoSwitchModel(mismatch.prevModel, mismatch.prevProvider);
-      overlay.classList.remove('show');
-      resolve('switched');
-    };
-    document.getElementById('confirm-continue').onclick = () => { overlay.classList.remove('show'); resolve('continue'); };
-    document.getElementById('confirm-cancel').onclick = () => { overlay.classList.remove('show'); resolve('cancel'); };
-    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
-  });
-}
-
-async function runPreflightChecks(pdfText, fileName) {
-  // 1. Duplicate file check (hash-based)
-  const dupDate = checkDuplicateHash(pdfText);
-  if (dupDate) {
-    const dateLabel = new Date(dupDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const proceed = await _showPreflightConfirm(
-      `This file was already imported (<strong>${dateLabel}</strong>). Importing again will use tokens and may overwrite existing values.`
-    );
-    if (!proceed) return false;
-  }
-  // 2. Model mismatch check
-  const mismatch = checkModelMismatch();
-  if (mismatch) {
-    const result = await _showModelMismatchDialog(mismatch);
-    if (result === 'cancel') return false;
-    // 'switched' or 'continue' both proceed with import
-  }
-  // 3. Unsupported specialty test check — cheap AI classify before full analysis
-  if (hasAIProvider()) {
-    const detected = detectProduct(fileName || '', pdfText);
-    if (!detected) {
-      const classified = await _classifyTestType(pdfText);
-      if (classified && classified.testType !== 'blood') {
-        const adapter = getAdapterByTestType(classified.testType);
-        if (!adapter) {
-          const label = (classified.labName && classified.testType === 'comprehensive')
-            ? `${classified.labName} (${classified.testType})`
-            : classified.testType;
-          const proceed = await _showUnsupportedLabDialog(label);
-          if (!proceed) return false;
-        }
-      }
-    }
-  }
-  return true;
-}
-
-/** Cheap AI call to classify test type from first ~2000 chars of PDF text */
-async function _classifyTestType(pdfText) {
-  const snippet = pdfText.slice(0, 2000);
-  try {
-    const { text: response } = await callClaudeAPI({
-      system: 'You classify lab reports. Respond with ONLY a JSON object, no other text.',
-      messages: [{ role: 'user', content: `What type of lab test is this PDF? Look at the header, lab name, and test names.
-
-Respond with ONE of:
-- {"testType": "blood"} — standard blood panels: CBC, CMP, BMP, lipid panel, thyroid, hormones, iron studies, liver/kidney panels, vitamins, tumor markers, coagulation, A1C, insulin, PSA. Typically 10–80 markers from a single specimen type.
-- {"testType": "OAT"} — Organic Acids Tests (urine)
-- {"testType": "fattyAcids"} — fatty acid profiles
-- {"testType": "Metabolomix+"} — Genova Metabolomix+
-- {"testType": "DUTCH"} — dried urine hormone panels
-- {"testType": "HTMA"} — Hair Tissue Mineral Analysis
-- {"testType": "GI"} — stool/GI tests
-- {"testType": "biostarks", "labName": "BioStarks"} — BioStarks laboratory panels (amino acids + fatty acids + minerals + vitamins + hormones + metabolism from dried blood spot)
-- {"testType": "comprehensive", "labName": "HealthierOne"} — comprehensive or functional medicine panels that combine 100+ markers across multiple test types (blood + urine + other), or reports from labs like HealthierOne, Vibrant Wellness, etc. that go far beyond a standard blood panel. Include the lab/product name if identifiable.
-- {"testType": "<descriptive name>"} — other specialty tests not listed above
-
-Always include "labName" if you can identify the lab or product name from the text (e.g. "HealthierOne", "Vibrant Wellness", "Diagnostic Solutions", "Genova"). Omit if unclear.
-
-First ~2000 characters of the PDF:
-${snippet}` }],
-      maxTokens: 80
-    });
-    const text = (response || '').trim();
-    const json = text.match(/\{[^}]*\}/);
-    if (!json) return null;
-    try {
-      const parsed = JSON.parse(json[0]);
-      return parsed.testType ? { testType: parsed.testType, labName: parsed.labName || null } : null;
-    } catch { }
-    const match = text.match(/\{[^}]*"testType"\s*:\s*"([^"]+)"[^}]*\}/);
-    return match ? { testType: match[1], labName: null } : null;
-  } catch (e) {
-    if (isDebugMode()) console.log('[Preflight] Test type classification failed:', e.message);
-    return null; // fail open — proceed with import
-  }
-}
-
-function _showUnsupportedLabDialog(testType) {
-  return new Promise(resolve => {
-    let overlay = document.getElementById('confirm-dialog-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'confirm-dialog-overlay';
-      overlay.className = 'confirm-overlay';
-      document.body.appendChild(overlay);
-    }
-    const displayType = escapeHTML(testType);
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" style="max-width:480px">
-      <p class="confirm-message" style="margin-bottom:12px">
-        <strong>${displayType}</strong> reports like this one aren't fully supported yet. Importing will likely miss markers or map them incorrectly, and the AI costs may not be worth it.
-      </p>
-      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
-        In the meantime, you can add your markers manually using the <strong>+</strong> button in the sidebar.
-        <p style="margin:10px 0 0 0">If you'd like this lab properly supported — <a href="https://github.com/elkimek/get-based/issues" target="_blank" rel="noopener" style="color:var(--accent)">file an issue on GitHub</a>, or ask your lab to reach out.</p>
-      </div>
-      <div class="confirm-actions">
-        <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
-        <button class="confirm-btn" id="confirm-ok" style="background:var(--yellow);color:#000">Import Anyway</button>
-      </div></div>`;
-    overlay.classList.add('show');
-    document.getElementById('confirm-ok').onclick = () => { overlay.classList.remove('show'); resolve(true); };
-    document.getElementById('confirm-cancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
-    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
-  });
 }
 
 // ═══════════════════════════════════════════════
@@ -940,12 +750,12 @@ export async function classifyImportFiles(files) {
 export function setupDropZone() {
   const dropZone = document.getElementById("drop-zone");
   if (!dropZone) return;
-  dropZone.addEventListener("click", () => { if (_importStatus.running) return; document.getElementById('pdf-input').click(); });
-  dropZone.addEventListener("dragover", e => { e.preventDefault(); if (!_importStatus.running) dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("click", () => { if (isImportRunning()) return; document.getElementById('pdf-input').click(); });
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); if (!isImportRunning()) dropZone.classList.add("drag-over"); });
   dropZone.addEventListener("dragleave", e => { e.preventDefault(); dropZone.classList.remove("drag-over"); });
   dropZone.addEventListener("drop", async e => {
     e.preventDefault(); dropZone.classList.remove("drag-over");
-    if (_importStatus.running) { showNotification("Import already in progress", "info"); return; }
+    if (isImportRunning()) { showNotification("Import already in progress", "info"); return; }
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
     const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await classifyImportFiles(files);
@@ -968,102 +778,6 @@ export function setupDropZone() {
     else if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]);
     else if (pdfFiles.length > 1) await handleBatchPDFs(pdfFiles);
   });
-}
-
-// Weighted step percentages: text extraction and PII are fast, AI analysis is the bulk
-const STEP_START_PCT = [5, 8, 12, 15, 95];
-
-function _updateProgressPct(pct) {
-  const bar = document.querySelector('.import-progress-bar');
-  const fill = document.querySelector('.import-progress-bar-fill');
-  const label = document.querySelector('.import-progress-pct');
-  if (bar) bar.setAttribute('aria-valuenow', String(pct));
-  if (fill) fill.style.width = pct + '%';
-  if (label) label.textContent = pct + '%';
-  if (_importStatus.running) _setImportStatus({ pct });
-}
-
-function _buildProgressHTML(step, fileName) {
-  const pct = STEP_START_PCT[step] || 0;
-  let html = `<div class="import-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Import progress"><div class="import-progress-bar-fill" style="width:${pct}%"></div></div>`;
-  html += `<div class="import-progress-pct">${pct}%</div>`;
-  html += '<div class="import-progress">';
-  for (let i = 0; i < IMPORT_STEPS.length; i++) {
-    const isDone = i < step;
-    const isActive = i === step;
-    const cls = isDone ? "done" : isActive ? "active" : "";
-    const icon = isDone
-      ? '<span class="step-icon">\u2713</span>'
-      : isActive
-        ? '<span class="step-icon"><span class="progress-spinner"></span></span>'
-        : '<span class="step-icon">\u25CB</span>';
-    html += `<div class="progress-step ${cls}">${icon}<span>${IMPORT_STEPS[i]}${isActive ? "..." : ""}</span></div>`;
-  }
-  if (fileName) html += `<div class="import-progress-filename">${escapeHTML(fileName)}</div>`;
-  html += '</div>';
-  return html;
-}
-
-function _ensureDropZone() {
-  let dz = document.getElementById("drop-zone");
-  if (dz) return dz;
-  // Create a floating drop zone if not on dashboard (e.g. FAB import from category view)
-  dz = document.createElement('div');
-  dz.id = 'drop-zone';
-  dz.className = 'drop-zone drop-zone-hidden';
-  document.body.appendChild(dz);
-  return dz;
-}
-
-export async function showImportProgress(step, fileName) {
-  if (_statusDismissTimer) { clearTimeout(_statusDismissTimer); _statusDismissTimer = null; }
-  _setImportStatus({ running: true, done: false, failed: false, fileName, pct: STEP_START_PCT[step] || 0, batch: null });
-  const dropZone = _ensureDropZone();
-  dropZone.innerHTML = _buildProgressHTML(step, fileName);
-  _observeProgressBar();
-  // Yield to browser so it actually paints the progress before heavy work continues
-  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
-}
-
-function _observeProgressBar() {
-  if (_progressObserver) _progressObserver.disconnect();
-  const bar = document.querySelector('.import-progress-bar');
-  if (!bar) { _progressBarVisible = false; _syncStatusFab(); return; }
-  // Floating overlay is position:fixed — always "visible" to IntersectionObserver.
-  // Only observe the in-page (dashboard) progress bar.
-  if (bar.closest('.drop-zone-hidden')) { _progressBarVisible = false; _syncStatusFab(); return; }
-  _progressObserver = new IntersectionObserver(([entry]) => {
-    _progressBarVisible = entry.isIntersecting;
-    _syncStatusFab();
-  }, { threshold: 0.1 });
-  _progressObserver.observe(bar);
-}
-
-export function hideImportProgress(reason = 'success') {
-  // Stop observing progress bar
-  if (_progressObserver) { _progressObserver.disconnect(); _progressObserver = null; }
-  _progressBarVisible = false;
-  // Update status FAB state
-  if (reason === 'error') {
-    _setImportStatus({ running: false, done: false, failed: true });
-    _statusDismissTimer = setTimeout(() => { _setImportStatus({ failed: false }); _statusDismissTimer = null; }, 5000);
-  } else if (reason === 'cancel') {
-    _setImportStatus({ running: false, done: false, failed: false });
-  } else {
-    _setImportStatus({ running: false, done: true, failed: false });
-    _statusDismissTimer = setTimeout(() => { _setImportStatus({ done: false }); _statusDismissTimer = null; }, 5000);
-  }
-  const dropZone = document.getElementById("drop-zone");
-  if (!dropZone) return;
-  // Remove dynamically created drop zone (from FAB import on non-dashboard views)
-  if (dropZone.parentElement === document.body) { dropZone.remove(); return; }
-  if (dropZone.classList.contains('drop-zone-hidden')) {
-    dropZone.innerHTML = '';
-  } else {
-    dropZone.innerHTML = `<div class="drop-zone-icon">\uD83D\uDCC4</div>
-      <div class="drop-zone-text">Drop PDF, image, JSON, or DNA raw data file here, or click to browse</div>
-      <div class="drop-zone-hint">AI-powered \u2014 works with any lab report (PDF, photo, screenshot) or getbased JSON export</div>`;
-  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1338,7 +1052,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       if (images.length === 0) { hideImportProgress('error'); showNotification("Could not render PDF pages", "error"); return; }
       await showImportProgress(3, file.name);
       const analysisStart = performance.now();
-      const result = await parseLabPDFWithAIImages(images, file.name, _updateProgressPct);
+      const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
       const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
       if (isDebugMode()) console.log(`[Analysis] Image mode parsed in ${analysisTime}s`);
       result.privacyMethod = 'none (image mode)';
@@ -1442,7 +1156,7 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
 
     await showImportProgress(3, file.name);
     const analysisStart = performance.now();
-    const result = await parseLabPDFWithAI(textForAI, file.name, _updateProgressPct);
+    const result = await parseLabPDFWithAI(textForAI, file.name, updateImportProgressPct);
     const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
     if (isDebugMode()) console.log(`[Analysis] Parsed in ${analysisTime}s`);
     result.privacyMethod = privacyMethod;
@@ -1476,65 +1190,6 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
 // BATCH PDF IMPORT
 // ═══════════════════════════════════════════════
 let _batchMode = false;
-
-// Import status — tracked for the status FAB when progress bar is not visible
-const _importStatus = { running: false, pct: 0, failed: false, done: false, fileName: '', batch: null };
-let _statusDismissTimer = null;
-let _progressBarVisible = false;
-let _progressObserver = null;
-
-function _setImportStatus(patch) {
-  Object.assign(_importStatus, patch);
-  _syncStatusFab();
-}
-
-function _handleStatusFabClick() {
-  // Import preview modal open — bring it to focus
-  const overlay = document.getElementById('import-modal-overlay');
-  if (overlay && overlay.classList.contains('show')) {
-    overlay.scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
-  // Running — scroll to progress bar if visible, otherwise navigate to dashboard
-  if (_importStatus.running) {
-    const progressBar = document.querySelector('.import-progress-bar');
-    if (progressBar) {
-      progressBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      window.navigate('dashboard');
-    }
-    return;
-  }
-  // Done/failed — dismiss
-  _setImportStatus({ done: false, failed: false });
-}
-
-function _syncStatusFab() {
-  const fab = document.getElementById('import-status-fab');
-  if (!fab) return;
-  const { running, done, failed, pct, batch } = _importStatus;
-  // Hide when: import preview modal is open, or progress bar is visible on screen
-  const previewOpen = document.getElementById('import-modal-overlay')?.classList.contains('show');
-  const visible = (running || done || failed) && !previewOpen && !_progressBarVisible;
-  fab.classList.toggle('hidden', !visible);
-  // Hide the floating progress overlay whenever the FAB or preview modal takes over
-  const floatingDz = document.querySelector('.drop-zone-hidden');
-  if (floatingDz && (visible || previewOpen)) floatingDz.style.display = 'none';
-  else if (floatingDz && _importStatus.running && _progressBarVisible) floatingDz.style.display = '';
-  if (!visible) return;
-  let label = '';
-  if (running) {
-    label = batch ? `${batch.current}/${batch.total} \u00b7 ${pct}%` : `${pct}%`;
-  } else if (done) {
-    label = '\u2713';
-  } else if (failed) {
-    label = '\u2717';
-  }
-  fab.querySelector('.import-status-label').textContent = label;
-  fab.classList.toggle('is-running', running);
-  fab.classList.toggle('is-done', done);
-  fab.classList.toggle('is-failed', failed);
-}
 
 async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   await showBatchImportProgress(0, file.name, fileNum, totalFiles);
@@ -1602,7 +1257,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
 
   await showBatchImportProgress(3, file.name, fileNum, totalFiles);
   const analysisStart = performance.now();
-  const result = await parseLabPDFWithAI(textForAI, file.name, _updateProgressPct);
+  const result = await parseLabPDFWithAI(textForAI, file.name, updateImportProgressPct);
   const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
   if (isDebugMode()) console.log(`[Analysis] ${file.name} parsed in ${analysisTime}s`);
   result.privacyMethod = privacyMethod;
@@ -1683,17 +1338,6 @@ export async function handleBatchPDFs(pdfFiles) {
   if (imported > 0 && typeof window.maybeShowEncryptionNudge === 'function') window.maybeShowEncryptionNudge();
 }
 
-export async function showBatchImportProgress(step, fileName, current, total) {
-  if (_statusDismissTimer) { clearTimeout(_statusDismissTimer); _statusDismissTimer = null; }
-  _setImportStatus({ running: true, done: false, failed: false, fileName, pct: STEP_START_PCT[step] || 0, batch: { current, total } });
-  const dropZone = _ensureDropZone();
-  let html = `<div class="batch-progress-counter">Processing file ${current} of ${total}</div>`;
-  html += _buildProgressHTML(step, fileName);
-  dropZone.innerHTML = html;
-  _observeProgressBar();
-  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
-}
-
 // ═══════════════════════════════════════════════
 // IMAGE FILE IMPORT (JPG/PNG lab reports)
 // ═══════════════════════════════════════════════
@@ -1721,7 +1365,7 @@ export async function handleImageFile(file) {
     const mediaType = file.type || (file.name.match(/\.png$/i) ? 'image/png' : file.name.match(/\.webp$/i) ? 'image/webp' : 'image/jpeg');
     const images = [{ base64, mediaType, page: 1 }];
     const analysisStart = performance.now();
-    const result = await parseLabPDFWithAIImages(images, file.name, _updateProgressPct);
+    const result = await parseLabPDFWithAIImages(images, file.name, updateImportProgressPct);
     const analysisTime = Math.round((performance.now() - analysisStart) / 1000);
     if (isDebugMode()) console.log(`[Analysis] Image file parsed in ${analysisTime}s`);
     result.privacyMethod = 'none (image mode)';
@@ -1793,7 +1437,7 @@ Object.assign(window, {
   handleBatchPDFs,
   showBatchImportProgress,
   showImportPreviewAsync,
-  syncImportStatusFab: _syncStatusFab,
-  handleImportStatusClick: _handleStatusFabClick,
-  isImportRunning: () => _importStatus.running,
+  syncImportStatusFab,
+  handleImportStatusClick,
+  isImportRunning,
 });

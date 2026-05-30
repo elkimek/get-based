@@ -495,6 +495,32 @@ PDF/image/text-to-lab-data import pipeline and confirm/save merge logic.
 
 ---
 
+### `pdf-import-preflight.js`
+
+Pre-AI import checks for duplicate PDF hashes, previous-model mismatch prompts, and unsupported specialty-test warnings.
+
+**Key exports:**
+- `runPreflightChecks(pdfText, fileName)` — returns `false` when the user cancels before token-spending import work starts
+- `normalizeImportModelId(id)` — shared model ID canonicalization for cross-provider import mismatch checks
+
+**Window exports:** none directly; `pdf-import.js` calls this during PDF/batch import.
+
+---
+
+### `pdf-import-progress.js`
+
+Import progress bar, floating import status FAB, and batch progress rendering.
+
+**Key exports:**
+- `showImportProgress(step, fileName)` / `hideImportProgress(reason)` — render and clear the import progress UI
+- `showBatchImportProgress(step, fileName, current, total)` — render per-file batch progress
+- `updateImportProgressPct(pct)` — streaming AI progress update hook
+- `syncImportStatusFab()` / `handleImportStatusClick()` / `isImportRunning()` — status FAB bridge used by `pdf-import.js` window exports
+
+**Window exports:** via `pdf-import.js`
+
+---
+
 ### `pdf-import-review.js`
 
 Import review modal rendering and interaction state.

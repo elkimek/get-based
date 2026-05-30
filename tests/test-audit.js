@@ -59,6 +59,9 @@ assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
+assert('SW APP_SHELL includes PDF import support modules',
+  swAuditSrc.includes("'/js/pdf-import-preflight.js'")
+  && swAuditSrc.includes("'/js/pdf-import-progress.js'"));
 assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes("'/js/context-card-summaries.js'"));
 assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.includes("'/js/context-card-editor-ui.js'"));
 assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));

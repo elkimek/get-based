@@ -166,8 +166,9 @@ assert('chat-send.js snapshots provider for sends', chatSendSrc.includes('const 
 // ─── 5. pdf-import.js source inspection ───
 console.log('\n5. pdf-import.js source inspection');
 const pdfSrc = read('js/pdf-import.js');
+const pdfPreflightSrc = read('js/pdf-import-preflight.js');
 const pdfReviewSrc = read('js/pdf-import-review.js');
-assert('pdf-import imports setOpenRouterModel', pdfSrc.includes('setOpenRouterModel'));
+assert('pdf-import preflight imports setOpenRouterModel', pdfPreflightSrc.includes('setOpenRouterModel'));
 assert('pdf-import-review imports getOpenRouterModelDisplay', pdfReviewSrc.includes('getOpenRouterModelDisplay'));
 assert('pdf-import-review has openrouter model-label case (costInfo display)', pdfReviewSrc.includes("'openrouter' ? getOpenRouterModelDisplay()"));
 assert('pdf-import uses getActiveModelId for model resolution', pdfSrc.includes('getActiveModelId'));

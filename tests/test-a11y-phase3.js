@@ -92,8 +92,13 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('onboarding-view.js drops "us show" framing',
     !onboardingViewSrc.includes('help us show the right reference ranges'));
   const importSrc = read('/js/pdf-import.js');
-  assert('pdf-import dialog drops "We don\'t fully" / "We\'d love"',
-    !importSrc.includes("We don't fully support") && !importSrc.includes("We'd love to support"));
+  const importPreflightSrc = read('/js/pdf-import-preflight.js');
+  const importProgressSrc = read('/js/pdf-import-progress.js');
+  assert('pdf-import dialogs drop "We don\'t fully" / "We\'d love"',
+    !importSrc.includes("We don't fully support")
+    && !importSrc.includes("We'd love to support")
+    && !importPreflightSrc.includes("We don't fully support")
+    && !importPreflightSrc.includes("We'd love to support"));
 
   // ─── 5. Settings tablist wiring ───
   assert('settings-tabs-bar has role=tablist',
@@ -142,9 +147,9 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 9. Progress bar ARIA ───
   assert('import-progress-bar declares role=progressbar',
-    importSrc.includes('class="import-progress-bar" role="progressbar"'));
+    importProgressSrc.includes('class="import-progress-bar" role="progressbar"'));
   assert('import-progress updates aria-valuenow',
-    importSrc.includes("bar.setAttribute('aria-valuenow', String(pct))"));
+    importProgressSrc.includes("bar.setAttribute('aria-valuenow', String(pct))"));
 
   // ─── 10. Header import button remains the import entry point ───
   const cssSrc = readCssBundle();
