@@ -142,6 +142,7 @@ const pwaAppShellAssets = [
   '/js/light-env.js',
   '/js/light-env-audits.js',
   '/js/light-env-evening.js',
+  '/js/light-env-model.js',
   '/js/light-tool-camera.js',
   '/js/light-tool-camera-modals.js',
   '/js/light-tools.js',

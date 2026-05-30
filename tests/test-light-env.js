@@ -21,6 +21,7 @@ await import('../js/state.js');
 // this import they'd silently skip in Node.
 await import('../js/sun-context.js');
 const env = await import('../js/light-env.js');
+const model = await import('../js/light-env-model.js');
 const {
   PRIMARY_SOURCES, SCREEN_DEVICES,
   getEnvironment,
@@ -33,6 +34,10 @@ const {
   getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
   renderEnvironmentAssessmentSummary, renderEnvironmentSection,
 } = env;
+const {
+  computeDeficitAxesForEnvironment,
+  computeIndoorBurdenForEnvironment,
+} = model;
 
   const orig = window._labState.importedData;
   function reset(seed = {}) {
@@ -51,6 +56,9 @@ const {
     PRIMARY_SOURCES.some(s => s.key === 'led-cool') &&
     PRIMARY_SOURCES.some(s => s.key === 'led-warm') &&
     PRIMARY_SOURCES.some(s => s.key === 'fluorescent'));
+  assert('light-env re-exports option lists from the model module',
+    model.PRIMARY_SOURCES === PRIMARY_SOURCES &&
+    model.SCREEN_DEVICES === SCREEN_DEVICES);
 
   // Loosened: at least 5 entries, canonical keys present. Adding e-reader
   // / wearable display would be safe and shouldn't break this test.
@@ -212,6 +220,20 @@ const {
   assert('computeRoomSeverity(null) returns safe default',
     noInput.tier === 0 && typeof noInput.label === 'string');
 
+  reset({
+    lightEnvironment: {
+      rooms: [{ id: 'r-screen', name: 'Bedroom', primarySource: 'led-warm', hoursOccupiedPerDay: 8 }],
+      screens: [{ id: 's-screen', roomId: 'r-screen', device: 'phone', eveningUseAfterSunset: 3, blueBlockerEnabled: false }],
+    },
+  });
+  const screenHeavyRoom = computeRoomSeverity(getEnvironment().rooms[0], []);
+  assert('Room severity wrapper includes active screens assigned to that room',
+    screenHeavyRoom.tier >= 3 && /evening screen exposure/.test(screenHeavyRoom.reason));
+  await setTodayActive('screen', 's-screen', false);
+  const skippedScreenRoom = computeRoomSeverity(getEnvironment().rooms[0], []);
+  assert('Room severity wrapper ignores screens skipped today',
+    skippedScreenRoom.tier < 3 && !/evening screen exposure/.test(skippedScreenRoom.reason));
+
   // ─── 6. computeScreenStatus ──────────────────────────────────────────
   console.log('%c 6. computeScreenStatus ', 'font-weight:bold;color:#f59e0b');
 
@@ -276,6 +298,18 @@ const {
   axes = computeDeficitAxes();
   assert('Skipped-today room contributes nothing to d2/d3',
     axes.d2 === 0 && axes.d3 === 0);
+  const modelAxes = computeDeficitAxesForEnvironment({
+    rooms: [
+      { id: 'active-room', primarySource: 'led-cool', hoursOccupiedPerDay: 10, eveningHoursAfterSunset: 2 },
+      { id: 'skipped-room', primarySource: 'led-cool', hoursOccupiedPerDay: 10, eveningHoursAfterSunset: 2 },
+    ],
+    screens: [{ id: 'active-screen', eveningUseAfterSunset: 2, blueBlockerEnabled: false }],
+  }, {
+    isActiveToday: item => item.id !== 'skipped-room',
+  });
+  assert('Model deficit axes are state-free and accept today filtering',
+    modelAxes.d2 === 10 && Math.abs(modelAxes.d3 - 8) < 1e-9,
+    `got d2=${modelAxes.d2}, d3=${modelAxes.d3}`);
 
   // ─── 9. computeIndoorBurden ──────────────────────────────────────────
   console.log('%c 9. computeIndoorBurden ', 'font-weight:bold;color:#f59e0b');
@@ -321,6 +355,10 @@ const {
   assert('Burden parts list mentions both indoor + blue-after-sunset',
     burden.parts.some(p => /indoors/.test(p)) &&
     burden.parts.some(p => /blue-after-sunset/.test(p)));
+  const modelBurden = computeIndoorBurdenForEnvironment({ rooms: [], screens: [] });
+  assert('Model indoor burden distinguishes empty mapped exposure',
+    modelBurden.tier === 0 &&
+    /add a room|add a screen/i.test(modelBurden.interp));
 
   // ─── 10. Light Audits ────────────────────────────────────────────────
   console.log('%c 10. Light audits CRUD ', 'font-weight:bold;color:#f59e0b');
@@ -414,10 +452,18 @@ const {
     typeof window.openLightEnvironmentAssessment === 'function' &&
     typeof window.closeLightEnvironmentAssessment === 'function');
   const envSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env.js', import.meta.url), 'utf8');
+  const modelSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env-model.js', import.meta.url), 'utf8');
   assert('Assessment modal uses user-facing indoor assessment copy',
     envSrc.includes('Indoor Light Assessment') &&
     envSrc.includes('Save audit snapshots before and after changes') &&
     !envSrc.includes('The Light page keeps the summary'));
+  assert('Light environment deterministic model is isolated from rendering/storage',
+    envSrc.includes("from './light-env-model.js'") &&
+    modelSrc.includes('export function computeDeficitAxesForEnvironment') &&
+    modelSrc.includes('export function computeIndoorBurdenForEnvironment') &&
+    !modelSrc.includes('saveImportedData') &&
+    !modelSrc.includes('renderEnvironmentSection') &&
+    !envSrc.includes('function _hasAnyRoomSignal'));
   const auditSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
   assert('Light audit storage/rendering lives in its own module',
     auditSrc.includes('configureLightEnvAudits') &&
@@ -433,10 +479,13 @@ const {
     !envSrc.includes('function renderLightAuditCompare'));
   const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const fs = await import('node:fs/promises');
+  const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const cssSrc = [
     await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
     await fs.readFile(new URL('../css/light-env.css', import.meta.url), 'utf8'),
   ].join('\n');
+  assert('Service worker precaches the light environment model module',
+    swSrc.includes("'/js/light-env-model.js'"));
   assert('Light assessment is linked from sidebar Analysis tools',
     navSrc.includes("label: 'Light assessment'") &&
     navSrc.includes("key: 'light-env-assessment'") &&
