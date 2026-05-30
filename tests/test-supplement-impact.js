@@ -142,22 +142,23 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   console.log('%c 8. Source & UI Integration ', 'font-weight:bold;color:#f59e0b');
 
   const suppSrc = read('js/supplements.js');
-  assert('renderSupplementImpact exists', suppSrc.includes('function renderSupplementImpact'));
+  const impactSrc = read('js/supplement-impact.js');
+  assert('renderSupplementImpact exists', impactSrc.includes('function renderSupplementImpact'));
   assert('Wired into openSupplementsEditor', suppSrc.includes('renderSupplementImpact(s,'));
-  assert('Detects overlapping supplements', suppSrc.includes('getOverlappingSupplements'));
+  assert('Detects overlapping supplements', impactSrc.includes('getOverlappingSupplements'));
   assert('computeAllImpacts on window', suppSrc.includes('computeAllImpacts'));
 
   // AI-driven display (health dots pattern)
-  assert('Uses callClaudeAPI', suppSrc.includes('callClaudeAPI'));
-  assert('Uses hasAIProvider', suppSrc.includes('hasAIProvider'));
-  assert('Per-supp fingerprint includes dosage+ingredients', suppSrc.includes('getSuppFingerprint') && suppSrc.includes('supp.dosage') && suppSrc.includes('supp.ingredients'));
-  assert('Per-supp AI call (not whole batch)', suppSrc.includes('loadImpactsForSupps'));
-  assert('Coalesces concurrent renders via debounce', suppSrc.includes('_pendingAnalyses') && suppSrc.includes('scheduleAnalyze'));
-  assert('Deduplicates in-flight calls', suppSrc.includes('_batchPromise'));
-  assert('Cache keyed by supp name with fp field', suppSrc.includes('cache[s.name]') && suppSrc.includes('fp: getSuppFingerprint'));
-  assert('Fingerprint also includes timesPerDay', suppSrc.includes('i.timesPerDay'));
+  assert('Uses callClaudeAPI', impactSrc.includes('callClaudeAPI'));
+  assert('Uses hasAIProvider', impactSrc.includes('hasAIProvider'));
+  assert('Per-supp fingerprint includes dosage+ingredients', impactSrc.includes('getSuppFingerprint') && impactSrc.includes('supp.dosage') && impactSrc.includes('supp.ingredients'));
+  assert('Per-supp AI call (not whole batch)', impactSrc.includes('loadImpactsForSupps'));
+  assert('Coalesces concurrent renders via debounce', impactSrc.includes('_pendingAnalyses') && impactSrc.includes('scheduleAnalyze'));
+  assert('Deduplicates in-flight calls', impactSrc.includes('_batchPromise'));
+  assert('Cache keyed by supp name with fp field', impactSrc.includes('cache[s.name]') && impactSrc.includes('fp: getSuppFingerprint'));
+  assert('Fingerprint also includes timesPerDay', impactSrc.includes('i.timesPerDay'));
   assert('Ingredient row has ×/day input', suppSrc.includes('supp-ing-times'));
-  assert('AI prompt uses computed total with supp-level fallback', suppSrc.includes('ingredientDailyTotal(ing, s)') && suppSrc.includes('effectiveTimesPerDay'));
+  assert('AI prompt uses computed total with supp-level fallback', impactSrc.includes('ingredientDailyTotal(ing, s)') && impactSrc.includes('effectiveTimesPerDay'));
   assert('Outer ×/day form field exists', suppSrc.includes('id="supp-times"'));
   assert('Row placeholder is just ×/day (no "inherit N" jargon)', suppSrc.includes('placeholder="×/day"'));
   assert('Outer label reads "Doses/day" (non-tech)', suppSrc.includes('<label>Doses/day</label>'));
@@ -209,10 +210,10 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   assert('No row + no supp → null', effectiveTimesPerDay({}, {}) === null);
   assert('Total inherits supp default for combo products', ingredientDailyTotal({ amount: '500mg' }, { timesPerDay: 2 })?.value === 1000);
   assert('Row override overrides supp default in total', ingredientDailyTotal({ amount: '500mg', timesPerDay: 3 }, { timesPerDay: 1 })?.value === 1500);
-  assert('Uses health dot CSS classes', suppSrc.includes('ctx-health-dot'));
-  assert('AI returns dot+summary JSON per supp', suppSrc.includes('"dot":"green|yellow|red|gray"'));
-  assert('Shimmer while loading', suppSrc.includes('ctx-health-dot-shimmer'));
-  assert('Falls back without AI', suppSrc.includes('Set up an AI provider'));
+  assert('Uses health dot CSS classes', impactSrc.includes('ctx-health-dot'));
+  assert('AI returns dot+summary JSON per supp', impactSrc.includes('"dot":"green|yellow|red|gray"'));
+  assert('Shimmer while loading', impactSrc.includes('ctx-health-dot-shimmer'));
+  assert('Falls back without AI', impactSrc.includes('Set up an AI provider'));
 
   // Focus card integration
   const focusCardSrc = read('js/focus-card.js');

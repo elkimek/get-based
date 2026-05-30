@@ -98,6 +98,7 @@ const APP_SHELL = [
   '/js/charts.js',
   '/js/notes.js',
   '/js/supplements.js',
+  '/js/supplement-impact.js',
   '/js/cycle.js',
   '/js/context-cards.js',
   '/js/context-card-summaries.js',

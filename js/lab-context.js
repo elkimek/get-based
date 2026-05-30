@@ -9,7 +9,7 @@ import { getProfileLocation, getLatitudeFromLocation } from './profile.js';
 import { getBloodDrawPhases, getNextBestDrawDate, detectPerimenopausePattern, detectCycleIronAlerts } from './cycle.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { scanDietForContaminants } from './food-contaminants.js';
-import { ingredientDailyTotal, effectiveTimesPerDay } from './supplements.js';
+import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
 import { CANONICAL_METRICS, DEFAULT_METRIC_ORDER } from './wearable-adapters.js';
 
 // ═══════════════════════════════════════════════

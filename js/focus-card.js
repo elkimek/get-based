@@ -9,6 +9,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from '.
 import { injectLensChunks } from './lab-context.js';
 import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
+import { computeAllImpacts } from './supplement-impact.js';
 
 export function renderFocusCard() {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
@@ -86,7 +87,7 @@ export function buildFocusContext() {
       else if (lastDate && data.dates.length >= 2 && firstStart > data.dates[data.dates.length - 2]) timing = ' (started between last two labs)';
       let impactNote = '';
       if (!timing && data.dates.length >= 2) {
-        const impacts = window.computeAllImpacts?.(s, data);
+        const impacts = computeAllImpacts(s, data);
         if (impacts && impacts.length > 0) {
           const top = impacts.slice(0, 2).filter(im => im.confidence !== 'low');
           if (top.length > 0) {

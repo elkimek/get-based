@@ -618,6 +618,9 @@
     const hasDashboardRecommendationWidgetJs = sw.includes('/js/dashboard-recommendation-widget.js');
     assert('Service worker caches js/dashboard-recommendation-widget.js', hasDashboardRecommendationWidgetJs);
 
+    const hasSupplementImpactJs = sw.includes('/js/supplement-impact.js');
+    assert('Service worker caches js/supplement-impact.js', hasSupplementImpactJs);
+
     const hasDashboardCompositionJs = sw.includes('/js/dashboard-view-composition.js');
     assert('Service worker caches js/dashboard-view-composition.js', hasDashboardCompositionJs);
 
