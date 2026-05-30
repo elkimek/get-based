@@ -232,19 +232,31 @@ export async function updateSession(id, patch) {
   // fetchAtmosphere awaits and write doses for the older duration after the
   // newer one shipped (the relay briefly holds stale doses).
   if (durationChanged && sess.location) {
-    const prev = _hydrateInFlight.get(id) || Promise.resolve();
-    const next = prev
-      .catch(() => {})
-      .then(() => hydrateSession(id, { lat: sess.location.lat, lon: sess.location.lon }))
-      .catch(e => { if (typeof window !== 'undefined' && window.console) console.warn('hydrateSession after updateSession failed', e); });
-    _hydrateInFlight.set(id, next);
-    next.finally(() => { if (_hydrateInFlight.get(id) === next) _hydrateInFlight.delete(id); });
+    _runHydrateSession(id, { lat: sess.location.lat, lon: sess.location.lon }, {
+      queueAfterExisting: true,
+      warnContext: 'hydrateSession after updateSession failed',
+    });
   }
   return sess;
 }
 
 // Per-session hydrate serialization queue. Map<sessionId, Promise>.
 const _hydrateInFlight = new Map();
+
+function _runHydrateSession(id, coords, { queueAfterExisting = false, warnContext = 'hydrateSession failed' } = {}) {
+  const existing = _hydrateInFlight.get(id);
+  if (existing && !queueAfterExisting) return existing;
+  const base = queueAfterExisting && existing ? existing.catch(() => {}) : Promise.resolve();
+  const next = base
+    .then(() => hydrateSession(id, coords))
+    .catch(e => {
+      if (typeof window !== 'undefined' && window.console) console.warn(warnContext, e);
+      return null;
+    });
+  _hydrateInFlight.set(id, next);
+  next.finally(() => { if (_hydrateInFlight.get(id) === next) _hydrateInFlight.delete(id); });
+  return next;
+}
 
 // Hydrate a session record with computed atmosphere + channel doses.
 // Idempotent — reruns after edits.
@@ -424,12 +436,14 @@ export async function rehydrateStaleSessions() {
   );
   if (stale.length === 0) return { rehydrated: 0 };
   // Serialize so we don't fan out N concurrent atmosphere fetches.
-  // hydrateSession itself dedups by id, so two batches in parallel
-  // don't double-fetch the same session.
+  // _runHydrateSession dedups by id, so two batches in parallel don't
+  // double-fetch the same session.
   let ok = 0;
   for (const s of stale) {
     try {
-      const result = await hydrateSession(s.id, { lat: s.location.lat, lon: s.location.lon });
+      const result = await _runHydrateSession(s.id, { lat: s.location.lat, lon: s.location.lon }, {
+        warnContext: `rehydrateStaleSessions: ${s.id}`,
+      });
       if (result) ok++;
     } catch (e) {
       if (window.console && console.warn) console.warn('rehydrateStaleSessions:', s.id, e?.message || e);
