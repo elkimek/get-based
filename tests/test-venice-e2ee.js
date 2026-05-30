@@ -34,7 +34,7 @@ assert('e2ee prefix detection', apiProviderStorageSrc.includes("modelId.startsWi
 assert('callVeniceAPI has E2EE import', apiSrc.includes("import('../vendor/venice-e2ee.js')"));
 assert('supportsWebSearch excludes E2EE', apiSrc.includes('isVeniceE2EEActive()'));
 assert('supportsVision excludes E2EE', apiSrc.includes('isVeniceE2EEActive()') && apiSrc.includes('return false'));
-assert('fetchVeniceModels preserves e2ee- prefix', apiProviderStorageSrc.includes("id.startsWith('e2ee-')"));
+assert('fetchVeniceModels excludes unsupported e2ee-prefixed regular models', apiSrc.includes("!m.id.startsWith('e2ee-')"));
 assert('Venice E2EE supports forced non-stream retry path',
   /forceNonStream/.test(apiSrc)
   && /requestTimeoutMs/.test(apiSrc)
