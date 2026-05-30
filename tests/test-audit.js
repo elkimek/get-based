@@ -61,6 +61,7 @@ assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/a
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes("'/js/context-card-summaries.js'"));
 assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.includes("'/js/context-card-editor-ui.js'"));
+assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
 assert('app shell CSS loads after core CSS and before feature CSS',
@@ -289,7 +290,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');
@@ -641,7 +642,8 @@ assert('Focus trap for modals', appEventsSrc.includes('e.key === "Tab"') && appE
 console.log('11. Event Listener Leak Fix');
 
 const ctxSrc = read('js/context-cards.js');
-assert('Diagnoses editor removes old listener before adding', ctxSrc.includes("document.removeEventListener('click', closeSuggestionsOnClickOutside)"));
+const ctxMedicalHistorySrc = read('js/context-card-medical-history-editor.js');
+assert('Diagnoses editor removes old listener before adding', ctxMedicalHistorySrc.includes("document.removeEventListener('click', closeSuggestionsOnClickOutside)"));
 
 // ═══════════════════════════════════════
 // 12. Cycle stats NaN guard

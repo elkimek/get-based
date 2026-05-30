@@ -391,7 +391,7 @@ Menstrual cycle tracking, helpers, and dashboard rendering.
 
 ### `context-cards.js`
 
-All 9 lifestyle context card editors plus AI health dots, the Interpretive Lens / Knowledge Base dashboard rows, dashboard CTA pills, context change history, and legacy compatibility exports for summary/editor helpers.
+Lifestyle context card rendering plus AI health dots, the remaining simple context card editors, the Interpretive Lens / Knowledge Base dashboard rows, dashboard CTA pills, context change history, and legacy compatibility exports for summary/editor helpers.
 
 **Key exports:**
 - `renderProfileContextCards(data)` — renders the 3-column context card grid on the dashboard
@@ -403,8 +403,8 @@ All 9 lifestyle context card editors plus AI health dots, the Interpretive Lens 
 - `triggerDNAFilePicker()` — programmatic file input trigger that routes through `window.handleDNAFile`; used by the genetics empty-state stub
 - `loadContextHealthDots()` — async; fetches AI health ratings for stale cards (per-card fingerprint caching)
 - `getCardFingerprint(key)` — djb2 hash of lab data + card data + sex + DOB for cache invalidation
-- Per-card editor functions: `openDiagnosesEditor`, `openDietEditor`, `openExerciseEditor`, `openSleepEditor`, `openLightEditor`, `openStressEditor`, `openLoveLifeEditor`, `openEnvironmentEditor`, `openHealthGoalsEditor`
-- Per-card save functions: `saveDiagnoses`, `saveDiet`, `saveExercise`, `saveSleep`, `saveLight`, `saveStress`, `saveLoveLife`, `saveEnvironment`, `saveHealthGoals`
+- Per-card editor functions: `openDiagnosesEditor`, `openDietEditor`, `openExerciseEditor`, `openSleepEditor`, `openLightEditor`, `openStressEditor`, `openLoveLifeEditor`, `openEnvironmentEditor`, `openHealthGoalsEditor`; Medical History helpers are compatibility re-exports from `context-card-medical-history-editor.js`
+- Per-card save functions: `saveDiagnoses`, `saveDiet`, `saveExercise`, `saveSleep`, `saveLight`, `saveStress`, `saveLoveLife`, `saveEnvironment`, `saveHealthGoals`; `saveDiagnoses` is a compatibility re-export from `context-card-medical-history-editor.js`
 - `selectCtxOption(el, group, multi)` — compatibility re-export from `context-card-editor-ui.js`
 - `getSelectedOption(group)` — reads selected value from a `.ctx-btn-group`
 - Summary helpers such as `getDietSummary()` and `getEnvironmentSummary()` — compatibility re-exports from `context-card-summaries.js`
@@ -430,6 +430,16 @@ Context card metadata, filled-state checks, dashboard summary strings, and the E
 Shared context editor modal shell and field-control render/read helpers used by the 9 card editors.
 
 **Key exports:** `renderContextEditorModal()`, `renderSelectField()`, `selectCtxOption()`, `getSelectedOption()`, `renderTagsField()`, `toggleCtxTag()`, `getSelectedTags()`, `renderNoteField()`, `contextEditorActions()`.
+
+**Window exports:** none directly; legacy globals are assigned by `context-cards.js`.
+
+---
+
+### `context-card-medical-history-editor.js`
+
+Medical History editor module for personal conditions and family history. Owns the condition autocomplete, relative allowlist, add/delete flows, modal rendering, note sync, and save/clear handlers for `importedData.diagnoses`.
+
+**Key exports:** `configureMedicalHistoryEditor()`, `openDiagnosesEditor()`, `renderDiagnosesModal()`, `filterConditionSuggestions()`, `selectConditionSuggestion()`, `closeSuggestionsOnClickOutside()`, `syncDiagnosesNote()`, `addCondition()`, `deleteCondition()`, `addFamilyHistoryEntry()`, `deleteFamilyHistoryEntry()`, `filterFamilyConditionSuggestions()`, `selectFamilyConditionSuggestion()`, `saveDiagnoses()`, `closeDiagnoses()`, `clearDiagnoses()`.
 
 **Window exports:** none directly; legacy globals are assigned by `context-cards.js`.
 

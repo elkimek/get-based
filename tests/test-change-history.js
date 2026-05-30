@@ -181,6 +181,7 @@ await import('../js/context-cards.js');
   console.log('15. saveAndRefresh Field Param');
 
   const ctxSrc = read('js/context-cards.js');
+  const ctxMedicalSrc = read('js/context-card-medical-history-editor.js');
   assert('saveAndRefresh has field parameter', ctxSrc.includes('function saveAndRefresh(msg, field)'));
   assert('Diet passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Diet & Digestion saved', 'diet')"));
   assert('Exercise passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Exercise saved', 'exercise')"));
@@ -189,14 +190,14 @@ await import('../js/context-cards.js');
   assert('Stress passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Stress profile saved', 'stress')"));
   assert('Love life passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Love life saved', 'loveLife')"));
   assert('Environment passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Environment saved', 'environment')"));
-  assert('Diagnoses passes field to saveAndRefresh', ctxSrc.includes("saveAndRefresh('Medical history saved', 'diagnoses')"));
+  assert('Diagnoses passes field to saveAndRefresh', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
 
   // ═══════════════════════════════════════
   // 16. Inline save paths call recordChange
   // ═══════════════════════════════════════
   console.log('16. Inline Save Paths');
 
-  assert('addCondition calls recordChange', ctxSrc.includes("recordChange('diagnoses')"));
+  assert('addCondition calls recordChange', ctxMedicalSrc.includes("recordContextChange('diagnoses')"));
   assert('addHealthGoal calls recordChange', ctxSrc.includes("recordChange('healthGoals')"));
   assert('saveInterpretiveLens calls recordChange', ctxSrc.includes("recordChange('interpretiveLens')"));
   assert('debounceContextNotes calls recordChange', ctxSrc.includes("recordChange('contextNotes')"));
