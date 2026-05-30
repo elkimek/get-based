@@ -32,7 +32,7 @@ import {
   activeHoursBucket,
   activeEveningBucket,
   defaultHoursForName,
-  computeRoomSeverity as computeRoomSeverityModel,
+  computeRoomSeverityForRoom,
   computeScreenStatus,
   computeDeficitAxesForEnvironment,
   computeIndoorBurdenForEnvironment,
@@ -282,7 +282,7 @@ function renderEveningPicker(r) {
 // Environment-aware wrappers around the deterministic model. The model stays
 // state-free; this module supplies today's skip toggles and room-linked screens.
 export function computeRoomSeverity(room, measurements = []) {
-  return computeRoomSeverityModel(room, measurements, {
+  return computeRoomSeverityForRoom(room, measurements, {
     screens: room?.id ? getScreensForRoom(room.id) : [],
     isActiveToday,
   });

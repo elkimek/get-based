@@ -35,6 +35,7 @@ const {
   renderEnvironmentAssessmentSummary, renderEnvironmentSection,
 } = env;
 const {
+  computeRoomSeverityForRoom,
   computeDeficitAxesForEnvironment,
   computeIndoorBurdenForEnvironment,
 } = model;
@@ -233,6 +234,9 @@ const {
   const skippedScreenRoom = computeRoomSeverity(getEnvironment().rooms[0], []);
   assert('Room severity wrapper ignores screens skipped today',
     skippedScreenRoom.tier < 3 && !/evening screen exposure/.test(skippedScreenRoom.reason));
+  assert('Model room severity scorer has an explicit state-free name',
+    typeof computeRoomSeverityForRoom === 'function' &&
+    model.computeRoomSeverity === undefined);
 
   // ─── 6. computeScreenStatus ──────────────────────────────────────────
   console.log('%c 6. computeScreenStatus ', 'font-weight:bold;color:#f59e0b');
@@ -459,6 +463,8 @@ const {
     !envSrc.includes('The Light page keeps the summary'));
   assert('Light environment deterministic model is isolated from rendering/storage',
     envSrc.includes("from './light-env-model.js'") &&
+    modelSrc.includes('export function computeRoomSeverityForRoom') &&
+    !modelSrc.includes('export function computeRoomSeverity(') &&
     modelSrc.includes('export function computeDeficitAxesForEnvironment') &&
     modelSrc.includes('export function computeIndoorBurdenForEnvironment') &&
     !modelSrc.includes('saveImportedData') &&

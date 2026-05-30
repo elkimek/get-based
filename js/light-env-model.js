@@ -113,7 +113,7 @@ function _hasAnyRoomSignal(room, measurements) {
   return hasSource || hasHours || hasEvening || hasMeas;
 }
 
-export function computeRoomSeverity(room, measurements = [], options = {}) {
+export function computeRoomSeverityForRoom(room, measurements = [], options = {}) {
   if (!room) return { tier: 0, color: 'green', label: 'Unknown', reason: 'No data yet' };
 
   // Gray-dot incomplete state for empty rooms — distinct from "Good".
