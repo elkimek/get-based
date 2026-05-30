@@ -16,6 +16,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
+import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 
 function _getAudits() {
   if (!state.importedData) return [];
@@ -55,7 +56,7 @@ export function getAuditFingerprint(a) {
   // detect a labelled-edit scenario where the user updated a room
   // pre-snapshot.
   for (const r of (a.rooms || [])) {
-    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.hoursOccupiedPerDay || 0}:${r.eveningHoursAfterSunset || 0}`);
+    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);
   }
   for (const m of (a.measurements || [])) {
     parts.push(`m:${m.tool}:${typeof m.value === 'number' ? Math.round(m.value * 100) / 100 : m.value}`);
@@ -100,9 +101,7 @@ export function buildAuditContext(a) {
       const roomLines = [`- ${_safeText(r.name) || '(unnamed)'}`];
       if (r.primarySource) roomLines.push(`  Primary source: ${_SOURCE_LABELS[r.primarySource] || r.primarySource}`);
       if (r.hoursOccupiedPerDay != null) roomLines.push(`  Hours occupied: ${r.hoursOccupiedPerDay}/day`);
-      const eveHrs = r.eveningHoursAfterSunset != null
-        ? Number(r.eveningHoursAfterSunset)
-        : (r.eveningUseAfterSunset ? 2 : 0);
+      const eveHrs = getRoomEveningHoursAfterSunset(r);
       if (eveHrs > 0) roomLines.push(`  Evening use after sunset: ${eveHrs} hr/day`);
       // Latest measurements per tool, scoped to this room
       const tools = ['lux', 'flicker', 'darkness', 'cct', 'spectrum', 'glass-transmission'];

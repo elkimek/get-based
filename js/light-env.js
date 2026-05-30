@@ -5,25 +5,25 @@
 // mixed sources). Feeds the deficit/junk-light axes that complement the
 // episodic Sun Sessions log.
 //
-// Schema (already migrated in profile.js):
+// Schema:
 //   importedData.lightEnvironment = {
 //     rooms: [{ name, primarySource, cct, hoursOccupiedPerDay,
-//                eveningUseAfterSunset, flickerScore, ... }],
+//                eveningHoursAfterSunset, flickerScore, ... }],
 //     screens: [{ device, hoursPerDay, eveningUseAfterSunset, ... }],
 //   }
-//
-// FIXME(legacy): `eveningUseAfterSunset` is the v1.5-era binary —
-// chip-pickers now write `eveningHoursAfterSunset` (numeric). Both
-// fields are dual-written here for backcompat. Removal requires a
-// full consumer sweep across light-{audit,burden,env,screen}-ai-analysis.js
-// + sun-context.js + 7 test asserts + a migration that converts older
-// synced clients' boolean → numeric on read. Out-of-scope for the
-// audit branch; landed as separate cleanup PR.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
+import {
+  getRoomEveningHoursAfterSunset,
+  hasRoomEveningAnswer,
+  normalizeLightEnvironmentEveningFields,
+  normalizeRoomEveningFields,
+  normalizeRoomEveningPatch,
+  roomUsesEveningAfterSunset,
+} from './light-env-evening.js';
 import {
   configureLightEnvAudits,
   getLightAudits,
@@ -31,6 +31,11 @@ import {
 } from './light-env-audits.js';
 
 export { getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit } from './light-env-audits.js';
+export {
+  getRoomEveningHoursAfterSunset,
+  hasRoomEveningAnswer,
+  roomUsesEveningAfterSunset,
+} from './light-env-evening.js';
 
 export const PRIMARY_SOURCES = [
   { key: 'led-cool',       label: 'LED — cool/daylight (4000K+)' },
@@ -60,6 +65,7 @@ export function getEnvironment() {
   if (!state.importedData.lightEnvironment) {
     state.importedData.lightEnvironment = { rooms: [], screens: [] };
   }
+  normalizeLightEnvironmentEveningFields(state.importedData.lightEnvironment);
   return state.importedData.lightEnvironment;
 }
 
@@ -87,11 +93,8 @@ export async function addRoom(name) {
     cct: null,
     flickerScore: null,
     hoursOccupiedPerDay: presetHours,
-    // New chip-picker field for evening exposure — null means unanswered.
-    // Legacy `eveningUseAfterSunset` boolean stays at false for back-compat
-    // with rooms saved before the chip picker existed.
+    // Numeric after-sunset exposure; null means unanswered.
     eveningHoursAfterSunset: null,
-    eveningUseAfterSunset: false,
     notes: '',
   });
   await saveImportedData();
@@ -120,7 +123,8 @@ export async function updateRoom(id, patch) {
   const env = getEnvironment();
   const room = (env.rooms || []).find(r => r.id === id);
   if (!room) return;
-  Object.assign(room, patch);
+  Object.assign(room, normalizeRoomEveningPatch(patch));
+  normalizeRoomEveningFields(room);
   room.updatedAt = Date.now();
   await saveImportedData();
 }
@@ -245,7 +249,7 @@ function _hasAnyRoomSignal(room, measurements) {
   if (!room) return false;
   const hasSource = room.primarySource && room.primarySource !== 'unknown';
   const hasHours = (+room.hoursOccupiedPerDay) > 0;
-  const hasEvening = room.eveningHoursAfterSunset != null || room.eveningUseAfterSunset === true;
+  const hasEvening = hasRoomEveningAnswer(room);
   const hasMeas = (measurements || []).length > 0;
   return hasSource || hasHours || hasEvening || hasMeas;
 }
@@ -273,13 +277,8 @@ export function computeRoomSeverity(room, measurements = []) {
     // friendly sources stay at 0 unless other signals pull them up
   }
 
-  // After-sunset blue-light contamination — derive the boolean from the
-  // newer eveningHoursAfterSunset chip-picker if present, else fall back
-  // to the legacy boolean field.
-  const eveningActive = (room.eveningHoursAfterSunset != null)
-    ? (+room.eveningHoursAfterSunset) > 0
-    : !!room.eveningUseAfterSunset;
-  if (eveningActive && (src === 'led-cool' || src === 'led-tunable' || src === 'fluorescent')) {
+  // After-sunset blue-light contamination.
+  if (roomUsesEveningAfterSunset(room) && (src === 'led-cool' || src === 'led-tunable' || src === 'fluorescent')) {
     tier = Math.max(tier, 2);
     reasons.push('blue light after sunset');
   }
@@ -389,10 +388,8 @@ function activeHoursBucket(hours) {
   return 'most';
 }
 
-// Evening-hours buckets — replaces the binary eveningUseAfterSunset
-// checkbox. Stored as a number on the new `eveningHoursAfterSunset`
-// field; legacy boolean is left untouched but read as 1.5 (mid of
-// "1–3 hr") when only the boolean is set.
+// Evening-hours buckets. Stored as numeric `eveningHoursAfterSunset`;
+// legacy boolean rows are normalized before rendering.
 const EVENING_BUCKETS = [
   { key: 'none', label: 'None',     midpoint: 0 },
   { key: 'lt1',  label: '< 1 hr',   midpoint: 0.5 },
@@ -401,16 +398,12 @@ const EVENING_BUCKETS = [
 ];
 
 function activeEveningBucket(room) {
-  if (room.eveningHoursAfterSunset != null) {
-    const h = +room.eveningHoursAfterSunset;
-    if (h <= 0) return 'none';
-    if (h < 1) return 'lt1';
-    if (h < 3) return 'mid';
-    return 'gt3';
-  }
-  if (room.eveningUseAfterSunset === true) return 'mid';  // legacy bool → 1–3 hr
-  if (room.eveningUseAfterSunset === false) return 'none';
-  return null; // unanswered
+  if (!hasRoomEveningAnswer(room)) return null;
+  const h = getRoomEveningHoursAfterSunset(room);
+  if (h <= 0) return 'none';
+  if (h < 1) return 'lt1';
+  if (h < 3) return 'mid';
+  return 'gt3';
 }
 
 // Step 1 chip-picker render helpers — produce the inline chip rows
@@ -563,7 +556,7 @@ export function computeDeficitAxes() {
     if (['led-cool', 'led-warm', 'led-tunable', 'fluorescent'].includes(r.primarySource)) {
       d3 += hours * 0.6;
     }
-    if (r.eveningUseAfterSunset && ['led-cool', 'led-tunable', 'fluorescent'].includes(r.primarySource)) {
+    if (roomUsesEveningAfterSunset(r) && ['led-cool', 'led-tunable', 'fluorescent'].includes(r.primarySource)) {
       d3 += 1; // bonus penalty for blue-after-sunset
     }
   }
@@ -1054,9 +1047,7 @@ function renderRoomDisclosure(r, expanded) {
   const hours = r.hoursOccupiedPerDay;
   const hoursLabel = hours ? `${hours} hr/day` : '';
 
-  // Whether the evening-after-sunset signal is "on" in the current schema —
-  // newer chip-picker field wins, falls back to legacy boolean.
-  const eveningOn = (r.eveningHoursAfterSunset != null) ? (+r.eveningHoursAfterSunset) > 0 : !!r.eveningUseAfterSunset;
+  const eveningOn = roomUsesEveningAfterSunset(r);
   const roomAriaLabel = `${r.name || 'Room'} — ${sev.label}${hoursLabel ? ', ' + hoursLabel : ''}${sourceShort ? ', ' + sourceShort : ''}${expanded ? ', expanded' : ', collapsed'}`;
   let html = `<div class="light-env-room-disclosure light-env-card-sev-${sev.color}${activeToday ? '' : ' light-env-card-skipped'}${expanded ? ' expanded' : ''}" data-id="${escapeAttr(r.id)}">
     <div class="light-env-room-disclosure-head" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(roomAriaLabel)}" onclick="window.toggleLightEnvRoomExpanded('${escapeAttr(r.id)}', event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightEnvRoomExpanded('${escapeAttr(r.id)}', event)}">
@@ -1401,13 +1392,7 @@ if (typeof window !== 'undefined') {
     setLightEnvRoomEveningBucket: async (id, bucketKey) => {
       const b = EVENING_BUCKETS.find(x => x.key === bucketKey);
       if (!b) return;
-      // Write the new chip-picker field; keep the legacy boolean in sync
-      // so any code still reading the old name (or older synced clients)
-      // gets a sensible value.
-      await updateRoom(id, {
-        eveningHoursAfterSunset: b.midpoint,
-        eveningUseAfterSunset: b.midpoint > 0,
-      });
+      await updateRoom(id, { eveningHoursAfterSunset: b.midpoint });
       refreshLightEnvironmentUI();
     },
     // Discrete-toggle variant — same persistence as updateLightEnvRoom

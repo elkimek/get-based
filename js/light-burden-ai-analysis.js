@@ -20,6 +20,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { computeDeficitAxes, computeIndoorBurden, isActiveToday } from './light-env.js';
+import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 
 function _getEnv() {
   if (!state.importedData) return null;
@@ -51,7 +52,7 @@ export function getBurdenFingerprint() {
   ];
   for (const r of env.rooms || []) {
     if (!isActiveToday(r)) continue;
-    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.hoursOccupiedPerDay || 0}:${r.eveningHoursAfterSunset || 0}`);
+    parts.push(`r:${r.id}:${r.primarySource || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);
   }
   for (const s of env.screens || []) {
     if (!isActiveToday(s)) continue;
@@ -77,7 +78,7 @@ export function buildBurdenContext() {
     lines.push('');
     lines.push('### Rooms active today');
     for (const r of rooms) {
-      const ev = r.eveningHoursAfterSunset != null ? Number(r.eveningHoursAfterSunset) : (r.eveningUseAfterSunset ? 2 : 0);
+      const ev = getRoomEveningHoursAfterSunset(r);
       const safeName = String(r.name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
       lines.push(`- ${safeName}: source=${_SOURCE_LABELS[r.primarySource] || r.primarySource || 'unknown'}, occupied ${r.hoursOccupiedPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}`);
     }

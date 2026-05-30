@@ -10,6 +10,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
+import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
 function _getMeasurementsForRoom(roomId) {
@@ -32,7 +33,7 @@ export function getRoomFingerprint(r) {
     r.name || '',
     r.primarySource || '',
     r.hoursOccupiedPerDay || 0,
-    r.eveningHoursAfterSunset || (r.eveningUseAfterSunset ? 1 : 0),
+    getRoomEveningHoursAfterSunset(r),
   ];
   const byTool = new Map();
   for (const m of measurements.sort((a, b) => b.capturedAt - a.capturedAt)) {
@@ -81,9 +82,7 @@ export function buildRoomContext(r) {
   lines.push(`Name: ${_safeText(r.name) || '(unnamed)'}`);
   if (r.primarySource) lines.push(`Primary light source: ${_SOURCE_LABELS[r.primarySource] || r.primarySource}`);
   if (r.hoursOccupiedPerDay != null) lines.push(`Hours occupied per day: ${r.hoursOccupiedPerDay}`);
-  const eveningHrs = r.eveningHoursAfterSunset != null
-    ? Number(r.eveningHoursAfterSunset)
-    : (r.eveningUseAfterSunset ? 2 : 0);
+  const eveningHrs = getRoomEveningHoursAfterSunset(r);
   lines.push(eveningHrs > 0
     ? `Evening use after sunset: ${eveningHrs} hr/day`
     : 'Evening use after sunset: not used after dark');

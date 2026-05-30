@@ -5,6 +5,7 @@ import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { showNotification } from './utils.js';
 import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
+import { normalizeLightEnvironmentEveningFields } from './light-env-evening.js';
 
 // ═══════════════════════════════════════════════
 // PROFILE MANAGEMENT
@@ -430,6 +431,7 @@ export function migrateProfileData(data) {
   if (data.deviceSessions === undefined) data.deviceSessions = [];
   if (data.lightDevices === undefined) data.lightDevices = [];
   if (data.lightEnvironment === undefined) data.lightEnvironment = null;
+  normalizeLightEnvironmentEveningFields(data.lightEnvironment);
   if (data.lightMeasurements === undefined) data.lightMeasurements = [];
   if (data.lightAudits === undefined) data.lightAudits = [];
   if (data.sunCorrelations === undefined) data.sunCorrelations = null;

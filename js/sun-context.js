@@ -13,6 +13,10 @@
 
 import { state } from './state.js';
 import { getSunCorrelations } from './sun-correlations.js';
+import {
+  getRoomEveningHoursAfterSunset,
+  roomUsesEveningAfterSunset,
+} from './light-env-evening.js';
 
 // Sanitize user-supplied strings before interpolating into AI prompts.
 // Mirrors the helper in light-env-ai-analysis.js / light-today-ai.js.
@@ -349,7 +353,7 @@ function lightEnvironmentBlock() {
   let s = `### Indoor light environment\n`;
   if (rooms.length > 0) {
     s += `- Rooms tracked: ${rooms.length}`;
-    const eveningRooms = rooms.filter(r => r.eveningUseAfterSunset || (r.eveningHoursAfterSunset || 0) > 0);
+    const eveningRooms = rooms.filter(roomUsesEveningAfterSunset);
     if (eveningRooms.length > 0) {
       s += `; ${eveningRooms.length} used after sunset`;
     }
@@ -362,7 +366,7 @@ function lightEnvironmentBlock() {
     for (const r of rooms) {
       const src = r.primarySource || 'unknown source';
       const hrs = r.hoursOccupiedPerDay ? `${r.hoursOccupiedPerDay}h/day` : '';
-      const evHr = (r.eveningHoursAfterSunset || (r.eveningUseAfterSunset ? 1 : 0));
+      const evHr = getRoomEveningHoursAfterSunset(r);
       const evening = evHr ? `${evHr}h after sunset` : '';
       const severity = r.aiAnalysis?.dot ? ` · AI verdict: ${r.aiAnalysis.dot}` : '';
       const parts = [src, hrs, evening].filter(Boolean).join(', ');

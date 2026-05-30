@@ -1489,6 +1489,7 @@ Not separately documented because their exports are best read from source — ke
 - `light-device-setup-modal.js` — add-device preset picker, custom-device form, and URL/photo AI spec extraction. Dependency-injected from `light-devices.js` so device persistence and channel defaults stay in the owning module.
 - `light-device-session-modal.js` — log/start light therapy device session modal; dependency-injected from `light-devices.js` so session persistence and active timer state stay in the owning module.
 - `light-env-audits.js` — saved Light Environment snapshots, audit comparison renderer, and audit-specific window handlers. Dependency-injected from `light-env.js` so rooms/screens remain owned by the environment module.
+- `light-env-evening.js` — canonical room after-sunset exposure helpers; normalizes legacy boolean room rows to numeric `eveningHoursAfterSunset` while leaving screen `eveningUseAfterSunset` numeric.
 - `light-tool-camera.js` / `light-tool-camera-modals.js` — shared camera lock, row-banding, aiming guides, lux calibration, and the camera-backed Light tool modal flows. Dependency-injected from `light-tools.js` so measurement persistence stays in the owning module.
 - `supplement-warnings.js` / `food-contaminants.js` — keyword scanners that build "harm flag" lists for the AI context.
 - `emf.js` — Baubiologie SBM-2015 EMF assessment as a sub-module of the Environment context card.

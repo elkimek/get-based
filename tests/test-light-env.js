@@ -27,6 +27,7 @@ const {
   addRoom, updateRoom, deleteRoom, nextDefaultRoomName,
   addScreen, updateScreen, deleteScreen, getScreensForRoom,
   isActiveToday, setTodayActive,
+  getRoomEveningHoursAfterSunset, roomUsesEveningAfterSunset,
   computeRoomSeverity, computeScreenStatus,
   computeIndoorBurden, computeDeficitAxes,
   getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
@@ -87,6 +88,7 @@ const {
     getEnvironment().rooms[0].id &&
     typeof getEnvironment().rooms[0].hoursOccupiedPerDay === 'number' &&
     'eveningHoursAfterSunset' in getEnvironment().rooms[0] &&
+    !('eveningUseAfterSunset' in getEnvironment().rooms[0]) &&
     getEnvironment().rooms[0].primarySource);
   assert('Bedroom default hours seeded high (8)', getEnvironment().rooms[0].hoursOccupiedPerDay === 8);
 
@@ -102,9 +104,27 @@ const {
   assert('updateRoom patches fields', getEnvironment().rooms[0].primarySource === 'fluorescent');
   assert('updateRoom stamps updatedAt', getEnvironment().rooms[0].updatedAt > 0);
 
+  reset({
+    lightEnvironment: {
+      rooms: [{ id: 'legacy-evening-room', name: 'Legacy', eveningUseAfterSunset: true }],
+      screens: [],
+    },
+  });
+  const legacyRoom = getEnvironment().rooms[0];
+  assert('getEnvironment migrates legacy room evening boolean to numeric hours',
+    legacyRoom.eveningHoursAfterSunset === 2 &&
+    !('eveningUseAfterSunset' in legacyRoom));
+  assert('Canonical room evening helpers read migrated rows',
+    getRoomEveningHoursAfterSunset(legacyRoom) === 2 &&
+    roomUsesEveningAfterSunset(legacyRoom) === true);
+  await updateRoom('legacy-evening-room', { eveningUseAfterSunset: false });
+  assert('updateRoom accepts legacy room evening patch but stores only canonical field',
+    getEnvironment().rooms[0].eveningHoursAfterSunset === 0 &&
+    !('eveningUseAfterSunset' in getEnvironment().rooms[0]));
+
   // delete clears + tombstones
-  await deleteRoom(roomId);
-  assert('deleteRoom removes from list', !getEnvironment().rooms.find(r => r.id === roomId));
+  await deleteRoom('legacy-evening-room');
+  assert('deleteRoom removes from list', !getEnvironment().rooms.find(r => r.id === 'legacy-evening-room'));
 
   // ─── 4. Screen CRUD ──────────────────────────────────────────────────
   console.log('%c 4. Screen CRUD ', 'font-weight:bold;color:#f59e0b');
@@ -242,7 +262,7 @@ const {
   await updateRoom(getEnvironment().rooms[0].id, {
     primarySource: 'led-cool',
     hoursOccupiedPerDay: 10,
-    eveningUseAfterSunset: true,
+    eveningHoursAfterSunset: 2,
   });
   axes = computeDeficitAxes();
   assert('LED-cool room 10hr → d2 includes the 10 indoor hours',
@@ -272,13 +292,13 @@ const {
   await updateRoom(getEnvironment().rooms[0].id, {
     primarySource: 'led-cool',
     hoursOccupiedPerDay: 10,
-    eveningUseAfterSunset: true,
+    eveningHoursAfterSunset: 2,
   });
   await addRoom('Living');
   await updateRoom(getEnvironment().rooms[1].id, {
     primarySource: 'led-cool',
     hoursOccupiedPerDay: 6,
-    eveningUseAfterSunset: true,
+    eveningHoursAfterSunset: 2,
   });
   burden = computeIndoorBurden();
   assert('Two heavy LED rooms → tier 2 (heavy load) red',
@@ -549,11 +569,11 @@ const {
       deviceSessions: [],
       lightEnvironment: {
         rooms: [
-          { id: 'r1', name: 'Bedroom', eveningUseAfterSunset: true, blueBlocker: false },
+          { id: 'r1', name: 'Bedroom', eveningHoursAfterSunset: 2, blueBlocker: false },
           { id: 'r2', name: 'Office', eveningHoursAfterSunset: 4, blueBlocker: true },
         ],
         screens: [
-          { id: 's1', device: 'phone', eveningUseAfterSunset: true, blueBlocker: false },
+          { id: 's1', device: 'phone', eveningUseAfterSunset: 2, blueBlocker: false },
         ],
       },
       lightAudits: [{ id: 'a1', label: 'Pre', savedAt: Date.now() }],
