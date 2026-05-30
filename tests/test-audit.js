@@ -60,6 +60,7 @@ assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_
 assert('SW APP_SHELL includes API provider storage module', swAuditSrc.includes("'/js/api-provider-storage.js'"));
 assert('SW APP_SHELL includes provider model controls module', swAuditSrc.includes("'/js/provider-model-controls.js'"));
 assert('SW APP_SHELL includes provider local AI controls module', swAuditSrc.includes("'/js/provider-local-ai-controls.js'"));
+assert('SW APP_SHELL includes provider PPQ panels module', swAuditSrc.includes("'/js/provider-ppq-panels.js'"));
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
