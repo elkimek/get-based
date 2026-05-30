@@ -1,24 +1,14 @@
-// context-cards.js — 9 context card editors, summaries, health dots, interpretive lens
+// context-cards.js - dashboard context card facade and remaining editors
 
 import { state } from './state.js';
 import { DIET_TYPES, DIET_RESTRICTIONS, DIET_PATTERNS, BOWEL_FREQUENCY, STOOL_CONSISTENCY, BLOATING_SEVERITY, GAS_SEVERITY, ACID_REFLUX, BURPING, NAUSEA, APPETITE, ABDOMINAL_PAIN, FOOD_SENSITIVITIES, EXERCISE_FREQ, EXERCISE_TYPES, EXERCISE_INTENSITY, DAILY_MOVEMENT, SLEEP_DURATIONS, SLEEP_QUALITY, SLEEP_SCHEDULE, SLEEP_ROOM_TEMP, SLEEP_ISSUES, SLEEP_ENVIRONMENT, SLEEP_PRACTICES, LIGHT_AM, LIGHT_DAYTIME, LIGHT_UV, LIGHT_EVENING, LIGHT_COLD, LIGHT_GROUNDING, LIGHT_SCREEN_TIME, LIGHT_TECH_ENV, LIGHT_MEAL_TIMING, STRESS_LEVELS, STRESS_SOURCES, STRESS_MGMT, LOVE_STATUS, LOVE_SATISFACTION, LOVE_LIBIDO, LOVE_FREQUENCY, LOVE_ORGASM, LOVE_RELATIONSHIP, LOVE_CONCERNS, ENV_SETTING, ENV_CLIMATE, ENV_WATER, ENV_WATER_CONCERNS, ENV_EMF, ENV_EMF_MITIGATION, ENV_HOME_LIGHT, ENV_AIR, ENV_TOXINS, ENV_BUILDING } from './constants.js';
-import { escapeHTML, hashString, showNotification, hasCardContent } from './utils.js';
+import { escapeHTML, showNotification } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData, getActiveData } from './data.js';
-import { getLatitudeFromLocation, profileStorageKey } from './profile.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
-import { getLensSummary } from './lens.js';
-import { getEncryptionEnabled } from './crypto.js';
-import { isSyncEnabled } from './sync.js';
-import { getFolderBackupState } from './backup.js';
-// showEnableEncryptionModal + pickFolderForBackup are intentionally NOT
-// imported — they're invoked via window.* from inline onclick strings
-// and the picker click handler (both registered globally by their owning
-// modules). Static imports here would be dead.
-import { trackUsage } from './schema.js';
+import { getLatitudeFromLocation } from './profile.js';
+import { hasAIProvider } from './api.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import {
-  CONTEXT_CARD_KEYS,
   getConditionsSummary,
   getDietSummary,
   getExerciseSummary,
@@ -33,6 +23,21 @@ import {
   getEMFAssessments,
   renderEMFAssessmentLauncher,
 } from './context-card-summaries.js';
+import {
+  applyDotColor as applyContextHealthDotColor,
+  applyAISummary as applyContextAISummary,
+  getCardFingerprint as getContextCardFingerprint,
+  loadContextHealthDots as loadContextHealthDotsImpl,
+  refreshAllHealthDots as refreshAllHealthDotsImpl,
+} from './context-card-health-dots.js';
+import {
+  openDataProtectionPicker,
+  openPersonalizeAIPicker,
+  renderDataProtectionCta,
+  renderInterpretiveLensSection,
+  renderKnowledgeBaseSection,
+  triggerDNAFilePicker,
+} from './context-card-dashboard-ai.js';
 import {
   renderContextEditorModal,
   renderSelectField,
@@ -111,6 +116,14 @@ export {
   closeDiagnoses,
   clearDiagnoses,
 } from './context-card-medical-history-editor.js';
+export {
+  openDataProtectionPicker,
+  openPersonalizeAIPicker,
+  renderDataProtectionCta,
+  renderInterpretiveLensSection,
+  renderKnowledgeBaseSection,
+  triggerDNAFilePicker,
+} from './context-card-dashboard-ai.js';
 
 function _renderDietContaminants() {
   const warnings = scanDietForContaminants(state.importedData.diet);
@@ -184,154 +197,23 @@ export function debounceContextNotes() {
 // ── AI Health Status Dots ──
 
 export function applyDotColor(key, color) {
-  const dot = document.getElementById('ctx-dot-' + key);
-  if (!dot) return;
-  dot.className = 'ctx-health-dot ctx-health-dot-' + color;
-  const dotLabels = { green: 'Good', yellow: 'Caution', red: 'Concern', gray: 'Not rated' };
-  dot.title = dotLabels[color] || '';
-  dot.setAttribute('aria-label', dotLabels[color] || '');
+  applyContextHealthDotColor(key, color);
 }
 
 export function applyAISummary(key, text, color) {
-  const el = document.getElementById('ctx-ai-' + key);
-  if (!el) return;
-  el.classList.remove('ctx-ai-summary-green', 'ctx-ai-summary-yellow', 'ctx-ai-summary-red');
-  if (text) {
-    const prefixes = { green: '\u2713 ', yellow: '\u26A0 ', red: '\u25B2 ' };
-    el.textContent = (prefixes[color] || '') + text;
-    el.classList.add('ctx-ai-summary-visible');
-    if (color && color !== 'gray') el.classList.add('ctx-ai-summary-' + color);
-  } else {
-    el.textContent = '';
-    el.classList.remove('ctx-ai-summary-visible');
-  }
-  // Recommendations are shown in detail modal and chat, not on dashboard cards
+  applyContextAISummary(key, text, color);
 }
 
-// Optional ctx allows callers to compute the fingerprint against an
-// explicit data object rather than the live `state` — used by the demo
-// loader to seed the contextHealth cache BEFORE importDataJSON runs, so
-// the dashboard render that fires inside importDataJSON's onload finds
-// matching fingerprints and skips AI calls. Default (no ctx) reads the
-// live state, which is what every render-time caller wants.
 export function getCardFingerprint(key, ctx) {
-  const data = ctx?.importedData || state.importedData;
-  const sex = ctx?.profileSex !== undefined ? ctx.profileSex : state.profileSex;
-  const dob = ctx?.profileDob !== undefined ? ctx.profileDob : state.profileDob;
-  const labPart = (data.entries || []).map(e => {
-    const m = e.markers || {};
-    return e.date + ':' + hashString(JSON.stringify(m));
-  }).join(',');
-  const val = key === 'healthGoals' ? JSON.stringify(data.healthGoals || []) : JSON.stringify(data[key] || null);
-  const shared = (data.contextNotes || '') + '|' + (data.interpretiveLens || '');
-  return hashString(labPart + '|' + val + '|' + shared + '|' + (sex || '') + '|' + (dob || ''));
+  return getContextCardFingerprint(key, ctx);
 }
 
 export async function loadContextHealthDots() {
-  if (!hasAIProvider()) return;
-  const keys = CONTEXT_CARD_KEYS;
-  const cacheKey = profileStorageKey(state.currentProfile, 'contextHealth');
-  let cached;
-  try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { cached = null; }
-  if (!cached || !cached.dots) cached = { dots: {}, fingerprints: {} };
-
-  if (!cached.summaries) cached.summaries = {};
-
-  // Determine which cards need re-fetching
-  const staleKeys = [];
-  for (const k of keys) {
-    let fp;
-    try { fp = getCardFingerprint(k); } catch(e) { staleKeys.push(k); continue; }
-    if (cached.fingerprints && cached.fingerprints[k] === fp && cached.dots[k] && cached.summaries[k] !== undefined) {
-      applyDotColor(k, cached.dots[k]);
-      if (cached.summaries[k]) applyAISummary(k, cached.summaries[k], cached.dots[k]);
-    } else {
-      staleKeys.push(k);
-    }
-  }
-  if (staleKeys.length === 0) return;
-
-  // Show shimmer only on stale cards
-  for (const k of staleKeys) {
-    const dot = document.getElementById('ctx-dot-' + k);
-    if (dot) dot.classList.add('ctx-health-dot-shimmer');
-    const aiEl = document.getElementById('ctx-ai-' + k);
-    if (aiEl) { aiEl.textContent = ''; aiEl.classList.remove('ctx-ai-summary-visible'); }
-  }
-  // If none of the stale cards have actual content, keep dots gray (nothing to assess)
-  const _staleHaveContent = staleKeys.some(k => {
-    if (k === 'healthGoals') return (state.importedData.healthGoals || []).length > 0;
-    return hasCardContent(state.importedData[k]);
-  });
-  if (!_staleHaveContent) {
-    // Also check if there's lab data — if there is, the AI can still rate cards
-    const _dotHasLabs = (state.importedData.entries || []).length > 0;
-    if (!_dotHasLabs) {
-      for (const k of staleKeys) applyDotColor(k, 'gray');
-      return;
-    }
-  }
-  let ctx = window.buildLabContext();
-  // Trim context: remove card sections not being assessed (saves tokens)
-  if (staleKeys.length < keys.length) {
-    const skipKeys = keys.filter(k => !staleKeys.includes(k));
-    for (const sk of skipKeys) {
-      const re = new RegExp(`\\[section:${sk}\\][\\s\\S]*?\\[/section:${sk}\\]\\n*`, 'g');
-      ctx = ctx.replace(re, '');
-    }
-  }
-  const exampleObj = {};
-  for (const k of staleKeys) exampleObj[k] = {"dot":"...","tip":"..."};
-  const exampleJSON = JSON.stringify(exampleObj);
-  const prompt = `Based on this person's lab data and profile context, assess each profile area. Return ONLY valid JSON with these keys, each having "dot" (green/yellow/red/gray) and "tip" (max 8 words — a brief, specific insight referencing their actual lab markers):
-${exampleJSON}
-
-Dot colors: green = supports health, yellow = needs attention, red = concerning, gray = not enough info.
-Tips must be concise (8 words max, e.g. "Low D may link to limited sun" not "Consider improving this area"). Reference specific markers. If no data, use gray dot and empty tip.`;
-  try {
-    const result = await callClaudeAPI({ system: prompt, messages: [{ role: 'user', content: ctx }], maxTokens: 2048 });
-    const text = (result && typeof result === 'object') ? (result.text || '') : (typeof result === 'string' ? result : '');
-    if (result && typeof result === 'object' && result.usage) {
-      trackUsage(getAIProvider(), getActiveModelId(), result.usage.inputTokens || 0, result.usage.outputTokens || 0);
-    }
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      let parsed;
-      try { parsed = JSON.parse(jsonMatch[0]); } catch(e) {
-        // JSON parse failed — apply gray dots only to stale keys, preserve cached good keys
-        for (const k of staleKeys) applyDotColor(k, 'gray');
-        try { localStorage.setItem(cacheKey, JSON.stringify(cached)); } catch(e2) {}
-        return;
-      }
-      if (!cached.fingerprints) cached.fingerprints = {};
-      for (const k of staleKeys) {
-        const entry = parsed[k] || {};
-        const color = (typeof entry === 'string')
-          ? (['green', 'yellow', 'red', 'gray'].includes(entry) ? entry : 'gray')
-          : (['green', 'yellow', 'red', 'gray'].includes(entry.dot) ? entry.dot : 'gray');
-        const tip = (typeof entry === 'object' && entry.tip) ? entry.tip : '';
-        applyDotColor(k, color);
-        applyAISummary(k, tip, color);
-        cached.dots[k] = color;
-        cached.summaries[k] = tip;
-        cached.fingerprints[k] = getCardFingerprint(k);
-      }
-      try { localStorage.setItem(cacheKey, JSON.stringify(cached)); } catch(e) {}
-    } else {
-      // No JSON in response — apply gray dots so shimmer doesn't stay forever
-      for (const k of staleKeys) applyDotColor(k, 'gray');
-    }
-  } catch(e) {
-    for (const k of staleKeys) applyDotColor(k, 'gray');
-  }
+  return loadContextHealthDotsImpl();
 }
 
 export function refreshAllHealthDots() {
-  if (!hasAIProvider()) { showNotification('Set up an AI provider first', 'error'); return; }
-  const cacheKey = profileStorageKey(state.currentProfile, 'contextHealth');
-  try { localStorage.removeItem(cacheKey); } catch(e) {}
-  loadContextHealthDots();
-  showNotification('Refreshing all insights...', 'info');
+  return refreshAllHealthDotsImpl();
 }
 
 // ── Change History ──
@@ -923,284 +805,6 @@ export function clearInterpretiveLens() {
   const activeNav = document.querySelector(".nav-item.active");
   window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
   showNotification('Interpretive lens cleared', 'info');
-}
-
-// Dashboard "AI personalization" zone:
-//   - Full-width row for the Interpretive Lens, ONLY if it's set
-//   - Full-width row for the Knowledge Base, ONLY if a library is set
-//   - Inline pill CTA when {Lens, KB} is unset
-//
-// DNA was briefly bundled here in v1.3.27 because all three influence AI
-// interpretations, but that's a *secondary* effect — DNA is biological
-// *data* about the user, not a personalization preference. It belongs
-// alongside lab data and weight, not alongside style/voice/sources.
-// Empty-state DNA discovery is handled in renderGeneticsSection().
-export function renderInterpretiveLensSection() {
-  const lens = (state.importedData.interpretiveLens || '').trim();
-  let summary; try { summary = getLensSummary(); } catch { summary = null; }
-  const kbConfigured = !!(summary && summary.configured);
-
-  const lensRow = lens
-    ? `<div class="lens-section" role="button" tabindex="0" aria-label="Edit Interpretive Lens" onclick="openInterpretiveLensEditor()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" title="Interpretive Lens — click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`
-    : '';
-  const kbRow = kbConfigured ? renderKnowledgeBaseRow(summary) : '';
-  const aiCta = renderPersonalizeAICta(!!lens, kbConfigured);
-  const dataCta = renderDataProtectionCta();
-  return lensRow + kbRow + aiCta + dataCta;
-}
-
-// Programmatic DNA file picker — mirrors the chat onboarding's hidden
-// file input pattern so the same handleDNAFile parser runs. Used by the
-// genetics-section empty-state CTA; intentionally only offers autosomal
-// raw data (Ancestry/23andMe/etc) since mtDNA-only adds are best managed
-// from the genetics section once any DNA lands.
-export function triggerDNAFilePicker() {
-  let input = document.getElementById('dna-dashboard-input');
-  if (!input) {
-    input = document.createElement('input');
-    input.type = 'file';
-    input.id = 'dna-dashboard-input';
-    input.accept = '.txt,.csv';
-    input.style.display = 'none';
-    input.addEventListener('change', () => {
-      const f = input.files && input.files[0];
-      if (f && typeof window.handleDNAFile === 'function') {
-        window.handleDNAFile(f);
-      }
-      input.value = '';
-    });
-    document.body.appendChild(input);
-  }
-  input.click();
-}
-
-// The full-width Knowledge Base status row. Only emitted when a library
-// is configured. Shows library name, document count when cached, and
-// query-rewriting status — surfaces the v1.3.23 default behavior on
-// every dashboard load without a toast.
-export function renderKnowledgeBaseSection() {
-  let s; try { s = getLensSummary(); } catch { return ''; }
-  if (!s || !s.configured) return '';
-  return renderKnowledgeBaseRow(s);
-}
-
-function renderKnowledgeBaseRow(s) {
-  const docFragment = (s.docCount != null && s.docCount > 0)
-    ? ` &middot; ${s.docCount} document${s.docCount !== 1 ? 's' : ''}`
-    : '';
-  const rewriteFragment = s.aiAvailable
-    ? ` &middot; query rewriting ${s.multiQueryOn ? 'on' : 'off'}`
-    : '';
-  const detail = `${escapeHTML(s.displayName)}${docFragment}${rewriteFragment}`;
-  return `<div class="lens-section" role="button" tabindex="0" aria-label="Manage Knowledge Base" onclick="openKnowledgeBaseModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" title="Knowledge Base — click to manage"><span class="lens-section-icon">&#128218;</span><span class="lens-section-body"><span class="lens-section-label">Knowledge Base</span><span class="lens-section-text">${detail}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
-}
-
-// Inline CTA pill that adapts to which feature is missing. Both missing
-// → generic pill opens the picker. Exactly one missing → direct CTA
-// opens that feature's setup. Hidden once both are configured.
-function renderPersonalizeAICta(lensSet, kbSet) {
-  if (lensSet && kbSet) return '';
-  let icon, label, action;
-  if (!lensSet && !kbSet) {
-    icon = '&#10024;'; // ✨ — both options
-    label = 'Personalize how AI answers';
-    action = 'openPersonalizeAIPicker()';
-  } else if (!kbSet) {
-    icon = '&#128218;'; // 📚 — books
-    label = 'Connect a knowledge base';
-    action = 'openKnowledgeBaseModal()';
-  } else {
-    icon = '&#129694;'; // 🪞 — mirror
-    label = 'Set an interpretive lens';
-    action = 'openInterpretiveLensEditor()';
-  }
-  return `<button type="button" class="dashboard-cta" onclick="${action}" aria-label="${escapeHTML(label)}">
-    <span class="dashboard-cta-icon" aria-hidden="true">${icon}</span>
-    <span class="dashboard-cta-plus" aria-hidden="true">+</span>
-    <span>${escapeHTML(label)}</span>
-  </button>`;
-}
-
-// ── Data protection (Encryption / Sync / Backup) ────────────
-//
-// These three live in Settings → Data and were each invisible from
-// the dashboard until now. Pattern mirrors the AI personalize CTA:
-// inline pill that adapts to which of the three is missing, picker
-// modal when more than one is missing, direct setup when only one.
-//
-// We intentionally use Settings → Data for ongoing management; the
-// dashboard surfaces are first-time-discovery hooks only. When all
-// three are configured, the pill disappears.
-
-function getDataProtectionStatus() {
-  let backupConfigured = false;
-  let backupSupported = true;
-  try {
-    const s = getFolderBackupState();
-    backupSupported = !!s?.supported;
-    backupConfigured = !!s?.folderName;
-  } catch { /* backup not initialised yet */ }
-  return {
-    encryption: !!getEncryptionEnabled(),
-    sync: !!isSyncEnabled(),
-    backup: backupConfigured,
-    backupSupported,
-  };
-}
-
-// Pure render — accepts an explicit state object so it's directly
-// testable without stubbing module-level state-checkers (ES module
-// exports can't be reassigned). Production caller passes
-// getDataProtectionStatus(); tests pass synthetic state.
-export function renderDataProtectionCta(stateOverride) {
-  const s = stateOverride || getDataProtectionStatus();
-  // Treat unsupported backup (Safari, old browsers) as configured so we
-  // don't nag users on platforms where the feature is impossible.
-  const backupOk = s.backup || !s.backupSupported;
-  const missing = [
-    !s.encryption ? 'encryption' : null,
-    !s.sync ? 'sync' : null,
-    !backupOk ? 'backup' : null,
-  ].filter(Boolean);
-  if (missing.length === 0) return '';
-  // Single-feature missing → direct CTA. Multiple missing → picker.
-  if (missing.length === 1) {
-    const only = missing[0];
-    if (only === 'encryption') {
-      return `<button type="button" class="dashboard-cta" onclick="showEnableEncryptionModal()" aria-label="Enable encryption">
-        <span class="dashboard-cta-icon" aria-hidden="true">&#128274;</span>
-        <span class="dashboard-cta-plus" aria-hidden="true">+</span>
-        <span>Enable encryption</span>
-      </button>`;
-    }
-    if (only === 'sync') {
-      return `<button type="button" class="dashboard-cta" onclick="showSyncSetupModal()" aria-label="Set up cross-device sync">
-        <span class="dashboard-cta-icon" aria-hidden="true">&#128225;</span>
-        <span class="dashboard-cta-plus" aria-hidden="true">+</span>
-        <span>Sync to other devices</span>
-      </button>`;
-    }
-    // backup
-    return `<button type="button" class="dashboard-cta" onclick="pickFolderForBackup()" aria-label="Set up auto-backup">
-      <span class="dashboard-cta-icon" aria-hidden="true">&#128190;</span>
-      <span class="dashboard-cta-plus" aria-hidden="true">+</span>
-      <span>Set up auto-backup</span>
-    </button>`;
-  }
-  // 2 or 3 missing → picker
-  return `<button type="button" class="dashboard-cta" onclick="openDataProtectionPicker()" aria-label="Protect your data">
-    <span class="dashboard-cta-icon" aria-hidden="true">&#128737;</span>
-    <span class="dashboard-cta-plus" aria-hidden="true">+</span>
-    <span>Protect your data</span>
-  </button>`;
-}
-
-export function openDataProtectionPicker() {
-  let overlay = document.getElementById('data-protection-picker-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'data-protection-picker-overlay';
-    overlay.className = 'confirm-overlay';
-    document.body.appendChild(overlay);
-  }
-  const close = () => {
-    overlay.classList.remove('show');
-    document.removeEventListener('keydown', onKey);
-  };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  const s = getDataProtectionStatus();
-  // Each card shows its current status: green check when configured,
-  // muted "Set up" affordance when not. Configured cards stay
-  // clickable and just close — clicking already-configured items
-  // doesn't open Settings to avoid surprising the user.
-  const card = (key, icon, title, sub, configured, onSetup) => `
-    <button type="button" class="dashboard-picker-card" data-pick="${key}" ${configured ? 'data-configured="true"' : ''}>
-      <span class="dashboard-picker-icon" aria-hidden="true">${icon}</span>
-      <span class="dashboard-picker-title">${title} ${configured ? '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>' : ''}</span>
-      <span class="dashboard-picker-sub">${sub}</span>
-      <span class="dashboard-picker-action">${configured ? 'Configured' : 'Set up &rarr;'}</span>
-    </button>`;
-  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Protect your data" style="max-width:560px">
-    <p class="confirm-message" style="margin-bottom:14px">Protect your data</p>
-    <div class="dashboard-picker-grid">
-      ${card('encryption', '&#128274;', 'Encryption', 'Encrypt your data at rest with a passphrase. Browser extensions and anyone with disk access can’t read it without the passphrase.', s.encryption)}
-      ${card('sync', '&#128225;', 'Cross-device Sync', 'End-to-end encrypted sync to your other devices. A 24-word mnemonic is your only key — the relay sees ciphertext.', s.sync)}
-      ${s.backupSupported
-        ? card('backup', '&#128190;', 'Auto-backup', 'Save daily snapshots to a local folder (Proton Drive, Dropbox, NAS, USB drive). Survives browser crashes and reinstalls.', s.backup)
-        : ''}
-    </div>
-    <div class="confirm-actions" style="margin-top:6px">
-      <button class="confirm-btn confirm-btn-cancel" id="data-protection-picker-cancel">Close</button>
-    </div>
-  </div>`;
-  overlay.classList.add('show');
-  document.addEventListener('keydown', onKey);
-  overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  overlay.querySelector('#data-protection-picker-cancel').onclick = close;
-  // Move focus into the picker so keyboard users start on the first card.
-  setTimeout(() => overlay.querySelector('.dashboard-picker-card:not([data-configured="true"]),.dashboard-picker-card,#data-protection-picker-cancel')?.focus(), 50);
-  overlay.querySelectorAll('.dashboard-picker-card').forEach(btn => {
-    btn.onclick = () => {
-      const pick = btn.getAttribute('data-pick');
-      const isConfigured = btn.getAttribute('data-configured') === 'true';
-      if (isConfigured) { close(); return; }
-      close();
-      if (pick === 'encryption' && typeof window.showEnableEncryptionModal === 'function') window.showEnableEncryptionModal();
-      else if (pick === 'sync' && typeof window.showSyncSetupModal === 'function') window.showSyncSetupModal();
-      else if (pick === 'backup' && typeof window.pickFolderForBackup === 'function') window.pickFolderForBackup();
-    };
-  });
-}
-
-// Two-card picker shown when neither feature is configured. Lets the user
-// pick which one they want to set up; clicking either card forwards to
-// the right editor and dismisses the picker.
-export function openPersonalizeAIPicker() {
-  let overlay = document.getElementById('ai-personalize-picker-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'ai-personalize-picker-overlay';
-    overlay.className = 'confirm-overlay';
-    document.body.appendChild(overlay);
-  }
-  const close = () => {
-    overlay.classList.remove('show');
-    document.removeEventListener('keydown', onKey);
-  };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Personalize how AI answers" style="max-width:520px">
-    <p class="confirm-message" style="margin-bottom:14px">Personalize how AI answers</p>
-    <div class="ai-picker-grid">
-      <button type="button" class="ai-picker-card" data-pick="lens">
-        <span class="ai-picker-icon" aria-hidden="true">&#129694;</span>
-        <span class="ai-picker-title">Interpretive Lens</span>
-        <span class="ai-picker-sub">Frame answers around researchers, paradigms, or schools of thought.</span>
-      </button>
-      <button type="button" class="ai-picker-card" data-pick="kb">
-        <span class="ai-picker-icon" aria-hidden="true">&#128218;</span>
-        <span class="ai-picker-title">Knowledge Base</span>
-        <span class="ai-picker-sub">Ground answers in your own documents — research papers, notes, references.</span>
-      </button>
-    </div>
-    <div class="confirm-actions" style="margin-top:6px">
-      <button class="confirm-btn confirm-btn-cancel" id="ai-personalize-picker-cancel">Cancel</button>
-    </div>
-  </div>`;
-  overlay.classList.add('show');
-  document.addEventListener('keydown', onKey);
-  overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  overlay.querySelector('#ai-personalize-picker-cancel').onclick = close;
-  setTimeout(() => overlay.querySelector('.ai-picker-card,#ai-personalize-picker-cancel')?.focus(), 50);
-  overlay.querySelectorAll('.ai-picker-card').forEach(btn => {
-    btn.onclick = () => {
-      const pick = btn.getAttribute('data-pick');
-      close();
-      if (pick === 'lens') openInterpretiveLensEditor();
-      else if (pick === 'kb' && typeof window.openKnowledgeBaseModal === 'function') {
-        window.openKnowledgeBaseModal();
-      }
-    };
-  });
 }
 
 // ── Diet contaminant detail modal ──

@@ -127,11 +127,12 @@ const onboardingViewSrc = read('js/onboarding-view.js');
   console.log('%c 4. Dashboard Nudge Subtitle ', 'font-weight:bold;color:#f59e0b');
 
   const ccSrc = read('js/context-cards.js');
+  const healthDotsSrc = read('js/context-card-health-dots.js');
   const ctxEditorSrc = read('js/context-card-editor-ui.js');
 
   assert('context-cards imports getActiveData', ccSrc.includes("import { saveImportedData, getActiveData } from './data.js'"),
     'Should import getActiveData for lab data check');
-  assert('context-cards imports hasCardContent', /import\s+{[^}]*hasCardContent[^}]*}\s+from '\.\/utils\.js'/.test(ccSrc),
+  assert('health-dot module imports hasCardContent', /import\s+{[^}]*hasCardContent[^}]*}\s+from '\.\/utils\.js'/.test(healthDotsSrc),
     'Should import hasCardContent for health dots fix');
   assert('Checks hasLabs for subtitle', ccSrc.includes('_ccHasLabs'),
     'Should compute hasLabs in renderProfileContextCards');
@@ -201,15 +202,15 @@ const onboardingViewSrc = read('js/onboarding-view.js');
   // ═══════════════════════════════════════
   console.log('%c 5. Health Dots Sentinel Fix ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Old sentinel check removed from context-cards', !ccSrc.includes("=== 'No lab data is currently loaded for this profile.'"),
+  assert('Old sentinel check removed from context-card health dots', !healthDotsSrc.includes("=== 'No lab data is currently loaded for this profile.'"),
     'Should not compare against old sentinel string');
-  assert('Content-based stale check', ccSrc.includes('_staleHaveContent'),
+  assert('Content-based stale check', healthDotsSrc.includes('staleCardsHaveAssessableData'),
     'Should check if stale cards have content');
-  assert('Falls through to AI when stale cards have content', ccSrc.includes('if (!_staleHaveContent)'),
+  assert('Falls through to AI when stale cards have content', healthDotsSrc.includes('if (!staleCardsHaveAssessableData(staleKeys))'),
     'Should only skip AI when stale cards are empty AND no lab data');
-  assert('Uses hasCardContent for stale check', ccSrc.includes("hasCardContent(state.importedData[k])"),
+  assert('Uses hasCardContent for stale check', healthDotsSrc.includes("hasCardContent(state.importedData[k])"),
     'Should use hasCardContent to check each stale card');
-  assert('Checks lab data in health dots', ccSrc.includes('_dotHasLabs'),
+  assert('Checks lab data in health dots', healthDotsSrc.includes("state.importedData.entries || []"),
     'Should check lab data availability as fallback');
 
   // ═══════════════════════════════════════
