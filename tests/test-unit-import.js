@@ -23,6 +23,7 @@ console.log('=== Unit Normalization on Import Tests ===\n');
 const src = read('js/pdf-import.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
+const persistenceSrc = read('js/pdf-import-persistence.js');
 const settingsSrc = read('js/settings.js');
   // ═══════════════════════════════════════
   // 1. normalizeToSI function exists
@@ -58,17 +59,17 @@ const settingsSrc = read('js/settings.js');
   assert('PDF import clears same-date entry tombstone when intentionally re-importing',
     /clearTombstone\(state\.importedData,\s*['"]entries['"],\s*result\.date\)/.test(confirmBlock));
   assert('PDF import rolls back in-memory state when durable save fails',
-    /const rollback = snapshotImportedData\(\)[\s\S]{0,4000}if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
-  const removeBlock = src.substring(src.indexOf('export async function removeImportedEntry'), src.indexOf('export async function renameImportedEntryDate'));
+    /const rollback = snapshotImportedData\(\)/.test(confirmBlock)
+      && /if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
+  const removeBlock = persistenceSrc.substring(persistenceSrc.indexOf('export async function removeImportedEntry'), persistenceSrc.indexOf('export async function renameImportedEntryDate'));
   assert('import delete records entries tombstone before removing row',
     /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*date\)[\s\S]{0,180}entries\.filter/.test(removeBlock));
   assert('import delete uses immediate sync push',
     /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(removeBlock));
   assert('import delete restores state and returns false when save fails',
     /const rollback = snapshotImportedData\(\)[\s\S]{0,400}if \(!saved\) \{[\s\S]{0,160}restoreImportedDataSnapshot\(rollback\)[\s\S]{0,120}return false/.test(removeBlock));
-  const renameStart = src.indexOf('export async function renameImportedEntryDate');
-  const renameEnd = src.indexOf('export function classifyImportFiles');
-  const renameBlock = src.substring(renameStart, renameEnd > renameStart ? renameEnd : src.length);
+  const renameStart = persistenceSrc.indexOf('export async function renameImportedEntryDate');
+  const renameBlock = persistenceSrc.substring(renameStart);
   assert('import date rename tombstones old date',
     /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldDate\)/.test(renameBlock));
   assert('import date rename clears tombstone for new date',
@@ -76,9 +77,9 @@ const settingsSrc = read('js/settings.js');
   assert('import date rename restores state and returns false when save fails',
     /const saved = await saveImportedData\(\{\s*immediate:\s*true\s*\}\)[\s\S]{0,160}if \(!saved\) \{[\s\S]{0,160}restoreImportedDataSnapshot\(rollback\)[\s\S]{0,120}return false/.test(renameBlock));
   assert('import date rename validates calendar dates without local-timezone shift',
-    /function isValidISOCalendarDate\(date\)/.test(src)
-      && /Date\.UTC\(year,\s*month - 1,\s*day\)/.test(src)
-      && /getUTCFullYear\(\)\s*===\s*year[\s\S]{0,120}getUTCMonth\(\)\s*===\s*month - 1[\s\S]{0,120}getUTCDate\(\)\s*===\s*day/.test(src));
+    /function isValidISOCalendarDate\(date\)/.test(persistenceSrc)
+      && /Date\.UTC\(year,\s*month - 1,\s*day\)/.test(persistenceSrc)
+      && /getUTCFullYear\(\)\s*===\s*year[\s\S]{0,120}getUTCMonth\(\)\s*===\s*month - 1[\s\S]{0,120}getUTCDate\(\)\s*===\s*day/.test(persistenceSrc));
   assert('Settings Data remove refreshes only after successful delete',
     /removeImportedEntryFromSettings[\s\S]{0,240}const ok = await removeImportedEntry\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsSrc));
   assert('Settings Data rename refreshes only after successful save',

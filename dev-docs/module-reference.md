@@ -532,6 +532,19 @@ Shared AI marker normalization for PDF text import and image import.
 
 ---
 
+### `pdf-import-persistence.js`
+
+Durable imported-data persistence helpers for PDF import flows.
+
+**Key exports:**
+- `snapshotImportedData()` / `restoreImportedDataSnapshot(snapshot)` — rollback guard used when durable import saves fail
+- `refreshImportedDataViews()` — rebuilds sidebar/header and restores the current route after imported data changes
+- `removeImportedEntry(date)` / `renameImportedEntryDate(oldDate)` — entry delete and date-edit mutations with tombstones, immediate sync save, rollback, and success refresh
+
+**Window exports:** via `pdf-import.js`
+
+---
+
 ### `pdf-import-review.js`
 
 Import review modal rendering and interaction state.

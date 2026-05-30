@@ -2,15 +2,22 @@
 
 import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, calculateCost, trackUsage } from './schema.js';
-import { showNotification, isDebugMode, isPIIReviewEnabled, hashString, showPromptDialog } from './utils.js';
+import { showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
 import { saveImportedData, recalculateHOMAIR } from './data.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getPdfDocument } from './pdfjs-loader.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
-import { clearTombstone, recordTombstone } from './data-merge.js';
+import { clearTombstone } from './data-merge.js';
 import { runPreflightChecks } from './pdf-import-preflight.js';
 import { normalizeParsedImportMarkers } from './pdf-import-marker-normalization.js';
+import {
+  refreshImportedDataViews,
+  removeImportedEntry,
+  renameImportedEntryDate,
+  restoreImportedDataSnapshot,
+  snapshotImportedData,
+} from './pdf-import-persistence.js';
 import {
   handleImportStatusClick,
   hideImportProgress,
@@ -57,6 +64,7 @@ export {
   showBatchImportProgress,
   showImportProgress,
 } from './pdf-import-progress.js';
+export { removeImportedEntry, renameImportedEntryDate } from './pdf-import-persistence.js';
 
 // ═══════════════════════════════════════════════
 // AI-NEEDED DIALOG — contextual fallback when import is invoked without an AI provider.
@@ -375,24 +383,6 @@ Return ONLY valid JSON in this exact format, no other text:
   };
 }
 
-function snapshotImportedData() {
-  try { return JSON.stringify(state.importedData || {}); } catch { return null; }
-}
-
-function restoreImportedDataSnapshot(snapshot) {
-  if (!snapshot) return;
-  try { state.importedData = JSON.parse(snapshot); } catch {}
-}
-
-function isValidISOCalendarDate(date) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-  const [year, month, day] = date.split('-').map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  return parsed.getUTCFullYear() === year
-    && parsed.getUTCMonth() === month - 1
-    && parsed.getUTCDate() === day;
-}
-
 export async function confirmImport() {
   const result = getPendingImport();
   if (!result || !result.date) return;
@@ -527,88 +517,10 @@ export async function confirmImport() {
   if (!resolveImportPreviewBatch('import')) closeImportModal();
   // During batch mode, defer expensive UI refreshes until the batch completes
   if (!_batchMode) {
-    window.buildSidebar();
-    window.updateHeaderDates();
-    // buildSidebar resets .active to Dashboard — use state.currentView
-    // (kept in sync by navigate) instead of re-reading the stale DOM.
-    window.navigate(state.currentView || "dashboard");
+    refreshImportedDataViews();
   }
   showNotification(`Imported ${importCount} markers from ${result.date}`, "success");
   if (!_batchMode && typeof window.maybeShowEncryptionNudge === 'function') window.maybeShowEncryptionNudge();
-}
-
-export async function removeImportedEntry(date) {
-  if (!date) return false;
-  const rollback = snapshotImportedData();
-  if (!state.importedData.entries) state.importedData.entries = [];
-  recordTombstone(state.importedData, 'entries', date);
-  state.importedData.entries = state.importedData.entries.filter(e => e.date !== date);
-  const saved = await saveImportedData({ immediate: true });
-  if (!saved) {
-    restoreImportedDataSnapshot(rollback);
-    return false;
-  }
-  window.buildSidebar();
-  window.updateHeaderDates();
-  // buildSidebar resets .active to Dashboard — use state.currentView.
-  window.navigate(state.currentView || "dashboard");
-  showNotification(`Removed imported data from ${date}`, "info");
-  return true;
-}
-
-export async function renameImportedEntryDate(oldDate) {
-  const entries = state.importedData?.entries;
-  const entry = entries?.find(e => e.date === oldDate);
-  if (!entry) return false;
-  const newDate = await showPromptDialog(
-    `Edit collection date (was ${oldDate})`,
-    { defaultValue: oldDate, inputType: 'date', okLabel: 'Save' }
-  );
-  if (!newDate || newDate === oldDate) return false;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-    showNotification('Date must be YYYY-MM-DD', 'error');
-    return false;
-  }
-  // Format-only regex accepts logically invalid dates (Feb 30, month 13).
-  // Round-trip through Date to reject those — `<input type="date">` already
-  // guards in modern browsers, but free-text fallbacks and programmatic
-  // values can still slip through.
-  if (!isValidISOCalendarDate(newDate)) {
-    showNotification('That date doesn\'t exist on the calendar.', 'error');
-    return false;
-  }
-  if (entries.some(e => e.date === newDate)) {
-    showNotification(`Another entry already exists on ${newDate} — remove it first, then try again.`, 'error', 5000);
-    return false;
-  }
-  const rollback = snapshotImportedData();
-  recordTombstone(state.importedData, 'entries', oldDate);
-  clearTombstone(state.importedData, 'entries', newDate);
-  entry.date = newDate;
-  entry.updatedAt = Date.now();
-  // manualValues are keyed `markerKey:date` — remap to keep manual-vs-imported provenance correct
-  const manualValues = state.importedData.manualValues;
-  if (manualValues) {
-    const suffixOld = ':' + oldDate;
-    const suffixNew = ':' + newDate;
-    for (const k of Object.keys(manualValues)) {
-      if (k.endsWith(suffixOld)) {
-        manualValues[k.slice(0, -suffixOld.length) + suffixNew] = manualValues[k];
-        delete manualValues[k];
-      }
-    }
-  }
-  const saved = await saveImportedData({ immediate: true });
-  if (!saved) {
-    restoreImportedDataSnapshot(rollback);
-    return false;
-  }
-  window.buildSidebar();
-  window.updateHeaderDates();
-  // buildSidebar resets .active to Dashboard — use state.currentView.
-  window.navigate(state.currentView || "dashboard");
-  showNotification(`Date changed from ${oldDate} to ${newDate}`, 'success');
-  return true;
 }
 
 // ═══════════════════════════════════════════════
@@ -1141,10 +1053,7 @@ export async function handleBatchPDFs(pdfFiles) {
   }
   _batchMode = false;
   // Refresh UI once after all files processed
-  window.buildSidebar();
-  window.updateHeaderDates();
-  // buildSidebar resets .active to Dashboard — use state.currentView.
-  window.navigate(state.currentView || "dashboard");
+  refreshImportedDataViews();
   hideImportProgress();
   const parts = [];
   if (imported > 0) parts.push(`${imported} imported`);

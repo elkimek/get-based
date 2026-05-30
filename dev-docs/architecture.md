@@ -70,6 +70,7 @@ js/
   pdf-import.js     — PDF/image/text import pipeline, AI analysis, confirm/save merge
   pdf-import-preflight.js / pdf-import-progress.js — import preflight prompts and progress/status UI
   pdf-import-marker-normalization.js — shared AI marker sanitization, adapter normalization, specialty guards
+  pdf-import-persistence.js — imported-data snapshot, rollback, refresh, remove, and rename save flows
   pdf-import-review.js — import review modal rendering, row filtering/mapping UI state
   import-file-input.js — lazy file-picker import binding and import routing
   import-drop-zone.js — lazy import drop-zone binding shared by page shells
