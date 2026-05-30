@@ -1109,7 +1109,10 @@ async function confirmDNAImport() {
   const result = window._pendingDNAImport;
   if (!result) return;
   saveGeneticsData(state.importedData, result);
-  if (!await saveImportedData()) return;
+  if (!await saveImportedData()) {
+    _dnaImportRunning = false;
+    return;
+  }
   window._pendingDNAImport = null;
   _dnaImportRunning = false;
   const overlay = document.getElementById('dna-modal-overlay');

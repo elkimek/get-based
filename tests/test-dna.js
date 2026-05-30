@@ -420,6 +420,11 @@ assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('gen
 assert('DNA import preview separates beneficial findings', dnaSrc.includes('Beneficial findings') && dnaSrc.includes("impact: m.valence === 'protective' ? 'beneficial' : m.effect"));
 assert('DNA import success waits for persistence',
   /async function confirmDNAImport\(\)[\s\S]{0,220}await saveImportedData\(\)/.test(dnaSrc));
+const dnaSaveFailureBlock = (dnaSrc.match(/if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n  \}/) || [null, ''])[1];
+assert('DNA import save failure resets running flag but keeps preview retryable',
+  dnaSaveFailureBlock.includes('_dnaImportRunning = false') &&
+  dnaSaveFailureBlock.includes('return;') &&
+  !dnaSaveFailureBlock.includes('_pendingDNAImport = null'));
 assert('mtDNA save paths wait for persistence',
   /export async function confirmMtDNAImport\(\)[\s\S]{0,1200}await saveImportedData\(\)/.test(dnaSrc) &&
   /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaSrc));
