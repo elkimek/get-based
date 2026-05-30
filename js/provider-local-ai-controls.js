@@ -13,6 +13,7 @@ import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, 
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 
 let returnToChatIfOnboarding = function() {};
+const LOCAL_AI_NOT_CONNECTED_TEXT = 'Not connected \u2014 check URL and ensure your server is running';
 
 export function configureLocalAiControls(options = {}) {
   if (typeof options.returnToChatIfOnboarding === 'function') {
@@ -210,10 +211,32 @@ function normalizeLocalAiBaseUrl(rawUrl) {
   return { url: parsed.href.replace(/\/+$/, '') };
 }
 
-function isCORSError(e) {
+function isFetchTransportError(e) {
   if (e instanceof TypeError) return true;
   const m = e.message || '';
   return m.includes('Failed to fetch') || m.includes('Load failed') || m.includes('NetworkError');
+}
+
+async function isLikelyCorsBlocked(url) {
+  try {
+    await fetch(`${url}/v1/models`, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(3000),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function handleLocalAiPreflightError(error, url, dot, text) {
+  if (!isFetchTransportError(error)) return false;
+  if (!await isLikelyCorsBlocked(url)) return false;
+  dot.classList.add('disconnected');
+  text.textContent = getCORSHelpText();
+  return true;
 }
 
 function getCORSHelpText() {
@@ -251,7 +274,7 @@ export async function testOllamaConnection() {
   }
   try {
     try { await fetch(`${url}/v1/models`, { method: 'HEAD', signal: AbortSignal.timeout(3000), ...(apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}) }); }
-    catch (preErr) { if (isCORSError(preErr)) { dot.classList.add('disconnected'); text.textContent = getCORSHelpText(); return; } }
+    catch (preErr) { if (await handleLocalAiPreflightError(preErr, url, dot, text)) return; }
     const [result, ollamaResult] = await Promise.all([
       checkOpenAICompatible(url, apiKey),
       checkOllama(url).catch(() => ({ available: false, models: [], modelDetails: [] })),
@@ -285,7 +308,7 @@ export async function testOllamaConnection() {
     returnToChatIfOnboarding();
   } catch (e) {
     dot.classList.add('disconnected');
-    text.textContent = isCORSError(e) ? getCORSHelpText() : 'Not connected \u2014 check URL and ensure your server is running';
+    text.textContent = LOCAL_AI_NOT_CONNECTED_TEXT;
   }
 }
 
@@ -313,7 +336,7 @@ export async function testPIIOllamaConnection() {
   }
   try {
     try { await fetch(`${url}/v1/models`, { method: 'HEAD', signal: AbortSignal.timeout(3000), ...(config.apiKey ? { headers: { Authorization: `Bearer ${config.apiKey}` } } : {}) }); }
-    catch (preErr) { if (isCORSError(preErr)) { dot.classList.add('disconnected'); text.textContent = getCORSHelpText(); return; } }
+    catch (preErr) { if (await handleLocalAiPreflightError(preErr, url, dot, text)) return; }
     const result = await checkOpenAICompatible(url, config.apiKey);
     if (!result.available) throw new Error('Not reachable');
     const models = result.models;
@@ -337,7 +360,7 @@ export async function testPIIOllamaConnection() {
     window.updatePrivacyStatusCard?.();
   } catch (e) {
     dot.classList.add('disconnected');
-    text.textContent = isCORSError(e) ? getCORSHelpText() : 'Not connected \u2014 check URL and ensure your server is running';
+    text.textContent = LOCAL_AI_NOT_CONNECTED_TEXT;
     window.updatePrivacyStatusCard?.();
   }
 }

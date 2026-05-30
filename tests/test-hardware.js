@@ -193,6 +193,8 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   const localAiControls = await import('../js/provider-local-ai-controls.js');
   const originalGetElementById = document.getElementById;
   const originalFetch = globalThis.fetch;
+  const hadLocation = Object.prototype.hasOwnProperty.call(globalThis, 'location');
+  const originalLocation = globalThis.location;
   let fetchCalls = 0;
   const makeDot = () => {
     const dot = { className: '', classes: new Set() };
@@ -205,6 +207,7 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   };
 
   try {
+    globalThis.location = { protocol: 'http:' };
     globalThis.fetch = async () => {
       fetchCalls++;
       throw new Error('Malformed Local AI URL should be rejected before fetch');
@@ -236,9 +239,60 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
       piiText.textContent === 'Local AI URL must start with http:// or https://',
       piiText.textContent);
     assert('Malformed PII Local AI URL does not fetch', fetchCalls === 0, `fetch calls: ${fetchCalls}`);
+
+    fetchCalls = 0;
+    globalThis.fetch = async () => {
+      fetchCalls++;
+      throw new TypeError('Failed to fetch');
+    };
+    elements = {
+      'local-ai-url-input': { value: 'http://localhost:65535' },
+      'local-ai-dot': mainDot,
+      'local-ai-status-text': mainText,
+    };
+    mainText.textContent = '';
+    await localAiControls.testOllamaConnection();
+    assert('Unreachable main Local AI URL does not show CORS guidance',
+      mainText.textContent === 'Not connected \u2014 check URL and ensure your server is running',
+      mainText.textContent);
+    assert('Unreachable main Local AI URL probes before failing', fetchCalls > 1, `fetch calls: ${fetchCalls}`);
+
+    elements = {
+      'pii-local-url-input': { value: 'http://localhost:65535' },
+      'pii-local-dot': piiDot,
+      'pii-local-status-text': piiText,
+    };
+    piiText.textContent = '';
+    await localAiControls.testPIIOllamaConnection();
+    assert('Unreachable PII Local AI URL does not show CORS guidance',
+      piiText.textContent === 'Not connected \u2014 check URL and ensure your server is running',
+      piiText.textContent);
+
+    let noCorsProbeCalls = 0;
+    globalThis.fetch = async (_url, options = {}) => {
+      fetchCalls++;
+      if (options.mode === 'no-cors') {
+        noCorsProbeCalls++;
+        return { type: 'opaque' };
+      }
+      throw new TypeError('Failed to fetch');
+    };
+    elements = {
+      'local-ai-url-input': { value: 'http://localhost:11434' },
+      'local-ai-dot': mainDot,
+      'local-ai-status-text': mainText,
+    };
+    mainText.textContent = '';
+    await localAiControls.testOllamaConnection();
+    assert('Reachable server with blocked normal fetch shows CORS guidance',
+      mainText.textContent.includes('Blocked by CORS'),
+      mainText.textContent);
+    assert('CORS classification uses no-cors reachability probe', noCorsProbeCalls === 1, `no-cors calls: ${noCorsProbeCalls}`);
   } finally {
     document.getElementById = originalGetElementById;
     globalThis.fetch = originalFetch;
+    if (hadLocation) globalThis.location = originalLocation;
+    else delete globalThis.location;
   }
 
   // ═══════════════════════════════════════
