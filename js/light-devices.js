@@ -21,7 +21,13 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, formatDate } from './utils.js';
 import { saveImportedData } from './data.js';
 import { recordTombstone } from './data-merge.js';
-import { CHANNEL_DISPLAY, BODY_REGIONS } from './sun.js';
+import { CHANNEL_DISPLAY } from './sun.js';
+import { BODY_REGIONS } from './sun-body-silhouette.js';
+import {
+  DEVICE_TYPE_CHANNELS,
+  computeDeviceSessionDoses,
+  resolveDeviceMode,
+} from './light-device-session-engine.js';
 import { openDeviceSessionDialog as openDeviceSessionDialogModal } from './light-device-session-modal.js';
 import {
   configureLightDeviceSetup,
@@ -173,99 +179,15 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
   const _suffix = Array.from(_rb, b => b.toString(16).padStart(2, '0')).join('').slice(0, 4);
   const sessionId = `devsess_${Date.now().toString(36)}_${_suffix}`;
   const seconds = durationMin * 60;
-  // Resolve mode for devices with named modes (Maxi UVB, Trinity, etc.).
-  // Devices without `modes` skip this — `mode` stays null and behaves
-  // as today (synthesize on full peakWavelengths). Coupling rules
-  // (e.g. Maxi UVB UV-requires-redNIR) are validated here; an invalid
-  // mode falls back to the default to avoid persisting bad state.
-  let resolvedMode = mode;
-  if (Array.isArray(device.modes) && device.modes.length > 0) {
-    const found = device.modes.find(m => m.id === mode);
-    const defaultMode = device.modes.find(m => m.default) || device.modes[0];
-    resolvedMode = found ? found.id : defaultMode.id;
-    if (window.validateModeCoupling) {
-      const validation = window.validateModeCoupling(device, resolvedMode);
-      if (!validation.ok) resolvedMode = defaultMode.id;
-    }
-  }
-
-  // Two paths:
-  //   bodyAreas[] — precise per-region picker (BODY_REGIONS keys, e.g.
-  //                 ['torso-front','arms-front']). Fraction is summed
-  //                 from BODY_REGIONS[].fraction so it matches sun
-  //                 sessions' accounting exactly.
-  //   bodyArea    — legacy broad-zone string (face/torso/arms/legs/
-  //                 whole-body/targeted). Pre-2026-05-08 sessions only
-  //                 carry this field; we keep the lookup table for
-  //                 backwards-compat reads.
-  const AREA_FRACTIONS = {
-    'face': 0.04, 'arms': 0.10, 'torso': 0.13,
-    'legs': 0.30, 'whole-body': 0.92, 'targeted': 0.05,
-  };
-  let area;
-  if (Array.isArray(bodyAreas) && bodyAreas.length > 0) {
-    const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
-    area = bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0);
-    if (area <= 0) area = 0.05;  // belt-and-suspenders for unknown keys
-  } else {
-    area = AREA_FRACTIONS[bodyArea] ?? 0.10;
-  }
-
-  // Distance-square correction. Base range is the device's vendor
-  // reference distance (15 cm typical; 50 cm for COB devices like the
-  // Firewave Compact whose manufacturer rates output at 20 inches).
-  // The schema field `mwPerCm2At15cm` is legacy-named but its value
-  // is interpreted as "irradiance at recommendedDistanceCm" — keeping
-  // raw distFactor = 1 when the user logs at the default. Inverse-square
-  // is a coarse approximation for LED panels (near-field cosine for
-  // large sources, focused beams for COBs); accurate enough for
-  // relative-trend correlation but not radiometric reference.
-  //
-  // Cap the EFFECTIVE multiplier at 3× to bound the near-field error.
-  // Real LED panels plateau in near-field because the source is
-  // extended (cosine falloff dominates over inverse-square inside
-  // ~1× panel-width). Without the cap, a 5 cm Joovv session would
-  // multiply dose 9× over the 15 cm spec and the user would see
-  // "20× recommended dose" warnings that are model artifacts.
-  const baseRangeCm = device.recommendedDistanceCm || 15;
-  const rawDistFactor = (baseRangeCm / Math.max(distanceCm, 5)) ** 2;
-  const distFactor = Math.min(rawDistFactor, 3.0);
-
-  let doses = {};
-  const synthesizeDeviceSpectrum = window.synthesizeDeviceSpectrum;
-  const computeChannelDoses = window.computeChannelDoses;
-  const hasPeaks = Array.isArray(device.peakWavelengths) && device.peakWavelengths.length > 0;
-  const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
-  const eyeMode = eyesProtected ? 'closed-eyes' : 'direct';
-
-  if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
-    // Wavelength-correct path: synthesize spectrum scaled by distance
-    // factor → action-spectrum convolve → per-channel dose. Distance is
-    // applied to the SPECTRUM amplitude (not just bodyExposureFraction)
-    // so eye channels — which `computeChannelDoses` gates by
-    // `eyeMultiplier` rather than skin fraction — also pick up the
-    // distance scaling. Otherwise a SAD lamp at 25 cm vs 100 cm
-    // produces the same circadian dose, which is wrong.
-    const effectiveDevice = window.effectiveDeviceForMode
-      ? window.effectiveDeviceForMode(device, resolvedMode)
-      : device;
-    const baseSpec = synthesizeDeviceSpectrum(effectiveDevice);
-    const spectrum = {
-      wavelengths: baseSpec.wavelengths,
-      irradiance: baseSpec.irradiance.map(v => v * distFactor),
-    };
-    doses = computeChannelDoses({
-      spectrum,
-      durationMin,
-      bodyExposureFraction: area,
-      eyeExposure: { mode: eyeMode, durationSec: seconds },
-    });
-  } else {
-    // Lux-only fallback (SAD lamps without per-band irradiance / peaks).
-    // distFactor still applies — closer SAD lamp = brighter circadian dose.
-    const lux = device.lux || 0;
-    if (!eyesProtected && lux > 0) doses.circadian = lux * distFactor * seconds / 100;
-  }
+  const { doses, mode: resolvedMode } = computeDeviceSessionDoses({
+    device,
+    durationMin,
+    distanceCm,
+    bodyArea,
+    bodyAreas,
+    eyesProtected,
+    mode,
+  });
 
   const session = {
     id: sessionId,
@@ -321,16 +243,7 @@ export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas 
   if (getActiveDeviceSession()) return null;
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
-  let resolvedMode = mode;
-  if (Array.isArray(device.modes) && device.modes.length > 0) {
-    const found = device.modes.find(m => m.id === mode);
-    const defaultMode = device.modes.find(m => m.default) || device.modes[0];
-    resolvedMode = found ? found.id : defaultMode.id;
-    if (window.validateModeCoupling) {
-      const validation = window.validateModeCoupling(device, resolvedMode);
-      if (!validation.ok) resolvedMode = defaultMode.id;
-    }
-  }
+  const resolvedMode = resolveDeviceMode(device, mode);
   const id = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const sess = {
     id,
@@ -360,46 +273,19 @@ export async function stopDeviceSession(id) {
   if (!sess || sess.endedAt) return null;
   const endedAt = Date.now();
   const durationMin = Math.max(0, (endedAt - sess.startedAt) / 60000);
-  // Inline-compute doses using the same path as logDeviceSession but
-  // without inserting a new record — we mutate the existing active
-  // session in-place. Cheaper than synthesizing a new one and rewriting
-  // the array.
+  // Recompute doses through the shared engine without inserting a new
+  // record — we mutate the existing active session in-place.
   const device = getDevices().find(d => d.id === sess.deviceId);
   if (device && durationMin > 0) {
-    const seconds = durationMin * 60;
-    const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
-    const AREA_FRACTIONS = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
-    let area;
-    if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
-      area = sess.bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0) || 0.05;
-    } else {
-      area = AREA_FRACTIONS[sess.bodyArea] ?? 0.10;
-    }
-    const baseRangeCm = device.recommendedDistanceCm || 15;
-    const distFactor = Math.min((baseRangeCm / Math.max(sess.distanceCm || 15, 5)) ** 2, 3.0);
-    const eyeMode = sess.eyesProtected ? 'closed-eyes' : 'direct';
-    const synthesizeDeviceSpectrum = window.synthesizeDeviceSpectrum;
-    const computeChannelDoses = window.computeChannelDoses;
-    const hasPeaks = Array.isArray(device.peakWavelengths) && device.peakWavelengths.length > 0;
-    const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
-    let doses = {};
-    if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
-      const effectiveDevice = window.effectiveDeviceForMode
-        ? window.effectiveDeviceForMode(device, sess.mode)
-        : device;
-      const baseSpec = synthesizeDeviceSpectrum(effectiveDevice);
-      const spectrum = {
-        wavelengths: baseSpec.wavelengths,
-        irradiance: baseSpec.irradiance.map(v => v * distFactor),
-      };
-      doses = computeChannelDoses({
-        spectrum, durationMin, bodyExposureFraction: area,
-        eyeExposure: { mode: eyeMode, durationSec: seconds },
-      });
-    } else {
-      const lux = device.lux || 0;
-      if (!sess.eyesProtected && lux > 0) doses.circadian = lux * distFactor * seconds / 100;
-    }
+    const { doses } = computeDeviceSessionDoses({
+      device,
+      durationMin,
+      distanceCm: sess.distanceCm,
+      bodyArea: sess.bodyArea,
+      bodyAreas: sess.bodyAreas,
+      eyesProtected: sess.eyesProtected,
+      mode: sess.mode,
+    });
     sess.doses = doses;
   }
   sess.endedAt = endedAt;
@@ -446,13 +332,7 @@ export async function updateDeviceSession(id, patch = {}) {
       if (k === 'mode') {
         const device = getDevices().find(d => d.id === sess.deviceId);
         if (device && Array.isArray(device.modes) && device.modes.length > 0) {
-          const found = device.modes.find(m => m.id === patch.mode);
-          const defaultMode = device.modes.find(m => m.default) || device.modes[0];
-          let next = found ? found.id : defaultMode.id;
-          if (window.validateModeCoupling) {
-            const validation = window.validateModeCoupling(device, next);
-            if (!validation.ok) next = defaultMode.id;
-          }
+          const next = resolveDeviceMode(device, patch.mode);
           if (next === sess.mode) continue;
           sess.mode = next;
           needsRecompute = true;
@@ -476,43 +356,18 @@ export async function updateDeviceSession(id, patch = {}) {
       // should also reflect the resolved mode so future reads + edits
       // are deterministic. Devices without `modes` keep mode=null.
       if ((sess.mode === undefined || sess.mode === null) && Array.isArray(device.modes) && device.modes.length > 0) {
-        const defaultMode = device.modes.find(m => m.default) || device.modes[0];
-        sess.mode = defaultMode.id;
+        sess.mode = resolveDeviceMode(device, sess.mode);
       }
-      const seconds = sess.durationMin * 60;
-      const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
-      const AREA_FRACTIONS = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
-      let area;
-      if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
-        area = sess.bodyAreas.reduce((s, k) => s + (fracByKey[k] || 0), 0) || 0.05;
-      } else {
-        area = AREA_FRACTIONS[sess.bodyArea] ?? 0.10;
-      }
-      const baseRangeCm = device.recommendedDistanceCm || 15;
-      const distFactor = Math.min((baseRangeCm / Math.max(sess.distanceCm || 15, 5)) ** 2, 3.0);
-      const eyeMode = sess.eyesProtected ? 'closed-eyes' : 'direct';
-      const synthesizeDeviceSpectrum = window.synthesizeDeviceSpectrum;
-      const computeChannelDoses = window.computeChannelDoses;
-      const hasPeaks = Array.isArray(device.peakWavelengths) && device.peakWavelengths.length > 0;
-      const hasIrradiance = (device.mwPerCm2At15cm || 0) > 0;
-      let doses = {};
-      if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
-        const effectiveDevice = window.effectiveDeviceForMode
-          ? window.effectiveDeviceForMode(device, sess.mode)
-          : device;
-        const baseSpec = synthesizeDeviceSpectrum(effectiveDevice);
-        const spectrum = {
-          wavelengths: baseSpec.wavelengths,
-          irradiance: baseSpec.irradiance.map(v => v * distFactor),
-        };
-        doses = computeChannelDoses({
-          spectrum, durationMin: sess.durationMin, bodyExposureFraction: area,
-          eyeExposure: { mode: eyeMode, durationSec: seconds },
-        });
-      } else {
-        const lux = device.lux || 0;
-        if (!sess.eyesProtected && lux > 0) doses.circadian = lux * distFactor * seconds / 100;
-      }
+      const { doses, mode: resolvedMode } = computeDeviceSessionDoses({
+        device,
+        durationMin: sess.durationMin,
+        distanceCm: sess.distanceCm,
+        bodyArea: sess.bodyArea,
+        bodyAreas: sess.bodyAreas,
+        eyesProtected: sess.eyesProtected,
+        mode: sess.mode,
+      });
+      sess.mode = resolvedMode;
       sess.doses = doses;
     }
   }
@@ -1014,15 +869,6 @@ export async function addCustomDevice(spec) {
   // used by the curated presets so a custom device on, say, type=uvb
   // still feeds vitamin_d + pomc + violet_eye + circadian by default
   // (the spectrum convolution refines the actual doses by wavelength).
-  const TYPE_CHANNELS = {
-    'uvb': ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'pbm_red', 'pbm_nir'],
-    'uva': ['no_cv', 'violet_eye', 'pbm_red', 'pbm_nir'],
-    'combined': ['pbm_red', 'pbm_nir'],
-    'pbm-targeted': ['pbm_red', 'pbm_nir'],
-    'sad': ['circadian'],
-    'dawn-sim': ['circadian'],
-    'full-spectrum': ['circadian'],
-  };
   // channelGroups / modes / coupling — only persisted when AI extraction
   // (or manual entry) supplied a structurally complete set. Anything
   // shaped wrong is dropped to null so the consumer (effectiveDeviceForMode)
@@ -1053,7 +899,7 @@ export async function addCustomDevice(spec) {
     mwPerCm2At15cm: Number.isFinite(spec.mwPerCm2At15cm) ? spec.mwPerCm2At15cm : null,
     lux: Number.isFinite(spec.lux) ? spec.lux : null,
     recommendedDistanceCm: Number.isFinite(spec.recommendedDistanceCm) && spec.recommendedDistanceCm > 0 ? spec.recommendedDistanceCm : 15,
-    channels: TYPE_CHANNELS[spec.type] || ['pbm_red', 'pbm_nir'],
+    channels: DEVICE_TYPE_CHANNELS[spec.type] || ['pbm_red', 'pbm_nir'],
     channelGroups: channelGroups && channelGroups.length > 0 ? channelGroups : null,
     modes: modes && modes.length > 0 ? modes : null,
     coupling: coupling && coupling.length > 0 ? coupling : null,

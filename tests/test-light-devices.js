@@ -35,12 +35,20 @@ console.log('=== Light Devices Tests ===\n');
 
 await import('../js/state.js');
 const dev = await import('../js/light-devices.js');
+const sessionEngine = await import('../js/light-device-session-engine.js');
 const {
   getDevices, getDeviceSessions,
   addDeviceFromPreset, addCustomDevice, deleteDevice,
   logDeviceSession, deleteDeviceSession,
   rollingDeviceTotals,
 } = dev;
+const {
+  DEVICE_TYPE_CHANNELS,
+  bodyFractionForDeviceSession,
+  computeDeviceSessionDoses,
+  deviceDistanceFactor,
+  resolveDeviceMode,
+} = sessionEngine;
 
   const orig = window._labState.importedData;
   function reset(seed = {}) {
@@ -55,6 +63,73 @@ const {
     Array.isArray(getDevices()) && getDevices().length === 0);
   assert('getDeviceSessions lazily initializes empty list',
     Array.isArray(getDeviceSessions()) && getDeviceSessions().length === 0);
+
+  // ─── 1b. Shared session engine ───────────────────────────────────────
+  console.log('%c 1b. Shared session engine ', 'font-weight:bold;color:#f59e0b');
+
+  const modeDevice = {
+    modes: [
+      { id: 'all-on', default: true },
+      { id: 'uv-only' },
+    ],
+  };
+  assert('resolveDeviceMode falls back to default for invalid mode',
+    resolveDeviceMode(modeDevice, 'missing') === 'all-on');
+  assert('resolveDeviceMode honors valid mode when coupling allows it',
+    resolveDeviceMode(modeDevice, 'uv-only', { validateModeCoupling: () => ({ ok: true }) }) === 'uv-only');
+  assert('resolveDeviceMode falls back when coupling rejects the mode',
+    resolveDeviceMode(modeDevice, 'uv-only', { validateModeCoupling: (_device, mode) => ({ ok: mode !== 'uv-only' }) }) === 'all-on');
+  assert('bodyFractionForDeviceSession sums precise regions',
+    Math.abs(bodyFractionForDeviceSession(
+      { bodyAreas: ['torso-front', 'arms-front'] },
+      [{ key: 'torso-front', fraction: 0.13 }, { key: 'arms-front', fraction: 0.05 }]
+    ) - 0.18) < 1e-9);
+  assert('bodyFractionForDeviceSession falls back to legacy broad area',
+    Math.abs(bodyFractionForDeviceSession({ bodyArea: 'legs' }) - 0.30) < 1e-9);
+  assert('deviceDistanceFactor applies capped inverse-square scaling',
+    deviceDistanceFactor({ recommendedDistanceCm: 30 }, 15) === 3);
+  const sadDose = computeDeviceSessionDoses({
+    device: { lux: 10000, recommendedDistanceCm: 30, peakWavelengths: [], mwPerCm2At15cm: null },
+    durationMin: 10,
+    distanceCm: 30,
+    eyesProtected: false,
+  });
+  assert('computeDeviceSessionDoses handles lux-only SAD fallback',
+    sadDose.doses.circadian === 10000 * 600 / 100);
+  const sadProtected = computeDeviceSessionDoses({
+    device: { lux: 10000, recommendedDistanceCm: 30, peakWavelengths: [], mwPerCm2At15cm: null },
+    durationMin: 10,
+    distanceCm: 30,
+    eyesProtected: true,
+  });
+  assert('computeDeviceSessionDoses blocks SAD eye dose when eyes protected',
+    sadProtected.doses.circadian === undefined);
+  const spectrumArgs = [];
+  const spectrumDose = computeDeviceSessionDoses({
+    device: { peakWavelengths: [660], mwPerCm2At15cm: 20, recommendedDistanceCm: 20, modes: [{ id: 'all-on', default: true }, { id: 'red-only' }] },
+    durationMin: 5,
+    distanceCm: 10,
+    bodyAreas: ['torso-front'],
+    eyesProtected: false,
+    mode: 'red-only',
+  }, {
+    effectiveDeviceForMode: (device, mode) => ({ ...device, resolvedMode: mode }),
+    synthesizeDeviceSpectrum: (device) => {
+      spectrumArgs.push(device.resolvedMode);
+      return { wavelengths: [660], irradiance: [2] };
+    },
+    computeChannelDoses: (args) => {
+      spectrumArgs.push(args);
+      return { pbm_red: args.spectrum.irradiance[0], body: args.bodyExposureFraction, eyeSec: args.eyeExposure.durationSec };
+    },
+  });
+  assert('computeDeviceSessionDoses uses resolved mode and scaled spectrum path',
+    spectrumArgs[0] === 'red-only' &&
+    spectrumDose.doses.pbm_red === 6 &&
+    spectrumDose.doses.body > 0 &&
+    spectrumDose.doses.eyeSec === 300);
+  assert('DEVICE_TYPE_CHANNELS keeps UVB default channels',
+    DEVICE_TYPE_CHANNELS.uvb.includes('vitamin_d') && DEVICE_TYPE_CHANNELS.uvb.includes('pbm_nir'));
 
   // ─── 2. addDeviceFromPreset ──────────────────────────────────────────
   console.log('%c 2. addDeviceFromPreset ', 'font-weight:bold;color:#f59e0b');
