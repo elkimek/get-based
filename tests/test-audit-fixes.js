@@ -164,7 +164,11 @@ return (async function () {
 
     // Close inner — outer still mounted.
     overlay2.remove();
-    await delay(20); // MutationObserver fires async
+    await waitFor(() =>
+      !document.body.contains(overlay2)
+      && document.body.contains(overlay)
+      && document.body.style.overflow === 'hidden'
+    );
     assert('body still locked after inner modal closed (outer still up)',
       document.body.style.overflow === 'hidden');
 
@@ -193,7 +197,11 @@ return (async function () {
     document.body.appendChild(overlayCrossB);
     sunReloaded.trapModalFocus(overlayCrossB);
     overlayCrossA.remove();
-    await delay(20);
+    await waitFor(() =>
+      !document.body.contains(overlayCrossA)
+      && document.body.contains(overlayCrossB)
+      && document.body.style.overflow === 'hidden'
+    );
     assert('body still locked across separate sun.js module instances',
       document.body.style.overflow === 'hidden');
     overlayCrossB.remove();

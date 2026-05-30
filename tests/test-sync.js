@@ -33,6 +33,7 @@ const syncSaveHooks = await import('../js/sync-save-hooks.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncChatApply = await import('../js/sync-chat-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
+const dataMerge = await import('../js/data-merge.js');
 const syncSubscriptions = await import('../js/sync-subscriptions.js');
 const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
 const syncStorageCleanup = await import('../js/sync-storage-cleanup.js');
@@ -2592,6 +2593,37 @@ await import('../js/settings.js');
   // import. Lives in sync-pull-active-refresh.js's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
     /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,400}remoteBroughtNewRows/.test(deltaSearchSrc));
+
+  const localWithSnps = {
+    genetics: {
+      source: '23andMe',
+      importDate: '2026-05-29',
+      coverage: { found: 2, total: 10 },
+      snps: {
+        rs1801133: { genotype: 'GA', gene: 'MTHFR' },
+        rs4680: { genotype: 'AG', gene: 'COMT' },
+      },
+    },
+    entries: [],
+  };
+  const remoteMetadataOnly = {
+    genetics: {
+      source: '23andMe',
+      importDate: '2026-05-30',
+      coverage: { found: 2, total: 10 },
+    },
+    entries: [],
+  };
+  const mergedMetadataOnly = dataMerge.mergeImportedData(localWithSnps, remoteMetadataOnly);
+  assert('metadata-only genetics blob preserves local SNP map during pull merge',
+    Object.keys(mergedMetadataOnly.genetics?.snps || {}).length === 2
+    && mergedMetadataOnly.genetics.snps.rs1801133?.genotype === 'GA'
+    && mergedMetadataOnly.genetics.importDate === '2026-05-30');
+
+  const remoteExplicitDelete = { genetics: null, entries: [] };
+  const mergedDelete = dataMerge.mergeImportedData(localWithSnps, remoteExplicitDelete);
+  assert('explicit remote genetics delete still clears SNP map',
+    mergedDelete.genetics === null);
 
   // Live: simulate the strip helper inline and prove shape preservation
   if (typeof window !== 'undefined') {

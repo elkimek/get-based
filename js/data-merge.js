@@ -121,6 +121,17 @@ function mergePlainMap(localMap, remoteMap) {
   return { ...(hasRemote ? remoteMap : {}), ...(hasLocal ? localMap : {}) };
 }
 
+function preserveLocalGeneticsSnps(local, remote, out) {
+  const localSnps = local?.genetics?.snps;
+  const remoteGenetics = remote?.genetics;
+  if (!localSnps || typeof localSnps !== 'object' || Array.isArray(localSnps)) return;
+  if (Object.keys(localSnps).length === 0) return;
+  if (!remoteGenetics || typeof remoteGenetics !== 'object' || Array.isArray(remoteGenetics)) return;
+  if (Object.prototype.hasOwnProperty.call(remoteGenetics, 'snps')) return;
+  if (!out.genetics || typeof out.genetics !== 'object' || Array.isArray(out.genetics)) return;
+  out.genetics = { ...out.genetics, snps: { ...localSnps } };
+}
+
 function mergeSourceFiles(a, b) {
   const files = [];
   for (const item of [a?.sourceFiles, a?.sourceFile, b?.sourceFiles, b?.sourceFile]) {
@@ -421,6 +432,7 @@ export function mergeImportedData(local, remote) {
   // Start from a shallow clone of remote — picks up new keys + LWW for
   // non-id-keyed scalars and arrays.
   const out = { ...remote };
+  preserveLocalGeneticsSnps(local, remote, out);
 
   const mergedEntries = mergeLabEntriesByDate(local.entries, remote.entries);
   if (mergedEntries) out.entries = mergedEntries;

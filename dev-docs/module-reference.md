@@ -1498,7 +1498,7 @@ Not separately documented because their exports are best read from source — ke
 - `sync-push.js` — outbound profile push path, in-flight push watchdog, Phase 2 drift auto-revert, and Evolu profileData insert/update.
 - `sync-push-deltas.js` — push-side per-row delta planning/application; walks DELTA_ARRAYS/MAPS/SCALARS before blob writes, advances snapshots after onComplete, and records delta telemetry.
 - `sync-pull.js` — inbound pull orchestration and row loop; delegates one-time cleanup, active-profile UI refresh, and rebroadcast scheduling to helper modules.
-- `sync-pull-merge.js` — pull row recovery/dedupe, importedData blob/per-row merge, wearable-token preservation, and profile metadata merge helpers.
+- `sync-pull-merge.js` — pull row recovery/dedupe, importedData blob/per-row merge, wearable-token preservation, metadata-only genetics blob protection, and profile metadata merge helpers.
 - `sync-pull-maintenance.js` — pull-path one-time migrations such as stale `-sync-hash` localStorage cleanup.
 - `sync-pull-active-refresh.js` — active-profile in-memory update, migration, chat reload, sidebar rebuild, current-view refresh, toast, and sync-applied event after a pull.
 - `sync-pull-rebroadcast.js` — pull-side rebroadcast gating, budget checks, push-pending guard, and delayed active-profile push scheduling.
