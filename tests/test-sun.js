@@ -16,13 +16,15 @@ console.log('=== Sun Session Tests ===\n');
 
 await import('../js/state.js');
 const sun = await import('../js/sun.js');
+const sunSessionModel = await import('../js/sun-session-model.js');
+const sunSessionsStore = await import('../js/sun-sessions-store.js');
 const {
   BODY_REGIONS, EXPOSURE_PRESETS, EYE_MODES, LENS_TINTS,
   CHANNEL_DISPLAY,
   channelTier, tierLabel, tierDots, formatChannelUnit,
   SUN_ENGINE_VERSION,
   getSessions, getActiveSession,
-  startSession, stopSession, logCompletedSession, deleteSession, updateSession,
+  startSession, stopSession, logCompletedSession, deleteSession, pauseSession, resumeSession, updateSession,
   rollingChannelTotals, dailyChannelBreakdown, rollingVitaminDIU,
   cumulativeMEDToday, cumulativeMEDYesterday,
   _applyAtmOverrides,
@@ -66,6 +68,17 @@ const {
     missingPresets.length === 0 &&
     EXPOSURE_PRESETS.every(p => typeof p.fraction === 'number'),
     missingPresets.length ? `missing: ${missingPresets.join(',')}` : '');
+  assert('sun.js re-exports shared session model constants',
+    EXPOSURE_PRESETS === sunSessionModel.EXPOSURE_PRESETS &&
+    sun.POSTURE_OPTIONS === sunSessionModel.POSTURE_OPTIONS &&
+    sun.SURFACE_OPTIONS === sunSessionModel.SURFACE_OPTIONS &&
+    sun.PHOTOSENSITIVE_MED_TIERS === sunSessionModel.PHOTOSENSITIVE_MED_TIERS);
+  assert('sun.js re-exports persisted session store API',
+    getSessions === sunSessionsStore.getSessions &&
+    startSession === sunSessionsStore.startSession &&
+    pauseSession === sunSessionsStore.pauseSession &&
+    resumeSession === sunSessionsStore.resumeSession &&
+    SUN_ENGINE_VERSION === sunSessionsStore.SUN_ENGINE_VERSION);
 
   assert('EYE_MODES includes "direct" + "sunglasses" + "indoor"',
     EYE_MODES.some(e => e.key === 'direct') &&
@@ -154,6 +167,15 @@ const {
   let threw = false;
   try { await startSession({ regions: [] }); } catch (e) { threw = true; }
   assert('startSession({regions: []}) throws (refuses phantom exposure)', threw);
+
+  // pause/resume boundary lives in the extracted store and must remain
+  // callable through the public sun.js facade.
+  await pauseSession(id2);
+  assert('pauseSession marks active session paused',
+    sess2.paused === true && Number.isFinite(sess2.pausedAt));
+  await resumeSession(id2);
+  assert('resumeSession clears paused state',
+    sess2.paused === false && sess2.pausedAt === undefined);
 
   // delete one
   await stopSession(id2);
@@ -365,6 +387,30 @@ const {
 
   assert('SUN_ENGINE_VERSION is a positive integer (current = 3)',
     Number.isInteger(SUN_ENGINE_VERSION) && SUN_ENGINE_VERSION >= 3);
+
+  // ─── 12. Source split guardrails ─────────────────────────────────────
+  console.log('%c 12. Sun session module boundaries ', 'font-weight:bold;color:#f59e0b');
+
+  const fs = await import('node:fs/promises');
+  const sunSrc = await fs.readFile(new URL('../js/sun.js', import.meta.url), 'utf8');
+  const modelSrc = await fs.readFile(new URL('../js/sun-session-model.js', import.meta.url), 'utf8');
+  const storeSrc = await fs.readFile(new URL('../js/sun-sessions-store.js', import.meta.url), 'utf8');
+  const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
+  assert('Sun session model owns shared option/safety constants',
+    sunSrc.includes("from './sun-session-model.js'") &&
+    modelSrc.includes('export const EXPOSURE_PRESETS') &&
+    modelSrc.includes('export const POSTURE_MULTIPLIERS') &&
+    modelSrc.includes('export const PHOTOSENSITIVE_MED_TIERS'));
+  assert('Sun sessions store owns persisted lifecycle and hydration',
+    sunSrc.includes("from './sun-sessions-store.js'") &&
+    storeSrc.includes('export async function startSession') &&
+    storeSrc.includes('export async function hydrateSession') &&
+    storeSrc.includes('export function getSessions') &&
+    !storeSrc.includes('showPromptDialog') &&
+    !storeSrc.includes('renderBodySilhouette'));
+  assert('Service worker precaches extracted sun session modules',
+    swSrc.includes("'/js/sun-session-model.js'") &&
+    swSrc.includes("'/js/sun-sessions-store.js'"));
 
   // Restore
   window._labState.importedData = orig;

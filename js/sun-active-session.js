@@ -1,11 +1,12 @@
 // sun-active-session.js — active sun-session UI, live dose ticker, and
-// modal helpers. Core persisted session storage and hydration stay in
-// sun.js; this module receives those operations through configuration to
-// avoid importing sun.js back into the active UI layer.
+// modal helpers. Core persisted session storage and hydration live in
+// sun-sessions-store.js; this module receives those operations through
+// configuration to avoid importing sun.js back into the active UI layer.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
+import { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
 
 const activeDeps = {
@@ -30,24 +31,7 @@ export function configureSunActiveSession(deps = {}) {
   Object.assign(activeDeps, deps);
 }
 
-// Posture orientation multipliers on bodyExposureFraction. Lying-supine
-// makes the front of the body nearly horizontal at noon; lying-prone same
-// for back. These are rough but match the hydrated-session dose path.
-export const POSTURE_MULTIPLIERS = {
-  standing: 1.0,
-  sitting: 0.85,
-  'lying-supine': 1.4,
-  'lying-prone': 1.4,
-};
-
-// Surface albedo (UV reflectance). 0.25 = sand/water; 0.80 = fresh snow.
-export const SURFACE_ALBEDO = {
-  grass: 0.03,
-  concrete: 0.10,
-  sand: 0.25,
-  water: 0.25,
-  snow: 0.80,
-};
+export { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 
 // Single-tap "I'm outside now" — starts a session with last-used defaults.
 // On stop: skips confirm dialog because the user explicitly tapped stop.
