@@ -391,7 +391,7 @@ Menstrual cycle tracking, helpers, and dashboard rendering.
 
 ### `context-cards.js`
 
-All 9 lifestyle context card editors plus AI health dots, the Interpretive Lens / Knowledge Base dashboard rows, and the dashboard CTA pills.
+All 9 lifestyle context card editors plus AI health dots, the Interpretive Lens / Knowledge Base dashboard rows, dashboard CTA pills, context change history, and legacy compatibility exports for summary/editor helpers.
 
 **Key exports:**
 - `renderProfileContextCards(data)` — renders the 3-column context card grid on the dashboard
@@ -405,13 +405,33 @@ All 9 lifestyle context card editors plus AI health dots, the Interpretive Lens 
 - `getCardFingerprint(key)` — djb2 hash of lab data + card data + sex + DOB for cache invalidation
 - Per-card editor functions: `openDiagnosesEditor`, `openDietEditor`, `openExerciseEditor`, `openSleepEditor`, `openLightEditor`, `openStressEditor`, `openLoveLifeEditor`, `openEnvironmentEditor`, `openHealthGoalsEditor`
 - Per-card save functions: `saveDiagnoses`, `saveDiet`, `saveExercise`, `saveSleep`, `saveLight`, `saveStress`, `saveLoveLife`, `saveEnvironment`, `saveHealthGoals`
-- `selectCtxOption(el, group, multi)` — shared button-group selection handler
+- `selectCtxOption(el, group, multi)` — compatibility re-export from `context-card-editor-ui.js`
 - `getSelectedOption(group)` — reads selected value from a `.ctx-btn-group`
-- `summaryFn` implementations — generate the one-line text shown on each collapsed card
+- Summary helpers such as `getDietSummary()` and `getEnvironmentSummary()` — compatibility re-exports from `context-card-summaries.js`
 - `debounceContextNotes()` — auto-saves the free-form context notes textarea
 - `recordChange(field)` — snapshots a context field and appends a timestamped entry to `importedData.changeHistory` (dedup: same-day overwrite, identical skip, 200 cap)
 
 **Window exports:** all open/save functions, `selectCtxOption`, `addCondition`, `deleteCondition`, `addGoal`, `deleteGoal`, `syncDiagnosesNote`, `openInterpretiveLensEditor`, `saveInterpretiveLens`, `renderKnowledgeBaseSection`, `openPersonalizeAIPicker`, `openDataProtectionPicker`, `triggerDNAFilePicker`
+
+---
+
+### `context-card-summaries.js`
+
+Context card metadata, filled-state checks, dashboard summary strings, and the EMF assessment launcher/summary. Kept side-effect-light so card rendering, chat/onboarding callers, and tests can share one source of truth without pulling in every editor modal.
+
+**Key exports:** `CONTEXT_CARD_KEYS`, `getContextCardDefs()`, `isContextFilled(key)`, `getConditionsSummary()`, `getDietSummary()`, `getExerciseSummary()`, `getSleepSummary()`, `getLightCircadianSummary()`, `getStressSummary()`, `getLoveLifeSummary()`, `getEnvironmentSummary()`, `getGoalsSummary()`, `getEMFAssessments()`, `renderEMFAssessmentLauncher()`.
+
+**Window exports:** none directly; legacy globals are assigned by `context-cards.js`.
+
+---
+
+### `context-card-editor-ui.js`
+
+Shared context editor modal shell and field-control render/read helpers used by the 9 card editors.
+
+**Key exports:** `renderContextEditorModal()`, `renderSelectField()`, `selectCtxOption()`, `getSelectedOption()`, `renderTagsField()`, `toggleCtxTag()`, `getSelectedTags()`, `renderNoteField()`, `contextEditorActions()`.
+
+**Window exports:** none directly; legacy globals are assigned by `context-cards.js`.
 
 ---
 

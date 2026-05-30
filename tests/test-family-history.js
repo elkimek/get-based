@@ -79,6 +79,8 @@ assert('COMMON_CONDITIONS has no duplicates', dupSet.size === conditions.length)
 console.log('2. Apostrophe click fix');
 
 const ctxSrc = await fetch('js/context-cards.js').then(r => r.text());
+const ctxSummarySrc = await fetch('js/context-card-summaries.js').then(r => r.text());
+const ctxCardSrc = `${ctxSrc}\n${ctxSummarySrc}`;
 // filterConditionSuggestions must wrap the inline call arg in JSON.stringify
 // so apostrophes survive the HTML-attribute → JS-string round-trip. The
 // live DOM round-trip probe lives in test-family-history-dom.js.
@@ -174,19 +176,19 @@ assert('Active-areas list counts both conditions and family entries',
 console.log('8. Medical History rename');
 
 assert("Card label is 'Medical History'",
-  /label:\s*'Medical History'/.test(ctxSrc));
+  /label:\s*'Medical History'/.test(ctxCardSrc));
 assert("Modal headline reads 'Medical History'",
   /renderContextEditorModal\(modal,\s*'Medical History'/.test(ctxSrc));
 assert('Modal description mentions both diagnoses and family history',
   /diagnoses and family history/.test(ctxSrc));
 assert('Card placeholder mentions family history',
-  /'Add diagnoses or family history'/.test(ctxSrc));
+  /'Add diagnoses or family history'/.test(ctxCardSrc));
 assert("saveAndRefresh toast says 'Medical history saved'",
   ctxSrc.includes("saveAndRefresh('Medical history saved', 'diagnoses')"));
 assert("clearDiagnoses toast says 'Medical history cleared'",
   ctxSrc.includes("'Medical history cleared'"));
 assert('Tooltip mentions family history reframing risk',
-  /heart attack at 52 reframes a borderline LDL/.test(ctxSrc));
+  /heart attack at 52 reframes a borderline LDL/.test(ctxCardSrc));
 assert('AI context section header renamed to Medical History / Diagnoses',
   labCtxSrc.includes('## Medical History / Diagnoses'));
 assert("Field-label map uses 'Medical History'",

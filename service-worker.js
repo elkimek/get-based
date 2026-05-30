@@ -100,6 +100,8 @@ const APP_SHELL = [
   '/js/supplements.js',
   '/js/cycle.js',
   '/js/context-cards.js',
+  '/js/context-card-summaries.js',
+  '/js/context-card-editor-ui.js',
   '/js/focus-card.js',
   '/js/onboarding-view.js',
   '/js/emf-facade.js',

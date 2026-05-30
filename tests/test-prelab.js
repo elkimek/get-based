@@ -127,6 +127,7 @@ const onboardingViewSrc = read('js/onboarding-view.js');
   console.log('%c 4. Dashboard Nudge Subtitle ', 'font-weight:bold;color:#f59e0b');
 
   const ccSrc = read('js/context-cards.js');
+  const ctxEditorSrc = read('js/context-card-editor-ui.js');
 
   assert('context-cards imports getActiveData', ccSrc.includes("import { saveImportedData, getActiveData } from './data.js'"),
     'Should import getActiveData for lab data check');
@@ -159,7 +160,7 @@ const onboardingViewSrc = read('js/onboarding-view.js');
     'Context cards should not force tiny 3-column tracks inside narrow widgets');
   assert('Context card labels truncate instead of overflowing', cssSrc.includes('.context-card-label') && cssSrc.includes('text-overflow: ellipsis'),
     'Card labels should fit compact widget widths');
-  assert('Context editors use redesigned modal shell', ccSrc.includes("modal gb-form-modal ctx-editor-modal") && ccSrc.includes('gb-modal-head ctx-editor-head'),
+  assert('Context editors use redesigned modal shell', (ccSrc + ctxEditorSrc).includes("modal gb-form-modal ctx-editor-modal") && ctxEditorSrc.includes('gb-modal-head ctx-editor-head'),
     'Context editors should use the newer solid modal chrome');
   assert('Context editor actions are sticky', cssSrc.includes('.ctx-editor-modal .ctx-editor-actions') && cssSrc.includes('position: sticky') && cssSrc.includes('bottom: 0'),
     'Long context editors need reachable actions while scrolling');

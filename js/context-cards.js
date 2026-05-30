@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { COMMON_CONDITIONS, DIET_TYPES, DIET_RESTRICTIONS, DIET_PATTERNS, BOWEL_FREQUENCY, STOOL_CONSISTENCY, BLOATING_SEVERITY, GAS_SEVERITY, ACID_REFLUX, BURPING, NAUSEA, APPETITE, ABDOMINAL_PAIN, FOOD_SENSITIVITIES, EXERCISE_FREQ, EXERCISE_TYPES, EXERCISE_INTENSITY, DAILY_MOVEMENT, SLEEP_DURATIONS, SLEEP_QUALITY, SLEEP_SCHEDULE, SLEEP_ROOM_TEMP, SLEEP_ISSUES, SLEEP_ENVIRONMENT, SLEEP_PRACTICES, LIGHT_AM, LIGHT_DAYTIME, LIGHT_UV, LIGHT_EVENING, LIGHT_COLD, LIGHT_GROUNDING, LIGHT_SCREEN_TIME, LIGHT_TECH_ENV, LIGHT_MEAL_TIMING, STRESS_LEVELS, STRESS_SOURCES, STRESS_MGMT, LOVE_STATUS, LOVE_SATISFACTION, LOVE_LIBIDO, LOVE_FREQUENCY, LOVE_ORGASM, LOVE_RELATIONSHIP, LOVE_CONCERNS, ENV_SETTING, ENV_CLIMATE, ENV_WATER, ENV_WATER_CONCERNS, ENV_EMF, ENV_EMF_MITIGATION, ENV_HOME_LIGHT, ENV_AIR, ENV_TOXINS, ENV_BUILDING } from './constants.js';
-import { escapeHTML, escapeAttr, hashString, showNotification, hasCardContent } from './utils.js';
+import { escapeHTML, hashString, showNotification, hasCardContent } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { getLatitudeFromLocation, profileStorageKey } from './profile.js';
@@ -15,111 +15,59 @@ import { getFolderBackupState } from './backup.js';
 // imported — they're invoked via window.* from inline onclick strings
 // and the picker click handler (both registered globally by their owning
 // modules). Static imports here would be dead.
-import { getEMFSeverity, trackUsage } from './schema.js';
+import { trackUsage } from './schema.js';
 import { scanDietForContaminants } from './food-contaminants.js';
+import {
+  CONTEXT_CARD_KEYS,
+  getConditionsSummary,
+  getDietSummary,
+  getExerciseSummary,
+  getSleepSummary,
+  getLightCircadianSummary,
+  getStressSummary,
+  getLoveLifeSummary,
+  getEnvironmentSummary,
+  getGoalsSummary,
+  isContextFilled,
+  getContextCardDefs,
+  getEMFAssessments,
+  renderEMFAssessmentLauncher,
+} from './context-card-summaries.js';
+import {
+  renderContextEditorModal,
+  renderSelectField,
+  selectCtxOption,
+  getSelectedOption,
+  renderTagsField,
+  toggleCtxTag,
+  getSelectedTags,
+  renderNoteField,
+  contextEditorActions,
+} from './context-card-editor-ui.js';
 
-function getEMFAssessments() {
-  const assessments = state.importedData.emfAssessment?.assessments;
-  return Array.isArray(assessments) ? assessments : [];
-}
-
-function getEMFSummary() {
-  const assessments = getEMFAssessments();
-  if (!assessments.length) return '';
-  const sorted = [...assessments].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  const latest = sorted[0];
-  let worst = null, worstIdx = -1;
-  const tierOrder = ['green', 'yellow', 'orange', 'red'];
-  for (const room of latest.rooms || []) {
-    const sleeping = room.sleeping !== false;
-    for (const [type, m] of Object.entries(room.measurements || {})) {
-      if (m && m.value != null) {
-        const sev = getEMFSeverity(type, m.value, sleeping);
-        if (sev) { const idx = tierOrder.indexOf(sev.color); if (idx > worstIdx) { worst = sev; worstIdx = idx; } }
-      }
-    }
-  }
-  const fmtDate = d => {
-    const parsed = new Date(d + 'T00:00:00');
-    if (Number.isNaN(parsed.getTime())) return String(d || 'saved');
-    return parsed.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
-  const latestText = latest.date ? fmtDate(latest.date) : 'saved';
-  return `EMF: ${sorted.length} assessment${sorted.length > 1 ? 's' : ''} (latest: ${latestText}${worst ? ', ' + worst.label : ''})`;
-}
-
-export function renderEMFAssessmentLauncher({ inModal = false, surface = 'environment-editor' } = {}) {
-  const assessments = getEMFAssessments();
-  const hasAssessments = assessments.length > 0;
-  const action = inModal
-    ? 'window.closeModal&&window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor(),100)'
-    : 'window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()';
-  const summary = hasAssessments
-    ? getEMFSummary()
-    : 'Room-by-room Baubiologie workflow with readings, photos, comparison, and AI interpretation.';
-  const kicker = hasAssessments
-    ? `${assessments.length} saved`
-    : 'Environment tool';
-  const title = hasAssessments ? 'Open EMF assessment' : 'Start EMF assessment';
-  const cta = hasAssessments ? 'Open' : 'Start';
-  return `<button type="button" class="ctx-emf-launcher${hasAssessments ? ' has-data' : ''}" onclick="${escapeAttr(action)}" data-umami-event="${escapeAttr('emf-launcher-' + surface)}">
-    <span class="ctx-emf-launcher-mark" aria-hidden="true">EMF</span>
-    <span class="ctx-emf-launcher-copy">
-      <span class="ctx-emf-launcher-kicker">${escapeHTML(kicker)}</span>
-      <strong>${escapeHTML(title)}</strong>
-      <span>${escapeHTML(summary)}</span>
-    </span>
-    <span class="ctx-emf-launcher-action">${escapeHTML(cta)}</span>
-  </button>`;
-}
-
-// ── Context card summary generators ──
-
-export function getConditionsSummary(d) {
-  if (!d) return '';
-  const parts = [];
-  if (d.conditions && d.conditions.length) parts.push(d.conditions.map(c => {
-    let s = c.name;
-    if (c.severity && c.severity !== 'mild') s += ` (${c.severity})`;
-    if (c.since) s += ` since ${c.since}`;
-    return s;
-  }).join(', '));
-  if (Array.isArray(d.familyHistory) && d.familyHistory.length) {
-    const fh = d.familyHistory.map(e => {
-      // Compact form: "father MI@52" / "mother T2D" — keeps the dashboard chip readable.
-      const rel = e.relative ? e.relative.replace(/^maternal_/, 'mat. ').replace(/^paternal_/, 'pat. ').replace(/_/g, ' ') : '';
-      const age = (e.onsetAge != null && e.onsetAge !== '') ? `@${e.onsetAge}` : '';
-      return `${rel} ${e.condition || ''}${age}`.trim();
-    }).join(', ');
-    parts.push(`Family: ${fh}`);
-  }
-  if (d.note) parts.push(d.note);
-  return parts.join(' — ');
-}
-
-export function getDietSummary(d) {
-  if (!d) return '';
-  const parts = [];
-  if (d.type) parts.push(d.type);
-  if (d.pattern) parts.push(d.pattern);
-  if (d.restrictions && d.restrictions.length) parts.push(d.restrictions.join(', '));
-  if (d.breakfast) parts.push('B: ' + d.breakfast);
-  if (d.lunch) parts.push('L: ' + d.lunch);
-  if (d.dinner) parts.push('D: ' + d.dinner);
-  if (d.snacks) parts.push('S: ' + d.snacks);
-  if (d.bowelFrequency) parts.push(d.bowelFrequency);
-  if (d.stoolConsistency) parts.push(d.stoolConsistency);
-  if (d.bloating && d.bloating !== 'none') parts.push('bloating: ' + d.bloating);
-  if (d.gas && d.gas !== 'none') parts.push('gas: ' + d.gas);
-  if (d.acidReflux && d.acidReflux !== 'none') parts.push('reflux: ' + d.acidReflux);
-  if (d.burping && d.burping !== 'none') parts.push('burping: ' + d.burping);
-  if (d.nausea && d.nausea !== 'none') parts.push('nausea: ' + d.nausea);
-  if (d.appetite && d.appetite !== 'normal') parts.push('appetite: ' + d.appetite);
-  if (d.abdominalPain && d.abdominalPain !== 'none') parts.push('pain: ' + d.abdominalPain);
-  if (d.foodSensitivities && d.foodSensitivities.length) parts.push('sensitivities: ' + d.foodSensitivities.join(', '));
-  if (d.note) parts.push(d.note);
-  return parts.join(', ');
-}
+export {
+  getConditionsSummary,
+  getDietSummary,
+  getExerciseSummary,
+  getSleepSummary,
+  getLightCircadianSummary,
+  getStressSummary,
+  getLoveLifeSummary,
+  getEnvironmentSummary,
+  getGoalsSummary,
+  isContextFilled,
+  renderEMFAssessmentLauncher,
+} from './context-card-summaries.js';
+export {
+  renderSelectField,
+  selectCtxOption,
+  getSelectedOption,
+  renderTagsField,
+  toggleCtxTag,
+  getSelectedTags,
+  renderNoteField,
+  contextEditorActions,
+} from './context-card-editor-ui.js';
 
 function _renderDietContaminants() {
   const warnings = scanDietForContaminants(state.importedData.diet);
@@ -129,119 +77,8 @@ function _renderDietContaminants() {
   return `<div class="diet-contaminants" role="button" tabindex="0" onclick="event.stopPropagation(); showDietContaminantsModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">\u26A0\uFE0F ${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</div>`;
 }
 
-export function getExerciseSummary(d) {
-  if (!d) return '';
-  const parts = [];
-  if (d.frequency) parts.push(d.frequency);
-  if (d.types && d.types.length) parts.push(d.types.join(', '));
-  if (d.intensity) parts.push(d.intensity);
-  if (d.dailyMovement) parts.push(d.dailyMovement);
-  if (d.note) parts.push(d.note);
-  return parts.join(', ');
-}
-
-export function getSleepSummary(d) {
-  if (!d) return '';
-  const parts = [];
-  if (d.duration) parts.push(d.duration);
-  if (d.quality) parts.push(d.quality + ' quality');
-  if (d.schedule) parts.push(d.schedule);
-  if (d.roomTemp) parts.push(d.roomTemp);
-  if (d.issues && d.issues.length) parts.push(d.issues.join(', '));
-  if (d.environment && d.environment.length) parts.push(d.environment.join(', '));
-  if (d.practices && d.practices.length) parts.push(d.practices.join(', '));
-  if (d.note) parts.push(d.note);
-  return parts.join(', ');
-}
-
-export function getLightCircadianSummary(d) {
-  if (!d) return '';
-  const parts = [];
-  if (d.amLight) parts.push(d.amLight);
-  if (d.daytime) parts.push(d.daytime);
-  if (d.uvExposure) parts.push(d.uvExposure);
-  if (d.skinType) parts.push('skin ' + d.skinType);
-  if (d.evening && d.evening.length) parts.push(d.evening.join(', '));
-  if (d.screenTime) parts.push(d.screenTime + ' screens');
-  if (d.techEnv && d.techEnv.length) parts.push(d.techEnv.join(', '));
-  if (d.cold) parts.push(d.cold);
-  if (d.grounding) parts.push(d.grounding);
-  if (d.mealTiming && d.mealTiming.length) parts.push(d.mealTiming.join(', '));
-  if (d.note) parts.push(d.note);
-  return parts.join(', ');
-}
-
-export function getStressSummary(d) {
-  if (!d) return '';
-  const parts = [];
-  if (d.level) parts.push(d.level + ' stress');
-  if (d.sources && d.sources.length) parts.push(d.sources.join(', '));
-  if (d.management && d.management.length) parts.push('manages: ' + d.management.join(', '));
-  if (d.note) parts.push(d.note);
-  return parts.join(' — ');
-}
-
-export function getLoveLifeSummary(d) {
-  if (!d) return '';
-  const parts = [];
-  if (d.status) parts.push(d.status);
-  if (d.relationship) parts.push(d.relationship);
-  if (d.satisfaction) parts.push(d.satisfaction);
-  if (d.libido) parts.push(d.libido + ' libido');
-  if (d.frequency) parts.push(d.frequency);
-  if (d.orgasm) parts.push('orgasm: ' + d.orgasm);
-  if (d.concerns && d.concerns.length) parts.push(d.concerns.join(', '));
-  if (d.note) parts.push(d.note);
-  return parts.join(', ');
-}
-
-export function getEnvironmentSummary(d) {
-  const parts = [];
-  if (d) {
-    if (d.setting) parts.push(d.setting);
-    if (d.climate) parts.push(d.climate);
-    if (d.water) parts.push(d.water);
-    if (d.waterConcerns && d.waterConcerns.length) parts.push(d.waterConcerns.join(', '));
-    if (d.emf && d.emf.length) parts.push(d.emf.length + ' EMF source' + (d.emf.length > 1 ? 's' : ''));
-    if (d.emfMitigation && d.emfMitigation.length) parts.push(d.emfMitigation.length + ' EMF mitigation');
-    if (d.homeLight) parts.push(d.homeLight);
-    if (d.air && d.air.length) parts.push(d.air.join(', '));
-    if (d.toxins && d.toxins.length) parts.push(d.toxins.length + ' toxin exposure' + (d.toxins.length > 1 ? 's' : ''));
-    if (d.building) parts.push(d.building);
-    if (d.note) parts.push(d.note);
-  }
-  const emfSummary = getEMFSummary();
-  if (emfSummary) parts.push(emfSummary);
-  return parts.join(', ');
-}
-
-export function getGoalsSummary() {
-  const healthGoals = state.importedData.healthGoals || [];
-  if (healthGoals.length === 0) return '';
-  const texts = healthGoals.slice(0, 3).map(g => g.text);
-  const summary = texts.join(', ');
-  if (healthGoals.length > 3) return summary + ` +${healthGoals.length - 3} more`;
-  return summary;
-}
-
-export function isContextFilled(key) {
-  if (key === 'healthGoals') return (state.importedData.healthGoals || []).length > 0;
-  if (key === 'environment') return state.importedData.environment != null || getEMFAssessments().length > 0;
-  return state.importedData[key] != null;
-}
-
 export function renderProfileContextCards() {
-  const cardDefs = [
-    { key: 'healthGoals', emoji: '\uD83C\uDFAF', label: 'Health Goals', editor: 'openHealthGoalsEditor', tooltip: 'Define what you\'re trying to solve or improve. AI prioritizes analysis around your stated goals.', placeholder: 'Add health goals', summaryFn: getGoalsSummary },
-    { key: 'diagnoses', emoji: '\uD83C\uDFE5', label: 'Medical History', editor: 'openDiagnosesEditor', tooltip: 'Your diagnoses + family history shape how lab markers should be interpreted. What\'s abnormal for most may be expected for you; a parent\'s heart attack at 52 reframes a borderline LDL.', placeholder: 'Add diagnoses or family history', summaryFn: () => getConditionsSummary(state.importedData.diagnoses) },
-    { key: 'diet', emoji: '\uD83E\uDD57', label: 'Diet & Digestion', editor: 'openDietEditor', tooltip: 'Nutrition and digestion directly affect blood markers — diet type impacts lipids, B12, iron; GI symptoms correlate with inflammation and nutrient absorption.', placeholder: 'Describe your diet & digestion', summaryFn: () => getDietSummary(state.importedData.diet) },
-    { key: 'exercise', emoji: '\uD83C\uDFCB\uFE0F', label: 'Exercise', editor: 'openExerciseEditor', tooltip: 'Training type and intensity affect CK, liver enzymes, cholesterol, and inflammatory markers.', placeholder: 'Describe your routine', summaryFn: () => getExerciseSummary(state.importedData.exercise) },
-    { key: 'sleepRest', emoji: '\uD83D\uDE34', label: 'Sleep & Rest', editor: 'openSleepRestEditor', tooltip: 'Sleep duration and quality directly affect inflammation, insulin sensitivity, cortisol, and immune function.', placeholder: 'Describe your sleep', summaryFn: () => getSleepSummary(state.importedData.sleepRest) },
-    { key: 'lightCircadian', emoji: '\u2600\uFE0F', label: 'Light & Circadian', editor: 'openLightCircadianEditor', tooltip: 'Light, cold, grounding, screen time, and meal timing drive circadian rhythm, hormones, melatonin, cortisol, and metabolic health.', placeholder: 'Describe your light habits', summaryFn: () => getLightCircadianSummary(state.importedData.lightCircadian) },
-    { key: 'stress', emoji: '\uD83E\uDDE0', label: 'Stress', editor: 'openStressEditor', tooltip: 'Chronic stress elevates cortisol, disrupts thyroid function, raises inflammation, and impairs immune response.', placeholder: 'Rate your stress level', summaryFn: () => getStressSummary(state.importedData.stress) },
-    { key: 'loveLife', emoji: '\u2764\uFE0F', label: 'Love Life & Relationships', editor: 'openLoveLifeEditor', tooltip: 'Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.', placeholder: 'Share your status', summaryFn: () => getLoveLifeSummary(state.importedData.loveLife) },
-    { key: 'environment', emoji: '\uD83C\uDF0D', label: 'Environment', editor: 'openEnvironmentEditor', tooltip: 'Water quality, EMF exposure, air quality, toxins, and building materials shape mitochondrial function, inflammation, hormones, and oxidative stress.', placeholder: 'Describe your environment', summaryFn: () => getEnvironmentSummary(state.importedData.environment) },
-  ];
+  const cardDefs = getContextCardDefs();
   const filledCount = cardDefs.filter(c => isContextFilled(c.key)).length;
   const _ccData = getActiveData();
   const _ccHasLabs = _ccData.dates.length > 0 || Object.values(_ccData.categories).some(c => c.singleDate);
@@ -349,7 +186,7 @@ export function getCardFingerprint(key, ctx) {
 
 export async function loadContextHealthDots() {
   if (!hasAIProvider()) return;
-  const keys = ['healthGoals', 'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment'];
+  const keys = CONTEXT_CARD_KEYS;
   const cacheKey = profileStorageKey(state.currentProfile, 'contextHealth');
   let cached;
   try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { cached = null; }
@@ -452,109 +289,6 @@ export function refreshAllHealthDots() {
   try { localStorage.removeItem(cacheKey); } catch(e) {}
   loadContextHealthDots();
   showNotification('Refreshing all insights...', 'info');
-}
-
-// ═══════════════════════════════════════════════
-// CONTEXT CARD EDITOR HELPERS
-// ═══════════════════════════════════════════════
-
-function renderContextEditorModal(modal, title, subtitle, bodyHtml, closeFn = 'closeModal') {
-  if (!modal) return;
-  modal.className = 'modal gb-form-modal ctx-editor-modal';
-  modal.setAttribute('aria-label', title);
-  modal.innerHTML = `<div class="gb-modal-head ctx-editor-head">
-    <div>
-      <div class="gb-modal-kicker">Profile context</div>
-      <h3 class="gb-modal-title">${escapeHTML(title)}</h3>
-    </div>
-    <button type="button" class="modal-close" onclick="${closeFn}()" aria-label="Close ${escapeHTML(title)}">&times;</button>
-  </div>
-  <div class="gb-form-body ctx-editor-body">
-    ${subtitle ? `<div class="modal-unit">${escapeHTML(subtitle)}</div>` : ''}
-    ${bodyHtml}
-  </div>`;
-}
-
-export function renderSelectField(label, id, options, current) {
-  return `<div class="ctx-field-group"><label class="ctx-field-label">${label}</label>
-    <div class="ctx-btn-group" id="${id}">
-      ${options.map(o => `<button type="button" class="ctx-btn-option${current === o ? ' active' : ''}" onclick="selectCtxOption(this,'${id}')">${escapeHTML(o)}</button>`).join('')}
-    </div></div>`;
-}
-
-export function selectCtxOption(btn, groupId) {
-  const group = document.getElementById(groupId);
-  if (!group) return;
-  const wasActive = btn.classList.contains('active');
-  group.querySelectorAll('.ctx-btn-option').forEach(b => b.classList.remove('active'));
-  if (!wasActive) btn.classList.add('active');
-}
-
-export function getSelectedOption(groupId) {
-  const group = document.getElementById(groupId);
-  if (!group) return null;
-  const active = group.querySelector('.ctx-btn-option.active');
-  return active ? active.textContent : null;
-}
-
-export function renderTagsField(label, id, options, selected) {
-  const sel = selected || [];
-  return `<div class="ctx-field-group"><label class="ctx-field-label">${label}</label>
-    <div class="ctx-tags" id="${id}">
-      ${options.map(o => `<button type="button" class="ctx-tag${sel.includes(o) ? ' active' : ''}" onclick="toggleCtxTag(this)">${escapeHTML(o)}</button>`).join('')}
-    </div></div>`;
-}
-
-const _CTX_EXCLUSIONS = [
-  ['no screens 1-2h before bed', 'screen in bed'],
-  ['dim lights after sunset', 'bright lights until bed'],
-  ['early dinner (before 6pm)', 'late dinner (after 8pm)'],
-];
-export function toggleCtxTag(btn) {
-  const text = btn.textContent.trim();
-  const isNone = text.toLowerCase() === 'none';
-  const group = btn.parentElement;
-  if (isNone) {
-    // Toggling "none" on → deselect all others
-    if (!btn.classList.contains('active')) {
-      group.querySelectorAll('.ctx-tag.active').forEach(b => b.classList.remove('active'));
-    }
-  } else {
-    // Toggling a specific option → deselect "none" and contradictory pairs
-    group.querySelectorAll('.ctx-tag.active').forEach(b => {
-      if (b.textContent.trim().toLowerCase() === 'none') b.classList.remove('active');
-    });
-    if (!btn.classList.contains('active')) {
-      for (const pair of _CTX_EXCLUSIONS) {
-        const other = pair[0] === text ? pair[1] : pair[1] === text ? pair[0] : null;
-        if (other) {
-          group.querySelectorAll('.ctx-tag.active').forEach(b => {
-            if (b.textContent.trim() === other) b.classList.remove('active');
-          });
-        }
-      }
-    }
-  }
-  btn.classList.toggle('active');
-}
-
-export function getSelectedTags(containerId) {
-  const el = document.getElementById(containerId);
-  if (!el) return [];
-  return Array.from(el.querySelectorAll('.ctx-tag.active')).map(b => b.textContent);
-}
-
-export function renderNoteField(value) {
-  return `<div class="ctx-field-group"><label class="ctx-field-label">Notes</label>
-    <input type="text" class="ctx-note-input" id="ctx-note-input" placeholder="Anything else..." value="${escapeHTML(value || '')}"></div>`;
-}
-
-export function contextEditorActions(hasCurrent, saveFn, clearFn) {
-  return `<div class="ctx-editor-actions">
-    <button class="import-btn import-btn-primary" onclick="${saveFn}()">Save</button>
-    <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
-    ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="${clearFn}()">Clear</button>` : ''}
-  </div>`;
 }
 
 // ── Change History ──
