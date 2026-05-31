@@ -367,7 +367,7 @@ export function appendImportedArrayItem(importedData, arrayPath, item) {
 
 export function replaceImportedArrayItem(importedData, arrayPath, index, nextItem) {
   const arr = ensureImportedArray(importedData, arrayPath);
-  if (!Number.isInteger(index) || index < 0) return null;
+  if (!Number.isInteger(index) || index < 0 || index >= arr.length) return null;
   const previousItem = arr[index];
   const tombstonedId = tombstoneChangedArrayIdentity(importedData, arrayPath, previousItem, nextItem);
   arr[index] = nextItem;

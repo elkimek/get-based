@@ -129,7 +129,6 @@ export async function updateLightAudit(id, patch) {
 }
 
 export async function deleteLightAudit(id) {
-  getLightAudits();
   deleteImportedArrayItems(state.importedData, 'lightAudits', a => a.id === id);
   await saveImportedData();
 }

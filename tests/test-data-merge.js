@@ -598,6 +598,11 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
     helperBlob.notes.length === 1
       && helperBlob.notes[0].text === 'Edited note'
       && helperBlob._deleted?.notes?.includes(originalNoteId));
+  const outOfBoundsReplace = replaceImportedArrayItem(helperBlob, 'notes', 4, { date: '2026-05-02', text: 'Sparse note' });
+  assert('replaceImportedArrayItem rejects out-of-bounds indexes without sparse holes',
+    outOfBoundsReplace === null
+      && helperBlob.notes.length === 1
+      && !Object.prototype.hasOwnProperty.call(helperBlob.notes, 4));
   const editedNoteId = DELTA_ARRAY_CONFIG.notes.itemIdFn(helperBlob.notes[0]);
   deleteImportedArrayItem(helperBlob, 'notes', 0);
   assert('deleteImportedArrayItem tombstones removed natural-key rows',

@@ -6,6 +6,7 @@ import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
   deleteImportedArrayItem,
+  getConfiguredArrayItemId,
   replaceImportedArrayItem,
 } from './data-merge.js';
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
@@ -60,8 +61,17 @@ function refreshOpenSupplementsEditorOnSync() {
   if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== 'supplements') return;
   if (hasDirtyFormFields(modal)) return;
   const idx = Number.parseInt(modal.dataset.syncRefreshEditIdx || '', 10);
+  const itemId = modal.dataset.syncRefreshItemId || '';
   const supps = state.importedData.supplements || [];
-  openSupplementsEditor(Number.isInteger(idx) && supps[idx] ? idx : undefined);
+  let nextIdx = -1;
+  if (Number.isInteger(idx) && supps[idx]) {
+    const idxItemId = getConfiguredArrayItemId('supplements', supps[idx]);
+    if (!itemId || idxItemId === itemId) nextIdx = idx;
+  }
+  if (nextIdx < 0 && itemId) {
+    nextIdx = supps.findIndex(s => getConfiguredArrayItemId('supplements', s) === itemId);
+  }
+  openSupplementsEditor(nextIdx >= 0 ? nextIdx : undefined);
 }
 
 if (typeof window !== 'undefined') {
@@ -517,6 +527,7 @@ export function openSupplementsEditor(editIdx) {
   modal.innerHTML = html;
   modal.dataset.syncRefreshKind = 'supplements';
   modal.dataset.syncRefreshEditIdx = isEdit ? String(editIdx) : '';
+  modal.dataset.syncRefreshItemId = isEdit ? (getConfiguredArrayItemId('supplements', supps[editIdx]) || '') : '';
   overlay.classList.add("show");
   if (isEdit) {
     const expanded = document.querySelector('.supp-list-expanded');

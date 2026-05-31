@@ -624,6 +624,8 @@ await import('../js/settings.js');
     supplementsSrc.includes('refreshOpenSupplementsEditorOnSync')
       && supplementsSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSupplementsEditorOnSync)")
       && supplementsSrc.includes("modal.dataset.syncRefreshKind = 'supplements'")
+      && supplementsSrc.includes("modal.dataset.syncRefreshItemId")
+      && supplementsSrc.includes("getConfiguredArrayItemId('supplements'")
       && notesSrc.includes('refreshOpenNoteEditorOnSync')
       && notesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenNoteEditorOnSync)")
       && notesSrc.includes("modal.dataset.syncRefreshKind = 'note'")

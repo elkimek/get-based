@@ -1002,6 +1002,7 @@ export function closeModal() {
     delete detailModal.dataset.syncRefreshIndex;
     delete detailModal.dataset.syncRefreshDate;
     delete detailModal.dataset.syncRefreshEditIdx;
+    delete detailModal.dataset.syncRefreshItemId;
   }
   if (state.chartInstances["modal"]) { state.chartInstances["modal"].destroy(); delete state.chartInstances["modal"]; }
   document.removeEventListener('click', closeSuggestionsOnClickOutside);
