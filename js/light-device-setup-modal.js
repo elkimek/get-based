@@ -1,8 +1,8 @@
 // light-device-setup-modal.js — add/custom light-device setup UI.
 //
-// Device persistence stays in light-devices.js. This module owns the
-// preset-picker modal, custom-device form, and AI-assisted URL/photo spec
-// extraction, then calls injected persistence callbacks.
+// Device persistence stays behind light-devices-store.js via injected
+// callbacks. This module owns the preset-picker modal, custom-device form,
+// and AI-assisted URL/photo spec extraction.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.js';
