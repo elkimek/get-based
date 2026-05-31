@@ -6,6 +6,7 @@ import { hashString, getStatus, formatValue, linearRegression, showNotification 
 import { profileStorageKey, touchProfileTimestamp } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
+import { recalculateLabEntryHOMAIR } from './lab-entry.js';
 
 // ═══════════════════════════════════════════════
 // PRIVATE CYCLE PHASE HELPER (avoids circular dep with cycle.js)
@@ -743,11 +744,7 @@ export function setPhaseOverlay(mode) {
 }
 
 export function recalculateHOMAIR(entry) {
-  const glucose = entry.markers["biochemistry.glucose"];
-  const insulin = entry.markers["hormones.insulin"] || entry.markers["diabetes.insulin_d"];
-  if (glucose !== undefined && insulin !== undefined) {
-    entry.markers["diabetes.homaIR"] = Math.round((glucose * insulin) / 22.5 * 100) / 100;
-  }
+  recalculateLabEntryHOMAIR(entry);
 }
 
 // ═══════════════════════════════════════════════

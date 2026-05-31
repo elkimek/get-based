@@ -23,19 +23,20 @@ console.log('=== Import Provenance Tests ===\n');
 // ─── 1. PDF Import Provenance ───
 console.log('1. PDF Import Provenance');
 const pdfSrc = read('js/pdf-import.js');
-assert('Init markerSources on entry', pdfSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
+const labEntrySrc = read('js/lab-entry.js');
+assert('Init markerSources on entry', labEntrySrc.includes('function ensureMarkerSources(entry)'));
 assert('Uses importTs timestamp', pdfSrc.includes('const importTs = Date.now()'));
-assert('Matched markers get markerSources', pdfSrc.includes('entry.markerSources[m.mappedKey] = { file: result.fileName'));
-assert('New markers get markerSources', pdfSrc.includes('entry.markerSources[m.suggestedKey] = { file: result.fileName'));
+assert('Matched markers get markerSources', /setLabEntryMarker\(entry, m\.mappedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfSrc));
+assert('New markers get markerSources', /setLabEntryMarker\(entry, m\.suggestedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfSrc));
 
 // ─── 2. Manual Entry Provenance ───
 console.log('\n2. Manual Entry Provenance');
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const markerDetailEditingSrc = read('js/marker-detail-editing.js');
-assert('saveManualEntry inits markerSources', markerDetailEditingSrc.includes('if (!entry.markerSources) entry.markerSources = {};'));
-assert('saveManualEntry sets file:null', /entry\.markerSources\[dotKey\] = \{ file: null, at: (?:Date\.now\(\)|now) \}/.test(markerDetailEditingSrc));
+assert('saveManualEntry inits markerSources', labEntrySrc.includes('function ensureMarkerSources(entry)'));
+assert('saveManualEntry sets file:null', /saveManualEntry[\s\S]{0,4500}source: \{ file: null, at: now \}/.test(markerDetailEditingSrc));
 const editSection = markerDetailEditingSrc.split('function editMarkerValue')[1] || '';
-assert('editMarkerValue sets provenance', /entry\.markerSources\[dotKey\] = \{ file: null, at: (?:Date\.now\(\)|now) \}/.test(editSection));
+assert('editMarkerValue sets provenance', /source: \{ file: null, at: now \}/.test(editSection));
 
 // ─── 3. Detail Modal Display ───
 console.log('\n3. Detail Modal Display');

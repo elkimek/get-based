@@ -7,7 +7,8 @@ import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, saveImporte
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
-import { deleteImportedArrayItems } from './data-merge.js';
+import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
+import { getInsulinMirrorMarkerKey } from './lab-entry.js';
 import {
   configureMarkerDetailEditing,
   editRefRange,
@@ -141,6 +142,21 @@ function restoreModalTrigger() {
 // default and expand in place instead of opening a nested history modal.
 const MARKER_HISTORY_DEFAULT_CAP = 3;
 const MARKER_HISTORY_EXPANDED_CAP = 40;
+
+function getManualValueForMarker(dotKey, date) {
+  const map = state.importedData.manualValues;
+  if (!map || typeof map !== 'object' || !dotKey || !date) return undefined;
+  const key = dotKey + ':' + date;
+  if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) return map[key];
+  const mirror = getInsulinMirrorMarkerKey(dotKey);
+  const mirrorKey = mirror ? mirror + ':' + date : null;
+  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey) && map[mirrorKey] != null && map[mirrorKey] !== true) {
+    return map[mirrorKey];
+  }
+  if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey)) return map[mirrorKey];
+  return undefined;
+}
 
 // ═══════════════════════════════════════════════
 // DETAIL MODAL & MANUAL ENTRY
@@ -395,9 +411,12 @@ export function showDetailModal(id, opts = {}) {
     const matchingNote = rawDate && state.importedData.notes ? state.importedData.notes.find(n => n.date === rawDate) : null;
     const noteIcon = matchingNote ? `<button type="button" class="mv-note" onclick="event.stopPropagation();this.parentElement.parentElement.querySelector('.mv-note-text').classList.toggle('show')">Note</button><div class="mv-note-text">${escapeHTML(matchingNote.text)}</div>` : '';
     const mvKey = dotKey + ':' + rawDate;
-    const manualVal = rawDate && state.importedData.manualValues && state.importedData.manualValues[mvKey];
-    const isManual = manualVal !== undefined && manualVal !== null;
-    const canRevert = isManual && manualVal !== true;
+    const srcEntry = rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null;
+    const src = srcEntry?.markerSources?.[dotKey];
+    const manualVal = rawDate ? getManualValueForMarker(dotKey, rawDate) : undefined;
+    const isManualSource = !!(src && src.file == null);
+    const isManual = isManualSource || (manualVal !== undefined && manualVal !== null);
+    const canRevert = manualVal !== undefined && manualVal !== null && manualVal !== true;
     const manualBadge = canRevert
       ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert manual value to imported value" title="Manual — click to revert to imported value" onclick="event.stopPropagation();revertMarkerValue('${id}','${rawDate}')">manual \u00d7</span>`
       : isManual ? ' <span class="ref-edited-badge" title="Manually entered">manual</span>' : '';
@@ -406,8 +425,6 @@ export function showDetailModal(id, opts = {}) {
     // Provenance: which file imported this value
     let sourceHtml = '';
     if (rawDate) {
-      const srcEntry = state.importedData.entries?.find(e => e.date === rawDate);
-      const src = srcEntry?.markerSources?.[dotKey];
       if (src) {
         const fname = src.file;
         if (fname) {
@@ -962,28 +979,18 @@ export async function deleteCustomMarker(id) {
   if (await showConfirmDialog(msg)) {
     // Determine which keys to delete — just this marker, or all in category
     const keysToDelete = isLastInCat ? siblingsInCat : [dotKey];
+    const now = Date.now();
     for (const key of keysToDelete) {
-      // Remove from all entries
-      if (state.importedData.entries) {
-        for (const entry of state.importedData.entries) {
-          if (entry.markers) delete entry.markers[key];
-        }
-      }
-      // Remove manual value tracking
-      if (state.importedData.manualValues) {
-        for (const k of Object.keys(state.importedData.manualValues)) {
-          if (k.startsWith(key + ':')) delete state.importedData.manualValues[k];
-        }
-      }
+      deleteLabEntryMarkerValues(state.importedData, key, { now, deleteEmptyEntries: false });
       // Remove ref overrides
       if (state.importedData.refOverrides) delete state.importedData.refOverrides[key];
+      if (state.importedData.markerNotes) delete state.importedData.markerNotes[key];
+      if (state.importedData.markerLabels) delete state.importedData.markerLabels[key];
       // Remove custom marker definition
       delete state.importedData.customMarkers[key];
     }
     // Clean up empty entries
-    if (state.importedData.entries) {
-      deleteImportedArrayItems(state.importedData, 'entries', e => Object.keys(e.markers || {}).length === 0);
-    }
+    deleteEmptyLabEntries(state.importedData);
     saveImportedData();
     closeModal();
     window.buildSidebar();

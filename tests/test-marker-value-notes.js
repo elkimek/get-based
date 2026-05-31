@@ -92,12 +92,14 @@ const state = (await import('../js/state.js')).state;
   const categoryViewRenderersSrc = read('js/category-view-renderers.js');
   const markerDetailSrc = read('js/marker-detail-modal.js');
   const markerDetailEditingSrc = read('js/marker-detail-editing.js');
+  const labEntrySrc = read('js/lab-entry.js');
+  const labEntryMutationsSrc = read('js/lab-entry-mutations.js');
   assert('saveManualEntry reads me-note from the form',
     /const\s+noteInput\s*=\s*document\.getElementById\('me-note'\)/.test(markerDetailEditingSrc));
   assert('saveManualEntry stores noteText in markerValueNotes when non-empty',
     /if \(noteText\) state\.importedData\.markerValueNotes\[noteKey\] = noteText/.test(markerDetailEditingSrc));
   assert('saveManualEntry clears the entry when noteText is empty (idempotent edit-to-blank)',
-    /else delete state\.importedData\.markerValueNotes\[noteKey\]/.test(markerDetailEditingSrc));
+    /else _clearSyncedMapValue\(state\.importedData\.markerValueNotes, noteKey\)/.test(markerDetailEditingSrc));
   assert('manual-entry form HTML includes the me-note textarea',
     markerDetailSrc.includes('id="me-note"') && /placeholder=".*fasted/i.test(markerDetailSrc));
 
@@ -134,9 +136,12 @@ const state = (await import('../js/state.js')).state;
   console.log('%c 6. Orphan cleanup ', 'font-weight:bold;color:#f59e0b');
 
   assert('deleteMarkerValue drops the per-value note for the same (date, marker)',
-    /deleteMarkerValue[\s\S]{0,2000}delete state\.importedData\.markerValueNotes\[dotKey \+ ':' \+ date\]/.test(markerDetailEditingSrc));
+    /deleteMarkerValue[\s\S]{0,1200}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey/.test(markerDetailEditingSrc)
+      && /function deleteLabEntryMarkerMetadata\(importedData, dotKey, date\)[\s\S]{0,500}importedData\.markerValueNotes\[key\] = null/.test(labEntryMutationsSrc));
   assert('deleteMarkerValue drops mirrored insulin manualValues state',
-    /deleteMarkerValue[\s\S]{0,1200}delete state\.importedData\.manualValues\['diabetes\.insulin_d:' \+ date\]/.test(markerDetailEditingSrc));
+    /deleteMarkerValue[\s\S]{0,1200}mirrorInsulin: true/.test(markerDetailEditingSrc)
+      && /deleteLabEntryMarker[\s\S]{0,700}const mirrorKey = opts\.mirrorInsulin \? getInsulinMirrorMarkerKey\(dotKey\)/.test(labEntrySrc)
+      && /function deleteLabEntryMarkerMetadata\(importedData, dotKey, date\)[\s\S]{0,250}importedData\.manualValues\[key\] = null/.test(labEntryMutationsSrc));
 
   // Insulin dual-mapping parity: the value mirrors hormones.insulin ↔
   // diabetes.insulin_d, so the per-value note must mirror too. Bidirectional
@@ -158,12 +163,13 @@ const state = (await import('../js/state.js')).state;
   // edit/delete via the hormones panel OR the diabetes panel.
   assert('_insulinMirrorNoteKey helper defined and bidirectional',
     /_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc) &&
-    /if \(dotKey === 'hormones\.insulin'\) return 'diabetes\.insulin_d:' \+ date/.test(markerDetailEditingSrc) &&
-    /if \(dotKey === 'diabetes\.insulin_d'\) return 'hormones\.insulin:' \+ date/.test(markerDetailEditingSrc));
+    /getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailEditingSrc) &&
+    /if \(dotKey === 'hormones\.insulin'\) return 'diabetes\.insulin_d'/.test(labEntrySrc) &&
+    /if \(dotKey === 'diabetes\.insulin_d'\) return 'hormones\.insulin'/.test(labEntrySrc));
   assert('saveManualEntry uses bidirectional mirror helper',
     /saveManualEntry[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc));
   assert('deleteMarkerValue uses bidirectional mirror helper',
-    /deleteMarkerValue[\s\S]{0,2500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc));
+    /deleteMarkerValue[\s\S]{0,1200}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey[\s\S]{0,200}mirrorInsulin: true/.test(markerDetailEditingSrc));
   assert('editValueNote uses bidirectional mirror helper',
     /editValueNote[\s\S]{0,1500}_insulinMirrorNoteKey\(dotKey, date\)/.test(markerDetailEditingSrc));
 

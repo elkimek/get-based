@@ -54,6 +54,7 @@ const LEGACY_TESTS = [
   './test-markdown.js',
   // Batch 2 — incremental ports.
   './test-data-merge.js',
+  './test-lab-entry.js',
   './test-security-phase1.js',
   './test-correctness-phase2.js',
   // Batch 3 — more pure-logic ports.

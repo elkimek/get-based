@@ -3,12 +3,13 @@
 import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, calculateCost, trackUsage } from './schema.js';
 import { showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
-import { saveImportedData, recalculateHOMAIR } from './data.js';
+import { saveImportedData } from './data.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getPdfDocument } from './pdfjs-loader.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
-import { appendImportedArrayItem, clearTombstone, ensureImportedArray } from './data-merge.js';
+import { findOrCreateLabEntry } from './lab-entry-mutations.js';
+import { setLabEntryMarker, syncLabEntryInsulinMirror } from './lab-entry.js';
 import { runPreflightChecks } from './pdf-import-preflight.js';
 import { normalizeParsedImportMarkers } from './pdf-import-marker-normalization.js';
 import {
@@ -405,13 +406,8 @@ export async function confirmImport() {
     closeImportModal();
     return;
   }
-  const entries = ensureImportedArray(state.importedData, 'entries');
-  clearTombstone(state.importedData, 'entries', result.date);
-  let entry = entries.find(e => e.date === result.date);
-  if (!entry) {
-    entry = { date: result.date, markers: {} };
-    appendImportedArrayItem(state.importedData, 'entries', entry);
-  }
+  const importTs = Date.now();
+  const entry = findOrCreateLabEntry(state.importedData, result.date, { now: importTs });
   entry.importedWith = {
     provider: result.costInfo?.provider || null,
     modelId: result.costInfo?.modelId || null
@@ -422,12 +418,12 @@ export async function confirmImport() {
     if (!entry.sourceFiles.includes(result.fileName)) entry.sourceFiles.push(result.fileName);
     entry.sourceFile = result.fileName; // backwards compat
   }
-  if (!entry.markerSources) entry.markerSources = {};
-  const importTs = Date.now();
   entry.updatedAt = importTs;
   for (const m of matched) {
-    entry.markers[m.mappedKey] = normalizeToSI(m.mappedKey, m.value, m.unit);
-    entry.markerSources[m.mappedKey] = { file: result.fileName || null, at: importTs };
+    setLabEntryMarker(entry, m.mappedKey, normalizeToSI(m.mappedKey, m.value, m.unit), {
+      now: importTs,
+      source: { file: result.fileName || null, at: importTs },
+    });
   }
   // For non-blood imports, testType is the authoritative sidebar group for all markers
   const importGroup = (result.testType && result.testType !== 'blood')
@@ -454,8 +450,10 @@ export async function confirmImport() {
   }
   // Save new (custom) marker values and definitions
   for (const m of newMarkers) {
-    entry.markers[m.suggestedKey] = normalizeToSI(m.suggestedKey, m.value, m.unit);
-    entry.markerSources[m.suggestedKey] = { file: result.fileName || null, at: importTs };
+    setLabEntryMarker(entry, m.suggestedKey, normalizeToSI(m.suggestedKey, m.value, m.unit), {
+      now: importTs,
+      source: { file: result.fileName || null, at: importTs },
+    });
     const [catKey] = m.suggestedKey.split('.');
     const schemaCategory = MARKER_SCHEMA[catKey];
     const categoryLabel = schemaCategory ? schemaCategory.label : m.suggestedCategoryLabel || catKey.charAt(0).toUpperCase() + catKey.slice(1);
@@ -472,15 +470,7 @@ export async function confirmImport() {
     state.importedData.customMarkers[m.suggestedKey] = cmDef;
   }
   // Mirror insulin between hormones and diabetes categories (AI may map to either)
-  if (entry.markers["hormones.insulin"] !== undefined) {
-    entry.markers["diabetes.insulin_d"] = entry.markers["hormones.insulin"];
-    if (entry.markerSources?.["hormones.insulin"]) entry.markerSources["diabetes.insulin_d"] = entry.markerSources["hormones.insulin"];
-  }
-  if (entry.markers["diabetes.insulin_d"] !== undefined && entry.markers["hormones.insulin"] === undefined) {
-    entry.markers["hormones.insulin"] = entry.markers["diabetes.insulin_d"];
-    if (entry.markerSources?.["diabetes.insulin_d"]) entry.markerSources["hormones.insulin"] = entry.markerSources["diabetes.insulin_d"];
-  }
-  recalculateHOMAIR(entry);
+  syncLabEntryInsulinMirror(entry, { now: importTs });
   // Adopt PDF reference ranges if user opted in (skip if range matches schema default)
   const adoptRanges = document.getElementById('import-adopt-ranges');
   if (adoptRanges && adoptRanges.checked) {

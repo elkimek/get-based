@@ -21,6 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Unit Normalization on Import Tests ===\n');
 
 const src = read('js/pdf-import.js');
+const exportSrc = read('js/export.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const persistenceSrc = read('js/pdf-import-persistence.js');
@@ -57,10 +58,16 @@ const settingsSrc = read('js/settings.js');
   assert('PDF import requests immediate sync push after durable save',
     /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(confirmBlock));
   assert('PDF import clears same-date entry tombstone when intentionally re-importing',
-    /clearTombstone\(state\.importedData,\s*['"]entries['"],\s*result\.date\)/.test(confirmBlock));
+    /findOrCreateLabEntry\(state\.importedData,\s*result\.date,\s*\{ now: importTs \}\)/.test(confirmBlock));
   assert('PDF import rolls back in-memory state when durable save fails',
     /const rollback = snapshotImportedData\(\)/.test(confirmBlock)
       && /if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
+  const jsonImportBlock = exportSrc.substring(exportSrc.indexOf('export function importDataJSON'), exportSrc.indexOf('function importContextField'));
+  assert('JSON import preserves markerSources.at instead of stamping wall-clock time',
+    /\? \{ \.\.\.entry\.markerSources\[key\] \}/.test(jsonImportBlock)
+      && !/\? \{ \.\.\.entry\.markerSources\[key\], at: importTs \}/.test(jsonImportBlock));
+  assert('JSON import mirrors insulin through shared lab entry helper',
+    /setLabEntryMarker\(existing, key, value,[\s\S]{0,180}mirrorInsulin: true/.test(jsonImportBlock));
   const removeBlock = persistenceSrc.substring(persistenceSrc.indexOf('export async function removeImportedEntry'), persistenceSrc.indexOf('export async function renameImportedEntryDate'));
   assert('import delete records entries tombstone before removing row',
     /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*date\)[\s\S]{0,180}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e\.date === date\)/.test(removeBlock));

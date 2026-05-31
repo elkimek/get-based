@@ -671,6 +671,11 @@ await import('../js/settings.js');
     markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshKind')
       && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshDate')
       && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshEditIdx'));
+  assert('active-profile sync refreshes an open marker detail modal',
+    syncPullActiveRefreshSrc.includes('function refreshOpenMarkerDetailModal')
+      && syncPullActiveRefreshSrc.includes("modal?.classList?.contains('marker-detail-modal')")
+      && syncPullActiveRefreshSrc.includes('window.showDetailModal(openId)')
+      && syncPullActiveRefreshSrc.includes('refreshOpenMarkerDetailModal(debug)'));
   assert('sync-pull-rebroadcast.js owns pull-side rebroadcast scheduling',
     syncPullRebroadcastSrc.includes('export function maybeScheduleRebroadcast')
       && syncPullRebroadcastSrc.includes('consumeRebroadcastBudget(profileId)')
@@ -1725,6 +1730,9 @@ await import('../js/settings.js');
     /_planKeyedMapDelta[\s\S]{0,3500}DELTA_MAP_CONFIG\[mapName\][\s\S]{0,3500}keyIdFn\(rawKey\)/.test(deltaSearchSrc));
   assert('_planKeyedMapDelta payload preserves the ORIGINAL raw key (not the synth)',
     /payloadObj\s*=\s*\{\s*k:\s*rawKey,\s*v:\s*value\s*\}/.test(deltaSearchSrc));
+  assert('_planKeyedMapDelta keeps manual value clears as live null rows',
+    /CLEARED_VALUE_MAPS\s*=\s*new Set\(\['manualValues', 'markerValueNotes'\]\)/.test(syncDeltaMapPlannerSrc)
+      && /value === null && !CLEARED_VALUE_MAPS\.has\(mapName\)/.test(syncDeltaMapPlannerSrc));
   assert('Map-shape pull verifies via keyIdFn(parsed.k) === row.itemId',
     /keyIdFn\(parsed\.k\)\s*!==\s*row\.itemId/.test(deltaSearchSrc));
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
@@ -1753,6 +1761,48 @@ await import('../js/settings.js');
     // real-world manualValues shapes)
     assert('distinct keys → distinct synths',
       synthFn('biochemistry.glucose:2026-05-03') !== synthFn('biochemistry.sodium:2026-05-03'));
+    {
+      const profileId = 'sync-test-manual-values-null-clear';
+      const rawKey = 'diabetes.insulin_d:2026-05-03';
+      const itemId = rawKey.replace(/_/g, '__').replace(/:/g, '_');
+      const snapshotKey = `labcharts-${profileId}-delta-manualValues`;
+      const metaKey = `${snapshotKey}-meta`;
+      const oldSnapshot = localStorage.getItem(snapshotKey);
+      const oldMeta = localStorage.getItem(metaKey);
+      try {
+        localStorage.removeItem(snapshotKey);
+        localStorage.removeItem(metaKey);
+        syncDelta.configureSyncDelta({
+          getEvolu: () => ({
+            getQueryRows: () => [{
+              id: 'row_manual_insulin',
+              profileId,
+              arrayName: 'manualValues',
+              itemId,
+              payload: JSON.stringify({ k: rawKey, v: 8 }),
+              syncedAt: '2026-05-03T10:00:00.000Z',
+              isDeleted: null,
+            }],
+          }),
+          getItemRowQuery: () => ({}),
+        });
+        const plan = await syncDelta._planKeyedMapDelta(profileId, 'manualValues', { [rawKey]: null });
+        const payload = JSON.parse(plan.ops[0]?.args?.payload || '{}');
+        assert('manualValues null clear updates a pulled row instead of being skipped',
+          plan.ops.length === 1
+            && plan.ops[0].kind === 'update'
+            && plan.ops[0].args.id === 'row_manual_insulin'
+            && payload.k === rawKey
+            && payload.v === null
+            && Object.prototype.hasOwnProperty.call(plan.next || {}, itemId));
+      } finally {
+        syncDelta.configureSyncDelta({ getEvolu: () => null, getItemRowQuery: () => null });
+        if (oldSnapshot === null) localStorage.removeItem(snapshotKey);
+        else localStorage.setItem(snapshotKey, oldSnapshot);
+        if (oldMeta === null) localStorage.removeItem(metaKey);
+        else localStorage.setItem(metaKey, oldMeta);
+      }
+    }
   }
   assert('_planKeyedMapDelta defined',
     /async function _planKeyedMapDelta\(profileId,\s*mapName,\s*mapObj\)/.test(deltaSearchSrc));

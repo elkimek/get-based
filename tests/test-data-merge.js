@@ -244,6 +244,184 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   assert('stale per-row entries overlay does not revert same-marker manual edit',
     sameMarkerManualEdit.entries[0].markers?.['biochemistry.glucose'] === 5.1
       && sameMarkerManualEdit.entries[0].markerSources?.['biochemistry.glucose']?.file === null);
+  const revertedManualEdit = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: 200,
+      markers: { 'biochemistry.glucose': 5.1 },
+      markerSources: { 'biochemistry.glucose': { file: null, at: 200 } },
+    }],
+  };
+  await mergeArrayRowsIntoImported(revertedManualEdit, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: new Date(300).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      date: '2026-05-01',
+      updatedAt: 300,
+      markers: { 'biochemistry.glucose': 4.7 },
+    }),
+  }]);
+  assert('newer per-row entries revert clears stale manual marker source',
+    revertedManualEdit.entries[0].markers?.['biochemistry.glucose'] === 4.7
+      && !Object.prototype.hasOwnProperty.call(revertedManualEdit.entries[0].markerSources || {}, 'biochemistry.glucose'));
+  const sameDateMarkerDelete = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: 100,
+      markers: {
+        'biochemistry.glucose': 4.7,
+        'biochemistry.alp': 1.2,
+      },
+      markerSources: {
+        'biochemistry.glucose': { file: 'old-sync.pdf', at: 100 },
+        'biochemistry.alp': { file: 'old-sync.pdf', at: 100 },
+      },
+    }],
+  };
+  await mergeArrayRowsIntoImported(sameDateMarkerDelete, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: new Date(200).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      date: '2026-05-01',
+      updatedAt: 200,
+      markers: { 'biochemistry.alp': 1.2 },
+      markerSources: { 'biochemistry.alp': { file: 'old-sync.pdf', at: 100 } },
+      deletedMarkers: { 'biochemistry.glucose': 200 },
+    }),
+  }]);
+  assert('newer per-row entries marker tombstone deletes one same-date marker',
+    !Object.prototype.hasOwnProperty.call(sameDateMarkerDelete.entries[0].markers || {}, 'biochemistry.glucose')
+      && sameDateMarkerDelete.entries[0].markers?.['biochemistry.alp'] === 1.2);
+  const staleMarkerDelete = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: 300,
+      markers: { 'biochemistry.glucose': 5.1 },
+      markerSources: { 'biochemistry.glucose': { file: null, at: 300 } },
+    }],
+  };
+  await mergeArrayRowsIntoImported(staleMarkerDelete, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: new Date(200).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      date: '2026-05-01',
+      updatedAt: 200,
+      markers: {},
+      deletedMarkers: { 'biochemistry.glucose': 200 },
+    }),
+  }]);
+  assert('stale per-row entries marker tombstone does not delete newer same-marker edit',
+    staleMarkerDelete.entries[0].markers?.['biochemistry.glucose'] === 5.1);
+  const reimportAfterLastMarkerDelete = mergeImportedData(
+    {
+      entries: [{
+        date: '2026-05-01',
+        updatedAt: 700,
+        markers: { 'biochemistry.alp': 1.4 },
+        markerSources: { 'biochemistry.alp': { file: 'new.pdf', at: 700 } },
+        deletedMarkers: { 'biochemistry.glucose': 400 },
+      }],
+    },
+    {
+      entries: [{
+        date: '2026-05-01',
+        updatedAt: 100,
+        markers: { 'biochemistry.glucose': 4.7, 'biochemistry.alp': 1.2 },
+        markerSources: {
+          'biochemistry.glucose': { file: 'old.pdf', at: 100 },
+          'biochemistry.alp': { file: 'old.pdf', at: 100 },
+        },
+      }],
+    }
+  );
+  const reimportedLab = reimportAfterLastMarkerDelete.entries.find(e => e.date === '2026-05-01');
+  assert('same-date reimport keeps marker tombstones so stale peers cannot resurrect deleted markers',
+    reimportedLab?.markers?.['biochemistry.alp'] === 1.4
+      && !Object.prototype.hasOwnProperty.call(reimportedLab.markers || {}, 'biochemistry.glucose')
+      && reimportedLab.deletedMarkers?.['biochemistry.glucose'] === 400);
+  const directHomaMerge = mergeImportedData(
+    {
+      entries: [{
+        date: '2026-06-01',
+        updatedAt: 200,
+        markers: { 'diabetes.homaIR': 1.1 },
+        markerSources: { 'diabetes.homaIR': { file: 'calc.pdf', at: 200 } },
+      }],
+    },
+    {
+      entries: [{
+        date: '2026-06-01',
+        updatedAt: 100,
+        markers: { 'diabetes.hba1c': 31 },
+        markerSources: { 'diabetes.hba1c': { file: 'old.pdf', at: 100 } },
+      }],
+    }
+  );
+  const directHomaEntry = directHomaMerge.entries.find(e => e.date === '2026-06-01');
+  assert('same-date merge preserves direct HOMA-IR when glucose/insulin were not part of the conflict',
+    directHomaEntry?.markers?.['diabetes.homaIR'] === 1.1
+      && directHomaEntry.markers?.['diabetes.hba1c'] === 31);
+  const directHomaWithGlucoseMerge = mergeImportedData(
+    {
+      entries: [{
+        date: '2026-06-02',
+        updatedAt: 200,
+        markers: { 'biochemistry.glucose': 5.1, 'diabetes.homaIR': 1.5 },
+        markerSources: {
+          'biochemistry.glucose': { file: 'calc.pdf', at: 200 },
+          'diabetes.homaIR': { file: 'calc.pdf', at: 200 },
+        },
+      }],
+    },
+    {
+      entries: [{
+        date: '2026-06-02',
+        updatedAt: 100,
+        markers: { 'biochemistry.glucose': 5.1 },
+        markerSources: { 'biochemistry.glucose': { file: 'old.pdf', at: 100 } },
+      }],
+    }
+  );
+  const directHomaWithGlucoseEntry = directHomaWithGlucoseMerge.entries.find(e => e.date === '2026-06-02');
+  assert('same-date merge preserves direct HOMA-IR when glucose is present but insulin is absent',
+    directHomaWithGlucoseEntry?.markers?.['diabetes.homaIR'] === 1.5
+      && directHomaWithGlucoseEntry.markers?.['biochemistry.glucose'] === 5.1);
+  const insulinDeleteHomaMerge = mergeImportedData(
+    {
+      entries: [{
+        date: '2026-06-03',
+        updatedAt: 300,
+        markers: { 'biochemistry.glucose': 5, 'diabetes.homaIR': 2 },
+        markerSources: { 'diabetes.homaIR': { file: 'calc.pdf', at: 100 } },
+        deletedMarkers: { 'hormones.insulin': 300, 'diabetes.insulin_d': 300 },
+      }],
+    },
+    {
+      entries: [{
+        date: '2026-06-03',
+        updatedAt: 100,
+        markers: {
+          'biochemistry.glucose': 5,
+          'hormones.insulin': 9,
+          'diabetes.insulin_d': 9,
+          'diabetes.homaIR': 2,
+        },
+        markerSources: {
+          'hormones.insulin': { file: 'old.pdf', at: 100 },
+          'diabetes.insulin_d': { file: 'old.pdf', at: 100 },
+          'diabetes.homaIR': { file: 'old.pdf', at: 100 },
+        },
+      }],
+    }
+  );
+  const insulinDeleteHomaEntry = insulinDeleteHomaMerge.entries.find(e => e.date === '2026-06-03');
+  assert('same-date merge clears stale computed HOMA-IR when insulin tombstone wins',
+    !Object.prototype.hasOwnProperty.call(insulinDeleteHomaEntry?.markers || {}, 'diabetes.homaIR')
+      && !Object.prototype.hasOwnProperty.call(insulinDeleteHomaEntry?.markers || {}, 'hormones.insulin')
+      && !Object.prototype.hasOwnProperty.call(insulinDeleteHomaEntry?.markers || {}, 'diabetes.insulin_d'));
   const editedDeviceSession = {
     deviceSessions: [{
       id: 'devsess_duration_edit',
@@ -788,6 +966,11 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
       { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.2 } }] },
       { entries: [{ date: '2026-05-01', markers: { 'biochemistry.alp': 1.2, 'biochemistry.alt': 0.5 } }] }
     ) === false);
+  assert('local lab marker tombstone missing remotely → true',
+    localHasRowsRemoteLacks(
+      { entries: [{ date: '2026-05-01', updatedAt: 200, markers: { 'biochemistry.alp': 1.2 }, deletedMarkers: { 'biochemistry.glucose': 200 } }] },
+      { entries: [{ date: '2026-05-01', updatedAt: 100, markers: { 'biochemistry.alp': 1.2, 'biochemistry.glucose': 4.7 } }] }
+    ) === true);
 
   // Within-id conflict: same id, local's record has a strictly higher
   // pickTimestamp than remote's. After mergeImportedData this means

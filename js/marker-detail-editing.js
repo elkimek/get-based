@@ -3,13 +3,16 @@
 import { state } from './state.js';
 import { getAlternateUnit, convertUserInputToSI } from './schema.js';
 import { escapeHTML, escapeAttr, formatValue, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
-import { getActiveData, saveImportedData, recalculateHOMAIR, updateHeaderDates, convertDisplayToSI } from './data.js';
+import { getActiveData, saveImportedData, updateHeaderDates, convertDisplayToSI } from './data.js';
 import {
-  appendImportedArrayItem,
-  clearTombstone,
-  deleteImportedArrayItems,
-  ensureImportedArray,
-} from './data-merge.js';
+  deleteLabEntryMarkerFromImportedData,
+  findOrCreateLabEntry,
+} from './lab-entry-mutations.js';
+import {
+  getInsulinMirrorMarkerKey,
+  setLabEntryMarker,
+  stampLabEntryUpdated,
+} from './lab-entry.js';
 
 const markerDetailDeps = {
   navigate: (category, data) => window.navigate?.(category, data),
@@ -40,34 +43,63 @@ function closeModal() {
 // category the user is editing from. Returns the OTHER key (if any) so the
 // caller can write the same note value to both sides.
 function _insulinMirrorNoteKey(dotKey, date) {
-  if (dotKey === 'hormones.insulin') return 'diabetes.insulin_d:' + date;
-  if (dotKey === 'diabetes.insulin_d') return 'hormones.insulin:' + date;
-  return null;
+  const mirror = getInsulinMirrorMarkerKey(dotKey);
+  return mirror ? mirror + ':' + date : null;
+}
+
+function _entryMarkerValue(entry, dotKey) {
+  const markers = entry?.markers && typeof entry.markers === 'object' ? entry.markers : null;
+  if (!markers || !dotKey) return undefined;
+  if (Object.prototype.hasOwnProperty.call(markers, dotKey)) return markers[dotKey];
+  const mirror = getInsulinMirrorMarkerKey(dotKey);
+  if (mirror && Object.prototype.hasOwnProperty.call(markers, mirror)) return markers[mirror];
+  return undefined;
 }
 
 function _entryHasImportedSource(entry, dotKey) {
   if (!entry) return false;
   const markerSource = entry.markerSources?.[dotKey];
-  return !!(markerSource?.file || entry.sourceFile);
+  if (markerSource?.file) return true;
+  const mirror = getInsulinMirrorMarkerKey(dotKey);
+  if (mirror && entry.markerSources?.[mirror]?.file) return true;
+  if (entry.sourceFile) return true;
+  return Array.isArray(entry.sourceFiles) && entry.sourceFiles.some(Boolean);
 }
 
 function _rememberManualOriginal(dotKey, date, entry) {
   if (!entry || !dotKey || !date) return;
   if (!state.importedData.manualValues) state.importedData.manualValues = {};
   const mvKey = dotKey + ':' + date;
-  const current = entry.markers?.[dotKey];
+  const current = _entryMarkerValue(entry, dotKey);
   const hasImportedOriginal = current != null && _entryHasImportedSource(entry, dotKey);
-  if (!(mvKey in state.importedData.manualValues)) {
+  if (!(mvKey in state.importedData.manualValues) || state.importedData.manualValues[mvKey] == null) {
     state.importedData.manualValues[mvKey] = hasImportedOriginal ? current : true;
   } else if (state.importedData.manualValues[mvKey] === true && hasImportedOriginal) {
     state.importedData.manualValues[mvKey] = current;
   }
 }
 
-function stampLabEntryUpdated(entry, now = Date.now()) {
-  if (!entry || typeof entry !== 'object') return now;
-  entry.updatedAt = now;
-  return now;
+function _clearSyncedMapValue(map, key) {
+  if (!map || typeof map !== 'object' || !key) return;
+  if (!Object.prototype.hasOwnProperty.call(map, key)) return;
+  map[key] = null;
+}
+
+function _manualOriginalFor(dotKey, date) {
+  const map = state.importedData.manualValues;
+  if (!map || typeof map !== 'object' || !dotKey || !date) return undefined;
+  const key = dotKey + ':' + date;
+  if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) {
+    return map[key];
+  }
+  const mirror = getInsulinMirrorMarkerKey(dotKey);
+  const mirrorKey = mirror ? mirror + ':' + date : null;
+  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey) && map[mirrorKey] != null && map[mirrorKey] !== true) {
+    return map[mirrorKey];
+  }
+  if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey)) return map[mirrorKey];
+  return undefined;
 }
 
 export async function saveManualEntry(id, opts = {}) {
@@ -126,14 +158,8 @@ export async function saveManualEntry(id, opts = {}) {
     const unit = marker?.unit || '';
     if (!await showConfirmDialog(`A value of ${displayVal} ${unit} already exists for ${date}. Overwrite?`)) return;
   }
-  const entries = ensureImportedArray(state.importedData, 'entries');
-  clearTombstone(state.importedData, 'entries', date);
-  let entry = entries.find(e => e.date === date);
   const now = Date.now();
-  if (!entry) {
-    entry = { date: date, markers: {}, updatedAt: now };
-    appendImportedArrayItem(state.importedData, 'entries', entry);
-  }
+  const entry = findOrCreateLabEntry(state.importedData, date, { now });
   // If the user picked the alternate unit, convert from there directly to SI
   // (convertUserInputToSI is a no-op when inputUnit is already the SI unit, so
   // the EU-mode default keeps working unchanged). Otherwise fall through to the
@@ -142,19 +168,18 @@ export async function saveManualEntry(id, opts = {}) {
     ? convertUserInputToSI(dotKey, value, inputUnit)
     : convertDisplayToSI(dotKey, value);
   _rememberManualOriginal(dotKey, date, entry);
-  entry.markers[dotKey] = storedValue;
-  if (!entry.markerSources) entry.markerSources = {};
-  entry.markerSources[dotKey] = { file: null, at: now };
+  const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
+  if (insulinMirror) _rememberManualOriginal(insulinMirror, date, entry);
+  setLabEntryMarker(entry, dotKey, storedValue, {
+    now,
+    source: { file: null, at: now },
+    mirrorInsulin: true,
+  });
   // Per-value note: store on save when non-empty; clear when emptied.
   if (!state.importedData.markerValueNotes) state.importedData.markerValueNotes = {};
   const noteKey = dotKey + ':' + date;
   if (noteText) state.importedData.markerValueNotes[noteKey] = noteText;
-  else delete state.importedData.markerValueNotes[noteKey];
-  if (dotKey === 'hormones.insulin') {
-    _rememberManualOriginal('diabetes.insulin_d', date, entry);
-    entry.markers['diabetes.insulin_d'] = storedValue;
-    entry.markerSources['diabetes.insulin_d'] = entry.markerSources[dotKey];
-  }
+  else _clearSyncedMapValue(state.importedData.markerValueNotes, noteKey);
   // Mirror the per-value note across the insulin dual-mapping — same reading,
   // two views. Bidirectional: user may save via either category page. Without
   // this, a note added on one side wouldn't show on the other, and orphans
@@ -162,10 +187,8 @@ export async function saveManualEntry(id, opts = {}) {
   const insulinNoteMirror = _insulinMirrorNoteKey(dotKey, date);
   if (insulinNoteMirror) {
     if (noteText) state.importedData.markerValueNotes[insulinNoteMirror] = noteText;
-    else delete state.importedData.markerValueNotes[insulinNoteMirror];
+    else _clearSyncedMapValue(state.importedData.markerValueNotes, insulinNoteMirror);
   }
-  recalculateHOMAIR(entry);
-  stampLabEntryUpdated(entry, now);
   await saveImportedData();
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
@@ -199,32 +222,10 @@ export async function deleteMarkerValue(id, date) {
   if (!entry || entry.markers[dotKey] === undefined) return;
   if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
     const now = Date.now();
-    delete entry.markers[dotKey];
-    // Clean up provenance and manual tracking
-    if (entry.markerSources) delete entry.markerSources[dotKey];
-    if (state.importedData.manualValues) delete state.importedData.manualValues[dotKey + ':' + date];
-    // Drop the per-value note (if any) — value is gone, note is orphaned.
-    if (state.importedData.markerValueNotes) delete state.importedData.markerValueNotes[dotKey + ':' + date];
-    // Clean up insulin dual-mapping (value, provenance, AND the per-value
-    // note for the mirror key — same reading, both views must go together).
-    if (dotKey === 'hormones.insulin') {
-      delete entry.markers['diabetes.insulin_d'];
-      if (entry.markerSources) delete entry.markerSources['diabetes.insulin_d'];
-      if (state.importedData.manualValues) delete state.importedData.manualValues['diabetes.insulin_d:' + date];
-      recalculateHOMAIR(entry);
-    }
-    // Mirror the note delete in both directions — user may delete via either
-    // category. Forward-only would leave orphans on the other side.
-    const mirrorKey = _insulinMirrorNoteKey(dotKey, date);
-    if (mirrorKey && state.importedData.markerValueNotes) {
-      delete state.importedData.markerValueNotes[mirrorKey];
-    }
-    // Remove entry entirely if no markers left
-    if (Object.keys(entry.markers).length === 0) {
-      deleteImportedArrayItems(state.importedData, 'entries', e => e.date === date);
-    } else {
-      stampLabEntryUpdated(entry, now);
-    }
+    deleteLabEntryMarkerFromImportedData(state.importedData, entry, dotKey, {
+      now,
+      mirrorInsulin: true,
+    });
     saveImportedData();
     window.buildSidebar();
     updateHeaderDates();
@@ -267,12 +268,13 @@ export function editMarkerValue(id, date, currentValue, event) {
     _rememberManualOriginal(dotKey, date, entry);
     const storedValue = convertDisplayToSI(dotKey, newValue);
     const now = Date.now();
-    entry.markers[dotKey] = storedValue;
-    // Update provenance to reflect manual edit
-    if (!entry.markerSources) entry.markerSources = {};
-    entry.markerSources[dotKey] = { file: null, at: now };
-    if (dotKey === 'hormones.insulin') { entry.markers['diabetes.insulin_d'] = storedValue; if (entry.markerSources) entry.markerSources['diabetes.insulin_d'] = entry.markerSources[dotKey]; recalculateHOMAIR(entry); }
-    stampLabEntryUpdated(entry, now);
+    const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
+    if (insulinMirror) _rememberManualOriginal(insulinMirror, date, entry);
+    setLabEntryMarker(entry, dotKey, storedValue, {
+      now,
+      source: { file: null, at: now },
+      mirrorInsulin: true,
+    });
     await saveImportedData();
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
     markerDetailDeps.navigate(state.currentView || 'dashboard');
@@ -288,19 +290,17 @@ export function editMarkerValue(id, date, currentValue, event) {
 export async function revertMarkerValue(id, date) {
   const dotKey = id.replace('_', '.');
   const mvKey = dotKey + ':' + date;
-  const original = state.importedData.manualValues?.[mvKey];
+  const original = _manualOriginalFor(dotKey, date);
   if (original == null || original === true) return;
   const entry = state.importedData.entries?.find(e => e.date === date);
   if (!entry) return;
-  entry.markers[dotKey] = original;
-  if (entry.markerSources) delete entry.markerSources[dotKey];
-  if (dotKey === 'hormones.insulin') {
-    entry.markers['diabetes.insulin_d'] = original;
-    if (entry.markerSources) delete entry.markerSources['diabetes.insulin_d'];
-    delete state.importedData.manualValues['diabetes.insulin_d:' + date];
-    recalculateHOMAIR(entry);
-  }
-  delete state.importedData.manualValues[mvKey];
+  const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
+  setLabEntryMarker(entry, dotKey, original, {
+    clearSource: true,
+    mirrorInsulin: true,
+  });
+  if (insulinMirror) _clearSyncedMapValue(state.importedData.manualValues, insulinMirror + ':' + date);
+  _clearSyncedMapValue(state.importedData.manualValues, mvKey);
   stampLabEntryUpdated(entry);
   await saveImportedData();
   // Rebuild the underlying view so Table/Heatmap/Chart reflect the revert.
@@ -340,10 +340,10 @@ export async function deleteValueNote(id, date) {
   const dotKey = id.replace('_', '.');
   const noteKey = dotKey + ':' + date;
   if (state.importedData.markerValueNotes && state.importedData.markerValueNotes[noteKey]) {
-    delete state.importedData.markerValueNotes[noteKey];
+    _clearSyncedMapValue(state.importedData.markerValueNotes, noteKey);
     // Mirror cleanup in BOTH directions across the insulin dual-mapping.
     const mirror = _insulinMirrorNoteKey(dotKey, date);
-    if (mirror) delete state.importedData.markerValueNotes[mirror];
+    if (mirror) _clearSyncedMapValue(state.importedData.markerValueNotes, mirror);
     saveImportedData();
     showDetailModal(id);
   }

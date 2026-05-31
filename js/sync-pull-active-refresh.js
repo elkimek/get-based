@@ -8,6 +8,23 @@ function dbg(debug, ...args) {
   try { debug?.(...args); } catch {}
 }
 
+function refreshOpenMarkerDetailModal(debug) {
+  const openId = state._activeDetailMarkerId;
+  if (!openId || typeof window === 'undefined' || typeof document === 'undefined') return false;
+  const overlay = document.getElementById('modal-overlay');
+  const modal = document.getElementById('detail-modal');
+  const isOpen = !!overlay?.classList?.contains('show');
+  const isMarkerDetail = !!modal?.classList?.contains('marker-detail-modal');
+  if (!isOpen || !isMarkerDetail || typeof window.showDetailModal !== 'function') return false;
+  try {
+    window.showDetailModal(openId);
+    return true;
+  } catch (e) {
+    dbg(debug, `Pulled active profile — marker detail refresh failed: ${e?.message || e}`);
+    return false;
+  }
+}
+
 export function refreshActiveProfileAfterPull({
   profileId,
   merged,
@@ -63,6 +80,8 @@ export function refreshActiveProfileAfterPull({
     }
     dbg(debug, `Pulled active profile ${profileId.slice(0,8)} → re-rendered '${cat}'`);
   }
+
+  refreshOpenMarkerDetailModal(debug);
 
   // Broadcast for any detached UI listening for cross-device
   // updates (e.g., the All-Sessions modal in views.js). The

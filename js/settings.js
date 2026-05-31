@@ -969,7 +969,11 @@ export function closeSettingsModal() {
 }
 
 export function renderDataEntriesSection() {
-  const entries = (state.importedData && state.importedData.entries) ? state.importedData.entries : [];
+  const rawEntries = state.importedData?.entries || [];
+  const entries = [];
+  for (const entry of rawEntries) {
+    if (Object.keys(entry?.markers || {}).length > 0) entries.push(entry);
+  }
   if (entries.length === 0) {
     return '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No data yet. Drop a PDF or JSON file on the dashboard, or add values manually.</div>';
   }
