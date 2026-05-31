@@ -59,6 +59,9 @@ import {
   deleteSession,
   pauseSession,
   resumeSession,
+  markSessionRotated,
+  setSessionSunscreen,
+  setSessionCoverage,
   updateSession,
   hydrateSession,
   rehydrateStaleSessions,
@@ -95,6 +98,9 @@ export {
   deleteSession,
   pauseSession,
   resumeSession,
+  markSessionRotated,
+  setSessionSunscreen,
+  setSessionCoverage,
   updateSession,
   hydrateSession,
   rehydrateStaleSessions,
@@ -320,13 +326,12 @@ export async function resumeSunSession(id) {
 export async function flipSidesMidSession(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
-  if (!sess.bodyExposure) sess.bodyExposure = {};
-  if (sess.bodyExposure.rotatedSides) {
+  if (sess.bodyExposure?.rotatedSides) {
     showNotification('Already logged as rotated — IU readout already accounts for both sides.', 'success', 3500);
     return;
   }
-  sess.bodyExposure.rotatedSides = true;
-  await saveImportedData();
+  const updated = await markSessionRotated(id);
+  if (!updated) return;
   showNotification('Logged as rotated — vit-D IU now reflects both sides exposed over the session.', 'success', 3500);
   _refreshSurfaces();
 }
@@ -349,13 +354,8 @@ export async function applySunscreenMidSession(id) {
     showNotification('SPF must be 0-100.', 'error', 3000);
     return;
   }
-  // Commit current slice with OLD SPF before the change, then update +
-  // clear rate so the next tick snapshots fresh under the NEW SPF.
-  _commitCurrentSlice(sess);
-  if (!sess.bodyExposure) sess.bodyExposure = {};
-  sess.bodyExposure.sunscreenSPF = spf || null;
-  _setLiveState(id, { ratePerMin: null });
-  await saveImportedData();
+  const updated = await setSessionSunscreen(id, spf);
+  if (!updated) return;
   showNotification(`SPF updated to ${spf || 'none'} — next dose-rate sample uses the new value.`, 'success', 3500);
   _refreshSurfaces();
 }
@@ -422,29 +422,12 @@ export async function changeCoverageMidSession(id) {
 
   overlay.querySelector('#coverage-confirm').addEventListener('click', async () => {
     const regions = Array.from(selected);
-    // Recompute fraction sum for the new selection. Floor at 0 — fully
-    // clothed is a valid intermediate state (e.g. user puts on a coat
-    // and walks to the next outdoor patch). Future ticks accrue zero
-    // until the next coverage change re-exposes skin.
-    const fraction = regions.reduce((sum, key) => {
-      const r = BODY_REGIONS.find(b => b.key === key);
-      return sum + (r?.fraction || 0);
-    }, 0);
-
-    // Commit the slice computed under the OLD regions so the historical
-    // dose stays accurate. Same plumbing applySunscreenMidSession uses.
-    _commitCurrentSlice(sess);
-    if (!sess.bodyExposure) sess.bodyExposure = {};
-    sess.bodyExposure.regions = regions;
-    sess.bodyExposure.fraction = fraction;
-    sess.bodyExposure.preset = regions.length === 0 ? 'face_hands' : 'detailed';
-    // Force a fresh rate snapshot on the next tick so the new fraction
-    // takes effect immediately rather than carrying stale rate forward.
-    _setLiveState(id, { ratePerMin: null });
-    await saveImportedData();
+    const updated = await setSessionCoverage(id, regions);
+    const fraction = updated?.bodyExposure?.fraction || 0;
     overlay.remove();
+    if (!updated) return;
     showNotification(
-      regions.length === 0
+      updated.bodyExposure?.regions?.length === 0
         ? 'Coverage updated: fully clothed — dose accrual paused until you uncover skin again.'
         : `Coverage updated: ${(fraction * 100).toFixed(0)}% body — next tick re-samples at the new fraction.`,
       'success', 3500
