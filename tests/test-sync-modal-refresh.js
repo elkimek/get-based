@@ -5,7 +5,7 @@
 
 import './_node-shim.js';
 
-const { bindDetailModalSyncRefresh } = await import('../js/utils.js');
+const { bindDetailModalSyncRefresh, bindModalSyncRefresh } = await import('../js/utils.js');
 const { state } = await import('../js/state.js');
 const { configureSyncDelta } = await import('../js/sync-delta.js');
 const { mergePulledImportedData } = await import('../js/sync-pull-merge.js');
@@ -21,10 +21,13 @@ function assert(name, condition, detail) {
 console.log('=== Sync Modal Refresh Tests ===\n');
 
 const originalGetElementById = document.getElementById;
+const originalBodyContains = document.body?.contains;
 
-function makeOverlay({ open = true } = {}) {
+function makeOverlay({ open = true, dataset = {}, querySelector = () => null } = {}) {
   return {
+    dataset,
     classList: { contains: cls => cls === 'show' && open },
+    querySelector,
   };
 }
 
@@ -41,6 +44,107 @@ function makeModal({ kind = 'note', dirty = false, itemId = null } = {}) {
 
 function emitSyncApplied() {
   window.dispatchEvent({ type: 'labcharts-sync-applied' });
+}
+
+try {
+  let body = { scrollTop: 37 };
+  let modal = {
+    querySelectorAll: () => [],
+    querySelector: selector => selector === '#summary-modal-body' ? body : null,
+  };
+  let overlay = makeOverlay({
+    dataset: { syncRefreshKind: 'chat-summary', syncRefreshSummaryId: 'summary-1' },
+    querySelector: selector => selector === '.modal' ? modal : selector === '#summary-modal-body' ? body : null,
+  });
+  document.getElementById = id => id === 'summary-modal-overlay' ? overlay : null;
+  let overlayRefreshCalls = 0;
+  let overlayRefreshItemId = '';
+  const detachOverlayRefresh = bindModalSyncRefresh({
+    overlayId: 'summary-modal-overlay',
+    modalSelector: '.modal',
+    kind: 'chat-summary',
+    scrollSelector: '#summary-modal-body',
+    getItemId: ({ overlay: activeOverlay }) => activeOverlay.dataset.syncRefreshSummaryId,
+    refresh: ({ itemId }) => {
+      overlayRefreshCalls++;
+      overlayRefreshItemId = itemId;
+      body = { scrollTop: 0 };
+      modal = {
+        querySelectorAll: () => [],
+        querySelector: selector => selector === '#summary-modal-body' ? body : null,
+      };
+    },
+  });
+
+  emitSyncApplied();
+  assert('generic modal sync helper refreshes matching open clean modal and restores scroll',
+    overlayRefreshCalls === 1 && overlayRefreshItemId === 'summary-1' && body.scrollTop === 37,
+    JSON.stringify({ overlayRefreshCalls, overlayRefreshItemId, scrollTop: body.scrollTop }));
+
+  body.scrollTop = 50;
+  modal = {
+    querySelectorAll: () => [{ disabled: false, tagName: 'INPUT', type: 'text', value: 'draft', defaultValue: '' }],
+    querySelector: selector => selector === '#summary-modal-body' ? body : null,
+  };
+  emitSyncApplied();
+  assert('generic modal sync helper skips dirty modal forms',
+    overlayRefreshCalls === 1 && body.scrollTop === 50,
+    JSON.stringify({ overlayRefreshCalls, scrollTop: body.scrollTop }));
+  detachOverlayRefresh();
+
+  let directBody = { scrollTop: 12 };
+  let directModal = {
+    querySelectorAll: () => [],
+    querySelector: selector => selector === '.direct-body' ? directBody : null,
+  };
+  const directOverlay = makeOverlay({
+    querySelector: selector => selector === '.direct-modal' ? directModal : selector === '.direct-body' ? directBody : null,
+  });
+  let directCalls = 0;
+  document.body.contains = node => node === directOverlay;
+  const detachDirectOverlay = bindModalSyncRefresh({
+    overlay: directOverlay,
+    modalSelector: '.direct-modal',
+    scrollSelector: '.direct-body',
+    refresh: () => {
+      directCalls++;
+      directBody = { scrollTop: 0 };
+      directModal = {
+        querySelectorAll: () => [],
+        querySelector: selector => selector === '.direct-body' ? directBody : null,
+      };
+    },
+  });
+  emitSyncApplied();
+  assert('generic modal sync helper supports detached overlay instances',
+    directCalls === 1 && directBody.scrollTop === 12,
+    JSON.stringify({ directCalls, scrollTop: directBody.scrollTop }));
+  detachDirectOverlay();
+
+  const ghostModal = {
+    querySelectorAll: () => [],
+    querySelector: () => null,
+  };
+  const ghostOverlay = makeOverlay({
+    querySelector: selector => selector === '.ghost-modal' ? ghostModal : null,
+  });
+  document.body.contains = node => node !== ghostOverlay;
+  let ghostCalls = 0;
+  const detachGhostOverlay = bindModalSyncRefresh({
+    overlay: ghostOverlay,
+    modalSelector: '.ghost-modal',
+    refresh: () => { ghostCalls++; },
+  });
+  emitSyncApplied();
+  emitSyncApplied();
+  assert('generic modal sync helper detaches removed direct overlay instances',
+    ghostCalls === 0,
+    JSON.stringify({ ghostCalls }));
+  detachGhostOverlay();
+} finally {
+  document.getElementById = originalGetElementById;
+  if (originalBodyContains === undefined) delete document.body.contains;
+  else document.body.contains = originalBodyContains;
 }
 
 try {

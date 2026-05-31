@@ -117,19 +117,98 @@ export function bindDetachedModalSyncRefresh({
   window.addEventListener('labcharts-sync-applied', onSync);
 }
 
-export function bindDetailModalSyncRefresh(kind, refresh) {
-  if (typeof window === 'undefined' || typeof document === 'undefined' || !kind || typeof refresh !== 'function') {
+export function bindModalSyncRefresh({
+  overlay: directOverlay,
+  overlayId,
+  overlaySelector,
+  modalId,
+  modalSelector,
+  kind,
+  refresh,
+  getItemId,
+  scrollSelector,
+  getScrollElement,
+  preserveScroll = true,
+} = {}) {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || typeof refresh !== 'function') {
     return () => {};
   }
+  const findOverlay = () => {
+    if (directOverlay) return directOverlay;
+    if (overlayId) return document.getElementById(overlayId);
+    if (overlaySelector && typeof document.querySelector === 'function') return document.querySelector(overlaySelector);
+    return null;
+  };
+  const findModal = (overlay) => {
+    if (modalId) return document.getElementById(modalId);
+    if (modalSelector && overlay?.querySelector) return overlay.querySelector(modalSelector);
+    return overlay || null;
+  };
+  const resolveScrollElement = ({ overlay, modal }) => {
+    if (!preserveScroll) return null;
+    if (typeof getScrollElement === 'function') return getScrollElement({ overlay, modal }) || null;
+    if (scrollSelector) {
+      return overlay?.querySelector?.(scrollSelector)
+        || modal?.querySelector?.(scrollSelector)
+        || null;
+    }
+    return modal || overlay || null;
+  };
+  const isDetachedDirectOverlay = (overlay) => {
+    if (!directOverlay || !overlay || typeof document.body?.contains !== 'function') return false;
+    try {
+      return !document.body.contains(overlay);
+    } catch (_) {
+      return false;
+    }
+  };
+  const restoreScroll = (scrollTop) => {
+    if (!Number.isFinite(scrollTop)) return;
+    const overlay = findOverlay();
+    const modal = findModal(overlay);
+    const el = resolveScrollElement({ overlay, modal });
+    if (!el || typeof el.scrollTop !== 'number') return;
+    el.scrollTop = Math.max(0, scrollTop);
+  };
+  let detached = false;
+  const detach = () => {
+    if (detached) return;
+    detached = true;
+    window.removeEventListener('labcharts-sync-applied', onSync);
+  };
   const onSync = () => {
-    const overlay = document.getElementById('modal-overlay');
-    const modal = document.getElementById('detail-modal');
-    if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== kind) return;
+    const overlay = findOverlay();
+    if (isDetachedDirectOverlay(overlay)) { detach(); return; }
+    const modal = findModal(overlay);
+    if (!overlay?.classList?.contains('show') || !modal) return;
+    if (kind && overlay?.dataset?.syncRefreshKind !== kind && modal?.dataset?.syncRefreshKind !== kind) return;
     if (hasDirtyFormFields(modal)) return;
-    refresh({ overlay, modal });
+    const scrollEl = resolveScrollElement({ overlay, modal });
+    const scrollTop = scrollEl && typeof scrollEl.scrollTop === 'number' ? scrollEl.scrollTop : NaN;
+    const itemId = typeof getItemId === 'function'
+      ? getItemId({ overlay, modal })
+      : (modal?.dataset?.syncRefreshItemId || overlay?.dataset?.syncRefreshItemId || '');
+    refresh({ overlay, modal, itemId, scrollTop });
+    if (Number.isFinite(scrollTop)) {
+      restoreScroll(scrollTop);
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => restoreScroll(scrollTop));
+      } else {
+        setTimeout(() => restoreScroll(scrollTop), 0);
+      }
+    }
   };
   window.addEventListener('labcharts-sync-applied', onSync);
-  return () => window.removeEventListener('labcharts-sync-applied', onSync);
+  return detach;
+}
+
+export function bindDetailModalSyncRefresh(kind, refresh) {
+  return bindModalSyncRefresh({
+    overlayId: 'modal-overlay',
+    modalId: 'detail-modal',
+    kind,
+    refresh,
+  });
 }
 
 export function getStatus(value, refMin, refMax) {

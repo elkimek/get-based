@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { calculateCost, formatCost } from './schema.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { bindModalSyncRefresh, escapeHTML, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
@@ -179,10 +179,7 @@ function _getLatestSavedSummary(threadId) {
   return _getSavedSummaries().find(s => s.threadId === threadId);
 }
 
-function refreshOpenSummaryModalOnSync() {
-  const overlay = document.getElementById('summary-modal-overlay');
-  if (!overlay?.classList?.contains('show') || overlay.dataset.syncRefreshKind !== 'chat-summary') return;
-  const id = overlay.dataset.syncRefreshSummaryId || '';
+function refreshOpenSummaryModalOnSync({ itemId: id = '' } = {}) {
   renderSavedSummaries();
   if (!id) return;
   const summary = _getSavedSummaries().find(s => s.id === id);
@@ -194,7 +191,14 @@ function refreshOpenSummaryModalOnSync() {
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync);
+  bindModalSyncRefresh({
+    overlayId: 'summary-modal-overlay',
+    modalSelector: '.modal',
+    kind: 'chat-summary',
+    scrollSelector: '#summary-modal-body',
+    getItemId: ({ overlay }) => overlay?.dataset?.syncRefreshSummaryId || '',
+    refresh: refreshOpenSummaryModalOnSync,
+  });
 }
 
 export async function deleteSavedSummary(id) {
