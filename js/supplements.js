@@ -1,7 +1,7 @@
 // supplements.js — Supplement/medication editor and dashboard section
 
 import { state } from './state.js';
-import { escapeHTML, showNotification, isDebugMode } from './utils.js';
+import { escapeHTML, hasDirtyFormFields, showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
@@ -52,6 +52,20 @@ function _sourceUrlParts(raw) {
     url: parsed.toString(),
     host: parsed.hostname.replace(/^www\./, '')
   };
+}
+
+function refreshOpenSupplementsEditorOnSync() {
+  const overlay = document.getElementById('modal-overlay');
+  const modal = document.getElementById('detail-modal');
+  if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== 'supplements') return;
+  if (hasDirtyFormFields(modal)) return;
+  const idx = Number.parseInt(modal.dataset.syncRefreshEditIdx || '', 10);
+  const supps = state.importedData.supplements || [];
+  openSupplementsEditor(Number.isInteger(idx) && supps[idx] ? idx : undefined);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('labcharts-sync-applied', refreshOpenSupplementsEditorOnSync);
 }
 
 export function renderSupplementsSection() {
@@ -501,6 +515,8 @@ export function openSupplementsEditor(editIdx) {
     <div id="supp-add-form-area"></div>
   </div>`;
   modal.innerHTML = html;
+  modal.dataset.syncRefreshKind = 'supplements';
+  modal.dataset.syncRefreshEditIdx = isEdit ? String(editIdx) : '';
   overlay.classList.add("show");
   if (isEdit) {
     const expanded = document.querySelector('.supp-list-expanded');

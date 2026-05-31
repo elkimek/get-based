@@ -18,7 +18,7 @@
 //   importedData.deviceSessions[] — session log
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, formatDate } from './utils.js';
+import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import { CHANNEL_DISPLAY } from './sun.js';
@@ -616,6 +616,12 @@ export function openDeviceSessionDetail(id) {
     </div>
   </div>`;
   _wireModal(overlay);
+  bindDetachedModalSyncRefresh({
+    overlay,
+    id,
+    opener: openDeviceSessionDetail,
+    exists: sessionId => getDeviceSessions().some(s => s.id === sessionId),
+  });
 }
 
 // Rolling totals — same shape as sun.rollingChannelTotals so the AI context

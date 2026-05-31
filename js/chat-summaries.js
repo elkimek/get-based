@@ -179,6 +179,24 @@ function _getLatestSavedSummary(threadId) {
   return _getSavedSummaries().find(s => s.threadId === threadId);
 }
 
+function refreshOpenSummaryModalOnSync() {
+  const overlay = document.getElementById('summary-modal-overlay');
+  if (!overlay?.classList?.contains('show') || overlay.dataset.syncRefreshKind !== 'chat-summary') return;
+  const id = overlay.dataset.syncRefreshSummaryId || '';
+  renderSavedSummaries();
+  if (!id) return;
+  const summary = _getSavedSummaries().find(s => s.id === id);
+  if (summary) {
+    viewSavedSummary(id);
+  } else {
+    _closeSummaryModal();
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync);
+}
+
 export async function deleteSavedSummary(id) {
   if (!state.importedData.chatSummaries) return;
   deleteImportedArrayItems(state.importedData, 'chatSummaries', s => s.id === id);
@@ -234,6 +252,8 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
   } else {
     overlay.className = 'modal-overlay show';
   }
+  overlay.dataset.syncRefreshKind = 'chat-summary';
+  overlay.dataset.syncRefreshSummaryId = thread?._savedId || '';
 
   const threadName = thread ? escapeHTML(thread.name) : 'Conversation';
   const dateStr = thread?.summaryDate ? new Date(thread.summaryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';

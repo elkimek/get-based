@@ -56,7 +56,7 @@ import {
   ENV_TOXINS,
   ENV_BUILDING,
 } from './constants.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, hasDirtyFormFields, showNotification } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData } from './data.js';
 import {
@@ -86,6 +86,18 @@ let saveContextAndRefresh = (msg, field) => {
   saveImportedData();
   showNotification(msg, 'success');
 };
+
+function refreshOpenHealthGoalsModalOnSync() {
+  const overlay = document.getElementById('modal-overlay');
+  const modal = document.getElementById('detail-modal');
+  if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== 'healthGoals') return;
+  if (hasDirtyFormFields(modal)) return;
+  renderHealthGoalsModal(modal);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('labcharts-sync-applied', refreshOpenHealthGoalsModalOnSync);
+}
 
 export function configureLifestyleContextEditors({ recordChange, saveAndRefresh } = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
@@ -520,6 +532,7 @@ export function openHealthGoalsEditor() {
 }
 
 export function renderHealthGoalsModal(modal) {
+  if (modal?.dataset) modal.dataset.syncRefreshKind = 'healthGoals';
   const goals = state.importedData.healthGoals || [];
   let html = '';
   if (goals.length > 0) {

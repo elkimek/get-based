@@ -1,6 +1,6 @@
 // notes.js — Standalone note editor
 import { state } from './state.js';
-import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
+import { escapeHTML, hasDirtyFormFields, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
@@ -8,6 +8,33 @@ import {
   ensureImportedArray,
   replaceImportedArrayItem,
 } from './data-merge.js';
+
+function refreshOpenNoteEditorOnSync() {
+  const overlay = document.getElementById('modal-overlay');
+  const modal = document.getElementById('detail-modal');
+  if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== 'note') return;
+  if (hasDirtyFormFields(modal)) return;
+  if (modal.dataset.syncRefreshMode !== 'edit') {
+    openNoteEditor(modal.dataset.syncRefreshDate || undefined);
+    return;
+  }
+  const idx = Number.parseInt(modal.dataset.syncRefreshIndex || '', 10);
+  const date = modal.dataset.syncRefreshDate || '';
+  if (Number.isInteger(idx) && state.importedData.notes?.[idx]) {
+    openNoteEditor(null, idx);
+    return;
+  }
+  const nextIdx = (state.importedData.notes || []).findIndex(n => n?.date === date);
+  if (nextIdx >= 0) {
+    openNoteEditor(null, nextIdx);
+  } else {
+    window.closeModal?.();
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('labcharts-sync-applied', refreshOpenNoteEditorOnSync);
+}
 
 export function openNoteEditor(date, existingIdx) {
   const modal = document.getElementById("detail-modal");
@@ -30,6 +57,10 @@ export function openNoteEditor(date, existingIdx) {
       <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
       ${isEditing ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="deleteNote(${existingIdx})">Delete</button>` : ''}
     </div>`;
+  modal.dataset.syncRefreshKind = 'note';
+  modal.dataset.syncRefreshMode = isEditing ? 'edit' : 'add';
+  modal.dataset.syncRefreshIndex = isEditing ? String(existingIdx) : '';
+  modal.dataset.syncRefreshDate = defaultDate || '';
   overlay.classList.add("show");
   setTimeout(() => {
     const ta = document.getElementById('note-textarea');

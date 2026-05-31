@@ -56,6 +56,67 @@ export function sanitizeMarkerKey(fullKey) {
   return `${cat}.${mk}`;
 }
 
+export function hasDirtyFormFields(root) {
+  if (!root || !root.querySelectorAll) return false;
+  const fields = root.querySelectorAll('input, textarea, select');
+  for (const field of fields) {
+    if (!field || field.disabled) continue;
+    if (field.tagName === 'SELECT') {
+      const options = Array.from(field.options || []);
+      if (options.some(opt => opt.selected !== opt.defaultSelected)) return true;
+      continue;
+    }
+    if (field.type === 'checkbox' || field.type === 'radio') {
+      if (field.checked !== field.defaultChecked) return true;
+      continue;
+    }
+    if (field.value !== field.defaultValue) return true;
+  }
+  return false;
+}
+
+export function bindDetachedModalSyncRefresh({
+  overlay,
+  id,
+  opener,
+  exists,
+  bodySelector = '.modal-body',
+  restoreSelector = '.modal-overlay.show .sun-detail-modal .modal-body',
+} = {}) {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || !overlay || typeof opener !== 'function') return;
+  let detached = false;
+  const nativeRemove = overlay.remove.bind(overlay);
+  const detach = () => {
+    if (detached) return;
+    detached = true;
+    window.removeEventListener('labcharts-sync-applied', onSync);
+  };
+  const restoreScroll = scrollTop => {
+    const nextBodies = document.querySelectorAll(restoreSelector);
+    const nextBody = nextBodies[nextBodies.length - 1];
+    if (nextBody) nextBody.scrollTop = scrollTop;
+  };
+  const onSync = () => {
+    if (!document.body.contains(overlay)) { detach(); return; }
+    if (hasDirtyFormFields(overlay)) return;
+    const body = overlay.querySelector(bodySelector);
+    const scrollTop = body ? body.scrollTop : 0;
+    overlay.remove();
+    if (typeof exists === 'function' && !exists(id)) return;
+    opener(id);
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => restoreScroll(scrollTop));
+    } else {
+      setTimeout(() => restoreScroll(scrollTop), 0);
+    }
+  };
+  overlay.remove = () => {
+    detach();
+    nativeRemove();
+  };
+  window.addEventListener('labcharts-sync-applied', onSync);
+}
+
 export function getStatus(value, refMin, refMax) {
   if (value === null || value === undefined) return "missing";
   if (refMin == null && refMax == null) return "normal";

@@ -995,7 +995,14 @@ export async function deleteCustomMarker(id) {
 export function closeModal() {
   document.getElementById("modal-overlay").classList.remove("show");
   const detailModal = document.getElementById("detail-modal");
-  if (detailModal) detailModal.className = 'modal';
+  if (detailModal) {
+    detailModal.className = 'modal';
+    delete detailModal.dataset.syncRefreshKind;
+    delete detailModal.dataset.syncRefreshMode;
+    delete detailModal.dataset.syncRefreshIndex;
+    delete detailModal.dataset.syncRefreshDate;
+    delete detailModal.dataset.syncRefreshEditIdx;
+  }
   if (state.chartInstances["modal"]) { state.chartInstances["modal"].destroy(); delete state.chartInstances["modal"]; }
   document.removeEventListener('click', closeSuggestionsOnClickOutside);
   if (window.closeEMFInterpretation) window.closeEMFInterpretation();

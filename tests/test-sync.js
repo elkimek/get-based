@@ -115,6 +115,14 @@ await import('../js/settings.js');
   const appShellCssSrc = await fetchWithRetry('css/app-shell.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
   const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
+  const utilsSrc = await fetchWithRetry('js/utils.js');
+  const sunSessionUISrc = await fetchWithRetry('js/sun-session-ui.js');
+  const lightDevicesSrc = await fetchWithRetry('js/light-devices.js');
+  const supplementsSrc = await fetchWithRetry('js/supplements.js');
+  const notesSrc = await fetchWithRetry('js/notes.js');
+  const contextCardLifestyleEditorsSrc = await fetchWithRetry('js/context-card-lifestyle-editors.js');
+  const chatSummariesSrc = await fetchWithRetry('js/chat-summaries.js');
+  const markerDetailModalSrc = await fetchWithRetry('js/marker-detail-modal.js');
   const syncDeltaPlannerSearchSrc = `${syncDeltaPlannersSrc}\n${syncDeltaPlannerContextSrc}\n${syncDeltaArrayPlannerSrc}\n${syncDeltaMapPlannerSrc}\n${syncDeltaScalarPlannerSrc}`;
   const syncDeltaMergeSearchSrc = `${syncDeltaMergeShapesSrc}\n${syncDeltaRowCodecSrc}\n${syncDeltaArrayMergeSrc}\n${syncDeltaMapMergeSrc}\n${syncDeltaScalarMergeSrc}`;
   const syncDeltaRegistrySearchSrc = `${syncDeltaRegistrySrc}\n${syncDeltaSurfacesSrc}\n${syncDeltaSurfaceConfigSrc}\n${syncDeltaIdSrc}`;
@@ -601,6 +609,36 @@ await import('../js/settings.js');
       && syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')"));
   assert('service worker precaches sync-pull-active-refresh.js',
     serviceWorkerSrc.includes("'/js/sync-pull-active-refresh.js'"));
+  assert('modal refresh dirty-form guard is shared',
+    utilsSrc.includes('export function hasDirtyFormFields')
+      && utilsSrc.includes("querySelectorAll('input, textarea, select')")
+      && utilsSrc.includes('export function bindDetachedModalSyncRefresh')
+      && utilsSrc.includes("window.addEventListener('labcharts-sync-applied', onSync)")
+      && utilsSrc.includes('hasDirtyFormFields(overlay)'));
+  assert('sun and device session detail modals refresh on sync-applied',
+    sunSessionUISrc.includes('bindDetachedModalSyncRefresh({')
+      && sunSessionUISrc.includes('opener: openSunSessionDetail')
+      && lightDevicesSrc.includes('bindDetachedModalSyncRefresh({')
+      && lightDevicesSrc.includes('opener: openDeviceSessionDetail'));
+  assert('shared data modals refresh clean editors on sync-applied',
+    supplementsSrc.includes('refreshOpenSupplementsEditorOnSync')
+      && supplementsSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSupplementsEditorOnSync)")
+      && supplementsSrc.includes("modal.dataset.syncRefreshKind = 'supplements'")
+      && notesSrc.includes('refreshOpenNoteEditorOnSync')
+      && notesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenNoteEditorOnSync)")
+      && notesSrc.includes("modal.dataset.syncRefreshKind = 'note'")
+      && contextCardLifestyleEditorsSrc.includes('refreshOpenHealthGoalsModalOnSync')
+      && contextCardLifestyleEditorsSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenHealthGoalsModalOnSync)")
+      && contextCardLifestyleEditorsSrc.includes("modal.dataset.syncRefreshKind = 'healthGoals'"));
+  assert('saved chat summary modal refreshes on sync-applied',
+    chatSummariesSrc.includes('refreshOpenSummaryModalOnSync')
+      && chatSummariesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync)")
+      && chatSummariesSrc.includes("overlay.dataset.syncRefreshKind = 'chat-summary'")
+      && chatSummariesSrc.includes('viewSavedSummary(id)'));
+  assert('closeModal clears sync refresh modal metadata',
+    markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshKind')
+      && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshDate')
+      && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshEditIdx'));
   assert('sync-pull-rebroadcast.js owns pull-side rebroadcast scheduling',
     syncPullRebroadcastSrc.includes('export function maybeScheduleRebroadcast')
       && syncPullRebroadcastSrc.includes('consumeRebroadcastBudget(profileId)')

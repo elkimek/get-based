@@ -4,7 +4,7 @@
 // the UI layer can stay separate without importing sun.js and creating a cycle.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 
 const uiDeps = {
@@ -379,6 +379,12 @@ export function openSunSessionDetail(id) {
   uiDeps.wireBackdropClose(overlay);
   document.body.appendChild(overlay);
   uiDeps.trapModalFocus(overlay);
+  bindDetachedModalSyncRefresh({
+    overlay,
+    id,
+    opener: openSunSessionDetail,
+    exists: sessionId => uiDeps.getSessions().some(s => s.id === sessionId),
+  });
 }
 
 // Per-channel chip value — small inline real-unit number rendered on
