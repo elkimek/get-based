@@ -9,6 +9,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { SKIN_TYPE } from './constants.js';
 
@@ -514,13 +515,7 @@ function openSunSetupOverlay() {
     ${renderSetupActions()}
   </div>`;
 
-  if (window._wireBackdropClose) {
-    try { window._wireBackdropClose(overlay, closeSunSetupOverlay); } catch (_) {}
-  } else {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeSunSetupOverlay();
-    });
-  }
+  try { wireBackdropClose(overlay, closeSunSetupOverlay); } catch (_) {}
 
   document.body.appendChild(overlay);
 
@@ -532,9 +527,7 @@ function openSunSetupOverlay() {
   });
   obs.observe(document.body, { childList: true, subtree: true });
 
-  if (window.trapModalFocus) {
-    try { window.trapModalFocus(overlay); } catch (_) {}
-  }
+  try { trapModalFocus(overlay); } catch (_) {}
   setLightSetupStep('core', { focus: false });
   const focusBody = () => overlay.querySelector('.light-setup-focus-body')?.focus?.({ preventScroll: true });
   setTimeout(() => {

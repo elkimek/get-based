@@ -295,6 +295,7 @@ const APP_SHELL = [
   '/js/wearables-apple-health.js',
   '/js/wearables-manual.js',
   '/js/brand-assets.js',
+  '/js/modal-lifecycle.js',
   // Sun + light modules are statically reachable from the app shell.
   '/js/sun.js',
   '/js/sun-active-session.js',

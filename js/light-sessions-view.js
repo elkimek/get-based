@@ -1,6 +1,7 @@
 // light-sessions-view.js — Unified Light & Sun session list and modal
 
 import { bindModalSyncRefresh, escapeHTML, escapeAttr, formatDate } from './utils.js';
+import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 
 // Inline cap on the historical sessions list. 3 is enough for
 // at-a-glance context ("what did I do recently"); the full history
@@ -214,7 +215,7 @@ export function _openAllSessionsModal() {
     });
     event.preventDefault();
   }, { passive: false });
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
+  try { wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 }

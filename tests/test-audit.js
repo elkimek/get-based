@@ -63,6 +63,7 @@ assert('SW APP_SHELL includes provider local AI controls module', swAuditSrc.inc
 assert('SW APP_SHELL includes provider PPQ panels module', swAuditSrc.includes("'/js/provider-ppq-panels.js'"));
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
+assert('SW APP_SHELL includes modal lifecycle module', swAuditSrc.includes("'/js/modal-lifecycle.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
   swAuditSrc.includes("'/js/pdf-import-preflight.js'")
   && swAuditSrc.includes("'/js/pdf-import-progress.js'")
@@ -376,6 +377,7 @@ const lightConditionsCss = read('css/light-conditions-now.css');
 const lightSetupCss = read('css/light-setup.css');
 const sunSrc = read('js/sun.js');
 const sunActiveSessionSrc = read('js/sun-active-session.js');
+const modalLifecycleSrc = read('js/modal-lifecycle.js');
 const sunSessionUiSrc = read('js/sun-session-ui.js');
 const lightDevicesSrc = read('js/light-devices.js');
 assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
@@ -383,6 +385,10 @@ assert('No var(--text) without suffix', !/(var\(--text\))(?!-)/.test(cssSrc));
 assert('Dead overview-grid CSS removed', !cssSrc.includes('.overview-grid'));
 assert('Dead overview-card CSS removed', !cssSrc.includes('.overview-card'));
 assert('Light page uses scoped layout wrapper', lightPageViewSrc.includes('class="light-page"'));
+assert('Modal lifecycle helpers live outside sun-active-session.js',
+  /export function wireBackdropClose/.test(modalLifecycleSrc)
+    && /export function trapModalFocus/.test(modalLifecycleSrc)
+    && !/export function _wireBackdropClose|export function trapModalFocus/.test(sunActiveSessionSrc));
 const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
 const lightSessionLogStart = lightPageViewSrc.indexOf('function renderLightSessionLogActions');
 const lightSessionLogEnd = lightPageViewSrc.indexOf('function renderLightWidgetPrompt', lightSessionLogStart);

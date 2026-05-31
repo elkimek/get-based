@@ -1,6 +1,7 @@
 // light-tool-camera-modals.js — Camera-backed Light tool modal flows.
 
 import { escapeHTML, showNotification } from './utils.js';
+import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import {
   aimingGuideHTML,
   lockCameraForMeasurement,
@@ -88,9 +89,9 @@ export async function openLuxMeter(opts = {}, deps = {}) {
     _luxState.video = null;
     overlay.remove();
   };
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeLuxMeter()); } catch (e) {}
+  try { wireBackdropClose(overlay, () => window._closeLuxMeter()); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   let currentLux = null;
   // Snapshot of the LATEST raw camera luma (before calibration multiply).
@@ -330,9 +331,9 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     if (_flickerState.stream) { try { _flickerState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _flickerState.stream = null; }
     overlay.remove();
   };
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeFlicker()); } catch (e) {}
+  try { wireBackdropClose(overlay, () => window._closeFlicker()); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   let lastResult = null;
   const resultEl = overlay.querySelector('#flicker-result');
@@ -481,9 +482,9 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeDark()); } catch (e) {}
+  try { wireBackdropClose(overlay, () => window._closeDark()); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   let result = null;
   const statusEl = overlay.querySelector('#dark-status');
@@ -652,9 +653,9 @@ export async function openCCTMeter(opts = {}, deps = {}) {
     if (_cctState.stream) { try { _cctState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _cctState.stream = null; }
     overlay.remove();
   };
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeCCT()); } catch (e) {}
+  try { wireBackdropClose(overlay, () => window._closeCCT()); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   let currentCCT = null;
   let currentMelanopic = null;
@@ -807,9 +808,9 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     if (_specState.stream) { try { _specState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _specState.stream = null; }
     overlay.remove();
   };
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeSpec()); } catch (e) {}
+  try { wireBackdropClose(overlay, () => window._closeSpec()); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   let result = null;
   const resultEl = overlay.querySelector('#spec-result');
@@ -1000,9 +1001,9 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
     activeGlassStreams.clear();
     overlay.remove();
   };
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeGlass()); } catch (e) {}
+  try { wireBackdropClose(overlay, () => window._closeGlass()); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   _glassReadings = { inside: null, outside: null };
 
@@ -1083,4 +1084,3 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
   }
 
 }
-

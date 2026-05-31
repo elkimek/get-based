@@ -2,6 +2,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
+import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 
 export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' } = {}) {
   const conditionsOpts = { variant };
@@ -365,9 +366,9 @@ export function _inspectConditionsNow() {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
+  try { wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
   // Manually drive scroll + halt propagation on the Raw payload <pre>.
   // CSS-only `overflow:auto`/`overscroll-behavior:contain` couldn't beat
   // the modal's own scroll container — wheel deltas were being claimed
