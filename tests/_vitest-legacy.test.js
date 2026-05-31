@@ -120,6 +120,7 @@ const LEGACY_TESTS = [
   // Batch 16 — sync + small dashboard tests.
   './test-dashboard-genetics-empty.js',
   './test-sync.js',
+  './test-sync-modal-refresh.js',
   // Batch 17 — recommendations module.
   './test-recommendations.js',
   // Batch 19 — DNA-aware recommendation integration + image utils

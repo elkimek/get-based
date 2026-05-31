@@ -1,6 +1,6 @@
 // notes.js — Standalone note editor
 import { state } from './state.js';
-import { escapeHTML, hasDirtyFormFields, showNotification, showConfirmDialog } from './utils.js';
+import { bindDetailModalSyncRefresh, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
@@ -9,11 +9,7 @@ import {
   replaceImportedArrayItem,
 } from './data-merge.js';
 
-function refreshOpenNoteEditorOnSync() {
-  const overlay = document.getElementById('modal-overlay');
-  const modal = document.getElementById('detail-modal');
-  if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== 'note') return;
-  if (hasDirtyFormFields(modal)) return;
+function refreshOpenNoteEditorOnSync({ modal }) {
   if (modal.dataset.syncRefreshMode !== 'edit') {
     openNoteEditor(modal.dataset.syncRefreshDate || undefined);
     return;
@@ -34,7 +30,7 @@ function refreshOpenNoteEditorOnSync() {
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-sync-applied', refreshOpenNoteEditorOnSync);
+  bindDetailModalSyncRefresh('note', refreshOpenNoteEditorOnSync);
 }
 
 export function openNoteEditor(date, existingIdx) {
