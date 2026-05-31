@@ -104,6 +104,7 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-manual-entry-flow.js` | Manual-entry quality-of-life: range sanity check, duplicate-date confirm, Save & Add Another |
 | `tests/test-markdown.js` | Markdown rendering + XSS surface assertions for streamed AI responses |
 | `tests/test-marker-key-safety.js` | **node** — `safeMarkerId` + `sanitizeMarkerKey` allowlist + proto-pollution rejection (38 assertions) |
+| `tests/test-marker-detail-store.js` | Marker detail mutation boundary: manual values, mirrored insulin notes, ref overrides, marker notes |
 | `tests/test-marker-value-notes.js` | Per-value notes on lab markers: schema defaults, profile migration, sync DELTA_MAPS wiring |
 | `tests/test-mobile.js` | Responsive layout: breakpoints, grid overflow, touch tap targets, safe grid sizing |
 | `tests/test-no-native-dialogs.js` | **node** — guard against `window.prompt/confirm/alert` regressions across `js/` |

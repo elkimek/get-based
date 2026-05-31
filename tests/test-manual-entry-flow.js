@@ -22,6 +22,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
   const viewsSrc = read('js/views.js');
   const markerDetailSrc = read('js/marker-detail-modal.js');
   const markerDetailEditingSrc = read('js/marker-detail-editing.js');
+  const markerDetailStoreSrc = read('js/marker-detail-store.js');
   const labEntrySrc = read('js/lab-entry.js');
 
   // ═══════════════════════════════════════
@@ -73,22 +74,25 @@ console.log('=== Manual Entry Flow Tests ===\n');
   assert('Duplicate check uses display-unit value (marker.values[dateIdx]) not raw SI',
     /const dateIdx = data\.dates\.indexOf\(date\)[\s\S]{0,300}marker\.values\[dateIdx\]/.test(markerDetailEditingSrc));
   assert('Manual overwrite remembers imported original for revert',
-    /function _rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailEditingSrc) &&
-    /state\.importedData\.manualValues\[mvKey\] = hasImportedOriginal \? current : true/.test(markerDetailEditingSrc) &&
-    /saveManualEntry[\s\S]{0,5000}_rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailEditingSrc));
+    /function rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailStoreSrc) &&
+    /manualValues\[key\] = hasImportedOriginal \? current : true/.test(markerDetailStoreSrc) &&
+    /saveManualMarkerValue[\s\S]{0,1200}rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailStoreSrc) &&
+    /saveManualEntry[\s\S]{0,5000}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc));
   assert('Manual original detection accepts sourceFiles and mirrored insulin entries',
-    /function _entryMarkerValue\(entry, dotKey\)[\s\S]{0,500}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailEditingSrc) &&
-    /function _entryHasImportedSource\(entry, dotKey\)[\s\S]{0,700}entry\.sourceFiles\.some\(Boolean\)/.test(markerDetailEditingSrc));
+    /function entryMarkerValue\(entry, dotKey\)[\s\S]{0,500}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailStoreSrc) &&
+    /function entryHasImportedSource\(entry, dotKey\)[\s\S]{0,700}entry\.sourceFiles\.some\(Boolean\)/.test(markerDetailStoreSrc));
   assert('Manual revert can use the mirrored insulin manual original',
-    /function _manualOriginalFor\(dotKey, date\)[\s\S]{0,900}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailEditingSrc) &&
-    /revertMarkerValue[\s\S]{0,350}const original = _manualOriginalFor\(dotKey, date\)/.test(markerDetailEditingSrc));
+    /function insulinMirrorMapKey\(dotKey, date\)[\s\S]{0,250}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailStoreSrc) &&
+    /export function getManualOriginalForMarker\(dotKey, date\)[\s\S]{0,900}insulinMirrorMapKey\(dotKey, date\)/.test(markerDetailStoreSrc) &&
+    /revertMarkerValue[\s\S]{0,350}revertManualMarkerValue\(dotKey, date\)/.test(markerDetailEditingSrc));
   assert('Manual value saves stamp lab entry updatedAt for sync freshness',
     /function stampLabEntryUpdated\(entry, now = Date\.now\(\)\)/.test(labEntrySrc)
-      && /saveManualEntry[\s\S]{0,4500}setLabEntryMarker\(entry, dotKey, storedValue/.test(markerDetailEditingSrc)
-      && /editMarkerValue[\s\S]{0,2400}setLabEntryMarker\(entry, dotKey, storedValue/.test(markerDetailEditingSrc)
-      && /revertMarkerValue[\s\S]{0,1200}stampLabEntryUpdated\(entry\)/.test(markerDetailEditingSrc));
+      && /saveManualMarkerValue[\s\S]{0,1200}setLabEntryMarker\(entry, dotKey, storedValue/.test(markerDetailStoreSrc)
+      && /editManualMarkerValue[\s\S]{0,900}setLabEntryMarker\(entry, dotKey, storedValue/.test(markerDetailStoreSrc)
+      && /revertManualMarkerValue[\s\S]{0,900}setLabEntryMarker\(entry, dotKey, original/.test(markerDetailStoreSrc));
   assert('Manual marker delete stamps remaining lab entry for sync freshness',
-    /deleteMarkerValue[\s\S]{0,1200}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey/.test(markerDetailEditingSrc)
+    /deleteMarkerValue[\s\S]{0,1200}deleteManualMarkerValue\(dotKey, date\)/.test(markerDetailEditingSrc)
+      && /deleteManualMarkerValue[\s\S]{0,900}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey/.test(markerDetailStoreSrc)
       && /deleteLabEntryMarker[\s\S]{0,1800}stampLabEntryUpdated\(entry, now\)/.test(labEntrySrc));
   assert('Clickable manual badge reverts to imported value when original exists',
     /manual \\u00d7/.test(markerDetailSrc) &&
@@ -160,9 +164,9 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /let saveStarted = false/.test(markerDetailEditingSrc) &&
     /if \(saveStarted\) return;[\s\S]{0,80}saveStarted = true/.test(markerDetailEditingSrc));
   assert('Inline edit awaits persistence before refreshing the modal',
-    /await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
+    /await editManualMarkerValue\(\{ dotKey, date, storedValue \}\);[\s\S]{0,180}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
   assert('revertMarkerValue awaits persistence before refreshing the modal',
-    /export async function revertMarkerValue\(id, date\)[\s\S]{0,900}await saveImportedData\(\);[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
+    /export async function revertMarkerValue\(id, date\)[\s\S]{0,300}await revertManualMarkerValue\(dotKey, date\)[\s\S]{0,160}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
   assert('editMarkerValue calls injected navigate() to rebuild Table/Heatmap after save',
     /editMarkerValue[\s\S]{0,2500}markerDetailDeps\.navigate\(state\.currentView \|\| 'dashboard'\)/.test(markerDetailEditingSrc));
   assert('revertMarkerValue also calls injected navigate() to rebuild the underlying view',

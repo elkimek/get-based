@@ -2,17 +2,22 @@
 
 import { state } from './state.js';
 import { getAlternateUnit, convertUserInputToSI } from './schema.js';
-import { escapeHTML, escapeAttr, formatValue, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
-import { getActiveData, saveImportedData, updateHeaderDates, convertDisplayToSI } from './data.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
+import { getActiveData, updateHeaderDates, convertDisplayToSI } from './data.js';
 import {
-  deleteLabEntryMarkerFromImportedData,
-  findOrCreateLabEntry,
-} from './lab-entry-mutations.js';
-import {
-  getInsulinMirrorMarkerKey,
-  setLabEntryMarker,
-  stampLabEntryUpdated,
-} from './lab-entry.js';
+  deleteManualMarkerValue,
+  editManualMarkerValue,
+  getMarkerValueNote,
+  hasMarkerValueForDate,
+  revertManualMarkerValue,
+  revertRefRangeOverride,
+  saveManualMarkerValue,
+  saveMarkerNoteText,
+  saveMarkerValueNote,
+  saveRefRangeOverride,
+  deleteMarkerNoteText,
+  deleteMarkerValueNote,
+} from './marker-detail-store.js';
 
 const markerDetailDeps = {
   navigate: (category, data) => window.navigate?.(category, data),
@@ -35,71 +40,6 @@ function openManualEntryForm(id, prefillDate) {
 
 function closeModal() {
   return markerDetailDeps.closeModal();
-}
-
-// Insulin is stored under hormones.insulin but also surfaced on the diabetes
-// category as diabetes.insulin_d (so the marker shows up in both contexts).
-// Per-value notes need to mirror across both keys regardless of which
-// category the user is editing from. Returns the OTHER key (if any) so the
-// caller can write the same note value to both sides.
-function _insulinMirrorNoteKey(dotKey, date) {
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  return mirror ? mirror + ':' + date : null;
-}
-
-function _entryMarkerValue(entry, dotKey) {
-  const markers = entry?.markers && typeof entry.markers === 'object' ? entry.markers : null;
-  if (!markers || !dotKey) return undefined;
-  if (Object.prototype.hasOwnProperty.call(markers, dotKey)) return markers[dotKey];
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  if (mirror && Object.prototype.hasOwnProperty.call(markers, mirror)) return markers[mirror];
-  return undefined;
-}
-
-function _entryHasImportedSource(entry, dotKey) {
-  if (!entry) return false;
-  const markerSource = entry.markerSources?.[dotKey];
-  if (markerSource?.file) return true;
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  if (mirror && entry.markerSources?.[mirror]?.file) return true;
-  if (entry.sourceFile) return true;
-  return Array.isArray(entry.sourceFiles) && entry.sourceFiles.some(Boolean);
-}
-
-function _rememberManualOriginal(dotKey, date, entry) {
-  if (!entry || !dotKey || !date) return;
-  if (!state.importedData.manualValues) state.importedData.manualValues = {};
-  const mvKey = dotKey + ':' + date;
-  const current = _entryMarkerValue(entry, dotKey);
-  const hasImportedOriginal = current != null && _entryHasImportedSource(entry, dotKey);
-  if (!(mvKey in state.importedData.manualValues) || state.importedData.manualValues[mvKey] == null) {
-    state.importedData.manualValues[mvKey] = hasImportedOriginal ? current : true;
-  } else if (state.importedData.manualValues[mvKey] === true && hasImportedOriginal) {
-    state.importedData.manualValues[mvKey] = current;
-  }
-}
-
-function _clearSyncedMapValue(map, key) {
-  if (!map || typeof map !== 'object' || !key) return;
-  if (!Object.prototype.hasOwnProperty.call(map, key)) return;
-  map[key] = null;
-}
-
-function _manualOriginalFor(dotKey, date) {
-  const map = state.importedData.manualValues;
-  if (!map || typeof map !== 'object' || !dotKey || !date) return undefined;
-  const key = dotKey + ':' + date;
-  if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) {
-    return map[key];
-  }
-  const mirror = getInsulinMirrorMarkerKey(dotKey);
-  const mirrorKey = mirror ? mirror + ':' + date : null;
-  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey) && map[mirrorKey] != null && map[mirrorKey] !== true) {
-    return map[mirrorKey];
-  }
-  if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
-  if (mirrorKey && Object.prototype.hasOwnProperty.call(map, mirrorKey)) return map[mirrorKey];
-  return undefined;
 }
 
 export async function saveManualEntry(id, opts = {}) {
@@ -158,8 +98,6 @@ export async function saveManualEntry(id, opts = {}) {
     const unit = marker?.unit || '';
     if (!await showConfirmDialog(`A value of ${displayVal} ${unit} already exists for ${date}. Overwrite?`)) return;
   }
-  const now = Date.now();
-  const entry = findOrCreateLabEntry(state.importedData, date, { now });
   // If the user picked the alternate unit, convert from there directly to SI
   // (convertUserInputToSI is a no-op when inputUnit is already the SI unit, so
   // the EU-mode default keeps working unchanged). Otherwise fall through to the
@@ -167,29 +105,7 @@ export async function saveManualEntry(id, opts = {}) {
   const storedValue = usingAltUnit
     ? convertUserInputToSI(dotKey, value, inputUnit)
     : convertDisplayToSI(dotKey, value);
-  _rememberManualOriginal(dotKey, date, entry);
-  const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
-  if (insulinMirror) _rememberManualOriginal(insulinMirror, date, entry);
-  setLabEntryMarker(entry, dotKey, storedValue, {
-    now,
-    source: { file: null, at: now },
-    mirrorInsulin: true,
-  });
-  // Per-value note: store on save when non-empty; clear when emptied.
-  if (!state.importedData.markerValueNotes) state.importedData.markerValueNotes = {};
-  const noteKey = dotKey + ':' + date;
-  if (noteText) state.importedData.markerValueNotes[noteKey] = noteText;
-  else _clearSyncedMapValue(state.importedData.markerValueNotes, noteKey);
-  // Mirror the per-value note across the insulin dual-mapping — same reading,
-  // two views. Bidirectional: user may save via either category page. Without
-  // this, a note added on one side wouldn't show on the other, and orphans
-  // would accumulate over delete cycles.
-  const insulinNoteMirror = _insulinMirrorNoteKey(dotKey, date);
-  if (insulinNoteMirror) {
-    if (noteText) state.importedData.markerValueNotes[insulinNoteMirror] = noteText;
-    else _clearSyncedMapValue(state.importedData.markerValueNotes, insulinNoteMirror);
-  }
-  await saveImportedData();
+  await saveManualMarkerValue({ dotKey, date, storedValue, noteText });
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
   window.buildSidebar();
@@ -219,14 +135,11 @@ export async function deleteMarkerValue(id, date) {
   const dotKey = id.replace('_', '.');
   if (!state.importedData.entries) return;
   const entry = state.importedData.entries.find(e => e.date === date);
-  if (!entry || entry.markers[dotKey] === undefined) return;
+  if (!entry) return;
+  if (!hasMarkerValueForDate(dotKey, date)) return;
   if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
-    const now = Date.now();
-    deleteLabEntryMarkerFromImportedData(state.importedData, entry, dotKey, {
-      now,
-      mirrorInsulin: true,
-    });
-    saveImportedData();
+    const deleted = await deleteManualMarkerValue(dotKey, date);
+    if (!deleted) return;
     window.buildSidebar();
     updateHeaderDates();
     // Re-open the detail modal to show updated values. buildSidebar
@@ -262,20 +175,9 @@ export function editMarkerValue(id, date, currentValue, event) {
     // No-op if the value didn't change — don't flip provenance to manual.
     if (newValue === parseFloat(currentValue)) { showDetailModal(id); return; }
     const dotKey = id.replace('_', '.');
-    const entry = state.importedData.entries?.find(e => e.date === date);
-    if (!entry) return;
-    // Track as manually edited — store original value for revert (true = manual entry with no original)
-    _rememberManualOriginal(dotKey, date, entry);
     const storedValue = convertDisplayToSI(dotKey, newValue);
-    const now = Date.now();
-    const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
-    if (insulinMirror) _rememberManualOriginal(insulinMirror, date, entry);
-    setLabEntryMarker(entry, dotKey, storedValue, {
-      now,
-      source: { file: null, at: now },
-      mirrorInsulin: true,
-    });
-    await saveImportedData();
+    const updated = await editManualMarkerValue({ dotKey, date, storedValue });
+    if (!updated) return;
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
     markerDetailDeps.navigate(state.currentView || 'dashboard');
     showDetailModal(id);
@@ -289,20 +191,8 @@ export function editMarkerValue(id, date, currentValue, event) {
 
 export async function revertMarkerValue(id, date) {
   const dotKey = id.replace('_', '.');
-  const mvKey = dotKey + ':' + date;
-  const original = _manualOriginalFor(dotKey, date);
-  if (original == null || original === true) return;
-  const entry = state.importedData.entries?.find(e => e.date === date);
-  if (!entry) return;
-  const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
-  setLabEntryMarker(entry, dotKey, original, {
-    clearSource: true,
-    mirrorInsulin: true,
-  });
-  if (insulinMirror) _clearSyncedMapValue(state.importedData.manualValues, insulinMirror + ':' + date);
-  _clearSyncedMapValue(state.importedData.manualValues, mvKey);
-  stampLabEntryUpdated(entry);
-  await saveImportedData();
+  const updated = await revertManualMarkerValue(dotKey, date);
+  if (!updated) return;
   // Rebuild the underlying view so Table/Heatmap/Chart reflect the revert.
   markerDetailDeps.navigate(state.currentView || 'dashboard');
   showDetailModal(id);
@@ -311,9 +201,7 @@ export async function revertMarkerValue(id, date) {
 export async function editValueNote(id, date) {
   if (!id || !date) return;
   const dotKey = id.replace('_', '.');
-  const noteKey = dotKey + ':' + date;
-  if (!state.importedData.markerValueNotes) state.importedData.markerValueNotes = {};
-  const current = state.importedData.markerValueNotes[noteKey] || '';
+  const current = getMarkerValueNote(dotKey, date);
   const result = await showPromptDialog(
     current ? `Edit note for ${date}` : `Add note for ${date}`,
     { defaultValue: current, placeholder: 'e.g. fasted 14h, post-workout, different lab', okLabel: 'Save' }
@@ -324,13 +212,7 @@ export async function editValueNote(id, date) {
   // Cap to match saveManualEntry — defends against runaway paste flowing
   // into IDB, sync payloads, and AI context.
   const capped = result.length > 500 ? result.slice(0, 500) : result;
-  state.importedData.markerValueNotes[noteKey] = capped;
-  // Mirror across the insulin dual-mapping in BOTH directions so a note
-  // edited via diabetes.insulin_d also lands on hormones.insulin and vice
-  // versa.
-  const mirror = _insulinMirrorNoteKey(dotKey, date);
-  if (mirror) state.importedData.markerValueNotes[mirror] = capped;
-  saveImportedData();
+  await saveMarkerValueNote(dotKey, date, capped);
   showDetailModal(id);
 }
 
@@ -338,15 +220,8 @@ export async function deleteValueNote(id, date) {
   if (!id || !date) return;
   if (!await showConfirmDialog(`Remove the note for ${date}?`)) return;
   const dotKey = id.replace('_', '.');
-  const noteKey = dotKey + ':' + date;
-  if (state.importedData.markerValueNotes && state.importedData.markerValueNotes[noteKey]) {
-    _clearSyncedMapValue(state.importedData.markerValueNotes, noteKey);
-    // Mirror cleanup in BOTH directions across the insulin dual-mapping.
-    const mirror = _insulinMirrorNoteKey(dotKey, date);
-    if (mirror) _clearSyncedMapValue(state.importedData.markerValueNotes, mirror);
-    saveImportedData();
-    showDetailModal(id);
-  }
+  const changed = await deleteMarkerValueNote(dotKey, date);
+  if (changed) showDetailModal(id);
 }
 
 export function editRefRange(id, type, evt) {
@@ -373,7 +248,7 @@ export function editRefRange(id, type, evt) {
   form.addEventListener('keydown', e => { if (e.key === 'Escape') showDetailModal(id); });
 }
 
-export function saveRefRange(id, type) {
+export async function saveRefRange(id, type) {
   const dotKey = id.replace('_', '.');
   const minEl = document.getElementById('ref-edit-min');
   const maxEl = document.getElementById('ref-edit-max');
@@ -388,30 +263,8 @@ export function saveRefRange(id, type) {
   if (newMin != null) newMin = convertDisplayToSI(dotKey, newMin);
   if (newMax != null) newMax = convertDisplayToSI(dotKey, newMax);
 
-  if (!state.importedData.refOverrides) state.importedData.refOverrides = {};
-  if (!state.importedData.refOverrides[dotKey]) state.importedData.refOverrides[dotKey] = {};
-
-  const ovr = state.importedData.refOverrides[dotKey];
-  if (type === 'optimal') {
-    // Stash lab values before first manual edit
-    if (ovr.optimalSource !== 'manual' && ('optimalMin' in ovr) && !('labOptimalMin' in ovr)) {
-      ovr.labOptimalMin = ovr.optimalMin;
-      ovr.labOptimalMax = ovr.optimalMax;
-    }
-    ovr.optimalMin = newMin;
-    ovr.optimalMax = newMax;
-    ovr.optimalSource = 'manual';
-  } else {
-    if (ovr.refSource !== 'manual' && ('refMin' in ovr) && !('labRefMin' in ovr)) {
-      ovr.labRefMin = ovr.refMin;
-      ovr.labRefMax = ovr.refMax;
-    }
-    ovr.refMin = newMin;
-    ovr.refMax = newMax;
-    ovr.refSource = 'manual';
-  }
-
-  saveImportedData();
+  const saved = await saveRefRangeOverride(dotKey, type, { min: newMin, max: newMax });
+  if (!saved) return;
   // Refresh background view, then re-render modal with new ranges
   const activeNav = document.querySelector('.nav-item.active');
   markerDetailDeps.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
@@ -419,40 +272,14 @@ export function saveRefRange(id, type) {
   showNotification('Range updated', 'info');
 }
 
-export function revertRefRange(id, type) {
+export async function revertRefRange(id, type) {
   const dotKey = id.replace('_', '.');
-  const ovr = state.importedData?.refOverrides?.[dotKey];
-  if (!ovr) return;
-  let msg = 'Range reverted to default';
-  if (type === 'optimal') {
-    if ('labOptimalMin' in ovr) {
-      // Revert to imported lab range
-      ovr.optimalMin = ovr.labOptimalMin;
-      ovr.optimalMax = ovr.labOptimalMax;
-      ovr.optimalSource = 'import';
-      delete ovr.labOptimalMin; delete ovr.labOptimalMax;
-      msg = 'Range reverted to lab range';
-    } else {
-      delete ovr.optimalMin; delete ovr.optimalMax; delete ovr.optimalSource;
-    }
-  } else {
-    if ('labRefMin' in ovr) {
-      ovr.refMin = ovr.labRefMin;
-      ovr.refMax = ovr.labRefMax;
-      ovr.refSource = 'import';
-      delete ovr.labRefMin; delete ovr.labRefMax;
-      msg = 'Range reverted to lab range';
-    } else {
-      delete ovr.refMin; delete ovr.refMax; delete ovr.refSource;
-    }
-  }
-  // Clean up empty override objects
-  if (Object.keys(ovr).length === 0) delete state.importedData.refOverrides[dotKey];
-  saveImportedData();
+  const result = await revertRefRangeOverride(dotKey, type);
+  if (!result) return;
   const activeNav = document.querySelector('.nav-item.active');
   markerDetailDeps.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
   showDetailModal(id);
-  showNotification(msg, 'info');
+  showNotification(result.message, 'info');
 }
 
 export function toggleMarkerNoteEditor(dotKey) {
@@ -466,30 +293,18 @@ export function toggleMarkerNoteEditor(dotKey) {
   }
 }
 
-export function saveMarkerNote(dotKey, id) {
+export async function saveMarkerNote(dotKey, id) {
   const input = document.getElementById('marker-note-input');
   const text = input?.value?.trim();
-  if (!text) {
-    // Empty text = delete the note
-    if (state.importedData.markerNotes?.[dotKey]) {
-      delete state.importedData.markerNotes[dotKey];
-      saveImportedData();
-      showNotification('Note removed', 'info');
-      showDetailModal(id);
-    }
-    return;
-  }
-  if (!state.importedData.markerNotes) state.importedData.markerNotes = {};
-  state.importedData.markerNotes[dotKey] = text;
-  saveImportedData();
-  showNotification('Note saved', 'success');
+  const result = await saveMarkerNoteText(dotKey, text);
+  if (result.action === 'noop') return;
+  showNotification(result.action === 'deleted' ? 'Note removed' : 'Note saved', result.action === 'deleted' ? 'info' : 'success');
   showDetailModal(id);
 }
 
-export function deleteMarkerNote(dotKey, id) {
-  if (!state.importedData.markerNotes) return;
-  delete state.importedData.markerNotes[dotKey];
-  saveImportedData();
+export async function deleteMarkerNote(dotKey, id) {
+  const changed = await deleteMarkerNoteText(dotKey);
+  if (!changed) return;
   showNotification('Note removed', 'info');
   showDetailModal(id);
 }
