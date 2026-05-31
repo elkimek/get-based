@@ -1,4 +1,7 @@
-// data-merge.js — per-array union-by-id merge for cross-device sync.
+// data-merge.js — per-array record merge for cross-device sync.
+
+import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
+import { _isAllowlistSafeId } from './sync-delta-id.js';
 //
 // Background: sync pushes the whole `importedData` blob and pull used to do
 // `localStorage.setItem(JSON.stringify(remote))`. With concurrent edits on
@@ -9,16 +12,17 @@
 //
 // Strategy: for known append-only id-keyed arrays (sun feature + a couple
 // related), union local ∪ remote by `id`. Conflict on the same id picks the
-// record with the higher `updatedAt` / `endedAt` / `startedAt` / `capturedAt`
-// (whichever exists). Tombstones in `_deleted[arrayPath]` filter resurrected
-// rows so deletes don't undo themselves on the device that didn't issue them.
+// record with the higher shared freshness timestamp (`updatedAt`, `endedAt`,
+// `capturedAt`, `createdAt`, etc.; whichever exists). Tombstones in
+// `_deleted[arrayPath]` filter resurrected rows so deletes don't undo
+// themselves on the device that didn't issue them.
 //
 // Single-object subtrees (lifelightProfile, sunDefaults, sunCorrelations,
 // lightEnvironment top-level scalars) stay LWW — they're not multi-record.
 //
-// Other id-less arrays (entries by date, notes by date, supplements by name)
-// fall through to LWW for now — separate refactor; the sun feature is the
-// scope of this fix.
+// Other id-less arrays that have stable per-row sync ids merge through their
+// configured itemIdFn below, so the blob baseline and itemRow overlay use the
+// same freshness policy.
 
 // id-keyed arrays inside importedData. Each key is a dotted path; nested
 // arrays inside lightEnvironment go through a tiny accessor helper.
@@ -39,12 +43,16 @@ export const ID_KEYED_ARRAYS = [
   'lightEnvironment.screens',
 ];
 
+export const NATURAL_KEYED_ARRAYS = Object.keys(DELTA_ARRAY_CONFIG)
+  .filter(path => path !== 'entries' && path !== 'changeHistory');
+
 // `_deleted[path]` tombstones can apply to id-keyed arrays and to select
 // natural-key arrays that have a stable sync item id. Lab entries are keyed by
 // collection date in the per-row sync layer, so a deleted import date needs a
 // tombstone or a peer's still-live row can resurrect it before our next push.
 export const TOMBSTONE_ARRAY_PATHS = [
   ...ID_KEYED_ARRAYS,
+  ...NATURAL_KEYED_ARRAYS,
   'entries',
 ];
 
@@ -79,39 +87,64 @@ export const FRESH_LOCAL_LAB_ENTRY_TTL_MS = 2 * 60 * 1000;
 const TOMBSTONE_META_KEY = '_deletedAt';
 const TOMBSTONE_CLEAR_META_KEY = '_deletedClearedAt';
 
-// Pick a comparable timestamp for conflict resolution. Higher wins.
-// Tries the most recently-edited signal first, falls back through the
-// usual creation timestamps. Returns 0 if nothing recognizable found —
-// the function is permissive so foreign records (older schemas) merge
-// instead of throwing.
-//
-// Returns { ts, explicit }: explicit=true when the value came from an
-// edit-time field (updatedAt/endedAt/startedAt/etc); false when it's
-// just a Date.parse(rec.date) fallback. Callers comparing two records
-// from the same composite key should prefer explicit over implicit on
-// tie-break — a record with no explicit stamp must lose to one with
-// any explicit stamp (otherwise old un-stamped entries permanently
-// shadow newer cross-device edits).
+const TIMESTAMP_FIELDS = [
+  'updatedAt',
+  'endedAt',
+  'startedAt',
+  'capturedAt',
+  'takenAt',
+  'savedAt',
+  'loggedAt',
+  'createdAt',
+  'addedAt',
+  'at',
+];
+
+function normalizeTimestamp(value) {
+  if (Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+// Pick a comparable timestamp for conflict resolution. Higher wins. Tries
+// the most recently-edited signal first, then creation/capture fields that
+// several synced array surfaces use. Returns 0 if nothing recognizable is
+// present so older/foreign records can still merge without throwing.
 export function pickTimestamp(rec) {
   if (!rec || typeof rec !== 'object') return 0;
-  const t = rec.updatedAt
-    ?? rec.endedAt
-    ?? rec.startedAt
-    ?? rec.capturedAt
-    ?? rec.loggedAt
-    ?? rec.createdAt
-    ?? rec.at;
-  if (Number.isFinite(t)) return t;
+  for (const field of TIMESTAMP_FIELDS) {
+    const ts = normalizeTimestamp(rec[field]);
+    if (ts !== null) return ts;
+  }
   if (typeof rec.date === 'string') {
     const parsed = Date.parse(rec.date);
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
 }
+
+// Shared freshness ordering for id-keyed array records. Positive means `a`
+// is newer than `b`, negative means older, zero means no winner. Callers
+// intentionally treat zero as "keep the local/current record" so a stale
+// pull cannot undo a just-saved local edit when timestamps tie or are absent.
+export function compareRecordFreshness(a, b) {
+  const aTs = pickTimestamp(a);
+  const bTs = pickTimestamp(b);
+  if (aTs > bTs) return 1;
+  if (aTs < bTs) return -1;
+  return 0;
+}
+
+export function pickFresherRecord(current, candidate) {
+  return compareRecordFreshness(candidate, current) > 0 ? candidate : current;
+}
+
 function hasExplicitTimestamp(rec) {
   if (!rec || typeof rec !== 'object') return false;
-  return Number.isFinite(rec.updatedAt ?? rec.endedAt ?? rec.startedAt
-    ?? rec.capturedAt ?? rec.loggedAt ?? rec.createdAt ?? rec.at);
+  return TIMESTAMP_FIELDS.some(field => normalizeTimestamp(rec[field]) !== null);
 }
 
 function mergePlainMap(localMap, remoteMap) {
@@ -288,32 +321,45 @@ export function setAt(obj, path, value) {
   cur[parts[parts.length - 1]] = value;
 }
 
-// Union two arrays by record `id`. Records lacking an `id` are kept from
-// both sides (no dedup possible). Tombstones is a Set of ids to drop.
-export function unionById(localArr, remoteArr, tombstones) {
+function naturalItemId(path, item) {
+  const itemIdFn = DELTA_ARRAY_CONFIG[path]?.itemIdFn;
+  if (typeof itemIdFn !== 'function') return null;
+  const id = itemIdFn(item);
+  return _isAllowlistSafeId(id) ? id : null;
+}
+
+function unionByItemId(localArr, remoteArr, tombstones, itemIdFn) {
   const tomb = tombstones instanceof Set ? tombstones : new Set(tombstones || []);
   const byId = new Map();
   const noId = [];
 
   function consider(item) {
     if (!item || typeof item !== 'object') return;
-    if (typeof item.id === 'string') {
-      if (tomb.has(item.id)) return; // tombstoned — drop
-      const existing = byId.get(item.id);
-      if (!existing) { byId.set(item.id, item); return; }
-      // Conflict — pick the record with the higher timestamp.
-      const lTs = pickTimestamp(existing);
-      const rTs = pickTimestamp(item);
-      byId.set(item.id, rTs > lTs ? item : existing);
-    } else {
+    const id = itemIdFn(item);
+    if (typeof id !== 'string') {
       noId.push(item);
+      return;
     }
+    if (tomb.has(id)) return; // tombstoned — drop
+    const existing = byId.get(id);
+    if (!existing) { byId.set(id, item); return; }
+    // Conflict — pick the fresher record. Existing/current wins ties so a
+    // stale pull cannot revert local data when timestamps are equal/missing.
+    byId.set(id, pickFresherRecord(existing, item));
   }
 
   if (Array.isArray(localArr))  for (const it of localArr)  consider(it);
   if (Array.isArray(remoteArr)) for (const it of remoteArr) consider(it);
 
   return [...byId.values(), ...noId];
+}
+
+// Union two arrays by record `id`. Records lacking an `id` are kept from
+// both sides (no dedup possible). Tombstones is a Set of ids to drop.
+export function unionById(localArr, remoteArr, tombstones) {
+  return unionByItemId(localArr, remoteArr, tombstones, item => (
+    item && typeof item.id === 'string' ? item.id : null
+  ));
 }
 
 // Merge tombstones plus explicit "clear" markers. The clear metadata is what
@@ -488,6 +534,20 @@ export function mergeImportedData(local, remote) {
     }
   }
 
+  // Natural-keyed per-row arrays (supplements, goals, notes, chat summaries)
+  // lack `.id` but do have stable itemIdFn definitions in the delta registry.
+  // Merge them before the itemRow overlay so a stale remote blob cannot wipe a
+  // fresher local edit before the row-level freshness guard sees it.
+  for (const path of NATURAL_KEYED_ARRAYS) {
+    const localArr  = getAt(local,  path);
+    const remoteArr = getAt(remote, path);
+    if (!Array.isArray(localArr) && !Array.isArray(remoteArr)) continue;
+
+    const tomb = new Set(mergedDel[path] || []);
+    const merged = unionByItemId(localArr, remoteArr, tomb, item => naturalItemId(path, item));
+    setAt(out, path, merged);
+  }
+
   // Composite-keyed arrays (changeHistory etc.) — dedup by composite key,
   // cap to the configured per-array max. Without this, the merge would
   // double the array on every cross-device pull (no `id` for unionById to
@@ -605,9 +665,26 @@ export function localHasRowsRemoteLacks(local, remote) {
       //     strictly higher canonical timestamp. Same logic mergeImportedData
       //     uses to pick a winner; mirroring it here keeps the rebroadcast
       //     decision aligned with what the merge actually did.
-      const lTs = pickTimestamp(item);
-      const rTs = pickTimestamp(remoteItem);
-      if (lTs > rTs) return true;
+      if (compareRecordFreshness(item, remoteItem) > 0) return true;
+    }
+  }
+  for (const path of NATURAL_KEYED_ARRAYS) {
+    const lArr = getAt(local, path);
+    const rArr = getAt(remote, path);
+    if (!Array.isArray(lArr)) continue;
+    const remoteById = new Map();
+    if (Array.isArray(rArr)) {
+      for (const item of rArr) {
+        const id = naturalItemId(path, item);
+        if (id) remoteById.set(id, item);
+      }
+    }
+    for (const item of lArr) {
+      const id = naturalItemId(path, item);
+      if (!id) continue;
+      const remoteItem = remoteById.get(id);
+      if (!remoteItem) return true;
+      if (compareRecordFreshness(item, remoteItem) > 0) return true;
     }
   }
   // (3) Tombstones on local but not on remote also need rebroadcast so

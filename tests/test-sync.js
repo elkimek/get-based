@@ -954,7 +954,7 @@ await import('../js/settings.js');
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
     /remoteTombs\.set\(row\.itemId[\s\S]{0,1200}tombAt\s*>=\s*pickTimestamp\(item\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
-    /pickTimestamp\(nextArr\[idx\]\)\s*>\s*entry\.ts[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
+    /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
       && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported merges same-date lab entries instead of replacing marker maps',
     /import\s*\{[^}]*mergeLabEntry[^}]*\}\s*from\s*['"]\.\/data-merge\.js['"]/.test(syncDeltaArrayMergeSrc)
@@ -2171,8 +2171,8 @@ await import('../js/settings.js');
     await fetchWithRetry('js/data-merge.js').then(s => /export const COMPOSITE_KEYED_ARRAYS/.test(s)));
   assert('Per-row array overlay re-applies cap after merge',
     /COMPOSITE_KEYED_ARRAYS\.find\(c\s*=>\s*c\.path\s*===\s*arrayName\)\?\.cap[\s\S]{0,500}writeArr\(trimmed\.slice\(0,\s*cap\)\)/.test(deltaSearchSrc));
-  assert('Cap trim sorts newest-first by updatedAt/createdAt/date',
-    /cappedArr\.slice\(\)\.sort[\s\S]{0,400}updatedAt[\s\S]{0,100}createdAt[\s\S]{0,100}Date\.parse\(a\.date\)/.test(deltaSearchSrc));
+  assert('Cap trim sorts newest-first through shared pickTimestamp',
+    /cappedArr\.slice\(\)\.sort\(\(a,\s*b\)\s*=>\s*pickTimestamp\(b\)\s*-\s*pickTimestamp\(a\)\)/.test(deltaSearchSrc));
   assert('Cap trim uses nested-path array helpers instead of imported[arrayName]',
     /const cappedArr\s*=\s*readArr\(\)[\s\S]{0,500}writeArr\(trimmed\.slice\(0,\s*cap\)\)/.test(deltaSearchSrc)
       && !/const cap = COMPOSITE_KEYED_ARRAYS\.find[\s\S]{0,500}imported\[arrayName\]/.test(syncDeltaMergeSrc));
@@ -2941,9 +2941,16 @@ await import('../js/settings.js');
     // Inline the helper logic — we can't import data-merge.js from a
     // Puppeteer-driven test page, but the logic is small enough to re-check.
     const pickTs = (rec) => {
-      const t = rec?.updatedAt ?? rec?.endedAt ?? rec?.startedAt
-        ?? rec?.capturedAt ?? rec?.loggedAt ?? rec?.createdAt ?? rec?.at;
-      return Number.isFinite(t) ? t : 0;
+      for (const field of ['updatedAt', 'endedAt', 'startedAt', 'capturedAt', 'takenAt', 'savedAt', 'loggedAt', 'createdAt', 'addedAt', 'at']) {
+        const value = rec?.[field];
+        if (Number.isFinite(value)) return value;
+        if (typeof value === 'string' && value.trim()) {
+          const parsed = Date.parse(value);
+          if (Number.isFinite(parsed)) return parsed;
+        }
+      }
+      const parsedDate = typeof rec?.date === 'string' ? Date.parse(rec.date) : NaN;
+      return Number.isFinite(parsedDate) ? parsedDate : 0;
     };
     const detect = (local, remote) => {
       // Mirror localHasRowsRemoteLacks for sunSessions only — that's the

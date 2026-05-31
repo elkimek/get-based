@@ -559,7 +559,7 @@ export function saveSupplement(idx) {
     }
   }
   if (!state.importedData.supplements) state.importedData.supplements = [];
-  const entry = { name, dosage, startDate, endDate, type, note };
+  const entry = { name, dosage, startDate, endDate, type, note, updatedAt: Date.now() };
   if (sorted.length > 1) entry.periods = sorted;
   if (ingredients) entry.ingredients = ingredients;
   if (isFinite(timesNum) && timesNum > 0) entry.timesPerDay = timesNum;

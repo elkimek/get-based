@@ -1,6 +1,13 @@
 // sync-delta-array-merge.js - Pull-side array row overlay helper.
 
-import { COMPOSITE_KEYED_ARRAYS, pickTimestamp, getAt, setAt, mergeLabEntry } from './data-merge.js';
+import {
+  COMPOSITE_KEYED_ARRAYS,
+  compareRecordFreshness,
+  pickTimestamp,
+  getAt,
+  setAt,
+  mergeLabEntry,
+} from './data-merge.js';
 import { recordPullDeltaSurface } from './sync-delta-observability.js';
 import {
   DELTA_ARRAY_CONFIG,
@@ -105,9 +112,9 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
         continue;
       }
       // The blob merge may already contain a fresh local edit that has not
-      // reached the per-row relay yet. Keep that winner instead of letting a
-      // stale itemRow undo the edit on the immediate pull-after-save tick.
-      if (pickTimestamp(nextArr[idx]) > entry.ts) continue;
+      // reached the per-row relay yet. Keep current on ties too; this must
+      // match unionById/localHasRowsRemoteLacks in data-merge.js.
+      if (compareRecordFreshness(item, nextArr[idx]) <= 0) continue;
       nextArr[idx] = item;
     }
     else nextArr.push(item);
@@ -118,11 +125,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
   const cap = COMPOSITE_KEYED_ARRAYS.find(c => c.path === arrayName)?.cap;
   const cappedArr = readArr();
   if (cap && cappedArr.length > cap) {
-    const trimmed = cappedArr.slice().sort((a, b) => {
-      const ta = a?.updatedAt ?? a?.createdAt ?? a?.at ?? (typeof a?.date === 'string' ? Date.parse(a.date) : 0) ?? 0;
-      const tb = b?.updatedAt ?? b?.createdAt ?? b?.at ?? (typeof b?.date === 'string' ? Date.parse(b.date) : 0) ?? 0;
-      return tb - ta;
-    });
+    const trimmed = cappedArr.slice().sort((a, b) => pickTimestamp(b) - pickTimestamp(a));
     writeArr(trimmed.slice(0, cap));
   }
   recordPullDeltaSurface(arrayName, { live: liveById.size, tombstones: localTombs.size + remoteTombs.size });

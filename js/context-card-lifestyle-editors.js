@@ -561,7 +561,7 @@ export function addHealthGoal() {
   const text = input ? input.value.trim() : '';
   if (!text) return;
   if (!state.importedData.healthGoals) state.importedData.healthGoals = [];
-  state.importedData.healthGoals.push({ text, severity });
+  state.importedData.healthGoals.push({ text, severity, updatedAt: Date.now() });
   recordContextChange('healthGoals');
   saveImportedData();
   renderHealthGoalsModal(document.getElementById("detail-modal"));

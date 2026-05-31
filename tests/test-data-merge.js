@@ -16,17 +16,21 @@ console.log('=== Data Merge Tests ===\n');
 globalThis.window = globalThis.window || {};
 
 const {
+  compareRecordFreshness,
   mergeImportedData,
   preserveFreshLocalLabEntries,
   recordTombstone,
   clearTombstone,
   unionById,
   ID_KEYED_ARRAYS,
+  NATURAL_KEYED_ARRAYS,
   TOMBSTONE_ARRAY_PATHS,
   localHasRowsRemoteLacks,
   pickTimestamp,
+  pickFresherRecord,
 } = await import('../js/data-merge.js');
 const { mergeArrayRowsIntoImported } = await import('../js/sync-delta-array-merge.js');
+const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js');
 
   // ─── pickTimestamp precedence (v1.7.20) ───────────────────────────────
   // Direct test for the field-precedence walk used by every cross-device
@@ -47,6 +51,10 @@ const { mergeArrayRowsIntoImported } = await import('../js/sync-delta-array-merg
     pickTimestamp({ loggedAt: 30 }) === 30 &&
     pickTimestamp({ createdAt: 20 }) === 20 &&
     pickTimestamp({ at: 10 }) === 10);
+  assert('createdAt ISO strings are parsed for chat-summary freshness',
+    pickTimestamp({ createdAt: '2026-05-31T04:00:00.000Z' }) === Date.parse('2026-05-31T04:00:00.000Z'));
+  assert('takenAt and addedAt are recognized for light tools/devices',
+    pickTimestamp({ takenAt: 70 }) === 70 && pickTimestamp({ addedAt: 80 }) === 80);
   assert('falls back to Date.parse(date) when no numeric field',
     pickTimestamp({ date: '2026-04-15' }) === Date.parse('2026-04-15'));
   assert('returns 0 on totally bare record', pickTimestamp({}) === 0);
@@ -54,11 +62,21 @@ const { mergeArrayRowsIntoImported } = await import('../js/sync-delta-array-merg
     pickTimestamp({ updatedAt: NaN, date: '2026-04-15' }) === Date.parse('2026-04-15'));
   assert('zero updatedAt is honored (epoch — not falsy fallthrough)',
     pickTimestamp({ updatedAt: 0, endedAt: 200 }) === 0);
+  assert('compareRecordFreshness reports newer/older/equal',
+    compareRecordFreshness({ updatedAt: 20 }, { updatedAt: 10 }) === 1
+      && compareRecordFreshness({ updatedAt: 10 }, { updatedAt: 20 }) === -1
+      && compareRecordFreshness({ updatedAt: 10 }, { updatedAt: 10 }) === 0);
+  assert('pickFresherRecord keeps current record on timestamp tie',
+    pickFresherRecord({ id: 'tie', value: 'current', updatedAt: 10 }, { id: 'tie', value: 'candidate', updatedAt: 10 }).value === 'current');
 
   // ─── 1. Coverage of known arrays ──────────────────────────────────────
   console.log('%c 1. ID_KEYED_ARRAYS coverage ', 'font-weight:bold;color:#f59e0b');
   for (const path of ['sunSessions','deviceSessions','lightDevices','lightMeasurements','lightEnvironment.rooms','lightEnvironment.screens']) {
     assert(`covers ${path}`, ID_KEYED_ARRAYS.includes(path));
+  }
+  for (const path of ['supplements','healthGoals','notes','chatSummaries']) {
+    assert(`natural-key merge covers ${path}`, NATURAL_KEYED_ARRAYS.includes(path));
+    assert(`tombstone path covers ${path}`, TOMBSTONE_ARRAY_PATHS.includes(path));
   }
   assert('entries is an explicit tombstone path', TOMBSTONE_ARRAY_PATHS.includes('entries'));
 
@@ -212,6 +230,121 @@ const { mergeArrayRowsIntoImported } = await import('../js/sync-delta-array-merg
   assert('newer per-row deviceSession still updates local copy',
     editedDeviceSession.deviceSessions[0].durationMin === 25
       && editedDeviceSession.deviceSessions[0].doses?.circadian === 250);
+  const magnesiumV1 = {
+    name: 'Magnesium',
+    startDate: '2026-05-01',
+    type: 'supplement',
+    dosage: '100 mg',
+    updatedAt: 1_000_000,
+  };
+  const magnesiumId = DELTA_ARRAY_CONFIG.supplements.itemIdFn(magnesiumV1);
+  const editedSupplement = {
+    supplements: [{
+      name: 'Magnesium',
+      startDate: '2026-05-01',
+      type: 'supplement',
+      dosage: '200 mg',
+      updatedAt: 2_000_000,
+    }],
+  };
+  await mergeArrayRowsIntoImported(editedSupplement, 'supplements', [{
+    itemId: magnesiumId,
+    syncedAt: new Date(1_500_000).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify(magnesiumV1),
+  }]);
+  assert('stale per-row supplement does not revert fresh local stable-id edit',
+    editedSupplement.supplements[0].dosage === '200 mg');
+  await mergeArrayRowsIntoImported(editedSupplement, 'supplements', [{
+    itemId: magnesiumId,
+    syncedAt: new Date(2_500_000).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      name: 'Magnesium',
+      startDate: '2026-05-01',
+      type: 'supplement',
+      dosage: '300 mg',
+      updatedAt: 3_000_000,
+    }),
+  }]);
+  assert('newer per-row supplement still updates stable-id local copy',
+    editedSupplement.supplements[0].dosage === '300 mg');
+  const zincRemote = { name: 'Zinc', startDate: '2026-05-02', type: 'supplement', dosage: '10 mg' };
+  const tieSupplement = {
+    supplements: [{ name: 'Zinc', startDate: '2026-05-02', type: 'supplement', dosage: '15 mg' }],
+  };
+  await mergeArrayRowsIntoImported(tieSupplement, 'supplements', [{
+    itemId: DELTA_ARRAY_CONFIG.supplements.itemIdFn(zincRemote),
+    syncedAt: new Date(4_000_000).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify(zincRemote),
+  }]);
+  assert('timestamp tie keeps current stable-id array item instead of reverting',
+    tieSupplement.supplements[0].dosage === '15 mg');
+  const blobSupplementLocal = {
+    supplements: [{
+      name: 'Magnesium',
+      startDate: '2026-05-01',
+      type: 'supplement',
+      dosage: '400 mg',
+      updatedAt: 5_000_000,
+    }],
+  };
+  const blobSupplementRemote = {
+    supplements: [{
+      name: 'Magnesium',
+      startDate: '2026-05-01',
+      type: 'supplement',
+      dosage: '100 mg',
+      updatedAt: 1_000_000,
+    }],
+  };
+  const mergedSupplementBlob = mergeImportedData(blobSupplementLocal, blobSupplementRemote);
+  assert('blob merge preserves fresher local natural-key supplement before row overlay',
+    mergedSupplementBlob.supplements.length === 1
+      && mergedSupplementBlob.supplements[0].dosage === '400 mg');
+  assert('localHasRowsRemoteLacks detects natural-key supplement timestamp drift',
+    localHasRowsRemoteLacks(blobSupplementLocal, blobSupplementRemote) === true);
+  const notesUnion = mergeImportedData(
+    { notes: [{ date: '2026-05-01', text: 'Local note' }] },
+    { notes: [{ date: '2026-05-02', text: 'Remote note' }] },
+  );
+  assert('natural-key notes merge additively instead of whole-array LWW',
+    notesUnion.notes.length === 2
+      && notesUnion.notes.some(n => n.text === 'Local note')
+      && notesUnion.notes.some(n => n.text === 'Remote note'));
+  const healthGoalLocal = { healthGoals: [{ text: 'Lower CRP', severity: 'major', updatedAt: 5_000_000 }] };
+  await mergeArrayRowsIntoImported(healthGoalLocal, 'healthGoals', [{
+    itemId: DELTA_ARRAY_CONFIG.healthGoals.itemIdFn({ text: 'Lower CRP', severity: 'minor' }),
+    syncedAt: new Date(4_000_000).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({ text: 'Lower CRP', severity: 'minor', updatedAt: 1_000_000 }),
+  }]);
+  assert('stale per-row health goal does not revert fresh local severity',
+    healthGoalLocal.healthGoals[0].severity === 'major');
+  const chatSummaryLocal = {
+    chatSummaries: [{
+      id: 's_local',
+      threadId: 't_lab',
+      threadName: 'Lab',
+      content: 'Fresh',
+      createdAt: '2026-05-31T04:00:00.000Z',
+    }],
+  };
+  await mergeArrayRowsIntoImported(chatSummaryLocal, 'chatSummaries', [{
+    itemId: DELTA_ARRAY_CONFIG.chatSummaries.itemIdFn({ threadId: 't_lab' }),
+    syncedAt: '2026-05-31T04:01:00.000Z',
+    isDeleted: 0,
+    payload: JSON.stringify({
+      id: 's_remote',
+      threadId: 't_lab',
+      threadName: 'Lab',
+      content: 'Stale',
+      createdAt: '2026-05-31T03:00:00.000Z',
+    }),
+  }]);
+  assert('stale per-row chat summary respects ISO createdAt freshness',
+    chatSummaryLocal.chatSummaries[0].content === 'Fresh');
   const freshNow = 2_000_000;
   const stalePulledImport = {
     entries: [{
