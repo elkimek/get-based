@@ -20,7 +20,8 @@ function refreshOpenNoteEditorOnSync() {
   }
   const idx = Number.parseInt(modal.dataset.syncRefreshIndex || '', 10);
   const date = modal.dataset.syncRefreshDate || '';
-  if (Number.isInteger(idx) && state.importedData.notes?.[idx]) {
+  const noteAtIdx = state.importedData.notes?.[idx];
+  if (Number.isInteger(idx) && noteAtIdx && (!date || noteAtIdx.date === date)) {
     openNoteEditor(null, idx);
     return;
   }

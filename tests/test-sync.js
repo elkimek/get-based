@@ -629,6 +629,8 @@ await import('../js/settings.js');
       && notesSrc.includes('refreshOpenNoteEditorOnSync')
       && notesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenNoteEditorOnSync)")
       && notesSrc.includes("modal.dataset.syncRefreshKind = 'note'")
+      && notesSrc.includes('const noteAtIdx = state.importedData.notes?.[idx]')
+      && notesSrc.includes('noteAtIdx.date === date')
       && contextCardLifestyleEditorsSrc.includes('refreshOpenHealthGoalsModalOnSync')
       && contextCardLifestyleEditorsSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenHealthGoalsModalOnSync)")
       && contextCardLifestyleEditorsSrc.includes("modal.dataset.syncRefreshKind = 'healthGoals'"));
