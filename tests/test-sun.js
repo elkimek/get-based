@@ -6,6 +6,13 @@
 
 import './_node-shim.js';
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf-8');
+
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
   if (condition) { pass++; console.log(`  PASS: ${name}`); }
@@ -24,7 +31,8 @@ const {
   channelTier, tierLabel, tierDots, formatChannelUnit,
   SUN_ENGINE_VERSION,
   getSessions, getActiveSession,
-  startSession, stopSession, logCompletedSession, deleteSession, pauseSession, resumeSession, updateSession,
+  startSession, stopSession, logCompletedSession, deleteSession, pauseSession, resumeSession,
+  markSessionRotated, setSessionSunscreen, setSessionCoverage, updateSession,
   rehydrateStaleSessions,
   rollingChannelTotals, dailyChannelBreakdown, rollingVitaminDIU,
   cumulativeMEDToday, cumulativeMEDYesterday,
@@ -79,7 +87,19 @@ const {
     startSession === sunSessionsStore.startSession &&
     pauseSession === sunSessionsStore.pauseSession &&
     resumeSession === sunSessionsStore.resumeSession &&
+    markSessionRotated === sunSessionsStore.markSessionRotated &&
+    setSessionSunscreen === sunSessionsStore.setSessionSunscreen &&
+    setSessionCoverage === sunSessionsStore.setSessionCoverage &&
     SUN_ENGINE_VERSION === sunSessionsStore.SUN_ENGINE_VERSION);
+  {
+    const sunSrc = read('js/sun.js');
+    const storeSrc = read('js/sun-sessions-store.js');
+    assert('mid-session sunSession writes are owned by sun-sessions-store.js',
+      !/sess\.bodyExposure\.(?:rotatedSides|sunscreenSPF|regions|fraction|preset)\s*=/.test(sunSrc)
+        && storeSrc.includes('export async function markSessionRotated')
+        && storeSrc.includes('export async function setSessionSunscreen')
+        && storeSrc.includes('export async function setSessionCoverage'));
+  }
 
   assert('EYE_MODES includes "direct" + "sunglasses" + "indoor"',
     EYE_MODES.some(e => e.key === 'direct') &&
@@ -177,6 +197,37 @@ const {
   await resumeSession(id2);
   assert('resumeSession clears paused state',
     sess2.paused === false && sess2.pausedAt === undefined);
+  const beforeRotate = Date.now() - 1;
+  await markSessionRotated(id2);
+  assert('markSessionRotated sets rotatedSides and stamps updatedAt',
+    sess2.bodyExposure.rotatedSides === true && sess2.updatedAt >= beforeRotate);
+  const rotatedAt = sess2.updatedAt;
+  await markSessionRotated(id2);
+  assert('markSessionRotated is idempotent once already rotated',
+    sess2.updatedAt === rotatedAt);
+  await setSessionSunscreen(id2, 30);
+  assert('setSessionSunscreen writes SPF and stamps updatedAt',
+    sess2.bodyExposure.sunscreenSPF === 30 && sess2.updatedAt >= rotatedAt);
+  await setSessionSunscreen(id2, 0);
+  assert('setSessionSunscreen stores zero SPF as null',
+    sess2.bodyExposure.sunscreenSPF === null);
+  const beforeInvalidSpfAt = sess2.updatedAt;
+  const invalidSpf = await setSessionSunscreen(id2, 101);
+  assert('setSessionSunscreen rejects out-of-range SPF at the store boundary',
+    invalidSpf === null && sess2.updatedAt === beforeInvalidSpfAt);
+  await setSessionCoverage(id2, ['face', 'arms-front', 'face', 'unknown-region']);
+  assert('setSessionCoverage stores deduped allowlisted regions',
+    JSON.stringify(sess2.bodyExposure.regions) === JSON.stringify(['face', 'arms-front']));
+  assert('setSessionCoverage recalculates body fraction',
+    Math.abs(sess2.bodyExposure.fraction - 0.09) < 1e-9);
+  assert('setSessionCoverage uses detailed preset for selected regions',
+    sess2.bodyExposure.preset === 'detailed');
+  await setSessionCoverage(id2, []);
+  assert('setSessionCoverage accepts fully clothed zero-fraction state',
+    Array.isArray(sess2.bodyExposure.regions)
+      && sess2.bodyExposure.regions.length === 0
+      && sess2.bodyExposure.fraction === 0
+      && sess2.bodyExposure.preset === 'face_hands');
 
   // delete one
   await stopSession(id2);

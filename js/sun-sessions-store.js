@@ -188,6 +188,69 @@ export async function resumeSession(id) {
   return sess;
 }
 
+function markSessionEdited(sess) {
+  sess.updatedAt = Date.now();
+}
+
+function normalizedRegionList(regions) {
+  if (!Array.isArray(regions)) return [];
+  const allowed = new Set(BODY_REGIONS.map(r => r.key));
+  const out = [];
+  for (const key of regions) {
+    if (typeof key !== 'string' || !allowed.has(key) || out.includes(key)) continue;
+    out.push(key);
+  }
+  return out;
+}
+
+function bodyFractionForRegions(regions) {
+  return regions.reduce((sum, key) => {
+    const r = BODY_REGIONS.find(b => b.key === key);
+    return sum + (r?.fraction || 0);
+  }, 0);
+}
+
+export async function markSessionRotated(id) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return null;
+  if (!sess.bodyExposure) sess.bodyExposure = {};
+  if (sess.bodyExposure.rotatedSides) return sess;
+  sess.bodyExposure.rotatedSides = true;
+  markSessionEdited(sess);
+  await saveImportedData();
+  return sess;
+}
+
+export async function setSessionSunscreen(id, spf) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return null;
+  const nextSpf = Number(spf);
+  if (!Number.isFinite(nextSpf) || nextSpf < 0 || nextSpf > 100) return null;
+  storeDeps.commitCurrentSlice(sess);
+  if (!sess.bodyExposure) sess.bodyExposure = {};
+  sess.bodyExposure.sunscreenSPF = nextSpf || null;
+  markSessionEdited(sess);
+  storeDeps.setLiveState(id, { ratePerMin: null });
+  await saveImportedData();
+  return sess;
+}
+
+export async function setSessionCoverage(id, regions) {
+  const sess = getSessions().find(s => s.id === id);
+  if (!sess || sess.endedAt) return null;
+  const nextRegions = normalizedRegionList(regions);
+  const fraction = bodyFractionForRegions(nextRegions);
+  storeDeps.commitCurrentSlice(sess);
+  if (!sess.bodyExposure) sess.bodyExposure = {};
+  sess.bodyExposure.regions = nextRegions;
+  sess.bodyExposure.fraction = fraction;
+  sess.bodyExposure.preset = nextRegions.length === 0 ? 'face_hands' : 'detailed';
+  markSessionEdited(sess);
+  storeDeps.setLiveState(id, { ratePerMin: null });
+  await saveImportedData();
+  return sess;
+}
+
 // Edit fields on a saved session. Bumps `updatedAt` so the cross-device
 // merge (data-merge.js pickTimestamp) picks this version on conflict —
 // without that, a careless re-end on a second device would silently
@@ -224,7 +287,7 @@ export async function updateSession(id, patch) {
   if (durationChanged && sess.eyeExposure && sess.eyeExposure.durationSec != null) {
     sess.eyeExposure.durationSec = Math.round(sess.durationMin * 60);
   }
-  sess.updatedAt = Date.now();
+  markSessionEdited(sess);
   await saveImportedData();
   // Re-hydrate doses asynchronously. Per-session in-flight promise serializes
   // concurrent edits — without it, two quick updateSession calls can race two
