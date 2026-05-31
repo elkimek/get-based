@@ -615,6 +615,8 @@ await import('../js/settings.js');
   assert('sync-pull-active-refresh.js owns active-profile pull refresh',
     syncPullActiveRefreshSrc.includes('export function refreshActiveProfileAfterPull')
       && syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)')
+      && syncPullActiveRefreshSrc.includes('localDataChanged')
+      && syncPullActiveRefreshSrc.includes('shouldRefreshVisibleData')
       && syncPullActiveRefreshSrc.includes('window.navigate?.(cat)')
       && syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')"));
   assert('service worker precaches sync-pull-active-refresh.js',
@@ -627,6 +629,12 @@ await import('../js/settings.js');
       && utilsSrc.includes("window.addEventListener('labcharts-sync-applied', onSync)")
       && utilsSrc.includes('hasDirtyFormFields(overlay)')
       && utilsSrc.includes('hasDirtyFormFields(modal)'));
+  assert('marker detail modal refreshes through shared sync-applied detail helper',
+    markerDetailModalSrc.includes("bindDetailModalSyncRefresh('marker', refreshOpenMarkerDetailModalOnSync)")
+      && markerDetailModalSrc.includes("modal.dataset.syncRefreshKind = 'marker'")
+      && markerDetailModalSrc.includes("modal.dataset.syncRefreshItemId = id")
+      && !syncPullActiveRefreshSrc.includes('refreshOpenMarkerDetailModal')
+      && !syncPullActiveRefreshSrc.includes('window.showDetailModal(openId)'));
   assert('sun and device session detail modals refresh on sync-applied',
     sunSessionUISrc.includes('bindDetachedModalSyncRefresh({')
       && sunSessionUISrc.includes('opener: openSunSessionDetail')
@@ -673,11 +681,19 @@ await import('../js/settings.js');
     markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshKind')
       && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshDate')
       && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshEditIdx'));
-  assert('active-profile sync refreshes an open marker detail modal',
-    syncPullActiveRefreshSrc.includes('function refreshOpenMarkerDetailModal')
-      && syncPullActiveRefreshSrc.includes("modal?.classList?.contains('marker-detail-modal')")
-      && syncPullActiveRefreshSrc.includes('window.showDetailModal(openId)')
-      && syncPullActiveRefreshSrc.includes('refreshOpenMarkerDetailModal(debug)'));
+  assert('active-profile sync broadcasts shared modal refresh event without marker special-casing',
+    syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')")
+      && !syncPullActiveRefreshSrc.includes('marker-detail-modal')
+      && !syncPullActiveRefreshSrc.includes('showDetailModal(openId)')
+      && !syncPullActiveRefreshSrc.includes('refreshOpenMarkerDetailModal'));
+  assert('active-profile sync suppresses duplicate no-op update toasts',
+    syncPullSrc.includes('localDataChanged')
+      && syncPullMergeSrc.includes('function importedDataSnapshot')
+      && syncPullMergeSrc.includes('const localImportedBeforeMerge = importedDataSnapshot(localImportedForMerge)')
+      && syncPullMergeSrc.includes('const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged)')
+      && syncPullActiveRefreshSrc.includes('UPDATE_TOAST_COOLDOWN_MS')
+      && syncPullActiveRefreshSrc.includes('shouldShowUpdateToast(profileId)')
+      && /if\s*\(shouldRefreshVisibleData[\s\S]{0,250}dispatchEvent\(new CustomEvent\('labcharts-sync-applied'\)/.test(syncPullActiveRefreshSrc));
   assert('sync-pull-rebroadcast.js owns pull-side rebroadcast scheduling',
     syncPullRebroadcastSrc.includes('export function maybeScheduleRebroadcast')
       && syncPullRebroadcastSrc.includes('consumeRebroadcastBudget(profileId)')
@@ -2716,7 +2732,7 @@ await import('../js/settings.js');
   // refresh the page to see a Genetics nav entry land from a peer's DNA
   // import. Lives in sync-pull-active-refresh.js's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
-    /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2000}window\.buildSidebar[\s\S]{0,400}remoteBroughtNewRows/.test(deltaSearchSrc));
+    /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2400}window\.buildSidebar[\s\S]{0,1200}shouldRefreshVisibleData/.test(deltaSearchSrc));
 
   const localWithSnps = {
     genetics: {

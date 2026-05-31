@@ -85,6 +85,19 @@ function countArray(b, k) {
   return Array.isArray(b?.[k]) ? b[k].length : 0;
 }
 
+function importedDataSnapshot(importedData) {
+  try {
+    return JSON.stringify(importedData || null);
+  } catch {
+    return null;
+  }
+}
+
+function importedDataMatches(snapshot, importedData) {
+  const next = importedDataSnapshot(importedData);
+  return snapshot !== null && next !== null && snapshot === next;
+}
+
 function withoutLocalTombstones(importedData) {
   if (!importedData || typeof importedData !== 'object') return importedData;
   if (!importedData._deleted && !importedData._deletedAt && !importedData._deletedClearedAt) return importedData;
@@ -97,6 +110,7 @@ export async function mergePulledImportedData(profileId, importedData, { debug }
   const localImportedForMerge = profileId === state.currentProfile
     ? (state.importedData || null)
     : await readStoredImportedData(localKey, debug, 'merge');
+  const localImportedBeforeMerge = importedDataSnapshot(localImportedForMerge);
   const restoreJoinApplied = profileId === state.currentProfile && isRestoreJoinPending();
   const localBaselineForMerge = restoreJoinApplied
     ? withoutLocalTombstones(localImportedForMerge)
@@ -136,6 +150,7 @@ export async function mergePulledImportedData(profileId, importedData, { debug }
       && localHasRowsRemoteLacks(localImportedForMerge, importedData));
   const remoteBroughtNewRows = !preservedFreshLocalEntries && !!localImportedForMerge && !!importedData
     && localHasRowsRemoteLacks(importedData, localImportedForMerge);
+  const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged);
 
   return {
     localKey,
@@ -144,6 +159,7 @@ export async function mergePulledImportedData(profileId, importedData, { debug }
     mergeMsg,
     needsRebroadcast,
     remoteBroughtNewRows,
+    localDataChanged,
     restoreJoinApplied,
   };
 }
