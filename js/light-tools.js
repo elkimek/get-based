@@ -21,7 +21,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
-import { recordTombstone } from './data-merge.js';
+import { deleteImportedArrayItem } from './data-merge.js';
 import {
   aimingGuideHTML,
   lockCameraForMeasurement,
@@ -109,8 +109,7 @@ function _collapseToLatestPerRoomTool(list) {
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
     if (keep.has(m)) continue;
-    if (m && m.id) recordTombstone(state.importedData, 'lightMeasurements', m.id);
-    list.splice(i, 1);
+    deleteImportedArrayItem(state.importedData, 'lightMeasurements', i);
     dropped++;
   }
   return dropped;
@@ -128,8 +127,7 @@ function _supersedePriorMeasurement(list, roomId, tool) {
     if (!m || m.tool !== tool) continue;
     const sameRoom = (m.roomId || null) === (roomId || null);
     if (!sameRoom) continue;
-    if (m.id) recordTombstone(state.importedData, 'lightMeasurements', m.id);
-    list.splice(i, 1);
+    deleteImportedArrayItem(state.importedData, 'lightMeasurements', i);
     removed++;
   }
   return removed;
@@ -209,8 +207,7 @@ export async function deleteMeasurement(id) {
   const list = getMeasurements();
   const idx = list.findIndex(m => m.id === id);
   if (idx < 0) return false;
-  recordTombstone(state.importedData, 'lightMeasurements', id);
-  list.splice(idx, 1);
+  deleteImportedArrayItem(state.importedData, 'lightMeasurements', idx);
   await saveImportedData();
   return true;
 }

@@ -620,6 +620,8 @@ const {
   const screensAfter = window._labState.importedData.lightEnvironment.screens;
   assert('deleteRoom removes linked measurements',
     !measurementsAfter.find(m => m.id === 'm-orphan-1'));
+  assert('deleteRoom tombstones linked measurements for sync',
+    window._labState.importedData._deleted?.lightMeasurements?.includes('m-orphan-1'));
   assert('deleteRoom leaves measurements pointing at OTHER rooms untouched',
     measurementsAfter.find(m => m.id === 'm-orphan-2').roomId === 'other-room');
   assert('deleteRoom nulls roomId on linked screens',

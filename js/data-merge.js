@@ -342,6 +342,73 @@ export function recordArrayItemTombstone(importedData, arrayPath, item) {
   return id;
 }
 
+export function ensureImportedArray(importedData, arrayPath) {
+  if (!importedData || typeof importedData !== 'object') return [];
+  const existing = getAt(importedData, arrayPath);
+  if (Array.isArray(existing)) return existing;
+  const next = [];
+  setAt(importedData, arrayPath, next);
+  return next;
+}
+
+function tombstoneChangedArrayIdentity(importedData, arrayPath, previousItem, nextItem) {
+  const previousId = getConfiguredArrayItemId(arrayPath, previousItem);
+  if (!previousId) return null;
+  const nextId = getConfiguredArrayItemId(arrayPath, nextItem);
+  if (previousId === nextId) return null;
+  return recordArrayItemTombstone(importedData, arrayPath, previousItem);
+}
+
+export function appendImportedArrayItem(importedData, arrayPath, item) {
+  const arr = ensureImportedArray(importedData, arrayPath);
+  arr.push(item);
+  return item;
+}
+
+export function replaceImportedArrayItem(importedData, arrayPath, index, nextItem) {
+  const arr = ensureImportedArray(importedData, arrayPath);
+  if (!Number.isInteger(index) || index < 0) return null;
+  const previousItem = arr[index];
+  const tombstonedId = tombstoneChangedArrayIdentity(importedData, arrayPath, previousItem, nextItem);
+  arr[index] = nextItem;
+  return { previousItem, nextItem, tombstonedId };
+}
+
+export function deleteImportedArrayItem(importedData, arrayPath, index) {
+  const arr = getAt(importedData, arrayPath);
+  if (!Array.isArray(arr)) return null;
+  if (!Number.isInteger(index) || index < 0 || index >= arr.length) return null;
+  const [removedItem] = arr.splice(index, 1);
+  const tombstonedId = recordArrayItemTombstone(importedData, arrayPath, removedItem);
+  return { removedItem, tombstonedId };
+}
+
+export function deleteImportedArrayItems(importedData, arrayPath, predicate) {
+  const arr = getAt(importedData, arrayPath);
+  if (!Array.isArray(arr) || typeof predicate !== 'function') return [];
+  const kept = [];
+  const removed = [];
+  arr.forEach((item, index) => {
+    if (predicate(item, index, arr)) {
+      recordArrayItemTombstone(importedData, arrayPath, item);
+      removed.push(item);
+    } else {
+      kept.push(item);
+    }
+  });
+  if (removed.length) setAt(importedData, arrayPath, kept);
+  return removed;
+}
+
+export function clearImportedArray(importedData, arrayPath) {
+  const arr = getAt(importedData, arrayPath);
+  if (!Array.isArray(arr)) return [];
+  const removed = arr.slice();
+  for (const item of removed) recordArrayItemTombstone(importedData, arrayPath, item);
+  setAt(importedData, arrayPath, []);
+  return removed;
+}
+
 function unionByItemId(localArr, remoteArr, tombstones, itemIdFn) {
   const tomb = tombstones instanceof Set ? tombstones : new Set(tombstones || []);
   const byId = new Map();

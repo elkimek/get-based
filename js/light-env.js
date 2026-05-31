@@ -15,7 +15,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
-import { recordTombstone } from './data-merge.js';
+import { deleteImportedArrayItems } from './data-merge.js';
 import {
   normalizeLightEnvironmentEveningFields,
   normalizeRoomEveningFields,
@@ -135,15 +135,11 @@ export async function updateRoom(id, patch) {
 
 export async function deleteRoom(id) {
   const env = getEnvironment();
-  recordTombstone(state.importedData, 'lightEnvironment.rooms', id);
-  env.rooms = (env.rooms || []).filter(r => r.id !== id);
+  deleteImportedArrayItems(state.importedData, 'lightEnvironment.rooms', r => r.id === id);
   // Measurements are meaningful only in the room context where they
   // were taken. Deleting the room removes those readings instead of
   // moving them into an unmapped "portable" bucket.
-  const measurements = state.importedData?.lightMeasurements;
-  if (Array.isArray(measurements)) {
-    state.importedData.lightMeasurements = measurements.filter(m => !m || m.roomId !== id);
-  }
+  deleteImportedArrayItems(state.importedData, 'lightMeasurements', m => m && m.roomId === id);
   if (Array.isArray(env.screens)) {
     for (const sc of env.screens) {
       if (sc && sc.roomId === id) sc.roomId = null;
@@ -221,8 +217,7 @@ export async function updateScreen(id, patch) {
 
 export async function deleteScreen(id) {
   const env = getEnvironment();
-  recordTombstone(state.importedData, 'lightEnvironment.screens', id);
-  env.screens = (env.screens || []).filter(s => s.id !== id);
+  deleteImportedArrayItems(state.importedData, 'lightEnvironment.screens', s => s.id === id);
   await saveImportedData();
 }
 

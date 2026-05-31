@@ -3,8 +3,10 @@ import { state } from './state.js';
 import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
-  getConfiguredArrayItemId,
-  recordArrayItemTombstone,
+  appendImportedArrayItem,
+  deleteImportedArrayItem,
+  ensureImportedArray,
+  replaceImportedArrayItem,
 } from './data-merge.js';
 
 export function openNoteEditor(date, existingIdx) {
@@ -42,18 +44,12 @@ export function saveNote(idx) {
   const text = ta ? ta.value.trim() : '';
   if (!date) { showNotification('Please select a date', 'error'); return; }
   if (!text) { showNotification('Please enter note text', 'error'); return; }
-  if (!state.importedData.notes) state.importedData.notes = [];
+  ensureImportedArray(state.importedData, 'notes');
   const nextNote = { date, text };
   if (idx !== null && idx !== undefined) {
-    const existing = state.importedData.notes[idx];
-    const existingId = getConfiguredArrayItemId('notes', existing);
-    const nextId = getConfiguredArrayItemId('notes', nextNote);
-    if (existingId && existingId !== nextId) {
-      recordArrayItemTombstone(state.importedData, 'notes', existing);
-    }
-    state.importedData.notes[idx] = nextNote;
+    replaceImportedArrayItem(state.importedData, 'notes', idx, nextNote);
   } else {
-    state.importedData.notes.push(nextNote);
+    appendImportedArrayItem(state.importedData, 'notes', nextNote);
   }
   saveImportedData();
   window.closeModal();
@@ -65,8 +61,7 @@ export function saveNote(idx) {
 export async function deleteNote(idx) {
   if (!state.importedData.notes) return;
   if (await showConfirmDialog("Delete this note? This can't be undone.")) {
-    recordArrayItemTombstone(state.importedData, 'notes', state.importedData.notes[idx]);
-    state.importedData.notes.splice(idx, 1);
+    deleteImportedArrayItem(state.importedData, 'notes', idx);
     saveImportedData();
     window.closeModal();
     const activeNav = document.querySelector(".nav-item.active");

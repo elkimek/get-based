@@ -20,7 +20,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, formatDate } from './utils.js';
 import { saveImportedData } from './data.js';
-import { recordTombstone } from './data-merge.js';
+import { deleteImportedArrayItem } from './data-merge.js';
 import { CHANNEL_DISPLAY } from './sun.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
@@ -148,8 +148,7 @@ export async function deleteDevice(id) {
   const devs = getDevices();
   const idx = devs.findIndex(d => d.id === id);
   if (idx < 0) return false;
-  recordTombstone(state.importedData, 'lightDevices', id);
-  devs.splice(idx, 1);
+  deleteImportedArrayItem(state.importedData, 'lightDevices', idx);
   await saveImportedData();
   return true;
 }
@@ -458,8 +457,7 @@ export async function deleteDeviceSession(id) {
   const sessions = getDeviceSessions();
   const idx = sessions.findIndex(s => s.id === id);
   if (idx < 0) return false;
-  recordTombstone(state.importedData, 'deviceSessions', id);
-  sessions.splice(idx, 1);
+  deleteImportedArrayItem(state.importedData, 'deviceSessions', idx);
   await saveImportedData();
   return true;
 }

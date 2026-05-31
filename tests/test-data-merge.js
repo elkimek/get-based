@@ -17,8 +17,14 @@ globalThis.window = globalThis.window || {};
 
 const {
   compareRecordFreshness,
+  appendImportedArrayItem,
+  clearImportedArray,
+  deleteImportedArrayItem,
+  deleteImportedArrayItems,
+  ensureImportedArray,
   mergeImportedData,
   preserveFreshLocalLabEntries,
+  replaceImportedArrayItem,
   recordTombstone,
   recordArrayItemTombstone,
   clearTombstone,
@@ -578,6 +584,53 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
     !blob._deleted.entries);
   assert('clearTombstone stores tombstone-clear timestamp metadata',
     Number.isFinite(blob._deletedClearedAt?.entries?.['2026-05-01']));
+
+  // ─── 9b. Sync-aware imported array mutations ─────────────────────────
+  console.log('%c 9b. imported array mutation helpers ', 'font-weight:bold;color:#f59e0b');
+  const helperBlob = {};
+  const ensuredNotes = ensureImportedArray(helperBlob, 'notes');
+  appendImportedArrayItem(helperBlob, 'notes', { date: '2026-05-01', text: 'Original note' });
+  assert('ensureImportedArray creates missing top-level arrays',
+    Array.isArray(ensuredNotes) && helperBlob.notes.length === 1);
+  const originalNoteId = DELTA_ARRAY_CONFIG.notes.itemIdFn(helperBlob.notes[0]);
+  replaceImportedArrayItem(helperBlob, 'notes', 0, { date: '2026-05-01', text: 'Edited note' });
+  assert('replaceImportedArrayItem tombstones old natural-key identity on edit',
+    helperBlob.notes.length === 1
+      && helperBlob.notes[0].text === 'Edited note'
+      && helperBlob._deleted?.notes?.includes(originalNoteId));
+  const editedNoteId = DELTA_ARRAY_CONFIG.notes.itemIdFn(helperBlob.notes[0]);
+  deleteImportedArrayItem(helperBlob, 'notes', 0);
+  assert('deleteImportedArrayItem tombstones removed natural-key rows',
+    helperBlob.notes.length === 0
+      && helperBlob._deleted?.notes?.includes(editedNoteId));
+
+  const nestedBlob = {
+    lightEnvironment: { rooms: [{ id: 'r1', name: 'Desk' }, { id: 'r2', name: 'Bed' }] },
+    lightMeasurements: [
+      { id: 'm1', roomId: 'r1', tool: 'lux' },
+      { id: 'm2', roomId: 'r2', tool: 'lux' },
+    ],
+  };
+  deleteImportedArrayItems(nestedBlob, 'lightEnvironment.rooms', r => r.id === 'r1');
+  deleteImportedArrayItems(nestedBlob, 'lightMeasurements', m => m.roomId === 'r1');
+  assert('deleteImportedArrayItems handles dotted paths and cascaded id tombstones',
+    nestedBlob.lightEnvironment.rooms.length === 1
+      && nestedBlob.lightEnvironment.rooms[0].id === 'r2'
+      && nestedBlob.lightMeasurements.length === 1
+      && nestedBlob._deleted?.['lightEnvironment.rooms']?.includes('r1')
+      && nestedBlob._deleted?.lightMeasurements?.includes('m1'));
+
+  const clearedBlob = {
+    healthGoals: [
+      { text: 'Lower CRP', severity: 'major' },
+      { text: 'Raise ferritin', severity: 'minor' },
+    ],
+  };
+  const clearedGoalIds = clearedBlob.healthGoals.map(g => DELTA_ARRAY_CONFIG.healthGoals.itemIdFn(g));
+  clearImportedArray(clearedBlob, 'healthGoals');
+  assert('clearImportedArray tombstones every configured row',
+    clearedBlob.healthGoals.length === 0
+      && clearedGoalIds.every(id => clearedBlob._deleted?.healthGoals?.includes(id)));
 
   // ─── 10. Tombstone union from both sides ──────────────────────────────
   console.log('%c 10. Tombstone union ', 'font-weight:bold;color:#f59e0b');

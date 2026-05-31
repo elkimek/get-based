@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { saveImportedData } from './data.js';
-import { recordArrayItemTombstone } from './data-merge.js';
+import { deleteImportedArrayItems } from './data-merge.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 import {
   getChatThreadKey, invalidateThreadContentCache,
@@ -69,10 +69,7 @@ export async function clearChatHistory() {
         saveChatThreadIndex();
         renderThreadList();
         if (state.importedData.chatSummaries) {
-          for (const summary of state.importedData.chatSummaries.filter(s => s.threadId === state.currentThreadId)) {
-            recordArrayItemTombstone(state.importedData, 'chatSummaries', summary);
-          }
-          state.importedData.chatSummaries = state.importedData.chatSummaries.filter(s => s.threadId !== state.currentThreadId);
+          deleteImportedArrayItems(state.importedData, 'chatSummaries', s => s.threadId === state.currentThreadId);
           saveImportedData();
         }
         renderSavedSummaries();

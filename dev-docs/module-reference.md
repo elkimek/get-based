@@ -1552,6 +1552,7 @@ Not separately documented because their exports are best read from source — ke
 - `sync-pull-maintenance.js` — pull-path one-time migrations such as stale `-sync-hash` localStorage cleanup.
 - `sync-pull-active-refresh.js` — active-profile in-memory update, migration, chat reload, sidebar rebuild, current-view refresh, toast, and sync-applied event after a pull.
 - `sync-pull-rebroadcast.js` — pull-side rebroadcast gating, budget checks, push-pending guard, and delayed active-profile push scheduling.
+- `data-merge.js` — importedData blob merge helpers, shared record freshness comparison, tombstone state merge, and sync-aware array mutation helpers (`appendImportedArrayItem`, `replaceImportedArrayItem`, `deleteImportedArrayItem`, `deleteImportedArrayItems`, `clearImportedArray`) used by feature modules so identity edits/deletes record the right tombstones before the next sync push.
 - `sync-cutover.js` — readiness-gated Phase 2 lean-sync cutover enable/disable bridge over payload flags and delta readiness.
 - `sync-delta.js` — per-row CRDT delta facade; config fan-out, apply helpers, and compatibility re-exports for planners, snapshots, merge, telemetry, and readiness.
 - `sync-delta-planners.js` — push-side planner facade; configures shared planner dependency context and compatibility re-exports for array/map/scalar planners.

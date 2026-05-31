@@ -59,7 +59,10 @@ import {
 import { escapeHTML, showNotification } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData } from './data.js';
-import { recordArrayItemTombstone } from './data-merge.js';
+import {
+  clearImportedArray,
+  deleteImportedArrayItem,
+} from './data-merge.js';
 import { getLatitudeFromLocation } from './profile.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import {
@@ -570,8 +573,7 @@ export function addHealthGoal() {
 
 export function deleteHealthGoal(idx) {
   if (!state.importedData.healthGoals) return;
-  recordArrayItemTombstone(state.importedData, 'healthGoals', state.importedData.healthGoals[idx]);
-  state.importedData.healthGoals.splice(idx, 1);
+  deleteImportedArrayItem(state.importedData, 'healthGoals', idx);
   recordContextChange('healthGoals');
   saveImportedData();
   renderHealthGoalsModal(document.getElementById("detail-modal"));
@@ -585,10 +587,7 @@ export function closeHealthGoals() {
 }
 
 export function clearHealthGoals() {
-  for (const goal of state.importedData.healthGoals || []) {
-    recordArrayItemTombstone(state.importedData, 'healthGoals', goal);
-  }
-  state.importedData.healthGoals = [];
+  clearImportedArray(state.importedData, 'healthGoals');
   recordContextChange('healthGoals');
   saveImportedData();
   window.closeModal();

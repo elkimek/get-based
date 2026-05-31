@@ -5,7 +5,7 @@
 
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
-import { recordTombstone } from './data-merge.js';
+import { deleteImportedArrayItem } from './data-merge.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
   EXPOSURE_PRESETS,
@@ -151,8 +151,7 @@ export async function deleteSession(id) {
   const sessions = getSessions();
   const idx = sessions.findIndex(s => s.id === id);
   if (idx < 0) return false;
-  recordTombstone(state.importedData, 'sunSessions', id);
-  sessions.splice(idx, 1);
+  deleteImportedArrayItem(state.importedData, 'sunSessions', idx);
   storeDeps.clearLiveState(id);
   await saveImportedData();
   return true;

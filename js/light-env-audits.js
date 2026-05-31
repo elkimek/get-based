@@ -8,7 +8,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
-import { recordTombstone } from './data-merge.js';
+import { deleteImportedArrayItems } from './data-merge.js';
 
 // Mirrors the EMF Assessment pattern: each audit is a dated, labeled,
 // immutable snapshot of the rooms + screens + recent measurements at
@@ -129,9 +129,8 @@ export async function updateLightAudit(id, patch) {
 }
 
 export async function deleteLightAudit(id) {
-  const audits = getLightAudits();
-  recordTombstone(state.importedData, 'lightAudits', id);
-  state.importedData.lightAudits = audits.filter(a => a.id !== id);
+  getLightAudits();
+  deleteImportedArrayItems(state.importedData, 'lightAudits', a => a.id === id);
   await saveImportedData();
 }
 
