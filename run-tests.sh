@@ -71,6 +71,7 @@ if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
   export COVERAGE COVERAGE_MIN
 fi
 PORT=$PORT NODE_PATH="$NODE_PATH_EXTRA" node "$DIR/run-tests.js"
+PORT=$PORT NODE_PATH="$NODE_PATH_EXTRA" node "$DIR/tests/test-sync-two-device-e2e.js"
 if [ -f "$DIR/tests/test-theme-responsive-e2e.js" ]; then
   PORT=$PORT NODE_PATH="$NODE_PATH_EXTRA" node "$DIR/tests/test-theme-responsive-e2e.js"
 fi
