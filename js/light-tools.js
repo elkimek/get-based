@@ -20,6 +20,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import {
@@ -341,9 +342,9 @@ export function openSunriseLogger() {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (e) {}
+  try { wireBackdropClose(overlay); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   overlay.querySelector('#sunrise-save').addEventListener('click', async () => {
     const minutes = normalizeGoldenHourMinutes(overlay.querySelector('#sunrise-duration').value);
@@ -388,9 +389,9 @@ export async function openEyeLevelAudit() {
       </div>
     </div>
   </div>`;
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay, () => window._closeAudit()); } catch (e) {}
+  try { wireBackdropClose(overlay, () => window._closeAudit()); } catch (e) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (e) {}
+  try { trapModalFocus(overlay); } catch (e) {}
 
   const statusEl = overlay.querySelector('#audit-status');
   const listEl = overlay.querySelector('#audit-room-list');

@@ -2,13 +2,14 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import { BODY_REGIONS } from './sun.js';
 
 function _wireDeviceSessionModal(overlay) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (_) {}
+  try { wireBackdropClose(overlay); } catch (_) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (_) {}
+  try { trapModalFocus(overlay); } catch (_) {}
 }
 
 function _defaultRegionsForLastSession(last) {

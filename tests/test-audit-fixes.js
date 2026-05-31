@@ -117,7 +117,9 @@ return (async function () {
   console.log('%c 3. trapModalFocus ', 'font-weight:bold;color:#0891b2');
   {
     const sun = await import('/js/sun.js?bust=' + Date.now());
-    assert('sun.js exports trapModalFocus', typeof sun.trapModalFocus === 'function');
+    const modalLifecycle = await import('/js/modal-lifecycle.js');
+    assert('modal-lifecycle.js exports trapModalFocus', typeof modalLifecycle.trapModalFocus === 'function');
+    assert('sun.js re-exports trapModalFocus for compatibility', typeof sun.trapModalFocus === 'function');
 
     // Poll until `cond()` holds (or timeout). The whole suite runs in one
     // shared page, so an earlier test file's async modal-teardown observer
@@ -148,7 +150,7 @@ return (async function () {
     overlay.className = 'modal-overlay';
     overlay.innerHTML = '<button id="audit-test-btn-1">A</button><button id="audit-test-btn-2">B</button>';
     document.body.appendChild(overlay);
-    sun.trapModalFocus(overlay);
+    modalLifecycle.trapModalFocus(overlay);
 
     assert('body.style.overflow becomes hidden on first modal',
       document.body.style.overflow === 'hidden');
@@ -158,7 +160,7 @@ return (async function () {
     overlay2.className = 'modal-overlay';
     overlay2.innerHTML = '<button id="audit-test-btn-3">C</button>';
     document.body.appendChild(overlay2);
-    sun.trapModalFocus(overlay2);
+    modalLifecycle.trapModalFocus(overlay2);
     assert('body still locked while second modal mounted',
       document.body.style.overflow === 'hidden');
 
@@ -184,18 +186,18 @@ return (async function () {
     // Cache-busted imports create separate module instances in tests. Their
     // scroll locks still need one shared registry or a stale teardown can
     // unlock the page while another instance's modal remains mounted.
-    const sunReloaded = await import('/js/sun.js?bust=' + Date.now() + '-modal-lock');
+    const modalLifecycleReloaded = await import('/js/modal-lifecycle.js?bust=' + Date.now() + '-modal-lock');
     document.body.style.overflow = baseline;
     const overlayCrossA = document.createElement('div');
     overlayCrossA.className = 'modal-overlay';
     overlayCrossA.innerHTML = '<button>Cross A</button>';
     document.body.appendChild(overlayCrossA);
-    sun.trapModalFocus(overlayCrossA);
+    modalLifecycle.trapModalFocus(overlayCrossA);
     const overlayCrossB = document.createElement('div');
     overlayCrossB.className = 'modal-overlay';
     overlayCrossB.innerHTML = '<button>Cross B</button>';
     document.body.appendChild(overlayCrossB);
-    sunReloaded.trapModalFocus(overlayCrossB);
+    modalLifecycleReloaded.trapModalFocus(overlayCrossB);
     overlayCrossA.remove();
     await waitFor(() =>
       !document.body.contains(overlayCrossA)
@@ -218,7 +220,7 @@ return (async function () {
     overlay3.className = 'modal-overlay';
     overlay3.innerHTML = '<button>X</button>';
     document.body.appendChild(overlay3);
-    sun.trapModalFocus(overlay3);
+    modalLifecycle.trapModalFocus(overlay3);
     stash.remove(); // detach previouslyFocused
     let threw = false;
     try { overlay3.remove(); await waitFor(() => document.body.style.overflow === baseline); } catch (e) { threw = true; }

@@ -19,6 +19,7 @@
 
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
+import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
@@ -63,15 +64,12 @@ let _PRESETS = null;
 let _PRESET_TYPES = null;
 
 // Standard modal-mount pattern shared by every modal opener in this file:
-// wire backdrop-click close, append, then trap focus. The window.* refs
-// come from sun.js so we can't import them at top-level (back-edge);
-// guarding each call with typeof keeps this safe to invoke if the user
-// hits a device modal before sun.js finished its first load tick.
+// wire backdrop-click close, append, then trap focus.
 function _wireModal(overlay) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
-  if (window._wireBackdropClose) try { window._wireBackdropClose(overlay); } catch (_) {}
+  try { wireBackdropClose(overlay); } catch (_) {}
   document.body.appendChild(overlay);
-  if (window.trapModalFocus) try { window.trapModalFocus(overlay); } catch (_) {}
+  try { trapModalFocus(overlay); } catch (_) {}
 }
 
 async function loadPresets() {

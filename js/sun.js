@@ -14,6 +14,7 @@ import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirm
 import { saveImportedData } from './data.js';
 import { getProfileLocation } from './profile.js';
 import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
+import { wireBackdropClose as _wireBackdropClose, trapModalFocus } from './modal-lifecycle.js';
 import {
   BODY_REGIONS,
   renderBodySilhouette,
@@ -29,8 +30,6 @@ import {
   configureSunActiveSession,
   quickLogSunSession,
   openStartSunSessionDialog,
-  _wireBackdropClose,
-  trapModalFocus,
   _formatElapsed,
   liveDosesFor as _liveDosesFor,
   commitSunLiveSlice as _commitCurrentSlice,

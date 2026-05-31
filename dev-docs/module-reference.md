@@ -133,6 +133,16 @@ Shared pure utility functions.
 
 ## Layer 2 — Core Services
 
+### `modal-lifecycle.js`
+
+Shared modal backdrop, focus-trap, and body-scroll lock helpers. Owns the cross-module scroll-lock registry used by Light & Sun modals; `sun.js` re-exports the legacy names for compatibility.
+
+**Key exports:**
+- `wireBackdropClose(overlay, closeFn?)` / `_wireBackdropClose(overlay, closeFn?)` — backdrop click close wiring with inside-click guard
+- `trapModalFocus(overlay)` — locks background scroll, restores focus/overflow on removal, and handles Escape close
+
+**Window exports:** none directly; `sun.js` still exposes compatibility globals.
+
 ### `theme.js`
 
 Theme management and Chart.js color helpers.
@@ -1535,7 +1545,7 @@ Not separately documented because their exports are best read from source — ke
 - `provider-panel-renderers.js` — Settings → AI per-provider panel markup (Venice / OpenRouter / Routstr / PPQ / Local AI / Custom).
 - `pdfjs-loader.js` — cached dynamic import of vendored pdf.js ESM. Pins `isEvalSupported: false` defense-in-depth on every `getDocument` call.
 - `sun-body-silhouette.js` — anatomical sun-session body-region picker, stock-figure region-map hit testing, and async selection overlay. Re-exported by `sun.js` for compatibility.
-- `sun-active-session.js` — quick-log/start modal, live active-session ticker, Simpson live-dose integration, modal focus/backdrop helpers, and active-session compatibility handlers. Dependency-injected from `sun.js` so persistence and hydration stay in the owner module.
+- `sun-active-session.js` — quick-log/start modal, live active-session ticker, Simpson live-dose integration, and active-session compatibility handlers. Dependency-injected from `sun.js` so persistence and hydration stay in the owner module.
 - `sun-session-ui.js` — saved sun-session row/detail rendering, detailed past-session modal, channel chips, delete, and edit-duration UI. Dependency-injected from `sun.js` so storage, hydration, and dose math stay in the owning module.
 - `light-device-setup-modal.js` — add-device preset picker, custom-device form, and URL/photo AI spec extraction. Dependency-injected from `light-devices.js` so device persistence and channel defaults stay in the owning module.
 - `light-device-session-modal.js` — log/start light therapy device session modal; dependency-injected from `light-devices.js` so session persistence and active timer state stay in the owning module.

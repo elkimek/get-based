@@ -146,6 +146,23 @@ async function makePage(browser, label, importedData) {
       && typeof window.openDeviceSessionDetail === 'function',
     { timeout: 15000 }
   );
+  const helperBust = `syncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { mergePulledImportedData, persistPulledImportedData } from '/js/sync-pull-merge.js?${helperBust}';
+      import { refreshActiveProfileAfterPull } from '/js/sync-pull-active-refresh.js?${helperBust}';
+      window.__syncE2EMergePulledImportedData = mergePulledImportedData;
+      window.__syncE2EPersistPulledImportedData = persistPulledImportedData;
+      window.__syncE2ERefreshActiveProfileAfterPull = refreshActiveProfileAfterPull;
+    `,
+  });
+  await page.waitForFunction(
+    () => typeof window.__syncE2EMergePulledImportedData === 'function'
+      && typeof window.__syncE2EPersistPulledImportedData === 'function'
+      && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function',
+    { timeout: 15000 }
+  );
   await page.evaluate(async ({ profileId, imported }) => {
     localStorage.clear();
     sessionStorage.clear();
@@ -171,14 +188,11 @@ async function getImportedData(page) {
 
 async function pullRemoteImportedData(page, remoteImportedData) {
   return page.evaluate(async ({ profileId, remote }) => {
-    const bust = `?syncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const mergeMod = await import(`/js/sync-pull-merge.js${bust}`);
-    const refreshMod = await import(`/js/sync-pull-active-refresh.js${bust}`);
-    const result = await mergeMod.mergePulledImportedData(profileId, JSON.parse(JSON.stringify(remote)), {
+    const result = await window.__syncE2EMergePulledImportedData(profileId, JSON.parse(JSON.stringify(remote)), {
       debug: () => {},
     });
-    await mergeMod.persistPulledImportedData(result.localKey, profileId, result.merged, Date.now());
-    refreshMod.refreshActiveProfileAfterPull({
+    await window.__syncE2EPersistPulledImportedData(result.localKey, profileId, result.merged, Date.now());
+    window.__syncE2ERefreshActiveProfileAfterPull({
       profileId,
       merged: result.merged,
       chatApplied: false,
@@ -197,9 +211,7 @@ async function pullRemoteImportedData(page, remoteImportedData) {
 
 async function applyMergedImportedData(page, mergedImportedData, remoteBroughtNewRows = true) {
   return page.evaluate(async ({ profileId, merged, remoteBroughtNewRows: broughtRows }) => {
-    const bust = `?syncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const refreshMod = await import(`/js/sync-pull-active-refresh.js${bust}`);
-    refreshMod.refreshActiveProfileAfterPull({
+    window.__syncE2ERefreshActiveProfileAfterPull({
       profileId,
       merged: JSON.parse(JSON.stringify(merged)),
       chatApplied: false,

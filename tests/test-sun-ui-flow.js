@@ -185,17 +185,41 @@ return (async function() {
       'skipped — buildLabContext not on window');
   }
 
-  // ─── 7. Backdrop close wiring exists for Light & Sun modals ──────────
-  // Recent commit 8885589 wired backdrop-close on all 16 Light & Sun modals.
-  // Source-check the helper is exposed and used.
+  // ─── 7. Modal lifecycle wiring exists for Light & Sun modals ─────────
+  // Modal focus/backdrop/scroll-lock belongs to the shared lifecycle module;
+  // feature modules should import it directly rather than rely on sun.js
+  // installing window globals first.
   console.log('%c 7. Backdrop-close helper wired ', 'font-weight:bold;color:#6366f1');
 
-  assert('window._wireBackdropClose exists (the helper recent commits rely on)',
+  assert('sun.js keeps window._wireBackdropClose compatibility export',
     typeof window._wireBackdropClose === 'function');
 
+  const modalLifecycleSrc = await fetch('js/modal-lifecycle.js').then(r => r.text());
   const sunActiveSrc = await fetch('js/sun-active-session.js').then(r => r.text());
-  assert('sun-active-session.js calls _wireBackdropClose for its modals',
-    /_wireBackdropClose\s*\(/.test(sunActiveSrc));
+  assert('modal-lifecycle.js owns modal backdrop and focus helpers',
+    /export function wireBackdropClose/.test(modalLifecycleSrc)
+      && /export function trapModalFocus/.test(modalLifecycleSrc));
+  assert('sun-active-session.js imports shared modal lifecycle helpers',
+    /from '\.\/modal-lifecycle\.js'/.test(sunActiveSrc)
+      && /wireBackdropClose\s*\(/.test(sunActiveSrc));
+  {
+    const globalModalDeps = [];
+    for (const file of [
+      'js/light-tool-camera-modals.js',
+      'js/light-device-session-modal.js',
+      'js/light-tools.js',
+      'js/sun-defaults.js',
+      'js/light-devices.js',
+      'js/light-conditions-now.js',
+      'js/light-sessions-view.js',
+    ]) {
+      const src = await fetch(file).then(r => r.text());
+      if (/window\._wireBackdropClose|window\.trapModalFocus/.test(src)) globalModalDeps.push(file);
+    }
+    assert('Light modal modules import lifecycle helpers instead of window globals',
+      globalModalDeps.length === 0,
+      globalModalDeps.join(', '));
+  }
 
   // ─── 8. Region picker → bodyExposure.regions; prefill on reopen ──────
   // Drives the full flow: openStartSunSessionDialog → click 2 region
