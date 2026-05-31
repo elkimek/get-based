@@ -2,6 +2,14 @@
 
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import { _isAllowlistSafeId } from './sync-delta-id.js';
+import {
+  LAB_ENTRY_MARKER_TOMBSTONES,
+  getLabEntryMarkerTombstoneAt,
+  getLabEntryMarkerTombstones,
+  getLabEntryMarkerValueTimestamp,
+  labEntryMarkerAffectsHOMAIR,
+  recalculateLabEntryHOMAIR,
+} from './lab-entry.js';
 //
 // Background: sync pushes the whole `importedData` blob and pull used to do
 // `localStorage.setItem(JSON.stringify(remote))`. With concurrent edits on
@@ -186,29 +194,69 @@ export function mergeLabEntry(existing, incoming) {
   const base = incomingWins ? { ...existing, ...incoming } : { ...incoming, ...existing };
   const markers = {};
   const markerSources = {};
+  const markerTombstones = {};
   const existingMarkers = existing.markers && typeof existing.markers === 'object' ? existing.markers : {};
   const incomingMarkers = incoming.markers && typeof incoming.markers === 'object' ? incoming.markers : {};
   const existingSources = existing.markerSources && typeof existing.markerSources === 'object' ? existing.markerSources : {};
   const incomingSources = incoming.markerSources && typeof incoming.markerSources === 'object' ? incoming.markerSources : {};
-  const markerKeys = new Set([...Object.keys(existingMarkers), ...Object.keys(incomingMarkers)]);
+  const existingTombstones = getLabEntryMarkerTombstones(existing);
+  const incomingTombstones = getLabEntryMarkerTombstones(incoming);
+  const markerKeys = new Set([
+    ...Object.keys(existingMarkers),
+    ...Object.keys(incomingMarkers),
+    ...Object.keys(existingTombstones),
+    ...Object.keys(incomingTombstones),
+  ]);
+  let homaIRInputChanged = false;
+  let homaIRInputDeleted = false;
   for (const key of markerKeys) {
-    if (Object.prototype.hasOwnProperty.call(existingMarkers, key)
-      && Object.prototype.hasOwnProperty.call(incomingMarkers, key)) {
-      markers[key] = incomingWins ? incomingMarkers[key] : existingMarkers[key];
-      markerSources[key] = incomingWins
-        ? (incomingSources[key] || existingSources[key])
-        : (existingSources[key] || incomingSources[key]);
-    } else if (Object.prototype.hasOwnProperty.call(incomingMarkers, key)) {
+    const hasExisting = Object.prototype.hasOwnProperty.call(existingMarkers, key);
+    const hasIncoming = Object.prototype.hasOwnProperty.call(incomingMarkers, key);
+    const existingValueTs = hasExisting ? getLabEntryMarkerValueTimestamp(existing, key) : 0;
+    const incomingValueTs = hasIncoming ? getLabEntryMarkerValueTimestamp(incoming, key) : 0;
+    const deleteTs = Math.max(
+      getLabEntryMarkerTombstoneAt(existing, key),
+      getLabEntryMarkerTombstoneAt(incoming, key)
+    );
+    const valueTs = Math.max(existingValueTs, incomingValueTs);
+    if (deleteTs && deleteTs >= valueTs) {
+      markerTombstones[key] = deleteTs;
+      if (labEntryMarkerAffectsHOMAIR(key)) {
+        homaIRInputChanged = true;
+        homaIRInputDeleted = true;
+      }
+      continue;
+    }
+    if (hasExisting && hasIncoming) {
+      const markerIncomingWins = incomingValueTs > existingValueTs
+        || (incomingValueTs === existingValueTs && incomingWins);
+      markers[key] = markerIncomingWins ? incomingMarkers[key] : existingMarkers[key];
+      const sources = markerIncomingWins ? incomingSources : existingSources;
+      if (Object.prototype.hasOwnProperty.call(sources, key)) markerSources[key] = sources[key];
+      if (labEntryMarkerAffectsHOMAIR(key) && !Object.is(existingMarkers[key], incomingMarkers[key])) {
+        homaIRInputChanged = true;
+      }
+    } else if (hasIncoming) {
       markers[key] = incomingMarkers[key];
       if (incomingSources[key]) markerSources[key] = incomingSources[key];
-    } else {
+      if (labEntryMarkerAffectsHOMAIR(key)) homaIRInputChanged = true;
+    } else if (hasExisting) {
       markers[key] = existingMarkers[key];
       if (existingSources[key]) markerSources[key] = existingSources[key];
+      if (labEntryMarkerAffectsHOMAIR(key)) homaIRInputChanged = true;
     }
   }
   base.markers = markers;
   if (Object.keys(markerSources).length) base.markerSources = markerSources;
   else delete base.markerSources;
+  if (Object.keys(markerTombstones).length) base[LAB_ENTRY_MARKER_TOMBSTONES] = markerTombstones;
+  else delete base[LAB_ENTRY_MARKER_TOMBSTONES];
+  const hasMergedHOMAIR = Object.prototype.hasOwnProperty.call(markers, 'diabetes.homaIR');
+  const hasMergedGlucose = Object.prototype.hasOwnProperty.call(markers, 'biochemistry.glucose');
+  const hasMergedInsulin = Object.prototype.hasOwnProperty.call(markers, 'hormones.insulin')
+    || Object.prototype.hasOwnProperty.call(markers, 'diabetes.insulin_d');
+  const wouldDeleteExistingHOMAIR = hasMergedHOMAIR && (!hasMergedGlucose || !hasMergedInsulin);
+  if (homaIRInputChanged && (!wouldDeleteExistingHOMAIR || homaIRInputDeleted)) recalculateLabEntryHOMAIR(base);
   const sourceFiles = mergeSourceFiles(existing, incoming);
   if (sourceFiles.length) {
     base.sourceFiles = sourceFiles;
@@ -734,6 +782,12 @@ export function localHasRowsRemoteLacks(local, remote) {
         if (!Object.prototype.hasOwnProperty.call(remoteMarkers, key)) return true;
         if (JSON.stringify(value) !== JSON.stringify(remoteMarkers[key])) return true;
       }
+      const localMarkerTombs = getLabEntryMarkerTombstones(entry);
+      const remoteMarkerTombs = getLabEntryMarkerTombstones(remoteEntry);
+      for (const [key, ts] of Object.entries(localMarkerTombs)) {
+        if (Number.isFinite(ts) && ts > (normalizeTimestamp(remoteMarkerTombs[key]) || 0)) return true;
+      }
+      if (compareRecordFreshness(entry, remoteEntry) > 0) return true;
     }
   }
   for (const field of LOCAL_WINS_MAP_FIELDS) {

@@ -97,7 +97,7 @@ function staleCardsHaveAssessableData(staleKeys) {
     return hasCardContent(state.importedData[k]);
   });
   if (staleHaveContent) return true;
-  return (state.importedData.entries || []).length > 0;
+  return (state.importedData.entries || []).some(entry => Object.keys(entry?.markers || {}).length > 0);
 }
 
 function applyGrayDots(keys) {

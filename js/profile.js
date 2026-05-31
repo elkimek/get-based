@@ -6,6 +6,12 @@ import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { showNotification } from './utils.js';
 import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
 import { normalizeLightEnvironmentEveningFields } from './light-env-evening.js';
+import {
+  deleteLabEntryMarker,
+  renameLabEntryMarker,
+  setLabEntryMarker,
+  syncLabEntryInsulinMirror,
+} from './lab-entry.js';
 
 // ═══════════════════════════════════════════════
 // PROFILE MANAGEMENT
@@ -164,14 +170,7 @@ function _repairUnitSuffixedStandardMarkers(data) {
     const targetCatKey = target.split('.')[0];
     if (catKey === 'urinalysis' && targetCatKey !== 'urinalysis') continue;
     for (const entry of data.entries) {
-      if (entry.markers?.[fullKey] !== undefined) {
-        if (entry.markers[target] === undefined) entry.markers[target] = entry.markers[fullKey];
-        delete entry.markers[fullKey];
-      }
-      if (entry.markerSources?.[fullKey]) {
-        if (!entry.markerSources[target]) entry.markerSources[target] = entry.markerSources[fullKey];
-        delete entry.markerSources[fullKey];
-      }
+      renameLabEntryMarker(entry, fullKey, target, { stamp: false });
     }
     const remapByPrefix = (obj) => {
       if (!obj) return;
@@ -329,10 +328,7 @@ export function migrateProfileData(data) {
       const stdKey = _stdLookup[markerKey];
       if (!stdKey) continue;
       for (const entry of data.entries) {
-        if (entry.markers?.[fullKey] !== undefined) {
-          if (entry.markers[stdKey] === undefined) entry.markers[stdKey] = entry.markers[fullKey];
-          delete entry.markers[fullKey];
-        }
+        renameLabEntryMarker(entry, fullKey, stdKey, { stamp: false });
       }
       toDelete.push(fullKey);
     }
@@ -351,7 +347,7 @@ export function migrateProfileData(data) {
         if (!_stdCats.has(catKey) && !SPECIALTY_MARKER_DEFS[key] && (catKey.endsWith('FA') || catKey === 'fattyAcidsTest')) {
           // Keep markers that have a valid custom marker definition (legitimate FA import)
           if (data.customMarkers?.[key]) continue;
-          delete entry.markers[key];
+          deleteLabEntryMarker(entry, key, { recordTombstone: false, stamp: false });
         }
       }
     }
@@ -367,13 +363,7 @@ export function migrateProfileData(data) {
   // Backfill insulin mirror: sync hormones.insulin ↔ diabetes.insulin_d — v1.6.1
   if (data.entries) {
     for (const entry of data.entries) {
-      if (!entry.markers) continue;
-      if (entry.markers['hormones.insulin'] !== undefined && entry.markers['diabetes.insulin_d'] === undefined) {
-        entry.markers['diabetes.insulin_d'] = entry.markers['hormones.insulin'];
-      }
-      if (entry.markers['diabetes.insulin_d'] !== undefined && entry.markers['hormones.insulin'] === undefined) {
-        entry.markers['hormones.insulin'] = entry.markers['diabetes.insulin_d'];
-      }
+      syncLabEntryInsulinMirror(entry, { stamp: false });
     }
   }
   // Migrate trombocrit/plateletcrit custom markers → hematology.pct — v1.6.1
@@ -383,10 +373,7 @@ export function migrateProfileData(data) {
     );
     for (const oldKey of pctAliases) {
       for (const entry of data.entries) {
-        if (entry.markers?.[oldKey] != null && entry.markers['hematology.pct'] == null) {
-          entry.markers['hematology.pct'] = entry.markers[oldKey];
-        }
-        delete entry.markers?.[oldKey];
+        renameLabEntryMarker(entry, oldKey, 'hematology.pct', { stamp: false });
       }
       delete data.customMarkers[oldKey];
     }
@@ -396,7 +383,7 @@ export function migrateProfileData(data) {
     for (const entry of data.entries) {
       const hct = entry.markers?.['hematology.hematocrit'];
       if (hct != null && hct < 1) {
-        entry.markers['hematology.hematocrit'] = parseFloat((hct * 100).toFixed(1));
+        setLabEntryMarker(entry, 'hematology.hematocrit', parseFloat((hct * 100).toFixed(1)), { stamp: false });
       }
     }
   }

@@ -10,6 +10,8 @@ import {
 import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
 
+const CLEARED_VALUE_MAPS = new Set(['manualValues', 'markerValueNotes']);
+
 // Keyed-map planner. Same shape as _planArrayDelta but iterates
 // Object.entries() and uses the map key (sanitized) as itemId. Payload
 // is `{k, v}` so the pull side can verify the key column matches the
@@ -69,7 +71,7 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
     // its own check, re-validate via _isAllowlistSafeId so a buggy custom
     // fn can't smuggle __proto__/constructor through.
     if (!_isAllowlistSafeId(itemId)) continue;
-    if (value === null || value === undefined) continue;
+    if (value === undefined || (value === null && !CLEARED_VALUE_MAPS.has(mapName))) continue;
     // payload.k carries the ORIGINAL key - pull side rebuilds the map
     // under that key, not the synth itemId, so consumers reading the
     // raw `category.markerKey:date` form keep working.

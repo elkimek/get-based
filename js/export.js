@@ -13,6 +13,8 @@ import {
   sortImportedArray,
   trimImportedArray,
 } from './data-merge.js';
+import { findOrCreateLabEntry } from './lab-entry-mutations.js';
+import { setLabEntryMarker } from './lab-entry.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -557,9 +559,9 @@ export function importDataJSON(file) {
         await loadProfile(profileId);
       }
       let count = 0;
+      const importTs = Date.now();
       for (const entry of json.entries) {
         if (!entry.date || !entry.markers) continue;
-        const entries = ensureImportedArray(state.importedData, 'entries');
         // Earlier draft did `filter(ex => ex.date !== entry.date)` — same-
         // date entries clobbered each other. The demos legitimately ship
         // two entries per date (comprehensive panel + specialty add-on
@@ -567,16 +569,24 @@ export function importDataJSON(file) {
         // second entry was silently dropped, losing every fatty-acid /
         // specialty marker on import. Merge markers + markerSources
         // instead so all data lands; later entries win on key conflicts.
-        const existing = entries.find(ex => ex.date === entry.date);
-        if (existing) {
-          Object.assign(existing.markers || (existing.markers = {}), entry.markers);
-          if (entry.markerSources) {
-            Object.assign(existing.markerSources || (existing.markerSources = {}), entry.markerSources);
-          }
-          if (entry.file && !existing.file) existing.file = entry.file;
-        } else {
-          appendImportedArrayItem(state.importedData, 'entries', entry);
+        const existing = findOrCreateLabEntry(state.importedData, entry.date, { now: importTs });
+        for (const [key, value] of Object.entries(entry.markers)) {
+          const source = entry.markerSources?.[key]
+            ? { ...entry.markerSources[key] }
+            : null;
+          setLabEntryMarker(existing, key, value, {
+            now: importTs,
+            mirrorInsulin: true,
+            ...(source ? { source } : {}),
+          });
         }
+        if (entry.file && !existing.file) existing.file = entry.file;
+        if (entry.sourceFile && !existing.sourceFile) existing.sourceFile = entry.sourceFile;
+        if (Array.isArray(entry.sourceFiles)) {
+          existing.sourceFiles = Array.from(new Set([...(existing.sourceFiles || []), ...entry.sourceFiles]));
+        }
+        if (entry.importedWith && !existing.importedWith) existing.importedWith = entry.importedWith;
+        if (entry.importHash && !existing.importHash) existing.importHash = entry.importHash;
         count++;
       }
       if (count === 0 && (!json.notes || json.notes.length === 0)) { showNotification('No valid entries found in JSON', 'error'); return; }
@@ -1230,16 +1240,16 @@ export async function loadDemoData(sex = 'male') {
         // structuredClone keeps the original demoJson reference clean
         // for any downstream usage (currently none, but defensive).
         const _ctxData = structuredClone(demoJson);
-        const _entryByDate = new Map();
-        for (const e of (_ctxData.entries || [])) {
-          const existing = _entryByDate.get(e.date);
-          if (existing) {
-            Object.assign(existing.markers || (existing.markers = {}), e.markers || {});
-          } else {
-            _entryByDate.set(e.date, e);
+        const _ctxSourceEntries = Array.isArray(_ctxData.entries) ? _ctxData.entries : [];
+        const _ctxImportTs = Date.now();
+        _ctxData.entries = [];
+        for (const entry of _ctxSourceEntries) {
+          if (!entry.date || !entry.markers) continue;
+          const existing = findOrCreateLabEntry(_ctxData, entry.date, { now: _ctxImportTs });
+          for (const [key, value] of Object.entries(entry.markers)) {
+            setLabEntryMarker(existing, key, value, { now: _ctxImportTs, mirrorInsulin: true });
           }
         }
-        _ctxData.entries = Array.from(_entryByDate.values());
         try { migrateProfileData(_ctxData); } catch (_) {}
         const ctx = {
           importedData: _ctxData,

@@ -61,6 +61,10 @@ return (async function() {
         date: '2099-12-31',
         markers: { 'biochemistry.alp': 1 },
         importedWith: { modelId: 'ui-flow-smoke' }
+      }, {
+        date: '2099-12-30',
+        markers: {},
+        deletedMarkers: { 'biochemistry.glucose': Date.now() }
       }],
       manualValues: {}
     });
@@ -69,6 +73,7 @@ return (async function() {
     assert('Settings Data legacy remove bridge is callable', typeof window.removeImportedEntry === 'function');
     assert('Settings Data remove button uses lazy wrapper', entriesHtml.includes('removeImportedEntryFromSettings(&quot;2099-12-31&quot;)'));
     assert('Settings Data edit button uses lazy wrapper', entriesHtml.includes('renameImportedEntryDateFromSettings(&quot;2099-12-31&quot;)'));
+    assert('Settings Data hides marker-tombstone-only sync rows', !entriesHtml.includes('0 markers'));
     await window.removeImportedEntryFromSettings('2099-12-31');
     await wait(50);
     assert('Settings Data remove wrapper deletes entry',
