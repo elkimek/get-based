@@ -9,8 +9,11 @@
 //
 // Pull-side: blob merge establishes the baseline first, then per-row state overlays on top.
 // Per-row wins on disagreement because each row carries its own LWW timestamp
-// and reflects the up-to-the-moment state, while the blob may be a stale
-// snapshot from before another device synced.
+// and usually reflects the up-to-the-moment state, while the blob may be a
+// stale snapshot from before another device synced. The pull overlay still
+// preserves a local blob item whose embedded edit timestamp is newer than the
+// row payload, so an immediate pull-after-save cannot undo a local edit before
+// its itemRow update lands.
 
 // Arrays subject to delta sync. Dotted paths are honored by the push-side
 // planners and pull-side overlays.

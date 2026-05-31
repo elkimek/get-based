@@ -25,8 +25,9 @@ function _currentItemRowQuery() {
 // Pull-side: walk every itemRow for this profileId, group by arrayName,
 // apply tombstones (drop matching items from imported[arrayName]) and
 // upsert live payloads (replace by item.id, or push if unseen). Per-row
-// state is authoritative — a tombstone here removes an item even if the
-// blob still has it, and a live payload here overrides the blob's copy.
+// state is authoritative unless the blob merge already contains a newer
+// local edit by embedded timestamp; that case is rebroadcast instead of
+// being reverted by a stale relay row.
 export async function _mergeItemRowsIntoImported(profileId, imported) {
   const evolu = _currentEvolu();
   const itemRowQuery = _currentItemRowQuery();

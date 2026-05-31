@@ -173,6 +173,45 @@ const { mergeArrayRowsIntoImported } = await import('../js/sync-delta-array-merg
   assert('per-row entries overlay merges same-date markers instead of replacing fresh import',
     deltaMay?.markers?.['biochemistry.alp'] === 1.2
       && deltaMay?.markers?.['biochemistry.glucose'] === 4.7);
+  const editedDeviceSession = {
+    deviceSessions: [{
+      id: 'devsess_duration_edit',
+      durationMin: 20,
+      endedAt: 1_200_000,
+      updatedAt: 2_000_000,
+      doses: { circadian: 200 },
+    }],
+  };
+  await mergeArrayRowsIntoImported(editedDeviceSession, 'deviceSessions', [{
+    itemId: 'devsess_duration_edit',
+    syncedAt: new Date(1_500_000).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      id: 'devsess_duration_edit',
+      durationMin: 10,
+      endedAt: 600_000,
+      updatedAt: 1_000_000,
+      doses: { circadian: 100 },
+    }),
+  }]);
+  assert('stale per-row deviceSession does not revert fresh local duration edit',
+    editedDeviceSession.deviceSessions[0].durationMin === 20
+      && editedDeviceSession.deviceSessions[0].doses?.circadian === 200);
+  await mergeArrayRowsIntoImported(editedDeviceSession, 'deviceSessions', [{
+    itemId: 'devsess_duration_edit',
+    syncedAt: new Date(2_500_000).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      id: 'devsess_duration_edit',
+      durationMin: 25,
+      endedAt: 1_500_000,
+      updatedAt: 3_000_000,
+      doses: { circadian: 250 },
+    }),
+  }]);
+  assert('newer per-row deviceSession still updates local copy',
+    editedDeviceSession.deviceSessions[0].durationMin === 25
+      && editedDeviceSession.deviceSessions[0].doses?.circadian === 250);
   const freshNow = 2_000_000;
   const stalePulledImport = {
     entries: [{

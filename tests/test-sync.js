@@ -938,7 +938,8 @@ await import('../js/settings.js');
     /Push committed[\s\S]{0,2500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
       && /applyCommittedDeltas[\s\S]{0,1600}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncPushDeltasSrc));
 
-  // Pull-side merge contract — per-row authoritative, blob fallback
+  // Pull-side merge contract — per-row authoritative, blob fallback, with
+  // fresher local edits protected until their itemRow update lands.
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localBaselineForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
@@ -952,11 +953,12 @@ await import('../js/settings.js');
     /tombstoneWinsOverLiveRow\(itemId,\s*entry\)\)\s*continue/.test(syncDeltaMergeSearchSrc));
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
     /remoteTombs\.set\(row\.itemId[\s\S]{0,1200}tombAt\s*>=\s*pickTimestamp\(item\)/.test(syncDeltaArrayMergeSrc));
-  assert('_mergeItemRowsIntoImported prefers per-row payload when itemId already present in non-lab arrays',
-    /idx\s*!==\s*undefined[\s\S]{0,260}arrayName\s*===\s*'entries'\s*\?[\s\S]{0,120}:\s*item/.test(syncDeltaMergeSearchSrc));
+  assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
+    /pickTimestamp\(nextArr\[idx\]\)\s*>\s*entry\.ts[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
+      && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported merges same-date lab entries instead of replacing marker maps',
     /import\s*\{[^}]*mergeLabEntry[^}]*\}\s*from\s*['"]\.\/data-merge\.js['"]/.test(syncDeltaArrayMergeSrc)
-      && /arrayName\s*===\s*'entries'\s*\?\s*mergeLabEntry\(nextArr\[idx\],\s*item\)\s*:\s*item/.test(syncDeltaArrayMergeSrc));
+      && /arrayName\s*===\s*'entries'[\s\S]{0,120}mergeLabEntry\(nextArr\[idx\],\s*item\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported gunzips GZ|v1| payloads via capped variant',
     /json\.startsWith\('GZ\|v1\|'\)[\s\S]{0,300}_gunzipToStringCapped\(_base64ToBytes\(json\.slice\(6\)\)\)/.test(syncDeltaMergeSearchSrc));
   assert('_mergeItemRowsIntoImported guards against itemId/payload mismatch (defence-in-depth)',

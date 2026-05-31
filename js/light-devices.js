@@ -350,14 +350,6 @@ export async function updateDeviceSession(id, patch = {}) {
     sess.endedAt = sess.startedAt + sess.durationMin * 60 * 1000;
     const device = getDevices().find(d => d.id === sess.deviceId);
     if (device) {
-      // Legacy-session normalization: pre-Round-7 sessions have no
-      // `mode` field. effectiveDeviceForMode falls back to the device
-      // default, so the dose math is identical — but the saved record
-      // should also reflect the resolved mode so future reads + edits
-      // are deterministic. Devices without `modes` keep mode=null.
-      if ((sess.mode === undefined || sess.mode === null) && Array.isArray(device.modes) && device.modes.length > 0) {
-        sess.mode = resolveDeviceMode(device, sess.mode);
-      }
       const { doses, mode: resolvedMode } = computeDeviceSessionDoses({
         device,
         durationMin: sess.durationMin,

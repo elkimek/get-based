@@ -100,7 +100,15 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
     const item = entry.item;
     const idx = seen.get(itemId);
     if (idx !== undefined) {
-      nextArr[idx] = arrayName === 'entries' ? mergeLabEntry(nextArr[idx], item) : item;
+      if (arrayName === 'entries') {
+        nextArr[idx] = mergeLabEntry(nextArr[idx], item);
+        continue;
+      }
+      // The blob merge may already contain a fresh local edit that has not
+      // reached the per-row relay yet. Keep that winner instead of letting a
+      // stale itemRow undo the edit on the immediate pull-after-save tick.
+      if (pickTimestamp(nextArr[idx]) > entry.ts) continue;
+      nextArr[idx] = item;
     }
     else nextArr.push(item);
   }
