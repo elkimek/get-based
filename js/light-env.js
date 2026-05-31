@@ -13,7 +13,7 @@
 //   }
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, hasDirtyFormFields, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { bindModalSyncRefresh, escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { roomUsesEveningAfterSunset } from './light-env-evening.js';
 import {
   addRoom,
@@ -600,13 +600,7 @@ export function refreshLightEnvironmentAssessment() {
 }
 
 function refreshOpenLightEnvironmentAssessmentOnSync() {
-  const overlay = getLightEnvironmentAssessmentOverlay();
-  const modal = overlay?.querySelector('.light-env-assessment-modal');
-  if (!overlay || !modal) return;
-  if (hasDirtyFormFields(modal)) return;
-  const scrollTop = modal.scrollTop || 0;
   renderLightEnvironmentAssessmentModal();
-  if (scrollTop) setLightEnvironmentAssessmentScrollTop(scrollTop);
 }
 
 function setLightEnvironmentAssessmentScrollTop(scrollTop) {
@@ -887,7 +881,11 @@ configureLightEnvAudits({
 });
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-sync-applied', refreshOpenLightEnvironmentAssessmentOnSync);
+  bindModalSyncRefresh({
+    overlayId: LIGHT_ENV_ASSESSMENT_OVERLAY_ID,
+    modalSelector: '.light-env-assessment-modal',
+    refresh: refreshOpenLightEnvironmentAssessmentOnSync,
+  });
 
   Object.assign(window, {
     getLightEnvironment: getEnvironment,

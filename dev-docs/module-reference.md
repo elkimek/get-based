@@ -125,6 +125,7 @@ Shared pure utility functions.
 - `showConfirmDialog(message)` — returns `Promise<boolean>`, styled confirm dialog
 - `linearRegression(points)` — `{ slope, intercept, r2 }` from `[{ x, y }]` array
 - `hasCardContent(obj)` — generic empty-card gate: returns `true` if any field has content (strings non-empty, arrays non-empty, `note` trimmed). Used by `buildLabContext()` for 7 context card gates
+- `bindModalSyncRefresh(opts)` / `bindDetailModalSyncRefresh(kind, refresh)` / `bindDetachedModalSyncRefresh(opts)` — shared `labcharts-sync-applied` modal refresh bindings with dirty-form guards and scroll restoration
 
 **Window exports:** `showNotification`, `showConfirmDialog`, `setDebugMode`, `setPIIReviewEnabled`, `hasCardContent`
 

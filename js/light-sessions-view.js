@@ -1,6 +1,6 @@
 // light-sessions-view.js — Unified Light & Sun session list and modal
 
-import { escapeHTML, escapeAttr, formatDate } from './utils.js';
+import { bindModalSyncRefresh, escapeHTML, escapeAttr, formatDate } from './utils.js';
 
 // Inline cap on the historical sessions list. 3 is enough for
 // at-a-glance context ("what did I do recently"); the full history
@@ -166,16 +166,21 @@ export function _openAllSessionsModal() {
   renderInto();
   // Re-render on sync pull / AI verdict completion so the modal stays
   // fresh when a paired device adds/edits/deletes sessions while it's open.
-  const onSync = () => {
+  const detachSyncRefresh = bindModalSyncRefresh({
+    overlay,
+    modalSelector: '.light-sessions-modal',
+    scrollSelector: '.light-sessions-modal-body',
+    refresh: renderInto,
+  });
+  const onVerdictRefresh = () => {
     if (!document.body.contains(overlay)) { _detach(); return; }
     renderInto();
   };
   _detach = () => {
-    window.removeEventListener('labcharts-ai-verdict-updated', onSync);
-    window.removeEventListener('labcharts-sync-applied', onSync);
+    detachSyncRefresh();
+    window.removeEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
   };
-  window.addEventListener('labcharts-ai-verdict-updated', onSync);
-  window.addEventListener('labcharts-sync-applied', onSync);
+  window.addEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
   const eventElement = (target) => {
     if (!target) return null;
     if (target.closest) return target;

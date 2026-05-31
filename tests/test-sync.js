@@ -128,6 +128,7 @@ await import('../js/settings.js');
   const utilsSrc = await fetchWithRetry('js/utils.js');
   const sunSessionUISrc = await fetchWithRetry('js/sun-session-ui.js');
   const lightDevicesSrc = await fetchWithRetry('js/light-devices.js');
+  const lightSessionsSrc = await fetchWithRetry('js/light-sessions-view.js');
   const lightEnvSrc = await fetchWithRetry('js/light-env.js');
   const supplementsSrc = await fetchWithRetry('js/supplements.js');
   const notesSrc = await fetchWithRetry('js/notes.js');
@@ -627,9 +628,11 @@ await import('../js/settings.js');
   assert('modal refresh dirty-form guard is shared',
     utilsSrc.includes('export function hasDirtyFormFields')
       && utilsSrc.includes("querySelectorAll('input, textarea, select')")
+      && utilsSrc.includes('export function bindModalSyncRefresh')
       && utilsSrc.includes('export function bindDetachedModalSyncRefresh')
       && utilsSrc.includes('export function bindDetailModalSyncRefresh')
       && utilsSrc.includes("window.addEventListener('labcharts-sync-applied', onSync)")
+      && utilsSrc.includes('restoreScroll(scrollTop)')
       && utilsSrc.includes('hasDirtyFormFields(overlay)')
       && utilsSrc.includes('hasDirtyFormFields(modal)'));
   assert('marker detail modal refreshes through shared sync-applied detail helper',
@@ -643,11 +646,17 @@ await import('../js/settings.js');
       && sunSessionUISrc.includes('opener: openSunSessionDetail')
       && lightDevicesSrc.includes('bindDetachedModalSyncRefresh({')
       && lightDevicesSrc.includes('opener: openDeviceSessionDetail'));
+  assert('all-sessions modal refreshes through shared sync-applied modal helper',
+    lightSessionsSrc.includes('bindModalSyncRefresh({')
+      && lightSessionsSrc.includes("modalSelector: '.light-sessions-modal'")
+      && lightSessionsSrc.includes("scrollSelector: '.light-sessions-modal-body'")
+      && !lightSessionsSrc.includes("window.addEventListener('labcharts-sync-applied'"));
   assert('Light Environment assessment modal refreshes clean open content on sync-applied',
     lightEnvSrc.includes('refreshOpenLightEnvironmentAssessmentOnSync')
-      && lightEnvSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenLightEnvironmentAssessmentOnSync)")
-      && lightEnvSrc.includes('hasDirtyFormFields(modal)')
-      && lightEnvSrc.includes('setLightEnvironmentAssessmentScrollTop(scrollTop)'));
+      && lightEnvSrc.includes('bindModalSyncRefresh({')
+      && lightEnvSrc.includes('overlayId: LIGHT_ENV_ASSESSMENT_OVERLAY_ID')
+      && lightEnvSrc.includes("modalSelector: '.light-env-assessment-modal'")
+      && !lightEnvSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenLightEnvironmentAssessmentOnSync)"));
   assert('shared data modals refresh clean editors on sync-applied',
     supplementsSrc.includes('refreshOpenSupplementsEditorOnSync')
       && supplementsSrc.includes("bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync)")
@@ -682,9 +691,25 @@ await import('../js/settings.js');
   }
   assert('saved chat summary modal refreshes on sync-applied',
     chatSummariesSrc.includes('refreshOpenSummaryModalOnSync')
-      && chatSummariesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync)")
+      && chatSummariesSrc.includes('bindModalSyncRefresh({')
+      && chatSummariesSrc.includes("overlayId: 'summary-modal-overlay'")
+      && chatSummariesSrc.includes("kind: 'chat-summary'")
+      && chatSummariesSrc.includes("scrollSelector: '#summary-modal-body'")
       && chatSummariesSrc.includes("overlay.dataset.syncRefreshKind = 'chat-summary'")
-      && chatSummariesSrc.includes('viewSavedSummary(id)'));
+      && chatSummariesSrc.includes('viewSavedSummary(id)')
+      && !chatSummariesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync)"));
+  {
+    const violations = [];
+    for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
+      const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
+      if (rel === 'js/utils.js') continue;
+      const src = fs.readFileSync(abs, 'utf-8');
+      if (src.includes("window.addEventListener('labcharts-sync-applied'")) violations.push(rel);
+    }
+    assert('sync-applied modal listeners are centralized in utils helpers',
+      violations.length === 0,
+      violations.join(', '));
+  }
   assert('closeModal clears sync refresh modal metadata',
     markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshKind')
       && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshDate')
