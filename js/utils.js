@@ -117,6 +117,21 @@ export function bindDetachedModalSyncRefresh({
   window.addEventListener('labcharts-sync-applied', onSync);
 }
 
+export function bindDetailModalSyncRefresh(kind, refresh) {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || !kind || typeof refresh !== 'function') {
+    return () => {};
+  }
+  const onSync = () => {
+    const overlay = document.getElementById('modal-overlay');
+    const modal = document.getElementById('detail-modal');
+    if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== kind) return;
+    if (hasDirtyFormFields(modal)) return;
+    refresh({ overlay, modal });
+  };
+  window.addEventListener('labcharts-sync-applied', onSync);
+  return () => window.removeEventListener('labcharts-sync-applied', onSync);
+}
+
 export function getStatus(value, refMin, refMax) {
   if (value === null || value === undefined) return "missing";
   if (refMin == null && refMax == null) return "normal";

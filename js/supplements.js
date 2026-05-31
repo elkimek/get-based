@@ -1,7 +1,7 @@
 // supplements.js — Supplement/medication editor and dashboard section
 
 import { state } from './state.js';
-import { escapeHTML, hasDirtyFormFields, showNotification, isDebugMode } from './utils.js';
+import { bindDetailModalSyncRefresh, escapeHTML, showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
@@ -55,11 +55,7 @@ function _sourceUrlParts(raw) {
   };
 }
 
-function refreshOpenSupplementsEditorOnSync() {
-  const overlay = document.getElementById('modal-overlay');
-  const modal = document.getElementById('detail-modal');
-  if (!overlay?.classList?.contains('show') || modal?.dataset?.syncRefreshKind !== 'supplements') return;
-  if (hasDirtyFormFields(modal)) return;
+function refreshOpenSupplementsEditorOnSync({ modal }) {
   const idx = Number.parseInt(modal.dataset.syncRefreshEditIdx || '', 10);
   const itemId = modal.dataset.syncRefreshItemId || '';
   const supps = state.importedData.supplements || [];
@@ -75,7 +71,7 @@ function refreshOpenSupplementsEditorOnSync() {
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-sync-applied', refreshOpenSupplementsEditorOnSync);
+  bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync);
 }
 
 export function renderSupplementsSection() {

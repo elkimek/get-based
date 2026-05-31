@@ -623,8 +623,10 @@ await import('../js/settings.js');
     utilsSrc.includes('export function hasDirtyFormFields')
       && utilsSrc.includes("querySelectorAll('input, textarea, select')")
       && utilsSrc.includes('export function bindDetachedModalSyncRefresh')
+      && utilsSrc.includes('export function bindDetailModalSyncRefresh')
       && utilsSrc.includes("window.addEventListener('labcharts-sync-applied', onSync)")
-      && utilsSrc.includes('hasDirtyFormFields(overlay)'));
+      && utilsSrc.includes('hasDirtyFormFields(overlay)')
+      && utilsSrc.includes('hasDirtyFormFields(modal)'));
   assert('sun and device session detail modals refresh on sync-applied',
     sunSessionUISrc.includes('bindDetachedModalSyncRefresh({')
       && sunSessionUISrc.includes('opener: openSunSessionDetail')
@@ -632,17 +634,17 @@ await import('../js/settings.js');
       && lightDevicesSrc.includes('opener: openDeviceSessionDetail'));
   assert('shared data modals refresh clean editors on sync-applied',
     supplementsSrc.includes('refreshOpenSupplementsEditorOnSync')
-      && supplementsSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSupplementsEditorOnSync)")
+      && supplementsSrc.includes("bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync)")
       && supplementsSrc.includes("modal.dataset.syncRefreshKind = 'supplements'")
       && supplementsSrc.includes("modal.dataset.syncRefreshItemId")
       && supplementsSrc.includes("getConfiguredArrayItemId('supplements'")
       && notesSrc.includes('refreshOpenNoteEditorOnSync')
-      && notesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenNoteEditorOnSync)")
+      && notesSrc.includes("bindDetailModalSyncRefresh('note', refreshOpenNoteEditorOnSync)")
       && notesSrc.includes("modal.dataset.syncRefreshKind = 'note'")
       && notesSrc.includes('const noteAtIdx = state.importedData.notes?.[idx]')
       && notesSrc.includes('noteAtIdx.date === date')
       && contextCardLifestyleEditorsSrc.includes('refreshOpenHealthGoalsModalOnSync')
-      && contextCardLifestyleEditorsSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenHealthGoalsModalOnSync)")
+      && contextCardLifestyleEditorsSrc.includes("bindDetailModalSyncRefresh('healthGoals', refreshOpenHealthGoalsModalOnSync)")
       && contextCardLifestyleEditorsSrc.includes("modal.dataset.syncRefreshKind = 'healthGoals'"));
   {
     const syncedArraySurfaces = ['entries', 'notes', 'supplements', 'healthGoals', 'chatSummaries', 'changeHistory'];
