@@ -20,6 +20,7 @@ const {
   mergeImportedData,
   preserveFreshLocalLabEntries,
   recordTombstone,
+  recordArrayItemTombstone,
   clearTombstone,
   unionById,
   ID_KEYED_ARRAYS,
@@ -313,6 +314,42 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
     notesUnion.notes.length === 2
       && notesUnion.notes.some(n => n.text === 'Local note')
       && notesUnion.notes.some(n => n.text === 'Remote note'));
+  const oldNote = { date: '2026-05-01', text: 'Original note' };
+  const editedNote = { date: '2026-05-01', text: 'Edited note' };
+  const editedNoteLocal = { notes: [editedNote] };
+  recordArrayItemTombstone(editedNoteLocal, 'notes', oldNote);
+  const mergedEditedNote = mergeImportedData(editedNoteLocal, { notes: [oldNote] });
+  assert('notes identity edit tombstone prevents old text ghost duplicate',
+    mergedEditedNote.notes.length === 1
+      && mergedEditedNote.notes[0].text === 'Edited note');
+  const renamedSupplementLocal = {
+    supplements: [{
+      name: 'Magnesium glycinate',
+      startDate: '2026-05-01',
+      type: 'supplement',
+      dosage: '200 mg',
+      updatedAt: 6_000_000,
+    }],
+  };
+  recordArrayItemTombstone(renamedSupplementLocal, 'supplements', {
+    name: 'Magnesium',
+    startDate: '2026-05-01',
+    type: 'supplement',
+    dosage: '200 mg',
+    updatedAt: 5_000_000,
+  });
+  const mergedRenamedSupplement = mergeImportedData(renamedSupplementLocal, {
+    supplements: [{
+      name: 'Magnesium',
+      startDate: '2026-05-01',
+      type: 'supplement',
+      dosage: '200 mg',
+      updatedAt: 5_000_000,
+    }],
+  });
+  assert('supplement identity edit tombstone prevents old-name ghost duplicate',
+    mergedRenamedSupplement.supplements.length === 1
+      && mergedRenamedSupplement.supplements[0].name === 'Magnesium glycinate');
   const healthGoalLocal = { healthGoals: [{ text: 'Lower CRP', severity: 'major', updatedAt: 5_000_000 }] };
   await mergeArrayRowsIntoImported(healthGoalLocal, 'healthGoals', [{
     itemId: DELTA_ARRAY_CONFIG.healthGoals.itemIdFn({ text: 'Lower CRP', severity: 'minor' }),

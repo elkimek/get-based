@@ -3,6 +3,10 @@
 import { state } from './state.js';
 import { escapeHTML, showNotification, isDebugMode } from './utils.js';
 import { saveImportedData } from './data.js';
+import {
+  getConfiguredArrayItemId,
+  recordArrayItemTombstone,
+} from './data-merge.js';
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
@@ -565,6 +569,12 @@ export function saveSupplement(idx) {
   if (isFinite(timesNum) && timesNum > 0) entry.timesPerDay = timesNum;
   if (parsedSourceUrl) entry.sourceUrl = parsedSourceUrl.toString();
   if (idx >= 0) {
+    const existing = state.importedData.supplements[idx];
+    const existingId = getConfiguredArrayItemId('supplements', existing);
+    const nextId = getConfiguredArrayItemId('supplements', entry);
+    if (existingId && existingId !== nextId) {
+      recordArrayItemTombstone(state.importedData, 'supplements', existing);
+    }
     state.importedData.supplements[idx] = entry;
   } else {
     state.importedData.supplements.push(entry);
@@ -582,6 +592,7 @@ export function saveSupplement(idx) {
 export function deleteSupplement(idx) {
   if (!state.importedData.supplements || !state.importedData.supplements[idx]) return;
   const name = state.importedData.supplements[idx].name;
+  recordArrayItemTombstone(state.importedData, 'supplements', state.importedData.supplements[idx]);
   state.importedData.supplements.splice(idx, 1);
   saveImportedData();
   showNotification(`"${name}" removed`, 'info');

@@ -23,6 +23,7 @@
 import { state } from './state.js';
 import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
+import { recordArrayItemTombstone } from './data-merge.js';
 import { onChatSaved } from './sync.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { CHAT_PERSONALITIES } from './constants.js';
@@ -189,6 +190,9 @@ export async function deleteThread(threadId) {
     localStorage.removeItem(getChatThreadKey(threadId));
     // Remove saved summary
     if (state.importedData.chatSummaries) {
+      for (const summary of state.importedData.chatSummaries.filter(s => s.threadId === threadId)) {
+        recordArrayItemTombstone(state.importedData, 'chatSummaries', summary);
+      }
       state.importedData.chatSummaries = state.importedData.chatSummaries.filter(s => s.threadId !== threadId);
       saveImportedData();
     }

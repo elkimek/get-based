@@ -328,6 +328,20 @@ function naturalItemId(path, item) {
   return _isAllowlistSafeId(id) ? id : null;
 }
 
+export function getConfiguredArrayItemId(path, item) {
+  const naturalId = naturalItemId(path, item);
+  if (naturalId) return naturalId;
+  return item && typeof item.id === 'string' && _isAllowlistSafeId(item.id)
+    ? item.id
+    : null;
+}
+
+export function recordArrayItemTombstone(importedData, arrayPath, item) {
+  const id = getConfiguredArrayItemId(arrayPath, item);
+  if (id) recordTombstone(importedData, arrayPath, id);
+  return id;
+}
+
 function unionByItemId(localArr, remoteArr, tombstones, itemIdFn) {
   const tomb = tombstones instanceof Set ? tombstones : new Set(tombstones || []);
   const byId = new Map();

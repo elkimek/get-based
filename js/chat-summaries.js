@@ -7,6 +7,7 @@ import { saveImportedData } from './data.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
+import { recordArrayItemTombstone } from './data-merge.js';
 
 const SUMMARY_PROMPT = `You are a concise medical note-taker. Summarize this health consultation into a structured note.
 
@@ -175,6 +176,8 @@ function _getLatestSavedSummary(threadId) {
 
 export async function deleteSavedSummary(id) {
   if (!state.importedData.chatSummaries) return;
+  const summary = state.importedData.chatSummaries.find(s => s.id === id);
+  recordArrayItemTombstone(state.importedData, 'chatSummaries', summary);
   state.importedData.chatSummaries = state.importedData.chatSummaries.filter(s => s.id !== id);
   await saveImportedData();
   renderSavedSummaries();
