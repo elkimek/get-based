@@ -47,6 +47,7 @@ Functions called from inline HTML `onclick` handlers are exposed via `Object.ass
 3. `refOverrides`, `categoryLabels`/`categoryIcons`/`markerLabels` override display. `markerNotes` for freeform notes. `changeHistory` (capped 200) for AI temporal reasoning. `biometrics` stores time-series weight/BP/pulse (height on profile object)
 4. Marker values are arrays aligned with `dates`; `null` = no result. `singlePoint` categories use grid cards. Charts use `spanGaps: true`
 5. Each entry has `markerSources` (per-marker provenance): `{ "category.markerKey": { file: "filename.pdf", at: unixMs } }`. `file: null` = manual entry. Detail modal shows source filename per value
+6. Marker detail UI keeps prompts/rendering in `marker-detail-editing.js`; synced writes for manual values, value notes, marker notes, and reference overrides are centralized in `marker-detail-store.js` so `entries`, `manualValues`, `markerValueNotes`, `markerNotes`, and `refOverrides` update atomically before `saveImportedData()`
 
 ### PDF Import Pipeline
 

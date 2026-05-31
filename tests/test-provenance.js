@@ -33,10 +33,15 @@ assert('New markers get markerSources', /setLabEntryMarker\(entry, m\.suggestedK
 console.log('\n2. Manual Entry Provenance');
 const markerDetailSrc = read('js/marker-detail-modal.js');
 const markerDetailEditingSrc = read('js/marker-detail-editing.js');
+const markerDetailStoreSrc = read('js/marker-detail-store.js');
 assert('saveManualEntry inits markerSources', labEntrySrc.includes('function ensureMarkerSources(entry)'));
-assert('saveManualEntry sets file:null', /saveManualEntry[\s\S]{0,4500}source: \{ file: null, at: now \}/.test(markerDetailEditingSrc));
+assert('saveManualEntry sets file:null',
+  /saveManualEntry[\s\S]{0,5200}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc)
+    && /saveManualMarkerValue[\s\S]{0,1200}source: \{ file: null, at: now \}/.test(markerDetailStoreSrc));
 const editSection = markerDetailEditingSrc.split('function editMarkerValue')[1] || '';
-assert('editMarkerValue sets provenance', /source: \{ file: null, at: now \}/.test(editSection));
+assert('editMarkerValue sets provenance',
+  /editManualMarkerValue\(\{ dotKey, date, storedValue \}\)/.test(editSection)
+    && /editManualMarkerValue[\s\S]{0,900}source: \{ file: null, at: now \}/.test(markerDetailStoreSrc));
 
 // ─── 3. Detail Modal Display ───
 console.log('\n3. Detail Modal Display');
