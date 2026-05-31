@@ -13,15 +13,20 @@
 //   }
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
-import { saveImportedData } from './data.js';
-import { deleteImportedArrayItems } from './data-merge.js';
+import { escapeHTML, escapeAttr, hasDirtyFormFields, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { roomUsesEveningAfterSunset } from './light-env-evening.js';
 import {
-  normalizeLightEnvironmentEveningFields,
-  normalizeRoomEveningFields,
-  normalizeRoomEveningPatch,
-  roomUsesEveningAfterSunset,
-} from './light-env-evening.js';
+  addRoom,
+  addScreen,
+  deleteRoom,
+  deleteScreen,
+  getEnvironment,
+  getScreensForRoom,
+  isActiveToday,
+  setTodayActive,
+  updateRoom,
+  updateScreen,
+} from './light-env-store.js';
 import {
   PRIMARY_SOURCES,
   SCREEN_DEVICES,
@@ -45,6 +50,18 @@ import {
 
 export { getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit } from './light-env-audits.js';
 export {
+  addRoom,
+  addScreen,
+  deleteRoom,
+  deleteScreen,
+  getEnvironment,
+  getScreensForRoom,
+  isActiveToday,
+  setTodayActive,
+  updateRoom,
+  updateScreen,
+} from './light-env-store.js';
+export {
   PRIMARY_SOURCES,
   SCREEN_DEVICES,
   SOURCE_ARCHETYPES,
@@ -62,52 +79,9 @@ export {
   roomUsesEveningAfterSunset,
 } from './light-env-evening.js';
 
-// ─── Public API ────────────────────────────────────────────────────────
-
-export function getEnvironment() {
-  if (!state.importedData) return null;
-  if (!state.importedData.lightEnvironment) {
-    state.importedData.lightEnvironment = { rooms: [], screens: [] };
-  }
-  normalizeLightEnvironmentEveningFields(state.importedData.lightEnvironment);
-  return state.importedData.lightEnvironment;
-}
-
 // Common room names used as smarter defaults — cycle through these in order
 // before falling back to "Room N" so a fresh user lands on familiar labels.
 const DEFAULT_ROOM_NAMES = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
-
-export async function addRoom(name) {
-  const env = getEnvironment();
-  if (!Array.isArray(env.rooms)) env.rooms = [];
-
-  // Pre-fill primarySource from sunDefaults.homeLight when the user already
-  // answered Home lighting in the Light setup card — saves a redundant pick.
-  const homeLight = state.importedData?.sunDefaults?.homeLight;
-  // Pre-fill hours by room name — bedroom/office default high, kitchen/
-  // bath default low. User adjusts via chip row if their pattern differs;
-  // beats opening the room to a lonely empty number field.
-  const presetHours = defaultHoursForName(name);
-
-  const id = `room_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  env.rooms.push({
-    id,
-    name: name || 'Room',
-    primarySource: homeLight || 'unknown',
-    cct: null,
-    flickerScore: null,
-    hoursOccupiedPerDay: presetHours,
-    // Numeric after-sunset exposure; null means unanswered.
-    eveningHoursAfterSunset: null,
-    notes: '',
-  });
-  await saveImportedData();
-  // Return the new room's id so cross-module callers (Tool 8 Eye-Level
-  // Audit auto-create-room path) can chain `await addRoom(label)` →
-  // `saveMeasurement('lux', value, { roomId })` without having to grep
-  // env.rooms[length-1] to find what they just created.
-  return id;
-}
 
 // Pick the next default room name based on which common names haven't been
 // used yet. Names are matched case-insensitively so "bedroom" and "Bedroom"
@@ -121,105 +95,6 @@ export function nextDefaultRoomName() {
   return `Room ${(env?.rooms?.length || 0) + 1}`;
 }
 
-// `updatedAt` is bumped on every patch so the per-array sync merge can
-// resolve cross-device edit conflicts (higher updatedAt wins).
-export async function updateRoom(id, patch) {
-  const env = getEnvironment();
-  const room = (env.rooms || []).find(r => r.id === id);
-  if (!room) return;
-  Object.assign(room, normalizeRoomEveningPatch(patch));
-  normalizeRoomEveningFields(room);
-  room.updatedAt = Date.now();
-  await saveImportedData();
-}
-
-export async function deleteRoom(id) {
-  const env = getEnvironment();
-  deleteImportedArrayItems(state.importedData, 'lightEnvironment.rooms', r => r.id === id);
-  // Measurements are meaningful only in the room context where they
-  // were taken. Deleting the room removes those readings instead of
-  // moving them into an unmapped "portable" bucket.
-  deleteImportedArrayItems(state.importedData, 'lightMeasurements', m => m && m.roomId === id);
-  if (Array.isArray(env.screens)) {
-    for (const sc of env.screens) {
-      if (sc && sc.roomId === id) sc.roomId = null;
-    }
-  }
-  await saveImportedData();
-}
-
-export async function addScreen(device, roomId = null) {
-  const env = getEnvironment();
-  if (!Array.isArray(env.screens)) env.screens = [];
-  env.screens.push({
-    id: `scr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-    device: device || 'phone',
-    roomId: roomId || null,
-    hoursPerDay: null,
-    eveningUseAfterSunset: null,
-    blueBlockerEnabled: false,
-    flickerScore: null,
-  });
-  await saveImportedData();
-}
-
-// Filter screens to those belonging to a given room (or portable when
-// roomId is null). Existing screen records without a roomId field are
-// treated as portable so no migration is needed.
-export function getScreensForRoom(roomId) {
-  const env = getEnvironment();
-  return (env?.screens || []).filter(s => (s.roomId || null) === (roomId || null));
-}
-
-// Today's date as YYYY-MM-DD in local time — used to scope per-day
-// "skip today" toggles. Local date because the user's "today" is a
-// circadian construct, not a UTC day.
-function todayKey() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-// True when an item (room or screen) is counted toward today's
-// exposure. Default is active. A `todayOverride` field stamped with
-// today's date can flip it to inactive ("skipped today"); stamps from
-// any earlier date are ignored — the toggle auto-resets overnight
-// without needing a cron / scheduler.
-export function isActiveToday(item) {
-  if (!item) return false;
-  const ov = item.todayOverride;
-  if (!ov || ov.date !== todayKey()) return true;
-  return ov.active !== false;
-}
-
-// Toggle the "in use today" state for a room or screen. Always stamps
-// today's date so a skip from yesterday auto-clears.
-export async function setTodayActive(kind, id, active) {
-  const env = getEnvironment();
-  const list = kind === 'room' ? (env?.rooms || []) : (env?.screens || []);
-  const item = list.find(x => x.id === id);
-  if (!item) return;
-  item.todayOverride = { date: todayKey(), active: !!active };
-  item.updatedAt = Date.now();
-  await saveImportedData();
-}
-
-export async function updateScreen(id, patch) {
-  const env = getEnvironment();
-  const scr = (env.screens || []).find(s => s.id === id);
-  if (!scr) return;
-  Object.assign(scr, patch);
-  scr.updatedAt = Date.now();
-  await saveImportedData();
-}
-
-export async function deleteScreen(id) {
-  const env = getEnvironment();
-  deleteImportedArrayItems(state.importedData, 'lightEnvironment.screens', s => s.id === id);
-  await saveImportedData();
-}
 
 // Step 1 chip-picker render helpers — produce the inline chip rows
 // for source / hours / evening, plus the "More options" reveal that
@@ -724,6 +599,16 @@ export function refreshLightEnvironmentAssessment() {
   if (isLightEnvironmentAssessmentOpen()) renderLightEnvironmentAssessmentModal();
 }
 
+function refreshOpenLightEnvironmentAssessmentOnSync() {
+  const overlay = getLightEnvironmentAssessmentOverlay();
+  const modal = overlay?.querySelector('.light-env-assessment-modal');
+  if (!overlay || !modal) return;
+  if (hasDirtyFormFields(modal)) return;
+  const scrollTop = modal.scrollTop || 0;
+  renderLightEnvironmentAssessmentModal();
+  if (scrollTop) setLightEnvironmentAssessmentScrollTop(scrollTop);
+}
+
 function setLightEnvironmentAssessmentScrollTop(scrollTop) {
   const modal = getLightEnvironmentAssessmentOverlay()?.querySelector('.light-env-assessment-modal');
   if (!modal) return;
@@ -1002,6 +887,8 @@ configureLightEnvAudits({
 });
 
 if (typeof window !== 'undefined') {
+  window.addEventListener('labcharts-sync-applied', refreshOpenLightEnvironmentAssessmentOnSync);
+
   Object.assign(window, {
     getLightEnvironment: getEnvironment,
     addLightEnvRoom: async () => {
@@ -1235,9 +1122,9 @@ if (typeof window !== 'undefined') {
     computeIndoorBurden,
     getScreensForRoom,
     // Rooms accessor + adder so cross-module callers (Tool 8 Eye-Level
-    // Audit, recommendations engine, AI helpers) don't have to dig
-    // into state.importedData.lightEnvironment directly.
-    getRooms: () => (state.importedData?.lightEnvironment?.rooms) || [],
+    // Audit, recommendations engine, AI helpers) stay behind the
+    // light-environment store boundary.
+    getRooms: () => (getEnvironment()?.rooms) || [],
     addRoom,
     isLightEnvActiveToday: isActiveToday,
     setLightEnvTodayActive: async (kind, id, active) => {

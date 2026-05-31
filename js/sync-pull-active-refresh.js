@@ -22,6 +22,11 @@ function shouldShowUpdateToast(profileId) {
   return true;
 }
 
+function hasOpenModalOverlay() {
+  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return false;
+  return !!document.querySelector('.modal-overlay.show, #modal-overlay.show');
+}
+
 export function refreshActiveProfileAfterPull({
   profileId,
   merged,
@@ -75,7 +80,7 @@ export function refreshActiveProfileAfterPull({
     // survives duplicate no-op pull triggers.
     dbg(debug, `Pulled active profile ${profileId.slice(0,8)} — no visible data change, skipping re-render of '${cat}'`);
   } else {
-    window.navigate?.(cat);
+    window.navigate?.(cat, hasOpenModalOverlay() ? { preserveScroll: true } : undefined);
     if (cat !== 'dashboard' && shouldShowUpdateToast(profileId)) {
       showNotification('Data updated from another device', 'success');
     }

@@ -99,6 +99,7 @@ A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests 
 | `tests/test-light-devices.js` | Light therapy device library + sessions: addDeviceFromPreset, deleteDevice, logDeviceSession |
 | `tests/test-light-devices-store.js` | Light-device mutation boundary: device CRUD, session lifecycle, dose recompute, sync tombstones |
 | `tests/test-light-env.js` | Light Environment math + CRUD: rooms, screens, audits, computeRoomSeverity, computeScreenStatus, computeIndoorBurden |
+| `tests/test-light-env-store.js` | Light Environment mutation boundary: room/screen CRUD, today overrides, room-delete cleanup, sync tombstones |
 | `tests/test-light-tools.js` | Pure helpers re-exported from `light-tools.js`: computeRowBanding (flicker FFT), saveMeasurement, lockStatusLine |
 | `tests/test-light-tools-flow.js` | Drives `saveMeasurement` across all 8 tool types + every camera-bound opener (handles missing getUserMedia cleanly) |
 | `tests/test-lighting-hardware-caveats.js` | Guard the load-bearing PWM/TRIAC caveat block against silent removal from any AI-analysis prompt |

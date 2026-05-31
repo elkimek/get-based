@@ -93,6 +93,7 @@ const LEGACY_TESTS = [
   './test-sun-defaults.js',
   './test-sun.js',
   './test-light-env.js',
+  './test-light-env-store.js',
   './test-light-devices.js',
   './test-sun-context.js',
   './test-sun-uvdata.js',

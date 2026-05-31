@@ -216,6 +216,10 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     const routerSrc = fetchSrc('js/views-router.js');
     assert('views-router.js: _captureScrollAnchor exists', /function _captureScrollAnchor/.test(routerSrc));
     assert('views-router.js: _restoreScrollAnchor exists', /function _restoreScrollAnchor/.test(routerSrc));
+    assert('views-router.js: modal-safe preserveScroll path exists',
+      routerSrc.includes('preserveScroll')
+      && routerSrc.includes('function _restorePixelScroll')
+      && routerSrc.includes('window.scrollTo'));
     assert('views-router.js: two-tier heuristic (containingBest + centerBest)',
       /containingBest[\s\S]{0,500}centerBest/.test(routerSrc));
     assert('views-router.js: containing-tier picks SMALLEST area (innermost)',
@@ -522,7 +526,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /export function getInitialView\(\)/.test(routerSrc)
       && /return isKnownRoute\(saved\) \? saved : 'dashboard'/.test(routerSrc));
     assert('views-router.js: navigate falls back when a saved category is stale',
-      /const routeCategory\s*=\s*isKnownRoute\(requestedCategory,\s*data\)\s*\? requestedCategory : 'dashboard'/.test(routerSrc));
+      /const routeData\s*=/.test(routerSrc)
+      && /const routeCategory\s*=\s*isKnownRoute\(requestedCategory,\s*routeData\)\s*\? requestedCategory : 'dashboard'/.test(routerSrc));
     assert('views.js: exposes router-backed getInitialView wrapper',
       /export function getInitialView\(\)/.test(viewsSrc)
       && /return getRouterInitialView\(\)/.test(viewsSrc));

@@ -128,6 +128,7 @@ await import('../js/settings.js');
   const utilsSrc = await fetchWithRetry('js/utils.js');
   const sunSessionUISrc = await fetchWithRetry('js/sun-session-ui.js');
   const lightDevicesSrc = await fetchWithRetry('js/light-devices.js');
+  const lightEnvSrc = await fetchWithRetry('js/light-env.js');
   const supplementsSrc = await fetchWithRetry('js/supplements.js');
   const notesSrc = await fetchWithRetry('js/notes.js');
   const contextCardLifestyleEditorsSrc = await fetchWithRetry('js/context-card-lifestyle-editors.js');
@@ -617,7 +618,9 @@ await import('../js/settings.js');
       && syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)')
       && syncPullActiveRefreshSrc.includes('localDataChanged')
       && syncPullActiveRefreshSrc.includes('shouldRefreshVisibleData')
-      && syncPullActiveRefreshSrc.includes('window.navigate?.(cat)')
+      && syncPullActiveRefreshSrc.includes('hasOpenModalOverlay')
+      && syncPullActiveRefreshSrc.includes('preserveScroll: true')
+      && syncPullActiveRefreshSrc.includes('window.navigate?.(cat,')
       && syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')"));
   assert('service worker precaches sync-pull-active-refresh.js',
     serviceWorkerSrc.includes("'/js/sync-pull-active-refresh.js'"));
@@ -640,6 +643,11 @@ await import('../js/settings.js');
       && sunSessionUISrc.includes('opener: openSunSessionDetail')
       && lightDevicesSrc.includes('bindDetachedModalSyncRefresh({')
       && lightDevicesSrc.includes('opener: openDeviceSessionDetail'));
+  assert('Light Environment assessment modal refreshes clean open content on sync-applied',
+    lightEnvSrc.includes('refreshOpenLightEnvironmentAssessmentOnSync')
+      && lightEnvSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenLightEnvironmentAssessmentOnSync)")
+      && lightEnvSrc.includes('hasDirtyFormFields(modal)')
+      && lightEnvSrc.includes('setLightEnvironmentAssessmentScrollTop(scrollTop)'));
   assert('shared data modals refresh clean editors on sync-applied',
     supplementsSrc.includes('refreshOpenSupplementsEditorOnSync')
       && supplementsSrc.includes("bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync)")
@@ -1226,7 +1234,7 @@ await import('../js/settings.js');
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
   // instead of just showing a "Data updated" toast).
-  assert('Pull re-renders the active view', syncPullActiveRefreshSrc.includes('window.navigate?.(cat)'));
+  assert('Pull re-renders the active view', syncPullActiveRefreshSrc.includes('window.navigate?.(cat,'));
   assert('Pull calls migrateProfileData', syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)'));
   assert('enableSync pulls before first enable push to avoid publishing stale local state',
     /await forcePull\(\)[\s\S]{0,300}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
