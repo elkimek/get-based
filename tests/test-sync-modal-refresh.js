@@ -10,6 +10,7 @@ const { state } = await import('../js/state.js');
 const { configureSyncDelta } = await import('../js/sync-delta.js');
 const { mergePulledImportedData } = await import('../js/sync-pull-merge.js');
 const { refreshActiveProfileAfterPull } = await import('../js/sync-pull-active-refresh.js');
+const { createNavigate } = await import('../js/views-router.js');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -147,6 +148,7 @@ const originalRefreshImportedData = state.importedData;
 try {
   let toastCount = 0;
   let navigateCount = 0;
+  let navigateArgs = null;
   let syncAppliedCount = 0;
   const container = {
     appendChild: () => { toastCount++; },
@@ -192,6 +194,17 @@ try {
   assert('active refresh coalesces duplicate update toasts during bursty pull triggers',
     navigateCount === 2 && toastCount === 1 && syncAppliedCount === 2);
 
+  document.querySelector = selector => selector === '.modal-overlay.show, #modal-overlay.show' ? {} : null;
+  window.navigate = (...args) => { navigateCount++; navigateArgs = args; };
+  refreshActiveProfileAfterPull({
+    profileId: 'sync-refresh-profile',
+    merged: { entries: [{ date: '2026-05-01', markers: { 'biochemistry.glucose': 7 } }] },
+    remoteBroughtNewRows: true,
+    localDataChanged: true,
+  });
+  assert('active refresh preserves background scroll when a modal is open',
+    navigateArgs?.[0] === 'labs' && navigateArgs?.[1]?.preserveScroll === true);
+
   window.removeEventListener('labcharts-sync-applied', onSyncApplied);
 } finally {
   document.getElementById = originalGetElementById;
@@ -202,6 +215,52 @@ try {
   state.currentProfile = originalRefreshCurrentProfile;
   state.currentView = originalRefreshCurrentView;
   state.importedData = originalRefreshImportedData;
+}
+
+const originalRouterCurrentProfile = state.currentProfile;
+const originalRouterCurrentView = state.currentView;
+const originalRouterImportedData = state.importedData;
+const originalScrollTo = window.scrollTo;
+const originalScrollX = Object.getOwnPropertyDescriptor(window, 'scrollX');
+const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');
+const originalPageXOffset = Object.getOwnPropertyDescriptor(window, 'pageXOffset');
+const originalPageYOffset = Object.getOwnPropertyDescriptor(window, 'pageYOffset');
+try {
+  let scrollCall = null;
+  Object.defineProperty(window, 'scrollX', { configurable: true, value: 12 });
+  Object.defineProperty(window, 'scrollY', { configurable: true, value: 345 });
+  Object.defineProperty(window, 'pageXOffset', { configurable: true, value: 12 });
+  Object.defineProperty(window, 'pageYOffset', { configurable: true, value: 345 });
+  window.scrollTo = arg => { scrollCall = arg; };
+  state.currentProfile = 'sync-refresh-profile';
+  state.currentView = 'labs';
+  state.importedData = { entries: [] };
+  let routePayload = 'unset';
+  const navigate = createNavigate({
+    routeHandlers: { labs: (data) => { routePayload = data; } },
+    syncMobileBottomNav: () => {},
+    destroyAllCharts: () => {},
+  });
+  navigate('labs', { preserveScroll: true });
+  assert('router preserveScroll restores the same page scroll position after rerender',
+    scrollCall?.left === 12 && scrollCall?.top === 345,
+    JSON.stringify(scrollCall));
+  assert('router preserveScroll option is not passed to page renderers as data',
+    routePayload === undefined,
+    JSON.stringify(routePayload));
+} finally {
+  state.currentProfile = originalRouterCurrentProfile;
+  state.currentView = originalRouterCurrentView;
+  state.importedData = originalRouterImportedData;
+  window.scrollTo = originalScrollTo;
+  if (originalScrollX) Object.defineProperty(window, 'scrollX', originalScrollX);
+  else delete window.scrollX;
+  if (originalScrollY) Object.defineProperty(window, 'scrollY', originalScrollY);
+  else delete window.scrollY;
+  if (originalPageXOffset) Object.defineProperty(window, 'pageXOffset', originalPageXOffset);
+  else delete window.pageXOffset;
+  if (originalPageYOffset) Object.defineProperty(window, 'pageYOffset', originalPageYOffset);
+  else delete window.pageYOffset;
 }
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

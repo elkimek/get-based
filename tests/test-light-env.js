@@ -455,6 +455,72 @@ const {
   assert('Assessment modal functions are exported on window',
     typeof window.openLightEnvironmentAssessment === 'function' &&
     typeof window.closeLightEnvironmentAssessment === 'function');
+
+  const beforeModalSyncData = window._labState.importedData;
+  const originalCreateElement = document.createElement;
+  const originalGetElementById = document.getElementById;
+  const originalBodyAppendChild = document.body.appendChild;
+  try {
+    let storedOverlay = null;
+    let dirtyModal = false;
+    const modalEl = {
+      scrollTop: 33,
+      querySelector: () => null,
+      querySelectorAll: () => dirtyModal
+        ? [{ disabled: false, tagName: 'INPUT', type: 'text', value: 'local edit', defaultValue: '' }]
+        : [],
+    };
+    const overlayEl = {
+      id: '',
+      className: '',
+      style: {},
+      dataset: {},
+      _html: '',
+      classList: {
+        add(cls) { if (!overlayEl.className.includes(cls)) overlayEl.className += `${overlayEl.className ? ' ' : ''}${cls}`; },
+        remove(cls) { overlayEl.className = overlayEl.className.split(/\s+/).filter(x => x && x !== cls).join(' '); },
+        contains(cls) { return overlayEl.className.split(/\s+/).includes(cls); },
+      },
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      querySelector: (sel) => sel === '.light-env-assessment-modal' ? modalEl : null,
+      querySelectorAll: () => [],
+      remove() { if (storedOverlay === overlayEl) storedOverlay = null; },
+      set innerHTML(value) { overlayEl._html = String(value); },
+      get innerHTML() { return overlayEl._html; },
+    };
+    document.createElement = tag => tag === 'div' ? overlayEl : originalCreateElement.call(document, tag);
+    document.body.appendChild = el => { storedOverlay = el; return el; };
+    document.getElementById = id => id === 'light-env-assessment-overlay' ? storedOverlay : originalGetElementById.call(document, id);
+
+    window._labState.importedData = {
+      lightEnvironment: { rooms: [{ id: 'sync-room', name: 'Office', hoursOccupiedPerDay: 8 }], screens: [] },
+      lightMeasurements: [],
+    };
+    window.openLightEnvironmentAssessment();
+    const initialModalHtml = storedOverlay?.innerHTML || '';
+    window._labState.importedData.lightEnvironment.rooms[0].name = 'Bedroom';
+    window.dispatchEvent({ type: 'labcharts-sync-applied' });
+    assert('Open Light Environment modal refreshes clean content on sync',
+      initialModalHtml.includes('light-env-room-disclosure-name">Office') &&
+      storedOverlay?.innerHTML.includes('light-env-room-disclosure-name">Bedroom') &&
+      !storedOverlay?.innerHTML.includes('light-env-room-disclosure-name">Office'));
+
+    dirtyModal = true;
+    const cleanSyncedHtml = storedOverlay.innerHTML;
+    window._labState.importedData.lightEnvironment.rooms[0].name = 'Kitchen';
+    window.dispatchEvent({ type: 'labcharts-sync-applied' });
+    assert('Open Light Environment modal skips sync refresh while form is dirty',
+      storedOverlay?.innerHTML === cleanSyncedHtml &&
+      !storedOverlay?.innerHTML.includes('light-env-room-disclosure-name">Kitchen'));
+    window.closeLightEnvironmentAssessment();
+  } finally {
+    document.createElement = originalCreateElement;
+    document.getElementById = originalGetElementById;
+    document.body.appendChild = originalBodyAppendChild;
+    window._labState.importedData = beforeModalSyncData;
+  }
+
   const envSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env.js', import.meta.url), 'utf8');
   const modelSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env-model.js', import.meta.url), 'utf8');
   assert('Assessment modal uses user-facing indoor assessment copy',

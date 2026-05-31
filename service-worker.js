@@ -319,6 +319,7 @@ const APP_SHELL = [
   '/js/light-device-setup-modal.js',
   '/js/light-device-session-modal.js',
   '/js/light-env.js',
+  '/js/light-env-store.js',
   '/js/light-env-audits.js',
   '/js/light-env-ai-analysis.js',
   '/js/light-env-evening.js',

@@ -56,8 +56,17 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
 
   return function navigate(category, data) {
     const requestedCategory = String(category || 'dashboard');
-    const routeCategory = isKnownRoute(requestedCategory, data) ? requestedCategory : 'dashboard';
+    const preserveScroll = !!(data && typeof data === 'object' && data.preserveScroll);
+    const optionsOnlyData = !!(data && typeof data === 'object' && !data.categories && (data.scrollAnchor || data.preserveScroll));
+    const routeData = optionsOnlyData ? undefined : data;
+    const routeCategory = isKnownRoute(requestedCategory, routeData) ? requestedCategory : 'dashboard';
     const activeCategory = routeCategory;
+    const preservedScroll = preserveScroll && typeof window !== 'undefined'
+      ? {
+          x: Number.isFinite(window.scrollX) ? window.scrollX : (window.pageXOffset || 0),
+          y: Number.isFinite(window.scrollY) ? window.scrollY : (window.pageYOffset || 0),
+        }
+      : null;
 
     // Detect "re-render in place" (callsite is requesting a refresh of the
     // current view, not a real navigation). On in-place re-renders we use
@@ -78,7 +87,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     // exists, and we should leave the user's current scroll alone, not
     // grab some random Dashboard element via the proximity heuristic.
     const explicitAnchorRequested = !!(data && typeof data === 'object' && data.scrollAnchor);
-    if (sameView && typeof document !== 'undefined') {
+    if (sameView && typeof document !== 'undefined' && !preserveScroll) {
       if (explicitAnchorRequested) {
         // If a restore loop is ALREADY running for this same anchor (rapid
         // re-render burst — e.g. saveMeasurement → AI verdict engine's
@@ -108,22 +117,27 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     }
     if (window.syncImportStatusFab) window.syncImportStatusFab();
     destroyAllCharts?.();
-    if (routeCategory === "dashboard") routeHandlers.dashboard?.(data);
-    else if (routeCategory === "labs") routeHandlers.labs?.(data);
-    else if (routeCategory === "genome") routeHandlers.genome?.(data);
-    else if (routeCategory === "body") routeHandlers.body?.(data);
-    else if (routeCategory === "insight") routeHandlers.insight?.(data);
-    else if (routeCategory === "recommendations") routeHandlers.recommendations?.(data);
-    else if (routeCategory === "correlations") routeHandlers.correlations?.(data);
-    else if (routeCategory === "compare") routeHandlers.compare?.(data);
-    else if (routeCategory === "light") routeHandlers.light?.(data);
-    else routeHandlers.category?.(routeCategory, data);
+    if (routeCategory === "dashboard") routeHandlers.dashboard?.(routeData);
+    else if (routeCategory === "labs") routeHandlers.labs?.(routeData);
+    else if (routeCategory === "genome") routeHandlers.genome?.(routeData);
+    else if (routeCategory === "body") routeHandlers.body?.(routeData);
+    else if (routeCategory === "insight") routeHandlers.insight?.(routeData);
+    else if (routeCategory === "recommendations") routeHandlers.recommendations?.(routeData);
+    else if (routeCategory === "correlations") routeHandlers.correlations?.(routeData);
+    else if (routeCategory === "compare") routeHandlers.compare?.(routeData);
+    else if (routeCategory === "light") routeHandlers.light?.(routeData);
+    else routeHandlers.category?.(routeCategory, routeData);
     state.currentView = routeCategory;
     _persistCurrentView(routeCategory);
     syncMobileBottomNav?.(routeCategory);
     _syncSidebarActive(routeCategory);
 
-    if (anchor) {
+    if (preservedScroll) {
+      _restorePixelScroll(preservedScroll);
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => _restorePixelScroll(preservedScroll));
+      }
+    } else if (anchor) {
       // Force synchronous layout so getBoundingClientRect is accurate.
       void document.body.offsetHeight;
       _restoreScrollAnchor(anchor);
@@ -168,6 +182,13 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
       requestAnimationFrame(reapply);
     }
   };
+}
+
+function _restorePixelScroll(pos) {
+  if (!pos || typeof window === 'undefined' || typeof window.scrollTo !== 'function') return;
+  try { window.scrollTo({ left: pos.x || 0, top: pos.y || 0, behavior: 'instant' }); } catch (_) {
+    try { window.scrollTo(pos.x || 0, pos.y || 0); } catch (__) {}
+  }
 }
 
 function _syncSidebarActive(routeCategory) {
