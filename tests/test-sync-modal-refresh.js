@@ -21,6 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Sync Modal Refresh Tests ===\n');
 
 const originalGetElementById = document.getElementById;
+const originalBodyContains = document.body?.contains;
 
 function makeOverlay({ open = true, dataset = {}, querySelector = () => null } = {}) {
   return {
@@ -100,6 +101,7 @@ try {
     querySelector: selector => selector === '.direct-modal' ? directModal : selector === '.direct-body' ? directBody : null,
   });
   let directCalls = 0;
+  document.body.contains = node => node === directOverlay;
   const detachDirectOverlay = bindModalSyncRefresh({
     overlay: directOverlay,
     modalSelector: '.direct-modal',
@@ -118,8 +120,31 @@ try {
     directCalls === 1 && directBody.scrollTop === 12,
     JSON.stringify({ directCalls, scrollTop: directBody.scrollTop }));
   detachDirectOverlay();
+
+  const ghostModal = {
+    querySelectorAll: () => [],
+    querySelector: () => null,
+  };
+  const ghostOverlay = makeOverlay({
+    querySelector: selector => selector === '.ghost-modal' ? ghostModal : null,
+  });
+  document.body.contains = node => node !== ghostOverlay;
+  let ghostCalls = 0;
+  const detachGhostOverlay = bindModalSyncRefresh({
+    overlay: ghostOverlay,
+    modalSelector: '.ghost-modal',
+    refresh: () => { ghostCalls++; },
+  });
+  emitSyncApplied();
+  emitSyncApplied();
+  assert('generic modal sync helper detaches removed direct overlay instances',
+    ghostCalls === 0,
+    JSON.stringify({ ghostCalls }));
+  detachGhostOverlay();
 } finally {
   document.getElementById = originalGetElementById;
+  if (originalBodyContains === undefined) delete document.body.contains;
+  else document.body.contains = originalBodyContains;
 }
 
 try {

@@ -118,7 +118,7 @@ export function bindDetachedModalSyncRefresh({
 }
 
 export function bindModalSyncRefresh({
-  overlay,
+  overlay: directOverlay,
   overlayId,
   overlaySelector,
   modalId,
@@ -134,7 +134,7 @@ export function bindModalSyncRefresh({
     return () => {};
   }
   const findOverlay = () => {
-    if (overlay) return overlay;
+    if (directOverlay) return directOverlay;
     if (overlayId) return document.getElementById(overlayId);
     if (overlaySelector && typeof document.querySelector === 'function') return document.querySelector(overlaySelector);
     return null;
@@ -154,6 +154,14 @@ export function bindModalSyncRefresh({
     }
     return modal || overlay || null;
   };
+  const isDetachedDirectOverlay = (overlay) => {
+    if (!directOverlay || !overlay || typeof document.body?.contains !== 'function') return false;
+    try {
+      return !document.body.contains(overlay);
+    } catch (_) {
+      return false;
+    }
+  };
   const restoreScroll = (scrollTop) => {
     if (!Number.isFinite(scrollTop)) return;
     const overlay = findOverlay();
@@ -162,8 +170,15 @@ export function bindModalSyncRefresh({
     if (!el || typeof el.scrollTop !== 'number') return;
     el.scrollTop = Math.max(0, scrollTop);
   };
+  let detached = false;
+  const detach = () => {
+    if (detached) return;
+    detached = true;
+    window.removeEventListener('labcharts-sync-applied', onSync);
+  };
   const onSync = () => {
     const overlay = findOverlay();
+    if (isDetachedDirectOverlay(overlay)) { detach(); return; }
     const modal = findModal(overlay);
     if (!overlay?.classList?.contains('show') || !modal) return;
     if (kind && overlay?.dataset?.syncRefreshKind !== kind && modal?.dataset?.syncRefreshKind !== kind) return;
@@ -184,7 +199,7 @@ export function bindModalSyncRefresh({
     }
   };
   window.addEventListener('labcharts-sync-applied', onSync);
-  return () => window.removeEventListener('labcharts-sync-applied', onSync);
+  return detach;
 }
 
 export function bindDetailModalSyncRefresh(kind, refresh) {

@@ -633,6 +633,8 @@ await import('../js/settings.js');
       && utilsSrc.includes('export function bindDetailModalSyncRefresh')
       && utilsSrc.includes("window.addEventListener('labcharts-sync-applied', onSync)")
       && utilsSrc.includes('restoreScroll(scrollTop)')
+      && utilsSrc.includes('isDetachedDirectOverlay(overlay)')
+      && utilsSrc.includes('document.body.contains(overlay)')
       && utilsSrc.includes('hasDirtyFormFields(overlay)')
       && utilsSrc.includes('hasDirtyFormFields(modal)'));
   assert('marker detail modal refreshes through shared sync-applied detail helper',
