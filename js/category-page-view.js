@@ -6,11 +6,10 @@ import {
   getActiveData,
   filterDatesByRange,
   destroyAllCharts,
-  getEffectiveRangeForDate,
-  getLatestValueIndex,
   renderDateRangeFilter,
   renderChartLayersDropdown,
 } from './data.js';
+import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { createLineChart } from './charts.js';
 import { loadChartCardRecs } from './chart-card-recs.js';
 import { renderCategoryGlyph } from './category-glyphs.js';

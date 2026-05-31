@@ -26,6 +26,7 @@ console.log('=== Phase-Aware Reference Ranges Test ===\n');
 const schemaSource = read('js/schema.js');
 const schema = await import('../js/schema.js');
 const dataSource = read('js/data.js');
+const markerAnalysisSource = read('js/marker-analysis.js');
 await import('../js/data.js'); // populates window.getEffectiveRangeForDate etc
 const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css');
   assert('PHASE_RANGES exported from schema.js', schemaSource.includes('export const PHASE_RANGES'));
@@ -70,13 +71,14 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   assert('Progesterone luteal max=75.9', p.luteal.max === 75.9);
 
   // ═══════════════════════════════════════
-  // 3. data.js imports PHASE_RANGES
+  // 3. data.js and marker-analysis integration
   // ═══════════════════════════════════════
-  console.log('Section 3: data.js integration');
+  console.log('Section 3: data.js / marker-analysis integration');
   assert('data.js imports PHASE_RANGES', dataSource.includes('PHASE_RANGES'));
   assert('data.js has _getCyclePhase helper', dataSource.includes('function _getCyclePhase'));
-  assert('data.js exports getEffectiveRangeForDate', dataSource.includes('export function getEffectiveRangeForDate'));
-  assert('data.js exports getPhaseRefEnvelope', dataSource.includes('export function getPhaseRefEnvelope'));
+  assert('marker-analysis exports getEffectiveRangeForDate', markerAnalysisSource.includes('export function getEffectiveRangeForDate'));
+  assert('marker-analysis exports getPhaseRefEnvelope', markerAnalysisSource.includes('export function getPhaseRefEnvelope'));
+  assert('data.js re-exports marker-analysis helpers', dataSource.includes("} from './marker-analysis.js'"));
   assert('data.js window exports getEffectiveRangeForDate', dataSource.includes('getEffectiveRangeForDate') && dataSource.includes('Object.assign(window'));
   assert('data.js window exports getPhaseRefEnvelope', dataSource.includes('getPhaseRefEnvelope'));
 
@@ -329,18 +331,18 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   assert('askAIAboutMarker phase context', chatMarkerPromptsSource.includes('phaseLabels') && chatMarkerPromptsSource.includes('phase-specific'));
 
   // ═══════════════════════════════════════
-  // 17. data.js countFlagged and getAllFlaggedMarkers
+  // 17. marker-analysis countFlagged and getAllFlaggedMarkers
   // ═══════════════════════════════════════
   console.log('Section 17: countFlagged and getAllFlaggedMarkers');
-  assert('countFlagged uses getEffectiveRangeForDate', dataSource.includes('getEffectiveRangeForDate(m, i)'));
-  assert('getAllFlaggedMarkers uses getEffectiveRangeForDate', dataSource.includes('getEffectiveRangeForDate(m, i)'));
+  assert('countFlagged uses getEffectiveRangeForDate', markerAnalysisSource.includes('getEffectiveRangeForDate(m, i)'));
+  assert('getAllFlaggedMarkers uses getEffectiveRangeForDate', markerAnalysisSource.includes('getEffectiveRangeForDate(m, i)'));
 
   // ═══════════════════════════════════════
-  // 18. data.js detectTrendAlerts
+  // 18. marker-analysis detectTrendAlerts
   // ═══════════════════════════════════════
   console.log('Section 18: detectTrendAlerts');
-  assert('detectTrendAlerts uses phase-aware range for latest', dataSource.includes('getEffectiveRangeForDate(marker, latestEntry.i)'));
-  assert('detectTrendAlerts keeps aggregate range for normalization', dataSource.includes('const r = getEffectiveRange(marker)'));
+  assert('detectTrendAlerts uses phase-aware range for latest', markerAnalysisSource.includes('getEffectiveRangeForDate(marker, latestEntry.i)'));
+  assert('detectTrendAlerts keeps aggregate range for normalization', markerAnalysisSource.includes('const r = getEffectiveRange(marker)'));
 
   // ═══════════════════════════════════════
   // 19. _getCyclePhase helper correctness

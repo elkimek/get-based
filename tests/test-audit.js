@@ -64,6 +64,7 @@ assert('SW APP_SHELL includes provider PPQ panels module', swAuditSrc.includes("
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('SW APP_SHELL includes modal lifecycle module', swAuditSrc.includes("'/js/modal-lifecycle.js'"));
+assert('SW APP_SHELL includes marker analysis module', swAuditSrc.includes("'/js/marker-analysis.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
   swAuditSrc.includes("'/js/pdf-import-preflight.js'")
   && swAuditSrc.includes("'/js/pdf-import-progress.js'")
@@ -378,6 +379,7 @@ const lightSetupCss = read('css/light-setup.css');
 const sunSrc = read('js/sun.js');
 const sunActiveSessionSrc = read('js/sun-active-session.js');
 const modalLifecycleSrc = read('js/modal-lifecycle.js');
+const markerAnalysisSrc = read('js/marker-analysis.js');
 const sunSessionUiSrc = read('js/sun-session-ui.js');
 const lightDevicesSrc = read('js/light-devices.js');
 assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
@@ -389,6 +391,10 @@ assert('Modal lifecycle helpers live outside sun-active-session.js',
   /export function wireBackdropClose/.test(modalLifecycleSrc)
     && /export function trapModalFocus/.test(modalLifecycleSrc)
     && !/export function _wireBackdropClose|export function trapModalFocus/.test(sunActiveSessionSrc));
+assert('Marker analysis helpers live outside data.js',
+  /export function getEffectiveRange\(/.test(markerAnalysisSrc)
+    && /export function detectTrendAlerts\(/.test(markerAnalysisSrc)
+    && !/export function getEffectiveRange\(|export function detectTrendAlerts\(/.test(dataSrc));
 const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
 const lightSessionLogStart = lightPageViewSrc.indexOf('function renderLightSessionLogActions');
 const lightSessionLogEnd = lightPageViewSrc.indexOf('function renderLightWidgetPrompt', lightSessionLogStart);
@@ -581,7 +587,7 @@ assert('Glass theme includes Light page surfaces',
 // ═══════════════════════════════════════
 console.log('6. Data Integrity');
 
-assert('Ferritin lookup uses iron category', dataSrc.includes("'iron','ferritin'") && !dataSrc.includes("'hematology','ferritin'"));
+assert('Ferritin lookup uses iron category', markerAnalysisSrc.includes("'iron','ferritin'") && !markerAnalysisSrc.includes("'hematology','ferritin'"));
 assert('Unit conversion guards null refMin', dataSrc.includes('if (marker.refMin != null) marker.refMin = parseFloat'));
 assert('Unit conversion guards null refMax', dataSrc.includes('if (marker.refMax != null) marker.refMax = parseFloat'));
 

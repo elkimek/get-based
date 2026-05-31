@@ -4,7 +4,8 @@ import { state } from './state.js';
 import { CORRELATION_PRESETS, CHIP_COLORS } from './schema.js';
 import { escapeHTML, getStatus, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
-import { getActiveData, getEffectiveRange, getEffectiveRangeForDate } from './data.js';
+import { getActiveData } from './data.js';
+import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
 import { ensureChartJs, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
 
 const compareCorrelationDeps = {

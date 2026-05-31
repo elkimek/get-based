@@ -2,7 +2,8 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, hashString } from './utils.js';
-import { getActiveData, countFlagged, filterDatesByRange } from './data.js';
+import { getActiveData, filterDatesByRange } from './data.js';
+import { countFlagged } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 
 function _iconSvg(name) {

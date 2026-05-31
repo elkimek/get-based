@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, getStatus, getRangePosition, formatValue, getTrend, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
 import { ensureChartJs } from './charts.js';
-import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './data.js';
+import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
 
 export function renderChartCard(id, marker, dateLabels) {
   // id is interpolated into onclick handlers and DOM ids below. Single

@@ -554,6 +554,7 @@ const S = window._labState;
   console.log('%c 14. Data Source Inspection ', 'font-weight:bold;color:#f59e0b');
 
   const dataJsSrc = (await (await fetch('js/data.js')).text());
+  const markerAnalysisSrc = (await (await fetch('js/marker-analysis.js')).text());
   assert('data.js imports MARKER_SCHEMA', dataJsSrc.includes("import { state } from './state.js'"));
   assert('data.js imports UNIT_CONVERSIONS', dataJsSrc.includes('UNIT_CONVERSIONS'));
   assert('data.js imports OPTIMAL_RANGES', dataJsSrc.includes('OPTIMAL_RANGES'));
@@ -561,8 +562,9 @@ const S = window._labState;
   assert('data.js has getActiveData function', dataJsSrc.includes('export function getActiveData()'));
   assert('data.js has applyUnitConversion function', dataJsSrc.includes('export function applyUnitConversion('));
   assert('data.js has filterDatesByRange function', dataJsSrc.includes('export function filterDatesByRange('));
-  assert('data.js has detectTrendAlerts function', dataJsSrc.includes('export function detectTrendAlerts('));
-  assert('data.js has getKeyTrendMarkers function', dataJsSrc.includes('export function getKeyTrendMarkers('));
+  assert('marker-analysis has detectTrendAlerts function', markerAnalysisSrc.includes('export function detectTrendAlerts('));
+  assert('marker-analysis has getKeyTrendMarkers function', markerAnalysisSrc.includes('export function getKeyTrendMarkers('));
+  assert('data.js keeps marker-analysis compatibility exports', dataJsSrc.includes("} from './marker-analysis.js'"));
 
   // PhenoAge coefficients present
   assert('data.js has PhenoAge xb calculation', dataJsSrc.includes('-19.907'));

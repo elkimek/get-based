@@ -2,7 +2,8 @@
 
 import { state } from './state.js';
 import { formatValue, getStatus } from './utils.js';
-import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex } from './data.js';
+import { getActiveData } from './data.js';
+import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { openChatPanel } from './chat-panel.js';
 import { createNewThread, ensureActiveThread, loadChatThreads, renameThread } from './chat-threads.js';
 import { loadChatHistory, saveChatHistory } from './chat-history.js';
