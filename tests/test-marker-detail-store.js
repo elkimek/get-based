@@ -25,6 +25,7 @@ const {
   deleteMarkerValueNote,
   editManualMarkerValue,
   getManualOriginalForMarker,
+  hasMarkerValueForDate,
   revertManualMarkerValue,
   revertRefRangeOverride,
   saveManualMarkerValue,
@@ -34,6 +35,24 @@ const {
 } = await import('../js/marker-detail-store.js');
 
 state.currentProfile = 'marker-detail-store-test';
+state.importedData = { entries: [] };
+
+console.log('%c 1. Defensive guards ', 'font-weight:bold;color:#f59e0b');
+const missingKeySave = await saveManualMarkerValue({
+  date: '2026-05-02',
+  storedValue: 1,
+  now: 900,
+});
+assert('saveManualMarkerValue rejects missing dotKey before creating an entry',
+  missingKeySave === null && state.importedData.entries.length === 0);
+const missingDateSave = await saveManualMarkerValue({
+  dotKey: 'biochemistry.glucose',
+  storedValue: 1,
+  now: 901,
+});
+assert('saveManualMarkerValue rejects missing date before creating an entry',
+  missingDateSave === null && state.importedData.entries.length === 0);
+
 state.importedData = {
   entries: [{
     date: '2026-05-01',
@@ -56,7 +75,7 @@ state.importedData = {
   refOverrides: {},
 };
 
-console.log('%c 1. Manual values ', 'font-weight:bold;color:#f59e0b');
+console.log('%c 2. Manual values ', 'font-weight:bold;color:#f59e0b');
 await saveManualMarkerValue({
   dotKey: 'hormones.insulin',
   date: '2026-05-01',
@@ -77,6 +96,10 @@ assert('saveManualMarkerValue records manual originals for both insulin keys',
 assert('saveManualMarkerValue writes mirrored value notes',
   state.importedData.markerValueNotes['hormones.insulin:2026-05-01'] === 'fasted'
     && state.importedData.markerValueNotes['diabetes.insulin_d:2026-05-01'] === 'fasted');
+assert('hasMarkerValueForDate detects primary and insulin mirror values',
+  hasMarkerValueForDate('hormones.insulin', '2026-05-01')
+    && hasMarkerValueForDate('diabetes.insulin_d', '2026-05-01')
+    && !hasMarkerValueForDate('hormones.cortisol', '2026-05-01'));
 
 await editManualMarkerValue({
   dotKey: 'biochemistry.glucose',
@@ -106,7 +129,7 @@ assert('deleteManualMarkerValue clears mirrored manual originals',
   state.importedData.manualValues['hormones.insulin:2026-05-01'] === null
     && state.importedData.manualValues['diabetes.insulin_d:2026-05-01'] === null);
 
-console.log('%c 2. Notes and ranges ', 'font-weight:bold;color:#f59e0b');
+console.log('%c 3. Notes and ranges ', 'font-weight:bold;color:#f59e0b');
 await saveMarkerValueNote('diabetes.insulin_d', '2026-05-01', 'x'.repeat(520));
 assert('saveMarkerValueNote caps and mirrors insulin notes',
   state.importedData.markerValueNotes['diabetes.insulin_d:2026-05-01'].length === 500
@@ -133,6 +156,9 @@ assert('revertRefRangeOverride restores stashed lab range',
     && state.importedData.refOverrides['biochemistry.alt'].refMin === 7
     && state.importedData.refOverrides['biochemistry.alt'].refSource === 'import'
     && !Object.prototype.hasOwnProperty.call(state.importedData.refOverrides['biochemistry.alt'], 'labRefMin'));
+const badRange = await saveRefRangeOverride('biochemistry.alt', 'bad-type', { min: 1, max: 2 });
+assert('saveRefRangeOverride rejects unknown range type',
+  badRange === null && state.importedData.refOverrides['biochemistry.alt'].refMin === 7);
 
 await saveMarkerNoteText('biochemistry.alt', '  liver context  ');
 assert('saveMarkerNoteText stores trimmed marker note',
@@ -141,15 +167,21 @@ await deleteMarkerNoteText('biochemistry.alt');
 assert('deleteMarkerNoteText deletes marker note key so map tombstone planner can run',
   !Object.prototype.hasOwnProperty.call(state.importedData.markerNotes, 'biochemistry.alt'));
 
-console.log('%c 3. Boundary guard ', 'font-weight:bold;color:#f59e0b');
+console.log('%c 4. Boundary guard ', 'font-weight:bold;color:#f59e0b');
 const editingSrc = read('js/marker-detail-editing.js');
 const storeSrc = read('js/marker-detail-store.js');
+const deleteMarkerValueBlock = editingSrc.match(/export async function deleteMarkerValue[\s\S]*?export function editMarkerValue/)?.[0] || '';
+const saveRefRangeBlock = editingSrc.match(/export async function saveRefRange[\s\S]*?export async function revertRefRange/)?.[0] || '';
 assert('marker-detail-editing imports the store boundary',
   editingSrc.includes("from './marker-detail-store.js'"));
 assert('marker-detail-editing no longer persists marker detail mutations directly',
   !/saveImportedData\(/.test(editingSrc)
     && !/setLabEntryMarker\(/.test(editingSrc)
     && !/deleteLabEntryMarkerFromImportedData\(/.test(editingSrc));
+assert('deleteMarkerValue checks store value presence before confirm dialog',
+  /if \(!hasMarkerValueForDate\(dotKey, date\)\) return;[\s\S]*showConfirmDialog/.test(deleteMarkerValueBlock));
+assert('saveRefRange skips UI success path when store rejects the range type',
+  /const saved = await saveRefRangeOverride\(dotKey, type, \{ min: newMin, max: newMax \}\);[\s\S]*if \(!saved\) return;[\s\S]*showNotification\('Range updated'/.test(saveRefRangeBlock));
 assert('synced marker maps are written only by marker-detail-store.js',
   !/state\.importedData\.(?:manualValues|markerValueNotes|refOverrides|markerNotes)\s*(?:\[|=|\.)/.test(editingSrc)
     && /manualValues[\s\S]{0,2000}markerValueNotes[\s\S]{0,3000}refOverrides[\s\S]{0,3000}markerNotes/.test(storeSrc));

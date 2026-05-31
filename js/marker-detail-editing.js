@@ -8,6 +8,7 @@ import {
   deleteManualMarkerValue,
   editManualMarkerValue,
   getMarkerValueNote,
+  hasMarkerValueForDate,
   revertManualMarkerValue,
   revertRefRangeOverride,
   saveManualMarkerValue,
@@ -135,6 +136,7 @@ export async function deleteMarkerValue(id, date) {
   if (!state.importedData.entries) return;
   const entry = state.importedData.entries.find(e => e.date === date);
   if (!entry) return;
+  if (!hasMarkerValueForDate(dotKey, date)) return;
   if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
     const deleted = await deleteManualMarkerValue(dotKey, date);
     if (!deleted) return;
@@ -261,7 +263,8 @@ export async function saveRefRange(id, type) {
   if (newMin != null) newMin = convertDisplayToSI(dotKey, newMin);
   if (newMax != null) newMax = convertDisplayToSI(dotKey, newMax);
 
-  await saveRefRangeOverride(dotKey, type, { min: newMin, max: newMax });
+  const saved = await saveRefRangeOverride(dotKey, type, { min: newMin, max: newMax });
+  if (!saved) return;
   // Refresh background view, then re-render modal with new ranges
   const activeNav = document.querySelector('.nav-item.active');
   markerDetailDeps.navigate(activeNav ? activeNav.dataset.category : 'dashboard');

@@ -88,6 +88,12 @@ export function getManualOriginalForMarker(dotKey, date) {
   return undefined;
 }
 
+export function hasMarkerValueForDate(dotKey, date) {
+  if (!dotKey || !date) return false;
+  const entry = state.importedData?.entries?.find(e => e.date === date);
+  return entryMarkerValue(entry, dotKey) !== undefined;
+}
+
 export function getMarkerValueNote(dotKey, date) {
   const key = mapKey(dotKey, date);
   if (!key) return '';
@@ -119,9 +125,10 @@ function writeMarkerValueNote(dotKey, date, noteText) {
 }
 
 export async function saveManualMarkerValue({ dotKey, date, storedValue, noteText = '', now = Date.now() } = {}) {
+  if (!dotKey || !date) return null;
   const data = ensureImportedData();
   const entry = findOrCreateLabEntry(data, date, { now });
-  if (!entry || !dotKey) return null;
+  if (!entry) return null;
   rememberManualOriginal(dotKey, date, entry);
   const insulinMirror = getInsulinMirrorMarkerKey(dotKey);
   if (insulinMirror) rememberManualOriginal(insulinMirror, date, entry);
