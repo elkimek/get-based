@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { trackUsage, UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
-import { escapeHTML, escapeAttr, getStatus, formatValue, showNotification, showConfirmDialog, safeMarkerId } from './utils.js';
+import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, showNotification, showConfirmDialog, safeMarkerId } from './utils.js';
 import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, saveImportedData, updateHeaderDates } from './data.js';
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
@@ -123,6 +123,14 @@ function setDetailModalShell(...classes) {
   return modal;
 }
 
+function refreshOpenMarkerDetailModalOnSync({ modal } = {}) {
+  const id = modal?.dataset?.syncRefreshItemId || state._activeDetailMarkerId;
+  if (!id) return;
+  showDetailModal(id);
+}
+
+bindDetailModalSyncRefresh('marker', refreshOpenMarkerDetailModalOnSync);
+
 // Remembered focus before a detail modal opens, so closeModal() can return
 // focus to the trigger. Keyboard users otherwise land on <body> after close
 // and lose their place in the page.
@@ -204,6 +212,8 @@ export function showDetailModal(id, opts = {}) {
   const modal = setDetailModalShell('marker-detail-modal');
   const overlay = document.getElementById("modal-overlay");
   if (!modal) return;
+  modal.dataset.syncRefreshKind = 'marker';
+  modal.dataset.syncRefreshItemId = id;
   const dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : data.dateLabels;
   const r = getEffectiveRange(marker);
   const modalPoints = marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);

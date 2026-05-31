@@ -172,7 +172,7 @@ export async function onSyncReceived() {
 
         const {
           localKey, merged, mergeMsg,
-          needsRebroadcast, remoteBroughtNewRows, restoreJoinApplied,
+          needsRebroadcast, remoteBroughtNewRows, localDataChanged, restoreJoinApplied,
         } = await mergePulledImportedData(profileId, importedData, { debug: dbg });
         dbg(mergeMsg);
         logSyncEvent('pull', mergeMsg);
@@ -197,6 +197,7 @@ export async function onSyncReceived() {
           merged,
           chatApplied,
           remoteBroughtNewRows,
+          localDataChanged,
           debug: dbg,
         })) {
           dbg('Pulled profile:', profileId);

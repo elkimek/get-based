@@ -183,11 +183,13 @@ async function pullRemoteImportedData(page, remoteImportedData) {
       merged: result.merged,
       chatApplied: false,
       remoteBroughtNewRows: result.remoteBroughtNewRows,
+      localDataChanged: result.localDataChanged,
       debug: () => {},
     });
     return {
       needsRebroadcast: result.needsRebroadcast,
       remoteBroughtNewRows: result.remoteBroughtNewRows,
+      localDataChanged: result.localDataChanged,
       merged: JSON.parse(JSON.stringify(window._labState.importedData)),
     };
   }, { profileId: PROFILE_ID, remote: remoteImportedData });
