@@ -337,6 +337,7 @@ export function getConfiguredArrayItemId(path, item) {
 }
 
 export function recordArrayItemTombstone(importedData, arrayPath, item) {
+  if (DELTA_ARRAY_CONFIG[arrayPath]?.noTombstones) return null;
   const id = getConfiguredArrayItemId(arrayPath, item);
   if (id) recordTombstone(importedData, arrayPath, id);
   return id;
@@ -406,6 +407,25 @@ export function clearImportedArray(importedData, arrayPath) {
   const removed = arr.slice();
   for (const item of removed) recordArrayItemTombstone(importedData, arrayPath, item);
   setAt(importedData, arrayPath, []);
+  return removed;
+}
+
+export function sortImportedArray(importedData, arrayPath, compareFn) {
+  const arr = getAt(importedData, arrayPath);
+  if (!Array.isArray(arr) || typeof compareFn !== 'function') return [];
+  arr.sort(compareFn);
+  return arr;
+}
+
+export function trimImportedArray(importedData, arrayPath, maxLength, opts = {}) {
+  const arr = getAt(importedData, arrayPath);
+  if (!Array.isArray(arr) || !Number.isInteger(maxLength) || maxLength < 0 || arr.length <= maxLength) return [];
+  const keep = opts.keep === 'first' ? 'first' : 'last';
+  const cut = arr.length - maxLength;
+  const removed = keep === 'first' ? arr.slice(maxLength) : arr.slice(0, cut);
+  const kept = keep === 'first' ? arr.slice(0, maxLength) : arr.slice(cut);
+  for (const item of removed) recordArrayItemTombstone(importedData, arrayPath, item);
+  setAt(importedData, arrayPath, kept);
   return removed;
 }
 

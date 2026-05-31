@@ -7,6 +7,7 @@ import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, saveImporte
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
+import { deleteImportedArrayItems } from './data-merge.js';
 import {
   configureMarkerDetailEditing,
   editRefRange,
@@ -981,7 +982,7 @@ export async function deleteCustomMarker(id) {
     }
     // Clean up empty entries
     if (state.importedData.entries) {
-      state.importedData.entries = state.importedData.entries.filter(e => Object.keys(e.markers || {}).length > 0);
+      deleteImportedArrayItems(state.importedData, 'entries', e => Object.keys(e.markers || {}).length === 0);
     }
     saveImportedData();
     closeModal();

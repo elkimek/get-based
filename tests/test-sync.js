@@ -17,6 +17,16 @@ function fetchWithRetry(rel) {
   return Promise.resolve(read(rel));
 }
 
+function listJsFiles(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listJsFiles(full));
+    else if (entry.isFile() && entry.name.endsWith('.js')) out.push(full);
+  }
+  return out;
+}
+
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
   if (condition) { pass++; console.log(`  PASS: ${name}`); }
@@ -634,6 +644,24 @@ await import('../js/settings.js');
       && contextCardLifestyleEditorsSrc.includes('refreshOpenHealthGoalsModalOnSync')
       && contextCardLifestyleEditorsSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenHealthGoalsModalOnSync)")
       && contextCardLifestyleEditorsSrc.includes("modal.dataset.syncRefreshKind = 'healthGoals'"));
+  {
+    const syncedArraySurfaces = ['entries', 'notes', 'supplements', 'healthGoals', 'chatSummaries', 'changeHistory'];
+    const helperOwnedFiles = new Set(['js/data-merge.js']);
+    const ownerExpr = '(?:state\\.importedData|current|imp)';
+    const mutationExpr = new RegExp(`${ownerExpr}\\.(${syncedArraySurfaces.join('|')})(?:\\s*=|\\.(?:push|splice|filter|sort|unshift|shift|pop|reverse)\\b)`);
+    const violations = [];
+    for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
+      const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
+      if (helperOwnedFiles.has(rel)) continue;
+      const lines = fs.readFileSync(abs, 'utf-8').split('\n');
+      lines.forEach((line, i) => {
+        if (mutationExpr.test(line)) violations.push(`${rel}:${i + 1}: ${line.trim()}`);
+      });
+    }
+    assert('delta-synced arrays mutate through shared imported-array helpers',
+      violations.length === 0,
+      violations.slice(0, 8).join(' | '));
+  }
   assert('saved chat summary modal refreshes on sync-applied',
     chatSummariesSrc.includes('refreshOpenSummaryModalOnSync')
       && chatSummariesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync)")

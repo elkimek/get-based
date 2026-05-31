@@ -8,7 +8,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, AI_IMPOR
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getPdfDocument } from './pdfjs-loader.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
-import { clearTombstone } from './data-merge.js';
+import { appendImportedArrayItem, clearTombstone, ensureImportedArray } from './data-merge.js';
 import { runPreflightChecks } from './pdf-import-preflight.js';
 import { normalizeParsedImportMarkers } from './pdf-import-marker-normalization.js';
 import {
@@ -405,12 +405,12 @@ export async function confirmImport() {
     closeImportModal();
     return;
   }
-  if (!state.importedData.entries) state.importedData.entries = [];
+  const entries = ensureImportedArray(state.importedData, 'entries');
   clearTombstone(state.importedData, 'entries', result.date);
-  let entry = state.importedData.entries.find(e => e.date === result.date);
+  let entry = entries.find(e => e.date === result.date);
   if (!entry) {
     entry = { date: result.date, markers: {} };
-    state.importedData.entries.push(entry);
+    appendImportedArrayItem(state.importedData, 'entries', entry);
   }
   entry.importedWith = {
     provider: result.costInfo?.provider || null,

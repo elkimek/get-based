@@ -5,6 +5,10 @@ import { LATITUDE_BANDS } from './constants.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
+  appendImportedArrayItem,
+  deleteImportedArrayItem,
+} from './data-merge.js';
+import {
   detectLatitudeWithAI, getLatitudeFromLocation, getLocationCache,
   latitudeToBand, renameProfile, setProfileDob, setProfileLocation,
   setProfileSex,
@@ -290,13 +294,13 @@ export function addChatSupplement() {
   const typeEl = document.getElementById('chat-onboard-supp-type');
   const name = nameEl?.value?.trim();
   if (!name) { nameEl?.focus(); return; }
-  if (!state.importedData.supplements) state.importedData.supplements = [];
-  state.importedData.supplements.push({
+  appendImportedArrayItem(state.importedData, 'supplements', {
     name,
     dosage: doseEl?.value?.trim() || '',
     type: typeEl?.value || 'supplement',
     startDate: new Date().toISOString().slice(0, 10),
-    endDate: null
+    endDate: null,
+    updatedAt: Date.now(),
   });
   saveImportedData();
   _refreshDashboardSupps();
@@ -305,7 +309,7 @@ export function addChatSupplement() {
 
 export function removeChatSupplement(idx) {
   if (!state.importedData.supplements?.[idx]) return;
-  state.importedData.supplements.splice(idx, 1);
+  deleteImportedArrayItem(state.importedData, 'supplements', idx);
   saveImportedData();
   _refreshDashboardSupps();
   renderChatMessages();

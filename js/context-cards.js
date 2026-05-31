@@ -5,6 +5,12 @@ import { escapeHTML, showNotification } from './utils.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
 import {
+  appendImportedArrayItem,
+  ensureImportedArray,
+  replaceImportedArrayItem,
+  trimImportedArray,
+} from './data-merge.js';
+import {
   getConditionsSummary,
   getDietSummary,
   getExerciseSummary,
@@ -277,8 +283,7 @@ export function recordChange(field) {
   const current = state.importedData[field];
   const snapshot = current != null ? JSON.parse(JSON.stringify(current)) : null;
   const snapshotStr = JSON.stringify(snapshot);
-  if (!state.importedData.changeHistory) state.importedData.changeHistory = [];
-  const history = state.importedData.changeHistory;
+  const history = ensureImportedArray(state.importedData, 'changeHistory');
   // Skip if identical to last snapshot for this field
   const lastIdx = history.findLastIndex(e => e.field === field);
   if (lastIdx >= 0 && JSON.stringify(history[lastIdx].snapshot) === snapshotStr) return;
@@ -289,13 +294,16 @@ export function recordChange(field) {
   const now = Date.now();
   const todayIdx = history.findIndex(e => e.field === field && e.date === today);
   if (todayIdx >= 0) {
-    history[todayIdx].snapshot = snapshot;
-    history[todayIdx].updatedAt = now;
+    replaceImportedArrayItem(state.importedData, 'changeHistory', todayIdx, {
+      ...history[todayIdx],
+      snapshot,
+      updatedAt: now,
+    });
   } else {
-    history.push({ field, date: today, snapshot, updatedAt: now });
+    appendImportedArrayItem(state.importedData, 'changeHistory', { field, date: today, snapshot, updatedAt: now });
   }
   // Cap at 200
-  while (history.length > 200) history.shift();
+  trimImportedArray(state.importedData, 'changeHistory', 200);
 }
 
 export function saveAndRefresh(msg, field) {

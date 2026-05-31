@@ -8,6 +8,11 @@
 
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
+import {
+  appendImportedArrayItem,
+  ensureImportedArray,
+  trimImportedArray,
+} from './data-merge.js';
 import { getDailyRange } from './wearables-store.js';
 import {
   DEFAULT_METRIC_ORDER,
@@ -345,9 +350,9 @@ function appendAnomalyToChangeHistory(events) {
   if (!events || events.length === 0) return;
   const imp = state.importedData;
   if (!imp) return;
-  if (!Array.isArray(imp.changeHistory)) imp.changeHistory = [];
+  ensureImportedArray(imp, 'changeHistory');
   for (const e of events) {
-    imp.changeHistory.push({
+    appendImportedArrayItem(imp, 'changeHistory', {
       ts: e.ts || Date.now(),
       type: 'wearable',
       kind: e.kind,
@@ -356,9 +361,7 @@ function appendAnomalyToChangeHistory(events) {
       message: e.message,
     });
   }
-  if (imp.changeHistory.length > CHANGE_HISTORY_CAP) {
-    imp.changeHistory = imp.changeHistory.slice(-CHANGE_HISTORY_CAP);
-  }
+  trimImportedArray(imp, 'changeHistory', CHANGE_HISTORY_CAP);
 }
 
 export function persistWearableSummary(newSummary, anomalyEvents) {

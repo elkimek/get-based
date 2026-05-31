@@ -4,7 +4,12 @@ import { state } from './state.js';
 import { getAlternateUnit, convertUserInputToSI } from './schema.js';
 import { escapeHTML, escapeAttr, formatValue, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { getActiveData, saveImportedData, recalculateHOMAIR, updateHeaderDates, convertDisplayToSI } from './data.js';
-import { clearTombstone } from './data-merge.js';
+import {
+  appendImportedArrayItem,
+  clearTombstone,
+  deleteImportedArrayItems,
+  ensureImportedArray,
+} from './data-merge.js';
 
 const markerDetailDeps = {
   navigate: (category, data) => window.navigate?.(category, data),
@@ -57,6 +62,12 @@ function _rememberManualOriginal(dotKey, date, entry) {
   } else if (state.importedData.manualValues[mvKey] === true && hasImportedOriginal) {
     state.importedData.manualValues[mvKey] = current;
   }
+}
+
+function stampLabEntryUpdated(entry, now = Date.now()) {
+  if (!entry || typeof entry !== 'object') return now;
+  entry.updatedAt = now;
+  return now;
 }
 
 export async function saveManualEntry(id, opts = {}) {
@@ -115,12 +126,13 @@ export async function saveManualEntry(id, opts = {}) {
     const unit = marker?.unit || '';
     if (!await showConfirmDialog(`A value of ${displayVal} ${unit} already exists for ${date}. Overwrite?`)) return;
   }
-  if (!state.importedData.entries) state.importedData.entries = [];
+  const entries = ensureImportedArray(state.importedData, 'entries');
   clearTombstone(state.importedData, 'entries', date);
-  let entry = state.importedData.entries.find(e => e.date === date);
+  let entry = entries.find(e => e.date === date);
+  const now = Date.now();
   if (!entry) {
-    entry = { date: date, markers: {} };
-    state.importedData.entries.push(entry);
+    entry = { date: date, markers: {}, updatedAt: now };
+    appendImportedArrayItem(state.importedData, 'entries', entry);
   }
   // If the user picked the alternate unit, convert from there directly to SI
   // (convertUserInputToSI is a no-op when inputUnit is already the SI unit, so
@@ -132,7 +144,7 @@ export async function saveManualEntry(id, opts = {}) {
   _rememberManualOriginal(dotKey, date, entry);
   entry.markers[dotKey] = storedValue;
   if (!entry.markerSources) entry.markerSources = {};
-  entry.markerSources[dotKey] = { file: null, at: Date.now() };
+  entry.markerSources[dotKey] = { file: null, at: now };
   // Per-value note: store on save when non-empty; clear when emptied.
   if (!state.importedData.markerValueNotes) state.importedData.markerValueNotes = {};
   const noteKey = dotKey + ':' + date;
@@ -153,6 +165,7 @@ export async function saveManualEntry(id, opts = {}) {
     else delete state.importedData.markerValueNotes[insulinNoteMirror];
   }
   recalculateHOMAIR(entry);
+  stampLabEntryUpdated(entry, now);
   await saveImportedData();
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
@@ -185,6 +198,7 @@ export async function deleteMarkerValue(id, date) {
   const entry = state.importedData.entries.find(e => e.date === date);
   if (!entry || entry.markers[dotKey] === undefined) return;
   if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
+    const now = Date.now();
     delete entry.markers[dotKey];
     // Clean up provenance and manual tracking
     if (entry.markerSources) delete entry.markerSources[dotKey];
@@ -207,7 +221,9 @@ export async function deleteMarkerValue(id, date) {
     }
     // Remove entry entirely if no markers left
     if (Object.keys(entry.markers).length === 0) {
-      state.importedData.entries = state.importedData.entries.filter(e => e.date !== date);
+      deleteImportedArrayItems(state.importedData, 'entries', e => e.date === date);
+    } else {
+      stampLabEntryUpdated(entry, now);
     }
     saveImportedData();
     window.buildSidebar();
@@ -250,11 +266,13 @@ export function editMarkerValue(id, date, currentValue, event) {
     // Track as manually edited — store original value for revert (true = manual entry with no original)
     _rememberManualOriginal(dotKey, date, entry);
     const storedValue = convertDisplayToSI(dotKey, newValue);
+    const now = Date.now();
     entry.markers[dotKey] = storedValue;
     // Update provenance to reflect manual edit
     if (!entry.markerSources) entry.markerSources = {};
-    entry.markerSources[dotKey] = { file: null, at: Date.now() };
+    entry.markerSources[dotKey] = { file: null, at: now };
     if (dotKey === 'hormones.insulin') { entry.markers['diabetes.insulin_d'] = storedValue; if (entry.markerSources) entry.markerSources['diabetes.insulin_d'] = entry.markerSources[dotKey]; recalculateHOMAIR(entry); }
+    stampLabEntryUpdated(entry, now);
     await saveImportedData();
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
     markerDetailDeps.navigate(state.currentView || 'dashboard');
@@ -283,6 +301,7 @@ export async function revertMarkerValue(id, date) {
     recalculateHOMAIR(entry);
   }
   delete state.importedData.manualValues[mvKey];
+  stampLabEntryUpdated(entry);
   await saveImportedData();
   // Rebuild the underlying view so Table/Heatmap/Chart reflect the revert.
   markerDetailDeps.navigate(state.currentView || 'dashboard');

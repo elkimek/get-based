@@ -63,7 +63,7 @@ const settingsSrc = read('js/settings.js');
       && /if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
   const removeBlock = persistenceSrc.substring(persistenceSrc.indexOf('export async function removeImportedEntry'), persistenceSrc.indexOf('export async function renameImportedEntryDate'));
   assert('import delete records entries tombstone before removing row',
-    /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*date\)[\s\S]{0,180}entries\.filter/.test(removeBlock));
+    /recordTombstone\(state\.importedData,\s*['"]entries['"],\s*date\)[\s\S]{0,180}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e\.date === date\)/.test(removeBlock));
   assert('import delete uses immediate sync push',
     /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(removeBlock));
   assert('import delete restores state and returns false when save fails',

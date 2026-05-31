@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { showNotification, showConfirmDialog, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
+import { ensureImportedArray } from './data-merge.js';
 
 // ═══════════════════════════════════════════════
 // SENSITIVE KEY PATTERNS
@@ -840,8 +841,8 @@ export function initBroadcastChannel() {
       if (raw) {
         try {
           state.importedData = JSON.parse(raw);
-          if (!state.importedData.notes) state.importedData.notes = [];
-          if (!state.importedData.supplements) state.importedData.supplements = [];
+          ensureImportedArray(state.importedData, 'notes');
+          ensureImportedArray(state.importedData, 'supplements');
           window.migrateProfileData(state.importedData);
           window.buildSidebar();
           // buildSidebar resets the .active class to Dashboard, so source

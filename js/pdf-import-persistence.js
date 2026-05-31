@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { showNotification, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
-import { clearTombstone, recordTombstone } from './data-merge.js';
+import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
 
 export function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
@@ -33,9 +33,8 @@ function isValidISOCalendarDate(date) {
 export async function removeImportedEntry(date) {
   if (!date) return false;
   const rollback = snapshotImportedData();
-  if (!state.importedData.entries) state.importedData.entries = [];
   recordTombstone(state.importedData, 'entries', date);
-  state.importedData.entries = state.importedData.entries.filter(e => e.date !== date);
+  deleteImportedArrayItems(state.importedData, 'entries', e => e.date === date);
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {
     restoreImportedDataSnapshot(rollback);

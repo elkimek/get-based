@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { logSyncEvent } from './sync-state.js';
+import { trimImportedArray } from './data-merge.js';
 
 // "Clean storage" - emergency localStorage compaction. The 'imported'
 // blob can grow past the browser's 5 MB localStorage cap (caps were
@@ -33,7 +34,7 @@ export async function cleanStorage() {
   let historyTrimmed = 0;
   if (Array.isArray(state.importedData?.changeHistory) && state.importedData.changeHistory.length > 200) {
     historyTrimmed = state.importedData.changeHistory.length - 200;
-    state.importedData.changeHistory = state.importedData.changeHistory.slice(-200);
+    trimImportedArray(state.importedData, 'changeHistory', 200);
     try {
       const { saveImportedData } = await import('./data.js');
       await saveImportedData();

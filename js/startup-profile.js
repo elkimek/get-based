@@ -12,6 +12,7 @@ import {
   initProfilesCache,
 } from './profile.js';
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
+import { ensureImportedArray } from './data-merge.js';
 
 async function migrateLegacyProfileStorage() {
   if (localStorage.getItem('labcharts-profiles')) return;
@@ -52,7 +53,7 @@ export async function initializeProfileData() {
 
   try {
     state.importedData = JSON.parse(savedImported);
-    if (!state.importedData.notes) state.importedData.notes = [];
+    ensureImportedArray(state.importedData, 'notes');
     migrateProfileData(state.importedData);
   } catch (e) {}
 }

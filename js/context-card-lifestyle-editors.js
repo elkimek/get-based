@@ -60,6 +60,7 @@ import { escapeHTML, hasDirtyFormFields, showNotification } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData } from './data.js';
 import {
+  appendImportedArrayItem,
   clearImportedArray,
   deleteImportedArrayItem,
 } from './data-merge.js';
@@ -577,8 +578,7 @@ export function addHealthGoal() {
   const severity = getSelectedOption('goal-severity-select') || 'major';
   const text = input ? input.value.trim() : '';
   if (!text) return;
-  if (!state.importedData.healthGoals) state.importedData.healthGoals = [];
-  state.importedData.healthGoals.push({ text, severity, updatedAt: Date.now() });
+  appendImportedArrayItem(state.importedData, 'healthGoals', { text, severity, updatedAt: Date.now() });
   recordContextChange('healthGoals');
   saveImportedData();
   renderHealthGoalsModal(document.getElementById("detail-modal"));

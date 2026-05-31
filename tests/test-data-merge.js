@@ -28,6 +28,8 @@ const {
   recordTombstone,
   recordArrayItemTombstone,
   clearTombstone,
+  sortImportedArray,
+  trimImportedArray,
   unionById,
   ID_KEYED_ARRAYS,
   NATURAL_KEYED_ARRAYS,
@@ -198,6 +200,50 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   assert('per-row entries overlay merges same-date markers instead of replacing fresh import',
     deltaMay?.markers?.['biochemistry.alp'] === 1.2
       && deltaMay?.markers?.['biochemistry.glucose'] === 4.7);
+  const sameMarkerRemoteManualEdit = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: 100,
+      markers: { 'biochemistry.glucose': 4.7 },
+      markerSources: { 'biochemistry.glucose': { file: 'old-sync.pdf', at: 100 } },
+    }],
+  };
+  await mergeArrayRowsIntoImported(sameMarkerRemoteManualEdit, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: new Date(200).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      date: '2026-05-01',
+      updatedAt: 200,
+      markers: { 'biochemistry.glucose': 5.1 },
+      markerSources: { 'biochemistry.glucose': { file: null, at: 200 } },
+    }),
+  }]);
+  assert('newer per-row entries overlay applies same-marker manual edit',
+    sameMarkerRemoteManualEdit.entries[0].markers?.['biochemistry.glucose'] === 5.1
+      && sameMarkerRemoteManualEdit.entries[0].markerSources?.['biochemistry.glucose']?.file === null);
+  const sameMarkerManualEdit = {
+    entries: [{
+      date: '2026-05-01',
+      updatedAt: 200,
+      markers: { 'biochemistry.glucose': 5.1 },
+      markerSources: { 'biochemistry.glucose': { file: null, at: 200 } },
+    }],
+  };
+  await mergeArrayRowsIntoImported(sameMarkerManualEdit, 'entries', [{
+    itemId: '2026-05-01',
+    syncedAt: new Date(100).toISOString(),
+    isDeleted: 0,
+    payload: JSON.stringify({
+      date: '2026-05-01',
+      updatedAt: 100,
+      markers: { 'biochemistry.glucose': 4.7 },
+      markerSources: { 'biochemistry.glucose': { file: 'old-sync.pdf', at: 100 } },
+    }),
+  }]);
+  assert('stale per-row entries overlay does not revert same-marker manual edit',
+    sameMarkerManualEdit.entries[0].markers?.['biochemistry.glucose'] === 5.1
+      && sameMarkerManualEdit.entries[0].markerSources?.['biochemistry.glucose']?.file === null);
   const editedDeviceSession = {
     deviceSessions: [{
       id: 'devsess_duration_edit',
@@ -636,6 +682,22 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   assert('clearImportedArray tombstones every configured row',
     clearedBlob.healthGoals.length === 0
       && clearedGoalIds.every(id => clearedBlob._deleted?.healthGoals?.includes(id)));
+
+  const historyBlob = {
+    changeHistory: [
+      { field: 'b', date: '2026-05-03', snapshot: 3 },
+      { field: 'a', date: '2026-05-01', snapshot: 1 },
+      { field: 'a', date: '2026-05-02', snapshot: 2 },
+    ],
+  };
+  sortImportedArray(historyBlob, 'changeHistory', (a, b) => a.date.localeCompare(b.date));
+  const trimmedHistory = trimImportedArray(historyBlob, 'changeHistory', 2);
+  assert('sortImportedArray + trimImportedArray keep newest composite rows without tombstones',
+    trimmedHistory.length === 1
+      && trimmedHistory[0].date === '2026-05-01'
+      && historyBlob.changeHistory.length === 2
+      && historyBlob.changeHistory[0].date === '2026-05-02'
+      && !historyBlob._deleted?.changeHistory);
 
   // ─── 10. Tombstone union from both sides ──────────────────────────────
   console.log('%c 10. Tombstone union ', 'font-weight:bold;color:#f59e0b');

@@ -6,6 +6,13 @@ import { getActiveData, filterDatesByRange, getEffectiveRange, getAllFlaggedMark
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, saveProfiles, migrateProfileData } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
+import {
+  appendImportedArrayItem,
+  ensureImportedArray,
+  replaceImportedArrayItem,
+  sortImportedArray,
+  trimImportedArray,
+} from './data-merge.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -552,7 +559,7 @@ export function importDataJSON(file) {
       let count = 0;
       for (const entry of json.entries) {
         if (!entry.date || !entry.markers) continue;
-        if (!state.importedData.entries) state.importedData.entries = [];
+        const entries = ensureImportedArray(state.importedData, 'entries');
         // Earlier draft did `filter(ex => ex.date !== entry.date)` — same-
         // date entries clobbered each other. The demos legitimately ship
         // two entries per date (comprehensive panel + specialty add-on
@@ -560,7 +567,7 @@ export function importDataJSON(file) {
         // second entry was silently dropped, losing every fatty-acid /
         // specialty marker on import. Merge markers + markerSources
         // instead so all data lands; later entries win on key conflicts.
-        const existing = state.importedData.entries.find(ex => ex.date === entry.date);
+        const existing = entries.find(ex => ex.date === entry.date);
         if (existing) {
           Object.assign(existing.markers || (existing.markers = {}), entry.markers);
           if (entry.markerSources) {
@@ -568,7 +575,7 @@ export function importDataJSON(file) {
           }
           if (entry.file && !existing.file) existing.file = entry.file;
         } else {
-          state.importedData.entries.push(entry);
+          appendImportedArrayItem(state.importedData, 'entries', entry);
         }
         count++;
       }
@@ -629,11 +636,11 @@ export function importDataJSON(file) {
       }
       // Import health goals (merge, deduplicate by text)
       if (json.healthGoals && Array.isArray(json.healthGoals)) {
-        if (!state.importedData.healthGoals) state.importedData.healthGoals = [];
+        const healthGoals = ensureImportedArray(state.importedData, 'healthGoals');
         for (const g of json.healthGoals) {
           if (!g.text || !g.severity) continue;
-          const exists = state.importedData.healthGoals.some(x => x.text === g.text);
-          if (!exists) state.importedData.healthGoals.push({ text: g.text, severity: g.severity });
+          const exists = healthGoals.some(x => x.text === g.text);
+          if (!exists) appendImportedArrayItem(state.importedData, 'healthGoals', { text: g.text, severity: g.severity });
         }
       }
       // Import custom markers (merge, don't overwrite existing definitions)
@@ -814,15 +821,15 @@ export function importDataJSON(file) {
       }
       // Import change history (merge by field+date, imported snapshot wins on conflict)
       if (Array.isArray(json.changeHistory)) {
-        if (!state.importedData.changeHistory) state.importedData.changeHistory = [];
+        const changeHistory = ensureImportedArray(state.importedData, 'changeHistory');
         for (const entry of json.changeHistory) {
           if (!entry.field || !entry.date) continue;
-          const idx = state.importedData.changeHistory.findIndex(e => e.field === entry.field && e.date === entry.date);
-          if (idx >= 0) { state.importedData.changeHistory[idx] = entry; }
-          else { state.importedData.changeHistory.push(entry); }
+          const idx = changeHistory.findIndex(e => e.field === entry.field && e.date === entry.date);
+          if (idx >= 0) { replaceImportedArrayItem(state.importedData, 'changeHistory', idx, entry); }
+          else { appendImportedArrayItem(state.importedData, 'changeHistory', entry); }
         }
-        state.importedData.changeHistory.sort((a, b) => a.date.localeCompare(b.date));
-        while (state.importedData.changeHistory.length > 200) state.importedData.changeHistory.shift();
+        sortImportedArray(state.importedData, 'changeHistory', (a, b) => a.date.localeCompare(b.date));
+        trimImportedArray(state.importedData, 'changeHistory', 200);
       }
       // Import wearable layer (added v1.27.1). The summary, card order, and
       // per-metric override flow in; raw L1 IDB rows do not (they're never
@@ -852,20 +859,20 @@ export function importDataJSON(file) {
       }
       // Import chat summaries (merge by threadId)
       if (Array.isArray(json.chatSummaries)) {
-        if (!state.importedData.chatSummaries) state.importedData.chatSummaries = [];
+        const chatSummaries = ensureImportedArray(state.importedData, 'chatSummaries');
         for (const s of json.chatSummaries) {
           if (!s.threadId) continue;
-          const idx = state.importedData.chatSummaries.findIndex(e => e.threadId === s.threadId);
-          if (idx >= 0) { state.importedData.chatSummaries[idx] = s; }
-          else { state.importedData.chatSummaries.push(s); }
+          const idx = chatSummaries.findIndex(e => e.threadId === s.threadId);
+          if (idx >= 0) { replaceImportedArrayItem(state.importedData, 'chatSummaries', idx, s); }
+          else { appendImportedArrayItem(state.importedData, 'chatSummaries', s); }
         }
       }
       // Import supplements
       if (json.supplements && Array.isArray(json.supplements)) {
-        if (!state.importedData.supplements) state.importedData.supplements = [];
+        const supplements = ensureImportedArray(state.importedData, 'supplements');
         for (const s of json.supplements) {
           if (!s.name || !s.startDate) continue;
-          const exists = state.importedData.supplements.some(x => x.name === s.name && x.startDate === s.startDate);
+          const exists = supplements.some(x => x.name === s.name && x.startDate === s.startDate);
           if (!exists) {
             const entry = { name: s.name, dosage: s.dosage || '', startDate: s.startDate, endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
             if (s.ingredients) entry.ingredients = s.ingredients;
@@ -876,18 +883,18 @@ export function importDataJSON(file) {
                 if (sourceUrl.protocol === 'http:' || sourceUrl.protocol === 'https:') entry.sourceUrl = sourceUrl.toString();
               } catch {}
             }
-            state.importedData.supplements.push(entry);
+            appendImportedArrayItem(state.importedData, 'supplements', entry);
           }
         }
       }
       // Import notes
       if (json.notes && Array.isArray(json.notes)) {
-        if (!state.importedData.notes) state.importedData.notes = [];
+        const notes = ensureImportedArray(state.importedData, 'notes');
         for (const note of json.notes) {
           if (!note.date || !note.text) continue;
           // Avoid duplicates (same date + same text)
-          const exists = state.importedData.notes.some(n => n.date === note.date && n.text === note.text);
-          if (!exists) state.importedData.notes.push({ date: note.date, text: note.text });
+          const exists = notes.some(n => n.date === note.date && n.text === note.text);
+          if (!exists) appendImportedArrayItem(state.importedData, 'notes', { date: note.date, text: note.text });
         }
       }
       migrateProfileData(state.importedData);
@@ -945,37 +952,38 @@ async function _importDatabaseBundle(json) {
       const raw = await encryptedGetItem(storageKey);
       let current;
       try { current = raw ? JSON.parse(raw) : {}; } catch { current = {}; }
-      if (!current.entries) current.entries = [];
       // Entries: date-keyed upsert
       if (Array.isArray(importData.entries)) {
+        const entries = ensureImportedArray(current, 'entries');
         for (const entry of importData.entries) {
           if (!entry.date || !entry.markers) continue;
-          current.entries = current.entries.filter(ex => ex.date !== entry.date);
-          current.entries.push(entry);
+          const idx = entries.findIndex(ex => ex.date === entry.date);
+          if (idx >= 0) { replaceImportedArrayItem(current, 'entries', idx, entry); }
+          else { appendImportedArrayItem(current, 'entries', entry); }
         }
       }
       // Notes: deduplicate by date+text
       if (Array.isArray(importData.notes)) {
-        if (!current.notes) current.notes = [];
+        const notes = ensureImportedArray(current, 'notes');
         for (const n of importData.notes) {
           if (!n.date || !n.text) continue;
-          if (!current.notes.some(x => x.date === n.date && x.text === n.text)) current.notes.push(n);
+          if (!notes.some(x => x.date === n.date && x.text === n.text)) appendImportedArrayItem(current, 'notes', n);
         }
       }
       // Supplements: deduplicate by name+startDate
       if (Array.isArray(importData.supplements)) {
-        if (!current.supplements) current.supplements = [];
+        const supplements = ensureImportedArray(current, 'supplements');
         for (const s of importData.supplements) {
           if (!s.name || !s.startDate) continue;
-          if (!current.supplements.some(x => x.name === s.name && x.startDate === s.startDate)) current.supplements.push(s);
+          if (!supplements.some(x => x.name === s.name && x.startDate === s.startDate)) appendImportedArrayItem(current, 'supplements', s);
         }
       }
       // Health goals: deduplicate by text
       if (Array.isArray(importData.healthGoals)) {
-        if (!current.healthGoals) current.healthGoals = [];
+        const healthGoals = ensureImportedArray(current, 'healthGoals');
         for (const g of importData.healthGoals) {
           if (!g.text) continue;
-          if (!current.healthGoals.some(x => x.text === g.text)) current.healthGoals.push(g);
+          if (!healthGoals.some(x => x.text === g.text)) appendImportedArrayItem(current, 'healthGoals', g);
         }
       }
       // Custom markers: merge (don't overwrite existing)
@@ -1000,24 +1008,24 @@ async function _importDatabaseBundle(json) {
       if (importData.contextNotes) current.contextNotes = importData.contextNotes;
       // Change history: merge by field+date, imported snapshot wins on conflict
       if (Array.isArray(importData.changeHistory)) {
-        if (!current.changeHistory) current.changeHistory = [];
+        const changeHistory = ensureImportedArray(current, 'changeHistory');
         for (const entry of importData.changeHistory) {
           if (!entry.field || !entry.date) continue;
-          const idx = current.changeHistory.findIndex(e => e.field === entry.field && e.date === entry.date);
-          if (idx >= 0) { current.changeHistory[idx] = entry; }
-          else { current.changeHistory.push(entry); }
+          const idx = changeHistory.findIndex(e => e.field === entry.field && e.date === entry.date);
+          if (idx >= 0) { replaceImportedArrayItem(current, 'changeHistory', idx, entry); }
+          else { appendImportedArrayItem(current, 'changeHistory', entry); }
         }
-        current.changeHistory.sort((a, b) => a.date.localeCompare(b.date));
-        while (current.changeHistory.length > 200) current.changeHistory.shift();
+        sortImportedArray(current, 'changeHistory', (a, b) => a.date.localeCompare(b.date));
+        trimImportedArray(current, 'changeHistory', 200);
       }
       // Chat summaries: merge by threadId
       if (Array.isArray(importData.chatSummaries)) {
-        if (!current.chatSummaries) current.chatSummaries = [];
+        const chatSummaries = ensureImportedArray(current, 'chatSummaries');
         for (const s of importData.chatSummaries) {
           if (!s.threadId) continue;
-          const idx = current.chatSummaries.findIndex(e => e.threadId === s.threadId);
-          if (idx >= 0) { current.chatSummaries[idx] = s; }
-          else { current.chatSummaries.push(s); }
+          const idx = chatSummaries.findIndex(e => e.threadId === s.threadId);
+          if (idx >= 0) { replaceImportedArrayItem(current, 'chatSummaries', idx, s); }
+          else { appendImportedArrayItem(current, 'chatSummaries', s); }
         }
       }
       // Display overrides: merge labels/icons/manualValues (don't overwrite existing)

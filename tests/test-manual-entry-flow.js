@@ -74,7 +74,14 @@ console.log('=== Manual Entry Flow Tests ===\n');
   assert('Manual overwrite remembers imported original for revert',
     /function _rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailEditingSrc) &&
     /state\.importedData\.manualValues\[mvKey\] = hasImportedOriginal \? current : true/.test(markerDetailEditingSrc) &&
-    /saveManualEntry[\s\S]{0,3500}_rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailEditingSrc));
+    /saveManualEntry[\s\S]{0,5000}_rememberManualOriginal\(dotKey, date, entry\)/.test(markerDetailEditingSrc));
+  assert('Manual value saves stamp lab entry updatedAt for sync freshness',
+    /function stampLabEntryUpdated\(entry, now = Date\.now\(\)\)/.test(markerDetailEditingSrc)
+      && /saveManualEntry[\s\S]{0,4500}stampLabEntryUpdated\(entry, now\)/.test(markerDetailEditingSrc)
+      && /editMarkerValue[\s\S]{0,2200}stampLabEntryUpdated\(entry, now\)/.test(markerDetailEditingSrc)
+      && /revertMarkerValue[\s\S]{0,1000}stampLabEntryUpdated\(entry\)/.test(markerDetailEditingSrc));
+  assert('Manual marker delete stamps remaining lab entry for sync freshness',
+    /deleteMarkerValue[\s\S]{0,1800}else \{\s*stampLabEntryUpdated\(entry, now\);?\s*\}/.test(markerDetailEditingSrc));
   assert('Clickable manual badge reverts to imported value when original exists',
     /manual \\u00d7/.test(markerDetailSrc) &&
     /Revert manual value to imported value/.test(markerDetailSrc) &&

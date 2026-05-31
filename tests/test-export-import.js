@@ -340,15 +340,16 @@ return (async function() {
   // _importDatabaseBundle merge logic
   assert('Bundle import matches by id first', exportSrc.includes('profiles.find(p => p.id === bp.id)'));
   assert('Bundle import falls back to name match', exportSrc.includes('profiles.find(p => p.name === bp.name)'));
-  assert('Bundle import does date-keyed entry upsert', exportSrc.includes('current.entries.filter(ex => ex.date !== entry.date)'));
-  assert('Bundle import deduplicates notes', exportSrc.includes('current.notes.some(x => x.date === n.date && x.text === n.text)'));
-  assert('Bundle import deduplicates supplements', exportSrc.includes('current.supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
-  assert('Bundle import merges health goals', exportSrc.includes('current.healthGoals.some(x => x.text === g.text)'));
+  assert('Bundle import does date-keyed entry upsert',
+    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*entry\)/.test(exportSrc));
+  assert('Bundle import deduplicates notes', exportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
+  assert('Bundle import deduplicates supplements', exportSrc.includes('supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
+  assert('Bundle import merges health goals', exportSrc.includes('healthGoals.some(x => x.text === g.text)'));
   assert('Bundle import merges custom markers', exportSrc.includes("!current.customMarkers[key]"));
   assert('Bundle import merges ref overrides', exportSrc.includes("!current.refOverrides[key]"));
   assert('Bundle import replaces context fields', exportSrc.includes("for (const field of ['diagnoses', 'diet', 'exercise'"));
-  assert('Bundle import caps changeHistory at 200', exportSrc.includes('current.changeHistory.length > 200'));
-  assert('Bundle import merges chat summaries', exportSrc.includes('current.chatSummaries.findIndex'));
+  assert('Bundle import caps changeHistory at 200', exportSrc.includes("trimImportedArray(current, 'changeHistory', 200)"));
+  assert('Bundle import merges chat summaries', exportSrc.includes('chatSummaries.findIndex'));
   assert('Bundle import creates new profiles', exportSrc.includes("createProfile(bp.name || 'Imported'"));
   assert('Bundle import loads first imported profile', exportSrc.includes('loadProfile(targetId)'));
   assert('Bundle import handles wallet restore', exportSrc.includes('json.wallet'));
