@@ -2,7 +2,8 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, formatDate, safeMarkerId } from './utils.js';
-import { getActiveData, getEffectiveRangeForDate, getLatestValueIndex, getAllFlaggedMarkers } from './data.js';
+import { getActiveData } from './data.js';
+import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
 import { loadContextHealthDots } from './context-cards.js';

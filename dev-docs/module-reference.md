@@ -279,15 +279,29 @@ The central data pipeline. Every view gets its data from `getActiveData()`.
 - `saveImportedData()` — persists `state.importedData` to localStorage (or encrypted store), triggers backup
 - `buildMarkerReference()` — compact JSON of all known markers for AI system prompts (PDF import)
 - `filterDatesByRange(data)` — applies `state.dateRangeFilter` to dates + values arrays in-place
-- `getEffectiveRange(marker)` — returns `{ refMin, refMax }` respecting `state.rangeMode`
-- `getEffectiveRangeForDate(marker, dateIndex)` — phase-aware range lookup; falls back to `getEffectiveRange()`
-- `getPhaseRefEnvelope(marker)` — widest span across all cycle phases for chart ref bands
 - `registerRefreshCallback(fn)` — registers the refresh function from `app-event-listeners.js`
-- `detectTrendAlerts(data)` — sudden-change (25% of ref range, 2+ values) and linear-regression (slope >0.02, R²>0.5 for 4+ points) alerts
-- `getAllFlaggedMarkers(data)` — markers >50% of reference range width past their boundary
 - `getFocusCardFingerprint()` — djb2 hash of all entries + all 9 context cards + sex + DOB
+- Compatibility re-exports from `marker-analysis.js` keep existing `window.*` helper access stable.
 
 **Window exports:** `saveImportedData`, `clearAllData` (via export.js), `filterDatesByRange`
+
+---
+
+### `marker-analysis.js`
+
+Read-only marker range, status, and trend helpers. This module owns pure marker analysis so chart, dashboard, AI context, and export code do not need to import the storage/sync-heavy `data.js` when they only need derived marker calculations.
+
+**Key exports:**
+- `getEffectiveRange(marker)` — returns `{ min, max }` respecting `state.rangeMode`
+- `getEffectiveRangeForDate(marker, dateIndex)` — phase-aware range lookup; falls back to `getEffectiveRange()`
+- `getPhaseRefEnvelope(marker)` — widest span across all cycle phases for chart ref bands
+- `getLatestValueIndex(values)` — index of the latest non-null marker value
+- `countFlagged(markers)` / `getAllFlaggedMarkers(data)` — out-of-range marker helpers
+- `statusIcon(status)` — status-to-symbol mapping used by category cards
+- `detectTrendAlerts(data)` — sudden-change (25% of ref range, 2+ values) and linear-regression (slope >0.02, R²>0.5 for 4+ points) alerts
+- `getKeyTrendMarkers(filteredData)` — dashboard key-trend selection
+
+**Window exports:** none directly; `data.js` keeps compatibility exports.
 
 ---
 

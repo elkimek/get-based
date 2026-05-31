@@ -28,7 +28,7 @@ function assert(name, condition, detail) {
 console.log('=== Trend Alerts & Status Tests ===\n');
 
 const { linearRegression, getStatus } = await import('../js/utils.js');
-const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await import('../js/data.js');
+const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await import('../js/marker-analysis.js');
 
   // =======================================
   // 1. linearRegression — perfect fit
@@ -596,25 +596,27 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   console.log('%c 23. Source Code Checks ', 'font-weight:bold;color:#f59e0b');
 
   const dataSrc = read('js/data.js');
-  assert('detectTrendAlerts exported', dataSrc.includes('export function detectTrendAlerts'));
-  assert('getKeyTrendMarkers exported', dataSrc.includes('export function getKeyTrendMarkers'));
-  assert('Uses linearRegression', dataSrc.includes('linearRegression('));
+  const markerAnalysisSrc = read('js/marker-analysis.js');
+  assert('detectTrendAlerts exported from marker-analysis', markerAnalysisSrc.includes('export function detectTrendAlerts'));
+  assert('getKeyTrendMarkers exported from marker-analysis', markerAnalysisSrc.includes('export function getKeyTrendMarkers'));
+  assert('data.js keeps compatibility re-exports', dataSrc.includes("} from './marker-analysis.js'"));
+  assert('Uses linearRegression', markerAnalysisSrc.includes('linearRegression('));
   assert('25% threshold for sudden change',
-    dataSrc.includes('TREND_SUDDEN_JUMP_FRAC = 0.25') &&
-    dataSrc.includes('range * TREND_SUDDEN_JUMP_FRAC'));
+    markerAnalysisSrc.includes('TREND_SUDDEN_JUMP_FRAC = 0.25') &&
+    markerAnalysisSrc.includes('range * TREND_SUDDEN_JUMP_FRAC'));
   assert('normSlope threshold 0.02',
-    dataSrc.includes('TREND_MIN_NORM_SLOPE = 0.02') &&
-    dataSrc.includes('Math.abs(normSlope) < TREND_MIN_NORM_SLOPE'));
+    markerAnalysisSrc.includes('TREND_MIN_NORM_SLOPE = 0.02') &&
+    markerAnalysisSrc.includes('Math.abs(normSlope) < TREND_MIN_NORM_SLOPE'));
   assert('R\u00B2 filter 0.5 for 4+ points',
-    dataSrc.includes('TREND_MIN_R2 = 0.5') &&
-    dataSrc.includes('reg.r2 < TREND_MIN_R2'));
+    markerAnalysisSrc.includes('TREND_MIN_R2 = 0.5') &&
+    markerAnalysisSrc.includes('reg.r2 < TREND_MIN_R2'));
   assert('Approaching zone 15%',
-    dataSrc.includes('TREND_APPROACH_BAND = 0.15') &&
-    dataSrc.includes('range * TREND_APPROACH_BAND'));
-  assert('Sort by priority (sudden > past > approaching)', dataSrc.includes("c.startsWith('sudden_')"));
+    markerAnalysisSrc.includes('TREND_APPROACH_BAND = 0.15') &&
+    markerAnalysisSrc.includes('range * TREND_APPROACH_BAND'));
+  assert('Sort by priority (sudden > past > approaching)', markerAnalysisSrc.includes("c.startsWith('sudden_')"));
   assert('KEY_TRENDS_MAX = 8 in getKeyTrendMarkers',
-    dataSrc.includes('KEY_TRENDS_MAX = 8') &&
-    dataSrc.includes('MAX = KEY_TRENDS_MAX'));
+    markerAnalysisSrc.includes('KEY_TRENDS_MAX = 8') &&
+    markerAnalysisSrc.includes('MAX = KEY_TRENDS_MAX'));
   assert('detectTrendAlerts on window', dataSrc.includes('detectTrendAlerts'));
   assert('getKeyTrendMarkers on window', dataSrc.includes('getKeyTrendMarkers'));
 

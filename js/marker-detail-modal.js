@@ -3,7 +3,8 @@
 import { state } from './state.js';
 import { trackUsage, UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
 import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, showNotification, showConfirmDialog, safeMarkerId } from './utils.js';
-import { getActiveData, getEffectiveRange, getEffectiveRangeForDate, saveImportedData, updateHeaderDates } from './data.js';
+import { getActiveData, saveImportedData, updateHeaderDates } from './data.js';
+import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';

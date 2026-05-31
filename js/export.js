@@ -2,7 +2,8 @@
 
 import { state } from './state.js';
 import { getStatus, formatValue, showNotification, showConfirmDialog, getTrend } from './utils.js';
-import { getActiveData, filterDatesByRange, getEffectiveRange, getAllFlaggedMarkers, getLatestValueIndex, saveImportedData } from './data.js';
+import { getActiveData, filterDatesByRange, saveImportedData } from './data.js';
+import { getAllFlaggedMarkers, getEffectiveRange, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, saveProfiles, migrateProfileData } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';

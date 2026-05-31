@@ -7,7 +7,8 @@ import { createDashboardRecommendationWidget } from './dashboard-recommendation-
 import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './dna.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId, showNotification } from './utils.js';
-import { detectTrendAlerts, filterDatesByRange, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex, renderDateRangeFilter } from './data.js';
+import { filterDatesByRange, renderDateRangeFilter } from './data.js';
+import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex } from './marker-analysis.js';
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
 

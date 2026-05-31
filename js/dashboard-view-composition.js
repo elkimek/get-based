@@ -1,7 +1,8 @@
 // dashboard-view-composition.js - dashboard route/widget composition wiring
 
 import { state } from './state.js';
-import { getActiveData, getEffectiveRangeForDate, getLatestValueIndex } from './data.js';
+import { getActiveData } from './data.js';
+import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { canonicalMetric } from './wearable-adapters.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { loadCommitHash } from './commit-hash.js';

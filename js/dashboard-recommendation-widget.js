@@ -1,7 +1,8 @@
 // dashboard-recommendation-widget.js - recommendation candidate and widget rendering
 
 import { state } from './state.js';
-import { getActiveData, getEffectiveRangeForDate, getLatestValueIndex } from './data.js';
+import { getActiveData } from './data.js';
+import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
 

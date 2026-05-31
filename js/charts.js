@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
-import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './data.js';
+import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './marker-analysis.js';
 
 const CHART_JS_SRC = '/vendor/chart.min.js';
 const CHART_DATE_ADAPTER_SRC = '/vendor/chartjs-adapter-native.js';

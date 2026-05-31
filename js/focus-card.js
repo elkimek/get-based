@@ -3,7 +3,8 @@
 import { state } from './state.js';
 import { trackUsage } from './schema.js';
 import { hasCardContent, getStatus } from './utils.js';
-import { getActiveData, getAllFlaggedMarkers, getFocusCardFingerprint } from './data.js';
+import { getActiveData, getFocusCardFingerprint } from './data.js';
+import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
 import { injectLensChunks } from './lab-context.js';

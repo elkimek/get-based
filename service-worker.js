@@ -93,6 +93,7 @@ const APP_SHELL = [
   '/js/ai-verdict-engine.js',
   '/js/profile.js',
   '/js/data.js',
+  '/js/marker-analysis.js',
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/pii.js',
