@@ -19,15 +19,23 @@
 
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
-import { saveImportedData } from './data.js';
-import { deleteImportedArrayItem } from './data-merge.js';
 import { CHANNEL_DISPLAY } from './sun.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
-  DEVICE_TYPE_CHANNELS,
-  computeDeviceSessionDoses,
-  resolveDeviceMode,
-} from './light-device-session-engine.js';
+  addCustomDevice,
+  addDeviceFromPresetRecord,
+  deleteDevice,
+  deleteDeviceSession,
+  getActiveDeviceSession,
+  getDeviceSessions,
+  getDevices,
+  hydrateDevicesFromPresetRecords,
+  logDeviceSession,
+  rollingDeviceTotals,
+  startDeviceSession,
+  stopDeviceSession,
+  updateDeviceSession,
+} from './light-devices-store.js';
 import { openDeviceSessionDialog as openDeviceSessionDialogModal } from './light-device-session-modal.js';
 import {
   configureLightDeviceSetup,
@@ -36,6 +44,19 @@ import {
 } from './light-device-setup-modal.js';
 
 export { openAddDeviceDialog, openCustomDeviceDialog };
+export {
+  addCustomDevice,
+  deleteDevice,
+  deleteDeviceSession,
+  getActiveDeviceSession,
+  getDeviceSessions,
+  getDevices,
+  logDeviceSession,
+  rollingDeviceTotals,
+  startDeviceSession,
+  stopDeviceSession,
+  updateDeviceSession,
+};
 
 // Preset library is loaded lazily — keeps the JSON out of the boot path.
 let _PRESETS = null;
@@ -69,47 +90,10 @@ async function loadPresets() {
 
 // ─── Public API ────────────────────────────────────────────────────────
 
-export function getDevices() {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.lightDevices)) state.importedData.lightDevices = [];
-  return state.importedData.lightDevices;
-}
-
-export function getDeviceSessions() {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.deviceSessions)) state.importedData.deviceSessions = [];
-  return state.importedData.deviceSessions;
-}
-
 export async function addDeviceFromPreset(presetId, overrides = {}) {
   const { presets } = await loadPresets();
   const preset = presets.find(p => p.id === presetId);
-  if (!preset) return null;
-  const id = `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  const device = {
-    id,
-    presetId: preset.id,
-    brand: overrides.brand || preset.brand,
-    model: overrides.model || preset.model,
-    type: overrides.type || preset.type,
-    peakWavelengths: overrides.peakWavelengths || preset.peakWavelengths || [],
-    mwPerCm2At15cm: overrides.mwPerCm2At15cm ?? preset.mwPerCm2At15cm ?? null,
-    lux: overrides.lux ?? preset.lux ?? null,
-    recommendedDistanceCm: overrides.recommendedDistanceCm ?? preset.recommendedDistanceCm ?? 15,
-    channels: overrides.channels || preset.channels || [],
-    // Round 7: copy the LED-group schema through so the session-log
-    // dialog can render the mode picker. Devices added pre-Round-7 are
-    // healed by hydrateDevicesFromPresets at boot.
-    channelGroups: Array.isArray(preset.channelGroups) ? preset.channelGroups : null,
-    modes: Array.isArray(preset.modes) ? preset.modes : null,
-    coupling: Array.isArray(preset.coupling) ? preset.coupling : null,
-    catalogSlug: preset.catalogSlug || null,
-    notes: overrides.notes || '',
-    addedAt: Date.now(),
-  };
-  getDevices().push(device);
-  await saveImportedData();
-  return device;
+  return addDeviceFromPresetRecord(preset, overrides);
 }
 
 // Backfill channelGroups / modes / coupling from the preset library onto
@@ -119,109 +103,7 @@ export async function addDeviceFromPreset(presetId, overrides = {}) {
 // without requiring re-add.
 export async function hydrateDevicesFromPresets() {
   const { presets } = await loadPresets();
-  if (!Array.isArray(presets) || presets.length === 0) return false;
-  if (!state.importedData) return false;
-  const devices = Array.isArray(state.importedData.lightDevices) ? state.importedData.lightDevices : [];
-  let dirty = false;
-  for (const dev of devices) {
-    if (!dev || !dev.presetId) continue;
-    const preset = presets.find(p => p.id === dev.presetId);
-    if (!preset) continue;
-    if (!Array.isArray(dev.channelGroups) && Array.isArray(preset.channelGroups)) {
-      dev.channelGroups = preset.channelGroups;
-      dirty = true;
-    }
-    if (!Array.isArray(dev.modes) && Array.isArray(preset.modes)) {
-      dev.modes = preset.modes;
-      dirty = true;
-    }
-    if (!Array.isArray(dev.coupling) && Array.isArray(preset.coupling)) {
-      dev.coupling = preset.coupling;
-      dirty = true;
-    }
-  }
-  if (dirty) await saveImportedData();
-  return dirty;
-}
-
-export async function deleteDevice(id) {
-  const devs = getDevices();
-  const idx = devs.findIndex(d => d.id === id);
-  if (idx < 0) return false;
-  deleteImportedArrayItem(state.importedData, 'lightDevices', idx);
-  await saveImportedData();
-  return true;
-}
-
-// Log a completed device session (e.g. "10 min on the Joovv Mini at 15cm").
-//
-// Per-channel doses are computed by synthesizing a sparse spectrum from
-// the device's declared `peakWavelengths` + `mwPerCm2At15cm`, then routing
-// it through the SAME `computeChannelDoses` used by sun sessions. That
-// produces wavelength-correct doses (UVB → vitamin_d only, NIR → pbm_nir
-// only, etc.) without double-counting photons across multiple channels —
-// which the previous heuristic did, giving every declared channel the
-// full device irradiance.
-//
-// Falls back to a legacy lux-only path for SAD lamps that declare `lux`
-// instead of `mwPerCm2At15cm` (Verilux, Carex, Lumie, etc.) — those don't
-// have a meaningful peak-wavelengths spectrum and only feed the circadian
-// channel via lux-seconds.
-export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '', mode = null }) {
-  const device = getDevices().find(d => d.id === deviceId);
-  if (!device) return null;
-  // Cryptographic randomness for session ids — Math.random() is enough
-  // for collision avoidance but CodeQL flags it as a security smell on
-  // any id-shaped string, and crypto.getRandomValues is available
-  // everywhere this code runs.
-  const _rb = new Uint8Array(3); crypto.getRandomValues(_rb);
-  const _suffix = Array.from(_rb, b => b.toString(16).padStart(2, '0')).join('').slice(0, 4);
-  const sessionId = `devsess_${Date.now().toString(36)}_${_suffix}`;
-  const seconds = durationMin * 60;
-  const { doses, mode: resolvedMode } = computeDeviceSessionDoses({
-    device,
-    durationMin,
-    distanceCm,
-    bodyArea,
-    bodyAreas,
-    eyesProtected,
-    mode,
-  });
-
-  const session = {
-    id: sessionId,
-    deviceId,
-    startedAt: Date.now() - seconds * 1000,
-    endedAt: Date.now(),
-    durationMin,
-    distanceCm,
-    bodyArea,
-    // bodyAreas[] is the new precise-region field; bodyArea remains as
-    // a denormalized "broad zone" hint for legacy readers + listing rows.
-    bodyAreas: Array.isArray(bodyAreas) ? bodyAreas.slice() : null,
-    eyesProtected,
-    // mode is the named touchscreen-preset id for devices with `modes`
-    // (Maxi UVB, Trinity, etc.); null for single-mode devices. Persisted
-    // so dose recomputation on edit reuses the same mode. Legacy
-    // sessions logged before Round 7 read back as null and route through
-    // the device's default mode in effectiveDeviceForMode.
-    mode: resolvedMode,
-    doses,
-    notes,
-  };
-  getDeviceSessions().push(session);
-  // Remember the user's chosen params on the device record so the
-  // next session log dialog opens with their actual ritual prefilled
-  // (most users do the same duration / distance / body area each
-  // session — re-typing every time is friction). Notes intentionally
-  // excluded — they're session-specific, shouldn't leak forward.
-  device.lastSession = { durationMin, distanceCm, bodyArea, bodyAreas: session.bodyAreas, eyesProtected, mode: resolvedMode };
-  device.updatedAt = Date.now();
-  await saveImportedData();
-  if (window.maybeAnalyzeDeviceSessionAfterFinish) {
-    try { window.maybeAnalyzeDeviceSessionAfterFinish(session); } catch (_) {}
-  }
-  return session;
+  return hydrateDevicesFromPresetRecords(presets);
 }
 
 // ─── Live device-session timer ─────────────────────────────────────────
@@ -231,144 +113,6 @@ export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15,
 // + /light surfaces show a live elapsed counter; stopDeviceSession()
 // finalizes it through logDeviceSession's dose math so the saved record
 // is identical in shape to an after-the-fact log.
-
-export function getActiveDeviceSession() {
-  return getDeviceSessions().find(s => !s.endedAt) || null;
-}
-
-export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true, mode = null } = {}) {
-  // Reject a second active timer — one session at a time keeps the
-  // active-card UI unambiguous and matches sun-session semantics.
-  if (getActiveDeviceSession()) return null;
-  const device = getDevices().find(d => d.id === deviceId);
-  if (!device) return null;
-  const resolvedMode = resolveDeviceMode(device, mode);
-  const id = `devsess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  const sess = {
-    id,
-    deviceId,
-    startedAt: Date.now(),
-    endedAt: null,
-    durationMin: 0,
-    distanceCm,
-    bodyArea,
-    bodyAreas: Array.isArray(bodyAreas) ? bodyAreas.slice() : null,
-    eyesProtected,
-    mode: resolvedMode,
-    doses: {},
-    notes: '',
-  };
-  getDeviceSessions().push(sess);
-  await saveImportedData();
-  return id;
-}
-
-// Stop the active device session. Computes doses through the same
-// `logDeviceSession` math by replaying the recorded params, then
-// finalizes endedAt + durationMin on the existing record.
-export async function stopDeviceSession(id) {
-  const sessions = getDeviceSessions();
-  const sess = id ? sessions.find(s => s.id === id) : getActiveDeviceSession();
-  if (!sess || sess.endedAt) return null;
-  const endedAt = Date.now();
-  const durationMin = Math.max(0, (endedAt - sess.startedAt) / 60000);
-  // Recompute doses through the shared engine without inserting a new
-  // record — we mutate the existing active session in-place.
-  const device = getDevices().find(d => d.id === sess.deviceId);
-  if (device && durationMin > 0) {
-    const { doses } = computeDeviceSessionDoses({
-      device,
-      durationMin,
-      distanceCm: sess.distanceCm,
-      bodyArea: sess.bodyArea,
-      bodyAreas: sess.bodyAreas,
-      eyesProtected: sess.eyesProtected,
-      mode: sess.mode,
-    });
-    sess.doses = doses;
-  }
-  sess.endedAt = endedAt;
-  sess.durationMin = durationMin;
-  if (device) {
-    device.lastSession = {
-      durationMin, distanceCm: sess.distanceCm,
-      bodyArea: sess.bodyArea, bodyAreas: sess.bodyAreas,
-      eyesProtected: sess.eyesProtected,
-      mode: sess.mode,
-    };
-    device.updatedAt = Date.now();
-  }
-  await saveImportedData();
-  if (window.maybeAnalyzeDeviceSessionAfterFinish) {
-    try { window.maybeAnalyzeDeviceSessionAfterFinish(sess); } catch (_) {}
-  }
-  return sess;
-}
-
-// Patch a finished session in place — accepts any subset of editable
-// fields. Recomputes doses if duration / distance / regions / eyes
-// changed, since those all feed the dose math. Mirrors sun.js
-// updateSession but without the active-session branch (device sessions
-// don't have the sun-style mid-session controls — once stopped, they
-// stay stopped). Bumps updatedAt so sync sees the change.
-export async function updateDeviceSession(id, patch = {}) {
-  const sessions = getDeviceSessions();
-  const sess = sessions.find(s => s.id === id);
-  if (!sess) return null;
-  const editable = ['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'notes', 'mode'];
-  let needsRecompute = false;
-  for (const k of editable) {
-    if (k in patch && patch[k] !== sess[k]) {
-      // Array deep-compare for bodyAreas — patch comes in as a fresh
-      // array; we want to detect content change, not just identity.
-      if (k === 'bodyAreas') {
-        const before = JSON.stringify((sess.bodyAreas || []).slice().sort());
-        const after = JSON.stringify((patch.bodyAreas || []).slice().sort());
-        if (before === after) continue;
-      }
-      // mode patches go through coupling validation; bad input falls
-      // back to the device's default mode rather than persisting.
-      if (k === 'mode') {
-        const device = getDevices().find(d => d.id === sess.deviceId);
-        if (device && Array.isArray(device.modes) && device.modes.length > 0) {
-          const next = resolveDeviceMode(device, patch.mode);
-          if (next === sess.mode) continue;
-          sess.mode = next;
-          needsRecompute = true;
-          continue;
-        }
-      }
-      sess[k] = patch[k];
-      if (['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected'].includes(k)) needsRecompute = true;
-    }
-  }
-  // Re-derive endedAt + dose if duration changed (otherwise the saved
-  // record keeps its original end-stamp + doses, which would drift from
-  // the new duration).
-  if (needsRecompute && sess.endedAt && Number.isFinite(sess.durationMin)) {
-    sess.endedAt = sess.startedAt + sess.durationMin * 60 * 1000;
-    const device = getDevices().find(d => d.id === sess.deviceId);
-    if (device) {
-      const { doses, mode: resolvedMode } = computeDeviceSessionDoses({
-        device,
-        durationMin: sess.durationMin,
-        distanceCm: sess.distanceCm,
-        bodyArea: sess.bodyArea,
-        bodyAreas: sess.bodyAreas,
-        eyesProtected: sess.eyesProtected,
-        mode: sess.mode,
-      });
-      sess.mode = resolvedMode;
-      sess.doses = doses;
-    }
-  }
-  sess.updatedAt = Date.now();
-  await saveImportedData();
-  if (window.maybeAnalyzeDeviceSessionAfterFinish) {
-    try { window.maybeAnalyzeDeviceSessionAfterFinish(sess); } catch (_) {}
-  }
-  return sess;
-}
 
 // User-facing edit-mode entry point. Mirrors editDeviceSessionDuration
 // but for the mode field — opens a small picker dialog filtered to
@@ -451,15 +195,6 @@ export async function editDeviceSessionDuration(id) {
   await updateDeviceSession(id, { durationMin: next });
   showNotification(`Session duration set to ${next} min. Doses recomputed.`, 'success');
   if (window.navigate && state.currentView === 'light') window.navigate('light');
-}
-
-export async function deleteDeviceSession(id) {
-  const sessions = getDeviceSessions();
-  const idx = sessions.findIndex(s => s.id === id);
-  if (idx < 0) return false;
-  deleteImportedArrayItem(state.importedData, 'deviceSessions', idx);
-  await saveImportedData();
-  return true;
 }
 
 // ─── UI: per-device-session detail modal ──────────────────────────────
@@ -622,20 +357,6 @@ export function openDeviceSessionDetail(id) {
     opener: openDeviceSessionDetail,
     exists: sessionId => getDeviceSessions().some(s => s.id === sessionId),
   });
-}
-
-// Rolling totals — same shape as sun.rollingChannelTotals so the AI context
-// and dashboard pills can sum across both sources transparently.
-export function rollingDeviceTotals(days = 7) {
-  const cutoff = Date.now() - days * 86400 * 1000;
-  const totals = {};
-  for (const sess of getDeviceSessions()) {
-    if (!sess.doses || (sess.endedAt && sess.endedAt < cutoff)) continue;
-    for (const [k, v] of Object.entries(sess.doses)) {
-      totals[k] = (totals[k] || 0) + (Number.isFinite(v) ? v : 0);
-    }
-  }
-  return totals;
 }
 
 // ─── Active device-session card + 1Hz ticker ─────────────────────────
@@ -853,59 +574,6 @@ function _relativeTimeShort(ts) {
   }
   const y = Math.floor(days / 365);
   return `${y} year${y !== 1 ? 's' : ''} ago`;
-}
-
-// Save a user-defined device (no preset lookup). Same shape as
-// addDeviceFromPreset's output minus presetId/catalogSlug — custom devices
-// don't get an affiliate link surface (no canonical product to link to).
-export async function addCustomDevice(spec) {
-  if (!spec || !spec.brand || !spec.model) return null;
-  const id = `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  // Map type → channels for dose math. Mirrors the per-channel logic
-  // used by the curated presets so a custom device on, say, type=uvb
-  // still feeds vitamin_d + pomc + violet_eye + circadian by default
-  // (the spectrum convolution refines the actual doses by wavelength).
-  // channelGroups / modes / coupling — only persisted when AI extraction
-  // (or manual entry) supplied a structurally complete set. Anything
-  // shaped wrong is dropped to null so the consumer (effectiveDeviceForMode)
-  // sees a clean schema and falls back to the all-peaks-fire identity path.
-  const channelGroups = Array.isArray(spec.channelGroups)
-    ? spec.channelGroups.filter(g => g && typeof g.id === 'string' && Array.isArray(g.peaks) && g.peaks.length > 0)
-    : null;
-  const validGroupIds = channelGroups ? new Set(channelGroups.map(g => g.id)) : null;
-  const modes = Array.isArray(spec.modes) && validGroupIds && validGroupIds.size > 0
-    ? spec.modes
-        .filter(m => m && typeof m.id === 'string' && Array.isArray(m.groups) && m.groups.length > 0)
-        .map(m => ({ ...m, groups: m.groups.filter(gid => validGroupIds.has(gid)) }))
-        .filter(m => m.groups.length > 0)
-    : null;
-  const coupling = Array.isArray(spec.coupling) && validGroupIds && validGroupIds.size > 0
-    ? spec.coupling.filter(r =>
-        r && typeof r.if === 'string' && validGroupIds.has(r.if)
-        && Array.isArray(r.requires) && r.requires.every(req => validGroupIds.has(req))
-      )
-    : null;
-  const device = {
-    id,
-    presetId: null,
-    brand: spec.brand,
-    model: spec.model,
-    type: spec.type || 'combined',
-    peakWavelengths: Array.isArray(spec.peakWavelengths) ? spec.peakWavelengths : [],
-    mwPerCm2At15cm: Number.isFinite(spec.mwPerCm2At15cm) ? spec.mwPerCm2At15cm : null,
-    lux: Number.isFinite(spec.lux) ? spec.lux : null,
-    recommendedDistanceCm: Number.isFinite(spec.recommendedDistanceCm) && spec.recommendedDistanceCm > 0 ? spec.recommendedDistanceCm : 15,
-    channels: DEVICE_TYPE_CHANNELS[spec.type] || ['pbm_red', 'pbm_nir'],
-    channelGroups: channelGroups && channelGroups.length > 0 ? channelGroups : null,
-    modes: modes && modes.length > 0 ? modes : null,
-    coupling: coupling && coupling.length > 0 ? coupling : null,
-    catalogSlug: null,
-    notes: spec.notes || '',
-    addedAt: Date.now(),
-  };
-  getDevices().push(device);
-  await saveImportedData();
-  return device;
 }
 
 configureLightDeviceSetup({

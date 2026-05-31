@@ -1,6 +1,6 @@
 // light-device-session-engine.js — shared dose math for light-device sessions.
 //
-// UI modules own dialogs and persistence. This module owns the repeated
+// UI/store modules own dialogs and persistence. This module owns the repeated
 // session calculations: mode resolution, body-area fraction, distance scaling,
 // spectrum synthesis, and SAD-lux fallback.
 

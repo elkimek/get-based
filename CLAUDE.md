@@ -48,6 +48,7 @@ Functions called from inline HTML `onclick` handlers are exposed via `Object.ass
 4. Marker values are arrays aligned with `dates`; `null` = no result. `singlePoint` categories use grid cards. Charts use `spanGaps: true`
 5. Each entry has `markerSources` (per-marker provenance): `{ "category.markerKey": { file: "filename.pdf", at: unixMs } }`. `file: null` = manual entry. Detail modal shows source filename per value
 6. Marker detail UI keeps prompts/rendering in `marker-detail-editing.js`; synced writes for manual values, value notes, marker notes, and reference overrides are centralized in `marker-detail-store.js` so `entries`, `manualValues`, `markerValueNotes`, `markerNotes`, and `refOverrides` update atomically before `saveImportedData()`
+7. Light device UI keeps preset loading, dialogs, rendering, and notifications in `light-devices.js`; synced writes for owned devices and device sessions are centralized in `light-devices-store.js` so `lightDevices`, `deviceSessions`, dose recomputes, sync freshness stamps, and tombstones update before `saveImportedData()`
 
 ### PDF Import Pipeline
 
