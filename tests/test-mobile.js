@@ -149,7 +149,8 @@ return (async function() {
   const railBack = document.querySelector('.chat-rail-back');
   assert('chat-rail-back button exists in DOM', !!railBack);
   assert('chat-rail-back hidden by default', railBack && getComputedStyle(railBack).display === 'none');
-  assert('chat-rail-back has onclick=toggleThreadRail', railBack && railBack.getAttribute('onclick') === 'toggleThreadRail()');
+  assert('chat-rail-back uses delegated toggleThreadRail action',
+    railBack && railBack.getAttribute('data-chat-action') === 'toggle-thread-rail');
 
   // ═══ Section 11: 480px and 375px breakpoints exist ═══
   console.log('%c[11] Small Screen Breakpoints', 'font-weight:bold');

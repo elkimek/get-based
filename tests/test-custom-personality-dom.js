@@ -113,7 +113,8 @@ return (async function() {
   const discussBtnEl = document.getElementById('chat-discuss-btn');
   assert('Discuss button exists', !!discussBtnEl);
   assert('Discuss button hidden by default', discussBtnEl && discussBtnEl.style.display === 'none');
-  assert('Discuss button has onclick', discussBtnEl && discussBtnEl.getAttribute('onclick') === 'startDiscussion()');
+  assert('Discuss button uses delegated action',
+    discussBtnEl && discussBtnEl.getAttribute('data-chat-action') === 'start-discussion');
 
   // ── Restore ──
   if (origVal !== null) localStorage.setItem(key, origVal);

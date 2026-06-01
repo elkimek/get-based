@@ -67,8 +67,8 @@ function handleRoleButtonKeydown(e) {
   // Skip native interactives; they handle Space/Enter themselves.
   const tag = t.tagName;
   if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-  // Don't fire twice if the element already has its own onkeydown shim.
-  if (t.hasAttribute('onkeydown')) return;
+  // Don't fire twice if the element already has its own keydown wiring.
+  if (t.hasAttribute('onkeydown') || t.hasAttribute('data-chat-key-action')) return;
   e.preventDefault();
   t.click();
 }
