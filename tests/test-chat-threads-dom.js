@@ -15,6 +15,14 @@ return (async function() {
     if (condition) { passed++; console.log(`  %c✓ ${name}`, 'color:#22c55e', detail || ''); }
     else { failed++; console.error(`  %c✗ ${name}`, 'color:#ef4444', detail || ''); }
   }
+  async function waitFor(fn, timeoutMs = 500) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (fn()) return true;
+      await new Promise(r => setTimeout(r, 20));
+    }
+    return false;
+  }
 
   console.log('%c Chat Threads DOM Tests ', 'background:#6366f1;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
@@ -23,6 +31,11 @@ return (async function() {
   const profileId = st.currentProfile;
   const origThreads = st.chatThreads.slice();
   const origThreadId = st.currentThreadId;
+  const origSaveChatHistory = window.saveChatHistory;
+  const origLoadChatHistory = window.loadChatHistory;
+  const origCleanupDiscussionState = window.cleanupDiscussionState;
+  const origRestoreDiscussionContinuePrompt = window.restoreDiscussionContinuePrompt;
+  const origShowPromptDialog = window.showPromptDialog;
 
   // ═══════════════════════════════════════════════
   // 3. HTML Structure
@@ -60,15 +73,56 @@ return (async function() {
   // 11. Search Filtering
   // ═══════════════════════════════════════════════
   console.group('%c11. Search Filtering', 'font-weight:bold');
-  st.chatThreads = [
+  const threadFixtures = [
     { id: 't_a', name: 'Thyroid Panel Discussion', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 5, personality: 'default' },
     { id: 't_b', name: 'Vitamin D Levels', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 3, personality: 'default' },
     { id: 't_c', name: 'Cholesterol Overview', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 2, personality: 'default' }
   ];
+  st.chatThreads = threadFixtures.map(t => ({ ...t }));
   window.saveChatThreadIndex();
   window.renderThreadList();
   const allItems = document.querySelectorAll('.chat-thread-item');
   assert('all 3 threads rendered', allItems.length === 3);
+  const threadItem = document.querySelector('.chat-thread-item[data-thread-id="t_a"]');
+  assert('rendered thread item uses delegated switch action',
+    threadItem && threadItem.getAttribute('data-chat-thread-action') === 'switch');
+  assert('rendered thread item has no inline onclick',
+    threadItem && !threadItem.hasAttribute('onclick'));
+  const renameBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action');
+  assert('rendered rename button uses delegated action',
+    renameBtn && renameBtn.getAttribute('data-chat-thread-action') === 'rename');
+  assert('rendered rename button has no inline onclick',
+    renameBtn && !renameBtn.hasAttribute('onclick'));
+  const deleteBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action.delete');
+  assert('rendered delete button uses delegated action',
+    deleteBtn && deleteBtn.getAttribute('data-chat-thread-action') === 'delete');
+  assert('rendered delete button has no inline onclick',
+    deleteBtn && !deleteBtn.hasAttribute('onclick'));
+
+  window.saveChatHistory = async () => {};
+  window.loadChatHistory = async () => {};
+  window.cleanupDiscussionState = () => {};
+  window.restoreDiscussionContinuePrompt = () => {};
+  st.currentThreadId = 't_b';
+  threadItem.click();
+  assert('delegated thread item click switches active thread',
+    await waitFor(() => st.currentThreadId === 't_a'));
+  window.showPromptDialog = async () => 'Renamed Thread';
+  document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action')?.click();
+  assert('delegated rename button renames thread',
+    await waitFor(() => st.chatThreads.find(t => t.id === 't_a')?.name === 'Renamed Thread'));
+  st.chatThreads.find(t => t.id === 't_a').name = 'Thyroid Panel Discussion';
+  window.renderThreadList();
+  document.querySelector('.chat-thread-item[data-thread-id="t_c"] .chat-thread-item-action.delete')?.click();
+  const confirmOk = await waitFor(() => document.getElementById('confirm-ok'));
+  document.getElementById('confirm-ok')?.click();
+  let deleted = false;
+  if (confirmOk) deleted = await waitFor(() => !st.chatThreads.some(t => t.id === 't_c'));
+  assert('delegated delete button removes thread after confirmation',
+    deleted);
+  st.chatThreads = threadFixtures.map(t => ({ ...t }));
+  window.renderThreadList();
+
   window.filterThreadList('thyroid');
   const filteredItems = document.querySelectorAll('.chat-thread-item');
   assert('search filter shows 1 result', filteredItems.length === 1, 'Expected 1 got ' + filteredItems.length);
@@ -87,6 +141,11 @@ return (async function() {
   // ═══════════════════════════════════════════════
   st.chatThreads = origThreads;
   st.currentThreadId = origThreadId;
+  window.saveChatHistory = origSaveChatHistory;
+  window.loadChatHistory = origLoadChatHistory;
+  window.cleanupDiscussionState = origCleanupDiscussionState;
+  window.restoreDiscussionContinuePrompt = origRestoreDiscussionContinuePrompt;
+  window.showPromptDialog = origShowPromptDialog;
   if (origThreads.length > 0) window.saveChatThreadIndex();
   else localStorage.removeItem(window.getChatThreadsKey());
 

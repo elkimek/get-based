@@ -61,6 +61,7 @@ const threadFns = [
   'renameThread', 'renameThreadPrompt',
   'autoNameThread', 'pruneOldThreads',
   'renderThreadList', 'filterThreadList',
+  'installChatThreadDelegates',
   'toggleThreadRail'
 ];
 for (const fn of threadFns) {
@@ -292,6 +293,7 @@ assert('loadProfile rerenders chat rail after profile switch', profileSrc.includ
 console.log('16. Thread Search Extraction (source inspection)');
 const chatThreadsSrc = read('js/chat-threads.js');
 const chatThreadSearchSrc = read('js/chat-thread-search.js');
+const inlineHandlerRe = /\bon(?:click|change|input|search|keydown|keyup|submit)=/;
 assert('chat-threads imports search module',
   chatThreadsSrc.includes("from './chat-thread-search.js'"));
 assert('chat-threads configures search callbacks',
@@ -311,6 +313,15 @@ assert('chat-thread-search uses overflow sentinel before truncation banner',
   chatThreadSearchSrc.includes('const SEARCH_RESULT_LIMIT = 30') &&
   chatThreadSearchSrc.includes('results.length > SEARCH_RESULT_LIMIT') &&
   chatThreadSearchSrc.includes('results.slice(0, SEARCH_RESULT_LIMIT)'));
+assert('chat-threads render path uses delegated thread actions',
+  !inlineHandlerRe.test(chatThreadsSrc) &&
+  chatThreadsSrc.includes('data-chat-thread-action="switch"') &&
+  chatThreadsSrc.includes('data-chat-thread-action="rename"') &&
+  chatThreadsSrc.includes('data-chat-thread-action="delete"'));
+assert('chat-threads installs an idempotent click delegate',
+  chatThreadsSrc.includes('let chatThreadDelegatesInstalled = false') &&
+  chatThreadsSrc.includes("document.addEventListener('click', handleThreadActionClick)") &&
+  chatThreadsSrc.includes('installChatThreadDelegates();'));
 
 // ═══════════════════════════════════════════════
 // 17. CSS Inspection
