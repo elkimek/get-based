@@ -250,7 +250,7 @@ globalThis.fetch = async (url, opts) => {
   assert('dismissRecommendation can restore a dismissed recommendation',
     /function dismissRecommendation\(id, on = true\)[\s\S]{0,120}setRecommendationState\('dismissed', id, !!on\)/.test(recommendationActionsSrc));
   assert('Recommendations page header directly toggles its dashboard widget',
-    lensPagesSrc.includes("inlineHandlerCall(dashboardAction, 'recommendations')") &&
+    lensPagesSrc.includes("lensPageActionAttrs(dashboardAction, { id: 'recommendations' })") &&
     !viewsSrc.includes("openDashboardWidgetPicker && window.openDashboardWidgetPicker()\">Add to Dashboard"));
 
   // ═══════════════════════════════════════

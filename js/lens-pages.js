@@ -117,7 +117,7 @@ export function createLensPageHandlers(deps) {
     getGlobalRecommendationCandidates,
     renderRecommendationCard,
     renderRecommendationsEmpty,
-    inlineHandlerCall,
+    lensPageActionAttrs,
     renderLensHeader,
     renderLensPageWidgets,
     renderLensWidget,
@@ -243,9 +243,9 @@ export function createLensPageHandlers(deps) {
     document.body.classList.remove('mobile-dashboard-active');
     const prefs = getDashboardWidgetPrefs();
     const recommendationsVisible = !prefs.hidden.includes('recommendations');
-    const dashboardAction = recommendationsVisible ? 'removeDashboardWidgetFromLens' : 'addDashboardWidgetFromLens';
+    const dashboardAction = recommendationsVisible ? 'remove-dashboard-widget' : 'add-dashboard-widget';
     const dashboardLabel = recommendationsVisible ? 'Remove from Dashboard' : 'Add to Dashboard';
-    const actions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="${inlineHandlerCall(dashboardAction, 'recommendations')}">${dashboardLabel}</button>
+    const actions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs(dashboardAction, { id: 'recommendations' })}>${dashboardLabel}</button>
       <button type="button" class="dashboard-action-btn" onclick="window.openSettingsModal && window.openSettingsModal('privacy')">Disclosure & settings</button>`;
     let html = `<div id="recommendations-page">`;
     html += renderLensHeader('Recommendations', 'A global action plan built from Labs, Body, Light, Genome, and Insight signals. Product links stay behind the existing disclosure.', actions);

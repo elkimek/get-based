@@ -1009,14 +1009,14 @@ Dashboard route, widget, mobile handoff, marker-modal, and lens-shell compositio
 
 ### `lens-page-shell.js`
 
-Shared lens page chrome and ordering helpers used by `views.js` and `lens-pages.js`. The module owns lens headers, reorderable page widget wrappers, per-profile lens widget order persistence, page-section move controls, dashboard add/remove toggles, and quote-safe inline handler generation.
+Shared lens page chrome and ordering helpers used by `views.js` and `lens-pages.js`. The module owns lens headers, reorderable page widget wrappers, per-profile lens widget order persistence, page-section move controls, dashboard add/remove toggles, and the delegated action attributes/listener used by shared lens chrome.
 
 **Key exports:**
 - `configureLensPageShell(deps)` — injects dashboard widget visibility helpers without importing dashboard modules directly
 - `renderLensHeader(title, subtitle, actions?)` — renders the shared lens page header
 - `renderLensPageWidgets(route, widgets)` / `renderLensWidget(...)` — render reorderable page widgets and their chrome
 - `moveLensPageWidget(route, id, direction)` — persists per-profile page section order and refreshes the active route
-- `inlineHandlerCall(fnName, ...args)` — builds escaped `window.*` inline handlers for existing template surfaces
+- `lensPageActionAttrs(action, attrs?)` — builds escaped `data-lens-page-*` attributes consumed by the shared delegated click listener
 
 ---
 

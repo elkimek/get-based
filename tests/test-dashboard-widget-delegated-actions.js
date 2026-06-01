@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const controlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
 const compositionSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
+const dashboardWidgetsCss = fs.readFileSync(path.join(root, 'css/dashboard-widgets.css'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -54,6 +55,8 @@ assert('dashboard widget controls install idempotent click/input/drag delegates'
 assert('dashboard widget picker backdrop stays target-only',
   controlsSrc.includes("target.closest('#dashboard-widget-picker-overlay[data-dashboard-widget-overlay]')") &&
     controlsSrc.includes('overlay && target === overlay'));
+assert('dashboard organize mode disables dense grid packing',
+  /\.dashboard-widgets\.is-organizing\s*\{[^}]*grid-auto-flow:\s*row;[^}]*\}/.test(dashboardWidgetsCss));
 
 [
   'toggle-organize',
