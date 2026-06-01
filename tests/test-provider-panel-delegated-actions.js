@@ -53,6 +53,19 @@ assert('provider panel delegates install idempotent listeners',
 assert('provider panel delegates are scoped to the provider panel',
   delegatesSrc.includes('PROVIDER_PANEL_ROOTS') &&
     delegatesSrc.includes('el.closest(PROVIDER_PANEL_ROOTS)'));
+assert('provider panel delegates dispatch through explicit action maps',
+  delegatesSrc.includes('const CLICK_ACTIONS = Object.freeze({') &&
+    delegatesSrc.includes('const CHANGE_ACTIONS = Object.freeze({') &&
+    delegatesSrc.includes('const MODEL_PRICING_ACTIONS = Object.freeze({') &&
+    delegatesSrc.includes('const KEY_ACTIONS = Object.freeze({'));
+assert('provider panel delegates warn on missing registry callbacks',
+  delegatesSrc.includes('Missing provider panel callback') &&
+    delegatesSrc.includes('console.warn(message)'));
+assert('provider panel delegates avoid preemptive default prevention',
+  delegatesSrc.indexOf('if (!callbackName) return _warnProviderPanelDelegate(`Unknown provider panel click action: ${action}`);') <
+    delegatesSrc.indexOf("if (el.matches('a, button')) event.preventDefault();") &&
+  delegatesSrc.indexOf('if (!callbackName) return _warnProviderPanelDelegate(`Unknown provider panel key action: ${action}`);') <
+    delegatesSrc.lastIndexOf('event.preventDefault();'));
 assert('service worker precaches provider panel delegate module',
   swSrc.includes('/js/provider-panel-delegates.js'));
 
@@ -77,7 +90,7 @@ assert('service worker precaches provider panel delegate module',
   'remove-custom-api',
   'test-ollama-connection',
 ].forEach(action => {
-  assert(`provider panel click action ${action} is handled`, delegatesSrc.includes(`action === '${action}'`));
+  assert(`provider panel click action ${action} is handled`, delegatesSrc.includes(`'${action}'`));
 });
 
 [
@@ -89,14 +102,14 @@ assert('service worker precaches provider panel delegate module',
   'custom-model',
   'local-ai-model',
 ].forEach(action => {
-  assert(`provider panel change action ${action} is handled`, delegatesSrc.includes(`action === '${action}'`));
+  assert(`provider panel change action ${action} is handled`, delegatesSrc.includes(`'${action}'`));
 });
 
 [
   'openrouter-custom-model',
   'custom-manual-model',
 ].forEach(action => {
-  assert(`provider panel key action ${action} is handled`, delegatesSrc.includes(`action === '${action}'`));
+  assert(`provider panel key action ${action} is handled`, delegatesSrc.includes(`'${action}'`));
 });
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
