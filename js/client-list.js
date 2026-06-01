@@ -897,14 +897,17 @@ function _handleClientKeydown(event) {
   }
   if (event.key !== 'Enter' && event.key !== ' ') return;
 
-  event.preventDefault();
   if (action === 'select-profile') {
+    event.preventDefault();
     _clSelect(el.dataset.clProfileId || '');
   } else if (action === 'choose-avatar') {
+    event.preventDefault();
     _clickFileInput('cl-avatar-input');
   }
 }
 
+// Global "click outside" dismiss: intentionally not scoped to #client-list-modal
+// so open client-list menus close when the user clicks anywhere on the page.
 function _handleClientDocumentClick(event) {
   const target = event.target;
   if (!(target instanceof Element)) return;
