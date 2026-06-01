@@ -315,8 +315,8 @@ const onboardingViewSrc = read('js/onboarding-view.js');
 
   assert('FAB button exists in HTML', htmlSrc.includes('id="chat-fab"') && htmlSrc.includes('class="chat-fab"'),
     'index.html should have #chat-fab with .chat-fab class');
-  assert('FAB has onclick=toggleChatPanel', htmlSrc.includes('chat-fab') && htmlSrc.includes('onclick="toggleChatPanel()"'),
-    'FAB should call toggleChatPanel on click');
+  assert('FAB uses delegated toggleChatPanel action', htmlSrc.includes('chat-fab') && htmlSrc.includes('data-chat-action="toggle-panel"'),
+    'FAB should route toggleChatPanel through the shell delegate');
   assert('FAB has aria-label', htmlSrc.includes('chat-fab') && htmlSrc.includes('aria-label="Ask AI"'),
     'FAB should be accessible');
   assert('FAB contains SVG icon', (() => {

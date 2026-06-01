@@ -43,8 +43,8 @@ return (async function() {
         btn?.getAttribute('aria-label')?.length > 0);
       assert('fullscreen button has title (tooltip on hover)',
         btn?.getAttribute('title')?.length > 0);
-      assert('fullscreen button onclick wired to toggleChatFullscreen',
-        btn?.getAttribute('onclick') === 'toggleChatFullscreen()');
+      assert('fullscreen button uses delegated toggle action',
+        btn?.getAttribute('data-chat-action') === 'toggle-fullscreen');
     }
 
     // ─── 3. Backdrop is pointer-events: none (dashboard interactive) ─
