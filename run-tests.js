@@ -48,6 +48,7 @@ const TEST_FILES = [
   'tests/test-nav-delegated-actions-dom.js',
   'tests/test-dashboard-widget-delegated-actions-dom.js',
   'tests/test-lens-page-shell-delegated-actions-dom.js',
+  'tests/test-light-page-view-delegated-actions-dom.js',
   // test-image-utils.js source-inspection + module-export checks ported to
   // Vitest (PR for batch 19). DOM-runtime assertions (sections 6 + 7) live
   // in test-image-utils-dom.js below.
