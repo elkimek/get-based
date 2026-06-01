@@ -442,7 +442,6 @@ export function createDashboardWidgetControls(deps) {
   }
 
   function openDashboardWidgetPicker() {
-    installDashboardWidgetControlDelegates();
     closeDashboardWidgetPicker();
     const prefs = getDashboardWidgetPrefs();
     const hidden = getAvailableDashboardFixedWidgets().filter(def => prefs.hidden.includes(def.id));
@@ -480,7 +479,6 @@ export function createDashboardWidgetControls(deps) {
   }
 
   function openDashboardBiometricPicker() {
-    installDashboardWidgetControlDelegates();
     closeDashboardWidgetPicker();
     const prefs = getDashboardWidgetPrefs();
     const biometricOptions = getDashboardBiometricWidgetOptions(prefs);
