@@ -17,7 +17,7 @@ export function sunSessionActionAttrs(action, attrs = {}) {
   return [
     `data-sun-session-action="${escapeAttr(action)}"`,
     ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .filter(([, value]) => value !== undefined && value !== null && value !== '' && value !== false)
       .map(([name, value]) => `data-sun-session-${escapeAttr(dataAttrName(name))}="${escapeAttr(String(value))}"`),
   ].join(' ');
 }
@@ -71,7 +71,7 @@ function handleSunSessionAction(actionEl, actions) {
     closeContainingOverlay(actionEl);
     void actions.editSunSessionDuration?.(id);
   } else if (action === 'toggle-chips') {
-    actionEl.parentElement?.classList.toggle('sun-chips-expanded');
+    actionEl.closest('.sun-channel-chips')?.classList.toggle('sun-chips-expanded');
   }
 }
 

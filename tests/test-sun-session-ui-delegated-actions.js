@@ -33,7 +33,8 @@ assert('sun-session-actions defines one shared action attribute helper',
   (actionSrc.match(/\bfunction\s+sunSessionActionAttrs\b/g) || []).length === 1 &&
     actionSrc.includes('data-sun-session-action=') &&
     actionSrc.includes('data-sun-session-${escapeAttr(dataAttrName(name))}=') &&
-    actionSrc.includes("replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)"));
+    actionSrc.includes("replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)") &&
+    actionSrc.includes("value !== false"));
 assert('sun-session-ui imports and installs idempotent action delegates',
   uiSrc.includes("from './sun-session-actions.js'") &&
     uiSrc.includes('installSunSessionActionDelegates({') &&
@@ -48,6 +49,9 @@ assert('sun-session-actions keyboard delegate supports role-button rows and igno
     actionSrc.includes("'forgot-stop'") &&
     actionSrc.includes("'open-channel'") &&
     actionSrc.includes("event.target?.closest?.('button, a, input, textarea, select')"));
+assert('sun-session-actions expands chips via the owning chips container',
+  actionSrc.includes("actionEl.closest('.sun-channel-chips')?.classList.toggle('sun-chips-expanded')") &&
+    !actionSrc.includes("actionEl.parentElement?.classList.toggle('sun-chips-expanded')"));
 assert('sun-session-ui direct module actions no longer route through window globals',
   !uiSrc.includes('window.openSunSessionDetail') &&
     !uiSrc.includes('window.deleteSunSession') &&
