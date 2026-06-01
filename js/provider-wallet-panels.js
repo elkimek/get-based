@@ -4,6 +4,7 @@ import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { getRoutstrKey, saveRoutstrKey, fetchRoutstrModels, getRoutstrBalance } from './api.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { ensureQRCode } from './provider-qr.js';
+import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js';
 
 const walletCallbacks = {
   renderAIProviderPanel: null,
@@ -92,13 +93,13 @@ function _renderWalletFundUI() {
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">Deposit with Lightning</div>
     ${feeNote}
     <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="doRoutstrWalletFund(${s})">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" onclick="rsWalletFundCustomInput()">\u26a1\u2026</button></div>
+      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="fund-wallet-preset" data-sats="${s}">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" data-routstr-wallet-action="fund-wallet-custom-input">\u26a1\u2026</button></div>
     </div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">1,000 sats is enough for a few chats</div>
     <div style="margin-top:6px"><div class="or-oauth-divider"><span>${cashuFeeLabel}</span></div>
     <div style="display:flex;gap:6px;margin-top:4px">
       <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashuA... / cashuB... / cashu:..." style="font-size:11px;flex:1;font-family:monospace">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrWalletReceiveCashu()">Deposit</button>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" data-routstr-wallet-action="receive-wallet-cashu">Deposit</button>
     </div></div>
     <div id="routstr-wfund-status"></div>
   </div>`;
@@ -107,7 +108,7 @@ function _renderWalletFundUI() {
 export function rsWalletFundCustomInput() {
   const slot = document.getElementById('routstr-wfund-custom-slot');
   if (!slot) return;
-  slot.innerHTML = '<input type="text" inputmode="numeric" id="routstr-wfund-custom" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;width:80px;text-align:center;cursor:text;border:1px solid var(--accent)" placeholder="sats" onkeydown="if(event.key===\'Enter\')doRoutstrWalletFundCustom();if(event.key===\'Escape\')showRoutstrWalletFund()" onblur="if(this.value.trim())doRoutstrWalletFundCustom()">';
+  slot.innerHTML = '<input type="text" inputmode="numeric" id="routstr-wfund-custom" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;width:80px;text-align:center;cursor:text;border:1px solid var(--accent)" placeholder="sats" data-routstr-wallet-key="wallet-fund-custom" data-routstr-wallet-blur="wallet-fund-custom">';
   document.getElementById('routstr-wfund-custom')?.focus();
 }
 
@@ -148,7 +149,7 @@ export async function doRoutstrWalletFund(amountSats) {
     statusEl.innerHTML = `<div style="margin-top:8px;text-align:center">
       <div style="font-size:12px;font-weight:600;margin-bottom:4px">\u26a1 ${amountSats.toLocaleString()} sats</div>
       ${qrSvg ? `<a href="${payUri}" style="display:inline-block;background:#fff;padding:10px;border-radius:8px;width:220px;height:220px">${qrSvg}</a>` : ''}
-      <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" onclick="navigator.clipboard.writeText('${escapeAttr(result.invoice)}');this.textContent='\u2713 Copied'">${result.invoice.slice(0, 20)}\u2026 copy</button></div>
+      <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.invoice)}" data-copied-text="\u2713 Copied">${result.invoice.slice(0, 20)}\u2026 copy</button></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-wfund-poll">Waiting for payment\u2026</div>
     </div>`;
     _rsFundPollTimer = setInterval(async function() {
@@ -208,15 +209,15 @@ export async function showRoutstrMintEdit() {
         const label = escapeHTML(m.replace(/^https?:\/\//, ''));
         const isCurrent = m === currentMint;
         return isCurrent ? '<strong style="color:var(--green)">' + label + '</strong>'
-          : '<a href="#" onclick="document.getElementById(\'routstr-mint-input\').value=\'' + escapeAttr(m) + '\';return false" style="color:var(--accent);text-decoration:none">' + label + '</a>';
+          : '<a href="#" data-routstr-wallet-action="set-mint-input" data-mint-url="' + escapeAttr(m) + '" style="color:var(--accent);text-decoration:none">' + label + '</a>';
       }).join(', ')}</div>`
     : '';
   area.style.display = 'block';
   area.innerHTML = `<div style="margin-top:6px">
     <input type="text" class="api-key-input" id="routstr-mint-input" value="${escapeAttr(currentMint)}" placeholder="https://mint.example.com" style="font-size:11px;font-family:monospace">
     <div style="display:flex;gap:4px;margin-top:4px">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="doRoutstrMintChange()">Save</button>
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="document.getElementById('routstr-mint-edit').style.display='none'">Cancel</button>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="save-mint">Save</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="cancel-mint">Cancel</button>
     </div>
     ${nodeMintsHtml}
     <div style="font-size:10px;color:var(--text-muted);margin-top:4px">\u26a0 Changing mint resets wallet connection. Existing proofs stay tied to their mint.</div>
@@ -288,7 +289,7 @@ export async function showRoutstrNodePicker() {
       const onion = n.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
         <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}</span></div>
-        <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" onclick="connectRoutstrNode('${escapeAttr(url)}')">Connect</button>
+        <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="connect-node" data-node-url="${escapeAttr(url)}">Connect</button>
       </div>`;
     }).join('') + '</div>';
   } catch (e) {
@@ -344,11 +345,11 @@ export async function connectRoutstrNode(nodeUrl) {
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${walletBalance.toLocaleString()} sats</div>
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
       <input type="number" class="api-key-input" id="routstr-deposit-amount" placeholder="sats" style="font-size:11px;flex:1" min="1" max="${walletBalance}">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',parseInt(document.getElementById('routstr-deposit-amount')?.value))">Deposit</button>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" data-routstr-wallet-action="deposit-node-input" data-node-url="${escapeAttr(nodeUrl)}">Deposit</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-deposit-amount').value=${v};doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
-      ${walletBalance > 0 ? `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-deposit-amount').value=${walletBalance};doRoutstrNodeDeposit('${escapeAttr(nodeUrl)}',${walletBalance})">All (${walletBalance.toLocaleString()})</button>` : ''}
+      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="deposit-node-preset" data-node-url="${escapeAttr(nodeUrl)}" data-amount="${v}">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+      ${walletBalance > 0 ? `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="deposit-node-preset" data-node-url="${escapeAttr(nodeUrl)}" data-amount="${walletBalance}">All (${walletBalance.toLocaleString()})</button>` : ''}
     </div>
     <div id="routstr-deposit-status" style="margin-top:6px"></div>
   </div>`;
@@ -409,8 +410,8 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
         '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Deposit failed \u2014 your sats are safe</div>' +
         '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">The node rejected the deposit. Recover the token back to your wallet:</div>' +
         '<div style="display:flex;gap:4px">' +
-        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-token="' + escapeAttr(token) + '" onclick="cashuImportWallet(this.dataset.token).then(()=>{cashuClearPendingDeposit();showNotification(\'Recovered!\',\'success\');location.reload()}).catch(e=>showNotification(e.message,\'error\'))">Recover to Wallet</button>' +
-        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-token="' + escapeAttr(token) + '" onclick="navigator.clipboard.writeText(this.dataset.token);this.textContent=\'\u2713 Copied\'">Copy Token</button>' +
+        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="recover-pending-deposit" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
+        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
         '</div></div>';
     });
   }
@@ -472,12 +473,13 @@ export function buildRoutstrNodeActions(nodeUrl, hasKey, active) {
   const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
   const _activePill = 'font-size:11px;padding:3px 10px';
   const btns = [];
-  if (nodeUrl) btns.push({ id: 'deposit', label: 'Deposit', fn: "connectRoutstrNode('" + nodeUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "')" });
-  if (hasKey && nodeUrl) btns.push({ id: 'withdraw', label: 'Withdraw', fn: 'doRoutstrNodeWithdraw()' });
-  btns.push({ id: 'browse', label: 'Browse', fn: 'showRoutstrNodePicker()' });
+  if (nodeUrl) btns.push({ id: 'deposit', label: 'Deposit', nodeUrl });
+  if (hasKey && nodeUrl) btns.push({ id: 'withdraw', label: 'Withdraw' });
+  btns.push({ id: 'browse', label: 'Browse' });
   return btns.map(b => {
     const isActive = b.id === active;
-    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _activePill : _pill}" onclick="_setActiveNodeAction('${b.id}');${b.fn}">${b.label}</button>`;
+    const nodeAttr = b.nodeUrl ? ` data-node-url="${escapeAttr(b.nodeUrl)}"` : '';
+    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _activePill : _pill}" data-routstr-wallet-action="node-action" data-node-action="${b.id}"${nodeAttr}>${b.label}</button>`;
   }).join('');
 }
 
@@ -495,22 +497,22 @@ export function routstrWalletActionButtons(active) {
   const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
   const _active = 'font-size:11px;padding:3px 10px';
   const mainBtns = [
-    { id: 'deposit', label: 'Deposit', fn: 'showRoutstrWalletFund' },
-    { id: 'withdraw', label: 'Withdraw', fn: 'showRoutstrWithdraw' },
+    { id: 'deposit', label: 'Deposit' },
+    { id: 'withdraw', label: 'Withdraw' },
   ];
   const menuItems = [
-    { id: 'seed', label: '\ud83c\udf31 Seed & Restore', fn: 'showWalletSeedPhrase' },
-    { id: 'backup', label: '\ud83d\udce4 Export Token', fn: 'showRoutstrWalletBackup' },
+    { id: 'seed', label: '\ud83c\udf31 Seed & Restore' },
+    { id: 'backup', label: '\ud83d\udce4 Export Token' },
   ];
   const main = mainBtns.map(b => {
     const isActive = b.id === active;
-    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _active : _pill}" onclick="${b.fn}()">${b.label}</button>`;
+    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _active : _pill}" data-routstr-wallet-action="wallet-action" data-wallet-action="${b.id}">${b.label}</button>`;
   }).join('');
   const menuActive = menuItems.some(b => b.id === active);
   const menu = `<div style="position:relative;display:inline-block">
-    <button class="import-btn ${menuActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${menuActive ? _active : _pill}" onclick="var m=document.getElementById('routstr-wallet-menu');var show=m.style.display!=='block';m.style.display=show?'block':'none';if(show){var h=function(e){if(!m.contains(e.target)&&e.target!==this){m.style.display='none';document.removeEventListener('click',h,true)}}.bind(this);setTimeout(function(){document.addEventListener('click',h,true)},0)}">\u22ef</button>
+    <button class="import-btn ${menuActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${menuActive ? _active : _pill}" data-routstr-wallet-action="toggle-wallet-menu">\u22ef</button>
     <div id="routstr-wallet-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px;z-index:10;min-width:120px;box-shadow:var(--shadow-lg)">
-      ${menuItems.map(b => `<button class="import-btn ${b.id === active ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:4px 10px;width:100%;text-align:left;margin-bottom:2px;${b.id === active ? '' : 'background:transparent;border-color:transparent;color:var(--text-primary)'}" onclick="document.getElementById('routstr-wallet-menu').style.display='none';${b.fn}()">${b.label}</button>`).join('')}
+      ${menuItems.map(b => `<button class="import-btn ${b.id === active ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:4px 10px;width:100%;text-align:left;margin-bottom:2px;${b.id === active ? '' : 'background:transparent;border-color:transparent;color:var(--text-primary)'}" data-routstr-wallet-action="wallet-action" data-wallet-action="${b.id}">${b.label}</button>`).join('')}
     </div>
   </div>`;
   return main + menu;
@@ -533,14 +535,14 @@ async function _ensureWalletSeed(thenAction) {
   area.innerHTML = `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent);margin-top:8px">
     <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px">Your wallet seed phrase</div>
     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">This 12-word phrase is the <strong>only way to recover your wallet</strong>. Write it down and store it somewhere safe.</div>
-    <div id="routstr-seed-phrase" style="font-family:monospace;font-size:13px;word-break:break-word;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" onclick="this.style.filter=this.style.filter?'':'blur(4px)'">${escapeHTML(mnemonic)}</div>
+    <div id="routstr-seed-phrase" style="font-family:monospace;font-size:13px;word-break:break-word;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" data-routstr-wallet-action="toggle-seed-blur">${escapeHTML(mnemonic)}</div>
     <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
-      <button class="import-btn import-btn-secondary" style="font-size:11px" onclick="navigator.clipboard.writeText('${escapeAttr(mnemonic)}');this.textContent='\u2713 Copied (60s)';clearTimeout(window._seedClipTimer);window._seedClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(mnemonic)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_seedClipTimer">Copy</button>
       <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer">
-        <input type="checkbox" id="routstr-seed-ack" onchange="document.getElementById('routstr-seed-continue').disabled=!this.checked"> I have saved my seed phrase
+        <input type="checkbox" id="routstr-seed-ack" data-routstr-wallet-change="seed-ack"> I have saved my seed phrase
       </label>
     </div>
-    <button class="import-btn import-btn-primary" id="routstr-seed-continue" disabled style="margin-top:8px;width:100%;font-size:12px" onclick="walletSeedAcknowledged()">Continue</button>
+    <button class="import-btn import-btn-primary" id="routstr-seed-continue" disabled style="margin-top:8px;width:100%;font-size:12px" data-routstr-wallet-action="seed-ack-continue">Continue</button>
   </div>`;
   window._walletSeedThenAction = thenAction;
 }
@@ -564,13 +566,13 @@ export async function showWalletSeedPhrase() {
   if (mnemonic) {
     area.innerHTML = `<div style="margin-top:8px">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>
-      <div id="wallet-seed-display" style="font-family:monospace;font-size:13px;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" onclick="this.style.filter=this.style.filter?'':'blur(4px)'">${escapeHTML(mnemonic)}</div>
+      <div id="wallet-seed-display" style="font-family:monospace;font-size:13px;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" data-routstr-wallet-action="toggle-seed-blur">${escapeHTML(mnemonic)}</div>
       <div style="display:flex;gap:4px;margin-top:6px">
-        <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="navigator.clipboard.writeText('${escapeAttr(mnemonic)}');this.textContent='\u2713 Copied (60s)';clearTimeout(window._seedClipTimer);window._seedClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Seed</button>
+        <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(mnemonic)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_seedClipTimer">Copy Seed</button>
       </div>
       <div style="margin-top:10px"><div class="or-oauth-divider"><span>restore from seed</span></div>
       <textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:12px;font-family:monospace;resize:none;margin-top:4px"></textarea>
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" onclick="doRoutstrWalletRestore()">Restore</button>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" data-routstr-wallet-action="wallet-restore">Restore</button>
       <div id="routstr-restore-status"></div>
       </div>
     </div>`;
@@ -579,7 +581,7 @@ export async function showWalletSeedPhrase() {
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Restore Wallet from Seed</div>
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">No seed yet \u2014 a seed is generated when you first deposit.</div>
       <textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:12px;font-family:monospace;resize:none"></textarea>
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" onclick="doRoutstrWalletRestore()">Restore</button>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" data-routstr-wallet-action="wallet-restore">Restore</button>
       <div id="routstr-restore-status"></div>
     </div>`;
   }
@@ -596,8 +598,8 @@ export async function showRoutstrWithdraw() {
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Withdraw</div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${balance.toLocaleString()} sats</div>
     <div style="display:flex;gap:4px;margin-bottom:6px">
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="showRoutstrWithdrawLightning()">\u26a1 Lightning</button>
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="showRoutstrWithdrawToken()">Cashu Token</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="withdraw-lightning">\u26a1 Lightning</button>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="withdraw-token">Cashu Token</button>
     </div>
     <div id="routstr-withdraw-status"></div>
   </div>`;
@@ -611,10 +613,10 @@ export function showRoutstrWithdrawLightning() {
     <div id="routstr-withdraw-ln-amount" style="display:none;margin-top:4px">
       <div style="display:flex;gap:4px;align-items:center">
         <input type="number" class="api-key-input" id="routstr-withdraw-amount" placeholder="sats" style="font-size:11px;flex:1" min="1">
-        <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="cashuGetMaxWithdrawable().then(m=>{document.getElementById('routstr-withdraw-amount').value=m})">Max</button>
+        <button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="withdraw-max">Max</button>
       </div>
     </div>
-    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" onclick="doRoutstrWithdrawQuote()">Withdraw</button>
+    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" data-routstr-wallet-action="withdraw-quote">Withdraw</button>
   </div>`;
   const input = document.getElementById('routstr-withdraw-input');
   input?.addEventListener('input', () => {
@@ -633,11 +635,11 @@ export async function showRoutstrWithdrawToken() {
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Send as Cashu token</div>
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
       <input type="number" class="api-key-input" id="routstr-token-amount" placeholder="sats" style="font-size:11px;flex:1" min="1" max="${balance}">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" onclick="doRoutstrSendToken(parseInt(document.getElementById('routstr-token-amount')?.value))">Send</button>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" data-routstr-wallet-action="send-token-input">Send</button>
     </div>
     ${balance > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-token-amount').value=${v};doRoutstrSendToken(${v})">\u26a1 ${v.toLocaleString()}</button>`).join('')}
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" onclick="document.getElementById('routstr-token-amount').value=${balance};doRoutstrSendToken(${balance})">All (${balance.toLocaleString()})</button>
+      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="send-token-preset" data-amount="${v}">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="send-token-preset" data-amount="${balance}">All (${balance.toLocaleString()})</button>
     </div>` : '<div style="font-size:11px;color:var(--text-muted)">No balance to withdraw</div>'}
     <div id="routstr-token-result"></div>
   </div>`;
@@ -656,8 +658,8 @@ export async function doRoutstrSendToken(amount) {
     resultEl.innerHTML = `<div style="margin-top:6px">
       <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 Token created \u2014 \u26a1 ${result.amount.toLocaleString()} sats</div>
       <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Copy and share. Sats are deducted from your wallet now.</div>
-      <textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:60px;resize:none;user-select:all" readonly onclick="this.select()">${escapeHTML(result.token)}</textarea>
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" onclick="navigator.clipboard.writeText('${escapeAttr(result.token)}');this.textContent='\u2713 Copied (60s)';clearTimeout(window._tokenClipTimer);window._tokenClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Token</button>
+      <textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:60px;resize:none;user-select:all" readonly data-routstr-wallet-action="select-textarea">${escapeHTML(result.token)}</textarea>
+      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.token)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_tokenClipTimer">Copy Token</button>
     </div>`;
     showNotification('\u26a1 ' + result.amount.toLocaleString() + ' sats token ready', 'success');
     _refreshRoutstrWalletBalance();
@@ -705,7 +707,7 @@ export async function doRoutstrWithdrawQuote() {
       <div style="font-size:11px;color:var(--text-muted)">Amount: <strong>${quote.amount.toLocaleString()} sats</strong></div>
       <div style="font-size:11px;color:var(--text-muted)">Fee reserve: <strong>${quote.fee_reserve.toLocaleString()} sats</strong></div>
       <div style="font-size:11px;color:var(--text-muted)">Total: <strong>${(quote.amount + quote.fee_reserve).toLocaleString()} sats</strong></div>
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" onclick="doRoutstrWithdrawExecute('${escapeAttr(quote.quote)}')">Confirm Withdraw</button>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" data-routstr-wallet-action="withdraw-execute" data-quote-id="${escapeAttr(quote.quote)}">Confirm Withdraw</button>
     </div>`;
   } catch (e) {
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
@@ -746,3 +748,27 @@ export async function doRoutstrWalletRestore() {
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
   }
 }
+
+installRoutstrWalletDelegates({
+  showRoutstrWalletFund,
+  rsWalletFundCustomInput,
+  doRoutstrWalletFundCustom,
+  doRoutstrWalletFund,
+  doRoutstrWalletReceiveCashu,
+  doRoutstrMintChange,
+  showRoutstrWalletBackup,
+  showRoutstrNodePicker,
+  connectRoutstrNode,
+  doRoutstrNodeDeposit,
+  doRoutstrNodeWithdraw,
+  _setActiveNodeAction,
+  walletSeedAcknowledged,
+  showWalletSeedPhrase,
+  showRoutstrWithdraw,
+  showRoutstrWithdrawLightning,
+  showRoutstrWithdrawToken,
+  doRoutstrSendToken,
+  doRoutstrWithdrawQuote,
+  doRoutstrWithdrawExecute,
+  doRoutstrWalletRestore
+});
