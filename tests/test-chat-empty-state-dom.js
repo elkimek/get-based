@@ -33,10 +33,14 @@ return (async function() {
     openSettingsModal: window.openSettingsModal,
   };
   const calls = [];
+  const inputClicks = [];
   const container = document.createElement('div');
   const panel = document.createElement('div');
+  const strayMtDnaInput = document.createElement('input');
+  let bubbledClicks = 0;
   const chatMessages = document.getElementById('chat-messages');
   const savedChatMessagesHTML = chatMessages?.innerHTML;
+  const savedInputClick = HTMLInputElement.prototype.click;
 
   try {
     // Previous chat DOM tests can leave onboarding controls with the same
@@ -49,6 +53,9 @@ return (async function() {
     window.openSupplementsEditor = () => calls.push('open-supplements');
     window.triggerDNAFilePicker = () => calls.push('import-dna');
     window.openSettingsModal = tab => calls.push(`open-settings:${tab}`);
+    HTMLInputElement.prototype.click = function() {
+      inputClicks.push(this === strayMtDnaInput ? 'stray' : panel.contains(this) ? 'scoped' : 'other');
+    };
 
     state.currentProfile = 'chat-empty-test';
     state.profiles = [{ id: 'chat-empty-test', name: 'Default', tags: [], notes: '', status: 'active' }];
@@ -78,8 +85,12 @@ return (async function() {
       changeHistory: [],
     };
 
+    strayMtDnaInput.type = 'file';
+    strayMtDnaInput.id = 'mtdna-onboard-input';
+    document.body.appendChild(strayMtDnaInput);
     document.body.appendChild(panel);
     panel.appendChild(container);
+    panel.addEventListener('click', () => { bubbledClicks++; });
 
     renderEmptyChatState(container, panel);
     assert('renderEmptyChatState installs container delegates',
@@ -99,6 +110,8 @@ return (async function() {
     assert('Sex click delegates to setChatProfileSex',
       state.profileSex === 'female'
         && container.querySelector('[data-sex="female"]')?.classList.contains('active'));
+    assert('Non-panel-closing actions keep normal click bubbling',
+      bubbledClicks > 0);
 
     const heightInput = container.querySelector('#chat-onboard-height');
     const heightUnit = container.querySelector('#chat-onboard-height-unit');
@@ -115,9 +128,11 @@ return (async function() {
       getProfileLocation('chat-empty-test').country === 'Germany');
 
     renderEmptyChatState(container, panel);
+    const bubbledBeforeOptionalActions = bubbledClicks;
     container.querySelector('[data-chat-empty-action="open-cycle-editor"]')?.click();
     container.querySelector('[data-chat-empty-action="open-supplements-editor"]')?.click();
     container.querySelector('[data-chat-empty-action="import-dna"]')?.click();
+    container.querySelector('[data-chat-empty-action="import-mtdna"]')?.click();
     container.querySelector('[data-chat-empty-action="open-wearables-settings"]')?.click();
     assert('Optional task buttons delegate through scoped actions',
       calls.includes('close-chat')
@@ -125,6 +140,10 @@ return (async function() {
         && calls.includes('open-supplements')
         && calls.includes('import-dna')
         && calls.includes('open-settings:wearables'));
+    assert('mtDNA import delegates to the file input in the chat empty-state container',
+      inputClicks.includes('scoped') && !inputClicks.includes('stray'));
+    assert('Optional task buttons keep panel-closing clicks from bubbling',
+      bubbledClicks === bubbledBeforeOptionalActions);
   } finally {
     state.currentProfile = saved.currentProfile;
     state.profiles = saved.profiles;
@@ -134,6 +153,8 @@ return (async function() {
     if (saved.profilesStorage === null) localStorage.removeItem('labcharts-profiles');
     else localStorage.setItem('labcharts-profiles', saved.profilesStorage);
     Object.assign(window, savedFns);
+    HTMLInputElement.prototype.click = savedInputClick;
+    strayMtDnaInput.remove();
     container.remove();
     panel.remove();
     if (chatMessages && savedChatMessagesHTML != null) chatMessages.innerHTML = savedChatMessagesHTML;

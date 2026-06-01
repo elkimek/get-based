@@ -15,6 +15,14 @@ import {
   useChatPrompt,
 } from './chat-onboarding.js';
 
+const CHAT_EMPTY_STOP_PROPAGATION_ACTIONS = new Set([
+  'open-cycle-editor',
+  'open-supplements-editor',
+  'import-dna',
+  'import-mtdna',
+  'open-wearables-settings',
+]);
+
 function closestChatEmptyAction(event, selector = '[data-chat-empty-action]') {
   const target = event.target;
   if (!(target instanceof Element)) return null;
@@ -33,8 +41,7 @@ function handleChatEmptyClick(event) {
   const action = actionEl.dataset.chatEmptyAction;
   if (!action) return;
 
-  event.preventDefault();
-  event.stopPropagation();
+  if (CHAT_EMPTY_STOP_PROPAGATION_ACTIONS.has(action)) event.stopPropagation();
 
   if (action === 'set-profile-sex') {
     setChatProfileSex(actionEl.dataset.sex || '');
@@ -54,7 +61,7 @@ function handleChatEmptyClick(event) {
     closeChatPanel();
     window.triggerDNAFilePicker?.();
   } else if (action === 'import-mtdna') {
-    const input = document.getElementById('mtdna-onboard-input');
+    const input = event.currentTarget?.querySelector('#mtdna-onboard-input');
     closeChatPanel();
     input?.click();
   } else if (action === 'open-wearables-settings') {
@@ -198,8 +205,8 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
         <div class="chat-onboard-row">
           <span class="chat-onboard-label" id="chat-onboard-sex-label">Sex</span>
           <div class="chat-onboard-sex" role="group" aria-labelledby="chat-onboard-sex-label">
-            <button class="welcome-sex-btn${pSex === 'male' ? ' active' : ''}" data-chat-empty-action="set-profile-sex" data-sex="male">Male</button>
-            <button class="welcome-sex-btn${pSex === 'female' ? ' active' : ''}" data-chat-empty-action="set-profile-sex" data-sex="female">Female</button>
+            <button type="button" class="welcome-sex-btn${pSex === 'male' ? ' active' : ''}" data-chat-empty-action="set-profile-sex" data-sex="male">Male</button>
+            <button type="button" class="welcome-sex-btn${pSex === 'female' ? ' active' : ''}" data-chat-empty-action="set-profile-sex" data-sex="female">Female</button>
           </div>
         </div>
         <div class="chat-onboard-row">
@@ -237,7 +244,7 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
             <div class="chat-onboard-help">Latitude affects vitamin D, circadian rhythm, and seasonal health patterns.</div>
           </div>
         </details>
-        <button class="chat-onboard-next" id="chat-onboard-next" data-chat-empty-action="save-profile-advance" disabled>Continue →</button>
+        <button type="button" class="chat-onboard-next" id="chat-onboard-next" data-chat-empty-action="save-profile-advance" disabled>Continue →</button>
       </div>
     </div>`;
   _updateOnboardNextBtn();
@@ -251,7 +258,7 @@ function renderAIPausedState(container, panel, { personality, name }) {
     <div class="chat-msg chat-ai">
       <p>${escapeHTML(name)}, AI features are currently paused. Turn them back on to chat, get insights, and import PDFs with AI.</p>
       <div style="margin-top:12px">
-        <button class="import-btn import-btn-primary" data-chat-empty-action="resume-ai">Enable AI</button>
+        <button type="button" class="import-btn import-btn-primary" data-chat-empty-action="resume-ai">Enable AI</button>
       </div>
     </div>`;
   return true;
@@ -278,8 +285,8 @@ function renderOptionalContextState(container, panel, { personality }) {
       <div class="chat-onboard-task-grid">${cards}</div>
       <div class="chat-onboard-note">You can change all of this later from the dashboard, settings, or client profile.</div>
       <div class="chat-onboard-actions chat-onboard-actions-row">
-        <button class="chat-onboard-cta" data-chat-empty-action="skip-extras">Continue to import</button>
-        <button class="chat-prompt-btn" data-chat-empty-action="skip-extras">Skip optional setup</button>
+        <button type="button" class="chat-onboard-cta" data-chat-empty-action="skip-extras">Continue to import</button>
+        <button type="button" class="chat-prompt-btn" data-chat-empty-action="skip-extras">Skip optional setup</button>
       </div>
     </div>`;
   return true;
@@ -376,10 +383,10 @@ function renderFullContextNoDataState(container, panel, { personality, name }) {
       <p>${escapeHTML(name)}, you filled everything in — I have a really complete picture of your lifestyle now. ${hasAIProvider() ? 'Even without lab data, I can already help:' : 'Import your labs or connect an AI provider to get personalized insights.'}</p>
       <div class="chat-onboard-actions">
         ${hasAIProvider()
-          ? `<button class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="Based on my full profile, what blood tests should I get and why?">What tests should I get?</button>
-             <button class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="What can you tell about my health from my lifestyle info?">Analyze my lifestyle</button>`
-          : `<button class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>
-             <button class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI for recommendations</button>`}
+          ? `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="Based on my full profile, what blood tests should I get and why?">What tests should I get?</button>
+             <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="What can you tell about my health from my lifestyle info?">Analyze my lifestyle</button>`
+          : `<button type="button" class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>
+             <button type="button" class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI for recommendations</button>`}
       </div>
     </div>`;
   return true;
@@ -397,10 +404,10 @@ function renderPartialContextNoDataState(container, panel, { personality, name }
       <div class="chat-onboard-progress"><div class="chat-onboard-progress-bar" style="width:${progressPct}%"></div></div>
       <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">The more context I have, the better I can interpret results and recommend what to test. Everything is optional.</p>
       <div class="chat-onboard-actions">
-        <button class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Continue context cards - ${remaining} area${remaining !== 1 ? 's' : ''} left</button>
+        <button type="button" class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Continue context cards - ${remaining} area${remaining !== 1 ? 's' : ''} left</button>
         ${providerConnected
-          ? `<button class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="Based on what you know about me so far, what blood tests should I get?">Skip ahead - recommend tests</button>`
-          : `<button class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI for recommendations</button>`}
+          ? `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="Based on what you know about me so far, what blood tests should I get?">Skip ahead - recommend tests</button>`
+          : `<button type="button" class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI for recommendations</button>`}
       </div>
       ${renderChatContextCards()}
     </div>`;
@@ -418,12 +425,12 @@ function renderInitialNoDataState(container, panel, { personality, name }) {
       <p style="font-size:13px;margin:4px 0"><strong>No labs yet?</strong> Add useful context below${providerConnected ? ', then ask for recommended tests when you are ready.' : ', then connect AI when you want recommendations.'}</p>
       <div class="chat-onboard-actions">
         ${providerConnected
-          ? `<button class="chat-onboard-cta" data-chat-empty-action="start-lab-import">Import a lab file</button>
-             <button class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Add context below</button>
-             <button class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="I don't have any labs yet. Based on my profile, what blood tests should I get and why?">Just tell me what to test</button>`
-          : `<button class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>
-             <button class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Add context below</button>
-             <button class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI when ready</button>`}
+          ? `<button type="button" class="chat-onboard-cta" data-chat-empty-action="start-lab-import">Import a lab file</button>
+             <button type="button" class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Add context below</button>
+             <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="I don't have any labs yet. Based on my profile, what blood tests should I get and why?">Just tell me what to test</button>`
+          : `<button type="button" class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>
+             <button type="button" class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Add context below</button>
+             <button type="button" class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI when ready</button>`}
       </div>
       ${renderChatContextCards()}
     </div>`;
@@ -435,8 +442,8 @@ function renderDataContextNudgeState(container, { personality }) {
     <div class="chat-msg chat-ai">
       <p>I can see your lab results — nice! 👋 I can already analyze these, but if you fill in a few lifestyle cards I'll give you much more personalized insights.</p>
       <div class="chat-onboard-actions">
-        <button class="chat-prompt-btn" data-chat-empty-action="set-onboarding-focus" data-focus="cards">📋 Fill in lifestyle cards</button>
-        <button class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="What are my most concerning results?">Analyze my results now</button>
+        <button type="button" class="chat-prompt-btn" data-chat-empty-action="set-onboarding-focus" data-focus="cards">📋 Fill in lifestyle cards</button>
+        <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="What are my most concerning results?">Analyze my results now</button>
       </div>
     </div>`;
   return true;
@@ -455,7 +462,7 @@ function renderGeneralPromptState(container, { personality }) {
     <div class="chat-empty-icon">${personality.icon}</div>
     <div>${escapeHTML(personality.greeting)}</div>
     <div class="chat-prompts">
-      ${prompts.map(p => `<button class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="${escapeAttr(p)}">${escapeHTML(p)}</button>`).join('\n      ')}
+      ${prompts.map(p => `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="${escapeAttr(p)}">${escapeHTML(p)}</button>`).join('\n      ')}
     </div>
   </div>`;
   return true;

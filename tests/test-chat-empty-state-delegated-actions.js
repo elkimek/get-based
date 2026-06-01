@@ -39,6 +39,15 @@ assert('renderEmptyChatState installs delegates before rendering branches',
   /export function renderEmptyChatState\(container, panel\) \{\s*installChatEmptyStateDelegates\(container\);/.test(src));
 assert('Chat empty actions are scoped to the current container',
   /event\.currentTarget\?\.contains\(actionEl\)/.test(src));
+assert('Chat empty click delegate does not blanket-prevent defaults',
+  !/event\.preventDefault\(\)/.test(src));
+assert('Chat empty click delegate only stops propagation for scoped action set',
+  /CHAT_EMPTY_STOP_PROPAGATION_ACTIONS\.has\(action\)[\s\S]*event\.stopPropagation\(\)/.test(src));
+assert('mtDNA import input lookup is scoped to the current container',
+  /event\.currentTarget\?\.querySelector\('#mtdna-onboard-input'\)/.test(src)
+    && !/document\.getElementById\('mtdna-onboard-input'\)/.test(src));
+assert('Rendered chat empty-state buttons declare button type',
+  !/<button(?! type=)/.test(src));
 
 [
   'save-profile',
