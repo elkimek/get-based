@@ -51,10 +51,10 @@ function handleLightPageActionClick(event) {
   }
 }
 
-let lightPageActionDelegatesInstalled = false;
+const lightPageActionDelegateRoots = new WeakSet();
 export function installLightPageActionDelegates(root = (typeof document !== 'undefined' ? document : null)) {
-  if (!root || lightPageActionDelegatesInstalled) return;
-  lightPageActionDelegatesInstalled = true;
+  if (!root || lightPageActionDelegateRoots.has(root)) return;
+  lightPageActionDelegateRoots.add(root);
   root.addEventListener('click', handleLightPageActionClick);
 }
 

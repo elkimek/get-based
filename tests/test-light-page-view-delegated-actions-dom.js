@@ -26,6 +26,9 @@ return (async function() {
     requestPreciseLocation: window.requestPreciseLocation,
     openLightEnvironmentAssessment: window.openLightEnvironmentAssessment,
     renderLightTools: window.renderLightTools,
+    CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
+    weeklyChannelTier: window.weeklyChannelTier,
+    dailyChannelBreakdown: window.dailyChannelBreakdown,
   };
   const calls = [];
   const host = document.createElement('div');
@@ -44,6 +47,19 @@ return (async function() {
     window.requestPreciseLocation = () => calls.push(['request-precise-location']);
     window.openLightEnvironmentAssessment = () => calls.push(['open-light-environment']);
     window.renderLightTools = () => '<section id="light-tools-expanded-test">Expanded tools</section>';
+    window.CHANNEL_DISPLAY = {
+      vitamin_d: { label: 'Vitamin D', icon: 'D', what: 'Vitamin D', dailyTarget: 100 },
+      circadian: { label: 'Circadian', icon: 'C', what: 'Circadian', dailyTarget: 100 },
+      nir_solar: { label: 'NIR', icon: 'N', what: 'NIR', dailyTarget: 100 },
+      no_cv: { label: 'NO', icon: 'NO', what: 'Nitric oxide', dailyTarget: 100 },
+      pomc: { label: 'POMC', icon: 'P', what: 'POMC', dailyTarget: 100 },
+      violet_eye: { label: 'Violet', icon: 'V', what: 'Violet', dailyTarget: 100 },
+    };
+    window.weeklyChannelTier = () => 0;
+    window.dailyChannelBreakdown = () => Array.from({ length: 7 }, (_, i) => ({
+      sun: i === 0 ? 10 : 0,
+      device: 0,
+    }));
 
     document.body.appendChild(host);
     host.innerHTML = `

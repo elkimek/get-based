@@ -31,8 +31,11 @@ assert('light-page-view.js has no inline event attributes',
   !inlineHandlerRe.test(src));
 assert('light-page-view.js avoids direct event property assignment',
   !directAssignmentRe.test(src));
-assert('Light page view installs one click delegate',
-  /root\.addEventListener\('click', handleLightPageActionClick\)/.test(src)
+assert('Light page view installs one click delegate per root',
+  /const lightPageActionDelegateRoots = new WeakSet\(\);/.test(src)
+    && /lightPageActionDelegateRoots\.has\(root\)/.test(src)
+    && /lightPageActionDelegateRoots\.add\(root\)/.test(src)
+    && /root\.addEventListener\('click', handleLightPageActionClick\)/.test(src)
     && /installLightPageActionDelegates\(\)/.test(src));
 assert('Light page actions are scoped through closest data action lookup',
   /target\.closest\('\[data-light-page-action\]'\)/.test(src)
