@@ -38,6 +38,7 @@ const MAX_THREADS = 50;
 const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+let chatThreadDelegatesInstalled = false;
 
 export function getChatThreadsKey() {
   return `labcharts-${state.currentProfile}-chat-threads`;
@@ -262,6 +263,46 @@ export function pruneOldThreads() {
 // ═══════════════════════════════════════════════
 // THREAD RAIL UI
 // ═══════════════════════════════════════════════
+function closestThreadAction(event) {
+  const target = event.target;
+  if (typeof Element === 'undefined' || !(target instanceof Element)) return null;
+  return target.closest('[data-chat-thread-action]');
+}
+
+function getThreadActionId(actionEl) {
+  return actionEl.dataset.threadId || actionEl.closest('[data-thread-id]')?.dataset.threadId || '';
+}
+
+function handleThreadActionClick(event) {
+  const actionEl = closestThreadAction(event);
+  if (!actionEl) return;
+  const list = document.getElementById('chat-thread-list');
+  if (!list || !list.contains(actionEl)) return;
+
+  const action = actionEl.dataset.chatThreadAction;
+  const threadId = getThreadActionId(actionEl);
+  if (!action || !threadId) return;
+
+  if (action === 'switch') {
+    event.preventDefault();
+    switchToThread(threadId);
+  } else if (action === 'rename') {
+    event.preventDefault();
+    event.stopPropagation();
+    renameThreadPrompt(threadId);
+  } else if (action === 'delete') {
+    event.preventDefault();
+    event.stopPropagation();
+    deleteThread(threadId);
+  }
+}
+
+export function installChatThreadDelegates() {
+  if (chatThreadDelegatesInstalled || typeof document === 'undefined') return;
+  chatThreadDelegatesInstalled = true;
+  document.addEventListener('click', handleThreadActionClick);
+}
+
 export function renderThreadList(filter) {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
@@ -284,7 +325,7 @@ export function renderThreadList(filter) {
     const dateStr = formatThreadDate(date);
     const icon = t.personalityIcon || personalityMap[t.personality] || personalityMap.default || '';
     const iconTitle = t.personalityName ? ` title="${escapeHTML(t.personalityName)}"` : '';
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}" onclick="switchToThread('${escapeHTML(t.id)}')" data-thread-id="${escapeHTML(t.id)}">
+    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-chat-thread-action="switch" data-thread-id="${escapeHTML(t.id)}">
       <div class="chat-thread-item-name">${escapeHTML(t.name)}</div>
       <div class="chat-thread-item-meta">
         <span${iconTitle}>${icon}</span>
@@ -292,8 +333,8 @@ export function renderThreadList(filter) {
         <span>${t.messageCount} msg${t.messageCount !== 1 ? 's' : ''}</span>
       </div>
       <div class="chat-thread-item-actions">
-        <button class="chat-thread-item-action" onclick="event.stopPropagation();renameThreadPrompt('${escapeHTML(t.id)}')" title="Rename" aria-label="Rename thread">${THREAD_ICON_EDIT}</button>
-        <button class="chat-thread-item-action delete" onclick="event.stopPropagation();deleteThread('${escapeHTML(t.id)}')" title="Delete" aria-label="Delete thread">${THREAD_ICON_DELETE}</button>
+        <button class="chat-thread-item-action" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}" title="Rename" aria-label="Rename thread">${THREAD_ICON_EDIT}</button>
+        <button class="chat-thread-item-action delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}" title="Delete" aria-label="Delete thread">${THREAD_ICON_DELETE}</button>
       </div>
     </div>`;
   }).join('');
@@ -335,8 +376,9 @@ configureChatThreadSearch({
   renderThreadList,
   switchToThread,
 });
+installChatThreadDelegates();
 
-// HTML onclick handlers + chat.js call sites hit these names.
+// Delegated thread actions + chat.js call sites hit these names.
 Object.assign(window, {
   loadChatThreads,
   saveChatThreadIndex,
@@ -346,6 +388,7 @@ Object.assign(window, {
   deleteThread,
   renameThread,
   renameThreadPrompt,
+  installChatThreadDelegates,
   autoNameThread,
   pruneOldThreads,
   renderThreadList,
