@@ -534,6 +534,7 @@ export async function loadProfile(profileId) {
     if (state.currentProfile !== profileId) return;
     try { await summaryMod.syncWearableSummary(profileId, connectMod.listConnectedSources()); } catch {}
     if (state.currentProfile !== profileId) return; // re-check post-await — sync also takes IDB time
+    connectMod.syncStaleWearablesNow?.().catch(() => {});
   }).catch(() => {});
 }
 

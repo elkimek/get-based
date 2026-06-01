@@ -1,7 +1,7 @@
 // startup-maintenance.js - startup service boot and non-blocking maintenance
 
 import { state } from './state.js';
-import { initWearableScheduler, loadWearableRuntimeConfig } from './wearables-connect.js';
+import { initWearableScheduler, loadWearableRuntimeConfig, syncStaleWearablesNow } from './wearables-connect.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
 
 export function initializeStartupServices() {
@@ -15,6 +15,7 @@ export function initializeStartupServices() {
 }
 
 export function runPostProfileStartupMaintenance() {
+  syncStaleWearablesNow().catch(() => {});
   scheduleSunSessionRehydrate();
   hydrateUserLightDevicesFromPresets();
   migrateLegacyBiometrics();

@@ -2,6 +2,7 @@
 
 import { state } from './state.js';
 import { DEFAULT_METRIC_ORDER, canonicalMetric, metricsForSources } from './wearable-adapters.js';
+import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
 import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
 import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
 import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './dna.js';
@@ -734,7 +735,7 @@ export function createDashboardWidgetRenderers(deps) {
     if (!syncState.lastSyncAt && !syncState.showSync) return '';
     const label = syncState.lastSyncAt ? `Updated ${formatDashboardRelativeTime(syncState.lastSyncAt)}` : 'Not synced yet';
     return `<span class="db-biometric-sync-status${syncState.showSync ? ' is-stale' : ''}">${escapeHTML(label)}</span>
-      ${syncState.showSync ? `<button type="button" class="dashboard-action-btn db-biometric-sync-btn" onclick="event.stopPropagation();window.syncWearableNow?.(this)">Sync stale data</button>` : ''}`;
+      ${syncState.showSync ? `<button type="button" class="dashboard-action-btn db-biometric-sync-btn" ${dashboardWidgetActionAttrs('sync-biometric-now')}>Sync stale data</button>` : ''}`;
   }
 
   function getDashboardBiometricTile(metricId, { allowEmptyManual = false } = {}) {
@@ -764,10 +765,10 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function renderDashboardBiometricTile(tile) {
-    const remove = `<button type="button" class="db-biometric-remove" onclick="event.stopPropagation();window.removeDashboardBiometricMetric('${escapeAttr(tile.id)}')" aria-label="Remove ${escapeAttr(tile.label)} from Biometrics Overview" title="Remove metric">&times;</button>`;
+    const remove = `<button type="button" class="db-biometric-remove" ${dashboardWidgetActionAttrs('remove-biometric-metric', { id: tile.id })} aria-label="Remove ${escapeAttr(tile.label)} from Biometrics Overview" title="Remove metric">&times;</button>`;
     if (tile.empty) {
       return `<div class="db-biometric-tile-wrap">
-        <div class="wearable-card wearable-card-empty db-biometric-manual-empty" data-empty-metric="${escapeAttr(tile.id)}" onclick="window.openManualLogForm?.('${escapeAttr(tile.id)}',event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openManualLogForm?.('${escapeAttr(tile.id)}',event)}" role="button" tabindex="0" aria-label="Log ${escapeAttr(tile.label.toLowerCase())} manually">
+        <div class="wearable-card wearable-card-empty db-biometric-manual-empty" data-empty-metric="${escapeAttr(tile.id)}" ${dashboardWidgetActionAttrs('open-biometric-manual-log', { id: tile.id })} role="button" tabindex="0" aria-label="Log ${escapeAttr(tile.label.toLowerCase())} manually">
           <div class="wearable-card-top"><span class="wearable-metric-name">${escapeHTML(tile.label)}</span></div>
           <div class="wearable-value-row wearable-value-row-empty"><span class="wearable-value wearable-value-dash">-</span></div>
           <div class="wearable-card-bottom"><div class="wearable-empty-cta">+ Log</div></div>
@@ -776,7 +777,7 @@ export function createDashboardWidgetRenderers(deps) {
       </div>`;
     }
     return `<div class="db-biometric-tile-wrap">
-      <button type="button" class="db-wearable-tile db-biometric-widget" onclick="window.openWearableDetail ? window.openWearableDetail('${escapeAttr(tile.id)}') : window.openSettingsModal?.('wearables')" aria-label="${escapeAttr(tile.label + ': ' + tile.value + ' ' + tile.unit)}">
+      <button type="button" class="db-wearable-tile db-biometric-widget" ${dashboardWidgetActionAttrs('open-biometric-detail', { id: tile.id })} aria-label="${escapeAttr(tile.label + ': ' + tile.value + ' ' + tile.unit)}">
         <span class="db-wearable-label">${escapeHTML(tile.label)}</span>
         <strong>${escapeHTML(tile.value)}</strong>
         <span class="db-wearable-foot"><small>${escapeHTML(tile.unit || '')}</small><em>${escapeHTML(tile.change || 'latest')}</em></span>
@@ -795,7 +796,7 @@ export function createDashboardWidgetRenderers(deps) {
       <span>${escapeHTML(String(tiles.length))} metric${tiles.length === 1 ? '' : 's'} selected</span>
       <div class="db-biometric-overview-actions">
         ${syncStatus}
-        <button type="button" class="dashboard-action-btn" onclick="window.openDashboardBiometricPicker()">Add metrics</button>
+        <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('open-biometric-picker')}>Add metrics</button>
       </div>
     </div>`;
     if (!tiles.length) {

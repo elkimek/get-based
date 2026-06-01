@@ -1608,7 +1608,8 @@ console.log('17w. P2 Cleanup');
 const profileSrcP2 = await fetch('/js/profile.js').then(r => r.text());
 assert('loadProfile dispatches migrateBiometricsToManual + syncWearableSummary on every load',
   /export\s+async\s+function\s+loadProfile[\s\S]*?migrateBiometricsToManual\(profileId/.test(profileSrcP2) &&
-  /loadProfile[\s\S]*?syncWearableSummary\(profileId,\s*connectMod\.listConnectedSources\(\)\)/.test(profileSrcP2));
+  /loadProfile[\s\S]*?syncWearableSummary\(profileId,\s*connectMod\.listConnectedSources\(\)\)/.test(profileSrcP2) &&
+  /loadProfile[\s\S]*?connectMod\.syncStaleWearablesNow\?\.\(\)\.catch/.test(profileSrcP2));
 
 // P2: deleteWearablesDB closes the cached connection before deleting
 // (otherwise indexedDB.deleteDatabase hits onblocked).
@@ -1629,10 +1630,19 @@ assert('importDataJSON prunes wearablePrimaryOverride to live sources only',
 
 // P2: commitAfterWriteIfAny accepts pre-await connection snapshot.
 const connectSrcP2 = await fetch('/js/wearables-connect.js').then(r => r.text());
+const startupMaintenanceSrcP2 = await fetch('/js/startup-maintenance.js').then(r => r.text());
 assert('commitAfterWriteIfAny accepts a connection snapshot (profile-swap safety)',
   /async function commitAfterWriteIfAny\(adapterId,\s*rows,\s*connSnapshot\)/.test(connectSrcP2));
 assert('Backfill + incremental pass the pre-await `conn` snapshot to commitAfterWriteIfAny',
   /commitAfterWriteIfAny\(adapterId,\s*rows,\s*conn\)/.test(connectSrcP2));
+assert('Post-profile startup kicks stale wearable sync after importedData loads',
+  /import\s*\{[^}]*syncStaleWearablesNow[^}]*\}\s*from\s*['"]\.\/wearables-connect\.js['"]/.test(startupMaintenanceSrcP2) &&
+  /runPostProfileStartupMaintenance[\s\S]*?syncStaleWearablesNow\(\)\.catch/.test(startupMaintenanceSrcP2));
+assert('Wearable scheduler routes stale sync through a shared in-flight guard',
+  /let\s+_staleSyncInFlight\s*=\s*null/.test(connectSrcP2) &&
+  /export\s+function\s+syncStaleWearablesNow\(\)/.test(connectSrcP2) &&
+  /if\s*\(_staleSyncInFlight\)\s*return\s+_staleSyncInFlight/.test(connectSrcP2) &&
+  /setInterval\(syncStaleWearablesNow,\s*POLL_INTERVAL_MS\)/.test(connectSrcP2));
 
 // P2: per-metric monotonic op token for manual save/delete.
 const wearablesSrcP2 = await fetch('/js/wearables.js').then(r => r.text());

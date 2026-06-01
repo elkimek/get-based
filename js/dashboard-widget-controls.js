@@ -3,6 +3,24 @@
 import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
 
+export function dashboardWidgetActionAttrs(action, attrs = {}) {
+  return [
+    `data-dashboard-widget-action="${escapeAttr(action)}"`,
+    ...Object.entries(attrs)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `data-dashboard-widget-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
+  ].join(' ');
+}
+
+export function dashboardWidgetInputAttrs(action) {
+  return `data-dashboard-widget-input="${escapeAttr(action)}"`;
+}
+
+export function dashboardWidgetDragAttrs(id) {
+  const safeId = escapeAttr(id);
+  return `data-dashboard-widget-drag-id="${safeId}" data-dashboard-widget-drop-id="${safeId}"`;
+}
+
 export function createDashboardWidgetControls(deps) {
   let organizeMode = false;
   let draggingWidgetId = null;
@@ -33,24 +51,6 @@ export function createDashboardWidgetControls(deps) {
 
   function isOrganizeMode() {
     return organizeMode;
-  }
-
-  function dashboardWidgetActionAttrs(action, attrs = {}) {
-    return [
-      `data-dashboard-widget-action="${escapeAttr(action)}"`,
-      ...Object.entries(attrs)
-        .filter(([, value]) => value !== undefined && value !== null && value !== '')
-        .map(([name, value]) => `data-dashboard-widget-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-    ].join(' ');
-  }
-
-  function dashboardWidgetInputAttrs(action) {
-    return `data-dashboard-widget-input="${escapeAttr(action)}"`;
-  }
-
-  function dashboardWidgetDragAttrs(id) {
-    const safeId = escapeAttr(id);
-    return `data-dashboard-widget-drag-id="${safeId}" data-dashboard-widget-drop-id="${safeId}"`;
   }
 
   function renderDashboardControlButtons({ includeReset = false } = {}) {
@@ -222,7 +222,7 @@ export function createDashboardWidgetControls(deps) {
     if (empty) empty.hidden = visible > 0;
   }
 
-  function handleDashboardWidgetAction(actionEl) {
+  function handleDashboardWidgetAction(actionEl, event) {
     const action = actionEl.dataset.dashboardWidgetAction || '';
     const id = actionEl.dataset.dashboardWidgetId || '';
     if (action === 'toggle-organize') {
@@ -252,6 +252,17 @@ export function createDashboardWidgetControls(deps) {
     } else if (action === 'connect-source') {
       window.openSettingsModal?.('wearables');
       closeDashboardWidgetPicker();
+    } else if (action === 'open-biometric-picker') {
+      openDashboardBiometricPicker();
+    } else if (action === 'sync-biometric-now') {
+      window.syncWearableNow?.(actionEl);
+    } else if (action === 'remove-biometric-metric') {
+      removeDashboardBiometricMetric(id);
+    } else if (action === 'open-biometric-detail') {
+      if (window.openWearableDetail) window.openWearableDetail(id);
+      else window.openSettingsModal?.('wearables');
+    } else if (action === 'open-biometric-manual-log') {
+      window.openManualLogForm?.(id, event);
     }
   }
 
@@ -265,8 +276,22 @@ export function createDashboardWidgetControls(deps) {
     }
     const actionEl = target.closest('[data-dashboard-widget-action]');
     if (!actionEl) return;
+    const wearableActionEl = target.closest('[data-wearable-action]');
+    if (wearableActionEl && actionEl.contains(wearableActionEl)) return;
     event.preventDefault();
-    handleDashboardWidgetAction(actionEl);
+    handleDashboardWidgetAction(actionEl, event);
+  }
+
+  function handleDashboardWidgetKeydown(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    if (target.closest('input, textarea, select, button, a')) return;
+    const actionEl = target.closest('[data-dashboard-widget-action]');
+    if (!actionEl) return;
+    if ((actionEl.dataset.dashboardWidgetAction || '') !== 'open-biometric-manual-log') return;
+    event.preventDefault();
+    actionEl.click();
   }
 
   function handleDashboardWidgetInput(event) {
@@ -309,6 +334,7 @@ export function createDashboardWidgetControls(deps) {
     if (dashboardWidgetDelegatesInstalled || typeof document === 'undefined') return;
     dashboardWidgetDelegatesInstalled = true;
     document.addEventListener('click', handleDashboardWidgetClick);
+    document.addEventListener('keydown', handleDashboardWidgetKeydown);
     document.addEventListener('input', handleDashboardWidgetInput);
     document.addEventListener('dragstart', handleDashboardWidgetDragStart);
     document.addEventListener('dragover', handleDashboardWidgetDragOver);

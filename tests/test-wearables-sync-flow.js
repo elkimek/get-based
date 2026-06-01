@@ -253,6 +253,29 @@ try {
     `observed start_date=${observedStartForce}, expected ≤ ${sevenDaysAgo}`);
 } finally { restore(); }
 
+// 3c. Startup/visibility stale-sync path — should sync stale connections
+// after profile data is available, but skip fresh ones.
+try {
+  installRoutes([
+    { matcher: 'usercollection/sleep', body: { data: [], next_token: null }},
+    { matcher: /heartrate.*start_datetime/, body: { data: [], next_token: null }},
+    { matcher: /usercollection\//, body: { data: [], next_token: null }},
+  ]);
+  window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
+  await connect.syncStaleWearablesNow();
+  const afterStaleAuto = window._labState.importedData.wearableConnections.oura.lastSyncAt || 0;
+  assert('syncStaleWearablesNow auto-syncs stale connected sources',
+    calls.length > 0 && Date.now() - afterStaleAuto < 60 * 1000,
+    `calls=${calls.length}, lastSyncAt=${afterStaleAuto}`);
+
+  calls = [];
+  window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now();
+  await connect.syncStaleWearablesNow();
+  assert('syncStaleWearablesNow skips fresh connected sources',
+    calls.length === 0,
+    `calls=${calls.length}`);
+} finally { restore(); }
+
 // ═══════════════════════════════════════
 // 4. backfill error recovery — rows write even when one endpoint 500s
 // ═══════════════════════════════════════
