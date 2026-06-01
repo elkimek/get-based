@@ -30,7 +30,7 @@ export function renderVeniceModelDropdown(models) {
   const currentModel = getVeniceModel();
   const opts = buildModelOptions('venice', models, currentModel, function(m) { return m.name || m.id; });
   area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="venice-model-select" style="margin-top:4px" onchange="onVeniceModelDropdownChange(this.value)">' + opts + '</select>' +
+    '<select class="api-key-input" id="venice-model-select" style="margin-top:4px" data-provider-panel-change="venice-model">' + opts + '</select>' +
     '<div id="venice-model-pricing" style="margin-top:4px">' + renderModelPricingHint('venice', currentModel) + '</div>';
 }
 
@@ -75,8 +75,8 @@ export function renderOpenRouterModelDropdown(models) {
   const isCustom = !models.some(m => m.id === currentModel);
   const opts = buildModelOptions('openrouter', models, currentModel, function(m) { return m.name || m.id; });
   area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="openrouter-model-select" style="margin-top:4px" onchange="onOpenRouterDropdownChange(this.value)">' + opts + '</select>' +
-    '<div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" class="api-key-input" id="openrouter-custom-model" placeholder="Or enter model ID (e.g. arcee-ai/trinity-large-preview:free)" style="font-size:12px;flex:1' + (isCustom ? ';border-color:var(--accent)' : '') + '" value="' + (isCustom ? escapeHTML(currentModel) : '') + '" onkeydown="if(event.key===\'Enter\'){applyCustomOpenRouterModel(this.value)}"><span id="openrouter-model-health" style="font-size:16px;min-width:20px;text-align:center"></span></div>' +
+    '<select class="api-key-input" id="openrouter-model-select" style="margin-top:4px" data-provider-panel-change="openrouter-model">' + opts + '</select>' +
+    '<div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" class="api-key-input" id="openrouter-custom-model" placeholder="Or enter model ID (e.g. arcee-ai/trinity-large-preview:free)" style="font-size:12px;flex:1' + (isCustom ? ';border-color:var(--accent)' : '') + '" value="' + (isCustom ? escapeHTML(currentModel) : '') + '" data-provider-panel-key="openrouter-custom-model"><span id="openrouter-model-health" style="font-size:16px;min-width:20px;text-align:center"></span></div>' +
     '<span style="font-size:11px;color:var(--text-muted);margin-top:2px;display:block">Press Enter to apply — checks model connectivity</span>' +
     '<div id="openrouter-model-pricing" style="margin-top:4px">' + renderModelPricingHint('openrouter', currentModel) + '</div>';
 }
@@ -151,7 +151,7 @@ export function renderRoutstrModelDropdown(models) {
   }
   const opts = buildModelOptions('routstr', models, currentModel, function(m) { return m.name || m.id; });
   area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="routstr-model-select" style="margin-top:4px" onchange="setRoutstrModel(this.value);updateRoutstrModelPricing(this.value)">' + opts + '</select>' +
+    '<select class="api-key-input" id="routstr-model-select" style="margin-top:4px" data-provider-panel-change="routstr-model">' + opts + '</select>' +
     '<div id="routstr-model-pricing" style="margin-top:4px">' + renderModelPricingHint('routstr', currentModel) + '</div>';
 }
 
@@ -161,7 +161,7 @@ export function renderPpqModelDropdown(models) {
   const currentModel = getPpqModel();
   const opts = buildModelOptions('ppq', models, currentModel, function(m) { return m.name || m.id; });
   area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="ppq-model-select" style="margin-top:4px" onchange="setPpqModel(this.value);updatePpqModelPricing(this.value)">' + opts + '</select>' +
+    '<select class="api-key-input" id="ppq-model-select" style="margin-top:4px" data-provider-panel-change="ppq-model">' + opts + '</select>' +
     '<div id="ppq-model-pricing" style="margin-top:4px">' + renderModelPricingHint('ppq', currentModel) + '</div>';
 }
 
@@ -177,8 +177,8 @@ export function renderCustomApiModelDropdown(models) {
   const opts = buildModelOptions('custom', models, currentModel, function(m) { return m.name || m.id; });
   const isCustom = !models.some(m => m.id === currentModel) && currentModel;
   area.innerHTML = `<label style="font-size:12px;color:var(--text-muted)">Model</label>
-    <select class="api-key-input" id="custom-model-select" style="margin-top:4px" onchange="setCustomApiModel(this.value);updateCustomModelPricing(this.value)">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
-    <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="custom-manual-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(currentModel) : ''}" onkeydown="if(event.key==='Enter'){applyCustomApiManualModel()}"></div>
+    <select class="api-key-input" id="custom-model-select" style="margin-top:4px" data-provider-panel-change="custom-model">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
+    <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="custom-manual-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(currentModel) : ''}" data-provider-panel-key="custom-manual-model"></div>
     <div id="custom-model-pricing" style="margin-top:4px">${renderModelPricingHint('custom', currentModel)}</div>`;
 }
 

@@ -8,12 +8,14 @@ import {
   getRoutstrKey, saveRoutstrKey,
   fetchRoutstrModels, validateRoutstrKey, createRoutstrAccount,
   setAIPaused,
+  setCustomApiModel, setOllamaMainModel, setPpqModel, setRoutstrModel,
   getVeniceE2EE,
   getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey,
   fetchCustomApiModels, validateCustomApiKey,
-  rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession
+  rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession, startOpenRouterOAuth
 } from './api.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
+import { installProviderPanelDelegates } from './provider-panel-delegates.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
 import {
   applyHardwareOverride,
@@ -560,6 +562,40 @@ configureRoutstrWalletPanels({
   renderRoutstrModelDropdown,
   initSettingsModelFetch,
   returnToChatIfOnboarding: _returnToChatIfOnboarding
+});
+
+installProviderPanelDelegates({
+  startOpenRouterOAuth,
+  handleSaveOpenRouterKey,
+  handleRemoveOpenRouterKey,
+  refreshOpenRouterBalance,
+  refreshCashuWalletBalance,
+  showRoutstrMintEdit,
+  refreshRoutstrBalance,
+  handleSaveVeniceKey,
+  handleRemoveVeniceKey,
+  refreshVeniceBalance,
+  refreshPpqBalance,
+  showPpqTopup,
+  handleCreatePpqAccount,
+  handleSavePpqKey,
+  handleRemovePpqKey,
+  applyCustomApiManualModel,
+  handleSaveCustomApi,
+  handleRemoveCustomApi,
+  testOllamaConnection,
+  onOpenRouterDropdownChange,
+  setRoutstrModel,
+  updateRoutstrModelPricing,
+  onVeniceModelDropdownChange,
+  toggleVeniceE2EE,
+  setPpqModel,
+  updatePpqModelPricing,
+  setCustomApiModel,
+  updateCustomModelPricing,
+  setOllamaMainModel,
+  refreshModelAdvisor,
+  applyCustomOpenRouterModel
 });
 
 
