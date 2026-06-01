@@ -87,7 +87,7 @@ function handleNavActionClick(event) {
 function handleNavInput(event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target || !_navActionScope(target)) return;
-  if (target.getAttribute('data-nav-input-action') === 'filter-sidebar') {
+  if (target.dataset.navInputAction === 'filter-sidebar') {
     filterSidebar();
   }
 }
