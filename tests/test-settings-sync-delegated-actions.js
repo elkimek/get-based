@@ -43,6 +43,9 @@ assert('Setup overlay backdrop nudges instead of closing',
   /target\.id === 'sync-setup-overlay'[\s\S]*nudgeSyncSetupDialog\(\)/.test(src));
 assert('Restore overlay backdrop closes restore dialog',
   /target\.id === 'sync-restore-overlay'[\s\S]*closeRestoreMnemonicDialog\(\)/.test(src));
+assert('Click delegate lets state controls reach change/input events',
+  /SETTINGS_SYNC_STATE_ACTIONS\.has\(action\)[\s\S]*return;[\s\S]*event\.preventDefault\(\);/.test(src)
+    && src.indexOf('SETTINGS_SYNC_STATE_ACTIONS.has(action)') < src.indexOf('event.preventDefault();'));
 
 [
   'apply-tombstone',

@@ -20,6 +20,13 @@ import {
 } from './sync.js';
 
 let settingsSyncDelegatesInstalled = false;
+const SETTINGS_SYNC_STATE_ACTIONS = new Set([
+  'toggle-sync',
+  'setup-ack',
+  'restore-dialog-input',
+  'toggle-messenger',
+  'set-agent-wearable-series-days',
+]);
 
 function closestSettingsSyncAction(event, selector = '[data-sync-action],[data-sync-setup-action]') {
   const target = event.target;
@@ -52,6 +59,8 @@ async function handleSettingsSyncClick(event) {
 
   const action = actionEl.dataset.syncAction || actionEl.dataset.syncSetupAction;
   if (!action) return;
+
+  if (SETTINGS_SYNC_STATE_ACTIONS.has(action)) return;
 
   event.preventDefault();
 
